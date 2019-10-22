@@ -4,8 +4,8 @@ stages:
     - publishImageConfig:
         dockerfilePath: ./sample/flask/dockerfile/Dockerfile
         buildContext: .
-        #tag: demoyuw/devops-flask:${CICD_EXECUTION_SEQUENCE}
-        tag: demoyuw/devops-flask
+        tag: demoyuw/devops-flask:${CICD_EXECUTION_SEQUENCE}
+        # tag: demoyuw/devops-flask
   - name: deploy flask deployment
     steps:
     - applyYamlConfig:
