@@ -1,0 +1,10 @@
+kind: PersistentVolume
+metadata:
+  name: jenkins-disk
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/tmp/jenkins-disk"

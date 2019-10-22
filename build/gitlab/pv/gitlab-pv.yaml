@@ -1,0 +1,43 @@
+kind: PersistentVolume
+metadata:
+  name: gitlab-disk1
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/tmp/gitlab-disk1"
+---
+kind: PersistentVolume
+metadata:
+  name: gitlab-disk2
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/tmp/gitlab-disk2"
+---
+kind: PersistentVolume
+metadata:
+  name: gitlab-disk3
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/tmp/gitlab-disk3"
+---
+kind: PersistentVolume
+metadata:
+  name: gitlab-disk4
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/tmp/gitlab-disk4"

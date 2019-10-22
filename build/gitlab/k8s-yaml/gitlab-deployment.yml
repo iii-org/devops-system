@@ -1,0 +1,48 @@
+apiVersion: apps/v1 # for versions before 1.9.0 use apps/v1beta2
+kind: Deployment
+metadata:
+  name: gitlab
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gitlab
+  template:
+    metadata:
+      labels:
+        app: gitlab
+    spec:
+      containers:
+      - name: gitlab
+        image: gitlab/gitlab-ce:latest
+        ports:
+        - containerPort: 80
+          name: http
+        - containerPort: 443
+          name: https
+        - containerPort: 22
+          name: ssh
+        volumeMounts:
+          - name: gitlab-config
+            mountPath: /etc/gitlab
+          - name: gitlab-log
+            mountPath: /var/log/gitlab
+          - name: gitlab-data
+            mountPath: /var/opt/gitlab
+      volumes:
+      - name: gitlab-config
+        nfs:
+         server: 10.50.1.51
+         path: /DevOps-k8s/gitlab/config
+      - name: gitlab-log
+        nfs:
+         server: 10.50.1.51
+         path: /DevOps-k8s/gitlab/log
+      - name: gitlab-data
+        nfs:
+         server: 10.50.1.51
+         path: /DevOps-k8s/gitlab/data
+
+          
+      
+   
