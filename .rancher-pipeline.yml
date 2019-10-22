@@ -1,8 +1,8 @@
 stages:
   - name: test
-    step:
+    steps:
     - runScriptConfig:
-        image: python:3.8
+        image: python:3.8-alpine
         shellScript: |-
           pip install pycodestyle
           pycodestyle --count -qq ./sample/flask/dockerfile
