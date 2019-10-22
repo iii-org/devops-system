@@ -1,11 +1,17 @@
 stages:
+  - name: test
+    step:
+    - runScriptConfig:
+        image: python:3.8
+        shellScript: |-
+          pip install pycodestyle
+          pycodestyle --count -qq ./sample/flask/dockerfile
   - name: Publish flask image
     steps:
     - publishImageConfig:
         dockerfilePath: ./sample/flask/dockerfile/Dockerfile
         buildContext: .
         tag: demoyuw/devops-flask:${CICD_EXECUTION_SEQUENCE}
-        # tag: demoyuw/devops-flask
   - name: deploy flask deployment
     steps:
     - applyYamlConfig:
