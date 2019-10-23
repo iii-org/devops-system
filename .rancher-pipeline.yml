@@ -5,7 +5,10 @@ stages:
         image: python:3.8.0-alpine 
         shellScript: |-
           pip install pycodestyle
-          pycodestyle --count -qq ./sample/flask/dockerfile
+          git clone http://10.50.0.20/root/devops-flask.git
+          pwd
+          ls -al
+          # pycodestyle --count -qq ./sample/flask/dockerfile
   - name: Publish flask image
     steps:
     - publishImageConfig:
