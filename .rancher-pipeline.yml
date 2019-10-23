@@ -5,13 +5,13 @@ stages:
         dockerfilePath: ./sample/flask/dockerfile/Dockerfile
         buildContext: .
         tag: demoyuw/devops-flask:${CICD_EXECUTION_SEQUENCE}
-  - name: test
-    steps:
-    - runScriptConfig:
-        image: ${CICD_IMAGE}
-        shellScript: |-
-          pip install pycodestyle
-          pycodestyle --count -qq ./sample/flask/dockerfile
+#  - name: test
+#    steps:
+#    - runScriptConfig:
+#        image: ${CICD_IMAGE}
+#        shellScript: |-
+#          pip install pycodestyle
+#          pycodestyle --count -qq ./sample/flask/dockerfile
   - name: deploy flask deployment
     steps:
     - applyYamlConfig:
