@@ -9,7 +9,7 @@ stages:
           git clone http://10.50.0.20/root/devops-flask.git
           #pwd
           #ls -al
-          pycodestyle --count -qq sample/flask/dockerfile/*.py
+          pycodestyle sample/flask/dockerfile/*.py
   - name: Publish flask image
     steps:
     - publishImageConfig:
