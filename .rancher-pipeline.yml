@@ -8,7 +8,7 @@ stages:
   - name: test
     steps:
     - runScriptConfig:
-        image: ${CICD_IMAGE}
+        image: demoyuw/devops-flask
         shellScript: |-
           pip install pycodestyle
           pycodestyle --count -qq ./sample/flask/dockerfile
