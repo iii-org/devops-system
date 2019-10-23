@@ -2,9 +2,10 @@ stages:
   - name: test
     steps:
     - runScriptConfig:
-        image: python:3.8.0-alpine 
+        image: python:3.8.0
         shellScript: |-
           pip install pycodestyle
+          apt install git -y
           git clone http://10.50.0.20/root/devops-flask.git
           pwd
           ls -al
