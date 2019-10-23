@@ -6,9 +6,7 @@ stages:
         shellScript: |-
           pip install pycodestyle
           apt install git -y
-          git clone http://10.50.0.20/root/devops-flask.git
-          #pwd
-          #ls -al
+          ls -al
           pycodestyle sample/flask/dockerfile/*.py
   - name: Publish flask image
     steps:
