@@ -18,7 +18,7 @@ spec:
       - name: pipeline-docker-registry
       containers:
       - name: flask
-        image: ${CICD_IMAGE}
+        image: ${CICD_IMAGE}:${CICD_EXECUTION_SEQUENCE}
         resources:
           requests:
             memory: "64Mi"
