@@ -12,11 +12,9 @@ stages:
         dockerfilePath: ./sample/flask/dockerfile/Dockerfile
         buildContext: .
         tag: demoyuw/devops-flask:${CICD_EXECUTION_SEQUENCE}
-  - name: deploy flask deployment
+  - name: deploy flask-${CICD_GIT_BRANCH} deployment and service
     steps:
     - applyYamlConfig:
         path: ./sample/flask/k8s-yaml/flask-deployment.yaml
-  - name: deploy flask service
-    steps:
     - applyYamlConfig:
         path: ./sample/flask/k8s-yaml/flask-service.yaml
