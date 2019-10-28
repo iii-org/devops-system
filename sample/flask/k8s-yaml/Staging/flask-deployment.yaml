@@ -1,23 +1,23 @@
 apiVersion: apps/v1 # for versions before 1.9.0 use apps/v1beta2
 kind: Deployment
 metadata:
-  name: flask-${CICD_GIT_BRANCH}-Staging
+  name: flask-${CICD_GIT_BRANCH}-staging
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: flask-${CICD_GIT_BRANCH}-Staging
+      app: flask-${CICD_GIT_BRANCH}-staging
   strategy:
     type: Recreate
   template:
     metadata:
       labels:
-        app: flask-${CICD_GIT_BRANCH}-Staging
+        app: flask-${CICD_GIT_BRANCH}-staging
     spec:
       imagePullSecrets:
       - name: pipeline-docker-registry
       containers:
-      - name: flask-${CICD_GIT_BRANCH}-Staging
+      - name: flask-${CICD_GIT_BRANCH}-staging
         image: ${CICD_IMAGE}:${CICD_EXECUTION_SEQUENCE}
         resources:
           requests:
