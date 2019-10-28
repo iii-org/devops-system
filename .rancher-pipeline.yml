@@ -36,5 +36,5 @@ stages:
     when:
       branch: master
       event: tag 
-branch:
-  event: [ push, pull_request, tag ]
+#branch:
+#  event: [ push, pull_request, tag ]
