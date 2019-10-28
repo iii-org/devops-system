@@ -12,9 +12,24 @@ stages:
         dockerfilePath: ./sample/flask/dockerfile/Dockerfile
         buildContext: .
         tag: demoyuw/devops-flask:${CICD_EXECUTION_SEQUENCE}
-  - name: deploy flask-${CICD_GIT_BRANCH} deployment and service
+  - name: deploy flask-${CICD_GIT_BRANCH} development environment
     steps:
     - applyYamlConfig:
-        path: ./sample/flask/k8s-yaml/flask-deployment.yaml
+        path: ./sample/flask/k8s-yaml/Development/flask-deployment.yaml
     - applyYamlConfig:
-        path: ./sample/flask/k8s-yaml/flask-service.yaml
+        path: ./sample/flask/k8s-yaml/Development/flask-service.yaml
+  - name: deploy flask-${CICD_GIT_BRANCH} staging environment
+    steps:
+    - applyYamlConfig:
+        path: ./sample/flask/k8s-yaml/Staging/flask-deployment.yaml
+    - applyYamlConfig:
+        path: ./sample/flask/k8s-yaml/Staging/flask-service.yaml
+  - name: deploy flask-${CICD_GIT_BRANCH} production environment
+    steps:
+    - applyYamlConfig:
+        path: ./sample/flask/k8s-yaml/Production/flask-deployment.yaml
+    - applyYamlConfig:
+        path: ./sample/flask/k8s-yaml/Production/flask-service.yaml
+    when:
+      branch: master
+      event: [ push, pull_request ]
