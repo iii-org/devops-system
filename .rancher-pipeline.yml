@@ -18,6 +18,9 @@ stages:
         path: ./sample/flask/k8s-yaml/Development/flask-deployment.yaml
     - applyYamlConfig:
         path: ./sample/flask/k8s-yaml/Development/flask-service.yaml
+    when:
+      branch:
+        exclude: [ master ]
   - name: deploy flask-${CICD_GIT_BRANCH} staging environment
     steps:
     - applyYamlConfig:
