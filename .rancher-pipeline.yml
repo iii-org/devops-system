@@ -35,6 +35,4 @@ stages:
         path: ./sample/flask/k8s-yaml/Production/flask-service.yaml
     when:
       branch: master
-      event: [ push, tag ]
-#branch:
-#  event: [ push, pull_request, tag ]
+      event: [ push ]
