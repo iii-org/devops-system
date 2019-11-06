@@ -6,6 +6,9 @@ stages:
         shellScript: |-
           pip install pycodestyle
           pycodestyle sample/flask/dockerfile/
+    when:
+      branch:
+        exclude: [ master ]
   - name: Publish flask image
     steps:
     - publishImageConfig:
@@ -27,6 +30,9 @@ stages:
         path: ./sample/flask/k8s-yaml/Staging/flask-deployment.yaml
     - applyYamlConfig:
         path: ./sample/flask/k8s-yaml/Staging/flask-service.yaml
+    when:
+      branch:
+        exclude: [ master ]
   - name: deploy production flask-${CICD_GIT_BRANCH} environment
     steps:
     - applyYamlConfig:
