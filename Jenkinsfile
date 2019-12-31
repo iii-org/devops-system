@@ -1,7 +1,7 @@
 pipeline {
   agent {
     dockerfile {
-      dir 'sample/flask'
+      dir 'sample/flask/dockerfile'
     }
   }
   stages {
