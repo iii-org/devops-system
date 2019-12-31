@@ -1,14 +1,18 @@
 pipeline {
-  agent {
-    dockerfile {
-      dir 'sample/flask/dockerfile'
+  agent none
+  stage('build docker image') {
+    agent {docker 'python:2.7'}
+    steps{
+      echo 'python 2.7 is working'
     }
   }
   stages {
-    stage('step1') {
-      steps {
-        echo 'hello world.!'
-      }
+    stage('Example Test') {
+        agent { docker 'openjdk:8-jre' } 
+        steps {
+            echo 'Hello, JDK'
+            sh 'java -version'
+        }
     }
   }
 }
