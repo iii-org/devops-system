@@ -10,7 +10,6 @@ pipeline {
     stage('step1') {
       steps {
         echo 'hello world.!'
-        hostname
       }
     }
   }
