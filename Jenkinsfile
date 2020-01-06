@@ -1,5 +1,8 @@
 pipeline {
-  agent none
+  agent any
+  triggers {
+      pollSCM('') //Empty quotes tells it to build on a push
+  }
   stages{
     stage('build docker image') {
       agent {docker 'python:2.7'}
