@@ -1,7 +1,7 @@
 pipeline {
   agent any
   triggers {
-      pollSCM '' //Empty quotes tells it to build on a push
+      pollSCM 'H/2 * * * *' //Empty quotes tells it to build on a push
   }
   stages{
     stage('build docker image') {
