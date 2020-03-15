@@ -1,11 +1,10 @@
 stages:
-  - name: Execute sonarqube
+  - name: Publish sonarqube runner image
     steps:
-    - runScriptConfig:
-        image: sonarsource/sonar-scanner-cli:4.2
-        shellScript: |-
-          pip install pycodestyle
-          pycodestyle sample/flask/dockerfile/
+    - publishImageConfig:
+        dockerfilePath: ./build/sonarqube/sonar-runner/Dockerfile
+        buildContext: .
+        tag: demoyuw/devops-sonarrunnder:${CICD_EXECUTION_SEQUENCE}
   - name: Publish flask image
     steps:
     - publishImageConfig:

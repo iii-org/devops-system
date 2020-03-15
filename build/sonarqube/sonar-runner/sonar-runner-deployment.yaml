@@ -1,0 +1,28 @@
+apiVersion: apps/v1 # for versions before 1.9.0 use apps/v1beta2
+kind: Deployment
+metadata:
+  name: sonarqube-runner
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sonarqube-runner
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: sonarqube-runner
+    spec:
+      imagePullSecrets:
+      - name: pipeline-docker-registry
+      containers:
+      - name: sonarqube-runner
+        image: sonarsource/sonar-scanner-cli:4.2
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "250m"
+          limits:
+            memory: "1280Mi"
+            cpu: "5000m"
