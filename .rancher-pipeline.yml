@@ -1,13 +1,13 @@
 stages:
-  - name: Publish sonarqube runner image
-    steps:
-    - publishImageConfig:
-        dockerfilePath: ./build/sonarqube/sonar-runner/Dockerfile
-        buildContext: .
-        tag: demoyuw/devops-sonarrunner:${CICD_EXECUTION_SEQUENCE}
-    - runScriptConfig:
-        image: demoyuw/devops-sonarrunner:${CICD_EXECUTION_SEQUENCE}
-        shellScript: echo "hello world"
+  #- name: Publish sonarqube runner image
+  #  steps:
+  #  - publishImageConfig:
+  #      dockerfilePath: ./build/sonarqube/sonar-runner/Dockerfile
+  #      buildContext: .
+  #      tag: demoyuw/devops-sonarrunner:${CICD_EXECUTION_SEQUENCE}
+  #  - runScriptConfig:
+  #      image: demoyuw/devops-sonarrunner:${CICD_EXECUTION_SEQUENCE}
+  #      shellScript: echo "hello world"
   - name: Publish flask image
     steps:
     - publishImageConfig:
