@@ -1,14 +1,11 @@
 stages:
-  - name: test
+  - name: Execute sonarqube
     steps:
     - runScriptConfig:
-        image: python:3.8.0-alpine3.10
+        image: sonarsource/sonar-scanner-cli:4.2
         shellScript: |-
           pip install pycodestyle
           pycodestyle sample/flask/dockerfile/
-    when:
-      branch:
-        exclude: [ master ]
   - name: Publish flask image
     steps:
     - publishImageConfig:
