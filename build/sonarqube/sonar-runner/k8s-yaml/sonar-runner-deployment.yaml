@@ -1,7 +1,7 @@
 apiVersion: apps/v1 # for versions before 1.9.0 use apps/v1beta2
 kind: Deployment
 metadata:
-  name: sonarqube-runner
+  name: sonarqube-runner-${CICD_EXECUTION_SEQUENCE}
 spec:
   replicas: 1
   selector:
@@ -18,7 +18,7 @@ spec:
       - name: pipeline-docker-registry
       containers:
       - name: sonarqube-runner
-        image: devops-sonarrunner:${CICD_EXECUTION_SEQUENCE}
+        image: ${CICD_IMAGE}:${CICD_EXECUTION_SEQUENCE}
         resources:
           requests:
             memory: "64Mi"
