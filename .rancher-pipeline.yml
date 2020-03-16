@@ -4,7 +4,7 @@ stages:
     - publishImageConfig:
         dockerfilePath: ./build/sonarqube/sonar-runner/Dockerfile
         buildContext: .
-        tag: demoyuw/devops-sonarrunner:${CICD_EXECUTION_SEQUENCE}
+        tag: devops-sonarrunner:${CICD_EXECUTION_SEQUENCE}
   - name: run sonarqube runner
     steps:
     - applyYamlConfig:
