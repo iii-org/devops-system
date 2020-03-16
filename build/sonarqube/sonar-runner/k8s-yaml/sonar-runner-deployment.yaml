@@ -19,6 +19,9 @@ spec:
       containers:
       - name: sonarqube-runner
         image: ${CICD_IMAGE}:${CICD_EXECUTION_SEQUENCE}
+        env:
+          - name: SONAR_HOST_URL
+            value: http://10.50.1.56:31910
         resources:
           requests:
             memory: "64Mi"
