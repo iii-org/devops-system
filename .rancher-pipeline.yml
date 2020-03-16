@@ -9,7 +9,7 @@ stages:
     steps:
     - runScriptConfig:
         image: demoyuw/devops-sonarrunner:${CICD_EXECUTION_SEQUENCE}
-        shellScript: echo "hello world"
+        shellScript: echo hello world
   - name: Publish flask image
     steps:
     - publishImageConfig:
