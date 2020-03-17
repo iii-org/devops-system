@@ -1,0 +1,5 @@
+Flask
+python-gitlab
+jenkinsapi
+sonarqube-py
+requests
