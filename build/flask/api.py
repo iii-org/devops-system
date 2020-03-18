@@ -20,7 +20,6 @@ def DevOpsCreateAPI():
         return "Hook porject api is working"
 
     elif flask_req.method == 'POST':
-        # create project hook
         url = "https://10.50.1.55/v3/projects/c-7bl58:p-wxgdj/pipelines"
         parameter = {
             "name": "devops-flask",
