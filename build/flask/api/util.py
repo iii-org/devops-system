@@ -89,9 +89,9 @@ class util(object):
             logger.info("parameter {0}".format(parameter))
 
             if headers is not None:
-                callapi = requests.put(url, data=parameter, headers=headers)
+                callapi = requests.put(url, data=parameter, headers=headers, verify=False)
             else:
-                callapi = requests.put(url, data=parameter)
+                callapi = requests.put(url, data=parameter, verify=False)
             logger.info("Put api status code is : {0}".format(callapi.status_code))
             logger.debug("Put api message is : {0}".format(callapi.text))
             return callapi
@@ -104,9 +104,9 @@ class util(object):
     def callgetapi(self, url, logger, headers):
         try:
             if headers is not None:
-                callapi = requests.get(url, headers=headers)
+                callapi = requests.get(url, headers=headers, verify=False)
             else:
-                callapi = requests.get(url)
+                callapi = requests.get(url, verify=False)
             logger.info("get api headers is : {0}".format(headers))
             logger.info("get api status code is : {0}".format(callapi.status_code))
             logger.debug("get api message is : {0}".format(callapi.text))
