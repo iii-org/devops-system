@@ -1,17 +1,28 @@
 from flask import Flask
 from flask import Response
+from flask import jsonify
 from flask import request as flask_req
-import gitlab
 import logging
 from logging import handlers
 
-import util
+import api.util as util
 
 app = Flask(__name__)
 
 @app.route("/")
 def index():
-    return "api is working"
+    return jsonify({"message": "DevOps api is working"})
+
+@app.route("/gitrepository", methods=['GET'])
+def gitRepository():
+    if flask_req.method == 'GET':
+        url = "https://10.50.1.55/v3/projects/c-7bl58:p-wxgdj/sourcecoderepositories"
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer token-gcp6w:r8t57lnqsj9nwbvrc7q2pmdh8q4wnch5r5nhlnvnhr49zp87xd7qnk'
+        }
+        output = ut.callgetapi(url, logger, headers)
+        return jsonify(output.json()['data'])
 
 @app.route("/hookproject", methods=['GET', 'POST'])
 def DevOpsCreateAPI():
