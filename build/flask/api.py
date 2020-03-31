@@ -6,6 +6,7 @@ import logging
 from logging import handlers
 
 import api.util as util
+import api.auth as auth
 
 app = Flask(__name__)
 
@@ -15,21 +16,25 @@ def index():
 
 @app.route("/gitrepository", methods=['GET'])
 def gitRepository():
+    headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer {0}'.format(au.get_token(logger))
+    }
     if flask_req.method == 'GET':
         url = "https://10.50.1.55/v3/projects/c-7bl58:p-wxgdj/sourcecoderepositories"
-        headers = {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer token-gcp6w:r8t57lnqsj9nwbvrc7q2pmdh8q4wnch5r5nhlnvnhr49zp87xd7qnk'
-        }
+
         output = ut.callgetapi(url, logger, headers)
         return jsonify(output.json()['data'])
 
 @app.route("/hookproject", methods=['GET', 'POST'])
 def DevOpsCreateAPI():
+    headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer {0}'.format(au.get_token(logger))
+    }
     if flask_req.method == 'GET':
         # get hook project list
         return "Hook porject api is working"
-
     elif flask_req.method == 'POST':
         url = "https://10.50.1.55/v3/projects/c-7bl58:p-wxgdj/pipelines"
         parameter = {
@@ -40,10 +45,6 @@ def DevOpsCreateAPI():
             "triggerWebhookPr": False,
             "triggerWebhookPush": True,
             "triggerWebhookTag": False
-        }
-        headers = {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer token-gcp6w:r8t57lnqsj9nwbvrc7q2pmdh8q4wnch5r5nhlnvnhr49zp87xd7qnk'
         }
         output = ut.callpostapi(url, parameter, logger, headers)
         return output.text
@@ -61,6 +62,6 @@ if __name__ == "__main__":
     logger.setLevel(logging.DEBUG)
     logger.addHandler(handler)
     ut = util.util()
-
+    au = auth.auth()
     app.run(host='0.0.0.0', port=10009)
     logger.info("API_IP: {0}".format(API_IP))
