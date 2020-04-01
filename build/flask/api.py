@@ -64,6 +64,30 @@ def delete_pipeline(pipelineid):
     else:
         return "API method not DELETE"
 
+@app.route("/pipelineexecutions", methods=['GET'])
+def pipelineExecutions():
+    headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer {0}'.format(au.get_token(logger))
+    }
+    if flask_req.method == 'GET':
+        url = "https://10.50.1.55/v3/projects/c-7bl58:p-wxgdj/pipelineexecutions?order=desc"
+
+        output = ut.callgetapi(url, logger, headers)
+        return jsonify(output.json()['data'])
+
+@app.route("/pipelineexecutions/<pipelineexecutionsid>", methods=['GET'])
+def pipelineExecutionsOne(pipelineexecutionsid):
+    headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer {0}'.format(au.get_token(logger))
+    }
+    if flask_req.method == 'GET':
+        url = "https://10.50.1.55/v3/projects/c-7bl58:p-wxgdj/pipelineexecutions/{0}".format(pipelineexecutionsid)
+
+        output = ut.callgetapi(url, logger, headers)
+        return jsonify(output.json()['stages'])
+
 if __name__ == "__main__":
     handler = handlers.TimedRotatingFileHandler(
         'devops-api.log', when='D'\
