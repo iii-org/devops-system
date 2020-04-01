@@ -115,3 +115,18 @@ class util(object):
         except Exception as e:
             logger.error("callgetapi error : {0}".format(e))
             return e
+
+    def calldeleteapi(self, url, logger, headers):
+        try:
+            if headers is not None:
+                callapi = requests.delete(url, headers=headers, verify=False)
+            else:
+                callapi = requests.delete(url, verify=False)
+            logger.info("delete api headers is : {0}".format(headers))
+            logger.info("delete api status code is : {0}".format(callapi.status_code))
+            logger.debug("delete api message is : {0}".format(callapi.text))
+            return callapi
+
+        except Exception as e:
+            logger.error("calldeleteapi error : {0}".format(e))
+            return e
