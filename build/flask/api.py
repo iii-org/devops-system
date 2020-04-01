@@ -26,30 +26,43 @@ def gitRepository():
         output = ut.callgetapi(url, logger, headers)
         return jsonify(output.json()['data'])
 
-@app.route("/hookproject", methods=['GET', 'POST'])
-def DevOpsCreateAPI():
+@app.route("/pipelines", methods=['GET', 'POST'])
+def pipelines():
     headers = {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer {0}'.format(au.get_token(logger))
     }
+    url = "https://10.50.1.55/v3/projects/c-7bl58:p-wxgdj/pipelines"
     if flask_req.method == 'GET':
         # get hook project list
-        return "Hook porject api is working"
+        output = ut.callgetapi(url, logger, headers)
+        return jsonify(output.json()['data'])
     elif flask_req.method == 'POST':
-        url = "https://10.50.1.55/v3/projects/c-7bl58:p-wxgdj/pipelines"
         parameter = {
-            "name": "devops-flask",
-            "namespaceId": None,
-            "projectId": None,
+            "type": "pipeline",
+            "sourceCodeCredentialId": "user-j8mp5:p-wxgdj-gitlab-root",
             "repositoryUrl": "http://10.50.0.20/root/devops-flask",
             "triggerWebhookPr": False,
             "triggerWebhookPush": True,
             "triggerWebhookTag": False
         }
         output = ut.callpostapi(url, parameter, logger, headers)
-        return output.text
+        return jsonify(output.json())
     else:
         return "API method not POST or GET"
+
+@app.route("/pipelines/<pipelineid>", methods=['DELETE'])
+def delete_pipeline(pipelineid):
+    headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer {0}'.format(au.get_token(logger))
+    }
+    url = "https://10.50.1.55/v3/projects/c-7bl58:p-wxgdj/pipelines/{0}".format(pipelineid)
+    if flask_req.method == 'DELETE':
+        output = ut.calldeleteapi(url, logger, headers)
+        return "Successful"
+    else:
+        return "API method not DELETE"
 
 if __name__ == "__main__":
     handler = handlers.TimedRotatingFileHandler(
