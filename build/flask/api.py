@@ -4,6 +4,7 @@ from flask import jsonify
 from flask import request as flask_req
 import logging
 from logging import handlers
+import json
 
 import api.util as util
 import api.auth as auth
@@ -51,8 +52,8 @@ def pipelines():
     else:
         return "API method not POST or GET"
 
-@app.route("/pipelines/<pipelineid>", methods=['DELETE'])
-def delete_pipeline(pipelineid):
+@app.route("/pipelines/<pipelineid>", methods=['POST', 'DELETE'])
+def pipeline(pipelineid):
     headers = {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer {0}'.format(au.get_token(logger))
@@ -61,8 +62,30 @@ def delete_pipeline(pipelineid):
     if flask_req.method == 'DELETE':
         output = ut.calldeleteapi(url, logger, headers)
         return "Successful"
+    elif flask_req.method == 'POST':
+        logger.info("flask_req.data")
+        parameter = {"branch": "master"}
+        url = url+"?action=run"
+        logger.info("url {0}".format(url))
+        logger.info("data {0}".format(json.dumps(parameter)))
+        logger.info("headers {0}".format(headers))
+        output = ut.callpostapi(url, parameter, logger,headers)
+        return "successful"
     else:
         return "API method not DELETE"
+
+@app.route("/pipelines/<pipelineid>/branches", methods=['GET'])
+def get_pipeline_branchs(pipelineid):
+    headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer {0}'.format(au.get_token(logger))
+    }
+    url = "https://10.50.1.55/v3/projects/c-7bl58:p-wxgdj/pipelines/{0}/branches".format(pipelineid)
+    if flask_req.method == 'GET':
+        output = ut.callgetapi(url, logger, headers)
+        return jsonify(output.json())
+    else:
+        return "API method not get"
 
 @app.route("/pipelineexecutions", methods=['GET'])
 def pipelineExecutions():
