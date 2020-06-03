@@ -9,12 +9,16 @@ import json
 
 import resources.util as util
 import resources.auth as auth
+import resources.issue as issue
 
 app = Flask(__name__)
+app.config.from_object('config')
 api = Api(app)
 
 ut = util.util()
 au = auth.auth()
+iss = issue.Issue()
+
 
 handler = handlers.TimedRotatingFileHandler(
     'devops-api.log', when='D'\
@@ -33,6 +37,7 @@ headers = {
 
 class Index(Resource):
     def get(self):
+        iss.get_issue(logger, app)
         return {"message": "DevOps api is working"}
 
 
