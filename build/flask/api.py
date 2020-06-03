@@ -7,8 +7,8 @@ import logging
 from logging import handlers
 import json
 
-import api.util as util
-import api.auth as auth
+import resources.util as util
+import resources.auth as auth
 
 app = Flask(__name__)
 api = Api(app)
