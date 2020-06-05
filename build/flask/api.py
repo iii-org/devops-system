@@ -15,11 +15,6 @@ app = Flask(__name__)
 app.config.from_object('config')
 api = Api(app)
 
-ut = util.util()
-au = auth.auth()
-iss = issue.Issue()
-
-
 handler = handlers.TimedRotatingFileHandler(
     'devops-api.log', when='D'\
         , interval=1, backupCount=14)
@@ -30,16 +25,25 @@ logger = logging.getLogger('devops.api')
 logger.setLevel(logging.DEBUG)
 logger.addHandler(handler)
 
+ut = util.util()
+au = auth.auth()
+iss = issue.Issue(logger, app)
+
 headers = {
     'Content-Type': 'application/json',
     'Authorization': 'Bearer {0}'.format(au.get_token(logger))
 }
 
+
 class Index(Resource):
     def get(self):
-        iss.get_issue(logger, app)
         return {"message": "DevOps api is working"}
 
+class IssueNumber(Resource):
+
+    def get(self, user_id):
+        output = iss.get_issue(logger, app, user_id)
+        return {"issue number": output.json()["total_count"]}
 
 class GitRepository(Resource):
 
@@ -116,6 +120,7 @@ class PipelineExecutionsOne(Resource):
         return output.json()['stages']
 
 api.add_resource(Index, '/')
+api.add_resource(IssueNumber, '/issues/<user_id>')
 api.add_resource(GitRepository, '/gitrepository')
 api.add_resource(Pipelines, '/pipelines')
 api.add_resource(PipelineID, '/pipelines/<pipelineid>')
