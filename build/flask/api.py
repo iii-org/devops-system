@@ -43,7 +43,15 @@ class IssueNumber(Resource):
 
     def get(self, user_id):
         output = iss.get_issue(logger, app, user_id)
-        return {"issue number": output.json()["total_count"]}
+        return {"issue_number": output.json()["total_count"]}
+
+
+class ProjectNumber(Resource):
+
+    def get(self, user_id):
+        output = iss.get_project(logger, app, user_id)
+        return {"project_number": len(output.json()["user"]["memberships"])}
+
 
 class GitRepository(Resource):
 
@@ -121,6 +129,7 @@ class PipelineExecutionsOne(Resource):
 
 api.add_resource(Index, '/')
 api.add_resource(IssueNumber, '/issues/<user_id>')
+api.add_resource(ProjectNumber, '/project/<user_id>')
 api.add_resource(GitRepository, '/gitrepository')
 api.add_resource(Pipelines, '/pipelines')
 api.add_resource(PipelineID, '/pipelines/<pipelineid>')
