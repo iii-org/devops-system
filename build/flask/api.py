@@ -2,7 +2,7 @@ from flask import Flask
 from flask import Response
 from flask import jsonify
 from flask import request as flask_req
-from flask_restful import Resource, Api
+from flask_restful import Resource, Api, reqparse
 import logging
 from logging import handlers
 import json
@@ -10,6 +10,7 @@ import json
 import resources.util as util
 import resources.auth as auth
 import resources.issue as issue
+import resources.project as project
 
 app = Flask(__name__)
 app.config.from_object('config')
@@ -28,6 +29,7 @@ logger.addHandler(handler)
 ut = util.util()
 au = auth.auth()
 iss = issue.Issue(logger, app)
+pjt = project.Project(logger, app)
 
 headers = {
     'Content-Type': 'application/json',
@@ -36,21 +38,44 @@ headers = {
 
 
 class Index(Resource):
+
     def get(self):
         return {"message": "DevOps api is working"}
 
-class IssueNumber(Resource):
+class Issue_by_user(Resource):
 
-    def get(self, user_id):
-        output = iss.get_issue(logger, app, user_id)
-        return {"issue_number": output.json()["total_count"]}
+    def get(self, user_account):
+        output = iss.get_issues_by_user(logger, app, user_account)
+        return {"issue_number": output.json()}
+
+
+class Issue(Resource):
+
+    def get(self, issue_id):
+        output = iss.get_issue(logger, app, issue_id)
+
+    def put(self, issue_id):
+        parser = reqparse.RequestParser()
+        parser.add_argument('status_id', type=int)
+        parser.add_argument('done_ratio', type=int)
+        parser.add_argument('notes')
+        args = parser.parse_args()
+        logger.info("put body: {0}".format(args))
+        output = iss.update_issue(logger, app, issue_id, args)
+
+
+class IssueStatus(Resource):
+
+    def get (self):
+        output = iss.get_issue_status(logger, app)
+        return output.json()
 
 
 class ProjectNumber(Resource):
 
-    def get(self, user_id):
-        output = iss.get_project(logger, app, user_id)
-        return {"project_number": len(output.json()["user"]["memberships"])}
+    def get(self, user_account):
+        output = iss.get_project(logger, app, user_account)
+        return {"project_number": output.json()["user"]["memberships"]}
 
 
 class GitRepository(Resource):
@@ -128,8 +153,10 @@ class PipelineExecutionsOne(Resource):
         return output.json()['stages']
 
 api.add_resource(Index, '/')
-api.add_resource(IssueNumber, '/issues/<user_id>')
-api.add_resource(ProjectNumber, '/project/<user_id>')
+api.add_resource(Issue, '/issue/<issue_id>')
+api.add_resource(Issue_by_user, '/issues_by_user/<user_account>')
+api.add_resource(IssueStatus, '/issues_status')
+api.add_resource(ProjectNumber, '/project/<user_account>')
 api.add_resource(GitRepository, '/gitrepository')
 api.add_resource(Pipelines, '/pipelines')
 api.add_resource(PipelineID, '/pipelines/<pipelineid>')
