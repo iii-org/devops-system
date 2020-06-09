@@ -20,3 +20,11 @@ class Project(object):
         else:
             self.private_token = app.config["GITLAB_PRIVATE_TOKEN"]
         logger.info("private_token: {0}".format(self.private_token))
+    
+    def get_all_git_project(self, logger, app):
+        url = "http://{0}/api/{1}/projects?private_token={2}".format(\
+            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], self.private_token)
+        logger.info("get all project url: {0}".format(url))
+        output = requests.get(url, headers=self.headers, verify=False)
+        logger.info("get all project output: {0}".format(output.json()))
+        return output

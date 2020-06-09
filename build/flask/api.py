@@ -78,6 +78,13 @@ class ProjectNumber(Resource):
         return {"project_number": output.json()["user"]["memberships"]}
 
 
+class GitProject(Resource):
+    
+    def get (self):
+        output = pjt.get_all_git_project(logger, app)
+        return output.json()
+
+
 class GitRepository(Resource):
 
     def get(self):
@@ -157,6 +164,7 @@ api.add_resource(Issue, '/issue/<issue_id>')
 api.add_resource(Issue_by_user, '/issues_by_user/<user_account>')
 api.add_resource(IssueStatus, '/issues_status')
 api.add_resource(ProjectNumber, '/project/<user_account>')
+api.add_resource(GitProject, '/git_project')
 api.add_resource(GitRepository, '/gitrepository')
 api.add_resource(Pipelines, '/pipelines')
 api.add_resource(PipelineID, '/pipelines/<pipelineid>')
