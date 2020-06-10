@@ -1,0 +1,377 @@
+openapi: 3.0.0
+info:
+  title: DevOps Front End API 
+  description: >-
+    Optional multiline or single-line description in
+    [CommonMark](http://commonmark.org/help/) or HTML.
+  version: 20200610_v0.1
+servers:
+  - url: 'http://10.50.1.56:31850'
+    description: 'Optional server description, e.g. Main (production) server'
+tags:
+  - name: project
+    description: Redmine project
+  - name: issues
+    description: Redmine issues 
+  - name: pipelines
+    description: CICD pipeline ID
+  - name: user
+    description: user account information
+  - name: repository
+    description: GitLab Repository 
+paths:
+  /user/login:
+    post:
+      tags:
+        - 'user'
+      summary: 使用者登入
+      operationId: userLogin
+      requestBody:
+        description: User Login Method
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+              required:
+                - username
+                - password
+      responses:
+        '200':
+          description: "successful operation"
+          headers:
+            X-Rate-Limit:
+              schema:
+                type: integer
+              description: "calls per hour allowed by the user"
+            X-Expires-After:
+              schema:
+                type: integer
+              description: "date in UTC when token expires"
+        '400':
+          description: "Invalid username/password supplied"
+          
+  /project:
+    get:
+      summary: 取得目前所有專案ID
+      tags: 
+          - 'project'
+      description: ''
+      responses:
+        '200':    # status code
+          description: A JSON array of user names
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/Id'
+  /project/{user_id}:
+    get:
+      summary: 取得使用者目前專案資訊
+      tags: 
+        - 'project'
+      description: Optional extended description in CommonMark or HTML.
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Id'
+      responses:
+        '200':    # status code
+          description: A JSON array of project id
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/Project'
+  /project/{project_id}/issues:
+    get:
+      summary: 取得專案內issues的ID
+      tags: 
+        - 'issues'
+      description: ''
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Id'
+      responses:
+        '200':    # status code
+          description: A JSON array of issues id
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/Issues'
+  /issues:
+    get:
+      summary: Returns a list of issues ID
+      tags: 
+        - 'issues'
+      description: ''
+      responses:
+        '200':    # status code
+          description: A JSON array of issues id
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/Id'
+    post:
+      summary: 建立Issues
+      tags: 
+        - 'issues'
+      description: ''
+      requestBody:
+        description: XML建立議題
+        required: true
+        content:
+          application/xml:
+            schema:
+              $ref: '#/components/schemas/AddIssue'
+      responses:
+        '200':    # status code
+          description: successful create issues
+  /issues/{issue_id}:
+    get:
+      summary: 取得Issues內的資訊
+      tags: 
+        - 'Issues'
+      description: Optional extended description in CommonMark or HTML.
+      parameters:
+        - name: issue_id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Id'
+      responses:
+        '200':    # status code
+          description: A JSON array of Issues id
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/Issues'
+    put:
+      summary: 更新Issues內的資訊
+      tags: 
+        - 'Issues'
+      description: Optional extended description in CommonMark or HTML.
+      parameters:
+        - name: issue_id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Id'
+      responses:
+        '200':    # status code
+          description: A JSON array of Issues id
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/Issues'
+    delete:
+      summary: 刪除Issues
+      tags: 
+        - 'Issues'
+      description: Optional extended description in CommonMark or HTML.
+      parameters:
+        - name: issue_id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Id'
+      responses:
+        '200':    # status code
+          description: "delete successful"
+  /issues_by_user/{user_id}:
+    get:
+      summary: 取得使用者所擁有Issues的資訊
+      tags: 
+        - 'Issues'
+      description: Optional extended description in CommonMark or HTML.
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Id'
+      responses:
+        '200':    # status code
+          description: A JSON array of Issues Information
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/Issues'
+  /dashboard_issues_priority/{user_id}:
+    get:
+      summary: 取得使用者儀錶板資訊(工作等級)
+      tags: 
+        - 'DashBoard'
+      description: Optional extended description in CommonMark or HTML.
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Id'
+      responses:
+        '200':    # status code
+          description: A JSON array of Issues Information
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/IssuesPriorityNumber'
+  /dashboard_issues_project/{user_id}:
+    get:
+      summary: 取得使用者儀錶板資訊(工作專案)
+      tags: 
+        - 'DashBoard'
+      description: Optional extended description in CommonMark or HTML.
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Id'
+      responses:
+        '200':    # status code
+          description: A JSON array of Issues Information
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/IssuesProjectNumber'
+  /dashboard_issues_type/{user_id}:
+    get:
+      summary: 取得使用者儀錶板資訊(工作專案)
+      tags: 
+        - 'DashBoard'
+      description: Optional extended description in CommonMark or HTML.
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Id'
+      responses:
+        '200':    # status code
+          description: A JSON array of Issues Information
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/IssuesTypeNumber'
+    
+components:
+  schemas:
+    Id:
+      type: array
+      items:
+        type: integer
+    Project:
+      type: object
+      properties:
+        id:
+          type: integer
+    AddIssue:
+      type: object
+      properties:
+        project_id:
+          type: integer
+        subject:
+          type: string
+        tracker_id:
+          type: integer
+    IssuesPriorityNumber:
+      type: array
+      items:
+        type: object
+        properties:
+          name: 
+            description: "優先級別名稱"
+            type: string
+          number:
+            description: "數目"
+            type: integer
+    IssuesProjectNumber:
+      type: array
+      items:
+        type: object
+        properties:
+          name: 
+            description: "專案名稱"
+            type: string
+          number:
+            description: "數目"
+            type: integer
+    IssuesTypeNumber:
+      type: array
+      items:
+        type: object
+        properties:
+          name: 
+            description: "議題類型"
+            type: string
+          number:
+            description: "數目"
+            type: integer
+    Issues:
+      type: object
+      properties:
+        id:
+          type: integer
+        project:
+          type: object
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+        tracker:
+          type: object
+          properties:
+            id:
+              type: integer
+            name:
+              type: string              
+        status:
+          type: object
+          properties:
+            id:
+              type: integer
+            name:
+              type: string    
+        priority:
+          type: object
+          properties:
+            id:
+              type: integer
+            name:
+              type: string          
+        author:
+          type: object
+          properties:
+            id:
+              type: integer
+            name:
+              type: string        
+        subject:
+          type: string
+        start_date:
+          type: string   
+        done_ratio:
+          type: integer
+        custom_fields:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              name:
+                type: string  
+              value:
+                type: string 
+        
+        
