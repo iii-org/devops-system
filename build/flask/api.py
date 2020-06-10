@@ -159,6 +159,22 @@ class PipelineExecutionsOne(Resource):
         output = ut.callgetapi(url, logger, headers)
         return output.json()['stages']
 
+
+class GitOneProject(Resource):
+
+    def get(self, project_id):
+        output = pjt.get_one_git_project(logger, app, project_id)
+        return output.json()
+
+    def put(self, project_id):
+        parser = reqparse.RequestParser()
+        parser.add_argument('name', type=str)
+        parser.add_argument('visibility', type=str)
+        args = parser.parse_args()
+        logger.info("put body: {0}".format(args))
+        output = pjt.update_project(logger, app, project_id, args)
+        
+
 api.add_resource(Index, '/')
 api.add_resource(Issue, '/issue/<issue_id>')
 api.add_resource(Issue_by_user, '/issues_by_user/<user_account>')
@@ -171,6 +187,8 @@ api.add_resource(PipelineID, '/pipelines/<pipelineid>')
 api.add_resource(Get_pipeline_branchs, '/pipelines/<pipelineid>/branches')
 api.add_resource(PipelineExecutions, '/pipelineexecutions')
 api.add_resource(PipelineExecutionsOne, '/pipelineexecutions/<pipelineexecutionsid>')
+
+api.add_resource(GitOneProject, '/git_one_project/<project_id>')
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=10009)
