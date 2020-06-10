@@ -3,6 +3,7 @@ from flask import Response
 from flask import jsonify
 from flask import request as flask_req
 from flask_restful import Resource, Api, reqparse
+from flask_sqlalchemy import SQLAlchemy
 import logging
 from logging import handlers
 import json
@@ -15,6 +16,7 @@ import resources.project as project
 app = Flask(__name__)
 app.config.from_object('config')
 api = Api(app)
+db = SQLAlchemy(app)
 
 handler = handlers.TimedRotatingFileHandler(
     'devops-api.log', when='D'\
@@ -35,6 +37,10 @@ headers = {
     'Content-Type': 'application/json',
     'Authorization': 'Bearer {0}'.format(au.get_token(logger))
 }
+
+class Note(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    body = db.Column(db.Text)
 
 
 class Index(Resource):
