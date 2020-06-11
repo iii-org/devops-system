@@ -59,6 +59,7 @@ class Issue(Resource):
 
     def get(self, issue_id):
         output = iss.get_issue(logger, app, issue_id)
+        return output.json()
 
     def put(self, issue_id):
         parser = reqparse.RequestParser()
@@ -77,11 +78,11 @@ class IssueStatus(Resource):
         return output.json()
 
 
-class ProjectNumber(Resource):
+class Project(Resource):
 
     def get(self, user_account):
         output = iss.get_project(logger, app, user_account)
-        return {"project_number": output.json()["user"]["memberships"]}
+        return {"projects": output.json()["user"]["memberships"]}
 
 
 class GitProject(Resource):
@@ -165,11 +166,43 @@ class PipelineExecutionsOne(Resource):
         output = ut.callgetapi(url, logger, headers)
         return output.json()['stages']
 
+
+class GitOneProject(Resource):
+
+    def get(self, project_id):
+        output = pjt.get_one_git_project(logger, app, project_id)
+        return output.json()
+
+    def put(self, project_id):
+        parser = reqparse.RequestParser()
+        parser.add_argument('name', type=str)
+        parser.add_argument('visibility', type=str)
+        args = parser.parse_args()
+        logger.info("put body: {0}".format(args))
+        output = pjt.update_project(logger, app, project_id, args)
+    
+    def delete(self, project_id):
+        output = pjt.delete_project(logger, app, project_id)
+        return output.json()
+
+
+class CreateGitProject(Resource):
+
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('name', type=str)
+        parser.add_argument('visibility', type=str)
+        args = parser.parse_args()
+        logger.info("post body: {0}".format(args))
+        output = pjt.create_project(logger, app, args)
+        return output.json()
+
+
 api.add_resource(Index, '/')
 api.add_resource(Issue, '/issue/<issue_id>')
 api.add_resource(Issue_by_user, '/issues_by_user/<user_account>')
 api.add_resource(IssueStatus, '/issues_status')
-api.add_resource(ProjectNumber, '/project/<user_account>')
+api.add_resource(Project, '/project/<user_account>')
 api.add_resource(GitProject, '/git_project')
 api.add_resource(GitRepository, '/gitrepository')
 api.add_resource(Pipelines, '/pipelines')
@@ -177,6 +210,9 @@ api.add_resource(PipelineID, '/pipelines/<pipelineid>')
 api.add_resource(Get_pipeline_branchs, '/pipelines/<pipelineid>/branches')
 api.add_resource(PipelineExecutions, '/pipelineexecutions')
 api.add_resource(PipelineExecutionsOne, '/pipelineexecutions/<pipelineexecutionsid>')
+
+api.add_resource(GitOneProject, '/git_one_project/<project_id>')
+api.add_resource(CreateGitProject, '/create_project')
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=10009)
