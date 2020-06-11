@@ -53,6 +53,7 @@ class Issue(Resource):
 
     def get(self, issue_id):
         output = iss.get_issue(logger, app, issue_id)
+        return output.json()
 
     def put(self, issue_id):
         parser = reqparse.RequestParser()
