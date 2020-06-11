@@ -72,11 +72,11 @@ class IssueStatus(Resource):
         return output.json()
 
 
-class ProjectNumber(Resource):
+class Project(Resource):
 
     def get(self, user_account):
         output = iss.get_project(logger, app, user_account)
-        return {"project_number": output.json()["user"]["memberships"]}
+        return {"projects": output.json()["user"]["memberships"]}
 
 
 class GitProject(Resource):
@@ -164,7 +164,7 @@ api.add_resource(Index, '/')
 api.add_resource(Issue, '/issue/<issue_id>')
 api.add_resource(Issue_by_user, '/issues_by_user/<user_account>')
 api.add_resource(IssueStatus, '/issues_status')
-api.add_resource(ProjectNumber, '/project/<user_account>')
+api.add_resource(Project, '/project/<user_account>')
 api.add_resource(GitProject, '/git_project')
 api.add_resource(GitRepository, '/gitrepository')
 api.add_resource(Pipelines, '/pipelines')
