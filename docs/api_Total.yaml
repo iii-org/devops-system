@@ -1,48 +1,29 @@
 openapi: 3.0.0
 info:
-  title: Sample API
+  title: DevOps Front End API 
   description: >-
     Optional multiline or single-line description in
     [CommonMark](http://commonmark.org/help/) or HTML.
-  version: 0.0.1
+  version: 20200610_v0.1
 servers:
-  - url: 'http://140.92.143.137/v1'
+  - url: 'http://10.50.1.56:31850'
     description: 'Optional server description, e.g. Main (production) server'
 tags:
   - name: project
-    description: Everything about your Pets
-  - name: user
-    description: Access to Petstore orders
+    description: Redmine project
   - name: issues
-    description: Operations about user
+    description: Redmine issues 
+  - name: pipelines
+    description: CICD pipeline ID
+  - name: user
+    description: user account information
   - name: repository
-    description: Operations about gitlab source control
-  - name: file
-    description: File Information for Project
-  - name: wiki
-    description: Wiki Information for Project
-  - name: cicd
-    description: Wiki Information for Project
+    description: GitLab Repository 
 paths:
-  /users:
-    get:
-      tags:
-        - user
-      summary: Returns a list of users.
-      description: Optional extended description in CommonMark or HTML.
-      responses:
-        '200':
-          description: A JSON array of user names
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  type: string
   /user/login:
     post:
       tags:
-        - user
+        - 'user'
       summary: 使用者登入
       operationId: userLogin
       requestBody:
@@ -62,12 +43,23 @@ paths:
                 - password
       responses:
         '200':
-          description: OK
+          description: "successful operation"
+          headers:
+            X-Rate-Limit:
+              schema:
+                type: integer
+              description: "calls per hour allowed by the user"
+            X-Expires-After:
+              schema:
+                type: integer
+              description: "date in UTC when token expires"
+        '400':
+          description: "Invalid username/password supplied"
   /user/forgetPassword:
     post:
       tags:
         - user
-      summary: 使用者忘記密碼
+      summary: 使用者忘記帳號密碼
       operationId: userForgetPassword
       requestBody:
         description: User forget password
@@ -77,19 +69,19 @@ paths:
             schema:
               type: object
               properties:
-                username:
+                mail:
                   type: string
-                email:
+                user_account:
                   type: string
               required:
-                - email
-                - username
+                - mail
+                - user_account
       responses:
         '200':
-          description: OK
+          description: "Success Reset Password"
   /user/{user_id}:
     get:
-      summary: 回傳用戶資訊
+      summary: 取得用戶資訊
       operationId: getUserInformation
       tags:
         - user
@@ -97,7 +89,7 @@ paths:
         - name: user_id
           in: path
           required: true
-          description: Parameter description in CommonMark or HTML.
+          description: 'User PK'
           schema:
             $ref: '#/components/schemas/User'
       responses:
@@ -111,1065 +103,686 @@ paths:
         - name: user_id
           in: path
           required: true
-          description: Parameter description in CommonMark or HTML.
+          description: 'User PK'
           schema:
             $ref: '#/components/schemas/User'
       responses:
         '200':
           description: OK
-  /user/{user_id}/changePassword:
-    put:
-      summary: 用戶變更密碼
-      tags:
-        - user
-      parameters:
-        - name: user_id
-          in: path
-          required: true
-          description: Parameter description in CommonMark or HTML.
-          schema:
-            $ref: '#/components/schemas/User'
-      responses:
-        '200':
-          description: OK
+          
   /project:
     get:
-      summary: Returns a list of Project ID
-      tags:
-        - project
-      description: Optional extended description in CommonMark or HTML.
+      summary: 取得目前所有專案ID
+      tags: 
+          - 'project'
+      description: ''
       responses:
-        '200':
+        '200':    # status code
           description: A JSON array of user names
           content:
             application/json:
-              schema:
-                type: array
-                items:
-                  type: string
-    post:
-      summary: Add a Infromation of branch ID
-      tags:
-        - project
+              schema: 
+                $ref: '#/components/schemas/Project'
+  /project/{user_account}:
+    get:
+      summary: 取得使用者目前專案資訊
+      tags: 
+        - 'project'
       description: Optional extended description in CommonMark or HTML.
-      requestBody:
-        description: Project Information
-        required: true
-        content:
-          application/x-www-form-urlencoded:
-            schema:
-              type: object
-              properties:
-                username:
-                  type: string
-                password:
-                  type: string
-              required:
-                - username
-                - password
+      parameters:
+        - name: user_account
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Id'
       responses:
-        '200':
-          description: A JSON array of project id
+        '200':    # status code
+          description: A JSON array of project object
           content:
             application/json:
-              schema:
+              schema: 
+                $ref: '#/components/schemas/ProjectList'
+  /project/{project_id}/issues:
+    get:
+      summary: 取得專案內issues的ID
+      tags: 
+        - 'issues'
+      description: ''
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Id'
+      responses:
+        '200':    # status code
+          description: A JSON array of issues id
+          content:
+            application/json:
+              schema: 
                 $ref: '#/components/schemas/Issues'
-      deprecated: true
-  /project/{user_id}:
-    get:
-      summary: Returns a list of Project ID by User
-      tags:
-        - project
-      description: Optional extended description in CommonMark or HTML.
-      parameters:
-        - name: user_id
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/User'
-      responses:
-        '200':
-          description: A JSON array of project id
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  type: integer
-  /project/{project_id}:
-    get:
-      summary: Returns a Infromation of Project ID
-      tags:
-        - project
-      description: Optional extended description in CommonMark or HTML.
-      parameters:
-        - name: project_id
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Project'
-      responses:
-        '200':
-          description: A JSON array of project id
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Project'
-    
-    put:
-      summary: modify a Infromation of Project ID
-      tags:
-        - project
-      description: Optional extended description in CommonMark or HTML.
-      parameters:
-        - name: project_id
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Project'
-      responses:
-        '200':
-          description: A JSON array of project id
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Project'
-    delete:
-      summary: Returns a Infromation of Project ID
-      tags:
-        - project
-      description: Optional extended description in CommonMark or HTML.
-      parameters:
-        - name: project_id
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Project'
-      responses:
-        '200':
-          description: A JSON array of project id
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Project'
-                
-  '/project/{project_id}/file':
-    get:
-      summary: Returns a list  of file ID by project ID
-      tags:
-        - file
-      description: Optional extended description in CommonMark or HTML.
-      parameters:
-        - name: project_id
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Project'
-      responses:
-        '200':
-          description: A JSON array of project id
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/File'
-  '/project/{file_id}':
-    get:
-      summary: Returns a Infromation of File
-      tags:
-        - file
-      description: Optional extended description in CommonMark or HTML.
-      parameters:
-        - name: file_id
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Branch'
-      responses:
-        '200':
-          description: A JSON array of project id
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Project'
-    put:
-      summary: change a Infromation of File ID
-      tags:
-        - file
-      description: Optional extended description in CommonMark or HTML.
-      parameters:
-        - name: file_id
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Branch'
-      responses:
-        '200':
-          description: A JSON array of project id
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Project'
-    delete:
-      summary: Returns a Infromation of Branch ID
-      tags:
-        - file
-      description: Optional extended description in CommonMark or HTML.
-      parameters:
-        - name: file_id
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Branch'
-      responses:
-        '200':
-          description: A JSON array of project id
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Project'
-  '/project/{wiki_id}':
-    get:
-      summary: Returns a Infromation of Wiki ID 
-      tags:
-        - wiki
-      description: Optional extended description in CommonMark or HTML.
-      parameters:
-        - name: wiki_id
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Wiki'
-      responses:
-        '200':
-          description: A JSON array of project id
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Wiki'
-    put:
-      summary: Returns a Infromation of Branch ID
-      tags:
-        - wiki
-      description: Optional extended description in CommonMark or HTML.
-      parameters:
-        - name: wiki_id
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Wiki'
-      responses:
-        '200':
-          description: A JSON array of project id
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Wiki'
-    delete:
-      summary: Returns a Infromation of Branch ID
-      tags:
-        - wiki
-      description: Optional extended description in CommonMark or HTML.
-      parameters:
-        - name: wiki_id
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Wiki'
-      responses:
-        '200':
-          description: A JSON array of project id
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Wiki'
-  '/project/{project_id}/versions':
-    get:
-      summary: Returns a list version ids of a project
-      tags:
-        - version
-      description: Optional extended description in CommonMark or HTML.
-      parameters:
-        - name: project_id
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Versions'
-      responses:
-        '200':
-          description: A JSON array of project id
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Versions'
-  '/versions/{version_id}':
-    get:
-      summary: Returns a information of version of version ID
-      tags:
-        - version
-      description: Optional extended description in CommonMark or HTML.
-      parameters:
-        - name: version_id
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Versions'
-      responses:
-        '200':
-          description: A JSON array of project id
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Versions'
-    put:
-      summary: modify a information of version of version ID
-      tags:
-        - version
-      description: Optional extended description in CommonMark or HTML.
-      parameters:
-        - name: version_id
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Versions'
-      responses:
-        '200':
-          description: A JSON array of project id
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Versions'
-    delete:
-      summary: Returns a Infromation of Branch ID
-      tags:
-        - version
-      description: Optional extended description in CommonMark or HTML.
-      parameters:
-        - name: version_id
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Versions'
-      responses:
-        '200':
-          description: A JSON array of project id
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Versions'
-  /project/repository:
-    get:
-      summary: Returns a Infromation of branch ID
-      tags:
-        - repository
-      description: Optional extended description in CommonMark or HTML.
-      parameters:
-        - name: ProjectId
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Project'
-        - name: SourceId
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Source'
-      responses:
-        '200':
-          description: A JSON array of project id
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Project'
-  '/repository/{repository_id}':
-    get:
-      summary: Returns a Infromation of branch ID
-      tags:
-        - repository
-      description: Optional extended description in CommonMark or HTML.
-      parameters:
-        - name: repository_id
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Project'
-      responses:
-        '200':
-          description: A JSON array of project id
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Project'
-    put:
-      summary: Returns a Infromation of branch ID
-      tags:
-        - repository
-      description: Optional extended description in CommonMark or HTML.
-      parameters:
-        - name: repository_id
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Project'
-      responses:
-        '200':
-          description: A JSON array of project id
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Project'
-    delete:
-      summary: Returns a Infromation of branch ID
-      tags:
-        - repository
-      description: Optional extended description in CommonMark or HTML.
-      parameters:
-        - name: repository_id
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Project'
-      responses:
-        '200':
-          description: A JSON array of project id
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Project'
-  /project/cicd:
-    get:
-      summary: Returns a list of CICD ID
-      tags:
-        - cicd
-      description: Optional extended description in CommonMark or HTML.
-      responses:
-        '200':
-          description: A JSON array of project id
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Project'
-  '/cicd/{cicd_id}':
-    get:
-      summary: Returns a Infromation of CICD ID
-      tags:
-        - CICD
-      description: Optional extended description in CommonMark or HTML.
-      parameters:
-        - name: cicd_id
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/CICD'
-      responses:
-        '200':
-          description: A JSON array of project id
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CICD'
-  '/project/{project_id}/parameters':
-    get:
-      summary: Returns a list of id of project parameters
-      tags:
-        - Parameters
-      description: Optional extended description in CommonMark or HTML.
-      parameters:
-        - name: project_id
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Project'
-      responses:
-        '200':
-          description: A JSON array of parameters id
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Project'
-  '/project/{parameters_id}':
-    get:
-      summary: Returns a list of id of project parameters
-      tags:
-        - Parameters
-      description: Optional extended description in CommonMark or HTML.
-      parameters:
-        - name: parameters_id
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Parameters'
-      responses:
-        '200':
-          description: A JSON array of parameters id
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Parameters'
-    post:
-      summary: Returns a Infromation of branch ID
-      tags:
-        - Issues
-      description: Optional extended description in CommonMark or HTML.
-      parameters:
-        - name: parameters_id
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Project'
-      responses:
-        '200':
-          description: A JSON array of project id
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Issues'
-    put:
-      summary: Returns a Infromation of branch ID
-      tags:
-        - Issues
-      description: Optional extended description in CommonMark or HTML.
-      parameters:
-        - name: parameters_id
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Project'
-      responses:
-        '200':
-          description: A JSON array of project id
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Issues'
-    delete:
-      summary: Returns a Infromation of branch ID
-      tags:
-        - Issues
-      description: Optional extended description in CommonMark or HTML.
-      parameters:
-        - name: parameters_id
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Project'
-      responses:
-        '200':
-          description: A JSON array of project id
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Issues'
-  /project/issues:
+  /issues:
     get:
       summary: Returns a list of issues ID
-      tags:
-        - issues
-      description: Optional extended description in CommonMark or HTML.
+      tags: 
+        - 'issues'
+      description: ''
       responses:
-        '200':
-          description: A JSON array of project id
+        '200':    # status code
+          description: A JSON array of issues id
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/Project'
-  '/issues/{issue_id}':
-    get:
-      summary: Returns a Infromation of branch ID
-      tags:
-        - Issues
-      description: Optional extended description in CommonMark or HTML.
-      parameters:
-        - name: issue_id
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Project'
-      responses:
-        '200':
-          description: A JSON array of project id
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Issues'
+              schema: 
+                $ref: '#/components/schemas/Id'
     post:
-      summary: Returns a Infromation of branch ID
-      tags:
-        - Issues
+      summary: 建立Issues
+      tags: 
+        - 'issues'
+      description: ''
+      requestBody:
+        description: XML建立議題
+        required: true
+        content:
+          application/xml:
+            schema:
+              $ref: '#/components/schemas/AddIssue'
+      responses:
+        '200':    # status code
+          description: "successful create issues"
+  /issues/{issue_id}:
+    get:
+      summary: 取得Issues內的資訊
+      tags: 
+        - 'issues'
       description: Optional extended description in CommonMark or HTML.
       parameters:
         - name: issue_id
           in: path
           required: true
           schema:
-            $ref: '#/components/schemas/Project'
+            $ref: '#/components/schemas/Id'
       responses:
-        '200':
-          description: A JSON array of project id
+        '200':    # status code
+          description: A JSON array of Issues id
           content:
             application/json:
-              schema:
+              schema: 
                 $ref: '#/components/schemas/Issues'
     put:
-      summary: Returns a Infromation of branch ID
-      tags:
-        - Issues
+      summary: 更新Issues內的資訊
+      tags: 
+        - 'issues'
       description: Optional extended description in CommonMark or HTML.
       parameters:
         - name: issue_id
           in: path
           required: true
           schema:
-            $ref: '#/components/schemas/Project'
+            $ref: '#/components/schemas/Id'
       responses:
-        '200':
-          description: A JSON array of project id
+        '200':    # status code
+          description: A JSON array of Issues id
           content:
             application/json:
-              schema:
+              schema: 
                 $ref: '#/components/schemas/Issues'
     delete:
-      summary: Returns a Infromation of branch ID
-      tags:
-        - Issues
+      summary: 刪除Issues
+      tags: 
+        - 'issues'
       description: Optional extended description in CommonMark or HTML.
       parameters:
         - name: issue_id
           in: path
           required: true
           schema:
-            $ref: '#/components/schemas/Project'
+            $ref: '#/components/schemas/Id'
       responses:
-        '200':
-          description: A JSON array of project id
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Issues'
-  '/project/{project_id}/{issue_id}/testCase':
+        '200':    # status code
+          description: "delete successful"
+  /issues/{issue_id}/function:
     get:
-      summary: Returns a list of testCase ID
-      tags:
-        - Issues
-      description: Optional extended description in CommonMark or HTML.
+      summary: 取得Issues內的功能(API)的ID
+      tags: 
+        - 'issues'
+      description: issues內所開發的功能.
       parameters:
-        - name: project_id
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Project'
         - name: issue_id
           in: path
           required: true
           schema:
-            $ref: '#/components/schemas/Issues'
+            $ref: '#/components/schemas/Id'
       responses:
-        '200':
-          description: A JSON array of project id
+        '200':    # status code
+          description: A JSON array of function id
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/Project'
-  '/project/{project_id}/{IssuesId}/{TestCaseId}':
+              schema: 
+                $ref: '#/components/schemas/Id'
+  /funtion/{funtion_id}:
     get:
-      summary: Get a Infromation of Test Case ID
-      tags:
-        - Issues
+      summary: 取得Issues內功能資訊
+      tags: 
+        - 'issues'
       description: Optional extended description in CommonMark or HTML.
       parameters:
-        - name: project_id
+        - name: funtion_id
           in: path
           required: true
           schema:
-            $ref: '#/components/schemas/Project'
-        - name: IssuesId
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Issues'
-        - name: TestCaseId
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/TestCase'
+            $ref: '#/components/schemas/Id'
       responses:
-        '200':
-          description: A JSON array of project id
+        '200':    # status code
+          description: A JSON array of Issues id
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/Issues'
-    post:
-      summary: Add a Infromation of Test Case ID
-      tags:
-        - Issues
-      description: Optional extended description in CommonMark or HTML.
-      parameters:
-        - name: project_id
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Project'
-        - name: IssuesId
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Issues'
-        - name: TestCaseId
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/TestCase'
-      responses:
-        '200':
-          description: A JSON array of project id
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Issues'
+              schema: 
+                $ref: '#/components/schemas/Function'
     put:
-      summary: Update a Infromation of Test Case ID
-      tags:
-        - Issues
+      summary: 更新Issues內的資訊
+      tags: 
+        - 'issues'
       description: Optional extended description in CommonMark or HTML.
       parameters:
-        - name: project_id
+        - name: funtion_id
           in: path
           required: true
           schema:
-            $ref: '#/components/schemas/Project'
-        - name: IssuesId
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Issues'
-        - name: TestCaseId
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/TestCase'
+            $ref: '#/components/schemas/Id'
       responses:
-        '200':
-          description: A JSON array of project id
+        '200':    # status code
+          description: A JSON array of Issues id
           content:
             application/json:
-              schema:
+              schema: 
                 $ref: '#/components/schemas/Issues'
     delete:
-      summary: Delete a Infromation of Test Case ID
-      tags:
-        - Issues
+      summary: 刪除Issues
+      tags: 
+        - 'issues'
       description: Optional extended description in CommonMark or HTML.
       parameters:
-        - name: project_id
+        - name: funtion_id
           in: path
           required: true
           schema:
-            $ref: '#/components/schemas/Project'
-        - name: IssuesId
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Issues'
-        - name: TestCaseId
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/TestCase'
+            $ref: '#/components/schemas/Id'
       responses:
-        '200':
-          description: A JSON array of project id
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Issues'
-  '/project/{ProjectId}/{IssuesId}/function':
+        '200':    # status code
+          description: "delete successful"
+  /issues/{issue_id}/{funtion_id}/parameters:
     get:
-      summary: Returns a list of testCase ID
-      tags:
-        - Issues
-      description: Optional extended description in CommonMark or HTML.
+      summary: 取得Issues內的功能(API)
+      tags: 
+        - 'issues'
+      description: issues內所開發的功能所使用的參數
       parameters:
-        - name: ProjectId
+        - name: issue_id
           in: path
           required: true
           schema:
-            $ref: '#/components/schemas/Project'
-        - name: IssuesId
+            $ref: '#/components/schemas/Id'
+        - name: funtion_id
           in: path
           required: true
           schema:
-            $ref: '#/components/schemas/Issues'
+            $ref: '#/components/schemas/Id'
       responses:
-        '200':
-          description: A JSON array of project id
+        '200':    # status code
+          description: A JSON array of function id
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/Project'
-  '/project/{ProjectId}/{IssuesId}/{FunctionId}':
+              schema: 
+                $ref: '#/components/schemas/Id'
+  /parameters/{parameters_id}:
     get:
-      summary: Get a Infromation of Function ID (API)
-      tags:
-        - Issues
+      summary: 取得Issues內功能資訊
+      tags: 
+        - 'issues'
       description: Optional extended description in CommonMark or HTML.
       parameters:
-        - name: ProjectId
+        - name: parameters_id
           in: path
           required: true
           schema:
-            $ref: '#/components/schemas/Project'
-        - name: IssuesId
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Issues'
-        - name: FunctionId
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Function'
+            $ref: '#/components/schemas/Id'
       responses:
-        '200':
-          description: A JSON array of project id
+        '200':    # status code
+          description: A JSON array of Issues id
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/Issues'
-    post:
-      summary: Add a Infromation of Function ID (API)
-      tags:
-        - Issues
-      description: Optional extended description in CommonMark or HTML.
-      parameters:
-        - name: ProjectId
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Project'
-        - name: IssuesId
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Issues'
-        - name: FunctionId
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Function'
-      responses:
-        '200':
-          description: A JSON array of project id
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Issues'
+              schema: 
+                $ref: '#/components/schemas/Parameters'
     put:
-      summary: Update a Infromation of Function ID (API)
-      tags:
-        - Issues
+      summary: 更新Issues內的資訊
+      tags: 
+        - 'issues'
       description: Optional extended description in CommonMark or HTML.
       parameters:
-        - name: ProjectId
+        - name: parameters_id
           in: path
           required: true
           schema:
-            $ref: '#/components/schemas/Project'
-        - name: IssuesId
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Issues'
-        - name: FunctionId
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Function'
+            $ref: '#/components/schemas/Id'
       responses:
-        '200':
-          description: A JSON array of project id
+        '200':    # status code
+          description: A JSON array of Issues id
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/Issues'
+              schema: 
+                $ref: '#/components/schemas/Parameters'
     delete:
-      summary: Delete a Infromation of Function ID (API)
-      tags:
-        - Issues
+      summary: 刪除Issues
+      tags: 
+        - 'issues'
       description: Optional extended description in CommonMark or HTML.
       parameters:
-        - name: ProjectId
+        - name: parameters_id
           in: path
           required: true
           schema:
-            $ref: '#/components/schemas/Project'
-        - name: IssuesId
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Issues'
-        - name: FunctionId
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Function'
+            $ref: '#/components/schemas/Id'
       responses:
-        '200':
-          description: A JSON array of project id
+        '200':    # status code
+          description: "delete successful"
+    
+  /issues_status:
+    get:
+      summary: 取得目前議題可使用狀態
+      tags: 
+        - 'issues'
+      description: Optional extended description in CommonMark or HTML.
+      responses:
+        '200':    # status code
+          description: A JSON array of Issues Information
           content:
             application/json:
-              schema:
+              schema: 
+                $ref: '#/components/schemas/IssuesStatus'
+  /issues_priority:
+    get:
+      summary: 取得目前議題可使用優先級別
+      tags: 
+        - 'issues'
+      description: Optional extended description in CommonMark or HTML.
+      responses:
+        '200':    # status code
+          description: A JSON array of Issues Information
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/IssuesPriority'
+  /issuses_category/{project_id}:
+    get:
+      summary: 取得目前議題可使用狀態
+      tags: 
+        - 'issues'
+      description: Optional extended description in CommonMark or HTML.
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Id'
+      responses:
+        '200':    # status code
+          description: A JSON array of Issues Information
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/IssuesCategories'
+  /issues_by_user/{user_account}:
+    get:
+      summary: 取得使用者所擁有Issues的資訊
+      tags: 
+        - 'issues'
+      description: Optional extended description in CommonMark or HTML.
+      parameters:
+        - name: user_account
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Id'
+      responses:
+        '200':    # status code
+          description: A JSON array of Issues Information
+          content:
+            application/json:
+              schema: 
                 $ref: '#/components/schemas/Issues'
+  /dashboard_issues_priority/{user_account}:
+    get:
+      summary: 取得使用者儀錶板資訊(工作等級)
+      tags: 
+        - 'DashBoard'
+      description: Optional extended description in CommonMark or HTML.
+      parameters:
+        - name: user_account
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Id'
+      responses:
+        '200':    # status code
+          description: A JSON array of Issues Information
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/IssuesPriorityNumber'
+  /dashboard_issues_project/{user_account}:
+    get:
+      summary: 取得使用者儀錶板資訊(工作專案)
+      tags: 
+        - 'DashBoard'
+      description: Optional extended description in CommonMark or HTML.
+      parameters:
+        - name: user_account
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Id'
+      responses:
+        '200':    # status code
+          description: A JSON array of Issues Information
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/IssuesProjectNumber'
+  /dashboard_issues_type/{user_account}:
+    get:
+      summary: 取得使用者儀錶板資訊(工作專案)
+      tags: 
+        - 'DashBoard'
+      description: Optional extended description in CommonMark or HTML.
+      parameters:
+        - name: user_account
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Id'
+      responses:
+        '200':    # status code
+          description: A JSON array of Issues Information
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/IssuesTypeNumber'
+    
 components:
   schemas:
-    User:
-      properties:
-        UserId:
-          type: integer
-          format: int64
-          minimum: 1
-          example:
-            first:
-              value: 0
-        UserName:
-          type: string
     Project:
+      type: array
+      items:
+        type: object
+        properties:
+          id:
+            type: integer
+          source:
+            type: string
+            description: "Remdmin or GitLab"
+    Id:
+      type: array
+      items:
+        type: integer
+    ProjectList:
+      type: array
+      items:
+        type: object
+        properties:
+          name:
+            type: string
+            description: 專案名稱
+          issues:
+            type: integer
+            description: 工作項目
+          next_d_time:
+            type: string
+            format: date-time
+            description: 最近交付期限
+          branch:
+            type: integer
+            description: 分支數量
+          last_test_time:
+            type: string
+            format: date-time
+            description: 最近測試時間
+          last_test_result:
+            type: object
+            properties:
+              total:
+                type: integer
+                description: 總共測試數目
+              success:
+                type: integer
+                description: 總共成功數目
+    AddIssue:
+      type: object
       properties:
-        id:
-          type: integer
-          format: int64
-          minimum: 1
-          example:
-            id: 1
-    Source:
-      description: gitLab Projcet ID
-      properties:
-        id:
-          type: integer
-          format: int64
-          minimum: 1
-          example:
-            id: 1
-    Branch:
-      description: gitlab Branch Id
-      properties:
-        id:
-          type: integer
-          format: int64
-          minimum: 1
-          example:
-            id: 1
-        name:
-          type: string
-        ref:
-          type: string
-    File:
-      description: missing
-      properties:
-        id:
-          type: integer
-          format: int64
-          minimum: 1
-          example:
-            id: 1
-        type:
-          type: string
-        name:
-          type: string
-        state:
-          type: string
-        file:
-          type: string
-        editor_id:
-          type: integer
-        ref:
-          type: string
-    Wiki:
-      description: missing
-      properties:
-        id:
-          type: integer
-          format: int64
-          minimum: 1
-          example:
-            id: 1
-        name:
-          type: string
-        ref:
-          type: string
-    Versions:
-      properties:
-        id:
-          type: integer
-          format: int64
-          minimum: 1
-          example:
-            id: 1
-        name:
-          type: string
-        description:
-          type: string
-    Issues:
-      properties:
-        id:
-          type: integer
-          format: int64
-          minimum: 1
-          example:
-            id: 1
-        name:
-          type: string
-        description:
-          type: string
-    TestCase:
-      description: missing
-      properties:
-        id:
-          type: integer
-          format: int64
-          minimum: 1
-          example:
-            id: 1
-        name:
-          type: string
-        description:
-          type: string
-    Parameters:
-      description: Parameters using in Project
-      properties:
-        id:
-          type: integer
-        name:
-          type: string
-        type:
-          description: Parameters Type
-          type: string
-        value:
-          type: string
         project_id:
           type: integer
-    API:
-      description: missing
+        subject::
+          type: string
+        tracker_id:
+          type: integer
+    IssuesCategories:
+      type: array
+      items:
+        type: object
+        properties:
+          id: 
+            type: integer
+          name:
+            type: string
+            description : 類別名稱
+    IssuesPriority:
+      type: array
+      items:
+        type: object
+        properties:
+          id:
+            type: integer
+          name: 
+            description: 優先級別名稱
+            type: string
+          is_closed:
+            description: 是否停用
+            type: boolean
+    IssuesStatus:
+      type: array
+      items:
+        type: object
+        properties:
+          id: 
+            type: integer
+          name: 
+            type: string
+          is_closed: 
+            type: boolean
+    IssuesPriorityNumber:
+      type: array
+      items:
+        type: object
+        properties:
+          name: 
+            description: "優先級別名稱"
+            type: string
+          number:
+            description: "數目"
+            type: integer
+    IssuesProjectNumber:
+      type: array
+      items:
+        type: object
+        properties:
+          name: 
+            description: "專案名稱"
+            type: string
+          number:
+            description: "數目"
+            type: integer
+    IssuesTypeNumber:
+      type: array
+      items:
+        type: object
+        properties:
+          name: 
+            description: "議題類型"
+            type: string
+          number:
+            description: "數目"
+            type: integer
+
+    User:
+      type: object
       properties:
         id:
           type: integer
-          format: int64
-          minimum: 1
-          example:
-            id: 1
+          description: "User Key"
+        name:
+          type: string
+          description: "使用者姓名"
+        username:
+          type: string
+          description: "使用者帳號"
+        password:
+          type: string
+          format: password
+          description: '密碼'
+        email:
+          type: string
+          description: "使用者電子郵件信箱"
+        created_at:
+          type: string
+          format: date-time
+          description: "建立時間"
+        updated_at:
+          type: string
+          format: date-time
+          description: "更新時間"
+        group:
+          type: object
+          properties:
+            name:
+              type: string
+              description: '群組名稱'
+        role:
+          type: object
+          properties:
+            nname:
+              type: string
+              description: '角色名稱'
+              
+    Issues:
+      type: object
+      properties:
+        id:
+          type: integer
+        project:
+          type: object
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+        tracker:
+          type: object
+          properties:
+            id:
+              type: integer
+            name:
+              type: string              
+        status:
+          type: object
+          properties:
+            id:
+              type: integer
+            name:
+              type: string    
+        priority:
+          type: object
+          properties:
+            id:
+              type: integer
+            name:
+              type: string          
+        author:
+          type: object
+          properties:
+            id:
+              type: integer
+            name:
+              type: string        
+        subject:
+          type: string
+        start_date:
+          type: string   
+        done_ratio:
+          type: integer
+        custom_fields:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              name:
+                type: string  
+              value:
+                type: string 
+    Function:
+      type: object
+      description: "依據議題所設計的功能"
+      properties:
+        id:
+          type: integer
         name:
           type: string
         description:
           type: string
-    CICD:
-      description: missing
-      properties:
-        id:
+        function_type:
+          type: string
+        isssues_id:
           type: integer
-          format: int64
-          minimum: 1
-          example:
-            id: 1
-        name:
-          type: string
-        description:
-          type: string
+        parameters:
+          type: array
+          description: "功能內參數"
+          items:
+            type: object
+            properties: 
+              id: 
+                type: integer
+              name:
+                type: string
+              description:
+                type: string
+    Parameters:
+        type: object
+        description: "參數"
+        properties:
+          id:
+            type: integer
+          name:
+            type: string
+          is_defined:
+            type: boolean
+          description:
+            type: string
+          type:
+            type: string
+            description: 參數類別
+          length:
+            type: integer
+          limit:
+            type: string
+            description: 正規表達式的限制
+          values:
+            type: array
+            items:
+              type: object
+              properties:
+                id:
+                  type: integer
+                value:
+                  type: string
+                is_check:
+                  type: boolean
