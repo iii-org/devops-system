@@ -173,7 +173,23 @@ class GitOneProject(Resource):
         args = parser.parse_args()
         logger.info("put body: {0}".format(args))
         output = pjt.update_project(logger, app, project_id, args)
-        
+    
+    def delete(self, project_id):
+        output = pjt.delete_project(logger, app, project_id)
+        return output.json()
+
+
+class CreateGitProject(Resource):
+
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('name', type=str)
+        parser.add_argument('visibility', type=str)
+        args = parser.parse_args()
+        logger.info("post body: {0}".format(args))
+        output = pjt.create_project(logger, app, args)
+        return output.json()
+
 
 api.add_resource(Index, '/')
 api.add_resource(Issue, '/issue/<issue_id>')
@@ -189,6 +205,7 @@ api.add_resource(PipelineExecutions, '/pipelineexecutions')
 api.add_resource(PipelineExecutionsOne, '/pipelineexecutions/<pipelineexecutionsid>')
 
 api.add_resource(GitOneProject, '/git_one_project/<project_id>')
+api.add_resource(CreateGitProject, '/create_project')
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=10009)

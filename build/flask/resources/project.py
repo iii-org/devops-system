@@ -42,7 +42,25 @@ class Project(object):
     def update_project(self, logger, app, project_id, args):
         url = "http://{0}/api/{1}/projects/{2}?private_token={3}&name={4}&visibility={5}".format(\
             app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, self.private_token, args["name"], args["visibility"])
-        logger.info("get one project url: {0}".format(url))
+        logger.info("update project url: {0}".format(url))
         output = requests.put(url, headers=self.headers, verify=False)
         logger.info("update project output: {0}".format(output))
+        return output
+
+    # 用project_id刪除單一project
+    def delete_project(self, logger, app, project_id):
+        url = "http://{0}/api/{1}/projects/{2}?private_token={3}".format(\
+            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, self.private_token)
+        logger.info("delete project url: {0}".format(url))
+        output = requests.delete(url, headers=self.headers, verify=False)
+        logger.info("delete project output: {0}".format(output.json()))
+        return output
+
+    # 新增單一project
+    def create_project(self, logger, app, args):
+        url = "http://{0}/api/{1}/projects?private_token={2}&name={3}&visibility={4}".format(\
+            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], self.private_token, args["name"], args["visibility"])
+        logger.info("create project url: {0}".format(url))
+        output = requests.post(url, headers=self.headers, verify=False)
+        logger.info("create project output: {0}".format(output))
         return output
