@@ -4,7 +4,7 @@ info:
   description: >-
     Optional multiline or single-line description in
     [CommonMark](http://commonmark.org/help/) or HTML.
-  version: 20200610_v0.1
+  version: DevOps V1
 servers:
   - url: 'http://10.50.1.56:31850'
     description: 'Optional server description, e.g. Main (production) server'
