@@ -3,18 +3,22 @@ from flask import Response
 from flask import jsonify
 from flask import request as flask_req
 from flask_restful import Resource, Api, reqparse
+
 import logging
 from logging import handlers
 import json
 
+from model import db
 import resources.util as util
 import resources.auth as auth
 import resources.issue as issue
 import resources.project as project
 
+
 app = Flask(__name__)
 app.config.from_object('config')
 api = Api(app)
+
 
 handler = handlers.TimedRotatingFileHandler(
     'devops-api.log', when='D'\
@@ -36,10 +40,10 @@ headers = {
     'Authorization': 'Bearer {0}'.format(au.get_token(logger))
 }
 
-
 class Index(Resource):
 
     def get(self):
+        iss.create_data_into_project_relationship(logger)
         return {"message": "DevOps api is working"}
 
 class Issue_by_user(Resource):
@@ -209,4 +213,5 @@ api.add_resource(GitOneProject, '/git_one_project/<project_id>')
 api.add_resource(CreateGitProject, '/create_project')
 
 if __name__ == "__main__":
+    db.init_app(app)
     app.run(host='0.0.0.0', port=10009)
