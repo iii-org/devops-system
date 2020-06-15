@@ -83,13 +83,6 @@ class Project(Resource):
         return {"projects": output.json()["user"]["memberships"]}
 
 
-class GitProject(Resource):
-    
-    def get (self):
-        output = pjt.get_all_git_project(logger, app)
-        return output.json()
-
-
 class GitRepository(Resource):
 
     def get(self):
@@ -164,6 +157,22 @@ class PipelineExecutionsOne(Resource):
         output = ut.callgetapi(url, logger, headers)
         return output.json()['stages']
 
+    
+class GitProjects(Resource):
+
+    def get (self):
+        output = pjt.get_all_git_projects(logger, app)
+        return output.json()
+
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('name', type=str)
+        parser.add_argument('visibility', type=str)
+        args = parser.parse_args()
+        logger.info("post body: {0}".format(args))
+        output = pjt.create_git_project(logger, app, args)
+        return output.json()
+
 
 class GitOneProject(Resource):
 
@@ -177,22 +186,28 @@ class GitOneProject(Resource):
         parser.add_argument('visibility', type=str)
         args = parser.parse_args()
         logger.info("put body: {0}".format(args))
-        output = pjt.update_project(logger, app, project_id, args)
+        output = pjt.update_git_project(logger, app, project_id, args)
     
     def delete(self, project_id):
-        output = pjt.delete_project(logger, app, project_id)
+        output = pjt.delete_git_project(logger, app, project_id)
         return output.json()
 
+class GitProjectWebhooks(Resource):
 
-class CreateGitProject(Resource):
+    def get(self, project_id):
+        output = pjt.get_git_project_webhooks(logger, app, project_id)
+        return output.json()
 
-    def post(self):
+    def post(self, project_id):
         parser = reqparse.RequestParser()
-        parser.add_argument('name', type=str)
-        parser.add_argument('visibility', type=str)
+        parser.add_argument('url', type=str)
+        parser.add_argument('push_events', type=bool)
+        parser.add_argument('push_events_branch_filter', type=str)
+        parser.add_argument('enable_ssl_verification', type=bool)
+        parser.add_argument('token', type=str)
         args = parser.parse_args()
         logger.info("post body: {0}".format(args))
-        output = pjt.create_project(logger, app, args)
+        output = pjt.create_git_project_webhook(logger, app, project_id, args)
         return output.json()
 
 
@@ -201,7 +216,6 @@ api.add_resource(Issue, '/issue/<issue_id>')
 api.add_resource(Issue_by_user, '/issues_by_user/<user_account>')
 api.add_resource(IssueStatus, '/issues_status')
 api.add_resource(Project, '/project/<user_account>')
-api.add_resource(GitProject, '/git_project')
 api.add_resource(GitRepository, '/gitrepository')
 api.add_resource(Pipelines, '/pipelines')
 api.add_resource(PipelineID, '/pipelines/<pipelineid>')
@@ -209,8 +223,10 @@ api.add_resource(Get_pipeline_branchs, '/pipelines/<pipelineid>/branches')
 api.add_resource(PipelineExecutions, '/pipelineexecutions')
 api.add_resource(PipelineExecutionsOne, '/pipelineexecutions/<pipelineexecutionsid>')
 
+api.add_resource(GitProjects, '/git_projects')
 api.add_resource(GitOneProject, '/git_one_project/<project_id>')
-api.add_resource(CreateGitProject, '/create_project')
+api.add_resource(GitProjectWebhooks, '/git_project_webhooks/<project_id>')
+
 
 if __name__ == "__main__":
     db.init_app(app)

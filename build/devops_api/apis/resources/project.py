@@ -21,12 +21,22 @@ class Project(object):
             self.private_token = app.config["GITLAB_PRIVATE_TOKEN"]
         logger.info("private_token: {0}".format(self.private_token))
     
-    def get_all_git_project(self, logger, app):
+    # 查詢所有project
+    def get_all_git_projects(self, logger, app):
         url = "http://{0}/api/{1}/projects?private_token={2}".format(\
             app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], self.private_token)
-        logger.info("get all project url: {0}".format(url))
+        logger.info("get all projects url: {0}".format(url))
         output = requests.get(url, headers=self.headers, verify=False)
-        logger.info("get all project output: {0}".format(output.json()))
+        logger.info("get all projects output: {0}".format(output.json()))
+        return output
+
+    # 新增單一project（name/visibility）
+    def create_git_project(self, logger, app, args):
+        url = "http://{0}/api/{1}/projects?private_token={2}&name={3}&visibility={4}".format(\
+            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], self.private_token, args["name"], args["visibility"])
+        logger.info("create project url: {0}".format(url))
+        output = requests.post(url, headers=self.headers, verify=False)
+        logger.info("create project output: {0}".format(output))
         return output
 
     # 用project_id查詢單一project
@@ -39,7 +49,7 @@ class Project(object):
         return output
 
     # 用project_id修改單一project（name/visibility）
-    def update_project(self, logger, app, project_id, args):
+    def update_git_project(self, logger, app, project_id, args):
         url = "http://{0}/api/{1}/projects/{2}?private_token={3}&name={4}&visibility={5}".format(\
             app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, self.private_token, args["name"], args["visibility"])
         logger.info("update project url: {0}".format(url))
@@ -48,7 +58,7 @@ class Project(object):
         return output
 
     # 用project_id刪除單一project
-    def delete_project(self, logger, app, project_id):
+    def delete_git_project(self, logger, app, project_id):
         url = "http://{0}/api/{1}/projects/{2}?private_token={3}".format(\
             app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, self.private_token)
         logger.info("delete project url: {0}".format(url))
@@ -56,11 +66,22 @@ class Project(object):
         logger.info("delete project output: {0}".format(output.json()))
         return output
 
-    # 新增單一project
-    def create_project(self, logger, app, args):
-        url = "http://{0}/api/{1}/projects?private_token={2}&name={3}&visibility={4}".format(\
-            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], self.private_token, args["name"], args["visibility"])
-        logger.info("create project url: {0}".format(url))
+    # 用project_id查詢project的webhooks
+    def get_git_project_webhooks(self, logger, app, project_id):
+        url = "http://{0}/api/{1}/projects/{2}/hooks?private_token={3}".format(\
+            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, self.private_token)
+        logger.info("get project webhooks url: {0}".format(url))
+        output = requests.get(url, headers=self.headers, verify=False)
+        logger.info("get project webhooks output: {0}".format(output.json()))
+        return output
+
+    # 用project_id新增project的webhook
+    def create_git_project_webhook(self, logger, app, project_id, args):
+        url = "http://{0}/api/{1}/projects/{2}/hooks?private_token={3}&url={4}&push_events={5}&push_events_branch_filter={6}&enable_ssl_verification={7}&token={8}".format(\
+            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, self.private_token, \
+            args["url"], args["push_events"], args["push_events_branch_filter"], args["enable_ssl_verification"], \
+            args["token"])
+        logger.info("create project webhook url: {0}".format(url))
         output = requests.post(url, headers=self.headers, verify=False)
-        logger.info("create project output: {0}".format(output))
+        logger.info("create project webhook output: {0}".format(output.json()))
         return output
