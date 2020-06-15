@@ -19,6 +19,8 @@ tags:
     description: user account information
   - name: repository
     description: GitLab Repository 
+  - name: testCase
+    description :  API Test Case
 paths:
   /user/login:
     post:
@@ -142,6 +144,101 @@ paths:
             application/json:
               schema: 
                 $ref: '#/components/schemas/ProjectList'
+  /project/{project_id}/pipelines_info:
+    get:
+      summary: 取得專案pipelines設定的ID
+      tags: 
+        - 'pipelines'
+      description: ''
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Id'
+      responses:
+        '200':    # status code
+          description: A JSON array of issues id
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/Id'
+  /project/{project_id}/pipelines_exec:
+    get:
+      summary: 取得專案執行pipelines的ID
+      tags: 
+        - 'pipelines'
+      description: ''
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Id'
+      responses:
+        '200':    # status code
+          description: A JSON array of issues id
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/Id'
+  /pipelines_info/{pipelines_info_id}:
+     get:
+      summary: 取得專案pipelines的設定
+      tags: 
+        - 'pipelines'
+      description: ''
+      parameters:
+        - name: pipelines_info_id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Id'
+      responses:
+        '200':    # status code
+          description: A JSON array of issues id
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/PipelinesInfo'
+  /pipelines_exec/{pipelines_exec_id}:
+     get:
+      summary: 取得專案pipelines的設定
+      tags: 
+        - 'pipelines'
+      description: ''
+      parameters:
+        - name: pipelines_exec_id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Id'
+      responses:
+        '200':    # status code
+          description: A JSON array of issues id
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/PipelinesExecInfo'
+  /pipelines_log/{pipelines_exec_id}:
+     get:
+      summary: 取得專案pipelines的設定
+      tags: 
+        - 'pipelines'
+      description: ''
+      parameters:
+        - name: pipelines_exec_id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Id'
+      responses:
+        '200':    # status code
+          description: A JSON array of issues id
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/PipeLinesExecLog'
   /project/{project_id}/issues:
     get:
       summary: 取得專案內issues的ID
@@ -450,6 +547,25 @@ paths:
             application/json:
               schema: 
                 $ref: '#/components/schemas/Issues'
+  /project/{project_id}/repository:
+    get:
+      summary: 取得專案內Repository的ID
+      tags: 
+        - 'repository'
+      description: ''
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Id'
+      responses:
+        '200':    # status code
+          description: A JSON array of issues id
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/Repository'
   /dashboard_issues_priority/{user_account}:
     get:
       summary: 取得使用者儀錶板資訊(工作等級)
@@ -521,9 +637,7 @@ components:
             type: string
             description: "Remdmin or GitLab"
     Id:
-      type: array
-      items:
-        type: integer
+      type: integer
     ProjectList:
       type: array
       items:
@@ -756,33 +870,174 @@ components:
               description:
                 type: string
     Parameters:
+      type: object
+      description: "參數"
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        is_defined:
+          type: boolean
+        description:
+          type: string
+        type:
+          type: string
+          description: 參數類別
+        length:
+          type: integer
+        limit:
+          type: string
+          description: "正規表達式的限制"
+        values:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              value:
+                type: string
+              is_check:
+                type: boolean
+    CaseList:
         type: object
-        description: "參數"
+        description: "測試案例(API)列表"
         properties:
           id:
             type: integer
           name:
             type: string
-          is_defined:
-            type: boolean
+            description: "測試名稱"
           description:
             type: string
-          type:
+            description: "測試說明"
+          last_updated_time:
             type: string
-            description: 參數類別
-          length:
-            type: integer
-          limit:
+            format: date-time
+            description: 最後更新時間
+          create_time:
             type: string
-            description: 正規表達式的限制
-          values:
-            type: array
-            items:
+            format: date-time
+            description: 建立時間
+          last_test_result:
               type: object
               properties:
-                id:
+                total:
                   type: integer
-                value:
-                  type: string
-                is_check:
-                  type: boolean
+                  description: 總共測試數目
+                success:
+                  type: integer
+                  description: 總共成功數目
+    Case:
+        type: object
+        description: "測試案例(API)"
+        properties:
+          id:
+            type: integer
+          name:
+            type: string
+            description: "測試名稱"
+          description:
+            type: string
+            description: "測試說明"
+          last_updated_time:
+            type: string
+            format: date-time
+            description: 最後更新時間
+          action_ids:
+              type: array
+              items: 
+                type: object
+                $ref: 
+                  '#/components/schemas/Action'
+    Action:
+        type: object
+        description: "測試動作"
+        properties:
+            id: 
+              type: integer
+            action_type: 
+              type: string
+            parameters_is_defined:
+              type: boolean
+            parameters_id: 
+              type: array
+              items: 
+                type: integer
+            parameters: 
+              type: array
+              items: 
+                type: string
+    Repository:
+        type: object
+        description : "GitLab Repository"
+        properties:
+          id:
+            type: integer
+    PipelinesInfo:
+      type: object
+      description : "GitLab Repository"
+      properties:
+        id:
+          type: integer
+        pipeline_info:
+          type: array
+          items:
+            type: object
+            $ref:
+              "#/components/schemas/Software"
+    PipelinesExecInfo:
+      type: object
+      description: "Pipeline log list"
+      properties:
+        id:
+          type: integer
+        status:
+          type: object
+          $ref: "#/components/schemas/TestResultSummary"
+        commit_message:
+          type: string
+        commit_branch:
+          type: string
+        last_test_time:
+          type: string
+          format: date-time
+    PipeLinesExecLog:   
+      type: array
+      items:
+        type: string
+        description: "log output string"
+    Software:
+      type: object
+      description: "Integeration Thrid Partiy Software"
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        type:
+          type: string
+          description: 
+            "類型"
+        is_closed:
+          type: boolean
+          description:
+            "是否啟用"
+    TestResultSummary:
+      type: object
+      properties:
+        total:
+          type: integer
+          description: 總共測試數目
+        success:
+          type: integer
+          description: 總共成功數目
+
+            
+
+
+
+
+
+          
