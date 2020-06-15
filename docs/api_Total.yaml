@@ -203,7 +203,7 @@ paths:
                 $ref: '#/components/schemas/PipelinesInfo'
   /pipelines_exec/{pipelines_exec_id}:
      get:
-      summary: 取得專案pipelines的設定
+      summary: 取得專案pipelines執行資訊列表
       tags: 
         - 'pipelines'
       description: ''
@@ -222,7 +222,7 @@ paths:
                 $ref: '#/components/schemas/PipelinesExecInfo'
   /pipelines_log/{pipelines_exec_id}:
      get:
-      summary: 取得專案pipelines的設定
+      summary: 取得專案pipelines的執行LOG檔案
       tags: 
         - 'pipelines'
       description: ''
