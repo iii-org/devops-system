@@ -266,9 +266,7 @@ paths:
 components:
   schemas:
     Id:
-      type: array
-      items:
-        type: integer
+      type: integer
     Project:
       type: object
       properties:

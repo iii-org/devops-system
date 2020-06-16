@@ -4,7 +4,7 @@ info:
   description: >-
     Optional multiline or single-line description in
     [CommonMark](http://commonmark.org/help/) or HTML.
-  version: DevOps V3
+  version: DevOps Dev Version V1
 servers:
   - url: 'http://10.50.1.56:31850'
     description: 'Optional server description, e.g. Main (production) server'
@@ -19,6 +19,8 @@ tags:
     description: user account information
   - name: repository
     description: GitLab Repository 
+  - name: testCase
+    description :  API Test Case
 paths:
   /user/login:
     post:
@@ -142,6 +144,101 @@ paths:
             application/json:
               schema: 
                 $ref: '#/components/schemas/ProjectList'
+  /project/{project_id}/pipelines_info:
+    get:
+      summary: 取得專案pipelines設定的ID
+      tags: 
+        - 'pipelines'
+      description: ''
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Id'
+      responses:
+        '200':    # status code
+          description: A JSON array of issues id
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/Id'
+  /project/{project_id}/pipelines_exec:
+    get:
+      summary: 取得專案執行pipelines的ID
+      tags: 
+        - 'pipelines'
+      description: ''
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Id'
+      responses:
+        '200':    # status code
+          description: A JSON array of issues id
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/Id'
+  /pipelines_info/{pipelines_info_id}:
+     get:
+      summary: 取得專案pipelines的設定
+      tags: 
+        - 'pipelines'
+      description: ''
+      parameters:
+        - name: pipelines_info_id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Id'
+      responses:
+        '200':    # status code
+          description: A JSON array of issues id
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/PipelinesInfo'
+  /pipelines_exec/{pipelines_exec_id}:
+     get:
+      summary: 取得專案pipelines執行資訊列表
+      tags: 
+        - 'pipelines'
+      description: ''
+      parameters:
+        - name: pipelines_exec_id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Id'
+      responses:
+        '200':    # status code
+          description: A JSON array of issues id
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/PipelinesExecInfo'
+  /pipelines_log/{pipelines_exec_id}:
+     get:
+      summary: 取得專案pipelines的執行LOG檔案
+      tags: 
+        - 'pipelines'
+      description: ''
+      parameters:
+        - name: pipelines_exec_id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Id'
+      responses:
+        '200':    # status code
+          description: A JSON array of issues id
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/PipeLinesExecLog'
   /project/{project_id}/issues:
     get:
       summary: 取得專案內issues的ID
@@ -160,7 +257,7 @@ paths:
           content:
             application/json:
               schema: 
-                $ref: '#/components/schemas/Issues'
+                $ref: '#/components/schemas/IdList'
   /issues:
     get:
       summary: Returns a list of issues ID
@@ -173,7 +270,7 @@ paths:
           content:
             application/json:
               schema: 
-                $ref: '#/components/schemas/Id'
+                $ref: '#/components/schemas/IdList'
     post:
       summary: 建立Issues
       tags: 
@@ -450,6 +547,124 @@ paths:
             application/json:
               schema: 
                 $ref: '#/components/schemas/Issues'
+  /project/{project_id}/repository:
+    get:
+      summary: 取得專案內Repository的list ID
+      tags: 
+        - 'repository'
+      description: ''
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Id'
+      responses:
+        '200':    # status code
+          description: A JSON array of issues id
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/IdList'
+  /repository/{repository_id}:
+    get:
+      summary: 取得專案內Repository的資訊
+      tags: 
+        - 'repository'
+      description: ''
+      parameters:
+        - name: repository_id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Id'
+      responses:
+        '200':    # status code
+          description: A JSON array of issues id
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/RepositoryList'
+  /repository/{repository_id}/branch:
+    get:
+      summary: 取得專案內Repository的branch的ID
+      tags: 
+        - 'repository'
+      description: ''
+      parameters:
+        - name: repository_id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Id'
+      responses:
+        '200':    # status code
+          description: A JSON array of issues id
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/IdList'
+  
+  /repository/branch:
+    post:
+      summary: '建立Branch'
+      tags: 
+      - 'repository'
+      description: ''
+      requestBody:
+        description: '建立Branch'
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: string
+                  description: 'ID or URL-encoded path of the project owned by the authenticated user.'
+                branch:
+                  type: string
+                  description: 'Name of the branch.'
+                ref:
+                  type: string
+                  description: 'Branch name or commit SHA to create branch from.'
+              required:
+                - id
+                - branch
+                - ref
+      responses:
+        '200':    # status code
+          description: A JSON array of issues id
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/Branch'
+    del:
+      summary: '刪除分支'
+      tags: 
+      - 'repository'
+      description: ''
+      requestBody:
+        description: '刪除Branch'
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: string
+                  description: 'ID or URL-encoded path of the project owned by the authenticated user.'
+                branch:
+                  type: string
+                  description: 'Name of the branch.'
+              required:
+                - id
+                - branch
+      responses:
+        '200':    # status code
+      
+    
   /dashboard_issues_priority/{user_account}:
     get:
       summary: 取得使用者儀錶板資訊(工作等級)
@@ -521,6 +736,8 @@ components:
             type: string
             description: "Remdmin or GitLab"
     Id:
+      type: integer
+    IdList:
       type: array
       items:
         type: integer
@@ -711,7 +928,9 @@ components:
             id:
               type: integer
             name:
-              type: string        
+              type: string
+        parent_id:
+          type: integer
         subject:
           type: string
         start_date:
@@ -756,33 +975,305 @@ components:
               description:
                 type: string
     Parameters:
+      type: object
+      description: "參數"
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        is_defined:
+          type: boolean
+        description:
+          type: string
+        type:
+          type: string
+          description: 參數類別
+        length:
+          type: integer
+        limit:
+          type: string
+          description: "正規表達式的限制"
+        values:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              value:
+                type: string
+              is_check:
+                type: boolean
+    CaseList:
         type: object
-        description: "參數"
+        description: "測試案例(API)列表"
         properties:
           id:
             type: integer
           name:
             type: string
-          is_defined:
-            type: boolean
+            description: "測試名稱"
           description:
             type: string
-          type:
+            description: "測試說明"
+          last_updated_time:
             type: string
-            description: 參數類別
-          length:
-            type: integer
-          limit:
+            format: date-time
+            description: 最後更新時間
+          create_time:
             type: string
-            description: 正規表達式的限制
-          values:
-            type: array
-            items:
+            format: date-time
+            description: 建立時間
+          last_test_result:
               type: object
               properties:
-                id:
+                total:
                   type: integer
-                value:
-                  type: string
-                is_check:
-                  type: boolean
+                  description: 總共測試數目
+                success:
+                  type: integer
+                  description: 總共成功數目
+    Case:
+        type: object
+        description: "測試案例(API)"
+        properties:
+          id:
+            type: integer
+          name:
+            type: string
+            description: "測試名稱"
+          description:
+            type: string
+            description: "測試說明"
+          last_updated_time:
+            type: string
+            format: date-time
+            description: 最後更新時間
+          action_ids:
+              type: array
+              items: 
+                type: object
+                $ref: 
+                  '#/components/schemas/Action'
+    Action:
+        type: object
+        description: "測試動作"
+        properties:
+            id: 
+              type: integer
+            action_type: 
+              type: string
+            parameters_is_defined:
+              type: boolean
+            parameters_id: 
+              type: array
+              items: 
+                type: integer
+            parameters: 
+              type: array
+              items: 
+                type: string
+    RepositoryList:
+        type: array
+        items:
+          type: object
+          description : "GitLab Repository"
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+            issues_number:
+              type: integer
+              description: '被分派工作項目'
+            next_d_time:
+              type: string
+              format: date-time
+              description: '最近工作項目期限'
+            branch_number:
+              type: integer
+              description: '被分派工作項目'
+            last_test_time:
+              type: string
+              format: date-time
+              description: '最新一次測試時間'
+            last_test_result:
+              allOf:
+              - $ref: "#/components/schemas/TestResultSummary"
+    TagList:
+      type: array
+      description: '版本清單'
+      items:
+        type: object
+        description: '版本內容'
+        properties:
+            id:
+              type: integer
+            name:
+              type: string
+              description: 'tag name'
+            last_commit_message:
+              type: string
+              description: 'commit message'
+            last_commit_time:
+              type: string
+              format: date-time
+              description: '最新一次測試時間'
+            uuid:
+              type: string
+    BranchList:
+      type: array
+      description: '分支清單'
+      items:
+        type: object
+        description: '分支內容'
+        properties:
+            id:
+              type: integer
+            name:
+              type: string
+              description: 'tag name'
+            last_commit_message:
+              type: string
+              description: 'commit message'
+            last_commit_time:
+              type: string
+              format: date-time
+              description: '最新一次測試時間'
+            uuid:
+              type: string
+    Branch:
+      type: object
+      description: '分支內容'
+      properties:
+        name:
+          type: string
+        merged: 
+          type: boolean
+          example: false
+        protected: 
+          type: boolean
+          example: true
+        default: 
+          type: boolean
+          example: true
+        developers_can_push: 
+          type: boolean
+          example: false
+        developers_can_merge:
+          type: boolean
+          example: false
+        can_push: 
+          type: boolean
+          example: true
+        web_url: 
+          type: string
+          example : "http://gitlab.example.com/my-group/my-project/-/tree/master"
+        commit:
+          allOf:
+          - $ref: "#/components/schemas/Commit"
+    Commit:
+      type: object
+      properties:
+        id: 
+          type: string
+          example: "ed899a2f4b50b4370feeea94676502b42383c746"
+        short_id: 
+          type: string
+          example: "ed899a2f4b5"
+        title: 
+          type: string
+          example: "Replace sanitize with escape once"
+        author_name: 
+          type: string
+          example: "Example User"
+        author_email: 
+          type: string
+          format: email
+          example: "user@example.com"
+        authored_date: 
+          type: string
+          format: date-time
+          example: "2012-09-20T11:50:22+03:00"
+        committer_name: 
+          type: string
+          example: "Administrator"
+        committer_email: 
+          type: string
+          format: email
+          example: "admin@example.com"
+        committed_date: 
+          type: string
+          format: date-time
+          example: "2012-09-20T11:50:22+03:00"
+        created_at: 
+          type: string
+          format: date-time
+          example: "2012-09-20T11:50:22+03:00"
+        message: 
+          type: string
+          example: "Replace sanitize with escape once"
+        parent_ids:
+          type: array
+          items:
+            type: string
+            description: 'commit id'
+      
+    PipelinesInfo:
+      type: object
+      description : "GitLab Repository"
+      properties:
+        id:
+          type: integer
+        pipeline_info:
+          type: array
+          items:
+            allOf:
+            - $ref: "#/components/schemas/Software"
+    PipelinesExecInfo:
+      type: object
+      description: "Pipeline log list"
+      properties:
+        id:
+          type: integer
+        status:
+          allOf:
+          - $ref: "#/components/schemas/TestResultSummary"
+        commit_message:
+          type: string
+        commit_branch:
+          type: string
+        last_test_time:
+          type: string
+          format: date-time
+    PipeLinesExecLog:   
+      type: array
+      items:
+        type: string
+        description: "log output string"
+    Software:
+      type: object
+      description: "Integeration Thrid Partiy Software"
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        type:
+          type: string
+          description: 
+            "類型"
+        is_closed:
+          type: boolean
+          description:
+            "是否啟用"
+    TestResultSummary:
+      type: object
+      properties:
+        total:
+          type: integer
+          description: 總共測試數目
+        success:
+          type: integer
+          description: 總共成功數目
