@@ -1,0 +1,1947 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "DevOps Front End API",
+    "description": "Optional multiline or single-line description in [CommonMark](http://commonmark.org/help/) or HTML.",
+    "version": "DevOps Dev Version V1"
+  },
+  "servers": [
+    {
+      "url": "http://10.50.1.56:31850",
+      "description": "Optional server description, e.g. Main (production) server"
+    }
+  ],
+  "tags": [
+    {
+      "name": "project",
+      "description": "Redmine project"
+    },
+    {
+      "name": "issues",
+      "description": "Redmine issues"
+    },
+    {
+      "name": "pipelines",
+      "description": "CICD pipeline ID"
+    },
+    {
+      "name": "user",
+      "description": "user account information"
+    },
+    {
+      "name": "repository",
+      "description": "GitLab Repository"
+    },
+    {
+      "name": "testCase",
+      "description": "API Test Case"
+    }
+  ],
+  "paths": {
+    "/user/login": {
+      "post": {
+        "tags": [
+          "user"
+        ],
+        "summary": "使用者登入",
+        "operationId": "userLogin",
+        "requestBody": {
+          "description": "User Login Method",
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "username": {
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "username",
+                  "password"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "successful operation",
+            "headers": {
+              "X-Rate-Limit": {
+                "schema": {
+                  "type": "integer"
+                },
+                "description": "calls per hour allowed by the user"
+              },
+              "X-Expires-After": {
+                "schema": {
+                  "type": "integer"
+                },
+                "description": "date in UTC when token expires"
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid username/password supplied"
+          }
+        }
+      }
+    },
+    "/user/forgetPassword": {
+      "post": {
+        "tags": [
+          "user"
+        ],
+        "summary": "使用者忘記帳號密碼",
+        "operationId": "userForgetPassword",
+        "requestBody": {
+          "description": "User forget password",
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "mail": {
+                    "type": "string"
+                  },
+                  "user_account": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "mail",
+                  "user_account"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success Reset Password"
+          }
+        }
+      }
+    },
+    "/user/{user_id}": {
+      "get": {
+        "summary": "取得用戶資訊",
+        "operationId": "getUserInformation",
+        "tags": [
+          "user"
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "description": "User PK",
+            "schema": {
+              "$ref": "#/components/schemas/User"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "put": {
+        "summary": "修改用戶資訊",
+        "tags": [
+          "user"
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "description": "User PK",
+            "schema": {
+              "$ref": "#/components/schemas/User"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/project": {
+      "get": {
+        "summary": "取得目前所有專案ID",
+        "tags": [
+          "project"
+        ],
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "A JSON array of user names",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Project"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/project/{user_account}": {
+      "get": {
+        "summary": "取得使用者目前專案資訊",
+        "tags": [
+          "project"
+        ],
+        "description": "Optional extended description in CommonMark or HTML.",
+        "parameters": [
+          {
+            "name": "user_account",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A JSON array of project object",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectList"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/project/{project_id}/pipelines_info": {
+      "get": {
+        "summary": "取得專案pipelines設定的ID",
+        "tags": [
+          "pipelines"
+        ],
+        "description": "",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A JSON array of issues id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Id"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/project/{project_id}/pipelines_exec": {
+      "get": {
+        "summary": "取得專案執行pipelines的ID",
+        "tags": [
+          "pipelines"
+        ],
+        "description": "",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A JSON array of issues id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Id"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pipelines_info/{pipelines_info_id}": {
+      "get": {
+        "summary": "取得專案pipelines的設定",
+        "tags": [
+          "pipelines"
+        ],
+        "description": "",
+        "parameters": [
+          {
+            "name": "pipelines_info_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A JSON array of issues id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PipelinesInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pipelines_exec/{pipelines_exec_id}": {
+      "get": {
+        "summary": "取得專案pipelines執行資訊列表",
+        "tags": [
+          "pipelines"
+        ],
+        "description": "",
+        "parameters": [
+          {
+            "name": "pipelines_exec_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A JSON array of issues id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PipelinesExecInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pipelines_log/{pipelines_exec_id}": {
+      "get": {
+        "summary": "取得專案pipelines的執行LOG檔案",
+        "tags": [
+          "pipelines"
+        ],
+        "description": "",
+        "parameters": [
+          {
+            "name": "pipelines_exec_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A JSON array of issues id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PipeLinesExecLog"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/project/{project_id}/issues": {
+      "get": {
+        "summary": "取得專案內issues的ID",
+        "tags": [
+          "issues"
+        ],
+        "description": "",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A JSON array of issues id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdList"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/issues": {
+      "get": {
+        "summary": "Returns a list of issues ID",
+        "tags": [
+          "issues"
+        ],
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "A JSON array of issues id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdList"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "建立Issues",
+        "tags": [
+          "issues"
+        ],
+        "description": "",
+        "requestBody": {
+          "description": "XML建立議題",
+          "required": true,
+          "content": {
+            "application/xml": {
+              "schema": {
+                "$ref": "#/components/schemas/AddIssue"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "successful create issues"
+          }
+        }
+      }
+    },
+    "/issues/{issue_id}": {
+      "get": {
+        "summary": "取得Issues內的資訊",
+        "tags": [
+          "issues"
+        ],
+        "description": "Optional extended description in CommonMark or HTML.",
+        "parameters": [
+          {
+            "name": "issue_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A JSON array of Issues id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Issues"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "更新Issues內的資訊",
+        "tags": [
+          "issues"
+        ],
+        "description": "Optional extended description in CommonMark or HTML.",
+        "parameters": [
+          {
+            "name": "issue_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A JSON array of Issues id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Issues"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "刪除Issues",
+        "tags": [
+          "issues"
+        ],
+        "description": "Optional extended description in CommonMark or HTML.",
+        "parameters": [
+          {
+            "name": "issue_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "delete successful"
+          }
+        }
+      }
+    },
+    "/issues/{issue_id}/function": {
+      "get": {
+        "summary": "取得Issues內的功能(API)的ID",
+        "tags": [
+          "issues"
+        ],
+        "description": "issues內所開發的功能.",
+        "parameters": [
+          {
+            "name": "issue_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A JSON array of function id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Id"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/funtion/{funtion_id}": {
+      "get": {
+        "summary": "取得Issues內功能資訊",
+        "tags": [
+          "issues"
+        ],
+        "description": "Optional extended description in CommonMark or HTML.",
+        "parameters": [
+          {
+            "name": "funtion_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A JSON array of Issues id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Function"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "更新Issues內的資訊",
+        "tags": [
+          "issues"
+        ],
+        "description": "Optional extended description in CommonMark or HTML.",
+        "parameters": [
+          {
+            "name": "funtion_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A JSON array of Issues id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Issues"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "刪除Issues",
+        "tags": [
+          "issues"
+        ],
+        "description": "Optional extended description in CommonMark or HTML.",
+        "parameters": [
+          {
+            "name": "funtion_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "delete successful"
+          }
+        }
+      }
+    },
+    "/issues/{issue_id}/{funtion_id}/parameters": {
+      "get": {
+        "summary": "取得Issues內的功能(API)",
+        "tags": [
+          "issues"
+        ],
+        "description": "issues內所開發的功能所使用的參數",
+        "parameters": [
+          {
+            "name": "issue_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          },
+          {
+            "name": "funtion_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A JSON array of function id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Id"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/parameters/{parameters_id}": {
+      "get": {
+        "summary": "取得Issues內功能資訊",
+        "tags": [
+          "issues"
+        ],
+        "description": "Optional extended description in CommonMark or HTML.",
+        "parameters": [
+          {
+            "name": "parameters_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A JSON array of Issues id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Parameters"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "更新Issues內的資訊",
+        "tags": [
+          "issues"
+        ],
+        "description": "Optional extended description in CommonMark or HTML.",
+        "parameters": [
+          {
+            "name": "parameters_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A JSON array of Issues id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Parameters"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "刪除Issues",
+        "tags": [
+          "issues"
+        ],
+        "description": "Optional extended description in CommonMark or HTML.",
+        "parameters": [
+          {
+            "name": "parameters_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "delete successful"
+          }
+        }
+      }
+    },
+    "/issues_status": {
+      "get": {
+        "summary": "取得目前議題可使用狀態",
+        "tags": [
+          "issues"
+        ],
+        "description": "Optional extended description in CommonMark or HTML.",
+        "responses": {
+          "200": {
+            "description": "A JSON array of Issues Information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IssuesStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/issues_priority": {
+      "get": {
+        "summary": "取得目前議題可使用優先級別",
+        "tags": [
+          "issues"
+        ],
+        "description": "Optional extended description in CommonMark or HTML.",
+        "responses": {
+          "200": {
+            "description": "A JSON array of Issues Information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IssuesPriority"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/issuses_category/{project_id}": {
+      "get": {
+        "summary": "取得目前議題可使用狀態",
+        "tags": [
+          "issues"
+        ],
+        "description": "Optional extended description in CommonMark or HTML.",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A JSON array of Issues Information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IssuesCategories"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/issues_by_user/{user_account}": {
+      "get": {
+        "summary": "取得使用者所擁有Issues的資訊",
+        "tags": [
+          "issues"
+        ],
+        "description": "Optional extended description in CommonMark or HTML.",
+        "parameters": [
+          {
+            "name": "user_account",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A JSON array of Issues Information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Issues"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/project/{project_id}/repository": {
+      "get": {
+        "summary": "取得專案內Repository的list ID",
+        "tags": [
+          "repository"
+        ],
+        "description": "",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A JSON array of issues id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdList"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/repository/{repository_id}": {
+      "get": {
+        "summary": "取得專案內Repository的資訊",
+        "tags": [
+          "repository"
+        ],
+        "description": "",
+        "parameters": [
+          {
+            "name": "repository_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A JSON array of issues id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RepositoryList"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/repository/{repository_id}/branch": {
+      "get": {
+        "summary": "取得專案內Repository的branch的ID",
+        "tags": [
+          "repository"
+        ],
+        "description": "",
+        "parameters": [
+          {
+            "name": "repository_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A JSON array of issues id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdList"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/repository/branch": {
+      "post": {
+        "summary": "建立Branch",
+        "tags": [
+          "repository"
+        ],
+        "description": "",
+        "requestBody": {
+          "description": "建立Branch",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "ID or URL-encoded path of the project owned by the authenticated user."
+                  },
+                  "branch": {
+                    "type": "string",
+                    "description": "Name of the branch."
+                  },
+                  "ref": {
+                    "type": "string",
+                    "description": "Branch name or commit SHA to create branch from."
+                  }
+                },
+                "required": [
+                  "id",
+                  "branch",
+                  "ref"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "A JSON array of issues id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Branch"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/repository/branch/{branch_id}": {
+      "delete": {
+        "summary": "刪除分支",
+        "tags": [
+          "repository"
+        ],
+        "description": "刪除分支",
+        "parameters": [
+          {
+            "name": "branch_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": null
+        }
+      }
+    },
+    "/repository/branch/{branch_id}/tree": {
+      "get": {
+        "summary": "取得專案檔案樹狀階層",
+        "tags": "repository",
+        "description": null
+      }
+    },
+    "/dashboard_issues_priority/{user_account}": {
+      "get": {
+        "summary": "取得使用者儀錶板資訊(工作等級)",
+        "tags": [
+          "DashBoard"
+        ],
+        "description": "Optional extended description in CommonMark or HTML.",
+        "parameters": [
+          {
+            "name": "user_account",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A JSON array of Issues Information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IssuesPriorityNumber"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard_issues_project/{user_account}": {
+      "get": {
+        "summary": "取得使用者儀錶板資訊(工作專案)",
+        "tags": [
+          "DashBoard"
+        ],
+        "description": "Optional extended description in CommonMark or HTML.",
+        "parameters": [
+          {
+            "name": "user_account",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A JSON array of Issues Information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IssuesProjectNumber"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard_issues_type/{user_account}": {
+      "get": {
+        "summary": "取得使用者儀錶板資訊(工作專案)",
+        "tags": [
+          "DashBoard"
+        ],
+        "description": "Optional extended description in CommonMark or HTML.",
+        "parameters": [
+          {
+            "name": "user_account",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A JSON array of Issues Information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IssuesTypeNumber"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Project": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "integer"
+            },
+            "source": {
+              "type": "string",
+              "description": "Remdmin or GitLab"
+            }
+          }
+        }
+      },
+      "Id": {
+        "type": "integer"
+      },
+      "IdList": {
+        "type": "array",
+        "items": {
+          "type": "integer"
+        }
+      },
+      "ProjectList": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "專案名稱"
+            },
+            "issues": {
+              "type": "integer",
+              "description": "工作項目"
+            },
+            "next_d_time": {
+              "type": "string",
+              "format": "date-time",
+              "description": "最近交付期限"
+            },
+            "branch": {
+              "type": "integer",
+              "description": "分支數量"
+            },
+            "last_test_time": {
+              "type": "string",
+              "format": "date-time",
+              "description": "最近測試時間"
+            },
+            "last_test_result": {
+              "type": "object",
+              "properties": {
+                "total": {
+                  "type": "integer",
+                  "description": "總共測試數目"
+                },
+                "success": {
+                  "type": "integer",
+                  "description": "總共成功數目"
+                }
+              }
+            }
+          }
+        }
+      },
+      "AddIssue": {
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "integer"
+          },
+          "subject:": {
+            "type": "string"
+          },
+          "tracker_id": {
+            "type": "integer"
+          }
+        }
+      },
+      "IssuesCategories": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "integer"
+            },
+            "name": {
+              "type": "string",
+              "description": "類別名稱"
+            }
+          }
+        }
+      },
+      "IssuesPriority": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "integer"
+            },
+            "name": {
+              "description": "優先級別名稱",
+              "type": "string"
+            },
+            "is_closed": {
+              "description": "是否停用",
+              "type": "boolean"
+            }
+          }
+        }
+      },
+      "IssuesStatus": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "integer"
+            },
+            "name": {
+              "type": "string"
+            },
+            "is_closed": {
+              "type": "boolean"
+            }
+          }
+        }
+      },
+      "IssuesPriorityNumber": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "description": "優先級別名稱",
+              "type": "string"
+            },
+            "number": {
+              "description": "數目",
+              "type": "integer"
+            }
+          }
+        }
+      },
+      "IssuesProjectNumber": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "description": "專案名稱",
+              "type": "string"
+            },
+            "number": {
+              "description": "數目",
+              "type": "integer"
+            }
+          }
+        }
+      },
+      "IssuesTypeNumber": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "description": "議題類型",
+              "type": "string"
+            },
+            "number": {
+              "description": "數目",
+              "type": "integer"
+            }
+          }
+        }
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "User Key"
+          },
+          "name": {
+            "type": "string",
+            "description": "使用者姓名"
+          },
+          "username": {
+            "type": "string",
+            "description": "使用者帳號"
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "description": "密碼"
+          },
+          "email": {
+            "type": "string",
+            "description": "使用者電子郵件信箱"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "建立時間"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "更新時間"
+          },
+          "group": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "群組名稱"
+              }
+            }
+          },
+          "role": {
+            "type": "object",
+            "properties": {
+              "nname": {
+                "type": "string",
+                "description": "角色名稱"
+              }
+            }
+          }
+        }
+      },
+      "Issues": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "project": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            }
+          },
+          "tracker": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            }
+          },
+          "status": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            }
+          },
+          "priority": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            }
+          },
+          "author": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            }
+          },
+          "parent_id": {
+            "type": "integer"
+          },
+          "subject": {
+            "type": "string"
+          },
+          "start_date": {
+            "type": "string"
+          },
+          "done_ratio": {
+            "type": "integer"
+          },
+          "custom_fields": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "Function": {
+        "type": "object",
+        "description": "依據議題所設計的功能",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "function_type": {
+            "type": "string"
+          },
+          "isssues_id": {
+            "type": "integer"
+          },
+          "parameters": {
+            "type": "array",
+            "description": "功能內參數",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "Parameters": {
+        "type": "object",
+        "description": "參數",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "is_defined": {
+            "type": "boolean"
+          },
+          "description": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "description": "參數類別"
+          },
+          "length": {
+            "type": "integer"
+          },
+          "limit": {
+            "type": "string",
+            "description": "正規表達式的限制"
+          },
+          "values": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer"
+                },
+                "value": {
+                  "type": "string"
+                },
+                "is_check": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        }
+      },
+      "CaseList": {
+        "type": "object",
+        "description": "測試案例(API)列表",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string",
+            "description": "測試名稱"
+          },
+          "description": {
+            "type": "string",
+            "description": "測試說明"
+          },
+          "last_updated_time": {
+            "type": "string",
+            "format": "date-time",
+            "description": "最後更新時間"
+          },
+          "create_time": {
+            "type": "string",
+            "format": "date-time",
+            "description": "建立時間"
+          },
+          "last_test_result": {
+            "type": "object",
+            "properties": {
+              "total": {
+                "type": "integer",
+                "description": "總共測試數目"
+              },
+              "success": {
+                "type": "integer",
+                "description": "總共成功數目"
+              }
+            }
+          }
+        }
+      },
+      "Case": {
+        "type": "object",
+        "description": "測試案例(API)",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string",
+            "description": "測試名稱"
+          },
+          "description": {
+            "type": "string",
+            "description": "測試說明"
+          },
+          "last_updated_time": {
+            "type": "string",
+            "format": "date-time",
+            "description": "最後更新時間"
+          },
+          "action_ids": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "$ref": "#/components/schemas/Action"
+            }
+          }
+        }
+      },
+      "Action": {
+        "type": "object",
+        "description": "測試動作",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "action_type": {
+            "type": "string"
+          },
+          "parameters_is_defined": {
+            "type": "boolean"
+          },
+          "parameters_id": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          },
+          "parameters": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "RepositoryList": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "description": "GitLab Repository",
+          "properties": {
+            "id": {
+              "type": "integer"
+            },
+            "name": {
+              "type": "string"
+            },
+            "issues_number": {
+              "type": "integer",
+              "description": "被分派工作項目"
+            },
+            "next_d_time": {
+              "type": "string",
+              "format": "date-time",
+              "description": "最近工作項目期限"
+            },
+            "branch_number": {
+              "type": "integer",
+              "description": "被分派工作項目"
+            },
+            "last_test_time": {
+              "type": "string",
+              "format": "date-time",
+              "description": "最新一次測試時間"
+            },
+            "last_test_result": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/TestResultSummary"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "TagList": {
+        "type": "array",
+        "description": "版本清單",
+        "items": {
+          "type": "object",
+          "description": "版本內容",
+          "properties": {
+            "id": {
+              "type": "integer"
+            },
+            "name": {
+              "type": "string",
+              "description": "tag name"
+            },
+            "last_commit_message": {
+              "type": "string",
+              "description": "commit message"
+            },
+            "last_commit_time": {
+              "type": "string",
+              "format": "date-time",
+              "description": "最新一次測試時間"
+            },
+            "uuid": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "BranchList": {
+        "type": "array",
+        "description": "分支清單",
+        "items": {
+          "type": "object",
+          "description": "分支內容",
+          "properties": {
+            "id": {
+              "type": "integer"
+            },
+            "name": {
+              "type": "string",
+              "description": "tag name"
+            },
+            "last_commit_message": {
+              "type": "string",
+              "description": "commit message"
+            },
+            "last_commit_time": {
+              "type": "string",
+              "format": "date-time",
+              "description": "最新一次測試時間"
+            },
+            "uuid": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "Branch": {
+        "type": "object",
+        "description": "分支內容",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "merged": {
+            "type": "boolean",
+            "example": false
+          },
+          "protected": {
+            "type": "boolean",
+            "example": true
+          },
+          "default": {
+            "type": "boolean",
+            "example": true
+          },
+          "developers_can_push": {
+            "type": "boolean",
+            "example": false
+          },
+          "developers_can_merge": {
+            "type": "boolean",
+            "example": false
+          },
+          "can_push": {
+            "type": "boolean",
+            "example": true
+          },
+          "web_url": {
+            "type": "string",
+            "example": "http://gitlab.example.com/my-group/my-project/-/tree/master"
+          },
+          "commit": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Commit"
+              }
+            ]
+          }
+        }
+      },
+      "Commit": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "ed899a2f4b50b4370feeea94676502b42383c746"
+          },
+          "short_id": {
+            "type": "string",
+            "example": "ed899a2f4b5"
+          },
+          "title": {
+            "type": "string",
+            "example": "Replace sanitize with escape once"
+          },
+          "author_name": {
+            "type": "string",
+            "example": "Example User"
+          },
+          "author_email": {
+            "type": "string",
+            "format": "email",
+            "example": "user@example.com"
+          },
+          "authored_date": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2012-09-20T11:50:22+03:00"
+          },
+          "committer_name": {
+            "type": "string",
+            "example": "Administrator"
+          },
+          "committer_email": {
+            "type": "string",
+            "format": "email",
+            "example": "admin@example.com"
+          },
+          "committed_date": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2012-09-20T11:50:22+03:00"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2012-09-20T11:50:22+03:00"
+          },
+          "message": {
+            "type": "string",
+            "example": "Replace sanitize with escape once"
+          },
+          "parent_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "commit id"
+            }
+          }
+        }
+      },
+      "PipelinesInfo": {
+        "type": "object",
+        "description": "GitLab Repository",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "pipeline_info": {
+            "type": "array",
+            "items": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Software"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "PipelinesExecInfo": {
+        "type": "object",
+        "description": "Pipeline log list",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TestResultSummary"
+              }
+            ]
+          },
+          "commit_message": {
+            "type": "string"
+          },
+          "commit_branch": {
+            "type": "string"
+          },
+          "last_test_time": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "PipeLinesExecLog": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "description": "log output string"
+        }
+      },
+      "Software": {
+        "type": "object",
+        "description": "Integeration Thrid Partiy Software",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "description": "類型"
+          },
+          "is_closed": {
+            "type": "boolean",
+            "description": "是否啟用"
+          }
+        }
+      },
+      "TestResultSummary": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "integer",
+            "description": "總共測試數目"
+          },
+          "success": {
+            "type": "integer",
+            "description": "總共成功數目"
+          }
+        }
+      }
+    }
+  }
+}
