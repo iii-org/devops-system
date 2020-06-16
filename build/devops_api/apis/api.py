@@ -210,6 +210,26 @@ class GitProjectWebhooks(Resource):
         output = pjt.create_git_project_webhook(logger, app, project_id, args)
         return output.json()
 
+    def put(self, project_id):
+        parser = reqparse.RequestParser()
+        parser.add_argument('hook_id', type=int)
+        parser.add_argument('url', type=str)
+        parser.add_argument('push_events', type=bool)
+        parser.add_argument('push_events_branch_filter', type=str)
+        parser.add_argument('enable_ssl_verification', type=bool)
+        parser.add_argument('token', type=str)
+        args = parser.parse_args()
+        logger.info("put body: {0}".format(args))
+        output = pjt.update_git_project_webhook(logger, app, project_id, args)
+        return output.json()
+
+    def delete(self, project_id):
+        parser = reqparse.RequestParser()
+        parser.add_argument('hook_id', type=int)
+        args = parser.parse_args()
+        logger.info("del body: {0}".format(args))
+        output = pjt.delete_git_project_webhook(logger, app, project_id, args)
+
 
 api.add_resource(Index, '/')
 api.add_resource(Issue, '/issue/<issue_id>')

@@ -36,7 +36,7 @@ class Project(object):
             app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], self.private_token, args["name"], args["visibility"])
         logger.info("create project url: {0}".format(url))
         output = requests.post(url, headers=self.headers, verify=False)
-        logger.info("create project output: {0}".format(output))
+        logger.info("create project output: {0}".format(output.json()))
         return output
 
     # 用project_id查詢單一project
@@ -84,4 +84,24 @@ class Project(object):
         logger.info("create project webhook url: {0}".format(url))
         output = requests.post(url, headers=self.headers, verify=False)
         logger.info("create project webhook output: {0}".format(output.json()))
+        return output
+
+    # 用project_id & hook_id修改project的webhook
+    def update_git_project_webhook(self, logger, app, project_id, args):
+        url = "http://{0}/api/{1}/projects/{2}/hooks/{3}?private_token={4}&url={5}&push_events={6}&push_events_branch_filter={7}&enable_ssl_verification={8}&token={9}".format(\
+            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, args["hook_id"], self.private_token, \
+            args["url"], args["push_events"], args["push_events_branch_filter"], args["enable_ssl_verification"], \
+            args["token"])
+        logger.info("update project webhook url: {0}".format(url))
+        output = requests.put(url, headers=self.headers, verify=False)
+        logger.info("update project webhook output: {0}".format(output.json()))
+        return output
+
+    # 用project_id & hook_id刪除project的webhook
+    def delete_git_project_webhook(self, logger, app, project_id, args):
+        url = "http://{0}/api/{1}/projects/{2}/hooks/{3}?private_token={4}".format(\
+            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, args["hook_id"], self.private_token)
+        logger.info("delete project webhook url: {0}".format(url))
+        output = requests.delete(url, headers=self.headers, verify=False)
+        logger.info("delete project webhook output: {0}".format(output))
         return output
