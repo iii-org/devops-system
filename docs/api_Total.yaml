@@ -1,31 +1,31 @@
+---
 openapi: 3.0.0
 info:
-  title: DevOps Front End API 
-  description: >-
-    Optional multiline or single-line description in
-    [CommonMark](http://commonmark.org/help/) or HTML.
+  title: DevOps Front End API
+  description: Optional multiline or single-line description in [CommonMark](http://commonmark.org/help/)
+    or HTML.
   version: DevOps Dev Version V1
 servers:
-  - url: 'http://10.50.1.56:31850'
-    description: 'Optional server description, e.g. Main (production) server'
+- url: http://10.50.1.56:31850
+  description: Optional server description, e.g. Main (production) server
 tags:
-  - name: project
-    description: Redmine project
-  - name: issues
-    description: Redmine issues 
-  - name: pipelines
-    description: CICD pipeline ID
-  - name: user
-    description: user account information
-  - name: repository
-    description: GitLab Repository 
-  - name: testCase
-    description :  API Test Case
+- name: project
+  description: Redmine project
+- name: issues
+  description: Redmine issues
+- name: pipelines
+  description: CICD pipeline ID
+- name: user
+  description: user account information
+- name: repository
+  description: GitLab Repository
+- name: testCase
+  description: API Test Case
 paths:
   /user/login:
     post:
       tags:
-        - 'user'
+      - user
       summary: 使用者登入
       operationId: userLogin
       requestBody:
@@ -41,26 +41,26 @@ paths:
                 password:
                   type: string
               required:
-                - username
-                - password
+              - username
+              - password
       responses:
         '200':
-          description: "successful operation"
+          description: successful operation
           headers:
             X-Rate-Limit:
               schema:
                 type: integer
-              description: "calls per hour allowed by the user"
+              description: calls per hour allowed by the user
             X-Expires-After:
               schema:
                 type: integer
-              description: "date in UTC when token expires"
+              description: date in UTC when token expires
         '400':
-          description: "Invalid username/password supplied"
+          description: Invalid username/password supplied
   /user/forgetPassword:
     post:
       tags:
-        - user
+      - user
       summary: 使用者忘記帳號密碼
       operationId: userForgetPassword
       requestBody:
@@ -76,205 +76,204 @@ paths:
                 user_account:
                   type: string
               required:
-                - mail
-                - user_account
+              - mail
+              - user_account
       responses:
         '200':
-          description: "Success Reset Password"
+          description: Success Reset Password
   /user/{user_id}:
     get:
       summary: 取得用戶資訊
       operationId: getUserInformation
       tags:
-        - user
+      - user
       parameters:
-        - name: user_id
-          in: path
-          required: true
-          description: 'User PK'
-          schema:
-            $ref: '#/components/schemas/User'
+      - name: user_id
+        in: path
+        required: true
+        description: User PK
+        schema:
+          $ref: "#/components/schemas/User"
       responses:
         '200':
           description: OK
     put:
       summary: 修改用戶資訊
       tags:
-        - user
+      - user
       parameters:
-        - name: user_id
-          in: path
-          required: true
-          description: 'User PK'
-          schema:
-            $ref: '#/components/schemas/User'
+      - name: user_id
+        in: path
+        required: true
+        description: User PK
+        schema:
+          $ref: "#/components/schemas/User"
       responses:
         '200':
           description: OK
-          
   /project:
     get:
       summary: 取得目前所有專案ID
-      tags: 
-          - 'project'
+      tags:
+      - project
       description: ''
       responses:
-        '200':    # status code
+        '200':
           description: A JSON array of user names
           content:
             application/json:
-              schema: 
-                $ref: '#/components/schemas/Project'
+              schema:
+                $ref: "#/components/schemas/Project"
   /project/{user_account}:
     get:
       summary: 取得使用者目前專案資訊
-      tags: 
-        - 'project'
+      tags:
+      - project
       description: Optional extended description in CommonMark or HTML.
       parameters:
-        - name: user_account
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Id'
+      - name: user_account
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
       responses:
-        '200':    # status code
+        '200':
           description: A JSON array of project object
           content:
             application/json:
-              schema: 
-                $ref: '#/components/schemas/ProjectList'
+              schema:
+                $ref: "#/components/schemas/ProjectList"
   /project/{project_id}/pipelines_info:
     get:
       summary: 取得專案pipelines設定的ID
-      tags: 
-        - 'pipelines'
+      tags:
+      - pipelines
       description: ''
       parameters:
-        - name: project_id
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Id'
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
       responses:
-        '200':    # status code
+        '200':
           description: A JSON array of issues id
           content:
             application/json:
-              schema: 
-                $ref: '#/components/schemas/Id'
-  /project/{project_id}/pipelines_exec:
+              schema:
+                $ref: "#/components/schemas/Id"
+  /project/{roject_id}/pipelines_exec:
     get:
       summary: 取得專案執行pipelines的ID
-      tags: 
-        - 'pipelines'
+      tags:
+      - pipelines
       description: ''
       parameters:
-        - name: project_id
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Id'
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
       responses:
-        '200':    # status code
+        '200':
           description: A JSON array of issues id
           content:
             application/json:
-              schema: 
-                $ref: '#/components/schemas/Id'
+              schema:
+                $ref: "#/components/schemas/Id"
   /pipelines_info/{pipelines_info_id}:
-     get:
+    get:
       summary: 取得專案pipelines的設定
-      tags: 
-        - 'pipelines'
+      tags:
+      - pipelines
       description: ''
       parameters:
-        - name: pipelines_info_id
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Id'
+      - name: pipelines_info_id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
       responses:
-        '200':    # status code
+        '200':
           description: A JSON array of issues id
           content:
             application/json:
-              schema: 
-                $ref: '#/components/schemas/PipelinesInfo'
+              schema:
+                $ref: "#/components/schemas/PipelinesInfo"
   /pipelines_exec/{pipelines_exec_id}:
-     get:
+    get:
       summary: 取得專案pipelines執行資訊列表
-      tags: 
-        - 'pipelines'
+      tags:
+      - pipelines
       description: ''
       parameters:
-        - name: pipelines_exec_id
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Id'
+      - name: pipelines_exec_id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
       responses:
-        '200':    # status code
+        '200':
           description: A JSON array of issues id
           content:
             application/json:
-              schema: 
-                $ref: '#/components/schemas/PipelinesExecInfo'
+              schema:
+                $ref: "#/components/schemas/PipelinesExecInfo"
   /pipelines_log/{pipelines_exec_id}:
-     get:
+    get:
       summary: 取得專案pipelines的執行LOG檔案
-      tags: 
-        - 'pipelines'
+      tags:
+      - pipelines
       description: ''
       parameters:
-        - name: pipelines_exec_id
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Id'
+      - name: pipelines_exec_id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
       responses:
-        '200':    # status code
+        '200':
           description: A JSON array of issues id
           content:
             application/json:
-              schema: 
-                $ref: '#/components/schemas/PipeLinesExecLog'
+              schema:
+                $ref: "#/components/schemas/PipeLinesExecLog"
   /project/{project_id}/issues:
     get:
       summary: 取得專案內issues的ID
-      tags: 
-        - 'issues'
+      tags:
+      - issues
       description: ''
       parameters:
-        - name: project_id
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Id'
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
       responses:
-        '200':    # status code
+        '200':
           description: A JSON array of issues id
           content:
             application/json:
-              schema: 
-                $ref: '#/components/schemas/IdList'
+              schema:
+                $ref: "#/components/schemas/IdList"
   /issues:
     get:
       summary: Returns a list of issues ID
-      tags: 
-        - 'issues'
+      tags:
+      - issues
       description: ''
       responses:
-        '200':    # status code
+        '200':
           description: A JSON array of issues id
           content:
             application/json:
-              schema: 
-                $ref: '#/components/schemas/IdList'
+              schema:
+                $ref: "#/components/schemas/IdList"
     post:
       summary: 建立Issues
-      tags: 
-        - 'issues'
+      tags:
+      - issues
       description: ''
       requestBody:
         description: XML建立議題
@@ -282,337 +281,427 @@ paths:
         content:
           application/xml:
             schema:
-              $ref: '#/components/schemas/AddIssue'
+              $ref: "#/components/schemas/AddIssue"
       responses:
-        '200':    # status code
-          description: "successful create issues"
+        '200':
+          description: successful create issues
   /issues/{issue_id}:
     get:
       summary: 取得Issues內的資訊
-      tags: 
-        - 'issues'
+      tags:
+      - issues
       description: Optional extended description in CommonMark or HTML.
       parameters:
-        - name: issue_id
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Id'
+      - name: issue_id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
       responses:
-        '200':    # status code
+        '200':
           description: A JSON array of Issues id
           content:
             application/json:
-              schema: 
-                $ref: '#/components/schemas/Issues'
+              schema:
+                $ref: "#/components/schemas/Issues"
     put:
       summary: 更新Issues內的資訊
-      tags: 
-        - 'issues'
+      tags:
+      - issues
       description: Optional extended description in CommonMark or HTML.
       parameters:
-        - name: issue_id
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Id'
+      - name: issue_id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
       responses:
-        '200':    # status code
+        '200':
           description: A JSON array of Issues id
           content:
             application/json:
-              schema: 
-                $ref: '#/components/schemas/Issues'
+              schema:
+                $ref: "#/components/schemas/Issues"
     delete:
       summary: 刪除Issues
-      tags: 
-        - 'issues'
+      tags:
+      - issues
       description: Optional extended description in CommonMark or HTML.
       parameters:
-        - name: issue_id
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Id'
+      - name: issue_id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
       responses:
-        '200':    # status code
-          description: "delete successful"
+        '200':
+          description: delete successful
   /issues/{issue_id}/function:
     get:
       summary: 取得Issues內的功能(API)的ID
-      tags: 
-        - 'issues'
+      tags:
+      - issues
       description: issues內所開發的功能.
       parameters:
-        - name: issue_id
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Id'
+      - name: issue_id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
       responses:
-        '200':    # status code
+        '200':
           description: A JSON array of function id
           content:
             application/json:
-              schema: 
-                $ref: '#/components/schemas/Id'
+              schema:
+                $ref: "#/components/schemas/Id"
   /funtion/{funtion_id}:
     get:
       summary: 取得Issues內功能資訊
-      tags: 
-        - 'issues'
+      tags:
+      - issues
       description: Optional extended description in CommonMark or HTML.
       parameters:
-        - name: funtion_id
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Id'
+      - name: funtion_id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
       responses:
-        '200':    # status code
+        '200':
           description: A JSON array of Issues id
           content:
             application/json:
-              schema: 
-                $ref: '#/components/schemas/Function'
+              schema:
+                $ref: "#/components/schemas/Function"
     put:
       summary: 更新Issues內的資訊
-      tags: 
-        - 'issues'
+      tags:
+      - issues
       description: Optional extended description in CommonMark or HTML.
       parameters:
-        - name: funtion_id
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Id'
+      - name: funtion_id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
       responses:
-        '200':    # status code
+        '200':
           description: A JSON array of Issues id
           content:
             application/json:
-              schema: 
-                $ref: '#/components/schemas/Issues'
+              schema:
+                $ref: "#/components/schemas/Issues"
     delete:
       summary: 刪除Issues
-      tags: 
-        - 'issues'
+      tags:
+      - issues
       description: Optional extended description in CommonMark or HTML.
       parameters:
-        - name: funtion_id
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Id'
+      - name: funtion_id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
       responses:
-        '200':    # status code
-          description: "delete successful"
+        '200':
+          description: delete successful
   /issues/{issue_id}/{funtion_id}/parameters:
     get:
       summary: 取得Issues內的功能(API)
-      tags: 
-        - 'issues'
+      tags:
+      - issues
       description: issues內所開發的功能所使用的參數
       parameters:
-        - name: issue_id
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Id'
-        - name: funtion_id
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Id'
+      - name: issue_id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
+      - name: funtion_id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
       responses:
-        '200':    # status code
+        '200':
           description: A JSON array of function id
           content:
             application/json:
-              schema: 
-                $ref: '#/components/schemas/Id'
+              schema:
+                $ref: "#/components/schemas/Id"
   /parameters/{parameters_id}:
     get:
       summary: 取得Issues內功能資訊
-      tags: 
-        - 'issues'
+      tags:
+      - issues
       description: Optional extended description in CommonMark or HTML.
       parameters:
-        - name: parameters_id
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Id'
+      - name: parameters_id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
       responses:
-        '200':    # status code
+        '200':
           description: A JSON array of Issues id
           content:
             application/json:
-              schema: 
-                $ref: '#/components/schemas/Parameters'
+              schema:
+                $ref: "#/components/schemas/Parameters"
     put:
       summary: 更新Issues內的資訊
-      tags: 
-        - 'issues'
+      tags:
+      - issues
       description: Optional extended description in CommonMark or HTML.
       parameters:
-        - name: parameters_id
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Id'
+      - name: parameters_id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
       responses:
-        '200':    # status code
+        '200':
           description: A JSON array of Issues id
           content:
             application/json:
-              schema: 
-                $ref: '#/components/schemas/Parameters'
+              schema:
+                $ref: "#/components/schemas/Parameters"
     delete:
       summary: 刪除Issues
-      tags: 
-        - 'issues'
+      tags:
+      - issues
       description: Optional extended description in CommonMark or HTML.
       parameters:
-        - name: parameters_id
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Id'
+      - name: parameters_id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
       responses:
-        '200':    # status code
-          description: "delete successful"
-    
+        '200':
+          description: delete successful
   /issues_status:
     get:
       summary: 取得目前議題可使用狀態
-      tags: 
-        - 'issues'
+      tags:
+      - issues
       description: Optional extended description in CommonMark or HTML.
       responses:
-        '200':    # status code
+        '200':
           description: A JSON array of Issues Information
           content:
             application/json:
-              schema: 
-                $ref: '#/components/schemas/IssuesStatus'
+              schema:
+                $ref: "#/components/schemas/IssuesStatus"
   /issues_priority:
     get:
       summary: 取得目前議題可使用優先級別
-      tags: 
-        - 'issues'
+      tags:
+      - issues
       description: Optional extended description in CommonMark or HTML.
       responses:
-        '200':    # status code
+        '200':
           description: A JSON array of Issues Information
           content:
             application/json:
-              schema: 
-                $ref: '#/components/schemas/IssuesPriority'
+              schema:
+                $ref: "#/components/schemas/IssuesPriority"
   /issuses_category/{project_id}:
     get:
       summary: 取得目前議題可使用狀態
-      tags: 
-        - 'issues'
+      tags:
+      - issues
       description: Optional extended description in CommonMark or HTML.
       parameters:
-        - name: project_id
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Id'
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
       responses:
-        '200':    # status code
+        '200':
           description: A JSON array of Issues Information
           content:
             application/json:
-              schema: 
-                $ref: '#/components/schemas/IssuesCategories'
+              schema:
+                $ref: "#/components/schemas/IssuesCategories"
   /issues_by_user/{user_account}:
     get:
       summary: 取得使用者所擁有Issues的資訊
-      tags: 
-        - 'issues'
+      tags:
+      - issues
       description: Optional extended description in CommonMark or HTML.
       parameters:
-        - name: user_account
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Id'
+      - name: user_account
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
       responses:
-        '200':    # status code
+        '200':
           description: A JSON array of Issues Information
           content:
             application/json:
-              schema: 
-                $ref: '#/components/schemas/Issues'
+              schema:
+                $ref: "#/components/schemas/Issues"
   /project/{project_id}/repository:
     get:
       summary: 取得專案內Repository的list ID
-      tags: 
-        - 'repository'
+      tags:
+      - repository
       description: ''
       parameters:
-        - name: project_id
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Id'
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
       responses:
-        '200':    # status code
+        '200':
           description: A JSON array of issues id
           content:
             application/json:
-              schema: 
-                $ref: '#/components/schemas/IdList'
+              schema:
+                $ref: "#/components/schemas/IdList"
   /repository/{repository_id}:
     get:
       summary: 取得專案內Repository的資訊
-      tags: 
-        - 'repository'
+      tags:
+      - repository
       description: ''
       parameters:
-        - name: repository_id
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Id'
+      - name: repository_id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
       responses:
-        '200':    # status code
+        '200':
           description: A JSON array of issues id
           content:
             application/json:
-              schema: 
-                $ref: '#/components/schemas/RepositoryList'
+              schema:
+                $ref: "#/components/schemas/RepositoryList"
+  /repository/{repository_id}/tags:
+    get:
+      summary: 取得專案內Repository的Tags的ID
+      tags:
+      - repository
+      description: ''
+      parameters:
+      - name: repository_id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
+      responses:
+        '200':
+          description: A JSON array of issues id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IdList"
+    post:
+      summary: 建立Tag
+      tags:
+      - repository
+      description: Optional extended description in CommonMark or HTML.
+      parameters:
+      - name: repository_id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
+      requestBody:
+        description: 建立Tags
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                schemas:
+                  $ref: "#/components/schemas/UploadTag"
+      responses:
+        '200':
+          description: A JSON array of issues id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tags"
+  /repository/{repository_id}/tags/{tags_id}:
+    delete:
+      summary: 刪除Tag
+      tags:
+      - repository
+      description: 刪除Tag
+      parameters:
+      - name: tags_id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
+      - name: repository_id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
+      responses:
+        '200':
+          description: A JSON array of issues id
+          content:
+            text/plain:
+              example: Success Delete Tag
+    get:
+      summary: 取得Tag
+      description: 取得Tag
+      tags:
+      - repository
+      parameters:
+      - name: tags_id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
+      - name: repository_id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tag"
   /repository/{repository_id}/branch:
     get:
       summary: 取得專案內Repository的branch的ID
-      tags: 
-        - 'repository'
+      tags:
+      - repository
       description: ''
       parameters:
-        - name: repository_id
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Id'
+      - name: repository_id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
       responses:
-        '200':    # status code
+        '200':
           description: A JSON array of issues id
           content:
             application/json:
-              schema: 
-                $ref: '#/components/schemas/IdList'
-  
-  /repository/branch:
+              schema:
+                $ref: "#/components/schemas/IdList"
     post:
-      summary: '建立Branch'
-      tags: 
-      - 'repository'
+      summary: 建立Branch
+      tags:
+      - repository
       description: ''
       requestBody:
-        description: '建立Branch'
+        description: 建立Branch
         required: true
         content:
           application/json:
@@ -621,108 +710,315 @@ paths:
               properties:
                 id:
                   type: string
-                  description: 'ID or URL-encoded path of the project owned by the authenticated user.'
+                  description: ID or URL-encoded path of the project owned by the
+                    authenticated user.
                 branch:
                   type: string
-                  description: 'Name of the branch.'
+                  description: Name of the branch.
                 ref:
                   type: string
-                  description: 'Branch name or commit SHA to create branch from.'
+                  description: Branch name or commit SHA to create branch from.
               required:
-                - id
-                - branch
-                - ref
+              - id
+              - branch
+              - ref
       responses:
-        '200':    # status code
+        '200':
           description: A JSON array of issues id
           content:
             application/json:
-              schema: 
-                $ref: '#/components/schemas/Branch'
-    del:
-      summary: '刪除分支'
-      tags: 
-      - 'repository'
-      description: ''
-      requestBody:
-        description: '刪除Branch'
+              schema:
+                $ref: "#/components/schemas/Branch"
+  /repository/{repository_id}/branch/{branch_id}:
+    delete:
+      summary: 刪除分支
+      tags:
+      - repository
+      description: 刪除分支
+      parameters:
+      - name: branch_id
+        in: path
         required: true
+        schema:
+          $ref: "#/components/schemas/Id"
+      - name: repository_id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
+      responses:
+        '200':
+          description: A JSON array of issues id
+          content:
+            text/plain:
+              example: Success Delete Branch
+    get:
+      summary: 取得分支
+      description: 取得分支
+      tags:
+      - repository
+      parameters:
+      - name: branch_id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
+      - name: repository_id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Branch"
+  /repository/{repository_id}/branch/{branch_id}/deleteAllBranch:
+    delete:
+      summary: 刪除分支底下全部分支
+      tags:
+      - repository
+      description: 刪除分支底下全部分支
+      parameters:
+      - name: branch_id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
+      - name: repository_id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
+      responses:
+        '200':
+          description: A JSON array of issues id
+          content:
+            text/plain:
+              example: Success Delete Branch
+  /repository/{repository_id}/branch/{branch_id}/tree:
+    get:
+      summary: 取得專案檔案樹狀階層
+      tags:
+      - repository
+      description: ''
+      parameters:
+      - name: branch_id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
+      - name: repository_id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
+      responses:
+        '200':
+          description: File System Tree
+          content:
+            application/json:
+              schema:
+                type: object
+  /repository/{project_id}/files/{file_path}:
+    get:
+      summary: 取得檔案內容
+      tags:
+      - repository
+      description: ''
+      parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
+      - name: file_path
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/FilePath"
+      responses:
+        '200':
+          description: File System Tree
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FileInfo"
+        '400':
+          description: Non FIle
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: no file
+    post:
+      summary: 新增檔案內容
+      tags:
+      - repository
+      description: ''
+      parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
+      - name: file_path
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/FilePath"
+      requestBody:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                id:
-                  type: string
-                  description: 'ID or URL-encoded path of the project owned by the authenticated user.'
-                branch:
-                  type: string
-                  description: 'Name of the branch.'
-              required:
-                - id
-                - branch
+              $ref: "#/components/schemas/UplodFile"
       responses:
-        '200':    # status code
-      
-    
+        '200':
+          description: File System Tree
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  file_path:
+                    type: string
+                    example:
+                      $ref: "#/components/schemas/FilePath"
+                  branch:
+                    type: string
+                    example: master
+        '400':
+          description: Non FIle
+          content:
+            text/plain:
+              example: no file
+    put:
+      summary: 新增檔案內容
+      tags:
+      - repository
+      description: ''
+      parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
+      - name: file_path
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/FilePath"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateFile"
+      responses:
+        '200':
+          description: File System Tree
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  file_path:
+                    type: string
+                    example:
+                      $ref: "#/components/schemas/FilePath"
+                  branch:
+                    type: string
+                    example: master
+        '400':
+          description: Non FIle
+          content:
+            text/plain:
+              example: no file
+    delete:
+      summary: 刪除檔案內容
+      tags:
+      - repository
+      description: ''
+      parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
+      - name: file_path
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/FilePath"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateFile"
+      responses:
+        '200':
+          description: A JSON array of issues id
+          content:
+            text/plain:
+              example: Success Delete FI
   /dashboard_issues_priority/{user_account}:
     get:
       summary: 取得使用者儀錶板資訊(工作等級)
-      tags: 
-        - 'DashBoard'
+      tags:
+      - DashBoard
       description: Optional extended description in CommonMark or HTML.
       parameters:
-        - name: user_account
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Id'
+      - name: user_account
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
       responses:
-        '200':    # status code
+        '200':
           description: A JSON array of Issues Information
           content:
             application/json:
-              schema: 
-                $ref: '#/components/schemas/IssuesPriorityNumber'
+              schema:
+                $ref: "#/components/schemas/IssuesPriorityNumber"
   /dashboard_issues_project/{user_account}:
     get:
       summary: 取得使用者儀錶板資訊(工作專案)
-      tags: 
-        - 'DashBoard'
+      tags:
+      - DashBoard
       description: Optional extended description in CommonMark or HTML.
       parameters:
-        - name: user_account
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Id'
+      - name: user_account
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
       responses:
-        '200':    # status code
+        '200':
           description: A JSON array of Issues Information
           content:
             application/json:
-              schema: 
-                $ref: '#/components/schemas/IssuesProjectNumber'
+              schema:
+                $ref: "#/components/schemas/IssuesProjectNumber"
   /dashboard_issues_type/{user_account}:
     get:
       summary: 取得使用者儀錶板資訊(工作專案)
-      tags: 
-        - 'DashBoard'
+      tags:
+      - DashBoard
       description: Optional extended description in CommonMark or HTML.
       parameters:
-        - name: user_account
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Id'
+      - name: user_account
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
       responses:
-        '200':    # status code
+        '200':
           description: A JSON array of Issues Information
           content:
             application/json:
-              schema: 
-                $ref: '#/components/schemas/IssuesTypeNumber'
-    
+              schema:
+                $ref: "#/components/schemas/IssuesTypeNumber"
 components:
   schemas:
     Project:
@@ -734,7 +1030,7 @@ components:
             type: integer
           source:
             type: string
-            description: "Remdmin or GitLab"
+            description: Remdmin or GitLab
     Id:
       type: integer
     IdList:
@@ -777,7 +1073,7 @@ components:
       properties:
         project_id:
           type: integer
-        subject::
+        'subject:':
           type: string
         tracker_id:
           type: integer
@@ -786,11 +1082,11 @@ components:
       items:
         type: object
         properties:
-          id: 
+          id:
             type: integer
           name:
             type: string
-            description : 類別名稱
+            description: 類別名稱
     IssuesPriority:
       type: array
       items:
@@ -798,7 +1094,7 @@ components:
         properties:
           id:
             type: integer
-          name: 
+          name:
             description: 優先級別名稱
             type: string
           is_closed:
@@ -809,86 +1105,84 @@ components:
       items:
         type: object
         properties:
-          id: 
+          id:
             type: integer
-          name: 
+          name:
             type: string
-          is_closed: 
+          is_closed:
             type: boolean
     IssuesPriorityNumber:
       type: array
       items:
         type: object
         properties:
-          name: 
-            description: "優先級別名稱"
+          name:
+            description: 優先級別名稱
             type: string
           number:
-            description: "數目"
+            description: 數目
             type: integer
     IssuesProjectNumber:
       type: array
       items:
         type: object
         properties:
-          name: 
-            description: "專案名稱"
+          name:
+            description: 專案名稱
             type: string
           number:
-            description: "數目"
+            description: 數目
             type: integer
     IssuesTypeNumber:
       type: array
       items:
         type: object
         properties:
-          name: 
-            description: "議題類型"
+          name:
+            description: 議題類型
             type: string
           number:
-            description: "數目"
+            description: 數目
             type: integer
-
     User:
       type: object
       properties:
         id:
           type: integer
-          description: "User Key"
+          description: User Key
         name:
           type: string
-          description: "使用者姓名"
+          description: 使用者姓名
         username:
           type: string
-          description: "使用者帳號"
+          description: 使用者帳號
         password:
           type: string
           format: password
-          description: '密碼'
+          description: 密碼
         email:
           type: string
-          description: "使用者電子郵件信箱"
+          description: 使用者電子郵件信箱
         created_at:
           type: string
           format: date-time
-          description: "建立時間"
+          description: 建立時間
         updated_at:
           type: string
           format: date-time
-          description: "更新時間"
+          description: 更新時間
         group:
           type: object
           properties:
             name:
               type: string
-              description: '群組名稱'
+              description: 群組名稱
         role:
           type: object
           properties:
             nname:
               type: string
-              description: '角色名稱'
-              
+              description: 角色名稱
     Issues:
       type: object
       properties:
@@ -907,21 +1201,21 @@ components:
             id:
               type: integer
             name:
-              type: string              
+              type: string
         status:
           type: object
           properties:
             id:
               type: integer
             name:
-              type: string    
+              type: string
         priority:
           type: object
           properties:
             id:
               type: integer
             name:
-              type: string          
+              type: string
         author:
           type: object
           properties:
@@ -934,7 +1228,7 @@ components:
         subject:
           type: string
         start_date:
-          type: string   
+          type: string
         done_ratio:
           type: integer
         custom_fields:
@@ -945,12 +1239,12 @@ components:
               id:
                 type: integer
               name:
-                type: string  
+                type: string
               value:
-                type: string 
+                type: string
     Function:
       type: object
-      description: "依據議題所設計的功能"
+      description: 依據議題所設計的功能
       properties:
         id:
           type: integer
@@ -964,11 +1258,11 @@ components:
           type: integer
         parameters:
           type: array
-          description: "功能內參數"
+          description: 功能內參數
           items:
             type: object
-            properties: 
-              id: 
+            properties:
+              id:
                 type: integer
               name:
                 type: string
@@ -976,7 +1270,7 @@ components:
                 type: string
     Parameters:
       type: object
-      description: "參數"
+      description: 參數
       properties:
         id:
           type: integer
@@ -993,7 +1287,7 @@ components:
           type: integer
         limit:
           type: string
-          description: "正規表達式的限制"
+          description: 正規表達式的限制
         values:
           type: array
           items:
@@ -1006,223 +1300,272 @@ components:
               is_check:
                 type: boolean
     CaseList:
-        type: object
-        description: "測試案例(API)列表"
-        properties:
-          id:
-            type: integer
-          name:
-            type: string
-            description: "測試名稱"
-          description:
-            type: string
-            description: "測試說明"
-          last_updated_time:
-            type: string
-            format: date-time
-            description: 最後更新時間
-          create_time:
-            type: string
-            format: date-time
-            description: 建立時間
-          last_test_result:
-              type: object
-              properties:
-                total:
-                  type: integer
-                  description: 總共測試數目
-                success:
-                  type: integer
-                  description: 總共成功數目
-    Case:
-        type: object
-        description: "測試案例(API)"
-        properties:
-          id:
-            type: integer
-          name:
-            type: string
-            description: "測試名稱"
-          description:
-            type: string
-            description: "測試說明"
-          last_updated_time:
-            type: string
-            format: date-time
-            description: 最後更新時間
-          action_ids:
-              type: array
-              items: 
-                type: object
-                $ref: 
-                  '#/components/schemas/Action'
-    Action:
-        type: object
-        description: "測試動作"
-        properties:
-            id: 
-              type: integer
-            action_type: 
-              type: string
-            parameters_is_defined:
-              type: boolean
-            parameters_id: 
-              type: array
-              items: 
-                type: integer
-            parameters: 
-              type: array
-              items: 
-                type: string
-    RepositoryList:
-        type: array
-        items:
-          type: object
-          description : "GitLab Repository"
-          properties:
-            id:
-              type: integer
-            name:
-              type: string
-            issues_number:
-              type: integer
-              description: '被分派工作項目'
-            next_d_time:
-              type: string
-              format: date-time
-              description: '最近工作項目期限'
-            branch_number:
-              type: integer
-              description: '被分派工作項目'
-            last_test_time:
-              type: string
-              format: date-time
-              description: '最新一次測試時間'
-            last_test_result:
-              allOf:
-              - $ref: "#/components/schemas/TestResultSummary"
-    TagList:
-      type: array
-      description: '版本清單'
-      items:
-        type: object
-        description: '版本內容'
-        properties:
-            id:
-              type: integer
-            name:
-              type: string
-              description: 'tag name'
-            last_commit_message:
-              type: string
-              description: 'commit message'
-            last_commit_time:
-              type: string
-              format: date-time
-              description: '最新一次測試時間'
-            uuid:
-              type: string
-    BranchList:
-      type: array
-      description: '分支清單'
-      items:
-        type: object
-        description: '分支內容'
-        properties:
-            id:
-              type: integer
-            name:
-              type: string
-              description: 'tag name'
-            last_commit_message:
-              type: string
-              description: 'commit message'
-            last_commit_time:
-              type: string
-              format: date-time
-              description: '最新一次測試時間'
-            uuid:
-              type: string
-    Branch:
       type: object
-      description: '分支內容'
+      description: 測試案例(API)列表
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+          description: 測試名稱
+        description:
+          type: string
+          description: 測試說明
+        last_updated_time:
+          type: string
+          format: date-time
+          description: 最後更新時間
+        create_time:
+          type: string
+          format: date-time
+          description: 建立時間
+        last_test_result:
+          type: object
+          properties:
+            total:
+              type: integer
+              description: 總共測試數目
+            success:
+              type: integer
+              description: 總共成功數目
+    Case:
+      type: object
+      description: 測試案例(API)
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+          description: 測試名稱
+        description:
+          type: string
+          description: 測試說明
+        last_updated_time:
+          type: string
+          format: date-time
+          description: 最後更新時間
+        action_ids:
+          type: array
+          items:
+            type: object
+            $ref: "#/components/schemas/Action"
+    Action:
+      type: object
+      description: 測試動作
+      properties:
+        id:
+          type: integer
+        action_type:
+          type: string
+        parameters_is_defined:
+          type: boolean
+        parameters_id:
+          type: array
+          items:
+            type: integer
+        parameters:
+          type: array
+          items:
+            type: string
+    RepositoryList:
+      type: array
+      items:
+        type: object
+        description: GitLab Repository
+        properties:
+          id:
+            type: integer
+          name:
+            type: string
+          issues_number:
+            type: integer
+            description: 被分派工作項目
+          next_d_time:
+            type: string
+            format: date-time
+            description: 最近工作項目期限
+          branch_number:
+            type: integer
+            description: 被分派工作項目
+          last_test_time:
+            type: string
+            format: date-time
+            description: 最新一次測試時間
+          last_test_result:
+            allOf:
+            - $ref: "#/components/schemas/TestResultSummary"
+    Tag:
+      type: object
+      description: 分支內容
       properties:
         name:
           type: string
-        merged: 
+        merged:
           type: boolean
           example: false
-        protected: 
+        protected:
           type: boolean
           example: true
-        default: 
+        default:
           type: boolean
           example: true
-        developers_can_push: 
+        developers_can_push:
           type: boolean
           example: false
         developers_can_merge:
           type: boolean
           example: false
-        can_push: 
+        can_push:
           type: boolean
           example: true
-        web_url: 
+        web_url:
           type: string
-          example : "http://gitlab.example.com/my-group/my-project/-/tree/master"
+          example: http://gitlab.example.com/my-group/my-project/-/tree/master
+        commit:
+          allOf:
+          - $ref: "#/components/schemas/Commit"
+    TagList:
+      type: array
+      description: 版本清單
+      items:
+        type: object
+        description: 版本內容
+        properties:
+          id:
+            type: integer
+          name:
+            type: string
+            description: tag name
+          last_commit_message:
+            type: string
+            description: commit message
+          last_commit_time:
+            type: string
+            format: date-time
+            description: 最新一次測試時間
+          uuid:
+            type: string
+    UploadTag:
+      type: object
+      required:
+      - id
+      - tag_name
+      - ref
+      properties:
+        id:
+          type: integer
+        tag_name:
+          type: string
+          example: test
+        ref:
+          type: string
+          example: master
+          description: " Create tag using commit SHA, another tag name, or branch
+            name."
+        message:
+          type: string
+          example: annotated
+          description: Creates annotated tag
+    BranchList:
+      type: array
+      description: 分支清單
+      items:
+        type: object
+        description: 分支內容
+        properties:
+          id:
+            type: integer
+          name:
+            type: string
+            description: tag name
+          last_commit_message:
+            type: string
+            description: commit message
+          last_commit_time:
+            type: string
+            format: date-time
+            description: 最新一次測試時間
+          uuid:
+            type: string
+    Branch:
+      type: object
+      description: 分支內容
+      properties:
+        name:
+          type: string
+        merged:
+          type: boolean
+          example: false
+        protected:
+          type: boolean
+          example: true
+        default:
+          type: boolean
+          example: true
+        developers_can_push:
+          type: boolean
+          example: false
+        developers_can_merge:
+          type: boolean
+          example: false
+        can_push:
+          type: boolean
+          example: true
+        web_url:
+          type: string
+          example: http://gitlab.example.com/my-group/my-project/-/tree/master
         commit:
           allOf:
           - $ref: "#/components/schemas/Commit"
     Commit:
       type: object
       properties:
-        id: 
+        id:
           type: string
-          example: "ed899a2f4b50b4370feeea94676502b42383c746"
-        short_id: 
+          example: ed899a2f4b50b4370feeea94676502b42383c746
+        short_id:
           type: string
-          example: "ed899a2f4b5"
-        title: 
+          example: ed899a2f4b5
+        title:
           type: string
-          example: "Replace sanitize with escape once"
-        author_name: 
+          example: Replace sanitize with escape once
+        author_name:
           type: string
-          example: "Example User"
-        author_email: 
-          type: string
-          format: email
-          example: "user@example.com"
-        authored_date: 
-          type: string
-          format: date-time
-          example: "2012-09-20T11:50:22+03:00"
-        committer_name: 
-          type: string
-          example: "Administrator"
-        committer_email: 
+          example: Example User
+        author_email:
           type: string
           format: email
-          example: "admin@example.com"
-        committed_date: 
+          example: user@example.com
+        authored_date:
           type: string
           format: date-time
-          example: "2012-09-20T11:50:22+03:00"
-        created_at: 
+          example: '2012-09-20T11:50:22+03:00'
+        committer_name:
+          type: string
+          example: Administrator
+        committer_email:
+          type: string
+          format: email
+          example: admin@example.com
+        committed_date:
           type: string
           format: date-time
-          example: "2012-09-20T11:50:22+03:00"
-        message: 
+          example: '2012-09-20T11:50:22+03:00'
+        created_at:
           type: string
-          example: "Replace sanitize with escape once"
+          format: date-time
+          example: '2012-09-20T11:50:22+03:00'
+        message:
+          type: string
+          example: Replace sanitize with escape once
         parent_ids:
           type: array
           items:
             type: string
-            description: 'commit id'
-      
+            description: commit id
     PipelinesInfo:
       type: object
-      description : "GitLab Repository"
+      description: GitLab Repository
       properties:
         id:
           type: integer
@@ -1233,7 +1576,7 @@ components:
             - $ref: "#/components/schemas/Software"
     PipelinesExecInfo:
       type: object
-      description: "Pipeline log list"
+      description: Pipeline log list
       properties:
         id:
           type: integer
@@ -1247,14 +1590,14 @@ components:
         last_test_time:
           type: string
           format: date-time
-    PipeLinesExecLog:   
+    PipeLinesExecLog:
       type: array
       items:
         type: string
-        description: "log output string"
+        description: log output string
     Software:
       type: object
-      description: "Integeration Thrid Partiy Software"
+      description: Integeration Thrid Partiy Software
       properties:
         id:
           type: integer
@@ -1262,12 +1605,10 @@ components:
           type: string
         type:
           type: string
-          description: 
-            "類型"
+          description: 類型
         is_closed:
           type: boolean
-          description:
-            "是否啟用"
+          description: 是否啟用
     TestResultSummary:
       type: object
       properties:
@@ -1277,3 +1618,124 @@ components:
         success:
           type: integer
           description: 總共成功數目
+    ProjectId:
+      type: string
+    FilePath:
+      type: string
+      format: urlencoded
+      example: app%2Fmodels%2Fkey%2Erb
+    FileInfo:
+      type: object
+      properties:
+        file_name:
+          type: string
+          example: key.rb
+        file_path:
+          type: string
+          example: app/models/key.rb
+        size":
+          type: integer
+          example: 1476
+        encoding":
+          type: string
+          example: base64
+        content":
+          type: string
+          example: IyA9PSBTY2hlbWEgSW5mb3...
+        content_sha256":
+          type: string
+          example: 4c294617b60715c1d218e61164a3abd4808a4284cbc30e6728a01ad9aada4481
+        ref":
+          type: string
+          example: master
+        last_commit_id":
+          type: string
+          example: 570e7b2abdd848b95f2f578043fc23bd6f6fd24d
+    UplodFile:
+      type: object
+      required:
+      - file_path
+      - branch
+      - content
+      - commit_message
+      properties:
+        file_path:
+          type: string
+          example: app/models/key.rb
+        branch:
+          type: string
+          example: master
+        start_branch:
+          type: string
+          example: master
+        author_email:
+          type: string
+          example: author@example.com
+        author_name:
+          type: string
+          example: John Doe
+        encoding":
+          type: string
+          example: base64
+        content":
+          type: string
+          example: IyA9PSBTY2hlbWEgSW5mb3...
+        commit_message:
+          type: string
+          example: create a new file
+    UpdateFile:
+      type: object
+      required:
+      - file_path
+      - branch
+      - content
+      - commit_message
+      properties:
+        file_path:
+          type: string
+          example: app/models/key.rb
+        branch:
+          type: string
+          example: master
+        start_branch:
+          type: string
+          example: master
+        author_email:
+          type: string
+          example: author@example.com
+        author_name:
+          type: string
+          example: John Doe
+        encoding":
+          type: string
+          example: base64
+        content":
+          type: string
+          example: IyA9PSBTY2hlbWEgSW5mb3...
+        commit_message:
+          type: string
+          example: create a new file
+    DeleteFile:
+      type: object
+      required:
+      - file_path
+      - commit_message
+      properties:
+        file_path:
+          type: string
+          example: app/models/key.rb
+        branch:
+          type: string
+          example: master
+        start_branch:
+          type: string
+          example: master
+        author_email:
+          type: string
+          example: author@example.com
+        author_name:
+          type: string
+          example: John Doe
+        commit_message:
+          type: string
+          example: create a new file
