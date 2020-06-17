@@ -76,14 +76,14 @@ class IssueStatus(Resource):
         return output.json()
 
 
-class Project(Resource):
+class RedmineProject(Resource):
 
     def get(self, user_account):
         output = iss.get_project(logger, app, user_account)
         return {"projects": output.json()["user"]["memberships"]}
 
 
-class GitRepository(Resource):
+class Pipelines_gitrepository(Resource):
 
     def get(self):
         url = "https://10.50.1.55/v3/projects/c-7bl58:p-wxgdj/sourcecoderepositories"
@@ -243,8 +243,9 @@ api.add_resource(Index, '/')
 api.add_resource(Issue, '/issue/<issue_id>')
 api.add_resource(Issue_by_user, '/issues_by_user/<user_account>')
 api.add_resource(IssueStatus, '/issues_status')
-api.add_resource(Project, '/project/<user_account>')
-api.add_resource(GitRepository, '/gitrepository')
+api.add_resource(RedmineProject, '/redmine_project/<user_account>')
+
+api.add_resource(Pipelines_gitrepository, '/pipelines_gitrepository')
 api.add_resource(Pipelines, '/pipelines')
 api.add_resource(PipelineID, '/pipelines/<pipelineid>')
 api.add_resource(Get_pipeline_branchs, '/pipelines/<pipelineid>/branches')
