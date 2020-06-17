@@ -21,7 +21,7 @@ class Project(object):
             self.private_token = app.config["GITLAB_PRIVATE_TOKEN"]
         logger.info("private_token: {0}".format(self.private_token))
     
-    # 查詢所有project
+    # 查詢所有projects
     def get_all_git_projects(self, logger, app):
         url = "http://{0}/api/{1}/projects?private_token={2}".format(\
             app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], self.private_token)
@@ -104,4 +104,13 @@ class Project(object):
         logger.info("delete project webhook url: {0}".format(url))
         output = requests.delete(url, headers=self.headers, verify=False)
         logger.info("delete project webhook output: {0}".format(output))
+        return output
+
+    # 用project_id查詢project的repositories
+    def get_git_project_repositories(self, logger, app, project_id):
+        url = "http://{0}/api/{1}/projects/{2}/repository/tree?private_token={3}".format(\
+            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, self.private_token)
+        logger.info("get project repositories url: {0}".format(url))
+        output = requests.get(url, headers=self.headers, verify=False)
+        logger.info("get project repositories output: {0}".format(output.json()))
         return output

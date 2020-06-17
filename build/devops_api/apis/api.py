@@ -192,6 +192,7 @@ class GitOneProject(Resource):
         output = pjt.delete_git_project(logger, app, project_id)
         return output.json()
 
+
 class GitProjectWebhooks(Resource):
 
     def get(self, project_id):
@@ -231,6 +232,13 @@ class GitProjectWebhooks(Resource):
         output = pjt.delete_git_project_webhook(logger, app, project_id, args)
 
 
+class GitProjectRepositories(Resource):
+
+    def get(self, project_id):
+        output = pjt.get_git_project_repositories(logger, app, project_id)
+        return output.json()
+
+
 api.add_resource(Index, '/')
 api.add_resource(Issue, '/issue/<issue_id>')
 api.add_resource(Issue_by_user, '/issues_by_user/<user_account>')
@@ -246,6 +254,7 @@ api.add_resource(PipelineExecutionsOne, '/pipelineexecutions/<pipelineexecutions
 api.add_resource(GitProjects, '/git_projects')
 api.add_resource(GitOneProject, '/git_one_project/<project_id>')
 api.add_resource(GitProjectWebhooks, '/git_project_webhooks/<project_id>')
+api.add_resource(GitProjectRepositories, '/git_project_repositories/<project_id>')
 
 
 if __name__ == "__main__":
