@@ -259,7 +259,7 @@
         }
       }
     },
-    "/project/{project_id}/pipelines_exec": {
+    "/project/{roject_id}/pipelines_exec": {
       "get": {
         "summary": "取得專案執行pipelines的ID",
         "tags": [
