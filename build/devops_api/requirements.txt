@@ -1,4 +1,5 @@
 Flask
 Flask-RESTful
 requests
-sqlalchemy
+flask-sqlalchemy
+psycopg2
