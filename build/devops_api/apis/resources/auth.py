@@ -28,3 +28,10 @@ class auth(object):
             if row['login'] == args["username"] and row['password'] == h.hexdigest():
                 return True
         return False
+
+    def user_forgetpassword(self, logger, args):
+        result = db.engine.execute("SELECT login, email FROM public.user")
+        for row in result:
+            if row['login'] == args["user_account"] and row['email'] == args["mail"]:
+                # sent reset password url to mail
+                logger.info("user_forgetpassword API: user_account and mail were correct")
