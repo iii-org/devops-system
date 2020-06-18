@@ -1,5 +1,6 @@
 import requests
 import json
+from model import db, Project_relationship
 
 
 class Issue(object):
@@ -73,5 +74,30 @@ class Issue(object):
         output = requests.get(url, headers=self.headers, verify=False)
         logger.info("get issues output: {0}".format(output))
         return output
+    
+    def create_data_into_project_relationship(self, logger):
+        # 示範function，示範如何CRUD Table
+        # Create data
+        project1 = Project_relationship(rm_project_id=1, rm_project_name="project1", \
+            gl_project_id=1, gl_project_name="project1",\
+                ran_project_id=1, ran_project_name="project1")
+        db.session.add(project1)
+        db.session.commit()
+        # Read data
+        oneData = Project_relationship.query.first()
+        logger.info("Check db data: {0}".format(oneData.rm_project_name))
+        # Update data
+        oneData = Project_relationship.query.first()
+        oneData.rm_project_name = "project2_update"
+        db.session.commit()
+        logger.info("Check db data: {0}".format(Project_relationship.query.first().rm_project_name))
+        # Delete data
+        logger.info("before delete table data number: {0}".format(Project_relationship.query.count()))
+        firstData = Project_relationship.query.first()
+        db.session.delete(firstData)
+        db.session.commit()
+        logger.info("after delete table data number: {0}".format(Project_relationship.query.count()))
+
+
 
 
