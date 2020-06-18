@@ -1,4 +1,7 @@
+from Cryptodome.Hash import SHA256
+
 from .util import util
+from model import db
 
 class auth(object):
     
@@ -16,3 +19,13 @@ class auth(object):
         }
         output = util.callpostapi(self, url, parameter, logger, headers)
         return output.json()['token']
+    
+    def user_login(self, logger, args):
+        h = SHA256.new()
+        h.update(args["password"].encode())
+        result = db.engine.execute("SELECT login, password FROM public.user")
+        for row in result:
+            logger.info("row {0}".format(row))
+            if row['login'] == args["username"] and row['password'] == h.hexdigest():
+                return True
+        return False

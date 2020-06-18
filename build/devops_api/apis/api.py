@@ -239,6 +239,33 @@ class GitProjectRepositories(Resource):
         return output.json()
 
 
+class UserLogin(Resource):
+
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('username', type=str, required=True)
+        parser.add_argument('password', type=str, required=True)
+        args = parser.parse_args()
+        status = au.user_login(logger, args)
+        if status is False:
+            return None, 400
+
+
+class UserForgetPassword(Resource):
+
+    def post(self):
+        pass
+
+
+class UserInfo(Resource):
+    
+    def get (self, user_id):
+        pass
+
+    def post(self, user_id):
+        pass
+
+
 api.add_resource(Index, '/')
 
 # Redmine issue
@@ -261,6 +288,10 @@ api.add_resource(GitOneProject, '/git_one_project/<project_id>')
 api.add_resource(GitProjectWebhooks, '/git_project_webhooks/<project_id>')
 api.add_resource(GitProjectRepositories, '/git_project_repositories/<project_id>')
 
+# User
+api.add_resource(UserLogin, '/user/login')
+api.add_resource(UserForgetPassword, '/user/forgetPassword')
+api.add_resource(UserInfo, '/user/<user_id>')
 
 if __name__ == "__main__":
     db.init_app(app)

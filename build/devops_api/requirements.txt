@@ -3,3 +3,4 @@ Flask-RESTful
 requests
 flask-sqlalchemy
 psycopg2
+pycryptodomex
