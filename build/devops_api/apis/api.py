@@ -240,11 +240,14 @@ class GitProjectRepositories(Resource):
 
 
 api.add_resource(Index, '/')
+
+# Redmine issue
 api.add_resource(Issue, '/issue/<issue_id>')
 api.add_resource(Issue_by_user, '/issues_by_user/<user_account>')
 api.add_resource(IssueStatus, '/issues_status')
 api.add_resource(RedmineProject, '/redmine_project/<user_account>')
 
+# Rancher pipeline
 api.add_resource(Pipelines_gitrepository, '/pipelines_gitrepository')
 api.add_resource(Pipelines, '/pipelines')
 api.add_resource(PipelineID, '/pipelines/<pipelineid>')
@@ -252,6 +255,7 @@ api.add_resource(Get_pipeline_branchs, '/pipelines/<pipelineid>/branches')
 api.add_resource(PipelineExecutions, '/pipelineexecutions')
 api.add_resource(PipelineExecutionsOne, '/pipelineexecutions/<pipelineexecutionsid>')
 
+# Gitlab project
 api.add_resource(GitProjects, '/git_projects')
 api.add_resource(GitOneProject, '/git_one_project/<project_id>')
 api.add_resource(GitProjectWebhooks, '/git_project_webhooks/<project_id>')
