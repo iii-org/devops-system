@@ -16,13 +16,6 @@ spec:
     spec:
       containers:
       - name: devopsapi
-        image: demoyuw/devops-api
-        resources:
-          requests:
-            memory: "64Mi"
-            cpu: "250m"
-          limits:
-            memory: "1Gi"
-            cpu: "2"
+        image: iiiorg/devops-api
         ports:
         - containerPort: 10009
