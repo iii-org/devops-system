@@ -25,7 +25,6 @@ class auth(object):
         h.update(args["password"].encode())
         result = db.engine.execute("SELECT login, password FROM public.user")
         for row in result:
-            logger.info("row {0}".format(row))
             if row['login'] == args["username"] and row['password'] == h.hexdigest():
                 return True
         return False
