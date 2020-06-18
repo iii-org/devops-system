@@ -251,8 +251,8 @@ api.add_resource(Get_pipeline_branchs, '/pipelines/<pipelineid>/branches')
 api.add_resource(PipelineExecutions, '/pipelineexecutions')
 api.add_resource(PipelineExecutionsOne, '/pipelineexecutions/<pipelineexecutionsid>')
 
-api.add_resource(GitProjects, '/repositories')
-api.add_resource(GitOneProject, '/repository/<repository_id>')
+api.add_resource(GitProjects, '/git_projects')
+api.add_resource(GitOneProject, '/git_one_project/<project_id>')
 api.add_resource(GitProjectWebhooks, '/git_project_webhooks/<project_id>')
 api.add_resource(GitProjectRepositories, '/git_project_repositories/<project_id>')
 
