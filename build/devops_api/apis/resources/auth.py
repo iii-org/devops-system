@@ -35,3 +35,24 @@ class auth(object):
             if row['login'] == args["user_account"] and row['email'] == args["mail"]:
                 # sent reset password url to mail
                 logger.info("user_forgetpassword API: user_account and mail were correct")
+    
+    def user_info(self, logger, user_id):
+        result = db.engine.execute("SELECT * FROM public.user WHERE id = {0}".format(user_id))
+        user_data = result.fetchone()
+        logger.info("user info: {0}".format(user_data["id"]))
+        return {
+            "id": user_data["id"],
+            "name": user_data["name"],
+            "usernmae": user_data["name"],
+            "email": user_data["email"],
+            "phone": user_data["phone"],
+            "login": user_data["login"],
+            "create_at": user_data["create_at"],
+            "update_at": user_data["update_at"],
+            "group": {
+                "name": "III"
+            },
+            "role":{
+                "name": "Engineer"
+            }
+        }

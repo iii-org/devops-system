@@ -264,7 +264,8 @@ class UserForgetPassword(Resource):
 class UserInfo(Resource):
     
     def get (self, user_id):
-        pass
+        user_info = au.user_info(logger, user_id)
+        return jsonify(user_info)
 
     def post(self, user_id):
         pass
