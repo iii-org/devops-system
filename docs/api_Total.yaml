@@ -10,7 +10,7 @@ servers:
   description: Optional server description, e.g. Main (production) server
 tags:
 - name: project
-  description: Redmine project
+  description: DevOps project
 - name: issues
   description: Redmine issues
 - name: pipelines
@@ -18,11 +18,12 @@ tags:
 - name: user
   description: user account information
 - name: repository
-  description: GitLab Repository
-- name: testCase
+  description: GitLab Project
+- name: test_Case
   description: API Test Case
 paths:
   /user/login:
+    description: '登入頁面;none'
     post:
       tags:
       - user
@@ -58,6 +59,7 @@ paths:
         '400':
           description: Invalid username/password supplied
   /user/forgetPassword:
+    description: '忘記密碼頁面;none'
     post:
       tags:
       - user
@@ -82,6 +84,7 @@ paths:
         '200':
           description: Success Reset Password
   /user/{user_id}:
+    description: '4.1_用戶管理'
     get:
       summary: 取得用戶資訊
       operationId: getUserInformation
@@ -124,14 +127,15 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Project"
-  /project/{user_account}:
+  /project/{user_id}:
+    description: '3_專案清單'
     get:
       summary: 取得使用者目前專案資訊
       tags:
       - project
       description: Optional extended description in CommonMark or HTML.
       parameters:
-      - name: user_account
+      - name: user_id
         in: path
         required: true
         schema:
@@ -143,7 +147,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ProjectList"
-  /project/{project_id}/pipelines_info:
+  /pipelines/{project_id}/pipelines_info:
+    description: "3.3.1_CICD紀錄清單"
     get:
       summary: 取得專案pipelines設定的ID
       tags:
@@ -161,10 +166,11 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Id"
-  /project/{roject_id}/pipelines_exec:
+                $ref: "#/components/schemas/PipelinesInfo"
+  /pipelines/{project_id}/pipelines_exec:
+    description: "3.4_CICD紀錄清單"
     get:
-      summary: 取得專案執行pipelines的ID
+      summary: 取得專案執行pipelines的List
       tags:
       - pipelines
       description: ''
@@ -180,46 +186,11 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Id"
-  /pipelines_info/{pipelines_info_id}:
-    get:
-      summary: 取得專案pipelines的設定
-      tags:
-      - pipelines
-      description: ''
-      parameters:
-      - name: pipelines_info_id
-        in: path
-        required: true
-        schema:
-          $ref: "#/components/schemas/Id"
-      responses:
-        '200':
-          description: A JSON array of issues id
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/PipelinesInfo"
-  /pipelines_exec/{pipelines_exec_id}:
-    get:
-      summary: 取得專案pipelines執行資訊列表
-      tags:
-      - pipelines
-      description: ''
-      parameters:
-      - name: pipelines_exec_id
-        in: path
-        required: true
-        schema:
-          $ref: "#/components/schemas/Id"
-      responses:
-        '200':
-          description: A JSON array of issues id
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/PipelinesExecInfo"
-  /pipelines_log/{pipelines_exec_id}:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PipelinesExecInfo"
+  /pipelines/logs/{pipelines_exec_id}:
+    description: '3.4.1_CICD詳細記錄'
     get:
       summary: 取得專案pipelines的執行LOG檔案
       tags:
@@ -276,16 +247,17 @@ paths:
       - issues
       description: ''
       requestBody:
-        description: XML建立議題
+        description: 利用JSON 建立
         required: true
         content:
-          application/xml:
+          application/json:
             schema:
               $ref: "#/components/schemas/AddIssue"
       responses:
         '200':
           description: successful create issues
   /issues/{issue_id}:
+    description: '2.1 工作詳細內容 2.1.2 更新工作內容'
     get:
       summary: 取得Issues內的資訊
       tags:
@@ -526,14 +498,15 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/IssuesCategories"
-  /issues_by_user/{user_account}:
+  /issues_by_user/{user_id}:
+    description: '2_工作清單'
     get:
       summary: 取得使用者所擁有Issues的資訊
       tags:
       - issues
       description: Optional extended description in CommonMark or HTML.
       parameters:
-      - name: user_account
+      - name: user_id
         in: path
         required: true
         schema:
@@ -544,12 +517,12 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Issues"
+                $ref: "#/components/schemas/IssuesList"
   /project/{project_id}/repository:
     get:
       summary: 取得專案內Repository的list ID
       tags:
-      - repository
+      - repositories
       description: ''
       parameters:
       - name: project_id
@@ -564,11 +537,61 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/IdList"
-  /repository/{repository_id}:
+    post:
+      summary: 建立GitLab Project
+      tags:
+      - repositories
+      description: Optional extended description in CommonMark or HTML.
+      parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
+      requestBody:
+        description: 建立GitLab Project
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                schemas:
+                  $ref: "#/components/schemas/NewGitProject" 
+      responses:
+        '200':
+          description: A JSON array of issues id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Id"
+  /repositories/{user_id}:
+    description: '3 程式碼清單(none)'
+    get:
+      summary: 取得使用者目前程式碼資訊
+      tags:
+      - repositories
+      description: Optional extended description in CommonMark or HTML.
+      parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
+      responses:
+        '200':
+          description: A JSON array of project object
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectList"
+      deprecated: true
+  /repositories/{repository_id}:
+    description: '3.2 程式碼蓋覽圖 (none)'
     get:
       summary: 取得專案內Repository的資訊
       tags:
-      - repository
+      - repositories
       description: ''
       parameters:
       - name: repository_id
@@ -583,7 +606,37 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/RepositoryList"
-  /repository/{repository_id}/tags:
+  /repositories/{repository_id}/merge_branches:
+    description: '3.2.8 合併分支'
+    post:
+      summary: '合併分支'
+      tags:
+      - repositories
+      description: Optional extended description in CommonMark or HTML.
+      parameters:
+      - name: repository_id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
+      requestBody:
+        description: 建立Tags
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                schemas:
+                  $ref: "#/components/schemas/MergeBranchs"
+      responses:
+        '200':
+          description: A JSON array of issues id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tag"   
+  /repositories/{repository_id}/tags:
     get:
       summary: 取得專案內Repository的Tags的ID
       tags:
@@ -605,8 +658,8 @@ paths:
     post:
       summary: 建立Tag
       tags:
-      - repository
-      description: Optional extended description in CommonMark or HTML.
+      - repositories
+      description:
       parameters:
       - name: repository_id
         in: path
@@ -629,15 +682,16 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Tags"
-  /repository/{repository_id}/tags/{tags_id}:
+                $ref: "#/components/schemas/Tag"
+  /repositories/{repository_id}/tags/{tag_id}:
+    description: '3.2.10 刪除版本  '
     delete:
       summary: 刪除Tag
       tags:
       - repository
       description: 刪除Tag
       parameters:
-      - name: tags_id
+      - name: tag_id
         in: path
         required: true
         schema:
@@ -657,9 +711,9 @@ paths:
       summary: 取得Tag
       description: 取得Tag
       tags:
-      - repository
+      - repositories
       parameters:
-      - name: tags_id
+      - name: tag_id
         in: path
         required: true
         schema:
@@ -676,11 +730,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Tag"
-  /repository/{repository_id}/branch:
+  /repositories/{repository_id}/branch:
+    description: '3.2.1 分支列表  3.2.4 新增分支'
     get:
       summary: 取得專案內Repository的branch的ID
       tags:
-      - repository
+      - repositories
       description: ''
       parameters:
       - name: repository_id
@@ -694,12 +749,18 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/IdList"
+                $ref: "#/components/schemas/BranchList"
     post:
       summary: 建立Branch
       tags:
-      - repository
+      - repositories
       description: ''
+      parameters:
+      - name: repository_id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
       requestBody:
         description: 建立Branch
         required: true
@@ -729,11 +790,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Branch"
-  /repository/{repository_id}/branch/{branch_id}:
+  /repositories/{repository_id}/branch/{branch_id}:
+    description: '3.2.1.1檔案清單 3.2.9 刪除分支'
     delete:
       summary: 刪除分支
       tags:
-      - repository
+      - repositories
       description: 刪除分支
       parameters:
       - name: branch_id
@@ -756,7 +818,7 @@ paths:
       summary: 取得分支
       description: 取得分支
       tags:
-      - repository
+      - repositories
       parameters:
       - name: branch_id
         in: path
@@ -775,11 +837,11 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Branch"
-  /repository/{repository_id}/branch/{branch_id}/deleteAllBranch:
+  /repositories/{repository_id}/branch/{branch_id}/deleteAllBranch:
     delete:
       summary: 刪除分支底下全部分支
       tags:
-      - repository
+      - repositories
       description: 刪除分支底下全部分支
       parameters:
       - name: branch_id
@@ -798,11 +860,12 @@ paths:
           content:
             text/plain:
               example: Success Delete Branch
-  /repository/{repository_id}/branch/{branch_id}/tree:
+  /repositories/{repository_id}/branch/{branch_id}/tree:
+    description: '3.2.1.1 檔案清單'
     get:
       summary: 取得專案檔案樹狀階層
       tags:
-      - repository
+      - repositories
       description: ''
       parameters:
       - name: branch_id
@@ -822,14 +885,15 @@ paths:
             application/json:
               schema:
                 type: object
-  /repository/{project_id}/files/{file_path}:
+  /repositories/{repository_id}/files/{file_path}:
+    description: ' 分支編輯 修改 上傳  刪除檔案'
     get:
       summary: 取得檔案內容
       tags:
-      - repository
+      - repositories
       description: ''
       parameters:
-      - name: project_id
+      - name: repository_id
         in: path
         required: true
         schema:
@@ -856,10 +920,10 @@ paths:
     post:
       summary: 新增檔案內容
       tags:
-      - repository
+      - repositories
       description: ''
       parameters:
-      - name: project_id
+      - name: repository_id
         in: path
         required: true
         schema:
@@ -897,10 +961,10 @@ paths:
     put:
       summary: 新增檔案內容
       tags:
-      - repository
+      - repositories
       description: ''
       parameters:
-      - name: project_id
+      - name: repository_id
         in: path
         required: true
         schema:
@@ -938,10 +1002,10 @@ paths:
     delete:
       summary: 刪除檔案內容
       tags:
-      - repository
+      - repositories
       description: ''
       parameters:
-      - name: project_id
+      - name: repository_id
         in: path
         required: true
         schema:
@@ -951,11 +1015,6 @@ paths:
         required: true
         schema:
           $ref: "#/components/schemas/FilePath"
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/UpdateFile"
       responses:
         '200':
           description: A JSON array of issues id
@@ -1068,6 +1127,37 @@ components:
               success:
                 type: integer
                 description: 總共成功數目
+    IssuesList:
+      type: array
+      items:
+        type: object
+        properties:
+          name:
+            type: string
+            description: 專案名稱
+          issues:
+            type: integer
+            description: 工作項目
+          next_d_time:
+            type: string
+            format: date-time
+            description: 最近交付期限
+          branch:
+            type: integer
+            description: 分支數量
+          last_test_time:
+            type: string
+            format: date-time
+            description: 最近測試時間
+          last_test_result:
+            type: object
+            properties:
+              total:
+                type: integer
+                description: 總共測試數目
+              success:
+                type: integer
+                description: 總共成功數目
     AddIssue:
       type: object
       properties:
@@ -1107,10 +1197,13 @@ components:
         properties:
           id:
             type: integer
+            example: 1
           name:
             type: string
+            example: 'open'
           is_closed:
             type: boolean
+            example: false
     IssuesPriorityNumber:
       type: array
       items:
@@ -1739,3 +1832,33 @@ components:
         commit_message:
           type: string
           example: create a new file
+    NewGitProject:
+      type: object
+      required:
+      - name
+      properties:
+        name:
+          type: string
+          example: app/models/key.rb
+        visibility:
+          type: string
+          example: 'public'
+        description:
+          type: string
+          example: 
+            'Projcet Backend Service'
+    MergeBranchs:
+      type: object
+      required:
+      - source_branch
+      - target_branch
+      properties:
+        source_branch:
+          type: string
+          example: test1
+        target_branch:
+          type: string
+          example: master
+        merge_commit_message:
+          type: string
+          example: Merge to Master
