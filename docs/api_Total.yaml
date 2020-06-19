@@ -1294,6 +1294,10 @@ components:
           type: string
           format: password
           description: 密碼
+        phone:
+          type: string 
+          description: 使用者電話
+          example: 0933333666
         email:
           type: string
           description: 使用者電子郵件信箱
@@ -1318,6 +1322,10 @@ components:
         email:
           type: string
           description: 使用者電子郵件信箱
+        phone:
+          type: string 
+          description: 使用者電話
+          example: 0933333666
         group:
           type: object
           properties:
