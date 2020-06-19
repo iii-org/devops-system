@@ -66,18 +66,25 @@ class auth(object):
         if args["username"] is not None:
             set_string += "username = '{0}'".format(args["username"])
             set_string += ","
+        if args["password"] is not None:
+            h = SHA256.new()
+            h.update(args["password"].encode())
+            set_string += "password = '{0}'".format(h.hexdigest())
+            set_string += ","
         if args["phone"] is not None:
             set_string += "phone = {0}".format(args["phone"])
             set_string += ","
         if args["email"] is not None:
             set_string += "email = '{0}'".format(args["email"])
             set_string += ","
+        '''
         if args["group"] is not None:
             set_string += "group = '{0}'".format(args["group"])
             set_string += ","
         if args["role"] is not None:
             set_string += "role = '{0}'".format(args["role"])
             set_string += ","
+        '''
         set_string += "update_at = localtimestamp"
         logger.info("set_string: {0}".format(set_string))
         result = db.engine.execute("UPDATE public.user SET {0} WHERE id = {1}".format(set_string, user_id))
