@@ -11,9 +11,9 @@ servers:
 tags:
 - name: project
   description: DevOps project
-- name: issues
+- name: issue
   description: Redmine issues
-- name: pipelines
+- name: pipeline
   description: CICD pipeline ID
 - name: user
   description: user account information
