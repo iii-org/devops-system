@@ -14,7 +14,7 @@
   "tags": [
     {
       "name": "project",
-      "description": "Redmine project"
+      "description": "DevOps project"
     },
     {
       "name": "issues",
@@ -30,15 +30,16 @@
     },
     {
       "name": "repository",
-      "description": "GitLab Repository"
+      "description": "GitLab Project"
     },
     {
-      "name": "testCase",
+      "name": "test_Case",
       "description": "API Test Case"
     }
   ],
   "paths": {
     "/user/login": {
+      "description": "登入頁面",
       "post": {
         "tags": [
           "user"
@@ -259,7 +260,7 @@
         }
       }
     },
-    "/project/{project_id}/pipelines_exec": {
+    "/project/{roject_id}/pipelines_exec": {
       "get": {
         "summary": "取得專案執行pipelines的ID",
         "tags": [
@@ -902,6 +903,51 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/IdList"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "建立GitLab Project",
+        "tags": [
+          "repository"
+        ],
+        "description": "Optional extended description in CommonMark or HTML.",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "建立GitLab Project",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "schemas": {
+                    "$ref": "#/components/schemas/NewGitProject"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "A JSON array of issues id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Tags"
                 }
               }
             }
@@ -1763,13 +1809,16 @@
           "type": "object",
           "properties": {
             "id": {
-              "type": "integer"
+              "type": "integer",
+              "example": 1
             },
             "name": {
-              "type": "string"
+              "type": "string",
+              "example": "open"
             },
             "is_closed": {
-              "type": "boolean"
+              "type": "boolean",
+              "example": false
             }
           }
         }
@@ -2669,6 +2718,26 @@
           "commit_message": {
             "type": "string",
             "example": "create a new file"
+          }
+        }
+      },
+      "NewGitProject": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "app/models/key.rb"
+          },
+          "visibility": {
+            "type": "string",
+            "example": "public"
+          },
+          "description": {
+            "type": "string",
+            "example": "Projcet Backend Service"
           }
         }
       }
