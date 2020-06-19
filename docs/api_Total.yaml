@@ -96,12 +96,12 @@ paths:
         required: true
         description: User PK
         schema:
-          $ref: "#/components/schemas/User"
+          $ref: "#/components/schemas/UserInfo"
       responses:
         '200':
           description: OK
     put:
-      summary: 修改用戶資訊
+      summary: 修改用戶資訊, 用戶密碼變更
       tags:
       - user
       parameters:
@@ -110,7 +110,7 @@ paths:
         required: true
         description: User PK
         schema:
-          $ref: "#/components/schemas/User"
+          $ref: "#/components/schemas/UpdateUser"
       responses:
         '200':
           description: OK
@@ -541,7 +541,7 @@ paths:
       summary: 建立GitLab Project
       tags:
       - repositories
-      description: Optional extended description in CommonMark or HTML.
+      description: '建立GitLab 專案'
       parameters:
       - name: project_id
         in: path
@@ -584,7 +584,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ProjectList"
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProjectList"
       deprecated: true
   /repositories/{repository_id}:
     description: '3.2 程式碼蓋覽圖 (none)'
@@ -640,7 +642,7 @@ paths:
     get:
       summary: 取得專案內Repository的Tags的ID
       tags:
-      - repository
+      - repositories
       description: ''
       parameters:
       - name: repository_id
@@ -659,7 +661,7 @@ paths:
       summary: 建立Tag
       tags:
       - repositories
-      description:
+      description: '3.2.5 新增版本號'
       parameters:
       - name: repository_id
         in: path
@@ -688,7 +690,7 @@ paths:
     delete:
       summary: 刪除Tag
       tags:
-      - repository
+      - repositories
       description: 刪除Tag
       parameters:
       - name: tag_id
@@ -1246,6 +1248,7 @@ components:
         name:
           type: string
           description: 使用者姓名
+          example:
         username:
           type: string
           description: 使用者帳號
@@ -1256,6 +1259,11 @@ components:
         email:
           type: string
           description: 使用者電子郵件信箱
+          example: johndoe@example.com
+        phone:
+          type: string 
+          description: 使用者電話
+          example: 0933333666
         created_at:
           type: string
           format: date-time
@@ -1264,6 +1272,52 @@ components:
           type: string
           format: date-time
           description: 更新時間
+        group:
+          type: object
+          properties:
+            name:
+              type: string
+              description: 群組名稱
+        role:
+          type: object
+          properties:
+            nname:
+              type: string
+              description: 角色名稱
+    UpdateUser:
+      type: object
+      properties:
+        name:
+          type: string
+          description: 使用者姓名
+        password:
+          type: string
+          format: password
+          description: 密碼
+        email:
+          type: string
+          description: 使用者電子郵件信箱
+        group:
+          type: object
+          properties:
+            name:
+              type: string
+              description: 群組名稱
+        role:
+          type: object
+          properties:
+            nname:
+              type: string
+              description: 角色名稱
+    UserInfo:
+      type: object
+      properties:
+        name:
+          type: string
+          description: 使用者姓名
+        email:
+          type: string
+          description: 使用者電子郵件信箱
         group:
           type: object
           properties:
