@@ -268,7 +268,16 @@ class UserInfo(Resource):
         return jsonify(user_info)
 
     def post(self, user_id):
-        pass
+        parser = reqparse.RequestParser()
+        parser.add_argument('name', type=str)
+        parser.add_argument('username', type=str)
+        parser.add_argument('password', type=str)
+        parser.add_argument('phone', type=int)
+        parser.add_argument('email', type=str)
+        parser.add_argument('group', type=str)
+        parser.add_argument('role', type=str)
+        args = parser.parse_args()
+        au.update_user_info(logger, user_id, args)
 
 
 api.add_resource(Index, '/')

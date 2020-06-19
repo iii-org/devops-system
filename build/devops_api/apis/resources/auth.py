@@ -39,6 +39,7 @@ class auth(object):
     def user_info(self, logger, user_id):
         result = db.engine.execute("SELECT * FROM public.user WHERE id = {0}".format(user_id))
         user_data = result.fetchone()
+        result.close()
         logger.info("user info: {0}".format(user_data["id"]))
         return {
             "id": user_data["id"],
@@ -56,3 +57,27 @@ class auth(object):
                 "name": "Engineer"
             }
         }
+    
+    def update_user_info(self, logger, user_id, args):
+        set_string = ""
+        if args["name"] is not None:
+            set_string += "name = '{0}'".format(args["name"])
+            set_string += ","
+        if args["username"] is not None:
+            set_string += "username = '{0}'".format(args["username"])
+            set_string += ","
+        if args["phone"] is not None:
+            set_string += "phone = {0}".format(args["phone"])
+            set_string += ","
+        if args["email"] is not None:
+            set_string += "email = '{0}'".format(args["email"])
+            set_string += ","
+        if args["group"] is not None:
+            set_string += "group = '{0}'".format(args["group"])
+            set_string += ","
+        if args["role"] is not None:
+            set_string += "role = '{0}'".format(args["role"])
+            set_string += ","
+        set_string += "update_at = localtimestamp"
+        logger.info("set_string: {0}".format(set_string))
+        result = db.engine.execute("UPDATE public.user SET {0} WHERE id = {1}".format(set_string, user_id))
