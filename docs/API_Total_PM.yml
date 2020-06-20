@@ -1,7 +1,7 @@
 ---
 openapi: 3.0.0
 info:
-  title: DevOps Front End API For RD
+  title: DevOps Front End API For PM
   description: Optional multiline or single-line description in [CommonMark](http://commonmark.org/help/)
     or HTML.
   version: DevOps Dev Version V1
@@ -165,7 +165,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ProjectList"
-  /pipelines/rd/{project_id}/pipelines_info:
+  /pipeline/rd/{project_id}/pipeline_info:
     description: "3.3.1_CICD紀錄清單"
     get:
       summary: "3.3.1_CICD紀錄清單"
@@ -185,7 +185,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PipelinesInfo"
-  /pipelines/rd/{project_id}/pipelines_exec:
+  /pipeline/rd/{project_id}/pipeline_list:
     description: '3.4_CICD紀錄清單'
     get:
       summary: '3.4_CICD紀錄清單'
@@ -200,14 +200,14 @@ paths:
           $ref: "#/components/schemas/Id"
       responses:
         '200':
-          description: A JSON array of issues id
+          description: A JSON array of  pipeline exectuion id
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/PipelinesExecInfo"
-  /pipelines/rd/logs/{pipelines_exec_id}:
+                  $ref: "#/components/schemas/PipelinesExecList"
+  /pipeline/rd/log/{pipeline_exec_id}:
     description: '3.4.1_CICD詳細記錄'
     get:
       summary: '3.4.1_CICD詳細記錄' 
@@ -215,23 +215,23 @@ paths:
       - pipelines
       description: '取得專案pipelines的執行LOG檔案'
       parameters:
-      - name: pipelines_exec_id
+      - name: pipeline_exec_id
         in: path
         required: true
         schema:
           $ref: "#/components/schemas/Id"
       responses:
         '200':
-          description: A JSON array of issues id
+          description: A JSON array of pipeline exectuion Log
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/PipeLinesExecLog"
-  /project/rd/{project_id}/issues:
+  /project/{project_id}/issues:
     get:
       summary: 取得專案內issues的ID 
       tags:
-      - issues
+      - issues_PM
       description: ''
       parameters:
       - name: project_id
@@ -245,8 +245,27 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Ids"
+                type: array
+                items:
+                  $ref: "#/components/schemas/Id"
       deprecated: true
+  /issues/pm:
+    description: (Lack Request Body)
+    post:
+      summary: 建立Issues
+      tags:
+      - issues
+      description: 'PM 使用 RD不用使用'
+      requestBody:
+        description: 利用JSON 建立
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddIssue"
+      responses:
+        '200':
+          description: successful create issues
   /issues/rd/{issue_id}:
     description: '2.1 工作詳細內容 2.1.2 更新工作內容'
     get:
@@ -266,7 +285,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/IssueInfo"
+                $ref: "#/components/schemas/RD_Issue_Info"
     put:
       summary: 2.1.2 更新工作內容
       tags:
@@ -283,12 +302,12 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdateIssue'
+              $ref: '#/components/schemas/RD_Update_Issue'
       responses:
         '200':
           $ref: '#/components/schemas/successful'
     delete:
-      summary: 刪除Issues (not essential)
+      summary: 刪除Issues
       tags:
       - issues
       description: 刪除Issues
@@ -300,8 +319,8 @@ paths:
           $ref: "#/components/schemas/Id"
       responses:
         '200':
-          description: delete successful
-  /issues/rd/{issue_id}/function:
+          $ref: '#/components/schemas/successful'
+  /issues/{issue_id}/function:
     summary: test
     get:
       summary: 取得Issues內的功能(API)的ID
@@ -320,16 +339,14 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                   $ref: "#/components/schemas/FuntionList"
+                $ref: "#/components/schemas/Id"
       deprecated: true
   /funtion/{funtion_id}:
     get:
-      summary: 2.1.4_設定API
+      summary: 取得Issues內功能資訊
       tags:
       - issues
-      description: '取得Issues內功能資訊'
+      description: Optional extended description in CommonMark or HTML.
       parameters:
       - name: funtion_id
         in: path
@@ -345,10 +362,10 @@ paths:
                 $ref: "#/components/schemas/Function"
       deprecated: true
     put:
-      summary: 2.1.4_設定API
+      summary: 更新Issues內的資訊
       tags:
       - issues
-      description: '更新Issue內功能'
+      description: Optional extended description in CommonMark or HTML.
       parameters:
       - name: funtion_id
         in: path
@@ -1421,7 +1438,7 @@ components:
                 type: string
               value:
                 type: string
-    IssueInfo:
+    RD_Issue_Info:
       type: object
       properties:
         id:
@@ -1563,7 +1580,7 @@ components:
               create_time:
                 type: string
                 format: date-time    
-    UpdateIssue:
+    RD_Update_Issue:
       type: object
       properties:
         project:
@@ -1649,21 +1666,6 @@ components:
                 type: string
               description:
                 type: string
-    FuntcionList:
-      type: object
-      description: 議題所設計功能列表
-      properties:
-        id:
-          type: integer
-        name:
-          type: string
-        URL:
-          type: string
-        description:
-          type: string
-        last_commit_time:
-          type: string
-          format: date-time
     Parameters:
       type: object
       description: 參數
@@ -1970,12 +1972,13 @@ components:
           items:
             allOf:
             - $ref: "#/components/schemas/Software"
-    PipelinesExecInfo:
+    PipelinesExecList:
       type: object
       description: Pipeline log list
       properties:
         id:
           type: integer
+          description: pipeline_exec_id
         status:
           allOf:
           - $ref: "#/components/schemas/TestResultSummary"
