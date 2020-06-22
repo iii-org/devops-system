@@ -294,6 +294,12 @@ class PipelineInfo(Resource):
         output = pipe.pipeline_info(logger, project_id)
         return jsonify(output)
 
+class PipelineExec(Resource):
+    
+    def get (self, project_id):
+        output_array = pipe.pipeline_exec(logger, project_id)
+        return jsonify(output_array)
+
 
 api.add_resource(Index, '/')
 
@@ -327,6 +333,7 @@ api.add_resource(UserInfo, '/user/<user_id>')
 
 # pipeline
 api.add_resource(PipelineInfo, '/pipelines/rd/<project_id>/pipelines_info')
+api.add_resource(PipelineExec, '/pipelines/rd/<project_id>/pipelines_exec')
 
 if __name__ == "__main__":
     db.init_app(app)
