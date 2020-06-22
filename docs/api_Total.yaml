@@ -324,7 +324,7 @@ paths:
                 items:
                    $ref: "#/components/schemas/FuntionList"
       deprecated: true
-  /funtion/{funtion_id}:
+  /funtion/rd/{funtion_id}:
     get:
       summary: 2.1.4_設定API
       tags:
@@ -348,7 +348,7 @@ paths:
       summary: 2.1.4_設定API
       tags:
       - issues
-      description: '更新Issue內功能'
+      description: '設定API'
       parameters:
       - name: funtion_id
         in: path
@@ -364,10 +364,10 @@ paths:
                 $ref: "#/components/schemas/Issues"
       deprecated: true
     delete:
-      summary: 刪除Issues
+      summary: 刪除function
       tags:
       - issues
-      description: Optional extended description in CommonMark or HTML.
+      description: delete Function
       parameters:
       - name: funtion_id
         in: path
@@ -378,7 +378,7 @@ paths:
         '200':
           description: delete successful
       deprecated: true
-  /issues/{issue_id}/{funtion_id}/parameters:
+  /issues/rd/{issue_id}/{funtion_id}/parameters:
     get:
       summary: 取得Issues內的功能(API)
       tags:
@@ -403,12 +403,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/Id"
       deprecated: true
-  /parameters/{parameters_id}:
+  /parameters/rd/{parameters_id}:
     get:
-      summary: '2.1_議題詳細內容'
+      summary: '2.1.4.1_設定參數'
       tags:
       - issues
-      description: 取得Issues內功能資訊
+      description: 2.1.4.1_設定參數
       parameters:
       - name: parameters_id
         in: path
@@ -424,10 +424,10 @@ paths:
                 $ref: "#/components/schemas/Parameters"
       deprecated: true
     put:
-      summary: '2.1.2_更新工作狀態'
+      summary: '2.1.4.1_設定參數'
       tags:
       - issues
-      description: 更新Issues內的資訊
+      description: 2.1.4.1_設定參數
       parameters:
       - name: parameters_id
         in: path
@@ -443,10 +443,10 @@ paths:
                 $ref: "#/components/schemas/Parameters"
       deprecated: true
     delete:
-      summary: 刪除Issues
+      summary: 2.1.4.1_設定參數
       tags:
       - issues
-      description: Optional extended description in CommonMark or HTML.
+      description: 2.1.4.1_設定參數
       parameters:
       - name: parameters_id
         in: path
@@ -459,7 +459,7 @@ paths:
       deprecated: true
   /issues_status:
     get:
-      summary: 取得目前議題可使用狀態
+      summary: 取得目前議題可使用狀態(For 所有議題)
       tags:
       - issues
       description: 取得議題可使用的狀態列表 如 已被分配等
@@ -474,7 +474,7 @@ paths:
                   $ref: "#/components/schemas/IssuesStatus"
   /issues_priority:
     get:
-      summary: 取得目前議題可使用優先級別
+      summary: 取得目前議題可使用優先級別(For 所有議題)
       tags:
       - issues
       description: 取得目前議題可使用優先級別(如 急 等)
@@ -489,7 +489,7 @@ paths:
                   $ref: "#/components/schemas/IssuesPriority"
   /issuses_category/{project_id}:
     get:
-      summary: 取得目前議題可使用狀態
+      summary: 取得目前議題可使用狀態(For 所有議題)
       tags:
       - issues
       description: 取得目前議題可使用狀態 如 Feature 
@@ -508,7 +508,7 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/IssuesCategories"
-  /issues_by_user/{user_id}:
+  /issues_by_user/rd/{user_id}:
     description: '2_工作清單'
     get:
       summary: '2_工作清單'
@@ -530,12 +530,12 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/IssuesList"
-  /project/{project_id}/repository:
+  /project/rd/{project_id}/repository:
     get:
       summary: 取得專案內Repository的list ID
       tags:
       - repositories
-      description: ''
+      description: '取得專案內Repository的list ID'
       parameters:
       - name: project_id
         in: path
@@ -549,6 +549,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/IdList"
+  /project/pm/{project_id}/repository:
     post:
       summary: 建立GitLab Project
       tags:
@@ -577,13 +578,13 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Id"
-  /repositories/{user_id}:
+  /repositories/rd/{user_id}:
     description: '3 程式碼清單(none)'
     get:
-      summary: 取得使用者目前程式碼資訊
+      summary: 3 程式碼清單
       tags:
       - repositories
-      description: Optional extended description in CommonMark or HTML.
+      description: 取得使用者目前程式碼資訊
       parameters:
       - name: user_id
         in: path
@@ -603,10 +604,10 @@ paths:
   /repositories/{repository_id}:
     description: '3.2 程式碼蓋覽圖 (none)'
     get:
-      summary: 取得專案內Repository的資訊
+      summary: 3.2 程式碼蓋覽圖 (none)
       tags:
       - repositories
-      description: ''
+      description: '3.2 程式碼蓋覽圖 (none)'
       parameters:
       - name: repository_id
         in: path
@@ -620,13 +621,13 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/RepositoryList"
-  /repositories/{repository_id}/merge_branches:
+  /repositories/rd/{repository_id}/merge_branches:
     description: '3.2.8 合併分支'
     post:
-      summary: '合併分支'
+      summary: '3.2.8 合併分支'
       tags:
       - repositories
-      description: Optional extended description in CommonMark or HTML.
+      description: 3.2.8 合併分支
       parameters:
       - name: repository_id
         in: path
@@ -650,7 +651,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Tag"   
-  /repositories/{repository_id}/tags:
+  /repositories/rd/{repository_id}/tags:
     get:
       summary: 取得專案內Repository的Tags的ID
       tags:
@@ -670,10 +671,10 @@ paths:
               schema:
                 $ref: "#/components/schemas/IdList"
     post:
-      summary: 建立Tag
+      summary: 3.2.5 新增版本號
       tags:
       - repositories
-      description: '3.2.5 新增版本號'
+      description: 3.2.5 新增版本號 建立Tag
       parameters:
       - name: repository_id
         in: path
@@ -697,13 +698,13 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Tag"
-  /repositories/{repository_id}/tags/{tag_id}:
+  /repositories/rd/{repository_id}/tags/{tag_id}:
     description: '3.2.10 刪除版本  '
     delete:
-      summary: 刪除Tag
+      summary: 3.2.10 刪除版本
       tags:
       - repositories
-      description: 刪除Tag
+      description: 3.2.10 刪除版本
       parameters:
       - name: tag_id
         in: path
@@ -744,13 +745,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Tag"
-  /repositories/{repository_id}/branch:
+      deprecated: true
+  /repositories/rd/{repository_id}/branch:
     description: '3.2.1 分支列表  3.2.4 新增分支'
     get:
-      summary: 取得專案內Repository的branch的ID
+      summary: 3.2.1 分支列表 
       tags:
       - repositories
-      description: ''
+      description: '3.2.1 分支列表 '
       parameters:
       - name: repository_id
         in: path
@@ -765,10 +767,10 @@ paths:
               schema:
                 $ref: "#/components/schemas/BranchList"
     post:
-      summary: 建立Branch
+      summary:  3.2.4 新增分支
       tags:
       - repositories
-      description: ''
+      description: 3.2.4 新增分支
       parameters:
       - name: repository_id
         in: path
@@ -804,10 +806,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Branch"
-  /repositories/{repository_id}/branch/{branch_id}:
+  /repositories/rd/{repository_id}/branch/{branch_id}:
     description: '3.2.1.1檔案清單 3.2.9 刪除分支'
     delete:
-      summary: 刪除分支
+      summary: 3.2.9 刪除分支
       tags:
       - repositories
       description: 刪除分支
@@ -829,8 +831,8 @@ paths:
             text/plain:
               example: Success Delete Branch
     get:
-      summary: 取得分支
-      description: 取得分支
+      summary: 3.2.1.1檔案清單
+      description: 3.2.1.1檔案清單
       tags:
       - repositories
       parameters:
@@ -851,7 +853,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Branch"
-  /repositories/{repository_id}/branch/{branch_id}/deleteAllBranch:
+  /repositories/rd/{repository_id}/branch/{branch_id}/deleteAllBranch:
     delete:
       summary: 刪除分支底下全部分支
       tags:
@@ -874,10 +876,10 @@ paths:
           content:
             text/plain:
               example: Success Delete Branch
-  /repositories/{repository_id}/branch/{branch_id}/tree:
+  /repositories/rd/{repository_id}/branch/{branch_id}/tree:
     description: '3.2.1.1 檔案清單'
     get:
-      summary: 取得專案檔案樹狀階層
+      summary: 3.2.1.1 檔案清單
       tags:
       - repositories
       description: ''
@@ -899,8 +901,8 @@ paths:
             application/json:
               schema:
                 type: object
-  /repositories/{repository_id}/files/{file_path}:
-    description: ' 分支編輯 修改 上傳  刪除檔案'
+  /repositories/rd/{repository_id}/files/{file_path}:
+    description: '3.2.1 分支編輯檔案  3.2.2.2 分支新增檔案  3.2.2 分支上傳檔案'
     get:
       summary: 取得檔案內容
       tags:
@@ -932,7 +934,7 @@ paths:
                 type: string
                 example: no file
     post:
-      summary: 新增檔案內容
+      summary: 3.2.2.2 分支新增檔案 3.2.2 分支上傳檔案
       tags:
       - repositories
       description: ''
@@ -973,10 +975,10 @@ paths:
             text/plain:
               example: no file
     put:
-      summary: 新增檔案內容
+      summary: 3.2.1 分支編輯檔案
       tags:
       - repositories
-      description: ''
+      description: 3.2.1 分支編輯檔案
       parameters:
       - name: repository_id
         in: path
@@ -1035,7 +1037,112 @@ paths:
           content:
             text/plain:
               example: Success Delete FI
-  /dashboard_issues_priority/{user_account}:
+  /repositories/rd/{repository_id}/directory/{directory_path}:
+    post:
+      summary: '3.2.3 分支新增資料夾'
+      tags:
+      - repositories
+      description: ''
+      parameters:
+      - name: repository_id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
+      - name: directory_path
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/FilePath"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UploadDirectory"
+      responses:
+        '200':
+          description: File System Tree
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  file_path:
+                    type: string
+                    example:
+                      $ref: "#/components/schemas/FilePath"
+                  branch:
+                    type: string
+                    example: master
+        '400':
+          description: Non FIle
+          content:
+            text/plain:
+              example: no file
+    put:
+      summary: 3.2.1 分支編輯檔案
+      tags:
+      - repositories
+      description: 3.2.1 分支編輯檔案
+      parameters:
+      - name: repository_id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
+      - name: directory_path
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/FilePath"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateFile"
+      responses:
+        '200':
+          description: File System Tree
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  file_path:
+                    type: string
+                    example:
+                      $ref: "#/components/schemas/FilePath"
+                  branch:
+                    type: string
+                    example: master
+        '400':
+          description: Non FIle
+          content:
+            text/plain:
+              example: no file
+    delete:
+      summary: 刪除檔案內容
+      tags:
+      - repositories
+      description: ''
+      parameters:
+      - name: repository_id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
+      - name: directory_path
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/FilePath"
+      responses:
+        '200':
+          description: A JSON array of issues id
+          content:
+            text/plain:
+              example: Success Delete     
+  /dashboard_issues_priority/rd/{user_account}:
     get:
       summary: 取得使用者儀錶板資訊(工作等級)
       tags:
@@ -2165,6 +2272,22 @@ components:
         merge_commit_message:
           type: string
           example: Merge to Master
+    UploadDirectory:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          example: Docs
+        commit_message:
+          type: string
+          example: 第一版
+
+
+
+
+          
   securitySchemes:
     bearerAuth:            # arbitrary name for the security scheme
       type: http

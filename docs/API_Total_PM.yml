@@ -285,7 +285,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/RD_Issue_Info"
+                $ref: "#/components/schemas/RDIssueInfo"
     put:
       summary: 2.1.2 更新工作內容
       tags:
@@ -302,7 +302,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/RD_Update_Issue'
+              $ref: '#/components/schemas/RDUpdateIssue'
       responses:
         '200':
           $ref: '#/components/schemas/successful'
@@ -320,13 +320,13 @@ paths:
       responses:
         '200':
           $ref: '#/components/schemas/successful'
-  /issues/{issue_id}/function:
-    summary: test
+  /issues/rd/{issue_id}/function:
+    summary: 2.1.3_議題_功能列表(API)
     get:
-      summary: 取得Issues內的功能(API)的ID
+      summary: 2.1.3_議題_功能列表(API)
       tags:
       - issues
-      description: issues內所開發的功能.
+      description: 取得Issues內的功能(API)的ID
       parameters:
       - name: issue_id
         in: path
@@ -339,14 +339,15 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Id"
+                $ref: "#/components/schemas/FunctionList"
       deprecated: true
   /funtion/{funtion_id}:
+    summary: 2.1.4_議題_設定功能(API)
     get:
-      summary: 取得Issues內功能資訊
+      summary: 2.1.4_議題_設定功能(API)
       tags:
       - issues
-      description: Optional extended description in CommonMark or HTML.
+      description: 取得Issues內功能資訊
       parameters:
       - name: funtion_id
         in: path
@@ -356,35 +357,41 @@ paths:
       responses:
         '200':
           description: A JSON array of Issues id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AddFunction"
+      deprecated: true
+    put:
+      summary: 2.1.4_議題_設定功能(API)
+      tags:
+      - issues
+      description: 更新Issues內功能資訊
+      parameters:
+      - name: funtion_id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateFunction"
+      
+      responses:
+        '200':
+          description: A JSON array of Function Information
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Function"
       deprecated: true
-    put:
-      summary: 更新Issues內的資訊
-      tags:
-      - issues
-      description: Optional extended description in CommonMark or HTML.
-      parameters:
-      - name: funtion_id
-        in: path
-        required: true
-        schema:
-          $ref: "#/components/schemas/Id"
-      responses:
-        '200':
-          description: A JSON array of Issues id
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Issues"
-      deprecated: true
     delete:
       summary: 刪除Issues
       tags:
       - issues
-      description: Optional extended description in CommonMark or HTML.
+      description: 刪除Issues
       parameters:
       - name: funtion_id
         in: path
@@ -1438,7 +1445,7 @@ components:
                 type: string
               value:
                 type: string
-    RD_Issue_Info:
+    RDIssueInfo:
       type: object
       properties:
         id:
@@ -1580,7 +1587,7 @@ components:
               create_time:
                 type: string
                 format: date-time    
-    RD_Update_Issue:
+    RDUpdateIssue:
       type: object
       properties:
         project:
@@ -1640,6 +1647,25 @@ components:
               create_time:
                 type: string
                 format: date-time   
+    FunctionList:
+      type: object
+      description: 2.1.3_議題_功能列表內Function 
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+          example: 帳號登入
+        url:
+          type: string
+          example: accountLogin
+        description:
+          type: string
+          example: 書入帳號密碼登入
+        last_update_time:
+          type: string
+          format: date-time
+
     Function:
       type: object
       description: 依據議題所設計的功能
