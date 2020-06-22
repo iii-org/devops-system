@@ -13,6 +13,7 @@ import resources.util as util
 import resources.auth as auth
 import resources.issue as issue
 import resources.project as project
+import resources.pipeline as pipeline
 
 
 app = Flask(__name__)
@@ -34,6 +35,7 @@ ut = util.util()
 au = auth.auth()
 iss = issue.Issue(logger, app)
 pjt = project.Project(logger, app)
+pipe = pipeline.Pipeline()
 
 headers = {
     'Content-Type': 'application/json',
@@ -286,6 +288,13 @@ class UserInfo(Resource):
         au.update_user_info(logger, user_id, args)
 
 
+class PipelineInfo(Resource):
+    
+    def get (self, project_id):
+        output = pipe.pipeline_info(logger, project_id)
+        return jsonify(output)
+
+
 api.add_resource(Index, '/')
 
 # Redmine issue
@@ -315,6 +324,9 @@ api.add_resource(ProjectList, '/project/rd/<user_id>')
 api.add_resource(UserLogin, '/user/login')
 api.add_resource(UserForgetPassword, '/user/forgetPassword')
 api.add_resource(UserInfo, '/user/<user_id>')
+
+# pipeline
+api.add_resource(PipelineInfo, '/pipelines/rd/<project_id>/pipelines_info')
 
 if __name__ == "__main__":
     db.init_app(app)
