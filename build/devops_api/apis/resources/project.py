@@ -1,5 +1,8 @@
 import requests
 import json
+import datetime
+
+from model import db
 
 class Project(object):
     private_token = None
@@ -114,3 +117,51 @@ class Project(object):
         output = requests.get(url, headers=self.headers, verify=False)
         logger.info("get project repositories output: {0}".format(output.json()))
         return output
+    
+    def get_project_list(self, logger, user_id):
+        result = db.engine.execute("SELECT pj.id, pj.name FROM public.projects_has_users as pju, public.projects as pj \
+            WHERE pju.user_id = {0} AND pju.project_id = pj.id; ".format(user_id))
+        project = result.fetchall()
+        result.close()
+        outupt_array = []
+        for raw in project:
+            output = {}
+            logger.info("get_project_list SQL project_id, project_name: {0}, {1}".format(raw["id"], raw["name"]))
+            output["name"] = raw["name"]
+
+            # get branch number by project
+            result = db.engine.execute("SELECT COUNT(1) FROM public.branches WHERE project_id = {0};".format(raw["id"]))
+            branch_count = result.fetchone()
+            result.close()
+            logger.info("get_project_list SQL branch count: {0}".format(branch_count))
+            output["branch"] = branch_count[0]
+
+            # get issues number and job dayline.
+            result = db.engine.execute("SELECT id, due_date FROM public.issues WHERE project_id = {0};".format(raw["id"]))
+            issue_list = result.fetchall()
+            result.close()
+            logger.info("get_project_list SQL issue_list: {0}".format(issue_list))
+            the_most_close_day = datetime.date(9999, 12, 31)
+            for issue in issue_list:
+                logger.info("get_project_list SQL due_date type: {0}".format(issue[1]))
+                if the_most_close_day > issue[1]:
+                    the_most_close_day = issue[1]
+            logger.info("get_project_list: issue number {0}".format(len(issue_list)))
+            logger.info("get_project_list: the_most_close_daylist: {0}".format(the_most_close_day))
+            output["issues"] = len(issue_list)
+            output["next_d_time"] = the_most_close_day.isoformat()
+
+            # get CI/CD record.
+            result = db.engine.execute("SELECT ci_li.id, ci_li.create_at, ci_li.success_stage_number, ci_li.total_stage_number\
+                FROM public.ci_cd as ci, public.ci_cd_execution_list as ci_li \
+                WHERE ci.project_id = {0} AND ci.id = ci_li.ci_cd_id ORDER BY ci_li.id DESC;".format(raw["id"]))
+            ci_cd_list = result.fetchone()
+            result.close()
+            logger.info("get_project_list: ci_cd_list {0}".format(ci_cd_list))
+            if ci_cd_list is not None: 
+                output["last_test_time"] = ci_cd_list["create_at"].isoformat()
+                output["last_test_result"] = { "total": ci_cd_list["total_stage_number"], "success": ci_cd_list["success_stage_number"]}
+            logger.info("get_project_list: output: {0}".format(output))
+            outupt_array.append(output)
+        logger.info("get_project_list: output: {0}".format(outupt_array))
+        return outupt_array

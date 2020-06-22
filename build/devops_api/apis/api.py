@@ -239,6 +239,12 @@ class GitProjectRepositories(Resource):
         return output.json()
 
 
+class ProjectList(Resource):
+
+    def get (self, user_id):
+        output_array = pjt.get_project_list(logger, user_id)
+        return jsonify(output_array)
+
 class UserLogin(Resource):
 
     def post(self):
@@ -301,6 +307,9 @@ api.add_resource(GitProjects, '/git_projects')
 api.add_resource(GitOneProject, '/git_one_project/<project_id>')
 api.add_resource(GitProjectWebhooks, '/git_project_webhooks/<project_id>')
 api.add_resource(GitProjectRepositories, '/git_project_repositories/<project_id>')
+
+# Project
+api.add_resource(ProjectList, '/project/rd/<user_id>')
 
 # User
 api.add_resource(UserLogin, '/user/login')
