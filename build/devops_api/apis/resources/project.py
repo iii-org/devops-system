@@ -114,3 +114,11 @@ class Project(object):
         output = requests.get(url, headers=self.headers, verify=False)
         logger.info("get project repositories output: {0}".format(output.json()))
         return output
+
+    def get_git_project_branch(self, logger, app, project_id):
+        url = "http://{0}/api/{1}/projects/{2}/repository/branches?private_token={3}".format(\
+            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, self.private_token)
+        logger.info("get project branches url: {0}".format(url))
+        output = requests.get(url, headers=self.headers, verify=False)
+        logger.info("get project branches output: {0}".format(output.json()))
+        return output

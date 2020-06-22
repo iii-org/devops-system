@@ -279,6 +279,22 @@ class UserInfo(Resource):
         args = parser.parse_args()
         au.update_user_info(logger, user_id, args)
 
+class GitProjectBranches(Resource):
+
+    def get(self, repository_id):
+        project_id = repository_id
+        output = pjt.get_git_project_branch(logger, app, project_id)
+        branch_list = []
+        for idx, i in enumerate(output.json()):
+            branch = {
+                "id": idx,
+                "name": i["name"],
+                "last_commit_message": i["commit"]["message"],
+                "last_commit_time": i["commit"]["committed_date"],
+                "uuid": i["commit"]["id"]
+            }
+            branch_list.append(branch)
+        return branch_list
 
 api.add_resource(Index, '/')
 
@@ -301,6 +317,7 @@ api.add_resource(GitProjects, '/git_projects')
 api.add_resource(GitOneProject, '/git_one_project/<project_id>')
 api.add_resource(GitProjectWebhooks, '/git_project_webhooks/<project_id>')
 api.add_resource(GitProjectRepositories, '/git_project_repositories/<project_id>')
+api.add_resource(GitProjectBranches, '/repositories/<repository_id>/branch')
 
 # User
 api.add_resource(UserLogin, '/user/login')
