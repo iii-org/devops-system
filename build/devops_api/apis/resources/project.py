@@ -115,10 +115,20 @@ class Project(object):
         logger.info("get project repositories output: {0}".format(output.json()))
         return output
 
+    # 用project_id查詢project的branches
     def get_git_project_branch(self, logger, app, project_id):
         url = "http://{0}/api/{1}/projects/{2}/repository/branches?private_token={3}".format(\
             app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, self.private_token)
         logger.info("get project branches url: {0}".format(url))
         output = requests.get(url, headers=self.headers, verify=False)
         logger.info("get project branches output: {0}".format(output.json()))
+        return output
+
+    # 用project_id新增project的branch
+    def create_git_project_branch(self, logger, app, project_id, args):
+        url = "http://{0}/api/{1}/projects/{2}/repository/branches?private_token={3}&branch={4}&ref={5}".format(\
+            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, self.private_token, args["name"], args["ref"])
+        logger.info("create project branch url: {0}".format(url))
+        output = requests.post(url, headers=self.headers, verify=False)
+        logger.info("create project branch output: {0}".format(output.json()))
         return output

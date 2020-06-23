@@ -296,6 +296,22 @@ class GitProjectBranches(Resource):
             branch_list.append(branch)
         return branch_list
 
+    def post(self, repository_id):
+        project_id = repository_id
+        parser = reqparse.RequestParser()
+        parser.add_argument('name', type=str)
+        parser.add_argument('ref', type=str)
+        args = parser.parse_args()
+        logger.info("post body: {0}".format(args))
+        output = pjt.create_git_project_branch(logger, app, project_id, args)
+        branch_info = {
+            "id": 0,
+            "branch": output.json()["name"],
+            "ref": args["ref"],
+            "uuid": output.json()["commit"]["id"]
+        }
+        return branch_info
+
 api.add_resource(Index, '/')
 
 # Redmine issue
