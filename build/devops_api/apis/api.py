@@ -290,7 +290,6 @@ class UserLogin(Resource):
 
 class UserForgetPassword(Resource):
 
-    @jwt_required
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('mail', type=str, required=True)
