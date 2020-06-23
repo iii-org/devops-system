@@ -299,18 +299,12 @@ class GitProjectBranches(Resource):
     def post(self, repository_id):
         project_id = repository_id
         parser = reqparse.RequestParser()
-        parser.add_argument('name', type=str)
+        parser.add_argument('branch', type=str)
         parser.add_argument('ref', type=str)
         args = parser.parse_args()
         logger.info("post body: {0}".format(args))
         output = pjt.create_git_project_branch(logger, app, project_id, args)
-        branch_info = {
-            "id": 0,
-            "branch": output.json()["name"],
-            "ref": args["ref"],
-            "uuid": output.json()["commit"]["id"]
-        }
-        return branch_info
+        return output.json()
 
 api.add_resource(Index, '/')
 
@@ -333,7 +327,7 @@ api.add_resource(GitProjects, '/git_projects')
 api.add_resource(GitOneProject, '/git_one_project/<project_id>')
 api.add_resource(GitProjectWebhooks, '/git_project_webhooks/<project_id>')
 api.add_resource(GitProjectRepositories, '/git_project_repositories/<project_id>')
-api.add_resource(GitProjectBranches, '/repositories/<repository_id>/branch')
+api.add_resource(GitProjectBranches, '/repositories/rd/<repository_id>/branch')
 
 # User
 api.add_resource(UserLogin, '/user/login')
