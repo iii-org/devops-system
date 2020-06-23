@@ -349,11 +349,13 @@ class GitProjectBranches(Resource):
 
 class GitProjectBranch(Resource):
 
+    @jwt_required
     def get(self, repository_id, branch):
         project_id = repository_id
         output = pjt.get_git_project_branch(logger, app, project_id, branch)
         return output.json()
 
+    @jwt_required
     def delete(self, repository_id, branch):
         project_id = repository_id
         output = pjt.delete_git_project_branch(logger, app, project_id, branch)
@@ -374,6 +376,14 @@ class PipelineExec(Resource):
     @jwt_required
     def get (self, project_id):
         output_array = pipe.pipeline_exec(logger, project_id)
+        return jsonify(output_array)
+
+
+class IssuesIdList(Resource):
+
+    @jwt_required
+    def get (self, project_id):
+        output_array = iss.get_issuesId_List(logger, project_id)
         return jsonify(output_array)
 
 
@@ -412,6 +422,9 @@ api.add_resource(UserInfo, '/user/<user_id>')
 # pipeline
 api.add_resource(PipelineInfo, '/pipelines/rd/<project_id>/pipelines_info')
 api.add_resource(PipelineExec, '/pipelines/rd/<project_id>/pipelines_exec')
+
+# issue
+api.add_resource(IssuesIdList, '/project/rd/<project_id>/issues')
 
 if __name__ == "__main__":
     db.init_app(app)

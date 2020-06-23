@@ -98,6 +98,19 @@ class Issue(object):
         db.session.commit()
         logger.info("after delete table data number: {0}".format(Project_relationship.query.count()))
 
+    def get_issuesId_List(self, logger, project_id):
+        result = db.engine.execute("SELECT id FROM public.issues WHERE project_id = {0}\
+            ".format(project_id))
+        issuesid_sql_output_list = result.fetchall()
+        result.close()
+        #logger.info("issuesid_list: {0}".format(issuesid_sql_output_list))
+        output_array= []
+        if issuesid_sql_output_list is not None:
+            for issuesid_sql_output in issuesid_sql_output_list:
+                logger.info("issuesid_list: {0}".format(issuesid_sql_output[0]))
+                output_array.append(issuesid_sql_output[0])
+            return output_array
+
 
 
 
