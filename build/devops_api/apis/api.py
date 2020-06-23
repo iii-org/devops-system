@@ -320,6 +320,7 @@ class UserInfo(Resource):
 
 class GitProjectBranches(Resource):
 
+    @jwt_required
     def get(self, repository_id):
         project_id = repository_id
         output = pjt.get_git_project_branches(logger, app, project_id)
@@ -335,6 +336,7 @@ class GitProjectBranches(Resource):
             branch_list.append(branch)
         return branch_list
 
+    @jwt_required
     def post(self, repository_id):
         project_id = repository_id
         parser = reqparse.RequestParser()
