@@ -3,6 +3,13 @@ from Cryptodome.Hash import SHA256
 from .util import util
 from model import db
 
+# from jsonwebtoken import jsonwebtoken
+from flask_jwt_extended import (
+    JWTManager, jwt_required, create_access_token,
+    jwt_refresh_token_required, create_refresh_token,
+    get_jwt_identity
+)
+
 class auth(object):
     
     def __init__(self):
@@ -26,8 +33,10 @@ class auth(object):
         result = db.engine.execute("SELECT login, password FROM public.user")
         for row in result:
             if row['login'] == args["username"] and row['password'] == h.hexdigest():
-                return True
-        return False
+                access_token = create_access_token(identity=args["username"])
+                logger.info("jwt access_token: {0}".format(access_token))
+                return access_token
+        return None
 
     def user_forgetpassword(self, logger, args):
         result = db.engine.execute("SELECT login, email FROM public.user")

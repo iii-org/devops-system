@@ -3,12 +3,15 @@ from flask import Response
 from flask import jsonify
 from flask import request as flask_req
 from flask_restful import Resource, Api, reqparse
+from flask_jwt_extended import jwt_required
 
 import logging
 from logging import handlers
 import json
-
+import datetime
 from model import db
+from jsonwebtoken import jsonwebtoken
+
 import resources.util as util
 import resources.auth as auth
 import resources.issue as issue
@@ -18,8 +21,8 @@ import resources.pipeline as pipeline
 
 app = Flask(__name__)
 app.config.from_object('config')
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = datetime.timedelta(days=1)
 api = Api(app)
-
 
 handler = handlers.TimedRotatingFileHandler(
     'devops-api.log', when='D'\
@@ -50,6 +53,7 @@ class Index(Resource):
 
 class Issue_by_user(Resource):
 
+    @jwt_required
     def get(self, user_account):
         output = iss.get_issues_by_user(logger, app, user_account)
         return {"issue_number": output.json()}
@@ -57,10 +61,12 @@ class Issue_by_user(Resource):
 
 class Issue(Resource):
 
+    @jwt_required
     def get(self, issue_id):
         output = iss.get_issue(logger, app, issue_id)
         return output.json()
 
+    @jwt_required
     def put(self, issue_id):
         parser = reqparse.RequestParser()
         parser.add_argument('status_id', type=int)
@@ -73,6 +79,7 @@ class Issue(Resource):
 
 class IssueStatus(Resource):
 
+    @jwt_required
     def get (self):
         output = iss.get_issue_status(logger, app)
         return output.json()
@@ -80,6 +87,7 @@ class IssueStatus(Resource):
 
 class RedmineProject(Resource):
 
+    @jwt_required
     def get(self, user_account):
         output = iss.get_project(logger, app, user_account)
         return {"projects": output.json()["user"]["memberships"]}
@@ -87,6 +95,7 @@ class RedmineProject(Resource):
 
 class Pipelines_gitrepository(Resource):
 
+    @jwt_required
     def get(self):
         url = "https://10.50.1.55/v3/projects/c-7bl58:p-wxgdj/sourcecoderepositories"
 
@@ -95,13 +104,15 @@ class Pipelines_gitrepository(Resource):
 
 
 class Pipelines(Resource):
-    
+
+    @jwt_required
     def get(self):
         url = "https://10.50.1.55/v3/projects/c-7bl58:p-wxgdj/pipelines"
         # get hook project list
         output = ut.callgetapi(url, logger, headers)
         return output.json()['data']
-    
+
+    @jwt_required
     def post(self):
         url = "https://10.50.1.55/v3/projects/c-7bl58:p-wxgdj/pipelines"
         parameter = {
@@ -117,12 +128,14 @@ class Pipelines(Resource):
 
 
 class PipelineID(Resource):
-    
+
+    @jwt_required
     def delete(self, pipelineid):
         url = "https://10.50.1.55/v3/projects/c-7bl58:p-wxgdj/pipelines/{0}".format(pipelineid)
         output = ut.calldeleteapi(url, logger, headers)
         return "Successful"
-    
+
+    @jwt_required
     def post(self, pipelineid):
         url = "https://10.50.1.55/v3/projects/c-7bl58:p-wxgdj/pipelines/{0}".format(pipelineid)
         logger.info("flask_req.data")
@@ -137,6 +150,7 @@ class PipelineID(Resource):
 
 class Get_pipeline_branchs(Resource):
 
+    @jwt_required
     def get(self, pipelineid):
         url = "https://10.50.1.55/v3/projects/c-7bl58:p-wxgdj/pipelines/{0}/branches".format(pipelineid)
         output = ut.callgetapi(url, logger, headers)
@@ -144,6 +158,7 @@ class Get_pipeline_branchs(Resource):
 
 class PipelineExecutions(Resource):
 
+    @jwt_required
     def get(self):
         url = "https://10.50.1.55/v3/projects/c-7bl58:p-wxgdj/pipelineexecutions?order=desc"
 
@@ -153,6 +168,7 @@ class PipelineExecutions(Resource):
 
 class PipelineExecutionsOne(Resource):
 
+    @jwt_required
     def get(self, pipelineexecutionsid):
         url = "https://10.50.1.55/v3/projects/c-7bl58:p-wxgdj/pipelineexecutions/{0}".format(pipelineexecutionsid)
 
@@ -162,10 +178,12 @@ class PipelineExecutionsOne(Resource):
     
 class GitProjects(Resource):
 
+    @jwt_required
     def get (self):
         output = pjt.get_all_git_projects(logger, app)
         return output.json()
 
+    @jwt_required
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('name', type=str)
@@ -178,10 +196,12 @@ class GitProjects(Resource):
 
 class GitOneProject(Resource):
 
+    @jwt_required
     def get(self, project_id):
         output = pjt.get_one_git_project(logger, app, project_id)
         return output.json()
 
+    @jwt_required
     def put(self, project_id):
         parser = reqparse.RequestParser()
         parser.add_argument('name', type=str)
@@ -189,7 +209,8 @@ class GitOneProject(Resource):
         args = parser.parse_args()
         logger.info("put body: {0}".format(args))
         output = pjt.update_git_project(logger, app, project_id, args)
-    
+
+    @jwt_required
     def delete(self, project_id):
         output = pjt.delete_git_project(logger, app, project_id)
         return output.json()
@@ -197,10 +218,12 @@ class GitOneProject(Resource):
 
 class GitProjectWebhooks(Resource):
 
+    @jwt_required
     def get(self, project_id):
         output = pjt.get_git_project_webhooks(logger, app, project_id)
         return output.json()
 
+    @jwt_required
     def post(self, project_id):
         parser = reqparse.RequestParser()
         parser.add_argument('url', type=str)
@@ -213,6 +236,7 @@ class GitProjectWebhooks(Resource):
         output = pjt.create_git_project_webhook(logger, app, project_id, args)
         return output.json()
 
+    @jwt_required
     def put(self, project_id):
         parser = reqparse.RequestParser()
         parser.add_argument('hook_id', type=int)
@@ -226,6 +250,7 @@ class GitProjectWebhooks(Resource):
         output = pjt.update_git_project_webhook(logger, app, project_id, args)
         return output.json()
 
+    @jwt_required
     def delete(self, project_id):
         parser = reqparse.RequestParser()
         parser.add_argument('hook_id', type=int)
@@ -236,6 +261,7 @@ class GitProjectWebhooks(Resource):
 
 class GitProjectRepositories(Resource):
 
+    @jwt_required
     def get(self, project_id):
         output = pjt.get_git_project_repositories(logger, app, project_id)
         return output.json()
@@ -243,6 +269,7 @@ class GitProjectRepositories(Resource):
 
 class ProjectList(Resource):
 
+    @jwt_required
     def get (self, user_id):
         output_array = pjt.get_project_list(logger, user_id)
         return jsonify(output_array)
@@ -254,13 +281,16 @@ class UserLogin(Resource):
         parser.add_argument('username', type=str, required=True)
         parser.add_argument('password', type=str, required=True)
         args = parser.parse_args()
-        status = au.user_login(logger, args)
-        if status is False:
+        token = au.user_login(logger, args)
+        if token is None:
             return None, 400
+        else:
+            return jsonify({"token": token})
 
 
 class UserForgetPassword(Resource):
 
+    @jwt_required
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('mail', type=str, required=True)
@@ -270,11 +300,13 @@ class UserForgetPassword(Resource):
 
 
 class UserInfo(Resource):
-    
+
+    @jwt_required
     def get (self, user_id):
         user_info = au.user_info(logger, user_id)
         return jsonify(user_info)
 
+    @jwt_required
     def post(self, user_id):
         parser = reqparse.RequestParser()
         parser.add_argument('name', type=str)
@@ -289,13 +321,15 @@ class UserInfo(Resource):
 
 
 class PipelineInfo(Resource):
-    
+
+    @jwt_required
     def get (self, project_id):
         output = pipe.pipeline_info(logger, project_id)
         return jsonify(output)
 
 class PipelineExec(Resource):
-    
+
+    @jwt_required
     def get (self, project_id):
         output_array = pipe.pipeline_exec(logger, project_id)
         return jsonify(output_array)
@@ -337,4 +371,5 @@ api.add_resource(PipelineExec, '/pipelines/rd/<project_id>/pipelines_exec')
 
 if __name__ == "__main__":
     db.init_app(app)
+    jsonwebtoken.init_app(app)
     app.run(host='0.0.0.0', port=10009)
