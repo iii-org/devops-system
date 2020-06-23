@@ -306,6 +306,17 @@ class GitProjectBranches(Resource):
         output = pjt.create_git_project_branch(logger, app, project_id, args)
         return output.json()
 
+class GitProjectBranch(Resource):
+
+    def delete(self, repository_id, branch):
+        project_id = repository_id
+        output = pjt.delete_git_project_branch(logger, app, project_id, branch)
+        print(str(output))
+        if str(output) == "<Response [204]>":
+            return "Success Delete Branch"
+        else:
+            return str(output)
+
 api.add_resource(Index, '/')
 
 # Redmine issue
@@ -328,6 +339,7 @@ api.add_resource(GitOneProject, '/git_one_project/<project_id>')
 api.add_resource(GitProjectWebhooks, '/git_project_webhooks/<project_id>')
 api.add_resource(GitProjectRepositories, '/git_project_repositories/<project_id>')
 api.add_resource(GitProjectBranches, '/repositories/rd/<repository_id>/branch')
+api.add_resource(GitProjectBranch, '/repositories/rd/<repository_id>/branch/<branch>')
 
 # User
 api.add_resource(UserLogin, '/user/login')

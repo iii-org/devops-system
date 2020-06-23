@@ -132,3 +132,11 @@ class Project(object):
         output = requests.post(url, headers=self.headers, verify=False)
         logger.info("create project branch output: {0}".format(output.json()))
         return output
+
+    def delete_git_project_branch(self, logger, app, project_id, branch):
+        url = "http://{0}/api/{1}/projects/{2}/repository/branches/{3}?private_token={4}".format(\
+            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, branch, self.private_token)
+        logger.info("delete project branch url: {0}".format(url))
+        output = requests.delete(url, headers=self.headers, verify=False)
+        logger.info("delete project branch output: {0}".format(output))
+        return output
