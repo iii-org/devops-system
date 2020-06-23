@@ -319,6 +319,47 @@ class UserInfo(Resource):
         args = parser.parse_args()
         au.update_user_info(logger, user_id, args)
 
+class GitProjectBranches(Resource):
+
+    def get(self, repository_id):
+        project_id = repository_id
+        output = pjt.get_git_project_branches(logger, app, project_id)
+        branch_list = []
+        for idx, i in enumerate(output.json()):
+            branch = {
+                "id": idx,
+                "name": i["name"],
+                "last_commit_message": i["commit"]["message"],
+                "last_commit_time": i["commit"]["committed_date"],
+                "uuid": i["commit"]["id"]
+            }
+            branch_list.append(branch)
+        return branch_list
+
+    def post(self, repository_id):
+        project_id = repository_id
+        parser = reqparse.RequestParser()
+        parser.add_argument('branch', type=str)
+        parser.add_argument('ref', type=str)
+        args = parser.parse_args()
+        logger.info("post body: {0}".format(args))
+        output = pjt.create_git_project_branch(logger, app, project_id, args)
+        return output.json()
+
+class GitProjectBranch(Resource):
+
+    def get(self, repository_id, branch):
+        project_id = repository_id
+        output = pjt.get_git_project_branch(logger, app, project_id, branch)
+        return output.json()
+
+    def delete(self, repository_id, branch):
+        project_id = repository_id
+        output = pjt.delete_git_project_branch(logger, app, project_id, branch)
+        if str(output) == "<Response [204]>":
+            return "Success Delete Branch"
+        else:
+            return str(output)
 
 class PipelineInfo(Resource):
 
@@ -356,6 +397,8 @@ api.add_resource(GitProjects, '/git_projects')
 api.add_resource(GitOneProject, '/git_one_project/<project_id>')
 api.add_resource(GitProjectWebhooks, '/git_project_webhooks/<project_id>')
 api.add_resource(GitProjectRepositories, '/git_project_repositories/<project_id>')
+api.add_resource(GitProjectBranches, '/repositories/rd/<repository_id>/branch')
+api.add_resource(GitProjectBranch, '/repositories/rd/<repository_id>/branch/<branch>')
 
 # Project
 api.add_resource(ProjectList, '/project/rd/<user_id>')
