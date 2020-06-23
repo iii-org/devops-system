@@ -283,7 +283,7 @@ class GitProjectBranches(Resource):
 
     def get(self, repository_id):
         project_id = repository_id
-        output = pjt.get_git_project_branch(logger, app, project_id)
+        output = pjt.get_git_project_branches(logger, app, project_id)
         branch_list = []
         for idx, i in enumerate(output.json()):
             branch = {
@@ -308,10 +308,14 @@ class GitProjectBranches(Resource):
 
 class GitProjectBranch(Resource):
 
+    def get(self, repository_id, branch):
+        project_id = repository_id
+        output = pjt.get_git_project_branch(logger, app, project_id, branch)
+        return output.json()
+
     def delete(self, repository_id, branch):
         project_id = repository_id
         output = pjt.delete_git_project_branch(logger, app, project_id, branch)
-        print(str(output))
         if str(output) == "<Response [204]>":
             return "Success Delete Branch"
         else:

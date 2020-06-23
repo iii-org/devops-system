@@ -116,7 +116,7 @@ class Project(object):
         return output
 
     # 用project_id查詢project的branches
-    def get_git_project_branch(self, logger, app, project_id):
+    def get_git_project_branches(self, logger, app, project_id):
         url = "http://{0}/api/{1}/projects/{2}/repository/branches?private_token={3}".format(\
             app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, self.private_token)
         logger.info("get project branches url: {0}".format(url))
@@ -133,6 +133,16 @@ class Project(object):
         logger.info("create project branch output: {0}".format(output.json()))
         return output
 
+    # 用project_id及branch_name查詢project的branch
+    def get_git_project_branch(self, logger, app, project_id, branch):
+        url = "http://{0}/api/{1}/projects/{2}/repository/branches/{3}?private_token={4}".format(\
+            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, branch, self.private_token)
+        logger.info("get project branch url: {0}".format(url))
+        output = requests.get(url, headers=self.headers, verify=False)
+        logger.info("get project branch output: {0}".format(output.json()))
+        return output
+
+    # 用project_id及branch_name刪除project的branch
     def delete_git_project_branch(self, logger, app, project_id, branch):
         url = "http://{0}/api/{1}/projects/{2}/repository/branches/{3}?private_token={4}".format(\
             app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, branch, self.private_token)
