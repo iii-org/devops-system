@@ -387,6 +387,13 @@ class IssuesIdList(Resource):
         return jsonify(output_array)
 
 
+class IssueRD(Resource):
+
+    @jwt_required
+    def get (self, issue_id):
+        return jsonify(iss.get_issue_rd(logger, issue_id))
+
+
 api.add_resource(Index, '/')
 
 # Redmine issue
@@ -425,6 +432,7 @@ api.add_resource(PipelineExec, '/pipelines/rd/<project_id>/pipelines_exec')
 
 # issue
 api.add_resource(IssuesIdList, '/project/rd/<project_id>/issues')
+api.add_resource(IssueRD, '/issues/rd/<issue_id>')
 
 if __name__ == "__main__":
     db.init_app(app)

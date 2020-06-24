@@ -1,13 +1,15 @@
 import requests
 import json
+
 from model import db, Project_relationship
+from .util import util
 
 
 class Issue(object):
     redmine_key = None
     headers = {'Content-Type': 'application/json'}
     
-    def __init__(self, logger, app):        
+    def __init__(self, logger, app):
         # get redmine_key
         url = "http://{0}:{1}@{2}/users/current.json".format(app.config['REDMINE_ADMIN_ACCOUNT'],\
             app.config['REDMINE_ADMIN_PASSWORD'], app.config['REDMINE_IP_PORT'])
@@ -111,6 +113,31 @@ class Issue(object):
                 output_array.append(issuesid_sql_output[0])
             return output_array
 
-
+    def get_issue_rd(self, logger, issue_id):
+        result = db.engine.execute("SELECT iss.project_id as pjid, pjt.name as pjnm, iss.tracker_id as trid, trk.name as trnm, \
+            iss.status_id as stid, sta.name as stnm, iss.priority_id as prid, pri.name as prnm, iss.description as desc, \
+                iss.author_id as auid, ur.name as aunm, iss.name as isnm, iss.start_date as stda, iss.due_date as duda, \
+                    iss.done_ratio as rati, iss.create_at as crti, iss.update_at as upti\
+            FROM public.issues as iss, public.projects as pjt, public.trackers as trk, \
+                public.statuses as sta, public.priorities as pri, public.user as ur\
+            WHERE iss.id = {0} AND iss.project_id = pjt.id AND iss.status_id = sta.id AND iss.tracker_id = trk.id \
+                AND iss.priority_id = pri.id AND iss.author_id = ur.id".format(issue_id))
+        issue_info_sql_output = result.fetchone()
+        result.close()
+        logger.info("issuesid_list: {0}".format(issue_info_sql_output))
+        result = db.engine.execute("SELECT issue_parent_id FROM public.issue_parent_child WHERE issue_child_id = {0}\
+            ".format(issue_id))
+        issues_parent_child_sql_output = result.fetchone()
+        result.close()
+        logger.info("issues_parent_child_sql_output: {0}".format(issues_parent_child_sql_output))
+        output = {"id":issue_id,"project":{"id":issue_info_sql_output["pjid"],"name":issue_info_sql_output["pjnm"]},\
+            "tracker":{"id":issue_info_sql_output['trid'],"name":issue_info_sql_output['trnm']},"status":{"id":issue_info_sql_output['stid'],\
+            "name":issue_info_sql_output['stnm']},"priority":{"id":issue_info_sql_output['prid'],"name":issue_info_sql_output['prnm']},\
+            "description":issue_info_sql_output['desc'],"author":{"id":issue_info_sql_output['auid'],"name":issue_info_sql_output['aunm']},\
+            "parent_id":util.fetchone_output(issues_parent_child_sql_output),"subject":issue_info_sql_output['isnm'],\
+            "start_date":util.add_iso_format(issue_info_sql_output['stda']),"due_date":util.add_iso_format(issue_info_sql_output['duda']),"done_ratio":issue_info_sql_output['rati'],\
+            "created_date":util.add_iso_format(issue_info_sql_output['crti']),"updated_date":util.add_iso_format(issue_info_sql_output['upti']),"custom_fields":[]}
+        logger.info("json output: {0}".format(output))
+        return output
 
 

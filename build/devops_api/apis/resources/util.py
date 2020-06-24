@@ -130,3 +130,16 @@ class util(object):
         except Exception as e:
             logger.error("calldeleteapi error : {0}".format(e))
             return e
+    
+    def add_iso_format(data):
+        if data is not None:
+            return data.isoformat()
+        else:
+            return None
+
+    def fetchone_output(data):
+        if data is not None:
+            return data[0]
+        else:
+            return None
+
