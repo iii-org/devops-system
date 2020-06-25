@@ -272,7 +272,7 @@ class ProjectList(Resource):
     @jwt_required
     def get (self, user_id):
         output_array = pjt.get_project_list(logger, user_id)
-        return jsonify(output_array)
+        return jsonify({'message': 'success', 'data': output_array})
 
 class UserLogin(Resource):
 
@@ -295,7 +295,11 @@ class UserForgetPassword(Resource):
         parser.add_argument('mail', type=str, required=True)
         parser.add_argument('user_account', type=str, required=True)
         args = parser.parse_args()
-        status = au.user_forgetpassword(logger, args)
+        try:
+            status = au.user_forgetpassword(logger, args)
+            return jsonify({"message": "success"})
+        except Exception as err:
+            return jsonify({"message": err})
 
 
 class UserInfo(Resource):
@@ -303,7 +307,7 @@ class UserInfo(Resource):
     @jwt_required
     def get (self, user_id):
         user_info = au.user_info(logger, user_id)
-        return jsonify(user_info)
+        return jsonify({'message': 'success', 'data': user_info})
 
     @jwt_required
     def post(self, user_id):
@@ -317,6 +321,7 @@ class UserInfo(Resource):
         parser.add_argument('role', type=str)
         args = parser.parse_args()
         au.update_user_info(logger, user_id, args)
+        return jsonify({'message': 'success'})
 
 class GitProjectBranches(Resource):
 
@@ -376,7 +381,7 @@ class PipelineExec(Resource):
     @jwt_required
     def get (self, project_id):
         output_array = pipe.pipeline_exec(logger, project_id)
-        return jsonify(output_array)
+        return jsonify({'message': 'success', 'data': output_array})
 
 
 class IssuesIdList(Resource):
@@ -391,7 +396,7 @@ class IssueRD(Resource):
 
     @jwt_required
     def get (self, issue_id):
-        return jsonify(iss.get_issue_rd(logger, issue_id))
+        return jsonify({'message': 'success', 'data': iss.get_issue_rd(logger, issue_id)})
 
 
 api.add_resource(Index, '/')
