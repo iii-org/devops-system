@@ -310,7 +310,7 @@ class UserInfo(Resource):
         return jsonify({'message': 'success', 'data': user_info})
 
     @jwt_required
-    def post(self, user_id):
+    def put(self, user_id):
         parser = reqparse.RequestParser()
         parser.add_argument('name', type=str)
         parser.add_argument('username', type=str)
@@ -396,6 +396,10 @@ class IssueRD(Resource):
 
     @jwt_required
     def get (self, issue_id):
+        return jsonify({'message': 'success', 'data': iss.get_issue_rd(logger, issue_id)})
+    
+    @jwt_required
+    def put (self, issue_id):
         return jsonify({'message': 'success', 'data': iss.get_issue_rd(logger, issue_id)})
 
 
