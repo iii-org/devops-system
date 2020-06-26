@@ -403,11 +403,22 @@ class IssueRD(Resource):
         parser.add_argument('tracker', type=int)
         parser.add_argument('status', type=int)
         args = parser.parse_args()
-        message = iss.update_issue_rd(logger, issue_id, args)
-        if message is None:
+        output = iss.update_issue_rd(logger, issue_id, args)
+        if output[1] is 200:
             return {'message': 'success'}
         else:
-            return {'message': message}, 400
+            return {'message': output[0]}, 400
+
+
+class IssueStatus(Resource):
+
+    @jwt_required
+    def get (self):
+        output = iss.get_issue_status(logger)
+        if output[1] is 200:
+            return {'message': 'success', 'data': output[0]}
+        else:
+            return {'message': output[0]}, 400
 
 
 api.add_resource(Index, '/')
@@ -449,6 +460,7 @@ api.add_resource(PipelineExec, '/pipelines/rd/<project_id>/pipelines_exec')
 # issue
 api.add_resource(IssuesIdList, '/project/rd/<project_id>/issues')
 api.add_resource(IssueRD, '/issues/rd/<issue_id>')
+api.add_resource(IssueStatus, '/issues_status')
 
 if __name__ == "__main__":
     db.init_app(app)

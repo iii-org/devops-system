@@ -151,6 +151,25 @@ class Issue(object):
         logger.info("set_string[:-1]: {0}".format(set_string[:-1]))
         try:
             result = db.engine.execute("UPDATE public.issues SET {0} WHERE id = {1}".format(set_string[:-1], issue_id))
-            return None
+            return None, 200
         except Exception as error:
-            return str(error)
+            return str(error), 400
+
+    def get_issue_status(self, logger):
+        try:
+            result = db.engine.execute("SELECT * FROM public.statuses")
+            issue_status_list_sql_output = result.fetchall()
+            result.close()
+            logger.info("issue_status_list_sql_output: {0}".format(issue_status_list_sql_output))
+            issue_status_list = []
+            for issue_status_sql_output in issue_status_list_sql_output:
+                issue_status_list.append({
+                    'id': issue_status_sql_output['id'],
+                    'name': issue_status_sql_output['name'],
+                    'is_closed': issue_status_sql_output['is_closed']
+                })
+            return issue_status_list, 200
+        except Exception as error:
+            return str(error), 400
+
+
