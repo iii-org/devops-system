@@ -70,8 +70,7 @@ class Issue(Resource):
     def put(self, issue_id):
         parser = reqparse.RequestParser()
         parser.add_argument('status_id', type=int)
-        parser.add_argument('done_ratio', type=int)
-        parser.add_argument('notes')
+        parser.add_argument('tracker_id', type=int)
         args = parser.parse_args()
         logger.info("put body: {0}".format(args))
         output = iss.update_issue(logger, app, issue_id, args)
@@ -400,7 +399,15 @@ class IssueRD(Resource):
     
     @jwt_required
     def put (self, issue_id):
-        return jsonify({'message': 'success', 'data': iss.get_issue_rd(logger, issue_id)})
+        parser = reqparse.RequestParser()
+        parser.add_argument('tracker', type=int)
+        parser.add_argument('status', type=int)
+        args = parser.parse_args()
+        message = iss.update_issue_rd(logger, issue_id, args)
+        if message is None:
+            return {'message': 'success'}
+        else:
+            return {'message': message}, 400
 
 
 api.add_resource(Index, '/')

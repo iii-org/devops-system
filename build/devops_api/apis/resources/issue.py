@@ -139,5 +139,18 @@ class Issue(object):
             "created_date":util.add_iso_format(issue_info_sql_output['crti']),"updated_date":util.add_iso_format(issue_info_sql_output['upti']),"custom_fields":[]}
         logger.info("json output: {0}".format(output))
         return output
-
-
+    
+    def update_issue_rd(self, logger, issue_id, args):
+        set_string = ""
+        if args["tracker"] is not None:
+            set_string += "tracker_id = {0}".format(args["tracker"])
+            set_string += ","
+        if args["status"] is not None:
+            set_string += "status_id = {0}".format(args["status"])
+            set_string += ","
+        logger.info("set_string[:-1]: {0}".format(set_string[:-1]))
+        try:
+            result = db.engine.execute("UPDATE public.issues SET {0} WHERE id = {1}".format(set_string[:-1], issue_id))
+            return None
+        except Exception as error:
+            return str(error)
