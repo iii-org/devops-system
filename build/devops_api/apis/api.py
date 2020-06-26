@@ -51,19 +51,19 @@ class Index(Resource):
         iss.create_data_into_project_relationship(logger)
         return {"message": "DevOps api is working"}
 
-class Issue_by_user(Resource):
+class Redminessue_by_user(Resource):
 
     @jwt_required
     def get(self, user_account):
-        output = iss.get_issues_by_user(logger, app, user_account)
+        output = iss.redmine_get_issues_by_user(logger, app, user_account)
         return {"issue_number": output.json()}
 
 
-class Issue(Resource):
+class RedmineIssue(Resource):
 
     @jwt_required
     def get(self, issue_id):
-        output = iss.get_issue(logger, app, issue_id)
+        output = iss.redmine_get_issue(logger, app, issue_id)
         return output.json()
 
     @jwt_required
@@ -73,14 +73,14 @@ class Issue(Resource):
         parser.add_argument('tracker_id', type=int)
         args = parser.parse_args()
         logger.info("put body: {0}".format(args))
-        output = iss.update_issue(logger, app, issue_id, args)
+        output = iss.redmine_update_issue(logger, app, issue_id, args)
 
 
-class IssueStatus(Resource):
+class RedminIssueStatus(Resource):
 
     @jwt_required
     def get (self):
-        output = iss.get_issue_status(logger, app)
+        output = iss.redmine_get_issue_status(logger, app)
         return output.json()
 
 
@@ -413,9 +413,9 @@ class IssueRD(Resource):
 api.add_resource(Index, '/')
 
 # Redmine issue
-api.add_resource(Issue, '/issue/<issue_id>')
-api.add_resource(Issue_by_user, '/issues_by_user/<user_account>')
-api.add_resource(IssueStatus, '/issues_status')
+api.add_resource(RedmineIssue, '/redmine_issue/<issue_id>')
+api.add_resource(RedmineIssue_by_user, '/redmine_issues_by_user/<user_account>')
+api.add_resource(RedmineIssueStatus, '/redmine_issues_status')
 api.add_resource(RedmineProject, '/redmine_project/<user_account>')
 
 # Rancher pipeline

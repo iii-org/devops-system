@@ -17,7 +17,7 @@ class Issue(object):
         self.redmine_key = output.json()['user']['api_key']
         logger.info("redmine_key: {0}".format(self.redmine_key))
 
-    def get_user_id(self, logger, app, user_account):
+    def redmine_get_user_id(self, logger, app, user_account):
         
         url = "http://{0}/users.json?key={1}".format(app.config['REDMINE_IP_PORT']\
             , self.redmine_key)
@@ -27,8 +27,8 @@ class Issue(object):
                 logger.info("user {0} detail: {1}".format(user_account, user))
                 return user
 
-    def get_issues_by_user(self, logger, app, user_account):
-        user_info = self.get_user_id(logger, app, user_account)
+    def redmine_get_issues_by_user(self, logger, app, user_account):
+        user_info = self.redmine_get_user_id(logger, app, user_account)
 
         url = "http://{0}/issues.json?key={1}&assigned_to_id={2}".format(\
             app.config['REDMINE_IP_PORT'], self.redmine_key, user_info["id"])
@@ -36,7 +36,7 @@ class Issue(object):
         logger.info("get issues by output: {0}".format(output.json()))
         return output
 
-    def get_issue(self, logger, app, issue_id ):
+    def redmine_get_issue(self, logger, app, issue_id ):
         url = "http://{0}/issues/{1}.json?key={2}".format(\
             app.config['REDMINE_IP_PORT'], issue_id, self.redmine_key)
         output = requests.get(url, headers=self.headers, verify=False)
@@ -44,7 +44,7 @@ class Issue(object):
         return output
 
     
-    def update_issue(self, logger, app, issue_id, args):
+    def redmine_update_issue(self, logger, app, issue_id, args):
         url = "http://{0}/issues/{1}.json?key={2}".format(\
             app.config['REDMINE_IP_PORT'], issue_id, self.redmine_key)
         param = {
