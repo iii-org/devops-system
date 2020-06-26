@@ -60,7 +60,7 @@ class Issue(object):
         return output
 
     
-    def get_issue_status(self, logger, app):
+    def redmine_get_issue_status(self, logger, app):
         url="http://{0}/issue_statuses.json?key={1}".format(\
             app.config['REDMINE_IP_PORT'], self.redmine_key,)
         output = requests.get(url, headers=self.headers, verify=False)

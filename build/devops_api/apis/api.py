@@ -51,7 +51,7 @@ class Index(Resource):
         iss.create_data_into_project_relationship(logger)
         return {"message": "DevOps api is working"}
 
-class Redminessue_by_user(Resource):
+class RedmineIssue_by_user(Resource):
 
     @jwt_required
     def get(self, user_account):
@@ -76,7 +76,7 @@ class RedmineIssue(Resource):
         output = iss.redmine_update_issue(logger, app, issue_id, args)
 
 
-class RedminIssueStatus(Resource):
+class RedmineIssueStatus(Resource):
 
     @jwt_required
     def get (self):
