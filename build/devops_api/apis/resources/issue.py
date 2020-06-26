@@ -172,4 +172,21 @@ class Issue(object):
         except Exception as error:
             return str(error), 400
 
+    def get_issue_priority(self, logger):
+        try:
+            result = db.engine.execute("SELECT id, name, is_closed FROM public.priorities")
+            issue_priority_list_sql_output = result.fetchall()
+            result.close()
+            logger.info("issue_priority_list_sql_output: {0}".format(issue_priority_list_sql_output))
+            issue_priority_list = []
+            for issue_priority_sql_output in issue_priority_list_sql_output:
+                issue_priority_list.append({
+                    'id': issue_priority_sql_output['id'],
+                    'name': issue_priority_sql_output['name'],
+                    'is_closed': issue_priority_sql_output['is_closed']
+                })
+            return issue_priority_list, 200
+        except Exception as error:
+            return str(error), 400
+
 

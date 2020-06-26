@@ -421,6 +421,17 @@ class IssueStatus(Resource):
             return {'message': output[0]}, 400
 
 
+class IssuePrioriry(Resource):
+
+    @jwt_required
+    def get (self):
+        output = iss.get_issue_priority(logger)
+        if output[1] is 200:
+            return {'message': 'success', 'data': output[0]}
+        else:
+            return {'message': output[0]}, 400
+
+
 api.add_resource(Index, '/')
 
 # Redmine issue
@@ -461,6 +472,7 @@ api.add_resource(PipelineExec, '/pipelines/rd/<project_id>/pipelines_exec')
 api.add_resource(IssuesIdList, '/project/rd/<project_id>/issues')
 api.add_resource(IssueRD, '/issues/rd/<issue_id>')
 api.add_resource(IssueStatus, '/issues_status')
+api.add_resource(IssuePrioriry, '/issues_priority')
 
 if __name__ == "__main__":
     db.init_app(app)
