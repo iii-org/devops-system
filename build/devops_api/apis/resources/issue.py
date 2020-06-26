@@ -206,4 +206,20 @@ class Issue(object):
         except Exception as error:
             return str(error), 400
 
-
+    def get_issue_category_by_project(self, logger, project_id):
+        try:
+            result = db.engine.execute("SELECT id, name, is_closed FROM public.trackers \
+                WHERE project_id = {0}".format(project_id))
+            issue_tracker_list_sql_output = result.fetchall()
+            result.close()
+            logger.info("issue_tracker_list_sql_output: {0}".format(issue_tracker_list_sql_output))
+            issue_tracker_list = []
+            for issue_tracker_sql_output in issue_tracker_list_sql_output:
+                issue_tracker_list.append({
+                    'id': issue_tracker_sql_output['id'],
+                    'name': issue_tracker_sql_output['name'],
+                    'is_closed': issue_tracker_sql_output['is_closed']
+                })
+            return issue_tracker_list, 200
+        except Exception as error:
+            return str(error), 400

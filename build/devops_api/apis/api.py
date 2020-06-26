@@ -443,6 +443,16 @@ class IssueCategory(Resource):
             return {'message': output[0]}, 400
 
 
+class IssueCategoryByProject(Resource):
+
+    @jwt_required
+    def get (self, project_id):
+        output = iss.get_issue_category_by_project(logger, project_id)
+        if output[1] is 200:
+            return {'message': 'success', 'data': output[0]}
+        else:
+            return {'message': output[0]}, 400
+
 api.add_resource(Index, '/')
 
 # Redmine issue
@@ -485,6 +495,7 @@ api.add_resource(IssueRD, '/issues/rd/<issue_id>')
 api.add_resource(IssueStatus, '/issues_status')
 api.add_resource(IssuePrioriry, '/issues_priority')
 api.add_resource(IssueCategory, '/issues_category')
+api.add_resource(IssueCategoryByProject, '/issues_category/<project_id>')
 
 if __name__ == "__main__":
     db.init_app(app)
