@@ -108,15 +108,6 @@ class Project(object):
         output = requests.delete(url, headers=self.headers, verify=False)
         logger.info("delete project webhook output: {0}".format(output))
         return output
-
-    # 用project_id查詢project的repositories
-    def get_git_project_repositories(self, logger, app, project_id, branch):
-        url = "http://{0}/api/{1}/projects/{2}/repository/tree?private_token={3}&ref={4}".format(\
-            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, self.private_token, branch)
-        logger.info("get project repositories url: {0}".format(url))
-        output = requests.get(url, headers=self.headers, verify=False)
-        logger.info("get project repositories output: {0}".format(output.json()))
-        return output
     
     def get_project_list(self, logger, user_id):
         result = db.engine.execute("SELECT pj.id, pj.name FROM public.projects_has_users as pju, public.projects as pj \
@@ -200,4 +191,22 @@ class Project(object):
         logger.info("delete project branch url: {0}".format(url))
         output = requests.delete(url, headers=self.headers, verify=False)
         logger.info("delete project branch output: {0}".format(output))
+        return output
+    
+    # 用project_id查詢project的repositories
+    def get_git_project_repositories(self, logger, app, project_id, branch):
+        url = "http://{0}/api/{1}/projects/{2}/repository/tree?private_token={3}&ref={4}".format(\
+            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, self.private_token, branch)
+        logger.info("get project repositories url: {0}".format(url))
+        output = requests.get(url, headers=self.headers, verify=False)
+        logger.info("get project repositories output: {0}".format(output.json()))
+        return output
+
+    # 用project_id及branch_name及file_path查詢project的file
+    def get_git_project_file(self, logger, app, project_id, branch, file_path):
+        url = "http://{0}/api/{1}/projects/{2}/repository/files/{3}?private_token={4}&ref={5}".format(\
+            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, file_path, self.private_token, branch)
+        logger.info("get project file url: {0}".format(url))
+        output = requests.get(url, headers=self.headers, verify=False)
+        logger.info("get project file output: {0}".format(output.json()))
         return output

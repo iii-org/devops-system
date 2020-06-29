@@ -315,15 +315,6 @@ class UserInfo(Resource):
         au.update_user_info(logger, user_id, args)
 
 
-class GitProjectRepositories(Resource):
-
-    @jwt_required
-    def get(self, repository_id, branch):
-        project_id = repository_id
-        output = pjt.get_git_project_repositories(logger, app, project_id, branch)
-        return output.json()
-
-
 class GitProjectBranches(Resource):
 
     @jwt_required
@@ -372,6 +363,24 @@ class GitProjectBranch(Resource):
             return str(output)
 
 
+class GitProjectRepositories(Resource):
+
+    @jwt_required
+    def get(self, repository_id, branch):
+        project_id = repository_id
+        output = pjt.get_git_project_repositories(logger, app, project_id, branch)
+        return output.json()
+
+
+class GitProjectFile(Resource):
+
+    @jwt_required
+    def get(self, repository_id, branch, file_path):
+        project_id = repository_id
+        output = pjt.get_git_project_file(logger, app, project_id, branch, file_path)
+        return output.json()
+
+
 class PipelineInfo(Resource):
 
     @jwt_required
@@ -408,9 +417,10 @@ api.add_resource(PipelineExecutionsOne, '/pipelineexecutions/<pipelineexecutions
 api.add_resource(GitProjects, '/git_projects')
 api.add_resource(GitOneProject, '/git_one_project/<project_id>')
 api.add_resource(GitProjectWebhooks, '/git_project_webhooks/<project_id>')
-api.add_resource(GitProjectRepositories, '/repositories/rd/<repository_id>/branch/<branch>/tree')
 api.add_resource(GitProjectBranches, '/repositories/rd/<repository_id>/branch')
 api.add_resource(GitProjectBranch, '/repositories/rd/<repository_id>/branch/<branch>')
+api.add_resource(GitProjectRepositories, '/repositories/rd/<repository_id>/branch/<branch>/tree')
+api.add_resource(GitProjectFile, '/repositories/rd/<repository_id>/branch/<branch>/files/<file_path>')
 
 # Project
 api.add_resource(ProjectList, '/project/rd/<user_id>')
