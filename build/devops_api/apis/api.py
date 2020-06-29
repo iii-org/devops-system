@@ -51,6 +51,7 @@ class Index(Resource):
         iss.create_data_into_project_relationship(logger)
         return {"message": "DevOps api is working"}
 
+
 class Issue_by_user(Resource):
 
     @jwt_required
@@ -156,6 +157,7 @@ class Get_pipeline_branchs(Resource):
         output = ut.callgetapi(url, logger, headers)
         return output.json()
 
+
 class PipelineExecutions(Resource):
 
     @jwt_required
@@ -259,20 +261,13 @@ class GitProjectWebhooks(Resource):
         output = pjt.delete_git_project_webhook(logger, app, project_id, args)
 
 
-class GitProjectRepositories(Resource):
-
-    @jwt_required
-    def get(self, project_id):
-        output = pjt.get_git_project_repositories(logger, app, project_id)
-        return output.json()
-
-
 class ProjectList(Resource):
 
     @jwt_required
     def get (self, user_id):
         output_array = pjt.get_project_list(logger, user_id)
         return jsonify(output_array)
+
 
 class UserLogin(Resource):
 
@@ -319,8 +314,19 @@ class UserInfo(Resource):
         args = parser.parse_args()
         au.update_user_info(logger, user_id, args)
 
+
+class GitProjectRepositories(Resource):
+
+    @jwt_required
+    def get(self, repository_id, branch):
+        project_id = repository_id
+        output = pjt.get_git_project_repositories(logger, app, project_id, branch)
+        return output.json()
+
+
 class GitProjectBranches(Resource):
 
+    @jwt_required
     def get(self, repository_id):
         project_id = repository_id
         output = pjt.get_git_project_branches(logger, app, project_id)
@@ -336,6 +342,7 @@ class GitProjectBranches(Resource):
             branch_list.append(branch)
         return branch_list
 
+    @jwt_required
     def post(self, repository_id):
         project_id = repository_id
         parser = reqparse.RequestParser()
@@ -346,13 +353,16 @@ class GitProjectBranches(Resource):
         output = pjt.create_git_project_branch(logger, app, project_id, args)
         return output.json()
 
+
 class GitProjectBranch(Resource):
 
+    @jwt_required
     def get(self, repository_id, branch):
         project_id = repository_id
         output = pjt.get_git_project_branch(logger, app, project_id, branch)
         return output.json()
 
+    @jwt_required
     def delete(self, repository_id, branch):
         project_id = repository_id
         output = pjt.delete_git_project_branch(logger, app, project_id, branch)
@@ -361,12 +371,14 @@ class GitProjectBranch(Resource):
         else:
             return str(output)
 
+
 class PipelineInfo(Resource):
 
     @jwt_required
     def get (self, project_id):
         output = pipe.pipeline_info(logger, project_id)
         return jsonify(output)
+
 
 class PipelineExec(Resource):
 
@@ -396,7 +408,7 @@ api.add_resource(PipelineExecutionsOne, '/pipelineexecutions/<pipelineexecutions
 api.add_resource(GitProjects, '/git_projects')
 api.add_resource(GitOneProject, '/git_one_project/<project_id>')
 api.add_resource(GitProjectWebhooks, '/git_project_webhooks/<project_id>')
-api.add_resource(GitProjectRepositories, '/git_project_repositories/<project_id>')
+api.add_resource(GitProjectRepositories, '/repositories/rd/<repository_id>/branch/<branch>/tree')
 api.add_resource(GitProjectBranches, '/repositories/rd/<repository_id>/branch')
 api.add_resource(GitProjectBranch, '/repositories/rd/<repository_id>/branch/<branch>')
 
