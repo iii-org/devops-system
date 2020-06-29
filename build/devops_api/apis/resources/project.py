@@ -210,3 +210,12 @@ class Project(object):
         output = requests.get(url, headers=self.headers, verify=False)
         logger.info("get project file output: {0}".format(output.json()))
         return output
+
+    # 用project_id及branch_name及file_path刪除project的file
+    def delete_git_project_file(self, logger, app, project_id, branch, file_path, args):
+        url = "http://{0}/api/{1}/projects/{2}/repository/files/{3}?private_token={4}&branch={5}&commit_message={6}".format(\
+            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, file_path, self.private_token, branch, args["commit_message"])
+        logger.info("delete project file url: {0}".format(url))
+        output = requests.delete(url, headers=self.headers, verify=False)
+        logger.info("delete project file output: {0}".format(output))
+        return output

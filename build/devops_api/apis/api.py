@@ -380,6 +380,19 @@ class GitProjectFile(Resource):
         output = pjt.get_git_project_file(logger, app, project_id, branch, file_path)
         return output.json()
 
+    @jwt_required
+    def delete(self, repository_id, branch, file_path):
+        project_id = repository_id
+        parser = reqparse.RequestParser()
+        parser.add_argument('commit_message', type=str)
+        args = parser.parse_args()
+        logger.info("delete body: {0}".format(args))
+        output = pjt.delete_git_project_file(logger, app, project_id, branch, file_path, args)
+        if str(output) == "<Response [204]>":
+            return "Success Delete FI"
+        else:
+            return str(output)
+
 
 class PipelineInfo(Resource):
 
