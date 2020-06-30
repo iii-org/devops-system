@@ -119,8 +119,8 @@ class Project(object):
         return output
     
     def get_project_list(self, logger, user_id):
-        result = db.engine.execute("SELECT pj.id, pj.name FROM public.projects_has_users as pju, public.projects as pj \
-            WHERE pju.user_id = {0} AND pju.project_id = pj.id; ".format(user_id))
+        result = db.engine.execute("SELECT pj.id, pj.name FROM public.project_user_role as pur, public.projects as pj \
+            WHERE pur.user_id = {0} AND pur.project_id = pj.id; ".format(user_id))
         project = result.fetchall()
         result.close()
         outupt_array = []
