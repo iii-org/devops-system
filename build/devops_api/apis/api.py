@@ -381,6 +381,17 @@ class GitProjectFile(Resource):
         return output.json()
 
     @jwt_required
+    def post(self, repository_id, branch, file_path):
+        project_id = repository_id
+        parser = reqparse.RequestParser()
+        parser.add_argument('content', type=str)
+        parser.add_argument('commit_message', type=str)
+        args = parser.parse_args()
+        logger.info("post body: {0}".format(args))
+        output = pjt.create_git_project_file(logger, app, project_id, branch, file_path, args)
+        return output.json()
+
+    @jwt_required
     def delete(self, repository_id, branch, file_path):
         project_id = repository_id
         parser = reqparse.RequestParser()
