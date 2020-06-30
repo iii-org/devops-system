@@ -213,8 +213,8 @@ class Project(object):
 
     # 用project_id及branch_name及file_path新增project的file
     def create_git_project_file(self, logger, app, project_id, branch, file_path, args):
-        url = "http://{0}/api/{1}/projects/{2}/repository/files/{3}?private_token={4}&branch={5}&content={6}&commit_message={7}".format(\
-            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, file_path, self.private_token, branch, args["content"], args["commit_message"])
+        url = "http://{0}/api/{1}/projects/{2}/repository/files/{3}?private_token={4}&branch={5}&start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&commit_message={11}".format(\
+            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, file_path, self.private_token, branch, args["start_branch"], args["encoding"], args["author_email"], args["author_name"], args["content"], args["commit_message"])
         logger.info("post project file url: {0}".format(url))
         output = requests.post(url, headers=self.headers, verify=False)
         logger.info("post project file output: {0}".format(output))

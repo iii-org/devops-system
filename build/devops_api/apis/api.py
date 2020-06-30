@@ -384,6 +384,10 @@ class GitProjectFile(Resource):
     def post(self, repository_id, branch, file_path):
         project_id = repository_id
         parser = reqparse.RequestParser()
+        parser.add_argument('start_branch', type=str)
+        parser.add_argument('encoding', type=str)
+        parser.add_argument('author_email', type=str)
+        parser.add_argument('author_name', type=str)
         parser.add_argument('content', type=str)
         parser.add_argument('commit_message', type=str)
         args = parser.parse_args()
