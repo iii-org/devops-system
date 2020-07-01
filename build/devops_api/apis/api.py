@@ -51,6 +51,7 @@ class Index(Resource):
         iss.create_data_into_project_relationship(logger)
         return {"message": "DevOps api is working"}
 
+
 class RedmineIssue_by_user(Resource):
 
     @jwt_required
@@ -155,6 +156,7 @@ class Get_pipeline_branchs(Resource):
         output = ut.callgetapi(url, logger, headers)
         return output.json()
 
+
 class PipelineExecutions(Resource):
 
     @jwt_required
@@ -258,20 +260,13 @@ class GitProjectWebhooks(Resource):
         output = pjt.delete_git_project_webhook(logger, app, project_id, args)
 
 
-class GitProjectRepositories(Resource):
-
-    @jwt_required
-    def get(self, project_id):
-        output = pjt.get_git_project_repositories(logger, app, project_id)
-        return output.json()
-
-
 class ProjectList(Resource):
 
     @jwt_required
     def get (self, user_id):
         output_array = pjt.get_project_list(logger, user_id)
         return jsonify({'message': 'success', 'data': output_array})
+
 
 class UserLogin(Resource):
 
@@ -322,6 +317,7 @@ class UserInfo(Resource):
         au.update_user_info(logger, user_id, args)
         return jsonify({'message': 'success'})
 
+
 class GitProjectBranches(Resource):
 
     @jwt_required
@@ -351,6 +347,7 @@ class GitProjectBranches(Resource):
         output = pjt.create_git_project_branch(logger, app, project_id, args)
         return output.json()
 
+
 class GitProjectBranch(Resource):
 
     @jwt_required
@@ -368,12 +365,75 @@ class GitProjectBranch(Resource):
         else:
             return str(output)
 
+
+class GitProjectRepositories(Resource):
+
+    @jwt_required
+    def get(self, repository_id, branch):
+        project_id = repository_id
+        output = pjt.get_git_project_repositories(logger, app, project_id, branch)
+        return output.json()
+
+
+class GitProjectFile(Resource):
+
+    @jwt_required
+    def get(self, repository_id, branch, file_path):
+        project_id = repository_id
+        output = pjt.get_git_project_file(logger, app, project_id, branch, file_path)
+        return output.json()
+
+    @jwt_required
+    def post(self, repository_id, branch, file_path):
+        project_id = repository_id
+        parser = reqparse.RequestParser()
+        parser.add_argument('start_branch', type=str)
+        parser.add_argument('encoding', type=str)
+        parser.add_argument('author_email', type=str)
+        parser.add_argument('author_name', type=str)
+        parser.add_argument('content', type=str)
+        parser.add_argument('commit_message', type=str)
+        args = parser.parse_args()
+        logger.info("post body: {0}".format(args))
+        output = pjt.create_git_project_file(logger, app, project_id, branch, file_path, args)
+        return output.json()
+
+    @jwt_required
+    def put(self, repository_id, branch, file_path):
+        project_id = repository_id
+        parser = reqparse.RequestParser()
+        parser.add_argument('start_branch', type=str)
+        parser.add_argument('encoding', type=str)
+        parser.add_argument('author_email', type=str)
+        parser.add_argument('author_name', type=str)
+        parser.add_argument('content', type=str)
+        parser.add_argument('commit_message', type=str)
+        args = parser.parse_args()
+        logger.info("put body: {0}".format(args))
+        output = pjt.update_git_project_file(logger, app, project_id, branch, file_path, args)
+        return output.json()
+
+    @jwt_required
+    def delete(self, repository_id, branch, file_path):
+        project_id = repository_id
+        parser = reqparse.RequestParser()
+        parser.add_argument('commit_message', type=str)
+        args = parser.parse_args()
+        logger.info("delete body: {0}".format(args))
+        output = pjt.delete_git_project_file(logger, app, project_id, branch, file_path, args)
+        if str(output) == "<Response [204]>":
+            return "Success Delete FI"
+        else:
+            return str(output)
+
+
 class PipelineInfo(Resource):
 
     @jwt_required
     def get (self, project_id):
         output = pipe.pipeline_info(logger, project_id)
         return jsonify(output)
+
 
 class PipelineExec(Resource):
 
@@ -473,9 +533,10 @@ api.add_resource(PipelineExecutionsOne, '/pipelineexecutions/<pipelineexecutions
 api.add_resource(GitProjects, '/git_projects')
 api.add_resource(GitOneProject, '/git_one_project/<project_id>')
 api.add_resource(GitProjectWebhooks, '/git_project_webhooks/<project_id>')
-api.add_resource(GitProjectRepositories, '/git_project_repositories/<project_id>')
 api.add_resource(GitProjectBranches, '/repositories/rd/<repository_id>/branch')
 api.add_resource(GitProjectBranch, '/repositories/rd/<repository_id>/branch/<branch>')
+api.add_resource(GitProjectRepositories, '/repositories/rd/<repository_id>/branch/<branch>/tree')
+api.add_resource(GitProjectFile, '/repositories/rd/<repository_id>/branch/<branch>/files/<file_path>')
 
 # Project
 api.add_resource(ProjectList, '/project/rd/<user_id>')
