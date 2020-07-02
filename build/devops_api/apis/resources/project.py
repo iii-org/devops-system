@@ -217,7 +217,7 @@ class Project(object):
             app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, file_path, self.private_token, branch, args["start_branch"], args["encoding"], args["author_email"], args["author_name"], args["content"], args["commit_message"])
         logger.info("post project file url: {0}".format(url))
         output = requests.post(url, headers=self.headers, verify=False)
-        logger.info("post project file output: {0}".format(output))
+        logger.info("post project file output: {0}".format(output.json()))
         return output
 
     # 用project_id及branch_name及file_path修改project的file
@@ -226,7 +226,7 @@ class Project(object):
             app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, file_path, self.private_token, branch, args["start_branch"], args["encoding"], args["author_email"], args["author_name"], args["content"], args["commit_message"])
         logger.info("put project file url: {0}".format(url))
         output = requests.put(url, headers=self.headers, verify=False)
-        logger.info("put project file output: {0}".format(output))
+        logger.info("put project file output: {0}".format(output.json()))
         return output
 
     # 用project_id及branch_name及file_path刪除project的file
@@ -236,4 +236,13 @@ class Project(object):
         logger.info("delete project file url: {0}".format(url))
         output = requests.delete(url, headers=self.headers, verify=False)
         logger.info("delete project file output: {0}".format(output))
+        return output
+
+    # 用project_id查詢project的tags
+    def get_git_project_tags(self, logger, app, project_id):
+        url = "http://{0}/api/{1}/projects/{2}/repository/tags?private_token={3}".format(\
+            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, self.private_token)
+        logger.info("get project tags url: {0}".format(url))
+        output = requests.get(url, headers=self.headers, verify=False)
+        logger.info("get project tags output: {0}".format(output.json()))
         return output

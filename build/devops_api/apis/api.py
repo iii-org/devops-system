@@ -431,6 +431,15 @@ class GitProjectFile(Resource):
             return str(output)
 
 
+class GitProjectTags(Resource):
+
+    @jwt_required
+    def get (self, repository_id):
+        project_id = repository_id
+        output = pjt.get_git_project_tags(logger, app, project_id)
+        return output.json()
+
+
 class PipelineInfo(Resource):
 
     @jwt_required
@@ -471,6 +480,7 @@ api.add_resource(GitProjectBranches, '/repositories/rd/<repository_id>/branch')
 api.add_resource(GitProjectBranch, '/repositories/rd/<repository_id>/branch/<branch_name>')
 api.add_resource(GitProjectRepositories, '/repositories/rd/<repository_id>/branch/<branch_name>/tree')
 api.add_resource(GitProjectFile, '/repositories/rd/<repository_id>/branch/<branch_name>/files/<file_path>')
+api.add_resource(GitProjectTags, '/repositories/rd/<repository_id>/tags')
 
 # Project
 api.add_resource(ProjectList, '/project/rd/<user_id>')
