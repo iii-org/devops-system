@@ -15,6 +15,7 @@ from jsonwebtoken import jsonwebtoken
 import resources.util as util
 import resources.auth as auth
 import resources.issue as issue
+import resources.redmine as redmine
 import resources.project as project
 import resources.pipeline as pipeline
 
@@ -36,7 +37,8 @@ logger.addHandler(handler)
 
 ut = util.util()
 au = auth.auth()
-iss = issue.Issue(logger, app)
+redmine = redmine.Redmine(logger, app)
+iss = issue.Issue()
 pjt = project.Project(logger, app)
 pipe = pipeline.Pipeline()
 
@@ -56,7 +58,7 @@ class RedmineIssue_by_user(Resource):
 
     @jwt_required
     def get(self, user_account):
-        output = iss.redmine_get_issues_by_user(logger, app, user_account)
+        output = redmine.redmine_get_issues_by_user(logger, app, user_account)
         return {"issue_number": output.json()}
 
 
@@ -64,7 +66,7 @@ class RedmineIssue(Resource):
 
     @jwt_required
     def get(self, issue_id):
-        output = iss.redmine_get_issue(logger, app, issue_id)
+        output = redmine.redmine_get_issue(logger, app, issue_id)
         return output.json()
 
     @jwt_required
@@ -74,14 +76,14 @@ class RedmineIssue(Resource):
         parser.add_argument('tracker_id', type=int)
         args = parser.parse_args()
         logger.info("put body: {0}".format(args))
-        output = iss.redmine_update_issue(logger, app, issue_id, args)
+        output = redmine.redmine_update_issue(logger, app, issue_id, args)
 
 
 class RedmineIssueStatus(Resource):
 
     @jwt_required
     def get (self):
-        output = iss.redmine_get_issue_status(logger, app)
+        output = redmine.redmine_get_issue_status(logger, app)
         return output.json()
 
 
@@ -89,7 +91,7 @@ class RedmineProject(Resource):
 
     @jwt_required
     def get(self, user_account):
-        output = iss.get_project(logger, app, user_account)
+        output = redmine.get_project(logger, app, user_account)
         return {"projects": output.json()["user"]["memberships"]}
 
 
