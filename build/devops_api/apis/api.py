@@ -351,14 +351,16 @@ class GitProjectBranches(Resource):
 class GitProjectBranch(Resource):
 
     @jwt_required
-    def get(self, repository_id, branch):
+    def get(self, repository_id, branch_name):
         project_id = repository_id
+        branch = branch_name
         output = pjt.get_git_project_branch(logger, app, project_id, branch)
         return output.json()
 
     @jwt_required
-    def delete(self, repository_id, branch):
+    def delete(self, repository_id, branch_name):
         project_id = repository_id
+        branch = branch_name
         output = pjt.delete_git_project_branch(logger, app, project_id, branch)
         if str(output) == "<Response [204]>":
             return "Success Delete Branch"
@@ -369,8 +371,9 @@ class GitProjectBranch(Resource):
 class GitProjectRepositories(Resource):
 
     @jwt_required
-    def get(self, repository_id, branch):
+    def get(self, repository_id, branch_name):
         project_id = repository_id
+        branch = branch_name
         output = pjt.get_git_project_repositories(logger, app, project_id, branch)
         return output.json()
 
@@ -378,14 +381,16 @@ class GitProjectRepositories(Resource):
 class GitProjectFile(Resource):
 
     @jwt_required
-    def get(self, repository_id, branch, file_path):
+    def get(self, repository_id, branch_name, file_path):
         project_id = repository_id
+        branch = branch_name
         output = pjt.get_git_project_file(logger, app, project_id, branch, file_path)
         return output.json()
 
     @jwt_required
-    def post(self, repository_id, branch, file_path):
+    def post(self, repository_id, branch_name, file_path):
         project_id = repository_id
+        branch = branch_name
         parser = reqparse.RequestParser()
         parser.add_argument('start_branch', type=str)
         parser.add_argument('encoding', type=str)
@@ -399,8 +404,9 @@ class GitProjectFile(Resource):
         return output.json()
 
     @jwt_required
-    def put(self, repository_id, branch, file_path):
+    def put(self, repository_id, branch_name, file_path):
         project_id = repository_id
+        branch = branch_name
         parser = reqparse.RequestParser()
         parser.add_argument('start_branch', type=str)
         parser.add_argument('encoding', type=str)
@@ -414,8 +420,9 @@ class GitProjectFile(Resource):
         return output.json()
 
     @jwt_required
-    def delete(self, repository_id, branch, file_path):
+    def delete(self, repository_id, branch_name, file_path):
         project_id = repository_id
+        branch = branch_name
         parser = reqparse.RequestParser()
         parser.add_argument('commit_message', type=str)
         args = parser.parse_args()
@@ -534,9 +541,9 @@ api.add_resource(GitProjects, '/git_projects')
 api.add_resource(GitOneProject, '/git_one_project/<project_id>')
 api.add_resource(GitProjectWebhooks, '/git_project_webhooks/<project_id>')
 api.add_resource(GitProjectBranches, '/repositories/rd/<repository_id>/branch')
-api.add_resource(GitProjectBranch, '/repositories/rd/<repository_id>/branch/<branch>')
-api.add_resource(GitProjectRepositories, '/repositories/rd/<repository_id>/branch/<branch>/tree')
-api.add_resource(GitProjectFile, '/repositories/rd/<repository_id>/branch/<branch>/files/<file_path>')
+api.add_resource(GitProjectBranch, '/repositories/rd/<repository_id>/branch/<branch_name>')
+api.add_resource(GitProjectRepositories, '/repositories/rd/<repository_id>/branch/<branch_name>/tree')
+api.add_resource(GitProjectFile, '/repositories/rd/<repository_id>/branch/<branch_name>/files/<file_path>')
 
 # Project
 api.add_resource(ProjectList, '/project/rd/<user_id>')
