@@ -246,3 +246,12 @@ class Project(object):
         output = requests.get(url, headers=self.headers, verify=False)
         logger.info("get project tags output: {0}".format(output.json()))
         return output
+
+    # 用project_id新增project的tags
+    def create_git_project_tags(self, logger, app, project_id, args):
+        url = "http://{0}/api/{1}/projects/{2}/repository/tags?private_token={3}&tag_name={4}&ref={5}&message={6}&release_description={7}".format(\
+            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, self.private_token, args["tag_name"], args["ref"], args["message"], args["release_description"])
+        logger.info("create project tags url: {0}".format(url))
+        output = requests.post(url, headers=self.headers, verify=False)
+        logger.info("create project tags output: {0}".format(output.json()))
+        return output

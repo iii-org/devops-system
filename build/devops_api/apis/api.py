@@ -439,6 +439,19 @@ class GitProjectTags(Resource):
         output = pjt.get_git_project_tags(logger, app, project_id)
         return output.json()
 
+    @jwt_required
+    def post(self, repository_id):
+        project_id = repository_id
+        parser = reqparse.RequestParser()
+        parser.add_argument('tag_name', type=str)
+        parser.add_argument('ref', type=str)
+        parser.add_argument('message', type=str)
+        parser.add_argument('release_description', type=str)
+        args = parser.parse_args()
+        logger.info("post body: {0}".format(args))
+        output = pjt.create_git_project_tags(logger, app, project_id, args)
+        return output.json()
+
 
 class PipelineInfo(Resource):
 
