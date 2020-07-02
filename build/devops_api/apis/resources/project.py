@@ -255,3 +255,12 @@ class Project(object):
         output = requests.post(url, headers=self.headers, verify=False)
         logger.info("create project tags output: {0}".format(output.json()))
         return output
+
+    # 用project_id及tag_name刪除project的tag
+    def delete_git_project_tag(self, logger, app, project_id, tag_name):
+        url = "http://{0}/api/{1}/projects/{2}/repository/tags/{3}?private_token={4}".format(\
+            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, tag_name, self.private_token)
+        logger.info("delete project tags url: {0}".format(url))
+        output = requests.delete(url, headers=self.headers, verify=False)
+        logger.info("delete project tags output: {0}".format(output))
+        return output
