@@ -375,6 +375,63 @@ class GitProjectRepositories(Resource):
         return output.json()
 
 
+class GitProjectFiles(Resource):
+
+    @jwt_required
+    def post(self, repository_id):
+        project_id = repository_id
+        parser = reqparse.RequestParser()
+        parser.add_argument('branch', type=str)
+        parser.add_argument('file_path', type=str)
+        parser.add_argument('start_branch', type=str)
+        parser.add_argument('encoding', type=str)
+        parser.add_argument('author_email', type=str)
+        parser.add_argument('author_name', type=str)
+        parser.add_argument('content', type=str)
+        parser.add_argument('commit_message', type=str)
+        args = parser.parse_args()
+        logger.info("post body: {0}".format(args))
+        output = pjt.create_git_project_file(logger, app, project_id, args)
+        if str(output) == "<Response [201]>":
+            result = {
+                "message": "success",
+                "data": {
+                    "file_path": output.json()["file_path"],
+                    "branch_name": output.json()["branch"]
+                }
+            }
+        else:
+            result = "error"
+        return result
+
+    @jwt_required
+    def put(self, repository_id):
+        project_id = repository_id
+        parser = reqparse.RequestParser()
+        parser.add_argument('branch', type=str)
+        parser.add_argument('file_path', type=str)
+        parser.add_argument('start_branch', type=str)
+        parser.add_argument('encoding', type=str)
+        parser.add_argument('author_email', type=str)
+        parser.add_argument('author_name', type=str)
+        parser.add_argument('content', type=str)
+        parser.add_argument('commit_message', type=str)
+        args = parser.parse_args()
+        logger.info("put body: {0}".format(args))
+        output = pjt.update_git_project_file(logger, app, project_id, args)
+        if str(output) == "<Response [200]>":
+            result = {
+                "message": "success",
+                "data": {
+                    "file_path": output.json()["file_path"],
+                    "branch_name": output.json()["branch"]
+                }
+            }
+        else:
+            result = "error"
+        return result
+
+
 class GitProjectFile(Resource):
 
     @jwt_required
@@ -399,38 +456,6 @@ class GitProjectFile(Resource):
         else:
             result = "error"
         return result
-
-    @jwt_required
-    def post(self, repository_id, branch_name, file_path):
-        project_id = repository_id
-        branch = branch_name
-        parser = reqparse.RequestParser()
-        parser.add_argument('start_branch', type=str)
-        parser.add_argument('encoding', type=str)
-        parser.add_argument('author_email', type=str)
-        parser.add_argument('author_name', type=str)
-        parser.add_argument('content', type=str)
-        parser.add_argument('commit_message', type=str)
-        args = parser.parse_args()
-        logger.info("post body: {0}".format(args))
-        output = pjt.create_git_project_file(logger, app, project_id, branch, file_path, args)
-        return output.json()
-
-    @jwt_required
-    def put(self, repository_id, branch_name, file_path):
-        project_id = repository_id
-        branch = branch_name
-        parser = reqparse.RequestParser()
-        parser.add_argument('start_branch', type=str)
-        parser.add_argument('encoding', type=str)
-        parser.add_argument('author_email', type=str)
-        parser.add_argument('author_name', type=str)
-        parser.add_argument('content', type=str)
-        parser.add_argument('commit_message', type=str)
-        args = parser.parse_args()
-        logger.info("put body: {0}".format(args))
-        output = pjt.update_git_project_file(logger, app, project_id, branch, file_path, args)
-        return output.json()
 
     @jwt_required
     def delete(self, repository_id, branch_name, file_path):
@@ -520,7 +545,7 @@ api.add_resource(GitProjectWebhooks, '/git_project_webhooks/<project_id>')
 api.add_resource(GitProjectBranches, '/repositories/rd/<repository_id>/branch')
 api.add_resource(GitProjectBranch, '/repositories/rd/<repository_id>/branch/<branch_name>')
 api.add_resource(GitProjectRepositories, '/repositories/rd/<repository_id>/branch/<branch_name>/tree')
-# api.add_resource(GitProjectFiles, '/repositories/rd/<repository_id>/branch/files')
+api.add_resource(GitProjectFiles, '/repositories/rd/<repository_id>/branch/files')
 api.add_resource(GitProjectFile, '/repositories/rd/<repository_id>/branch/<branch_name>/files/<file_path>')
 api.add_resource(GitProjectTags, '/repositories/rd/<repository_id>/tags')
 api.add_resource(GitProjectTag, '/repositories/rd/<repository_id>/tags/<tag_name>')
