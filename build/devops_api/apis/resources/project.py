@@ -1,8 +1,10 @@
 import requests
 import json
-import datetime
+from datetime import datetime
 
 from model import db
+from .redmine import Redmine
+from .rancher import Rancher
 
 class Project(object):
     private_token = None
@@ -109,53 +111,82 @@ class Project(object):
         logger.info("delete project webhook output: {0}".format(output))
         return output
     
-    def get_project_list(self, logger, user_id):
-        result = db.engine.execute("SELECT pj.id, pj.name FROM public.project_user_role as pur, public.projects as pj \
-            WHERE pur.user_id = {0} AND pur.project_id = pj.id; ".format(user_id))
-        project = result.fetchall()
+    def get_project_list(self, logger, app, user_id):
+        output_array = []
+        # get project list
+        result = db.engine.execute("SELECT pj.id, pj.name, ppl.plan_project_id, \
+            ppl.git_repository_id, ppl.ci_project_id, ppl.ci_pipeline_id\
+            FROM public.project_user_role as pur, public.projects as pj, public.project_plugin_relation as ppl\
+            WHERE pur.user_id = {0} AND pur.project_id = pj.id AND pj.id = ppl.project_id; ".format(user_id))
+        project_list = result.fetchall()
         result.close()
-        outupt_array = []
-        for raw in project:
-            output = {}
-            logger.info("get_project_list SQL project_id, project_name: {0}, {1}".format(raw["id"], raw["name"]))
-            output["name"] = raw["name"]
 
-            # get branch number by project
-            result = db.engine.execute("SELECT COUNT(1) FROM public.branches WHERE project_id = {0};".format(raw["id"]))
-            branch_count = result.fetchone()
-            result.close()
-            logger.info("get_project_list SQL branch count: {0}".format(branch_count))
-            output["branch"] = branch_count[0]
+        # get user ids
+        result = db.engine.execute("SELECT plan_user_id, repository_user_id \
+            FROM public.user_plugin_relation WHERE user_id = {0}; ".format(user_id))
+        plan_user_id = result.fetchone()[0]
+        result.close()
+        logger.info("get user_ids SQL: {0}".format(plan_user_id))
 
-            # get issues number and job dayline.
-            result = db.engine.execute("SELECT id, due_date FROM public.issues WHERE project_id = {0};".format(raw["id"]))
-            issue_list = result.fetchall()
-            result.close()
-            logger.info("get_project_list SQL issue_list: {0}".format(issue_list))
-            the_most_close_day = datetime.date(9999, 12, 31)
-            for issue in issue_list:
-                logger.info("get_project_list SQL due_date type: {0}".format(issue[1]))
-                if the_most_close_day > issue[1]:
-                    the_most_close_day = issue[1]
-            logger.info("get_project_list: issue number {0}".format(len(issue_list)))
-            logger.info("get_project_list: the_most_close_daylist: {0}".format(the_most_close_day))
-            output["issues"] = len(issue_list)
-            output["next_d_time"] = the_most_close_day.isoformat()
+        redmine_key = Redmine.get_redmine_key(self, logger, app)
+        for project in  project_list:
+            output_dict = {}
+            output_dict['name'] = project['name']
+            output_dict['repository_ids'] = [project['git_repository_id']]
 
-            # get CI/CD record.
-            result = db.engine.execute("SELECT ci_li.id, ci_li.create_at, ci_li.success_stage_number, ci_li.total_stage_number\
-                FROM public.ci_cd as ci, public.ci_cd_execution_list as ci_li \
-                WHERE ci.project_id = {0} AND ci.id = ci_li.ci_cd_id ORDER BY ci_li.id DESC;".format(raw["id"]))
-            ci_cd_list = result.fetchone()
-            result.close()
-            logger.info("get_project_list: ci_cd_list {0}".format(ci_cd_list))
-            if ci_cd_list is not None: 
-                output["last_test_time"] = ci_cd_list["create_at"].isoformat()
-                output["last_test_result"] = { "total": ci_cd_list["total_stage_number"], "success": ci_cd_list["success_stage_number"]}
-            logger.info("get_project_list: output: {0}".format(output))
-            outupt_array.append(output)
-        logger.info("get_project_list: output: {0}".format(outupt_array))
-        return outupt_array
+            # get issue total cont
+            total_issue = Redmine.redmine_get_issues_by_project_and_user(self, logger, app, \
+                plan_user_id, project['plan_project_id'] ,redmine_key)
+            logger.info("issue total count by user: {0}".format(total_issue['total_count']))
+            output_dict['issues'] = total_issue['total_count']
+
+            # get next_d_time
+            issue_due_date_list = []
+            for issue in total_issue['issues']:
+                if issue['due_date'] is not None:
+                    issue_due_date_list.append(datetime.strptime(issue['due_date'], "%Y-%m-%d"))
+            logger.info("issue_due_date_list: {0}".format(issue_due_date_list))
+            next_d_time = None
+            if len(issue_due_date_list) != 0:
+                next_d_time = min(issue_due_date_list, key=lambda d: abs(d - datetime.now()))
+            logger.info("next_d_time: {0}".format(next_d_time))
+            output_dict['next_d_time'] = next_d_time
+
+            branch_number = 0
+            # branch bumber
+            output = self.get_git_project_branches(logger, app, project['git_repository_id'])
+            if output.status_code == 200:
+                branch_number = len(output.json())
+            logger.info("get_git_project_branches number: {0}".format(branch_number))
+            output_dict['branch'] = branch_number
+
+            # get rancher pipeline 
+            rancher_token = Rancher.get_rancher_token(self, app, logger)
+            pipeline_output = Rancher.get_rancher_pipelineexecutions(self, app, logger, project["ci_project_id"],\
+                project["ci_pipeline_id"], rancher_token)
+            if len(pipeline_output) != 0:
+                logger.info(pipeline_output[0]['name'])
+                logger.info(pipeline_output[0]['created'])
+                output_dict['last_test_time'] = pipeline_output[0]['created']
+
+                stage_status = []
+                # logger.info(pipeline_output[0]['stages'])
+                for stage in pipeline_output[0]['stages']:
+                    logger.info("stage: {0}".format(stage))
+                    if 'state' in stage:
+                        stage_status.append(stage['state'])
+                logger.info(stage_status)
+                failed_item = -1
+                if 'Failed' in stage_status:
+                    failed_item = stage_status.index('Failed')
+                    logger.info("failed_item: {0}".format(failed_item))
+                    output_dict['lest_test_result']={'total': len(pipeline_output[0]['stages']),\
+                        'success': failed_item }
+                else:
+                    output_dict['lest_test_result']={'total': len(pipeline_output[0]['stages']),\
+                        'success': len(pipeline_output[0]['stages'])}
+            output_array.append(output_dict)
+        return output_array
 
     # 用project_id查詢project的branches
     def get_git_project_branches(self, logger, app, project_id):

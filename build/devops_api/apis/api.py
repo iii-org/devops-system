@@ -266,7 +266,7 @@ class ProjectList(Resource):
 
     @jwt_required
     def get (self, user_id):
-        output_array = pjt.get_project_list(logger, user_id)
+        output_array = pjt.get_project_list(logger, app, user_id)
         return jsonify({'message': 'success', 'data': output_array})
 
 
