@@ -464,7 +464,7 @@ class IssueRD(Resource):
 
     @jwt_required
     def get (self, issue_id):
-        return jsonify({'message': 'success', 'data': iss.get_issue_rd(logger, issue_id)})
+        return jsonify({'message': 'success', 'data': iss.get_issue_rd(logger, app, issue_id)})
     
     @jwt_required
     def put (self, issue_id):

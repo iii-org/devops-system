@@ -1,9 +1,10 @@
 from model import db, Project_relationship
 from .util import util
-
+from .redmine import Redmine
 
 class Issue(object):
-    
+    headers = {'Content-Type': 'application/json'}
+
     def __init__(self):
         pass
 
@@ -43,32 +44,37 @@ class Issue(object):
                 output_array.append(issuesid_sql_output[0])
             return output_array
 
-    def get_issue_rd(self, logger, issue_id):
-        result = db.engine.execute("SELECT iss.project_id as pjid, pjt.name as pjnm, iss.tracker_id as trid, trk.name as trnm, \
-            iss.status_id as stid, sta.name as stnm, iss.priority_id as prid, pri.name as prnm, iss.description as desc, \
-                iss.author_id as auid, ur.name as aunm, iss.name as isnm, iss.start_date as stda, iss.due_date as duda, \
-                    iss.done_ratio as rati, iss.create_at as crti, iss.update_at as upti\
-            FROM public.issues as iss, public.projects as pjt, public.trackers as trk, \
-                public.statuses as sta, public.priorities as pri, public.user as ur\
-            WHERE iss.id = {0} AND iss.project_id = pjt.id AND iss.status_id = sta.id AND iss.tracker_id = trk.id \
-                AND iss.priority_id = pri.id AND iss.author_id = ur.id".format(issue_id))
-        issue_info_sql_output = result.fetchone()
+    def get_issue_rd(self, logger, app, issue_id):
+        result = db.engine.execute("SELECT plan_issue_id FROM public.issue_plugin_relation \
+            WHERE issue_id = {0}".format(issue_id))
+        plan_issue_id_output = result.fetchone()[0]
         result.close()
-        logger.info("issuesid_list: {0}".format(issue_info_sql_output))
-        result = db.engine.execute("SELECT issue_parent_id FROM public.issue_parent_child WHERE issue_child_id = {0}\
-            ".format(issue_id))
-        issues_parent_child_sql_output = result.fetchone()
-        result.close()
-        logger.info("issues_parent_child_sql_output: {0}".format(issues_parent_child_sql_output))
-        output = {"id":issue_id,"project":{"id":issue_info_sql_output["pjid"],"name":issue_info_sql_output["pjnm"]},\
-            "tracker":{"id":issue_info_sql_output['trid'],"name":issue_info_sql_output['trnm']},"status":{"id":issue_info_sql_output['stid'],\
-            "name":issue_info_sql_output['stnm']},"priority":{"id":issue_info_sql_output['prid'],"name":issue_info_sql_output['prnm']},\
-            "description":issue_info_sql_output['desc'],"author":{"id":issue_info_sql_output['auid'],"name":issue_info_sql_output['aunm']},\
-            "parent_id":util.fetchone_output(issues_parent_child_sql_output),"subject":issue_info_sql_output['isnm'],\
-            "start_date":util.add_iso_format(issue_info_sql_output['stda']),"due_date":util.add_iso_format(issue_info_sql_output['duda']),"done_ratio":issue_info_sql_output['rati'],\
-            "created_date":util.add_iso_format(issue_info_sql_output['crti']),"updated_date":util.add_iso_format(issue_info_sql_output['upti']),"custom_fields":[]}
-        logger.info("json output: {0}".format(output))
-        return output
+        project_dict = {plan_issue_id_output: issue_id}
+        logger.info("plan_issue_id_output: {0}".format(plan_issue_id_output))
+        Redmine.get_redmine_key(self, logger, app)
+        logger.info("self.redmine_key: {0}".format(self.redmine_key))
+        output = Redmine.redmine_get_issue(self, logger, app, issue_id).json()
+        output['issue']['project']['id'] = issue_id
+        output['issue']['author'] = output['issue']['assigned_to']
+        output['issue'].pop('assigned_to', None)
+        output['issue'].pop('is_private', None)
+        output['issue'].pop('estimated_hours', None)
+        output['issue'].pop('total_estimated_hours', None)
+        output['issue'].pop('spent_hours', None)
+        output['issue'].pop('total_spent_hours', None)
+        output['issue']['created_date'] = output['issue'].pop('created_on')
+        output['issue']['updated_date'] = output['issue'].pop('updated_on')
+        output['issue']['updated_date']
+        output['issue'].pop('closed_on', None)
+        if 'parent' in output['issue']:
+            result = db.engine.execute("SELECT issue_id FROM public.issue_plugin_relation \
+                WHERE plan_issue_id = {0}".format(output['issue']['parent']['id']))
+            parent_issue_id = result.fetchone()[0]
+            result.close()
+            output['issue']['parent_id'] = parent_issue_id
+            output['issue'].pop('parent', None)
+        logger.info("redmine issue output: {0}".format(output['issue']))
+        return output['issue']
     
     def update_issue_rd(self, logger, issue_id, args):
         set_string = ""
