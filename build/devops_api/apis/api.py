@@ -516,14 +516,7 @@ class GitProjectDirectory(Resource):
         args = parser.parse_args()
         logger.info("post body: {0}".format(args))
         output = pjt.create_git_project_directory(logger, app, project_id, directory_path, args)
-        if str(output) == "<Response [201]>":
-            result = {
-                "name": directory_name,
-                "commit_message": args["commit_message"]
-            }
-        else:
-            result = "error"
-        return result
+        return output.json()
 
 
 class PipelineInfo(Resource):
