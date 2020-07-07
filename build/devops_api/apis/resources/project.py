@@ -247,20 +247,29 @@ class Project(object):
         logger.info("get project tags output: {0}".format(output.json()))
         return output
 
-    # 用project_id新增project的tags
+    # 用project_id新增project的tag
     def create_git_project_tags(self, logger, app, project_id, args):
         url = "http://{0}/api/{1}/projects/{2}/repository/tags?private_token={3}&tag_name={4}&ref={5}&message={6}&release_description={7}".format(\
             app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, self.private_token, args["tag_name"], args["ref"], args["message"], args["release_description"])
-        logger.info("create project tags url: {0}".format(url))
+        logger.info("create project tag url: {0}".format(url))
         output = requests.post(url, headers=self.headers, verify=False)
-        logger.info("create project tags output: {0}".format(output.json()))
+        logger.info("create project tag output: {0}".format(output.json()))
         return output
 
     # 用project_id及tag_name刪除project的tag
     def delete_git_project_tag(self, logger, app, project_id, tag_name):
         url = "http://{0}/api/{1}/projects/{2}/repository/tags/{3}?private_token={4}".format(\
             app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, tag_name, self.private_token)
-        logger.info("delete project tags url: {0}".format(url))
+        logger.info("delete project tag url: {0}".format(url))
         output = requests.delete(url, headers=self.headers, verify=False)
-        logger.info("delete project tags output: {0}".format(output))
+        logger.info("delete project tag output: {0}".format(output))
+        return output
+
+    # 用project_id及directory_path新增project的directory
+    def create_git_project_directory(self, logger, app, project_id, directory_path, args):
+        url = "http://{0}/api/{1}/projects/{2}/repository/files/{3}?private_token={4}&branch={5}&commit_message={6}&content={7}".format(\
+            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, directory_path, self.private_token, args["branch"], args["commit_message"], '')
+        logger.info("create project directory url: {0}".format(url))
+        output = requests.post(url, headers=self.headers, verify=False)
+        logger.info("create project directory output: {0}".format(output.json()))
         return output

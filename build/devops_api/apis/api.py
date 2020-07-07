@@ -505,6 +505,26 @@ class GitProjectTag(Resource):
         else:
             return str(output)
 
+class GitProjectDirectory(Resource):
+
+    def post(self, repository_id, directory_name):
+        project_id = repository_id
+        directory_path = directory_name + "%2F%2Egitkeep"
+        parser = reqparse.RequestParser()
+        parser.add_argument('branch', type=str)
+        parser.add_argument('commit_message', type=str)
+        args = parser.parse_args()
+        logger.info("post body: {0}".format(args))
+        output = pjt.create_git_project_directory(logger, app, project_id, directory_path, args)
+        if str(output) == "<Response [201]>":
+            result = {
+                "name": directory_name,
+                "commit_message": args["commit_message"]
+            }
+        else:
+            result = "error"
+        return result
+
 
 class PipelineInfo(Resource):
 
@@ -549,6 +569,7 @@ api.add_resource(GitProjectFiles, '/repositories/rd/<repository_id>/branch/files
 api.add_resource(GitProjectFile, '/repositories/rd/<repository_id>/branch/<branch_name>/files/<file_path>')
 api.add_resource(GitProjectTags, '/repositories/rd/<repository_id>/tags')
 api.add_resource(GitProjectTag, '/repositories/rd/<repository_id>/tags/<tag_name>')
+api.add_resource(GitProjectDirectory, '/repositories/rd/<repository_id>/directory/<directory_name>')
 
 # Project
 api.add_resource(ProjectList, '/project/rd/<user_id>')
