@@ -518,6 +518,21 @@ class GitProjectDirectory(Resource):
         output = pjt.create_git_project_directory(logger, app, project_id, directory_path, args)
         return output.json()
 
+    def put(self, repository_id, directory_name):
+        project_id = repository_id
+        directory_path = directory_name + "%2F%2Egitkeep"
+        parser = reqparse.RequestParser()
+        parser.add_argument('branch', type=str)
+        parser.add_argument('author_name', type=str)
+        parser.add_argument('author_email', type=str)
+        parser.add_argument('encoding', type=str)
+        parser.add_argument('content', type=str)
+        parser.add_argument('commit_message', type=str)
+        args = parser.parse_args()
+        logger.info("put body: {0}".format(args))
+        output = pjt.update_git_project_directory(logger, app, project_id, directory_path, args)
+        return output.json()
+
 
 class PipelineInfo(Resource):
 

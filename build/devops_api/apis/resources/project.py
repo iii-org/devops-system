@@ -268,8 +268,17 @@ class Project(object):
     # 用project_id及directory_path新增project的directory
     def create_git_project_directory(self, logger, app, project_id, directory_path, args):
         url = "http://{0}/api/{1}/projects/{2}/repository/files/{3}?private_token={4}&branch={5}&commit_message={6}&content={7}".format(\
-            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, directory_path, self.private_token, args["branch"], args["commit_message"], '')
+            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, directory_path, self.private_token, args["branch"], args["commit_message"], "")
         logger.info("create project directory url: {0}".format(url))
         output = requests.post(url, headers=self.headers, verify=False)
         logger.info("create project directory output: {0}".format(output.json()))
+        return output
+
+    # 用project_id及directory_path修改project的directory
+    def update_git_project_directory(self, logger, app, project_id, directory_path, args):
+        url = "http://{0}/api/{1}/projects/{2}/repository/files/{3}?private_token={4}&branch={5}&commit_message={6}&author_name={7}&author_email={8}&encoding={9}&content={10}".format(\
+            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, directory_path, self.private_token, args["branch"], args["commit_message"], args["author_name"], args["author_email"], args["encoding"], args["content"])
+        logger.info("update project directory url: {0}".format(url))
+        output = requests.put(url, headers=self.headers, verify=False)
+        logger.info("update project directory output: {0}".format(output.json()))
         return output
