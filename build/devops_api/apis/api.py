@@ -620,6 +620,14 @@ class IssueTracker(Resource):
         output = iss.get_issue_trackers(logger, app)
         return output
 
+class IssueRDbyUser(Resource):
+
+    @jwt_required
+    def get (self, user_id):
+        output = iss.get_issue_by_user(logger, app, user_id)
+        return output
+
+
 
 api.add_resource(Index, '/')
 
@@ -668,6 +676,7 @@ api.add_resource(IssueRD, '/issues/rd/<issue_id>')
 api.add_resource(IssueStatus, '/issues_status')
 api.add_resource(IssuePrioriry, '/issues_priority')
 api.add_resource(IssueTracker, '/issues_tracker')
+api.add_resource(IssueRDbyUser, '/issues_by_user/rd/<user_id>')
 
 if __name__ == "__main__":
     db.init_app(app)

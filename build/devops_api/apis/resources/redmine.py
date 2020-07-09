@@ -36,14 +36,13 @@ class Redmine(object):
                 logger.info("user {0} detail: {1}".format(user_account, user))
                 return user
 
-    def redmine_get_issues_by_user(self, logger, app, user_account):
-        user_info = self.redmine_get_user_id(logger, app, user_account)
+    def redmine_get_issues_by_user(self, logger, app, user_id):
 
         url = "http://{0}/issues.json?key={1}&assigned_to_id={2}".format(\
-            app.config['REDMINE_IP_PORT'], self.redmine_key, user_info["id"])
+            app.config['REDMINE_IP_PORT'], self.redmine_key, user_id)
         output = requests.get(url, headers=self.headers, verify=False)
-        logger.info("get issues by output: {0}".format(output))
-        return output
+        logger.info("get issues by output: {0}".format(output.json()))
+        return output.json()
 
     def redmine_get_issues_by_project_and_user(self, logger, app, user_id, project_id, redmine_key):
         url = "http://{0}/issues.json?key={1}&assigned_to_id={2}&project_id={3}".format(\

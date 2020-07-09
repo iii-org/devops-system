@@ -21,6 +21,41 @@ class Issue(object):
         logger.debug("plan_to_issue: {0}".format(plan_to_issue))
         return issue_to_plan, plan_to_issue
 
+    def __get_dict_userid(self, logger):
+        result = db.engine.execute("SELECT user_id, plan_user_id FROM public.user_plugin_relation")
+        user_id_output = result.fetchall()
+        result.close()
+        user_to_plan = {}
+        plan_to_user = {}
+        for user in  user_id_output:
+            user_to_plan[str(user['user_id'])] = user['plan_user_id']
+            plan_to_user[str(user['plan_user_id'])] = user['user_id']
+        logger.debug("user_to_plan: {0}".format(user_to_plan))
+        logger.debug("plan_to_user: {0}".format(plan_to_user))
+        return user_to_plan, plan_to_user
+    
+    def __dealwith_issue_redmine_output(self, logger, redmine_output, plan_to_issue):
+        logger.info("redmine get redmine_output: {0}".format(redmine_output))
+        redmine_output['project']['id'] = plan_to_issue[str(redmine_output['id'])]
+        if 'assigned_to' in redmine_output:
+            redmine_output['author'] = redmine_output['assigned_to']
+            redmine_output.pop('assigned_to', None)
+        redmine_output.pop('is_private', None)
+        redmine_output.pop('estimated_hours', None)
+        redmine_output.pop('total_estimated_hours', None)
+        redmine_output.pop('spent_hours', None)
+        redmine_output.pop('total_spent_hours', None)
+        if 'created_on' in redmine_output:
+            redmine_output['created_date'] = redmine_output.pop('created_on')
+        if 'updated_on' in redmine_output:
+            redmine_output['updated_date'] = redmine_output.pop('updated_on')
+        redmine_output.pop('closed_on', None)
+        if 'parent' in redmine_output:
+            redmine_output['parent_id'] = plan_to_issue[str(redmine_output['parent']['id'])]
+            redmine_output.pop('parent', None)
+        logger.info("redmine issue redmine_output: {0}".format(redmine_output))
+        return redmine_output
+
     def get_issuesId_List(self, logger, project_id):
         result = db.engine.execute("SELECT id FROM public.issues WHERE project_id = {0}\
             ".format(project_id))
@@ -38,25 +73,22 @@ class Issue(object):
         issue_to_plan, plan_to_issue = self.__get_dict_issueid(logger)
         Redmine.get_redmine_key(self, logger, app)
         logger.info("self.redmine_key: {0}".format(self.redmine_key))
-        output = Redmine.redmine_get_issue(self, logger, app, issue_to_plan[str(issue_id)]).json()
-        logger.info("redmine get  output: {0}".format(output['issue']))
-        output['issue']['project']['id'] = issue_id
-        output['issue']['author'] = output['issue']['assigned_to']
-        output['issue'].pop('assigned_to', None)
-        output['issue'].pop('is_private', None)
-        output['issue'].pop('estimated_hours', None)
-        output['issue'].pop('total_estimated_hours', None)
-        output['issue'].pop('spent_hours', None)
-        output['issue'].pop('total_spent_hours', None)
-        output['issue']['created_date'] = output['issue'].pop('created_on')
-        output['issue']['updated_date'] = output['issue'].pop('updated_on')
-        output['issue']['updated_date']
-        output['issue'].pop('closed_on', None)
-        if 'parent' in output['issue']:
-            output['issue']['parent_id'] = plan_to_issue[str(output['issue']['parent']['id'])]
-            output['issue'].pop('parent', None)
-        logger.info("redmine issue output: {0}".format(output['issue']))
-        return output['issue']
+        redmine_output_issue = Redmine.redmine_get_issue(self, logger, app, issue_to_plan[str(issue_id)]).json()
+        output = self.__dealwith_issue_redmine_output(logger, redmine_output_issue['issue'], plan_to_issue)
+        return output
+    
+    def get_issue_by_user(self, logger, app, user_id):
+        user_to_plan, plan_to_user = self.__get_dict_userid(logger)
+        issue_to_plan, plan_to_issue = self.__get_dict_issueid(logger)
+        Redmine.get_redmine_key(self, logger, app)
+        logger.info("self.redmine_key: {0}".format(self.redmine_key))
+        output_array=[]
+        redmine_output_issue_array= Redmine.redmine_get_issues_by_user(self, logger, app, user_to_plan[str(user_id)])
+        for redmine_issue in redmine_output_issue_array['issues']:
+            output = self.__dealwith_issue_redmine_output(logger, redmine_issue, plan_to_issue)
+            output_array.append(output)
+        return output_array
+        
 
     def update_issue_rd(self, logger, app, issue_id, args):
         args = {k: v for k, v in args.items() if v is not None}
