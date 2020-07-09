@@ -585,9 +585,9 @@ class IssueRD(Resource):
     @jwt_required
     def put (self, issue_id):
         parser = reqparse.RequestParser()
-        parser.add_argument('tracker', type=int)
-        parser.add_argument('status', type=int)
-        parser.add_argument('priority', type=int)
+        parser.add_argument('tracker_id', type=int)
+        parser.add_argument('status_id', type=int)
+        parser.add_argument('priority_id', type=int)
         parser.add_argument('description')
         parser.add_argument('parent_id', type=int)
         parser.add_argument('subject')
