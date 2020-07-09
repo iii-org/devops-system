@@ -63,13 +63,7 @@ class Redmine(object):
     def redmine_update_issue(self, logger, app, issue_id, args):
         url = "http://{0}/issues/{1}.json?key={2}".format(\
             app.config['REDMINE_IP_PORT'], issue_id, self.redmine_key)
-        param = {
-            "issue": {
-                "status_id": args["status_id"],
-                "done_ratio": args["done_ratio"],
-                "notes": args["notes"]
-            }
-        }
+        param = { "issue": args }
         logger.info("update issues param: {0}".format(param))
         output = requests.put(url, data=json.dumps(param), headers=self.headers, verify=False)
         logger.info("update issues output: {0}".format(output))

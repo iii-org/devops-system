@@ -587,13 +587,22 @@ class IssueRD(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('tracker', type=int)
         parser.add_argument('status', type=int)
+        parser.add_argument('priority', type=int)
+        parser.add_argument('description')
+        parser.add_argument('parent_id', type=int)
+        parser.add_argument('subject')
+        parser.add_argument('start_date')
+        parser.add_argument('due_date')
+        parser.add_argument('done_retio', type=int)
+        parser.add_argument('notes')
         args = parser.parse_args()
-        output = iss.update_issue_rd(logger, issue_id, args)
+        output = iss.update_issue_rd(logger, app, issue_id, args)
+        '''
         if output[1] is 200:
             return {'message': 'success'}
         else:
             return {'message': output[0]}, 400
-
+        '''
 
 class IssueStatus(Resource):
 

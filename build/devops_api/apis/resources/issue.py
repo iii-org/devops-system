@@ -15,8 +15,10 @@ class Issue(object):
         issue_to_plan = {}
         plan_to_issue = {}
         for issue in  issue_id_output:
-            issue_to_plan[issue['issue_id']] = issue['plan_issue_id']
-            plan_to_issue[issue['plan_issue_id']] = issue['issue_id']
+            issue_to_plan[str(issue['issue_id'])] = issue['plan_issue_id']
+            plan_to_issue[str(issue['plan_issue_id'])] = issue['issue_id']
+        logger.debug("issue_to_plan: {0}".format(issue_to_plan))
+        logger.debug("plan_to_issue: {0}".format(plan_to_issue))
         return issue_to_plan, plan_to_issue
 
     def get_issuesId_List(self, logger, project_id):
@@ -36,7 +38,8 @@ class Issue(object):
         issue_to_plan, plan_to_issue = self.__get_dict_issueid(logger)
         Redmine.get_redmine_key(self, logger, app)
         logger.info("self.redmine_key: {0}".format(self.redmine_key))
-        output = Redmine.redmine_get_issue(self, logger, app, issue_to_plan[issue_id]).json()
+        output = Redmine.redmine_get_issue(self, logger, app, issue_to_plan[str(issue_id)]).json()
+        logger.info("redmine get  output: {0}".format(output['issue']))
         output['issue']['project']['id'] = issue_id
         output['issue']['author'] = output['issue']['assigned_to']
         output['issue'].pop('assigned_to', None)
@@ -50,16 +53,24 @@ class Issue(object):
         output['issue']['updated_date']
         output['issue'].pop('closed_on', None)
         if 'parent' in output['issue']:
-            output['issue']['parent_id'] = plan_to_issue[output['issue']['parent']['id']]
+            output['issue']['parent_id'] = plan_to_issue[str(output['issue']['parent']['id'])]
             output['issue'].pop('parent', None)
         logger.info("redmine issue output: {0}".format(output['issue']))
         return output['issue']
-    '''
-    def update_issue_rd(self, logger, issue_id, args):
+
+    def update_issue_rd(self, logger, app, issue_id, args):
         args = {k: v for k, v in args.items() if v is not None}
+        if 'parent_id' in args:
+            args['parent_issue_id'] = args['parent_id']
+            args.pop('parent_id', None)
         logger.info("args: {0}".format(args))
         issue_to_plan, plan_to_issue = self.__get_dict_issueid(logger)
-    '''
+        Redmine.get_redmine_key(self, logger, app)
+        try:
+            output = Redmine.redmine_update_issue(self, logger, app, issue_to_plan[str(issue_id)], args)
+        except Exception as error:
+            return str(error), 400
+
         
     def get_issue_status(self, logger):
         try:
