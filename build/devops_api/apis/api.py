@@ -610,18 +610,14 @@ class IssuePrioriry(Resource):
 
     @jwt_required
     def get (self):
-        output = iss.get_issue_priority(logger)
-        if output[1] is 200:
-            return {'message': 'success', 'data': output[0]}
-        else:
-            return {'message': output[0]}, 400
-
+        output = iss.get_issue_priority(logger, app)
+        return output
 
 class IssueCategory(Resource):
 
     @jwt_required
     def get (self):
-        output = e.get_issue_category(logger)
+        output = iss.get_issue_category(logger)
         if output[1] is 200:
             return {'message': 'success', 'data': output[0]}
         else:

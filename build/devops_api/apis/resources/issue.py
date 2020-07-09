@@ -80,22 +80,23 @@ class Issue(object):
         except Exception as error:
             return str(error), 400
 
-    def get_issue_priority(self, logger):
+    def get_issue_priority(self, logger, app):
+        Redmine.get_redmine_key(self, logger, app)
         try:
-            result = db.engine.execute("SELECT id, name, is_closed FROM public.priorities")
-            issue_priority_list_sql_output = result.fetchall()
-            result.close()
-            logger.info("issue_priority_list_sql_output: {0}".format(issue_priority_list_sql_output))
-            issue_priority_list = []
-            for issue_priority_sql_output in issue_priority_list_sql_output:
-                issue_priority_list.append({
-                    'id': issue_priority_sql_output['id'],
-                    'name': issue_priority_sql_output['name'],
-                    'is_closed': issue_priority_sql_output['is_closed']
-                })
-            return issue_priority_list, 200
+            output=[]
+            issus_status_output = Redmine.redmine_get_priority(self, logger, app)
+            for issus_status in issus_status_output['issue_priorities']:
+                issus_status.pop('is_default', None)
+                if issus_status['active'] is True:
+                    issus_status["is_closed"] = False
+                else:
+                    issus_status["is_closed"] = True
+                issus_status.pop('active', None)
+                output.append(issus_status)
+            return output
         except Exception as error:
             return str(error), 400
+
 
     def get_issue_category(self, logger):
         try:
