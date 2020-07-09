@@ -1,80 +1,13 @@
-import requests
-import json
 from model import db, Project_relationship
-
+from .util import util
+from .redmine import Redmine
 
 class Issue(object):
-    redmine_key = None
     headers = {'Content-Type': 'application/json'}
-    
-    def __init__(self, logger, app):        
-        # get redmine_key
-        url = "http://{0}:{1}@{2}/users/current.json".format(app.config['REDMINE_ADMIN_ACCOUNT'],\
-            app.config['REDMINE_ADMIN_PASSWORD'], app.config['REDMINE_IP_PORT'])
-        output = requests.get(url, headers=self.headers, verify=False)
-        self.redmine_key = output.json()['user']['api_key']
-        logger.info("redmine_key: {0}".format(self.redmine_key))
 
-    def get_user_id(self, logger, app, user_account):
-        
-        url = "http://{0}/users.json?key={1}".format(app.config['REDMINE_IP_PORT']\
-            , self.redmine_key)
-        output = requests.get(url, headers=self.headers, verify=False)
-        for user in output.json()["users"]:
-            if user["login"] == user_account:
-                logger.info("user {0} detail: {1}".format(user_account, user))
-                return user
+    def __init__(self):
+        pass
 
-    def get_issues_by_user(self, logger, app, user_account):
-        user_info = self.get_user_id(logger, app, user_account)
-
-        url = "http://{0}/issues.json?key={1}&assigned_to_id={2}".format(\
-            app.config['REDMINE_IP_PORT'], self.redmine_key, user_info["id"])
-        output = requests.get(url, headers=self.headers, verify=False)
-        logger.info("get issues by output: {0}".format(output.json()))
-        return output
-
-    def get_issue(self, logger, app, issue_id ):
-        url = "http://{0}/issues/{1}.json?key={2}".format(\
-            app.config['REDMINE_IP_PORT'], issue_id, self.redmine_key)
-        output = requests.get(url, headers=self.headers, verify=False)
-        logger.info("get issues output: {0}".format(output.json()))
-        return output
-
-    
-    def update_issue(self, logger, app, issue_id, args):
-        url = "http://{0}/issues/{1}.json?key={2}".format(\
-            app.config['REDMINE_IP_PORT'], issue_id, self.redmine_key)
-        param = {
-            "issue": {
-                "status_id": args["status_id"],
-                "done_ratio": args["done_ratio"],
-                "notes": args["notes"]
-            }
-        }
-        logger.info("update issues param: {0}".format(param))
-        output = requests.put(url, data=json.dumps(param), headers=self.headers, verify=False)
-        logger.info("update issues output: {0}".format(output))
-        return output
-
-    
-    def get_issue_status(self, logger, app):
-        url="http://{0}/issue_statuses.json?key={1}".format(\
-            app.config['REDMINE_IP_PORT'], self.redmine_key,)
-        output = requests.get(url, headers=self.headers, verify=False)
-        logger.info("get issues stauts list output: {0}".format(output.json()))
-        return output
-        
-    def get_project(self, logger, app, user_account):
-        user_info = self.get_user_id(logger, app, user_account)
-
-        url = "http://{0}/users/{1}.json?include=memberships&key={2}".format(
-            app.config['REDMINE_IP_PORT'], user_info["id"], self.redmine_key
-        )
-        output = requests.get(url, headers=self.headers, verify=False)
-        logger.info("get issues output: {0}".format(output))
-        return output
-    
     def create_data_into_project_relationship(self, logger):
         # 示範function，示範如何CRUD Table
         # Create data
@@ -98,6 +31,131 @@ class Issue(object):
         db.session.commit()
         logger.info("after delete table data number: {0}".format(Project_relationship.query.count()))
 
+    def get_issuesId_List(self, logger, project_id):
+        result = db.engine.execute("SELECT id FROM public.issues WHERE project_id = {0}\
+            ".format(project_id))
+        issuesid_sql_output_list = result.fetchall()
+        result.close()
+        #logger.info("issuesid_list: {0}".format(issuesid_sql_output_list))
+        output_array= []
+        if issuesid_sql_output_list is not None:
+            for issuesid_sql_output in issuesid_sql_output_list:
+                logger.info("issuesid_list: {0}".format(issuesid_sql_output[0]))
+                output_array.append(issuesid_sql_output[0])
+            return output_array
 
+    def get_issue_rd(self, logger, app, issue_id):
+        result = db.engine.execute("SELECT plan_issue_id FROM public.issue_plugin_relation \
+            WHERE issue_id = {0}".format(issue_id))
+        plan_issue_id_output = result.fetchone()[0]
+        result.close()
+        project_dict = {plan_issue_id_output: issue_id}
+        logger.info("plan_issue_id_output: {0}".format(plan_issue_id_output))
+        Redmine.get_redmine_key(self, logger, app)
+        logger.info("self.redmine_key: {0}".format(self.redmine_key))
+        output = Redmine.redmine_get_issue(self, logger, app, issue_id).json()
+        output['issue']['project']['id'] = issue_id
+        output['issue']['author'] = output['issue']['assigned_to']
+        output['issue'].pop('assigned_to', None)
+        output['issue'].pop('is_private', None)
+        output['issue'].pop('estimated_hours', None)
+        output['issue'].pop('total_estimated_hours', None)
+        output['issue'].pop('spent_hours', None)
+        output['issue'].pop('total_spent_hours', None)
+        output['issue']['created_date'] = output['issue'].pop('created_on')
+        output['issue']['updated_date'] = output['issue'].pop('updated_on')
+        output['issue']['updated_date']
+        output['issue'].pop('closed_on', None)
+        if 'parent' in output['issue']:
+            result = db.engine.execute("SELECT issue_id FROM public.issue_plugin_relation \
+                WHERE plan_issue_id = {0}".format(output['issue']['parent']['id']))
+            parent_issue_id = result.fetchone()[0]
+            result.close()
+            output['issue']['parent_id'] = parent_issue_id
+            output['issue'].pop('parent', None)
+        logger.info("redmine issue output: {0}".format(output['issue']))
+        return output['issue']
+    
+    def update_issue_rd(self, logger, issue_id, args):
+        set_string = ""
+        if args["tracker"] is not None:
+            set_string += "tracker_id = {0}".format(args["tracker"])
+            set_string += ","
+        if args["status"] is not None:
+            set_string += "status_id = {0}".format(args["status"])
+            set_string += ","
+        logger.info("set_string[:-1]: {0}".format(set_string[:-1]))
+        try:
+            result = db.engine.execute("UPDATE public.issues SET {0} WHERE id = {1}".format(set_string[:-1], issue_id))
+            return None, 200
+        except Exception as error:
+            return str(error), 400
 
+    def get_issue_status(self, logger):
+        try:
+            result = db.engine.execute("SELECT * FROM public.statuses")
+            issue_status_list_sql_output = result.fetchall()
+            result.close()
+            logger.info("issue_status_list_sql_output: {0}".format(issue_status_list_sql_output))
+            issue_status_list = []
+            for issue_status_sql_output in issue_status_list_sql_output:
+                issue_status_list.append({
+                    'id': issue_status_sql_output['id'],
+                    'name': issue_status_sql_output['name'],
+                    'is_closed': issue_status_sql_output['is_closed']
+                })
+            return issue_status_list, 200
+        except Exception as error:
+            return str(error), 400
 
+    def get_issue_priority(self, logger):
+        try:
+            result = db.engine.execute("SELECT id, name, is_closed FROM public.priorities")
+            issue_priority_list_sql_output = result.fetchall()
+            result.close()
+            logger.info("issue_priority_list_sql_output: {0}".format(issue_priority_list_sql_output))
+            issue_priority_list = []
+            for issue_priority_sql_output in issue_priority_list_sql_output:
+                issue_priority_list.append({
+                    'id': issue_priority_sql_output['id'],
+                    'name': issue_priority_sql_output['name'],
+                    'is_closed': issue_priority_sql_output['is_closed']
+                })
+            return issue_priority_list, 200
+        except Exception as error:
+            return str(error), 400
+
+    def get_issue_category(self, logger):
+        try:
+            result = db.engine.execute("SELECT id, name, is_closed FROM public.trackers")
+            issue_tracker_list_sql_output = result.fetchall()
+            result.close()
+            logger.info("issue_tracker_list_sql_output: {0}".format(issue_tracker_list_sql_output))
+            issue_tracker_list = []
+            for issue_tracker_sql_output in issue_tracker_list_sql_output:
+                issue_tracker_list.append({
+                    'id': issue_tracker_sql_output['id'],
+                    'name': issue_tracker_sql_output['name'],
+                    'is_closed': issue_tracker_sql_output['is_closed']
+                })
+            return issue_tracker_list, 200
+        except Exception as error:
+            return str(error), 400
+
+    def get_issue_category_by_project(self, logger, project_id):
+        try:
+            result = db.engine.execute("SELECT id, name, is_closed FROM public.trackers \
+                WHERE project_id = {0}".format(project_id))
+            issue_tracker_list_sql_output = result.fetchall()
+            result.close()
+            logger.info("issue_tracker_list_sql_output: {0}".format(issue_tracker_list_sql_output))
+            issue_tracker_list = []
+            for issue_tracker_sql_output in issue_tracker_list_sql_output:
+                issue_tracker_list.append({
+                    'id': issue_tracker_sql_output['id'],
+                    'name': issue_tracker_sql_output['name'],
+                    'is_closed': issue_tracker_sql_output['is_closed']
+                })
+            return issue_tracker_list, 200
+        except Exception as error:
+            return str(error), 400

@@ -12,3 +12,4 @@ spec:
     - name: ui
       protocol: TCP
       port: 3000
+      nodePort: 32748

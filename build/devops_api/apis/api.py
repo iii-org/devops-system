@@ -15,6 +15,7 @@ from jsonwebtoken import jsonwebtoken
 import resources.util as util
 import resources.auth as auth
 import resources.issue as issue
+import resources.redmine as redmine
 import resources.project as project
 import resources.pipeline as pipeline
 
@@ -36,7 +37,8 @@ logger.addHandler(handler)
 
 ut = util.util()
 au = auth.auth()
-iss = issue.Issue(logger, app)
+redmine = redmine.Redmine(logger, app)
+iss = issue.Issue()
 pjt = project.Project(logger, app)
 pipe = pipeline.Pipeline()
 
@@ -52,37 +54,36 @@ class Index(Resource):
         return {"message": "DevOps api is working"}
 
 
-class Issue_by_user(Resource):
+class RedmineIssue_by_user(Resource):
 
     @jwt_required
     def get(self, user_account):
-        output = iss.get_issues_by_user(logger, app, user_account)
+        output = redmine.redmine_get_issues_by_user(logger, app, user_account)
         return {"issue_number": output.json()}
 
 
-class Issue(Resource):
+class RedmineIssue(Resource):
 
     @jwt_required
     def get(self, issue_id):
-        output = iss.get_issue(logger, app, issue_id)
+        output = redmine.redmine_get_issue(logger, app, issue_id)
         return output.json()
 
     @jwt_required
     def put(self, issue_id):
         parser = reqparse.RequestParser()
         parser.add_argument('status_id', type=int)
-        parser.add_argument('done_ratio', type=int)
-        parser.add_argument('notes')
+        parser.add_argument('tracker_id', type=int)
         args = parser.parse_args()
         logger.info("put body: {0}".format(args))
-        output = iss.update_issue(logger, app, issue_id, args)
+        output = redmine.redmine_update_issue(logger, app, issue_id, args)
 
 
-class IssueStatus(Resource):
+class RedmineIssueStatus(Resource):
 
     @jwt_required
     def get (self):
-        output = iss.get_issue_status(logger, app)
+        output = redmine.redmine_get_issue_status(logger, app)
         return output.json()
 
 
@@ -90,7 +91,7 @@ class RedmineProject(Resource):
 
     @jwt_required
     def get(self, user_account):
-        output = iss.get_project(logger, app, user_account)
+        output = redmine.get_project(logger, app, user_account)
         return {"projects": output.json()["user"]["memberships"]}
 
 
@@ -265,8 +266,8 @@ class ProjectList(Resource):
 
     @jwt_required
     def get (self, user_id):
-        output_array = pjt.get_project_list(logger, user_id)
-        return jsonify(output_array)
+        output_array = pjt.get_project_list(logger, app, user_id)
+        return jsonify({'message': 'success', 'data': output_array})
 
 
 class UserLogin(Resource):
@@ -285,13 +286,16 @@ class UserLogin(Resource):
 
 class UserForgetPassword(Resource):
 
-    @jwt_required
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('mail', type=str, required=True)
         parser.add_argument('user_account', type=str, required=True)
         args = parser.parse_args()
-        status = au.user_forgetpassword(logger, args)
+        try:
+            status = au.user_forgetpassword(logger, args)
+            return jsonify({"message": "success"})
+        except Exception as err:
+            return jsonify({"message": err})
 
 
 class UserInfo(Resource):
@@ -299,10 +303,10 @@ class UserInfo(Resource):
     @jwt_required
     def get (self, user_id):
         user_info = au.user_info(logger, user_id)
-        return jsonify(user_info)
+        return jsonify({'message': 'success', 'data': user_info})
 
     @jwt_required
-    def post(self, user_id):
+    def put(self, user_id):
         parser = reqparse.RequestParser()
         parser.add_argument('name', type=str)
         parser.add_argument('username', type=str)
@@ -313,6 +317,7 @@ class UserInfo(Resource):
         parser.add_argument('role', type=str)
         args = parser.parse_args()
         au.update_user_info(logger, user_id, args)
+        return jsonify({'message': 'success'})
 
 
 class GitProjectBranches(Resource):
@@ -560,15 +565,85 @@ class PipelineExec(Resource):
     @jwt_required
     def get (self, project_id):
         output_array = pipe.pipeline_exec(logger, project_id)
+        return jsonify({'message': 'success', 'data': output_array})
+
+
+class IssuesIdList(Resource):
+
+    @jwt_required
+    def get (self, project_id):
+        output_array = iss.get_issuesId_List(logger, project_id)
         return jsonify(output_array)
 
+
+class IssueRD(Resource):
+
+    @jwt_required
+    def get (self, issue_id):
+        return jsonify({'message': 'success', 'data': iss.get_issue_rd(logger, app, issue_id)})
+    
+    @jwt_required
+    def put (self, issue_id):
+        parser = reqparse.RequestParser()
+        parser.add_argument('tracker', type=int)
+        parser.add_argument('status', type=int)
+        args = parser.parse_args()
+        output = iss.update_issue_rd(logger, issue_id, args)
+        if output[1] is 200:
+            return {'message': 'success'}
+        else:
+            return {'message': output[0]}, 400
+
+
+class IssueStatus(Resource):
+
+    @jwt_required
+    def get (self):
+        output = iss.get_issue_status(logger)
+        if output[1] is 200:
+            return {'message': 'success', 'data': output[0]}
+        else:
+            return {'message': output[0]}, 400
+
+
+class IssuePrioriry(Resource):
+
+    @jwt_required
+    def get (self):
+        output = iss.get_issue_priority(logger)
+        if output[1] is 200:
+            return {'message': 'success', 'data': output[0]}
+        else:
+            return {'message': output[0]}, 400
+
+
+class IssueCategory(Resource):
+
+    @jwt_required
+    def get (self):
+        output = iss.get_issue_category(logger)
+        if output[1] is 200:
+            return {'message': 'success', 'data': output[0]}
+        else:
+            return {'message': output[0]}, 400
+
+
+class IssueCategoryByProject(Resource):
+
+    @jwt_required
+    def get (self, project_id):
+        output = iss.get_issue_category_by_project(logger, project_id)
+        if output[1] is 200:
+            return {'message': 'success', 'data': output[0]}
+        else:
+            return {'message': output[0]}, 400
 
 api.add_resource(Index, '/')
 
 # Redmine issue
-api.add_resource(Issue, '/issue/<issue_id>')
-api.add_resource(Issue_by_user, '/issues_by_user/<user_account>')
-api.add_resource(IssueStatus, '/issues_status')
+api.add_resource(RedmineIssue, '/redmine_issue/<issue_id>')
+api.add_resource(RedmineIssue_by_user, '/redmine_issues_by_user/<user_account>')
+api.add_resource(RedmineIssueStatus, '/redmine_issues_status')
 api.add_resource(RedmineProject, '/redmine_project/<user_account>')
 
 # Rancher pipeline
@@ -603,6 +678,14 @@ api.add_resource(UserInfo, '/user/<user_id>')
 # pipeline
 api.add_resource(PipelineInfo, '/pipelines/rd/<project_id>/pipelines_info')
 api.add_resource(PipelineExec, '/pipelines/rd/<project_id>/pipelines_exec')
+
+# issue
+api.add_resource(IssuesIdList, '/project/rd/<project_id>/issues')
+api.add_resource(IssueRD, '/issues/rd/<issue_id>')
+api.add_resource(IssueStatus, '/issues_status')
+api.add_resource(IssuePrioriry, '/issues_priority')
+api.add_resource(IssueCategory, '/issues_category')
+api.add_resource(IssueCategoryByProject, '/issues_category/<project_id>')
 
 if __name__ == "__main__":
     db.init_app(app)

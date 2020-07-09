@@ -1,3 +1,4 @@
+import datetime
 from Cryptodome.Hash import SHA256
 
 from .util import util
@@ -30,10 +31,11 @@ class auth(object):
     def user_login(self, logger, args):
         h = SHA256.new()
         h.update(args["password"].encode())
-        result = db.engine.execute("SELECT login, password FROM public.user")
+        result = db.engine.execute("SELECT id, login, password FROM public.user")
         for row in result:
             if row['login'] == args["username"] and row['password'] == h.hexdigest():
-                access_token = create_access_token(identity=args["username"])
+                expires = datetime.timedelta(days=1)
+                access_token = create_access_token(identity=row["id"], expires_delta=expires)
                 logger.info("jwt access_token: {0}".format(access_token))
                 return access_token
         return None
