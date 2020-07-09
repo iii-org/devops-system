@@ -597,22 +597,13 @@ class IssueRD(Resource):
         parser.add_argument('notes')
         args = parser.parse_args()
         output = iss.update_issue_rd(logger, app, issue_id, args)
-        '''
-        if output[1] is 200:
-            return {'message': 'success'}
-        else:
-            return {'message': output[0]}, 400
-        '''
 
 class IssueStatus(Resource):
 
     @jwt_required
     def get (self):
-        output = iss.get_issue_status(logger)
-        if output[1] is 200:
-            return {'message': 'success', 'data': output[0]}
-        else:
-            return {'message': output[0]}, 400
+        output = iss.get_issue_status(logger, app)
+        return output
 
 
 class IssuePrioriry(Resource):
@@ -630,7 +621,7 @@ class IssueCategory(Resource):
 
     @jwt_required
     def get (self):
-        output = iss.get_issue_category(logger)
+        output = e.get_issue_category(logger)
         if output[1] is 200:
             return {'message': 'success', 'data': output[0]}
         else:

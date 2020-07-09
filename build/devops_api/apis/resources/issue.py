@@ -72,20 +72,11 @@ class Issue(object):
             return str(error), 400
 
         
-    def get_issue_status(self, logger):
+    def get_issue_status(self, logger, app):
+        Redmine.get_redmine_key(self, logger, app)
         try:
-            result = db.engine.execute("SELECT * FROM public.statuses")
-            issue_status_list_sql_output = result.fetchall()
-            result.close()
-            logger.info("issue_status_list_sql_output: {0}".format(issue_status_list_sql_output))
-            issue_status_list = []
-            for issue_status_sql_output in issue_status_list_sql_output:
-                issue_status_list.append({
-                    'id': issue_status_sql_output['id'],
-                    'name': issue_status_sql_output['name'],
-                    'is_closed': issue_status_sql_output['is_closed']
-                })
-            return issue_status_list, 200
+            issus_status_output = Redmine.redmine_get_issue_status(self, logger, app)
+            return issus_status_output['issue_statuses']
         except Exception as error:
             return str(error), 400
 

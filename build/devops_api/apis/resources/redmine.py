@@ -75,7 +75,7 @@ class Redmine(object):
             app.config['REDMINE_IP_PORT'], self.redmine_key,)
         output = requests.get(url, headers=self.headers, verify=False)
         logger.info("get issues stauts list output: {0}".format(output.json()))
-        return output
+        return output.json()
 
     def get_project(self, logger, app, user_account):
         user_info = self.get_user_id(logger, app, user_account)
