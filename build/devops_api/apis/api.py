@@ -613,26 +613,13 @@ class IssuePrioriry(Resource):
         output = iss.get_issue_priority(logger, app)
         return output
 
-class IssueCategory(Resource):
+class IssueTracker(Resource):
 
     @jwt_required
     def get (self):
-        output = iss.get_issue_category(logger)
-        if output[1] is 200:
-            return {'message': 'success', 'data': output[0]}
-        else:
-            return {'message': output[0]}, 400
+        output = iss.get_issue_trackers(logger, app)
+        return output
 
-
-class IssueCategoryByProject(Resource):
-
-    @jwt_required
-    def get (self, project_id):
-        output = iss.get_issue_category_by_project(logger, project_id)
-        if output[1] is 200:
-            return {'message': 'success', 'data': output[0]}
-        else:
-            return {'message': output[0]}, 400
 
 api.add_resource(Index, '/')
 
@@ -680,8 +667,7 @@ api.add_resource(IssuesIdList, '/project/rd/<project_id>/issues')
 api.add_resource(IssueRD, '/issues/rd/<issue_id>')
 api.add_resource(IssueStatus, '/issues_status')
 api.add_resource(IssuePrioriry, '/issues_priority')
-api.add_resource(IssueCategory, '/issues_category')
-api.add_resource(IssueCategoryByProject, '/issues_category/<project_id>')
+api.add_resource(IssueTracker, '/issues_tracker')
 
 if __name__ == "__main__":
     db.init_app(app)

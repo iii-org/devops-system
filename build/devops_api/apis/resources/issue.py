@@ -98,37 +98,15 @@ class Issue(object):
             return str(error), 400
 
 
-    def get_issue_category(self, logger):
+    def get_issue_trackers(self, logger, app):
+        Redmine.get_redmine_key(self, logger, app)
+        output = []
         try:
-            result = db.engine.execute("SELECT id, name, is_closed FROM public.trackers")
-            issue_tracker_list_sql_output = result.fetchall()
-            result.close()
-            logger.info("issue_tracker_list_sql_output: {0}".format(issue_tracker_list_sql_output))
-            issue_tracker_list = []
-            for issue_tracker_sql_output in issue_tracker_list_sql_output:
-                issue_tracker_list.append({
-                    'id': issue_tracker_sql_output['id'],
-                    'name': issue_tracker_sql_output['name'],
-                    'is_closed': issue_tracker_sql_output['is_closed']
-                })
-            return issue_tracker_list, 200
-        except Exception as error:
-            return str(error), 400
-
-    def get_issue_category_by_project(self, logger, project_id):
-        try:
-            result = db.engine.execute("SELECT id, name, is_closed FROM public.trackers \
-                WHERE project_id = {0}".format(project_id))
-            issue_tracker_list_sql_output = result.fetchall()
-            result.close()
-            logger.info("issue_tracker_list_sql_output: {0}".format(issue_tracker_list_sql_output))
-            issue_tracker_list = []
-            for issue_tracker_sql_output in issue_tracker_list_sql_output:
-                issue_tracker_list.append({
-                    'id': issue_tracker_sql_output['id'],
-                    'name': issue_tracker_sql_output['name'],
-                    'is_closed': issue_tracker_sql_output['is_closed']
-                })
-            return issue_tracker_list, 200
+            redmine_trackers_output = Redmine.redmine_get_trackers(self, logger, app)
+            for redmine_tracker in redmine_trackers_output['trackers']:
+                redmine_tracker.pop('default_status', None)
+                redmine_tracker.pop('description', None)
+                output.append(redmine_tracker)
+            return output
         except Exception as error:
             return str(error), 400
