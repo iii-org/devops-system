@@ -313,3 +313,12 @@ class Project(object):
         output = requests.put(url, headers=self.headers, verify=False)
         logger.info("update project directory output: {0}".format(output.json()))
         return output
+
+    # 用project_id及directory_path刪除project的directory
+    def delete_git_project_directory(self, logger, app, project_id, directory_path, args):
+        url = "http://{0}/api/{1}/projects/{2}/repository/files/{3}?private_token={4}&branch={5}&commit_message={6}".format(\
+            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, directory_path, self.private_token, args["branch"], args["commit_message"])
+        logger.info("delete project directory url: {0}".format(url))
+        output = requests.delete(url, headers=self.headers, verify=False)
+        logger.info("delete project directory output: {0}".format(output))
+        return output
