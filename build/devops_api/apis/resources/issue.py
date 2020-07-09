@@ -1,4 +1,4 @@
-from model import db, Project_relationship
+from model import db
 from .util import util
 from .redmine import Redmine
 
@@ -18,29 +18,6 @@ class Issue(object):
             issue_to_plan[issue['issue_id']] = issue['plan_issue_id']
             plan_to_issue[issue['plan_issue_id']] = issue['issue_id']
         return issue_to_plan, plan_to_issue
-
-    def create_data_into_project_relationship(self, logger):
-        # 示範function，示範如何CRUD Table
-        # Create data
-        project1 = Project_relationship(rm_project_id=1, rm_project_name="project1", \
-            gl_project_id=1, gl_project_name="project1",\
-                ran_project_id=1, ran_project_name="project1")
-        db.session.add(project1)
-        db.session.commit()
-        # Read data
-        oneData = Project_relationship.query.first()
-        logger.info("Check db data: {0}".format(oneData.rm_project_name))
-        # Update data
-        oneData = Project_relationship.query.first()
-        oneData.rm_project_name = "project2_update"
-        db.session.commit()
-        logger.info("Check db data: {0}".format(Project_relationship.query.first().rm_project_name))
-        # Delete data
-        logger.info("before delete table data number: {0}".format(Project_relationship.query.count()))
-        firstData = Project_relationship.query.first()
-        db.session.delete(firstData)
-        db.session.commit()
-        logger.info("after delete table data number: {0}".format(Project_relationship.query.count()))
 
     def get_issuesId_List(self, logger, project_id):
         result = db.engine.execute("SELECT id FROM public.issues WHERE project_id = {0}\
