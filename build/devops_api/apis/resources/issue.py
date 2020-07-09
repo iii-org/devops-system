@@ -8,6 +8,17 @@ class Issue(object):
     def __init__(self):
         pass
 
+    def __get_dict_issueid(self, logger):
+        result = db.engine.execute("SELECT issue_id, plan_issue_id FROM public.issue_plugin_relation")
+        issue_id_output = result.fetchall()
+        result.close()
+        issue_to_plan = {}
+        plan_to_issue = {}
+        for issue in  issue_id_output:
+            issue_to_plan[issue['issue_id']] = issue['plan_issue_id']
+            plan_to_issue[issue['plan_issue_id']] = issue['issue_id']
+        return issue_to_plan, plan_to_issue
+
     def create_data_into_project_relationship(self, logger):
         # 示範function，示範如何CRUD Table
         # Create data
@@ -45,15 +56,10 @@ class Issue(object):
             return output_array
 
     def get_issue_rd(self, logger, app, issue_id):
-        result = db.engine.execute("SELECT plan_issue_id FROM public.issue_plugin_relation \
-            WHERE issue_id = {0}".format(issue_id))
-        plan_issue_id_output = result.fetchone()[0]
-        result.close()
-        project_dict = {plan_issue_id_output: issue_id}
-        logger.info("plan_issue_id_output: {0}".format(plan_issue_id_output))
+        issue_to_plan, plan_to_issue = self.__get_dict_issueid(logger)
         Redmine.get_redmine_key(self, logger, app)
         logger.info("self.redmine_key: {0}".format(self.redmine_key))
-        output = Redmine.redmine_get_issue(self, logger, app, issue_id).json()
+        output = Redmine.redmine_get_issue(self, logger, app, issue_to_plan[issue_id]).json()
         output['issue']['project']['id'] = issue_id
         output['issue']['author'] = output['issue']['assigned_to']
         output['issue'].pop('assigned_to', None)
@@ -67,30 +73,17 @@ class Issue(object):
         output['issue']['updated_date']
         output['issue'].pop('closed_on', None)
         if 'parent' in output['issue']:
-            result = db.engine.execute("SELECT issue_id FROM public.issue_plugin_relation \
-                WHERE plan_issue_id = {0}".format(output['issue']['parent']['id']))
-            parent_issue_id = result.fetchone()[0]
-            result.close()
-            output['issue']['parent_id'] = parent_issue_id
+            output['issue']['parent_id'] = plan_to_issue[output['issue']['parent']['id']]
             output['issue'].pop('parent', None)
         logger.info("redmine issue output: {0}".format(output['issue']))
         return output['issue']
-    
+    '''
     def update_issue_rd(self, logger, issue_id, args):
-        set_string = ""
-        if args["tracker"] is not None:
-            set_string += "tracker_id = {0}".format(args["tracker"])
-            set_string += ","
-        if args["status"] is not None:
-            set_string += "status_id = {0}".format(args["status"])
-            set_string += ","
-        logger.info("set_string[:-1]: {0}".format(set_string[:-1]))
-        try:
-            result = db.engine.execute("UPDATE public.issues SET {0} WHERE id = {1}".format(set_string[:-1], issue_id))
-            return None, 200
-        except Exception as error:
-            return str(error), 400
-
+        args = {k: v for k, v in args.items() if v is not None}
+        logger.info("args: {0}".format(args))
+        issue_to_plan, plan_to_issue = self.__get_dict_issueid(logger)
+    '''
+        
     def get_issue_status(self, logger):
         try:
             result = db.engine.execute("SELECT * FROM public.statuses")
