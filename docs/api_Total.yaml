@@ -4,7 +4,7 @@ info:
   title: DevOps Front End API For RD
   description: Optional multiline or single-line description in [CommonMark](http://commonmark.org/help/)
     or HTML.
-  version: DevOps Dev Version V1
+  version: DevOps Dev Version V1.0
 servers:
 - url: http://10.50.1.56:31850
   description: API server for Front End
@@ -39,8 +39,10 @@ paths:
               properties:
                 username:
                   type: string
+                  example:  admin
                 password:
                   type: string
+                  example:  password
               required:
               - username
               - password
@@ -56,16 +58,23 @@ paths:
               schema:
                 type: integer
               description: date in UTC when token expires
-        '405':
-          $ref: '#/components/responses/InvalidInput'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    $ref: '#/components/schemas/SuccessMessage'
+                  data:
+                    $ref: '#/components/schemas/JWTToken'
+        '400':
+          $ref: '#/components/response/errorResponse'
   /user/forgetPassword:
     description: '忘記密碼頁面;none'
     post:
       tags:
       - user
       summary: 使用者忘記帳號密碼
-      security:
-        - bearerAuth: []
       operationId: userForgetPassword
       requestBody:
         description: User forget password
@@ -77,7 +86,7 @@ paths:
               properties:
                 mail:
                   type: string
-                user_name:
+                user_id:
                   type: string
               required:
               - mail
@@ -85,19 +94,28 @@ paths:
       responses:
         '200':
           description: Success Reset Password
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    $ref: '#/components/schemas/SuccessMessage'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
         '405':
           $ref: '#/components/responses/InvalidInput'
+        '400':
+          $ref: '#/components/responses/errorResponse'
   /user/{user_id}:
     description: '4.1_用戶管理'
     get:
-      security:
-        - bearerAuth: []
       summary: 取得用戶資訊
       operationId: getUserInformation
       tags:
       - user
+      security:
+        - bearerAuth: ['']
       parameters:
       - name: user_id
         in: path
@@ -113,14 +131,24 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/UserInfo"
-          
+                type: object
+                properties:
+                  message:
+                    $ref: "#/components/schemas/SuccessMessage"
+                  data:
+                    $ref: "#/components/schemas/UserInfo"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '405':
+          $ref: '#/components/responses/InvalidInput'
+        '400':
+          $ref: '#/components/responses/errorResponse'
     put:
-      security:
-        - bearerAuth: []
       summary: 修改用戶資訊, 用戶密碼變更
       tags:
       - user
+      security:
+        - bearerAuth: []
       parameters:
       - name: user_id
         in: path
@@ -131,26 +159,27 @@ paths:
       responses:
         '200':
           description: OK
-  /project/rd:
-    get:
-      summary: 取得目前所有專案ID
-      tags:
-      - project
-      description: ''
-      responses:
-        '200':
-          description: A JSON array of user names
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Ids"
-      deprecated: true
+                type: object
+                properties:
+                  message:
+                    $ref: "#/components/schemas/SuccessMessage"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '405':
+          $ref: '#/components/responses/InvalidInput'
+        '400':
+          $ref: '#/components/responses/errorResponse'
   /project/rd/{user_id}:
     description: '3_專案清單'
     get:
       summary: 取得使用者目前專案資訊
       tags:
       - project
+      security:
+        - bearerAuth: ['']
       description: 取得使用者目前專案資訊
       parameters:
       - name: user_id
@@ -164,13 +193,26 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ProjectList"
+                type: object
+                properties:
+                  message:
+                    $ref: "#/components/schemas/SuccessMessage"
+                  data:
+                    $ref: "#/components/schemas/ProjectList"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '405':
+          $ref: '#/components/responses/InvalidInput'
+        '400':
+          $ref: '#/components/responses/errorResponse'
   /pipelines/rd/{project_id}/pipelines_info:
-    description: "3.3.1_CICD紀錄清單"
+    description: "3.3_工具軟體設定"
     get:
-      summary: "3.3.1_CICD紀錄清單"
+      summary: "3.3_工具軟體設定"
       tags:
-      - pipelines
+        - pipelines
+      security:
+        - bearerAuth: ['']
       description: '取得專案執行pipelines的設定值'
       parameters:
       - name: project_id
@@ -184,13 +226,43 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PipelinesInfo"
+                type: object 
+                properties:
+                  message:
+                    $ref: "#/components/schemas/SuccessMessage"
+                  data:
+                    type: object
+                    properties:
+                      static_analisys:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Software"
+                      unit_Test:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Software"
+                      integeration test:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Software"
+                      monitor:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Software"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '405':
+          $ref: '#/components/responses/InvalidInput'
+        '400':
+          $ref: '#/components/responses/errorResponse'
   /pipelines/rd/{project_id}/pipelines_exec:
     description: '3.4_CICD紀錄清單'
     get:
       summary: '3.4_CICD紀錄清單'
       tags:
       - pipelines
+      security:
+        - bearerAuth: ['']
       description: '取得專案執行pipelines的列表'
       parameters:
       - name: project_id
@@ -200,19 +272,32 @@ paths:
           $ref: "#/components/schemas/Id"
       responses:
         '200':
-          description: A JSON array of issues id
+          description: A JSON array of issupipelines Info
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/PipelinesExecInfo"
+                type: object
+                properties:
+                  message:
+                    $ref: "#/components/schemas/ExampleMessage"
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/PipelinesExecInfo"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '405':
+          $ref: '#/components/responses/InvalidInput'
+        '400':
+          $ref: '#/components/responses/errorResponse'
   /pipelines/rd/logs/{pipelines_exec_id}:
     description: '3.4.1_CICD詳細記錄'
     get:
       summary: '3.4.1_CICD詳細記錄' 
       tags:
       - pipelines
+      security:
+        - bearerAuth: ['']
       description: '取得專案pipelines的執行LOG檔案'
       parameters:
       - name: pipelines_exec_id
@@ -222,37 +307,26 @@ paths:
           $ref: "#/components/schemas/Id"
       responses:
         '200':
-          description: A JSON array of issues id
+          description: log infromation
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PipeLinesExecLog"
-  /project/rd/{project_id}/issues:
-    get:
-      summary: 取得專案內issues的ID 
-      tags:
-      - issues
-      description: ''
-      parameters:
-      - name: project_id
-        in: path
-        required: true
-        schema:
-          $ref: "#/components/schemas/Id"
-      responses:
-        '200':
-          description: A JSON array of issues id
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Ids"
-      deprecated: true
+                type: object
+                properties:
+                  message:
+                    $ref: "#/components/schemas/ExampleMessage"
+                  data:  
+                    $ref: "#/components/schemas/PipeLinesExecLog"
+        '400':
+          $ref: '#/components/responses/errorResponse'
   /issues/rd/{issue_id}:
     description: '2.1 工作詳細內容 2.1.2 更新工作內容'
     get:
       summary: '2.1 工作詳細內容'
       tags:
-      - issues
+      - issue
+      security:
+        - bearerAuth: ['']
       description: '取得Issues內的資訊'
       parameters:
       - name: issue_id
@@ -262,15 +336,24 @@ paths:
           $ref: "#/components/schemas/Id"
       responses:
         '200':
-          description: A JSON array of Issues id
+          description: A JSON array of issues info
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/IssueInfo"
+                type: object
+                properties:
+                  message:
+                    $ref: "#/components/schemas/SuccessMessage"
+                  data:
+                    $ref: "#/components/schemas/IssueInfo"
+        '400':
+          $ref: '#/components/responses/errorResponse'
     put:
       summary: 2.1.2 更新工作內容
       tags:
-      - issues
+      - issue
+      security:
+        - bearerAuth: ['']
       description: '更新ssues內的資訊'
       parameters:
       - name: issue_id
@@ -283,30 +366,27 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdateIssue'
+              $ref: '#/components/schemas/RDUpdateIssue'
       responses:
         '200':
-          $ref: '#/components/schemas/successful'
-    delete:
-      summary: 刪除Issues (not essential)
-      tags:
-      - issues
-      description: 刪除Issues
-      parameters:
-      - name: issue_id
-        in: path
-        required: true
-        schema:
-          $ref: "#/components/schemas/Id"
-      responses:
-        '200':
-          description: delete successful
+          description: A JSON object info
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    $ref: "#/components/schemas/ExampleMessage"
+        '400':
+          $ref: '#/components/responses/errorResponse'
   /issues/rd/{issue_id}/function:
-    summary: test
+    summary: 2.1.3_議題_功能列表
     get:
       summary: 取得Issues內的功能(API)的ID
       tags:
-      - issues
+      - issue
+      security:
+        - bearerAuth: ['']
       description: issues內所開發的功能.
       parameters:
       - name: issue_id
@@ -316,19 +396,25 @@ paths:
           $ref: "#/components/schemas/Id"
       responses:
         '200':
-          description: A JSON array of function id
+          description: A JSON Object
           content:
             application/json:
               schema:
-                type: array
-                items:
-                   $ref: "#/components/schemas/FuntionList"
+                type: object
+                properties:
+                  message:
+                    $ref: "#/components/schemas/ExampleMessage"
+                  data:
+                    type: array
+                    $ref: "#/components/schemas/FuntionList"
       deprecated: true
   /funtion/rd/{funtion_id}:
     get:
       summary: 2.1.4_設定API
       tags:
-      - issues
+      - issue
+      security:
+        - bearerAuth: ['']
       description: '取得Issues內功能資訊'
       parameters:
       - name: funtion_id
@@ -338,16 +424,23 @@ paths:
           $ref: "#/components/schemas/Id"
       responses:
         '200':
-          description: A JSON array of Issues id
+          description: A JSON Object
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Function"
+                type: object
+                properties:
+                  message:
+                    $ref: "#/components/schemas/ExampleMessage"
+                  data:                
+                    $ref: "#/components/schemas/Function"
       deprecated: true
     put:
       summary: 2.1.4_設定API
       tags:
-      - issues
+      - issue
+      security:
+        - bearerAuth: ['']
       description: '設定API'
       parameters:
       - name: funtion_id
@@ -357,16 +450,23 @@ paths:
           $ref: "#/components/schemas/Id"
       responses:
         '200':
-          description: A JSON array of Issues id
+          description: A JSON Object
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Issues"
+                type: object
+                properties:
+                  message:
+                    $ref: "#/components/schemas/ExampleMessage"
+                  data:                
+                    $ref: "#/components/schemas/Function"
       deprecated: true
     delete:
       summary: 刪除function
       tags:
-      - issues
+      - issue
+      security:
+        - bearerAuth: ['']
       description: delete Function
       parameters:
       - name: funtion_id
@@ -380,10 +480,12 @@ paths:
       deprecated: true
   /issues/rd/{issue_id}/{funtion_id}/parameters:
     get:
-      summary: 取得Issues內的功能(API)
+      summary: 2.1.4_設定API
       tags:
-      - issues
-      description: issues內所開發的功能所使用的參數
+      - issue
+      security:
+        - bearerAuth: ['']
+      description: 2.1.4內API所使用的參數列表
       parameters:
       - name: issue_id
         in: path
@@ -397,17 +499,24 @@ paths:
           $ref: "#/components/schemas/Id"
       responses:
         '200':
-          description: A JSON array of function id
+          description: A JSON array of parameters list
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Id"
+                type: object
+                properties:
+                  message:
+                    $ref: '#/components/schemas/ExampleMessage'
+                  data:
+                    $ref: "#/components/schemas/Id"
       deprecated: true
   /parameters/rd/{parameters_id}:
     get:
       summary: '2.1.4.1_設定參數'
       tags:
-      - issues
+      - issue
+      security:
+        - bearerAuth: ['']
       description: 2.1.4.1_設定參數
       parameters:
       - name: parameters_id
@@ -426,7 +535,9 @@ paths:
     put:
       summary: '2.1.4.1_設定參數'
       tags:
-      - issues
+      - issue
+      security:
+        - bearerAuth: ['']
       description: 2.1.4.1_設定參數
       parameters:
       - name: parameters_id
@@ -445,7 +556,9 @@ paths:
     delete:
       summary: 2.1.4.1_設定參數
       tags:
-      - issues
+      - issue
+      security:
+        - bearerAuth: ['']
       description: 2.1.4.1_設定參數
       parameters:
       - name: parameters_id
@@ -461,7 +574,9 @@ paths:
     get:
       summary: 取得目前議題可使用狀態(For 所有議題)
       tags:
-      - issues
+      - issue
+      security:
+        - bearerAuth: ['']
       description: 取得議題可使用的狀態列表 如 已被分配等
       responses:
         '200':
@@ -476,7 +591,9 @@ paths:
     get:
       summary: 取得目前議題可使用優先級別(For 所有議題)
       tags:
-      - issues
+      - issue
+      security:
+        - bearerAuth: ['']
       description: 取得目前議題可使用優先級別(如 急 等)
       responses:
         '200':
@@ -487,18 +604,14 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/IssuesPriority"
-  /issuses_category/{project_id}:
+  /issuses_tracker:
     get:
       summary: 取得目前議題可使用狀態(For 所有議題)
       tags:
-      - issues
+      - issue
+      security:
+        - bearerAuth: ['']
       description: 取得目前議題可使用狀態 如 Feature 
-      parameters:
-      - name: project_id
-        in: path
-        required: true
-        schema:
-          $ref: "#/components/schemas/Id"
       responses:
         '200':
           description: A JSON array of Issues Information
@@ -507,13 +620,15 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/IssuesCategories"
+                  $ref: "#/components/schemas/IssuesTrackers"
   /issues_by_user/rd/{user_id}:
     description: '2_工作清單'
     get:
       summary: '2_工作清單'
       tags:
-      - issues
+      - issue
+      security:
+        - bearerAuth: ['']
       description: 取得使用者所擁有Issues的資訊
       parameters:
       - name: user_id
@@ -527,63 +642,22 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/IssuesList"
-  /project/rd/{project_id}/repository:
-    get:
-      summary: 取得專案內Repository的list ID
-      tags:
-      - repositories
-      description: '取得專案內Repository的list ID'
-      parameters:
-      - name: project_id
-        in: path
-        required: true
-        schema:
-          $ref: "#/components/schemas/Id"
-      responses:
-        '200':
-          description: A JSON array of issues id
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/IdList"
-  /project/pm/{project_id}/repository:
-    post:
-      summary: 建立GitLab Project
-      tags:
-      - repositories
-      description: '建立GitLab 專案'
-      parameters:
-      - name: project_id
-        in: path
-        required: true
-        schema:
-          $ref: "#/components/schemas/Id"
-      requestBody:
-        description: 建立GitLab Project
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                schemas:
-                  $ref: "#/components/schemas/NewGitProject" 
-      responses:
-        '200':
-          description: A JSON array of issues id
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Id"
+                type: object
+                properties:
+                  message:
+                    $ref: '#/components/schemas/ExampleMessage'
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/IssuesList"
   /repositories/rd/{user_id}:
     description: '3 程式碼清單(none)'
     get:
       summary: 3 程式碼清單
       tags:
-      - repositories
+      - repository
+      security:
+        - bearerAuth: ['']
       description: 取得使用者目前程式碼資訊
       parameters:
       - name: user_id
@@ -606,7 +680,9 @@ paths:
     get:
       summary: 3.2 程式碼蓋覽圖 (none)
       tags:
-      - repositories
+      - repository
+      security:
+        - bearerAuth: ['']
       description: '3.2 程式碼蓋覽圖 (none)'
       parameters:
       - name: repository_id
@@ -626,7 +702,9 @@ paths:
     post:
       summary: '3.2.8 合併分支'
       tags:
-      - repositories
+      - repository
+      security:
+        - bearerAuth: ['']
       description: 3.2.8 合併分支
       parameters:
       - name: repository_id
@@ -655,7 +733,9 @@ paths:
     get:
       summary: 取得專案內Repository的Tags的ID
       tags:
-      - repositories
+      - repository
+      security:
+        - bearerAuth: ['']
       description: ''
       parameters:
       - name: repository_id
@@ -673,7 +753,9 @@ paths:
     post:
       summary: 3.2.5 新增版本號
       tags:
-      - repositories
+      - repository
+      security:
+        - bearerAuth: ['']
       description: 3.2.5 新增版本號 建立Tag
       parameters:
       - name: repository_id
@@ -698,19 +780,21 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Tag"
-  /repositories/rd/{repository_id}/tags/{tag_id}:
+  /repositories/rd/{repository_id}/tags/{tag_name}:
     description: '3.2.10 刪除版本  '
     delete:
       summary: 3.2.10 刪除版本
       tags:
-      - repositories
+      - repository
+      security:
+        - bearerAuth: ['']
       description: 3.2.10 刪除版本
       parameters:
-      - name: tag_id
+      - name: tag_name
         in: path
         required: true
         schema:
-          $ref: "#/components/schemas/Id"
+          $ref: "#/components/schemas/TagName"
       - name: repository_id
         in: path
         required: true
@@ -726,7 +810,9 @@ paths:
       summary: 取得Tag
       description: 取得Tag
       tags:
-      - repositories
+      - repository
+      security:
+        - bearerAuth: ['']
       parameters:
       - name: tag_id
         in: path
@@ -751,7 +837,9 @@ paths:
     get:
       summary: 3.2.1 分支列表 
       tags:
-      - repositories
+      - repository
+      security:
+        - bearerAuth: ['']
       description: '3.2.1 分支列表 '
       parameters:
       - name: repository_id
@@ -769,7 +857,9 @@ paths:
     post:
       summary:  3.2.4 新增分支
       tags:
-      - repositories
+      - repository
+      security:
+        - bearerAuth: ['']
       description: 3.2.4 新增分支
       parameters:
       - name: repository_id
@@ -785,10 +875,6 @@ paths:
             schema:
               type: object
               properties:
-                id:
-                  type: string
-                  description: ID or URL-encoded path of the project owned by the
-                    authenticated user.
                 branch:
                   type: string
                   description: Name of the branch.
@@ -796,7 +882,6 @@ paths:
                   type: string
                   description: Branch name or commit SHA to create branch from.
               required:
-              - id
               - branch
               - ref
       responses:
@@ -806,15 +891,17 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Branch"
-  /repositories/rd/{repository_id}/branch/{branch_id}:
+  /repositories/rd/{repository_id}/branch/{branch_name}:
     description: '3.2.1.1檔案清單 3.2.9 刪除分支'
     delete:
       summary: 3.2.9 刪除分支
       tags:
-      - repositories
+      - repository
+      security:
+        - bearerAuth: ['']
       description: 刪除分支
       parameters:
-      - name: branch_id
+      - name: branch_name
         in: path
         required: true
         schema:
@@ -834,13 +921,15 @@ paths:
       summary: 3.2.1.1檔案清單
       description: 3.2.1.1檔案清單
       tags:
-      - repositories
+      - repository
+      security:
+        - bearerAuth: ['']
       parameters:
-      - name: branch_id
+      - name: branch_name
         in: path
         required: true
         schema:
-          $ref: "#/components/schemas/Id"
+          $ref: "#/components/schemas/BranchName"
       - name: repository_id
         in: path
         required: true
@@ -853,14 +942,16 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Branch"
-  /repositories/rd/{repository_id}/branch/{branch_id}/deleteAllBranch:
+  /repositories/rd/{repository_id}/branch/{branch_name}/deleteAllBranch:
     delete:
       summary: 刪除分支底下全部分支
       tags:
-      - repositories
+      - repository
+      security:
+        - bearerAuth: ['']
       description: 刪除分支底下全部分支
       parameters:
-      - name: branch_id
+      - name: branch_name
         in: path
         required: true
         schema:
@@ -876,15 +967,18 @@ paths:
           content:
             text/plain:
               example: Success Delete Branch
-  /repositories/rd/{repository_id}/branch/{branch_id}/tree:
+      deprecated: true
+  /repositories/rd/{repository_id}/branch/{branch_name}/tree:
     description: '3.2.1.1 檔案清單'
     get:
       summary: 3.2.1.1 檔案清單
       tags:
-      - repositories
+      - repository
+      security:
+        - bearerAuth: ['']
       description: ''
       parameters:
-      - name: branch_id
+      - name: branch_name
         in: path
         required: true
         schema:
@@ -901,12 +995,14 @@ paths:
             application/json:
               schema:
                 type: object
-  /repositories/rd/{repository_id}/files/{file_path}:
+  /repositories/rd/{repository_id}/branch/{branch_name}/files/{file_path}:
     description: '3.2.1 分支編輯檔案  3.2.2.2 分支新增檔案  3.2.2 分支上傳檔案'
     get:
       summary: 取得檔案內容
       tags:
-      - repositories
+      - repository
+      security:
+        - bearerAuth: ['']
       description: ''
       parameters:
       - name: repository_id
@@ -919,41 +1015,11 @@ paths:
         required: true
         schema:
           $ref: "#/components/schemas/FilePath"
-      responses:
-        '200':
-          description: File System Tree
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/FileInfo"
-        '400':
-          description: Non FIle
-          content:
-            text/plain:
-              schema:
-                type: string
-                example: no file
-    post:
-      summary: 3.2.2.2 分支新增檔案 3.2.2 分支上傳檔案
-      tags:
-      - repositories
-      description: ''
-      parameters:
-      - name: repository_id
+      - name: branch_name
         in: path
         required: true
         schema:
-          $ref: "#/components/schemas/Id"
-      - name: file_path
-        in: path
-        required: true
-        schema:
-          $ref: "#/components/schemas/FilePath"
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/UplodFile"
+          $ref: "#/components/schemas/BranchName"
       responses:
         '200':
           description: File System Tree
@@ -962,23 +1028,19 @@ paths:
               schema:
                 type: object
                 properties:
-                  file_path:
-                    type: string
-                    example:
-                      $ref: "#/components/schemas/FilePath"
-                  branch:
-                    type: string
-                    example: master
+                  message:  
+                    $ref: '#/components/schemas/SuccessMessage'
+                  data:
+                    $ref: "#/components/schemas/FileInfo"
         '400':
-          description: Non FIle
-          content:
-            text/plain:
-              example: no file
-    put:
-      summary: 3.2.1 分支編輯檔案
+          $ref: '#/components/response/errorResponse'
+    delete:
+      summary: 刪除檔案內容
       tags:
-      - repositories
-      description: 3.2.1 分支編輯檔案
+      - repository
+      security:
+        - bearerAuth: ['']
+      description: ''
       parameters:
       - name: repository_id
         in: path
@@ -990,6 +1052,32 @@ paths:
         required: true
         schema:
           $ref: "#/components/schemas/FilePath"
+      - name: branch_name
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/BranchName"
+      responses:
+        '200':
+          description: A JSON array of issues id
+          content:
+            text/plain:
+              example: Success Delete FI
+        '400':
+          $ref: '#/components/response/errorResponse'
+    put:
+      summary: 3.2.1 分支編輯檔案
+      tags:
+      - repository
+      security:
+        - bearerAuth: ['']
+      description: 3.2.1 分支編輯檔案
+      parameters:
+      - name: repository_id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
       requestBody:
         content:
           application/json:
@@ -1003,22 +1091,28 @@ paths:
               schema:
                 type: object
                 properties:
-                  file_path:
-                    type: string
-                    example:
-                      $ref: "#/components/schemas/FilePath"
-                  branch:
-                    type: string
-                    example: master
+                  message:
+                    $ref: '#/components/schemas/SuccessMessage'
+                  data:
+                    type: object
+                    properties:
+                      file_path:
+                        type: string
+                        example:
+                          $ref: "#/components/schemas/FilePath"
+                      branch_name:
+                        type: string
+                        example: master
         '400':
-          description: Non FIle
-          content:
-            text/plain:
-              example: no file
-    delete:
-      summary: 刪除檔案內容
+          $ref: '#/components/response/errorResponse'
+  /repositories/rd/{repository_id}/branch/files:
+    description: '3.2.1 分支編輯檔案 '
+    post:
+      summary: 3.2.2.2 分支新增檔案 3.2.2 分支上傳檔案
       tags:
-      - repositories
+      - repository
+      security:
+        - bearerAuth: ['']
       description: ''
       parameters:
       - name: repository_id
@@ -1026,22 +1120,38 @@ paths:
         required: true
         schema:
           $ref: "#/components/schemas/Id"
-      - name: file_path
-        in: path
-        required: true
-        schema:
-          $ref: "#/components/schemas/FilePath"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UplodFile"
       responses:
         '200':
-          description: A JSON array of issues id
+          description: File System Tree
           content:
-            text/plain:
-              example: Success Delete FI
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:  
+                    $ref: '#/components/schemas/SuccessMessage'
+                  data:
+                    type: object
+                    properties:
+                      file_path:
+                        $ref: "#/components/schemas/FilePath"
+                      branch_name:
+                        type: string
+                        example: master
+        '400':
+          $ref: '#/components/response/errorResponse'
   /repositories/rd/{repository_id}/directory/{directory_path}:
     post:
       summary: '3.2.3 分支新增資料夾'
       tags:
-      - repositories
+      - repository
+      security:
+        - bearerAuth: ['']
       description: ''
       parameters:
       - name: repository_id
@@ -1067,10 +1177,11 @@ paths:
               schema:
                 type: object
                 properties:
+                  message:
+                    $ref : '#components/schemas/SuccessMessage'
+                  data:
                   file_path:
-                    type: string
-                    example:
-                      $ref: "#/components/schemas/FilePath"
+                    $ref: "#/components/schemas/FilePath"
                   branch:
                     type: string
                     example: master
@@ -1082,7 +1193,9 @@ paths:
     put:
       summary: 3.2.1 分支編輯檔案
       tags:
-      - repositories
+      - repository
+      security:
+        - bearerAuth: ['']
       description: 3.2.1 分支編輯檔案
       parameters:
       - name: repository_id
@@ -1123,7 +1236,9 @@ paths:
     delete:
       summary: 刪除檔案內容
       tags:
-      - repositories
+      - repository
+      security:
+        - bearerAuth: ['']
       description: ''
       parameters:
       - name: repository_id
@@ -1147,6 +1262,8 @@ paths:
       summary: 取得使用者儀錶板資訊(工作等級)
       tags:
       - DashBoard
+      security:
+        - bearerAuth: ['']
       description: Optional extended description in CommonMark or HTML.
       parameters:
       - name: user_account
@@ -1166,6 +1283,8 @@ paths:
       summary: 取得使用者儀錶板資訊(工作專案)
       tags:
       - DashBoard
+      security:
+        - bearerAuth: ['']
       description: Optional extended description in CommonMark or HTML.
       parameters:
       - name: user_account
@@ -1185,6 +1304,8 @@ paths:
       summary: 取得使用者儀錶板資訊(工作專案)
       tags:
       - DashBoard
+      security:
+        - bearerAuth: ['']
       description: Optional extended description in CommonMark or HTML.
       parameters:
       - name: user_account
@@ -1248,11 +1369,16 @@ components:
               success:
                 type: integer
                 description: 總共成功數目
+          repository_ids:
+            type: array
+            items:
+              $ref: '#/components/schemas/RepositoryId'
     IssuesList:
       type: object
       properties:
         id:
           type: integer
+          description: 議題標號
           example: '7224'
         name:
           type: string
@@ -1270,16 +1396,17 @@ components:
           type: string
           description: 議題狀態
           example: 進行中
-        
-        branch:
-          type: integer
-          description: 分支數量
+        issue_name:
+          type: string
+          description: 議題名稱
+          example: ServCloud 修改backend scheduler, 定期去檢查FT VM 到何運算節點，並把資訊更新到 nova DB
         last_test_time:
           type: string
           format: date-time
-          description: 最近測試時間
+          description: 最近更新時間
         last_test_result:
           type: object
+          description: 最近測試結果
           properties:
             total:
               type: integer
@@ -1296,12 +1423,12 @@ components:
           type: string
         tracker_id:
           type: integer
-    IssuesCategories:
+    IssuesTrackers:
       type: array
       items:
         type: object
         properties:
-          id:
+          tracker_id:
             type: integer
           name:
             type: string
@@ -1309,7 +1436,7 @@ components:
     IssuesPriority:
       type: object
       properties:
-        id:
+        priority_id:
           type: integer
         name:
           description: 優先級別名稱
@@ -1320,7 +1447,7 @@ components:
     IssuesStatus:
       type: object
       properties:
-        id:
+        status_id:
           type: integer
           example: 1
         name:
@@ -1603,16 +1730,15 @@ components:
               create_time:
                 type: string
                 format: date-time
+        repository_ids:
+          type: array 
+          description: Devops ProjectId mapping to GitLab Id
+          items:
+            $ref: '#/components/schemas/RepositoryId'
+
     UploadIssue:
       type: object
       properties:
-        project:
-          type: object
-          properties:
-            id:
-              type: integer
-            name:
-              type: string
         tracker:
           type: object
           properties:
@@ -1667,40 +1793,18 @@ components:
                 type: string
               value:
                 type: string
-              create_time:
+              update_time:
                 type: string
                 format: date-time    
-    UpdateIssue:
+    RDUpdateIssue:
       type: object
       properties:
-        project:
-          type: object
-          properties:
-            id:
-              type: integer
-            name:
-              type: string
-        tracker:
-          type: object
-          properties:
-            id:
-              type: integer
-            name:
-              type: string
-        status:
-          type: object
-          properties:
-            id:
-              type: integer
-            name:
-              type: string
-        priority:
-          type: object
-          properties:
-            id:
-              type: integer
-            name:
-              type: string
+        tracker_id:
+            type: integer
+        status_id:
+            type: integer
+        priority_id:
+            type: integer
         description: 
           type: string
           example: 'iServCloud 修改backend scheduler, 定期去檢查FT VM 到何運算節點，並把資訊更新到 nova DB'
@@ -1716,20 +1820,8 @@ components:
           format: date-time
         done_ratio:
           type: integer
-        custom_fields:
-          type: array
-          items:
-            type: object
-            properties:
-              id:
-                type: integer
-              name:
-                type: string
-              value:
-                type: string
-              create_time:
-                type: string
-                format: date-time   
+        notes:
+          type: string
     Function:
       type: object
       description: 依據議題所設計的功能
@@ -1870,6 +1962,10 @@ components:
           type: array
           items:
             type: string
+    RepositoryId:
+      type: integer
+      description: DevOps Plattform ID mapping GitLab Repository Ids
+      example: 1 
     RepositoryList:
       type: array
       items:
@@ -1948,15 +2044,15 @@ components:
             description: 最新一次測試時間
           uuid:
             type: string
+    TagName:
+      type: string 
+      example: V1.0
     UploadTag:
       type: object
       required:
-      - id
       - tag_name
       - ref
       properties:
-        id:
-          type: integer
         tag_name:
           type: string
           example: test
@@ -1969,6 +2065,9 @@ components:
           type: string
           example: annotated
           description: Creates annotated tag
+    BranchName:
+      type: string
+      example: api_yaml
     BranchList:
       type: array
       description: 分支清單
@@ -2070,8 +2169,6 @@ components:
       type: object
       description: GitLab Repository
       properties:
-        id:
-          type: integer
         pipeline_info:
           type: array
           items:
@@ -2106,9 +2203,6 @@ components:
           type: integer
         name:
           type: string
-        type:
-          type: string
-          description: 類型
         is_closed:
           type: boolean
           description: 是否啟用
@@ -2139,35 +2233,34 @@ components:
         size":
           type: integer
           example: 1476
-        encoding":
+        encoding:
           type: string
           example: base64
-        content":
+        content:
           type: string
           example: IyA9PSBTY2hlbWEgSW5mb3...
-        content_sha256":
+        content_sha256:
           type: string
           example: 4c294617b60715c1d218e61164a3abd4808a4284cbc30e6728a01ad9aada4481
         ref":
           type: string
           example: master
-        last_commit_id":
+        last_commit_id:
           type: string
           example: 570e7b2abdd848b95f2f578043fc23bd6f6fd24d
     UplodFile:
       type: object
       required:
-      - file_path
-      - branch
       - content
       - commit_message
       properties:
-        file_path:
-          type: string
-          example: app/models/key.rb
         branch:
           type: string
           example: master
+        file_path:
+          type: string
+          format: urlencoded
+          example: app/models/key.rb
         start_branch:
           type: string
           example: master
@@ -2186,20 +2279,22 @@ components:
         commit_message:
           type: string
           example: create a new file
-    UpdateFile:
+    UpdateFileResponse:
       type: object
       required:
       - file_path
-      - branch
+      - branch_name
+      properties:
+        file_path:
+          $ref: '#/components/schemas/FilePath'
+        branch_name:
+          $ref: '#/components/schemas/BranchName'
+    UpdateFile:
+      type: object
+      required:
       - content
       - commit_message
       properties:
-        file_path:
-          type: string
-          example: app/models/key.rb
-        branch:
-          type: string
-          example: master
         start_branch:
           type: string
           example: master
@@ -2274,20 +2369,29 @@ components:
           example: Merge to Master
     UploadDirectory:
       type: object
-      required:
-        - name
       properties:
-        name:
+        branch:
           type: string
-          example: Docs
+          example: master
         commit_message:
           type: string
-          example: 第一版
-
-
-
-
-          
+          example: first version
+    SuccessMessage:
+      type: string
+      example: success
+    ErrorMessage:
+      description: Unexpected Error
+      type: object
+      properties:
+        message:
+          type: string
+          example: Failue reason
+    JWTToken:
+      type: object
+      properties:
+        token:
+          type: string
+          example: eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE1OTM0ODM1MDQsIm5iZiI6MTU5MzQ4MzUwNCwianRpIjoiNjlkMWFkNWQtMGY3ZC00ZDI3LThhMmUtZGNkOTNmZDA0MDAzIiwiZXhwIjoxNTkzNTY5OTA0LCJpZGVudGl0eSI6MiwiZnJlc2giOmZhbHNlLCJ0eXBlIjoiYWNjZXNzIn0.w8OfaIxDMpapedp5Mkkk9jCh_FCUpo7c_AUCQa2vVac
   securitySchemes:
     bearerAuth:            # arbitrary name for the security scheme
       type: http
@@ -2298,8 +2402,18 @@ components:
       description: Access token is missing or invalid
     InvalidInput:
       description: 'Invalid input'
-    successful:
-      description: "request sucessful"
+    successResponse:
+      description: "request sucessful"   
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SuccessMessage'         
+    errorResponse:
+      description: Unexpect operation
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorMessage'   
   parameters:
     user_id:
       name: user_id
