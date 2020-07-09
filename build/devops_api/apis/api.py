@@ -281,7 +281,7 @@ class UserLogin(Resource):
         if token is None:
             return None, 400
         else:
-            return jsonify({"token": token})
+            return jsonify({"message": "success", "data": {"token": token}})
 
 
 class UserForgetPassword(Resource):
