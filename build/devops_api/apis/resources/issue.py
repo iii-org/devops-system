@@ -142,3 +142,57 @@ class Issue(object):
             return output
         except Exception as error:
             return str(error), 400
+        
+    def count_prioriry_number_by_issues(self, logger, app, user_id):
+        try:
+            priority_count = {}
+            issues = self.get_issue_by_user(logger, app, user_id)
+            logger.info("issues: {0}".format(issues))
+            for issue in issues:
+                if issue['priority']['name'] not in priority_count:
+                    priority_count[issue['priority']['name']] = 1
+                else:
+                    priority_count[issue['priority']['name']] += 1
+            logger.info("priority_count: {0}".format(priority_count))
+            output = []
+            for key,value in priority_count.items():
+                output.append({'name': key, 'number': value})
+            return output
+        except Exception as error:
+            return str(error), 400
+
+    def count_project_number_by_issues(self, logger, app, user_id):
+        try:
+            project_count = {}
+            issues = self.get_issue_by_user(logger, app, user_id)
+            logger.info("issues: {0}".format(issues))
+            for issue in issues:
+                if issue['project']['name'] not in project_count:
+                    project_count[issue['project']['name']] = 1
+                else:
+                    project_count[issue['project']['name']] += 1
+            logger.info("project_count: {0}".format(project_count))
+            output = []
+            for key,value in project_count.items():
+                output.append({'name': key, 'number': value})
+            return output
+        except Exception as error:
+            return str(error), 400
+
+    def count_type_number_by_issues(self, logger, app, user_id):
+        try:
+            tracker_count = {}
+            issues = self.get_issue_by_user(logger, app, user_id)
+            logger.info("issues: {0}".format(issues))
+            for issue in issues:
+                if issue['tracker']['name'] not in tracker_count:
+                    tracker_count[issue['tracker']['name']] = 1
+                else:
+                    tracker_count[issue['tracker']['name']] += 1
+            logger.info("tracker_count: {0}".format(tracker_count))
+            output = []
+            for key,value in tracker_count.items():
+                output.append({'name': key, 'number': value})
+            return output
+        except Exception as error:
+            return str(error), 400

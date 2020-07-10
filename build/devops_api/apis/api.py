@@ -628,6 +628,29 @@ class IssueRDbyUser(Resource):
         return output
 
 
+class DashboardIssuePriority(Resource):
+
+    @jwt_required
+    def get (self, user_id):
+        output = iss.count_prioriry_number_by_issues(logger, app, user_id)
+        return output
+
+
+class DashboardIssueProject(Resource):
+
+    @jwt_required
+    def get (self, user_id):
+        output = iss.count_project_number_by_issues(logger, app, user_id)
+        return output
+
+
+class DashboardIssueType(Resource):
+
+    @jwt_required
+    def get (self, user_id):
+        output = iss.count_type_number_by_issues(logger, app, user_id)
+        return output
+
 
 api.add_resource(Index, '/')
 
@@ -677,6 +700,13 @@ api.add_resource(IssueStatus, '/issues_status')
 api.add_resource(IssuePrioriry, '/issues_priority')
 api.add_resource(IssueTracker, '/issues_tracker')
 api.add_resource(IssueRDbyUser, '/issues_by_user/rd/<user_id>')
+
+# dashboard
+api.add_resource(DashboardIssuePriority, '/dashboard_issues_priority/rd/<user_id>')
+api.add_resource(DashboardIssueProject, '/dashboard_issues_project/rd/<user_id>')
+api.add_resource(DashboardIssueType, '/dashboard_issues_type/rd/<user_id>')
+
+
 
 if __name__ == "__main__":
     db.init_app(app)
