@@ -512,9 +512,9 @@ class GitProjectTag(Resource):
 
 class GitProjectDirectory(Resource):
 
-    def post(self, repository_id, directory_name):
+    def post(self, repository_id, directory_path):
         project_id = repository_id
-        directory_path = directory_name + "%2F%2Egitkeep"
+        directory_path = directory_path + "%2F%2Egitkeep"
         parser = reqparse.RequestParser()
         parser.add_argument('branch', type=str)
         parser.add_argument('commit_message', type=str)
@@ -523,9 +523,9 @@ class GitProjectDirectory(Resource):
         output = pjt.create_git_project_directory(logger, app, project_id, directory_path, args)
         return output.json()
 
-    def put(self, repository_id, directory_name):
+    def put(self, repository_id, directory_path):
         project_id = repository_id
-        directory_path = directory_name + "%2F%2Egitkeep"
+        directory_path = directory_path + "%2F%2Egitkeep"
         parser = reqparse.RequestParser()
         parser.add_argument('branch', type=str)
         parser.add_argument('author_name', type=str)
@@ -538,9 +538,9 @@ class GitProjectDirectory(Resource):
         output = pjt.update_git_project_directory(logger, app, project_id, directory_path, args)
         return output.json()
 
-    def delete(self, repository_id, directory_name):
+    def delete(self, repository_id, directory_path):
         project_id = repository_id
-        directory_path = directory_name + "%2F%2Egitkeep"
+        directory_path = directory_path + "%2F%2Egitkeep"
         parser = reqparse.RequestParser()
         parser.add_argument('branch', type=str)
         parser.add_argument('commit_message', type=str)
@@ -656,7 +656,7 @@ api.add_resource(GitProjectFiles, '/repositories/rd/<repository_id>/branch/files
 api.add_resource(GitProjectFile, '/repositories/rd/<repository_id>/branch/<branch_name>/files/<file_path>')
 api.add_resource(GitProjectTags, '/repositories/rd/<repository_id>/tags')
 api.add_resource(GitProjectTag, '/repositories/rd/<repository_id>/tags/<tag_name>')
-api.add_resource(GitProjectDirectory, '/repositories/rd/<repository_id>/directory/<directory_name>')
+api.add_resource(GitProjectDirectory, '/repositories/rd/<repository_id>/directory/<directory_path>')
 
 # Project
 api.add_resource(ProjectList, '/project/rd/<user_id>')
