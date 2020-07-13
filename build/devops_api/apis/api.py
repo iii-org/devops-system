@@ -573,7 +573,7 @@ class PipelineExec(Resource):
 
     @jwt_required
     def get (self, project_id):
-        output_array = pipe.pipeline_exec(logger, project_id)
+        output_array = pipe.pipeline_exec_list(logger, app, project_id)
         return jsonify({'message': 'success', 'data': output_array})
 
 
