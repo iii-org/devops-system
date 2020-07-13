@@ -3,7 +3,7 @@ from flask import Response
 from flask import jsonify
 from flask import request as flask_req
 from flask_restful import Resource, Api, reqparse
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import jwt_required, get_jwt_identity
 
 import logging
 from logging import handlers
@@ -266,8 +266,11 @@ class ProjectList(Resource):
 
     @jwt_required
     def get (self, user_id):
-        output_array = pjt.get_project_list(logger, app, user_id)
-        return jsonify({'message': 'success', 'data': output_array})
+        if int(user_id) == get_jwt_identity():
+            output_array = pjt.get_project_list(logger, app, user_id)
+            return jsonify({'message': 'success', 'data': output_array})
+        else:
+            return {'message': 'Access token is missing or invalid'}, 401
 
 
 class UserLogin(Resource):
@@ -302,22 +305,28 @@ class UserInfo(Resource):
 
     @jwt_required
     def get (self, user_id):
-        user_info = au.user_info(logger, user_id)
-        return jsonify({'message': 'success', 'data': user_info})
+        if int(user_id) == get_jwt_identity():
+            user_info = au.user_info(logger, user_id)
+            return jsonify({'message': 'success', 'data': user_info})
+        else:
+            return {'message': 'Access token is missing or invalid'}, 401
 
     @jwt_required
     def put(self, user_id):
-        parser = reqparse.RequestParser()
-        parser.add_argument('name', type=str)
-        parser.add_argument('username', type=str)
-        parser.add_argument('password', type=str)
-        parser.add_argument('phone', type=int)
-        parser.add_argument('email', type=str)
-        parser.add_argument('group', type=str)
-        parser.add_argument('role', type=str)
-        args = parser.parse_args()
-        au.update_user_info(logger, user_id, args)
-        return jsonify({'message': 'success'})
+        if int(user_id) == get_jwt_identity():
+            parser = reqparse.RequestParser()
+            parser.add_argument('name', type=str)
+            parser.add_argument('username', type=str)
+            parser.add_argument('password', type=str)
+            parser.add_argument('phone', type=int)
+            parser.add_argument('email', type=str)
+            parser.add_argument('group', type=str)
+            parser.add_argument('role', type=str)
+            args = parser.parse_args()
+            au.update_user_info(logger, user_id, args)
+            return jsonify({'message': 'success'})
+        else:
+            return {'message': 'Access token is missing or invalid'}, 401
 
 
 class GitProjectBranches(Resource):
@@ -624,32 +633,44 @@ class IssueRDbyUser(Resource):
 
     @jwt_required
     def get (self, user_id):
-        output = iss.get_issue_by_user(logger, app, user_id)
-        return output
+        if int(user_id) == get_jwt_identity():
+            output = iss.get_issue_by_user(logger, app, user_id)
+            return jsonify({'message': 'success', 'data': output})
+        else:
+            return {'message': 'Access token is missing or invalid'}, 401
 
 
 class DashboardIssuePriority(Resource):
 
     @jwt_required
     def get (self, user_id):
-        output = iss.count_prioriry_number_by_issues(logger, app, user_id)
-        return output
+        if int(user_id) == get_jwt_identity():
+            output = iss.count_prioriry_number_by_issues(logger, app, user_id)
+            return output
+        else:
+            return {'message': 'Access token is missing or invalid'}, 401
 
 
 class DashboardIssueProject(Resource):
 
     @jwt_required
     def get (self, user_id):
-        output = iss.count_project_number_by_issues(logger, app, user_id)
-        return output
+        if int(user_id) == get_jwt_identity():
+            output = iss.count_project_number_by_issues(logger, app, user_id)
+            return output
+        else:
+            return {'message': 'Access token is missing or invalid'}, 401
 
 
 class DashboardIssueType(Resource):
 
     @jwt_required
     def get (self, user_id):
-        output = iss.count_type_number_by_issues(logger, app, user_id)
-        return output
+        if int(user_id) == get_jwt_identity():
+            output = iss.count_type_number_by_issues(logger, app, user_id)
+            return output
+        else:
+            return {'message': 'Access token is missing or invalid'}, 401
 
 
 api.add_resource(Index, '/')
