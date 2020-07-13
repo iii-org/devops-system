@@ -322,3 +322,27 @@ class Project(object):
         output = requests.delete(url, headers=self.headers, verify=False)
         logger.info("delete project directory output: {0}".format(output))
         return output
+
+    def create_git_project_mergebranch(self, logger, app, project_id, args):
+        url = "http://{0}/api/{1}/projects/{2}/merge_requests?private_token={3}&source_branch={4}&target_branch={5}&title={6}".format(\
+            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, self.private_token, args["source_branch"], args["target_branch"], args["title"])
+        logger.info("post project mergerequest url: {0}".format(url))
+        output = requests.post(url, headers=self.headers, verify=False)
+        logger.info("post project mergerequest output:{0} / {1}".format(output, output.json()))
+        
+        if str(output) == "<Response [201]>":
+            merge_request_iid = output.json()["iid"]
+            url = "http://{0}/api/{1}/projects/{2}/merge_requests/{3}/merge?private_token={4}".format(\
+                app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, merge_request_iid, self.private_token)
+            logger.info("post project acceptmerge url: {0}".format(url))
+            output = requests.put(url, headers=self.headers, verify=False)
+            logger.info("post project acceptmerge output:{0} / {1}".format(output, output.json()))
+            if str(output) != "<Response [200]>":
+                url = "http://{0}/api/{1}/projects/{2}/merge_requests/{3}?private_token={4}".format(\
+                    app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, merge_request_iid, self.private_token)
+                logger.info("delete project mergerequest url: {0}".format(url))
+                output_extra = requests.delete(url, headers=self.headers, verify=False)
+                logger.info("delete project mergerequest output:{0}".format(output_extra))                
+    
+        return output
+        

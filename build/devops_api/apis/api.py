@@ -552,6 +552,20 @@ class GitProjectDirectory(Resource):
         else:
             return str(output)
 
+class GitProjectMergeBranch(Resource):
+
+    def post(self, repository_id):
+        project_id = repository_id
+        parser = reqparse.RequestParser()
+        parser.add_argument('source_branch', type=str)
+        parser.add_argument('target_branch', type=str)
+        parser.add_argument('title', type=str)
+        args = parser.parse_args()
+        logger.info("post body: {0}".format(args))
+        output = pjt.create_git_project_mergebranch(logger, app, project_id, args)
+        return output.json()
+
+
 class PipelineInfo(Resource):
 
     @jwt_required
@@ -672,6 +686,7 @@ api.add_resource(PipelineExecutionsOne, '/pipelineexecutions/<pipelineexecutions
 api.add_resource(GitProjects, '/git_projects')
 api.add_resource(GitOneProject, '/git_one_project/<project_id>')
 api.add_resource(GitProjectWebhooks, '/git_project_webhooks/<project_id>')
+
 api.add_resource(GitProjectBranches, '/repositories/rd/<repository_id>/branch')
 api.add_resource(GitProjectBranch, '/repositories/rd/<repository_id>/branch/<branch_name>')
 api.add_resource(GitProjectRepositories, '/repositories/rd/<repository_id>/branch/<branch_name>/tree')
@@ -680,6 +695,8 @@ api.add_resource(GitProjectFile, '/repositories/rd/<repository_id>/branch/<branc
 api.add_resource(GitProjectTags, '/repositories/rd/<repository_id>/tags')
 api.add_resource(GitProjectTag, '/repositories/rd/<repository_id>/tags/<tag_name>')
 api.add_resource(GitProjectDirectory, '/repositories/rd/<repository_id>/directory/<directory_path>')
+api.add_resource(GitProjectMergeBranch, '/repositories/rd/<repository_id>/merge_branches')
+
 
 # Project
 api.add_resource(ProjectList, '/project/rd/<user_id>')
