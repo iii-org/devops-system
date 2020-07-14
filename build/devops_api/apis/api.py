@@ -512,6 +512,7 @@ class GitProjectTag(Resource):
 
 class GitProjectDirectory(Resource):
 
+    @jwt_required
     def post(self, repository_id, directory_path):
         project_id = repository_id
         directory_path = directory_path + "%2F%2Egitkeep"
@@ -523,6 +524,7 @@ class GitProjectDirectory(Resource):
         output = pjt.create_git_project_directory(logger, app, project_id, directory_path, args)
         return output.json()
 
+    @jwt_required
     def put(self, repository_id, directory_path):
         project_id = repository_id
         directory_path = directory_path + "%2F%2Egitkeep"
@@ -538,6 +540,7 @@ class GitProjectDirectory(Resource):
         output = pjt.update_git_project_directory(logger, app, project_id, directory_path, args)
         return output.json()
 
+    @jwt_required
     def delete(self, repository_id, directory_path):
         project_id = repository_id
         directory_path = directory_path + "%2F%2Egitkeep"
@@ -554,6 +557,7 @@ class GitProjectDirectory(Resource):
 
 class GitProjectMergeBranch(Resource):
 
+    @jwt_required
     def post(self, repository_id):
         project_id = repository_id
         parser = reqparse.RequestParser()

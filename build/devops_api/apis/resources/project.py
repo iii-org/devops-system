@@ -323,6 +323,7 @@ class Project(object):
         logger.info("delete project directory output: {0}".format(output))
         return output
 
+    # 用project_id合併project的任兩個branches
     def create_git_project_mergebranch(self, logger, app, project_id, args):
         url = "http://{0}/api/{1}/projects/{2}/merge_requests?private_token={3}&source_branch={4}&target_branch={5}&title={6}".format(\
             app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, self.private_token, args["source_branch"], args["target_branch"], args["title"])
