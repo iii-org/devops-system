@@ -6,6 +6,8 @@ from model import db
 from .redmine import Redmine
 from .rancher import Rancher
 
+import urllib
+
 class Project(object):
     private_token = None
     headers = {'Content-Type': 'application/json'}
@@ -316,9 +318,47 @@ class Project(object):
 
     # 用project_id及directory_path刪除project的directory
     def delete_git_project_directory(self, logger, app, project_id, directory_path, args):
-        url = "http://{0}/api/{1}/projects/{2}/repository/files/{3}?private_token={4}&branch={5}&commit_message={6}".format(\
-            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, directory_path, self.private_token, args["branch"], args["commit_message"])
-        logger.info("delete project directory url: {0}".format(url))
-        output = requests.delete(url, headers=self.headers, verify=False)
-        logger.info("delete project directory output: {0}".format(output))
+        # 查詢directory的files
+        url = "http://{0}/api/{1}/projects/{2}/repository/tree?private_token={3}&ref={4}&path={5}".format(\
+            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, self.private_token, args["branch"], directory_path)
+        logger.info("get project directoryfiles url: {0}".format(url))
+        output1 = requests.get(url, headers=self.headers, verify=False)
+        logger.info("get project directoryfiles output: {0} / {1}".format(output1, output1.json()))
+        if str(output1) == "<Response [200]>":
+            # 依序刪除directory的files
+            for i in range(len(output1.json())):
+                path_encode = urllib.parse.quote(output1.json()[i]["path"], safe='')
+                url = "http://{0}/api/{1}/projects/{2}/repository/files/{3}?private_token={4}&branch={5}&commit_message={6}".format(\
+                    app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, path_encode, self.private_token, args["branch"], args["commit_message"])
+                logger.info("delete project directory url: {0}".format(url))
+                output2 = requests.delete(url, headers=self.headers, verify=False)
+                logger.info("delete project directory output: {0}".format(output2))
+        return output2
+
+    # 用project_id合併project的任兩個branches
+    def create_git_project_mergebranch(self, logger, app, project_id, args):
+        # 新增merge request
+        url = "http://{0}/api/{1}/projects/{2}/merge_requests?private_token={3}&source_branch={4}&target_branch={5}&title={6}".format(\
+            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, self.private_token, args["source_branch"], args["target_branch"], args["title"])
+        logger.info("post project mergerequest url: {0}".format(url))
+        output = requests.post(url, headers=self.headers, verify=False)
+        logger.info("post project mergerequest output:{0} / {1}".format(output, output.json()))
+        
+        if str(output) == "<Response [201]>":
+            # 同意merge request
+            merge_request_iid = output.json()["iid"]
+            url = "http://{0}/api/{1}/projects/{2}/merge_requests/{3}/merge?private_token={4}".format(\
+                app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, merge_request_iid, self.private_token)
+            logger.info("post project acceptmerge url: {0}".format(url))
+            output = requests.put(url, headers=self.headers, verify=False)
+            logger.info("post project acceptmerge output:{0} / {1}".format(output, output.json()))
+            if str(output) != "<Response [200]>":
+                # 刪除merge request
+                url = "http://{0}/api/{1}/projects/{2}/merge_requests/{3}?private_token={4}".format(\
+                    app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, merge_request_iid, self.private_token)
+                logger.info("delete project mergerequest url: {0}".format(url))
+                output_extra = requests.delete(url, headers=self.headers, verify=False)
+                logger.info("delete project mergerequest output:{0}".format(output_extra))                
+    
         return output
+        
