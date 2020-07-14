@@ -577,6 +577,18 @@ class PipelineExec(Resource):
         return jsonify({'message': 'success', 'data': output_array})
 
 
+class PipelineExecLogs(Resource):
+
+    @jwt_required
+    def get (self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('project_id', type=int)
+        parser.add_argument('pipelines_exec_run', type=int)
+        args = parser.parse_args()
+        output_array = pipe.pipeline_exec_logs(logger, app, args)
+        return jsonify({'message': 'success', 'data': output_array})
+
+
 class IssuesIdList(Resource):
 
     @jwt_required
@@ -713,6 +725,7 @@ api.add_resource(UserInfo, '/user/<user_id>')
 # pipeline
 api.add_resource(PipelineInfo, '/pipelines/rd/<project_id>/pipelines_info')
 api.add_resource(PipelineExec, '/pipelines/rd/<project_id>/pipelines_exec')
+api.add_resource(PipelineExecLogs, '/pipelines/rd/logs')
 
 # issue
 api.add_resource(IssuesIdList, '/project/rd/<project_id>/issues')

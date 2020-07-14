@@ -5,3 +5,4 @@ flask-sqlalchemy
 psycopg2
 pycryptodomex
 flask-jwt-extended
+websocket-client
