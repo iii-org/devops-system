@@ -543,7 +543,6 @@ class GitProjectDirectory(Resource):
     @jwt_required
     def delete(self, repository_id, directory_path):
         project_id = repository_id
-        directory_path = directory_path + "%2F%2Egitkeep"
         parser = reqparse.RequestParser()
         parser.add_argument('branch', type=str)
         parser.add_argument('commit_message', type=str)
@@ -554,6 +553,7 @@ class GitProjectDirectory(Resource):
             return "Success Delete"
         else:
             return str(output)
+            
 
 class GitProjectMergeBranch(Resource):
 
