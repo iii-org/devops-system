@@ -129,11 +129,11 @@ class Project(object):
         plan_user_id = result.fetchone()[0]
         result.close()
         logger.info("get user_ids SQL: {0}".format(plan_user_id))
-
         redmine_key = Redmine.get_redmine_key(self, logger, app)
         for project in  project_list:
             output_dict = {}
             output_dict['name'] = project['name']
+
             output_dict['repository_ids'] = [project['git_repository_id']]
 
             # get issue total cont
@@ -157,6 +157,7 @@ class Project(object):
             branch_number = 0
             # branch bumber
             output = self.get_git_project_branches(logger, app, project['git_repository_id'])
+            logger.info("get_git_project_branches output: {0}".format(type(output.json())))
             if output.status_code == 200:
                 branch_number = len(output.json())
             logger.info("get_git_project_branches number: {0}".format(branch_number))
@@ -195,6 +196,7 @@ class Project(object):
         url = "http://{0}/api/{1}/projects/{2}/repository/branches?private_token={3}".format(\
             app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, self.private_token)
         logger.info("get project branches url: {0}".format(url))
+        logger.info("get project branches headers: {0}".format(self.headers))
         output = requests.get(url, headers=self.headers, verify=False)
         logger.info("get project branches output: {0}".format(output.json()))
         return output
