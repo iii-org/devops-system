@@ -265,9 +265,9 @@ class Project(object):
         return output
 
     # 用project_id及branch_name及file_path刪除project的file
-    def delete_git_project_file(self, logger, app, project_id, branch, file_path, args):
+    def delete_git_project_file(self, logger, app, project_id, branch, file_path, commit_message):
         url = "http://{0}/api/{1}/projects/{2}/repository/files/{3}?private_token={4}&branch={5}&commit_message={6}".format(\
-            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, file_path, self.private_token, branch, args["commit_message"])
+            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, file_path, self.private_token, branch, commit_message)
         logger.info("delete project file url: {0}".format(url))
         output = requests.delete(url, headers=self.headers, verify=False)
         logger.info("delete project file output: {0}".format(output))
@@ -319,10 +319,10 @@ class Project(object):
         return output
 
     # 用project_id及directory_path刪除project的directory
-    def delete_git_project_directory(self, logger, app, project_id, directory_path, args):
+    def delete_git_project_directory(self, logger, app, project_id, directory_path, branch, commit_message):
         # 查詢directory的files
         url = "http://{0}/api/{1}/projects/{2}/repository/tree?private_token={3}&ref={4}&path={5}".format(\
-            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, self.private_token, args["branch"], directory_path)
+            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, self.private_token, branch, directory_path)
         logger.info("get project directoryfiles url: {0}".format(url))
         output1 = requests.get(url, headers=self.headers, verify=False)
         logger.info("get project directoryfiles output: {0} / {1}".format(output1, output1.json()))
@@ -331,7 +331,7 @@ class Project(object):
             for i in range(len(output1.json())):
                 path_encode = urllib.parse.quote(output1.json()[i]["path"], safe='')
                 url = "http://{0}/api/{1}/projects/{2}/repository/files/{3}?private_token={4}&branch={5}&commit_message={6}".format(\
-                    app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, path_encode, self.private_token, args["branch"], args["commit_message"])
+                    app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, path_encode, self.private_token, branch, commit_message)
                 logger.info("delete project directory url: {0}".format(url))
                 output2 = requests.delete(url, headers=self.headers, verify=False)
                 logger.info("delete project directory output: {0}".format(output2))
