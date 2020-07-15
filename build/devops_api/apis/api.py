@@ -642,7 +642,7 @@ class IssueStatus(Resource):
     @jwt_required
     def get (self):
         output = iss.get_issue_status(logger, app)
-        return output
+        return jsonify({'message': 'success', 'data': output})
 
 
 class IssuePrioriry(Resource):
@@ -650,14 +650,14 @@ class IssuePrioriry(Resource):
     @jwt_required
     def get (self):
         output = iss.get_issue_priority(logger, app)
-        return output
+        return jsonify({'message': 'success', 'data': output})
 
 class IssueTracker(Resource):
 
     @jwt_required
     def get (self):
         output = iss.get_issue_trackers(logger, app)
-        return output
+        return jsonify({'message': 'success', 'data': output})
 
 class IssueRDbyUser(Resource):
 
@@ -676,7 +676,7 @@ class DashboardIssuePriority(Resource):
     def get (self, user_id):
         if int(user_id) == get_jwt_identity():
             output = iss.count_prioriry_number_by_issues(logger, app, user_id)
-            return output
+            return jsonify({'message': 'success', 'data': output})
         else:
             return {'message': 'Access token is missing or invalid'}, 401
 
@@ -687,7 +687,7 @@ class DashboardIssueProject(Resource):
     def get (self, user_id):
         if int(user_id) == get_jwt_identity():
             output = iss.count_project_number_by_issues(logger, app, user_id)
-            return output
+            return jsonify({'message': 'success', 'data': output})
         else:
             return {'message': 'Access token is missing or invalid'}, 401
 
@@ -698,7 +698,7 @@ class DashboardIssueType(Resource):
     def get (self, user_id):
         if int(user_id) == get_jwt_identity():
             output = iss.count_type_number_by_issues(logger, app, user_id)
-            return output
+            return jsonify({'message': 'success', 'data': output})
         else:
             return {'message': 'Access token is missing or invalid'}, 401
 
