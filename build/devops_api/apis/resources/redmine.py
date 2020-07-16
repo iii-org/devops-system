@@ -88,14 +88,14 @@ class Redmine(object):
     
     def redmine_get_priority(self, logger, app):
         url="http://{0}/enumerations/issue_priorities.json?key={1}".format(\
-            app.config['REDMINE_IP_PORT'], self.redmine_key,)
+            app.config['REDMINE_IP_PORT'], self.redmine_key)
         output = requests.get(url, headers=self.headers, verify=False)
         logger.info("get issues stauts list output: {0}".format(output.json()))
         return output.json()
     
     def redmine_get_trackers(self, logger, app):
         url="http://{0}/trackers.json?key={1}".format(\
-            app.config['REDMINE_IP_PORT'], self.redmine_key,)
+            app.config['REDMINE_IP_PORT'], self.redmine_key)
         output = requests.get(url, headers=self.headers, verify=False)
         logger.info("get issues stauts list output: {0}".format(output.json()))
         return output.json()
