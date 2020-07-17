@@ -613,6 +613,13 @@ class PipelineExecLogs(Resource):
         output_array = pipe.pipeline_exec_logs(logger, app, args)
         return jsonify({'message': 'success', 'data': output_array})
 
+class PipelineSoftware(Resource):
+
+    @jwt_required
+    def get (self):
+        output_array = pipe.pipeline_software(logger, app)
+        return jsonify({'message': 'success', 'data': output_array})
+
 
 class IssuesIdList(Resource):
 
@@ -756,6 +763,7 @@ api.add_resource(UserInfo, '/user/<user_id>')
 api.add_resource(PipelineInfo, '/pipelines/rd/<project_id>/pipelines_info')
 api.add_resource(PipelineExec, '/pipelines/rd/<project_id>/pipelines_exec')
 api.add_resource(PipelineExecLogs, '/pipelines/rd/logs')
+api.add_resource(PipelineSoftware, '/pipelines/software')
 
 # issue
 api.add_resource(IssuesIdList, '/project/rd/<project_id>/issues')

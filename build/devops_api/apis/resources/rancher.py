@@ -11,6 +11,16 @@ class Rancher(object):
     def __init__(self):
         pass
 
+    def __applyYamlConfig(self, path):
+        return {'applyYamlConfig': {'path': path}}
+
+    def __publishImageConfig(self, dockerfilePath, buildContext, tag):
+        return {'publishImageConfig': {'dockerfilePath': dockerfilePath, 'buildContext': buildContext, \
+            'tag': tag}}
+    
+    def __runScriptConfig(self, image, shellScript):
+        return {'unScriptConfig': {'image': image, 'shellScript': shellScript}}
+        
     def get_rancher_token(self, app, logger):
         url="https://{0}/{1}-public/localProviders/local?action=login"\
             .format(app.config['RANCHER_IP_PORT'], app.config['RANCHER_API_VERSION'])
