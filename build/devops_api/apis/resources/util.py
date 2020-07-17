@@ -76,7 +76,7 @@ class util(object):
             logger.info("Post api parameter is : {0}".format(parameter))
             logger.info("Post api status code is : {0}".format(callapi.status_code))
             logger.info("Post api waste time: {0}".format(callapi.elapsed.total_seconds()))
-            logger.info("Post api message is : {0}".format(callapi.text))
+            # logger.info("Post api message is : {0}".format(callapi.text))
             return callapi
 
         except Exception as e:
@@ -93,7 +93,7 @@ class util(object):
             else:
                 callapi = requests.put(url, data=parameter, verify=False)
             logger.info("Put api status code is : {0}".format(callapi.status_code))
-            logger.debug("Put api message is : {0}".format(callapi.text))
+            # logger.debug("Put api message is : {0}".format(callapi.text))
             return callapi
 
         except Exception as e:
@@ -109,7 +109,7 @@ class util(object):
                 callapi = requests.get(url, verify=False)
             logger.info("get api headers is : {0}".format(headers))
             logger.info("get api status code is : {0}".format(callapi.status_code))
-            logger.debug("get api message is : {0}".format(callapi.text))
+            # logger.debug("get api message is : {0}".format(callapi.text))
             return callapi
 
         except Exception as e:
@@ -124,9 +124,22 @@ class util(object):
                 callapi = requests.delete(url, verify=False)
             logger.info("delete api headers is : {0}".format(headers))
             logger.info("delete api status code is : {0}".format(callapi.status_code))
-            logger.debug("delete api message is : {0}".format(callapi.text))
+            # logger.debug("delete api message is : {0}".format(callapi.text))
             return callapi
 
         except Exception as e:
             logger.error("calldeleteapi error : {0}".format(e))
             return e
+    
+    def add_iso_format(self, data):
+        if data is not None:
+            return data.isoformat()
+        else:
+            return None
+
+    def fetchone_output(self, data):
+        if data is not None:
+            return data[0]
+        else:
+            return None
+

@@ -22,10 +22,3 @@ spec:
         env:
           - name: SONAR_HOST_URL
             value: http://10.50.1.56:31910
-        resources:
-          requests:
-            memory: "64Mi"
-            cpu: "250m"
-          limits:
-            memory: "4096Mi"
-            cpu: 2

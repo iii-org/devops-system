@@ -16,6 +16,6 @@ spec:
     spec:
       containers:
       - name: devopsapi-qa
-        image: iiiorg/devops-api:v20200610
+        image: iiiorg/devops-api:v20200617
         ports:
         - containerPort: 10009

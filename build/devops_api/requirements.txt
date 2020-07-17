@@ -1,4 +1,9 @@
 Flask
 Flask-RESTful
 requests
-sqlalchemy
+flask-sqlalchemy
+psycopg2
+pycryptodomex
+flask-jwt-extended
+websocket-client
+pyyaml
