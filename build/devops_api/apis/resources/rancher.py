@@ -10,15 +10,15 @@ class Rancher(object):
 
     def __init__(self):
         pass
-
-    def __applyYamlConfig(self, path):
+    
+    def applyYamlConfig(self, path):
         return {'applyYamlConfig': {'path': path}}
 
-    def __publishImageConfig(self, dockerfilePath, buildContext, tag):
+    def publishImageConfig(self, dockerfilePath, buildContext, tag):
         return {'publishImageConfig': {'dockerfilePath': dockerfilePath, 'buildContext': buildContext, \
             'tag': tag}}
     
-    def __runScriptConfig(self, image, shellScript):
+    def runScriptConfig(self, image, shellScript):
         return {'unScriptConfig': {'image': image, 'shellScript': shellScript}}
         
     def get_rancher_token(self, app, logger):
@@ -74,3 +74,6 @@ class Rancher(object):
                 j+=1
             i+=1
         return output_array
+    
+    def gererate_pipeline_ci_yml(self):
+        pass

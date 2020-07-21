@@ -1,3 +1,6 @@
+import yaml
+import json
+
 from model import db
 from .rancher import Rancher
 
@@ -66,3 +69,30 @@ class Pipeline(object):
             project_relationship['ci_project_id'], project_relationship['ci_pipeline_id'], 
             args['pipelines_exec_run'], rancher_token)
         return output_array
+
+    def pipeline_software(self, logger):
+        result = db.engine.execute("SELECT pp.name as ph_name, ps.name as sf_name, \
+            psc.detail as detail FROM public.pipeline_phase as pp, \
+            public.pipeline_software as ps, public.pipeline_software_config as psc \
+            WHERE psc.software_id = ps.id AND ps.phase_id = pp.id AND psc.sample = true;")
+        pipe_softs = result.fetchall()
+        result.close()
+        for pipe_soft in  pipe_softs:
+            logger.info("pipe_soft: {0}".format(pipe_soft))
+        # message = os.popen('ls -al ../../../')
+        # logger.info("message: {0}".format(message.read()))
+        '''
+        with open(r'../../../.rancher-pipeline.yml') as file:
+            document = yaml.load(file, Loader=yaml.FullLoader)
+        logger.info("document: {0}".format(document))
+        document['stage']
+        '''
+        # Rancher.gererate_pipeline_ci_yml(self)
+    
+    '''
+    def generate_ci_yaml(self, logger, args):
+        dict_object = json.loads(args['detail'])
+        logger.info("generate_ci_yaml dict_object: {0}".format(type(dict_object)))
+        docum = yaml.load(dict_object)
+        logger.info("generate_ci_yaml documents: {0}".format(type(docum)))
+    '''
