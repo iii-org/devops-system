@@ -71,14 +71,13 @@ class Pipeline(object):
         return output_array
 
     def pipeline_software(self, logger):
-        result = db.engine.execute("SELECT pp.name as ph_name, ps.name as sf_name, \
+        result = db.engine.execute("SELECT pp.name as phase_name, ps.name as software_name, \
             psc.detail as detail FROM public.pipeline_phase as pp, \
             public.pipeline_software as ps, public.pipeline_software_config as psc \
             WHERE psc.software_id = ps.id AND ps.phase_id = pp.id AND psc.sample = true;")
         pipe_softs = result.fetchall()
         result.close()
-        for pipe_soft in  pipe_softs:
-            logger.info("pipe_soft: {0}".format(pipe_soft))
+        return [dict(row) for row in pipe_softs]
         # message = os.popen('ls -al ../../../')
         # logger.info("message: {0}".format(message.read()))
         '''
