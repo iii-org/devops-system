@@ -549,20 +549,15 @@ class GitProjectDirectory(Resource):
         output = pjt.update_git_project_directory(logger, app, project_id, directory_path, args)
         return output.json()
 
-
-# class GitProjectDelDirectory(Resource):
-
     @jwt_required
     def delete(self, repository_id, directory_path):
         project_id = repository_id
-        # parser = reqparse.RequestParser()
-        # parser.add_argument('branch', type=str)
-        # parser.add_argument('commit_message', type=str)
-        # args = parser.parse_args()
-        # logger.info("delete body: {0}".format(args))
-        branch = flask_req.args.get('branch')
-        commit_message = flask_req.args.get('commit_message')
-        output = pjt.delete_git_project_directory(logger, app, project_id, directory_path, branch, commit_message)
+        parser = reqparse.RequestParser()
+        parser.add_argument('branch', type=str)
+        parser.add_argument('commit_message', type=str)
+        args = parser.parse_args()
+        logger.info("delete body: {0}".format(args))
+        output = pjt.delete_git_project_directory(logger, app, project_id, directory_path, args)
         if str(output) == "<Response [204]>":
             return "Success Delete"
         else:
@@ -738,7 +733,6 @@ api.add_resource(GitProjectFile, '/repositories/rd/<repository_id>/branch/<branc
 api.add_resource(GitProjectTags, '/repositories/rd/<repository_id>/tags')
 api.add_resource(GitProjectTag, '/repositories/rd/<repository_id>/tags/<tag_name>')
 api.add_resource(GitProjectDirectory, '/repositories/rd/<repository_id>/directory/<directory_path>')
-# api.add_resource(GitProjectDelDirectory, '/repositories/rd/<repository_id>/branch/<branch_name>/directory/<directory_path>')
 api.add_resource(GitProjectMergeBranch, '/repositories/rd/<repository_id>/merge_branches')
 
 
