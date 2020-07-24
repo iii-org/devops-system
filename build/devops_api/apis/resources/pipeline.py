@@ -26,10 +26,10 @@ class Pipeline(object):
             output = None
         return output
 
-    def pipeline_exec_list(self, logger, app, project_id):
+    def pipeline_exec_list(self, logger, app, repository_id):
         output_array = []
         result = db.engine.execute("SELECT * FROM public.project_plugin_relation \
-            WHERE project_id = {0};".format(project_id))
+            WHERE git_repository_Id = {0};".format(repository_id))
         project_relationship = result.fetchone()
         result.close()
         logger.info("project_relationship: {0}".format(project_relationship['ci_project_id']))

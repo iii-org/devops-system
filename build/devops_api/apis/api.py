@@ -590,8 +590,8 @@ class PipelineInfo(Resource):
 class PipelineExec(Resource):
 
     @jwt_required
-    def get (self, project_id):
-        output_array = pipe.pipeline_exec_list(logger, app, project_id)
+    def get (self, repository_id):
+        output_array = pipe.pipeline_exec_list(logger, app, repository_id)
         return jsonify({'message': 'success', 'data': output_array})
 
 
@@ -766,9 +766,10 @@ api.add_resource(UserForgetPassword, '/user/forgetPassword')
 api.add_resource(UserInfo, '/user/<user_id>')
 
 # pipeline
-api.add_resource(PipelineInfo, '/pipelines/rd/<project_id>/pipelines_info')
-api.add_resource(PipelineExec, '/pipelines/rd/<project_id>/pipelines_exec')
+# api.add_resource(PipelineInfo, '/pipelines/rd/<project_id>/pipelines_info')
+api.add_resource(PipelineExec, '/pipelines/rd/<repository_id>/pipelines_exec')
 api.add_resource(PipelineExecLogs, '/pipelines/rd/logs')
+
 api.add_resource(PipelineSoftware, '/pipelines/software')
 # api.add_resource(PipelineSample, '/pipelines/sample')
 api.add_resource(PipelineGenerateYaml, '/pipelines/<repository_id>/branch/<branch_name>/generate_ci_yaml')
