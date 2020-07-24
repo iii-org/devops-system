@@ -133,6 +133,7 @@ class Project(object):
         for project in  project_list:
             output_dict = {}
             output_dict['name'] = project['name']
+            output_dict['project_id'] = project['id']
 
             output_dict['repository_ids'] = [project['git_repository_id']]
 
