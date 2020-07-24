@@ -1,8 +1,11 @@
 import yaml
 import json
+import base64
+import os
 
 from model import db
 from .rancher import Rancher
+from .project import Project
 
 class Pipeline(object):
     headers = {'Content-Type': 'application/json'}
@@ -87,11 +90,38 @@ class Pipeline(object):
         document['stage']
         '''
         # Rancher.gererate_pipeline_ci_yml(self)
+
     
-    '''
-    def generate_ci_yaml(self, logger, args):
-        dict_object = json.loads(args['detail'])
-        logger.info("generate_ci_yaml dict_object: {0}".format(type(dict_object)))
-        docum = yaml.load(dict_object)
-        logger.info("generate_ci_yaml documents: {0}".format(type(docum)))
-    '''
+    def generate_ci_yaml(self, logger, args, app, repository_id, branch_name):
+        '''
+        result = db.engine.execute("SELECT git_repository_id FROM public.project_plugin_relation \
+            WHERE project_id = {0};".format(project_id))
+        project_relationship = result.fetchone()
+        result.close()
+        logger.info("project_relationship: {0}".format(project_relationship['ci_project_id']))
+        '''
+        parameter = {}
+        # Get yaml file.
+        dict_object = json.loads(args['detail'].replace("'",'"'))
+        docum = yaml.dump(dict_object)
+        logger.info("generate_ci_yaml documents: {0}".format(docum))
+        base_file = base64.b64encode(bytes(docum, encoding= 'utf-8')).decode('utf-8')
+        logger.info("generate_ci_yaml base_file: {0}".format(base_file))
+        parameter['file_path'] = '.rancher-pipeline.yml'
+        parameter['branch'] = branch_name
+        parameter['start_branch'] = branch_name
+        parameter['encoding'] = 'base64'
+        parameter['content'] = base_file
+        parameter['author_email'] = "admin@example.com"
+        parameter['author_name'] = "admin"
+        parameter['file_path'] = '.rancher-pipeline.yaml'
+        yaml_info = Project.get_git_project_file(self, logger, app, repository_id, parameter)
+        parameter['file_path'] = '.rancher-pipeline.yml'
+        yml_info = Project.get_git_project_file(self, logger, app, repository_id, parameter)
+        if yaml_info.status_code == 404 and yml_info.status_code == 404:
+            action = "post"
+            parameter['commit_message'] = "add .rancher-pipeline.yml"
+        else:
+            action = "put"
+            parameter['commit_message'] = "modify .rancher-pipeline.yml"
+        Project.create_ranhcer_pipline_yaml(self, logger, app, repository_id, parameter, action)

@@ -623,16 +623,16 @@ class PipelineSoftware(Resource):
             output_list.append(pipe_out)
         return jsonify({'message': 'success', 'data': output_list})
 
-'''
+
 class PipelineGenerateYaml(Resource):
 
     @jwt_required
-    def post (self, project_id):
+    def post (self, repository_id, branch_name):
         parser = reqparse.RequestParser()
         parser.add_argument('detail')
         args = parser.parse_args()
-        output_array = pipe.generate_ci_yaml(logger, args)
-'''
+        output_array = pipe.generate_ci_yaml(logger, args, app, repository_id, branch_name)
+
 
 class IssuesIdList(Resource):
 
@@ -778,7 +778,7 @@ api.add_resource(PipelineExec, '/pipelines/rd/<project_id>/pipelines_exec')
 api.add_resource(PipelineExecLogs, '/pipelines/rd/logs')
 api.add_resource(PipelineSoftware, '/pipelines/software')
 # api.add_resource(PipelineSample, '/pipelines/sample')
-# api.add_resource(PipelineGenerateYaml, '/pipelines/<project_id>/generate_ci_yaml')
+api.add_resource(PipelineGenerateYaml, '/pipelines/<repository_id>/branch/<branch_name>/generate_ci_yaml')
 
 # issue
 api.add_resource(IssuesIdList, '/project/rd/<project_id>/issues')

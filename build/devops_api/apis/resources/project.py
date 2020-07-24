@@ -363,4 +363,31 @@ class Project(object):
                 logger.info("delete project mergerequest output:{0}".format(output_extra))                
     
         return output
-        
+
+    def create_ranhcer_pipline_yaml(self, logger, app, project_id, args, action):
+        pro = Project(logger, app)
+        url = "http://{0}/api/{1}/projects/{2}/repository/files/{3}?private_token={4}&branch={5}&\
+start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&commit_message={11}" \
+            .format( app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, \
+            args["file_path"], pro.private_token, args["branch"], args["start_branch"], \
+            args["encoding"], args["author_email"], args["author_name"], args["content"], \
+            args["commit_message"])
+        if action == 'post':
+            logger.info("post project file url: {0}".format(url))
+            output = requests.post(url, headers=self.headers, verify=False)
+            logger.info("post project file output: {0}".format(output.json()))
+        else:
+            logger.info("put project file url: {0}".format(url))
+            output = requests.put(url, headers=self.headers, verify=False)
+            logger.info("put project file output: {0}".format(output.json()))
+        return output
+
+    def get_git_project_file(self, logger, app, project_id, args):
+        pro = Project(logger, app)
+        url = "http://{0}/api/{1}/projects/{2}/repository/files/{3}?private_token={4}&ref={5}"\
+            .format(app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, \
+            args["file_path"], pro.private_token, args["branch"])
+        logger.info("get project file url: {0}".format(url))
+        output = requests.get(url, headers=self.headers, verify=False)
+        logger.info("get project file output: {0}".format(output.json()))
+        return output
