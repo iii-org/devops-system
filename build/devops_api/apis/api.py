@@ -351,8 +351,8 @@ class GitProjectBranches(Resource):
     def post(self, repository_id):
         project_id = repository_id
         parser = reqparse.RequestParser()
-        parser.add_argument('branch', type=str)
-        parser.add_argument('ref', type=str)
+        parser.add_argument('branch', type=str, required=True)
+        parser.add_argument('ref', type=str, required=True)
         args = parser.parse_args()
         logger.info("post body: {0}".format(args))
         output = pjt.create_git_project_branch(logger, app, project_id, args)
@@ -395,14 +395,14 @@ class GitProjectFiles(Resource):
     def post(self, repository_id):
         project_id = repository_id
         parser = reqparse.RequestParser()
-        parser.add_argument('branch', type=str)
-        parser.add_argument('file_path', type=str)
+        parser.add_argument('branch', type=str, required=True)
+        parser.add_argument('file_path', type=str, required=True)
         parser.add_argument('start_branch', type=str)
-        parser.add_argument('encoding', type=str)
         parser.add_argument('author_email', type=str)
         parser.add_argument('author_name', type=str)
-        parser.add_argument('content', type=str)
-        parser.add_argument('commit_message', type=str)
+        parser.add_argument('encoding', type=str)
+        parser.add_argument('content', type=str, required=True)
+        parser.add_argument('commit_message', type=str, required=True)
         args = parser.parse_args()
         logger.info("post body: {0}".format(args))
         output = pjt.create_git_project_file(logger, app, project_id, args)
@@ -422,14 +422,14 @@ class GitProjectFiles(Resource):
     def put(self, repository_id):
         project_id = repository_id
         parser = reqparse.RequestParser()
-        parser.add_argument('branch', type=str)
-        parser.add_argument('file_path', type=str)
+        parser.add_argument('branch', type=str, required=True)
+        parser.add_argument('file_path', type=str, required=True)
         parser.add_argument('start_branch', type=str)
-        parser.add_argument('encoding', type=str)
         parser.add_argument('author_email', type=str)
         parser.add_argument('author_name', type=str)
-        parser.add_argument('content', type=str)
-        parser.add_argument('commit_message', type=str)
+        parser.add_argument('encoding', type=str)
+        parser.add_argument('content', type=str, required=True)
+        parser.add_argument('commit_message', type=str, required=True)
         args = parser.parse_args()
         logger.info("put body: {0}".format(args))
         output = pjt.update_git_project_file(logger, app, project_id, args)
@@ -476,7 +476,7 @@ class GitProjectFile(Resource):
         project_id = repository_id
         branch = branch_name
         parser = reqparse.RequestParser()
-        parser.add_argument('commit_message', type=str)
+        parser.add_argument('commit_message', type=str, required=True)
         args = parser.parse_args()
         logger.info("delete body: {0}".format(args))
         output = pjt.delete_git_project_file(logger, app, project_id, branch, file_path, args)
@@ -498,8 +498,8 @@ class GitProjectTags(Resource):
     def post(self, repository_id):
         project_id = repository_id
         parser = reqparse.RequestParser()
-        parser.add_argument('tag_name', type=str)
-        parser.add_argument('ref', type=str)
+        parser.add_argument('tag_name', type=str, required=True)
+        parser.add_argument('ref', type=str, required=True)
         parser.add_argument('message', type=str)
         parser.add_argument('release_description', type=str)
         args = parser.parse_args()
@@ -526,8 +526,8 @@ class GitProjectDirectory(Resource):
         project_id = repository_id
         directory_path = directory_path + "%2F%2Egitkeep"
         parser = reqparse.RequestParser()
-        parser.add_argument('branch', type=str)
-        parser.add_argument('commit_message', type=str)
+        parser.add_argument('branch', type=str, required=True)
+        parser.add_argument('commit_message', type=str, required=True)
         args = parser.parse_args()
         logger.info("post body: {0}".format(args))
         output = pjt.create_git_project_directory(logger, app, project_id, directory_path, args)
@@ -538,12 +538,12 @@ class GitProjectDirectory(Resource):
         project_id = repository_id
         directory_path = directory_path + "%2F%2Egitkeep"
         parser = reqparse.RequestParser()
-        parser.add_argument('branch', type=str)
+        parser.add_argument('branch', type=str, required=True)
         parser.add_argument('author_name', type=str)
         parser.add_argument('author_email', type=str)
         parser.add_argument('encoding', type=str)
-        parser.add_argument('content', type=str)
-        parser.add_argument('commit_message', type=str)
+        parser.add_argument('content', type=str, required=True)
+        parser.add_argument('commit_message', type=str, required=True)
         args = parser.parse_args()
         logger.info("put body: {0}".format(args))
         output = pjt.update_git_project_directory(logger, app, project_id, directory_path, args)
@@ -553,8 +553,8 @@ class GitProjectDirectory(Resource):
     def delete(self, repository_id, directory_path):
         project_id = repository_id
         parser = reqparse.RequestParser()
-        parser.add_argument('branch', type=str)
-        parser.add_argument('commit_message', type=str)
+        parser.add_argument('branch', type=str, required=True)
+        parser.add_argument('commit_message', type=str, required=True)
         args = parser.parse_args()
         logger.info("delete body: {0}".format(args))
         output = pjt.delete_git_project_directory(logger, app, project_id, directory_path, args)
@@ -570,9 +570,9 @@ class GitProjectMergeBranch(Resource):
     def post(self, repository_id):
         project_id = repository_id
         parser = reqparse.RequestParser()
-        parser.add_argument('source_branch', type=str)
-        parser.add_argument('target_branch', type=str)
-        parser.add_argument('title', type=str)
+        parser.add_argument('source_branch', type=str, required=True)
+        parser.add_argument('target_branch', type=str, required=True)
+        parser.add_argument('title', type=str, required=True)
         args = parser.parse_args()
         logger.info("post body: {0}".format(args))
         output = pjt.create_git_project_mergebranch(logger, app, project_id, args)
