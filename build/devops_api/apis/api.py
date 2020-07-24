@@ -783,8 +783,8 @@ api.add_resource(IssueRDbyUser, '/issues_by_user/rd/<user_id>')
 
 # dashboard
 api.add_resource(DashboardIssuePriority, '/dashboard_issues_priority/rd/<user_id>')
-api.add_resource(DashboardIssueProject, '/dashboard_issues_project/rd/<user_id>')
-api.add_resource(DashboardIssueType, '/dashboard_issues_type/rd/<user_id>')
+api.add_resource(DashboardIssueProject, '/dashboard_issues_project/<user_id>')
+api.add_resource(DashboardIssueType, '/dashboard_issues_type/<user_id>')
 
 
 
