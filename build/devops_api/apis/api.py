@@ -622,6 +622,11 @@ class PipelineSoftware(Resource):
 class PipelineGenerateYaml(Resource):
 
     @jwt_required
+    def get (self, repository_id, branch_name):
+        output_array = pipe.get_ci_yaml(logger, app, repository_id, branch_name)
+        return jsonify({'message': 'success', 'data': output_array})
+
+    @jwt_required
     def post (self, repository_id, branch_name):
         parser = reqparse.RequestParser()
         parser.add_argument('detail')

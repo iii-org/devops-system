@@ -101,7 +101,6 @@ class Pipeline(object):
         logger.info("project_relationship: {0}".format(project_relationship['ci_project_id']))
         '''
         parameter = {}
-        # Get yaml file.
         dict_object = json.loads(args['detail'].replace("'",'"'))
         docum = yaml.dump(dict_object)
         logger.info("generate_ci_yaml documents: {0}".format(docum))
@@ -125,3 +124,22 @@ class Pipeline(object):
             action = "put"
             parameter['commit_message'] = "modify .rancher-pipeline.yml"
         Project.create_ranhcer_pipline_yaml(self, logger, app, repository_id, parameter, action)
+    
+    def get_ci_yaml(self, logger, app, repository_id, branch_name):
+        parameter={}
+        parameter['branch'] = branch_name
+        parameter['file_path'] = '.rancher-pipeline.yaml'
+        yaml_info = Project.get_git_project_file(self, logger, app, repository_id, parameter)
+        parameter['file_path'] = '.rancher-pipeline.yml'
+        yml_info = Project.get_git_project_file(self, logger, app, repository_id, parameter)
+        get_yaml_data = None
+        if yaml_info.status_code != 404:
+            get_yaml_data = yaml_info.json()
+        elif yml_info.status_code != 404:
+            get_yaml_data = yml_info.json()
+        logger.info('get_yaml_data: {0}'.format(get_yaml_data['content']))
+        rancher_ci_yaml = base64.b64decode(get_yaml_data['content']).decode("utf-8") 
+        logger.info('rancher_ci_yaml: {0}'.format(rancher_ci_yaml))
+        rancher_ci_json = yaml.load(rancher_ci_yaml)
+        logger.info('rancher_ci_json: {0}'.format(rancher_ci_json))
+        return rancher_ci_json
