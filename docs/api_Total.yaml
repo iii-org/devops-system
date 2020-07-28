@@ -19,8 +19,6 @@ tags:
   description: user account information
 - name: repository
   description: GitLab Project
-- name: test_Case
-  description: API Test Case
 paths:
   /user/login:
     description: '登入頁面;none'
@@ -205,7 +203,7 @@ paths:
           $ref: '#/components/responses/InvalidInput'
         '400':
           $ref: '#/components/responses/errorResponse'
-  /pipelines/rd/{project_id}/pipelines_info:
+  /pipelines/rd/{repository_id}/pipelines_info:
     description: "3.3_工具軟體設定"
     get:
       summary: "3.3_工具軟體設定"
@@ -215,7 +213,7 @@ paths:
         - bearerAuth: ['']
       description: '取得專案執行pipelines的設定值'
       parameters:
-      - name: project_id
+      - name: repository_id
         in: path
         required: true
         schema:
@@ -255,7 +253,7 @@ paths:
           $ref: '#/components/responses/InvalidInput'
         '400':
           $ref: '#/components/responses/errorResponse'
-  /pipelines/rd/{project_id}/pipelines_exec:
+  /pipelines/rd/{repository_id}/pipelines_exec:
     description: '3.4_CICD紀錄清單'
     get:
       summary: '3.4_CICD紀錄清單'
@@ -265,7 +263,7 @@ paths:
         - bearerAuth: ['']
       description: '取得專案執行pipelines的列表'
       parameters:
-      - name: project_id
+      - name: repository_id
         in: path
         required: true
         schema:
@@ -290,7 +288,7 @@ paths:
           $ref: '#/components/responses/InvalidInput'
         '400':
           $ref: '#/components/responses/errorResponse'
-  /pipelines/rd/logs/{pipelines_exec_id}:
+  /pipelines/rd/logs:
     description: '3.4.1_CICD詳細記錄'
     get:
       summary: '3.4.1_CICD詳細記錄' 
@@ -300,11 +298,16 @@ paths:
         - bearerAuth: ['']
       description: '取得專案pipelines的執行LOG檔案'
       parameters:
-      - name: pipelines_exec_id
-        in: path
-        required: true
-        schema:
-          $ref: "#/components/schemas/Id"
+        - in: query
+          name: project_id
+          required: true
+          schema: 
+            type: integer
+        - in: query
+          name: pipelines_exec_run
+          required: true
+          schema:
+            type: integer
       responses:
         '200':
           description: log infromation
@@ -319,6 +322,114 @@ paths:
                     $ref: "#/components/schemas/PipeLinesExecLog"
         '400':
           $ref: '#/components/responses/errorResponse'
+  /pipelines/software:
+    description: '目前pipieline 情境可用軟體'
+    get:
+      summary: '目前pipieline 可用軟體' 
+      tags:
+      - pipelines
+      security:
+        - bearerAuth: ['']
+      description: '取得專案pipelines的執行LOG檔案'
+      responses:
+        '200':
+          description: log infromation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    $ref: "#/components/schemas/ExampleMessage"
+                  data:
+                    type: array
+                    items:  
+                      $ref: "#/components/schemas/PipelineSoftware"
+        '400':
+          $ref: '#/components/responses/errorResponse'
+  /pipelines/<repository_id>/branch/<branch_name>/generate_ci_yaml:
+    get:
+      summary: '目前pipieline yaml file' 
+      tags:
+      - pipelines
+      security:
+        - bearerAuth: ['']
+      description: '取得專案pipelines的執行file 的檔案'
+      parameters:
+      - name: issue_id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
+      responses:
+        '200':
+          description: log infromation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    $ref: "#/components/schemas/ExampleMessage"
+                  data:
+                    type: array
+                    items:  
+                      $ref: "#/components/schemas/PipielineYamlInfo"
+        '400':
+          $ref: '#/components/responses/errorResponse'
+    post:
+      summary: '新增 pipieline yaml file' 
+      tags:
+      - pipelines
+      security:
+        - bearerAuth: ['']
+      description: '更新專案pipelines的執行file 的檔案'
+      requestBody:
+        description: 新增pipelines 資訊
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Pet'
+      responses:
+        '200':
+          description: log infromation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    $ref: "#/components/schemas/ExampleMessage"
+                  data:
+                    type: array
+                    items:  
+                      $ref: "#/components/schemas/PipielineYamlInfo"
+        '400':
+          $ref: '#/components/responses/errorResponse'
+    put:
+      summary: '更新 pipieline yaml file' 
+      tags:
+      - pipelines
+      security:
+        - bearerAuth: ['']
+      description: '取得專案pipelines的執行file 的檔案'
+      responses:
+        '200':
+          description: log infromation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    $ref: "#/components/schemas/ExampleMessage"
+                  data:
+                    type: array
+                    items:  
+                      $ref: "#/components/schemas/PipielineYamlInfo"
+    
+    
   /issues/rd/{issue_id}:
     description: '2.1 工作詳細內容 2.1.2 更新工作內容'
     get:
@@ -686,7 +797,7 @@ paths:
       description: '3.2 程式碼蓋覽圖 (none)'
       parameters:
       - name: repository_id
-        in: path
+        in: query
         required: true
         schema:
           $ref: "#/components/schemas/Id"
@@ -696,7 +807,14 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/RepositoryList"
+                type: object
+                properties:
+                  message: 
+                    $ref: '#/components/schemas/SuccessMessage'
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/RepositorySourceTree"
   /repositories/rd/{repository_id}/merge_branches:
     description: '3.2.8 合併分支'
     post:
@@ -1020,6 +1138,12 @@ paths:
         required: true
         schema:
           $ref: "#/components/schemas/BranchName"
+      - name: commit_message 
+        in: query
+        required: true
+        schema:
+          type: string
+          example: fix V1.0
       responses:
         '200':
           description: File System Tree
@@ -1180,11 +1304,13 @@ paths:
                   message:
                     $ref : '#components/schemas/SuccessMessage'
                   data:
-                  file_path:
-                    $ref: "#/components/schemas/FilePath"
-                  branch:
-                    type: string
-                    example: master
+                    type: object
+                    properties:
+                      file_path:
+                        $ref: "#/components/schemas/FilePath"
+                      branch:
+                        type: string
+                        example: master
         '400':
           description: Non FIle
           content:
@@ -1251,6 +1377,12 @@ paths:
         required: true
         schema:
           $ref: "#/components/schemas/FilePath"
+      - name: commit_message 
+        in: query
+        required: true
+        schema:
+          type: string
+          example: fix V1.0
       responses:
         '200':
           description: A JSON array of issues id
@@ -1334,6 +1466,7 @@ components:
             description: Remdmin or GitLab
     Id:
       type: integer
+      example: 1
     Ids:
       type: array
       items:
@@ -1343,6 +1476,9 @@ components:
       items:
         type: object
         properties:
+          project_id:
+            type: integer
+            example: 1 
           name:
             type: string
             description: 專案名稱
@@ -1966,33 +2102,22 @@ components:
       type: integer
       description: DevOps Plattform ID mapping GitLab Repository Ids
       example: 1 
-    RepositoryList:
-      type: array
-      items:
-        type: object
-        description: GitLab Repository
-        properties:
-          id:
-            type: integer
-          name:
-            type: string
-          issues_number:
-            type: integer
-            description: 被分派工作項目
-          next_d_time:
-            type: string
-            format: date-time
-            description: 最近工作項目期限
-          branch_number:
-            type: integer
-            description: 被分派工作項目
-          last_test_time:
-            type: string
-            format: date-time
-            description: 最新一次測試時間
-          last_test_result:
-            allOf:
-            - $ref: "#/components/schemas/TestResultSummary"
+    RepositorySourceTree:
+      type: object
+      description: GitLab Repository
+      properties:
+        branch:
+          type: string
+          example: master
+        commit_time:
+          type: string
+          format: date-time
+        commit_message:
+          type: string
+          example: fix issue 4
+        tag:
+          type: string
+          example: V1.0.1
     Tag:
       type: object
       description: 分支內容
@@ -2165,15 +2290,22 @@ components:
           items:
             type: string
             description: commit id
-    PipelinesInfo:
+    PipelineSoftware:
       type: object
-      description: GitLab Repository
+      description: Support PIpeline Software
       properties:
         pipeline_info:
           type: array
           items:
             allOf:
             - $ref: "#/components/schemas/Software"
+    PipielineYamlInfo:
+      type: array
+      description: YamlFileInfo
+      properties:
+        
+    
+
     PipelinesExecInfo:
       type: object
       description: Pipeline log list
@@ -2183,6 +2315,8 @@ components:
         status:
           allOf:
           - $ref: "#/components/schemas/TestResultSummary"
+        pipeline_id:
+          type: string
         commit_message:
           type: string
         commit_branch:
@@ -2195,14 +2329,37 @@ components:
       items:
         type: string
         description: log output string
+    
+    #PipelineSoftware:
+    # type: object
+    #  properties:
+
     Software:
       type: object
       description: Integeration Thrid Partiy Software
       properties:
         id:
           type: integer
-        name:
+        software_name:
           type: string
+          example: "flask"
+        phase_name:
+          type: string
+          example: "Deploy"
+        detail:
+          type: object
+          description:  Yaml Example 
+          properties:
+            name: 
+              type: string
+              example: 'deploy flask-${CICD_GIT_BRANCH} environment'
+            steps:
+              type: array
+              items:
+                type: string
+                example: 
+                  - {"applyYamlConfig": {"path": "./sample/flask/k8s-yaml/flask-deployment.yaml"}}
+                  - {"applyYamlConfig": {"path": "./sample/flask/k8s-yaml/flask-service.yaml"}}                
         is_closed:
           type: boolean
           description: 是否啟用
@@ -2295,7 +2452,9 @@ components:
       - content
       - commit_message
       properties:
-        start_branch:
+        name:
+          type: string
+        branch:
           type: string
           example: master
         author_email:
@@ -2364,9 +2523,13 @@ components:
         target_branch:
           type: string
           example: master
+        title:
+          type: string
+          example: API
         merge_commit_message:
           type: string
           example: Merge to Master
+
     UploadDirectory:
       type: object
       properties:
