@@ -53,6 +53,10 @@ class Issue(object):
         if 'parent' in redmine_output:
             redmine_output['parent_id'] = plan_to_issue[str(redmine_output['parent']['id'])]
             redmine_output.pop('parent', None)
+        if 'journals' in redmine_output:
+            for journal in redmine_output['journals']:
+                journal.pop('id', None)
+                journal.pop('private_notes', None)
         logger.info("redmine issue redmine_output: {0}".format(redmine_output))
         return redmine_output
 
