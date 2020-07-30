@@ -570,10 +570,8 @@ class GitProjectMergeBranch(Resource):
     def post(self, repository_id):
         project_id = repository_id
         parser = reqparse.RequestParser()
-        parser.add_argument('source_branch', type=str, required=True)
-        parser.add_argument('target_branch', type=str, required=True)
-        parser.add_argument('title', type=str, required=True)
-        args = parser.parse_args()
+        parser.add_argument('schemas', type=dict, required=True)
+        args = parser.parse_args()["schemas"]
         logger.info("post body: {0}".format(args))
         output = pjt.create_git_project_mergebranch(logger, app, project_id, args)
         return output.json()
