@@ -364,3 +364,11 @@ class Project(object):
     
         return output
         
+    # 用project_id查詢project的commits
+    def get_git_project_branch_commits(self, logger, app, project_id, args):
+        url = "http://{0}/api/{1}/projects/{2}/repository/commits?private_token={3}&ref_name={4}&per_page=100".format(\
+            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, self.private_token, args["branch"])
+        logger.info("get project branch commits url: {0}".format(url))
+        output = requests.get(url, headers=self.headers, verify=False)
+        logger.info("get project branch commits output: {0}".format(output))
+        return output
