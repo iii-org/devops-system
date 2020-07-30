@@ -113,9 +113,15 @@ class Project(object):
         logger.info("delete project webhook output: {0}".format(output))
         return output
     
+    def get_project_by_plan_project_id(self, logger, app, plan_project_id):
+        result = db.engine.execute("SELECT * FROM public.project_plugin_relation \
+            WHERE plan_project_id = {0}".format(plan_project_id))
+        project = result.fetchone()
+        result.close()
+        return project
+
     def get_project_list(self, logger, app, user_id):
         output_array = []
-        # get project list
         result = db.engine.execute("SELECT pj.id, pj.name, ppl.plan_project_id, \
             ppl.git_repository_id, ppl.ci_project_id, ppl.ci_pipeline_id\
             FROM public.project_user_role as pur, public.projects as pj, public.project_plugin_relation as ppl\
@@ -172,34 +178,38 @@ class Project(object):
             logger.info("get_git_project_tags number: {0}".format(branch_number))
             output_dict['tag'] = tag_number
 
-            # get rancher pipeline
-            output_dict['last_test_time'] = ""
-            output_dict['last_test_result'] = {}
-            rancher_token = Rancher.get_rancher_token(self, app, logger)
-            pipeline_output = Rancher.get_rancher_pipelineexecutions(self, app, logger, project["ci_project_id"],\
-                project["ci_pipeline_id"], rancher_token)
-            if len(pipeline_output) != 0:
-                logger.info(pipeline_output[0]['name'])
-                logger.info(pipeline_output[0]['created'])
-                output_dict['last_test_time'] = pipeline_output[0]['created']
-                stage_status = []
-                # logger.info(pipeline_output[0]['stages'])
-                for stage in pipeline_output[0]['stages']:
-                    logger.info("stage: {0}".format(stage))
-                    if 'state' in stage:
-                        stage_status.append(stage['state'])
-                logger.info(stage_status)
-                failed_item = -1
-                if 'Failed' in stage_status:
-                    failed_item = stage_status.index('Failed')
-                    logger.info("failed_item: {0}".format(failed_item))
-                    output_dict['last_test_result']={'total': len(pipeline_output[0]['stages']),\
-                        'success': failed_item }
-                else:
-                    output_dict['last_test_result']={'total': len(pipeline_output[0]['stages']),\
-                        'success': len(pipeline_output[0]['stages'])}
+            output_dict = self.get_ci_last_test_result(app, logger, output_dict, project)
             output_array.append(output_dict)
         return output_array
+
+    def get_ci_last_test_result(self, app, logger, output_dict, project):
+        # get rancher pipeline
+        output_dict['last_test_time'] = ""
+        output_dict['last_test_result'] = {}
+        rancher_token = Rancher.get_rancher_token(self, app, logger)
+        pipeline_output = Rancher.get_rancher_pipelineexecutions(self, app, logger, project["ci_project_id"],\
+            project["ci_pipeline_id"], rancher_token)
+        if len(pipeline_output) != 0:
+            logger.info(pipeline_output[0]['name'])
+            logger.info(pipeline_output[0]['created'])
+            output_dict['last_test_time'] = pipeline_output[0]['created']
+            stage_status = []
+            # logger.info(pipeline_output[0]['stages'])
+            for stage in pipeline_output[0]['stages']:
+                logger.info("stage: {0}".format(stage))
+                if 'state' in stage:
+                    stage_status.append(stage['state'])
+            logger.info(stage_status)
+            failed_item = -1
+            if 'Failed' in stage_status:
+                failed_item = stage_status.index('Failed')
+                logger.info("failed_item: {0}".format(failed_item))
+                output_dict['last_test_result']={'total': len(pipeline_output[0]['stages']),\
+                    'success': failed_item }
+            else:
+                output_dict['last_test_result']={'total': len(pipeline_output[0]['stages']),\
+                    'success': len(pipeline_output[0]['stages'])}
+        return output_dict
 
     # 用project_id查詢project的branches
     def get_git_project_branches(self, logger, app, project_id):

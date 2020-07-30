@@ -1,6 +1,7 @@
 from model import db
 from .util import util
 from .redmine import Redmine
+from .project import Project
 
 class Issue(object):
     headers = {'Content-Type': 'application/json'}
@@ -60,6 +61,17 @@ class Issue(object):
         logger.info("redmine issue redmine_output: {0}".format(redmine_output))
         return redmine_output
 
+    def __dealwith_issue_by_user_redmine_output(self, logger, redmine_output, plan_to_issue):
+        output_list = {}
+        output_list['id'] = plan_to_issue[str(redmine_output['id'])]
+        output_list['name'] = redmine_output['project']['name']
+        output_list['issue_category'] = redmine_output['tracker']['name']
+        output_list['issue_priority'] = redmine_output['priority']['name']
+        output_list['issue_status'] = redmine_output['status']['name']
+        output_list['issue_name'] = redmine_output['subject']
+        logger.info("get issue by user redmine_output: {0}".format(output_list))
+        return output_list
+
     def get_issuesId_List(self, logger, project_id):
         result = db.engine.execute("SELECT id FROM public.issues WHERE project_id = {0}\
             ".format(project_id))
@@ -89,8 +101,11 @@ class Issue(object):
         output_array=[]
         redmine_output_issue_array= Redmine.redmine_get_issues_by_user(self, logger, app, user_to_plan[str(user_id)])
         for redmine_issue in redmine_output_issue_array['issues']:
-            output = self.__dealwith_issue_redmine_output(logger, redmine_issue, plan_to_issue)
-            output_array.append(output)
+            output_dict = self.__dealwith_issue_by_user_redmine_output(logger, redmine_issue, plan_to_issue)
+            project = Project.get_project_by_plan_project_id(self, logger, app, redmine_issue['project']['id'])
+            logger.info("project: {0}".format(project))
+            output_dict = Project.get_ci_last_test_result(self, app, logger, output_dict, project)
+            output_array.append(output_dict)
         return output_array
         
 
@@ -153,10 +168,10 @@ class Issue(object):
             issues = self.get_issue_by_user(logger, app, user_id)
             logger.info("issues: {0}".format(issues))
             for issue in issues:
-                if issue['priority']['name'] not in priority_count:
-                    priority_count[issue['priority']['name']] = 1
+                if issue['issue_priority'] not in priority_count:
+                    priority_count[issue['issue_priority']] = 1
                 else:
-                    priority_count[issue['priority']['name']] += 1
+                    priority_count[issue['issue_priority']] += 1
             logger.info("priority_count: {0}".format(priority_count))
             output = []
             for key,value in priority_count.items():
@@ -171,10 +186,10 @@ class Issue(object):
             issues = self.get_issue_by_user(logger, app, user_id)
             logger.info("issues: {0}".format(issues))
             for issue in issues:
-                if issue['project']['name'] not in project_count:
-                    project_count[issue['project']['name']] = 1
+                if issue['name'] not in project_count:
+                    project_count[issue['name']]= 1
                 else:
-                    project_count[issue['project']['name']] += 1
+                    project_count[issue['name']] += 1
             logger.info("project_count: {0}".format(project_count))
             output = []
             for key,value in project_count.items():
@@ -189,10 +204,10 @@ class Issue(object):
             issues = self.get_issue_by_user(logger, app, user_id)
             logger.info("issues: {0}".format(issues))
             for issue in issues:
-                if issue['tracker']['name'] not in tracker_count:
-                    tracker_count[issue['tracker']['name']] = 1
+                if issue['issue_category'] not in tracker_count:
+                    tracker_count[issue['issue_category']] = 1
                 else:
-                    tracker_count[issue['tracker']['name']] += 1
+                    tracker_count[issue['issue_category']] += 1
             logger.info("tracker_count: {0}".format(tracker_count))
             output = []
             for key,value in tracker_count.items():
