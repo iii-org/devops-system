@@ -663,6 +663,7 @@ class IssueRD(Resource):
         parser.add_argument('notes')
         args = parser.parse_args()
         output = iss.update_issue_rd(logger, app, issue_id, args)
+        return jsonify({'message': 'success'})
 
 class IssueStatus(Resource):
 
