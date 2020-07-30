@@ -570,12 +570,23 @@ class GitProjectMergeBranch(Resource):
     def post(self, repository_id):
         project_id = repository_id
         parser = reqparse.RequestParser()
-        parser.add_argument('source_branch', type=str, required=True)
-        parser.add_argument('target_branch', type=str, required=True)
-        parser.add_argument('title', type=str, required=True)
-        args = parser.parse_args()
+        parser.add_argument('schemas', type=dict, required=True)
+        args = parser.parse_args()["schemas"]
         logger.info("post body: {0}".format(args))
         output = pjt.create_git_project_mergebranch(logger, app, project_id, args)
+        return output.json()
+
+
+class GitProjectBranchCommmits(Resource):
+
+    @jwt_required
+    def get(self, repository_id):
+        project_id = repository_id
+        parser = reqparse.RequestParser()
+        parser.add_argument('branch', type=str, required=True)
+        args = parser.parse_args()
+        logger.info("get body: {0}".format(args))
+        output = pjt.get_git_project_branch_commits(logger, app, project_id, args)
         return output.json()
 
 
@@ -761,6 +772,7 @@ api.add_resource(GitProjectTags, '/repositories/rd/<repository_id>/tags')
 api.add_resource(GitProjectTag, '/repositories/rd/<repository_id>/tags/<tag_name>')
 api.add_resource(GitProjectDirectory, '/repositories/rd/<repository_id>/directory/<directory_path>')
 api.add_resource(GitProjectMergeBranch, '/repositories/rd/<repository_id>/merge_branches')
+api.add_resource(GitProjectBranchCommmits, '/repositories/rd/<repository_id>/commits')
 
 
 # Project

@@ -114,9 +114,9 @@ class Pipeline(object):
         parameter['author_email'] = "admin@example.com"
         parameter['author_name'] = "admin"
         parameter['file_path'] = '.rancher-pipeline.yaml'
-        yaml_info = Project.get_git_project_file(self, logger, app, repository_id, parameter)
+        yaml_info = Project.get_git_project_file_for_pipeline(self, logger, app, repository_id, parameter)
         parameter['file_path'] = '.rancher-pipeline.yml'
-        yml_info = Project.get_git_project_file(self, logger, app, repository_id, parameter)
+        yml_info = Project.get_git_project_file_for_pipeline(self, logger, app, repository_id, parameter)
         if yaml_info.status_code == 404 and yml_info.status_code == 404:
             action = "post"
             parameter['commit_message'] = "add .rancher-pipeline.yml"
@@ -129,9 +129,9 @@ class Pipeline(object):
         parameter={}
         parameter['branch'] = branch_name
         parameter['file_path'] = '.rancher-pipeline.yaml'
-        yaml_info = Project.get_git_project_file(self, logger, app, repository_id, parameter)
+        yaml_info = Project.get_git_project_file_for_pipeline(self, logger, app, repository_id, parameter)
         parameter['file_path'] = '.rancher-pipeline.yml'
-        yml_info = Project.get_git_project_file(self, logger, app, repository_id, parameter)
+        yml_info = Project.get_git_project_file_for_pipeline(self, logger, app, repository_id, parameter)
         get_yaml_data = None
         if yaml_info.status_code != 404:
             get_yaml_data = yaml_info.json()

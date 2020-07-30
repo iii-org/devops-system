@@ -402,7 +402,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
             logger.info("put project file output: {0}".format(output.json()))
         return output
 
-    def get_git_project_file(self, logger, app, project_id, args):
+    def get_git_project_file_for_pipeline(self, logger, app, project_id, args):
         pro = Project(logger, app)
         url = "http://{0}/api/{1}/projects/{2}/repository/files/{3}?private_token={4}&ref={5}"\
             .format(app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, \
@@ -410,4 +410,12 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         logger.info("get project file url: {0}".format(url))
         output = requests.get(url, headers=self.headers, verify=False)
         logger.info("get project file output: {0}".format(output.json()))
+        
+    # 用project_id查詢project的commits
+    def get_git_project_branch_commits(self, logger, app, project_id, args):
+        url = "http://{0}/api/{1}/projects/{2}/repository/commits?private_token={3}&ref_name={4}&per_page=100".format(\
+            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, self.private_token, args["branch"])
+        logger.info("get project branch commits url: {0}".format(url))
+        output = requests.get(url, headers=self.headers, verify=False)
+        logger.info("get project branch commits output: {0}".format(output))
         return output
