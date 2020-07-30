@@ -155,16 +155,26 @@ class Project(object):
             logger.info("next_d_time: {0}".format(next_d_time))
             output_dict['next_d_time'] = next_d_time
 
-            branch_number = 0
             # branch bumber
+            branch_number = 0
             output = self.get_git_project_branches(logger, app, project['git_repository_id'])
             logger.info("get_git_project_branches output: {0}".format(type(output.json())))
             if output.status_code == 200:
                 branch_number = len(output.json())
             logger.info("get_git_project_branches number: {0}".format(branch_number))
             output_dict['branch'] = branch_number
+            # tag nubmer
+            tag_number = 0
+            output = self.get_git_project_tags(logger, app, project['git_repository_id'])
+            logger.info("get_git_project_tags output: {0}".format(type(output.json())))
+            if output.status_code == 200:
+                tag_number = len(output.json())
+            logger.info("get_git_project_tags number: {0}".format(branch_number))
+            output_dict['tag'] = tag_number
 
-            # get rancher pipeline 
+            # get rancher pipeline
+            output_dict['last_test_time'] = ""
+            output_dict['last_test_result'] = {}
             rancher_token = Rancher.get_rancher_token(self, app, logger)
             pipeline_output = Rancher.get_rancher_pipelineexecutions(self, app, logger, project["ci_project_id"],\
                 project["ci_pipeline_id"], rancher_token)
@@ -172,7 +182,6 @@ class Project(object):
                 logger.info(pipeline_output[0]['name'])
                 logger.info(pipeline_output[0]['created'])
                 output_dict['last_test_time'] = pipeline_output[0]['created']
-
                 stage_status = []
                 # logger.info(pipeline_output[0]['stages'])
                 for stage in pipeline_output[0]['stages']:
@@ -184,10 +193,10 @@ class Project(object):
                 if 'Failed' in stage_status:
                     failed_item = stage_status.index('Failed')
                     logger.info("failed_item: {0}".format(failed_item))
-                    output_dict['lest_test_result']={'total': len(pipeline_output[0]['stages']),\
+                    output_dict['last_test_result']={'total': len(pipeline_output[0]['stages']),\
                         'success': failed_item }
                 else:
-                    output_dict['lest_test_result']={'total': len(pipeline_output[0]['stages']),\
+                    output_dict['last_test_result']={'total': len(pipeline_output[0]['stages']),\
                         'success': len(pipeline_output[0]['stages'])}
             output_array.append(output_dict)
         return output_array
