@@ -361,7 +361,6 @@ class Project(object):
                 logger.info("delete project mergerequest url: {0}".format(url))
                 output_extra = requests.delete(url, headers=self.headers, verify=False)
                 logger.info("delete project mergerequest output:{0}".format(output_extra))                
-    
         return output
         
     # 用project_id查詢project的commits
@@ -372,3 +371,7 @@ class Project(object):
         output = requests.get(url, headers=self.headers, verify=False)
         logger.info("get project branch commits output: {0}".format(output))
         return output
+
+    # def get_git_project_network(self, logger, app, project_id):
+    #     output = self.get_git_project_branches(logger, app, project_id)
+    #     return output
