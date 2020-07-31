@@ -42,11 +42,6 @@ iss = issue.Issue()
 pjt = project.Project(logger, app)
 pipe = pipeline.Pipeline()
 
-headers = {
-    'Content-Type': 'application/json',
-    'Authorization': 'Bearer {0}'.format(au.get_token(logger))
-}
-
 class Index(Resource):
 
     def get(self):
@@ -93,90 +88,6 @@ class RedmineProject(Resource):
     def get(self, user_account):
         output = redmine.get_project(logger, app, user_account)
         return {"projects": output.json()["user"]["memberships"]}
-
-
-class Pipelines_gitrepository(Resource):
-
-    @jwt_required
-    def get(self):
-        url = "https://10.50.1.55/v3/projects/c-7bl58:p-wxgdj/sourcecoderepositories"
-
-        output = ut.callgetapi(url, logger, headers)
-        return output.json()['data']
-
-
-class Pipelines(Resource):
-
-    @jwt_required
-    def get(self):
-        url = "https://10.50.1.55/v3/projects/c-7bl58:p-wxgdj/pipelines"
-        # get hook project list
-        output = ut.callgetapi(url, logger, headers)
-        return output.json()['data']
-
-    @jwt_required
-    def post(self):
-        url = "https://10.50.1.55/v3/projects/c-7bl58:p-wxgdj/pipelines"
-        parameter = {
-            "type": "pipeline",
-            "sourceCodeCredentialId": "user-j8mp5:p-wxgdj-gitlab-root",
-            "repositoryUrl": "http://10.50.0.20/root/devops-flask",
-            "triggerWebhookPr": False,
-            "triggerWebhookPush": True,
-            "triggerWebhookTag": False
-        }
-        output = ut.callpostapi(url, parameter, logger, headers)
-        return output.json()
-
-
-class PipelineID(Resource):
-
-    @jwt_required
-    def delete(self, pipelineid):
-        url = "https://10.50.1.55/v3/projects/c-7bl58:p-wxgdj/pipelines/{0}".format(pipelineid)
-        output = ut.calldeleteapi(url, logger, headers)
-        return "Successful"
-
-    @jwt_required
-    def post(self, pipelineid):
-        url = "https://10.50.1.55/v3/projects/c-7bl58:p-wxgdj/pipelines/{0}".format(pipelineid)
-        logger.info("flask_req.data")
-        parameter = {"branch": "master"}
-        url = url+"?action=run"
-        logger.info("url {0}".format(url))
-        logger.info("data {0}".format(json.dumps(parameter)))
-        logger.info("headers {0}".format(headers))
-        output = ut.callpostapi(url, parameter, logger,headers)
-        return "successful"
-
-
-class Get_pipeline_branchs(Resource):
-
-    @jwt_required
-    def get(self, pipelineid):
-        url = "https://10.50.1.55/v3/projects/c-7bl58:p-wxgdj/pipelines/{0}/branches".format(pipelineid)
-        output = ut.callgetapi(url, logger, headers)
-        return output.json()
-
-
-class PipelineExecutions(Resource):
-
-    @jwt_required
-    def get(self):
-        url = "https://10.50.1.55/v3/projects/c-7bl58:p-wxgdj/pipelineexecutions?order=desc"
-
-        output = ut.callgetapi(url, logger, headers)
-        return output.json()['data']
-
-
-class PipelineExecutionsOne(Resource):
-
-    @jwt_required
-    def get(self, pipelineexecutionsid):
-        url = "https://10.50.1.55/v3/projects/c-7bl58:p-wxgdj/pipelineexecutions/{0}".format(pipelineexecutionsid)
-
-        output = ut.callgetapi(url, logger, headers)
-        return output.json()['stages']
 
     
 class GitProjects(Resource):
@@ -611,8 +522,8 @@ class PipelineInfo(Resource):
 class PipelineExec(Resource):
 
     @jwt_required
-    def get (self, project_id):
-        output_array = pipe.pipeline_exec_list(logger, app, project_id)
+    def get (self, repository_id):
+        output_array = pipe.pipeline_exec_list(logger, app, repository_id)
         return jsonify({'message': 'success', 'data': output_array})
 
 
@@ -626,6 +537,33 @@ class PipelineExecLogs(Resource):
         args = parser.parse_args()
         output_array = pipe.pipeline_exec_logs(logger, app, args)
         return jsonify({'message': 'success', 'data': output_array})
+
+class PipelineSoftware(Resource):
+
+    @jwt_required
+    def get (self):
+        pipe_out_list = pipe.pipeline_software(logger)
+        output_list =[]
+        for pipe_out in pipe_out_list:
+            if 'detail' in pipe_out:
+                pipe_out['detail'] = json.loads(pipe_out['detail'].replace("'",'"'))
+            output_list.append(pipe_out)
+        return jsonify({'message': 'success', 'data': output_list})
+
+
+class PipelineGenerateYaml(Resource):
+
+    @jwt_required
+    def get (self, repository_id, branch_name):
+        output_array = pipe.get_ci_yaml(logger, app, repository_id, branch_name)
+        return jsonify({'message': 'success', 'data': output_array})
+
+    @jwt_required
+    def post (self, repository_id, branch_name):
+        parser = reqparse.RequestParser()
+        parser.add_argument('detail')
+        args = parser.parse_args()
+        output_array = pipe.generate_ci_yaml(logger, args, app, repository_id, branch_name)
 
 
 class IssuesIdList(Resource):
@@ -657,6 +595,7 @@ class IssueRD(Resource):
         parser.add_argument('notes')
         args = parser.parse_args()
         output = iss.update_issue_rd(logger, app, issue_id, args)
+        return jsonify({'message': 'success'})
 
 class IssueStatus(Resource):
 
@@ -732,14 +671,6 @@ api.add_resource(RedmineIssue_by_user, '/redmine_issues_by_user/<user_account>')
 api.add_resource(RedmineIssueStatus, '/redmine_issues_status')
 api.add_resource(RedmineProject, '/redmine_project/<user_account>')
 
-# Rancher pipeline
-api.add_resource(Pipelines_gitrepository, '/pipelines_gitrepository')
-api.add_resource(Pipelines, '/pipelines')
-api.add_resource(PipelineID, '/pipelines/<pipelineid>')
-api.add_resource(Get_pipeline_branchs, '/pipelines/<pipelineid>/branches')
-api.add_resource(PipelineExecutions, '/pipelineexecutions')
-api.add_resource(PipelineExecutionsOne, '/pipelineexecutions/<pipelineexecutionsid>')
-
 # Gitlab project
 api.add_resource(GitProjects, '/git_projects')
 api.add_resource(GitOneProject, '/git_one_project/<project_id>')
@@ -767,9 +698,13 @@ api.add_resource(UserForgetPassword, '/user/forgetPassword')
 api.add_resource(UserInfo, '/user/<user_id>')
 
 # pipeline
-api.add_resource(PipelineInfo, '/pipelines/rd/<project_id>/pipelines_info')
-api.add_resource(PipelineExec, '/pipelines/rd/<project_id>/pipelines_exec')
+# api.add_resource(PipelineInfo, '/pipelines/rd/<project_id>/pipelines_info')
+api.add_resource(PipelineExec, '/pipelines/rd/<repository_id>/pipelines_exec')
 api.add_resource(PipelineExecLogs, '/pipelines/rd/logs')
+
+api.add_resource(PipelineSoftware, '/pipelines/software')
+# api.add_resource(PipelineSample, '/pipelines/sample')
+api.add_resource(PipelineGenerateYaml, '/pipelines/<repository_id>/branch/<branch_name>/generate_ci_yaml')
 
 # issue
 api.add_resource(IssuesIdList, '/project/rd/<project_id>/issues')
@@ -781,8 +716,8 @@ api.add_resource(IssueRDbyUser, '/issues_by_user/rd/<user_id>')
 
 # dashboard
 api.add_resource(DashboardIssuePriority, '/dashboard_issues_priority/rd/<user_id>')
-api.add_resource(DashboardIssueProject, '/dashboard_issues_project/rd/<user_id>')
-api.add_resource(DashboardIssueType, '/dashboard_issues_type/rd/<user_id>')
+api.add_resource(DashboardIssueProject, '/dashboard_issues_project/<user_id>')
+api.add_resource(DashboardIssueType, '/dashboard_issues_type/<user_id>')
 
 
 

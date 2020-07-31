@@ -1,5 +1,11 @@
+import yaml
+import json
+import base64
+import os
+
 from model import db
 from .rancher import Rancher
+from .project import Project
 
 class Pipeline(object):
     headers = {'Content-Type': 'application/json'}
@@ -20,10 +26,10 @@ class Pipeline(object):
             output = None
         return output
 
-    def pipeline_exec_list(self, logger, app, project_id):
+    def pipeline_exec_list(self, logger, app, repository_id):
         output_array = []
         result = db.engine.execute("SELECT * FROM public.project_plugin_relation \
-            WHERE project_id = {0};".format(project_id))
+            WHERE git_repository_Id = {0};".format(repository_id))
         project_relationship = result.fetchone()
         result.close()
         logger.info("project_relationship: {0}".format(project_relationship['ci_project_id']))
@@ -66,3 +72,74 @@ class Pipeline(object):
             project_relationship['ci_project_id'], project_relationship['ci_pipeline_id'], 
             args['pipelines_exec_run'], rancher_token)
         return output_array
+
+    def pipeline_software(self, logger):
+        result = db.engine.execute("SELECT pp.name as phase_name, ps.name as software_name, \
+            psc.detail as detail FROM public.pipeline_phase as pp, \
+            public.pipeline_software as ps, public.pipeline_software_config as psc \
+            WHERE psc.software_id = ps.id AND ps.phase_id = pp.id AND psc.sample = true;")
+        pipe_softs = result.fetchall()
+        result.close()
+        return [dict(row) for row in pipe_softs]
+        # message = os.popen('ls -al ../../../')
+        # logger.info("message: {0}".format(message.read()))
+        '''
+        with open(r'../../../.rancher-pipeline.yml') as file:
+            document = yaml.load(file, Loader=yaml.FullLoader)
+        logger.info("document: {0}".format(document))
+        document['stage']
+        '''
+        # Rancher.gererate_pipeline_ci_yml(self)
+
+    
+    def generate_ci_yaml(self, logger, args, app, repository_id, branch_name):
+        '''
+        result = db.engine.execute("SELECT git_repository_id FROM public.project_plugin_relation \
+            WHERE project_id = {0};".format(project_id))
+        project_relationship = result.fetchone()
+        result.close()
+        logger.info("project_relationship: {0}".format(project_relationship['ci_project_id']))
+        '''
+        parameter = {}
+        dict_object = json.loads(args['detail'].replace("'",'"'))
+        docum = yaml.dump(dict_object)
+        logger.info("generate_ci_yaml documents: {0}".format(docum))
+        base_file = base64.b64encode(bytes(docum, encoding= 'utf-8')).decode('utf-8')
+        logger.info("generate_ci_yaml base_file: {0}".format(base_file))
+        parameter['file_path'] = '.rancher-pipeline.yml'
+        parameter['branch'] = branch_name
+        parameter['start_branch'] = branch_name
+        parameter['encoding'] = 'base64'
+        parameter['content'] = base_file
+        parameter['author_email'] = "admin@example.com"
+        parameter['author_name'] = "admin"
+        parameter['file_path'] = '.rancher-pipeline.yaml'
+        yaml_info = Project.get_git_project_file_for_pipeline(self, logger, app, repository_id, parameter)
+        parameter['file_path'] = '.rancher-pipeline.yml'
+        yml_info = Project.get_git_project_file_for_pipeline(self, logger, app, repository_id, parameter)
+        if yaml_info.status_code == 404 and yml_info.status_code == 404:
+            action = "post"
+            parameter['commit_message'] = "add .rancher-pipeline.yml"
+        else:
+            action = "put"
+            parameter['commit_message'] = "modify .rancher-pipeline.yml"
+        Project.create_ranhcer_pipline_yaml(self, logger, app, repository_id, parameter, action)
+    
+    def get_ci_yaml(self, logger, app, repository_id, branch_name):
+        parameter={}
+        parameter['branch'] = branch_name
+        parameter['file_path'] = '.rancher-pipeline.yaml'
+        yaml_info = Project.get_git_project_file_for_pipeline(self, logger, app, repository_id, parameter)
+        parameter['file_path'] = '.rancher-pipeline.yml'
+        yml_info = Project.get_git_project_file_for_pipeline(self, logger, app, repository_id, parameter)
+        get_yaml_data = None
+        if yaml_info.status_code != 404:
+            get_yaml_data = yaml_info.json()
+        elif yml_info.status_code != 404:
+            get_yaml_data = yml_info.json()
+        logger.info('get_yaml_data: {0}'.format(get_yaml_data['content']))
+        rancher_ci_yaml = base64.b64decode(get_yaml_data['content']).decode("utf-8") 
+        logger.info('rancher_ci_yaml: {0}'.format(rancher_ci_yaml))
+        rancher_ci_json = yaml.load(rancher_ci_yaml)
+        logger.info('rancher_ci_json: {0}'.format(rancher_ci_json))
+        return rancher_ci_json

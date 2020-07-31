@@ -113,9 +113,15 @@ class Project(object):
         logger.info("delete project webhook output: {0}".format(output))
         return output
     
+    def get_project_by_plan_project_id(self, logger, app, plan_project_id):
+        result = db.engine.execute("SELECT * FROM public.project_plugin_relation \
+            WHERE plan_project_id = {0}".format(plan_project_id))
+        project = result.fetchone()
+        result.close()
+        return project
+
     def get_project_list(self, logger, app, user_id):
         output_array = []
-        # get project list
         result = db.engine.execute("SELECT pj.id, pj.name, ppl.plan_project_id, \
             ppl.git_repository_id, ppl.ci_project_id, ppl.ci_pipeline_id\
             FROM public.project_user_role as pur, public.projects as pj, public.project_plugin_relation as ppl\
@@ -133,6 +139,7 @@ class Project(object):
         for project in  project_list:
             output_dict = {}
             output_dict['name'] = project['name']
+            output_dict['project_id'] = project['id']
 
             output_dict['repository_ids'] = [project['git_repository_id']]
 
@@ -154,42 +161,55 @@ class Project(object):
             logger.info("next_d_time: {0}".format(next_d_time))
             output_dict['next_d_time'] = next_d_time
 
-            branch_number = 0
             # branch bumber
+            branch_number = 0
             output = self.get_git_project_branches(logger, app, project['git_repository_id'])
             logger.info("get_git_project_branches output: {0}".format(type(output.json())))
             if output.status_code == 200:
                 branch_number = len(output.json())
             logger.info("get_git_project_branches number: {0}".format(branch_number))
             output_dict['branch'] = branch_number
+            # tag nubmer
+            tag_number = 0
+            output = self.get_git_project_tags(logger, app, project['git_repository_id'])
+            logger.info("get_git_project_tags output: {0}".format(type(output.json())))
+            if output.status_code == 200:
+                tag_number = len(output.json())
+            logger.info("get_git_project_tags number: {0}".format(branch_number))
+            output_dict['tag'] = tag_number
 
-            # get rancher pipeline 
-            rancher_token = Rancher.get_rancher_token(self, app, logger)
-            pipeline_output = Rancher.get_rancher_pipelineexecutions(self, app, logger, project["ci_project_id"],\
-                project["ci_pipeline_id"], rancher_token)
-            if len(pipeline_output) != 0:
-                logger.info(pipeline_output[0]['name'])
-                logger.info(pipeline_output[0]['created'])
-                output_dict['last_test_time'] = pipeline_output[0]['created']
-
-                stage_status = []
-                # logger.info(pipeline_output[0]['stages'])
-                for stage in pipeline_output[0]['stages']:
-                    logger.info("stage: {0}".format(stage))
-                    if 'state' in stage:
-                        stage_status.append(stage['state'])
-                logger.info(stage_status)
-                failed_item = -1
-                if 'Failed' in stage_status:
-                    failed_item = stage_status.index('Failed')
-                    logger.info("failed_item: {0}".format(failed_item))
-                    output_dict['lest_test_result']={'total': len(pipeline_output[0]['stages']),\
-                        'success': failed_item }
-                else:
-                    output_dict['lest_test_result']={'total': len(pipeline_output[0]['stages']),\
-                        'success': len(pipeline_output[0]['stages'])}
+            output_dict = self.get_ci_last_test_result(app, logger, output_dict, project)
             output_array.append(output_dict)
         return output_array
+
+    def get_ci_last_test_result(self, app, logger, output_dict, project):
+        # get rancher pipeline
+        output_dict['last_test_time'] = ""
+        output_dict['last_test_result'] = {}
+        rancher_token = Rancher.get_rancher_token(self, app, logger)
+        pipeline_output = Rancher.get_rancher_pipelineexecutions(self, app, logger, project["ci_project_id"],\
+            project["ci_pipeline_id"], rancher_token)
+        if len(pipeline_output) != 0:
+            logger.info(pipeline_output[0]['name'])
+            logger.info(pipeline_output[0]['created'])
+            output_dict['last_test_time'] = pipeline_output[0]['created']
+            stage_status = []
+            # logger.info(pipeline_output[0]['stages'])
+            for stage in pipeline_output[0]['stages']:
+                logger.info("stage: {0}".format(stage))
+                if 'state' in stage:
+                    stage_status.append(stage['state'])
+            logger.info(stage_status)
+            failed_item = -1
+            if 'Failed' in stage_status:
+                failed_item = stage_status.index('Failed')
+                logger.info("failed_item: {0}".format(failed_item))
+                output_dict['last_test_result']={'total': len(pipeline_output[0]['stages']),\
+                    'success': failed_item }
+            else:
+                output_dict['last_test_result']={'total': len(pipeline_output[0]['stages']),\
+                    'success': len(pipeline_output[0]['stages'])}
+        return output_dict
 
     # 用project_id查詢project的branches
     def get_git_project_branches(self, logger, app, project_id):
@@ -362,8 +382,35 @@ class Project(object):
                 output_extra = requests.delete(url, headers=self.headers, verify=False)
                 logger.info("delete project mergerequest output:{0}".format(output_extra))                
         return output
+
+    def create_ranhcer_pipline_yaml(self, logger, app, project_id, args, action):
+        pro = Project(logger, app)
+        url = "http://{0}/api/{1}/projects/{2}/repository/files/{3}?private_token={4}&branch={5}&\
+start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&commit_message={11}" \
+            .format( app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, \
+            args["file_path"], pro.private_token, args["branch"], args["start_branch"], \
+            args["encoding"], args["author_email"], args["author_name"], args["content"], \
+            args["commit_message"])
+        if action == 'post':
+            logger.info("post project file url: {0}".format(url))
+            output = requests.post(url, headers=self.headers, verify=False)
+            logger.info("post project file output: {0}".format(output.json()))
+        else:
+            logger.info("put project file url: {0}".format(url))
+            output = requests.put(url, headers=self.headers, verify=False)
+            logger.info("put project file output: {0}".format(output.json()))
+        return output
+
+    def get_git_project_file_for_pipeline(self, logger, app, project_id, args):
+        pro = Project(logger, app)
+        url = "http://{0}/api/{1}/projects/{2}/repository/files/{3}?private_token={4}&ref={5}"\
+            .format(app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, \
+            args["file_path"], pro.private_token, args["branch"])
+        logger.info("get project file url: {0}".format(url))
+        output = requests.get(url, headers=self.headers, verify=False)
+        logger.info("get project file output: {0}".format(output.json()))
         
-    # 用project_id查詢project的commits
+    # 用project_id查詢project的commits
     def get_git_project_branch_commits(self, logger, app, project_id, args):
         url = "http://{0}/api/{1}/projects/{2}/repository/commits?private_token={3}&ref_name={4}&per_page=100".format(\
             app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, self.private_token, args["branch"])
