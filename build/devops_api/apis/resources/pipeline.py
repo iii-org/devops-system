@@ -64,11 +64,11 @@ class Pipeline(object):
 
     def pipeline_exec_logs(self, logger, app, args):
         result = db.engine.execute("SELECT * FROM public.project_plugin_relation \
-            WHERE project_id = {0};".format(args['project_id']))
+            WHERE git_repository_id = {0};".format(args['repository_id']))
         project_relationship = result.fetchone()
         result.close()
         rancher_token = Rancher.get_rancher_token(self, app, logger)
-        output_array = pipeline_outputs = Rancher.get_rancher_pipelineexecutions_logs(self, app, logger, \
+        output_array = Rancher.get_rancher_pipelineexecutions_logs(self, app, logger, \
             project_relationship['ci_project_id'], project_relationship['ci_pipeline_id'], 
             args['pipelines_exec_run'], rancher_token)
         return output_array
