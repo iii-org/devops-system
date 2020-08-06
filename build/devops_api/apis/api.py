@@ -681,9 +681,7 @@ api.add_resource(UserInfo, '/user/<user_id>')
 # pipeline
 api.add_resource(PipelineExec, '/pipelines/rd/<repository_id>/pipelines_exec')
 api.add_resource(PipelineExecLogs, '/pipelines/rd/logs')
-
 api.add_resource(PipelineSoftware, '/pipelines/software')
-# api.add_resource(PipelineSample, '/pipelines/sample')
 api.add_resource(PipelineGenerateYaml, '/pipelines/<repository_id>/branch/<branch_name>/generate_ci_yaml')
 
 # issue
