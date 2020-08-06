@@ -501,14 +501,6 @@ class GitProjectBranchCommmits(Resource):
         return output.json()
 
 
-class PipelineInfo(Resource):
-
-    @jwt_required
-    def get (self, project_id):
-        output = pipe.pipeline_info(logger, project_id)
-        return jsonify(output)
-
-
 class PipelineExec(Resource):
 
     @jwt_required
@@ -687,7 +679,6 @@ api.add_resource(UserForgetPassword, '/user/forgetPassword')
 api.add_resource(UserInfo, '/user/<user_id>')
 
 # pipeline
-# api.add_resource(PipelineInfo, '/pipelines/rd/<project_id>/pipelines_info')
 api.add_resource(PipelineExec, '/pipelines/rd/<repository_id>/pipelines_exec')
 api.add_resource(PipelineExecLogs, '/pipelines/rd/logs')
 
