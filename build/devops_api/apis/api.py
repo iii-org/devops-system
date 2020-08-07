@@ -502,13 +502,13 @@ class GitProjectBranchCommmits(Resource):
         return output.json()
 
 
-# class GitProjectNetwork(Resource):
+class GitProjectNetwork(Resource):
 
-#     @jwt_required
-#     def get(self, repository_id):
-#         project_id = repository_id
-#         # output = pjt.get_git_project_network(logger, app, project_id)
-#         # return output.json()
+    @jwt_required
+    def get(self, repository_id):
+        project_id = repository_id
+        output = pjt.get_git_project_network(logger, app, project_id)
+        return output
 
 
 class PipelineInfo(Resource):
@@ -686,7 +686,7 @@ api.add_resource(GitProjectTag, '/repositories/rd/<repository_id>/tags/<tag_name
 api.add_resource(GitProjectDirectory, '/repositories/rd/<repository_id>/directory/<directory_path>')
 api.add_resource(GitProjectMergeBranch, '/repositories/rd/<repository_id>/merge_branches')
 api.add_resource(GitProjectBranchCommmits, '/repositories/rd/<repository_id>/commits')
-# api.add_resource(GitProjectNetwork, '/repositories/rd/<repository_id>/network')
+api.add_resource(GitProjectNetwork, '/repositories/<repository_id>/overview')
 
 
 # Project
