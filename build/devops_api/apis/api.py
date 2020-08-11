@@ -49,6 +49,13 @@ class Index(Resource):
         return {"message": "DevOps api is working"}
 
 
+class RedmineProjectList(Resource):
+
+    @jwt_required
+    def get(self):
+        output = pjt.get_redmine_project_list(logger, app)
+        return output.json()
+
 class RedmineIssue_by_user(Resource):
 
     @jwt_required
@@ -664,6 +671,9 @@ class DashboardIssueType(Resource):
 
 
 api.add_resource(Index, '/')
+
+# Redmine project
+api.add_resource(RedmineProjectList , '/project/list')
 
 # Redmine issue
 api.add_resource(RedmineIssue, '/redmine_issue/<issue_id>')

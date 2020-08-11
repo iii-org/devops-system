@@ -419,6 +419,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         logger.info("get project branch commits output: {0}".format(output))
         return output
 
+    # 用project_id查詢project的網路圖
     def get_git_project_network(self, logger, app, project_id):
         
         output_list = []
@@ -465,3 +466,11 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
             output_list.append(tag_obj)
         
         return output_list
+    
+    # 查詢redmine的project list
+    def get_redmine_project_list(self, logger, app):
+        url = "http://{0}/projects.json?key={1}".format(app.config["REDMINE_IP_PORT"], app.config["REDMINE_API_KEY"])
+        logger.info("get redmine project list url: {0}".format(url))
+        output = requests.get(url, headers=self.headers, verify=False)
+        logger.info("get redmine project list output: {0} / {1}".format(output, output.json()))
+        return output
