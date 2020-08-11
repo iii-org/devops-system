@@ -1,29 +1,42 @@
 import datetime
+import json
 from Cryptodome.Hash import SHA256
 
-from .util import util
 from model import db
 
 # from jsonwebtoken import jsonwebtoken
 from flask_jwt_extended import (
-    JWTManager, jwt_required, create_access_token,
-    jwt_refresh_token_required, create_refresh_token,
-    get_jwt_identity
+    create_access_token, JWTManager, get_jwt_claims
 )
 
+jwt = JWTManager()
+
 class auth(object):
-    
+
+    '''
+    @jwt.user_claims_loader
+    def jwt_response_data(row):
+        return {
+            'user_id': row['id'],
+            'role_id': row['role_id']
+        }
+    '''
+
     def __init__(self):
         pass
-    
+
     def user_login(self, logger, args):
+        
         h = SHA256.new()
         h.update(args["password"].encode())
-        result = db.engine.execute("SELECT id, login, password FROM public.user")
+        result = db.engine.execute("SELECT ur.id, ur.login, ur.password, pur.role_id \
+            FROM public.user as ur, public.project_user_role as pur WHERE ur.id = pur.user_id")
         for row in result:
             if row['login'] == args["username"] and row['password'] == h.hexdigest():
+                data = {'user_id': row["id"], 'role_id': row["role_id"]}
                 expires = datetime.timedelta(days=1)
-                access_token = create_access_token(identity=row["id"], expires_delta=expires)
+                logger.info("data type: {0}".format(type(data)))
+                access_token = create_access_token(identity=json.dumps(data), expires_delta=expires)
                 logger.info("jwt access_token: {0}".format(access_token))
                 return access_token
         return None
