@@ -474,3 +474,11 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         output = requests.get(url, headers=self.headers, verify=False)
         logger.info("get redmine project list output: {0} / {1}".format(output, output.json()))
         return output
+
+    # 用project_id查詢redmine的單一project
+    def get_redmine_one_project(self, logger, app, project_id):
+        url = "http://{0}/projects/{1}.json?key={2}".format(app.config["REDMINE_IP_PORT"], project_id, app.config["REDMINE_API_KEY"])
+        logger.info("get redmine one project url: {0}".format(url))
+        output = requests.get(url, headers=self.headers, verify=False)
+        logger.info("get redmine one project output: {0} / {1}".format(output, output.json()))
+        return output

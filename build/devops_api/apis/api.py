@@ -56,6 +56,15 @@ class RedmineProjectList(Resource):
         output = pjt.get_redmine_project_list(logger, app)
         return output.json()
 
+
+class RedmineOneProject(Resource):
+
+    @jwt_required
+    def get(self, project_id):
+        output = pjt.get_redmine_one_project(logger, app, project_id)
+        return output.json()
+
+
 class RedmineIssue_by_user(Resource):
 
     @jwt_required
@@ -674,6 +683,7 @@ api.add_resource(Index, '/')
 
 # Redmine project
 api.add_resource(RedmineProjectList , '/project/list')
+api.add_resource(RedmineOneProject , '/project/<project_id>')
 
 # Redmine issue
 api.add_resource(RedmineIssue, '/redmine_issue/<issue_id>')
