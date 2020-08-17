@@ -547,8 +547,6 @@ class GitProjectBranchCommmits(Resource):
         return output.json()
 
 
-<<<<<<< HEAD
-=======
 class GitProjectNetwork(Resource):
 
     @jwt_required
@@ -566,7 +564,6 @@ class PipelineInfo(Resource):
         return jsonify(output)
 
 
->>>>>>> 98c7ce026b9e0cd5d23491ded9833ffdcdb5b044
 class PipelineExec(Resource):
 
     @jwt_required
