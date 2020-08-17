@@ -482,3 +482,37 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         output = requests.get(url, headers=self.headers, verify=False)
         logger.info("get redmine one project output: {0} / {1}".format(output, output.json()))
         return output
+
+    def create_one_project(self, logger, app, args):
+        redmine_url = "http://{0}/projects.json?key={1}".format(app.config["REDMINE_IP_PORT"], app.config["REDMINE_API_KEY"])
+        logger.info("create redmine project url: {0}".format(redmine_url))
+        xml_body = """<?xml version="1.0" encoding="UTF-8"?>\
+                    <project>\
+                    <name>{0}</name>\
+                    <identifier>{1}</identifier>\
+                    </project>""".format(args["name"], args["identifier"])
+        logger.info("create redmine project body: {0}".format(xml_body))
+        headers = {'Content-Type': 'application/xml'}
+        redmine_output = requests.post(redmine_url, headers=headers, data=xml_body, verify=False)
+        logger.info("create redmine project output: {0} / {1}".format(redmine_output, redmine_output.json()))
+        redmine_pj_id = redmine_output.json()["project"]["id"]
+        print("redmine_pj_id is {0}".format(redmine_pj_id))
+        
+        gitlab_url = "http://{0}/api/{1}/projects?private_token={2}&name={3}".format(\
+            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], self.private_token, args["name"])
+        logger.info("create gitlab project url: {0}".format(gitlab_url))
+        gitlab_output = requests.post(gitlab_url, headers=self.headers, verify=False)
+        logger.info("create gitlab project output: {0} / {1}".format(gitlab_output, gitlab_output.json()))
+        gitlab_pj_id = gitlab_output.json()["id"]
+        print("gitlab_pj_id is {0}".format(gitlab_pj_id))
+
+        result = db.engine.execute("INSERT INTO public.project_plugin_relation (plan_project_id, git_repository_id) VALUES ({0}, {1})".format(redmine_pj_id, gitlab_pj_id))
+        print(result)
+        
+        output = {
+            "result": "success",
+            "plan_project_id": redmine_pj_id,
+            "git_repository_id": gitlab_pj_id
+        }
+
+        return output
