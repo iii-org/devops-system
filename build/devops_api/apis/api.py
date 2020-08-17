@@ -261,11 +261,12 @@ class UserInfo(Resource):
     @jwt_required
     def delete (self, user_id):
         '''delete user'''
-        if int(user_id) == get_jwt_identity():
-            user_info = au.user_info(logger, user_id)
-            return jsonify({'message': 'success', 'data': user_info})
-        else:
-            return {'message': 'Access token is missing or invalid'}, 401
+        try:
+            au.delete_user(logger, user_id)
+            return jsonify({'message': 'success'})
+        except Exception as error:
+            return jsonify({"message": str(error)}), 400
+
 
 class User(Resource):
 

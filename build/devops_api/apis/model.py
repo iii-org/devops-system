@@ -23,6 +23,8 @@ class User():
                                 'create_at', db.DATETIME(255)),
                             db.Column(
                                 'update_at', db.DATETIME(255)),
+                            db.Column(
+                                'disable', db.Boolean)
                         )
 
 class UserPluginRelation():

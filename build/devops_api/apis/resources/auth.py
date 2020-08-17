@@ -96,6 +96,14 @@ class auth(object):
         logger.info("set_string: {0}".format(set_string))
         result = db.engine.execute("UPDATE public.user SET {0} WHERE id = {1}".format(set_string, user_id))
 
+    def delete_user(self, logger, user_id):
+        ''' disable user on user table'''
+        update_user_to_disable_command = db.update(User.stru_user)\
+            .where(db.and_(User.stru_user.c.id==user_id)).values(disable=True)
+        logger.debug("update_user_to_disable_command: {0}".format(update_user_to_disable_command))
+        reMessage = util.callsqlalchemy(self, update_user_to_disable_command, logger)
+        logger.info("reMessage: {0}".format(reMessage))
+
     def create_user(self, logger, args, app):
         ''' create user in plan phase software(redmine) and repository_user_id(gitlab)
         Create DB user, user_plugin_relation, project_user_role, groups_has_users 4 table
