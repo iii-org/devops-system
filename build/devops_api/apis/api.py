@@ -49,6 +49,22 @@ class Index(Resource):
         return {"message": "DevOps api is working"}
 
 
+class RedmineProjectList(Resource):
+
+    @jwt_required
+    def get(self):
+        output = pjt.get_redmine_project_list(logger, app)
+        return output.json()
+
+
+class RedmineOneProject(Resource):
+
+    @jwt_required
+    def get(self, project_id):
+        output = pjt.get_redmine_one_project(logger, app, project_id)
+        return output.json()
+
+
 class RedmineIssue_by_user(Resource):
 
     @jwt_required
@@ -459,6 +475,7 @@ class GitProjectTag(Resource):
         else:
             return str(output)
 
+
 class GitProjectDirectory(Resource):
 
     @jwt_required
@@ -530,6 +547,26 @@ class GitProjectBranchCommmits(Resource):
         return output.json()
 
 
+<<<<<<< HEAD
+=======
+class GitProjectNetwork(Resource):
+
+    @jwt_required
+    def get(self, repository_id):
+        project_id = repository_id
+        output = pjt.get_git_project_network(logger, app, project_id)
+        return output
+
+
+class PipelineInfo(Resource):
+
+    @jwt_required
+    def get (self, project_id):
+        output = pipe.pipeline_info(logger, project_id)
+        return jsonify(output)
+
+
+>>>>>>> 98c7ce026b9e0cd5d23491ded9833ffdcdb5b044
 class PipelineExec(Resource):
 
     @jwt_required
@@ -676,6 +713,10 @@ class DashboardIssueType(Resource):
 
 api.add_resource(Index, '/')
 
+# Redmine project
+api.add_resource(RedmineProjectList , '/project/list')
+api.add_resource(RedmineOneProject , '/project/<project_id>')
+
 # Redmine issue
 api.add_resource(RedmineIssue, '/redmine_issue/<issue_id>')
 api.add_resource(RedmineIssue_by_user, '/redmine_issues_by_user/<user_account>')
@@ -697,6 +738,7 @@ api.add_resource(GitProjectTag, '/repositories/rd/<repository_id>/tags/<tag_name
 api.add_resource(GitProjectDirectory, '/repositories/rd/<repository_id>/directory/<directory_path>')
 api.add_resource(GitProjectMergeBranch, '/repositories/rd/<repository_id>/merge_branches')
 api.add_resource(GitProjectBranchCommmits, '/repositories/rd/<repository_id>/commits')
+api.add_resource(GitProjectNetwork, '/repositories/<repository_id>/overview')
 
 
 # Project
