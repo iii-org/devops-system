@@ -13,14 +13,15 @@ jwt = JWTManager()
 
 class auth(object):
 
-    '''
     @jwt.user_claims_loader
     def jwt_response_data(row):
         return {
             'user_id': row['id'],
-            'role_id': row['role_id']
+            'user_account': row["login"],
+            'role_id': row['role_id'],
+            'role_name': row['role_name']
         }
-    '''
+
 
     def __init__(self):
         pass
@@ -29,14 +30,14 @@ class auth(object):
         
         h = SHA256.new()
         h.update(args["password"].encode())
-        result = db.engine.execute("SELECT ur.id, ur.login, ur.password, pur.role_id \
-            FROM public.user as ur, public.project_user_role as pur WHERE ur.id = pur.user_id")
+        result = db.engine.execute("SELECT ur.id, ur.login, ur.password, pur.role_id, \
+            rl.name as role_name \
+            FROM public.user as ur, public.project_user_role as pur, public.roles as rl \
+            WHERE ur.id = pur.user_id AND pur.role_id = rl.id")
         for row in result:
             if row['login'] == args["username"] and row['password'] == h.hexdigest():
-                data = {'user_id': row["id"], 'role_id': row["role_id"]}
                 expires = datetime.timedelta(days=1)
-                logger.info("data type: {0}".format(type(data)))
-                access_token = create_access_token(identity=json.dumps(data), expires_delta=expires)
+                access_token = create_access_token(identity=auth.jwt_response_data(row), expires_delta=expires)
                 logger.info("jwt access_token: {0}".format(access_token))
                 return access_token
         return None
