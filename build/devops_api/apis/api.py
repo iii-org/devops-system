@@ -193,7 +193,7 @@ class UserLogin(Resource):
         args = parser.parse_args()
         token = au.user_login(logger, args)
         if token is None:
-            return None, 400
+            return jsonify({"message": "Coult not get token"}), 500
         else:
             return jsonify({"message": "success", "data": {"token": token}})
 
@@ -209,7 +209,7 @@ class UserForgetPassword(Resource):
             status = au.user_forgetpassword(logger, args)
             return jsonify({"message": "success"})
         except Exception as err:
-            return jsonify({"message": err})
+            return jsonify({"message": err}), 400
 
 
 class UserInfo(Resource):
@@ -234,11 +234,40 @@ class UserInfo(Resource):
             parser.add_argument('group', type=str)
             parser.add_argument('role', type=str)
             args = parser.parse_args()
-            au.update_user_info(logger, user_id, args)
-            return jsonify({'message': 'success'})
+            try:
+                au.update_user_info(logger, user_id, args)
+                return jsonify({'message': 'success'})
+            except Exception as error:
+                return jsonify({"message": str(error)}), 400
         else:
             return {'message': 'Access token is missing or invalid'}, 401
 
+    @jwt_required
+    def delete (self, user_id):
+        '''delete user'''
+        if int(user_id) == get_jwt_identity():
+            user_info = au.user_info(logger, user_id)
+            return jsonify({'message': 'success', 'data': user_info})
+        else:
+            return {'message': 'Access token is missing or invalid'}, 401
+
+class User(Resource):
+
+    @jwt_required
+    def post (self):
+        '''create user'''
+        parser = reqparse.RequestParser()
+        parser.add_argument('name', type=str)
+        parser.add_argument('username', type=str, required=True)
+        parser.add_argument('email', type=str, required=True)
+        parser.add_argument('phone', type=int, required=True)
+        parser.add_argument('login', type=str, required=True)
+        parser.add_argument('password', type=str, required=True)
+        parser.add_argument('group_id', action='append')
+        parser.add_argument('role_id', type=int, required=True)
+        args = parser.parse_args()
+        output = au.create_user(logger, args, app)
+        return output
 
 class GitProjectBranches(Resource):
 
@@ -677,6 +706,7 @@ api.add_resource(ProjectList, '/project/rd/<user_id>')
 api.add_resource(UserLogin, '/user/login')
 api.add_resource(UserForgetPassword, '/user/forgetPassword')
 api.add_resource(UserInfo, '/user/<user_id>')
+api.add_resource(User, '/user')
 
 # pipeline
 api.add_resource(PipelineExec, '/pipelines/rd/<repository_id>/pipelines_exec')

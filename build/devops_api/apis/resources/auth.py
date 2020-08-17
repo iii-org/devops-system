@@ -2,7 +2,9 @@ import datetime
 from Cryptodome.Hash import SHA256
 
 from .util import util
-from model import db
+from .redmine import Redmine
+from .gitlab import GitLab
+from model import db, User, UserPluginRelation, GroupsHasUsers, ProjectUserRole
 
 # from jsonwebtoken import jsonwebtoken
 from flask_jwt_extended import (
@@ -14,7 +16,8 @@ from flask_jwt_extended import (
 class auth(object):
     
     def __init__(self):
-        pass
+        self.redmine_key = None
+        self.headers = {'Content-Type': 'application/json'}
     
     def user_login(self, logger, args):
         h = SHA256.new()
@@ -41,7 +44,7 @@ class auth(object):
             ur.update_at as update_at, rl.name as role_name, gp.name as group_name FROM public.user as ur, \
             public.project_user_role as pur, public.roles as rl, public.groups_has_users as gu,\
             public.group as gp WHERE ur.id = {0} AND ur.id = pur.user_id AND pur.role_id = rl.id \
-            AND ur.id = gu.user_id AND gu.group_id = gp.id ".format(user_id))
+            AND ur.id = gu.user_id AND gu.group_id = gp.id".format(user_id))
         user_data = result.fetchone()
         result.close()
         logger.info("user info: {0}".format(user_data["id"]))
@@ -92,3 +95,63 @@ class auth(object):
         set_string += "update_at = localtimestamp"
         logger.info("set_string: {0}".format(set_string))
         result = db.engine.execute("UPDATE public.user SET {0} WHERE id = {1}".format(set_string, user_id))
+
+    def create_user(self, logger, args, app):
+        ''' create user in plan phase software(redmine) and repository_user_id(gitlab)
+        Create DB user, user_plugin_relation, project_user_role, groups_has_users 4 table
+        '''
+        h = SHA256.new()
+        h.update(args["password"].encode())
+        args["password"] = h.hexdigest()
+        insert_user_command = db.insert(User.stru_user).values(name=args['name'],
+            username=args['username'], email=args['email'], phone=args['phone'],
+            login=args['login'], password = h.hexdigest(), create_at=datetime.datetime.now())
+        logger.debug("insert_user_command: {0}".format(insert_user_command))
+        reMessage = util.callsqlalchemy(self, insert_user_command, logger)
+        logger.info("reMessage: {0}".format(reMessage))
+
+        #get user_id
+        get_user_command = db.select([User.stru_user]).where(db.and_(User.stru_user.c.login==args['login']))
+        logger.debug("get_user_command: {0}".format(get_user_command))
+        reMessage = util.callsqlalchemy(self, get_user_command, logger)
+        user_id = reMessage.fetchone()['id']
+        logger.info("user_id: {0}".format(user_id))
+
+        # plan software user create
+        Redmine.get_redmine_key(self, logger, app)
+        red_user = Redmine.redmine_post_user(self, logger, app, args)
+        if red_user.status_code == 201:
+            redmine_user_id = red_user.json()['user']['id']
+        else:
+            return {"message": {"redmine": red_user.json()}}, red_user.status_code
+        # git software user create
+        git_user = GitLab.create_user(self, logger, app, args)
+        if git_user.status_code == 201:
+            gitlab_user_id = git_user.json()['id']
+        else:
+            return {"message": {"gitlab": git_user.json()}}, git_user.status_code
+
+        #insert user_plugin_relation table
+        insert_user_plugin_relation_command = db.insert(UserPluginRelation.stru_user_plug_relation)\
+            .values(user_id = user_id, plan_user_id = redmine_user_id, \
+            repository_user_id = gitlab_user_id)
+        logger.debug("insert_user_plugin_relation_command: {0}".format(insert_user_plugin_relation_command))
+        reMessage = util.callsqlalchemy(self, insert_user_plugin_relation_command, logger)
+        logger.info("reMessage: {0}".format(reMessage))
+
+        # insert role and user into project_user_role
+        insert_project_user_role_command = db.insert(ProjectUserRole.stru_project_user_role)\
+            .values(user_id = user_id, role_id = args['role_id'])
+        logger.debug("insert_project_user_role_command: {0}".format(insert_project_user_role_command))
+        reMessage = util.callsqlalchemy(self, insert_project_user_role_command, logger)
+        logger.info("reMessage: {0}".format(reMessage))
+
+        if args["group_id"] is not None:
+            # add users into groups_has_users table
+            for group_id in args["group_id"]:
+                #insert groups_has_users table
+                insert_groups_has_users_command = db.insert(GroupsHasUsers.stru_groups_has_users)\
+                    .values(group_id = group_id, user_id = user_id)
+                logger.debug("insert_groups_has_users_command: {0}".format(insert_groups_has_users_command))
+                reMessage = util.callsqlalchemy(self, insert_groups_has_users_command, logger)
+                logger.info("reMessage: {0}".format(reMessage))

@@ -5,6 +5,9 @@ import sqlalchemy
 from sqlalchemy import orm
 import requests
 
+
+from model import db
+
 class util(object):
     def __init__(self):
         pass
@@ -40,8 +43,7 @@ class util(object):
     def callSQL(self, command, conf, logger):
         reMessage = None
         try:
-            engine = sqlalchemy.create_engine(conf["connection"])
-            Session = orm.sessionmaker(bind=engine)
+            Session = orm.sessionmaker(bind=db.engine)
             session = Session()
             commandText = sqlalchemy.text(command)
             reMessage = session.execute(commandText)
@@ -51,19 +53,20 @@ class util(object):
 
         return reMessage
 
-    def callsqlalchemy(self, command, connection_string, logger):
+    def callsqlalchemy(self, command, logger):
         reMessage = None
-        try:
-            engine = sqlalchemy.create_engine(connection_string)
-            DBSession = orm.sessionmaker(bind=engine)
-            session = DBSession()
+
+        DBSession = orm.sessionmaker(bind=db.engine)
+        session = DBSession()
+        try: 
             reMessage = session.execute(command)
+            logger.info("Call SQL successful messages: {0}".format(type(reMessage)))
             session.commit()
             session.close()
             return reMessage
-        except Exception as e:
-            logger.error("Call SQL Fail messages: {0}".format(e))
-            return e.message
+        except Exception as error:
+            session.rollback()
+            logger.error("Call SQL Fail messages: {0}".format(str(error)))
 
     def callpostapi(self, url, parameter, logger, headers):
         try:

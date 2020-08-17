@@ -99,3 +99,21 @@ class Redmine(object):
         output = requests.get(url, headers=self.headers, verify=False)
         logger.info("get issues stauts list output: {0}".format(output.json()))
         return output.json()
+    
+    def redmine_post_user(self, logger, app, args):
+        url = "http://{0}/users.json?key={1}".format(
+            app.config['REDMINE_IP_PORT'], self.redmine_key)
+        param = {
+            "user": {
+                "login": args["login"],
+                "firstname": args["name"],
+                "lastname": args["username"],
+                "mail": args["email"],
+                "password": args["password"] 
+            }
+        }
+        logger.info("post user param: {0}".format(param))
+        output = requests.post(url, data=json.dumps(param), headers=self.headers, verify=False)
+        logger.info("redmine create user api output: status_code: {0}, message: {1}".format(
+            output.status_code, output.json()))
+        return output
