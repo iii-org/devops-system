@@ -177,7 +177,7 @@ class ProjectList(Resource):
 
     @jwt_required
     def get (self, user_id):
-        if int(user_id) == get_jwt_identity():
+        if int(user_id) == get_jwt_identity()['user_id']:
             output_array = pjt.get_project_list(logger, app, user_id)
             return jsonify({'message': 'success', 'data': output_array})
         else:
@@ -216,7 +216,7 @@ class UserInfo(Resource):
 
     @jwt_required
     def get (self, user_id):
-        if int(user_id) == get_jwt_identity():
+        if int(user_id) == get_jwt_identity()['user_id']:
             user_info = au.user_info(logger, user_id)
             return jsonify({'message': 'success', 'data': user_info})
         else:
@@ -224,7 +224,7 @@ class UserInfo(Resource):
 
     @jwt_required
     def put(self, user_id):
-        if int(user_id) == get_jwt_identity():
+        if int(user_id) == get_jwt_identity()['user_id']:
             parser = reqparse.RequestParser()
             parser.add_argument('name', type=str)
             parser.add_argument('username', type=str)
@@ -605,7 +605,7 @@ class IssueRDbyUser(Resource):
 
     @jwt_required
     def get (self, user_id):
-        if int(user_id) == get_jwt_identity():
+        if int(user_id) == get_jwt_identity()['user_id']:
             output = iss.get_issue_by_user(logger, app, user_id)
             return jsonify({'message': 'success', 'data': output})
         else:
@@ -616,7 +616,7 @@ class DashboardIssuePriority(Resource):
 
     @jwt_required
     def get (self, user_id):
-        if int(user_id) == get_jwt_identity():
+        if int(user_id) == get_jwt_identity()['user_id']:
             output = iss.count_prioriry_number_by_issues(logger, app, user_id)
             return jsonify({'message': 'success', 'data': output})
         else:
@@ -627,7 +627,7 @@ class DashboardIssueProject(Resource):
 
     @jwt_required
     def get (self, user_id):
-        if int(user_id) == get_jwt_identity():
+        if int(user_id) == get_jwt_identity()['user_id']:
             output = iss.count_project_number_by_issues(logger, app, user_id)
             return jsonify({'message': 'success', 'data': output})
         else:
@@ -638,7 +638,7 @@ class DashboardIssueType(Resource):
 
     @jwt_required
     def get (self, user_id):
-        if int(user_id) == get_jwt_identity():
+        if int(user_id) == get_jwt_identity()['user_id']:
             output = iss.count_type_number_by_issues(logger, app, user_id)
             return jsonify({'message': 'success', 'data': output})
         else:
