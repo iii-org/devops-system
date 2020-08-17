@@ -49,6 +49,22 @@ class Index(Resource):
         return {"message": "DevOps api is working"}
 
 
+class RedmineProjectList(Resource):
+
+    @jwt_required
+    def get(self):
+        output = pjt.get_redmine_project_list(logger, app)
+        return output.json()
+
+
+class RedmineOneProject(Resource):
+
+    @jwt_required
+    def get(self, project_id):
+        output = pjt.get_redmine_one_project(logger, app, project_id)
+        return output.json()
+
+
 class RedmineIssue_by_user(Resource):
 
     @jwt_required
@@ -193,7 +209,7 @@ class UserLogin(Resource):
         args = parser.parse_args()
         token = au.user_login(logger, args)
         if token is None:
-            return None, 400
+            return jsonify({"message": "Coult not get token"}), 500
         else:
             return jsonify({"message": "success", "data": {"token": token}})
 
@@ -209,7 +225,7 @@ class UserForgetPassword(Resource):
             status = au.user_forgetpassword(logger, args)
             return jsonify({"message": "success"})
         except Exception as err:
-            return jsonify({"message": err})
+            return jsonify({"message": err}), 400
 
 
 class UserInfo(Resource):
@@ -234,11 +250,41 @@ class UserInfo(Resource):
             parser.add_argument('group', type=str)
             parser.add_argument('role', type=str)
             args = parser.parse_args()
-            au.update_user_info(logger, user_id, args)
-            return jsonify({'message': 'success'})
+            try:
+                au.update_user_info(logger, user_id, args)
+                return jsonify({'message': 'success'})
+            except Exception as error:
+                return jsonify({"message": str(error)}), 400
         else:
             return {'message': 'Access token is missing or invalid'}, 401
 
+    @jwt_required
+    def delete (self, user_id):
+        '''delete user'''
+        try:
+            au.delete_user(logger, user_id)
+            return jsonify({'message': 'success'})
+        except Exception as error:
+            return jsonify({"message": str(error)}), 400
+
+
+class User(Resource):
+
+    @jwt_required
+    def post (self):
+        '''create user'''
+        parser = reqparse.RequestParser()
+        parser.add_argument('name', type=str)
+        parser.add_argument('username', type=str, required=True)
+        parser.add_argument('email', type=str, required=True)
+        parser.add_argument('phone', type=int, required=True)
+        parser.add_argument('login', type=str, required=True)
+        parser.add_argument('password', type=str, required=True)
+        parser.add_argument('group_id', action='append')
+        parser.add_argument('role_id', type=int, required=True)
+        args = parser.parse_args()
+        output = au.create_user(logger, args, app)
+        return output
 
 class GitProjectBranches(Resource):
 
@@ -430,6 +476,7 @@ class GitProjectTag(Resource):
         else:
             return str(output)
 
+
 class GitProjectDirectory(Resource):
 
     @jwt_required
@@ -499,6 +546,23 @@ class GitProjectBranchCommmits(Resource):
         logger.info("get body: {0}".format(args))
         output = pjt.get_git_project_branch_commits(logger, app, project_id, args)
         return output.json()
+
+
+class GitProjectNetwork(Resource):
+
+    @jwt_required
+    def get(self, repository_id):
+        project_id = repository_id
+        output = pjt.get_git_project_network(logger, app, project_id)
+        return output
+
+
+class PipelineInfo(Resource):
+
+    @jwt_required
+    def get (self, project_id):
+        output = pipe.pipeline_info(logger, project_id)
+        return jsonify(output)
 
 
 class PipelineExec(Resource):
@@ -647,6 +711,10 @@ class DashboardIssueType(Resource):
 
 api.add_resource(Index, '/')
 
+# Redmine project
+api.add_resource(RedmineProjectList , '/project/list')
+api.add_resource(RedmineOneProject , '/project/<project_id>')
+
 # Redmine issue
 api.add_resource(RedmineIssue, '/redmine_issue/<issue_id>')
 api.add_resource(RedmineIssue_by_user, '/redmine_issues_by_user/<user_account>')
@@ -668,6 +736,7 @@ api.add_resource(GitProjectTag, '/repositories/rd/<repository_id>/tags/<tag_name
 api.add_resource(GitProjectDirectory, '/repositories/rd/<repository_id>/directory/<directory_path>')
 api.add_resource(GitProjectMergeBranch, '/repositories/rd/<repository_id>/merge_branches')
 api.add_resource(GitProjectBranchCommmits, '/repositories/rd/<repository_id>/commits')
+api.add_resource(GitProjectNetwork, '/repositories/<repository_id>/overview')
 
 
 # Project
@@ -677,6 +746,7 @@ api.add_resource(ProjectList, '/project/rd/<user_id>')
 api.add_resource(UserLogin, '/user/login')
 api.add_resource(UserForgetPassword, '/user/forgetPassword')
 api.add_resource(UserInfo, '/user/<user_id>')
+api.add_resource(User, '/user')
 
 # pipeline
 api.add_resource(PipelineExec, '/pipelines/rd/<repository_id>/pipelines_exec')

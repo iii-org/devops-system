@@ -381,7 +381,6 @@ class Project(object):
                 logger.info("delete project mergerequest url: {0}".format(url))
                 output_extra = requests.delete(url, headers=self.headers, verify=False)
                 logger.info("delete project mergerequest output:{0}".format(output_extra))                
-    
         return output
 
     def create_ranhcer_pipline_yaml(self, logger, app, project_id, args, action):
@@ -418,4 +417,68 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         logger.info("get project branch commits url: {0}".format(url))
         output = requests.get(url, headers=self.headers, verify=False)
         logger.info("get project branch commits output: {0}".format(output))
+        return output
+
+    # 用project_id查詢project的網路圖
+    def get_git_project_network(self, logger, app, project_id):
+        
+        output_list = []
+
+        # 整理各branches的commit_list
+        branches = self.get_git_project_branches(logger, app, project_id).json()
+        for branch in branches:
+            branch = branch["name"]
+            url = "http://{0}/api/{1}/projects/{2}/repository/commits?private_token={3}&ref_name={4}&per_page=100".format(\
+                app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, self.private_token, branch)
+            branch_commits = requests.get(url, headers=self.headers, verify=False).json()
+        
+            commit_list = []
+            
+            for branch_commit in branch_commits:
+                obj = { 
+                    "id": branch_commit["id"],
+                    "message": branch_commit["message"],
+                    "author_name": branch_commit["author_name"],
+                    "committed_date": branch_commit["committed_date"]
+                }
+
+                commit_list.append(obj)
+
+            branch_obj = {
+                "branch": branch,
+                "commits": commit_list
+            }
+            
+            output_list.append(branch_obj)
+
+        # 整理各tags
+        tags = self.get_git_project_tags(logger, app, project_id).json()
+        for tag in tags:
+            tag_obj = {
+                "tag": tag["name"],
+                "message": tag["message"],
+                "commit_id": tag["commit"]["id"],
+                "commit_message": tag["commit"]["message"],
+                "author_name": tag["commit"]["author_name"],
+                "created_at": tag["commit"]["created_at"]
+            }
+
+            output_list.append(tag_obj)
+        
+        return output_list
+    
+    # 查詢redmine的project list
+    def get_redmine_project_list(self, logger, app):
+        url = "http://{0}/projects.json?key={1}".format(app.config["REDMINE_IP_PORT"], app.config["REDMINE_API_KEY"])
+        logger.info("get redmine project list url: {0}".format(url))
+        output = requests.get(url, headers=self.headers, verify=False)
+        logger.info("get redmine project list output: {0} / {1}".format(output, output.json()))
+        return output
+
+    # 用project_id查詢redmine的單一project
+    def get_redmine_one_project(self, logger, app, project_id):
+        url = "http://{0}/projects/{1}.json?key={2}".format(app.config["REDMINE_IP_PORT"], project_id, app.config["REDMINE_API_KEY"])
+        logger.info("get redmine one project url: {0}".format(url))
+        output = requests.get(url, headers=self.headers, verify=False)
+        logger.info("get redmine one project output: {0} / {1}".format(output, output.json()))
         return output
