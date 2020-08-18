@@ -65,6 +65,19 @@ class RedmineOneProject(Resource):
         return output.json()
 
 
+class Project(Resource):
+
+    @jwt_required
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('name', type=str)
+        parser.add_argument('identifier', type=str)
+        args = parser.parse_args()
+        logger.info("post body: {0}".format(args))
+        output = pjt.create_one_project(logger, app, args)
+        return output
+
+
 class RedmineIssue_by_user(Resource):
 
     @jwt_required
@@ -712,8 +725,11 @@ class DashboardIssueType(Resource):
 api.add_resource(Index, '/')
 
 # Redmine project
-api.add_resource(RedmineProjectList , '/project/list')
-api.add_resource(RedmineOneProject , '/project/<project_id>')
+api.add_resource(RedmineProjectList, '/project/list')
+api.add_resource(RedmineOneProject, '/project/<project_id>')
+
+# Project(redmine & gitlab & db)
+api.add_resource(Project, '/project')
 
 # Redmine issue
 api.add_resource(RedmineIssue, '/redmine_issue/<issue_id>')
