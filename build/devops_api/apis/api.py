@@ -18,6 +18,7 @@ import resources.issue as issue
 import resources.redmine as redmine
 import resources.project as project
 import resources.pipeline as pipeline
+import resources.requirement as requirement
 
 
 app = Flask(__name__)
@@ -41,6 +42,8 @@ redmine = redmine.Redmine(logger, app)
 iss = issue.Issue()
 pjt = project.Project(logger, app)
 pipe = pipeline.Pipeline()
+
+rqmt = requirement.Requirement()
 
 class Index(Resource):
 
@@ -709,6 +712,19 @@ class DashboardIssueType(Resource):
             return {'message': 'Access token is missing or invalid'}, 401
 
 
+
+class Requirement(Resource):
+    
+    @jwt_required
+    def get (self, issue_id):
+        print(issue_id)
+        temp = get_jwt_identity()
+        output= {}
+        output = rqmt.requirement_by_rqmt_id(issue_id, get_jwt_identity()['user_id'])
+        return jsonify({'message': 'success', 'data':  output })
+
+
+
 api.add_resource(Index, '/')
 
 # Redmine project
@@ -766,6 +782,11 @@ api.add_resource(IssueRDbyUser, '/issues_by_user/rd/<user_id>')
 api.add_resource(DashboardIssuePriority, '/dashboard_issues_priority/rd/<user_id>')
 api.add_resource(DashboardIssueProject, '/dashboard_issues_project/<user_id>')
 api.add_resource(DashboardIssueType, '/dashboard_issues_type/<user_id>')
+
+
+# testPhase Case
+
+api.add_resource(Requirement,'/requirements_by_issue/<issue_id>')
 
 
 
