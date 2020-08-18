@@ -1,28 +1,21 @@
 apiVersion: apps/v1 # for versions before 1.9.0 use apps/v1beta2
 kind: Deployment
 metadata:
-  name: devopsapi
+  name: devopsapi-qa
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: devopsapi
+      app: devopsapi-qa
   strategy:
     type: Recreate
   template:
     metadata:
       labels:
-        app: devopsapi
+        app: devopsapi-qa
     spec:
       containers:
-      - name: devopsapi
-        image: demoyuw/devops-api
-        resources:
-          requests:
-            memory: "64Mi"
-            cpu: "250m"
-          limits:
-            memory: "1Gi"
-            cpu: "2"
+      - name: devopsapi-qa
+        image: iiiorg/devops-api:v20200617
         ports:
         - containerPort: 10009

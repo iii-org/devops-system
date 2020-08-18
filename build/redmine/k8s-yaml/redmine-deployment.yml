@@ -14,7 +14,14 @@ spec:
     spec:
       containers:
       - name: redmine
-        image: redmine:latest
+        image: redmine
+        env:
+        - name: REDMINE_DB_POSTGRES
+          value: redmine-postgres-service
+        - name: REDMINE_DB_PASSWORD
+          value: iiidevops
+        - name: REDMINE_DB_DATABASE
+          value: redmine
         ports:
         - containerPort: 3000
           name: ui

@@ -1,7 +1,7 @@
 import requests
 import json
 
-class Project(object):
+class GitLab(object):
     private_token = None
     headers = {'Content-Type': 'application/json'}
 
@@ -15,16 +15,20 @@ class Project(object):
             parame["password"] = app.config["GITLAB_ADMIN_PASSWORD"]
 
             output = requests.post(url, data=json.dumps(parame), headers=self.headers, verify=False)
-            # logger.info("private_token api output: {0}".format(output)) 
             self.private_token = output.json()['private_token']
         else:
             self.private_token = app.config["GITLAB_PRIVATE_TOKEN"]
         logger.info("private_token: {0}".format(self.private_token))
     
-    def get_all_git_project(self, logger, app):
-        url = "http://{0}/api/{1}/projects?private_token={2}".format(\
-            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], self.private_token)
-        logger.info("get all project url: {0}".format(url))
-        output = requests.get(url, headers=self.headers, verify=False)
-        logger.info("get all project output: {0}".format(output.json()))
+    def create_user(self, logger, app, args):
+        gitlab = GitLab(logger, app)
+        url = "http://{0}/api/{1}/users?private_token={2}"\
+            .format(app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], \
+            gitlab.private_token)
+        logger.info("gitlab create user url: {0}".format(url))
+        parame = {"name": args['login'], "email": args['email'], "username": args['username'],
+        "password": args["password"]}
+        output = requests.post(url, data=json.dumps(parame), headers=self.headers, verify=False)
+        logger.info("gitlab create user api output: status_code: {0}, message: {1}".format(
+            output.status_code, output.json()))
         return output
