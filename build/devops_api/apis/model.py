@@ -38,6 +38,21 @@ class UserPluginRelation():
                                 'repository_user_id', db.Integer)
                         )
 
+class ProjectPluginRelation():
+    meta = db.MetaData()
+    stru_project_plug_relation = db.Table('project_plugin_relation', meta,
+                            db.Column(
+                                'project_id', db.Integer),
+                            db.Column(
+                                'plan_project_id', db.Integer),
+                            db.Column(
+                                'git_repository_id', db.Integer),
+                            db.Column(
+                                'ci_project_id', db.String),
+                            db.Column(
+                                'ci_pipeline_id', db.String)
+                        )
+
 class GroupsHasUsers():
     meta = db.MetaData()
     stru_groups_has_users = db.Table('groups_has_users', meta,

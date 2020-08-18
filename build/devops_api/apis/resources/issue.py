@@ -1,4 +1,4 @@
-from model import db
+from model import db, ProjectPluginRelation
 from .util import util
 from .redmine import Redmine
 from .project import Project
@@ -35,9 +35,9 @@ class Issue(object):
         logger.debug("plan_to_user: {0}".format(plan_to_user))
         return user_to_plan, plan_to_user
     
-    def __dealwith_issue_redmine_output(self, logger, redmine_output, plan_to_issue):
+    def __dealwith_issue_redmine_output(self, logger, redmine_output):
         logger.info("redmine get redmine_output: {0}".format(redmine_output))
-        redmine_output['project']['id'] = plan_to_issue[str(redmine_output['id'])]
+        redmine_output['project']['id'] = redmine_output['id']
         if 'assigned_to' in redmine_output:
             redmine_output['author'] = redmine_output['assigned_to']
             redmine_output.pop('assigned_to', None)
@@ -52,7 +52,7 @@ class Issue(object):
             redmine_output['updated_date'] = redmine_output.pop('updated_on')
         redmine_output.pop('closed_on', None)
         if 'parent' in redmine_output:
-            redmine_output['parent_id'] = plan_to_issue[str(redmine_output['parent']['id'])]
+            redmine_output['parent_id'] = redmine_output['parent']['id']
             redmine_output.pop('parent', None)
         if 'journals' in redmine_output:
             for journal in redmine_output['journals']:
@@ -61,17 +61,20 @@ class Issue(object):
         logger.info("redmine issue redmine_output: {0}".format(redmine_output))
         return redmine_output
 
-    def __dealwith_issue_by_user_redmine_output(self, logger, redmine_output, plan_to_issue):
+    def __dealwith_issue_by_user_redmine_output(self, logger, redmine_output):
         output_list = {}
-        output_list['id'] = plan_to_issue[str(redmine_output['id'])]
+        output_list['id'] = redmine_output['id']
         output_list['name'] = redmine_output['project']['name']
         output_list['issue_category'] = redmine_output['tracker']['name']
         output_list['issue_priority'] = redmine_output['priority']['name']
         output_list['issue_status'] = redmine_output['status']['name']
         output_list['issue_name'] = redmine_output['subject']
+        output_list['assigned_to'] = None
+        if 'assigned_to' in redmine_output:
+            output_list['assigned_to'] = redmine_output['assigned_to']['name']
         logger.info("get issue by user redmine_output: {0}".format(output_list))
         return output_list
-
+    '''
     def get_issuesId_List(self, logger, project_id):
         result = db.engine.execute("SELECT id FROM public.issues WHERE project_id = {0}\
             ".format(project_id))
@@ -84,14 +87,34 @@ class Issue(object):
                 logger.info("issuesid_list: {0}".format(issuesid_sql_output[0]))
                 output_array.append(issuesid_sql_output[0])
             return output_array
+    '''
 
     def get_issue_rd(self, logger, app, issue_id):
-        issue_to_plan, plan_to_issue = self.__get_dict_issueid(logger)
+        # issue_to_plan, plan_to_issue = self.__get_dict_issueid(logger)
         Redmine.get_redmine_key(self, logger, app)
         logger.info("self.redmine_key: {0}".format(self.redmine_key))
-        redmine_output_issue = Redmine.redmine_get_issue(self, logger, app, issue_to_plan[str(issue_id)]).json()
-        output = self.__dealwith_issue_redmine_output(logger, redmine_output_issue['issue'], plan_to_issue)
+        # redmine_output_issue = Redmine.redmine_get_issue(self, logger, app, issue_to_plan[str(issue_id)]).json()
+        redmine_output_issue = Redmine.redmine_get_issue(self, logger, app, issue_id).json()
+        output = self.__dealwith_issue_redmine_output(logger, redmine_output_issue['issue'])
         return output
+
+    def get_issue_by_project(self, logger, app, project_id):
+        # get plan_project_id, git_repository_id, ci_project_id, ci_pipeline_id
+        # issue_to_plan, plan_to_issue = self.__get_dict_issueid(logger)
+        get_project_command = db.select([ProjectPluginRelation.stru_project_plug_relation])\
+        .where(db.and_(ProjectPluginRelation.stru_project_plug_relation.c.project_id==project_id))
+        logger.debug("get_project_command: {0}".format(get_project_command))
+        reMessage = util.callsqlalchemy(self, get_project_command, logger)
+        project_dict = reMessage.fetchone()
+        logger.debug("project_list: {0}".format(project_dict))
+        redmine_key = Redmine.get_redmine_key(self, logger, app)
+        output_array=[]
+        redmine_output_issue_array= Redmine.redmine_get_issues_by_project(self, logger, app, project_dict['plan_project_id'], redmine_key)
+        for redmine_issue in redmine_output_issue_array['issues']:
+            output_dict = self.__dealwith_issue_by_user_redmine_output(logger, redmine_issue)
+            output_dict = Project.get_ci_last_test_result(self, app, logger, output_dict, project_dict)
+            output_array.append(output_dict)
+        return output_array
     
     def get_issue_by_user(self, logger, app, user_id):
         user_to_plan, plan_to_user = self.__get_dict_userid(logger)
@@ -101,7 +124,7 @@ class Issue(object):
         output_array=[]
         redmine_output_issue_array= Redmine.redmine_get_issues_by_user(self, logger, app, user_to_plan[str(user_id)])
         for redmine_issue in redmine_output_issue_array['issues']:
-            output_dict = self.__dealwith_issue_by_user_redmine_output(logger, redmine_issue, plan_to_issue)
+            output_dict = self.__dealwith_issue_by_user_redmine_output(logger, redmine_issue)
             project = Project.get_project_by_plan_project_id(self, logger, app, redmine_issue['project']['id'])
             logger.info("project: {0}".format(project))
             output_dict = Project.get_ci_last_test_result(self, app, logger, output_dict, project)
