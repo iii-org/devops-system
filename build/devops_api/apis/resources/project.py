@@ -495,24 +495,33 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         headers = {'Content-Type': 'application/xml'}
         redmine_output = requests.post(redmine_url, headers=headers, data=xml_body, verify=False)
         logger.info("create redmine project output: {0} / {1}".format(redmine_output, redmine_output.json()))
-        redmine_pj_id = redmine_output.json()["project"]["id"]
-        print("redmine_pj_id is {0}".format(redmine_pj_id))
-        
-        gitlab_url = "http://{0}/api/{1}/projects?private_token={2}&name={3}".format(\
-            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], self.private_token, args["name"])
-        logger.info("create gitlab project url: {0}".format(gitlab_url))
-        gitlab_output = requests.post(gitlab_url, headers=self.headers, verify=False)
-        logger.info("create gitlab project output: {0} / {1}".format(gitlab_output, gitlab_output.json()))
-        gitlab_pj_id = gitlab_output.json()["id"]
-        print("gitlab_pj_id is {0}".format(gitlab_pj_id))
+        if str(redmine_output) == "<Response [201]>":
+            redmine_pj_id = redmine_output.json()["project"]["id"]
+            print("redmine_pj_id is {0}".format(redmine_pj_id))
+            
+            gitlab_url = "http://{0}/api/{1}/projects?private_token={2}&name={3}".format(\
+                app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], self.private_token, args["name"])
+            logger.info("create gitlab project url: {0}".format(gitlab_url))
+            gitlab_output = requests.post(gitlab_url, headers=self.headers, verify=False)
+            logger.info("create gitlab project output: {0} / {1}".format(gitlab_output, gitlab_output.json()))
+            if str(gitlab_output) == "<Response [201]>":
+                gitlab_pj_id = gitlab_output.json()["id"]
+                gitlab_pj_name = gitlab_output.json()["name"]
+                gitlab_pj_ssh_url = gitlab_output.json()["ssh_url_to_repo"]
+                gitlab_pj_http_url = gitlab_output.json()["http_url_to_repo"]
+                print("gitlab_pj_id is {0} & name is {1} & ssh_url is {2} & http_url is {3}".format(gitlab_pj_id, gitlab_pj_name, gitlab_pj_ssh_url, gitlab_pj_http_url))
 
-        result = db.engine.execute("INSERT INTO public.project_plugin_relation (plan_project_id, git_repository_id) VALUES ({0}, {1})".format(redmine_pj_id, gitlab_pj_id))
-        print(result)
-        
-        output = {
-            "result": "success",
-            "plan_project_id": redmine_pj_id,
-            "git_repository_id": gitlab_pj_id
-        }
+                db.engine.execute("INSERT INTO public.projects (name, ssh_url, http_url) VALUES ('{0}', '{1}', '{2}')".format(gitlab_pj_name, gitlab_pj_ssh_url, gitlab_pj_http_url))
+                id = db.engine.execute("SELECT id FROM public.projects WHERE name = '{0}'".format(gitlab_pj_name))
+                project_id = id.fetchone()[0]
+                db.engine.execute("INSERT INTO public.project_plugin_relation (project_id, plan_project_id, git_repository_id) VALUES ({0}, {1}, {2})".format(project_id, redmine_pj_id, gitlab_pj_id))
+                
+                output = {
+                    "result": "success",
+                    "plan_project_id": redmine_pj_id,
+                    "git_repository_id": gitlab_pj_id
+                }
+            else: output = gitlab_output.json()
+        else: output = redmine_output.json()
 
         return output
