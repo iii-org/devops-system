@@ -44,6 +44,13 @@ class Redmine(object):
         logger.info("get issues by output: {0}".format(output.json()))
         return output.json()
 
+    def redmine_get_issues_by_project(self, logger, app, project_id, redmine_key):
+        url = "http://{0}/issues.json?key={1}&project_id={2}".format(\
+            app.config['REDMINE_IP_PORT'], redmine_key, project_id)
+        output = requests.get(url, headers=self.headers, verify=False)
+        logger.info("get issues by project&user output: {0}".format(output.json()))
+        return output.json()
+
     def redmine_get_issues_by_project_and_user(self, logger, app, user_id, project_id, redmine_key):
         url = "http://{0}/issues.json?key={1}&assigned_to_id={2}&project_id={3}".format(\
             app.config['REDMINE_IP_PORT'], redmine_key, user_id, project_id)
@@ -51,7 +58,7 @@ class Redmine(object):
         logger.info("get issues by project&user output: {0}".format(output.json()))
         return output.json()
 
-    def redmine_get_issue(self, logger, app, issue_id ):
+    def redmine_get_issue(self, logger, app, issue_id):
         url = "http://{0}/issues/{1}.json?key={2}&include=journals".format(\
             app.config['REDMINE_IP_PORT'], issue_id, self.redmine_key)
         output = requests.get(url, headers=self.headers, verify=False)

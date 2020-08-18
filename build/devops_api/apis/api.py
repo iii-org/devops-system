@@ -612,11 +612,11 @@ class PipelineGenerateYaml(Resource):
         output_array = pipe.generate_ci_yaml(logger, args, app, repository_id, branch_name)
 
 
-class IssuesIdList(Resource):
+class IssueByProject(Resource):
 
     @jwt_required
     def get (self, project_id):
-        output_array = iss.get_issuesId_List(logger, project_id)
+        output_array = iss.get_issue_by_project(logger, app, project_id)
         return jsonify(output_array)
 
 
@@ -755,7 +755,7 @@ api.add_resource(PipelineSoftware, '/pipelines/software')
 api.add_resource(PipelineGenerateYaml, '/pipelines/<repository_id>/branch/<branch_name>/generate_ci_yaml')
 
 # issue
-api.add_resource(IssuesIdList, '/project/rd/<project_id>/issues')
+api.add_resource(IssueByProject, '/project/<project_id>/issues')
 api.add_resource(IssueRD, '/issues/rd/<issue_id>')
 api.add_resource(IssueStatus, '/issues_status')
 api.add_resource(IssuePrioriry, '/issues_priority')
