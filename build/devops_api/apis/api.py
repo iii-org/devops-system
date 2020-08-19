@@ -616,8 +616,13 @@ class IssueByProject(Resource):
 
     @jwt_required
     def get (self, project_id):
-        output_array = iss.get_issue_by_project(logger, app, project_id)
-        return jsonify(output_array)
+        stauts = pjt.verify_project_user(logger, project_id, get_jwt_identity()['user_id'])
+        if stauts:
+            output_array = iss.get_issue_by_project(logger, app, project_id)
+            return jsonify(output_array)
+        else:
+            return {'message': 'Dont have authorization to access issue list on project: {0}'\
+                .format(project_id)}, 401
 
 
 class IssueRD(Resource):

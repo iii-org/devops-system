@@ -1,10 +1,12 @@
+from operator import truediv
 import requests
 import json
 from datetime import datetime
 
-from model import db
+from model import db, ProjectUserRole
 from .redmine import Redmine
 from .rancher import Rancher
+from .util import util
 
 import urllib
 
@@ -27,6 +29,20 @@ class Project(object):
         else:
             self.private_token = app.config["GITLAB_PRIVATE_TOKEN"]
         logger.info("private_token: {0}".format(self.private_token))
+    
+    def verify_project_user(self, logger, project_id, user_id):
+        select_project_user_role_command = db.select([ProjectUserRole.stru_project_user_role])\
+            .where(db.and_(ProjectUserRole.stru_project_user_role.c.project_id==project_id, \
+            ProjectUserRole.stru_project_user_role.c.user_id==user_id))
+        logger.debug("select_project_user_role_command: {0}".format(select_project_user_role_command))
+        reMessage = util.callsqlalchemy(self, select_project_user_role_command, logger)
+        match_list = reMessage.fetchall()
+        logger.info("reMessage: {0}".format(match_list))
+        logger.info("reMessage len: {0}".format(len(match_list)))
+        if len(match_list) > 0:
+            return True
+        else:
+            return False
     
     # 查詢所有projects
     def get_all_git_projects(self, logger, app):
