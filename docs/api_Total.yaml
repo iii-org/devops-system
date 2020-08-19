@@ -203,56 +203,6 @@ paths:
           $ref: '#/components/responses/InvalidInput'
         '400':
           $ref: '#/components/responses/errorResponse'
-  /pipelines/rd/{repository_id}/pipelines_info:
-    description: "3.3_工具軟體設定"
-    get:
-      summary: "3.3_工具軟體設定"
-      tags:
-        - pipelines
-      security:
-        - bearerAuth: ['']
-      description: '取得專案執行pipelines的設定值'
-      parameters:
-      - name: repository_id
-        in: path
-        required: true
-        schema:
-          $ref: "#/components/schemas/Id"
-      responses:
-        '200':
-          description: A JSON array of issues id
-          content:
-            application/json:
-              schema:
-                type: object 
-                properties:
-                  message:
-                    $ref: "#/components/schemas/SuccessMessage"
-                  data:
-                    type: object
-                    properties:
-                      static_analisys:
-                        type: array
-                        items:
-                          $ref: "#/components/schemas/Software"
-                      unit_Test:
-                        type: array
-                        items:
-                          $ref: "#/components/schemas/Software"
-                      integeration test:
-                        type: array
-                        items:
-                          $ref: "#/components/schemas/Software"
-                      monitor:
-                        type: array
-                        items:
-                          $ref: "#/components/schemas/Software"
-        '401':
-          $ref: '#/components/responses/UnauthorizedError'
-        '405':
-          $ref: '#/components/responses/InvalidInput'
-        '400':
-          $ref: '#/components/responses/errorResponse'
   /pipelines/rd/{repository_id}/pipelines_exec:
     description: '3.4_CICD紀錄清單'
     get:
@@ -277,7 +227,7 @@ paths:
                 type: object
                 properties:
                   message:
-                    $ref: "#/components/schemas/ExampleMessage"
+                    $ref: "#/components/schemas/SuccessMessage"
                   data:
                     type: array
                     items:
@@ -299,7 +249,7 @@ paths:
       description: '取得專案pipelines的執行LOG檔案'
       parameters:
         - in: query
-          name: project_id
+          name: repository_id
           required: true
           schema: 
             type: integer
@@ -317,7 +267,7 @@ paths:
                 type: object
                 properties:
                   message:
-                    $ref: "#/components/schemas/ExampleMessage"
+                    $ref: "#/components/schemas/SuccessMessage"
                   data:  
                     $ref: "#/components/schemas/PipeLinesExecLog"
         '400':
@@ -340,7 +290,7 @@ paths:
                 type: object
                 properties:
                   message:
-                    $ref: "#/components/schemas/ExampleMessage"
+                    $ref: "#/components/schemas/SuccessMessage"
                   data:
                     type: array
                     items:  
@@ -370,11 +320,14 @@ paths:
                 type: object
                 properties:
                   message:
-                    $ref: "#/components/schemas/ExampleMessage"
+                    $ref: "#/components/schemas/SuccessMessage"
                   data:
-                    type: array
-                    items:  
-                      $ref: "#/components/schemas/PipielineYamlInfo"
+                    type: object
+                    properties:
+                      stages: 
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/PipelineSoftware"
         '400':
           $ref: '#/components/responses/errorResponse'
     post:
@@ -390,7 +343,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Pet'
+              $ref: '#/components/schemas/PipelineSoftware'
       responses:
         '200':
           description: log infromation
@@ -400,36 +353,14 @@ paths:
                 type: object
                 properties:
                   message:
-                    $ref: "#/components/schemas/ExampleMessage"
+                    $ref: "#/components/schemas/SuccessMessage"
                   data:
                     type: array
                     items:  
                       $ref: "#/components/schemas/PipielineYamlInfo"
         '400':
           $ref: '#/components/responses/errorResponse'
-    put:
-      summary: '更新 pipieline yaml file' 
-      tags:
-      - pipelines
-      security:
-        - bearerAuth: ['']
-      description: '取得專案pipelines的執行file 的檔案'
-      responses:
-        '200':
-          description: log infromation
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    $ref: "#/components/schemas/ExampleMessage"
-                  data:
-                    type: array
-                    items:  
-                      $ref: "#/components/schemas/PipielineYamlInfo"
-    
-    
+  
   /issues/rd/{issue_id}:
     description: '2.1 工作詳細內容 2.1.2 更新工作內容'
     get:
@@ -487,7 +418,7 @@ paths:
                 type: object
                 properties:
                   message:
-                    $ref: "#/components/schemas/ExampleMessage"
+                    $ref: "#/components/schemas/SuccessMessage"
         '400':
           $ref: '#/components/responses/errorResponse'
   /issues/rd/{issue_id}/function:
@@ -514,7 +445,7 @@ paths:
                 type: object
                 properties:
                   message:
-                    $ref: "#/components/schemas/ExampleMessage"
+                    $ref: "#/components/schemas/SuccessMessage"
                   data:
                     type: array
                     $ref: "#/components/schemas/FuntionList"
@@ -542,7 +473,7 @@ paths:
                 type: object
                 properties:
                   message:
-                    $ref: "#/components/schemas/ExampleMessage"
+                    $ref: "#/components/schemas/SuccessMessage"
                   data:                
                     $ref: "#/components/schemas/Function"
       deprecated: true
@@ -568,7 +499,7 @@ paths:
                 type: object
                 properties:
                   message:
-                    $ref: "#/components/schemas/ExampleMessage"
+                    $ref: "#/components/schemas/SuccessMessage"
                   data:                
                     $ref: "#/components/schemas/Function"
       deprecated: true
@@ -617,7 +548,7 @@ paths:
                 type: object
                 properties:
                   message:
-                    $ref: '#/components/schemas/ExampleMessage'
+                    $ref: '#/components/schemas/SuccessMessage'
                   data:
                     $ref: "#/components/schemas/Id"
       deprecated: true
@@ -681,6 +612,171 @@ paths:
         '200':
           description: delete successful
       deprecated: true
+  /issues/statistics:
+    description: 'dashboard 工作統計'
+    get:
+      summary: dashboard 使用者待處理工作
+      tags:
+      - issue
+      security:
+        - bearerAuth: ['']
+      description: 'dashboard 使用者待處理工作'
+      parameters:
+      - name: user_id
+        in: query
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
+      - name: updated_before
+        in: query
+        schema: 
+          type: string
+          format: date
+          example: '2020-01-01'
+      - name: updated_after
+        in: query
+        schema: 
+          type: string
+          format: date
+          example: '2020-01-07'
+      responses:
+        '200':
+          description: A JSON array of issues id
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    $ref: "#/components/schemas/SuccessMessage"
+                  data:
+                    type: object
+                    properties:
+                      assign:
+                        type: integer
+                        example:  12 
+                      pending:
+                        type: integer
+                        example: 7
+                      finish:
+                        type: integer
+                        example: 5
+
+
+  # /issues/statistics/pending:
+  #   description: 'dashboard 使用者待處理工作 '
+  #   get:
+  #     summary: dashboard 使用者待處理工作
+  #     tags:
+  #     - issue
+  #     security:
+  #       - bearerAuth: ['']
+  #     description: 'dashboard 使用者待處理工作'
+  #     parameters:
+  #     - name: user_id
+  #       in: query
+  #       required: true
+  #       schema:
+  #         $ref: "#/components/schemas/Id"
+  #     responses:
+  #       '200':
+  #         description: A JSON array of issues id
+  #         content:
+  #           application/json:
+  #             schema:
+  #               type: object
+  #               properties:
+  #                 message:
+  #                   $ref: "#/components/schemas/SuccessMessage"
+  #                 data:
+  #                   type: object
+  #                   properties:
+  #                    pending:
+  #                       type: integer
+  #                       example:  12 
+
+                      
+  # /issues_statistics/week:
+  #   description: 'dashboard 本周完成工作數 '
+  #   get:
+  #     summary: dashboard 本周完成工作數
+  #     tags:
+  #     - issue
+  #     security:
+  #       - bearerAuth: ['']
+  #     description: 'dashboard 本周完成工作數'
+  #     parameters:
+  #     - name: user_id
+  #       in: query
+  #       required: true
+  #       schema:
+  #         $ref: "#/components/schemas/Id"
+  #     - name: start_date
+  #       in: query
+  #       required: true
+  #       schema: 
+  #         $ref: '#/components/schemas/Datetime'
+  #     responses:
+  #       '200':
+  #         description: A JSON array of issues id
+  #         content:
+  #           application/json:
+  #             schema:
+  #               type: object
+  #               properties:
+  #                 message:
+  #                   $ref: "#/components/schemas/SuccessMessage"
+  #                 data:
+  #                   type: object
+  #                   properties:
+  #                     assign:
+  #                       type: integer
+  #                       example: 17
+  #                     finish:
+  #                       type: integer
+  #                       example:  5 
+
+  # /issues_statistics/month:
+  #   description: 'dashboard 本月完成工作數 '
+  #   get:
+  #     summary: dashboard 本月完成工作數 
+  #     tags:
+  #     - issue
+  #     security:
+  #       - bearerAuth: ['']
+  #     description: 'dashboard 本月完成工作數 '
+  #     parameters:
+  #     - name: user_id
+  #       in: query
+  #       required: true
+  #       schema:
+  #         $ref: "#/components/schemas/Id"
+  #     - name: start_date
+  #       in: query
+  #       required: true
+  #       schema: 
+  #         $ref: '#/components/schemas/Datetime'
+  #     responses:
+  #       '200':
+  #         description: A JSON array of issues id
+  #         content:
+  #           application/json:
+  #             schema:
+  #               type: object
+  #               properties:
+  #                 message:
+  #                   $ref: "#/components/schemas/SuccessMessage"
+  #                 data:
+  #                   type: object
+  #                   properties:
+  #                     assign:
+  #                       type: integer
+  #                       example: 17
+  #                     finish:
+  #                       type: integer
+
+
+
   /issues_status:
     get:
       summary: 取得目前議題可使用狀態(For 所有議題)
@@ -756,7 +852,7 @@ paths:
                 type: object
                 properties:
                   message:
-                    $ref: '#/components/schemas/ExampleMessage'
+                    $ref: '#/components/schemas/SuccessMessage'
                   data:
                     type: array
                     items:
@@ -849,7 +945,7 @@ paths:
                 $ref: "#/components/schemas/Tag"   
   /repositories/rd/{repository_id}/tags:
     get:
-      summary: 取得專案內Repository的Tags的ID
+      summary: 取得專案內Repository的Tags的ID , POST /projects/:id/repository/tags
       tags:
       - repository
       security:
@@ -867,7 +963,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/IdList"
+                $ref: "#/components/schemas/Tag"
     post:
       summary: 3.2.5 新增版本號
       tags:
@@ -887,10 +983,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                schemas:
-                  $ref: "#/components/schemas/UploadTag"
+                $ref: "#/components/schemas/UploadTag"
       responses:
         '200':
           description: A JSON array of issues id
@@ -950,6 +1043,41 @@ paths:
               schema:
                 $ref: "#/components/schemas/Tag"
       deprecated: true
+  /repositories/rd/{repository_id}/commmits:
+    description: '3.2.6_分支版況紀錄'
+    get:
+      summary: 3.2.1 分支版況紀錄
+      tags:
+      - repository
+      security:
+        - bearerAuth: ['']
+      description: '3.2.1 分支版況紀錄 '
+      parameters:
+      - name: repository_id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
+      - name: ref_name
+        description: branch name or tqg
+        in: query
+        schema:
+          $ref: '#/components/schemas/BranchName'
+      responses:
+        '200':
+          description: A JSON array of issues id
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    $ref: "#/components/schemas/SuccessMessage"
+                  data:
+                    type: array
+                    items:  
+                      $ref: "#/components/schemas/Commit"
+
   /repositories/rd/{repository_id}/branch:
     description: '3.2.1 分支列表  3.2.4 新增分支'
     get:
@@ -1189,46 +1317,7 @@ paths:
               example: Success Delete FI
         '400':
           $ref: '#/components/response/errorResponse'
-    put:
-      summary: 3.2.1 分支編輯檔案
-      tags:
-      - repository
-      security:
-        - bearerAuth: ['']
-      description: 3.2.1 分支編輯檔案
-      parameters:
-      - name: repository_id
-        in: path
-        required: true
-        schema:
-          $ref: "#/components/schemas/Id"
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/UpdateFile"
-      responses:
-        '200':
-          description: File System Tree
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    $ref: '#/components/schemas/SuccessMessage'
-                  data:
-                    type: object
-                    properties:
-                      file_path:
-                        type: string
-                        example:
-                          $ref: "#/components/schemas/FilePath"
-                      branch_name:
-                        type: string
-                        example: master
-        '400':
-          $ref: '#/components/response/errorResponse'
+
   /repositories/rd/{repository_id}/branch/files:
     description: '3.2.1 分支編輯檔案 '
     post:
@@ -1269,6 +1358,47 @@ paths:
                         example: master
         '400':
           $ref: '#/components/response/errorResponse'
+    put:
+      summary: 3.2.1 分支編輯檔案
+      tags:
+      - repository
+      security:
+        - bearerAuth: ['']
+      description: 3.2.1 分支編輯檔案
+      parameters:
+      - name: repository_id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UplodFile"
+      responses:
+        '200':
+          description: File System Tree
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    $ref: '#/components/schemas/SuccessMessage'
+                  data:
+                    type: object
+                    properties:
+                      file_path:
+                        type: string
+                        example:
+                          $ref: "#/components/schemas/FilePath"
+                      branch_name:
+                        type: string
+                        example: master
+        '400':
+          $ref: '#/components/response/errorResponse'
+  
   /repositories/rd/{repository_id}/directory/{directory_path}:
     post:
       summary: '3.2.3 分支新增資料夾'
@@ -1338,7 +1468,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/UpdateFile"
+              $ref: "#/components/schemas/UploadDirectory"
       responses:
         '200':
           description: File System Tree
@@ -1347,13 +1477,8 @@ paths:
               schema:
                 type: object
                 properties:
-                  file_path:
-                    type: string
-                    example:
-                      $ref: "#/components/schemas/FilePath"
-                  branch:
-                    type: string
-                    example: master
+                  message:
+                    $ref : '#components/schemas/SuccessMessage'
         '400':
           description: Non FIle
           content:
@@ -1377,6 +1502,12 @@ paths:
         required: true
         schema:
           $ref: "#/components/schemas/FilePath"
+      - name: branch 
+        in: query
+        required: true
+        schema:
+          type: string
+          example: master
       - name: commit_message 
         in: query
         required: true
@@ -1834,6 +1965,20 @@ components:
               type: integer
             name:
               type: string
+        assigned_to_id:
+          type: object
+          description: 目前被分配的人
+          properties:
+            id:
+              type: integer
+              description: user id
+            name:
+              type: string
+              example: 陳聰明
+              description: User Name
+        branch:
+          type: string
+          example: master
         parent_id:
           type: integer
         subject:
@@ -1852,25 +1997,94 @@ components:
         updated_date:
           type: string
           format: date-time   
-        custom_fields:
+        journals:
           type: array
           items:
-            type: object
-            properties:
-              id:
-                type: integer
-              name:
-                type: string
-              value:
-                type: string
-              create_time:
-                type: string
-                format: date-time
+            $ref: '#/components/schemas/IssueJournals'
         repository_ids:
           type: array 
           description: Devops ProjectId mapping to GitLab Id
           items:
             $ref: '#/components/schemas/RepositoryId'
+        requirement_ids:
+          type: array
+          description: DevOps Requirements In plattform
+          items:
+            $ref: '#/components/schemas/RequirementId'
+    IssueJournals:
+      type: object
+      properties:
+        user:
+          type: object
+          properties:
+            user_id:
+              type: integer
+              example: 1
+            user_name:
+              type: string
+              example: John Doe
+        notes:
+          type: string
+          example: Fixed in Revision 128
+        created_on:
+          type: string
+          format: date-time
+        detail:
+          type: object
+          properties:
+            due_date:
+              type: object
+              properties:
+                new_value:
+                  type: string
+                  format: date
+                  example: '2020-05-11'
+                old_value:
+                  type: string
+                  format: date
+                  example: '2020-07-02'
+                property:
+                  type: string
+                  example: attr
+            start_date:
+              type: object
+              properties:
+                new_value:
+                  type: string
+                  format: date
+                  example: '2020-05-11'
+                old_value:
+                  type: string
+                  format: date
+                  example: '2020-07-02'
+                property:
+                  type: string
+                  example: attr
+            done_ratio:
+              type: object
+              properties:
+                new_value:
+                  type: integer
+                  example: 100
+                old_value:
+                  type: string
+                  format: date
+                  example: 0
+                property:
+                  type: string
+                  example: attr
+            estimated_hours:
+              type: object
+              properties:
+                new_value:
+                  type: number
+                  example: 16.0
+                old_value:
+                  type: number
+                  example: 0
+                property:
+                  type: string
+                  example: attr   
 
     UploadIssue:
       type: object
@@ -2190,6 +2404,11 @@ components:
           type: string
           example: annotated
           description: Creates annotated tag
+        release_description:
+          type: string
+          description:  Add release notes to the Git tag and store it in the GitLab database
+          example:  Add release notes to the Git tag and store it in the GitLab database
+
     BranchName:
       type: string
       example: api_yaml
@@ -2290,6 +2509,8 @@ components:
           items:
             type: string
             description: commit id
+            example: 82a99f645d25f3ce103ba037275810913e82e186
+              
     PipelineSoftware:
       type: object
       description: Support PIpeline Software
@@ -2297,15 +2518,20 @@ components:
         pipeline_info:
           type: array
           items:
-            allOf:
-            - $ref: "#/components/schemas/Software"
-    PipielineYamlInfo:
-      type: array
-      description: YamlFileInfo
+            $ref: "#/components/schemas/Software"
+    YamlName:
+      type: object
       properties:
-        
-    
+        name: 
+          type: string
+          example:  "Publish flask image"
 
+        
+    YamlSteps:
+      type: array
+      example: 
+        - {"applyYamlConfig": {"path": "./sample/flask/k8s-yaml/flask-deployment.yaml"}}
+        - {"applyYamlConfig": {"path": "./sample/flask/k8s-yaml/flask-service.yaml"}}
     PipelinesExecInfo:
       type: object
       description: Pipeline log list
@@ -2329,11 +2555,7 @@ components:
       items:
         type: string
         description: log output string
-    
-    #PipelineSoftware:
-    # type: object
-    #  properties:
-
+  
     Software:
       type: object
       description: Integeration Thrid Partiy Software
@@ -2354,12 +2576,7 @@ components:
               type: string
               example: 'deploy flask-${CICD_GIT_BRANCH} environment'
             steps:
-              type: array
-              items:
-                type: string
-                example: 
-                  - {"applyYamlConfig": {"path": "./sample/flask/k8s-yaml/flask-deployment.yaml"}}
-                  - {"applyYamlConfig": {"path": "./sample/flask/k8s-yaml/flask-service.yaml"}}                
+              $ref: "#/components/schemas/YamlSteps"
         is_closed:
           type: boolean
           description: 是否啟用
@@ -2472,6 +2689,12 @@ components:
         commit_message:
           type: string
           example: create a new file
+    DateTime:
+      type: string
+      format: date-time
+    Date:
+      type: string
+      format: date
     DeleteFile:
       type: object
       required:
@@ -2591,7 +2814,6 @@ components:
       required: true
       schema:
         $ref: "#/components/schemas/Id"
-
 
 
 

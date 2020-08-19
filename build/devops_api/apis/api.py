@@ -18,6 +18,7 @@ import resources.issue as issue
 import resources.redmine as redmine
 import resources.project as project
 import resources.pipeline as pipeline
+import resources.requirement as requirement
 
 
 app = Flask(__name__)
@@ -42,6 +43,8 @@ iss = issue.Issue()
 pjt = project.Project(logger, app)
 pipe = pipeline.Pipeline()
 
+rqmt = requirement.Requirement()
+
 class Index(Resource):
 
     def get(self):
@@ -63,6 +66,19 @@ class RedmineOneProject(Resource):
     def get(self, project_id):
         output = pjt.get_redmine_one_project(logger, app, project_id)
         return output.json()
+
+
+class Project(Resource):
+
+    @jwt_required
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('name', type=str)
+        parser.add_argument('identifier', type=str)
+        args = parser.parse_args()
+        logger.info("post body: {0}".format(args))
+        output = pjt.create_one_project(logger, app, args)
+        return output
 
 
 class RedmineIssue_by_user(Resource):
@@ -714,11 +730,27 @@ class DashboardIssueType(Resource):
             return {'message': 'Access token is missing or invalid'}, 401
 
 
+
+class Requirement(Resource):
+    
+    @jwt_required
+    def get (self, issue_id):
+        print(issue_id)
+        temp = get_jwt_identity()
+        output= {}
+        output = rqmt.requirement_by_rqmt_id(issue_id, get_jwt_identity()['user_id'])
+        return jsonify({'message': 'success', 'data':  output })
+
+
+
 api.add_resource(Index, '/')
 
 # Redmine project
-api.add_resource(RedmineProjectList , '/project/list')
-api.add_resource(RedmineOneProject , '/project/<project_id>')
+api.add_resource(RedmineProjectList, '/project/list')
+api.add_resource(RedmineOneProject, '/project/<project_id>')
+
+# Project(redmine & gitlab & db)
+api.add_resource(Project, '/project')
 
 # Redmine issue
 api.add_resource(RedmineIssue, '/redmine_issue/<issue_id>')
@@ -771,6 +803,11 @@ api.add_resource(IssueRDbyUser, '/issues_by_user/rd/<user_id>')
 api.add_resource(DashboardIssuePriority, '/dashboard_issues_priority/rd/<user_id>')
 api.add_resource(DashboardIssueProject, '/dashboard_issues_project/<user_id>')
 api.add_resource(DashboardIssueType, '/dashboard_issues_type/<user_id>')
+
+
+# testPhase Case
+
+api.add_resource(Requirement,'/requirements_by_issue/<issue_id>')
 
 
 
