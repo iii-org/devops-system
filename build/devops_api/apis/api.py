@@ -713,16 +713,54 @@ class DashboardIssueType(Resource):
 
 
 
-class Requirement(Resource):
+class RequirementByIssue(Resource):
     
+    ## 用issues ID 取得目前所有的需求清單
     @jwt_required
     def get (self, issue_id):
-        print(issue_id)
-        temp = get_jwt_identity()
-        output= {}
-        output = rqmt.requirement_by_rqmt_id(issue_id, get_jwt_identity()['user_id'])
+        #temp = get_jwt_identity()
+        print(get_jwt_identity())
+        output = rqmt.get_requirements_by_issue_id(logger, issue_id, get_jwt_identity()['user_id'])
         return jsonify({'message': 'success', 'data':  output })
+    
+    ## 用issues ID 新建立需求清單
+    @jwt_required
+    def post (self, issue_id):
+        parser = reqparse.RequestParser()
+        parser.add_argument('project_id', type=int)
+        parser.add_argument('flow_info', type=str)
+        args = parser.parse_args()
+        output = rqmt.post_requirement_by_issue_id(logger, issue_id, args,  get_jwt_identity()['user_id'])
+        return jsonify({'message': 'success', 'data':  output })
+  
 
+
+class Requirement(Resource):
+
+    ## 用requirement_id 取得目前需求流程
+    @jwt_required
+    def get (self, requirement_id):
+        #temp = get_jwt_identity()
+        output = rqmt.get_requirement_by_rqmt_id(logger, requirement_id, get_jwt_identity()['user_id'])
+        return jsonify({'message': 'success', 'data':  output })
+    
+    ## 用requirement_id 刪除目前需求流程
+    @jwt_required
+    def delete (self, requirement_id):
+        #temp = get_jwt_identity()
+        output = rqmt.del_requirement_by_rqmt_id(logger, requirement_id, get_jwt_identity()['user_id'])
+        return jsonify({'message': 'success', 'data':  output }) 
+    
+    ## 用requirement_id 更新目前需求流程
+    @jwt_required
+    def put (self, requirement_id):
+        #temp = get_jwt_identity()
+        parser = reqparse.RequestParser()
+        parser.add_argument('project_id', type=int)
+        parser.add_argument('flow_info', type=str)
+        args = parser.parse_args()
+        output = rqmt.modify_requirement_by_rqmt_id(logger, requirement_id, args, get_jwt_identity()['user_id'])
+        return jsonify({'message': 'success'})
 
 
 api.add_resource(Index, '/')
@@ -785,8 +823,8 @@ api.add_resource(DashboardIssueType, '/dashboard_issues_type/<user_id>')
 
 
 # testPhase Case
-
-api.add_resource(Requirement,'/requirements_by_issue/<issue_id>')
+api.add_resource(RequirementByIssue,'/requirements_by_issue/<issue_id>')
+api.add_resource(Requirement,'/requirements/<requirement_id>')
 
 
 
