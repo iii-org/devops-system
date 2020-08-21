@@ -75,6 +75,13 @@ class Redmine(object):
         logger.info("update issues output: {0}".format(output))
         return output
 
+    def redmine_delete_issue(self, logger, app, issue_id):
+        url = "http://{0}/issues/{1}.json?key={2}&include=journals".format(\
+            app.config['REDMINE_IP_PORT'], issue_id, self.redmine_key)
+        output = requests.delete(url, headers=self.headers, verify=False)
+        logger.info("get issues output: {0}".format(output))
+        return output
+
     
     def redmine_get_issue_status(self, logger, app):
         url="http://{0}/issue_statuses.json?key={1}".format(\

@@ -129,7 +129,7 @@ class Project(object):
         logger.info("delete project webhook output: {0}".format(output))
         return output
     
-    def get_project_by_plan_project_id(self, logger, app, plan_project_id):
+    def get_project_by_plan_project_id(self, logger, plan_project_id):
         result = db.engine.execute("SELECT * FROM public.project_plugin_relation \
             WHERE plan_project_id = {0}".format(plan_project_id))
         project = result.fetchone()

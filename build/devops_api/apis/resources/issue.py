@@ -1,4 +1,4 @@
-from model import db, ProjectPluginRelation
+from model import db, ProjectPluginRelation, ProjectUserRole
 from .util import util
 from .redmine import Redmine
 from .project import Project
@@ -37,7 +37,10 @@ class Issue(object):
     
     def __dealwith_issue_redmine_output(self, logger, redmine_output):
         logger.info("redmine get redmine_output: {0}".format(redmine_output))
-        redmine_output['project']['id'] = redmine_output['id']
+        prject_list = Project.get_project_by_plan_project_id\
+            (self, logger, redmine_output['project']['id'])
+        logger.info("redmine_output['project']['id']: {0}".format(prject_list['id']))
+        redmine_output['project']['id'] = prject_list['id']
         if 'assigned_to' in redmine_output:
             redmine_output['author'] = redmine_output['assigned_to']
             redmine_output.pop('assigned_to', None)
@@ -89,6 +92,24 @@ class Issue(object):
             return output_array
     '''
 
+    def verify_issue_user(self, logger, app, issue_id, user_id):
+        # base on issus get project
+        issue_info = Issue.get_issue_rd(self, logger, app, issue_id)
+        project_id = issue_info['project']['id']
+        logger.info("issue_info: {0}".format(issue_info))
+        select_project_user_role_command = db.select([ProjectUserRole.stru_project_user_role])\
+            .where(db.and_(ProjectUserRole.stru_project_user_role.c.project_id==project_id, \
+            ProjectUserRole.stru_project_user_role.c.user_id==user_id))
+        logger.debug("select_project_user_role_command: {0}".format(select_project_user_role_command))
+        reMessage = util.callsqlalchemy(self, select_project_user_role_command, logger)
+        match_list = reMessage.fetchall()
+        logger.info("reMessage: {0}".format(match_list))
+        logger.info("reMessage len: {0}".format(len(match_list)))
+        if len(match_list) > 0:
+            return True
+        else:
+            return False
+
     def get_issue_rd(self, logger, app, issue_id):
         # issue_to_plan, plan_to_issue = self.__get_dict_issueid(logger)
         Redmine.get_redmine_key(self, logger, app)
@@ -125,7 +146,7 @@ class Issue(object):
         redmine_output_issue_array= Redmine.redmine_get_issues_by_user(self, logger, app, user_to_plan[str(user_id)])
         for redmine_issue in redmine_output_issue_array['issues']:
             output_dict = self.__dealwith_issue_by_user_redmine_output(logger, redmine_issue)
-            project = Project.get_project_by_plan_project_id(self, logger, app, redmine_issue['project']['id'])
+            project = Project.get_project_by_plan_project_id(self, logger, redmine_issue['project']['id'])
             logger.info("project: {0}".format(project))
             output_dict = Project.get_ci_last_test_result(self, app, logger, output_dict, project)
             output_array.append(output_dict)
@@ -142,6 +163,15 @@ class Issue(object):
         Redmine.get_redmine_key(self, logger, app)
         try:
             output = Redmine.redmine_update_issue(self, logger, app, issue_to_plan[str(issue_id)], args)
+        except Exception as error:
+            return str(error), 400
+
+    def delete_issue(self, logger, app, issue_id):
+        Redmine.get_redmine_key(self, logger, app)
+        try:
+            # go to redmine, delete issue
+            output = Redmine.redmine_delete_issue(self, logger, app, issue_id)
+            return {"message": "successful"}, 201
         except Exception as error:
             return str(error), 400
 
