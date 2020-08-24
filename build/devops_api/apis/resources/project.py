@@ -43,6 +43,12 @@ class Project(object):
             return True
         else:
             return False
+
+    def get_project_plugin_relation(self, logger):
+        result = db.engine.execute("SELECT * FROM public.project_plugin_relation")
+        project_plugin_relation_array = result.fetchall()
+        result.close()
+        return project_plugin_relation_array
     
     # 查詢所有projects
     def get_all_git_projects(self, logger, app):

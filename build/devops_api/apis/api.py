@@ -640,6 +640,26 @@ class IssueByProject(Resource):
             return {'message': 'Dont have authorization to access issue list on project: {0}'\
                 .format(project_id)}, 401
 
+class IssueCreate(Resource):
+    
+    @jwt_required
+    def post (self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('project_id', type=int, required=True)
+        parser.add_argument('tracker_id', type=int, required=True)
+        parser.add_argument('status_id', type=int, required=True)
+        parser.add_argument('priority_id', type=int, required=True)
+        parser.add_argument('subject', required=True)
+        parser.add_argument('description')
+        parser.add_argument('assigned_to_id', type=int, required=True)
+        parser.add_argument('parent_id', type=int)
+        parser.add_argument('start_date', required=True)
+        parser.add_argument('due_date', required=True)
+        parser.add_argument('done_retio', type=int, required=True)
+        parser.add_argument('estimated_hours', type=int, required=True)
+        args = parser.parse_args()
+        output = iss.create_issue(logger, app, args)
+        return output
 
 class Issue(Resource):
 
@@ -804,6 +824,7 @@ api.add_resource(PipelineGenerateYaml, '/pipelines/<repository_id>/branch/<branc
 
 # issue
 api.add_resource(IssueByProject, '/project/<project_id>/issues')
+api.add_resource(IssueCreate, '/issues')
 api.add_resource(Issue, '/issues/<issue_id>')
 api.add_resource(IssueStatus, '/issues_status')
 api.add_resource(IssuePrioriry, '/issues_priority')

@@ -2,6 +2,9 @@ from model import db, ProjectPluginRelation, ProjectUserRole
 from .util import util
 from .redmine import Redmine
 from .project import Project
+from .auth import auth
+
+from flask import jsonify
 
 class Issue(object):
     headers = {'Content-Type': 'application/json'}
@@ -139,7 +142,6 @@ class Issue(object):
     
     def get_issue_by_user(self, logger, app, user_id):
         user_to_plan, plan_to_user = self.__get_dict_userid(logger)
-        issue_to_plan, plan_to_issue = self.__get_dict_issueid(logger)
         Redmine.get_redmine_key(self, logger, app)
         logger.info("self.redmine_key: {0}".format(self.redmine_key))
         output_array=[]
@@ -153,16 +155,37 @@ class Issue(object):
         return output_array
         
 
+    def create_issue(self, logger, app, args):
+        args = {k: v for k, v in args.items() if v is not None}
+        if 'parent_id' in args:
+            args['parent_issue_id'] = args['parent_id']
+            args.pop('parent_id', None)
+        project_plugin_relation_array = Project.get_project_plugin_relation(self, logger)
+        for project_plugin_relation in project_plugin_relation_array:
+            if project_plugin_relation['project_id'] == args['project_id']:
+                args['project_id'] = project_plugin_relation['plan_project_id']
+        if "assigned_to_id" in args:
+            user_plugin_relation_array = auth.get_user_plugin_relation(self,logger)
+            for user_plugin_relation in user_plugin_relation_array:
+                if user_plugin_relation['user_id'] == args['assigned_to_id']:
+                    args['assigned_to_id'] = user_plugin_relation['plan_user_id']
+        logger.info("args: {0}".format(args))
+        Redmine.get_redmine_key(self, logger, app)
+        try:
+            output = Redmine.redmine_create_issue(self, logger, app, args)
+            return {"message": "successful"}, output.status_code
+        except Exception as error:
+            return str(error), 400
+
     def update_issue_rd(self, logger, app, issue_id, args):
         args = {k: v for k, v in args.items() if v is not None}
         if 'parent_id' in args:
             args['parent_issue_id'] = args['parent_id']
             args.pop('parent_id', None)
         logger.info("args: {0}".format(args))
-        issue_to_plan, plan_to_issue = self.__get_dict_issueid(logger)
         Redmine.get_redmine_key(self, logger, app)
         try:
-            output = Redmine.redmine_update_issue(self, logger, app, issue_to_plan[str(issue_id)], args)
+            output = Redmine.redmine_update_issue(self, logger, app, issue_id, args)
         except Exception as error:
             return str(error), 400
 
