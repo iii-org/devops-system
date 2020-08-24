@@ -632,11 +632,36 @@ class IssueByProject(Resource):
 
     @jwt_required
     def get (self, project_id):
-        output_array = iss.get_issue_by_project(logger, app, project_id)
-        return jsonify(output_array)
+        stauts = pjt.verify_project_user(logger, project_id, get_jwt_identity()['user_id'])
+        if stauts:
+            output_array = iss.get_issue_by_project(logger, app, project_id)
+            return jsonify(output_array)
+        else:
+            return {'message': 'Dont have authorization to access issue list on project: {0}'\
+                .format(project_id)}, 401
 
+class IssueCreate(Resource):
+    
+    @jwt_required
+    def post (self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('project_id', type=int, required=True)
+        parser.add_argument('tracker_id', type=int, required=True)
+        parser.add_argument('status_id', type=int, required=True)
+        parser.add_argument('priority_id', type=int, required=True)
+        parser.add_argument('subject', required=True)
+        parser.add_argument('description')
+        parser.add_argument('assigned_to_id', type=int, required=True)
+        parser.add_argument('parent_id', type=int)
+        parser.add_argument('start_date', required=True)
+        parser.add_argument('due_date', required=True)
+        parser.add_argument('done_retio', type=int, required=True)
+        parser.add_argument('estimated_hours', type=int, required=True)
+        args = parser.parse_args()
+        output = iss.create_issue(logger, app, args)
+        return output
 
-class IssueRD(Resource):
+class Issue(Resource):
 
     @jwt_required
     def get (self, issue_id):
@@ -658,6 +683,17 @@ class IssueRD(Resource):
         args = parser.parse_args()
         output = iss.update_issue_rd(logger, app, issue_id, args)
         return jsonify({'message': 'success'})
+
+    @jwt_required
+    def delete (self, issue_id):
+        stauts = iss.verify_issue_user(logger, app, issue_id, get_jwt_identity()['user_id'])
+        if stauts and get_jwt_identity()['role_id'] in (3, 4):
+            output = iss.delete_issue(logger, app, issue_id)
+            return output
+        else:
+            return {'message': 'Dont have authorization to delete issue for thie user: {0}'\
+                .format(get_jwt_identity()['user_account'])}, 401
+
 
 class IssueStatus(Resource):
 
@@ -788,7 +824,8 @@ api.add_resource(PipelineGenerateYaml, '/pipelines/<repository_id>/branch/<branc
 
 # issue
 api.add_resource(IssueByProject, '/project/<project_id>/issues')
-api.add_resource(IssueRD, '/issues/rd/<issue_id>')
+api.add_resource(IssueCreate, '/issues')
+api.add_resource(Issue, '/issues/<issue_id>')
 api.add_resource(IssueStatus, '/issues_status')
 api.add_resource(IssuePrioriry, '/issues_priority')
 api.add_resource(IssueTracker, '/issues_tracker')

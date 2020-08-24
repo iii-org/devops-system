@@ -178,3 +178,10 @@ class auth(object):
                 logger.debug("insert_groups_has_users_command: {0}".format(insert_groups_has_users_command))
                 reMessage = util.callsqlalchemy(self, insert_groups_has_users_command, logger)
                 logger.info("reMessage: {0}".format(reMessage))
+
+    def get_user_plugin_relation(self, logger):
+            get_user_plugin_relation_command = db.select([UserPluginRelation.stru_user_plug_relation])
+            logger.debug("get_user_plugin_relation_command: {0}".format(get_user_plugin_relation_command))
+            reMessage = util.callsqlalchemy(self, get_user_plugin_relation_command, logger)
+            user_plugin_relation_array= reMessage.fetchall()
+            return user_plugin_relation_array
