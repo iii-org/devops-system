@@ -72,3 +72,31 @@ class ProjectUserRole():
                             db.Column(
                                 'role_id', db.Integer)
                         )
+
+
+class TableRequirement():
+    meta = db.MetaData()
+    stru_rqmt = db.Table('requirements', meta, 
+        db.Column('id', db.Integer, primary_key=True),
+        db.Column('project_id', db.Integer),
+        db.Column('issue_id', db.Integer),
+        db.Column('flow_info', db.TEXT),
+        db.Column('create_at', db.DATETIME(255)),
+        db.Column('update_at', db.DATETIME(255)),
+        db.Column('disabled',db.Boolean)
+    )
+
+
+class TableTestCase():
+    meta = db.MetaData()
+    stru_testCase = db.Table('test_cases', meta, 
+        db.Column('id', db.Integer, primary_key=True),
+        db.Column('project_id', db.Integer),
+        db.Column('issue_id', db.Integer),
+        db.Column('name', db.String(255)),
+        db.Column('is_passed', db.Boolean),
+        db.Column('case_id', db.Integer),
+        db.Column('create_at', db.DATETIME(255)),
+        db.Column('update_at', db.DATETIME(255)),
+        db.Column('disabled',db.Boolean)
+    )
