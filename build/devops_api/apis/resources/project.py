@@ -549,6 +549,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
             output, output.json()))
         return output
 
+    # 新增redmine & gitlab的project並將db相關table欄位新增資訊
     def create_one_project(self, logger, app, args):
         redmine_url = "http://{0}/projects.json?key={1}".format(
             app.config["REDMINE_IP_PORT"], app.config["REDMINE_API_KEY"])
@@ -602,6 +603,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
 
                 output = {
                     "result": "success",
+                    "project_id": project_id,
                     "plan_project_id": redmine_pj_id,
                     "git_repository_id": gitlab_pj_id
                 }
@@ -609,5 +611,121 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                 output = gitlab_output.json()
         else:
             output = redmine_output.json()
+
+        return output
+
+    # 用project_id查詢db的相關table欄位資訊
+    def get_one_project(self, logger, app, project_id):
+        project = db.engine.execute(
+            "SELECT * FROM public.projects WHERE id = '{0}'".format(
+                project_id))
+        for info in project:
+            result = {
+                "id": info["id"],
+                "name": info["name"],
+                "description": info["description"],
+                "ssh_url": info["ssh_url"],
+                "http_url": info["http_url"]
+            }
+
+        project_relation = db.engine.execute(
+            "SELECT * FROM public.project_plugin_relation WHERE project_id = '{0}'"
+            .format(project_id))
+        for info in project_relation:
+            result["plan_project_id"] = info["plan_project_id"]
+            result["git_repository_id"] = info["git_repository_id"]
+            result["ci_project_id"] = info["ci_project_id"]
+            result["ci_pipeline_id"] = info["ci_pipeline_id"]
+
+        return result
+
+    # 修改redmine & gitlab的project資訊
+    def put_one_project(self, logger, app, project_id, args):
+        project_relation = db.engine.execute(
+            "SELECT * FROM public.project_plugin_relation WHERE project_id = '{0}'"
+            .format(project_id))
+        for info in project_relation:
+            redmine_project_id = info["plan_project_id"]
+            gitlab_project_id = info["git_repository_id"]
+
+        gitlab_url = "http://{0}/api/{1}/projects/{2}?private_token={3}&name={4}&description={5}".format(\
+            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], gitlab_project_id, self.private_token, args["name"], args["description"])
+        logger.info("update gitlab project url: {0}".format(gitlab_url))
+        gitlab_output = requests.put(gitlab_url,
+                                     headers=self.headers,
+                                     verify=False)
+        logger.info("update gitlab project output: {0} / {1}".format(
+            gitlab_output, gitlab_output.json()))
+        if str(gitlab_output) == "<Response [200]>":
+            redmine_url = "http://{0}/projects/{1}.json?key={2}".format(\
+                app.config["REDMINE_IP_PORT"], redmine_project_id, app.config["REDMINE_API_KEY"])
+            logger.info("update redmine project url: {0}".format(redmine_url))
+            xml_body = """<?xml version="1.0" encoding="UTF-8"?>\
+                    <project>\
+                    <name>{0}</name>\
+                    <description>{1}</description>\
+                    <homepage>{2}</homepage>\
+                    </project>""".format(args["name"], args["description"],
+                                         args["homepage"])
+            logger.info("update redmine project body: {0}".format(xml_body))
+            headers = {'Content-Type': 'application/xml'}
+            redmine_output = requests.put(redmine_url,
+                                          headers=headers,
+                                          data=xml_body,
+                                          verify=False)
+            logger.info(
+                "update redmine project output: {0}".format(redmine_output))
+            if str(redmine_output) == "<Response [204]>":
+                if args["name"] != None:
+                    db.engine.execute(
+                        "UPDATE public.projects SET name = '{0}' WHERE id = '{1}'"
+                        .format(args["name"], project_id))
+                output = {"result": "success update"}
+            else:
+                output = redmine_output.json()
+        else:
+            output = gitlab_output.json()
+
+        return output
+
+    # 用project_id刪除redmine & gitlab的project並將db的相關table欄位一併刪除
+    def delete_one_project(self, logger, app, project_id):
+        project_relation = db.engine.execute(
+            "SELECT * FROM public.project_plugin_relation WHERE project_id = '{0}'"
+            .format(project_id))
+        for info in project_relation:
+            redmine_project_id = info["plan_project_id"]
+            gitlab_project_id = info["git_repository_id"]
+
+        gitlab_url = "http://{0}/api/{1}/projects/{2}?private_token={3}".format(\
+            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], gitlab_project_id, self.private_token)
+        logger.info("delete gitlab project url: {0}".format(gitlab_url))
+        gitlab_output = requests.delete(gitlab_url,
+                                        headers=self.headers,
+                                        verify=False)
+        logger.info("delete gitlab project output: {0} / {1}".format(
+            gitlab_output, gitlab_output.json()))
+        if str(gitlab_output) == "<Response [202]>":
+            redmine_url = "http://{0}/projects/{1}.json?key={2}".format(\
+                app.config["REDMINE_IP_PORT"], redmine_project_id, app.config["REDMINE_API_KEY"])
+            logger.info("delete redmine project url: {0}".format(redmine_url))
+            redmine_output = requests.delete(redmine_url,
+                                             headers=self.headers,
+                                             verify=False)
+            logger.info(
+                "delete redmine project output: {0}".format(redmine_output))
+            if str(redmine_output) == "<Response [204]>":
+                db.engine.execute(
+                    "DELETE FROM public.project_plugin_relation WHERE project_id = '{0}'"
+                    .format(project_id))
+                db.engine.execute(
+                    "DELETE FROM public.projects WHERE id = '{0}'".format(
+                        project_id))
+
+                output = {"result": "success delete"}
+            else:
+                output = redmine_output.json()
+        else:
+            output = gitlab_output.json()
 
         return output

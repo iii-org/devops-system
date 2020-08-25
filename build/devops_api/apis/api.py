@@ -58,14 +58,7 @@ class RedmineProjectList(Resource):
         return output.json()
 
 
-class RedmineOneProject(Resource):
-    @jwt_required
-    def get(self, project_id):
-        output = pjt.get_redmine_one_project(logger, app, project_id)
-        return output.json()
-
-
-class Project(Resource):
+class CreateProject(Resource):
     @jwt_required
     def post(self):
         parser = reqparse.RequestParser()
@@ -76,6 +69,28 @@ class Project(Resource):
         output = pjt.create_one_project(logger, app, args)
         return output
 
+
+class Project(Resource):
+    @jwt_required
+    def get(self, project_id):
+        output = pjt.get_one_project(logger, app, project_id)
+        return output
+
+    @jwt_required
+    def put(self, project_id):
+        parser = reqparse.RequestParser()
+        parser.add_argument('name', type=str)
+        parser.add_argument('description', type=str)
+        parser.add_argument('homepage', type=str)
+        args = parser.parse_args()
+        logger.info("put body: {0}".format(args))
+        output = pjt.put_one_project(logger, app, project_id, args)
+        return output
+
+    @jwt_required
+    def delete(self, project_id):
+        output = pjt.delete_one_project(logger, app, project_id)
+        return output
 
 class RedmineIssue_by_user(Resource):
     @jwt_required
@@ -285,7 +300,6 @@ class User(Resource):
         args = parser.parse_args()
         output = au.create_user(logger, args, app)
         return output
-
 
 class GitProjectBranches(Resource):
     @jwt_required
@@ -643,6 +657,13 @@ class IssueCreate(Resource):
         return output
 
 
+
+class IssuesIdList(Resource):
+    @jwt_required
+    def get(self, project_id):
+        output_array = iss.get_issuesId_List(logger, project_id)
+        return jsonify(output_array)
+
 class Issue(Resource):
     @jwt_required
     def get(self, issue_id):
@@ -802,10 +823,10 @@ api.add_resource(Index, '/')
 
 # Redmine project
 api.add_resource(RedmineProjectList, '/project/list')
-api.add_resource(RedmineOneProject, '/project/<project_id>')
 
 # Project(redmine & gitlab & db)
-api.add_resource(Project, '/project')
+api.add_resource(CreateProject, '/project')
+api.add_resource(Project, '/project/<project_id>')
 
 # Redmine issue
 api.add_resource(RedmineIssue, '/redmine_issue/<issue_id>')
