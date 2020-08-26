@@ -92,6 +92,7 @@ class Project(Resource):
         output = pjt.delete_one_project(logger, app, project_id)
         return output
 
+
 class RedmineIssue_by_user(Resource):
     @jwt_required
     def get(self, user_account):
@@ -300,6 +301,7 @@ class User(Resource):
         args = parser.parse_args()
         output = au.create_user(logger, args, app)
         return output
+
 
 class GitProjectBranches(Resource):
     @jwt_required
@@ -657,12 +659,12 @@ class IssueCreate(Resource):
         return output
 
 
-
 class IssuesIdList(Resource):
     @jwt_required
     def get(self, project_id):
         output_array = iss.get_issuesId_List(logger, project_id)
         return jsonify(output_array)
+
 
 class Issue(Resource):
     @jwt_required
@@ -730,6 +732,19 @@ class IssueRDbyUser(Resource):
             return jsonify({'message': 'success', 'data': output})
         else:
             return {'message': 'Access token is missing or invalid'}, 401
+
+
+class IssueStatistics(Resource):
+    @jwt_required
+    def get(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('from_time', required=True)
+        parser.add_argument('to_time')
+        parser.add_argument('status_id', type=int)
+        args = parser.parse_args()
+        output = iss.get_issue_statistics(logger, app, args,
+                                          get_jwt_identity()['user_id'])
+        return output
 
 
 class DashboardIssuePriority(Resource):
@@ -887,6 +902,7 @@ api.add_resource(IssueStatus, '/issues_status')
 api.add_resource(IssuePrioriry, '/issues_priority')
 api.add_resource(IssueTracker, '/issues_tracker')
 api.add_resource(IssueRDbyUser, '/issues_by_user/rd/<user_id>')
+api.add_resource(IssueStatistics, '/issues/statistics')
 
 # dashboard
 api.add_resource(DashboardIssuePriority,
