@@ -10,6 +10,7 @@ from .util import util
 
 import urllib
 
+
 class Project(object):
     private_token = None
     headers = {'Content-Type': 'application/json'}
@@ -23,19 +24,24 @@ class Project(object):
             parame["login"] = app.config["GITLAB_ADMIN_ACCOUNT"]
             parame["password"] = app.config["GITLAB_ADMIN_PASSWORD"]
 
-            output = requests.post(url, data=json.dumps(parame), headers=self.headers, verify=False)
-            # logger.info("private_token api output: {0}".format(output)) 
+            output = requests.post(url,
+                                   data=json.dumps(parame),
+                                   headers=self.headers,
+                                   verify=False)
+            # logger.info("private_token api output: {0}".format(output))
             self.private_token = output.json()['private_token']
         else:
             self.private_token = app.config["GITLAB_PRIVATE_TOKEN"]
         logger.info("private_token: {0}".format(self.private_token))
-    
+
     def verify_project_user(self, logger, project_id, user_id):
         select_project_user_role_command = db.select([ProjectUserRole.stru_project_user_role])\
             .where(db.and_(ProjectUserRole.stru_project_user_role.c.project_id==project_id, \
             ProjectUserRole.stru_project_user_role.c.user_id==user_id))
-        logger.debug("select_project_user_role_command: {0}".format(select_project_user_role_command))
-        reMessage = util.callsqlalchemy(self, select_project_user_role_command, logger)
+        logger.debug("select_project_user_role_command: {0}".format(
+            select_project_user_role_command))
+        reMessage = util.callsqlalchemy(self, select_project_user_role_command,
+                                        logger)
         match_list = reMessage.fetchall()
         logger.info("reMessage: {0}".format(match_list))
         logger.info("reMessage len: {0}".format(len(match_list)))
@@ -45,11 +51,12 @@ class Project(object):
             return False
 
     def get_project_plugin_relation(self, logger):
-        result = db.engine.execute("SELECT * FROM public.project_plugin_relation")
+        result = db.engine.execute(
+            "SELECT * FROM public.project_plugin_relation")
         project_plugin_relation_array = result.fetchall()
         result.close()
         return project_plugin_relation_array
-    
+
     # 查詢所有projects
     def get_all_git_projects(self, logger, app):
         url = "http://{0}/api/{1}/projects?private_token={2}".format(\
@@ -134,9 +141,10 @@ class Project(object):
         output = requests.delete(url, headers=self.headers, verify=False)
         logger.info("delete project webhook output: {0}".format(output))
         return output
-    
+
     def get_project_by_plan_project_id(self, logger, plan_project_id):
-        result = db.engine.execute("SELECT * FROM public.project_plugin_relation \
+        result = db.engine.execute(
+            "SELECT * FROM public.project_plugin_relation \
             WHERE plan_project_id = {0}".format(plan_project_id))
         project = result.fetchone()
         result.close()
@@ -144,21 +152,24 @@ class Project(object):
 
     def get_project_list(self, logger, app, user_id):
         output_array = []
-        result = db.engine.execute("SELECT pj.id, pj.name, ppl.plan_project_id, \
+        result = db.engine.execute(
+            "SELECT pj.id, pj.name, ppl.plan_project_id, \
             ppl.git_repository_id, ppl.ci_project_id, ppl.ci_pipeline_id\
             FROM public.project_user_role as pur, public.projects as pj, public.project_plugin_relation as ppl\
-            WHERE pur.user_id = {0} AND pur.project_id = pj.id AND pj.id = ppl.project_id; ".format(user_id))
+            WHERE pur.user_id = {0} AND pur.project_id = pj.id AND pj.id = ppl.project_id; "
+            .format(user_id))
         project_list = result.fetchall()
         result.close()
 
         # get user ids
         result = db.engine.execute("SELECT plan_user_id, repository_user_id \
-            FROM public.user_plugin_relation WHERE user_id = {0}; ".format(user_id))
+            FROM public.user_plugin_relation WHERE user_id = {0}; ".format(
+            user_id))
         plan_user_id = result.fetchone()[0]
         result.close()
         logger.info("get user_ids SQL: {0}".format(plan_user_id))
         redmine_key = Redmine.get_redmine_key(self, logger, app)
-        for project in  project_list:
+        for project in project_list:
             output_dict = {}
             output_dict['name'] = project['name']
             output_dict['project_id'] = project['id']
@@ -168,39 +179,49 @@ class Project(object):
             # get issue total cont
             total_issue = Redmine.redmine_get_issues_by_project_and_user(self, logger, app, \
                 plan_user_id, project['plan_project_id'] ,redmine_key)
-            logger.info("issue total count by user: {0}".format(total_issue['total_count']))
+            logger.info("issue total count by user: {0}".format(
+                total_issue['total_count']))
             output_dict['issues'] = total_issue['total_count']
 
             # get next_d_time
             issue_due_date_list = []
             for issue in total_issue['issues']:
                 if issue['due_date'] is not None:
-                    issue_due_date_list.append(datetime.strptime(issue['due_date'], "%Y-%m-%d"))
+                    issue_due_date_list.append(
+                        datetime.strptime(issue['due_date'], "%Y-%m-%d"))
             logger.info("issue_due_date_list: {0}".format(issue_due_date_list))
             next_d_time = None
             if len(issue_due_date_list) != 0:
-                next_d_time = min(issue_due_date_list, key=lambda d: abs(d - datetime.now()))
+                next_d_time = min(issue_due_date_list,
+                                  key=lambda d: abs(d - datetime.now()))
             logger.info("next_d_time: {0}".format(next_d_time))
             output_dict['next_d_time'] = next_d_time
 
             # branch bumber
             branch_number = 0
-            output = self.get_git_project_branches(logger, app, project['git_repository_id'])
-            logger.info("get_git_project_branches output: {0}".format(type(output.json())))
+            output = self.get_git_project_branches(
+                logger, app, project['git_repository_id'])
+            logger.info("get_git_project_branches output: {0}".format(
+                type(output.json())))
             if output.status_code == 200:
                 branch_number = len(output.json())
-            logger.info("get_git_project_branches number: {0}".format(branch_number))
+            logger.info(
+                "get_git_project_branches number: {0}".format(branch_number))
             output_dict['branch'] = branch_number
             # tag nubmer
             tag_number = 0
-            output = self.get_git_project_tags(logger, app, project['git_repository_id'])
-            logger.info("get_git_project_tags output: {0}".format(type(output.json())))
+            output = self.get_git_project_tags(logger, app,
+                                               project['git_repository_id'])
+            logger.info("get_git_project_tags output: {0}".format(
+                type(output.json())))
             if output.status_code == 200:
                 tag_number = len(output.json())
-            logger.info("get_git_project_tags number: {0}".format(branch_number))
+            logger.info(
+                "get_git_project_tags number: {0}".format(branch_number))
             output_dict['tag'] = tag_number
 
-            output_dict = self.get_ci_last_test_result(app, logger, output_dict, project)
+            output_dict = self.get_ci_last_test_result(app, logger,
+                                                       output_dict, project)
             output_array.append(output_dict)
         return output_array
 
@@ -269,14 +290,15 @@ class Project(object):
         output = requests.delete(url, headers=self.headers, verify=False)
         logger.info("delete project branch output: {0}".format(output))
         return output
-    
+
     # 用project_id查詢project的repositories
     def get_git_project_repositories(self, logger, app, project_id, branch):
         url = "http://{0}/api/{1}/projects/{2}/repository/tree?private_token={3}&ref={4}".format(\
             app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, self.private_token, branch)
         logger.info("get project repositories url: {0}".format(url))
         output = requests.get(url, headers=self.headers, verify=False)
-        logger.info("get project repositories output: {0}".format(output.json()))
+        logger.info("get project repositories output: {0}".format(
+            output.json()))
         return output
 
     # 用project_id及branch_name及file_path查詢project的file
@@ -307,7 +329,8 @@ class Project(object):
         return output
 
     # 用project_id及branch_name及file_path刪除project的file
-    def delete_git_project_file(self, logger, app, project_id, branch, file_path, args):
+    def delete_git_project_file(self, logger, app, project_id, branch,
+                                file_path, args):
         url = "http://{0}/api/{1}/projects/{2}/repository/files/{3}?private_token={4}&branch={5}&commit_message={6}".format(\
             app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, file_path, self.private_token, branch, args["commit_message"])
         logger.info("delete project file url: {0}".format(url))
@@ -343,40 +366,50 @@ class Project(object):
         return output
 
     # 用project_id及directory_path新增project的directory
-    def create_git_project_directory(self, logger, app, project_id, directory_path, args):
+    def create_git_project_directory(self, logger, app, project_id,
+                                     directory_path, args):
         url = "http://{0}/api/{1}/projects/{2}/repository/files/{3}?private_token={4}&branch={5}&commit_message={6}&content={7}".format(\
             app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, directory_path, self.private_token, args["branch"], args["commit_message"], "")
         logger.info("create project directory url: {0}".format(url))
         output = requests.post(url, headers=self.headers, verify=False)
-        logger.info("create project directory output: {0}".format(output.json()))
+        logger.info("create project directory output: {0}".format(
+            output.json()))
         return output
 
     # 用project_id及directory_path修改project的directory
-    def update_git_project_directory(self, logger, app, project_id, directory_path, args):
+    def update_git_project_directory(self, logger, app, project_id,
+                                     directory_path, args):
         url = "http://{0}/api/{1}/projects/{2}/repository/files/{3}?private_token={4}&branch={5}&commit_message={6}&author_name={7}&author_email={8}&encoding={9}&content={10}".format(\
             app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, directory_path, self.private_token, args["branch"], args["commit_message"], args["author_name"], args["author_email"], args["encoding"], args["content"])
         logger.info("update project directory url: {0}".format(url))
         output = requests.put(url, headers=self.headers, verify=False)
-        logger.info("update project directory output: {0}".format(output.json()))
+        logger.info("update project directory output: {0}".format(
+            output.json()))
         return output
 
     # 用project_id及directory_path刪除project的directory
-    def delete_git_project_directory(self, logger, app, project_id, directory_path, args):
+    def delete_git_project_directory(self, logger, app, project_id,
+                                     directory_path, args):
         # 查詢directory的files
         url = "http://{0}/api/{1}/projects/{2}/repository/tree?private_token={3}&ref={4}&path={5}".format(\
             app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, self.private_token, args["branch"], directory_path)
         logger.info("get project directoryfiles url: {0}".format(url))
         output1 = requests.get(url, headers=self.headers, verify=False)
-        logger.info("get project directoryfiles output: {0} / {1}".format(output1, output1.json()))
+        logger.info("get project directoryfiles output: {0} / {1}".format(
+            output1, output1.json()))
         if str(output1) == "<Response [200]>":
             # 依序刪除directory的files
             for i in range(len(output1.json())):
-                path_encode = urllib.parse.quote(output1.json()[i]["path"], safe='')
+                path_encode = urllib.parse.quote(output1.json()[i]["path"],
+                                                 safe='')
                 url = "http://{0}/api/{1}/projects/{2}/repository/files/{3}?private_token={4}&branch={5}&commit_message={6}".format(\
                     app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, path_encode, self.private_token, args["branch"], args["commit_message"])
                 logger.info("delete project directory url: {0}".format(url))
-                output2 = requests.delete(url, headers=self.headers, verify=False)
-                logger.info("delete project directory output: {0}".format(output2))
+                output2 = requests.delete(url,
+                                          headers=self.headers,
+                                          verify=False)
+                logger.info(
+                    "delete project directory output: {0}".format(output2))
         return output2
 
     # 用project_id合併project的任兩個branches
@@ -386,8 +419,9 @@ class Project(object):
             app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, self.private_token, args["source_branch"], args["target_branch"], args["title"])
         logger.info("post project mergerequest url: {0}".format(url))
         output = requests.post(url, headers=self.headers, verify=False)
-        logger.info("post project mergerequest output:{0} / {1}".format(output, output.json()))
-        
+        logger.info("post project mergerequest output:{0} / {1}".format(
+            output, output.json()))
+
         if str(output) == "<Response [201]>":
             # 同意merge request
             merge_request_iid = output.json()["iid"]
@@ -395,17 +429,22 @@ class Project(object):
                 app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, merge_request_iid, self.private_token)
             logger.info("post project acceptmerge url: {0}".format(url))
             output = requests.put(url, headers=self.headers, verify=False)
-            logger.info("post project acceptmerge output:{0} / {1}".format(output, output.json()))
+            logger.info("post project acceptmerge output:{0} / {1}".format(
+                output, output.json()))
             if str(output) != "<Response [200]>":
                 # 刪除merge request
                 url = "http://{0}/api/{1}/projects/{2}/merge_requests/{3}?private_token={4}".format(\
                     app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, merge_request_iid, self.private_token)
                 logger.info("delete project mergerequest url: {0}".format(url))
-                output_extra = requests.delete(url, headers=self.headers, verify=False)
-                logger.info("delete project mergerequest output:{0}".format(output_extra))                
+                output_extra = requests.delete(url,
+                                               headers=self.headers,
+                                               verify=False)
+                logger.info("delete project mergerequest output:{0}".format(
+                    output_extra))
         return output
 
-    def create_ranhcer_pipline_yaml(self, logger, app, project_id, args, action):
+    def create_ranhcer_pipline_yaml(self, logger, app, project_id, args,
+                                    action):
         pro = Project(logger, app)
         url = "http://{0}/api/{1}/projects/{2}/repository/files/{3}?private_token={4}&branch={5}&\
 start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&commit_message={11}" \
@@ -431,7 +470,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         logger.info("get project file url: {0}".format(url))
         output = requests.get(url, headers=self.headers, verify=False)
         logger.info("get project file output: {0}".format(output.json()))
-        
+
     # 用project_id查詢project的commits
     def get_git_project_branch_commits(self, logger, app, project_id, args):
         url = "http://{0}/api/{1}/projects/{2}/repository/commits?private_token={3}&ref_name={4}&per_page=100".format(\
@@ -443,21 +482,24 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
 
     # 用project_id查詢project的網路圖
     def get_git_project_network(self, logger, app, project_id):
-        
+
         output_list = []
 
         # 整理各branches的commit_list
-        branches = self.get_git_project_branches(logger, app, project_id).json()
+        branches = self.get_git_project_branches(logger, app,
+                                                 project_id).json()
         for branch in branches:
             branch = branch["name"]
             url = "http://{0}/api/{1}/projects/{2}/repository/commits?private_token={3}&ref_name={4}&per_page=100".format(\
                 app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, self.private_token, branch)
-            branch_commits = requests.get(url, headers=self.headers, verify=False).json()
-        
+            branch_commits = requests.get(url,
+                                          headers=self.headers,
+                                          verify=False).json()
+
             commit_list = []
-            
+
             for branch_commit in branch_commits:
-                obj = { 
+                obj = {
                     "id": branch_commit["id"],
                     "message": branch_commit["message"],
                     "author_name": branch_commit["author_name"],
@@ -466,11 +508,8 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
 
                 commit_list.append(obj)
 
-            branch_obj = {
-                "branch": branch,
-                "commits": commit_list
-            }
-            
+            branch_obj = {"branch": branch, "commits": commit_list}
+
             output_list.append(branch_obj)
 
         # 整理各tags
@@ -486,27 +525,34 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
             }
 
             output_list.append(tag_obj)
-        
+
         return output_list
-    
+
     # 查詢redmine的project list
     def get_redmine_project_list(self, logger, app):
-        url = "http://{0}/projects.json?key={1}".format(app.config["REDMINE_IP_PORT"], app.config["REDMINE_API_KEY"])
+        url = "http://{0}/projects.json?key={1}".format(
+            app.config["REDMINE_IP_PORT"], app.config["REDMINE_API_KEY"])
         logger.info("get redmine project list url: {0}".format(url))
         output = requests.get(url, headers=self.headers, verify=False)
-        logger.info("get redmine project list output: {0} / {1}".format(output, output.json()))
+        logger.info("get redmine project list output: {0} / {1}".format(
+            output, output.json()))
         return output
 
     # 用project_id查詢redmine的單一project
     def get_redmine_one_project(self, logger, app, project_id):
-        url = "http://{0}/projects/{1}.json?key={2}".format(app.config["REDMINE_IP_PORT"], project_id, app.config["REDMINE_API_KEY"])
+        url = "http://{0}/projects/{1}.json?key={2}".format(
+            app.config["REDMINE_IP_PORT"], project_id,
+            app.config["REDMINE_API_KEY"])
         logger.info("get redmine one project url: {0}".format(url))
         output = requests.get(url, headers=self.headers, verify=False)
-        logger.info("get redmine one project output: {0} / {1}".format(output, output.json()))
+        logger.info("get redmine one project output: {0} / {1}".format(
+            output, output.json()))
         return output
 
+    # 新增redmine & gitlab的project並將db相關table欄位新增資訊
     def create_one_project(self, logger, app, args):
-        redmine_url = "http://{0}/projects.json?key={1}".format(app.config["REDMINE_IP_PORT"], app.config["REDMINE_API_KEY"])
+        redmine_url = "http://{0}/projects.json?key={1}".format(
+            app.config["REDMINE_IP_PORT"], app.config["REDMINE_API_KEY"])
         logger.info("create redmine project url: {0}".format(redmine_url))
         xml_body = """<?xml version="1.0" encoding="UTF-8"?>\
                     <project>\
@@ -515,35 +561,171 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                     </project>""".format(args["name"], args["identifier"])
         logger.info("create redmine project body: {0}".format(xml_body))
         headers = {'Content-Type': 'application/xml'}
-        redmine_output = requests.post(redmine_url, headers=headers, data=xml_body, verify=False)
-        logger.info("create redmine project output: {0} / {1}".format(redmine_output, redmine_output.json()))
+        redmine_output = requests.post(redmine_url,
+                                       headers=headers,
+                                       data=xml_body,
+                                       verify=False)
+        logger.info("create redmine project output: {0} / {1}".format(
+            redmine_output, redmine_output.json()))
         if str(redmine_output) == "<Response [201]>":
             redmine_pj_id = redmine_output.json()["project"]["id"]
             print("redmine_pj_id is {0}".format(redmine_pj_id))
-            
+
             gitlab_url = "http://{0}/api/{1}/projects?private_token={2}&name={3}".format(\
                 app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], self.private_token, args["name"])
             logger.info("create gitlab project url: {0}".format(gitlab_url))
-            gitlab_output = requests.post(gitlab_url, headers=self.headers, verify=False)
-            logger.info("create gitlab project output: {0} / {1}".format(gitlab_output, gitlab_output.json()))
+            gitlab_output = requests.post(gitlab_url,
+                                          headers=self.headers,
+                                          verify=False)
+            logger.info("create gitlab project output: {0} / {1}".format(
+                gitlab_output, gitlab_output.json()))
             if str(gitlab_output) == "<Response [201]>":
                 gitlab_pj_id = gitlab_output.json()["id"]
                 gitlab_pj_name = gitlab_output.json()["name"]
                 gitlab_pj_ssh_url = gitlab_output.json()["ssh_url_to_repo"]
                 gitlab_pj_http_url = gitlab_output.json()["http_url_to_repo"]
-                print("gitlab_pj_id is {0} & name is {1} & ssh_url is {2} & http_url is {3}".format(gitlab_pj_id, gitlab_pj_name, gitlab_pj_ssh_url, gitlab_pj_http_url))
+                print(
+                    "gitlab_pj_id is {0} & name is {1} & ssh_url is {2} & http_url is {3}"
+                    .format(gitlab_pj_id, gitlab_pj_name, gitlab_pj_ssh_url,
+                            gitlab_pj_http_url))
 
-                db.engine.execute("INSERT INTO public.projects (name, ssh_url, http_url) VALUES ('{0}', '{1}', '{2}')".format(gitlab_pj_name, gitlab_pj_ssh_url, gitlab_pj_http_url))
-                id = db.engine.execute("SELECT id FROM public.projects WHERE name = '{0}'".format(gitlab_pj_name))
+                db.engine.execute(
+                    "INSERT INTO public.projects (name, ssh_url, http_url) VALUES ('{0}', '{1}', '{2}')"
+                    .format(gitlab_pj_name, gitlab_pj_ssh_url,
+                            gitlab_pj_http_url))
+                id = db.engine.execute(
+                    "SELECT id FROM public.projects WHERE name = '{0}'".format(
+                        gitlab_pj_name))
                 project_id = id.fetchone()[0]
-                db.engine.execute("INSERT INTO public.project_plugin_relation (project_id, plan_project_id, git_repository_id) VALUES ({0}, {1}, {2})".format(project_id, redmine_pj_id, gitlab_pj_id))
-                
+                db.engine.execute(
+                    "INSERT INTO public.project_plugin_relation (project_id, plan_project_id, git_repository_id) VALUES ({0}, {1}, {2})"
+                    .format(project_id, redmine_pj_id, gitlab_pj_id))
+
                 output = {
                     "result": "success",
+                    "project_id": project_id,
                     "plan_project_id": redmine_pj_id,
                     "git_repository_id": gitlab_pj_id
                 }
-            else: output = gitlab_output.json()
-        else: output = redmine_output.json()
+            else:
+                output = gitlab_output.json()
+        else:
+            output = redmine_output.json()
+
+        return output
+
+    # 用project_id查詢db的相關table欄位資訊
+    def get_one_project(self, logger, app, project_id):
+        project = db.engine.execute(
+            "SELECT * FROM public.projects WHERE id = '{0}'".format(
+                project_id))
+        for info in project:
+            result = {
+                "id": info["id"],
+                "name": info["name"],
+                "description": info["description"],
+                "ssh_url": info["ssh_url"],
+                "http_url": info["http_url"]
+            }
+
+        project_relation = db.engine.execute(
+            "SELECT * FROM public.project_plugin_relation WHERE project_id = '{0}'"
+            .format(project_id))
+        for info in project_relation:
+            result["plan_project_id"] = info["plan_project_id"]
+            result["git_repository_id"] = info["git_repository_id"]
+            result["ci_project_id"] = info["ci_project_id"]
+            result["ci_pipeline_id"] = info["ci_pipeline_id"]
+
+        return result
+
+    # 修改redmine & gitlab的project資訊
+    def put_one_project(self, logger, app, project_id, args):
+        project_relation = db.engine.execute(
+            "SELECT * FROM public.project_plugin_relation WHERE project_id = '{0}'"
+            .format(project_id))
+        for info in project_relation:
+            redmine_project_id = info["plan_project_id"]
+            gitlab_project_id = info["git_repository_id"]
+
+        gitlab_url = "http://{0}/api/{1}/projects/{2}?private_token={3}&name={4}&description={5}".format(\
+            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], gitlab_project_id, self.private_token, args["name"], args["description"])
+        logger.info("update gitlab project url: {0}".format(gitlab_url))
+        gitlab_output = requests.put(gitlab_url,
+                                     headers=self.headers,
+                                     verify=False)
+        logger.info("update gitlab project output: {0} / {1}".format(
+            gitlab_output, gitlab_output.json()))
+        if str(gitlab_output) == "<Response [200]>":
+            redmine_url = "http://{0}/projects/{1}.json?key={2}".format(\
+                app.config["REDMINE_IP_PORT"], redmine_project_id, app.config["REDMINE_API_KEY"])
+            logger.info("update redmine project url: {0}".format(redmine_url))
+            xml_body = """<?xml version="1.0" encoding="UTF-8"?>\
+                    <project>\
+                    <name>{0}</name>\
+                    <description>{1}</description>\
+                    <homepage>{2}</homepage>\
+                    </project>""".format(args["name"], args["description"],
+                                         args["homepage"])
+            logger.info("update redmine project body: {0}".format(xml_body))
+            headers = {'Content-Type': 'application/xml'}
+            redmine_output = requests.put(redmine_url,
+                                          headers=headers,
+                                          data=xml_body,
+                                          verify=False)
+            logger.info(
+                "update redmine project output: {0}".format(redmine_output))
+            if str(redmine_output) == "<Response [204]>":
+                if args["name"] != None:
+                    db.engine.execute(
+                        "UPDATE public.projects SET name = '{0}' WHERE id = '{1}'"
+                        .format(args["name"], project_id))
+                output = {"result": "success update"}
+            else:
+                output = redmine_output.json()
+        else:
+            output = gitlab_output.json()
+
+        return output
+
+    # 用project_id刪除redmine & gitlab的project並將db的相關table欄位一併刪除
+    def delete_one_project(self, logger, app, project_id):
+        project_relation = db.engine.execute(
+            "SELECT * FROM public.project_plugin_relation WHERE project_id = '{0}'"
+            .format(project_id))
+        for info in project_relation:
+            redmine_project_id = info["plan_project_id"]
+            gitlab_project_id = info["git_repository_id"]
+
+        gitlab_url = "http://{0}/api/{1}/projects/{2}?private_token={3}".format(\
+            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], gitlab_project_id, self.private_token)
+        logger.info("delete gitlab project url: {0}".format(gitlab_url))
+        gitlab_output = requests.delete(gitlab_url,
+                                        headers=self.headers,
+                                        verify=False)
+        logger.info("delete gitlab project output: {0} / {1}".format(
+            gitlab_output, gitlab_output.json()))
+        if str(gitlab_output) == "<Response [202]>":
+            redmine_url = "http://{0}/projects/{1}.json?key={2}".format(\
+                app.config["REDMINE_IP_PORT"], redmine_project_id, app.config["REDMINE_API_KEY"])
+            logger.info("delete redmine project url: {0}".format(redmine_url))
+            redmine_output = requests.delete(redmine_url,
+                                             headers=self.headers,
+                                             verify=False)
+            logger.info(
+                "delete redmine project output: {0}".format(redmine_output))
+            if str(redmine_output) == "<Response [204]>":
+                db.engine.execute(
+                    "DELETE FROM public.project_plugin_relation WHERE project_id = '{0}'"
+                    .format(project_id))
+                db.engine.execute(
+                    "DELETE FROM public.projects WHERE id = '{0}'".format(
+                        project_id))
+
+                output = {"result": "success delete"}
+            else:
+                output = redmine_output.json()
+        else:
+            output = gitlab_output.json()
 
         return output

@@ -20,7 +20,6 @@ import resources.project as project
 import resources.pipeline as pipeline
 import resources.requirement as requirement
 
-
 app = Flask(__name__)
 app.config.from_object('config')
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = datetime.timedelta(days=1)
@@ -45,31 +44,21 @@ pipe = pipeline.Pipeline()
 
 rqmt = requirement.Requirement()
 
-class Index(Resource):
 
+class Index(Resource):
     def get(self):
         iss.create_data_into_project_relationship(logger)
         return {"message": "DevOps api is working"}
 
 
 class RedmineProjectList(Resource):
-
     @jwt_required
     def get(self):
         output = pjt.get_redmine_project_list(logger, app)
         return output.json()
 
 
-class RedmineOneProject(Resource):
-
-    @jwt_required
-    def get(self, project_id):
-        output = pjt.get_redmine_one_project(logger, app, project_id)
-        return output.json()
-
-
-class Project(Resource):
-
+class CreateProject(Resource):
     @jwt_required
     def post(self):
         parser = reqparse.RequestParser()
@@ -81,8 +70,29 @@ class Project(Resource):
         return output
 
 
-class RedmineIssue_by_user(Resource):
+class Project(Resource):
+    @jwt_required
+    def get(self, project_id):
+        output = pjt.get_one_project(logger, app, project_id)
+        return output
 
+    @jwt_required
+    def put(self, project_id):
+        parser = reqparse.RequestParser()
+        parser.add_argument('name', type=str)
+        parser.add_argument('description', type=str)
+        parser.add_argument('homepage', type=str)
+        args = parser.parse_args()
+        logger.info("put body: {0}".format(args))
+        output = pjt.put_one_project(logger, app, project_id, args)
+        return output
+
+    @jwt_required
+    def delete(self, project_id):
+        output = pjt.delete_one_project(logger, app, project_id)
+        return output
+
+class RedmineIssue_by_user(Resource):
     @jwt_required
     def get(self, user_account):
         output = redmine.redmine_get_issues_by_user(logger, app, user_account)
@@ -90,7 +100,6 @@ class RedmineIssue_by_user(Resource):
 
 
 class RedmineIssue(Resource):
-
     @jwt_required
     def get(self, issue_id):
         output = redmine.redmine_get_issue(logger, app, issue_id)
@@ -107,25 +116,22 @@ class RedmineIssue(Resource):
 
 
 class RedmineIssueStatus(Resource):
-
     @jwt_required
-    def get (self):
+    def get(self):
         output = redmine.redmine_get_issue_status(logger, app)
         return output.json()
 
 
 class RedmineProject(Resource):
-
     @jwt_required
     def get(self, user_account):
         output = redmine.get_project(logger, app, user_account)
         return {"projects": output.json()["user"]["memberships"]}
 
-    
-class GitProjects(Resource):
 
+class GitProjects(Resource):
     @jwt_required
-    def get (self):
+    def get(self):
         output = pjt.get_all_git_projects(logger, app)
         return output.json()
 
@@ -141,7 +147,6 @@ class GitProjects(Resource):
 
 
 class GitOneProject(Resource):
-
     @jwt_required
     def get(self, project_id):
         output = pjt.get_one_git_project(logger, app, project_id)
@@ -163,7 +168,6 @@ class GitOneProject(Resource):
 
 
 class GitProjectWebhooks(Resource):
-
     @jwt_required
     def get(self, project_id):
         output = pjt.get_git_project_webhooks(logger, app, project_id)
@@ -206,9 +210,8 @@ class GitProjectWebhooks(Resource):
 
 
 class ProjectList(Resource):
-
     @jwt_required
-    def get (self, user_id):
+    def get(self, user_id):
         if int(user_id) == get_jwt_identity()['user_id']:
             output_array = pjt.get_project_list(logger, app, user_id)
             return jsonify({'message': 'success', 'data': output_array})
@@ -217,7 +220,6 @@ class ProjectList(Resource):
 
 
 class UserLogin(Resource):
-
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('username', type=str, required=True)
@@ -231,7 +233,6 @@ class UserLogin(Resource):
 
 
 class UserForgetPassword(Resource):
-
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('mail', type=str, required=True)
@@ -245,9 +246,8 @@ class UserForgetPassword(Resource):
 
 
 class UserInfo(Resource):
-
     @jwt_required
-    def get (self, user_id):
+    def get(self, user_id):
         if int(user_id) == get_jwt_identity()['user_id']:
             user_info = au.user_info(logger, user_id)
             return jsonify({'message': 'success', 'data': user_info})
@@ -275,7 +275,7 @@ class UserInfo(Resource):
             return {'message': 'Access token is missing or invalid'}, 401
 
     @jwt_required
-    def delete (self, user_id):
+    def delete(self, user_id):
         '''delete user'''
         try:
             au.delete_user(logger, user_id)
@@ -285,9 +285,8 @@ class UserInfo(Resource):
 
 
 class User(Resource):
-
     @jwt_required
-    def post (self):
+    def post(self):
         '''create user'''
         parser = reqparse.RequestParser()
         parser.add_argument('name', type=str)
@@ -303,7 +302,6 @@ class User(Resource):
         return output
 
 class GitProjectBranches(Resource):
-
     @jwt_required
     def get(self, repository_id):
         project_id = repository_id
@@ -333,7 +331,6 @@ class GitProjectBranches(Resource):
 
 
 class GitProjectBranch(Resource):
-
     @jwt_required
     def get(self, repository_id, branch_name):
         project_id = repository_id
@@ -353,17 +350,16 @@ class GitProjectBranch(Resource):
 
 
 class GitProjectRepositories(Resource):
-
     @jwt_required
     def get(self, repository_id, branch_name):
         project_id = repository_id
         branch = branch_name
-        output = pjt.get_git_project_repositories(logger, app, project_id, branch)
+        output = pjt.get_git_project_repositories(logger, app, project_id,
+                                                  branch)
         return output.json()
 
 
 class GitProjectFiles(Resource):
-
     @jwt_required
     def post(self, repository_id):
         project_id = repository_id
@@ -420,12 +416,12 @@ class GitProjectFiles(Resource):
 
 
 class GitProjectFile(Resource):
-
     @jwt_required
     def get(self, repository_id, branch_name, file_path):
         project_id = repository_id
         branch = branch_name
-        output = pjt.get_git_project_file(logger, app, project_id, branch, file_path)
+        output = pjt.get_git_project_file(logger, app, project_id, branch,
+                                          file_path)
         if str(output) == "<Response [200]>":
             result = {
                 "message": "success",
@@ -452,7 +448,8 @@ class GitProjectFile(Resource):
         parser.add_argument('commit_message', type=str, required=True)
         args = parser.parse_args()
         logger.info("delete body: {0}".format(args))
-        output = pjt.delete_git_project_file(logger, app, project_id, branch, file_path, args)
+        output = pjt.delete_git_project_file(logger, app, project_id, branch,
+                                             file_path, args)
         if str(output) == "<Response [204]>":
             return "Success Delete FI"
         else:
@@ -460,9 +457,8 @@ class GitProjectFile(Resource):
 
 
 class GitProjectTags(Resource):
-
     @jwt_required
-    def get (self, repository_id):
+    def get(self, repository_id):
         project_id = repository_id
         output = pjt.get_git_project_tags(logger, app, project_id)
         return output.json()
@@ -482,7 +478,6 @@ class GitProjectTags(Resource):
 
 
 class GitProjectTag(Resource):
-    
     @jwt_required
     def delete(self, repository_id, tag_name):
         project_id = repository_id
@@ -494,7 +489,6 @@ class GitProjectTag(Resource):
 
 
 class GitProjectDirectory(Resource):
-
     @jwt_required
     def post(self, repository_id, directory_path):
         project_id = repository_id
@@ -504,7 +498,8 @@ class GitProjectDirectory(Resource):
         parser.add_argument('commit_message', type=str, required=True)
         args = parser.parse_args()
         logger.info("post body: {0}".format(args))
-        output = pjt.create_git_project_directory(logger, app, project_id, directory_path, args)
+        output = pjt.create_git_project_directory(logger, app, project_id,
+                                                  directory_path, args)
         return output.json()
 
     @jwt_required
@@ -520,7 +515,8 @@ class GitProjectDirectory(Resource):
         parser.add_argument('commit_message', type=str, required=True)
         args = parser.parse_args()
         logger.info("put body: {0}".format(args))
-        output = pjt.update_git_project_directory(logger, app, project_id, directory_path, args)
+        output = pjt.update_git_project_directory(logger, app, project_id,
+                                                  directory_path, args)
         return output.json()
 
     @jwt_required
@@ -531,15 +527,15 @@ class GitProjectDirectory(Resource):
         parser.add_argument('commit_message', type=str, required=True)
         args = parser.parse_args()
         logger.info("delete body: {0}".format(args))
-        output = pjt.delete_git_project_directory(logger, app, project_id, directory_path, args)
+        output = pjt.delete_git_project_directory(logger, app, project_id,
+                                                  directory_path, args)
         if str(output) == "<Response [204]>":
             return "Success Delete"
         else:
             return str(output)
-            
+
 
 class GitProjectMergeBranch(Resource):
-
     @jwt_required
     def post(self, repository_id):
         project_id = repository_id
@@ -547,12 +543,12 @@ class GitProjectMergeBranch(Resource):
         parser.add_argument('schemas', type=dict, required=True)
         args = parser.parse_args()["schemas"]
         logger.info("post body: {0}".format(args))
-        output = pjt.create_git_project_mergebranch(logger, app, project_id, args)
+        output = pjt.create_git_project_mergebranch(logger, app, project_id,
+                                                    args)
         return output.json()
 
 
 class GitProjectBranchCommmits(Resource):
-
     @jwt_required
     def get(self, repository_id):
         project_id = repository_id
@@ -560,12 +556,12 @@ class GitProjectBranchCommmits(Resource):
         parser.add_argument('branch', type=str, required=True)
         args = parser.parse_args()
         logger.info("get body: {0}".format(args))
-        output = pjt.get_git_project_branch_commits(logger, app, project_id, args)
+        output = pjt.get_git_project_branch_commits(logger, app, project_id,
+                                                    args)
         return output.json()
 
 
 class GitProjectNetwork(Resource):
-
     @jwt_required
     def get(self, repository_id):
         project_id = repository_id
@@ -574,25 +570,22 @@ class GitProjectNetwork(Resource):
 
 
 class PipelineInfo(Resource):
-
     @jwt_required
-    def get (self, project_id):
+    def get(self, project_id):
         output = pipe.pipeline_info(logger, project_id)
         return jsonify(output)
 
 
 class PipelineExec(Resource):
-
     @jwt_required
-    def get (self, repository_id):
+    def get(self, repository_id):
         output_array = pipe.pipeline_exec_list(logger, app, repository_id)
         return jsonify({'message': 'success', 'data': output_array})
 
 
 class PipelineExecLogs(Resource):
-
     @jwt_required
-    def get (self):
+    def get(self):
         parser = reqparse.RequestParser()
         parser.add_argument('repository_id', type=int)
         parser.add_argument('pipelines_exec_run', type=int)
@@ -600,39 +593,41 @@ class PipelineExecLogs(Resource):
         output_array = pipe.pipeline_exec_logs(logger, app, args)
         return jsonify({'message': 'success', 'data': output_array})
 
-class PipelineSoftware(Resource):
 
+class PipelineSoftware(Resource):
     @jwt_required
-    def get (self):
+    def get(self):
         pipe_out_list = pipe.pipeline_software(logger)
-        output_list =[]
+        output_list = []
         for pipe_out in pipe_out_list:
             if 'detail' in pipe_out:
-                pipe_out['detail'] = json.loads(pipe_out['detail'].replace("'",'"'))
+                pipe_out['detail'] = json.loads(pipe_out['detail'].replace(
+                    "'", '"'))
             output_list.append(pipe_out)
         return jsonify({'message': 'success', 'data': output_list})
 
 
 class PipelineGenerateYaml(Resource):
-
     @jwt_required
-    def get (self, repository_id, branch_name):
-        output_array = pipe.get_ci_yaml(logger, app, repository_id, branch_name)
+    def get(self, repository_id, branch_name):
+        output_array = pipe.get_ci_yaml(logger, app, repository_id,
+                                        branch_name)
         return jsonify({'message': 'success', 'data': output_array})
 
     @jwt_required
-    def post (self, repository_id, branch_name):
+    def post(self, repository_id, branch_name):
         parser = reqparse.RequestParser()
         parser.add_argument('detail')
         args = parser.parse_args()
-        output_array = pipe.generate_ci_yaml(logger, args, app, repository_id, branch_name)
+        output_array = pipe.generate_ci_yaml(logger, args, app, repository_id,
+                                             branch_name)
 
 
 class IssueByProject(Resource):
-
     @jwt_required
-    def get (self, project_id):
-        stauts = pjt.verify_project_user(logger, project_id, get_jwt_identity()['user_id'])
+    def get(self, project_id):
+        stauts = pjt.verify_project_user(logger, project_id,
+                                         get_jwt_identity()['user_id'])
         if stauts:
             output_array = iss.get_issue_by_project(logger, app, project_id)
             return jsonify(output_array)
@@ -640,10 +635,10 @@ class IssueByProject(Resource):
             return {'message': 'Dont have authorization to access issue list on project: {0}'\
                 .format(project_id)}, 401
 
+
 class IssueCreate(Resource):
-    
     @jwt_required
-    def post (self):
+    def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('project_id', type=int, required=True)
         parser.add_argument('tracker_id', type=int, required=True)
@@ -661,14 +656,24 @@ class IssueCreate(Resource):
         output = iss.create_issue(logger, app, args)
         return output
 
+
+
+class IssuesIdList(Resource):
+    @jwt_required
+    def get(self, project_id):
+        output_array = iss.get_issuesId_List(logger, project_id)
+        return jsonify(output_array)
+
 class Issue(Resource):
+    @jwt_required
+    def get(self, issue_id):
+        return jsonify({
+            'message': 'success',
+            'data': iss.get_issue_rd(logger, app, issue_id)
+        })
 
     @jwt_required
-    def get (self, issue_id):
-        return jsonify({'message': 'success', 'data': iss.get_issue_rd(logger, app, issue_id)})
-    
-    @jwt_required
-    def put (self, issue_id):
+    def put(self, issue_id):
         parser = reqparse.RequestParser()
         parser.add_argument('tracker_id', type=int)
         parser.add_argument('status_id', type=int)
@@ -685,8 +690,9 @@ class Issue(Resource):
         return jsonify({'message': 'success'})
 
     @jwt_required
-    def delete (self, issue_id):
-        stauts = iss.verify_issue_user(logger, app, issue_id, get_jwt_identity()['user_id'])
+    def delete(self, issue_id):
+        stauts = iss.verify_issue_user(logger, app, issue_id,
+                                       get_jwt_identity()['user_id'])
         if stauts and get_jwt_identity()['role_id'] in (3, 4):
             output = iss.delete_issue(logger, app, issue_id)
             return output
@@ -696,31 +702,29 @@ class Issue(Resource):
 
 
 class IssueStatus(Resource):
-
     @jwt_required
-    def get (self):
+    def get(self):
         output = iss.get_issue_status(logger, app)
         return jsonify({'message': 'success', 'data': output})
 
 
 class IssuePrioriry(Resource):
-
     @jwt_required
-    def get (self):
+    def get(self):
         output = iss.get_issue_priority(logger, app)
         return jsonify({'message': 'success', 'data': output})
 
-class IssueTracker(Resource):
 
+class IssueTracker(Resource):
     @jwt_required
-    def get (self):
+    def get(self):
         output = iss.get_issue_trackers(logger, app)
         return jsonify({'message': 'success', 'data': output})
 
-class IssueRDbyUser(Resource):
 
+class IssueRDbyUser(Resource):
     @jwt_required
-    def get (self, user_id):
+    def get(self, user_id):
         if int(user_id) == get_jwt_identity()['user_id']:
             output = iss.get_issue_by_user(logger, app, user_id)
             return jsonify({'message': 'success', 'data': output})
@@ -729,9 +733,8 @@ class IssueRDbyUser(Resource):
 
 
 class DashboardIssuePriority(Resource):
-
     @jwt_required
-    def get (self, user_id):
+    def get(self, user_id):
         if int(user_id) == get_jwt_identity()['user_id']:
             output = iss.count_prioriry_number_by_issues(logger, app, user_id)
             return jsonify({'message': 'success', 'data': output})
@@ -740,9 +743,8 @@ class DashboardIssuePriority(Resource):
 
 
 class DashboardIssueProject(Resource):
-
     @jwt_required
-    def get (self, user_id):
+    def get(self, user_id):
         if int(user_id) == get_jwt_identity()['user_id']:
             output = iss.count_project_number_by_issues(logger, app, user_id)
             return jsonify({'message': 'success', 'data': output})
@@ -751,9 +753,8 @@ class DashboardIssueProject(Resource):
 
 
 class DashboardIssueType(Resource):
-
     @jwt_required
-    def get (self, user_id):
+    def get(self, user_id):
         if int(user_id) == get_jwt_identity()['user_id']:
             output = iss.count_type_number_by_issues(logger, app, user_id)
             return jsonify({'message': 'success', 'data': output})
@@ -761,31 +762,76 @@ class DashboardIssueType(Resource):
             return {'message': 'Access token is missing or invalid'}, 401
 
 
+class RequirementByIssue(Resource):
+
+    ## 用issues ID 取得目前所有的需求清單
+    @jwt_required
+    def get(self, issue_id):
+        #temp = get_jwt_identity()
+        print(get_jwt_identity())
+        output = rqmt.get_requirements_by_issue_id(
+            logger, issue_id,
+            get_jwt_identity()['user_id'])
+        return jsonify({'message': 'success', 'data': output})
+
+    ## 用issues ID 新建立需求清單
+    @jwt_required
+    def post(self, issue_id):
+        parser = reqparse.RequestParser()
+        parser.add_argument('project_id', type=int)
+        parser.add_argument('flow_info', type=str)
+        args = parser.parse_args()
+        output = rqmt.post_requirement_by_issue_id(
+            logger, issue_id, args,
+            get_jwt_identity()['user_id'])
+        return jsonify({'message': 'success', 'data': output})
+
 
 class Requirement(Resource):
-    
-    @jwt_required
-    def get (self, issue_id):
-        print(issue_id)
-        temp = get_jwt_identity()
-        output= {}
-        output = rqmt.requirement_by_rqmt_id(issue_id, get_jwt_identity()['user_id'])
-        return jsonify({'message': 'success', 'data':  output })
 
+    ## 用requirement_id 取得目前需求流程
+    @jwt_required
+    def get(self, requirement_id):
+        #temp = get_jwt_identity()
+        output = rqmt.get_requirement_by_rqmt_id(logger, requirement_id,
+                                                 get_jwt_identity()['user_id'])
+        return jsonify({'message': 'success', 'data': output})
+
+    ## 用requirement_id 刪除目前需求流程
+    @jwt_required
+    def delete(self, requirement_id):
+        #temp = get_jwt_identity()
+        output = rqmt.del_requirement_by_rqmt_id(logger, requirement_id,
+                                                 get_jwt_identity()['user_id'])
+        return jsonify({'message': 'success', 'data': output})
+
+    ## 用requirement_id 更新目前需求流程
+    @jwt_required
+    def put(self, requirement_id):
+        #temp = get_jwt_identity()
+        parser = reqparse.RequestParser()
+        parser.add_argument('project_id', type=int)
+        parser.add_argument('flow_info', type=str)
+        args = parser.parse_args()
+        output = rqmt.modify_requirement_by_rqmt_id(
+            logger, requirement_id, args,
+            get_jwt_identity()['user_id'])
+        return jsonify({'message': 'success'})
 
 
 api.add_resource(Index, '/')
 
 # Redmine project
 api.add_resource(RedmineProjectList, '/project/list')
-api.add_resource(RedmineOneProject, '/project/<project_id>')
 
 # Project(redmine & gitlab & db)
-api.add_resource(Project, '/project')
+api.add_resource(CreateProject, '/project')
+api.add_resource(Project, '/project/<project_id>')
 
 # Redmine issue
 api.add_resource(RedmineIssue, '/redmine_issue/<issue_id>')
-api.add_resource(RedmineIssue_by_user, '/redmine_issues_by_user/<user_account>')
+api.add_resource(RedmineIssue_by_user,
+                 '/redmine_issues_by_user/<user_account>')
 api.add_resource(RedmineIssueStatus, '/redmine_issues_status')
 api.add_resource(RedmineProject, '/redmine_project/<user_account>')
 
@@ -795,17 +841,26 @@ api.add_resource(GitOneProject, '/git_one_project/<project_id>')
 api.add_resource(GitProjectWebhooks, '/git_project_webhooks/<project_id>')
 
 api.add_resource(GitProjectBranches, '/repositories/rd/<repository_id>/branch')
-api.add_resource(GitProjectBranch, '/repositories/rd/<repository_id>/branch/<branch_name>')
-api.add_resource(GitProjectRepositories, '/repositories/rd/<repository_id>/branch/<branch_name>/tree')
-api.add_resource(GitProjectFiles, '/repositories/rd/<repository_id>/branch/files')
-api.add_resource(GitProjectFile, '/repositories/rd/<repository_id>/branch/<branch_name>/files/<file_path>')
+api.add_resource(GitProjectBranch,
+                 '/repositories/rd/<repository_id>/branch/<branch_name>')
+api.add_resource(GitProjectRepositories,
+                 '/repositories/rd/<repository_id>/branch/<branch_name>/tree')
+api.add_resource(GitProjectFiles,
+                 '/repositories/rd/<repository_id>/branch/files')
+api.add_resource(
+    GitProjectFile,
+    '/repositories/rd/<repository_id>/branch/<branch_name>/files/<file_path>')
 api.add_resource(GitProjectTags, '/repositories/rd/<repository_id>/tags')
-api.add_resource(GitProjectTag, '/repositories/rd/<repository_id>/tags/<tag_name>')
-api.add_resource(GitProjectDirectory, '/repositories/rd/<repository_id>/directory/<directory_path>')
-api.add_resource(GitProjectMergeBranch, '/repositories/rd/<repository_id>/merge_branches')
-api.add_resource(GitProjectBranchCommmits, '/repositories/rd/<repository_id>/commits')
+api.add_resource(GitProjectTag,
+                 '/repositories/rd/<repository_id>/tags/<tag_name>')
+api.add_resource(
+    GitProjectDirectory,
+    '/repositories/rd/<repository_id>/directory/<directory_path>')
+api.add_resource(GitProjectMergeBranch,
+                 '/repositories/rd/<repository_id>/merge_branches')
+api.add_resource(GitProjectBranchCommmits,
+                 '/repositories/rd/<repository_id>/commits')
 api.add_resource(GitProjectNetwork, '/repositories/<repository_id>/overview')
-
 
 # Project
 api.add_resource(ProjectList, '/project/rd/<user_id>')
@@ -820,7 +875,9 @@ api.add_resource(User, '/user')
 api.add_resource(PipelineExec, '/pipelines/rd/<repository_id>/pipelines_exec')
 api.add_resource(PipelineExecLogs, '/pipelines/rd/logs')
 api.add_resource(PipelineSoftware, '/pipelines/software')
-api.add_resource(PipelineGenerateYaml, '/pipelines/<repository_id>/branch/<branch_name>/generate_ci_yaml')
+api.add_resource(
+    PipelineGenerateYaml,
+    '/pipelines/<repository_id>/branch/<branch_name>/generate_ci_yaml')
 
 # issue
 api.add_resource(IssueByProject, '/project/<project_id>/issues')
@@ -832,16 +889,14 @@ api.add_resource(IssueTracker, '/issues_tracker')
 api.add_resource(IssueRDbyUser, '/issues_by_user/rd/<user_id>')
 
 # dashboard
-api.add_resource(DashboardIssuePriority, '/dashboard_issues_priority/rd/<user_id>')
+api.add_resource(DashboardIssuePriority,
+                 '/dashboard_issues_priority/rd/<user_id>')
 api.add_resource(DashboardIssueProject, '/dashboard_issues_project/<user_id>')
 api.add_resource(DashboardIssueType, '/dashboard_issues_type/<user_id>')
 
-
 # testPhase Case
-
-api.add_resource(Requirement,'/requirements_by_issue/<issue_id>')
-
-
+api.add_resource(RequirementByIssue, '/requirements_by_issue/<issue_id>')
+api.add_resource(Requirement, '/requirements/<requirement_id>')
 
 if __name__ == "__main__":
     db.init_app(app)
