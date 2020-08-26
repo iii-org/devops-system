@@ -306,19 +306,33 @@ class User(Resource):
 class GitProjectBranches(Resource):
     @jwt_required
     def get(self, repository_id):
+        user_id = get_jwt_identity()
+        print("user_id={0}".format(user_id))
         project_id = repository_id
-        output = pjt.get_git_project_branches(logger, app, project_id)
-        branch_list = []
-        for idx, i in enumerate(output.json()):
-            branch = {
-                "id": idx,
-                "name": i["name"],
-                "last_commit_message": i["commit"]["message"],
-                "last_commit_time": i["commit"]["committed_date"],
-                "uuid": i["commit"]["id"]
-            }
-            branch_list.append(branch)
-        return branch_list
+        try:
+            role_id = db.engine.execute("SELECT role_id FROM public.project_user_role \
+                WHERE user_id = {0} AND project_id = {1}".format(user_id, project_id)).fetchone()[0]
+        except:
+            role_id = None
+        # print("role_id={0}".format(role_id))
+        # print(role_id == None)
+        if role_id == None:
+            return "您無權限訪問！"
+        elif role_id<= 5:
+            output = pjt.get_git_project_branches(logger, app, project_id)
+            branch_list = []
+            for idx, i in enumerate(output.json()):
+                branch = {
+                    "id": idx+1,
+                    "name": i["name"],
+                    "last_commit_message": i["commit"]["message"],
+                    "last_commit_time": i["commit"]["committed_date"],
+                    "uuid": i["commit"]["id"]
+                }
+                branch_list.append(branch)
+            return branch_list
+        else:
+            return "您無權限訪問！"
 
     @jwt_required
     def post(self, repository_id):
@@ -855,7 +869,7 @@ api.add_resource(GitProjects, '/git_projects')
 api.add_resource(GitOneProject, '/git_one_project/<project_id>')
 api.add_resource(GitProjectWebhooks, '/git_project_webhooks/<project_id>')
 
-api.add_resource(GitProjectBranches, '/repositories/rd/<repository_id>/branch')
+api.add_resource(GitProjectBranches, '/repositories/<repository_id>/branch')
 api.add_resource(GitProjectBranch,
                  '/repositories/rd/<repository_id>/branch/<branch_name>')
 api.add_resource(GitProjectRepositories,
