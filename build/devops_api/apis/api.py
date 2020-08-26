@@ -19,6 +19,10 @@ import resources.redmine as redmine
 import resources.project as project
 import resources.pipeline as pipeline
 import resources.requirement as requirement
+import resources.parameter as parameter
+import resources.testCase as testCase
+import resources.testItem as testItem
+import resources.testValue as testValue
 
 
 app = Flask(__name__)
@@ -44,6 +48,10 @@ pjt = project.Project(logger, app)
 pipe = pipeline.Pipeline()
 
 rqmt = requirement.Requirement()
+param = parameter.Parameter()
+tc = testCase.TestCase()
+ti = testItem.TestItem()
+tv = testValue.TestValue()
 
 class Index(Resource):
 
@@ -748,19 +756,259 @@ class Requirement(Resource):
     @jwt_required
     def delete (self, requirement_id):
         #temp = get_jwt_identity()
+        output={}
         output = rqmt.del_requirement_by_rqmt_id(logger, requirement_id, get_jwt_identity()['user_id'])
-        return jsonify({'message': 'success', 'data':  output }) 
+        return jsonify({'message': 'success' }) 
     
     ## 用requirement_id 更新目前需求流程
     @jwt_required
     def put (self, requirement_id):
-        #temp = get_jwt_identity()
+        output={}
         parser = reqparse.RequestParser()
-        parser.add_argument('project_id', type=int)
         parser.add_argument('flow_info', type=str)
         args = parser.parse_args()
         output = rqmt.modify_requirement_by_rqmt_id(logger, requirement_id, args, get_jwt_identity()['user_id'])
         return jsonify({'message': 'success'})
+
+
+class ParameterByIssue(Resource):
+    
+    ## 用issues ID 取得目前所有的需求清單
+    @jwt_required
+    def get (self, issue_id):
+        output = {}
+        output = param.get_parameterss_by_issue_id(logger, issue_id, get_jwt_identity()['user_id'])
+        return jsonify({'message': 'success', 'data':  output })
+    
+    ## 用issues ID 新建立需求清單
+    @jwt_required
+    def post (self, issue_id):
+        output={}
+        parser = reqparse.RequestParser()
+        parser.add_argument('project_id', type=int)
+        parser.add_argument('parameter_type_id', type=int)
+        parser.add_argument('name', type=str)
+        parser.add_argument('description', type=str)
+        parser.add_argument('limitation', type=str)
+        parser.add_argument('length', type=int)
+        args = parser.parse_args()
+        output = param.post_parameters_by_issue_id(logger, issue_id, args,  get_jwt_identity()['user_id'])
+        return jsonify({'message': 'success', 'data':  output })
+  
+
+
+class Parameter(Resource):
+
+    ## 用requirement_id 取得目前需求流程
+    @jwt_required
+    def get (self, parameter_id):
+        output={}
+        output = param.get_parameters_by_param_id(logger, parameter_id, get_jwt_identity()['user_id'])
+        return jsonify({'message': 'success', 'data':  output })
+    
+    ## 用requirement_id 刪除目前需求流程
+    @jwt_required
+    def delete (self, parameter_id):
+        output={}
+        output = param.del_parameters_by_param_id(logger, parameter_id, get_jwt_identity()['user_id'])
+        return jsonify({'message': 'success', 'data':  output }) 
+    
+    ## 用requirement_id 更新目前需求流程
+    @jwt_required
+    def put (self, parameter_id):
+        output={}
+        parser = reqparse.RequestParser()
+        parser.add_argument('parameter_type_id', type=int)
+        parser.add_argument('name', type=str)
+        parser.add_argument('description', type=str)
+        parser.add_argument('limitation', type=str)
+        parser.add_argument('length', type=int)        
+        args = parser.parse_args()
+        output = param.modify_parameters_by_param_id(logger, parameter_id, args, get_jwt_identity()['user_id'])
+        return jsonify({'message': 'success'})
+
+
+
+
+class TestCaseByIssue(Resource):
+    
+    ## 用issues ID 取得目前所有的目前測試案例
+    @jwt_required
+    def get (self, issue_id):
+        
+        # print(issue_id)
+        output={}
+        output = tc.get_testCase_by_issue_id(logger, issue_id, get_jwt_identity()['user_id'])
+        return jsonify({'message': 'success', 'data':  output })
+    
+    ## 用issues ID 新建立測試案例
+    @jwt_required
+    def post (self, issue_id):
+        output={}
+        parser = reqparse.RequestParser()
+        parser.add_argument('project_id', type=int)
+        parser.add_argument('name', type=str)
+        parser.add_argument('data', type=str)
+        parser.add_argument('type_id', type=int)
+        parser.add_argument('description', type=str)
+        args = parser.parse_args()
+        output = tc.post_testCase_by_issue_id(logger, issue_id, args,  get_jwt_identity()['user_id'])
+        return jsonify({'message': 'success', 'data':  output })
+  
+
+
+class TestCase(Resource):
+
+    ## 用testCase_id 取得目前測試案例
+    @jwt_required
+    def get (self, testCase_id):
+        output={}
+        output = tc.get_testCase_by_tc_id(logger, testCase_id, get_jwt_identity()['user_id'])
+        return jsonify({'message': 'success', 'data':  output })
+    
+    ## 用testCase_id 刪除目前測試案例
+    @jwt_required
+    def delete (self, testCase_id):
+        output={}
+        output = tc.del_testCase_by_tc_id(logger, testCase_id, get_jwt_identity()['user_id'])
+        return jsonify({'message': 'success', 'data':  output }) 
+    
+    ## 用testCase_id 更新目前測試案例
+    @jwt_required
+    def put (self, testCase_id):
+        output={}
+        parser = reqparse.RequestParser()
+        parser.add_argument('name', type=str)
+        parser.add_argument('data', type=str)
+        parser.add_argument('type_id', type=int)
+        parser.add_argument('description', type=str)
+        args = parser.parse_args()
+        output = tc.modify_testCase_by_tc_id(logger, testCase_id, args, get_jwt_identity()['user_id'])
+        return jsonify({'message': 'success','data': output})
+
+
+class GetTestCaseAPIMethod(Resource):
+    @jwt_required
+    def get (self):
+        output={}
+        output = tc.get_api_method(logger,get_jwt_identity()['user_id'])
+        return jsonify({'message': 'success', 'data':  output })
+    
+class GetTestCaseType(Resource):
+    @jwt_required
+    def get (self):
+        output={}
+        output = tc.get_testCase_type(logger,get_jwt_identity()['user_id'])
+        return jsonify({'message': 'success', 'data':  output })
+
+
+class TestItemByTestCase(Resource):
+    
+    ## 用issues ID 取得目前所有的目前測試案例
+    @jwt_required
+    def get (self, testCase_id):
+        
+        # print(issue_id)
+        
+        output={}
+        output = ti.get_testItem_by_testCase_id(logger, testCase_id, get_jwt_identity()['user_id'])
+        return jsonify({'message': 'success', 'data':  output })
+    
+    ## 用issues ID 新建立測試案例
+    @jwt_required
+    def post (self, testCase_id):
+        output={}
+        parser = reqparse.RequestParser()
+        parser.add_argument('project_id', type=int)
+        parser.add_argument('name', type=str)
+        parser.add_argument('issue_id', type=int)
+        parser.add_argument('is_passed', type=bool)
+        args = parser.parse_args()
+        output = ti.post_testItem_by_testCase_id(logger, testCase_id, args,  get_jwt_identity()['user_id'])
+        return jsonify({'message': 'success', 'data':  output })
+
+class TestItem(Resource):
+
+    ## testItem_id 取得目前測試項目
+    @jwt_required
+    def get (self, testItem_id):
+        output={}
+        output = ti.get_testItem_by_ti_id(logger, testItem_id, get_jwt_identity()['user_id'])
+        return jsonify({'message': 'success', 'data':  output })
+    
+    ## testItem_id 刪除目前測試項目
+    @jwt_required
+    def delete (self, testItem_id):
+        output={}
+        output = ti.del_testItem_by_ti_id(logger, testItem_id, get_jwt_identity()['user_id'])
+        return jsonify({'message': 'success', 'data':  output }) 
+    
+    ## testItem_id 更新目前測試項目
+    @jwt_required
+    def put (self, testItem_id):
+        output={}
+        parser = reqparse.RequestParser()
+        parser.add_argument('name', type=str)
+        parser.add_argument('is_passed', type=bool)
+        args = parser.parse_args()
+        output = ti.modify_testItem_by_ti_id(logger, testItem_id, args, get_jwt_identity()['user_id'])
+        return jsonify({'message': 'success','data': output})
+
+
+class TestValueByTestItem(Resource):
+    
+    ## 用issues ID 取得目前所有的目前測試案例
+    @jwt_required
+    def get (self, testItem_id):
+        
+        output={}
+        output = tv.get_testValue_by_testItem_id(logger, testItem_id, get_jwt_identity()['user_id'])
+        return jsonify({'message': 'success', 'data':  output })
+    
+    ## 用issues ID 新建立測試案例
+    @jwt_required
+    def post (self, testItem_id):
+        output={}
+        parser = reqparse.RequestParser()
+        parser.add_argument('project_id', type=int)
+        parser.add_argument('issue_id', type=int)
+        parser.add_argument('testCase_id', type=int)
+        parser.add_argument('type_id', type=int)
+        parser.add_argument('location_id', type=int)
+        parser.add_argument('key', type=str)
+        parser.add_argument('value', type=str)
+        args = parser.parse_args()
+        output = tv.post_testValue_by_testItem_id(logger, testItem_id, args,  get_jwt_identity()['user_id'])
+        return jsonify({'message': 'success', 'data':  output })
+
+class TestValue(Resource):
+
+    ## testItem_id 取得目前測試項目
+    @jwt_required
+    def get (self, testValue_id):
+        output={}
+        output = tv.get_testValue_by_tv_id(logger, testValue_id, get_jwt_identity()['user_id'])
+        return jsonify({'message': 'success', 'data':  output })
+    
+    ## testItem_id 刪除目前測試項目
+    @jwt_required
+    def delete (self, testValue_id):
+        output={}
+        output = tv.del_testValue_by_tv_id(logger, testValue_id, get_jwt_identity()['user_id'])
+        return jsonify({'message': 'success', 'data':  output }) 
+    
+    ## testItem_id 更新目前測試項目
+    @jwt_required
+    def put (self, testValue_id):
+        output={}
+        parser = reqparse.RequestParser()
+        parser.add_argument('key', type=str)
+        parser.add_argument('value', type=str)
+        parser.add_argument('type_id', type=str)
+        parser.add_argument('location_id', type=str)
+        args = parser.parse_args()
+        output = tv.modify_testValue_by_ti_id(logger, testValue_id, args, get_jwt_identity()['user_id'])
+        return jsonify({'message': 'success','data': output})
 
 
 api.add_resource(Index, '/')
@@ -822,10 +1070,38 @@ api.add_resource(DashboardIssueProject, '/dashboard_issues_project/<user_id>')
 api.add_resource(DashboardIssueType, '/dashboard_issues_type/<user_id>')
 
 
-# testPhase Case
+# testPhase Requirement Flow 
 api.add_resource(RequirementByIssue,'/requirements_by_issue/<issue_id>')
 api.add_resource(Requirement,'/requirements/<requirement_id>')
 
+
+
+
+# testPhase Parameters FLow 
+api.add_resource(ParameterByIssue,'/parameters_by_issue/<issue_id>')
+api.add_resource(Parameter,'/parameters/<parameter_id>')
+
+
+# testPhase TestCase Support Case Type
+api.add_resource(GetTestCaseType,'/testCases/support_type')
+
+# testPhase TestCase  
+api.add_resource(TestCaseByIssue,'/testCases_by_issue/<issue_id>')
+api.add_resource(TestCase,'/testCases/<testCase_id>')
+
+
+
+# testPhase TestCase Support API Method
+api.add_resource(GetTestCaseAPIMethod,'/testCases/support_RestfulAPI_Method')
+
+# testPhase TestItem Support API Method
+api.add_resource(TestItemByTestCase,'/testItems_by_testCase/<testCase_id>')
+api.add_resource(TestItem,'/testItems/<testItem_id>')
+
+
+#testPhase Testitem Value 
+api.add_resource(TestValueByTestItem,'/testValues_by_testItem/<testItem_id>')
+api.add_resource(TestValue,'/testValues/<testValue_id>')
 
 
 if __name__ == "__main__":

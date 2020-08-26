@@ -146,3 +146,12 @@ class util(object):
         else:
             return None
 
+    def jsonToStr(self,data):
+        return json.dumps(data, ensure_ascii=False, separators=(',', ':'))
+
+    def dateToStr(self, data):
+        if data is not None:
+            return data.isoformat()
+        else:
+            return None
+
