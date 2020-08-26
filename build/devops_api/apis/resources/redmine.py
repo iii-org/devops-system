@@ -70,6 +70,17 @@ class Redmine(object):
         logger.info("get issues output: {0}".format(output))
         return output
 
+    def redmine_get_statistics(self, logger, app, args):
+        args['key'] = self.redmine_key
+        url = "http://{0}/issues.json".format(app.config['REDMINE_IP_PORT'])
+        logger.info("args: {0}".format(args))
+        output = requests.get(url,
+                              headers=self.headers,
+                              verify=False,
+                              params=args)
+        logger.info("get issues output: {0}".format(output.json()))
+        return output.json(), output.status_code
+
     def redmine_create_issue(self, logger, app, args):
         url = "http://{0}/issues.json?key={1}".format(\
             app.config['REDMINE_IP_PORT'], self.redmine_key)

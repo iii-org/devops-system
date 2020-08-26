@@ -259,6 +259,28 @@ class Issue(object):
         except Exception as error:
             return str(error), 400
 
+    def get_issue_statistics(self, logger, app, args, user_id):
+        Redmine.get_redmine_key(self, logger, app)
+        if args["to_time"] is not None:
+            args["update_on"] = "%3E%3C{0}|{1}".format(args["from_time"],
+                                                       args["to_time"])
+        else:
+            args["update_on"] = "%3E%3D{0}".format(args["from_time"])
+        user_plugin_relation_array = auth.get_user_plugin_relation(
+            self, logger)
+        for user_plugin_relation in user_plugin_relation_array:
+            if user_plugin_relation['user_id'] == user_id:
+                args["assigned_to_id"] = user_plugin_relation['plan_user_id']
+        try:
+            redmine_output, status_code = Redmine.redmine_get_statistics(
+                self, logger, app, args)
+            return {
+                "message": "successful",
+                "data": redmine_output["total_count"]
+            }, status_code
+        except Exception as error:
+            return {"message": str(error)}, 400
+
     def count_prioriry_number_by_issues(self, logger, app, user_id):
         try:
             priority_count = {}
