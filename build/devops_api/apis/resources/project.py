@@ -551,6 +551,11 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
 
     # 新增redmine & gitlab的project並將db相關table欄位新增資訊
     def create_one_project(self, logger, app, args):
+        if args["description"] == None:
+            args["description"] = ""
+        # else:
+        #     args["description"] = args["description"]
+
         redmine_url = "http://{0}/projects.json?key={1}".format(
             app.config["REDMINE_IP_PORT"], app.config["REDMINE_API_KEY"])
         logger.info("create redmine project url: {0}".format(redmine_url))
@@ -558,7 +563,8 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                     <project>\
                     <name>{0}</name>\
                     <identifier>{1}</identifier>\
-                    </project>""".format(args["name"], args["identifier"])
+                    <description>{2}</description>\
+                    </project>""".format(args["name"], args["identifier"], args["description"])
         logger.info("create redmine project body: {0}".format(xml_body))
         headers = {'Content-Type': 'application/xml'}
         redmine_output = requests.post(redmine_url,
@@ -571,8 +577,8 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
             redmine_pj_id = redmine_output.json()["project"]["id"]
             print("redmine_pj_id is {0}".format(redmine_pj_id))
 
-            gitlab_url = "http://{0}/api/{1}/projects?private_token={2}&name={3}".format(\
-                app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], self.private_token, args["name"])
+            gitlab_url = "http://{0}/api/{1}/projects?private_token={2}&name={3}&description={4}".format(\
+                app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], self.private_token, args["name"], args["description"])
             logger.info("create gitlab project url: {0}".format(gitlab_url))
             gitlab_output = requests.post(gitlab_url,
                                           headers=self.headers,
