@@ -144,7 +144,7 @@ class auth(object):
             set_string += "role = '{0}'".format(args["role"])
             set_string += ","
         '''
-        set_string += "update_at = {0}}".format(datetime.datetime.now())
+        set_string += "update_at = localtimestamp"
         logger.info("set_string: {0}".format(set_string))
         result = db.engine.execute(
             "UPDATE public.user SET {0} WHERE id = {1}".format(
