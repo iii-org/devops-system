@@ -136,20 +136,38 @@ class auth(object):
         if args["email"] is not None:
             set_string += "email = '{0}'".format(args["email"])
             set_string += ","
-        '''
+        set_string += "update_at = {0}".format(datetime.datetime.now())
+        logger.info("set_string: {0}".format(datetime.datetime.now()))
+        result = db.engine.execute(
+            "UPDATE public.user SET {0} WHERE id = {1}".format(
+                set_string, user_id))
+        # update groups_has_users
         if args["group"] is not None:
-            set_string += "group = '{0}'".format(args["group"])
-            set_string += ","
+            # add users into groups_has_users table
+            for group_id in args["group_id"]:
+                select_groups_has_users_command = db.select([GroupsHasUsers.stru_groups_has_users])\
+                    .where(db.and_(GroupsHasUsers.stru_groups_has_users.c.user_id == user_id, \
+                    GroupsHasUsers.stru_groups_has_users.c.group_id == group_id))
+                logger.debug("select_groups_has_users_command: {0}".format(
+                    select_groups_has_users_command))
+                reMessage = util.callsqlalchemy(
+                    self, select_groups_has_users_command, logger)
+                logger.info("reMessage: {0}".format(reMessage))
+                group_user_array = reMessage.fetchall()
+                if not group_user_array:
+                    #insert groups_has_users table
+                    insert_groups_has_users_command = db.insert(GroupsHasUsers.stru_groups_has_users)\
+                        .values(group_id = group_id, user_id = user_id)
+                    logger.debug("insert_groups_has_users_command: {0}".format(
+                        insert_groups_has_users_command))
+                    reMessage = util.callsqlalchemy(
+                        self, insert_groups_has_users_command, logger)
+                    logger.info("reMessage: {0}".format(reMessage))
+        '''
         if args["role"] is not None:
             set_string += "role = '{0}'".format(args["role"])
             set_string += ","
         '''
-        set_string += "update_at = {0}}".format(datetime.datetime.now())
-        logger.info("set_string: {0}".format(set_string))
-        result = db.engine.execute(
-            "UPDATE public.user SET {0} WHERE id = {1}".format(
-                set_string, user_id))
-
     def delete_user(self, logger, user_id):
         ''' disable user on user table'''
         update_user_to_disable_command = db.update(User.stru_user)\

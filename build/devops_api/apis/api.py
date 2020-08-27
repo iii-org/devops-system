@@ -231,15 +231,16 @@ class UserInfo(Resource):
 
     @jwt_required
     def put(self, user_id):
-        if int(user_id) == get_jwt_identity()['user_id']:
+        if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity()['role_id'] == 5:
             parser = reqparse.RequestParser()
             parser.add_argument('name', type=str)
             parser.add_argument('username', type=str)
             parser.add_argument('password', type=str)
             parser.add_argument('phone', type=int)
             parser.add_argument('email', type=str)
-            parser.add_argument('group', type=str)
-            parser.add_argument('role', type=str)
+            logger.debug(get_jwt_identity()['role_id'])
+            if get_jwt_identity()['role_id'] == 5:
+                parser.add_argument('group_id', action='append')
             args = parser.parse_args()
             try:
                 au.update_user_info(logger, user_id, args)
