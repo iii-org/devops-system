@@ -5,7 +5,7 @@ from Cryptodome.Hash import SHA256
 from .util import util
 from .redmine import Redmine
 from .gitlab import GitLab
-from model import db, User, UserPluginRelation, GroupsHasUsers, ProjectUserRole
+from model import db, User, UserPluginRelation, GroupsHasUsers, ProjectUserRole, TableGroup
 
 # from jsonwebtoken import jsonwebtoken
 from flask_jwt_extended import (create_access_token, JWTManager,
@@ -62,14 +62,42 @@ class auth(object):
         result = db.engine.execute(
             "SELECT ur.id as id, ur.name as name, ur.username as username,\
             ur.email as email, ur.phone as phone, ur.login as login, ur.create_at as create_at,\
-            ur.update_at as update_at, rl.name as role_name, gp.name as group_name FROM public.user as ur, \
-            public.project_user_role as pur, public.roles as rl, public.groups_has_users as gu,\
-            public.group as gp WHERE ur.id = {0} AND ur.id = pur.user_id AND pur.role_id = rl.id \
-            AND ur.id = gu.user_id AND gu.group_id = gp.id".format(user_id))
+            ur.update_at as update_at, rl.name as role_name \
+            FROM public.user as ur, public.project_user_role as pur, public.roles as rl \
+            WHERE ur.id = {0} AND ur.id = pur.user_id AND pur.role_id = rl.id".
+            format(user_id))
         user_data = result.fetchone()
         result.close()
         logger.info("user info: {0}".format(user_data["id"]))
-        return {
+        select_groups_has_users_command = db.select([
+            GroupsHasUsers.stru_groups_has_users
+        ]).where(
+            db.and_(GroupsHasUsers.stru_groups_has_users.c.user_id == user_id))
+        logger.debug("select_groups_has_users_command: {0}".format(
+            select_groups_has_users_command))
+        reMessage = util.callsqlalchemy(self, select_groups_has_users_command,
+                                        logger)
+        group_has_user_array = reMessage.fetchall()
+        logger.debug("group_has_user_array: {0}".format(group_has_user_array))
+        group_list = []
+        if group_has_user_array:
+            logger.debug("User {0} has group".format(user_id))
+            for group_has_user in group_has_user_array:
+                select_group_command = db.select(
+                    [TableGroup.stru_group]).where(
+                        db.and_(TableGroup.stru_group.c.id ==
+                                group_has_user['group_id']))
+                logger.debug(
+                    "select_group_command: {0}".format(select_group_command))
+                reMessage = util.callsqlalchemy(self, select_group_command,
+                                                logger)
+                group_info = reMessage.fetchone()
+                logger.debug("group_name: {0}".format(group_info))
+                group_list.append({
+                    "id": group_info['id'],
+                    "name": group_info['name']
+                })
+        output = {
             "id": user_data["id"],
             "name": user_data["name"],
             "usernmae": user_data["username"],
@@ -78,13 +106,16 @@ class auth(object):
             "login": user_data["login"],
             "create_at": user_data["create_at"],
             "update_at": user_data["update_at"],
-            "group": {
-                "name": user_data["group_name"]
-            },
             "role": {
                 "name": user_data["role_name"]
             }
         }
+        if group_list:
+            output["group"] = group_list
+        else:
+            output["group"] = {}
+        logger.debug(output)
+        return output
 
     def update_user_info(self, logger, user_id, args):
         set_string = ""

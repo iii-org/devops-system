@@ -257,6 +257,9 @@ class UserForgetPassword(Resource):
 class UserInfo(Resource):
     @jwt_required
     def get(self, user_id):
+        logger.debug("int(user_id): {0}".format(int(user_id)))
+        logger.debug("get_jwt_identity()['user_id']: {0}".format(
+            get_jwt_identity()['user_id']))
         if int(user_id) == get_jwt_identity()['user_id']:
             user_info = au.user_info(logger, user_id)
             return jsonify({'message': 'success', 'data': user_info})
