@@ -1,10 +1,12 @@
+from operator import truediv
 import requests
 import json
 from datetime import datetime
 
-from model import db
+from model import db, ProjectUserRole
 from .redmine import Redmine
 from .rancher import Rancher
+from .util import util
 
 import urllib
 
@@ -31,6 +33,29 @@ class Project(object):
         else:
             self.private_token = app.config["GITLAB_PRIVATE_TOKEN"]
         logger.info("private_token: {0}".format(self.private_token))
+
+    def verify_project_user(self, logger, project_id, user_id):
+        select_project_user_role_command = db.select([ProjectUserRole.stru_project_user_role])\
+            .where(db.and_(ProjectUserRole.stru_project_user_role.c.project_id==project_id, \
+            ProjectUserRole.stru_project_user_role.c.user_id==user_id))
+        logger.debug("select_project_user_role_command: {0}".format(
+            select_project_user_role_command))
+        reMessage = util.callsqlalchemy(self, select_project_user_role_command,
+                                        logger)
+        match_list = reMessage.fetchall()
+        logger.info("reMessage: {0}".format(match_list))
+        logger.info("reMessage len: {0}".format(len(match_list)))
+        if len(match_list) > 0:
+            return True
+        else:
+            return False
+
+    def get_project_plugin_relation(self, logger):
+        result = db.engine.execute(
+            "SELECT * FROM public.project_plugin_relation")
+        project_plugin_relation_array = result.fetchall()
+        result.close()
+        return project_plugin_relation_array
 
     # 查詢所有projects
     def get_all_git_projects(self, logger, app):
@@ -117,7 +142,7 @@ class Project(object):
         logger.info("delete project webhook output: {0}".format(output))
         return output
 
-    def get_project_by_plan_project_id(self, logger, app, plan_project_id):
+    def get_project_by_plan_project_id(self, logger, plan_project_id):
         result = db.engine.execute(
             "SELECT * FROM public.project_plugin_relation \
             WHERE plan_project_id = {0}".format(plan_project_id))
@@ -510,6 +535,17 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         logger.info("get redmine project list url: {0}".format(url))
         output = requests.get(url, headers=self.headers, verify=False)
         logger.info("get redmine project list output: {0} / {1}".format(
+            output, output.json()))
+        return output
+
+    # 用project_id查詢redmine的單一project
+    def get_redmine_one_project(self, logger, app, project_id):
+        url = "http://{0}/projects/{1}.json?key={2}".format(
+            app.config["REDMINE_IP_PORT"], project_id,
+            app.config["REDMINE_API_KEY"])
+        logger.info("get redmine one project url: {0}".format(url))
+        output = requests.get(url, headers=self.headers, verify=False)
+        logger.info("get redmine one project output: {0} / {1}".format(
             output, output.json()))
         return output
 
