@@ -8,9 +8,10 @@ class User():
     stru_user = db.Table(
         'user', meta,
         db.Column('id', db.Integer, primary_key=True, nullable=True),
-        db.Column('name', db.String(255)), db.Column('username',
-                                                     db.String(255)),
-        db.Column('email', db.String(255)), db.Column('phone', db.Integer),
+        db.Column('name', db.String(255)),
+        db.Column('username',db.String(255)),
+        db.Column('email', db.String(255)),
+        db.Column('phone', db.Integer),
         db.Column('login', db.String(255)),
         db.Column('password', db.String(255)),
         db.Column('create_at', db.DATETIME(255)),
@@ -54,25 +55,105 @@ class ProjectUserRole():
 
 class TableRequirement():
     meta = db.MetaData()
-    stru_rqmt = db.Table('requirements', meta,
-                         db.Column('id', db.Integer, primary_key=True),
-                         db.Column('project_id', db.Integer),
-                         db.Column('issue_id', db.Integer),
-                         db.Column('flow_info', db.TEXT),
-                         db.Column('create_at', db.DATETIME(255)),
-                         db.Column('update_at', db.DATETIME(255)),
-                         db.Column('disabled', db.Boolean))
+    stru_rqmt = db.Table(
+        'requirements', meta,
+        db.Column('id', db.Integer, primary_key=True),
+        db.Column('project_id', db.Integer),
+        db.Column('issue_id', db.Integer),
+        db.Column('flow_info', db.TEXT),
+        db.Column('create_at', db.DATETIME(255)),
+        db.Column('update_at', db.DATETIME(255)),
+        db.Column('disabled', db.Boolean))
 
 
 class TableTestCase():
     meta = db.MetaData()
-    stru_testCase = db.Table('test_cases', meta,
-                             db.Column('id', db.Integer, primary_key=True),
-                             db.Column('project_id', db.Integer),
-                             db.Column('issue_id', db.Integer),
-                             db.Column('name', db.String(255)),
-                             db.Column('is_passed', db.Boolean),
-                             db.Column('case_id', db.Integer),
-                             db.Column('create_at', db.DATETIME(255)),
-                             db.Column('update_at', db.DATETIME(255)),
-                             db.Column('disabled', db.Boolean))
+    stru_testCase = db.Table(
+        'test_cases', meta,
+        db.Column('id', db.Integer, primary_key=True),
+        db.Column('name', db.String(255)),
+        db.Column('description', db.String(255)),
+        # db.Column('url', db.String(255)),
+        # db.Column('http_request_method_id', db.Integer),
+        db.Column('issue_id', db.Integer),
+        db.Column('project_id', db.Integer),        
+        db.Column('create_at', db.DATETIME(255)),
+        db.Column('update_at', db.DATETIME(255)),
+        db.Column('disabled', db.Boolean),
+        db.Column('data', db.TEXT),
+        db.Column('type_id',db.Integer)
+    )
+
+class TableHttpMethod():
+    meta = db.MetaData()
+    stru_httpMethod = db.Table(
+        'http_method', meta, 
+        db.Column('id', db.Integer, primary_key= True),
+        db.Column('type', db.String(50))
+    )
+class TableCaseType():
+    meta = db.MetaData()
+    stru_tcType = db.Table(
+        'test_cases_type', meta, 
+        db.Column('id', db.Integer, primary_key= True),
+        db.Column('name', db.String(50))
+    )
+
+
+
+class TableTestItem():
+    meta = db.MetaData()
+    stru_testItem = db.Table(
+        'test_items', meta,
+        db.Column('id', db.Integer, primary_key=True),
+        db.Column('test_case_id',db.Integer),
+        db.Column('project_id', db.Integer),
+        db.Column('issue_id', db.Integer),
+        db.Column('name', db.String(255)),
+        db.Column('is_passed', db.Boolean),
+        # db.Column('value_id', db.Integer),
+        # db.Column('value_info', db.TEXT),
+        db.Column('create_at', db.DATETIME(255)),
+        db.Column('update_at', db.DATETIME(255)),
+        db.Column('disabled', db.Boolean))
+
+class TableTestValue():
+    meta = db.MetaData()
+    stru_testValue = db.Table(
+        'test_values', meta,
+        db.Column('id', db.Integer, primary_key=True),
+        db.Column('type_id',db.Integer),
+        db.Column('key', db.String(255)),
+        db.Column('value', db.Text),
+        db.Column('location_id',db.Integer),
+        db.Column('test_item_id',db.Integer),
+        db.Column('test_case_id',db.Integer),
+        db.Column('issue_id',db.Integer),
+        db.Column('project_id', db.Integer),
+        db.Column('create_at', db.DATETIME(255)),
+        db.Column('update_at', db.DATETIME(255)),
+        db.Column('disabled', db.Boolean))  
+
+class TableParameter():
+    meta = db.MetaData()
+    stru_param = db.Table(
+        'parameters', meta,
+        db.Column('id', db.Integer, primary_key=True),
+        db.Column('issue_id', db.Integer),
+        db.Column('project_id', db.Integer),
+        db.Column('parameter_type_id', db.Integer),
+        db.Column('name', db.String(50)),
+        db.Column('description', db.String(100)),
+        db.Column('limitation', db.String(50)),
+        db.Column('length', db.Integer),
+        db.Column('create_at', db.DATETIME(255)),
+        db.Column('update_at', db.DATETIME(255)),
+        db.Column('disabled', db.Boolean))
+
+
+class TableParameterType():
+    meta = db.MetaData()
+    stru_paramType = db.Table(
+        'parameter_types', meta,
+        db.Column('id', db.Integer, primary_key=True),
+        db.Column('type', db.String(50)))

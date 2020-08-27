@@ -8,9 +8,12 @@ class Requirement(object):
     headers = {'Content-Type': 'application/json'}
 
     def _deal_with_json(self, jsonSting):
-        return json.dumps(json.loads(jsonSting), ensure_ascii=False, indent=2)
+        return json.dumps(json.loads(jsonSting),
+                          ensure_ascii=False,
+                          separators=(',', ':'))
 
     # 取得 requirement 內的流程資訊
+
     def get_requirement_by_rqmt_id(self, logger, requirement_id, user_id):
 
         get_rqmt_command = db.select([
@@ -23,11 +26,13 @@ class Requirement(object):
         return {'flow_info': output}
 
     # 將 requirement 隱藏
+
     def del_requirement_by_rqmt_id(self, logger, requirement_id, user_id):
 
         update_rqmt_command = db.update(TableRequirement.stru_rqmt).where(
             db.and_(TableRequirement.stru_rqmt.c.id == requirement_id)).values(
-                disabled=True)
+                disabled=True,
+                update_at=datetime.datetime.now())
         logger.debug("insert_user_command: {0}".format(update_rqmt_command))
         reMessage = util.callsqlalchemy(self, update_rqmt_command, logger)
 
