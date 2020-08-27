@@ -149,18 +149,6 @@ class util(object):
             logger.error("calldeleteapi error : {0}".format(e))
             return e
 
-    def add_iso_format(self, data):
-        if data is not None:
-            return data.isoformat()
-        else:
-            return None
-
-    def fetchone_output(self, data):
-        if data is not None:
-            return data[0]
-        else:
-            return None
-
     def jsonToStr(self,data):
         return json.dumps(data, ensure_ascii=False, separators=(',', ':'))
 

@@ -101,43 +101,6 @@ class Project(Resource):
         return output
 
 
-class RedmineIssue_by_user(Resource):
-    @jwt_required
-    def get(self, user_account):
-        output = redmine.redmine_get_issues_by_user(logger, app, user_account)
-        return {"issue_number": output.json()}
-
-
-class RedmineIssue(Resource):
-    @jwt_required
-    def get(self, issue_id):
-        output = redmine.redmine_get_issue(logger, app, issue_id)
-        return output.json()
-
-    @jwt_required
-    def put(self, issue_id):
-        parser = reqparse.RequestParser()
-        parser.add_argument('status_id', type=int)
-        parser.add_argument('tracker_id', type=int)
-        args = parser.parse_args()
-        logger.info("put body: {0}".format(args))
-        output = redmine.redmine_update_issue(logger, app, issue_id, args)
-
-
-class RedmineIssueStatus(Resource):
-    @jwt_required
-    def get(self):
-        output = redmine.redmine_get_issue_status(logger, app)
-        return output.json()
-
-
-class RedmineProject(Resource):
-    @jwt_required
-    def get(self, user_account):
-        output = redmine.get_project(logger, app, user_account)
-        return {"projects": output.json()["user"]["memberships"]}
-
-
 class GitProjects(Resource):
     @jwt_required
     def get(self):
@@ -257,6 +220,9 @@ class UserForgetPassword(Resource):
 class UserInfo(Resource):
     @jwt_required
     def get(self, user_id):
+        logger.debug("int(user_id): {0}".format(int(user_id)))
+        logger.debug("get_jwt_identity()['user_id']: {0}".format(
+            get_jwt_identity()['user_id']))
         if int(user_id) == get_jwt_identity()['user_id']:
             user_info = au.user_info(logger, user_id)
             return jsonify({'message': 'success', 'data': user_info})
@@ -681,13 +647,6 @@ class IssueCreate(Resource):
         args = parser.parse_args()
         output = iss.create_issue(logger, app, args)
         return output
-
-
-class IssuesIdList(Resource):
-    @jwt_required
-    def get(self, project_id):
-        output_array = iss.get_issuesId_List(logger, project_id)
-        return jsonify(output_array)
 
 
 class Issue(Resource):
@@ -1131,13 +1090,6 @@ api.add_resource(RedmineProjectList, '/project/list')
 # Project(redmine & gitlab & db)
 api.add_resource(CreateProject, '/project')
 api.add_resource(Project, '/project/<project_id>')
-
-# Redmine issue
-api.add_resource(RedmineIssue, '/redmine_issue/<issue_id>')
-api.add_resource(RedmineIssue_by_user,
-                 '/redmine_issues_by_user/<user_account>')
-api.add_resource(RedmineIssueStatus, '/redmine_issues_status')
-api.add_resource(RedmineProject, '/redmine_project/<user_account>')
 
 # Gitlab project
 api.add_resource(GitProjects, '/git_projects')
