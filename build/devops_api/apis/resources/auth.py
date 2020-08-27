@@ -104,8 +104,8 @@ class auth(object):
             "email": user_data["email"],
             "phone": user_data["phone"],
             "login": user_data["login"],
-            "create_at": user_data["create_at"],
-            "update_at": user_data["update_at"],
+            "create_at": user_data["create_at"].isoformat(),
+            "update_at": user_data["update_at"].isoformat(),
             "role": {
                 "name": user_data["role_name"]
             }
@@ -144,7 +144,7 @@ class auth(object):
             set_string += "role = '{0}'".format(args["role"])
             set_string += ","
         '''
-        set_string += "update_at = localtimestamp"
+        set_string += "update_at = {0}}".format(datetime.datetime.now())
         logger.info("set_string: {0}".format(set_string))
         result = db.engine.execute(
             "UPDATE public.user SET {0} WHERE id = {1}".format(
