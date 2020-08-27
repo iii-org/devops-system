@@ -13,20 +13,6 @@ class Issue(object):
     def __init__(self):
         pass
 
-    def __get_dict_issueid(self, logger):
-        result = db.engine.execute(
-            "SELECT issue_id, plan_issue_id FROM public.issue_plugin_relation")
-        issue_id_output = result.fetchall()
-        result.close()
-        issue_to_plan = {}
-        plan_to_issue = {}
-        for issue in issue_id_output:
-            issue_to_plan[str(issue['issue_id'])] = issue['plan_issue_id']
-            plan_to_issue[str(issue['plan_issue_id'])] = issue['issue_id']
-        logger.debug("issue_to_plan: {0}".format(issue_to_plan))
-        logger.debug("plan_to_issue: {0}".format(plan_to_issue))
-        return issue_to_plan, plan_to_issue
-
     def __get_dict_userid(self, logger):
         result = db.engine.execute(
             "SELECT user_id, plan_user_id FROM public.user_plugin_relation")
@@ -86,21 +72,6 @@ class Issue(object):
             "get issue by user redmine_output: {0}".format(output_list))
         return output_list
 
-    '''
-    def get_issuesId_List(self, logger, project_id):
-        result = db.engine.execute("SELECT id FROM public.issues WHERE project_id = {0}\
-            ".format(project_id))
-        issuesid_sql_output_list = result.fetchall()
-        result.close()
-        #logger.info("issuesid_list: {0}".format(issuesid_sql_output_list))
-        output_array= []
-        if issuesid_sql_output_list is not None:
-            for issuesid_sql_output in issuesid_sql_output_list:
-                logger.info("issuesid_list: {0}".format(issuesid_sql_output[0]))
-                output_array.append(issuesid_sql_output[0])
-            return output_array
-    '''
-
     def verify_issue_user(self, logger, app, issue_id, user_id):
         # base on issus get project
         issue_info = Issue.get_issue_rd(self, logger, app, issue_id)
@@ -122,7 +93,6 @@ class Issue(object):
             return False
 
     def get_issue_rd(self, logger, app, issue_id):
-        # issue_to_plan, plan_to_issue = self.__get_dict_issueid(logger)
         Redmine.get_redmine_key(self, logger, app)
         logger.info("self.redmine_key: {0}".format(self.redmine_key))
         # redmine_output_issue = Redmine.redmine_get_issue(self, logger, app, issue_to_plan[str(issue_id)]).json()
@@ -134,7 +104,6 @@ class Issue(object):
 
     def get_issue_by_project(self, logger, app, project_id):
         # get plan_project_id, git_repository_id, ci_project_id, ci_pipeline_id
-        # issue_to_plan, plan_to_issue = self.__get_dict_issueid(logger)
         get_project_command = db.select([ProjectPluginRelation.stru_project_plug_relation])\
         .where(db.and_(ProjectPluginRelation.stru_project_plug_relation.c.project_id==project_id))
         logger.debug("get_project_command: {0}".format(get_project_command))

@@ -649,13 +649,6 @@ class IssueCreate(Resource):
         return output
 
 
-class IssuesIdList(Resource):
-    @jwt_required
-    def get(self, project_id):
-        output_array = iss.get_issuesId_List(logger, project_id)
-        return jsonify(output_array)
-
-
 class Issue(Resource):
     @jwt_required
     def get(self, issue_id):
