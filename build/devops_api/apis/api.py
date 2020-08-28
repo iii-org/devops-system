@@ -224,24 +224,25 @@ class UserInfo(Resource):
         logger.debug("int(user_id): {0}".format(int(user_id)))
         logger.debug("get_jwt_identity()['user_id']: {0}".format(
             get_jwt_identity()['user_id']))
-        if int(user_id) == get_jwt_identity()['user_id']:
+        if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity(
+        )['role_id'] not in (1, 2):
             user_info = au.user_info(logger, user_id)
             return jsonify({'message': 'success', 'data': user_info})
         else:
-            return {'message': 'Access token is missing or invalid'}, 401
+            return {
+                'message': 'you dont have authorize to update user informaion'
+            }, 401
 
     @jwt_required
     def put(self, user_id):
-        if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity()['role_id'] == 5:
+        if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity(
+        )['role_id'] == 5:
             parser = reqparse.RequestParser()
             parser.add_argument('name', type=str)
             parser.add_argument('username', type=str)
             parser.add_argument('password', type=str)
             parser.add_argument('phone', type=int)
             parser.add_argument('email', type=str)
-            logger.debug(get_jwt_identity()['role_id'])
-            if get_jwt_identity()['role_id'] == 5:
-                parser.add_argument('group_id', action='append')
             args = parser.parse_args()
             try:
                 au.update_user_info(logger, user_id, args)
@@ -249,34 +250,42 @@ class UserInfo(Resource):
             except Exception as error:
                 return jsonify({"message": str(error)}), 400
         else:
-            return {'message': 'Access token is missing or invalid'}, 401
+            return {
+                'message': 'you dont have authorize to update user informaion'
+            }, 401
 
     @jwt_required
     def delete(self, user_id):
         '''delete user'''
-        try:
-            au.delete_user(logger, user_id)
-            return jsonify({'message': 'success'})
-        except Exception as error:
-            return jsonify({"message": str(error)}), 400
+        if get_jwt_identity()["role_id"] == 5:
+            try:
+                au.delete_user(logger, user_id)
+                return jsonify({'message': 'success'})
+            except Exception as error:
+                return jsonify({"message": str(error)}), 400
+        else:
+            return {"message": "your role art not administrator"}, 401
 
 
 class User(Resource):
     @jwt_required
     def post(self):
         '''create user'''
-        parser = reqparse.RequestParser()
-        parser.add_argument('name', type=str)
-        parser.add_argument('username', type=str, required=True)
-        parser.add_argument('email', type=str, required=True)
-        parser.add_argument('phone', type=int, required=True)
-        parser.add_argument('login', type=str, required=True)
-        parser.add_argument('password', type=str, required=True)
-        parser.add_argument('group_id', action='append')
-        parser.add_argument('role_id', type=int, required=True)
-        args = parser.parse_args()
-        output = au.create_user(logger, args, app)
-        return output
+        if get_jwt_identity()["role_id"] == 5:
+            parser = reqparse.RequestParser()
+            parser.add_argument('name', type=str)
+            parser.add_argument('username', type=str, required=True)
+            parser.add_argument('email', type=str, required=True)
+            parser.add_argument('phone', type=int, required=True)
+            parser.add_argument('login', type=str, required=True)
+            parser.add_argument('password', type=str, required=True)
+            # parser.add_argument('group_id', action='append')
+            parser.add_argument('role_id', type=int, required=True)
+            args = parser.parse_args()
+            output = au.create_user(logger, args, app)
+            return output
+        else:
+            return {"message": "your role art not administrator"}, 401
 
 
 class GitProjectBranches(Resource):
@@ -284,7 +293,7 @@ class GitProjectBranches(Resource):
     def get(self, repository_id):
         role_id = get_jwt_identity()["role_id"]
         print("role_id={0}".format(role_id))
-        
+
         # try:
         #     role_id = db.engine.execute(
         #         "SELECT role_id FROM public.project_user_role \
@@ -292,7 +301,7 @@ class GitProjectBranches(Resource):
         #             user_id, project_id)).fetchone()[0]
         # except:
         #     role_id = None
-        
+
         if role_id <= 5:
             project_id = repository_id
             output = pjt.get_git_project_branches(logger, app, project_id)
@@ -545,7 +554,7 @@ class GitProjectBranchCommmits(Resource):
     def get(self, repository_id):
         role_id = get_jwt_identity()["role_id"]
         print("role_id={0}".format(role_id))
-        
+
         # try:
         #     role_id = db.engine.execute(
         #         "SELECT role_id FROM public.project_user_role \

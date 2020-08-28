@@ -69,6 +69,20 @@ class auth(object):
         user_data = result.fetchone()
         result.close()
         logger.info("user info: {0}".format(user_data["id"]))
+        output = {
+            "id": user_data["id"],
+            "name": user_data["name"],
+            "usernmae": user_data["username"],
+            "email": user_data["email"],
+            "phone": user_data["phone"],
+            "login": user_data["login"],
+            "create_at": user_data["create_at"].isoformat(),
+            "update_at": user_data["update_at"].isoformat(),
+            "role": {
+                "name": user_data["role_name"]
+            }
+        }
+        '''
         select_groups_has_users_command = db.select([
             GroupsHasUsers.stru_groups_has_users
         ]).where(
@@ -97,24 +111,13 @@ class auth(object):
                     "id": group_info['id'],
                     "name": group_info['name']
                 })
-        output = {
-            "id": user_data["id"],
-            "name": user_data["name"],
-            "usernmae": user_data["username"],
-            "email": user_data["email"],
-            "phone": user_data["phone"],
-            "login": user_data["login"],
-            "create_at": user_data["create_at"].isoformat(),
-            "update_at": user_data["update_at"].isoformat(),
-            "role": {
-                "name": user_data["role_name"]
-            }
-        }
+
         if group_list:
             output["group"] = group_list
         else:
             output["group"] = {}
         logger.debug(output)
+        '''
         return output
 
     def update_user_info(self, logger, user_id, args):
@@ -141,7 +144,6 @@ class auth(object):
         result = db.engine.execute(
             "UPDATE public.user SET {0} WHERE id = {1}".format(
                 set_string, user_id))
-
         '''
         # update groups_has_users
         if args["group"] is not None:
@@ -249,7 +251,7 @@ class auth(object):
         reMessage = util.callsqlalchemy(self, insert_project_user_role_command,
                                         logger)
         logger.info("reMessage: {0}".format(reMessage))
-
+        '''
         if args["group_id"] is not None:
             # add users into groups_has_users table
             for group_id in args["group_id"]:
@@ -261,6 +263,8 @@ class auth(object):
                 reMessage = util.callsqlalchemy(
                     self, insert_groups_has_users_command, logger)
                 logger.info("reMessage: {0}".format(reMessage))
+        '''
+        return {"message": "successful", "data": user_id}, 200
 
     def get_user_plugin_relation(self, logger):
         get_user_plugin_relation_command = db.select(
