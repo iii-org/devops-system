@@ -80,7 +80,7 @@ class Redmine(object):
                                data=json.dumps(param),
                                headers=self.headers,
                                verify=False)
-        logger.info("create issues output: {0}".format(output))
+        logger.info("create issues output: {0}".format(output.json()))
         return output
 
     def redmine_update_issue(self, logger, app, issue_id, args):
