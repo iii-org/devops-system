@@ -59,24 +59,40 @@ class Index(Resource):
         return {"message": "DevOps api is working"}
 
 
-class RedmineProjectList(Resource):
+class TotalProjectList(Resource):
     @jwt_required
     def get(self):
-        output = pjt.get_redmine_project_list(logger, app)
-        return output.json()
+        role_id = get_jwt_identity()["role_id"]
+        print("role_id={0}".format(role_id))
+
+        if role_id == 3:
+            user_id = get_jwt_identity()["user_id"]
+            print("user_id={0}".format(user_id))
+            output = pjt.get_pm_project_list(logger, app, user_id)
+            return output
+        else:
+            "您無權限訪問！"
 
 
 class CreateProject(Resource):
     @jwt_required
     def post(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument('name', type=str, required=True)
-        parser.add_argument('identifier', type=str, required=True)
-        parser.add_argument('description', type=str)
-        args = parser.parse_args()
-        logger.info("post body: {0}".format(args))
-        output = pjt.create_one_project(logger, app, args)
-        return output
+        role_id = get_jwt_identity()["role_id"]
+        print("role_id={0}".format(role_id))
+
+        if role_id == 3:
+            user_id = get_jwt_identity()["user_id"]
+            print("user_id={0}".format(user_id))
+            parser = reqparse.RequestParser()
+            parser.add_argument('name', type=str, required=True)
+            parser.add_argument('identifier', type=str, required=True)
+            parser.add_argument('description', type=str)
+            args = parser.parse_args()
+            logger.info("post body: {0}".format(args))
+            output = pjt.pm_create_project(logger, app, user_id, args)
+            return output
+        else:
+            "您無權限訪問！"
 
 
 class Project(Resource):
@@ -87,14 +103,24 @@ class Project(Resource):
 
     @jwt_required
     def put(self, project_id):
-        parser = reqparse.RequestParser()
-        parser.add_argument('name', type=str)
-        parser.add_argument('description', type=str)
-        parser.add_argument('homepage', type=str)
-        args = parser.parse_args()
-        logger.info("put body: {0}".format(args))
-        output = pjt.put_one_project(logger, app, project_id, args)
-        return output
+        role_id = get_jwt_identity()["role_id"]
+        print("role_id={0}".format(role_id))
+
+        if role_id == 3:
+            # user_id = get_jwt_identity()["user_id"]
+            # print("user_id={0}".format(user_id))
+            parser = reqparse.RequestParser()
+            parser.add_argument('name', type=str)
+            parser.add_argument('user_id', type=int)
+            parser.add_argument('description', type=str)
+            parser.add_argument('disabled', type=bool)
+            # parser.add_argument('homepage', type=str)
+            args = parser.parse_args()
+            logger.info("put body: {0}".format(args))
+            output = pjt.pm_update_project(logger, app, project_id, args)
+            return output
+        else:
+            "您無權限訪問！"
 
     @jwt_required
     def delete(self, project_id):
@@ -1108,8 +1134,8 @@ class TestValue(Resource):
 
 api.add_resource(Index, '/')
 
-# Redmine project
-api.add_resource(RedmineProjectList, '/project/list')
+# Project list
+api.add_resource(TotalProjectList, '/project/list')
 
 # Project(redmine & gitlab & db)
 api.add_resource(CreateProject, '/project')
