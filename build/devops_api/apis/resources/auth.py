@@ -129,7 +129,8 @@ class auth(object):
     def delete_user(self, logger, user_id):
         ''' disable user on user table'''
         update_user_to_disable_command = db.update(User.stru_user)\
-            .where(db.and_(User.stru_user.c.id==user_id)).values(disable=True)
+            .where(db.and_(User.stru_user.c.id==user_id)).values(\
+            update_at = datetime.datetime.now(), disabled=True)
         logger.debug("update_user_to_disable_command: {0}".format(
             update_user_to_disable_command))
         reMessage = util.callsqlalchemy(self, update_user_to_disable_command,
@@ -204,19 +205,6 @@ class auth(object):
         reMessage = util.callsqlalchemy(self, insert_project_user_role_command,
                                         logger)
         logger.info("reMessage: {0}".format(reMessage))
-        '''
-        if args["group_id"] is not None:
-            # add users into groups_has_users table
-            for group_id in args["group_id"]:
-                #insert groups_has_users table
-                insert_groups_has_users_command = db.insert(GroupsHasUsers.stru_groups_has_users)\
-                    .values(group_id = group_id, user_id = user_id)
-                logger.debug("insert_groups_has_users_command: {0}".format(
-                    insert_groups_has_users_command))
-                reMessage = util.callsqlalchemy(
-                    self, insert_groups_has_users_command, logger)
-                logger.info("reMessage: {0}".format(reMessage))
-        '''
         return {"message": "successful", "data": {"user_id": user_id}}, 200
 
     def get_user_plugin_relation(self, logger):
