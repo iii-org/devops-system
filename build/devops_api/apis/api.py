@@ -634,8 +634,9 @@ class PipelineGenerateYaml(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('detail')
         args = parser.parse_args()
-        output_array = pipe.generate_ci_yaml(logger, args, app, repository_id,
+        output = pipe.generate_ci_yaml(logger, args, app, repository_id,
                                              branch_name)
+        return output
 
 
 class IssueByProject(Resource):
@@ -659,12 +660,12 @@ class IssueCreate(Resource):
         parser.add_argument('tracker_id', type=int, required=True)
         parser.add_argument('status_id', type=int, required=True)
         parser.add_argument('priority_id', type=int, required=True)
-        parser.add_argument('subject', required=True)
-        parser.add_argument('description')
+        parser.add_argument('subject', type=str, required=True)
+        parser.add_argument('description', type=str)
         parser.add_argument('assigned_to_id', type=int, required=True)
         parser.add_argument('parent_id', type=int)
-        parser.add_argument('start_date', required=True)
-        parser.add_argument('due_date', required=True)
+        parser.add_argument('start_date', type=str , required=True)
+        parser.add_argument('due_date', type=str , required=True)
         parser.add_argument('done_retio', type=int, required=True)
         parser.add_argument('estimated_hours', type=int, required=True)
         args = parser.parse_args()
