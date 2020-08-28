@@ -687,13 +687,13 @@ class Issue(Resource):
         parser.add_argument('tracker_id', type=int)
         parser.add_argument('status_id', type=int)
         parser.add_argument('priority_id', type=int)
-        parser.add_argument('description')
+        parser.add_argument('description', type=str)
         parser.add_argument('parent_id', type=int)
-        parser.add_argument('subject')
-        parser.add_argument('start_date')
-        parser.add_argument('due_date')
+        parser.add_argument('subject', type=str)
+        parser.add_argument('start_date', type=str)
+        parser.add_argument('due_date', type=str)
         parser.add_argument('done_retio', type=int)
-        parser.add_argument('notes')
+        parser.add_argument('notes', type=str)
         args = parser.parse_args()
         output = iss.update_issue_rd(logger, app, issue_id, args)
         return jsonify({'message': 'success'})
@@ -702,7 +702,7 @@ class Issue(Resource):
     def delete(self, issue_id):
         stauts = iss.verify_issue_user(logger, app, issue_id,
                                        get_jwt_identity()['user_id'])
-        if stauts and get_jwt_identity()['role_id'] in (3, 4):
+        if stauts and get_jwt_identity()['role_id'] in (3, 4, 5):
             output = iss.delete_issue(logger, app, issue_id)
             return output
         else:
