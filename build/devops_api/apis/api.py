@@ -98,8 +98,14 @@ class CreateProject(Resource):
 class Project(Resource):
     @jwt_required
     def get(self, project_id):
-        output = pjt.get_one_project(logger, app, project_id)
-        return output
+        role_id = get_jwt_identity()["role_id"]
+        print("role_id={0}".format(role_id))
+
+        if role_id == 3:
+            output = pjt.pm_get_project(logger, app, project_id)
+            return output
+        else:
+            "您無權限訪問！"
 
     @jwt_required
     def put(self, project_id):
@@ -124,8 +130,14 @@ class Project(Resource):
 
     @jwt_required
     def delete(self, project_id):
-        output = pjt.delete_one_project(logger, app, project_id)
-        return output
+        role_id = get_jwt_identity()["role_id"]
+        print("role_id={0}".format(role_id))
+
+        if role_id == 3:
+            output = pjt.pm_delete_project(logger, app, project_id)
+            return output
+        else:
+            "您無權限訪問！"
 
 
 class RedmineIssue_by_user(Resource):

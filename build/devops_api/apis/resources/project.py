@@ -637,7 +637,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                 gitlab_pj_name = gitlab_output.json()["name"]
                 gitlab_pj_ssh_url = gitlab_output.json()["ssh_url_to_repo"]
                 gitlab_pj_http_url = gitlab_output.json()["http_url_to_repo"]
-                
+
                 # 寫入projects
                 db.engine.execute(
                     "INSERT INTO public.projects (name, description, ssh_url, http_url) VALUES ('{0}', '{1}', '{2}', '{3}')"
@@ -673,29 +673,29 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         return output
 
     # 用project_id查詢db的相關table欄位資訊
-    def get_one_project(self, logger, app, project_id):
+    def pm_get_project(self, logger, app, project_id):
+        # 查詢專案名稱＆專案說明＆＆專案狀態
         project = db.engine.execute(
             "SELECT * FROM public.projects WHERE id = '{0}'".format(
                 project_id))
         for info in project:
-            result = {
+            output = {
                 "id": info["id"],
                 "name": info["name"],
                 "description": info["description"],
-                "ssh_url": info["ssh_url"],
-                "http_url": info["http_url"]
+                "disabled": info["disabled"]
             }
+        # 查詢專案負責人
+        user_id = db.engine.execute(
+            "SELECT user_id FROM public.project_user_role WHERE project_id = '{0}' AND role_id = '{1}'"
+            .format(project_id, 3)).fetchone()[0]
+        user_name = db.engine.execute(
+            "SELECT name FROM public.user WHERE id = '{0}'".format(
+                user_id)).fetchone()[0]
+        output["pm_user_id"] = user_id
+        output["pm_user_name"] = user_name
 
-        project_relation = db.engine.execute(
-            "SELECT * FROM public.project_plugin_relation WHERE project_id = '{0}'"
-            .format(project_id))
-        for info in project_relation:
-            result["plan_project_id"] = info["plan_project_id"]
-            result["git_repository_id"] = info["git_repository_id"]
-            result["ci_project_id"] = info["ci_project_id"]
-            result["ci_pipeline_id"] = info["ci_pipeline_id"]
-
-        return result
+        return output
 
     # 修改redmine & gitlab的project資訊
     def pm_update_project(self, logger, app, project_id, args):
@@ -750,7 +750,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                     db.engine.execute(
                         "UPDATE public.projects SET disabled = '{0}' WHERE id = '{1}'"
                         .format(args["disabled"], project_id))
-                
+
                 # 修改project_user_role
                 if args["user_id"] != None:
                     db.engine.execute(
@@ -766,43 +766,48 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         return output
 
     # 用project_id刪除redmine & gitlab的project並將db的相關table欄位一併刪除
-    def delete_one_project(self, logger, app, project_id):
-        project_relation = db.engine.execute(
-            "SELECT * FROM public.project_plugin_relation WHERE project_id = '{0}'"
-            .format(project_id))
-        for info in project_relation:
-            redmine_project_id = info["plan_project_id"]
-            gitlab_project_id = info["git_repository_id"]
+    def pm_delete_project(self, logger, app, project_id):
+        # project_relation = db.engine.execute(
+        #     "SELECT * FROM public.project_plugin_relation WHERE project_id = '{0}'"
+        #     .format(project_id))
+        # for info in project_relation:
+        #     redmine_project_id = info["plan_project_id"]
+        #     gitlab_project_id = info["git_repository_id"]
 
-        gitlab_url = "http://{0}/api/{1}/projects/{2}?private_token={3}".format(\
-            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], gitlab_project_id, self.private_token)
-        logger.info("delete gitlab project url: {0}".format(gitlab_url))
-        gitlab_output = requests.delete(gitlab_url,
-                                        headers=self.headers,
-                                        verify=False)
-        logger.info("delete gitlab project output: {0} / {1}".format(
-            gitlab_output, gitlab_output.json()))
-        if str(gitlab_output) == "<Response [202]>":
-            redmine_url = "http://{0}/projects/{1}.json?key={2}".format(\
-                app.config["REDMINE_IP_PORT"], redmine_project_id, app.config["REDMINE_API_KEY"])
-            logger.info("delete redmine project url: {0}".format(redmine_url))
-            redmine_output = requests.delete(redmine_url,
-                                             headers=self.headers,
-                                             verify=False)
-            logger.info(
-                "delete redmine project output: {0}".format(redmine_output))
-            if str(redmine_output) == "<Response [204]>":
-                db.engine.execute(
-                    "DELETE FROM public.project_plugin_relation WHERE project_id = '{0}'"
-                    .format(project_id))
-                db.engine.execute(
-                    "DELETE FROM public.projects WHERE id = '{0}'".format(
-                        project_id))
+        # gitlab_url = "http://{0}/api/{1}/projects/{2}?private_token={3}".format(\
+        #     app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], gitlab_project_id, self.private_token)
+        # logger.info("delete gitlab project url: {0}".format(gitlab_url))
+        # gitlab_output = requests.delete(gitlab_url,
+        #                                 headers=self.headers,
+        #                                 verify=False)
+        # logger.info("delete gitlab project output: {0} / {1}".format(
+        #     gitlab_output, gitlab_output.json()))
+        # if str(gitlab_output) == "<Response [202]>":
+        #     redmine_url = "http://{0}/projects/{1}.json?key={2}".format(\
+        #         app.config["REDMINE_IP_PORT"], redmine_project_id, app.config["REDMINE_API_KEY"])
+        #     logger.info("delete redmine project url: {0}".format(redmine_url))
+        #     redmine_output = requests.delete(redmine_url,
+        #                                      headers=self.headers,
+        #                                      verify=False)
+        #     logger.info(
+        #         "delete redmine project output: {0}".format(redmine_output))
+        #     if str(redmine_output) == "<Response [204]>":
+        #         db.engine.execute(
+        #             "DELETE FROM public.project_plugin_relation WHERE project_id = '{0}'"
+        #             .format(project_id))
+        #         db.engine.execute(
+        #             "DELETE FROM public.projects WHERE id = '{0}'".format(
+        #                 project_id))
 
-                output = {"result": "success delete"}
-            else:
-                output = redmine_output.json()
-        else:
-            output = gitlab_output.json()
+        #         output = {"result": "success delete"}
+        #     else:
+        #         output = redmine_output.json()
+        # else:
+        #     output = gitlab_output.json()
+
+        db.engine.execute(
+            "UPDATE public.projects SET disabled = '{0}' WHERE id = '{1}'".
+            format(True, project_id))
+        output = {"result": "success delete"}
 
         return output
