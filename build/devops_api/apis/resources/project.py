@@ -470,6 +470,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         logger.info("get project file url: {0}".format(url))
         output = requests.get(url, headers=self.headers, verify=False)
         logger.info("get project file output: {0}".format(output.json()))
+        return output
 
     # 用project_id查詢project的commits
     def get_git_project_branch_commits(self, logger, app, project_id, args):
