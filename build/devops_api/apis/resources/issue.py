@@ -161,7 +161,7 @@ class Issue(object):
         Redmine.get_redmine_key(self, logger, app)
         try:
             output = Redmine.redmine_create_issue(self, logger, app, args)
-            return {"message": "successful"}, output.status_code
+            return {"message": "successful", "data": {"issue_id": output.json()["issue"]["id"]}}, output.status_code
         except Exception as error:
             return str(error), 400
 
@@ -245,7 +245,7 @@ class Issue(object):
                 self, logger, app, args)
             return {
                 "message": "successful",
-                "data": redmine_output["total_count"]
+                "data": {"issue_number": redmine_output["total_count"]}
             }, status_code
         except Exception as error:
             return {"message": str(error)}, 400

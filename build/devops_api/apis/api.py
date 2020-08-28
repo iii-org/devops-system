@@ -224,58 +224,68 @@ class UserInfo(Resource):
         logger.debug("int(user_id): {0}".format(int(user_id)))
         logger.debug("get_jwt_identity()['user_id']: {0}".format(
             get_jwt_identity()['user_id']))
-        if int(user_id) == get_jwt_identity()['user_id']:
+        if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity(
+        )['role_id'] not in (1, 2):
             user_info = au.user_info(logger, user_id)
-            return jsonify({'message': 'success', 'data': user_info})
+            return user_info
         else:
-            return {'message': 'Access token is missing or invalid'}, 401
+            return {
+                'message': 'you dont have authorize to update user informaion'
+            }, 401
 
     @jwt_required
     def put(self, user_id):
-        if int(user_id) == get_jwt_identity()['user_id']:
+        if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity(
+        )['role_id'] == 5:
             parser = reqparse.RequestParser()
             parser.add_argument('name', type=str)
             parser.add_argument('username', type=str)
             parser.add_argument('password', type=str)
             parser.add_argument('phone', type=int)
             parser.add_argument('email', type=str)
-            parser.add_argument('group', type=str)
-            parser.add_argument('role', type=str)
             args = parser.parse_args()
             try:
-                au.update_user_info(logger, user_id, args)
-                return jsonify({'message': 'success'})
+                output = au.update_user_info(logger, user_id, args)
+                return output
             except Exception as error:
                 return jsonify({"message": str(error)}), 400
         else:
-            return {'message': 'Access token is missing or invalid'}, 401
+            return {
+                'message': 'you dont have authorize to update user informaion'
+            }, 401
 
     @jwt_required
     def delete(self, user_id):
         '''delete user'''
-        try:
-            au.delete_user(logger, user_id)
-            return jsonify({'message': 'success'})
-        except Exception as error:
-            return jsonify({"message": str(error)}), 400
+        if get_jwt_identity()["role_id"] == 5:
+            try:
+                au.delete_user(logger, user_id)
+                return jsonify({'message': 'success'})
+            except Exception as error:
+                return jsonify({"message": str(error)}), 400
+        else:
+            return {"message": "your role art not administrator"}, 401
 
 
 class User(Resource):
     @jwt_required
     def post(self):
         '''create user'''
-        parser = reqparse.RequestParser()
-        parser.add_argument('name', type=str)
-        parser.add_argument('username', type=str, required=True)
-        parser.add_argument('email', type=str, required=True)
-        parser.add_argument('phone', type=int, required=True)
-        parser.add_argument('login', type=str, required=True)
-        parser.add_argument('password', type=str, required=True)
-        parser.add_argument('group_id', action='append')
-        parser.add_argument('role_id', type=int, required=True)
-        args = parser.parse_args()
-        output = au.create_user(logger, args, app)
-        return output
+        if get_jwt_identity()["role_id"] == 5:
+            parser = reqparse.RequestParser()
+            parser.add_argument('name', type=str)
+            parser.add_argument('username', type=str, required=True)
+            parser.add_argument('email', type=str, required=True)
+            parser.add_argument('phone', type=int, required=True)
+            parser.add_argument('login', type=str, required=True)
+            parser.add_argument('password', type=str, required=True)
+            # parser.add_argument('group_id', action='append')
+            parser.add_argument('role_id', type=int, required=True)
+            args = parser.parse_args()
+            output = au.create_user(logger, args, app)
+            return output
+        else:
+            return {"message": "your role art not administrator"}, 401
 
 
 class GitProjectBranches(Resource):
@@ -283,7 +293,7 @@ class GitProjectBranches(Resource):
     def get(self, repository_id):
         role_id = get_jwt_identity()["role_id"]
         print("role_id={0}".format(role_id))
-        
+
         # try:
         #     role_id = db.engine.execute(
         #         "SELECT role_id FROM public.project_user_role \
@@ -291,7 +301,7 @@ class GitProjectBranches(Resource):
         #             user_id, project_id)).fetchone()[0]
         # except:
         #     role_id = None
-        
+
         if role_id <= 5:
             project_id = repository_id
             output = pjt.get_git_project_branches(logger, app, project_id)
@@ -544,7 +554,7 @@ class GitProjectBranchCommmits(Resource):
     def get(self, repository_id):
         role_id = get_jwt_identity()["role_id"]
         print("role_id={0}".format(role_id))
-        
+
         # try:
         #     role_id = db.engine.execute(
         #         "SELECT role_id FROM public.project_user_role \
@@ -624,8 +634,9 @@ class PipelineGenerateYaml(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('detail')
         args = parser.parse_args()
-        output_array = pipe.generate_ci_yaml(logger, args, app, repository_id,
+        output = pipe.generate_ci_yaml(logger, args, app, repository_id,
                                              branch_name)
+        return output
 
 
 class IssueByProject(Resource):
@@ -649,12 +660,12 @@ class IssueCreate(Resource):
         parser.add_argument('tracker_id', type=int, required=True)
         parser.add_argument('status_id', type=int, required=True)
         parser.add_argument('priority_id', type=int, required=True)
-        parser.add_argument('subject', required=True)
-        parser.add_argument('description')
+        parser.add_argument('subject', type=str, required=True)
+        parser.add_argument('description', type=str)
         parser.add_argument('assigned_to_id', type=int, required=True)
         parser.add_argument('parent_id', type=int)
-        parser.add_argument('start_date', required=True)
-        parser.add_argument('due_date', required=True)
+        parser.add_argument('start_date', type=str , required=True)
+        parser.add_argument('due_date', type=str , required=True)
         parser.add_argument('done_retio', type=int, required=True)
         parser.add_argument('estimated_hours', type=int, required=True)
         args = parser.parse_args()
@@ -676,13 +687,13 @@ class Issue(Resource):
         parser.add_argument('tracker_id', type=int)
         parser.add_argument('status_id', type=int)
         parser.add_argument('priority_id', type=int)
-        parser.add_argument('description')
+        parser.add_argument('description', type=str)
         parser.add_argument('parent_id', type=int)
-        parser.add_argument('subject')
-        parser.add_argument('start_date')
-        parser.add_argument('due_date')
+        parser.add_argument('subject', type=str)
+        parser.add_argument('start_date', type=str)
+        parser.add_argument('due_date', type=str)
         parser.add_argument('done_retio', type=int)
-        parser.add_argument('notes')
+        parser.add_argument('notes', type=str)
         args = parser.parse_args()
         output = iss.update_issue_rd(logger, app, issue_id, args)
         return jsonify({'message': 'success'})
@@ -691,7 +702,7 @@ class Issue(Resource):
     def delete(self, issue_id):
         stauts = iss.verify_issue_user(logger, app, issue_id,
                                        get_jwt_identity()['user_id'])
-        if stauts and get_jwt_identity()['role_id'] in (3, 4):
+        if stauts and get_jwt_identity()['role_id'] in (3, 4, 5):
             output = iss.delete_issue(logger, app, issue_id)
             return output
         else:
@@ -734,8 +745,8 @@ class IssueStatistics(Resource):
     @jwt_required
     def get(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('from_time', required=True)
-        parser.add_argument('to_time')
+        parser.add_argument('from_time', type=str, required=True)
+        parser.add_argument('to_time', type=str)
         parser.add_argument('status_id', type=int)
         args = parser.parse_args()
         output = iss.get_issue_statistics(logger, app, args,
