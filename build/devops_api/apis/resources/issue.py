@@ -245,7 +245,7 @@ class Issue(object):
                 self, logger, app, args)
             return {
                 "message": "successful",
-                "data": redmine_output["total_count"]
+                "data": {"issue_number": redmine_output["total_count"]}
             }, status_code
         except Exception as error:
             return {"message": str(error)}, 400

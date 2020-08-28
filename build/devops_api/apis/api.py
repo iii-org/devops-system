@@ -745,8 +745,8 @@ class IssueStatistics(Resource):
     @jwt_required
     def get(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('from_time', required=True)
-        parser.add_argument('to_time')
+        parser.add_argument('from_time', type=str, required=True)
+        parser.add_argument('to_time', type=str)
         parser.add_argument('status_id', type=int)
         args = parser.parse_args()
         output = iss.get_issue_statistics(logger, app, args,
