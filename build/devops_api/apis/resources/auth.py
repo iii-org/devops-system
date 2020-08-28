@@ -59,119 +59,72 @@ class auth(object):
                 )
 
     def user_info(self, logger, user_id):
+        ''' get user info'''
         result = db.engine.execute(
             "SELECT ur.id as id, ur.name as name, ur.username as username,\
             ur.email as email, ur.phone as phone, ur.login as login, ur.create_at as create_at,\
-            ur.update_at as update_at, rl.name as role_name \
+            ur.update_at as update_at, rl.id as role_id, rl.name as role_name \
             FROM public.user as ur, public.project_user_role as pur, public.roles as rl \
-            WHERE ur.id = {0} AND ur.id = pur.user_id AND pur.role_id = rl.id".
-            format(user_id))
+            WHERE ur.disabled = false AND ur.id = {0} AND ur.id = pur.user_id AND pur.role_id = rl.id"
+            .format(user_id))
         user_data = result.fetchone()
         result.close()
-        logger.info("user info: {0}".format(user_data["id"]))
-        output = {
-            "id": user_data["id"],
-            "name": user_data["name"],
-            "usernmae": user_data["username"],
-            "email": user_data["email"],
-            "phone": user_data["phone"],
-            "login": user_data["login"],
-            "create_at": user_data["create_at"].isoformat(),
-            "update_at": user_data["update_at"].isoformat(),
-            "role": {
-                "name": user_data["role_name"]
+        if user_data:
+            logger.info("user info: {0}".format(user_data["id"]))
+            output = {
+                "id": user_data["id"],
+                "name": user_data["name"],
+                "usernmae": user_data["username"],
+                "email": user_data["email"],
+                "phone": user_data["phone"],
+                "login": user_data["login"],
+                "create_at": util.dateToStr(self, user_data["create_at"]),
+                "update_at": util.dateToStr(self, user_data["update_at"]),
+                "role": {
+                    "name": user_data["role_name"],
+                    "id": user_data["role_id"]
+                }
             }
-        }
-        '''
-        select_groups_has_users_command = db.select([
-            GroupsHasUsers.stru_groups_has_users
-        ]).where(
-            db.and_(GroupsHasUsers.stru_groups_has_users.c.user_id == user_id))
-        logger.debug("select_groups_has_users_command: {0}".format(
-            select_groups_has_users_command))
-        reMessage = util.callsqlalchemy(self, select_groups_has_users_command,
-                                        logger)
-        group_has_user_array = reMessage.fetchall()
-        logger.debug("group_has_user_array: {0}".format(group_has_user_array))
-        group_list = []
-        if group_has_user_array:
-            logger.debug("User {0} has group".format(user_id))
-            for group_has_user in group_has_user_array:
-                select_group_command = db.select(
-                    [TableGroup.stru_group]).where(
-                        db.and_(TableGroup.stru_group.c.id ==
-                                group_has_user['group_id']))
-                logger.debug(
-                    "select_group_command: {0}".format(select_group_command))
-                reMessage = util.callsqlalchemy(self, select_group_command,
-                                                logger)
-                group_info = reMessage.fetchone()
-                logger.debug("group_name: {0}".format(group_info))
-                group_list.append({
-                    "id": group_info['id'],
-                    "name": group_info['name']
-                })
-
-        if group_list:
-            output["group"] = group_list
+            return {'message': 'success', 'data': output}, 200
         else:
-            output["group"] = {}
-        logger.debug(output)
-        '''
-        return output
+            return {"message": "Could not found user information"}, 400
 
     def update_user_info(self, logger, user_id, args):
-        set_string = ""
-        if args["name"] is not None:
-            set_string += "name = '{0}'".format(args["name"])
-            set_string += ","
-        if args["username"] is not None:
-            set_string += "username = '{0}'".format(args["username"])
-            set_string += ","
-        if args["password"] is not None:
-            h = SHA256.new()
-            h.update(args["password"].encode())
-            set_string += "password = '{0}'".format(h.hexdigest())
-            set_string += ","
-        if args["phone"] is not None:
-            set_string += "phone = {0}".format(args["phone"])
-            set_string += ","
-        if args["email"] is not None:
-            set_string += "email = '{0}'".format(args["email"])
-            set_string += ","
-        set_string += "update_at = localtimestamp"
-        logger.info("set_string: {0}".format(set_string))
-        result = db.engine.execute(
-            "UPDATE public.user SET {0} WHERE id = {1}".format(
-                set_string, user_id))
-        '''
-        # update groups_has_users
-        if args["group"] is not None:
-            # add users into groups_has_users table
-            for group_id in args["group_id"]:
-                select_groups_has_users_command = db.select([GroupsHasUsers.stru_groups_has_users])\
-                    .where(db.and_(GroupsHasUsers.stru_groups_has_users.c.user_id == user_id, \
-                    GroupsHasUsers.stru_groups_has_users.c.group_id == group_id))
-                logger.debug("select_groups_has_users_command: {0}".format(
-                    select_groups_has_users_command))
-                reMessage = util.callsqlalchemy(
-                    self, select_groups_has_users_command, logger)
-                logger.info("reMessage: {0}".format(reMessage))
-                group_user_array = reMessage.fetchall()
-                if not group_user_array:
-                    #insert groups_has_users table
-                    insert_groups_has_users_command = db.insert(GroupsHasUsers.stru_groups_has_users)\
-                        .values(group_id = group_id, user_id = user_id)
-                    logger.debug("insert_groups_has_users_command: {0}".format(
-                        insert_groups_has_users_command))
-                    reMessage = util.callsqlalchemy(
-                        self, insert_groups_has_users_command, logger)
-                    logger.info("reMessage: {0}".format(reMessage))
-
-        if args["role"] is not None:
-            set_string += "role = '{0}'".format(args["role"])
-            set_string += ","
-        '''
+        #Check user id disabled or not.
+        select_user_to_disable_command = db.select([User.stru_user])\
+            .where(db.and_(User.stru_user.c.id==user_id))
+        logger.debug("select_user_to_disable_command: {0}".format(
+            select_user_to_disable_command))
+        reMessage = util.callsqlalchemy(self, select_user_to_disable_command,
+                                        logger).fetchone()
+        logger.info("reMessage['disabled']: {0}".format(reMessage['disabled']))
+        if reMessage['disabled'] is False:
+            set_string = ""
+            if args["name"] is not None:
+                set_string += "name = '{0}'".format(args["name"])
+                set_string += ","
+            if args["username"] is not None:
+                set_string += "username = '{0}'".format(args["username"])
+                set_string += ","
+            if args["password"] is not None:
+                h = SHA256.new()
+                h.update(args["password"].encode())
+                set_string += "password = '{0}'".format(h.hexdigest())
+                set_string += ","
+            if args["phone"] is not None:
+                set_string += "phone = {0}".format(args["phone"])
+                set_string += ","
+            if args["email"] is not None:
+                set_string += "email = '{0}'".format(args["email"])
+                set_string += ","
+            set_string += "update_at = localtimestamp"
+            logger.info("set_string: {0}".format(set_string))
+            result = db.engine.execute(
+                "UPDATE public.user SET {0} WHERE id = {1}".format(
+                    set_string, user_id))
+            return {'message': 'success'}, 200
+        else:
+            return {"message": "User was disabled"}, 400
 
     def delete_user(self, logger, user_id):
         ''' disable user on user table'''
@@ -264,7 +217,7 @@ class auth(object):
                     self, insert_groups_has_users_command, logger)
                 logger.info("reMessage: {0}".format(reMessage))
         '''
-        return {"message": "successful", "data": user_id}, 200
+        return {"message": "successful", "data": {"user_id": user_id}}, 200
 
     def get_user_plugin_relation(self, logger):
         get_user_plugin_relation_command = db.select(

@@ -15,7 +15,7 @@ class User():
         db.Column('password', db.String(255)),
         db.Column('create_at', db.DATETIME(255)),
         db.Column('update_at', db.DATETIME(255)),
-        db.Column('disable', db.Boolean))
+        db.Column('disabled', db.Boolean))
 
 
 class UserPluginRelation():

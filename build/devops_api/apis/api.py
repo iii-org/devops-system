@@ -227,7 +227,7 @@ class UserInfo(Resource):
         if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity(
         )['role_id'] not in (1, 2):
             user_info = au.user_info(logger, user_id)
-            return jsonify({'message': 'success', 'data': user_info})
+            return user_info
         else:
             return {
                 'message': 'you dont have authorize to update user informaion'
@@ -245,8 +245,8 @@ class UserInfo(Resource):
             parser.add_argument('email', type=str)
             args = parser.parse_args()
             try:
-                au.update_user_info(logger, user_id, args)
-                return jsonify({'message': 'success'})
+                output = au.update_user_info(logger, user_id, args)
+                return output
             except Exception as error:
                 return jsonify({"message": str(error)}), 400
         else:
