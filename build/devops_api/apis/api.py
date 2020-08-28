@@ -70,8 +70,9 @@ class CreateProject(Resource):
     @jwt_required
     def post(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('name', type=str)
-        parser.add_argument('identifier', type=str)
+        parser.add_argument('name', type=str, required=True)
+        parser.add_argument('identifier', type=str, required=True)
+        parser.add_argument('description', type=str)
         args = parser.parse_args()
         logger.info("post body: {0}".format(args))
         output = pjt.create_one_project(logger, app, args)
@@ -281,21 +282,19 @@ class User(Resource):
 class GitProjectBranches(Resource):
     @jwt_required
     def get(self, repository_id):
-        user_id = get_jwt_identity()
-        print("user_id={0}".format(user_id))
-        project_id = repository_id
-        try:
-            role_id = db.engine.execute(
-                "SELECT role_id FROM public.project_user_role \
-                WHERE user_id = {0} AND project_id = {1}".format(
-                    user_id, project_id)).fetchone()[0]
-        except:
-            role_id = None
-        # print("role_id={0}".format(role_id))
-        # print(role_id == None)
-        if role_id == None:
-            return "您無權限訪問！"
-        elif role_id <= 5:
+        role_id = get_jwt_identity()["role_id"]
+        print("role_id={0}".format(role_id))
+        
+        # try:
+        #     role_id = db.engine.execute(
+        #         "SELECT role_id FROM public.project_user_role \
+        #         WHERE user_id = {0} AND project_id = {1}".format(
+        #             user_id, project_id)).fetchone()[0]
+        # except:
+        #     role_id = None
+        
+        if role_id <= 5:
+            project_id = repository_id
             output = pjt.get_git_project_branches(logger, app, project_id)
             branch_list = []
             for idx, i in enumerate(output.json()):
@@ -544,14 +543,28 @@ class GitProjectMergeBranch(Resource):
 class GitProjectBranchCommmits(Resource):
     @jwt_required
     def get(self, repository_id):
-        project_id = repository_id
-        parser = reqparse.RequestParser()
-        parser.add_argument('branch', type=str, required=True)
-        args = parser.parse_args()
-        logger.info("get body: {0}".format(args))
-        output = pjt.get_git_project_branch_commits(logger, app, project_id,
-                                                    args)
-        return output.json()
+        role_id = get_jwt_identity()["role_id"]
+        print("role_id={0}".format(role_id))
+        
+        # try:
+        #     role_id = db.engine.execute(
+        #         "SELECT role_id FROM public.project_user_role \
+        #         WHERE user_id = {0} AND project_id = {1}".format(
+        #             user_id, project_id)).fetchone()[0]
+        # except:
+        #     role_id = None
+
+        if role_id <= 5:
+            project_id = repository_id
+            parser = reqparse.RequestParser()
+            parser.add_argument('branch', type=str, required=True)
+            args = parser.parse_args()
+            logger.info("get body: {0}".format(args))
+            output = pjt.get_git_project_branch_commits(
+                logger, app, project_id, args)
+            return output.json()
+        else:
+            return "您無權限訪問！"
 
 
 class GitProjectNetwork(Resource):
@@ -1097,7 +1110,7 @@ api.add_resource(GitProjects, '/git_projects')
 api.add_resource(GitOneProject, '/git_one_project/<project_id>')
 api.add_resource(GitProjectWebhooks, '/git_project_webhooks/<project_id>')
 
-api.add_resource(GitProjectBranches, '/repositories/<repository_id>/branch')
+api.add_resource(GitProjectBranches, '/repositories/<repository_id>/branches')
 api.add_resource(GitProjectBranch,
                  '/repositories/rd/<repository_id>/branch/<branch_name>')
 api.add_resource(GitProjectRepositories,
@@ -1116,7 +1129,7 @@ api.add_resource(
 api.add_resource(GitProjectMergeBranch,
                  '/repositories/rd/<repository_id>/merge_branches')
 api.add_resource(GitProjectBranchCommmits,
-                 '/repositories/rd/<repository_id>/commits')
+                 '/repositories/<repository_id>/commits')
 api.add_resource(GitProjectNetwork, '/repositories/<repository_id>/overview')
 
 # Project

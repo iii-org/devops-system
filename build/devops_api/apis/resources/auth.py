@@ -136,11 +136,13 @@ class auth(object):
         if args["email"] is not None:
             set_string += "email = '{0}'".format(args["email"])
             set_string += ","
-        set_string += "update_at = {0}".format(datetime.datetime.now())
-        logger.info("set_string: {0}".format(datetime.datetime.now()))
+        set_string += "update_at = localtimestamp"
+        logger.info("set_string: {0}".format(set_string))
         result = db.engine.execute(
             "UPDATE public.user SET {0} WHERE id = {1}".format(
                 set_string, user_id))
+
+        '''
         # update groups_has_users
         if args["group"] is not None:
             # add users into groups_has_users table
@@ -163,11 +165,12 @@ class auth(object):
                     reMessage = util.callsqlalchemy(
                         self, insert_groups_has_users_command, logger)
                     logger.info("reMessage: {0}".format(reMessage))
-        '''
+
         if args["role"] is not None:
             set_string += "role = '{0}'".format(args["role"])
             set_string += ","
         '''
+
     def delete_user(self, logger, user_id):
         ''' disable user on user table'''
         update_user_to_disable_command = db.update(User.stru_user)\
