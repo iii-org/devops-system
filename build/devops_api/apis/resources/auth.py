@@ -5,7 +5,7 @@ from Cryptodome.Hash import SHA256
 from .util import util
 from .redmine import Redmine
 from .gitlab import GitLab
-from model import db, User, UserPluginRelation, GroupsHasUsers, ProjectUserRole, TableGroup
+from model import db, User, UserPluginRelation, GroupsHasUsers, ProjectUserRole, TableProjects
 
 # from jsonwebtoken import jsonwebtoken
 from flask_jwt_extended import (create_access_token, JWTManager,
@@ -69,6 +69,7 @@ class auth(object):
             .format(user_id))
         user_data = result.fetchone()
         result.close()
+        
         if user_data:
             logger.info("user info: {0}".format(user_data["id"]))
             output = {
@@ -85,6 +86,21 @@ class auth(object):
                     "id": user_data["role_id"]
                 }
             }
+            # get user involve project list
+            select_project = db.select([ProjectUserRole.stru_project_user_role, TableProjects.stru_projects])\
+                .where(db.and_(ProjectUserRole.stru_project_user_role.c.user_id==user_id, ProjectUserRole.stru_project_user_role.c.project_id==TableProjects.stru_projects.c.id))
+            logger.debug("select_project: {0}".format(select_project))
+            reMessage = util.callsqlalchemy(self, select_project,logger).fetchall()
+            logger.debug("reMessage: {0}".format(reMessage))
+            if reMessage:
+                project_list = []
+                for project in reMessage:
+                    logger.debug("project: {0}".format(project["name"]))
+                    project_list.append({"id": project["id"], "name": project["name"]})
+                output["project"] = project_list
+            else:
+                output["project"] = {}
+                
             return {'message': 'success', 'data': output}, 200
         else:
             return {"message": "Could not found user information"}, 400
