@@ -5,7 +5,7 @@ from Cryptodome.Hash import SHA256
 from .util import util
 from .redmine import Redmine
 from .gitlab import GitLab
-from model import db, User, UserPluginRelation, GroupsHasUsers, ProjectUserRole, TableProjects
+from model import db, User, UserPluginRelation, ProjectUserRole, TableProjects
 
 # from jsonwebtoken import jsonwebtoken
 from flask_jwt_extended import (create_access_token, JWTManager,
@@ -87,8 +87,11 @@ class auth(object):
                 }
             }
             # get user involve project list
-            select_project = db.select([ProjectUserRole.stru_project_user_role, TableProjects.stru_projects])\
-                .where(db.and_(ProjectUserRole.stru_project_user_role.c.user_id==user_id, ProjectUserRole.stru_project_user_role.c.project_id==TableProjects.stru_projects.c.id))
+            select_project = db.select([ProjectUserRole.stru_project_user_role, \
+                TableProjects.stru_projects]).where(db.and_(\
+                ProjectUserRole.stru_project_user_role.c.user_id==user_id, \
+                ProjectUserRole.stru_project_user_role.c.project_id==\
+                TableProjects.stru_projects.c.id))
             logger.debug("select_project: {0}".format(select_project))
             reMessage = util.callsqlalchemy(self, select_project,logger).fetchall()
             logger.debug("reMessage: {0}".format(reMessage))
@@ -213,14 +216,22 @@ class auth(object):
                                         logger)
         logger.info("reMessage: {0}".format(reMessage))
 
-        # insert role and user into project_user_role
-        insert_project_user_role_command = db.insert(ProjectUserRole.stru_project_user_role)\
-            .values(user_id = user_id, role_id = args['role_id'])
-        logger.debug("insert_project_user_role_command: {0}".format(
-            insert_project_user_role_command))
-        reMessage = util.callsqlalchemy(self, insert_project_user_role_command,
-                                        logger)
-        logger.info("reMessage: {0}".format(reMessage))
+        if args["project_id"] is not None:
+            for project_id in args["project_id"]:
+                # insert role and user into project_user_role
+                insert_project_user_role_command = db.insert(ProjectUserRole.stru_project_user_role)\
+                    .values(user_id = user_id, role_id = args['role_id'], project_id = project_id)
+                logger.debug("insert_project_user_role_command: {0}".format(
+                    insert_project_user_role_command))
+                reMessage = util.callsqlalchemy(self, insert_project_user_role_command,logger)
+                logger.info("reMessage: {0}".format(reMessage))
+        else:
+            insert_project_user_role_command = db.insert(ProjectUserRole.stru_project_user_role)\
+                .values(user_id = user_id, role_id = args['role_id'])
+            logger.debug("insert_project_user_role_command: {0}".format(insert_project_user_role_command))
+            reMessage = util.callsqlalchemy(self, insert_project_user_role_command,logger)
+            logger.info("reMessage: {0}".format(reMessage))
+        
         return {"message": "successful", "data": {"user_id": user_id}}, 200
 
     def get_user_plugin_relation(self, logger):
