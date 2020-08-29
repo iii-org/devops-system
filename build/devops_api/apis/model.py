@@ -59,6 +59,12 @@ class ProjectUserRole():
                                       db.Column('role_id', db.Integer))
 
 
+class TableProjects():
+    meta = db.MetaData()
+    stru_projects = db.Table('projects', meta, db.Column('id', db.Integer),
+                             db.Column('name', db.String))
+
+
 class TableRequirement():
     meta = db.MetaData()
     stru_rqmt = db.Table('requirements', meta,

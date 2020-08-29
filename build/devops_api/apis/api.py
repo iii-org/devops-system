@@ -281,6 +281,7 @@ class UserInfo(Resource):
             parser.add_argument('password', type=str)
             parser.add_argument('phone', type=int)
             parser.add_argument('email', type=str)
+            parser.add_argument('project_id', action='append')
             args = parser.parse_args()
             try:
                 output = au.update_user_info(logger, user_id, args)
@@ -317,7 +318,7 @@ class User(Resource):
             parser.add_argument('phone', type=int, required=True)
             parser.add_argument('login', type=str, required=True)
             parser.add_argument('password', type=str, required=True)
-            # parser.add_argument('group_id', action='append')
+            parser.add_argument('project_id', action='append')
             parser.add_argument('role_id', type=int, required=True)
             args = parser.parse_args()
             output = au.create_user(logger, args, app)
