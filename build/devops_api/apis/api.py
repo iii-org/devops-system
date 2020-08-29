@@ -243,6 +243,7 @@ class UserInfo(Resource):
             parser.add_argument('password', type=str)
             parser.add_argument('phone', type=int)
             parser.add_argument('email', type=str)
+            parser.add_argument('project_id', action='append')
             args = parser.parse_args()
             try:
                 output = au.update_user_info(logger, user_id, args)
