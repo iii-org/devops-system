@@ -289,6 +289,16 @@ class User(Resource):
             return {"message": "your role art not administrator"}, 401
 
 
+class UserList(Resource):
+    @jwt_required
+    def get(self):
+        if get_jwt_identity()["role_id"] in (3, 4, 5):
+            output = au.get_user_list(logger)
+            return output
+        else:
+            return {"message": "your role art not administrator"}, 401
+
+
 class GitProjectBranches(Resource):
     @jwt_required
     def get(self, repository_id):
@@ -636,7 +646,7 @@ class PipelineGenerateYaml(Resource):
         parser.add_argument('detail')
         args = parser.parse_args()
         output = pipe.generate_ci_yaml(logger, args, app, repository_id,
-                                             branch_name)
+                                       branch_name)
         return output
 
 
@@ -665,8 +675,8 @@ class IssueCreate(Resource):
         parser.add_argument('description', type=str)
         parser.add_argument('assigned_to_id', type=int, required=True)
         parser.add_argument('parent_id', type=int)
-        parser.add_argument('start_date', type=str , required=True)
-        parser.add_argument('due_date', type=str , required=True)
+        parser.add_argument('start_date', type=str, required=True)
+        parser.add_argument('due_date', type=str, required=True)
         parser.add_argument('done_retio', type=int, required=True)
         parser.add_argument('estimated_hours', type=int, required=True)
         args = parser.parse_args()
@@ -1149,8 +1159,9 @@ api.add_resource(ProjectList, '/project/rd/<user_id>')
 # User
 api.add_resource(UserLogin, '/user/login')
 api.add_resource(UserForgetPassword, '/user/forgetPassword')
-api.add_resource(UserInfo, '/user/<user_id>')
+api.add_resource(UserInfo, '/user/<int:user_id>')
 api.add_resource(User, '/user')
+api.add_resource(UserList, '/user/list')
 
 # pipeline
 api.add_resource(PipelineExec, '/pipelines/rd/<repository_id>/pipelines_exec')
