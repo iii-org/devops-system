@@ -286,3 +286,66 @@ class auth(object):
                                         logger)
         user_plugin_relation_array = reMessage.fetchall()
         return user_plugin_relation_array
+
+    def get_user_list(self, logger):
+        ''' get user list'''
+        result = db.engine.execute(
+            "SELECT ur.id as id, ur.name as name, ur.username as username, ur.email as email, \
+            ur.phone as phone, ur.login as login, ur.create_at as create_at, \
+            ur.update_at as update_at, rl.id as role_id, rl.name as role_name, \
+            ur.disabled as disabled\
+            FROM public.user as ur \
+            left join public.project_user_role as pur \
+            on ur.id = pur.user_id \
+            left join public.roles as rl \
+            on pur.role_id = rl.id \
+            group by ur.id, rl.id\
+            ORDER BY ur.id ASC")
+        user_data_array = result.fetchall()
+        result.close()
+        if user_data_array:
+            output_array = []
+            for user_data in user_data_array:
+                logger.info("user_data: {0}".format(user_data))
+                select_project_by_userid = db.select([ProjectUserRole.stru_project_user_role, \
+                    TableProjects.stru_projects]).where(db.and_(\
+                    ProjectUserRole.stru_project_user_role.c.user_id==user_data["id"], \
+                    ProjectUserRole.stru_project_user_role.c.project_id==\
+                    TableProjects.stru_projects.c.id))
+                output_project_array = util.callsqlalchemy(
+                    self, select_project_by_userid, logger).fetchall()
+                logger.debug(
+                    "output_project: {0}".format(output_project_array))
+                project = []
+                if output_project_array:
+                    for output_project in output_project_array:
+                        project.append({
+                            "id": output_project["id"],
+                            "name": output_project["name"]
+                        })
+
+                output = {
+                    "id": user_data["id"],
+                    "name": user_data["name"],
+                    "usernmae": user_data["username"],
+                    "email": user_data["email"],
+                    "phone": user_data["phone"],
+                    "login": user_data["login"],
+                    "create_at": util.dateToStr(self, user_data["create_at"]),
+                    "update_at": util.dateToStr(self, user_data["update_at"]),
+                    "role": {
+                        "name": user_data["role_name"],
+                        "id": user_data["role_id"]
+                    },
+                    "project": project,
+                    "disabled": user_data["disabled"]
+                }
+                output_array.append(output)
+            return {
+                "message": "successful",
+                "data": {
+                    "user_list": output_array
+                }
+            }, 200
+        else:
+            return {"message": "Could not get user list"}, 400
