@@ -27,16 +27,6 @@ class Redmine(object):
         logger.info("redmine_key: {0}".format(self.redmine_key))
         return self.redmine_key
 
-    def redmine_get_user_id(self, logger, app, user_account):
-
-        url = "http://{0}/users.json?key={1}".format(app.config['REDMINE_IP_PORT']\
-            , self.redmine_key)
-        output = requests.get(url, headers=self.headers, verify=False)
-        for user in output.json()["users"]:
-            if user["login"] == user_account:
-                logger.info("user {0} detail: {1}".format(user_account, user))
-                return user
-
     def redmine_get_issues_by_user(self, logger, app, user_id):
 
         url = "http://{0}/issues.json?key={1}&assigned_to_id={2}".format(\
@@ -90,7 +80,7 @@ class Redmine(object):
                                data=json.dumps(param),
                                headers=self.headers,
                                verify=False)
-        logger.info("create issues output: {0}".format(output))
+        logger.info("create issues output: {0}".format(output.json()))
         return output
 
     def redmine_update_issue(self, logger, app, issue_id, args):
@@ -118,15 +108,6 @@ class Redmine(object):
         output = requests.get(url, headers=self.headers, verify=False)
         logger.info("get issues stauts list output: {0}".format(output.json()))
         return output.json()
-
-    def get_project(self, logger, app, user_account):
-        user_info = self.get_user_id(logger, app, user_account)
-
-        url = "http://{0}/users/{1}.json?include=memberships&key={2}".format(
-            app.config['REDMINE_IP_PORT'], user_info["id"], self.redmine_key)
-        output = requests.get(url, headers=self.headers, verify=False)
-        logger.info("get issues output: {0}".format(output))
-        return output
 
     def redmine_get_priority(self, logger, app):
         url="http://{0}/enumerations/issue_priorities.json?key={1}".format(\
