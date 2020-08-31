@@ -353,6 +353,7 @@ class auth(object):
     def get_userlist_by_project(self, logger, project_id, args):
         logger.debug("args[exclude] {0}".format(args["exclude"]))
         if args["exclude"] is not None and args["exclude"] == 1:
+            # exclude project users
             select_userRole_by_project = db.select([ProjectUserRole.stru_project_user_role, \
             User.stru_user, TableRole.stru_role])\
             .where(db.and_(ProjectUserRole.stru_project_user_role.c.project_id!=project_id,\
@@ -362,7 +363,44 @@ class auth(object):
             ProjectUserRole.stru_project_user_role.c.role_id==TableRole.stru_role.c.id))\
             .distinct(ProjectUserRole.stru_project_user_role.c.user_id)\
             .order_by(db.desc(ProjectUserRole.stru_project_user_role.c.user_id))
+            logger.debug("select_userRole_by_project: {0}".format(
+                select_userRole_by_project))
+            data_userRole_by_project_array = util.callsqlalchemy(
+                self, select_userRole_by_project, logger).fetchall()
+            logger.debug("data_userRole_by_project_array: {0}".format(
+                data_userRole_by_project_array))
+
+            # get user list when project is project_id
+            select_userid_by_project_array = db.select([ProjectUserRole.stru_project_user_role]) \
+                .where(db.and_(ProjectUserRole.stru_project_user_role.c.project_id==project_id))
+            data_userid_by_project_array = util.callsqlalchemy(
+                self, select_userid_by_project_array, logger).fetchall()
+            logger.debug("data_userid_by_project_array: {0}".format(
+                data_userid_by_project_array))
+
+            count_duplicate = []
+            for data_userRole_by_project in data_userRole_by_project_array:
+                for data_userid_by_project in data_userid_by_project_array:
+                    if data_userRole_by_project[ProjectUserRole.stru_project_user_role.c.user_id]\
+                        == data_userid_by_project[ProjectUserRole.stru_project_user_role.c.user_id]:
+                        logger.debug(type(data_userRole_by_project))
+                        count_duplicate.append(data_userRole_by_project[
+                            ProjectUserRole.stru_project_user_role.c.user_id])
+            count_duplicate = list(set(count_duplicate))
+            logger.debug("count_duplicate: {0}".format(count_duplicate))
+            i = 0
+            while i < len(data_userRole_by_project_array):
+                if data_userRole_by_project_array[i][
+                        ProjectUserRole.stru_project_user_role.c.
+                        user_id] in count_duplicate:
+                    data_userRole_by_project_array.pop(i)
+                else:
+                    i += 1
+            logger.debug("data_userRole_by_project_array: {0}".format(
+                data_userRole_by_project_array))
+
         else:
+            # in project users
             select_userRole_by_project = db.select([ProjectUserRole.stru_project_user_role, \
             User.stru_user, TableRole.stru_role])\
             .where(db.and_(ProjectUserRole.stru_project_user_role.c.project_id==project_id,\
@@ -372,10 +410,11 @@ class auth(object):
             ProjectUserRole.stru_project_user_role.c.role_id==TableRole.stru_role.c.id))\
             .distinct(ProjectUserRole.stru_project_user_role.c.user_id)\
             .order_by(db.desc(ProjectUserRole.stru_project_user_role.c.user_id))
-        logger.debug("select_userRole_by_project: {0}".format(
-            select_userRole_by_project))
-        data_userRole_by_project_array = util.callsqlalchemy(
-            self, select_userRole_by_project, logger).fetchall()
+            logger.debug("select_userRole_by_project: {0}".format(
+                select_userRole_by_project))
+            data_userRole_by_project_array = util.callsqlalchemy(
+                self, select_userRole_by_project, logger).fetchall()
+
         user_list = []
         for data_userRole_by_project in data_userRole_by_project_array:
             logger.debug("data_userRole_by_project: {0}".format(
@@ -389,7 +428,9 @@ class auth(object):
                 data_userRole_by_project[User.stru_user.c.name],
                 "role_name":
                 data_userRole_by_project[TableRole.stru_role.c.name],
-                #"project_id": data_userRole_by_project[ProjectUserRole.stru_project_user_role.c.project_id]
+                "project_id":
+                data_userRole_by_project[
+                    ProjectUserRole.stru_project_user_role.c.project_id]
                 # "disabled": data_userRole_by_project[User.stru_user.c.disabled]
             })
         return {"message": "successful", "data": {"user_list": user_list}}, 200
