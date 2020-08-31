@@ -92,7 +92,7 @@ class CreateProject(Resource):
             output = pjt.pm_create_project(logger, app, user_id, args)
             return output
         else:
-            "您無權限訪問！"
+            return {"message": "您無權限訪問！"}, 401
 
 
 class Project(Resource):
@@ -105,7 +105,7 @@ class Project(Resource):
             output = pjt.pm_get_project(logger, app, project_id)
             return output
         else:
-            "您無權限訪問！"
+            return {"message": "您無權限訪問！"}, 401
 
     @jwt_required
     def put(self, project_id):
@@ -126,7 +126,7 @@ class Project(Resource):
             output = pjt.pm_update_project(logger, app, project_id, args)
             return output
         else:
-            "您無權限訪問！"
+            return {"message": "您無權限訪問！"}, 401
 
     @jwt_required
     def delete(self, project_id):
@@ -137,7 +137,7 @@ class Project(Resource):
             output = pjt.pm_delete_project(logger, app, project_id)
             return output
         else:
-            "您無權限訪問！"
+            return {"message": "您無權限訪問！"}, 401
 
 
 class GitProjects(Resource):
