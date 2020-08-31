@@ -531,47 +531,57 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
 
     # 查詢pm的project list
     def get_pm_project_list(self, logger, app, user_id):
-        project_ids = db.engine.execute(
+        # 查詢db該pm負責的project_id並存入project_ids array
+        result = db.engine.execute(
             "SELECT project_id FROM public.project_user_role WHERE user_id = '{0}'"
-            .format(user_id)).fetchall()
-        project_array = []
-        plan_project_array = []
-        for i in project_ids:
-            project_array.append(i[0])
-            plan_project_id = db.engine.execute(
-                "SELECT plan_project_id FROM public.project_plugin_relation WHERE project_id = '{0}'"
-                .format(i[0])).fetchone()[0]
-            plan_project_array.append(plan_project_id)
+            .format(user_id))
+        project_ids = result.fetchall()
+        result.close()
 
-        output_array = []
-        for j in plan_project_array:
-            # 抓專案名稱＆最近更新時間
-            url1 = "http://{0}/projects/{1}.json?key={2}&limit=1000".format(
-                app.config["REDMINE_IP_PORT"], j,
-                app.config["REDMINE_API_KEY"])
-            output1 = requests.get(url1, headers=self.headers,
-                                   verify=False).json()
-            # 抓專案狀態＆專案工作進度＆進度落後數目
-            url2 = "http://{0}/issues.json?key={1}&project_id={2}&limit=1000".format(
-                app.config["REDMINE_IP_PORT"], app.config["REDMINE_API_KEY"],
-                j)
-            output2 = requests.get(url2, headers=self.headers,
-                                   verify=False).json()
+        if project_ids:
+            project_array = []
+            plan_project_ids = []
+            # 用project_id依序查詢redmine的project_id並存入plan_project_ids array
+            for i in project_ids:
+                project_array.append(i[0])
+                result = db.engine.execute(
+                    "SELECT plan_project_id FROM public.project_plugin_relation WHERE project_id = '{0}'"
+                    .format(i[0]))
+                plan_project_id = result.fetchone()[0]
+                result.close()
 
-            closed_count = 0
-            overdue_count = 0
-            for issue in output2["issues"]:
-                if issue["status"]["name"] == "Closed": closed_count += 1
-                if issue["due_date"] != None:
-                    if (datetime.today() > datetime.strptime(
-                            issue["due_date"], "%Y-%m-%d")) == True:
-                        overdue_count += 1
+                if plan_project_id:
+                    plan_project_ids.append(plan_project_id)
 
-            project_status = "進行中"
-            if closed_count == output2["total_count"]: project_status = "已結案"
+            output_array = []
+            # 用redmine api查詢相關資訊
+            for j in plan_project_ids:
+                # 抓專案名稱＆最近更新時間
+                url1 = "http://{0}/projects/{1}.json?key={2}&limit=1000".format(
+                    app.config["REDMINE_IP_PORT"], j,
+                    app.config["REDMINE_API_KEY"])
+                output1 = requests.get(url1, headers=self.headers,
+                                    verify=False).json()
+                # 抓專案狀態＆專案工作進度＆進度落後數目
+                url2 = "http://{0}/issues.json?key={1}&project_id={2}&limit=1000".format(
+                    app.config["REDMINE_IP_PORT"], app.config["REDMINE_API_KEY"],
+                    j)
+                output2 = requests.get(url2, headers=self.headers,
+                                    verify=False).json()
 
-            project_info = {
-                "project": {
+                closed_count = 0
+                overdue_count = 0
+                for issue in output2["issues"]:
+                    if issue["status"]["name"] == "Closed": closed_count += 1
+                    if issue["due_date"] != None:
+                        if (datetime.today() > datetime.strptime(
+                                issue["due_date"], "%Y-%m-%d")) == True:
+                            overdue_count += 1
+
+                project_status = "進行中"
+                if closed_count == output2["total_count"]: project_status = "已結案"
+
+                project_info = {
                     "name": output1["project"]["name"],
                     "updated_time": output1["project"]["updated_on"],
                     "project_status": project_status,
@@ -579,11 +589,17 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                     "total_count": output2["total_count"],
                     "overdue_count": overdue_count
                 }
-            }
 
-            output_array.append(project_info)
+                output_array.append(project_info)
 
-        return output_array
+            return {
+                "message": "successful",
+                "data": {
+                    "project_list": output_array
+                }
+            }, 200
+        else:
+            return {"message": "Could not get data from db"}, 400
 
     # 用project_id查詢redmine的單一project
     def get_redmine_one_project(self, logger, app, project_id):

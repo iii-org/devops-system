@@ -71,7 +71,7 @@ class TotalProjectList(Resource):
             output = pjt.get_pm_project_list(logger, app, user_id)
             return output
         else:
-            "您無權限訪問！"
+            return {"message": "您無權限訪問！"}, 401
 
 
 class CreateProject(Resource):
@@ -332,6 +332,17 @@ class UserList(Resource):
     def get(self):
         if get_jwt_identity()["role_id"] in (3, 4, 5):
             output = au.get_user_list(logger)
+            return output
+        else:
+            return {"message": "your role art not administrator"}, 401
+
+
+class RoleList(Resource):
+    @jwt_required
+    def get(self):
+        print("role_id is {0}".format(get_jwt_identity()["role_id"]))
+        if get_jwt_identity()["role_id"] in (3, 4, 5):
+            output = au.get_role_list(logger, app)
             return output
         else:
             return {"message": "your role art not administrator"}, 401
@@ -1200,6 +1211,8 @@ api.add_resource(UserForgetPassword, '/user/forgetPassword')
 api.add_resource(UserInfo, '/user/<int:user_id>')
 api.add_resource(User, '/user')
 api.add_resource(UserList, '/user/list')
+# Role
+api.add_resource(RoleList, '/user/role/list')
 
 # pipeline
 api.add_resource(PipelineExec, '/pipelines/rd/<repository_id>/pipelines_exec')

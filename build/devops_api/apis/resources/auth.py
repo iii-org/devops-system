@@ -349,3 +349,25 @@ class auth(object):
             }, 200
         else:
             return {"message": "Could not get user list"}, 400
+
+    # 從db role table取得role list
+    def get_role_list(self, logger, app):
+        result = db.engine.execute(
+            "SELECT * FROM public.roles ORDER BY id ASC")
+        role_array = result.fetchall()
+        result.close()
+
+        if role_array:
+            output_array = []
+            for role in role_array:
+                role_info = {"id": role["id"], "name": role["name"]}
+                output_array.append(role_info)
+
+            return {
+                "message": "successful",
+                "data": {
+                    "role_list": output_array
+                }
+            }, 200
+        else:
+            return {"message": "Could not get role list"}, 400
