@@ -12,7 +12,21 @@ class Requirement(object):
                           ensure_ascii=False,
                           separators=(',', ':'))
 
+
+
+    def get_requirement_by_Column(self, logger, args, user_id,orderColumn=''):
+        output = {}
+        if(args['issue_id'] != None):
+            return  self.get_requirements_by_issue_id(logger,args['issue_id'],user_id)
+
+        elif (args['project_id'] != None):
+            return self.get_requirements_by_project_id(logger,args['project_id'],user_id)
+        else:
+            return {}
+
+    
     # 取得 requirement 內的流程資訊
+
 
     def get_requirement_by_rqmt_id(self, logger, requirement_id, user_id):
 
@@ -77,3 +91,20 @@ class Requirement(object):
         reMessage = util.callsqlalchemy(self, insert_rqmt_command, logger)
         print(reMessage)
         return {'requirement_id': reMessage.inserted_primary_key}
+    
+
+    # 取得同Issue Id 內  requirements 的所有資訊
+    def get_requirements_by_project_id(self, logger, project_id, user_id):
+        get_rqmt_command = db.select(
+            [TableRequirement.stru_rqmt.c.flow_info]).where(
+                db.and_(TableRequirement.stru_rqmt.c.project_id == project_id,
+                        TableRequirement.stru_rqmt.c.disabled == False))
+        logger.debug("get_rqmt_command: {0}".format(get_rqmt_command))
+        result = util.callsqlalchemy(self, get_rqmt_command, logger)
+        reMessages = result.fetchall()
+        i = 0
+        output = {}
+        for reMessage in reMessages:
+            output[i] = json.loads(reMessage['flow_info'])
+            i = i + 1
+        return {'flow_info': output}

@@ -10,6 +10,9 @@ from logging import handlers
 import json
 import datetime
 from model import db
+
+
+
 from jsonwebtoken import jsonwebtoken
 
 import resources.util as util
@@ -23,6 +26,7 @@ import resources.parameter as parameter
 import resources.testCase as testCase
 import resources.testItem as testItem
 import resources.testValue as testValue
+import resources.testData as testData
 
 app = Flask(__name__)
 app.config.from_object('config')
@@ -51,6 +55,7 @@ param = parameter.Parameter()
 tc = testCase.TestCase()
 ti = testItem.TestItem()
 tv = testValue.TestValue()
+td = testData.TestData()
 
 
 class Index(Resource):
@@ -857,6 +862,12 @@ class Requirement(Resource):
             get_jwt_identity()['user_id'])
         return jsonify({'message': 'success'})
 
+class ParameterType(Resource):
+    @jwt_required
+    def get(self):
+        output = {}
+        output = param.get_parameter_types()
+        return jsonify({'message': 'success', 'data': output})
 
 class ParameterByIssue(Resource):
 
@@ -923,6 +934,38 @@ class Parameter(Resource):
             get_jwt_identity()['user_id'])
         return jsonify({'message': 'success'})
 
+class AllTestDataByIssue(Resource):
+    @jwt_required
+    def get(self, issue_id):
+        
+        data = {}
+        data['requirement'] =  rqmt.get_requirements_by_issue_id(logger, issue_id,get_jwt_identity()['user_id'])['flow_info']
+        data['testCase'] = tc.get_testCase_by_issue_id(logger,  issue_id,get_jwt_identity()['user_id'])
+        data['testItem'] = ti.get_testItem_by_issue_id(logger, issue_id,get_jwt_identity()['user_id'],'test_case_id')
+        data['testValue'] =tv.get_testValue_by_issue_id(logger, issue_id, get_jwt_identity()['user_id'])        
+        output = td.get_AllTestData_by_Issue_Id(logger, data,get_jwt_identity()['user_id'])
+        # print(data)
+        # output = {}
+        # print(output)
+        return jsonify({'message': 'success', 'data': output})
+
+
+class AllTestData(Resource):
+    @jwt_required
+    def get(self):
+        
+        parser = reqparse.RequestParser()
+        parser.add_argument('project_id', type=int)
+        parser.add_argument('issue_id', type=int)
+        parser.add_argument('order_by', type=str)
+        user_id = get_jwt_identity()['user_id']
+        args = parser.parse_args()
+        data = {}
+        data['testCase'] = tc.get_testCase_by_Column(logger, args, user_id)
+        data['testItem'] = ti.get_testItem_by_Column(logger, args, user_id,'test_case_id')
+        data['testValue'] =tv.get_testValue_by_Column(logger, args, user_id,"test_case_id") 
+        output = td.analysis_testData(logger,data,user_id)
+        return jsonify({'message': 'success', 'data': output})
 
 class TestCaseByIssue(Resource):
 
@@ -1052,8 +1095,9 @@ class TestItem(Resource):
     def put(self, testItem_id):
         output = {}
         parser = reqparse.RequestParser()
+        print(parser)
         parser.add_argument('name', type=str)
-        parser.add_argument('is_passed', type=bool)
+        parser.add_argument('is_passed', type=str)
         args = parser.parse_args()
         output = ti.modify_testItem_by_ti_id(logger, testItem_id, args,
                                              get_jwt_identity()['user_id'])
@@ -1206,6 +1250,12 @@ api.add_resource(Requirement, '/requirements/<requirement_id>')
 # testPhase Parameters FLow
 api.add_resource(ParameterByIssue, '/parameters_by_issue/<issue_id>')
 api.add_resource(Parameter, '/parameters/<parameter_id>')
+api.add_resource(ParameterType, '/parameter_types')
+
+
+# TestData
+# api.add_resource(AllTestDataByIssue, '/testData_by_issue')
+api.add_resource(AllTestData, '/testData')
 
 # testPhase TestCase Support Case Type
 api.add_resource(GetTestCaseType, '/testCases/support_type')
@@ -1213,6 +1263,7 @@ api.add_resource(GetTestCaseType, '/testCases/support_type')
 # testPhase TestCase
 api.add_resource(TestCaseByIssue, '/testCases_by_issue/<issue_id>')
 api.add_resource(TestCase, '/testCases/<testCase_id>')
+
 
 # testPhase TestCase Support API Method
 api.add_resource(GetTestCaseAPIMethod, '/testCases/support_RestfulAPI_Method')
@@ -1228,4 +1279,4 @@ api.add_resource(TestValue, '/testValues/<testValue_id>')
 if __name__ == "__main__":
     db.init_app(app)
     jsonwebtoken.init_app(app)
-    app.run(host='0.0.0.0', port=10009)
+    app.run(host='0.0.0.0', port=10009, debug=True)
