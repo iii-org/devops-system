@@ -350,7 +350,7 @@ class auth(object):
         else:
             return {"message": "Could not get user list"}, 400
 
-    def get_userRole_list_by_project(self, logger, project_id, args):
+    def get_userlist_by_project(self, logger, project_id, args):
         logger.debug("args[exclude] {0}".format(args["exclude"]))
         if args["exclude"] is not None and args["exclude"] == 1:
             select_userRole_by_project = db.select([ProjectUserRole.stru_project_user_role, \
@@ -393,3 +393,25 @@ class auth(object):
                 # "disabled": data_userRole_by_project[User.stru_user.c.disabled]
             })
         return {"message": "successful", "data": {"user_list": user_list}}, 200
+
+    # 從db role table取得role list
+    def get_role_list(self, logger, app):
+        result = db.engine.execute(
+            "SELECT * FROM public.roles ORDER BY id ASC")
+        role_array = result.fetchall()
+        result.close()
+
+        if role_array:
+            output_array = []
+            for role in role_array:
+                role_info = {"id": role["id"], "name": role["name"]}
+                output_array.append(role_info)
+
+            return {
+                "message": "successful",
+                "data": {
+                    "role_list": output_array
+                }
+            }, 200
+        else:
+            return {"message": "Could not get role list"}, 400

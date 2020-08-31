@@ -531,47 +531,60 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
 
     # 查詢pm的project list
     def get_pm_project_list(self, logger, app, user_id):
-        project_ids = db.engine.execute(
+        # 查詢db該pm負責的project_id並存入project_ids array
+        result = db.engine.execute(
             "SELECT project_id FROM public.project_user_role WHERE user_id = '{0}'"
-            .format(user_id)).fetchall()
-        project_array = []
-        plan_project_array = []
-        for i in project_ids:
-            project_array.append(i[0])
-            plan_project_id = db.engine.execute(
-                "SELECT plan_project_id FROM public.project_plugin_relation WHERE project_id = '{0}'"
-                .format(i[0])).fetchone()[0]
-            plan_project_array.append(plan_project_id)
+            .format(user_id))
+        project_ids = result.fetchall()
+        result.close()
 
-        output_array = []
-        for j in plan_project_array:
-            # 抓專案名稱＆最近更新時間
-            url1 = "http://{0}/projects/{1}.json?key={2}&limit=1000".format(
-                app.config["REDMINE_IP_PORT"], j,
-                app.config["REDMINE_API_KEY"])
-            output1 = requests.get(url1, headers=self.headers,
-                                   verify=False).json()
-            # 抓專案狀態＆專案工作進度＆進度落後數目
-            url2 = "http://{0}/issues.json?key={1}&project_id={2}&limit=1000".format(
-                app.config["REDMINE_IP_PORT"], app.config["REDMINE_API_KEY"],
-                j)
-            output2 = requests.get(url2, headers=self.headers,
-                                   verify=False).json()
+        if project_ids:
+            project_array = []
+            plan_project_ids = []
+            # 用project_id依序查詢redmine的project_id並存入plan_project_ids array
+            for i in project_ids:
+                project_array.append(i[0])
+                result = db.engine.execute(
+                    "SELECT plan_project_id FROM public.project_plugin_relation WHERE project_id = '{0}'"
+                    .format(i[0]))
+                plan_project_id = result.fetchone()[0]
+                result.close()
 
-            closed_count = 0
-            overdue_count = 0
-            for issue in output2["issues"]:
-                if issue["status"]["name"] == "Closed": closed_count += 1
-                if issue["due_date"] != None:
-                    if (datetime.today() > datetime.strptime(
-                            issue["due_date"], "%Y-%m-%d")) == True:
-                        overdue_count += 1
+                if plan_project_id:
+                    plan_project_ids.append(plan_project_id)
 
-            project_status = "進行中"
-            if closed_count == output2["total_count"]: project_status = "已結案"
+            output_array = []
+            # 用redmine api查詢相關資訊
+            for j in plan_project_ids:
+                # 抓專案名稱＆最近更新時間
+                url1 = "http://{0}/projects/{1}.json?key={2}&limit=1000".format(
+                    app.config["REDMINE_IP_PORT"], j,
+                    app.config["REDMINE_API_KEY"])
+                output1 = requests.get(url1,
+                                       headers=self.headers,
+                                       verify=False).json()
+                # 抓專案狀態＆專案工作進度＆進度落後數目
+                url2 = "http://{0}/issues.json?key={1}&project_id={2}&limit=1000".format(
+                    app.config["REDMINE_IP_PORT"],
+                    app.config["REDMINE_API_KEY"], j)
+                output2 = requests.get(url2,
+                                       headers=self.headers,
+                                       verify=False).json()
 
-            project_info = {
-                "project": {
+                closed_count = 0
+                overdue_count = 0
+                for issue in output2["issues"]:
+                    if issue["status"]["name"] == "Closed": closed_count += 1
+                    if issue["due_date"] != None:
+                        if (datetime.today() > datetime.strptime(
+                                issue["due_date"], "%Y-%m-%d")) == True:
+                            overdue_count += 1
+
+                project_status = "進行中"
+                if closed_count == output2["total_count"]:
+                    project_status = "已結案"
+
+                project_info = {
                     "name": output1["project"]["name"],
                     "updated_time": output1["project"]["updated_on"],
                     "project_status": project_status,
@@ -579,11 +592,17 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                     "total_count": output2["total_count"],
                     "overdue_count": overdue_count
                 }
-            }
 
-            output_array.append(project_info)
+                output_array.append(project_info)
 
-        return output_array
+            return {
+                "message": "successful",
+                "data": {
+                    "project_list": output_array
+                }
+            }, 200
+        else:
+            return {"message": "Could not get data from db"}, 400
 
     # 用project_id查詢redmine的單一project
     def get_redmine_one_project(self, logger, app, project_id):
@@ -646,9 +665,11 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                             gitlab_pj_ssh_url, gitlab_pj_http_url))
 
                 # 查詢寫入projects的project_id
-                project_id = db.engine.execute(
+                result = db.engine.execute(
                     "SELECT id FROM public.projects WHERE name = '{0}'".format(
-                        gitlab_pj_name)).fetchone()[0]
+                        gitlab_pj_name))
+                project_id = result.fetchone()[0]
+                result.close()
 
                 # 加關聯project_plugin_relation
                 db.engine.execute(
@@ -661,51 +682,58 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                     .format(project_id, user_id, 3))
 
                 output = {
-                    "result": "success",
                     "project_id": project_id,
                     "plan_project_id": redmine_pj_id,
                     "git_repository_id": gitlab_pj_id
                 }
             else:
-                output = gitlab_output.json()
+                output = {"from": "gitlab", "result": gitlab_output.json()}
         else:
-            output = redmine_output.json()
+            output = {"from": "redmine", "result": redmine_output.json()}
 
-        return output
+        return {"message": "successful", "data": output}, 200
 
     # 用project_id查詢db的相關table欄位資訊
     def pm_get_project(self, logger, app, project_id):
         # 查詢專案名稱＆專案說明＆＆專案狀態
-        project = db.engine.execute(
+        result = db.engine.execute(
             "SELECT * FROM public.projects WHERE id = '{0}'".format(
                 project_id))
-        for info in project:
-            output = {
-                "id": info["id"],
-                "name": info["name"],
-                "description": info["description"],
-                "disabled": info["disabled"]
-            }
+        project_info = result.fetchone()
+        result.close()
+
+        output = {
+            "id": project_info["id"],
+            "name": project_info["name"],
+            "description": project_info["description"],
+            "disabled": project_info["disabled"]
+        }
         # 查詢專案負責人
-        user_id = db.engine.execute(
+        result = db.engine.execute(
             "SELECT user_id FROM public.project_user_role WHERE project_id = '{0}' AND role_id = '{1}'"
-            .format(project_id, 3)).fetchone()[0]
-        user_name = db.engine.execute(
-            "SELECT name FROM public.user WHERE id = '{0}'".format(
-                user_id)).fetchone()[0]
+            .format(project_id, 3))
+        user_id = result.fetchone()[0]
+        result.close()
+
+        result = db.engine.execute(
+            "SELECT name FROM public.user WHERE id = '{0}'".format(user_id))
+        user_name = result.fetchone()[0]
+        result.close()
         output["pm_user_id"] = user_id
         output["pm_user_name"] = user_name
 
-        return output
+        return {"message": "successful", "date": output}, 200
 
     # 修改redmine & gitlab的project資訊
     def pm_update_project(self, logger, app, project_id, args):
-        project_relation = db.engine.execute(
+        result = db.engine.execute(
             "SELECT * FROM public.project_plugin_relation WHERE project_id = '{0}'"
             .format(project_id))
-        for info in project_relation:
-            redmine_project_id = info["plan_project_id"]
-            gitlab_project_id = info["git_repository_id"]
+        project_relation = result.fetchone()
+        result.close()
+
+        redmine_project_id = project_relation["plan_project_id"]
+        gitlab_project_id = project_relation["git_repository_id"]
 
         # 更新gitlab project
         gitlab_url = "http://{0}/api/{1}/projects/{2}?private_token={3}&name={4}&description={5}".format(\
@@ -760,11 +788,11 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
 
                 output = {"result": "success update"}
             else:
-                output = redmine_output.json()
+                output = {"from": "gitlab", "result": redmine_output.json()}
         else:
-            output = gitlab_output.json()
+            output = {"from": "gitlab", "result": gitlab_output.json()}
 
-        return output
+        return {"message": "successful", "data": output}, 200
 
     # 用project_id刪除redmine & gitlab的project並將db的相關table欄位一併刪除
     def pm_delete_project(self, logger, app, project_id):
@@ -809,6 +837,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         db.engine.execute(
             "UPDATE public.projects SET disabled = '{0}' WHERE id = '{1}'".
             format(True, project_id))
+
         output = {"result": "success delete"}
 
-        return output
+        return {"message": "successful", "data": output}
