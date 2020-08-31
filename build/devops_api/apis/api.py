@@ -237,11 +237,8 @@ class UserLogin(Resource):
         parser.add_argument('username', type=str, required=True)
         parser.add_argument('password', type=str, required=True)
         args = parser.parse_args()
-        token = au.user_login(logger, args)
-        if token is None:
-            return jsonify({"message": "Coult not get token"}), 500
-        else:
-            return jsonify({"message": "success", "data": {"token": token}})
+        output = au.user_login(logger, args)
+        return output
 
 
 class UserForgetPassword(Resource):
@@ -298,11 +295,22 @@ class UserInfo(Resource):
     def delete(self, user_id):
         '''delete user'''
         if get_jwt_identity()["role_id"] == 5:
-            try:
-                au.delete_user(logger, user_id)
-                return jsonify({'message': 'success'})
-            except Exception as error:
-                return jsonify({"message": str(error)}), 400
+            output = au.delete_user(logger, user_id)
+            return output
+        else:
+            return {"message": "your role art not administrator"}, 401
+
+
+class UserStatus(Resource):
+    @jwt_required
+    def put(self, user_id):
+        '''Change user status'''
+        if get_jwt_identity()["role_id"] == 5:
+            parser = reqparse.RequestParser()
+            parser.add_argument('status', type=str, required=True)
+            args = parser.parse_args()
+            output = au.put_user_status(logger, user_id, args)
+            return output
         else:
             return {"message": "your role art not administrator"}, 401
 
@@ -349,6 +357,7 @@ class ProjectUserList(Resource):
             return output
         else:
             return {"message": "your role art not administrator"}, 401
+
 
 class RoleList(Resource):
     @jwt_required
@@ -1223,6 +1232,7 @@ api.add_resource(ProjectUserList, '/project/<int:project_id>/user/list')
 api.add_resource(UserLogin, '/user/login')
 api.add_resource(UserForgetPassword, '/user/forgetPassword')
 api.add_resource(UserInfo, '/user/<int:user_id>')
+api.add_resource(UserStatus, '/user/<int:user_id>/status')
 api.add_resource(User, '/user')
 api.add_resource(UserList, '/user/list')
 # Role

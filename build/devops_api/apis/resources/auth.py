@@ -36,7 +36,8 @@ class auth(object):
             "SELECT ur.id, ur.login, ur.password, pur.role_id, \
             rl.name as role_name \
             FROM public.user as ur, public.project_user_role as pur, public.roles as rl \
-            WHERE ur.id = pur.user_id AND pur.role_id = rl.id")
+            WHERE ur.disabled = false AND ur.id = pur.user_id AND pur.role_id = rl.id"
+        )
         for row in result:
             if row['login'] == args["username"] and row[
                     'password'] == h.hexdigest():
@@ -45,8 +46,13 @@ class auth(object):
                     identity=auth.jwt_response_data(row),
                     expires_delta=expires)
                 logger.info("jwt access_token: {0}".format(access_token))
-                return access_token
-        return None
+                return {
+                    "message": "success",
+                    "data": {
+                        "token": access_token
+                    }
+                }, 200
+        return {"message": "you dont have authorize to get token"}, 401
 
     def user_forgetpassword(self, logger, args):
         result = db.engine.execute("SELECT login, email FROM public.user")
@@ -195,6 +201,24 @@ class auth(object):
         reMessage = util.callsqlalchemy(self, update_user_to_disable_command,
                                         logger)
         logger.info("reMessage: {0}".format(reMessage))
+        return {'message': 'delete user successsful'}, 200
+
+    def put_user_status(self, logger, user_id, args):
+        ''' change user on user status'''
+        disabled = False
+        if args["status"] == "enable":
+            disabled = False
+        elif args["status"] == "disable":
+            disabled = True
+        update_user_to_disable_command = db.update(User.stru_user)\
+            .where(db.and_(User.stru_user.c.id==user_id)).values(\
+            update_at = datetime.datetime.now(), disabled=disabled)
+        logger.debug("update_user_to_disable_command: {0}".format(
+            update_user_to_disable_command))
+        reMessage = util.callsqlalchemy(self, update_user_to_disable_command,
+                                        logger)
+        logger.info("reMessage: {0}".format(reMessage))
+        return {'message': 'change user status successsful'}, 200
 
     def create_user(self, logger, args, app):
         ''' create user in plan phase software(redmine) and repository_user_id(gitlab)
