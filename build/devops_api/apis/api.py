@@ -223,7 +223,7 @@ class GitProjectWebhooks(Resource):
 class ProjectList(Resource):
     @jwt_required
     def get(self, user_id):
-        if int(user_id) == get_jwt_identity()['user_id']:
+        if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity()['role_id'] in (3, 4, 5):
             output_array = pjt.get_project_list(logger, app, user_id)
             return jsonify({'message': 'success', 'data': output_array})
         else:
@@ -281,6 +281,7 @@ class UserInfo(Resource):
             parser.add_argument('password', type=str)
             parser.add_argument('phone', type=int)
             parser.add_argument('email', type=str)
+            parser.add_argument('project_id', action='append')
             args = parser.parse_args()
             try:
                 output = au.update_user_info(logger, user_id, args)
@@ -317,10 +318,20 @@ class User(Resource):
             parser.add_argument('phone', type=int, required=True)
             parser.add_argument('login', type=str, required=True)
             parser.add_argument('password', type=str, required=True)
-            # parser.add_argument('group_id', action='append')
+            parser.add_argument('project_id', action='append')
             parser.add_argument('role_id', type=int, required=True)
             args = parser.parse_args()
             output = au.create_user(logger, args, app)
+            return output
+        else:
+            return {"message": "your role art not administrator"}, 401
+
+
+class UserList(Resource):
+    @jwt_required
+    def get(self):
+        if get_jwt_identity()["role_id"] in (3, 4, 5):
+            output = au.get_user_list(logger)
             return output
         else:
             return {"message": "your role art not administrator"}, 401
@@ -673,7 +684,7 @@ class PipelineGenerateYaml(Resource):
         parser.add_argument('detail')
         args = parser.parse_args()
         output = pipe.generate_ci_yaml(logger, args, app, repository_id,
-                                             branch_name)
+                                       branch_name)
         return output
 
 
@@ -702,8 +713,8 @@ class IssueCreate(Resource):
         parser.add_argument('description', type=str)
         parser.add_argument('assigned_to_id', type=int, required=True)
         parser.add_argument('parent_id', type=int)
-        parser.add_argument('start_date', type=str , required=True)
-        parser.add_argument('due_date', type=str , required=True)
+        parser.add_argument('start_date', type=str, required=True)
+        parser.add_argument('due_date', type=str, required=True)
         parser.add_argument('done_retio', type=int, required=True)
         parser.add_argument('estimated_hours', type=int, required=True)
         args = parser.parse_args()
@@ -1186,8 +1197,9 @@ api.add_resource(ProjectList, '/project/rd/<user_id>')
 # User
 api.add_resource(UserLogin, '/user/login')
 api.add_resource(UserForgetPassword, '/user/forgetPassword')
-api.add_resource(UserInfo, '/user/<user_id>')
+api.add_resource(UserInfo, '/user/<int:user_id>')
 api.add_resource(User, '/user')
+api.add_resource(UserList, '/user/list')
 
 # pipeline
 api.add_resource(PipelineExec, '/pipelines/rd/<repository_id>/pipelines_exec')

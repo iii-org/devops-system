@@ -5,7 +5,7 @@ from Cryptodome.Hash import SHA256
 from .util import util
 from .redmine import Redmine
 from .gitlab import GitLab
-from model import db, User, UserPluginRelation, GroupsHasUsers, ProjectUserRole, TableGroup
+from model import db, User, UserPluginRelation, ProjectUserRole, TableProjects
 
 # from jsonwebtoken import jsonwebtoken
 from flask_jwt_extended import (create_access_token, JWTManager,
@@ -69,6 +69,7 @@ class auth(object):
             .format(user_id))
         user_data = result.fetchone()
         result.close()
+
         if user_data:
             logger.info("user info: {0}".format(user_data["id"]))
             output = {
@@ -85,6 +86,28 @@ class auth(object):
                     "id": user_data["role_id"]
                 }
             }
+            # get user involve project list
+            select_project = db.select([ProjectUserRole.stru_project_user_role, \
+                TableProjects.stru_projects]).where(db.and_(\
+                ProjectUserRole.stru_project_user_role.c.user_id==user_id, \
+                ProjectUserRole.stru_project_user_role.c.project_id==\
+                TableProjects.stru_projects.c.id))
+            logger.debug("select_project: {0}".format(select_project))
+            reMessage = util.callsqlalchemy(self, select_project,
+                                            logger).fetchall()
+            logger.debug("reMessage: {0}".format(reMessage))
+            if reMessage:
+                project_list = []
+                for project in reMessage:
+                    logger.debug("project: {0}".format(project["name"]))
+                    project_list.append({
+                        "id": project["id"],
+                        "name": project["name"]
+                    })
+                output["project"] = project_list
+            else:
+                output["project"] = {}
+
             return {'message': 'success', 'data': output}, 200
         else:
             return {"message": "Could not found user information"}, 400
@@ -95,10 +118,10 @@ class auth(object):
             .where(db.and_(User.stru_user.c.id==user_id))
         logger.debug("select_user_to_disable_command: {0}".format(
             select_user_to_disable_command))
-        reMessage = util.callsqlalchemy(self, select_user_to_disable_command,
+        user_data = util.callsqlalchemy(self, select_user_to_disable_command,
                                         logger).fetchone()
-        logger.info("reMessage['disabled']: {0}".format(reMessage['disabled']))
-        if reMessage['disabled'] is False:
+        logger.info("user_data['disabled']: {0}".format(user_data['disabled']))
+        if user_data['disabled'] is False:
             set_string = ""
             if args["name"] is not None:
                 set_string += "name = '{0}'".format(args["name"])
@@ -122,6 +145,42 @@ class auth(object):
             result = db.engine.execute(
                 "UPDATE public.user SET {0} WHERE id = {1}".format(
                     set_string, user_id))
+            logger.debug("update db reslut: {0}".format(result))
+            # update project_user_role
+            if args["project_id"] is not None:
+                # get user role_id
+                select_pjuerl_by_userid = db.select([ProjectUserRole.stru_project_user_role]).where(db.and_(\
+                    ProjectUserRole.stru_project_user_role.c.user_id==user_id))
+                logger.debug("select_pjuerl_by_userid: {0}".format(
+                    select_pjuerl_by_userid))
+                data_pjuerl_by_userid = util.callsqlalchemy(
+                    self, select_pjuerl_by_userid, logger).fetchone()
+                logger.debug(
+                    "data_pjuerl_by_userid: {0}".format(data_pjuerl_by_userid))
+
+                for project_id in args["project_id"]:
+                    select_pjuerl_by_userpjtrl = db.select([ProjectUserRole.stru_project_user_role]).where(db.and_(\
+                    ProjectUserRole.stru_project_user_role.c.user_id==user_id,\
+                    ProjectUserRole.stru_project_user_role.c.project_id==project_id,\
+                    ProjectUserRole.stru_project_user_role.c.role_id==data_pjuerl_by_userid['role_id']))
+                    logger.debug("select_pjuerl_by_userpjtrl: {0}".format(
+                        select_pjuerl_by_userpjtrl))
+                    data_pjuerl_by_userpjtrl = util.callsqlalchemy(
+                        self, select_pjuerl_by_userpjtrl, logger).fetchone()
+                    logger.debug("data_pjuerl_by_userpjtrl: {0}".format(
+                        data_pjuerl_by_userpjtrl))
+
+                    if not data_pjuerl_by_userpjtrl:
+                        # insert role and user into project_user_role
+                        insert_project_user_role_command = db.insert(ProjectUserRole.stru_project_user_role)\
+                            .values(user_id = user_id, role_id = data_pjuerl_by_userid['role_id'], project_id = project_id)
+                        logger.debug(
+                            "insert_project_user_role_command: {0}".format(
+                                insert_project_user_role_command))
+                        reMessage = util.callsqlalchemy(
+                            self, insert_project_user_role_command, logger)
+                        logger.info("reMessage: {0}".format(reMessage))
+
             return {'message': 'success'}, 200
         else:
             return {"message": "User was disabled"}, 400
@@ -197,7 +256,17 @@ class auth(object):
                                         logger)
         logger.info("reMessage: {0}".format(reMessage))
 
-        # insert role and user into project_user_role
+        if args["project_id"] is not None:
+            for project_id in args["project_id"]:
+                # insert role and user into project_user_role
+                insert_project_user_role_command = db.insert(ProjectUserRole.stru_project_user_role)\
+                    .values(user_id = user_id, role_id = args['role_id'], project_id = project_id)
+                logger.debug("insert_project_user_role_command: {0}".format(
+                    insert_project_user_role_command))
+                reMessage = util.callsqlalchemy(
+                    self, insert_project_user_role_command, logger)
+                logger.info("reMessage: {0}".format(reMessage))
+
         insert_project_user_role_command = db.insert(ProjectUserRole.stru_project_user_role)\
             .values(user_id = user_id, role_id = args['role_id'])
         logger.debug("insert_project_user_role_command: {0}".format(
@@ -205,6 +274,7 @@ class auth(object):
         reMessage = util.callsqlalchemy(self, insert_project_user_role_command,
                                         logger)
         logger.info("reMessage: {0}".format(reMessage))
+
         return {"message": "successful", "data": {"user_id": user_id}}, 200
 
     def get_user_plugin_relation(self, logger):
@@ -216,3 +286,66 @@ class auth(object):
                                         logger)
         user_plugin_relation_array = reMessage.fetchall()
         return user_plugin_relation_array
+
+    def get_user_list(self, logger):
+        ''' get user list'''
+        result = db.engine.execute(
+            "SELECT ur.id as id, ur.name as name, ur.username as username, ur.email as email, \
+            ur.phone as phone, ur.login as login, ur.create_at as create_at, \
+            ur.update_at as update_at, rl.id as role_id, rl.name as role_name, \
+            ur.disabled as disabled\
+            FROM public.user as ur \
+            left join public.project_user_role as pur \
+            on ur.id = pur.user_id \
+            left join public.roles as rl \
+            on pur.role_id = rl.id \
+            group by ur.id, rl.id\
+            ORDER BY ur.id ASC")
+        user_data_array = result.fetchall()
+        result.close()
+        if user_data_array:
+            output_array = []
+            for user_data in user_data_array:
+                logger.info("user_data: {0}".format(user_data))
+                select_project_by_userid = db.select([ProjectUserRole.stru_project_user_role, \
+                    TableProjects.stru_projects]).where(db.and_(\
+                    ProjectUserRole.stru_project_user_role.c.user_id==user_data["id"], \
+                    ProjectUserRole.stru_project_user_role.c.project_id==\
+                    TableProjects.stru_projects.c.id))
+                output_project_array = util.callsqlalchemy(
+                    self, select_project_by_userid, logger).fetchall()
+                logger.debug(
+                    "output_project: {0}".format(output_project_array))
+                project = []
+                if output_project_array:
+                    for output_project in output_project_array:
+                        project.append({
+                            "id": output_project["id"],
+                            "name": output_project["name"]
+                        })
+
+                output = {
+                    "id": user_data["id"],
+                    "name": user_data["name"],
+                    "usernmae": user_data["username"],
+                    "email": user_data["email"],
+                    "phone": user_data["phone"],
+                    "login": user_data["login"],
+                    "create_at": util.dateToStr(self, user_data["create_at"]),
+                    "update_at": util.dateToStr(self, user_data["update_at"]),
+                    "role": {
+                        "name": user_data["role_name"],
+                        "id": user_data["role_id"]
+                    },
+                    "project": project,
+                    "disabled": user_data["disabled"]
+                }
+                output_array.append(output)
+            return {
+                "message": "successful",
+                "data": {
+                    "user_list": output_array
+                }
+            }, 200
+        else:
+            return {"message": "Could not get user list"}, 400
