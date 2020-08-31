@@ -122,6 +122,23 @@ class Issue(object):
             output_array.append(output_dict)
         return output_array
 
+    def get_issueProgress_by_project(self, logger, app, project_id):
+        issue_list = self.get_issue_by_project(logger, app, project_id)
+        logger.debug("issue_list: {0}".format(issue_list))
+        unfinish_number = 0
+        for issue in issue_list:
+            if issue["issue_status"] not in [
+                    "Responded", "closed", "Finished"
+            ]:
+                unfinish_number += 1
+        return {
+            "message": "successful",
+            "data": {
+                "unfinish_number": unfinish_number,
+                "total_issue": len(issue_list)
+            }
+        }
+
     def get_issue_by_user(self, logger, app, user_id):
         user_to_plan, plan_to_user = self.__get_dict_userid(logger)
         Redmine.get_redmine_key(self, logger, app)
@@ -161,7 +178,12 @@ class Issue(object):
         Redmine.get_redmine_key(self, logger, app)
         try:
             output = Redmine.redmine_create_issue(self, logger, app, args)
-            return {"message": "successful", "data": {"issue_id": output.json()["issue"]["id"]}}, output.status_code
+            return {
+                "message": "successful",
+                "data": {
+                    "issue_id": output.json()["issue"]["id"]
+                }
+            }, output.status_code
         except Exception as error:
             return str(error), 400
 
@@ -245,7 +267,9 @@ class Issue(object):
                 self, logger, app, args)
             return {
                 "message": "successful",
-                "data": {"issue_number": redmine_output["total_count"]}
+                "data": {
+                    "issue_number": redmine_output["total_count"]
+                }
             }, status_code
         except Exception as error:
             return {"message": str(error)}, 400
