@@ -223,7 +223,8 @@ class GitProjectWebhooks(Resource):
 class ProjectList(Resource):
     @jwt_required
     def get(self, user_id):
-        if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity()['role_id'] in (3, 4, 5):
+        if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity(
+        )['role_id'] in (3, 4, 5):
             output_array = pjt.get_project_list(logger, app, user_id)
             return jsonify({'message': 'success', 'data': output_array})
         else:
@@ -332,6 +333,19 @@ class UserList(Resource):
     def get(self):
         if get_jwt_identity()["role_id"] in (3, 4, 5):
             output = au.get_user_list(logger)
+            return output
+        else:
+            return {"message": "your role art not administrator"}, 401
+
+
+class ProjectUserList(Resource):
+    @jwt_required
+    def get(self, project_id):
+        if get_jwt_identity()["role_id"] in (3, 4, 5):
+            parser = reqparse.RequestParser()
+            parser.add_argument('exclude', type=int)
+            args = parser.parse_args()
+            output = au.get_userRole_list_by_project(logger, project_id, args)
             return output
         else:
             return {"message": "your role art not administrator"}, 401
@@ -1193,6 +1207,7 @@ api.add_resource(GitProjectNetwork, '/repositories/<repository_id>/overview')
 
 # Project
 api.add_resource(ProjectList, '/project/rd/<user_id>')
+api.add_resource(ProjectUserList, '/project/<int:project_id>/user/list')
 
 # User
 api.add_resource(UserLogin, '/user/login')

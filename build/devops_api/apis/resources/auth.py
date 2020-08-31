@@ -5,7 +5,7 @@ from Cryptodome.Hash import SHA256
 from .util import util
 from .redmine import Redmine
 from .gitlab import GitLab
-from model import db, User, UserPluginRelation, ProjectUserRole, TableProjects
+from model import db, User, UserPluginRelation, ProjectUserRole, TableProjects, TableRole
 
 # from jsonwebtoken import jsonwebtoken
 from flask_jwt_extended import (create_access_token, JWTManager,
@@ -349,3 +349,47 @@ class auth(object):
             }, 200
         else:
             return {"message": "Could not get user list"}, 400
+
+    def get_userRole_list_by_project(self, logger, project_id, args):
+        logger.debug("args[exclude] {0}".format(args["exclude"]))
+        if args["exclude"] is not None and args["exclude"] == 1:
+            select_userRole_by_project = db.select([ProjectUserRole.stru_project_user_role, \
+            User.stru_user, TableRole.stru_role])\
+            .where(db.and_(ProjectUserRole.stru_project_user_role.c.project_id!=project_id,\
+            ProjectUserRole.stru_project_user_role.c.role_id!=5,\
+            ProjectUserRole.stru_project_user_role.c.user_id==User.stru_user.c.id,\
+            User.stru_user.c.disabled == False,\
+            ProjectUserRole.stru_project_user_role.c.role_id==TableRole.stru_role.c.id))\
+            .distinct(ProjectUserRole.stru_project_user_role.c.user_id)\
+            .order_by(db.desc(ProjectUserRole.stru_project_user_role.c.user_id))
+        else:
+            select_userRole_by_project = db.select([ProjectUserRole.stru_project_user_role, \
+            User.stru_user, TableRole.stru_role])\
+            .where(db.and_(ProjectUserRole.stru_project_user_role.c.project_id==project_id,\
+            ProjectUserRole.stru_project_user_role.c.role_id!=5,\
+            ProjectUserRole.stru_project_user_role.c.user_id==User.stru_user.c.id,\
+            User.stru_user.c.disabled == False,\
+            ProjectUserRole.stru_project_user_role.c.role_id==TableRole.stru_role.c.id))\
+            .distinct(ProjectUserRole.stru_project_user_role.c.user_id)\
+            .order_by(db.desc(ProjectUserRole.stru_project_user_role.c.user_id))
+        logger.debug("select_userRole_by_project: {0}".format(
+            select_userRole_by_project))
+        data_userRole_by_project_array = util.callsqlalchemy(
+            self, select_userRole_by_project, logger).fetchall()
+        user_list = []
+        for data_userRole_by_project in data_userRole_by_project_array:
+            logger.debug("data_userRole_by_project: {0}".format(
+                data_userRole_by_project[
+                    ProjectUserRole.stru_project_user_role.c.user_id]))
+            user_list.append({
+                "user_id":
+                data_userRole_by_project[
+                    ProjectUserRole.stru_project_user_role.c.user_id],
+                "user_name":
+                data_userRole_by_project[User.stru_user.c.name],
+                "role_name":
+                data_userRole_by_project[TableRole.stru_role.c.name],
+                #"project_id": data_userRole_by_project[ProjectUserRole.stru_project_user_role.c.project_id]
+                # "disabled": data_userRole_by_project[User.stru_user.c.disabled]
+            })
+        return {"message": "successful", "data": {"user_list": user_list}}, 200
