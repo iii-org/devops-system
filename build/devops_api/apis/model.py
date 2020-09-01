@@ -50,6 +50,12 @@ class TableGroup():
                           db.Column('id', db.Integer, nullable=True),
                           db.Column('name', db.String, nullable=True))
 
+class TableRole():
+    meta = db.MetaData()
+    stru_role = db.Table('roles', meta,
+                          db.Column('id', db.Integer, nullable=True),
+                          db.Column('name', db.String, nullable=True))
+
 
 class ProjectUserRole():
     meta = db.MetaData()
