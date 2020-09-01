@@ -1,11 +1,12 @@
 import datetime
+import requests
 import json
 from Cryptodome.Hash import SHA256
 
 from .util import util
 from .redmine import Redmine
 from .gitlab import GitLab
-from model import db, User, UserPluginRelation, ProjectUserRole, TableProjects
+from model import db, User, UserPluginRelation, ProjectUserRole, TableProjects, TableRole
 
 # from jsonwebtoken import jsonwebtoken
 from flask_jwt_extended import (create_access_token, JWTManager,
@@ -24,9 +25,26 @@ class auth(object):
             'role_name': row['role_name']
         }
 
-    def __init__(self):
+    def __init__(self, logger, app):
         self.redmine_key = None
         self.headers = {'Content-Type': 'application/json'}
+
+        if app.config["GITLAB_API_VERSION"] == "v3":
+            # get gitlab admin token
+            url = "http://{0}/api/v3/session".format(\
+                app.config["GITLAB_IP_PORT"])
+            parame = {}
+            parame["login"] = app.config["GITLAB_ADMIN_ACCOUNT"]
+            parame["password"] = app.config["GITLAB_ADMIN_PASSWORD"]
+
+            output = requests.post(url,
+                                   data=json.dumps(parame),
+                                   headers=self.headers,
+                                   verify=False)
+            # logger.info("private_token api output: {0}".format(output))
+            self.private_token = output.json()['private_token']
+        else:
+            self.private_token = app.config["GITLAB_PRIVATE_TOKEN"]
 
     def user_login(self, logger, args):
 
@@ -36,7 +54,8 @@ class auth(object):
             "SELECT ur.id, ur.login, ur.password, pur.role_id, \
             rl.name as role_name \
             FROM public.user as ur, public.project_user_role as pur, public.roles as rl \
-            WHERE ur.id = pur.user_id AND pur.role_id = rl.id")
+            WHERE ur.disabled = false AND ur.id = pur.user_id AND pur.role_id = rl.id"
+        )
         for row in result:
             if row['login'] == args["username"] and row[
                     'password'] == h.hexdigest():
@@ -45,8 +64,13 @@ class auth(object):
                     identity=auth.jwt_response_data(row),
                     expires_delta=expires)
                 logger.info("jwt access_token: {0}".format(access_token))
-                return access_token
-        return None
+                return {
+                    "message": "success",
+                    "data": {
+                        "token": access_token
+                    }
+                }, 200
+        return {"message": "you dont have authorize to get token"}, 401
 
     def user_forgetpassword(self, logger, args):
         result = db.engine.execute("SELECT login, email FROM public.user")
@@ -185,16 +209,78 @@ class auth(object):
         else:
             return {"message": "User was disabled"}, 400
 
-    def delete_user(self, logger, user_id):
+    def delete_user(self, logger, app, user_id):
         ''' disable user on user table'''
+        # update_user_to_disable_command = db.update(User.stru_user)\
+        #     .where(db.and_(User.stru_user.c.id==user_id)).values(\
+        #     update_at = datetime.datetime.now(), disabled=True)
+        # logger.debug("update_user_to_disable_command: {0}".format(
+        #     update_user_to_disable_command))
+        # reMessage = util.callsqlalchemy(self, update_user_to_disable_command,
+        #                                 logger)
+        # logger.info("reMessage: {0}".format(reMessage))
+
+        # 取得gitlab & redmine user_id
+        result = db.engine.execute(
+            "SELECT * FROM public.user_plugin_relation WHERE user_id = '{0}'".
+            format(user_id))
+        user_relation = result.fetchone()
+        result.close()
+        redmine_user_id = user_relation["plan_user_id"]
+        gitlab_user_id = user_relation["repository_user_id"]
+        # 刪除gitlab user
+        gitlab_url = "http://{0}/api/{1}/users/{2}?private_token={3}".format(\
+            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], gitlab_user_id, self.private_token)
+        logger.info("delete gitlab user url: {0}".format(gitlab_url))
+        gitlab_output = requests.delete(gitlab_url,
+                                        headers=self.headers,
+                                        verify=False)
+        logger.info("delete gitlab user output: {0}".format(gitlab_output))
+        # 如果gitlab user成功被刪除則繼續刪除redmine user
+        if str(gitlab_output) == "<Response [204]>":
+            redmine_url = "http://{0}/users/{1}.json?key={2}".format(\
+                app.config["REDMINE_IP_PORT"], redmine_user_id, app.config["REDMINE_API_KEY"])
+            logger.info("delete redmine user url: {0}".format(redmine_url))
+            redmine_output = requests.delete(redmine_url,
+                                             headers=self.headers,
+                                             verify=False)
+            logger.info(
+                "delete redmine user output: {0}".format(redmine_output))
+            # 如果gitlab & redmine user都成功被刪除則繼續刪除db內相關tables欄位
+            if str(redmine_output) == "<Response [204]>":
+                db.engine.execute(
+                    "DELETE FROM public.user_plugin_relation WHERE user_id = '{0}'"
+                    .format(user_id))
+                db.engine.execute(
+                    "DELETE FROM public.project_user_role WHERE user_id = '{0}'"
+                    .format(user_id))
+                db.engine.execute(
+                    "DELETE FROM public.user WHERE id = '{0}'".format(user_id))
+
+                output = {"result": "success delete"}
+            else:
+                output = {"from": "redmine", "result": redmine_output}
+        else:
+            output = {"from": "gitlab", "result": gitlab_output}
+
+        return {"message": "successful", "data": output}, 200
+
+    def put_user_status(self, logger, user_id, args):
+        ''' change user on user status'''
+        disabled = False
+        if args["status"] == "enable":
+            disabled = False
+        elif args["status"] == "disable":
+            disabled = True
         update_user_to_disable_command = db.update(User.stru_user)\
             .where(db.and_(User.stru_user.c.id==user_id)).values(\
-            update_at = datetime.datetime.now(), disabled=True)
+            update_at = datetime.datetime.now(), disabled=disabled)
         logger.debug("update_user_to_disable_command: {0}".format(
             update_user_to_disable_command))
         reMessage = util.callsqlalchemy(self, update_user_to_disable_command,
                                         logger)
         logger.info("reMessage: {0}".format(reMessage))
+        return {'message': 'change user status successsful'}, 200
 
     def create_user(self, logger, args, app):
         ''' create user in plan phase software(redmine) and repository_user_id(gitlab)
@@ -349,3 +435,110 @@ class auth(object):
             }, 200
         else:
             return {"message": "Could not get user list"}, 400
+
+    def get_userlist_by_project(self, logger, project_id, args):
+        logger.debug("args[exclude] {0}".format(args["exclude"]))
+        if args["exclude"] is not None and args["exclude"] == 1:
+            # exclude project users
+            select_userRole_by_project = db.select([ProjectUserRole.stru_project_user_role, \
+            User.stru_user, TableRole.stru_role])\
+            .where(db.and_(ProjectUserRole.stru_project_user_role.c.project_id!=project_id,\
+            ProjectUserRole.stru_project_user_role.c.role_id!=5,\
+            ProjectUserRole.stru_project_user_role.c.user_id==User.stru_user.c.id,\
+            User.stru_user.c.disabled == False,\
+            ProjectUserRole.stru_project_user_role.c.role_id==TableRole.stru_role.c.id))\
+            .distinct(ProjectUserRole.stru_project_user_role.c.user_id)\
+            .order_by(db.desc(ProjectUserRole.stru_project_user_role.c.user_id))
+            logger.debug("select_userRole_by_project: {0}".format(
+                select_userRole_by_project))
+            data_userRole_by_project_array = util.callsqlalchemy(
+                self, select_userRole_by_project, logger).fetchall()
+            logger.debug("data_userRole_by_project_array: {0}".format(
+                data_userRole_by_project_array))
+
+            # get user list when project is project_id
+            select_userid_by_project_array = db.select([ProjectUserRole.stru_project_user_role]) \
+                .where(db.and_(ProjectUserRole.stru_project_user_role.c.project_id==project_id))
+            data_userid_by_project_array = util.callsqlalchemy(
+                self, select_userid_by_project_array, logger).fetchall()
+            logger.debug("data_userid_by_project_array: {0}".format(
+                data_userid_by_project_array))
+
+            count_duplicate = []
+            for data_userRole_by_project in data_userRole_by_project_array:
+                for data_userid_by_project in data_userid_by_project_array:
+                    if data_userRole_by_project[ProjectUserRole.stru_project_user_role.c.user_id]\
+                        == data_userid_by_project[ProjectUserRole.stru_project_user_role.c.user_id]:
+                        logger.debug(type(data_userRole_by_project))
+                        count_duplicate.append(data_userRole_by_project[
+                            ProjectUserRole.stru_project_user_role.c.user_id])
+            count_duplicate = list(set(count_duplicate))
+            logger.debug("count_duplicate: {0}".format(count_duplicate))
+            i = 0
+            while i < len(data_userRole_by_project_array):
+                if data_userRole_by_project_array[i][
+                        ProjectUserRole.stru_project_user_role.c.
+                        user_id] in count_duplicate:
+                    data_userRole_by_project_array.pop(i)
+                else:
+                    i += 1
+            logger.debug("data_userRole_by_project_array: {0}".format(
+                data_userRole_by_project_array))
+
+        else:
+            # in project users
+            select_userRole_by_project = db.select([ProjectUserRole.stru_project_user_role, \
+            User.stru_user, TableRole.stru_role])\
+            .where(db.and_(ProjectUserRole.stru_project_user_role.c.project_id==project_id,\
+            ProjectUserRole.stru_project_user_role.c.role_id!=5,\
+            ProjectUserRole.stru_project_user_role.c.user_id==User.stru_user.c.id,\
+            User.stru_user.c.disabled == False,\
+            ProjectUserRole.stru_project_user_role.c.role_id==TableRole.stru_role.c.id))\
+            .distinct(ProjectUserRole.stru_project_user_role.c.user_id)\
+            .order_by(db.desc(ProjectUserRole.stru_project_user_role.c.user_id))
+            logger.debug("select_userRole_by_project: {0}".format(
+                select_userRole_by_project))
+            data_userRole_by_project_array = util.callsqlalchemy(
+                self, select_userRole_by_project, logger).fetchall()
+
+        user_list = []
+        for data_userRole_by_project in data_userRole_by_project_array:
+            logger.debug("data_userRole_by_project: {0}".format(
+                data_userRole_by_project[
+                    ProjectUserRole.stru_project_user_role.c.user_id]))
+            user_list.append({
+                "user_id":
+                data_userRole_by_project[
+                    ProjectUserRole.stru_project_user_role.c.user_id],
+                "user_name":
+                data_userRole_by_project[User.stru_user.c.name],
+                "role_name":
+                data_userRole_by_project[TableRole.stru_role.c.name],
+                "project_id":
+                data_userRole_by_project[
+                    ProjectUserRole.stru_project_user_role.c.project_id]
+                # "disabled": data_userRole_by_project[User.stru_user.c.disabled]
+            })
+        return {"message": "successful", "data": {"user_list": user_list}}, 200
+
+    # 從db role table取得role list
+    def get_role_list(self, logger, app):
+        result = db.engine.execute(
+            "SELECT * FROM public.roles ORDER BY id ASC")
+        role_array = result.fetchall()
+        result.close()
+
+        if role_array:
+            output_array = []
+            for role in role_array:
+                role_info = {"id": role["id"], "name": role["name"]}
+                output_array.append(role_info)
+
+            return {
+                "message": "successful",
+                "data": {
+                    "role_list": output_array
+                }
+            }, 200
+        else:
+            return {"message": "Could not get role list"}, 400
