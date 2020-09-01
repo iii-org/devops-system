@@ -40,7 +40,7 @@ logger.setLevel(logging.DEBUG)
 logger.addHandler(handler)
 
 ut = util.util()
-au = auth.auth()
+au = auth.auth(logger, app)
 redmine = redmine.Redmine(logger, app)
 iss = issue.Issue()
 pjt = project.Project(logger, app)
@@ -134,8 +134,11 @@ class Project(Resource):
         print("role_id={0}".format(role_id))
 
         if role_id == 3:
-            output = pjt.pm_delete_project(logger, app, project_id)
-            return output
+            try:
+                output = pjt.pm_delete_project(logger, app, project_id)
+                return output
+            except Exception as error:
+                return {"message": str(error)}, 400
         else:
             return {"message": "您無權限訪問！"}, 401
 
@@ -295,8 +298,11 @@ class UserInfo(Resource):
     def delete(self, user_id):
         '''delete user'''
         if get_jwt_identity()["role_id"] == 5:
-            output = au.delete_user(logger, user_id)
-            return output
+            try:
+                output = au.delete_user(logger, app, user_id)
+                return output
+            except Exception as error:
+                return {"message": str(error)}, 400
         else:
             return {"message": "your role art not administrator"}, 401
 
@@ -376,30 +382,12 @@ class GitProjectBranches(Resource):
         role_id = get_jwt_identity()["role_id"]
         print("role_id={0}".format(role_id))
 
-        # try:
-        #     role_id = db.engine.execute(
-        #         "SELECT role_id FROM public.project_user_role \
-        #         WHERE user_id = {0} AND project_id = {1}".format(
-        #             user_id, project_id)).fetchone()[0]
-        # except:
-        #     role_id = None
-
-        if role_id <= 5:
+        if role_id == 3:
             project_id = repository_id
             output = pjt.get_git_project_branches(logger, app, project_id)
-            branch_list = []
-            for idx, i in enumerate(output.json()):
-                branch = {
-                    "id": idx + 1,
-                    "name": i["name"],
-                    "last_commit_message": i["commit"]["message"],
-                    "last_commit_time": i["commit"]["committed_date"],
-                    "uuid": i["commit"]["id"]
-                }
-                branch_list.append(branch)
-            return branch_list
+            return output
         else:
-            return "您無權限訪問！"
+            return {"message": "您無權限訪問！"}, 401
 
     @jwt_required
     def post(self, repository_id):

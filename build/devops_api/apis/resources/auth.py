@@ -1,4 +1,5 @@
 import datetime
+import requests
 import json
 from Cryptodome.Hash import SHA256
 
@@ -24,9 +25,26 @@ class auth(object):
             'role_name': row['role_name']
         }
 
-    def __init__(self):
+    def __init__(self, logger, app):
         self.redmine_key = None
         self.headers = {'Content-Type': 'application/json'}
+
+        if app.config["GITLAB_API_VERSION"] == "v3":
+            # get gitlab admin token
+            url = "http://{0}/api/v3/session".format(\
+                app.config["GITLAB_IP_PORT"])
+            parame = {}
+            parame["login"] = app.config["GITLAB_ADMIN_ACCOUNT"]
+            parame["password"] = app.config["GITLAB_ADMIN_PASSWORD"]
+
+            output = requests.post(url,
+                                   data=json.dumps(parame),
+                                   headers=self.headers,
+                                   verify=False)
+            # logger.info("private_token api output: {0}".format(output))
+            self.private_token = output.json()['private_token']
+        else:
+            self.private_token = app.config["GITLAB_PRIVATE_TOKEN"]
 
     def user_login(self, logger, args):
 
@@ -191,17 +209,61 @@ class auth(object):
         else:
             return {"message": "User was disabled"}, 400
 
-    def delete_user(self, logger, user_id):
+    def delete_user(self, logger, app, user_id):
         ''' disable user on user table'''
-        update_user_to_disable_command = db.update(User.stru_user)\
-            .where(db.and_(User.stru_user.c.id==user_id)).values(\
-            update_at = datetime.datetime.now(), disabled=True)
-        logger.debug("update_user_to_disable_command: {0}".format(
-            update_user_to_disable_command))
-        reMessage = util.callsqlalchemy(self, update_user_to_disable_command,
-                                        logger)
-        logger.info("reMessage: {0}".format(reMessage))
-        return {'message': 'delete user successsful'}, 200
+        # update_user_to_disable_command = db.update(User.stru_user)\
+        #     .where(db.and_(User.stru_user.c.id==user_id)).values(\
+        #     update_at = datetime.datetime.now(), disabled=True)
+        # logger.debug("update_user_to_disable_command: {0}".format(
+        #     update_user_to_disable_command))
+        # reMessage = util.callsqlalchemy(self, update_user_to_disable_command,
+        #                                 logger)
+        # logger.info("reMessage: {0}".format(reMessage))
+
+        # 取得gitlab & redmine user_id
+        result = db.engine.execute(
+            "SELECT * FROM public.user_plugin_relation WHERE user_id = '{0}'".
+            format(user_id))
+        user_relation = result.fetchone()
+        result.close()
+        redmine_user_id = user_relation["plan_user_id"]
+        gitlab_user_id = user_relation["repository_user_id"]
+        # 刪除gitlab user
+        gitlab_url = "http://{0}/api/{1}/users/{2}?private_token={3}".format(\
+            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], gitlab_user_id, self.private_token)
+        logger.info("delete gitlab user url: {0}".format(gitlab_url))
+        gitlab_output = requests.delete(gitlab_url,
+                                        headers=self.headers,
+                                        verify=False)
+        logger.info("delete gitlab user output: {0}".format(gitlab_output))
+        # 如果gitlab user成功被刪除則繼續刪除redmine user
+        if str(gitlab_output) == "<Response [204]>":
+            redmine_url = "http://{0}/users/{1}.json?key={2}".format(\
+                app.config["REDMINE_IP_PORT"], redmine_user_id, app.config["REDMINE_API_KEY"])
+            logger.info("delete redmine user url: {0}".format(redmine_url))
+            redmine_output = requests.delete(redmine_url,
+                                             headers=self.headers,
+                                             verify=False)
+            logger.info(
+                "delete redmine user output: {0}".format(redmine_output))
+            # 如果gitlab & redmine user都成功被刪除則繼續刪除db內相關tables欄位
+            if str(redmine_output) == "<Response [204]>":
+                db.engine.execute(
+                    "DELETE FROM public.user_plugin_relation WHERE user_id = '{0}'"
+                    .format(user_id))
+                db.engine.execute(
+                    "DELETE FROM public.project_user_role WHERE user_id = '{0}'"
+                    .format(user_id))
+                db.engine.execute(
+                    "DELETE FROM public.user WHERE id = '{0}'".format(user_id))
+
+                output = {"result": "success delete"}
+            else:
+                output = {"from": "redmine", "result": redmine_output}
+        else:
+            output = {"from": "gitlab", "result": gitlab_output}
+
+        return {"message": "successful", "data": output}, 200
 
     def put_user_status(self, logger, user_id, args):
         ''' change user on user status'''
