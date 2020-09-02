@@ -87,15 +87,15 @@ class auth(object):
         result = db.engine.execute(
             "SELECT ur.id as id, ur.name as name, ur.username as username,\
             ur.email as email, ur.phone as phone, ur.login as login, ur.create_at as create_at,\
-            ur.update_at as update_at, rl.id as role_id, rl.name as role_name \
+            ur.update_at as update_at, rl.id as role_id, rl.name as role_name, ur.disabled as disabled \
             FROM public.user as ur, public.project_user_role as pur, public.roles as rl \
-            WHERE ur.disabled = false AND ur.id = {0} AND ur.id = pur.user_id AND pur.role_id = rl.id"
+            WHERE ur.id = {0} AND ur.id = pur.user_id AND pur.role_id = rl.id"
             .format(user_id))
         user_data = result.fetchone()
         result.close()
 
         if user_data:
-            logger.info("user info: {0}".format(user_data["id"]))
+            logger.info("user info: {0}".format(user_data))
             output = {
                 "id": user_data["id"],
                 "name": user_data["name"],
@@ -108,7 +108,8 @@ class auth(object):
                 "role": {
                     "name": user_data["role_name"],
                     "id": user_data["role_id"]
-                }
+                },
+                "disabled": user_data["disabled"]
             }
             # get user involve project list
             select_project = db.select([ProjectUserRole.stru_project_user_role, \
@@ -130,7 +131,7 @@ class auth(object):
                     })
                 output["project"] = project_list
             else:
-                output["project"] = {}
+                output["project"] = []
 
             return {'message': 'success', 'data': output}, 200
         else:
