@@ -130,7 +130,7 @@ class Issue(object):
             if issue["issue_status"] != "closed":
                 unfinish_number += 1
         return {
-            "message": "successful",
+            "message": "success",
             "data": {
                 "unfinish_number": unfinish_number,
                 "total_issue": len(issue_list)
@@ -275,7 +275,7 @@ class Issue(object):
         try:
             output = Redmine.redmine_create_issue(self, logger, app, args)
             return {
-                "message": "successful",
+                "message": "success",
                 "data": {
                     "issue_id": output.json()["issue"]["id"]
                 }
@@ -301,7 +301,7 @@ class Issue(object):
         try:
             # go to redmine, delete issue
             output = Redmine.redmine_delete_issue(self, logger, app, issue_id)
-            return {"message": "successful"}, 201
+            return {"message": "success"}, 201
         except Exception as error:
             return str(error), 400
 
@@ -362,7 +362,7 @@ class Issue(object):
             redmine_output, status_code = Redmine.redmine_get_statistics(
                 self, logger, app, args)
             return {
-                "message": "successful",
+                "message": "success",
                 "data": {
                     "issue_number": redmine_output["total_count"]
                 }

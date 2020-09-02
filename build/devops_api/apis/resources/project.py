@@ -274,7 +274,7 @@ class Project(object):
             }
             branch_list.append(branch)
         return {
-            "message": "successful",
+            "message": "success",
             "data": {
                 "branch_list": branch_list
             }
@@ -612,7 +612,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                 output_array.append(project_info)
 
             return {
-                "message": "successful",
+                "message": "success",
                 "data": {
                     "project_list": output_array
                 }
@@ -707,7 +707,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         else:
             output = {"from": "redmine", "result": redmine_output.json()}
 
-        return {"message": "successful", "data": output}, 200
+        return {"message": "success", "data": output}, 200
 
     # 用project_id查詢db的相關table欄位資訊
     def pm_get_project(self, logger, app, project_id):
@@ -738,7 +738,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         output["pm_user_id"] = user_id
         output["pm_user_name"] = user_name
 
-        return {"message": "successful", "date": output}, 200
+        return {"message": "success", "date": output}, 200
 
     # 修改redmine & gitlab的project資訊
     def pm_update_project(self, logger, app, project_id, args):
@@ -808,7 +808,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         else:
             output = {"from": "gitlab", "result": gitlab_output.json()}
 
-        return {"message": "successful", "data": output}, 200
+        return {"message": "success", "data": output}, 200
 
     # 用project_id刪除redmine & gitlab的project並將db的相關table欄位一併刪除
     def pm_delete_project(self, logger, app, project_id):
@@ -863,4 +863,4 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
 
         # output = {"result": "success delete"}
 
-        return {"message": "successful", "data": output}, 200
+        return {"message": "success", "data": output}, 200
