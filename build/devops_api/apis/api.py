@@ -335,6 +335,7 @@ class User(Resource):
             parser.add_argument('password', type=str, required=True)
             parser.add_argument('project_id', action='append')
             parser.add_argument('role_id', type=int, required=True)
+            parser.add_argument('status', type=str)
             args = parser.parse_args()
             output = au.create_user(logger, args, app)
             return output

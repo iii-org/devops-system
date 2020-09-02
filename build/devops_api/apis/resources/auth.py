@@ -315,6 +315,9 @@ class auth(object):
         h = SHA256.new()
         h.update(args["password"].encode())
         args["password"] = h.hexdigest()
+        disabled=False
+        if args['status'] =="disable":
+            disabled=True
         insert_user_command = db.insert(User.stru_user).values(
             name=args['name'],
             username=args['username'],
@@ -322,7 +325,9 @@ class auth(object):
             phone=args['phone'],
             login=args['login'],
             password=h.hexdigest(),
-            create_at=datetime.datetime.now())
+            create_at=datetime.datetime.now(),
+            disabled=disabled)
+
         logger.debug("insert_user_command: {0}".format(insert_user_command))
         reMessage = util.callsqlalchemy(self, insert_user_command, logger)
         logger.info("reMessage: {0}".format(reMessage))
