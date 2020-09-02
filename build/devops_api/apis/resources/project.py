@@ -315,7 +315,12 @@ class Project(object):
         output = requests.get(url, headers=self.headers, verify=False)
         logger.info("get project repositories output: {0}".format(
             output.json()))
-        return output
+        return {
+            "message": "success",
+            "data": {
+                "file_list": output.json()
+            }
+        }, 200
 
     # 用project_id及branch_name及file_path查詢project的file
     def get_git_project_file(self, logger, app, project_id, branch, file_path):
@@ -324,7 +329,23 @@ class Project(object):
         logger.info("get project file url: {0}".format(url))
         output = requests.get(url, headers=self.headers, verify=False)
         logger.info("get project file output: {0}".format(output.json()))
-        return output
+        if output.status_code == 200:
+            return {
+                "message": "success",
+                "data": {
+                    "file_name": output.json()["file_name"],
+                    "file_path": output.json()["file_path"],
+                    "size": output.json()["size"],
+                    "encoding": output.json()["encoding"],
+                    "content": output.json()["content"],
+                    "content_sha256": output.json()["content_sha256"],
+                    "ref": output.json()["ref"],
+                    "last_commit_id": output.json()["last_commit_id"]
+                }
+            }, 200
+        else:
+            error_code = output.status_code
+            return {"message": "error", "data": output.json()}, error_code
 
     # 用project_id及branch_name及file_path新增project的file
     def create_git_project_file(self, logger, app, project_id, args):
@@ -333,7 +354,17 @@ class Project(object):
         logger.info("post project file url: {0}".format(url))
         output = requests.post(url, headers=self.headers, verify=False)
         logger.info("post project file output: {0}".format(output.json()))
-        return output
+        if output.status_code == 201:
+            return {
+                "message": "success",
+                "data": {
+                    "file_path": output.json()["file_path"],
+                    "branch_name": output.json()["branch"]
+                }
+            }, 200
+        else:
+            error_code = output.status_code
+            return {"message": "error", "data": output.json()}, error_code
 
     # 用project_id及branch_name及file_path修改project的file
     def update_git_project_file(self, logger, app, project_id, args):
@@ -342,7 +373,17 @@ class Project(object):
         logger.info("put project file url: {0}".format(url))
         output = requests.put(url, headers=self.headers, verify=False)
         logger.info("put project file output: {0}".format(output))
-        return output
+        if output.status_code == 200:
+            return {
+                "message": "success",
+                "data": {
+                    "file_path": output.json()["file_path"],
+                    "branch_name": output.json()["branch"]
+                }
+            }, 200
+        else:
+            error_code = output.status_code
+            return {"message": "error", "data": output.json()}, error_code
 
     # 用project_id及branch_name及file_path刪除project的file
     def delete_git_project_file(self, logger, app, project_id, branch,
@@ -352,7 +393,11 @@ class Project(object):
         logger.info("delete project file url: {0}".format(url))
         output = requests.delete(url, headers=self.headers, verify=False)
         logger.info("delete project file output: {0}".format(output))
-        return output
+        if output.status_code == 204:
+            return {"message": "Success Delete FI"}, 200
+        else:
+            error_code = output.status_code
+            return {"message": "error", "data": output.json()}, error_code
 
     # 用project_id查詢project的tags
     def get_git_project_tags(self, logger, app, project_id):
@@ -609,7 +654,8 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                 result.close()
 
                 result = db.engine.execute(
-                    "SELECT name FROM public.user WHERE id = '{0}'".format(user_id))
+                    "SELECT name FROM public.user WHERE id = '{0}'".format(
+                        user_id))
                 user_name = result.fetchone()[0]
                 result.close()
 
@@ -723,7 +769,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                         "git_repository_id": gitlab_pj_id
                     }
                 }, 200
-                
+
             else:
                 error_code = gitlab_output.status_code
                 return {
@@ -733,7 +779,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                         "result": gitlab_output.json()
                     }
                 }, error_code
-                
+
         else:
             error_code = redmine_output.status_code
             return {
@@ -743,7 +789,6 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                     "result": redmine_output.json()
                 }
             }, error_code
-        
 
     # 用project_id查詢db的相關table欄位資訊
     def pm_get_project(self, logger, app, project_id):
@@ -844,7 +889,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                         "result": "success update"
                     }
                 }, 200
-                
+
             else:
                 error_code = redmine_output.status_code
                 return {
@@ -854,7 +899,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                         "result": redmine_output.json()
                     }
                 }, error_code
-                
+
         else:
             error_code = gitlab_output.status_code
             return {
@@ -864,7 +909,6 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                     "result": gitlab_output.json()
                 }
             }, error_code
-            
 
     # 用project_id刪除redmine & gitlab的project並將db的相關table欄位一併刪除
     def pm_delete_project(self, logger, app, project_id):
@@ -906,7 +950,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                 db.engine.execute(
                     "DELETE FROM public.projects WHERE id = '{0}'".format(
                         project_id))
-                
+
                 return {
                     "message": "success",
                     "data": {
@@ -939,4 +983,3 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         #     format(True, project_id))
 
         # output = {"result": "success delete"}
-
