@@ -258,7 +258,7 @@ class auth(object):
                     "DELETE FROM public.user WHERE id = '{0}'".format(user_id))
 
                 return {
-                    "message": "successful",
+                    "message": "success",
                     "data": {
                         "result": "success delete"
                     }
@@ -381,7 +381,7 @@ class auth(object):
                                         logger)
         logger.info("reMessage: {0}".format(reMessage))
 
-        return {"message": "successful", "data": {"user_id": user_id}}, 200
+        return {"message": "success", "data": {"user_id": user_id}}, 200
 
     def get_user_plugin_relation(self, logger):
         get_user_plugin_relation_command = db.select(
@@ -448,7 +448,7 @@ class auth(object):
                 }
                 output_array.append(output)
             return {
-                "message": "successful",
+                "message": "success",
                 "data": {
                     "user_list": output_array
                 }
@@ -539,7 +539,7 @@ class auth(object):
                     ProjectUserRole.stru_project_user_role.c.project_id]
                 # "disabled": data_userRole_by_project[User.stru_user.c.disabled]
             })
-        return {"message": "successful", "data": {"user_list": user_list}}, 200
+        return {"message": "success", "data": {"user_list": user_list}}, 200
 
     # 從db role table取得role list
     def get_role_list(self, logger, app):
@@ -555,7 +555,7 @@ class auth(object):
                 output_array.append(role_info)
 
             return {
-                "message": "successful",
+                "message": "success",
                 "data": {
                     "role_list": output_array
                 }
