@@ -87,15 +87,15 @@ class auth(object):
         result = db.engine.execute(
             "SELECT ur.id as id, ur.name as name, ur.username as username,\
             ur.email as email, ur.phone as phone, ur.login as login, ur.create_at as create_at,\
-            ur.update_at as update_at, rl.id as role_id, rl.name as role_name \
+            ur.update_at as update_at, rl.id as role_id, rl.name as role_name, ur.disabled as disabled \
             FROM public.user as ur, public.project_user_role as pur, public.roles as rl \
-            WHERE ur.disabled = false AND ur.id = {0} AND ur.id = pur.user_id AND pur.role_id = rl.id"
+            WHERE ur.id = {0} AND ur.id = pur.user_id AND pur.role_id = rl.id"
             .format(user_id))
         user_data = result.fetchone()
         result.close()
 
         if user_data:
-            logger.info("user info: {0}".format(user_data["id"]))
+            logger.info("user info: {0}".format(user_data))
             output = {
                 "id": user_data["id"],
                 "name": user_data["name"],
@@ -108,7 +108,8 @@ class auth(object):
                 "role": {
                     "name": user_data["role_name"],
                     "id": user_data["role_id"]
-                }
+                },
+                "disabled": user_data["disabled"]
             }
             # get user involve project list
             select_project = db.select([ProjectUserRole.stru_project_user_role, \
@@ -130,7 +131,7 @@ class auth(object):
                     })
                 output["project"] = project_list
             else:
-                output["project"] = {}
+                output["project"] = []
 
             return {'message': 'success', 'data': output}, 200
         else:
@@ -237,7 +238,7 @@ class auth(object):
                                         verify=False)
         logger.info("delete gitlab user output: {0}".format(gitlab_output))
         # 如果gitlab user成功被刪除則繼續刪除redmine user
-        if str(gitlab_output) == "<Response [204]>":
+        if gitlab_output.status_code == 204:
             redmine_url = "http://{0}/users/{1}.json?key={2}".format(\
                 app.config["REDMINE_IP_PORT"], redmine_user_id, app.config["REDMINE_API_KEY"])
             logger.info("delete redmine user url: {0}".format(redmine_url))
@@ -247,7 +248,7 @@ class auth(object):
             logger.info(
                 "delete redmine user output: {0}".format(redmine_output))
             # 如果gitlab & redmine user都成功被刪除則繼續刪除db內相關tables欄位
-            if str(redmine_output) == "<Response [204]>":
+            if redmine_output.status_code == 204:
                 db.engine.execute(
                     "DELETE FROM public.user_plugin_relation WHERE user_id = '{0}'"
                     .format(user_id))
@@ -257,13 +258,33 @@ class auth(object):
                 db.engine.execute(
                     "DELETE FROM public.user WHERE id = '{0}'".format(user_id))
 
-                output = {"result": "success delete"}
-            else:
-                output = {"from": "redmine", "result": redmine_output}
-        else:
-            output = {"from": "gitlab", "result": gitlab_output}
+                return {
+                    "message": "success",
+                    "data": {
+                        "result": "success delete"
+                    }
+                }, 200
 
-        return {"message": "success", "data": output}, 200
+            else:
+                error_code = redmine_output.status_code
+                return {
+                    "message": "error",
+                    "data": {
+                        "from": "redmine",
+                        "result": redmine_output.json()
+                    }
+                }, error_code
+                
+        else:
+            error_code = gitlab_output.status_code
+            return {
+                "message": "error",
+                "data": {
+                    "from": "gitlab",
+                    "result": gitlab_output.json()
+                }
+            }, error_code
+
 
     def put_user_status(self, logger, user_id, args):
         ''' change user on user status'''
