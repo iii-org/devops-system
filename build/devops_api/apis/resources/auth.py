@@ -98,9 +98,9 @@ class auth(object):
             logger.info("user info: {0}".format(user_data))
             account_status = ""
             if user_data["disabled"] == True:
-                account_status = "disable"
+                status = "disable"
             else:
-                account_status = "enable"
+                status = "enable"
             output = {
                 "id": user_data["id"],
                 "name": user_data["name"],
@@ -114,7 +114,7 @@ class auth(object):
                     "name": user_data["role_name"],
                     "id": user_data["role_id"]
                 },
-                "account_status": account_status
+                "status": status
             }
             # get user involve project list
             select_project = db.select([ProjectUserRole.stru_project_user_role, \
