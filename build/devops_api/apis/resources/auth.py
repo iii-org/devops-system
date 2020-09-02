@@ -237,7 +237,7 @@ class auth(object):
                                         verify=False)
         logger.info("delete gitlab user output: {0}".format(gitlab_output))
         # 如果gitlab user成功被刪除則繼續刪除redmine user
-        if str(gitlab_output) == "<Response [204]>":
+        if gitlab_output.status_code == 204:
             redmine_url = "http://{0}/users/{1}.json?key={2}".format(\
                 app.config["REDMINE_IP_PORT"], redmine_user_id, app.config["REDMINE_API_KEY"])
             logger.info("delete redmine user url: {0}".format(redmine_url))
@@ -247,7 +247,7 @@ class auth(object):
             logger.info(
                 "delete redmine user output: {0}".format(redmine_output))
             # 如果gitlab & redmine user都成功被刪除則繼續刪除db內相關tables欄位
-            if str(redmine_output) == "<Response [204]>":
+            if redmine_output.status_code == 204:
                 db.engine.execute(
                     "DELETE FROM public.user_plugin_relation WHERE user_id = '{0}'"
                     .format(user_id))
@@ -257,13 +257,33 @@ class auth(object):
                 db.engine.execute(
                     "DELETE FROM public.user WHERE id = '{0}'".format(user_id))
 
-                output = {"result": "success delete"}
-            else:
-                output = {"from": "redmine", "result": redmine_output}
-        else:
-            output = {"from": "gitlab", "result": gitlab_output}
+                return {
+                    "message": "success",
+                    "data": {
+                        "result": "success delete"
+                    }
+                }, 200
 
-        return {"message": "success", "data": output}, 200
+            else:
+                error_code = redmine_output.status_code
+                return {
+                    "message": "error",
+                    "data": {
+                        "from": "redmine",
+                        "result": redmine_output.json()
+                    }
+                }, error_code
+                
+        else:
+            error_code = gitlab_output.status_code
+            return {
+                "message": "error",
+                "data": {
+                    "from": "gitlab",
+                    "result": gitlab_output.json()
+                }
+            }, error_code
+
 
     def put_user_status(self, logger, user_id, args):
         ''' change user on user status'''
