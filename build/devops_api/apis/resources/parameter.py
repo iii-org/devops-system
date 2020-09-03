@@ -25,7 +25,7 @@ class Parameter(object):
         return json.dumps(json.loads(jsonSting), ensure_ascii=False, separators=(',', ':'))
     
     def _deal_with_ParametersObject(self, sqlRow,paramType = ''):
-        if paramType is '':
+        if paramType == '':
             paramType = self._get_paramType()
         output={}
         output['name'] = sqlRow['name']
