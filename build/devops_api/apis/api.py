@@ -247,8 +247,8 @@ class UserLogin(Resource):
 class UserForgetPassword(Resource):
     def post(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('email', type=str, required=True)
-        parser.add_argument('login', type=str, required=True)
+        parser.add_argument('mail', type=str, required=True)
+        parser.add_argument('user_account', type=str, required=True)
         args = parser.parse_args()
         try:
             status = au.user_forgetpassword(logger, args)

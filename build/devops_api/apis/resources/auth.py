@@ -75,10 +75,10 @@ class auth(object):
     def user_forgetpassword(self, logger, args):
         result = db.engine.execute("SELECT login, email FROM public.user")
         for row in result:
-            if row['login'] == args["login"] and row['email'] == args["email"]:
+            if row['login'] == args["user_account"] and row['email'] == args["mail"]:
                 # sent reset password url to mail
                 logger.info(
-                    "user_forgetpassword API: login and mail were correct")
+                    "user_forgetpassword API: user_account and mail were correct")
 
     def user_info(self, logger, user_id):
         ''' get user info'''
@@ -106,8 +106,10 @@ class auth(object):
                 "login": user_data["login"],
                 "create_at": util.dateToStr(self, user_data["create_at"]),
                 "update_at": util.dateToStr(self, user_data["update_at"]),
-                "role_name": user_data["role_name"],
-                "role_id": user_data["role_id"],
+                "role": {
+                    "name": user_data["role_name"],
+                    "id": user_data["role_id"]
+                },
                 "status": status
             }
             # get user involve project list
@@ -445,8 +447,10 @@ class auth(object):
                     "login": user_data["login"],
                     "create_at": util.dateToStr(self, user_data["create_at"]),
                     "update_at": util.dateToStr(self, user_data["update_at"]),
-                    "role_name": user_data["role_name"],
-                    "role_id": user_data["role_id"],
+                    "role": {
+                        "name": user_data["role_name"],
+                        "id": user_data["role_id"]
+                    },
                     "project": project,
                     "status": status
                 }
