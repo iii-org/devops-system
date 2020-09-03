@@ -117,7 +117,7 @@ class Pipeline(object):
             parameter['commit_message'] = "modify .rancher-pipeline.yml"
         Project.create_ranhcer_pipline_yaml(self, logger, app, repository_id,
                                             parameter, action)
-        return {"message": "successful"}, 200
+        return {"message": "success"}, 200
 
     def get_ci_yaml(self, logger, app, repository_id, branch_name):
         parameter = {}

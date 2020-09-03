@@ -8,10 +8,8 @@ class User():
     stru_user = db.Table(
         'user', meta,
         db.Column('id', db.Integer, primary_key=True, nullable=True),
-        db.Column('name', db.String(255)), db.Column('username',
-                                                     db.String(255)),
-        db.Column('email', db.String(255)), db.Column('phone', db.Integer),
-        db.Column('login', db.String(255)),
+        db.Column('name', db.String(255)), db.Column('email', db.String(255)),
+        db.Column('phone', db.Integer), db.Column('login', db.String(255)),
         db.Column('password', db.String(255)),
         db.Column('create_at', db.DATETIME(255)),
         db.Column('update_at', db.DATETIME(255)),
@@ -50,11 +48,12 @@ class TableGroup():
                           db.Column('id', db.Integer, nullable=True),
                           db.Column('name', db.String, nullable=True))
 
+
 class TableRole():
     meta = db.MetaData()
     stru_role = db.Table('roles', meta,
-                          db.Column('id', db.Integer, nullable=True),
-                          db.Column('name', db.String, nullable=True))
+                         db.Column('id', db.Integer, nullable=True),
+                         db.Column('name', db.String, nullable=True))
 
 
 class ProjectUserRole():

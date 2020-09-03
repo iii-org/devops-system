@@ -24,7 +24,7 @@ class GitLab(object):
             self.private_token = app.config["GITLAB_PRIVATE_TOKEN"]
         logger.info("private_token: {0}".format(self.private_token))
 
-    def create_user(self, logger, app, args):
+    def create_user(self, logger, app, args, user_source_password):
         gitlab = GitLab(logger, app)
         url = "http://{0}/api/{1}/users?private_token={2}"\
             .format(app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], \
@@ -33,8 +33,8 @@ class GitLab(object):
         parame = {
             "name": args['login'],
             "email": args['email'],
-            "username": args['username'],
-            "password": args["password"]
+            "username": args['name'],
+            "password": user_source_password
         }
         output = requests.post(url,
                                data=json.dumps(parame),
