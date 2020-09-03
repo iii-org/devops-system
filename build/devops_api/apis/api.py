@@ -11,6 +11,7 @@ import json
 import datetime
 from model import db
 from jsonwebtoken import jsonwebtoken
+from urllib.parse import urlparse
 
 import resources.util as util
 import resources.auth as auth
@@ -1227,7 +1228,7 @@ class ExportToPostman(Resource):
         for case in cases:
             case_id = case['id']
             method = case['data']['method']
-            url = case['data']['url']
+            url = urlparse(case['data']['url'])
             items = ti.get_testItem_by_testCase_id(logger, case_id, jwt_identity)
             for item in items.values():
                 item_id = item['id']
@@ -1239,9 +1240,16 @@ class ExportToPostman(Resource):
 
                 o_request = {
                     'method': method,
-                    'url': url,
+                    'url': {
+                        'protocol': url.scheme,
+                        'port': url.port
+                    },
                     'header': []
                 }
+                if bool(url.hostname):
+                    o_request['url']['host'] = url.hostname.split('.')
+                if len(url.path) > 0:
+                    o_request['url']['path'] = url.path[1:].split('/')
                 o_request_body = []
                 o_execs = []
 
