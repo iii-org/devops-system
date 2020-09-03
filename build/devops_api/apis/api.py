@@ -237,7 +237,7 @@ class ProjectList(Resource):
 class UserLogin(Resource):
     def post(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('username', type=str, required=True)
+        parser.add_argument('login', type=str, required=True)
         parser.add_argument('password', type=str, required=True)
         args = parser.parse_args()
         output = au.user_login(logger, args)
@@ -247,8 +247,8 @@ class UserLogin(Resource):
 class UserForgetPassword(Resource):
     def post(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('mail', type=str, required=True)
-        parser.add_argument('user_account', type=str, required=True)
+        parser.add_argument('email', type=str, required=True)
+        parser.add_argument('login', type=str, required=True)
         args = parser.parse_args()
         try:
             status = au.user_forgetpassword(logger, args)
@@ -278,11 +278,11 @@ class UserInfo(Resource):
         )['role_id'] == 5:
             parser = reqparse.RequestParser()
             parser.add_argument('name', type=str)
-            parser.add_argument('username', type=str)
             parser.add_argument('password', type=str)
             parser.add_argument('phone', type=int)
             parser.add_argument('email', type=str)
             parser.add_argument('project_id', action='append')
+            parser.add_argument('status', type=str)
             args = parser.parse_args()
             try:
                 output = au.update_user_info(logger, user_id, args)
@@ -328,13 +328,13 @@ class User(Resource):
         if get_jwt_identity()["role_id"] == 5:
             parser = reqparse.RequestParser()
             parser.add_argument('name', type=str)
-            parser.add_argument('username', type=str, required=True)
             parser.add_argument('email', type=str, required=True)
             parser.add_argument('phone', type=int, required=True)
             parser.add_argument('login', type=str, required=True)
             parser.add_argument('password', type=str, required=True)
             parser.add_argument('project_id', action='append')
             parser.add_argument('role_id', type=int, required=True)
+            parser.add_argument('status', type=str)
             args = parser.parse_args()
             output = au.create_user(logger, args, app)
             return output

@@ -123,16 +123,16 @@ class Redmine(object):
         logger.info("get issues stauts list output: {0}".format(output.json()))
         return output.json()
 
-    def redmine_post_user(self, logger, app, args):
+    def redmine_post_user(self, logger, app, args, user_source_password):
         url = "http://{0}/users.json?key={1}".format(
             app.config['REDMINE_IP_PORT'], self.redmine_key)
         param = {
             "user": {
                 "login": args["login"],
                 "firstname": args["name"],
-                "lastname": args["username"],
+                "lastname": args["name"],
                 "mail": args["email"],
-                "password": args["password"]
+                "password": user_source_password
             }
         }
         logger.info("post user param: {0}".format(param))

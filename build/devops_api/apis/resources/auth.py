@@ -57,7 +57,7 @@ class auth(object):
             WHERE ur.disabled = false AND ur.id = pur.user_id AND pur.role_id = rl.id"
         )
         for row in result:
-            if row['login'] == args["username"] and row[
+            if row['login'] == args["login"] and row[
                     'password'] == h.hexdigest():
                 expires = datetime.timedelta(days=1)
                 access_token = create_access_token(
@@ -75,41 +75,40 @@ class auth(object):
     def user_forgetpassword(self, logger, args):
         result = db.engine.execute("SELECT login, email FROM public.user")
         for row in result:
-            if row['login'] == args["user_account"] and row['email'] == args[
-                    "mail"]:
+            if row['login'] == args["login"] and row['email'] == args["email"]:
                 # sent reset password url to mail
                 logger.info(
-                    "user_forgetpassword API: user_account and mail were correct"
-                )
+                    "user_forgetpassword API: login and mail were correct")
 
     def user_info(self, logger, user_id):
         ''' get user info'''
-        result = db.engine.execute(
-            "SELECT ur.id as id, ur.name as name, ur.username as username,\
+        result = db.engine.execute("SELECT ur.id as id, ur.name as name,\
             ur.email as email, ur.phone as phone, ur.login as login, ur.create_at as create_at,\
             ur.update_at as update_at, rl.id as role_id, rl.name as role_name, ur.disabled as disabled \
             FROM public.user as ur, public.project_user_role as pur, public.roles as rl \
-            WHERE ur.id = {0} AND ur.id = pur.user_id AND pur.role_id = rl.id"
-            .format(user_id))
+            WHERE ur.id = {0} AND ur.id = pur.user_id AND pur.role_id = rl.id".
+                                   format(user_id))
         user_data = result.fetchone()
         result.close()
 
         if user_data:
             logger.info("user info: {0}".format(user_data))
+            account_status = ""
+            if user_data["disabled"] == True:
+                status = "disable"
+            else:
+                status = "enable"
             output = {
                 "id": user_data["id"],
                 "name": user_data["name"],
-                "usernmae": user_data["username"],
                 "email": user_data["email"],
-                "phone": user_data["phone"],
+                "phone": int(user_data["phone"]),
                 "login": user_data["login"],
                 "create_at": util.dateToStr(self, user_data["create_at"]),
                 "update_at": util.dateToStr(self, user_data["update_at"]),
-                "role": {
-                    "name": user_data["role_name"],
-                    "id": user_data["role_id"]
-                },
-                "disabled": user_data["disabled"]
+                "role_name": user_data["role_name"],
+                "role_id": user_data["role_id"],
+                "status": status
             }
             # get user involve project list
             select_project = db.select([ProjectUserRole.stru_project_user_role, \
@@ -145,70 +144,69 @@ class auth(object):
             select_user_to_disable_command))
         user_data = util.callsqlalchemy(self, select_user_to_disable_command,
                                         logger).fetchone()
-        logger.info("user_data['disabled']: {0}".format(user_data['disabled']))
-        if user_data['disabled'] is False:
-            set_string = ""
-            if args["name"] is not None:
-                set_string += "name = '{0}'".format(args["name"])
-                set_string += ","
-            if args["username"] is not None:
-                set_string += "username = '{0}'".format(args["username"])
-                set_string += ","
-            if args["password"] is not None:
-                h = SHA256.new()
-                h.update(args["password"].encode())
-                set_string += "password = '{0}'".format(h.hexdigest())
-                set_string += ","
-            if args["phone"] is not None:
-                set_string += "phone = {0}".format(args["phone"])
-                set_string += ","
-            if args["email"] is not None:
-                set_string += "email = '{0}'".format(args["email"])
-                set_string += ","
-            set_string += "update_at = localtimestamp"
-            logger.info("set_string: {0}".format(set_string))
-            result = db.engine.execute(
-                "UPDATE public.user SET {0} WHERE id = {1}".format(
-                    set_string, user_id))
-            logger.debug("update db reslut: {0}".format(result))
-            # update project_user_role
-            if args["project_id"] is not None:
-                # get user role_id
-                select_pjuerl_by_userid = db.select([ProjectUserRole.stru_project_user_role]).where(db.and_(\
-                    ProjectUserRole.stru_project_user_role.c.user_id==user_id))
-                logger.debug("select_pjuerl_by_userid: {0}".format(
-                    select_pjuerl_by_userid))
-                data_pjuerl_by_userid = util.callsqlalchemy(
-                    self, select_pjuerl_by_userid, logger).fetchone()
-                logger.debug(
-                    "data_pjuerl_by_userid: {0}".format(data_pjuerl_by_userid))
+        set_string = ""
+        if args["name"] is not None:
+            set_string += "name = '{0}'".format(args["name"])
+            set_string += ","
+        if args["password"] is not None:
+            h = SHA256.new()
+            h.update(args["password"].encode())
+            set_string += "password = '{0}'".format(h.hexdigest())
+            set_string += ","
+        if args["phone"] is not None:
+            set_string += "phone = {0}".format(args["phone"])
+            set_string += ","
+        if args["email"] is not None:
+            set_string += "email = '{0}'".format(args["email"])
+            set_string += ","
+        if args["status"] is not None:
+            status = False
+            if args["status"] == "disable":
+                status = True
+            set_string += "disabled = '{0}'".format(status)
+            set_string += ","
+        set_string += "update_at = localtimestamp"
+        logger.info("set_string: {0}".format(set_string))
+        result = db.engine.execute(
+            "UPDATE public.user SET {0} WHERE id = {1}".format(
+                set_string, user_id))
+        logger.debug("update db reslut: {0}".format(result))
+        # update project_user_role
+        if args["project_id"] is not None:
+            # get user role_id
+            select_pjuerl_by_userid = db.select([ProjectUserRole.stru_project_user_role]).where(db.and_(\
+                ProjectUserRole.stru_project_user_role.c.user_id==user_id))
+            logger.debug(
+                "select_pjuerl_by_userid: {0}".format(select_pjuerl_by_userid))
+            data_pjuerl_by_userid = util.callsqlalchemy(
+                self, select_pjuerl_by_userid, logger).fetchone()
+            logger.debug(
+                "data_pjuerl_by_userid: {0}".format(data_pjuerl_by_userid))
 
-                for project_id in args["project_id"]:
-                    select_pjuerl_by_userpjtrl = db.select([ProjectUserRole.stru_project_user_role]).where(db.and_(\
-                    ProjectUserRole.stru_project_user_role.c.user_id==user_id,\
-                    ProjectUserRole.stru_project_user_role.c.project_id==project_id,\
-                    ProjectUserRole.stru_project_user_role.c.role_id==data_pjuerl_by_userid['role_id']))
-                    logger.debug("select_pjuerl_by_userpjtrl: {0}".format(
-                        select_pjuerl_by_userpjtrl))
-                    data_pjuerl_by_userpjtrl = util.callsqlalchemy(
-                        self, select_pjuerl_by_userpjtrl, logger).fetchone()
-                    logger.debug("data_pjuerl_by_userpjtrl: {0}".format(
-                        data_pjuerl_by_userpjtrl))
+            for project_id in args["project_id"]:
+                select_pjuerl_by_userpjtrl = db.select([ProjectUserRole.stru_project_user_role]).where(db.and_(\
+                ProjectUserRole.stru_project_user_role.c.user_id==user_id,\
+                ProjectUserRole.stru_project_user_role.c.project_id==project_id,\
+                ProjectUserRole.stru_project_user_role.c.role_id==data_pjuerl_by_userid['role_id']))
+                logger.debug("select_pjuerl_by_userpjtrl: {0}".format(
+                    select_pjuerl_by_userpjtrl))
+                data_pjuerl_by_userpjtrl = util.callsqlalchemy(
+                    self, select_pjuerl_by_userpjtrl, logger).fetchone()
+                logger.debug("data_pjuerl_by_userpjtrl: {0}".format(
+                    data_pjuerl_by_userpjtrl))
 
-                    if not data_pjuerl_by_userpjtrl:
-                        # insert role and user into project_user_role
-                        insert_project_user_role_command = db.insert(ProjectUserRole.stru_project_user_role)\
-                            .values(user_id = user_id, role_id = data_pjuerl_by_userid['role_id'], project_id = project_id)
-                        logger.debug(
-                            "insert_project_user_role_command: {0}".format(
-                                insert_project_user_role_command))
-                        reMessage = util.callsqlalchemy(
-                            self, insert_project_user_role_command, logger)
-                        logger.info("reMessage: {0}".format(reMessage))
+                if not data_pjuerl_by_userpjtrl:
+                    # insert role and user into project_user_role
+                    insert_project_user_role_command = db.insert(ProjectUserRole.stru_project_user_role)\
+                        .values(user_id = user_id, role_id = data_pjuerl_by_userid['role_id'], project_id = project_id)
+                    logger.debug(
+                        "insert_project_user_role_command: {0}".format(
+                            insert_project_user_role_command))
+                    reMessage = util.callsqlalchemy(
+                        self, insert_project_user_role_command, logger)
+                    logger.info("reMessage: {0}".format(reMessage))
 
-            return {'message': 'success'}, 200
-        else:
-            return {"message": "User was disabled"}, 400
+        return {'message': 'success'}, 200
 
     def delete_user(self, logger, app, user_id):
         ''' disable user on user table'''
@@ -274,7 +272,7 @@ class auth(object):
                         "result": redmine_output.json()
                     }
                 }, error_code
-                
+
         else:
             error_code = gitlab_output.status_code
             return {
@@ -284,7 +282,6 @@ class auth(object):
                     "result": gitlab_output.json()
                 }
             }, error_code
-
 
     def put_user_status(self, logger, user_id, args):
         ''' change user on user status'''
@@ -307,17 +304,22 @@ class auth(object):
         ''' create user in plan phase software(redmine) and repository_user_id(gitlab)
         Create DB user, user_plugin_relation, project_user_role, groups_has_users 4 table
         '''
+        user_source_password = args["password"]
         h = SHA256.new()
         h.update(args["password"].encode())
         args["password"] = h.hexdigest()
+        disabled = False
+        if args['status'] == "disable":
+            disabled = True
         insert_user_command = db.insert(User.stru_user).values(
             name=args['name'],
-            username=args['username'],
             email=args['email'],
             phone=args['phone'],
             login=args['login'],
             password=h.hexdigest(),
-            create_at=datetime.datetime.now())
+            create_at=datetime.datetime.now(),
+            disabled=disabled)
+
         logger.debug("insert_user_command: {0}".format(insert_user_command))
         reMessage = util.callsqlalchemy(self, insert_user_command, logger)
         logger.info("reMessage: {0}".format(reMessage))
@@ -332,7 +334,8 @@ class auth(object):
 
         # plan software user create
         Redmine.get_redmine_key(self, logger, app)
-        red_user = Redmine.redmine_post_user(self, logger, app, args)
+        red_user = Redmine.redmine_post_user(self, logger, app, args,
+                                             user_source_password)
         if red_user.status_code == 201:
             redmine_user_id = red_user.json()['user']['id']
         else:
@@ -342,7 +345,8 @@ class auth(object):
                 }
             }, red_user.status_code
         # git software user create
-        git_user = GitLab.create_user(self, logger, app, args)
+        git_user = GitLab.create_user(self, logger, app, args,
+                                      user_source_password)
         if git_user.status_code == 201:
             gitlab_user_id = git_user.json()['id']
         else:
@@ -397,7 +401,7 @@ class auth(object):
     def get_user_list(self, logger):
         ''' get user list'''
         result = db.engine.execute(
-            "SELECT ur.id as id, ur.name as name, ur.username as username, ur.email as email, \
+            "SELECT ur.id as id, ur.name as name, ur.email as email, \
             ur.phone as phone, ur.login as login, ur.create_at as create_at, \
             ur.update_at as update_at, rl.id as role_id, rl.name as role_name, \
             ur.disabled as disabled\
@@ -430,22 +434,21 @@ class auth(object):
                             "id": output_project["id"],
                             "name": output_project["name"]
                         })
-
+                status = "disable"
+                if user_data["disabled"] == False:
+                    status = "enable"
                 output = {
                     "id": user_data["id"],
                     "name": user_data["name"],
-                    "usernmae": user_data["username"],
                     "email": user_data["email"],
-                    "phone": user_data["phone"],
+                    "phone": int(user_data["phone"]),
                     "login": user_data["login"],
                     "create_at": util.dateToStr(self, user_data["create_at"]),
                     "update_at": util.dateToStr(self, user_data["update_at"]),
-                    "role": {
-                        "name": user_data["role_name"],
-                        "id": user_data["role_id"]
-                    },
+                    "role_name": user_data["role_name"],
+                    "role_id": user_data["role_id"],
                     "project": project,
-                    "disabled": user_data["disabled"]
+                    "status": status
                 }
                 output_array.append(output)
             return {
@@ -527,18 +530,39 @@ class auth(object):
             logger.debug("data_userRole_by_project: {0}".format(
                 data_userRole_by_project[
                     ProjectUserRole.stru_project_user_role.c.user_id]))
+            status = "disable"
+            if data_userRole_by_project[User.stru_user.c.disabled] == False:
+                status = "enable"
+
             user_list.append({
-                "user_id":
+                "id":
                 data_userRole_by_project[
                     ProjectUserRole.stru_project_user_role.c.user_id],
-                "user_name":
+                "name":
                 data_userRole_by_project[User.stru_user.c.name],
+                "email":
+                data_userRole_by_project[User.stru_user.c.email],
+                "phone":
+                int(data_userRole_by_project[User.stru_user.c.phone]),
+                "login":
+                data_userRole_by_project[User.stru_user.c.login],
+                "create_at":
+                util.dateToStr(
+                    self,
+                    data_userRole_by_project[User.stru_user.c.create_at]),
+                "update_at":
+                util.dateToStr(
+                    self,
+                    data_userRole_by_project[User.stru_user.c.update_at]),
+                "role_id":
+                data_userRole_by_project[TableRole.stru_role.c.id],
                 "role_name":
                 data_userRole_by_project[TableRole.stru_role.c.name],
                 "project_id":
                 data_userRole_by_project[
-                    ProjectUserRole.stru_project_user_role.c.project_id]
-                # "disabled": data_userRole_by_project[User.stru_user.c.disabled]
+                    ProjectUserRole.stru_project_user_role.c.project_id],
+                "status":
+                status
             })
         return {"message": "success", "data": {"user_list": user_list}}, 200
 
