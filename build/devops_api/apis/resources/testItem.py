@@ -53,7 +53,7 @@ class TestItem(object):
     # 修改 TestItem 內資訊
     def modify_testItem_by_ti_id(self, logger, testItem_id, args, user_id):
         # print(type(args['is_passed']))
-        print(bool(distutils.util.strtobool(args['is_passed'])))
+        # print(bool(distutils.util.strtobool(args['is_passed'])))
         update_testItem_command = db.update(TableTestItem.stru_testItem).where(db.and_(TableTestItem.stru_testItem.c.id == testItem_id)).values(
             name=args['name'],
             is_passed=args['is_passed'],           
