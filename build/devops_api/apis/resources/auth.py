@@ -57,7 +57,7 @@ class auth(object):
             WHERE ur.disabled = false AND ur.id = pur.user_id AND pur.role_id = rl.id"
         )
         for row in result:
-            if row['login'] == args["login"] and row[
+            if row['login'] == args["username"] and row[
                     'password'] == h.hexdigest():
                 expires = datetime.timedelta(days=1)
                 access_token = create_access_token(

@@ -237,7 +237,7 @@ class ProjectList(Resource):
 class UserLogin(Resource):
     def post(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('login', type=str, required=True)
+        parser.add_argument('username', type=str, required=True)
         parser.add_argument('password', type=str, required=True)
         args = parser.parse_args()
         output = au.user_login(logger, args)
