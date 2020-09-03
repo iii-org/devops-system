@@ -1243,7 +1243,7 @@ class ExportToPostman(Resource):
                     'header': []
                 }
                 o_request_body = []
-                o_execs = ['pm.test("HTTP Response is 200", function () { pm.response.to.have.status(200);});']
+                o_execs = []
 
                 for value in values:
                     type_id = value['type_id']
@@ -1285,13 +1285,14 @@ class ExportToPostman(Resource):
                     }
                 if bool(o_request):
                     o_item['request'] = o_request
-                o_item['event'] = [{
-                    'listen': 'test',
-                    'script': {
-                        'type': 'text/javascript',
-                        'exec': o_execs
-                    }
-                }]
+                if len(o_execs) > 0:
+                    o_item['event'] = [{
+                        'listen': 'test',
+                        'script': {
+                            'type': 'text/javascript',
+                            'exec': o_execs
+                        }
+                    }]
                 output['item'].append(o_item)
 
         return jsonify({'message': 'success', 'data': output})
