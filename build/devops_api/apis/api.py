@@ -1242,11 +1242,9 @@ class ExportToPostman(Resource):
                     'url': url,
                     'header': []
                 }
-                o_request_body = {}
-                o_response = {
-                    'header': []
-                }
-                o_response_body = {}
+                o_request_body = []
+                o_execs = ['pm.test("HTTP Response is 200", function () { pm.response.to.have.status(200);});']
+
                 for value in values:
                     type_id = value['type_id']
                     location_id = value['location_id']
@@ -1262,33 +1260,38 @@ class ExportToPostman(Resource):
                                 header['value'] = value['value']
                             o_request['header'].append(header)
                         elif location_id == 2:
-                            o_request_body[value['key']] = value['value']
+                            o_request_body.append({
+                                'key': value['key'],
+                                'value': value['value']
+                            })
                         else:
                             pass
                     elif type_id == 2:
                         if location_id == 1:
-                            header = {}
-                            if value['key'] == 'token':
-                                header['key'] = 'Authorization'
-                                header['value'] = 'Bearer %s' % value['value']
-                                header['type'] = 'text'
-                            else:
-                                header['key'] = value['key']
-                                header['value'] = value['value']
-                            o_response['header'].append(header)
+                            pass
                         elif location_id == 2:
-                            o_response_body[value['key']] = value['value']
+                            o_execs.append(
+                                'pm.test("value #%d", function () { '
+                                'pm.expect(pm.response.json().%s).to.be.eql("%s");});' %
+                                (value['id'], value['key'], value['value'])
+                            )
                     else:
                         pass
 
                 if bool(o_request_body):
-                    o_request['body'] = json.dumps(o_request_body)
-                if bool(o_response_body):
-                    o_response['body'] = json.dumps(o_response_body)
+                    o_request['body'] = {
+                        'mode': 'formdata',
+                        'formdata': o_request_body
+                    }
                 if bool(o_request):
                     o_item['request'] = o_request
-                if bool(o_response):
-                    o_item['response'] = o_response
+                o_item['event'] = [{
+                    'listen': 'test',
+                    'script': {
+                        'type': 'text/javascript',
+                        'exec': o_execs
+                    }
+                }]
                 output['item'].append(o_item)
 
         return jsonify({'message': 'success', 'data': output})
