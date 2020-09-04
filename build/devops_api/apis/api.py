@@ -867,19 +867,21 @@ class Issue(Resource):
     @jwt_required
     def put(self, issue_id):
         parser = reqparse.RequestParser()
+        parser.add_argument('assigned_to_id', type=int)
         parser.add_argument('tracker_id', type=int)
         parser.add_argument('status_id', type=int)
         parser.add_argument('priority_id', type=int)
+        parser.add_argument('estimated_hours', type=int)
         parser.add_argument('description', type=str)
         parser.add_argument('parent_id', type=int)
         parser.add_argument('subject', type=str)
         parser.add_argument('start_date', type=str)
         parser.add_argument('due_date', type=str)
-        parser.add_argument('done_retio', type=int)
+        parser.add_argument('done_ratio', type=int)
         parser.add_argument('notes', type=str)
         args = parser.parse_args()
         output = iss.update_issue_rd(logger, app, issue_id, args)
-        return jsonify({'message': 'success'})
+        return output
 
     @jwt_required
     def delete(self, issue_id):
