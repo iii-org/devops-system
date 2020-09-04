@@ -807,8 +807,8 @@ class IssuesStatisticsByProject(Resource):
                 logger, app, project_id)
             return output
         else:
-            return {'message': 'Dont have authorization to get issue statistics on project: {0}', 'data': '{1}'\
-                .format(project_id, None)}, 401
+            return {'message': 'Dont have authorization to get issue statistics on project: {0}'\
+                .format(project_id)}, 401
 
 
 class IssueCreate(Resource):
@@ -1333,9 +1333,9 @@ class ExportToPostman(Resource):
             'item': []
         }
 
-        issues = iss.get_issue_by_project(logger, app, project_id)
+        issues, status_code = iss.get_issue_by_project(logger, app, project_id)
         cases = []
-        for issue in issues:
+        for issue in issues['data']:
             issue_id = issue['id']
             part_cases = tc.get_testCase_by_issue_id(logger, issue_id,
                                                      jwt_identity)

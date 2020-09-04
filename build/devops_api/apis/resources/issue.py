@@ -129,117 +129,124 @@ class Issue(object):
             return {"message": "could not find this project"}, 400
 
     def get_issueProgress_by_project(self, logger, app, project_id):
-        issue_list = self.get_issue_by_project(logger, app, project_id)
-        logger.debug("issue_list: {0}".format(issue_list))
-        unfinish_number = 0
-        for issue in issue_list:
-            if issue["issue_status"] != "closed":
-                unfinish_number += 1
-        return {
-            "message": "success",
-            "data": {
-                "unfinish_number": unfinish_number,
-                "total_issue": len(issue_list)
+        issue_list, status_code = self.get_issue_by_project(logger, app, project_id)
+        logger.debug("issue_list: {0}, status_code: {1}".format(issue_list, status_code))
+        if status_code == 200:
+            unfinish_number = 0
+            for issue in issue_list['data']:
+                if issue["issue_status"] != "closed":
+                    unfinish_number += 1
+            return {
+                "message": "success",
+                "data": {
+                    "unfinish_number": unfinish_number,
+                    "total_issue": len(issue_list)
+                }
             }
-        }
+        else:
+            return {"message": "could not get issue list"}, 400
+
 
     def get_issueStatistics_by_project(self, logger, app, project_id):
-        issue_list = self.get_issue_by_project(logger, app, project_id)
-        logger.debug("issue_list: {0}".format(issue_list))
-        priority_list = {}
-        category_list = {}
-        owner_list = {}
-        for issue in issue_list:
-            #count priority
-            if issue["issue_priority"] not in priority_list:
-                if issue["issue_status"] != "closed":
-                    priority_list[issue["issue_priority"]] = {
-                        "unfinish": 1,
-                        "finished": 0
-                    }
+        issue_list, status_code = self.get_issue_by_project(logger, app, project_id)
+        logger.debug("issue_list: {0}, status_code: {1}".format(issue_list, status_code))
+        if status_code == 200:
+            priority_list = {}
+            category_list = {}
+            owner_list = {}
+            for issue in issue_list['data']:
+                #count priority
+                if issue["issue_priority"] not in priority_list:
+                    if issue["issue_status"] != "closed":
+                        priority_list[issue["issue_priority"]] = {
+                            "unfinish": 1,
+                            "finished": 0
+                        }
+                    else:
+                        priority_list[issue["issue_priority"]] = {
+                            "unfinish": 0,
+                            "finished": 1
+                        }
                 else:
-                    priority_list[issue["issue_priority"]] = {
-                        "unfinish": 0,
-                        "finished": 1
-                    }
-            else:
-                unfinish_value = priority_list[
-                    issue["issue_priority"]]["unfinish"]
-                finish_value = priority_list[
-                    issue["issue_priority"]]["finished"]
-                if issue["issue_status"] != "closed":
-                    priority_list[issue["issue_priority"]] = {
-                        "unfinish": unfinish_value + 1,
-                        "finished": finish_value
-                    }
+                    unfinish_value = priority_list[
+                        issue["issue_priority"]]["unfinish"]
+                    finish_value = priority_list[
+                        issue["issue_priority"]]["finished"]
+                    if issue["issue_status"] != "closed":
+                        priority_list[issue["issue_priority"]] = {
+                            "unfinish": unfinish_value + 1,
+                            "finished": finish_value
+                        }
+                    else:
+                        priority_list[issue["issue_priority"]] = {
+                            "unfinish": unfinish_value,
+                            "finished": finish_value + 1
+                        }
+                #count category
+                if issue["issue_category"] not in category_list:
+                    if issue["issue_status"] != "closed":
+                        category_list[issue["issue_category"]] = {
+                            "unfinish": 1,
+                            "finished": 0
+                        }
+                    else:
+                        category_list[issue["issue_category"]] = {
+                            "unfinish": 0,
+                            "finished": 1
+                        }
                 else:
-                    priority_list[issue["issue_priority"]] = {
-                        "unfinish": unfinish_value,
-                        "finished": finish_value + 1
-                    }
-            #count category
-            if issue["issue_category"] not in category_list:
-                if issue["issue_status"] != "closed":
-                    category_list[issue["issue_category"]] = {
-                        "unfinish": 1,
-                        "finished": 0
-                    }
+                    unfinish_value = category_list[
+                        issue["issue_category"]]["unfinish"]
+                    finish_value = category_list[
+                        issue["issue_category"]]["finished"]
+                    if issue["issue_status"] != "closed":
+                        category_list[issue["issue_category"]] = {
+                            "unfinish": unfinish_value + 1,
+                            "finished": finish_value
+                        }
+                    else:
+                        category_list[issue["issue_category"]] = {
+                            "unfinish": unfinish_value,
+                            "finished": finish_value + 1
+                        }
+                #count owner
+                if issue["assigned_to"] not in owner_list:
+                    if issue["issue_status"] != "closed":
+                        owner_list[issue["assigned_to"]] = {
+                            "unfinish": 1,
+                            "finished": 0
+                        }
+                    else:
+                        owner_list[issue["assigned_to"]] = {
+                            "unfinish": 0,
+                            "finished": 1
+                        }
                 else:
-                    category_list[issue["issue_category"]] = {
-                        "unfinish": 0,
-                        "finished": 1
-                    }
-            else:
-                unfinish_value = category_list[
-                    issue["issue_category"]]["unfinish"]
-                finish_value = category_list[
-                    issue["issue_category"]]["finished"]
-                if issue["issue_status"] != "closed":
-                    category_list[issue["issue_category"]] = {
-                        "unfinish": unfinish_value + 1,
-                        "finished": finish_value
-                    }
-                else:
-                    category_list[issue["issue_category"]] = {
-                        "unfinish": unfinish_value,
-                        "finished": finish_value + 1
-                    }
-            #count owner
-            if issue["assigned_to"] not in owner_list:
-                if issue["issue_status"] != "closed":
-                    owner_list[issue["assigned_to"]] = {
-                        "unfinish": 1,
-                        "finished": 0
-                    }
-                else:
-                    owner_list[issue["assigned_to"]] = {
-                        "unfinish": 0,
-                        "finished": 1
-                    }
-            else:
-                unfinish_value = owner_list[issue["assigned_to"]]["unfinish"]
-                finish_value = owner_list[issue["assigned_to"]]["finished"]
-                if issue["issue_status"] != "closed":
-                    owner_list[issue["assigned_to"]] = {
-                        "unfinish": unfinish_value + 1,
-                        "finished": finish_value
-                    }
-                else:
-                    owner_list[issue["assigned_to"]] = {
-                        "unfinish": unfinish_value,
-                        "finished": finish_value + 1
-                    }
-        logger.info("issue_list: {0}".format(priority_list))
-        logger.info("category_list: {0}".format(category_list))
-        logger.info("owner_list: {0}".format(owner_list))
-        return {
-            "message": "success",
-            "data": {
-                "priority": priority_list,
-                "category": category_list,
-                "owner": owner_list
-            }
-        }, 200
+                    unfinish_value = owner_list[issue["assigned_to"]]["unfinish"]
+                    finish_value = owner_list[issue["assigned_to"]]["finished"]
+                    if issue["issue_status"] != "closed":
+                        owner_list[issue["assigned_to"]] = {
+                            "unfinish": unfinish_value + 1,
+                            "finished": finish_value
+                        }
+                    else:
+                        owner_list[issue["assigned_to"]] = {
+                            "unfinish": unfinish_value,
+                            "finished": finish_value + 1
+                        }
+            logger.info("issue_list: {0}".format(priority_list))
+            logger.info("category_list: {0}".format(category_list))
+            logger.info("owner_list: {0}".format(owner_list))
+            return {
+                "message": "success",
+                "data": {
+                    "priority": priority_list,
+                    "category": category_list,
+                    "owner": owner_list
+                }
+            }, 200
+        else:
+            return {"message": "could not get issue list"}, 400
 
     def get_issue_by_user(self, logger, app, user_id):
         user_to_plan, plan_to_user = self.__get_dict_userid(logger)
