@@ -65,6 +65,7 @@ class Issue(object):
         output_list['issue_priority'] = redmine_output['priority']['name']
         output_list['issue_status'] = redmine_output['status']['name']
         output_list['issue_name'] = redmine_output['subject']
+        output_list['description'] = redmine_output['description']
         output_list['assigned_to'] = None
         if 'assigned_to' in redmine_output:
             output_list['assigned_to'] = redmine_output['assigned_to']['name']
@@ -95,11 +96,13 @@ class Issue(object):
     def get_issue_rd(self, logger, app, issue_id):
         Redmine.get_redmine_key(self, logger, app)
         logger.info("self.redmine_key: {0}".format(self.redmine_key))
-        # redmine_output_issue = Redmine.redmine_get_issue(self, logger, app, issue_to_plan[str(issue_id)]).json()
         redmine_output_issue = Redmine.redmine_get_issue(
-            self, logger, app, issue_id).json()
-        output = self.__dealwith_issue_redmine_output(
-            logger, redmine_output_issue['issue'])
+            self, logger, app, issue_id)
+        if redmine_output_issue.status_code == 200:
+            output = self.__dealwith_issue_redmine_output(
+                logger, redmine_output_issue.json()['issue'])
+        else:
+            output = {"message": "could not get this redmine issue."}, 400
         return output
 
     def get_issue_by_project(self, logger, app, project_id):
@@ -110,130 +113,140 @@ class Issue(object):
         reMessage = util.callsqlalchemy(self, get_project_command, logger)
         project_dict = reMessage.fetchone()
         logger.debug("project_list: {0}".format(project_dict))
-        redmine_key = Redmine.get_redmine_key(self, logger, app)
-        output_array = []
-        redmine_output_issue_array = Redmine.redmine_get_issues_by_project(
-            self, logger, app, project_dict['plan_project_id'], redmine_key)
-        for redmine_issue in redmine_output_issue_array['issues']:
-            output_dict = self.__dealwith_issue_by_user_redmine_output(
-                logger, redmine_issue)
-            output_dict = Project.get_ci_last_test_result(
-                self, app, logger, output_dict, project_dict)
-            output_array.append(output_dict)
-        return output_array
+        if project_dict is not None:
+            redmine_key = Redmine.get_redmine_key(self, logger, app)
+            output_array = []
+            redmine_output_issue_array = Redmine.redmine_get_issues_by_project(
+                self, logger, app, project_dict['plan_project_id'], redmine_key)
+            for redmine_issue in redmine_output_issue_array['issues']:
+                output_dict = self.__dealwith_issue_by_user_redmine_output(
+                    logger, redmine_issue)
+                output_dict = Project.get_ci_last_test_result(
+                    self, app, logger, output_dict, project_dict)
+                output_array.append(output_dict)
+            return {"message": "success", "data": output_array}, 200
+        else:
+            return {"message": "could not find this project"}, 400
 
     def get_issueProgress_by_project(self, logger, app, project_id):
-        issue_list = self.get_issue_by_project(logger, app, project_id)
-        logger.debug("issue_list: {0}".format(issue_list))
-        unfinish_number = 0
-        for issue in issue_list:
-            if issue["issue_status"] != "closed":
-                unfinish_number += 1
-        return {
-            "message": "success",
-            "data": {
-                "unfinish_number": unfinish_number,
-                "total_issue": len(issue_list)
+        issue_list, status_code = self.get_issue_by_project(logger, app, project_id)
+        logger.debug("issue_list: {0}, status_code: {1}".format(issue_list, status_code))
+        if status_code == 200:
+            unfinish_number = 0
+            for issue in issue_list['data']:
+                if issue["issue_status"] != "closed":
+                    unfinish_number += 1
+            return {
+                "message": "success",
+                "data": {
+                    "unfinish_number": unfinish_number,
+                    "total_issue": len(issue_list)
+                }
             }
-        }
+        else:
+            return {"message": "could not get issue list"}, 400
+
 
     def get_issueStatistics_by_project(self, logger, app, project_id):
-        issue_list = self.get_issue_by_project(logger, app, project_id)
-        logger.debug("issue_list: {0}".format(issue_list))
-        priority_list = {}
-        category_list = {}
-        owner_list = {}
-        for issue in issue_list:
-            #count priority
-            if issue["issue_priority"] not in priority_list:
-                if issue["issue_status"] != "closed":
-                    priority_list[issue["issue_priority"]] = {
-                        "unfinish": 1,
-                        "finished": 0
-                    }
+        issue_list, status_code = self.get_issue_by_project(logger, app, project_id)
+        logger.debug("issue_list: {0}, status_code: {1}".format(issue_list, status_code))
+        if status_code == 200:
+            priority_list = {}
+            category_list = {}
+            owner_list = {}
+            for issue in issue_list['data']:
+                #count priority
+                if issue["issue_priority"] not in priority_list:
+                    if issue["issue_status"] != "closed":
+                        priority_list[issue["issue_priority"]] = {
+                            "unfinish": 1,
+                            "finished": 0
+                        }
+                    else:
+                        priority_list[issue["issue_priority"]] = {
+                            "unfinish": 0,
+                            "finished": 1
+                        }
                 else:
-                    priority_list[issue["issue_priority"]] = {
-                        "unfinish": 0,
-                        "finished": 1
-                    }
-            else:
-                unfinish_value = priority_list[
-                    issue["issue_priority"]]["unfinish"]
-                finish_value = priority_list[
-                    issue["issue_priority"]]["finished"]
-                if issue["issue_status"] != "closed":
-                    priority_list[issue["issue_priority"]] = {
-                        "unfinish": unfinish_value + 1,
-                        "finished": finish_value
-                    }
+                    unfinish_value = priority_list[
+                        issue["issue_priority"]]["unfinish"]
+                    finish_value = priority_list[
+                        issue["issue_priority"]]["finished"]
+                    if issue["issue_status"] != "closed":
+                        priority_list[issue["issue_priority"]] = {
+                            "unfinish": unfinish_value + 1,
+                            "finished": finish_value
+                        }
+                    else:
+                        priority_list[issue["issue_priority"]] = {
+                            "unfinish": unfinish_value,
+                            "finished": finish_value + 1
+                        }
+                #count category
+                if issue["issue_category"] not in category_list:
+                    if issue["issue_status"] != "closed":
+                        category_list[issue["issue_category"]] = {
+                            "unfinish": 1,
+                            "finished": 0
+                        }
+                    else:
+                        category_list[issue["issue_category"]] = {
+                            "unfinish": 0,
+                            "finished": 1
+                        }
                 else:
-                    priority_list[issue["issue_priority"]] = {
-                        "unfinish": unfinish_value,
-                        "finished": finish_value + 1
-                    }
-            #count category
-            if issue["issue_category"] not in category_list:
-                if issue["issue_status"] != "closed":
-                    category_list[issue["issue_category"]] = {
-                        "unfinish": 1,
-                        "finished": 0
-                    }
+                    unfinish_value = category_list[
+                        issue["issue_category"]]["unfinish"]
+                    finish_value = category_list[
+                        issue["issue_category"]]["finished"]
+                    if issue["issue_status"] != "closed":
+                        category_list[issue["issue_category"]] = {
+                            "unfinish": unfinish_value + 1,
+                            "finished": finish_value
+                        }
+                    else:
+                        category_list[issue["issue_category"]] = {
+                            "unfinish": unfinish_value,
+                            "finished": finish_value + 1
+                        }
+                #count owner
+                if issue["assigned_to"] not in owner_list:
+                    if issue["issue_status"] != "closed":
+                        owner_list[issue["assigned_to"]] = {
+                            "unfinish": 1,
+                            "finished": 0
+                        }
+                    else:
+                        owner_list[issue["assigned_to"]] = {
+                            "unfinish": 0,
+                            "finished": 1
+                        }
                 else:
-                    category_list[issue["issue_category"]] = {
-                        "unfinish": 0,
-                        "finished": 1
-                    }
-            else:
-                unfinish_value = category_list[
-                    issue["issue_category"]]["unfinish"]
-                finish_value = category_list[
-                    issue["issue_category"]]["finished"]
-                if issue["issue_status"] != "closed":
-                    category_list[issue["issue_category"]] = {
-                        "unfinish": unfinish_value + 1,
-                        "finished": finish_value
-                    }
-                else:
-                    category_list[issue["issue_category"]] = {
-                        "unfinish": unfinish_value,
-                        "finished": finish_value + 1
-                    }
-            #count owner
-            if issue["assigned_to"] not in owner_list:
-                if issue["issue_status"] != "closed":
-                    owner_list[issue["assigned_to"]] = {
-                        "unfinish": 1,
-                        "finished": 0
-                    }
-                else:
-                    owner_list[issue["assigned_to"]] = {
-                        "unfinish": 0,
-                        "finished": 1
-                    }
-            else:
-                unfinish_value = owner_list[issue["assigned_to"]]["unfinish"]
-                finish_value = owner_list[issue["assigned_to"]]["finished"]
-                if issue["issue_status"] != "closed":
-                    owner_list[issue["assigned_to"]] = {
-                        "unfinish": unfinish_value + 1,
-                        "finished": finish_value
-                    }
-                else:
-                    owner_list[issue["assigned_to"]] = {
-                        "unfinish": unfinish_value,
-                        "finished": finish_value + 1
-                    }
-        logger.info("issue_list: {0}".format(priority_list))
-        logger.info("category_list: {0}".format(category_list))
-        logger.info("owner_list: {0}".format(owner_list))
-        return {
-            "message": "success",
-            "data": {
-                "priority": priority_list,
-                "category": category_list,
-                "owner": owner_list
-            }
-        }, 200
+                    unfinish_value = owner_list[issue["assigned_to"]]["unfinish"]
+                    finish_value = owner_list[issue["assigned_to"]]["finished"]
+                    if issue["issue_status"] != "closed":
+                        owner_list[issue["assigned_to"]] = {
+                            "unfinish": unfinish_value + 1,
+                            "finished": finish_value
+                        }
+                    else:
+                        owner_list[issue["assigned_to"]] = {
+                            "unfinish": unfinish_value,
+                            "finished": finish_value + 1
+                        }
+            logger.info("issue_list: {0}".format(priority_list))
+            logger.info("category_list: {0}".format(category_list))
+            logger.info("owner_list: {0}".format(owner_list))
+            return {
+                "message": "success",
+                "data": {
+                    "priority": priority_list,
+                    "category": category_list,
+                    "owner": owner_list
+                }
+            }, 200
+        else:
+            return {"message": "could not get issue list"}, 400
 
     def get_issue_by_user(self, logger, app, user_id):
         user_to_plan, plan_to_user = self.__get_dict_userid(logger)
@@ -285,16 +298,27 @@ class Issue(object):
 
     def update_issue_rd(self, logger, app, issue_id, args):
         args = {k: v for k, v in args.items() if v is not None}
+        '''
+        if "assigned_to_id" in args:
+            user_plugin_relation_array = auth.get_user_plugin_relation(
+                self, logger)
+            for user_plugin_relation in user_plugin_relation_array:
+                if user_plugin_relation['user_id'] == args['assigned_to_id']:
+                    args['Assignee'] = user_plugin_relation[
+                        'plan_user_id']
+                    args.pop('assigned_to_id', None)
+        '''
         if 'parent_id' in args:
             args['parent_issue_id'] = args['parent_id']
             args.pop('parent_id', None)
         logger.info("args: {0}".format(args))
         Redmine.get_redmine_key(self, logger, app)
-        try:
-            output = Redmine.redmine_update_issue(self, logger, app, issue_id,
+        output, status_code = Redmine.redmine_update_issue(self, logger, app, issue_id,
                                                   args)
-        except Exception as error:
-            return str(error), 400
+        if status_code == 204:
+            return {"message": "success"}, 200
+        else:
+            return {"message": "update issue failed"}, 400
 
     def delete_issue(self, logger, app, issue_id):
         Redmine.get_redmine_key(self, logger, app)

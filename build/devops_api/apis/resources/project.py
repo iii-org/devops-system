@@ -263,22 +263,26 @@ class Project(object):
         output = requests.get(url, headers=self.headers, verify=False)
         logger.info("get project branches output: {0} / {1}".format(
             output, output.json()))
-
-        branch_list = []
-        for branch_info in output.json():
-            branch = {
-                "name": branch_info["name"],
-                "last_commit_message": branch_info["commit"]["message"],
-                "last_commit_time": branch_info["commit"]["committed_date"],
-                "short_id": branch_info["commit"]["short_id"]
-            }
-            branch_list.append(branch)
-        return {
-            "message": "success",
-            "data": {
-                "branch_list": branch_list
-            }
-        }, 200
+        if output.status_code == 200:
+            branch_list = []
+            for branch_info in output.json():
+                branch = {
+                    "name": branch_info["name"],
+                    "last_commit_message": branch_info["commit"]["message"],
+                    "last_commit_time": branch_info["commit"]["committed_date"],
+                    "short_id": branch_info["commit"]["short_id"]
+                }
+                branch_list.append(branch)
+            return {
+                "message": "success",
+                "data": {
+                    "branch_list": branch_list
+                }
+            }, 200
+        else:
+            return {
+                "message": output.json()["message"]
+            }, output.status_code
 
     # 用project_id新增project的branch
     def create_git_project_branch(self, logger, app, project_id, args):
@@ -286,8 +290,16 @@ class Project(object):
             app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, self.private_token, args["branch"], args["ref"])
         logger.info("create project branch url: {0}".format(url))
         output = requests.post(url, headers=self.headers, verify=False)
-        logger.info("create project branch output: {0}".format(output.json()))
-        return output
+        logger.info("create project branch output: {0} / {1}".format(output, output.json()))
+        if output.status_code == 201:
+            return {
+                "message": "success",
+                "data": output.json()
+            }, 200
+        else:
+            return {
+                "message": output.json()["message"]
+            }, output.status_code
 
     # 用project_id及branch_name查詢project的branch
     def get_git_project_branch(self, logger, app, project_id, branch):
@@ -295,8 +307,16 @@ class Project(object):
             app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, branch, self.private_token)
         logger.info("get project branch url: {0}".format(url))
         output = requests.get(url, headers=self.headers, verify=False)
-        logger.info("get project branch output: {0}".format(output.json()))
-        return output
+        logger.info("get project branch output: {0} / {1}".format(output, output.json()))
+        if output.status_code == 200:
+            return {
+                "message": "success",
+                "data": output.json()
+            }, 200
+        else:
+            return {
+                "message": output.json()["message"]
+            }, output.status_code
 
     # 用project_id及branch_name刪除project的branch
     def delete_git_project_branch(self, logger, app, project_id, branch):
@@ -305,7 +325,14 @@ class Project(object):
         logger.info("delete project branch url: {0}".format(url))
         output = requests.delete(url, headers=self.headers, verify=False)
         logger.info("delete project branch output: {0}".format(output))
-        return output
+        if output.status_code == 204:
+            return {
+                "message": "success"
+            }, 200
+        else:
+            return {
+                "message": output.json()["message"]
+            }, output.status_code
 
     # 用project_id查詢project的repositories
     def get_git_project_repositories(self, logger, app, project_id, branch):
@@ -313,14 +340,17 @@ class Project(object):
             app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, self.private_token, branch)
         logger.info("get project repositories url: {0}".format(url))
         output = requests.get(url, headers=self.headers, verify=False)
-        logger.info("get project repositories output: {0}".format(
-            output.json()))
-        return {
-            "message": "success",
-            "data": {
-                "file_list": output.json()
-            }
-        }, 200
+        logger.info("get project repositories output: {0} / {1}".format(
+            output, output.json()))
+        if output.status_code == 200:
+            return {
+                "message": "success",
+                "data": {
+                    "file_list": output.json()
+                }
+            }, 200
+        else:
+            return {"message": output.json()["message"]}, output.status_code
 
     # 用project_id及branch_name及file_path查詢project的file
     def get_git_project_file(self, logger, app, project_id, branch, file_path):
@@ -328,7 +358,8 @@ class Project(object):
             app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, file_path, self.private_token, branch)
         logger.info("get project file url: {0}".format(url))
         output = requests.get(url, headers=self.headers, verify=False)
-        logger.info("get project file output: {0}".format(output.json()))
+        logger.info("get project file output: {0} / {1}".format(
+            output, output.json()))
         if output.status_code == 200:
             return {
                 "message": "success",
@@ -345,7 +376,7 @@ class Project(object):
             }, 200
         else:
             error_code = output.status_code
-            return {"message": "error", "data": output.json()}, error_code
+            return {"message": output.json()["message"]}, error_code
 
     # 用project_id及branch_name及file_path新增project的file
     def create_git_project_file(self, logger, app, project_id, args):
@@ -353,7 +384,8 @@ class Project(object):
             app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, args["file_path"], self.private_token, args["branch"], args["start_branch"], args["encoding"], args["author_email"], args["author_name"], args["content"], args["commit_message"])
         logger.info("post project file url: {0}".format(url))
         output = requests.post(url, headers=self.headers, verify=False)
-        logger.info("post project file output: {0}".format(output.json()))
+        logger.info("post project file output: {0} / {1}".format(
+            output, output.json()))
         if output.status_code == 201:
             return {
                 "message": "success",
@@ -364,7 +396,7 @@ class Project(object):
             }, 200
         else:
             error_code = output.status_code
-            return {"message": "error", "data": output.json()}, error_code
+            return {"message": output.json()["message"]}, error_code
 
     # 用project_id及branch_name及file_path修改project的file
     def update_git_project_file(self, logger, app, project_id, args):
@@ -383,7 +415,7 @@ class Project(object):
             }, 200
         else:
             error_code = output.status_code
-            return {"message": "error", "data": output.json()}, error_code
+            return {"message": output.json()["message"]}, error_code
 
     # 用project_id及branch_name及file_path刪除project的file
     def delete_git_project_file(self, logger, app, project_id, branch,
@@ -394,10 +426,10 @@ class Project(object):
         output = requests.delete(url, headers=self.headers, verify=False)
         logger.info("delete project file output: {0}".format(output))
         if output.status_code == 204:
-            return {"message": "Success Delete FI"}, 200
+            return {"message": "success"}, 200
         else:
             error_code = output.status_code
-            return {"message": "error", "data": output.json()}, error_code
+            return {"message": output.json()["message"]}, error_code
 
     # 用project_id查詢project的tags
     def get_git_project_tags(self, logger, app, project_id):
@@ -405,8 +437,19 @@ class Project(object):
             app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, self.private_token)
         logger.info("get project tags url: {0}".format(url))
         output = requests.get(url, headers=self.headers, verify=False)
-        logger.info("get project tags output: {0}".format(output.json()))
-        return output
+        logger.info("get project tags output: {0} / {1} ".format(
+            output, output.json()))
+        if output.status_code == 200:
+            return {
+                "message": "success",
+                "data": {
+                    "tag_list": output.json()
+                }
+            }, 200
+        else:
+            return {
+                "message": output.json()["message"],
+            }, output.status_code
 
     # 用project_id新增project的tag
     def create_git_project_tags(self, logger, app, project_id, args):
@@ -414,8 +457,12 @@ class Project(object):
             app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, self.private_token, args["tag_name"], args["ref"], args["message"], args["release_description"])
         logger.info("create project tag url: {0}".format(url))
         output = requests.post(url, headers=self.headers, verify=False)
-        logger.info("create project tag output: {0}".format(output.json()))
-        return output
+        logger.info("create project tag output: {0} / {1}".format(
+            output, output.json()))
+        if output.status_code == 201:
+            return {"message": "success", "data": output.json()}, 200
+        else:
+            return {"message": output.json()["message"]}, output.status_code
 
     # 用project_id及tag_name刪除project的tag
     def delete_git_project_tag(self, logger, app, project_id, tag_name):
@@ -424,7 +471,10 @@ class Project(object):
         logger.info("delete project tag url: {0}".format(url))
         output = requests.delete(url, headers=self.headers, verify=False)
         logger.info("delete project tag output: {0}".format(output))
-        return output
+        if output.status_code == 204:
+            return {"message": "success"}, 200
+        else:
+            return {"message": output.json()["message"]}, output.status_code
 
     # 用project_id及directory_path新增project的directory
     def create_git_project_directory(self, logger, app, project_id,
@@ -699,6 +749,8 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
     def pm_create_project(self, logger, app, user_id, args):
         if args["description"] == None: args["description"] = ""
 
+        identifier = args["name"].replace(' ', '')
+
         # 建立redmine project
         redmine_url = "http://{0}/projects.json?key={1}".format(
             app.config["REDMINE_IP_PORT"], app.config["REDMINE_API_KEY"])
@@ -708,7 +760,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                     <name>{0}</name>\
                     <identifier>{1}</identifier>\
                     <description>{2}</description>\
-                    </project>""".format(args["name"], args["identifier"],
+                    </project>""".format(args["name"], identifier,
                                          args["description"])
         logger.info("create redmine project body: {0}".format(xml_body))
         headers = {'Content-Type': 'application/xml'}
@@ -740,9 +792,10 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
 
                 # 寫入projects
                 db.engine.execute(
-                    "INSERT INTO public.projects (name, description, ssh_url, http_url) VALUES ('{0}', '{1}', '{2}', '{3}')"
+                    "INSERT INTO public.projects (name, description, ssh_url, http_url, disabled) VALUES ('{0}', '{1}', '{2}', '{3}', '{4}')"
                     .format(gitlab_pj_name, args["description"],
-                            gitlab_pj_ssh_url, gitlab_pj_http_url))
+                            gitlab_pj_ssh_url, gitlab_pj_http_url,
+                            args["disabled"]))
 
                 # 查詢寫入projects的project_id
                 result = db.engine.execute(
@@ -762,7 +815,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                     .format(project_id, user_id, 3))
 
                 return {
-                    "message": "success", 
+                    "message": "success",
                     "data": {
                         "project_id": project_id,
                         "plan_project_id": redmine_pj_id,
@@ -819,7 +872,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         output["pm_user_id"] = user_id
         output["pm_user_name"] = user_name
 
-        return {"message": "success", "date": output}, 200
+        return {"message": "success", "data": output}, 200
 
     # 修改redmine & gitlab的project資訊
     def pm_update_project(self, logger, app, project_id, args):
@@ -983,3 +1036,21 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         #     format(True, project_id))
 
         # output = {"result": "success delete"}
+
+    def get_git_project_id(self, logger, app, repository_id):
+        result = db.engine.execute(
+            "SELECT project_id FROM public.project_plugin_relation WHERE git_repository_id = '{0}'"
+            .format(repository_id))
+        project_relation = result.fetchone()
+        result.close()
+        if project_relation:
+            project_id = project_relation['project_id']
+            return {
+                "message": "success",
+                "data": project_id
+            }, 200
+        else:
+            return {
+                "message": "error",
+                "data": "No such repository_id found!"
+            }, 404
