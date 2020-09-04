@@ -298,16 +298,27 @@ class Issue(object):
 
     def update_issue_rd(self, logger, app, issue_id, args):
         args = {k: v for k, v in args.items() if v is not None}
+        '''
+        if "assigned_to_id" in args:
+            user_plugin_relation_array = auth.get_user_plugin_relation(
+                self, logger)
+            for user_plugin_relation in user_plugin_relation_array:
+                if user_plugin_relation['user_id'] == args['assigned_to_id']:
+                    args['Assignee'] = user_plugin_relation[
+                        'plan_user_id']
+                    args.pop('assigned_to_id', None)
+        '''
         if 'parent_id' in args:
             args['parent_issue_id'] = args['parent_id']
             args.pop('parent_id', None)
         logger.info("args: {0}".format(args))
         Redmine.get_redmine_key(self, logger, app)
-        try:
-            output = Redmine.redmine_update_issue(self, logger, app, issue_id,
+        output, status_code = Redmine.redmine_update_issue(self, logger, app, issue_id,
                                                   args)
-        except Exception as error:
-            return str(error), 400
+        if status_code == 204:
+            return {"message": "success"}, 200
+        else:
+            return {"message": "update issue failed"}, 400
 
     def delete_issue(self, logger, app, issue_id):
         Redmine.get_redmine_key(self, logger, app)

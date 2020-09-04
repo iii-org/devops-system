@@ -92,8 +92,8 @@ class Redmine(object):
                               data=json.dumps(param),
                               headers=self.headers,
                               verify=False)
-        logger.info("update issues output: {0}".format(output))
-        return output
+        logger.info("update issues output: {0}, status_code: {1}".format(output, output.status_code))
+        return output, output.status_code
 
     def redmine_delete_issue(self, logger, app, issue_id):
         url = "http://{0}/issues/{1}.json?key={2}&include=journals".format(\
