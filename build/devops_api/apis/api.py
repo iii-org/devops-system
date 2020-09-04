@@ -1097,7 +1097,7 @@ class TestItem(Resource):
         parser = reqparse.RequestParser()
         print(parser)
         parser.add_argument('name', type=str)
-        parser.add_argument('is_passed', type=str)
+        parser.add_argument('is_passed', type=bool)
         args = parser.parse_args()
         output = ti.modify_testItem_by_ti_id(logger, testItem_id, args,
                                              get_jwt_identity()['user_id'])
@@ -1279,4 +1279,4 @@ api.add_resource(TestValue, '/testValues/<testValue_id>')
 if __name__ == "__main__":
     db.init_app(app)
     jsonwebtoken.init_app(app)
-    app.run(host='0.0.0.0', port=10009, debug=True)
+    app.run(host='0.0.0.0', port=10009)
