@@ -113,17 +113,20 @@ class Issue(object):
         reMessage = util.callsqlalchemy(self, get_project_command, logger)
         project_dict = reMessage.fetchone()
         logger.debug("project_list: {0}".format(project_dict))
-        redmine_key = Redmine.get_redmine_key(self, logger, app)
-        output_array = []
-        redmine_output_issue_array = Redmine.redmine_get_issues_by_project(
-            self, logger, app, project_dict['plan_project_id'], redmine_key)
-        for redmine_issue in redmine_output_issue_array['issues']:
-            output_dict = self.__dealwith_issue_by_user_redmine_output(
-                logger, redmine_issue)
-            output_dict = Project.get_ci_last_test_result(
-                self, app, logger, output_dict, project_dict)
-            output_array.append(output_dict)
-        return output_array
+        if project_dict is not None:
+            redmine_key = Redmine.get_redmine_key(self, logger, app)
+            output_array = []
+            redmine_output_issue_array = Redmine.redmine_get_issues_by_project(
+                self, logger, app, project_dict['plan_project_id'], redmine_key)
+            for redmine_issue in redmine_output_issue_array['issues']:
+                output_dict = self.__dealwith_issue_by_user_redmine_output(
+                    logger, redmine_issue)
+                output_dict = Project.get_ci_last_test_result(
+                    self, app, logger, output_dict, project_dict)
+                output_array.append(output_dict)
+            return {"message": "success", "data": output_array}, 200
+        else:
+            return {"message": "could not find this project"}, 400
 
     def get_issueProgress_by_project(self, logger, app, project_id):
         issue_list = self.get_issue_by_project(logger, app, project_id)

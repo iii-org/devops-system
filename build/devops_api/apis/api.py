@@ -378,7 +378,7 @@ class ProjectWikiList(Resource):
                                          get_jwt_identity()['user_id'])
         if stauts or get_jwt_identity()['role_id'] == 5:
             output = wk.get_wiki_list_by_project(logger, app, project_id)
-            return jsonify(output)
+            return output
         else:
             return {
                 "message": "your are not in this project or not administrator"
@@ -776,8 +776,8 @@ class IssueByProject(Resource):
         stauts = pjt.verify_project_user(logger, project_id,
                                          get_jwt_identity()['user_id'])
         if stauts or get_jwt_identity()['role_id'] == 5:
-            output_array = iss.get_issue_by_project(logger, app, project_id)
-            return jsonify(output_array)
+            output, status_code = iss.get_issue_by_project(logger, app, project_id)
+            return output, status_code
         else:
             return {'message': 'Dont have authorization to access issue list on project: {0}' \
                 .format(project_id)}, 401
