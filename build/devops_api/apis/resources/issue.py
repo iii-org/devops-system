@@ -65,6 +65,7 @@ class Issue(object):
         output_list['issue_priority'] = redmine_output['priority']['name']
         output_list['issue_status'] = redmine_output['status']['name']
         output_list['issue_name'] = redmine_output['subject']
+        output_list['description'] = redmine_output['description']
         output_list['assigned_to'] = None
         if 'assigned_to' in redmine_output:
             output_list['assigned_to'] = redmine_output['assigned_to']['name']
@@ -95,11 +96,13 @@ class Issue(object):
     def get_issue_rd(self, logger, app, issue_id):
         Redmine.get_redmine_key(self, logger, app)
         logger.info("self.redmine_key: {0}".format(self.redmine_key))
-        # redmine_output_issue = Redmine.redmine_get_issue(self, logger, app, issue_to_plan[str(issue_id)]).json()
         redmine_output_issue = Redmine.redmine_get_issue(
-            self, logger, app, issue_id).json()
-        output = self.__dealwith_issue_redmine_output(
-            logger, redmine_output_issue['issue'])
+            self, logger, app, issue_id)
+        if redmine_output_issue.status_code == 200:
+            output = self.__dealwith_issue_redmine_output(
+                logger, redmine_output_issue.json()['issue'])
+        else:
+            output = {"message": "could not get this redmine issue."}, 400
         return output
 
     def get_issue_by_project(self, logger, app, project_id):
@@ -110,17 +113,20 @@ class Issue(object):
         reMessage = util.callsqlalchemy(self, get_project_command, logger)
         project_dict = reMessage.fetchone()
         logger.debug("project_list: {0}".format(project_dict))
-        redmine_key = Redmine.get_redmine_key(self, logger, app)
-        output_array = []
-        redmine_output_issue_array = Redmine.redmine_get_issues_by_project(
-            self, logger, app, project_dict['plan_project_id'], redmine_key)
-        for redmine_issue in redmine_output_issue_array['issues']:
-            output_dict = self.__dealwith_issue_by_user_redmine_output(
-                logger, redmine_issue)
-            output_dict = Project.get_ci_last_test_result(
-                self, app, logger, output_dict, project_dict)
-            output_array.append(output_dict)
-        return output_array
+        if project_dict is not None:
+            redmine_key = Redmine.get_redmine_key(self, logger, app)
+            output_array = []
+            redmine_output_issue_array = Redmine.redmine_get_issues_by_project(
+                self, logger, app, project_dict['plan_project_id'], redmine_key)
+            for redmine_issue in redmine_output_issue_array['issues']:
+                output_dict = self.__dealwith_issue_by_user_redmine_output(
+                    logger, redmine_issue)
+                output_dict = Project.get_ci_last_test_result(
+                    self, app, logger, output_dict, project_dict)
+                output_array.append(output_dict)
+            return {"message": "success", "data": output_array}, 200
+        else:
+            return {"message": "could not find this project"}, 400
 
     def get_issueProgress_by_project(self, logger, app, project_id):
         issue_list = self.get_issue_by_project(logger, app, project_id)

@@ -74,7 +74,7 @@ class util(object):
     def callpostapi(self, url, parameter, logger, headers):
         try:
             logger.info("post url {0}".format(url))
-            logger.info("post parameter {0}".format(parameter))
+            # logger.info("post parameter {0}".format(parameter))
             if headers is not None:
                 callapi = requests.post(url,
                                         data=json.dumps(parameter),
@@ -84,11 +84,11 @@ class util(object):
                 callapi = requests.post(url,
                                         data=json.dumps(parameter),
                                         verify=False)
-            logger.info("Post api parameter is : {0}".format(parameter))
+            # logger.info("Post api parameter is : {0}".format(parameter))
             logger.info("Post api status code is : {0}".format(
                 callapi.status_code))
-            logger.info("Post api waste time: {0}".format(
-                callapi.elapsed.total_seconds()))
+            #logger.debug("Post api waste time: {0}".format(
+            #    callapi.elapsed.total_seconds()))
             # logger.info("Post api message is : {0}".format(callapi.text))
             return callapi
 
@@ -99,7 +99,7 @@ class util(object):
     def callputapi(self, url, parameter, logger, headers):
         try:
             logger.info("url {0}".format(url))
-            logger.info("parameter {0}".format(parameter))
+            # logger.info("parameter {0}".format(parameter))
 
             if headers is not None:
                 callapi = requests.put(url,
