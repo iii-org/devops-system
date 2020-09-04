@@ -74,7 +74,7 @@ class TestItem(object):
     def modify_testItem_by_ti_id(self, logger, testItem_id, args, user_id):
         update_testItem_command = db.update(TableTestItem.stru_testItem).where(db.and_(TableTestItem.stru_testItem.c.id == testItem_id)).values(
             name=args['name'],
-            is_passed=eval(args['is_passed']),           
+            is_passed=args['is_passed'],           
             update_at=datetime.datetime.now()
         ).returning(TableTestItem.stru_testItem.c.update_at,TableTestItem.stru_testItem.c.id)
         print(update_testItem_command)

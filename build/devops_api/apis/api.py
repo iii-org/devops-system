@@ -28,6 +28,7 @@ import resources.testCase as testCase
 import resources.testItem as testItem
 import resources.testValue as testValue
 import resources.testData as testData
+import resources.flow as flow
 
 app = Flask(__name__)
 app.config.from_object('config')
@@ -52,6 +53,7 @@ pjt = project.Project(logger, app)
 pipe = pipeline.Pipeline()
 
 rqmt = requirement.Requirement()
+flow = flow.Flow()
 param = parameter.Parameter()
 tc = testCase.TestCase()
 ti = testItem.TestItem()
@@ -902,7 +904,7 @@ class RequirementByIssue(Resource):
     def post(self, issue_id):
         parser = reqparse.RequestParser()
         parser.add_argument('project_id', type=int)
-        parser.add_argument('flow_info', type=str)
+        # parser.add_argument('flow_info', type=str)
         args = parser.parse_args()
         output = rqmt.post_requirement_by_issue_id(
             logger, issue_id, args,
@@ -940,6 +942,104 @@ class Requirement(Resource):
             logger, requirement_id, args,
             get_jwt_identity()['user_id'])
         return jsonify({'message': 'success'})
+
+
+class GetFlowType(Resource):
+    @jwt_required
+    def get(self):
+        output = flow.get_flow_support_type()
+        return jsonify({'message': 'success', 'data': output})
+
+class FlowByIssue(Resource):
+
+    ## 用issues ID 取得目前所有的需求清單
+    @jwt_required
+    def get(self, issue_id):
+        # requirement_ids = []
+        requirement_ids = rqmt.check_requirement_by_issue_id(logger, issue_id)
+        print(requirement_ids)
+        if not requirement_ids:
+            return jsonify({'message': 'success', 'data': {}})    
+        output = {}
+        for requirement_id in requirement_ids:
+            result = flow.get_flow_by_requirement_id(logger, requirement_id, get_jwt_identity()['user_id'])
+            output[str(result[0]['requirement_id'] )]= result
+        return jsonify({'message': 'success', 'data': output})
+
+    ## 用issues ID 新建立需求清單
+    @jwt_required
+    def post(self, issue_id):
+        output = {}
+        parser = reqparse.RequestParser()
+        parser.add_argument('project_id', type=int)
+        parser.add_argument('type_id', type=int)
+        parser.add_argument('name', type=str)
+        parser.add_argument('description', type=str)
+        args = parser.parse_args()
+        check = rqmt.check_requirement_by_issue_id(logger, issue_id)
+        if not check:
+            requirements = rqmt.post_requirement_by_issue_id(logger, issue_id, args,get_jwt_identity()['user_id'])
+            requirement_id  = requirements['requirement_id'][0]
+        else:
+            requirement_id = check[0]
+        
+        output = flow.post_flow_by_requirement_id(logger, int(issue_id), requirement_id , args,get_jwt_identity()['user_id'])
+        # print(output)
+        return jsonify({'message': 'success', 'data': output})
+
+# class FlowByRequirement(Resource):
+
+#     # 用issues ID 取得目前所有的需求清單
+#     @jwt_required
+#     def get(self, issue_id):
+#         output = rqmt.get_requirements_by_issue_id(
+#             logger, issue_id,
+#             get_jwt_identity()['user_id'])
+#         return jsonify({'message': 'success', 'data': output})
+
+#     # 用issues ID 新建立需求清單
+#     @jwt_required
+#     def post(self, issue_id):
+#         parser = reqparse.RequestParser()
+#         parser.add_argument('project_id', type=int)
+#         parser.add_argument('flow_info', type=str)
+#         args = parser.parse_args()
+#         output = rqmt.post_requirement_by_issue_id(
+#             logger, issue_id, args,
+#             get_jwt_identity()['user_id'])
+#         return jsonify({'message': 'success', 'data': output})
+
+
+
+class Flow(Resource):
+
+    ## 用requirement_id 取得目前需求流程
+    @jwt_required
+    def get(self, flow_id):
+        output = flow.get_flow_by_flow_id(logger, flow_id, get_jwt_identity()['user_id'])
+        return jsonify({'message': 'success', 'data': output})
+
+    ## 用requirement_id 刪除目前需求流程
+    @jwt_required
+    def delete(self, flow_id):
+        # temp = get_jwt_identity()
+        output = {}
+        output = flow.disabled_flow_by_flow_id(logger, flow_id,
+                                                 get_jwt_identity()['user_id'])
+        return jsonify({'message': 'success','data': output })
+
+    ## 用requirement_id 更新目前需求流程
+    @jwt_required
+    def put(self, flow_id):
+        output = {}
+        parser = reqparse.RequestParser()
+        parser.add_argument('serial_id', type=int)
+        parser.add_argument('type_id', type=int)
+        parser.add_argument('name', type=str)
+        parser.add_argument('description', type=str)
+        args = parser.parse_args()
+        output = flow.modify_flow_by_flow_id(logger, flow_id, args, get_jwt_identity()['user_id'])
+        return jsonify({'message': 'success','data':output})
 
 class ParameterType(Resource):
     @jwt_required
@@ -1023,28 +1123,25 @@ class AllTestDataByIssue(Resource):
         data['testItem'] = ti.get_testItem_by_issue_id(logger, issue_id,get_jwt_identity()['user_id'],'test_case_id')
         data['testValue'] =tv.get_testValue_by_issue_id(logger, issue_id, get_jwt_identity()['user_id'])        
         output = td.get_AllTestData_by_Issue_Id(logger, data,get_jwt_identity()['user_id'])
-        # print(data)
-        # output = {}
-        # print(output)
         return jsonify({'message': 'success', 'data': output})
 
 
-class AllTestData(Resource):
-    @jwt_required
-    def get(self):
+# class AllTestData(Resource):
+#     @jwt_required
+#     def get(self):
         
-        parser = reqparse.RequestParser()
-        parser.add_argument('project_id', type=int)
-        parser.add_argument('issue_id', type=int)
-        parser.add_argument('order_by', type=str)
-        user_id = get_jwt_identity()['user_id']
-        args = parser.parse_args()
-        data = {}
-        data['testCase'] = tc.get_testCase_by_Column(logger, args, user_id)
-        data['testItem'] = ti.get_testItem_by_Column(logger, args, user_id,'test_case_id')
-        data['testValue'] =tv.get_testValue_by_Column(logger, args, user_id,"test_case_id") 
-        output = td.analysis_testData(logger,data,user_id)
-        return jsonify({'message': 'success', 'data': output})
+#         parser = reqparse.RequestParser()
+#         parser.add_argument('project_id', type=int)
+#         parser.add_argument('issue_id', type=int)
+#         parser.add_argument('order_by', type=str)
+#         user_id = get_jwt_identity()['user_id']
+#         args = parser.parse_args()
+#         data = {}
+#         data['testCase'] = tc.get_testCase_by_Column(logger, args, user_id)
+#         data['testItem'] = ti.get_testItem_by_Column(logger, args, user_id,'test_case_id')
+#         data['testValue'] =tv.get_testValue_by_Column(logger, args, user_id,"test_case_id") 
+#         output = td.analysis_testData(logger,data,user_id)
+#         return jsonify({'message': 'success', 'data': output})
 
 class TestCaseByIssue(Resource):
 
@@ -1096,11 +1193,12 @@ class TestCase(Resource):
     def put(self, testCase_id):
         output = {}
         parser = reqparse.RequestParser()
+        parser.add_argument('data')
         parser.add_argument('name', type=str)
-        parser.add_argument('data', type=str)
         parser.add_argument('type_id', type=int)
         parser.add_argument('description', type=str)
         args = parser.parse_args()
+        print(args)
         output = tc.modify_testCase_by_tc_id(logger, testCase_id, args,
                                              get_jwt_identity()['user_id'])
         return jsonify({'message': 'success', 'data': output})
@@ -1209,6 +1307,19 @@ class TestValueByTestItem(Resource):
             get_jwt_identity()['user_id'])
         return jsonify({'message': 'success', 'data': output})
 
+class GetTestValueLocation(Resource):
+    @jwt_required
+    def get(self):
+        output = {}
+        output = tv.get_testValue_httpLocation(logger)
+        return jsonify({'message': 'success', 'data': output})
+
+class GetTestValueType(Resource):
+    @jwt_required
+    def get(self):
+        output = {}
+        output = tv.get_testValue_httpType(logger)
+        return jsonify({'message': 'success', 'data': output})
 
 class TestValue(Resource):
 
@@ -1427,9 +1538,17 @@ api.add_resource(DashboardIssuePriority,
 api.add_resource(DashboardIssueProject, '/dashboard_issues_project/<user_id>')
 api.add_resource(DashboardIssueType, '/dashboard_issues_type/<user_id>')
 
-# testPhase Requirement Flow
+# testPhase Requirement
 api.add_resource(RequirementByIssue, '/requirements_by_issue/<issue_id>')
 api.add_resource(Requirement, '/requirements/<requirement_id>')
+
+# testPhase Flow 
+
+api.add_resource(FlowByIssue,'/flows_by_issue/<issue_id>')
+# api.add_resource(FlowByRequirement, '/flows_by_requirement/<requirement_id>')
+api.add_resource(GetFlowType,'/flows/support_type')
+api.add_resource(Flow, '/flows/<flow_id>')
+
 
 # testPhase Parameters FLow
 api.add_resource(ParameterByIssue, '/parameters_by_issue/<issue_id>')
@@ -1439,7 +1558,7 @@ api.add_resource(ParameterType, '/parameter_types')
 
 # TestData
 # api.add_resource(AllTestDataByIssue, '/testData_by_issue')
-api.add_resource(AllTestData, '/testData')
+# api.add_resource(AllTestData, '/testData')
 
 # testPhase TestCase Support Case Type
 api.add_resource(GetTestCaseType, '/testCases/support_type')
@@ -1447,6 +1566,7 @@ api.add_resource(GetTestCaseType, '/testCases/support_type')
 # testPhase TestCase
 api.add_resource(TestCaseByIssue, '/testCases_by_issue/<issue_id>')
 api.add_resource(TestCase, '/testCases/<testCase_id>')
+
 
 
 # testPhase TestCase Support API Method
@@ -1457,6 +1577,8 @@ api.add_resource(TestItemByTestCase, '/testItems_by_testCase/<testCase_id>')
 api.add_resource(TestItem, '/testItems/<testItem_id>')
 
 # testPhase Testitem Value
+api.add_resource(GetTestValueLocation,'/testValues/support_locations')
+api.add_resource(GetTestValueType,'/testValues/support_types')
 api.add_resource(TestValueByTestItem, '/testValues_by_testItem/<testItem_id>')
 api.add_resource(TestValue, '/testValues/<testValue_id>')
 
@@ -1466,4 +1588,4 @@ api.add_resource(ExportToPostman, '/export_to_postman/<project_id>')
 if __name__ == "__main__":
     db.init_app(app)
     jsonwebtoken.init_app(app)
-    app.run(host='0.0.0.0', port=10009)
+    app.run(host='0.0.0.0', port=10009, debug=True)

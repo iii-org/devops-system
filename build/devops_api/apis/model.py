@@ -81,6 +81,21 @@ class TableRequirement():
                          db.Column('update_at', db.DATETIME(255)),
                          db.Column('disabled', db.Boolean))
 
+class TableFlow():
+    meta = db.MetaData()
+    stru_flow = db.Table('flows', meta,
+                         db.Column('id', db.Integer, primary_key=True),
+                         db.Column('project_id', db.Integer),
+                         db.Column('issue_id', db.Integer),
+                         db.Column('requirement_id', db.Integer),
+                         db.Column('type_id', db.Integer),
+                         db.Column('name', db.String),
+                         db.Column('description', db.String),
+                         db.Column('serial_id',db.Integer),
+                         db.Column('create_at', db.DATETIME(255)),
+                         db.Column('update_at', db.DATETIME(255)),
+                         db.Column('disabled', db.Boolean))
+
 
 class TableTestCase():
     meta = db.MetaData()
