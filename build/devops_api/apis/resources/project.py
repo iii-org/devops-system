@@ -762,7 +762,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                     .format(project_id, user_id, 3))
 
                 return {
-                    "message": "success", 
+                    "message": "success",
                     "data": {
                         "project_id": project_id,
                         "plan_project_id": redmine_pj_id,
@@ -983,3 +983,21 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         #     format(True, project_id))
 
         # output = {"result": "success delete"}
+
+    def get_git_project_id(self, logger, app, repository_id):
+        result = db.engine.execute(
+            "SELECT project_id FROM public.project_plugin_relation WHERE git_repository_id = '{0}'"
+            .format(repository_id))
+        project_relation = result.fetchone()
+        result.close()
+        if project_relation:
+            project_id = project_relation['project_id']
+            return {
+                "message": "success",
+                "data": project_id
+            }, 200
+        else:
+            return {
+                "message": "error",
+                "data": "No such repository_id found!"
+            }, 404

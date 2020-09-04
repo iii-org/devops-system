@@ -652,6 +652,12 @@ class GitProjectNetwork(Resource):
         return output
 
 
+class GitProjectId(Resource):
+    @jwt_required
+    def get(self, repository_id):
+        return pjt.get_git_project_id(logger, app, repository_id)
+
+
 class PipelineInfo(Resource):
     @jwt_required
     def get(self, project_id):
@@ -1340,6 +1346,8 @@ api.add_resource(GitProjectMergeBranch,
 api.add_resource(GitProjectBranchCommmits,
                  '/repositories/<repository_id>/commits')
 api.add_resource(GitProjectNetwork, '/repositories/<repository_id>/overview')
+api.add_resource(GitProjectId, '/repositories/<repository_id>/id')
+
 
 # Project
 api.add_resource(ProjectList, '/project/rd/<user_id>')
