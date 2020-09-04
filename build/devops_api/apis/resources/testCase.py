@@ -39,7 +39,7 @@ class TestCase(object):
         return output
 
     def _deal_with_TestCaseObject(self, sqlRow, caseType=''):
-        if caseType is '':
+        if caseType == '':
             caseType = self._get_testCasetType()
         output = {}
         output['id'] = sqlRow['id']
