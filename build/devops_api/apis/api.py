@@ -11,8 +11,6 @@ import json
 import datetime
 from model import db
 
-
-
 from jsonwebtoken import jsonwebtoken
 from urllib.parse import urlparse
 
@@ -277,8 +275,8 @@ class UserInfo(Resource):
             return user_info
         else:
             return {
-                       'message': 'you dont have authorize to update user informaion'
-                   }, 401
+                'message': 'you dont have authorize to update user informaion'
+            }, 401
 
     @jwt_required
     def put(self, user_id):
@@ -299,8 +297,8 @@ class UserInfo(Resource):
                 return jsonify({"message": str(error)}), 400
         else:
             return {
-                       'message': 'you dont have authorize to update user informaion'
-                   }, 401
+                'message': 'you dont have authorize to update user informaion'
+            }, 401
 
     @jwt_required
     def delete(self, user_id):
@@ -372,6 +370,7 @@ class ProjectUserList(Resource):
         else:
             return {"message": "your role art not administrator"}, 401
 
+
 class ProjectWikiList(Resource):
     @jwt_required
     def get(self, project_id):
@@ -381,7 +380,9 @@ class ProjectWikiList(Resource):
             output = wk.get_wiki_list_by_project(logger, app, project_id)
             return jsonify(output)
         else:
-            return {"message": "your are not in this project or not administrator"}, 401
+            return {
+                "message": "your are not in this project or not administrator"
+            }, 401
 
 
 class ProjectWiki(Resource):
@@ -390,38 +391,42 @@ class ProjectWiki(Resource):
         stauts = pjt.verify_project_user(logger, project_id,
                                          get_jwt_identity()['user_id'])
         if stauts or get_jwt_identity()['role_id'] == 5:
-            output, status_code = wk.get_wiki_by_project(logger, app, project_id, wiki_name)
+            output, status_code = wk.get_wiki_by_project(
+                logger, app, project_id, wiki_name)
             return output, status_code
         else:
-            return {"message": "your are not in this project or not administrator"}, 401
+            return {
+                "message": "your are not in this project or not administrator"
+            }, 401
 
     @jwt_required
     def put(self, project_id, wiki_name):
         stauts = pjt.verify_project_user(logger, project_id,
                                          get_jwt_identity()['user_id'])
         if stauts or get_jwt_identity()['role_id'] == 5:
-            logger.debug("in here")
             parser = reqparse.RequestParser()
-            logger.debug("parser: {0}".format(parser))
-            parser.add_argument('text', type=str, required=True)
-            logger.debug("parser: {0}".format(parser))
+            parser.add_argument('wiki_text', type=str, required=True)
             args = parser.parse_args()
-            logger.debug("and here")
-            logger.debug("put wiki args: {0}".format(args))
-            output, status_code = wk.put_wiki_by_project(logger, app, project_id, wiki_name, args)
+            output, status_code = wk.put_wiki_by_project(
+                logger, app, project_id, wiki_name, args)
             return output, status_code
         else:
-            return {"message": "your are not in this project or not administrator"}, 401
+            return {
+                "message": "your are not in this project or not administrator"
+            }, 401
+
     @jwt_required
     def delete(self, project_id, wiki_name):
         stauts = pjt.verify_project_user(logger, project_id,
                                          get_jwt_identity()['user_id'])
         if stauts or get_jwt_identity()['role_id'] == 5:
-            output, status_code = wk.delete_wiki_by_project(logger, app, project_id, wiki_name)
+            output, status_code = wk.delete_wiki_by_project(
+                logger, app, project_id, wiki_name)
             return output, status_code
         else:
-            return {"message": "your are not in this project or not administrator"}, 401
-
+            return {
+                "message": "your are not in this project or not administrator"
+            }, 401
 
 
 class RoleList(Resource):
@@ -992,12 +997,14 @@ class Requirement(Resource):
             get_jwt_identity()['user_id'])
         return jsonify({'message': 'success'})
 
+
 class ParameterType(Resource):
     @jwt_required
     def get(self):
         output = {}
         output = param.get_parameter_types()
         return jsonify({'message': 'success', 'data': output})
+
 
 class ParameterByIssue(Resource):
 
@@ -1064,16 +1071,26 @@ class Parameter(Resource):
             get_jwt_identity()['user_id'])
         return jsonify({'message': 'success'})
 
+
 class AllTestDataByIssue(Resource):
     @jwt_required
     def get(self, issue_id):
-        
+
         data = {}
-        data['requirement'] =  rqmt.get_requirements_by_issue_id(logger, issue_id,get_jwt_identity()['user_id'])['flow_info']
-        data['testCase'] = tc.get_testCase_by_issue_id(logger,  issue_id,get_jwt_identity()['user_id'])
-        data['testItem'] = ti.get_testItem_by_issue_id(logger, issue_id,get_jwt_identity()['user_id'],'test_case_id')
-        data['testValue'] =tv.get_testValue_by_issue_id(logger, issue_id, get_jwt_identity()['user_id'])        
-        output = td.get_AllTestData_by_Issue_Id(logger, data,get_jwt_identity()['user_id'])
+        data['requirement'] = rqmt.get_requirements_by_issue_id(
+            logger, issue_id,
+            get_jwt_identity()['user_id'])['flow_info']
+        data['testCase'] = tc.get_testCase_by_issue_id(
+            logger, issue_id,
+            get_jwt_identity()['user_id'])
+        data['testItem'] = ti.get_testItem_by_issue_id(
+            logger, issue_id,
+            get_jwt_identity()['user_id'], 'test_case_id')
+        data['testValue'] = tv.get_testValue_by_issue_id(
+            logger, issue_id,
+            get_jwt_identity()['user_id'])
+        output = td.get_AllTestData_by_Issue_Id(logger, data,
+                                                get_jwt_identity()['user_id'])
         # print(data)
         # output = {}
         # print(output)
@@ -1083,7 +1100,7 @@ class AllTestDataByIssue(Resource):
 class AllTestData(Resource):
     @jwt_required
     def get(self):
-        
+
         parser = reqparse.RequestParser()
         parser.add_argument('project_id', type=int)
         parser.add_argument('issue_id', type=int)
@@ -1092,10 +1109,13 @@ class AllTestData(Resource):
         args = parser.parse_args()
         data = {}
         data['testCase'] = tc.get_testCase_by_Column(logger, args, user_id)
-        data['testItem'] = ti.get_testItem_by_Column(logger, args, user_id,'test_case_id')
-        data['testValue'] =tv.get_testValue_by_Column(logger, args, user_id,"test_case_id") 
-        output = td.analysis_testData(logger,data,user_id)
+        data['testItem'] = ti.get_testItem_by_Column(logger, args, user_id,
+                                                     'test_case_id')
+        data['testValue'] = tv.get_testValue_by_Column(logger, args, user_id,
+                                                       "test_case_id")
+        output = td.analysis_testData(logger, data, user_id)
         return jsonify({'message': 'success', 'data': output})
+
 
 class TestCaseByIssue(Resource):
 
@@ -1305,8 +1325,10 @@ class ExportToPostman(Resource):
 
         output = {
             'info': {
-                'name': 'Project id %s' % project_id,
-                'schema': 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json'
+                'name':
+                'Project id %s' % project_id,
+                'schema':
+                'https://schema.getpostman.com/json/collection/v2.1.0/collection.json'
             },
             'item': []
         }
@@ -1315,7 +1337,8 @@ class ExportToPostman(Resource):
         cases = []
         for issue in issues:
             issue_id = issue['id']
-            part_cases = tc.get_testCase_by_issue_id(logger, issue_id, jwt_identity)
+            part_cases = tc.get_testCase_by_issue_id(logger, issue_id,
+                                                     jwt_identity)
             for case in part_cases.values():
                 cases.append(case)
 
@@ -1323,12 +1346,14 @@ class ExportToPostman(Resource):
             case_id = case['id']
             method = case['data']['method']
             url = urlparse(case['data']['url'])
-            items = ti.get_testItem_by_testCase_id(logger, case_id, jwt_identity)
+            items = ti.get_testItem_by_testCase_id(logger, case_id,
+                                                   jwt_identity)
             for item in items.values():
                 item_id = item['id']
                 o_item = {'name': '%s #%s' % (case['name'], item_id)}
                 values = []
-                part_values = tv.get_testValue_by_testItem_id(logger, item_id, jwt_identity)
+                part_values = tv.get_testValue_by_testItem_id(
+                    logger, item_id, jwt_identity)
                 for value in part_values.values():
                     values.append(value)
 
@@ -1374,9 +1399,8 @@ class ExportToPostman(Resource):
                         elif location_id == 2:
                             o_execs.append(
                                 'pm.test("value #%d", function () { '
-                                'pm.expect(pm.response.json().%s).to.be.eql("%s");});' %
-                                (value['id'], value['key'], value['value'])
-                            )
+                                'pm.expect(pm.response.json().%s).to.be.eql("%s");});'
+                                % (value['id'], value['key'], value['value']))
                     else:
                         pass
 
@@ -1442,7 +1466,6 @@ api.add_resource(ProjectUserList, '/project/<int:project_id>/user/list')
 api.add_resource(ProjectWikiList, '/project/<int:project_id>/wiki')
 api.add_resource(ProjectWiki, '/project/<int:project_id>/wiki/<wiki_name>')
 
-
 # User
 api.add_resource(UserLogin, '/user/login')
 api.add_resource(UserForgetPassword, '/user/forgetPassword')
@@ -1490,7 +1513,6 @@ api.add_resource(ParameterByIssue, '/parameters_by_issue/<issue_id>')
 api.add_resource(Parameter, '/parameters/<parameter_id>')
 api.add_resource(ParameterType, '/parameter_types')
 
-
 # TestData
 # api.add_resource(AllTestDataByIssue, '/testData_by_issue')
 api.add_resource(AllTestData, '/testData')
@@ -1501,7 +1523,6 @@ api.add_resource(GetTestCaseType, '/testCases/support_type')
 # testPhase TestCase
 api.add_resource(TestCaseByIssue, '/testCases_by_issue/<issue_id>')
 api.add_resource(TestCase, '/testCases/<testCase_id>')
-
 
 # testPhase TestCase Support API Method
 api.add_resource(GetTestCaseAPIMethod, '/testCases/support_RestfulAPI_Method')
