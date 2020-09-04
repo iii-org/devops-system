@@ -699,6 +699,8 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
     def pm_create_project(self, logger, app, user_id, args):
         if args["description"] == None: args["description"] = ""
 
+        identifier = args["name"].replace(' ', '')
+
         # 建立redmine project
         redmine_url = "http://{0}/projects.json?key={1}".format(
             app.config["REDMINE_IP_PORT"], app.config["REDMINE_API_KEY"])
@@ -708,7 +710,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                     <name>{0}</name>\
                     <identifier>{1}</identifier>\
                     <description>{2}</description>\
-                    </project>""".format(args["name"], args["identifier"],
+                    </project>""".format(args["name"], identifier,
                                          args["description"])
         logger.info("create redmine project body: {0}".format(xml_body))
         headers = {'Content-Type': 'application/xml'}
@@ -740,9 +742,10 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
 
                 # 寫入projects
                 db.engine.execute(
-                    "INSERT INTO public.projects (name, description, ssh_url, http_url) VALUES ('{0}', '{1}', '{2}', '{3}')"
+                    "INSERT INTO public.projects (name, description, ssh_url, http_url, disabled) VALUES ('{0}', '{1}', '{2}', '{3}', '{4}')"
                     .format(gitlab_pj_name, args["description"],
-                            gitlab_pj_ssh_url, gitlab_pj_http_url))
+                            gitlab_pj_ssh_url, gitlab_pj_http_url,
+                            args["disabled"]))
 
                 # 查詢寫入projects的project_id
                 result = db.engine.execute(
@@ -762,7 +765,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                     .format(project_id, user_id, 3))
 
                 return {
-                    "message": "success", 
+                    "message": "success",
                     "data": {
                         "project_id": project_id,
                         "plan_project_id": redmine_pj_id,
@@ -819,7 +822,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         output["pm_user_id"] = user_id
         output["pm_user_name"] = user_name
 
-        return {"message": "success", "date": output}, 200
+        return {"message": "success", "data": output}, 200
 
     # 修改redmine & gitlab的project資訊
     def pm_update_project(self, logger, app, project_id, args):

@@ -69,8 +69,11 @@ class TotalProjectList(Resource):
         if role_id == 3:
             user_id = get_jwt_identity()["user_id"]
             print("user_id={0}".format(user_id))
-            output = pjt.get_pm_project_list(logger, app, user_id)
-            return output
+            try:
+                output = pjt.get_pm_project_list(logger, app, user_id)
+                return output
+            except Exception as error:
+                return {"message": str(error)}, 400
         else:
             return {"message": "您無權限訪問！"}, 401
 
@@ -86,12 +89,15 @@ class CreateProject(Resource):
             print("user_id={0}".format(user_id))
             parser = reqparse.RequestParser()
             parser.add_argument('name', type=str, required=True)
-            parser.add_argument('identifier', type=str, required=True)
             parser.add_argument('description', type=str)
+            parser.add_argument('disabled', type=bool, required=True)
             args = parser.parse_args()
             logger.info("post body: {0}".format(args))
-            output = pjt.pm_create_project(logger, app, user_id, args)
-            return output
+            try:
+                output = pjt.pm_create_project(logger, app, user_id, args)
+                return output
+            except Exception as error:
+                return {"message": str(error)}, 400
         else:
             return {"message": "您無權限訪問！"}, 401
 
@@ -103,8 +109,11 @@ class Project(Resource):
         print("role_id={0}".format(role_id))
 
         if role_id == 3:
-            output = pjt.pm_get_project(logger, app, project_id)
-            return output
+            try:
+                output = pjt.pm_get_project(logger, app, project_id)
+                return output
+            except Exception as error:
+                return {"message": str(error)}, 400
         else:
             return {"message": "您無權限訪問！"}, 401
 
@@ -124,8 +133,11 @@ class Project(Resource):
             # parser.add_argument('homepage', type=str)
             args = parser.parse_args()
             logger.info("put body: {0}".format(args))
-            output = pjt.pm_update_project(logger, app, project_id, args)
-            return output
+            try:
+                output = pjt.pm_update_project(logger, app, project_id, args)
+                return output
+            except Exception as error:
+                return {"message": str(error)}, 400
         else:
             return {"message": "您無權限訪問！"}, 401
 
@@ -370,9 +382,12 @@ class RoleList(Resource):
     @jwt_required
     def get(self):
         print("role_id is {0}".format(get_jwt_identity()["role_id"]))
-        if get_jwt_identity()["role_id"] in (3, 4, 5):
-            output = au.get_role_list(logger, app)
-            return output
+        if get_jwt_identity()["role_id"] == 5:
+            try:
+                output = au.get_role_list(logger, app)
+                return output
+            except Exception as error:
+                return {"message": str(error)}, 400
         else:
             return {"message": "your role art not administrator"}, 401
 
@@ -383,10 +398,13 @@ class GitProjectBranches(Resource):
         role_id = get_jwt_identity()["role_id"]
         print("role_id={0}".format(role_id))
 
-        if role_id == 3:
+        if role_id in (1, 3):
             project_id = repository_id
-            output = pjt.get_git_project_branches(logger, app, project_id)
-            return output
+            try:
+                output = pjt.get_git_project_branches(logger, app, project_id)
+                return output
+            except Exception as error:
+                return {"message": str(error)}, 400
         else:
             return {"message": "您無權限訪問！"}, 401
 

@@ -37,7 +37,7 @@ class Redmine(object):
 
     def redmine_get_issues_by_project(self, logger, app, project_id,
                                       redmine_key):
-        url = "http://{0}/issues.json?key={1}&project_id={2}".format(\
+        url = "http://{0}/issues.json?key={1}&project_id={2}&limit=1000".format(\
             app.config['REDMINE_IP_PORT'], redmine_key, project_id)
         output = requests.get(url, headers=self.headers, verify=False)
         logger.info("get issues by project&user output: {0}".format(
