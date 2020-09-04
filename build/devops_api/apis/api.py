@@ -27,6 +27,7 @@ import resources.testItem as testItem
 import resources.testValue as testValue
 import resources.wiki as wiki
 import resources.testData as testData
+import resources.testResult as testResult
 
 app = Flask(__name__)
 app.config.from_object('config')
@@ -57,6 +58,7 @@ tc = testCase.TestCase()
 ti = testItem.TestItem()
 tv = testValue.TestValue()
 td = testData.TestData()
+tr = testResult.TestResult()
 
 
 class Index(Resource):
@@ -733,6 +735,12 @@ class GitProjectNetwork(Resource):
         return output
 
 
+class GitProjectId(Resource):
+    @jwt_required
+    def get(self, repository_id):
+        return pjt.get_git_project_id(logger, app, repository_id)
+
+
 class PipelineInfo(Resource):
     @jwt_required
     def get(self, project_id):
@@ -1332,6 +1340,18 @@ class TestValue(Resource):
         return jsonify({'message': 'success', 'data': output})
 
 
+class TestResult(Resource):
+    @jwt_required
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('project_id', type=int, required=True)
+        parser.add_argument('total', type=int, required=True)
+        parser.add_argument('fail', type=int, required=True)
+        args = parser.parse_args()
+        output = tr.save(logger, args)
+        return output
+
+
 class ExportToPostman(Resource):
     @jwt_required
     def get(self, project_id):
@@ -1477,6 +1497,8 @@ api.add_resource(GitProjectMergeBranch,
 api.add_resource(GitProjectBranchCommmits,
                  '/repositories/<repository_id>/commits')
 api.add_resource(GitProjectNetwork, '/repositories/<repository_id>/overview')
+api.add_resource(GitProjectId, '/repositories/<repository_id>/id')
+
 
 # Project
 api.add_resource(ProjectList, '/project/rd/<user_id>')
@@ -1552,6 +1574,9 @@ api.add_resource(TestItem, '/testItems/<testItem_id>')
 # testPhase Testitem Value
 api.add_resource(TestValueByTestItem, '/testValues_by_testItem/<testItem_id>')
 api.add_resource(TestValue, '/testValues/<testValue_id>')
+
+# TestResult writing
+api.add_resource(TestResult, '/testResults')
 
 # Export tests to postman json format
 api.add_resource(ExportToPostman, '/export_to_postman/<project_id>')
