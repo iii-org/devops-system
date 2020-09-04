@@ -18,16 +18,37 @@ class TestItem(object):
         output['name'] = sqlRow['name']
         output['project_id'] = sqlRow['project_id']
         output['issue_id'] = sqlRow['issue_id']
+        output['testCase_id'] = sqlRow['test_case_id']
         output['is_passed'] = sqlRow['is_passed']
         output['update_at'] = util.dateToStr(self, sqlRow['update_at'])
         output['create_at'] = util.dateToStr(self, sqlRow['create_at'])
         return output
 
+
+    def get_testItem_by_Column(self, logger, args, user_id, orderColumn=''):
+        output = {}
+        # caseType = self._get_testCasetType()
+        if(args['issue_id'] != None):
+            return  self.get_testItem_by_issue_id(logger,args['issue_id'],user_id,orderColumn)
+            # get_testItem_command = db.select([TableTestItem.stru_testItem]).where(db.and_(
+            # TableTestItem.stru_testItem.c.id == testItem_id, TableTestItem.stru_testItem.c.disabled == False))
+            #     .order_by('project_id')
+        elif (args['project_id'] != None):
+            return  self.get_testItem_by_project_id(logger,args['project_id'],user_id,'test_case_id')
+            # get_testCase_command = db.select([TableTestCase.stru_testCase]).where(db.and_(
+            #     TableTestCase.stru_testCase.c.project_id == args['project_id'], TableTestCase.stru_testCase.c.disabled == False))
+            #     .order_by('project_id')
+        else:
+            return {}
+        # logger.debug("get_testCase_command: {0}".format(get_testCase_command))
+        # result = util.callsqlalchemy(self, get_testCase_command, logger)
+        # reMessages = result.fetchall()
+
+
     # 取得 TestItem  靠 test case id
     def get_testItem_by_ti_id(self, logger, testItem_id, user_id):
         get_testItem_command = db.select([TableTestItem.stru_testItem]).where(db.and_(
             TableTestItem.stru_testItem.c.id == testItem_id, TableTestItem.stru_testItem.c.disabled == False))
-        # get_param_command = db.select([TableParameter.stru_param]).where(db.and_(TableParameter.stru_param.c.id==parameters_id))
         logger.debug("get_testItem_command: {0}".format(get_testItem_command))
         result = util.callsqlalchemy(self, get_testItem_command, logger)
         row = result.fetchone()
@@ -48,15 +69,12 @@ class TestItem(object):
         output['id'] = reMessage['id']
         output['update_at'] = util.dateToStr(self,reMessage['update_at'])
         return output
-        # return '123'
 
     # 修改 TestItem 內資訊
     def modify_testItem_by_ti_id(self, logger, testItem_id, args, user_id):
-        # print(type(args['is_passed']))
-        print(bool(distutils.util.strtobool(args['is_passed'])))
         update_testItem_command = db.update(TableTestItem.stru_testItem).where(db.and_(TableTestItem.stru_testItem.c.id == testItem_id)).values(
             name=args['name'],
-            is_passed=args['is_passed'],           
+            is_passed=eval(args['is_passed']),           
             update_at=datetime.datetime.now()
         ).returning(TableTestItem.stru_testItem.c.update_at,TableTestItem.stru_testItem.c.id)
         print(update_testItem_command)
@@ -97,5 +115,29 @@ class TestItem(object):
             insert_testItem_command))
         reMessage = util.callsqlalchemy(self, insert_testItem_command, logger)
         return {'testItem_id': reMessage.inserted_primary_key}
-        # return '123'
+
+    def get_testItem_by_issue_id(self, logger, issue_id, users_id, orderColumn):
+        get_testItem_command = db.select([TableTestItem.stru_testItem]).where(db.and_(
+            TableTestItem.stru_testItem.c.issue_id == issue_id, TableTestItem.stru_testItem.c.disabled == False)).order_by(orderColumn)
+        logger.debug("get_testItem_command: {0}".format(get_testItem_command))
+        result = util.callsqlalchemy(self, get_testItem_command, logger)
+        reMessages = result.fetchall()
+        i = 0
+        output = {}
+        for row in reMessages:
+            output[i] = self._deal_with_TestItemObject(row)
+            i = i+1
+        return output
+    def get_testItem_by_project_id(self, logger, project_id, users_id, orderColumn):
+        get_testItem_command = db.select([TableTestItem.stru_testItem]).where(db.and_(
+            TableTestItem.stru_testItem.c.project_id == project_id, TableTestItem.stru_testItem.c.disabled == False)).order_by(orderColumn)
+        logger.debug("get_testItem_command: {0}".format(get_testItem_command))
+        result = util.callsqlalchemy(self, get_testItem_command, logger)
+        reMessages = result.fetchall()
+        i = 0
+        output = {}
+        for row in reMessages:
+            output[i] = self._deal_with_TestItemObject(row)
+            i = i+1
+        return output
 

@@ -97,6 +97,13 @@ class TableTestCase():
         db.Column('create_at', db.DATETIME(255)),
         db.Column('update_at', db.DATETIME(255)),
         db.Column('disabled', db.Boolean),
+        # Stringified JSON like
+        # {
+        #  "type": "API",
+        #  "url": "/user/forgot",
+        #  "method": "POST",
+        #  "method_id": "2"
+        # }
         db.Column('data', db.TEXT),
         db.Column('type_id', db.Integer))
 
@@ -137,10 +144,10 @@ class TableTestValue():
     meta = db.MetaData()
     stru_testValue = db.Table('test_values', meta,
                               db.Column('id', db.Integer, primary_key=True),
-                              db.Column('type_id', db.Integer),
+                              db.Column('type_id', db.Integer), # Request = 1, response = 2
                               db.Column('key', db.String(255)),
                               db.Column('value', db.Text),
-                              db.Column('location_id', db.Integer),
+                              db.Column('location_id', db.Integer), # Header = 1, Body = 2
                               db.Column('test_item_id', db.Integer),
                               db.Column('test_case_id', db.Integer),
                               db.Column('issue_id', db.Integer),

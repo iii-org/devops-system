@@ -10,7 +10,11 @@ from logging import handlers
 import json
 import datetime
 from model import db
+
+
+
 from jsonwebtoken import jsonwebtoken
+from urllib.parse import urlparse
 
 import resources.util as util
 import resources.auth as auth
@@ -24,6 +28,7 @@ import resources.testCase as testCase
 import resources.testItem as testItem
 import resources.testValue as testValue
 import resources.wiki as wiki
+import resources.testData as testData
 
 app = Flask(__name__)
 app.config.from_object('config')
@@ -31,11 +36,11 @@ app.config['JWT_ACCESS_TOKEN_EXPIRES'] = datetime.timedelta(days=1)
 api = Api(app)
 
 handler = handlers.TimedRotatingFileHandler(
-    'devops-api.log', when='D'\
-        , interval=1, backupCount=14)
+    'devops-api.log', when='D' \
+    , interval=1, backupCount=14)
 handler.setFormatter(logging.Formatter(
-    '%(asctime)s %(filename)s [line:%(lineno)d] %(levelname)s %(message)s'\
-        , '%Y %b %d, %a %H:%M:%S'))
+    '%(asctime)s %(filename)s [line:%(lineno)d] %(levelname)s %(message)s' \
+    , '%Y %b %d, %a %H:%M:%S'))
 logger = logging.getLogger('devops.api')
 logger.setLevel(logging.DEBUG)
 logger.addHandler(handler)
@@ -53,6 +58,7 @@ param = parameter.Parameter()
 tc = testCase.TestCase()
 ti = testItem.TestItem()
 tv = testValue.TestValue()
+td = testData.TestData()
 
 
 class Index(Resource):
@@ -271,8 +277,8 @@ class UserInfo(Resource):
             return user_info
         else:
             return {
-                'message': 'you dont have authorize to update user informaion'
-            }, 401
+                       'message': 'you dont have authorize to update user informaion'
+                   }, 401
 
     @jwt_required
     def put(self, user_id):
@@ -293,8 +299,8 @@ class UserInfo(Resource):
                 return jsonify({"message": str(error)}), 400
         else:
             return {
-                'message': 'you dont have authorize to update user informaion'
-            }, 401
+                       'message': 'you dont have authorize to update user informaion'
+                   }, 401
 
     @jwt_required
     def delete(self, user_id):
@@ -768,7 +774,7 @@ class IssueByProject(Resource):
             output_array = iss.get_issue_by_project(logger, app, project_id)
             return jsonify(output_array)
         else:
-            return {'message': 'Dont have authorization to access issue list on project: {0}'\
+            return {'message': 'Dont have authorization to access issue list on project: {0}' \
                 .format(project_id)}, 401
 
 
@@ -782,7 +788,7 @@ class IssuesProgressByProject(Resource):
                 logger, app, project_id)
             return output_array
         else:
-            return {'message': 'Dont have authorization to access issue list on project: {0}'\
+            return {'message': 'Dont have authorization to access issue list on project: {0}' \
                 .format(project_id)}, 401
 
 
@@ -852,7 +858,7 @@ class Issue(Resource):
             output = iss.delete_issue(logger, app, issue_id)
             return output
         else:
-            return {'message': 'Dont have authorization to delete issue for thie user: {0}'\
+            return {'message': 'Dont have authorization to delete issue for thie user: {0}' \
                 .format(get_jwt_identity()['user_account'])}, 401
 
 
@@ -935,7 +941,7 @@ class RequirementByIssue(Resource):
     ## 用issues ID 取得目前所有的需求清單
     @jwt_required
     def get(self, issue_id):
-        #temp = get_jwt_identity()
+        # temp = get_jwt_identity()
         print(get_jwt_identity())
         output = rqmt.get_requirements_by_issue_id(
             logger, issue_id,
@@ -960,7 +966,7 @@ class Requirement(Resource):
     ## 用requirement_id 取得目前需求流程
     @jwt_required
     def get(self, requirement_id):
-        #temp = get_jwt_identity()
+        # temp = get_jwt_identity()
         output = rqmt.get_requirement_by_rqmt_id(logger, requirement_id,
                                                  get_jwt_identity()['user_id'])
         return jsonify({'message': 'success', 'data': output})
@@ -968,7 +974,7 @@ class Requirement(Resource):
     ## 用requirement_id 刪除目前需求流程
     @jwt_required
     def delete(self, requirement_id):
-        #temp = get_jwt_identity()
+        # temp = get_jwt_identity()
         output = {}
         output = rqmt.del_requirement_by_rqmt_id(logger, requirement_id,
                                                  get_jwt_identity()['user_id'])
@@ -986,6 +992,12 @@ class Requirement(Resource):
             get_jwt_identity()['user_id'])
         return jsonify({'message': 'success'})
 
+class ParameterType(Resource):
+    @jwt_required
+    def get(self):
+        output = {}
+        output = param.get_parameter_types()
+        return jsonify({'message': 'success', 'data': output})
 
 class ParameterByIssue(Resource):
 
@@ -1052,13 +1064,44 @@ class Parameter(Resource):
             get_jwt_identity()['user_id'])
         return jsonify({'message': 'success'})
 
+class AllTestDataByIssue(Resource):
+    @jwt_required
+    def get(self, issue_id):
+        
+        data = {}
+        data['requirement'] =  rqmt.get_requirements_by_issue_id(logger, issue_id,get_jwt_identity()['user_id'])['flow_info']
+        data['testCase'] = tc.get_testCase_by_issue_id(logger,  issue_id,get_jwt_identity()['user_id'])
+        data['testItem'] = ti.get_testItem_by_issue_id(logger, issue_id,get_jwt_identity()['user_id'],'test_case_id')
+        data['testValue'] =tv.get_testValue_by_issue_id(logger, issue_id, get_jwt_identity()['user_id'])        
+        output = td.get_AllTestData_by_Issue_Id(logger, data,get_jwt_identity()['user_id'])
+        # print(data)
+        # output = {}
+        # print(output)
+        return jsonify({'message': 'success', 'data': output})
+
+
+class AllTestData(Resource):
+    @jwt_required
+    def get(self):
+        
+        parser = reqparse.RequestParser()
+        parser.add_argument('project_id', type=int)
+        parser.add_argument('issue_id', type=int)
+        parser.add_argument('order_by', type=str)
+        user_id = get_jwt_identity()['user_id']
+        args = parser.parse_args()
+        data = {}
+        data['testCase'] = tc.get_testCase_by_Column(logger, args, user_id)
+        data['testItem'] = ti.get_testItem_by_Column(logger, args, user_id,'test_case_id')
+        data['testValue'] =tv.get_testValue_by_Column(logger, args, user_id,"test_case_id") 
+        output = td.analysis_testData(logger,data,user_id)
+        return jsonify({'message': 'success', 'data': output})
 
 class TestCaseByIssue(Resource):
 
     ## 用issues ID 取得目前所有的目前測試案例
     @jwt_required
     def get(self, issue_id):
-
         # print(issue_id)
         output = {}
         output = tc.get_testCase_by_issue_id(logger, issue_id,
@@ -1135,7 +1178,6 @@ class TestItemByTestCase(Resource):
     ## 用issues ID 取得目前所有的目前測試案例
     @jwt_required
     def get(self, testCase_id):
-
         # print(issue_id)
 
         output = {}
@@ -1181,6 +1223,7 @@ class TestItem(Resource):
     def put(self, testItem_id):
         output = {}
         parser = reqparse.RequestParser()
+        print(parser)
         parser.add_argument('name', type=str)
         parser.add_argument('is_passed', type=bool)
         args = parser.parse_args()
@@ -1194,7 +1237,6 @@ class TestValueByTestItem(Resource):
     ## 用issues ID 取得目前所有的目前測試案例
     @jwt_required
     def get(self, testItem_id):
-
         output = {}
         output = tv.get_testValue_by_testItem_id(logger, testItem_id,
                                                  get_jwt_identity()['user_id'])
@@ -1249,6 +1291,112 @@ class TestValue(Resource):
         args = parser.parse_args()
         output = tv.modify_testValue_by_ti_id(logger, testValue_id, args,
                                               get_jwt_identity()['user_id'])
+        return jsonify({'message': 'success', 'data': output})
+
+
+class ExportToPostman(Resource):
+    @jwt_required
+    def get(self, project_id):
+        jwt_identity = get_jwt_identity()['user_id']
+        status = pjt.verify_project_user(logger, project_id, jwt_identity)
+        if not status:
+            return {'message': 'Don\'t have authorization to access issue list on project: {0}' \
+                .format(project_id)}, 401
+
+        output = {
+            'info': {
+                'name': 'Project id %s' % project_id,
+                'schema': 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json'
+            },
+            'item': []
+        }
+
+        issues = iss.get_issue_by_project(logger, app, project_id)
+        cases = []
+        for issue in issues:
+            issue_id = issue['id']
+            part_cases = tc.get_testCase_by_issue_id(logger, issue_id, jwt_identity)
+            for case in part_cases.values():
+                cases.append(case)
+
+        for case in cases:
+            case_id = case['id']
+            method = case['data']['method']
+            url = urlparse(case['data']['url'])
+            items = ti.get_testItem_by_testCase_id(logger, case_id, jwt_identity)
+            for item in items.values():
+                item_id = item['id']
+                o_item = {'name': '%s #%s' % (case['name'], item_id)}
+                values = []
+                part_values = tv.get_testValue_by_testItem_id(logger, item_id, jwt_identity)
+                for value in part_values.values():
+                    values.append(value)
+
+                o_request = {
+                    'method': method,
+                    'url': {
+                        'protocol': url.scheme,
+                        'port': url.port
+                    },
+                    'header': []
+                }
+                if bool(url.hostname):
+                    o_request['url']['host'] = url.hostname.split('.')
+                if len(url.path) > 0:
+                    o_request['url']['path'] = url.path[1:].split('/')
+                o_request_body = []
+                o_execs = []
+
+                for value in values:
+                    type_id = value['type_id']
+                    location_id = value['location_id']
+                    if type_id == 1:
+                        if location_id == 1:
+                            header = {}
+                            if value['key'] == 'token':
+                                header['key'] = 'Authorization'
+                                header['value'] = 'Bearer %s' % value['value']
+                                header['type'] = 'text'
+                            else:
+                                header['key'] = value['key']
+                                header['value'] = value['value']
+                            o_request['header'].append(header)
+                        elif location_id == 2:
+                            o_request_body.append({
+                                'key': value['key'],
+                                'value': value['value']
+                            })
+                        else:
+                            pass
+                    elif type_id == 2:
+                        if location_id == 1:
+                            pass
+                        elif location_id == 2:
+                            o_execs.append(
+                                'pm.test("value #%d", function () { '
+                                'pm.expect(pm.response.json().%s).to.be.eql("%s");});' %
+                                (value['id'], value['key'], value['value'])
+                            )
+                    else:
+                        pass
+
+                if bool(o_request_body):
+                    o_request['body'] = {
+                        'mode': 'formdata',
+                        'formdata': o_request_body
+                    }
+                if bool(o_request):
+                    o_item['request'] = o_request
+                if len(o_execs) > 0:
+                    o_item['event'] = [{
+                        'listen': 'test',
+                        'script': {
+                            'type': 'text/javascript',
+                            'exec': o_execs
+                        }
+                    }]
+                output['item'].append(o_item)
+
         return jsonify({'message': 'success', 'data': output})
 
 
@@ -1340,6 +1488,12 @@ api.add_resource(Requirement, '/requirements/<requirement_id>')
 # testPhase Parameters FLow
 api.add_resource(ParameterByIssue, '/parameters_by_issue/<issue_id>')
 api.add_resource(Parameter, '/parameters/<parameter_id>')
+api.add_resource(ParameterType, '/parameter_types')
+
+
+# TestData
+# api.add_resource(AllTestDataByIssue, '/testData_by_issue')
+api.add_resource(AllTestData, '/testData')
 
 # testPhase TestCase Support Case Type
 api.add_resource(GetTestCaseType, '/testCases/support_type')
@@ -1348,6 +1502,7 @@ api.add_resource(GetTestCaseType, '/testCases/support_type')
 api.add_resource(TestCaseByIssue, '/testCases_by_issue/<issue_id>')
 api.add_resource(TestCase, '/testCases/<testCase_id>')
 
+
 # testPhase TestCase Support API Method
 api.add_resource(GetTestCaseAPIMethod, '/testCases/support_RestfulAPI_Method')
 
@@ -1355,9 +1510,12 @@ api.add_resource(GetTestCaseAPIMethod, '/testCases/support_RestfulAPI_Method')
 api.add_resource(TestItemByTestCase, '/testItems_by_testCase/<testCase_id>')
 api.add_resource(TestItem, '/testItems/<testItem_id>')
 
-#testPhase Testitem Value
+# testPhase Testitem Value
 api.add_resource(TestValueByTestItem, '/testValues_by_testItem/<testItem_id>')
 api.add_resource(TestValue, '/testValues/<testValue_id>')
+
+# Export tests to postman json format
+api.add_resource(ExportToPostman, '/export_to_postman/<project_id>')
 
 if __name__ == "__main__":
     db.init_app(app)

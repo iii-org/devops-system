@@ -30,6 +30,26 @@ class TestValue(object):
         output['create_at'] = util.dateToStr(self, sqlRow['create_at'])
         return output
 
+    def get_testValue_by_Column(self, logger, args, user_id,orderColumn=''):
+        output = {}
+        if(args['issue_id'] != None):
+            return  self.get_testValue_by_issue_id(logger,args['issue_id'],user_id,orderColumn)
+
+        elif (args['project_id'] != None):
+            return self.get_testValue_by_project_id(logger,args['project_id'],user_id,orderColumn)
+        else:
+            return {}
+        # logger.debug("get_testCase_command: {0}".format(get_testCase_command))
+        # result = util.callsqlalchemy(self, get_testCase_command, logger)
+        # reMessages = result.fetchall()
+
+        # i = 0
+        # for row in reMessages:
+        #     output[i] = {}
+        #     output[i] = self._deal_with_TestCaseObject(row, caseType)
+        #     i = i+1
+        # return self._del_with_fetchall(reMessages)
+
     # 取得 TestItem  靠 test case id
     def get_testValue_by_tv_id(self, logger, testItem_id, user_id):
         get_testValue_command = db.select([TableTestValue.stru_testValue]).where(db.and_(
@@ -77,9 +97,14 @@ class TestValue(object):
         return output
 
     # 取得同Issue Id 內  TestItem 的所有資訊
-    def get_testValue_by_testItem_id(self, logger, testItem_id, user_id):
-        get_testValue_command = db.select([TableTestValue.stru_testValue]).where(db.and_(
+    def get_testValue_by_testItem_id(self, logger, testItem_id, user_id,orderColumn=''):
+        
+        if(orderColumn == ''):
+            get_testValue_command = db.select([TableTestValue.stru_testValue]).where(db.and_(
             TableTestValue.stru_testValue.c.test_item_id == testItem_id, TableTestValue.stru_testValue.c.disabled == False))
+        else:
+            get_testValue_command = db.select([TableTestValue.stru_testValue]).where(db.and_(
+            TableTestValue.stru_testValue.c.test_item_id == testItem_id, TableTestValue.stru_testValue.c.disabled == False)).order_by(orderColumn)        
         logger.debug("get_testValue_command: {0}".format(get_testValue_command))
         result = util.callsqlalchemy(self, get_testValue_command, logger)
         reMessages = result.fetchall()
@@ -112,4 +137,35 @@ class TestValue(object):
         print(reMessage)
         return {'testValue_id': reMessage.inserted_primary_key}
         # return '123'
+
+    def get_testValue_by_issue_id(self, logger, issue_id, user_id,orderColumn=''):
+        if(orderColumn != ''):
+            get_testValue_command = db.select([TableTestValue.stru_testValue]).where(db.and_(
+                TableTestValue.stru_testValue.c.issue_id == issue_id, TableTestValue.stru_testValue.c.disabled == False)).order_by(orderColumn)
+        else:
+            get_testValue_command = db.select([TableTestValue.stru_testValue]).where(db.and_(
+                TableTestValue.stru_testValue.c.issue_id == issue_id, TableTestValue.stru_testValue.c.disabled == False))
+        print(get_testValue_command)
+        result = util.callsqlalchemy(self, get_testValue_command, logger)
+        reMessages = result.fetchall()
+        i = 0
+        output = {}
+        for row in reMessages:
+            output[i] = self._deal_with_TestValueObject(row)
+            i = i+1
+        return output
+
+    def get_testValue_by_project_id(self, logger, project_id, user_id, orderColumn = ''):
+        get_testValue_command = db.select([TableTestValue.stru_testValue]).where(db.and_(
+            TableTestValue.stru_testValue.c.project_id == project_id, TableTestValue.stru_testValue.c.disabled == False)).order_by(orderColumn)
+        logger.debug("get_testValue_command: {0}".format(get_testValue_command))
+        result = util.callsqlalchemy(self, get_testValue_command, logger)
+        reMessages = result.fetchall()
+        i = 0
+        output = {}
+        for row in reMessages:
+            output[i] = self._deal_with_TestValueObject(row)
+            i = i+1
+        return output
+
 
