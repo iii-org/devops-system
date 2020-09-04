@@ -282,8 +282,8 @@ class UserInfo(Resource):
             return user_info
         else:
             return {
-                       'message': 'you dont have authorize to update user informaion'
-                   }, 401
+                'message': 'you dont have authorize to update user informaion'
+            }, 401
 
     @jwt_required
     def put(self, user_id):
@@ -304,8 +304,8 @@ class UserInfo(Resource):
                 return jsonify({"message": str(error)}), 400
         else:
             return {
-                       'message': 'you dont have authorize to update user informaion'
-                   }, 401
+                'message': 'you dont have authorize to update user informaion'
+            }, 401
 
     @jwt_required
     def delete(self, user_id):
@@ -410,33 +410,47 @@ class GitProjectBranches(Resource):
 
     @jwt_required
     def post(self, repository_id):
-        project_id = repository_id
-        parser = reqparse.RequestParser()
-        parser.add_argument('branch', type=str, required=True)
-        parser.add_argument('ref', type=str, required=True)
-        args = parser.parse_args()
-        logger.info("post body: {0}".format(args))
-        output = pjt.create_git_project_branch(logger, app, project_id, args)
-        return output.json()
+        role_id = get_jwt_identity()["role_id"]
+        print("role_id={0}".format(role_id))
 
+        if role_id == 1:
+            project_id = repository_id
+            parser = reqparse.RequestParser()
+            parser.add_argument('branch', type=str, required=True)
+            parser.add_argument('ref', type=str, required=True)
+            args = parser.parse_args()
+            logger.info("post body: {0}".format(args))
+            output = pjt.create_git_project_branch(logger, app, project_id, args)
+            return output
+        else:
+            return {"message": "您無權限訪問！"}, 401
 
 class GitProjectBranch(Resource):
     @jwt_required
     def get(self, repository_id, branch_name):
-        project_id = repository_id
-        branch = branch_name
-        output = pjt.get_git_project_branch(logger, app, project_id, branch)
-        return output.json()
+        role_id = get_jwt_identity()["role_id"]
+        print("role_id={0}".format(role_id))
+
+        if role_id == 1:
+            project_id = repository_id
+            branch = branch_name
+            output = pjt.get_git_project_branch(logger, app, project_id, branch)
+            return output
+        else:
+            return {"message": "您無權限訪問！"}, 401
 
     @jwt_required
     def delete(self, repository_id, branch_name):
-        project_id = repository_id
-        branch = branch_name
-        output = pjt.delete_git_project_branch(logger, app, project_id, branch)
-        if str(output) == "<Response [204]>":
-            return "Success Delete Branch"
+        role_id = get_jwt_identity()["role_id"]
+        print("role_id={0}".format(role_id))
+
+        if role_id == 1:
+            project_id = repository_id
+            branch = branch_name
+            output = pjt.delete_git_project_branch(logger, app, project_id, branch)
+            return output
         else:
-            return str(output)
+            return {"message": "您無權限訪問！"}, 401
 
 
 class GitProjectRepositories(Resource):
@@ -546,33 +560,49 @@ class GitProjectFile(Resource):
 class GitProjectTags(Resource):
     @jwt_required
     def get(self, repository_id):
-        project_id = repository_id
-        output = pjt.get_git_project_tags(logger, app, project_id)
-        return output.json()
+        role_id = get_jwt_identity()["role_id"]
+        print("role_id={0}".format(role_id))
+
+        if role_id == 1:
+            project_id = repository_id
+            output = pjt.get_git_project_tags(logger, app, project_id)
+            return output
+        else:
+            return {"message": "您無權限訪問！"}, 401
 
     @jwt_required
     def post(self, repository_id):
-        project_id = repository_id
-        parser = reqparse.RequestParser()
-        parser.add_argument('tag_name', type=str, required=True)
-        parser.add_argument('ref', type=str, required=True)
-        parser.add_argument('message', type=str)
-        parser.add_argument('release_description', type=str)
-        args = parser.parse_args()
-        logger.info("post body: {0}".format(args))
-        output = pjt.create_git_project_tags(logger, app, project_id, args)
-        return output.json()
+        role_id = get_jwt_identity()["role_id"]
+        print("role_id={0}".format(role_id))
+
+        if role_id == 1:
+            project_id = repository_id
+            parser = reqparse.RequestParser()
+            parser.add_argument('tag_name', type=str, required=True)
+            parser.add_argument('ref', type=str, required=True)
+            parser.add_argument('message', type=str)
+            parser.add_argument('release_description', type=str)
+            args = parser.parse_args()
+            logger.info("post body: {0}".format(args))
+            output = pjt.create_git_project_tags(logger, app, project_id, args)
+            return output
+        else:
+            return {"message": "您無權限訪問！"}, 401
 
 
 class GitProjectTag(Resource):
     @jwt_required
     def delete(self, repository_id, tag_name):
-        project_id = repository_id
-        output = pjt.delete_git_project_tag(logger, app, project_id, tag_name)
-        if str(output) == "<Response [204]>":
-            return "Success Delete Tag"
+        role_id = get_jwt_identity()["role_id"]
+        print("role_id={0}".format(role_id))
+
+        if role_id == 1:
+            project_id = repository_id
+            output = pjt.delete_git_project_tag(logger, app, project_id,
+                                                tag_name)
+            return output
         else:
-            return str(output)
+            return {"message": "您無權限訪問！"}, 401
 
 
 class GitProjectDirectory(Resource):
@@ -1228,8 +1258,10 @@ class ExportToPostman(Resource):
 
         output = {
             'info': {
-                'name': 'Project id %s' % project_id,
-                'schema': 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json'
+                'name':
+                'Project id %s' % project_id,
+                'schema':
+                'https://schema.getpostman.com/json/collection/v2.1.0/collection.json'
             },
             'item': []
         }
@@ -1238,7 +1270,8 @@ class ExportToPostman(Resource):
         cases = []
         for issue in issues:
             issue_id = issue['id']
-            part_cases = tc.get_testCase_by_issue_id(logger, issue_id, jwt_identity)
+            part_cases = tc.get_testCase_by_issue_id(logger, issue_id,
+                                                     jwt_identity)
             for case in part_cases.values():
                 cases.append(case)
 
@@ -1246,12 +1279,14 @@ class ExportToPostman(Resource):
             case_id = case['id']
             method = case['data']['method']
             url = urlparse(case['data']['url'])
-            items = ti.get_testItem_by_testCase_id(logger, case_id, jwt_identity)
+            items = ti.get_testItem_by_testCase_id(logger, case_id,
+                                                   jwt_identity)
             for item in items.values():
                 item_id = item['id']
                 o_item = {'name': '%s #%s' % (case['name'], item_id)}
                 values = []
-                part_values = tv.get_testValue_by_testItem_id(logger, item_id, jwt_identity)
+                part_values = tv.get_testValue_by_testItem_id(
+                    logger, item_id, jwt_identity)
                 for value in part_values.values():
                     values.append(value)
 
@@ -1297,9 +1332,8 @@ class ExportToPostman(Resource):
                         elif location_id == 2:
                             o_execs.append(
                                 'pm.test("value #%d", function () { '
-                                'pm.expect(pm.response.json().%s).to.be.eql("%s");});' %
-                                (value['id'], value['key'], value['value'])
-                            )
+                                'pm.expect(pm.response.json().%s).to.be.eql("%s");});'
+                                % (value['id'], value['key'], value['value']))
                     else:
                         pass
 
