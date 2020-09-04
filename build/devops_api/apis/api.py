@@ -824,10 +824,8 @@ class IssueCreate(Resource):
 class Issue(Resource):
     @jwt_required
     def get(self, issue_id):
-        return jsonify({
-            'message': 'success',
-            'data': iss.get_issue_rd(logger, app, issue_id)
-        })
+        output = iss.get_issue_rd(logger, app, issue_id)
+        return output
 
     @jwt_required
     def put(self, issue_id):
