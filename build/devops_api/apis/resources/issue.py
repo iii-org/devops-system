@@ -95,11 +95,13 @@ class Issue(object):
     def get_issue_rd(self, logger, app, issue_id):
         Redmine.get_redmine_key(self, logger, app)
         logger.info("self.redmine_key: {0}".format(self.redmine_key))
-        # redmine_output_issue = Redmine.redmine_get_issue(self, logger, app, issue_to_plan[str(issue_id)]).json()
         redmine_output_issue = Redmine.redmine_get_issue(
-            self, logger, app, issue_id).json()
-        output = self.__dealwith_issue_redmine_output(
-            logger, redmine_output_issue['issue'])
+            self, logger, app, issue_id)
+        if redmine_output_issue.status_code == 200:
+            output = self.__dealwith_issue_redmine_output(
+                logger, redmine_output_issue.json()['issue'])
+        else:
+            output = {"message": "could not get this redmine issue."}, 400
         return output
 
     def get_issue_by_project(self, logger, app, project_id):

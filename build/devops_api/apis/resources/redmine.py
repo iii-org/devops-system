@@ -22,7 +22,7 @@ class Redmine(object):
         # get redmine_key
         url = "http://{0}:{1}@{2}/users/current.json".format(app.config['REDMINE_ADMIN_ACCOUNT'],\
             app.config['REDMINE_ADMIN_PASSWORD'], app.config['REDMINE_IP_PORT'])
-        output = requests.get(url, headers=self.headers, verify=False)
+        output = requests.get(url, headers=Redmine.headers, verify=False)
         self.redmine_key = output.json()['user']['api_key']
         logger.info("redmine_key: {0}".format(self.redmine_key))
         return self.redmine_key
@@ -144,3 +144,36 @@ class Redmine(object):
             "redmine create user api output: status_code: {0}, message: {1}".
             format(output.status_code, output.json()))
         return output
+    
+    def redmine_get_wiki_list(self, logger, app, project_id):
+        url = "http://{0}/projects/{1}/wiki/index.json?key={2}".format(
+            app.config['REDMINE_IP_PORT'], project_id, self.redmine_key)
+        logger.info("url: {0}".format(url))
+        output = requests.get(url, headers=Redmine.headers, verify=False)
+        logger.info("get wiki list output and status: {0} and {1}".format(output, output.status_code))
+        return output, output.status_code
+
+    def redmine_get_wiki(self, logger, app, project_id, wiki_name):
+        url = "http://{0}/projects/{1}/wiki/{2}.json?key={3}".format(
+            app.config['REDMINE_IP_PORT'], project_id, wiki_name, self.redmine_key)
+        logger.info("url: {0}".format(url))
+        output = requests.get(url, headers=Redmine.headers, verify=False)
+        logger.info("get wiki list output and status: {0} and {1}".format(output, output.status_code))
+        return output, output.status_code
+
+    def redmine_put_wiki(self, logger, app, project_id, wiki_name, args):
+        url = "http://{0}/projects/{1}/wiki/{2}.json?key={3}".format(
+            app.config['REDMINE_IP_PORT'], project_id, wiki_name, self.redmine_key)
+        logger.info("url: {0}".format(url))
+        param ={"wiki_page": {"text": args['wiki_text']}}
+        output = requests.put(url, data=json.dumps(param), headers=Redmine.headers, verify=False)
+        logger.info("get wiki list output and status: {0} and {1}".format(output, output.status_code))
+        return output, output.status_code
+
+    def redmine_delete_wiki(self, logger, app, project_id, wiki_name):
+        url = "http://{0}/projects/{1}/wiki/{2}.json?key={3}".format(
+            app.config['REDMINE_IP_PORT'], project_id, wiki_name, self.redmine_key)
+        logger.info("url: {0}".format(url))
+        output = requests.delete(url, headers=Redmine.headers, verify=False)
+        logger.info("get wiki list output and status: {0} and {1}".format(output, output.status_code))
+        return output, output.status_code

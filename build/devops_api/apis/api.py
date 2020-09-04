@@ -23,6 +23,7 @@ import resources.parameter as parameter
 import resources.testCase as testCase
 import resources.testItem as testItem
 import resources.testValue as testValue
+import resources.wiki as wiki
 
 app = Flask(__name__)
 app.config.from_object('config')
@@ -45,6 +46,7 @@ redmine = redmine.Redmine(logger, app)
 iss = issue.Issue()
 pjt = project.Project(logger, app)
 pipe = pipeline.Pipeline()
+wk = wiki.Wiki()
 
 rqmt = requirement.Requirement()
 param = parameter.Parameter()
@@ -363,6 +365,57 @@ class ProjectUserList(Resource):
             return output
         else:
             return {"message": "your role art not administrator"}, 401
+
+class ProjectWikiList(Resource):
+    @jwt_required
+    def get(self, project_id):
+        stauts = pjt.verify_project_user(logger, project_id,
+                                         get_jwt_identity()['user_id'])
+        if stauts or get_jwt_identity()['role_id'] == 5:
+            output = wk.get_wiki_list_by_project(logger, app, project_id)
+            return jsonify(output)
+        else:
+            return {"message": "your are not in this project or not administrator"}, 401
+
+
+class ProjectWiki(Resource):
+    @jwt_required
+    def get(self, project_id, wiki_name):
+        stauts = pjt.verify_project_user(logger, project_id,
+                                         get_jwt_identity()['user_id'])
+        if stauts or get_jwt_identity()['role_id'] == 5:
+            output, status_code = wk.get_wiki_by_project(logger, app, project_id, wiki_name)
+            return output, status_code
+        else:
+            return {"message": "your are not in this project or not administrator"}, 401
+
+    @jwt_required
+    def put(self, project_id, wiki_name):
+        stauts = pjt.verify_project_user(logger, project_id,
+                                         get_jwt_identity()['user_id'])
+        if stauts or get_jwt_identity()['role_id'] == 5:
+            logger.debug("in here")
+            parser = reqparse.RequestParser()
+            logger.debug("parser: {0}".format(parser))
+            parser.add_argument('text', type=str, required=True)
+            logger.debug("parser: {0}".format(parser))
+            args = parser.parse_args()
+            logger.debug("and here")
+            logger.debug("put wiki args: {0}".format(args))
+            output, status_code = wk.put_wiki_by_project(logger, app, project_id, wiki_name, args)
+            return output, status_code
+        else:
+            return {"message": "your are not in this project or not administrator"}, 401
+    @jwt_required
+    def delete(self, project_id, wiki_name):
+        stauts = pjt.verify_project_user(logger, project_id,
+                                         get_jwt_identity()['user_id'])
+        if stauts or get_jwt_identity()['role_id'] == 5:
+            output, status_code = wk.delete_wiki_by_project(logger, app, project_id, wiki_name)
+            return output, status_code
+        else:
+            return {"message": "your are not in this project or not administrator"}, 401
+
 
 
 class RoleList(Resource):
@@ -1240,6 +1293,9 @@ api.add_resource(GitProjectNetwork, '/repositories/<repository_id>/overview')
 # Project
 api.add_resource(ProjectList, '/project/rd/<user_id>')
 api.add_resource(ProjectUserList, '/project/<int:project_id>/user/list')
+api.add_resource(ProjectWikiList, '/project/<int:project_id>/wiki')
+api.add_resource(ProjectWiki, '/project/<int:project_id>/wiki/<wiki_name>')
+
 
 # User
 api.add_resource(UserLogin, '/user/login')
