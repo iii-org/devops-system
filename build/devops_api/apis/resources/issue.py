@@ -65,6 +65,7 @@ class Issue(object):
         output_list['issue_priority'] = redmine_output['priority']['name']
         output_list['issue_status'] = redmine_output['status']['name']
         output_list['issue_name'] = redmine_output['subject']
+        output_list['description'] = redmine_output['description']
         output_list['assigned_to'] = None
         if 'assigned_to' in redmine_output:
             output_list['assigned_to'] = redmine_output['assigned_to']['name']

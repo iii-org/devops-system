@@ -775,7 +775,7 @@ class IssueByProject(Resource):
     def get(self, project_id):
         stauts = pjt.verify_project_user(logger, project_id,
                                          get_jwt_identity()['user_id'])
-        if stauts:
+        if stauts or get_jwt_identity()['role_id'] == 5:
             output_array = iss.get_issue_by_project(logger, app, project_id)
             return jsonify(output_array)
         else:
