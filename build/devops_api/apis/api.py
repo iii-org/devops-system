@@ -24,6 +24,7 @@ import resources.parameter as parameter
 import resources.testCase as testCase
 import resources.testItem as testItem
 import resources.testValue as testValue
+import resources.testResult as testResult
 
 app = Flask(__name__)
 app.config.from_object('config')
@@ -52,6 +53,7 @@ param = parameter.Parameter()
 tc = testCase.TestCase()
 ti = testItem.TestItem()
 tv = testValue.TestValue()
+tr = testResult.TestResult()
 
 
 class Index(Resource):
@@ -1205,6 +1207,18 @@ class TestValue(Resource):
         return jsonify({'message': 'success', 'data': output})
 
 
+class TestResult(Resource):
+    @jwt_required
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('project_id', type=int, required=True)
+        parser.add_argument('total', type=int, required=True)
+        parser.add_argument('fail', type=int, required=True)
+        args = parser.parse_args()
+        output = tr.save(logger, args)
+        return output
+
+
 class ExportToPostman(Resource):
     @jwt_required
     def get(self, project_id):
@@ -1416,6 +1430,9 @@ api.add_resource(TestItem, '/testItems/<testItem_id>')
 # testPhase Testitem Value
 api.add_resource(TestValueByTestItem, '/testValues_by_testItem/<testItem_id>')
 api.add_resource(TestValue, '/testValues/<testValue_id>')
+
+# TestResult writing
+api.add_resource(TestResult, '/testResults')
 
 # Export tests to postman json format
 api.add_resource(ExportToPostman, '/export_to_postman/<project_id>')

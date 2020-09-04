@@ -157,6 +157,17 @@ class TableTestValue():
                               db.Column('disabled', db.Boolean))
 
 
+class TableTestResult:
+    meta = db.MetaData()
+    stru_testResult = db.Table('test_results', meta,
+                              db.Column('id', db.Integer, primary_key=True),
+                              db.Column('project_id', db.Integer),
+                              db.Column('branch', db.String(50)),
+                              db.Column('total', db.Integer),
+                              db.Column('fail', db.Integer),
+                              db.Column('run_at', db.DATETIME(255))
+                               )
+
 class TableParameter():
     meta = db.MetaData()
     stru_param = db.Table('parameters', meta,
