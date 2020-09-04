@@ -475,33 +475,47 @@ class GitProjectBranches(Resource):
 
     @jwt_required
     def post(self, repository_id):
-        project_id = repository_id
-        parser = reqparse.RequestParser()
-        parser.add_argument('branch', type=str, required=True)
-        parser.add_argument('ref', type=str, required=True)
-        args = parser.parse_args()
-        logger.info("post body: {0}".format(args))
-        output = pjt.create_git_project_branch(logger, app, project_id, args)
-        return output.json()
+        role_id = get_jwt_identity()["role_id"]
+        print("role_id={0}".format(role_id))
 
+        if role_id == 1:
+            project_id = repository_id
+            parser = reqparse.RequestParser()
+            parser.add_argument('branch', type=str, required=True)
+            parser.add_argument('ref', type=str, required=True)
+            args = parser.parse_args()
+            logger.info("post body: {0}".format(args))
+            output = pjt.create_git_project_branch(logger, app, project_id, args)
+            return output
+        else:
+            return {"message": "您無權限訪問！"}, 401
 
 class GitProjectBranch(Resource):
     @jwt_required
     def get(self, repository_id, branch_name):
-        project_id = repository_id
-        branch = branch_name
-        output = pjt.get_git_project_branch(logger, app, project_id, branch)
-        return output.json()
+        role_id = get_jwt_identity()["role_id"]
+        print("role_id={0}".format(role_id))
+
+        if role_id == 1:
+            project_id = repository_id
+            branch = branch_name
+            output = pjt.get_git_project_branch(logger, app, project_id, branch)
+            return output
+        else:
+            return {"message": "您無權限訪問！"}, 401
 
     @jwt_required
     def delete(self, repository_id, branch_name):
-        project_id = repository_id
-        branch = branch_name
-        output = pjt.delete_git_project_branch(logger, app, project_id, branch)
-        if str(output) == "<Response [204]>":
-            return "Success Delete Branch"
+        role_id = get_jwt_identity()["role_id"]
+        print("role_id={0}".format(role_id))
+
+        if role_id == 1:
+            project_id = repository_id
+            branch = branch_name
+            output = pjt.delete_git_project_branch(logger, app, project_id, branch)
+            return output
         else:
-            return str(output)
+            return {"message": "您無權限訪問！"}, 401
 
 
 class GitProjectRepositories(Resource):
@@ -611,33 +625,49 @@ class GitProjectFile(Resource):
 class GitProjectTags(Resource):
     @jwt_required
     def get(self, repository_id):
-        project_id = repository_id
-        output = pjt.get_git_project_tags(logger, app, project_id)
-        return output.json()
+        role_id = get_jwt_identity()["role_id"]
+        print("role_id={0}".format(role_id))
+
+        if role_id == 1:
+            project_id = repository_id
+            output = pjt.get_git_project_tags(logger, app, project_id)
+            return output
+        else:
+            return {"message": "您無權限訪問！"}, 401
 
     @jwt_required
     def post(self, repository_id):
-        project_id = repository_id
-        parser = reqparse.RequestParser()
-        parser.add_argument('tag_name', type=str, required=True)
-        parser.add_argument('ref', type=str, required=True)
-        parser.add_argument('message', type=str)
-        parser.add_argument('release_description', type=str)
-        args = parser.parse_args()
-        logger.info("post body: {0}".format(args))
-        output = pjt.create_git_project_tags(logger, app, project_id, args)
-        return output.json()
+        role_id = get_jwt_identity()["role_id"]
+        print("role_id={0}".format(role_id))
+
+        if role_id == 1:
+            project_id = repository_id
+            parser = reqparse.RequestParser()
+            parser.add_argument('tag_name', type=str, required=True)
+            parser.add_argument('ref', type=str, required=True)
+            parser.add_argument('message', type=str)
+            parser.add_argument('release_description', type=str)
+            args = parser.parse_args()
+            logger.info("post body: {0}".format(args))
+            output = pjt.create_git_project_tags(logger, app, project_id, args)
+            return output
+        else:
+            return {"message": "您無權限訪問！"}, 401
 
 
 class GitProjectTag(Resource):
     @jwt_required
     def delete(self, repository_id, tag_name):
-        project_id = repository_id
-        output = pjt.delete_git_project_tag(logger, app, project_id, tag_name)
-        if str(output) == "<Response [204]>":
-            return "Success Delete Tag"
+        role_id = get_jwt_identity()["role_id"]
+        print("role_id={0}".format(role_id))
+
+        if role_id == 1:
+            project_id = repository_id
+            output = pjt.delete_git_project_tag(logger, app, project_id,
+                                                tag_name)
+            return output
         else:
-            return str(output)
+            return {"message": "您無權限訪問！"}, 401
 
 
 class GitProjectDirectory(Resource):
