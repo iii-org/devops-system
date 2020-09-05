@@ -60,7 +60,8 @@ class Issue(object):
     def __dealwith_issue_by_user_redmine_output(self, logger, redmine_output):
         output_list = {}
         output_list['id'] = redmine_output['id']
-        output_list['name'] = redmine_output['project']['name']
+        output_list['project_id'] = redmine_output['project']['id']
+        output_list['project_name'] = redmine_output['project']['name']
         output_list['issue_category'] = redmine_output['tracker']['name']
         output_list['issue_priority'] = redmine_output['priority']['name']
         output_list['issue_status'] = redmine_output['status']['name']

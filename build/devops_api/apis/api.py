@@ -77,7 +77,7 @@ class TotalProjectList(Resource):
         role_id = get_jwt_identity()["role_id"]
         print("role_id={0}".format(role_id))
 
-        if role_id == 3:
+        if role_id in (3, 5):
             user_id = get_jwt_identity()["user_id"]
             print("user_id={0}".format(user_id))
             try:
@@ -95,7 +95,7 @@ class CreateProject(Resource):
         role_id = get_jwt_identity()["role_id"]
         print("role_id={0}".format(role_id))
 
-        if role_id == 3:
+        if role_id == (3, 5):
             user_id = get_jwt_identity()["user_id"]
             print("user_id={0}".format(user_id))
             parser = reqparse.RequestParser()
@@ -119,7 +119,7 @@ class Project(Resource):
         role_id = get_jwt_identity()["role_id"]
         print("role_id={0}".format(role_id))
 
-        if role_id == 3:
+        if role_id in (3, 5):
             try:
                 output = pjt.pm_get_project(logger, app, project_id)
                 return output
@@ -133,7 +133,7 @@ class Project(Resource):
         role_id = get_jwt_identity()["role_id"]
         print("role_id={0}".format(role_id))
 
-        if role_id == 3:
+        if role_id in (3, 5):
             # user_id = get_jwt_identity()["user_id"]
             # print("user_id={0}".format(user_id))
             parser = reqparse.RequestParser()
@@ -157,7 +157,7 @@ class Project(Resource):
         role_id = get_jwt_identity()["role_id"]
         print("role_id={0}".format(role_id))
 
-        if role_id == 3:
+        if role_id in (3, 5):
             try:
                 output = pjt.pm_delete_project(logger, app, project_id)
                 return output
@@ -251,7 +251,7 @@ class ProjectList(Resource):
     @jwt_required
     def get(self, user_id):
         if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity(
-        )['role_id'] in (3, 4, 5):
+        )['role_id'] in (3, 5):
             output_array = pjt.get_project_list(logger, app, user_id)
             return jsonify({'message': 'success', 'data': output_array})
         else:
@@ -288,7 +288,7 @@ class UserInfo(Resource):
         logger.debug("get_jwt_identity()['user_id']: {0}".format(
             get_jwt_identity()['user_id']))
         if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity(
-        )['role_id'] not in (1, 2):
+        )['role_id'] not in (1, 3, 5):
             user_info = au.user_info(logger, user_id)
             return user_info
         else:
@@ -369,7 +369,7 @@ class User(Resource):
 class UserList(Resource):
     @jwt_required
     def get(self):
-        if get_jwt_identity()["role_id"] in (3, 4, 5):
+        if get_jwt_identity()["role_id"] in (3, 5):
             output = au.get_user_list(logger)
             return output
         else:
@@ -379,7 +379,7 @@ class UserList(Resource):
 class ProjectUserList(Resource):
     @jwt_required
     def get(self, project_id):
-        if get_jwt_identity()["role_id"] in (3, 4, 5):
+        if get_jwt_identity()["role_id"] in (3, 5):
             parser = reqparse.RequestParser()
             parser.add_argument('exclude', type=int)
             args = parser.parse_args()
@@ -531,7 +531,7 @@ class RoleList(Resource):
     @jwt_required
     def get(self):
         print("role_id is {0}".format(get_jwt_identity()["role_id"]))
-        if get_jwt_identity()["role_id"] == 5:
+        if get_jwt_identity()["role_id"] in (1, 3, 5):
             try:
                 output = au.get_role_list(logger, app)
                 return output
@@ -562,7 +562,7 @@ class GitProjectBranches(Resource):
         role_id = get_jwt_identity()["role_id"]
         print("role_id={0}".format(role_id))
 
-        if role_id == 1:
+        if role_id in (1, 5):
             project_id = repository_id
             parser = reqparse.RequestParser()
             parser.add_argument('branch', type=str, required=True)
@@ -580,7 +580,7 @@ class GitProjectBranch(Resource):
         role_id = get_jwt_identity()["role_id"]
         print("role_id={0}".format(role_id))
 
-        if role_id == 1:
+        if role_id in (1, 5):
             project_id = repository_id
             branch = branch_name
             output = pjt.get_git_project_branch(logger, app, project_id, branch)
@@ -593,7 +593,7 @@ class GitProjectBranch(Resource):
         role_id = get_jwt_identity()["role_id"]
         print("role_id={0}".format(role_id))
 
-        if role_id == 1:
+        if role_id in (1, 5):
             project_id = repository_id
             branch = branch_name
             output = pjt.delete_git_project_branch(logger, app, project_id, branch)
@@ -608,7 +608,7 @@ class GitProjectRepositories(Resource):
         role_id = get_jwt_identity()["role_id"]
         print("role_id={0}".format(role_id))
 
-        if role_id == 1:
+        if role_id in (1, 5):
             project_id = repository_id
             branch = branch_name
             output = pjt.get_git_project_repositories(logger, app, project_id,
@@ -624,7 +624,7 @@ class GitProjectFiles(Resource):
         role_id = get_jwt_identity()["role_id"]
         print("role_id={0}".format(role_id))
 
-        if role_id == 1:
+        if role_id in (1, 5):
             project_id = repository_id
             parser = reqparse.RequestParser()
             parser.add_argument('branch', type=str, required=True)
@@ -649,7 +649,7 @@ class GitProjectFiles(Resource):
         role_id = get_jwt_identity()["role_id"]
         print("role_id={0}".format(role_id))
 
-        if role_id == 1:
+        if role_id in (1, 5):
             project_id = repository_id
             parser = reqparse.RequestParser()
             parser.add_argument('branch', type=str, required=True)
@@ -676,7 +676,7 @@ class GitProjectFile(Resource):
         role_id = get_jwt_identity()["role_id"]
         print("role_id={0}".format(role_id))
 
-        if role_id == 1:
+        if role_id in (1, 5):
             project_id = repository_id
             branch = branch_name
             output = pjt.get_git_project_file(logger, app, project_id, branch,
@@ -691,7 +691,7 @@ class GitProjectFile(Resource):
         role_id = get_jwt_identity()["role_id"]
         print("role_id={0}".format(role_id))
 
-        if role_id == 1:
+        if role_id in (1, 5):
             project_id = repository_id
             branch = branch_name
             parser = reqparse.RequestParser()
@@ -712,7 +712,7 @@ class GitProjectTags(Resource):
         role_id = get_jwt_identity()["role_id"]
         print("role_id={0}".format(role_id))
 
-        if role_id == 1:
+        if role_id in (1, 5):
             project_id = repository_id
             output = pjt.get_git_project_tags(logger, app, project_id)
             return output
@@ -724,7 +724,7 @@ class GitProjectTags(Resource):
         role_id = get_jwt_identity()["role_id"]
         print("role_id={0}".format(role_id))
 
-        if role_id == 1:
+        if role_id in (1, 5):
             project_id = repository_id
             parser = reqparse.RequestParser()
             parser.add_argument('tag_name', type=str, required=True)
@@ -745,7 +745,7 @@ class GitProjectTag(Resource):
         role_id = get_jwt_identity()["role_id"]
         print("role_id={0}".format(role_id))
 
-        if role_id == 1:
+        if role_id in (1, 5):
             project_id = repository_id
             output = pjt.delete_git_project_tag(logger, app, project_id,
                                                 tag_name)
@@ -1012,7 +1012,7 @@ class Issue(Resource):
     def delete(self, issue_id):
         stauts = iss.verify_issue_user(logger, app, issue_id,
                                        get_jwt_identity()['user_id'])
-        if stauts and get_jwt_identity()['role_id'] in (3, 4, 5):
+        if stauts and get_jwt_identity()['role_id'] in (3, 5):
             output = iss.delete_issue(logger, app, issue_id)
             return output
         else:
@@ -1044,7 +1044,7 @@ class IssueTracker(Resource):
 class IssueRDbyUser(Resource):
     @jwt_required
     def get(self, user_id):
-        if int(user_id) == get_jwt_identity()['user_id']:
+        if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity()['role_id'] in (3, 5):
             output = iss.get_issue_by_user(logger, app, user_id)
             return jsonify({'message': 'success', 'data': output})
         else:
@@ -1067,7 +1067,7 @@ class IssueStatistics(Resource):
 class DashboardIssuePriority(Resource):
     @jwt_required
     def get(self, user_id):
-        if int(user_id) == get_jwt_identity()['user_id']:
+        if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity()['role_id'] in (3, 5):
             output = iss.count_prioriry_number_by_issues(logger, app, user_id)
             return jsonify({'message': 'success', 'data': output})
         else:
@@ -1077,7 +1077,7 @@ class DashboardIssuePriority(Resource):
 class DashboardIssueProject(Resource):
     @jwt_required
     def get(self, user_id):
-        if int(user_id) == get_jwt_identity()['user_id']:
+        if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity()['role_id'] in (3, 5):
             output = iss.count_project_number_by_issues(logger, app, user_id)
             return jsonify({'message': 'success', 'data': output})
         else:
@@ -1087,7 +1087,7 @@ class DashboardIssueProject(Resource):
 class DashboardIssueType(Resource):
     @jwt_required
     def get(self, user_id):
-        if int(user_id) == get_jwt_identity()['user_id']:
+        if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity()['role_id'] in (3, 5):
             output = iss.count_type_number_by_issues(logger, app, user_id)
             return jsonify({'message': 'success', 'data': output})
         else:
