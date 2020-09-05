@@ -29,7 +29,7 @@ class TestCase(object):
         return output
 
     def _del_with_fetchall(self, data, caseType=''):
-        if caseType is '':
+        if caseType == '':
             caseType = self._get_testCasetType()
         output = {}
         i = 0
