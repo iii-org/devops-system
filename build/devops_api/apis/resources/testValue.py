@@ -30,6 +30,12 @@ class TestValue(object):
         output['create_at'] = util.dateToStr(self, sqlRow['create_at'])
         return output
 
+    def get_testValue_httpType(self,logger):
+        return self.httpType
+    
+    def get_testValue_httpLocation(self, logger):
+        return self.httpLocation
+
     def get_testValue_by_Column(self, logger, args, user_id,orderColumn=''):
         output = {}
         if(args['issue_id'] != None):
@@ -39,16 +45,6 @@ class TestValue(object):
             return self.get_testValue_by_project_id(logger,args['project_id'],user_id,orderColumn)
         else:
             return {}
-        # logger.debug("get_testCase_command: {0}".format(get_testCase_command))
-        # result = util.callsqlalchemy(self, get_testCase_command, logger)
-        # reMessages = result.fetchall()
-
-        # i = 0
-        # for row in reMessages:
-        #     output[i] = {}
-        #     output[i] = self._deal_with_TestCaseObject(row, caseType)
-        #     i = i+1
-        # return self._del_with_fetchall(reMessages)
 
     # 取得 TestItem  靠 test case id
     def get_testValue_by_tv_id(self, logger, testItem_id, user_id):

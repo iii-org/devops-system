@@ -187,3 +187,59 @@ class Redmine(object):
         logger.info("get wiki list output and status: {0} and {1}".format(
             output, output.status_code))
         return output, output.status_code
+
+    # Get Redmine Version List
+    def redmine_get_version_list(self, logger, app, project_id):
+        url = "http://{0}/projects/{1}/versions.json?key={2}".format(
+            app.config['REDMINE_IP_PORT'], project_id, self.redmine_key)
+        logger.info("url: {0}".format(url))
+        output = requests.get(url, headers=Redmine.headers, verify=False)
+        logger.info("get version list output and status: {0} and {1}".format(
+            output, output.status_code))
+        return output, output.status_code
+
+    # Create Redmine Version 
+    def redmine_post_version(self, logger, app, project_id, args):
+        url = "http://{0}/projects/{1}/versions.json?key={2}".format(
+            app.config['REDMINE_IP_PORT'], project_id, self.redmine_key)
+        logger.info("url: {0}".format(url))
+        output = requests.post(url,
+                              data=json.dumps(args),
+                              headers=Redmine.headers,
+                              verify=False)
+        logger.info("get wiki list output and status: {0} and {1}".format(
+            output, output.status_code))
+        return output, output.status_code
+    
+    def redmine_get_version(self, logger, app, version_id):
+        url = "http://{0}/versions/{1}.json?key={2}".format(
+            app.config['REDMINE_IP_PORT'], version_id,
+            self.redmine_key)
+        logger.info("url: {0}".format(url))
+        output = requests.get(url, headers=Redmine.headers, verify=False)
+        logger.info("get version output and status: {0} and {1}".format(
+            output, output.status_code))
+        return output, output.status_code
+
+    def redmine_put_version(self, logger, app, version_id, args):
+        url = "http://{0}/versions/{1}.json?key={2}".format(
+            app.config['REDMINE_IP_PORT'], version_id, self.redmine_key)
+        logger.info("url: {0}".format(url))
+        print(args)
+        output = requests.put(url,
+                              data=json.dumps(args),
+                              headers=Redmine.headers,
+                              verify=False)
+        logger.info("put redmine  output and status: {0} and {1}".format(
+            output, output.status_code))
+        return output, output.status_code
+
+    def redmine_delete_version(self, logger, app, version_id):
+        url = "http://{0}/versions/{1}.json?key={2}".format(
+            app.config['REDMINE_IP_PORT'], version_id,
+            self.redmine_key)
+        logger.info("url: {0}".format(url))
+        output = requests.delete(url, headers=Redmine.headers, verify=False)
+        logger.info("Delete version output and status: {0} and {1}".format(
+            output, output.status_code))
+        return output, output.status_code

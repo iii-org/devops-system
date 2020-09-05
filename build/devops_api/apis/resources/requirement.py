@@ -24,10 +24,21 @@ class Requirement(object):
         else:
             return {}
 
+    def check_requirement_by_issue_id(self, logger, issue_id):
+        get_rqmt_command = db.select(
+            [TableRequirement.stru_rqmt.c.id]).where(
+                db.and_(TableRequirement.stru_rqmt.c.issue_id == issue_id)).order_by(TableRequirement.stru_rqmt.c.id.asc())
+        logger.debug("get_rqmt_command: {0}".format(get_rqmt_command))
+        result = util.callsqlalchemy(self, get_rqmt_command, logger)
+        reMessages = result.fetchall()
+        requirement_ids = []
+        for reMessage in reMessages:
+            requirement_ids.append(reMessage['id'])
+
+        return requirement_ids
+
     
     # 取得 requirement 內的流程資訊
-
-
     def get_requirement_by_rqmt_id(self, logger, requirement_id, user_id):
 
         get_rqmt_command = db.select([
@@ -84,7 +95,7 @@ class Requirement(object):
         insert_rqmt_command = db.insert(TableRequirement.stru_rqmt).values(
             project_id=args['project_id'],
             issue_id=issue_id,
-            flow_info=self._deal_with_json(args['flow_info']),
+            # flow_info=self._deal_with_json(args['flow_info']),
             create_at=datetime.datetime.now(),
             update_at=datetime.datetime.now())
         logger.debug("insert_user_command: {0}".format(insert_rqmt_command))

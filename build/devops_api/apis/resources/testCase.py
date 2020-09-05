@@ -3,6 +3,7 @@ from .util import util
 import json
 import datetime
 import logging
+import ast
 logger = logging.getLogger('devops.api')
 
 
@@ -84,9 +85,12 @@ class TestCase(object):
     # 修改 TestCase 內資訊
     def modify_testCase_by_tc_id(self, logger, testCase_id, args, user_id):
 
+        print(type(args['data']))
+        print(ast.literal_eval(args['data']))
+        print(type(ast.literal_eval(args['data'])))
         update_testCase_command = db.update(TableTestCase.stru_testCase).where(db.and_(TableTestCase.stru_testCase.c.id == testCase_id)).values(
-            data=util.jsonToStr(self, self._analysis_input_case_data(
-                json.loads(args['data']))),
+            data = json.dumps(ast.literal_eval(args['data'])),
+            # data=util.jsonToStr(self, self._analysis_input_case_data(json.(args['data']))),
             name=args['name'],
             description=args['description'],
             type_id=args['type_id'],
@@ -149,8 +153,7 @@ class TestCase(object):
         insert_testCase_command = db.insert(TableTestCase.stru_testCase).values(
             issue_id=issue_id,
             project_id=args['project_id'],
-            data=util.jsonToStr(self, self._analysis_input_case_data(
-                json.loads(args['data']))),
+            data = json.dumps(ast.literal_eval(args['data'])),
             name=args['name'],
             description=args['description'],
             type_id=args['type_id'],
