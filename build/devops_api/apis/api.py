@@ -963,6 +963,7 @@ class IssueCreate(Resource):
         parser.add_argument('description', type=str)
         parser.add_argument('assigned_to_id', type=int, required=True)
         parser.add_argument('parent_id', type=int)
+        parser.add_argument('fixed_version_id', type=int)
         parser.add_argument('start_date', type=str, required=True)
         parser.add_argument('due_date', type=str, required=True)
         parser.add_argument('done_retio', type=int, required=True)
