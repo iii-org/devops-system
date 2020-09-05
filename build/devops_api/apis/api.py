@@ -379,7 +379,7 @@ class UserList(Resource):
 class ProjectUserList(Resource):
     @jwt_required
     def get(self, project_id):
-        if get_jwt_identity()["role_id"] in (3, 5):
+        if get_jwt_identity()["role_id"] in (1, 3, 5):
             parser = reqparse.RequestParser()
             parser.add_argument('exclude', type=int)
             args = parser.parse_args()
