@@ -929,8 +929,12 @@ class IssuesProgressByProject(Resource):
         stauts = pjt.verify_project_user(logger, project_id,
                                          get_jwt_identity()['user_id'])
         if stauts or get_jwt_identity()['role_id'] == 5:
+            parser = reqparse.RequestParser()
+            parser.add_argument('fixed_version_id', type=int)
+            args = parser.parse_args()
+            logger.debug("show fixed_version_id: {0}".format(args['fixed_version_id']))
             output_array = iss.get_issueProgress_by_project(
-                logger, app, project_id)
+                logger, app, project_id, args)
             return output_array
         else:
             return {'message': 'Dont have authorization to access issue list on project: {0}' \
@@ -943,8 +947,12 @@ class IssuesStatisticsByProject(Resource):
         stauts = pjt.verify_project_user(logger, project_id,
                                          get_jwt_identity()['user_id'])
         if stauts or get_jwt_identity()['role_id'] == 5:
+            parser = reqparse.RequestParser()
+            parser.add_argument('fixed_version_id', type=int)
+            args = parser.parse_args()
+            logger.debug("show fixed_version_id: {0}".format(args['fixed_version_id']))
             output = iss.get_issueStatistics_by_project(
-                logger, app, project_id)
+                logger, app, project_id, args)
             return output
         else:
             return {'message': 'Dont have authorization to get issue statistics on project: {0}'\
@@ -963,6 +971,7 @@ class IssueCreate(Resource):
         parser.add_argument('description', type=str)
         parser.add_argument('assigned_to_id', type=int, required=True)
         parser.add_argument('parent_id', type=int)
+        parser.add_argument('fixed_version_id', type=int)
         parser.add_argument('start_date', type=str, required=True)
         parser.add_argument('due_date', type=str, required=True)
         parser.add_argument('done_retio', type=int, required=True)
