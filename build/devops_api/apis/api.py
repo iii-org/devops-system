@@ -26,6 +26,7 @@ import resources.testCase as testCase
 import resources.testItem as testItem
 import resources.testValue as testValue
 import resources.wiki as wiki
+import resources.version as version
 import resources.testData as testData
 import resources.flow as flow
 import resources.testResult as testResult
@@ -52,6 +53,7 @@ iss = issue.Issue()
 pjt = project.Project(logger, app)
 pipe = pipeline.Pipeline()
 wk = wiki.Wiki()
+vn = version.Version()
 
 rqmt = requirement.Requirement()
 flow = flow.Flow()
@@ -438,6 +440,86 @@ class ProjectWiki(Resource):
         if stauts or get_jwt_identity()['role_id'] == 5:
             output, status_code = wk.delete_wiki_by_project(
                 logger, app, project_id, wiki_name)
+            return output, status_code
+        else:
+            return {
+                "message": "your are not in this project or not administrator"
+            }, 401
+
+# Get Project Version List
+class ProjectVersionList(Resource):
+    @jwt_required
+    def get(self, project_id):
+        stauts = pjt.verify_project_user(logger, project_id,
+                                         get_jwt_identity()['user_id'])
+        if stauts or get_jwt_identity()['role_id'] == 5:
+            output = vn.get_version_list_by_project(logger, app, project_id)
+            return output
+        else:
+            return {
+                "message": "your are not in this project or not administrator"
+            }, 401
+
+
+# Create  Project Version 
+class ProjectVersion(Resource):
+    @jwt_required
+    def post(self, project_id):
+        stauts = pjt.verify_project_user(logger, project_id,
+                                         get_jwt_identity()['user_id'])
+        if stauts or get_jwt_identity()['role_id'] == 5:
+            root_parser = reqparse.RequestParser()
+            root_parser.add_argument('version', type=dict, required=True)
+            root_args = root_parser.parse_args()
+            output, status_code = vn.post_version_by_project(
+                logger, app, project_id, root_args)
+            return output
+        else:
+            return {
+                "message": "your are not in this project or not administrator"
+            }, 401
+
+
+
+# Get Project Version Information
+class ProjectVersionInfo(Resource):
+    @jwt_required
+    def get(self, project_id, version_id):
+        stauts = pjt.verify_project_user(logger, project_id,
+                                         get_jwt_identity()['user_id'])
+        if stauts or get_jwt_identity()['role_id'] == 5:
+            output, status_code = vn.get_version_by_version_id(
+                logger, app, project_id, version_id)
+            return output, status_code
+        else:
+            return {
+                "message": "your are not in this project or not administrator"
+            }, 401
+
+    @jwt_required
+    def put(self, project_id, version_id):
+        stauts = pjt.verify_project_user(logger, project_id,
+                                         get_jwt_identity()['user_id'])
+        if stauts or get_jwt_identity()['role_id'] == 5:
+            root_parser = reqparse.RequestParser()
+            root_parser.add_argument('version', type=dict, required=True)
+            root_args = root_parser.parse_args()
+            print(root_args)
+            output, status_code = vn.put_version_by_version_id(
+                logger, app, project_id, version_id, root_args)
+            return output, status_code
+        else:
+            return {
+                "message": "your are not in this project or not administrator"
+            }, 401
+
+    @jwt_required
+    def delete(self, project_id, version_id):
+        stauts = pjt.verify_project_user(logger, project_id,
+                                         get_jwt_identity()['user_id'])
+        if stauts or get_jwt_identity()['role_id'] == 5:
+            output, status_code = vn.delete_version_by_version_id(
+                logger, app, project_id, version_id )
             return output, status_code
         else:
             return {
@@ -1650,6 +1732,9 @@ api.add_resource(ProjectList, '/project/rd/<user_id>')
 api.add_resource(ProjectUserList, '/project/<int:project_id>/user/list')
 api.add_resource(ProjectWikiList, '/project/<int:project_id>/wiki')
 api.add_resource(ProjectWiki, '/project/<int:project_id>/wiki/<wiki_name>')
+api.add_resource(ProjectVersionList, '/project/<int:project_id>/version/list')
+api.add_resource(ProjectVersion, '/project/<int:project_id>/version')
+api.add_resource(ProjectVersionInfo, '/project/<int:project_id>/version/<int:version_id>')
 
 # User
 api.add_resource(UserLogin, '/user/login')
