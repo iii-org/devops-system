@@ -13,8 +13,6 @@ class TestValue(object):
     httpLocation = {"1": "header", "2":"body"}
 
 
-   
-
     def _deal_with_TestValueObject(self, sqlRow):
         output = {}
         output['id'] = sqlRow['id']
@@ -31,10 +29,16 @@ class TestValue(object):
         return output
 
     def get_testValue_httpType(self,logger):
-        return self.httpType
+        output = []
+        for key in self.httpType:
+            output.append({'type_id': int(key), "type_name":self.httpType[key]})
+        return output
     
     def get_testValue_httpLocation(self, logger):
-        return self.httpLocation
+        output = []
+        for key in self.httpLocation:
+            output.append({'location_id': int(key), "type_name":self.httpLocation[key]})
+        return output
 
     def get_testValue_by_Column(self, logger, args, user_id,orderColumn=''):
         output = {}
@@ -105,10 +109,9 @@ class TestValue(object):
         result = util.callsqlalchemy(self, get_testValue_command, logger)
         reMessages = result.fetchall()
         i = 0
-        output = {}
+        output = []
         for row in reMessages:
-            output[i] = self._deal_with_TestValueObject(row)
-            i = i+1
+            output.append(self._deal_with_TestValueObject(row))
         return output
 
         # 新增同Issue Id 內  parameters 的資訊
@@ -127,12 +130,9 @@ class TestValue(object):
             create_at=datetime.datetime.now(),
             update_at=datetime.datetime.now()
         )
-        print(insert_testValue_command)
         logger.debug("insert_testValue_command: {0}".format(insert_testValue_command))
         reMessage = util.callsqlalchemy(self, insert_testValue_command, logger)
-        print(reMessage)
         return {'testValue_id': reMessage.inserted_primary_key}
-        # return '123'
 
     def get_testValue_by_issue_id(self, logger, issue_id, user_id,orderColumn=''):
         if(orderColumn != ''):
@@ -145,10 +145,9 @@ class TestValue(object):
         result = util.callsqlalchemy(self, get_testValue_command, logger)
         reMessages = result.fetchall()
         i = 0
-        output = {}
+        output = []
         for row in reMessages:
-            output[i] = self._deal_with_TestValueObject(row)
-            i = i+1
+            output.append(self._deal_with_TestValueObject(row))
         return output
 
     def get_testValue_by_project_id(self, logger, project_id, user_id, orderColumn = ''):
@@ -157,11 +156,9 @@ class TestValue(object):
         logger.debug("get_testValue_command: {0}".format(get_testValue_command))
         result = util.callsqlalchemy(self, get_testValue_command, logger)
         reMessages = result.fetchall()
-        i = 0
-        output = {}
+        output = []
         for row in reMessages:
-            output[i] = self._deal_with_TestValueObject(row)
-            i = i+1
+            output.append(self._deal_with_TestValueObject(row))
         return output
 
 

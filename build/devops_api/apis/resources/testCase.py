@@ -22,21 +22,12 @@ class TestCase(object):
             caseType[row['id']] = row['name']
         return caseType
 
-    def _analysis_input_case_data(self, data):
-
-        output = data
-
-        return output
-
     def _del_with_fetchall(self, data, caseType=''):
         if caseType == '':
             caseType = self._get_testCasetType()
-        output = {}
-        i = 0
+        output = []
         for row in data:
-            output[i] = {}
-            output[i] = self._deal_with_TestCaseObject(row, caseType)
-            i = i+1
+            output.append(self._deal_with_TestCaseObject(row, caseType))
         return output
 
     def _deal_with_TestCaseObject(self, sqlRow, caseType=''):
@@ -90,7 +81,6 @@ class TestCase(object):
         print(type(ast.literal_eval(args['data'])))
         update_testCase_command = db.update(TableTestCase.stru_testCase).where(db.and_(TableTestCase.stru_testCase.c.id == testCase_id)).values(
             data = json.dumps(ast.literal_eval(args['data'])),
-            # data=util.jsonToStr(self, self._analysis_input_case_data(json.(args['data']))),
             name=args['name'],
             description=args['description'],
             type_id=args['type_id'],
@@ -119,16 +109,9 @@ class TestCase(object):
         logger.debug("get_testCase_command: {0}".format(get_testCase_command))
         result = util.callsqlalchemy(self, get_testCase_command, logger)
         reMessages = result.fetchall()
-
-        # i = 0
-        # for row in reMessages:
-        #     output[i] = {}
-        #     output[i] = self._deal_with_TestCaseObject(row, caseType)
-        #     i = i+1
         return self._del_with_fetchall(reMessages)
 
     # 取得同Issue Id 內  TestCase 的所有資訊
-
     def get_testCase_by_issue_id(self, logger, issue_id, user_id):
         caseType = self._get_testCasetType()
         get_testCase_command = db.select([TableTestCase.stru_testCase]).where(db.and_(
@@ -147,8 +130,7 @@ class TestCase(object):
         reMessages = result.fetchall()
         return self._del_with_fetchall(reMessages)
 
-        # 新增同Issue Id 內  parameters 的資訊
-
+    # 新增同Issue Id 內  parameters 的資訊
     def post_testCase_by_issue_id(self, logger,  issue_id, args, user_id):
         insert_testCase_command = db.insert(TableTestCase.stru_testCase).values(
             issue_id=issue_id,
@@ -166,7 +148,14 @@ class TestCase(object):
         return {'testCase_id': reMessage.inserted_primary_key}
 
     def get_api_method(self, logger, user_id):
-        return self.httpMethod
+        output = []
+        for key in self.httpMethod:
+            output.append({"Http_Method_id": int(key), "name": self.httpMethod[key]})
+        return output
 
     def get_testCase_type(self, logger, user_id):
-        return self._get_testCasetType()
+        supportType = self._get_testCasetType()
+        output = []
+        for key in supportType:
+            output.append({"test_case_type_id": int(key), "name": supportType[key]})
+        return output

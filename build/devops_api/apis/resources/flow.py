@@ -15,7 +15,10 @@ class Flow(object):
 
 
     def get_flow_support_type (self):
-        return self.flow_type
+        output = []
+        for key in self.flow_type:
+            output.append({"flow_type_id": int(key), "name": self.flow_type[key]})
+        return output
 
     def _deal_with_FlowObject(self, sqlRow, caseType=''):
         output = {}
@@ -33,15 +36,6 @@ class Flow(object):
 
 
 
-    # def get_requirement_by_Column(self, logger, args, user_id,orderColumn=''):
-    #     output = {}
-    #     if(args['issue_id'] != None):
-    #         return  self.get_requirements_by_issue_id(logger,args['issue_id'],user_id)
-
-    #     elif (args['project_id'] != None):
-    #         return self.get_requirements_by_project_id(logger,args['project_id'],user_id)
-    #     else:
-    #         return {}
 
     
     # 取得 requirement 內的流程資訊
@@ -72,7 +66,6 @@ class Flow(object):
     # 修改  requirement 內資訊
     def modify_flow_by_flow_id(self, logger, flow_id, args,
                                       user_id):
-
         update_flow_command = db.update(TableFlow.stru_flow).where(
             db.and_(TableFlow.stru_flow.c.id == flow_id)).values(
                 type_id = args['type_id'],
@@ -84,11 +77,7 @@ class Flow(object):
                     TableFlow.stru_flow.c.update_at)
         logger.debug("update_flow_command: {0}".format(update_flow_command))
         reMessage = util.callsqlalchemy(self, update_flow_command, logger)
-        print(reMessage.last_updated_params())
-        # output = reMessage.fetchall()
-        # print(output)
         return {'last_modified': reMessage.last_updated_params()}
-        # return '123'
         
 
     # 取得同Issue Id 內  requirements 的所有資訊

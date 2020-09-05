@@ -1167,10 +1167,11 @@ class FlowByIssue(Resource):
         print(requirement_ids)
         if not requirement_ids:
             return jsonify({'message': 'success', 'data': {}})    
-        output = {}
+        output = []
         for requirement_id in requirement_ids:
             result = flow.get_flow_by_requirement_id(logger, requirement_id, get_jwt_identity()['user_id'])
-            output[str(result[0]['requirement_id'] )]= result
+            if len(result) >0 :
+                output.append({'requirement_id': requirement_id,'flow_data': result})
         return jsonify({'message': 'success', 'data': output})
 
     ## 用issues ID 新建立需求清單
@@ -1253,6 +1254,7 @@ class ParameterType(Resource):
     def get(self):
         output = {}
         output = param.get_parameter_types()
+        print(output)
         return jsonify({'message': 'success', 'data': output})
 
 
@@ -1319,7 +1321,7 @@ class Parameter(Resource):
         output = param.modify_parameters_by_param_id(
             logger, parameter_id, args,
             get_jwt_identity()['user_id'])
-        return jsonify({'message': 'success'})
+        return jsonify({'message': 'success',"data": {}})
 
 
 class AllTestDataByIssue(Resource):
@@ -1341,9 +1343,6 @@ class AllTestDataByIssue(Resource):
             get_jwt_identity()['user_id'])
         output = td.get_AllTestData_by_Issue_Id(logger, data,
                                                 get_jwt_identity()['user_id'])
-        # print(data)
-        # output = {}
-        # print(output)
         return jsonify({'message': 'success', 'data': output})
 
 
@@ -1372,7 +1371,6 @@ class TestCaseByIssue(Resource):
     ## 用issues ID 取得目前所有的目前測試案例
     @jwt_required
     def get(self, issue_id):
-        # print(issue_id)
         output = {}
         output = tc.get_testCase_by_issue_id(logger, issue_id,
                                              get_jwt_identity()['user_id'])
@@ -1422,7 +1420,6 @@ class TestCase(Resource):
         parser.add_argument('type_id', type=int)
         parser.add_argument('description', type=str)
         args = parser.parse_args()
-        print(args)
         output = tc.modify_testCase_by_tc_id(logger, testCase_id, args,
                                              get_jwt_identity()['user_id'])
         return jsonify({'message': 'success', 'data': output})
@@ -1441,7 +1438,7 @@ class GetTestCaseType(Resource):
     def get(self):
         output = {}
         output = tc.get_testCase_type(logger, get_jwt_identity()['user_id'])
-        return jsonify({'message': 'success', 'data': output})
+        return jsonify({'message': 'get_testCase_typesuccess', 'data': output})
 
 
 class TestItemByTestCase(Resource):
@@ -1449,8 +1446,6 @@ class TestItemByTestCase(Resource):
     ## 用issues ID 取得目前所有的目前測試案例
     @jwt_required
     def get(self, testCase_id):
-        # print(issue_id)
-
         output = {}
         output = ti.get_testItem_by_testCase_id(logger, testCase_id,
                                                 get_jwt_identity()['user_id'])

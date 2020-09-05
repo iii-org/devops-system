@@ -18,8 +18,6 @@ class Parameter(object):
         for row in reMessages:
             paramType[row['id']] = row['type']
         return paramType
-        # self.paramType = paramType
-        
 
     def _deal_with_jsonString(self, jsonSting):
         return json.dumps(json.loads(jsonSting), ensure_ascii=False, separators=(',', ':'))
@@ -89,13 +87,10 @@ class Parameter(object):
         result = util.callsqlalchemy(self, get_param_command, logger)
         reMessages = result.fetchall()
         i = 0
-        output = {}
+        output = []
         paramType = self._get_paramType()
         for row in reMessages:
-            output[i]={}
-            output[i] = self._deal_with_ParametersObject(row, paramType)
-            i = i+1
-
+            output.append(self._deal_with_ParametersObject(row, paramType))
         return output
 
         # 新增同Issue Id 內  parameters 的資訊
@@ -115,3 +110,11 @@ class Parameter(object):
         logger.debug("insert_user_command: {0}".format(insert_param_command))
         reMessage = util.callsqlalchemy(self, insert_param_command, logger)
         return {'parameters_id': reMessage.inserted_primary_key}
+
+    def get_parameter_types(self):
+        paraType = self._get_paramType()
+        output = []
+        for key in paraType:
+            temp = {"parameter_type_id": key, "name": paraType[key]}
+            output.append(temp)
+        return output
