@@ -916,7 +916,8 @@ class IssueByProject(Resource):
         stauts = pjt.verify_project_user(logger, project_id,
                                          get_jwt_identity()['user_id'])
         if stauts or get_jwt_identity()['role_id'] == 5:
-            output, status_code = iss.get_issue_by_project(logger, app, project_id)
+            args={}
+            output, status_code = iss.get_issue_by_project(logger, app, project_id, args)
             return output, status_code
         else:
             return {'message': 'Dont have authorization to access issue list on project: {0}' \
@@ -997,6 +998,7 @@ class Issue(Resource):
         parser.add_argument('estimated_hours', type=int)
         parser.add_argument('description', type=str)
         parser.add_argument('parent_id', type=int)
+        parser.add_argument('fixed_version_id', type=int)
         parser.add_argument('subject', type=str)
         parser.add_argument('start_date', type=str)
         parser.add_argument('due_date', type=str)
@@ -1606,8 +1608,8 @@ class ExportToPostman(Resource):
             },
             'item': []
         }
-
-        issues, status_code = iss.get_issue_by_project(logger, app, project_id)
+        args = {}
+        issues, status_code = iss.get_issue_by_project(logger, app, project_id, args)
         cases = []
         for issue in issues['data']:
             issue_id = issue['id']
