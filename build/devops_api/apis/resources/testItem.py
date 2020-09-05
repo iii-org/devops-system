@@ -30,19 +30,10 @@ class TestItem(object):
         # caseType = self._get_testCasetType()
         if(args['issue_id'] != None):
             return  self.get_testItem_by_issue_id(logger,args['issue_id'],user_id,orderColumn)
-            # get_testItem_command = db.select([TableTestItem.stru_testItem]).where(db.and_(
-            # TableTestItem.stru_testItem.c.id == testItem_id, TableTestItem.stru_testItem.c.disabled == False))
-            #     .order_by('project_id')
         elif (args['project_id'] != None):
             return  self.get_testItem_by_project_id(logger,args['project_id'],user_id,'test_case_id')
-            # get_testCase_command = db.select([TableTestCase.stru_testCase]).where(db.and_(
-            #     TableTestCase.stru_testCase.c.project_id == args['project_id'], TableTestCase.stru_testCase.c.disabled == False))
-            #     .order_by('project_id')
         else:
             return {}
-        # logger.debug("get_testCase_command: {0}".format(get_testCase_command))
-        # result = util.callsqlalchemy(self, get_testCase_command, logger)
-        # reMessages = result.fetchall()
 
 
     # 取得 TestItem  靠 test case id
@@ -93,11 +84,9 @@ class TestItem(object):
         logger.debug("get_testItem_command: {0}".format(get_testItem_command))
         result = util.callsqlalchemy(self, get_testItem_command, logger)
         reMessages = result.fetchall()
-        i = 0
-        output = {}
+        output = []
         for row in reMessages:
-            output[i] = self._deal_with_TestItemObject(row)
-            i = i+1
+            output.append(self._deal_with_TestItemObject(row))
         return output
 
         # 新增同Issue Id 內  parameters 的資訊
@@ -122,12 +111,12 @@ class TestItem(object):
         logger.debug("get_testItem_command: {0}".format(get_testItem_command))
         result = util.callsqlalchemy(self, get_testItem_command, logger)
         reMessages = result.fetchall()
-        i = 0
-        output = {}
+
         for row in reMessages:
-            output[i] = self._deal_with_TestItemObject(row)
-            i = i+1
+            output.append(self._deal_with_TestItemObject(row))
         return output
+
+    # Get testItem by Project
     def get_testItem_by_project_id(self, logger, project_id, users_id, orderColumn):
         get_testItem_command = db.select([TableTestItem.stru_testItem]).where(db.and_(
             TableTestItem.stru_testItem.c.project_id == project_id, TableTestItem.stru_testItem.c.disabled == False)).order_by(orderColumn)
