@@ -105,7 +105,7 @@ class Issue(object):
             output = {"message": "could not get this redmine issue."}, 400
         return output
 
-    def get_issue_by_project(self, logger, app, project_id):
+    def get_issue_by_project(self, logger, app, project_id, args):
         # get plan_project_id, git_repository_id, ci_project_id, ci_pipeline_id
         get_project_command = db.select([ProjectPluginRelation.stru_project_plug_relation])\
         .where(db.and_(ProjectPluginRelation.stru_project_plug_relation.c.project_id==project_id))
@@ -117,7 +117,7 @@ class Issue(object):
             redmine_key = Redmine.get_redmine_key(self, logger, app)
             output_array = []
             redmine_output_issue_array = Redmine.redmine_get_issues_by_project(
-                self, logger, app, project_dict['plan_project_id'], redmine_key)
+                self, logger, app, project_dict['plan_project_id'], redmine_key, args)
             for redmine_issue in redmine_output_issue_array['issues']:
                 output_dict = self.__dealwith_issue_by_user_redmine_output(
                     logger, redmine_issue)
@@ -128,8 +128,8 @@ class Issue(object):
         else:
             return {"message": "could not find this project"}, 400
 
-    def get_issueProgress_by_project(self, logger, app, project_id):
-        issue_list, status_code = self.get_issue_by_project(logger, app, project_id)
+    def get_issueProgress_by_project(self, logger, app, project_id, args):
+        issue_list, status_code = self.get_issue_by_project(logger, app, project_id, args)
         logger.debug("issue_list: {0}, status_code: {1}".format(issue_list, status_code))
         if status_code == 200:
             unfinish_number = 0
@@ -140,15 +140,15 @@ class Issue(object):
                 "message": "success",
                 "data": {
                     "unfinish_number": unfinish_number,
-                    "total_issue": len(issue_list)
+                    "total_issue": len(issue_list['data'])
                 }
             }
         else:
             return {"message": "could not get issue list"}, 400
 
 
-    def get_issueStatistics_by_project(self, logger, app, project_id):
-        issue_list, status_code = self.get_issue_by_project(logger, app, project_id)
+    def get_issueStatistics_by_project(self, logger, app, project_id, args):
+        issue_list, status_code = self.get_issue_by_project(logger, app, project_id, args)
         logger.debug("issue_list: {0}, status_code: {1}".format(issue_list, status_code))
         if status_code == 200:
             priority_list = {}

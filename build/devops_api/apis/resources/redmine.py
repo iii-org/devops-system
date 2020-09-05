@@ -36,10 +36,12 @@ class Redmine(object):
         return output.json()
 
     def redmine_get_issues_by_project(self, logger, app, project_id,
-                                      redmine_key):
-        url = "http://{0}/issues.json?key={1}&project_id={2}&limit=1000".format(\
-            app.config['REDMINE_IP_PORT'], redmine_key, project_id)
-        output = requests.get(url, headers=self.headers, verify=False)
+                                      redmine_key, args):
+        args['key']=redmine_key
+        args['project_id']=project_id
+        args['limit']=1000
+        url = "http://{0}/issues.json".format(app.config['REDMINE_IP_PORT'])
+        output = requests.get(url, params=args, headers=self.headers, verify=False)
         logger.info("get issues by project&user output: {0}".format(
             output.json()))
         return output.json()
