@@ -920,7 +920,9 @@ class IssueByProject(Resource):
         stauts = pjt.verify_project_user(logger, project_id,
                                          get_jwt_identity()['user_id'])
         if stauts or get_jwt_identity()['role_id'] == 5:
-            args = {}
+            parser = reqparse.RequestParser()
+            parser.add_argument('fixed_version_id', type=int)
+            args = parser.parse_args()
             output, status_code = iss.get_issue_by_project(
                 logger, app, project_id, args)
             return output, status_code
