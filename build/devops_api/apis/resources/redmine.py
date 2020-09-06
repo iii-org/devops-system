@@ -82,8 +82,8 @@ class Redmine(object):
                                data=json.dumps(param),
                                headers=self.headers,
                                verify=False)
-        logger.info("create issues output: {0}".format(output.json()))
-        return output
+        logger.info("create issues output: {0}, status_code: {1}".format(output.json(), output.status_code))
+        return output, output.status_code
 
     def redmine_update_issue(self, logger, app, issue_id, args):
         url = "http://{0}/issues/{1}.json?key={2}".format(\
