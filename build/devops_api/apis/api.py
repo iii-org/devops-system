@@ -288,7 +288,7 @@ class UserInfo(Resource):
         logger.debug("get_jwt_identity()['user_id']: {0}".format(
             get_jwt_identity()['user_id']))
         if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity(
-        )['role_id'] not in (1, 3, 5):
+        )['role_id'] in (3, 5):
             user_info = au.user_info(logger, user_id)
             return user_info
         else:
