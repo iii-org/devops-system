@@ -943,6 +943,20 @@ class IssueByTreeByProject(Resource):
                 .format(project_id)}, 401
 
 
+class IssueByStatusByProject(Resource):
+    @jwt_required
+    def get(self, project_id):
+        stauts = pjt.verify_project_user(logger, project_id,
+                                         get_jwt_identity()['user_id'])
+        if stauts or get_jwt_identity()['role_id'] == 5:
+            output, status_code = iss.get_issue_by_status_by_project(
+                logger, app, project_id)
+            return output, status_code
+        else:
+            return {'message': 'Dont have authorization to access issue list on project: {0}' \
+                .format(project_id)}, 401
+
+
 class IssuesProgressByProject(Resource):
     @jwt_required
     def get(self, project_id):
@@ -1805,6 +1819,8 @@ api.add_resource(
 # issue
 api.add_resource(IssueByProject, '/project/<project_id>/issues')
 api.add_resource(IssueByTreeByProject, '/project/<project_id>/issues_by_tree')
+api.add_resource(IssueByStatusByProject,
+                 '/project/<project_id>/issues_by_status')
 api.add_resource(IssuesProgressByProject,
                  '/project/<project_id>/issues_progress')
 api.add_resource(IssuesStatisticsByProject,

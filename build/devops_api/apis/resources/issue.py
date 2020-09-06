@@ -165,8 +165,28 @@ class Issue(object):
                 else:
                     parent = nodes[issue_list['parent_id']]
                     parent['children'].append(node)
-            logger.debug("forest: {0}".format(forest))
+            # logger.debug("forest: {0}".format(forest))
             return {"message": "success", "data": forest}, 200
+        else:
+            return {"message": "could not get issue list"}, 400
+
+    def get_issue_by_status_by_project(self, logger, app, project_id):
+        args = {}
+        issue_list_output, status_code = self.get_issue_by_project(
+            logger, app, project_id, args)
+        if status_code == 200:
+            get_issue_by_status_output = {}
+            for issue_list in issue_list_output['data']:
+                if issue_list[
+                        'issue_status'] not in get_issue_by_status_output:
+                    get_issue_by_status_output[issue_list['issue_status']] = []
+                get_issue_by_status_output[issue_list['issue_status']].append(
+                    issue_list)
+            # logger.debug("get_issue_by_status_output: {0}".format(get_issue_by_status_output))
+            return {
+                "message": "success",
+                "data": get_issue_by_status_output
+            }, 200
         else:
             return {"message": "could not get issue list"}, 400
 
