@@ -5,6 +5,7 @@ from .project import Project
 from .auth import auth
 
 from flask import jsonify
+from datetime import datetime
 
 
 class Issue(object):
@@ -186,6 +187,26 @@ class Issue(object):
             return {
                 "message": "success",
                 "data": get_issue_by_status_output
+            }, 200
+        else:
+            return {"message": "could not get issue list"}, 400
+
+    def get_issue_by_date_by_project(self, logger, app, project_id):
+        args = {}
+        issue_list_output, status_code = self.get_issue_by_project(
+            logger, app, project_id, args)
+        if status_code == 200:
+            get_issue_by_date_output = {}
+            for issue_list in issue_list_output['data']:
+                issue_updated_date = datetime.strptime(issue_list['updated_on'], "%Y-%m-%dT%H:%M:%SZ").date().strftime("%Y/%m/%d")
+                # logger.debug("issue_updated_date: {0}".format(issue_updated_date))
+                if issue_updated_date not in get_issue_by_date_output:
+                    get_issue_by_date_output[issue_updated_date] = []
+                get_issue_by_date_output[issue_updated_date].append(issue_list)
+            # logger.debug("get_issue_by_date_output: {0}".format(get_issue_by_date_output))
+            return {
+                "message": "success",
+                "data": get_issue_by_date_output
             }, 200
         else:
             return {"message": "could not get issue list"}, 400
