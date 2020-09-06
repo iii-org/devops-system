@@ -80,6 +80,11 @@ class Issue(object):
         output_list['parent_id'] = None
         if 'parent' in redmine_output:
             output_list['parent_id'] = redmine_output['parent']['id']
+        output_list['fixed_version_id'] = None
+        output_list['fixed_version_name'] = None
+        if 'fixed_version' in redmine_output:
+            output_list['fixed_version_id'] = redmine_output['fixed_version']['id']
+            output_list['fixed_version_name'] = redmine_output['fixed_version']['name']
         logger.info(
             "get issue by user redmine_output: {0}".format(output_list))
         return output_list
