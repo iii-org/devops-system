@@ -42,7 +42,7 @@ class Redmine(object):
         args['limit']=1000
         url = "http://{0}/issues.json".format(app.config['REDMINE_IP_PORT'])
         output = requests.get(url, params=args, headers=self.headers, verify=False)
-        logger.info("get issues by project&user output: {0}".format(
+        logger.info("get issues by project output: {0}".format(
             output.json()))
         return output.json()
 
