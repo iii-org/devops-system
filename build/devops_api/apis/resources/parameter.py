@@ -26,6 +26,7 @@ class Parameter(object):
         if paramType == '':
             paramType = self._get_paramType()
         output={}
+        output['id'] =sqlRow['id']
         output['name'] = sqlRow['name']
         output['parameter_type_id'] = sqlRow['parameter_type_id']
         if sqlRow['parameter_type_id'] in paramType:

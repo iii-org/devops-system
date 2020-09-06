@@ -1775,9 +1775,9 @@ api.add_resource(Requirement, '/requirements/<requirement_id>')
 
 # testPhase Flow 
 
-api.add_resource(FlowByIssue,'/flows_by_issue/<issue_id>')
+api.add_resource(FlowByIssue, '/flows_by_issue/<issue_id>')
 # api.add_resource(FlowByRequirement, '/flows_by_requirement/<requirement_id>')
-api.add_resource(GetFlowType,'/flows/support_type')
+api.add_resource(GetFlowType, '/flows/support_type')
 api.add_resource(Flow, '/flows/<flow_id>')
 
 
