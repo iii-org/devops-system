@@ -939,7 +939,7 @@ class IssueByTreeByProject(Resource):
                 logger, app, project_id)
             return output, status_code
         else:
-            return {'message': 'Dont have authorization to access issue list on project: {0}' \
+            return {'message': 'Dont have authorization to access issue by tree on project: {0}' \
                 .format(project_id)}, 401
 
 
@@ -953,7 +953,7 @@ class IssueByStatusByProject(Resource):
                 logger, app, project_id)
             return output, status_code
         else:
-            return {'message': 'Dont have authorization to access issue list on project: {0}' \
+            return {'message': 'Dont have authorization to access issue by status on project: {0}' \
                 .format(project_id)}, 401
 
 
@@ -967,7 +967,7 @@ class IssueByDateByProject(Resource):
                 logger, app, project_id)
             return output, status_code
         else:
-            return {'message': 'Dont have authorization to access issue list on project: {0}' \
+            return {'message': 'Dont have authorization to access issue by date on project: {0}' \
                 .format(project_id)}, 401
 
 
@@ -986,7 +986,21 @@ class IssuesProgressByProject(Resource):
                 logger, app, project_id, args)
             return output_array
         else:
-            return {'message': 'Dont have authorization to access issue list on project: {0}' \
+            return {'message': 'Dont have authorization to access issue progress on project: {0}' \
+                .format(project_id)}, 401
+
+
+class IssuesProgressAllVersionByProject(Resource):
+    @jwt_required
+    def get(self, project_id):
+        stauts = pjt.verify_project_user(logger, project_id,
+                                         get_jwt_identity()['user_id'])
+        if stauts or get_jwt_identity()['role_id'] == 5:
+            output_array = iss.get_issueProgress_allVersion_by_project(
+                logger, app, project_id)
+            return output_array
+        else:
+            return {'message': 'Dont have authorization to access issue projess all version on project: {0}' \
                 .format(project_id)}, 401
 
 
@@ -1838,6 +1852,8 @@ api.add_resource(IssueByStatusByProject,
 api.add_resource(IssueByDateByProject, '/project/<project_id>/issues_by_date')
 api.add_resource(IssuesProgressByProject,
                  '/project/<project_id>/issues_progress')
+api.add_resource(IssuesProgressAllVersionByProject,
+                 '/project/<project_id>/issues_progress/all_version')
 api.add_resource(IssuesStatisticsByProject,
                  '/project/<project_id>/issues_statistics')
 api.add_resource(IssueCreate, '/issues')

@@ -198,7 +198,9 @@ class Issue(object):
         if status_code == 200:
             get_issue_by_date_output = {}
             for issue_list in issue_list_output['data']:
-                issue_updated_date = datetime.strptime(issue_list['updated_on'], "%Y-%m-%dT%H:%M:%SZ").date().strftime("%Y/%m/%d")
+                issue_updated_date = datetime.strptime(
+                    issue_list['updated_on'],
+                    "%Y-%m-%dT%H:%M:%SZ").date().strftime("%Y/%m/%d")
                 # logger.debug("issue_updated_date: {0}".format(issue_updated_date))
                 if issue_updated_date not in get_issue_by_date_output:
                     get_issue_by_date_output[issue_updated_date] = []
@@ -227,6 +229,31 @@ class Issue(object):
                     "unfinish_number": unfinish_number,
                     "total_issue": len(issue_list['data'])
                 }
+            }
+        else:
+            return {"message": "could not get issue list"}, 400
+
+    def get_issueProgress_allVersion_by_project(self, logger, app, project_id):
+        args = {}
+        issue_list, status_code = self.get_issue_by_project(
+            logger, app, project_id, args)
+        if status_code == 200:
+            get_issue_sortby_version_output = {}
+            for issue in issue_list['data']:
+                count_dict = {'unfinish_number': 0, 'finish_number': 0}
+                if issue[
+                        'fixed_version_name'] not in get_issue_sortby_version_output:
+                    get_issue_sortby_version_output[
+                        issue['fixed_version_name']] = count_dict
+                if issue["issue_status"] != "closed":
+                    get_issue_sortby_version_output[
+                        issue['fixed_version_name']]['unfinish_number'] += 1
+                else:
+                    get_issue_sortby_version_output[
+                        issue['fixed_version_name']]['finish_number'] += 1
+            return {
+                "message": "success",
+                "data": get_issue_sortby_version_output
             }
         else:
             return {"message": "could not get issue list"}, 400
