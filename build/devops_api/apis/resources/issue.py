@@ -67,9 +67,19 @@ class Issue(object):
         output_list['issue_status'] = redmine_output['status']['name']
         output_list['issue_name'] = redmine_output['subject']
         output_list['description'] = redmine_output['description']
+        output_list['updated_on'] = redmine_output['updated_on']
+        output_list['start_date'] = None
+        if 'start_date' in redmine_output:
+            output_list['start_date'] = redmine_output['start_date']
+        output_list['due_date'] = None
+        if 'due_date' in redmine_output:
+            output_list['due_date'] = redmine_output['due_date']
         output_list['assigned_to'] = None
         if 'assigned_to' in redmine_output:
             output_list['assigned_to'] = redmine_output['assigned_to']['name']
+        output_list['parent_id'] = None
+        if 'parent' in redmine_output:
+            output_list['parent_id'] = redmine_output['parent']['id']
         logger.info(
             "get issue by user redmine_output: {0}".format(output_list))
         return output_list
