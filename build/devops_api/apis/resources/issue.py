@@ -287,15 +287,18 @@ class Issue(object):
         logger.info("args: {0}".format(args))
         Redmine.get_redmine_key(self, logger, app)
         try:
-            output = Redmine.redmine_create_issue(self, logger, app, args)
-            return {
-                "message": "success",
-                "data": {
-                    "issue_id": output.json()["issue"]["id"]
-                }
-            }, output.status_code
+            output, status_code= Redmine.redmine_create_issue(self, logger, app, args)
+            if status_code == 201:
+                return {
+                    "message": "success",
+                    "data": {
+                        "issue_id": output.json()["issue"]["id"]
+                    }
+                }, 200
+            else:
+                return {"message": output.text}, 400
         except Exception as error:
-            return str(error), 400
+            return {"message": str(error)}, 400
 
     def update_issue_rd(self, logger, app, issue_id, args):
         args = {k: v for k, v in args.items() if v is not None}
