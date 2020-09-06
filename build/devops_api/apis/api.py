@@ -446,6 +446,7 @@ class ProjectWiki(Resource):
                 "message": "your are not in this project or not administrator"
             }, 401
 
+
 # Get Project Version List
 class ProjectVersionList(Resource):
     @jwt_required
@@ -461,7 +462,7 @@ class ProjectVersionList(Resource):
             }, 401
 
 
-# Create  Project Version 
+# Create  Project Version
 class ProjectVersion(Resource):
     @jwt_required
     def post(self, project_id):
@@ -478,7 +479,6 @@ class ProjectVersion(Resource):
             return {
                 "message": "your are not in this project or not administrator"
             }, 401
-
 
 
 # Get Project Version Information
@@ -519,7 +519,7 @@ class ProjectVersionInfo(Resource):
                                          get_jwt_identity()['user_id'])
         if stauts or get_jwt_identity()['role_id'] == 5:
             output, status_code = vn.delete_version_by_version_id(
-                logger, app, project_id, version_id )
+                logger, app, project_id, version_id)
             return output, status_code
         else:
             return {
@@ -569,10 +569,12 @@ class GitProjectBranches(Resource):
             parser.add_argument('ref', type=str, required=True)
             args = parser.parse_args()
             logger.info("post body: {0}".format(args))
-            output = pjt.create_git_project_branch(logger, app, project_id, args)
+            output = pjt.create_git_project_branch(logger, app, project_id,
+                                                   args)
             return output
         else:
             return {"message": "您無權限訪問！"}, 401
+
 
 class GitProjectBranch(Resource):
     @jwt_required
@@ -583,7 +585,8 @@ class GitProjectBranch(Resource):
         if role_id in (1, 5):
             project_id = repository_id
             branch = branch_name
-            output = pjt.get_git_project_branch(logger, app, project_id, branch)
+            output = pjt.get_git_project_branch(logger, app, project_id,
+                                                branch)
             return output
         else:
             return {"message": "您無權限訪問！"}, 401
@@ -596,7 +599,8 @@ class GitProjectBranch(Resource):
         if role_id in (1, 5):
             project_id = repository_id
             branch = branch_name
-            output = pjt.delete_git_project_branch(logger, app, project_id, branch)
+            output = pjt.delete_git_project_branch(logger, app, project_id,
+                                                   branch)
             return output
         else:
             return {"message": "您無權限訪問！"}, 401
@@ -916,8 +920,23 @@ class IssueByProject(Resource):
         stauts = pjt.verify_project_user(logger, project_id,
                                          get_jwt_identity()['user_id'])
         if stauts or get_jwt_identity()['role_id'] == 5:
-            args={}
-            output, status_code = iss.get_issue_by_project(logger, app, project_id, args)
+            args = {}
+            output, status_code = iss.get_issue_by_project(
+                logger, app, project_id, args)
+            return output, status_code
+        else:
+            return {'message': 'Dont have authorization to access issue list on project: {0}' \
+                .format(project_id)}, 401
+
+
+class IssueByTreeByProject(Resource):
+    @jwt_required
+    def get(self, project_id):
+        stauts = pjt.verify_project_user(logger, project_id,
+                                         get_jwt_identity()['user_id'])
+        if stauts or get_jwt_identity()['role_id'] == 5:
+            output, status_code = iss.get_issue_by_tree_by_project(
+                logger, app, project_id)
             return output, status_code
         else:
             return {'message': 'Dont have authorization to access issue list on project: {0}' \
@@ -933,7 +952,8 @@ class IssuesProgressByProject(Resource):
             parser = reqparse.RequestParser()
             parser.add_argument('fixed_version_id', type=int)
             args = parser.parse_args()
-            logger.debug("show fixed_version_id: {0}".format(args['fixed_version_id']))
+            logger.debug("show fixed_version_id: {0}".format(
+                args['fixed_version_id']))
             output_array = iss.get_issueProgress_by_project(
                 logger, app, project_id, args)
             return output_array
@@ -951,7 +971,8 @@ class IssuesStatisticsByProject(Resource):
             parser = reqparse.RequestParser()
             parser.add_argument('fixed_version_id', type=int)
             args = parser.parse_args()
-            logger.debug("show fixed_version_id: {0}".format(args['fixed_version_id']))
+            logger.debug("show fixed_version_id: {0}".format(
+                args['fixed_version_id']))
             output = iss.get_issueStatistics_by_project(
                 logger, app, project_id, args)
             return output
@@ -1044,7 +1065,8 @@ class IssueTracker(Resource):
 class IssueRDbyUser(Resource):
     @jwt_required
     def get(self, user_id):
-        if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity()['role_id'] in (3, 5):
+        if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity(
+        )['role_id'] in (3, 5):
             output = iss.get_issue_by_user(logger, app, user_id)
             return jsonify({'message': 'success', 'data': output})
         else:
@@ -1067,7 +1089,8 @@ class IssueStatistics(Resource):
 class DashboardIssuePriority(Resource):
     @jwt_required
     def get(self, user_id):
-        if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity()['role_id'] in (3, 5):
+        if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity(
+        )['role_id'] in (3, 5):
             output = iss.count_prioriry_number_by_issues(logger, app, user_id)
             return jsonify({'message': 'success', 'data': output})
         else:
@@ -1077,7 +1100,8 @@ class DashboardIssuePriority(Resource):
 class DashboardIssueProject(Resource):
     @jwt_required
     def get(self, user_id):
-        if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity()['role_id'] in (3, 5):
+        if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity(
+        )['role_id'] in (3, 5):
             output = iss.count_project_number_by_issues(logger, app, user_id)
             return jsonify({'message': 'success', 'data': output})
         else:
@@ -1087,7 +1111,8 @@ class DashboardIssueProject(Resource):
 class DashboardIssueType(Resource):
     @jwt_required
     def get(self, user_id):
-        if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity()['role_id'] in (3, 5):
+        if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity(
+        )['role_id'] in (3, 5):
             output = iss.count_type_number_by_issues(logger, app, user_id)
             return jsonify({'message': 'success', 'data': output})
         else:
@@ -1157,6 +1182,7 @@ class GetFlowType(Resource):
         output = flow.get_flow_support_type()
         return jsonify({'message': 'success', 'data': output})
 
+
 class FlowByIssue(Resource):
 
     ## 用issues ID 取得目前所有的需求清單
@@ -1166,12 +1192,17 @@ class FlowByIssue(Resource):
         requirement_ids = rqmt.check_requirement_by_issue_id(logger, issue_id)
         print(requirement_ids)
         if not requirement_ids:
-            return jsonify({'message': 'success', 'data': {}})    
+            return jsonify({'message': 'success', 'data': {}})
         output = []
         for requirement_id in requirement_ids:
-            result = flow.get_flow_by_requirement_id(logger, requirement_id, get_jwt_identity()['user_id'])
-            if len(result) >0 :
-                output.append({'requirement_id': requirement_id,'flow_data': result})
+            result = flow.get_flow_by_requirement_id(
+                logger, requirement_id,
+                get_jwt_identity()['user_id'])
+            if len(result) > 0:
+                output.append({
+                    'requirement_id': requirement_id,
+                    'flow_data': result
+                })
         return jsonify({'message': 'success', 'data': output})
 
     ## 用issues ID 新建立需求清單
@@ -1186,14 +1217,19 @@ class FlowByIssue(Resource):
         args = parser.parse_args()
         check = rqmt.check_requirement_by_issue_id(logger, issue_id)
         if not check:
-            requirements = rqmt.post_requirement_by_issue_id(logger, issue_id, args,get_jwt_identity()['user_id'])
-            requirement_id  = requirements['requirement_id'][0]
+            requirements = rqmt.post_requirement_by_issue_id(
+                logger, issue_id, args,
+                get_jwt_identity()['user_id'])
+            requirement_id = requirements['requirement_id'][0]
         else:
             requirement_id = check[0]
-        
-        output = flow.post_flow_by_requirement_id(logger, int(issue_id), requirement_id , args,get_jwt_identity()['user_id'])
+
+        output = flow.post_flow_by_requirement_id(
+            logger, int(issue_id), requirement_id, args,
+            get_jwt_identity()['user_id'])
         # print(output)
         return jsonify({'message': 'success', 'data': output})
+
 
 # class FlowByRequirement(Resource):
 
@@ -1218,13 +1254,13 @@ class FlowByIssue(Resource):
 #         return jsonify({'message': 'success', 'data': output})
 
 
-
 class Flow(Resource):
 
     ## 用requirement_id 取得目前需求流程
     @jwt_required
     def get(self, flow_id):
-        output = flow.get_flow_by_flow_id(logger, flow_id, get_jwt_identity()['user_id'])
+        output = flow.get_flow_by_flow_id(logger, flow_id,
+                                          get_jwt_identity()['user_id'])
         return jsonify({'message': 'success', 'data': output})
 
     ## 用requirement_id 刪除目前需求流程
@@ -1233,8 +1269,8 @@ class Flow(Resource):
         # temp = get_jwt_identity()
         output = {}
         output = flow.disabled_flow_by_flow_id(logger, flow_id,
-                                                 get_jwt_identity()['user_id'])
-        return jsonify({'message': 'success','data': output })
+                                               get_jwt_identity()['user_id'])
+        return jsonify({'message': 'success', 'data': output})
 
     ## 用requirement_id 更新目前需求流程
     @jwt_required
@@ -1246,8 +1282,10 @@ class Flow(Resource):
         parser.add_argument('name', type=str)
         parser.add_argument('description', type=str)
         args = parser.parse_args()
-        output = flow.modify_flow_by_flow_id(logger, flow_id, args, get_jwt_identity()['user_id'])
-        return jsonify({'message': 'success','data':output})
+        output = flow.modify_flow_by_flow_id(logger, flow_id, args,
+                                             get_jwt_identity()['user_id'])
+        return jsonify({'message': 'success', 'data': output})
+
 
 class ParameterType(Resource):
     @jwt_required
@@ -1321,7 +1359,7 @@ class Parameter(Resource):
         output = param.modify_parameters_by_param_id(
             logger, parameter_id, args,
             get_jwt_identity()['user_id'])
-        return jsonify({'message': 'success',"data": {}})
+        return jsonify({'message': 'success', "data": {}})
 
 
 class AllTestDataByIssue(Resource):
@@ -1526,6 +1564,7 @@ class TestValueByTestItem(Resource):
             get_jwt_identity()['user_id'])
         return jsonify({'message': 'success', 'data': output})
 
+
 class GetTestValueLocation(Resource):
     @jwt_required
     def get(self):
@@ -1533,12 +1572,14 @@ class GetTestValueLocation(Resource):
         output = tv.get_testValue_httpLocation(logger)
         return jsonify({'message': 'success', 'data': output})
 
+
 class GetTestValueType(Resource):
     @jwt_required
     def get(self):
         output = {}
         output = tv.get_testValue_httpType(logger)
         return jsonify({'message': 'success', 'data': output})
+
 
 class TestValue(Resource):
 
@@ -1604,7 +1645,8 @@ class ExportToPostman(Resource):
             'item': []
         }
         args = {}
-        issues, status_code = iss.get_issue_by_project(logger, app, project_id, args)
+        issues, status_code = iss.get_issue_by_project(logger, app, project_id,
+                                                       args)
         cases = []
         for issue in issues['data']:
             issue_id = issue['id']
@@ -1732,7 +1774,6 @@ api.add_resource(GitProjectBranchCommmits,
 api.add_resource(GitProjectNetwork, '/repositories/<repository_id>/overview')
 api.add_resource(GitProjectId, '/repositories/<repository_id>/id')
 
-
 # Project
 api.add_resource(ProjectList, '/project/rd/<user_id>')
 api.add_resource(ProjectUserList, '/project/<int:project_id>/user/list')
@@ -1740,7 +1781,8 @@ api.add_resource(ProjectWikiList, '/project/<int:project_id>/wiki')
 api.add_resource(ProjectWiki, '/project/<int:project_id>/wiki/<wiki_name>')
 api.add_resource(ProjectVersionList, '/project/<int:project_id>/version/list')
 api.add_resource(ProjectVersion, '/project/<int:project_id>/version')
-api.add_resource(ProjectVersionInfo, '/project/<int:project_id>/version/<int:version_id>')
+api.add_resource(ProjectVersionInfo,
+                 '/project/<int:project_id>/version/<int:version_id>')
 
 # User
 api.add_resource(UserLogin, '/user/login')
@@ -1762,6 +1804,7 @@ api.add_resource(
 
 # issue
 api.add_resource(IssueByProject, '/project/<project_id>/issues')
+api.add_resource(IssueByTreeByProject, '/project/<project_id>/issues_by_tree')
 api.add_resource(IssuesProgressByProject,
                  '/project/<project_id>/issues_progress')
 api.add_resource(IssuesStatisticsByProject,
@@ -1784,13 +1827,12 @@ api.add_resource(DashboardIssueType, '/dashboard_issues_type/<user_id>')
 api.add_resource(RequirementByIssue, '/requirements_by_issue/<issue_id>')
 api.add_resource(Requirement, '/requirements/<requirement_id>')
 
-# testPhase Flow 
+# testPhase Flow
 
-api.add_resource(FlowByIssue,'/flows_by_issue/<issue_id>')
+api.add_resource(FlowByIssue, '/flows_by_issue/<issue_id>')
 # api.add_resource(FlowByRequirement, '/flows_by_requirement/<requirement_id>')
-api.add_resource(GetFlowType,'/flows/support_type')
+api.add_resource(GetFlowType, '/flows/support_type')
 api.add_resource(Flow, '/flows/<flow_id>')
-
 
 # testPhase Parameters FLow
 api.add_resource(ParameterByIssue, '/parameters_by_issue/<issue_id>')
@@ -1808,8 +1850,6 @@ api.add_resource(GetTestCaseType, '/testCases/support_type')
 api.add_resource(TestCaseByIssue, '/testCases_by_issue/<issue_id>')
 api.add_resource(TestCase, '/testCases/<testCase_id>')
 
-
-
 # testPhase TestCase Support API Method
 api.add_resource(GetTestCaseAPIMethod, '/testCases/support_RestfulAPI_Method')
 
@@ -1818,8 +1858,8 @@ api.add_resource(TestItemByTestCase, '/testItems_by_testCase/<testCase_id>')
 api.add_resource(TestItem, '/testItems/<testItem_id>')
 
 # testPhase Testitem Value
-api.add_resource(GetTestValueLocation,'/testValues/support_locations')
-api.add_resource(GetTestValueType,'/testValues/support_types')
+api.add_resource(GetTestValueLocation, '/testValues/support_locations')
+api.add_resource(GetTestValueType, '/testValues/support_types')
 api.add_resource(TestValueByTestItem, '/testValues_by_testItem/<testItem_id>')
 api.add_resource(TestValue, '/testValues/<testValue_id>')
 

@@ -83,8 +83,10 @@ class Issue(object):
         output_list['fixed_version_id'] = None
         output_list['fixed_version_name'] = None
         if 'fixed_version' in redmine_output:
-            output_list['fixed_version_id'] = redmine_output['fixed_version']['id']
-            output_list['fixed_version_name'] = redmine_output['fixed_version']['name']
+            output_list['fixed_version_id'] = redmine_output['fixed_version'][
+                'id']
+            output_list['fixed_version_name'] = redmine_output[
+                'fixed_version']['name']
         logger.info(
             "get issue by user redmine_output: {0}".format(output_list))
         return output_list
@@ -116,7 +118,8 @@ class Issue(object):
             self, logger, app, issue_id)
         if redmine_output_issue.status_code == 200:
             output = self.__dealwith_issue_redmine_output(
-                logger, redmine_output_issue.json()['issue'])
+                logger,
+                redmine_output_issue.json()['issue'])
         else:
             output = {"message": "could not get this redmine issue."}, 400
         return output
@@ -133,7 +136,8 @@ class Issue(object):
             redmine_key = Redmine.get_redmine_key(self, logger, app)
             output_array = []
             redmine_output_issue_array = Redmine.redmine_get_issues_by_project(
-                self, logger, app, project_dict['plan_project_id'], redmine_key, args)
+                self, logger, app, project_dict['plan_project_id'],
+                redmine_key, args)
             for redmine_issue in redmine_output_issue_array['issues']:
                 output_dict = self.__dealwith_issue_by_user_redmine_output(
                     logger, redmine_issue)
@@ -144,9 +148,33 @@ class Issue(object):
         else:
             return {"message": "could not find this project"}, 400
 
+    def get_issue_by_tree_by_project(self, logger, app, project_id):
+        args = {}
+        issue_list_output, status_code = self.get_issue_by_project(
+            logger, app, project_id, args)
+        if status_code == 200:
+            nodes = {}
+            for issue_list in issue_list_output['data']:
+                issue_list['children'] = []
+                nodes[issue_list['id']] = issue_list
+            forest = []
+            for issue_list in issue_list_output['data']:
+                node = nodes[issue_list['id']]
+                if issue_list['parent_id'] is None:
+                    forest.append(node)
+                else:
+                    parent = nodes[issue_list['parent_id']]
+                    parent['children'].append(node)
+            logger.debug("forest: {0}".format(forest))
+            return {"message": "success", "data": forest}, 200
+        else:
+            return {"message": "could not get issue list"}, 400
+
     def get_issueProgress_by_project(self, logger, app, project_id, args):
-        issue_list, status_code = self.get_issue_by_project(logger, app, project_id, args)
-        logger.debug("issue_list: {0}, status_code: {1}".format(issue_list, status_code))
+        issue_list, status_code = self.get_issue_by_project(
+            logger, app, project_id, args)
+        logger.debug("issue_list: {0}, status_code: {1}".format(
+            issue_list, status_code))
         if status_code == 200:
             unfinish_number = 0
             for issue in issue_list['data']:
@@ -162,10 +190,11 @@ class Issue(object):
         else:
             return {"message": "could not get issue list"}, 400
 
-
     def get_issueStatistics_by_project(self, logger, app, project_id, args):
-        issue_list, status_code = self.get_issue_by_project(logger, app, project_id, args)
-        logger.debug("issue_list: {0}, status_code: {1}".format(issue_list, status_code))
+        issue_list, status_code = self.get_issue_by_project(
+            logger, app, project_id, args)
+        logger.debug("issue_list: {0}, status_code: {1}".format(
+            issue_list, status_code))
         if status_code == 200:
             priority_list = {}
             category_list = {}
@@ -238,7 +267,8 @@ class Issue(object):
                             "finished": 1
                         }
                 else:
-                    unfinish_value = owner_list[issue["assigned_to"]]["unfinish"]
+                    unfinish_value = owner_list[
+                        issue["assigned_to"]]["unfinish"]
                     finish_value = owner_list[issue["assigned_to"]]["finished"]
                     if issue["issue_status"] != "closed":
                         owner_list[issue["assigned_to"]] = {
@@ -302,7 +332,8 @@ class Issue(object):
         logger.info("args: {0}".format(args))
         Redmine.get_redmine_key(self, logger, app)
         try:
-            output, status_code= Redmine.redmine_create_issue(self, logger, app, args)
+            output, status_code = Redmine.redmine_create_issue(
+                self, logger, app, args)
             if status_code == 201:
                 return {
                     "message": "success",
@@ -332,8 +363,8 @@ class Issue(object):
             args.pop('parent_id', None)
         logger.info("args: {0}".format(args))
         Redmine.get_redmine_key(self, logger, app)
-        output, status_code = Redmine.redmine_update_issue(self, logger, app, issue_id,
-                                                  args)
+        output, status_code = Redmine.redmine_update_issue(
+            self, logger, app, issue_id, args)
         if status_code == 204:
             return {"message": "success"}, 200
         else:
