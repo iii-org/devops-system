@@ -529,9 +529,8 @@ class Issue(object):
         else:
             return {'message': 'Type error, should be week or month'}, 400
 
-        data = {}
         Redmine.get_redmine_key(self, logger, app)
-        args = {"update_on": "%3E%3C{0}|{1}".format(from_time, to_time)}
+        args = {"due_date": "><{0}|{1}".format(from_time, to_time)}
         user_plugin_relation_array = auth.get_user_plugin_relation(
             self, logger)
         for user_plugin_relation in user_plugin_relation_array:
@@ -540,11 +539,17 @@ class Issue(object):
         try:
             redmine_output, status_code = Redmine.redmine_get_statistics(
                 self, logger, app, args)
+            if status_code != 200:
+                return {'message': 'error when retrieving data from redmine',
+                        'data': redmine_output}, status_code
             total = redmine_output["total_count"]
 
             args['status_id'] = 6
             redmine_output_6, status_code = Redmine.redmine_get_statistics(
                 self, logger, app, args)
+            if status_code != 200:
+                return {'message': 'error when retrieving data from redmine',
+                        'data': redmine_output}, status_code
             closed = redmine_output_6["total_count"]
             return {
                        "message": "success",
