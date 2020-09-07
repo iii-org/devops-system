@@ -1130,6 +1130,22 @@ class IssueStatistics(Resource):
         return output
 
 
+class IssueWeekStatistics(Resource):
+    @jwt_required
+    def get(self):
+        output = iss.get_issue_statistics_in_period(logger, app, 'week',
+                                          get_jwt_identity()['user_id'])
+        return output
+
+
+class IssueMonthStatistics(Resource):
+    @jwt_required
+    def get(self):
+        output = iss.get_issue_statistics_in_period(logger, app, 'month',
+                                                    get_jwt_identity()['user_id'])
+        return output
+
+
 class DashboardIssuePriority(Resource):
     @jwt_required
     def get(self, user_id):
@@ -1872,6 +1888,8 @@ api.add_resource(IssuePrioriry, '/issues_priority')
 api.add_resource(IssueTracker, '/issues_tracker')
 api.add_resource(IssueRDbyUser, '/issues_by_user/rd/<user_id>')
 api.add_resource(IssueStatistics, '/issues/statistics')
+api.add_resource(IssueWeekStatistics, '/issues/week_statistics')
+api.add_resource(IssueMonthStatistics, '/issues/month_statistics')
 
 # dashboard
 api.add_resource(DashboardIssuePriority,
