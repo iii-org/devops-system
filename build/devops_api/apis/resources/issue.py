@@ -537,6 +537,7 @@ class Issue(object):
             if user_plugin_relation['user_id'] == user_id:
                 args["assigned_to_id"] = user_plugin_relation['plan_user_id']
         try:
+            args['status_id'] = '*'
             redmine_output, status_code = Redmine.redmine_get_statistics(
                 self, logger, app, args)
             if status_code != 200:
@@ -544,7 +545,7 @@ class Issue(object):
                         'data': redmine_output}, status_code
             total = redmine_output["total_count"]
 
-            args['status_id'] = 6
+            args['status_id'] = 'closed'
             redmine_output_6, status_code = Redmine.redmine_get_statistics(
                 self, logger, app, args)
             if status_code != 200:
