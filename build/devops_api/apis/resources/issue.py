@@ -492,10 +492,10 @@ class Issue(object):
     def get_issue_statistics(self, logger, app, args, user_id):
         Redmine.get_redmine_key(self, logger, app)
         if args["to_time"] is not None:
-            args["update_on"] = "%3E%3C{0}|{1}".format(args["from_time"],
+            args["due_date"] = "><{0}|{1}".format(args["from_time"],
                                                        args["to_time"])
         else:
-            args["update_on"] = "%3E%3D{0}".format(args["from_time"])
+            args["due_date"] = ">=".format(args["from_time"])
         user_plugin_relation_array = auth.get_user_plugin_relation(
             self, logger)
         for user_plugin_relation in user_plugin_relation_array:
