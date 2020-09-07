@@ -1781,6 +1781,13 @@ class ExportToPostman(Resource):
         return jsonify({'message': 'success', 'data': output})
 
 
+class DumpByIssue(Resource):
+    @jwt_required
+    def get(self, issue_id):
+        output = iss.dump(logger, issue_id)
+        return output
+
+
 api.add_resource(Index, '/')
 
 # Project list
@@ -1917,6 +1924,9 @@ api.add_resource(TestResult, '/testResults')
 
 # Export tests to postman json format
 api.add_resource(ExportToPostman, '/export_to_postman/<project_id>')
+
+# Get everything by issue_id
+api.add_resource(DumpByIssue, '/dump_by_issue/<issue_id>')
 
 if __name__ == "__main__":
     db.init_app(app)

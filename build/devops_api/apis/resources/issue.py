@@ -565,3 +565,30 @@ class Issue(object):
             return output
         except Exception as error:
             return str(error), 400
+
+    def dump(self, logger, issue_id):
+        output = {}
+        tables = ['requirements',
+                  'parameters',
+                  'flows',
+                  'test_cases',
+                  'test_items',
+                  'test_values'
+                  ]
+        for table in tables:
+            output[table] = []
+            result = db.engine.execute("SELECT * FROM public.{0} WHERE issue_id={1}"
+                                       .format(table, issue_id))
+            keys = result.keys()
+            rows = result.fetchall()
+            result.close()
+            for row in rows:
+                ele = {}
+                for key in keys:
+                    if type(row[key]) is datetime:
+                        ele[key] = str(row[key])
+                    else:
+                        ele[key] = row[key]
+                output[table].append(ele)
+        return {'message': 'success',
+                'data': output}, 200
