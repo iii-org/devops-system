@@ -156,10 +156,11 @@ class Project(object):
             "SELECT pj.id, pj.name, ppl.plan_project_id, \
             ppl.git_repository_id, ppl.ci_project_id, ppl.ci_pipeline_id\
             FROM public.project_user_role as pur, public.projects as pj, public.project_plugin_relation as ppl\
-            WHERE pur.user_id = {0} AND pur.project_id = pj.id AND pj.id = ppl.project_id; "
+            WHERE pur.user_id = {0} AND pur.project_id = pj.id AND pj.id = ppl.project_id;"
             .format(user_id))
         project_list = result.fetchall()
         result.close()
+        logger.debug("project list: {0}".format(project_list))
 
         # get user ids
         result = db.engine.execute("SELECT plan_user_id, repository_user_id \
@@ -197,28 +198,27 @@ class Project(object):
             logger.info("next_d_time: {0}".format(next_d_time))
             output_dict['next_d_time'] = next_d_time
 
-            # branch bumber
-            branch_number = 0
-            output = self.get_git_project_branches(
-                logger, app, project['git_repository_id'])
-            logger.info("get_git_project_branches output: {0}".format(
-                type(output.json())))
-            if output.status_code == 200:
-                branch_number = len(output.json())
-            logger.info(
-                "get_git_project_branches number: {0}".format(branch_number))
-            output_dict['branch'] = branch_number
-            # tag nubmer
-            tag_number = 0
-            output = self.get_git_project_tags(logger, app,
-                                               project['git_repository_id'])
-            logger.info("get_git_project_tags output: {0}".format(
-                type(output.json())))
-            if output.status_code == 200:
-                tag_number = len(output.json())
-            logger.info(
-                "get_git_project_tags number: {0}".format(branch_number))
-            output_dict['tag'] = tag_number
+            output_dict['branch'] = None
+            output_dict['tag'] = None
+            if project['git_repository_id'] is not None:
+                # branch bumber
+                branch_number = 0
+                output, status_code = self.get_git_project_branches(
+                    logger, app, project['git_repository_id'])
+                if status_code == 200:
+                    branch_number = len(output['data']['branch_list'])
+                logger.info(
+                    "get_git_project_branches number: {0}".format(branch_number))
+                output_dict['branch'] = branch_number
+                # tag nubmer
+                tag_number = 0
+                output, status_code = self.get_git_project_tags(logger, app,
+                                                project['git_repository_id'])
+                if status_code == 200:
+                    tag_number = len(output['data']['tag_list'])
+                logger.info(
+                    "get_git_project_tags number: {0}".format(branch_number))
+                output_dict['tag'] = tag_number
 
             output_dict = self.get_ci_last_test_result(app, logger,
                                                        output_dict, project)
@@ -598,9 +598,9 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         output_list = []
 
         # 整理各branches的commit_list
-        branches = self.get_git_project_branches(logger, app,
-                                                 project_id).json()
-        for branch in branches:
+        branch_output, status_code = self.get_git_project_branches(logger, app,
+                                                 project_id)
+        for branch in branch_output['data']['branch_list']:
             branch = branch["name"]
             url = "http://{0}/api/{1}/projects/{2}/repository/commits?private_token={3}&ref_name={4}&per_page=100".format(\
                 app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, self.private_token, branch)
@@ -625,8 +625,8 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
             output_list.append(branch_obj)
 
         # 整理各tags
-        tags = self.get_git_project_tags(logger, app, project_id).json()
-        for tag in tags:
+        tag_output, status_code = self.get_git_project_tags(logger, app, project_id)
+        for tag in tag_output['data']['tag_list']:
             tag_obj = {
                 "tag": tag["name"],
                 "message": tag["message"],
