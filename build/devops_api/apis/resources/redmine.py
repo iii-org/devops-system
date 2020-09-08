@@ -66,6 +66,7 @@ class Redmine(object):
         args['key'] = self.redmine_key
         url = "http://{0}/issues.json".format(app.config['REDMINE_IP_PORT'])
         logger.info("args: {0}".format(args))
+        print(args)
         output = requests.get(url,
                               headers=self.headers,
                               verify=False,

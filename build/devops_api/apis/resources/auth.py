@@ -6,7 +6,7 @@ from Cryptodome.Hash import SHA256
 from .util import util
 from .redmine import Redmine
 from .gitlab import GitLab
-from model import db, User, UserPluginRelation, ProjectUserRole, TableProjects, TableRole, TableRolesPluginRelation
+from model import db, User, UserPluginRelation, ProjectUserRole, TableProjects, TableRole, ProjectPluginRelation, TableRolesPluginRelation
 
 # from jsonwebtoken import jsonwebtoken
 from flask_jwt_extended import (create_access_token, JWTManager,
@@ -114,21 +114,25 @@ class auth(object):
             }
             # get user involve project list
             select_project = db.select([ProjectUserRole.stru_project_user_role, \
-                TableProjects.stru_projects]).where(db.and_(\
+                TableProjects.stru_projects, ProjectPluginRelation.stru_project_plug_relation])\
+                .where(db.and_(\
                 ProjectUserRole.stru_project_user_role.c.user_id==user_id, \
                 ProjectUserRole.stru_project_user_role.c.project_id==\
-                TableProjects.stru_projects.c.id))
+                TableProjects.stru_projects.c.id,
+                ProjectUserRole.stru_project_user_role.c.project_id==\
+                ProjectPluginRelation.stru_project_plug_relation.c.project_id))
             logger.debug("select_project: {0}".format(select_project))
             reMessage = util.callsqlalchemy(self, select_project,
                                             logger).fetchall()
             logger.debug("reMessage: {0}".format(reMessage))
-            if reMessage:
+            if len(reMessage) > 0:
                 project_list = []
                 for project in reMessage:
-                    logger.debug("project: {0}".format(project["name"]))
+                    logger.debug("project: {0}".format(project))
                     project_list.append({
                         "id": project["id"],
-                        "name": project["name"]
+                        "name": project["name"],
+                        "repository_id": project["git_repository_id"]
                     })
                 output["project"] = project_list
             else:

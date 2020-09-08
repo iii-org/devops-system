@@ -12,7 +12,6 @@ import datetime
 from model import db
 
 from jsonwebtoken import jsonwebtoken
-from urllib.parse import urlparse
 
 import resources.util as util
 import resources.auth as auth
@@ -30,6 +29,7 @@ import resources.version as version
 import resources.testData as testData
 import resources.flow as flow
 import resources.testResult as testResult
+import resources.cicd as cicd
 
 app = Flask(__name__)
 app.config.from_object('config')
@@ -63,6 +63,7 @@ ti = testItem.TestItem()
 tv = testValue.TestValue()
 td = testData.TestData()
 tr = testResult.TestResult()
+ci = cicd.Cicd(logger, app)
 
 
 class Index(Resource):
@@ -252,8 +253,8 @@ class ProjectList(Resource):
     def get(self, user_id):
         if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity(
         )['role_id'] in (3, 5):
-            output_array = pjt.get_project_list(logger, app, user_id)
-            return jsonify({'message': 'success', 'data': output_array})
+            output = pjt.get_project_list(logger, app, user_id)
+            return output
         else:
             return {'message': 'Access token is missing or invalid'}, 401
 
@@ -1142,6 +1143,22 @@ class IssueStatistics(Resource):
         return output
 
 
+class IssueWeekStatistics(Resource):
+    @jwt_required
+    def get(self):
+        output = iss.get_issue_statistics_in_period(logger, app, 'week',
+                                          get_jwt_identity()['user_id'])
+        return output
+
+
+class IssueMonthStatistics(Resource):
+    @jwt_required
+    def get(self):
+        output = iss.get_issue_statistics_in_period(logger, app, 'month',
+                                                    get_jwt_identity()['user_id'])
+        return output
+
+
 class DashboardIssuePriority(Resource):
     @jwt_required
     def get(self, user_id):
@@ -1686,111 +1703,8 @@ class ExportToPostman(Resource):
     @jwt_required
     def get(self, project_id):
         jwt_identity = get_jwt_identity()['user_id']
-        status = pjt.verify_project_user(logger, project_id, jwt_identity)
-        if not status:
-            return {'message': 'Don\'t have authorization to access issue list on project: {0}' \
-                .format(project_id)}, 401
-
-        output = {
-            'info': {
-                'name':
-                'Project id %s' % project_id,
-                'schema':
-                'https://schema.getpostman.com/json/collection/v2.1.0/collection.json'
-            },
-            'item': []
-        }
-        args = {}
-        issues, status_code = iss.get_issue_by_project(logger, app, project_id,
-                                                       args)
-        cases = []
-        for issue in issues['data']:
-            issue_id = issue['id']
-            part_cases = tc.get_testCase_by_issue_id(logger, issue_id,
-                                                     jwt_identity)
-            for case in part_cases.values():
-                cases.append(case)
-
-        for case in cases:
-            case_id = case['id']
-            method = case['data']['method']
-            url = urlparse(case['data']['url'])
-            items = ti.get_testItem_by_testCase_id(logger, case_id,
-                                                   jwt_identity)
-            for item in items.values():
-                item_id = item['id']
-                o_item = {'name': '%s #%s' % (case['name'], item_id)}
-                values = []
-                part_values = tv.get_testValue_by_testItem_id(
-                    logger, item_id, jwt_identity)
-                for value in part_values.values():
-                    values.append(value)
-
-                o_request = {
-                    'method': method,
-                    'url': {
-                        'protocol': url.scheme,
-                        'port': url.port
-                    },
-                    'header': []
-                }
-                if bool(url.hostname):
-                    o_request['url']['host'] = url.hostname.split('.')
-                if len(url.path) > 0:
-                    o_request['url']['path'] = url.path[1:].split('/')
-                o_request_body = []
-                o_execs = []
-
-                for value in values:
-                    type_id = value['type_id']
-                    location_id = value['location_id']
-                    if type_id == 1:
-                        if location_id == 1:
-                            header = {}
-                            if value['key'] == 'token':
-                                header['key'] = 'Authorization'
-                                header['value'] = 'Bearer %s' % value['value']
-                                header['type'] = 'text'
-                            else:
-                                header['key'] = value['key']
-                                header['value'] = value['value']
-                            o_request['header'].append(header)
-                        elif location_id == 2:
-                            o_request_body.append({
-                                'key': value['key'],
-                                'value': value['value']
-                            })
-                        else:
-                            pass
-                    elif type_id == 2:
-                        if location_id == 1:
-                            pass
-                        elif location_id == 2:
-                            o_execs.append(
-                                'pm.test("value #%d", function () { '
-                                'pm.expect(pm.response.json().%s).to.be.eql("%s");});'
-                                % (value['id'], value['key'], value['value']))
-                    else:
-                        pass
-
-                if bool(o_request_body):
-                    o_request['body'] = {
-                        'mode': 'formdata',
-                        'formdata': o_request_body
-                    }
-                if bool(o_request):
-                    o_item['request'] = o_request
-                if len(o_execs) > 0:
-                    o_item['event'] = [{
-                        'listen': 'test',
-                        'script': {
-                            'type': 'text/javascript',
-                            'exec': o_execs
-                        }
-                    }]
-                output['item'].append(o_item)
-
-        return jsonify({'message': 'success', 'data': output})
+        output = ci.export_to_postman(logger, app, project_id, jwt_identity)
+        return output
 
 
 class DumpByIssue(Resource):
@@ -1885,6 +1799,8 @@ api.add_resource(IssuePrioriry, '/issues_priority')
 api.add_resource(IssueTracker, '/issues_tracker')
 api.add_resource(IssueRDbyUser, '/issues_by_user/rd/<user_id>')
 api.add_resource(IssueStatistics, '/issues/statistics')
+api.add_resource(IssueWeekStatistics, '/issues/week_statistics')
+api.add_resource(IssueMonthStatistics, '/issues/month_statistics')
 
 # dashboard
 api.add_resource(DashboardIssuePriority,
