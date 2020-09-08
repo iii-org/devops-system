@@ -6,7 +6,7 @@ from Cryptodome.Hash import SHA256
 from .util import util
 from .redmine import Redmine
 from .gitlab import GitLab
-from model import db, User, UserPluginRelation, ProjectUserRole, TableProjects, TableRole
+from model import db, User, UserPluginRelation, ProjectUserRole, TableProjects, TableRole, TableRolesPluginRelation
 
 # from jsonwebtoken import jsonwebtoken
 from flask_jwt_extended import (create_access_token, JWTManager,
@@ -570,6 +570,38 @@ class auth(object):
             })
         return {"message": "success", "data": {"user_list": user_list}}, 200
 
+    def project_add_user(self, app, logger, project_id, args):
+        # get redmine role_id
+        '''
+        select_redmien_role_cmd = db.select([ProjectUserRole.stru_project_user_role, \
+            TableRolesPluginRelation.stru_rolerelation]).where(db.and_(\
+            ProjectUserRole.stru_project_user_role.c.user_id==args['user_id'], \
+            ProjectUserRole.stru_project_user_role.c.role_id==\
+            TableRolesPluginRelation.stru_rolerelation.c.role_id))
+        '''
+        select_project_by_userid = db.select([ProjectUserRole.stru_project_user_role, \
+            TableProjects.stru_projects]).where(db.and_(\
+            ProjectUserRole.stru_project_user_role.c.user_id==user_data["id"], \
+            ProjectUserRole.stru_project_user_role.c.project_id==\
+            TableProjects.stru_projects.c.id))
+        select_redmien_role_cmd = db.select([TableRolesPluginRelation.stru_rolerelation])
+        # logger.debug("select_redmien_role_cmd: {0}".format(select_redmien_role_cmd))
+        reMessage = util.callsqlalchemy(self, select_redmien_role_cmd,
+                                        logger).fetchone()
+        logger.debug("reMessage: {0}".format(reMessage))
+        # get redmine user_id
+        '''
+        redmine_user_id = None
+        user_relation_list = self.get_user_plugin_relation(self, logger)
+        if user_relation_list is not None:
+            for user_relation in user_relation_list:
+                if user_relation['user_id'] == args['user_id']:
+                    redmine_user_id = user_relation['plan_user_id']
+                    red_user = Redmine.redmine_create_memberships(self, logger, app,  project_id, redmine_user_id, role_id)
+
+        else:
+            return {"message": "Could not user relationship data"}, 400
+        '''    
     # 從db role table取得role list
     def get_role_list(self, logger, app):
         result = db.engine.execute(

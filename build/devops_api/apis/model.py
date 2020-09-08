@@ -204,3 +204,10 @@ class TableParameterType():
     stru_paramType = db.Table('parameter_types', meta,
                               db.Column('id', db.Integer, primary_key=True),
                               db.Column('type', db.String(50)))
+
+
+class TableRolesPluginRelation():
+    meta = db.MetaData()
+    stru_rolerelation = db.Table('roles_plugin_relation', meta,
+                              db.Column('role_id', db.Integer),
+                              db.Column('plan_role_id', db.Integer))
