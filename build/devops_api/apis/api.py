@@ -548,7 +548,7 @@ class GitProjectBranches(Resource):
         role_id = get_jwt_identity()["role_id"]
         print("role_id={0}".format(role_id))
 
-        if role_id in (1, 3):
+        if role_id in (1, 3, 5):
             project_id = repository_id
             try:
                 output = pjt.get_git_project_branches(logger, app, project_id)
@@ -563,7 +563,7 @@ class GitProjectBranches(Resource):
         role_id = get_jwt_identity()["role_id"]
         print("role_id={0}".format(role_id))
 
-        if role_id in (1, 5):
+        if role_id in (1, 3, 5):
             project_id = repository_id
             parser = reqparse.RequestParser()
             parser.add_argument('branch', type=str, required=True)
@@ -583,7 +583,7 @@ class GitProjectBranch(Resource):
         role_id = get_jwt_identity()["role_id"]
         print("role_id={0}".format(role_id))
 
-        if role_id in (1, 5):
+        if role_id in (1, 3, 5):
             project_id = repository_id
             branch = branch_name
             output = pjt.get_git_project_branch(logger, app, project_id,
@@ -597,7 +597,7 @@ class GitProjectBranch(Resource):
         role_id = get_jwt_identity()["role_id"]
         print("role_id={0}".format(role_id))
 
-        if role_id in (1, 5):
+        if role_id in (1, 3, 5):
             project_id = repository_id
             branch = branch_name
             output = pjt.delete_git_project_branch(logger, app, project_id,
@@ -613,7 +613,7 @@ class GitProjectRepositories(Resource):
         role_id = get_jwt_identity()["role_id"]
         print("role_id={0}".format(role_id))
 
-        if role_id in (1, 5):
+        if role_id in (1, 3, 5):
             project_id = repository_id
             branch = branch_name
             output = pjt.get_git_project_repositories(logger, app, project_id,
@@ -629,7 +629,7 @@ class GitProjectFiles(Resource):
         role_id = get_jwt_identity()["role_id"]
         print("role_id={0}".format(role_id))
 
-        if role_id in (1, 5):
+        if role_id in (1, 3, 5):
             project_id = repository_id
             parser = reqparse.RequestParser()
             parser.add_argument('branch', type=str, required=True)
@@ -654,7 +654,7 @@ class GitProjectFiles(Resource):
         role_id = get_jwt_identity()["role_id"]
         print("role_id={0}".format(role_id))
 
-        if role_id in (1, 5):
+        if role_id in (1, 3, 5):
             project_id = repository_id
             parser = reqparse.RequestParser()
             parser.add_argument('branch', type=str, required=True)
@@ -681,7 +681,7 @@ class GitProjectFile(Resource):
         role_id = get_jwt_identity()["role_id"]
         print("role_id={0}".format(role_id))
 
-        if role_id in (1, 5):
+        if role_id in (1, 3, 5):
             project_id = repository_id
             branch = branch_name
             output = pjt.get_git_project_file(logger, app, project_id, branch,
@@ -696,7 +696,7 @@ class GitProjectFile(Resource):
         role_id = get_jwt_identity()["role_id"]
         print("role_id={0}".format(role_id))
 
-        if role_id in (1, 5):
+        if role_id in (1, 3, 5):
             project_id = repository_id
             branch = branch_name
             parser = reqparse.RequestParser()
@@ -717,7 +717,7 @@ class GitProjectTags(Resource):
         role_id = get_jwt_identity()["role_id"]
         print("role_id={0}".format(role_id))
 
-        if role_id in (1, 5):
+        if role_id in (1, 3, 5):
             project_id = repository_id
             output = pjt.get_git_project_tags(logger, app, project_id)
             return output
@@ -729,7 +729,7 @@ class GitProjectTags(Resource):
         role_id = get_jwt_identity()["role_id"]
         print("role_id={0}".format(role_id))
 
-        if role_id in (1, 5):
+        if role_id in (1, 3, 5):
             project_id = repository_id
             parser = reqparse.RequestParser()
             parser.add_argument('tag_name', type=str, required=True)
@@ -750,7 +750,7 @@ class GitProjectTag(Resource):
         role_id = get_jwt_identity()["role_id"]
         print("role_id={0}".format(role_id))
 
-        if role_id in (1, 5):
+        if role_id in (1, 3, 5):
             project_id = repository_id
             output = pjt.delete_git_project_tag(logger, app, project_id,
                                                 tag_name)
