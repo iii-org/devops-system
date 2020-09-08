@@ -261,4 +261,5 @@ class Redmine(object):
                                data=json.dumps(param),
                                headers=self.headers,
                                verify=False)
+        logger.info("post status code: {0}".format(output.status_code))
         return output, output.status_code

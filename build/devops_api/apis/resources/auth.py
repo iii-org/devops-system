@@ -6,6 +6,7 @@ from Cryptodome.Hash import SHA256
 from .util import util
 from .redmine import Redmine
 from .gitlab import GitLab
+from .project import Project
 from model import db, User, UserPluginRelation, ProjectUserRole, TableProjects, TableRole, ProjectPluginRelation, TableRolesPluginRelation
 
 # from jsonwebtoken import jsonwebtoken
@@ -574,38 +575,61 @@ class auth(object):
             })
         return {"message": "success", "data": {"user_list": user_list}}, 200
 
-    def project_add_user(self, app, logger, project_id, args):
+    def project_add_user(self, logger, app , project_id, args):
+        role_id = None
+        get_rl_cmd = db.select([ProjectUserRole.stru_project_user_role]).where(db.and_(\
+            ProjectUserRole.stru_project_user_role.c.user_id==args['user_id']))
+        get_role_out = util.callsqlalchemy(self, get_rl_cmd,logger).fetchone()
+        if get_role_out is not None:
+            role_id=get_role_out['role_id']
+        get_pj_ur_rl_cmd = db.select([ProjectUserRole.stru_project_user_role]).where(db.and_(\
+            ProjectUserRole.stru_project_user_role.c.user_id==args['user_id'], \
+            ProjectUserRole.stru_project_user_role.c.project_id==project_id,
+            ProjectUserRole.stru_project_user_role.c.role_id==role_id))
+        get_pj_ur_rl = util.callsqlalchemy(self, get_pj_ur_rl_cmd,
+                                        logger).fetchone()
+        if get_pj_ur_rl is None:
+            # insert one relationship
+            get_pj_ur_rl_cmd = db.insert([ProjectUserRole.stru_project_user_role]).values(\
+                project_id = project_id, user_id = args['user_id'], role_id = role_id)
+            reMessage = util.callsqlalchemy(self, get_pj_ur_rl_cmd,
+                                        logger)
         # get redmine role_id
-        '''
+        redmine_role_id = None
         select_redmien_role_cmd = db.select([ProjectUserRole.stru_project_user_role, \
             TableRolesPluginRelation.stru_rolerelation]).where(db.and_(\
             ProjectUserRole.stru_project_user_role.c.user_id==args['user_id'], \
             ProjectUserRole.stru_project_user_role.c.role_id==\
             TableRolesPluginRelation.stru_rolerelation.c.role_id))
-        '''
-        select_project_by_userid = db.select([ProjectUserRole.stru_project_user_role, \
-            TableProjects.stru_projects]).where(db.and_(\
-            ProjectUserRole.stru_project_user_role.c.user_id==user_data["id"], \
-            ProjectUserRole.stru_project_user_role.c.project_id==\
-            TableProjects.stru_projects.c.id))
-        select_redmien_role_cmd = db.select([TableRolesPluginRelation.stru_rolerelation])
-        # logger.debug("select_redmien_role_cmd: {0}".format(select_redmien_role_cmd))
         reMessage = util.callsqlalchemy(self, select_redmien_role_cmd,
                                         logger).fetchone()
-        logger.debug("reMessage: {0}".format(reMessage))
+        redmine_role_id = reMessage['plan_role_id']
         # get redmine user_id
-        '''
         redmine_user_id = None
-        user_relation_list = self.get_user_plugin_relation(self, logger)
-        if user_relation_list is not None:
+        user_relation_list = self.get_user_plugin_relation(logger)
+        if len(user_relation_list) >0:
             for user_relation in user_relation_list:
                 if user_relation['user_id'] == args['user_id']:
                     redmine_user_id = user_relation['plan_user_id']
-                    red_user = Redmine.redmine_create_memberships(self, logger, app,  project_id, redmine_user_id, role_id)
-
+        # get redmine project id
+        redmine_project_id = None
+        project_relat_list = Project.get_project_plugin_relation(self, logger)
+        if len(project_relat_list) >0 :
+            for project_relat in project_relat_list:
+                if project_relat['project_id'] == project_id:
+                    redmine_project_id = project_relat['plan_project_id']
+            if (redmine_role_id != None and redmine_user_id != None and redmine_project_id != None):
+                output, status_code = Redmine.redmine_create_memberships(self, logger, app,  redmine_project_id, redmine_user_id, redmine_role_id)
+                if status_code == 201:
+                    return {"message": "success", "data": output}, 200
+                else:
+                    return {"message": "Create membership error"}, 400
+            else:
+                return {"message": "Could not get redmine user or project or role id"}, 400
         else:
-            return {"message": "Could not user relationship data"}, 400
-        '''    
+            return {"message": "Could not get user relationship data"}, 400
+
+
     # 從db role table取得role list
     def get_role_list(self, logger, app):
         result = db.engine.execute(
