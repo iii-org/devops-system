@@ -853,7 +853,8 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
     def pm_get_project(self, logger, app, project_id):
         # 查詢專案名稱＆專案說明＆＆專案狀態
         result = db.engine.execute(
-            "SELECT * FROM public.projects WHERE id = '{0}'".format(
+            "SELECT * FROM public.projects as pj, public.project_plugin_relation as ppr\
+                WHERE pj.id = '{0}' AND pj.id = ppr.project_id".format(
                 project_id))
         project_info = result.fetchone()
         result.close()
@@ -862,7 +863,10 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
             "id": project_info["id"],
             "name": project_info["name"],
             "description": project_info["description"],
-            "disabled": project_info["disabled"]
+            "disabled": project_info["disabled"],
+            "http_url": project_info["http_url"],
+            "ssh_url": project_info["ssh_url"],
+            "repository_id": project_info["git_repository_id"],
         }
         # 查詢專案負責人
         result = db.engine.execute(
