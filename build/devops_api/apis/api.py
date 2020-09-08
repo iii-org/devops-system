@@ -253,8 +253,8 @@ class ProjectList(Resource):
     def get(self, user_id):
         if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity(
         )['role_id'] in (3, 5):
-            output_array = pjt.get_project_list(logger, app, user_id)
-            return jsonify({'message': 'success', 'data': output_array})
+            output = pjt.get_project_list(logger, app, user_id)
+            return output
         else:
             return {'message': 'Access token is missing or invalid'}, 401
 
