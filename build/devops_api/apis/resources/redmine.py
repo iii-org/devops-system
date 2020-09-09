@@ -246,3 +246,22 @@ class Redmine(object):
         logger.info("Delete version output and status: {0} and {1}".format(
             output, output.status_code))
         return output, output.status_code
+
+    def redmine_create_memberships(self, logger, app, project_id, user_id, role_id):
+        url = "http://{0}/projects/{1}/memberships.json?key={2}".format(
+            app.config['REDMINE_IP_PORT'], project_id, self.redmine_key)
+        param = {
+            "membership": {
+                "user_id": user_id,
+                "role_ids": [role_id]
+            }
+        }
+        logger.info("redmine create membership url: {0}".format(url))
+        # logger.info("post user param: {0}".format(param))
+        output = requests.post(url,
+                               data=json.dumps(param),
+                               headers=self.headers,
+                               verify=False)
+        #logger.info("redmine create membership message: {0}".format(output.text))
+        logger.info("post status code: {0}".format(output.status_code))
+        return output, output.status_code
