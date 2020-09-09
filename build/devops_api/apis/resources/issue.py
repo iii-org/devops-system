@@ -5,7 +5,8 @@ from .project import Project
 from .auth import auth
 
 from flask import jsonify
-from datetime import datetime
+from datetime import datetime, date, timedelta
+import calendar
 
 
 class Issue(object):
@@ -491,10 +492,10 @@ class Issue(object):
     def get_issue_statistics(self, logger, app, args, user_id):
         Redmine.get_redmine_key(self, logger, app)
         if args["to_time"] is not None:
-            args["update_on"] = "%3E%3C{0}|{1}".format(args["from_time"],
+            args["due_date"] = "><{0}|{1}".format(args["from_time"],
                                                        args["to_time"])
         else:
-            args["update_on"] = "%3E%3D{0}".format(args["from_time"])
+            args["due_date"] = ">=".format(args["from_time"])
         user_plugin_relation_array = auth.get_user_plugin_relation(
             self, logger)
         for user_plugin_relation in user_plugin_relation_array:
@@ -509,6 +510,55 @@ class Issue(object):
                     "issue_number": redmine_output["total_count"]
                 }
             }, status_code
+        except Exception as error:
+            return {"message": str(error)}, 400
+
+    def get_issue_statistics_in_period(self, logger, app, period, user_id):
+        current_date = date.today()
+        if period == 'week':
+            monday = datetime.today() - timedelta(days=datetime.today().weekday() % 7)
+            sunday = monday + timedelta(days=6)
+            from_time = monday.strftime('%Y-%m-%d')
+            to_time = sunday.strftime('%Y-%m-%d')
+        elif period == 'month':
+            first_day = datetime.today().replace(day=1)
+            last_day = datetime.today().replace(
+                day=calendar.monthrange(current_date.year, current_date.month)[1])
+            from_time = first_day.strftime('%Y-%m-%d')
+            to_time = last_day.strftime('%Y-%m-%d')
+        else:
+            return {'message': 'Type error, should be week or month'}, 400
+
+        Redmine.get_redmine_key(self, logger, app)
+        args = {"due_date": "><{0}|{1}".format(from_time, to_time)}
+        user_plugin_relation_array = auth.get_user_plugin_relation(
+            self, logger)
+        for user_plugin_relation in user_plugin_relation_array:
+            if user_plugin_relation['user_id'] == user_id:
+                args["assigned_to_id"] = user_plugin_relation['plan_user_id']
+        try:
+            args['status_id'] = '*'
+            redmine_output, status_code = Redmine.redmine_get_statistics(
+                self, logger, app, args)
+            if status_code != 200:
+                return {'message': 'error when retrieving data from redmine',
+                        'data': redmine_output}, status_code
+            total = redmine_output["total_count"]
+
+            args['status_id'] = 'closed'
+            redmine_output_6, status_code = Redmine.redmine_get_statistics(
+                self, logger, app, args)
+            if status_code != 200:
+                return {'message': 'error when retrieving data from redmine',
+                        'data': redmine_output}, status_code
+            closed = redmine_output_6["total_count"]
+            return {
+                       "message": "success",
+                       "data": {
+                           "open": total - closed,
+                           "closed": closed
+                       }
+                   }, 200
         except Exception as error:
             return {"message": str(error)}, 400
 
@@ -565,3 +615,30 @@ class Issue(object):
             return output
         except Exception as error:
             return str(error), 400
+
+    def dump(self, logger, issue_id):
+        output = {}
+        tables = ['requirements',
+                  'parameters',
+                  'flows',
+                  'test_cases',
+                  'test_items',
+                  'test_values'
+                  ]
+        for table in tables:
+            output[table] = []
+            result = db.engine.execute("SELECT * FROM public.{0} WHERE issue_id={1}"
+                                       .format(table, issue_id))
+            keys = result.keys()
+            rows = result.fetchall()
+            result.close()
+            for row in rows:
+                ele = {}
+                for key in keys:
+                    if type(row[key]) is datetime:
+                        ele[key] = str(row[key])
+                    else:
+                        ele[key] = row[key]
+                output[table].append(ele)
+        return {'message': 'success',
+                'data': output}, 200
