@@ -96,7 +96,7 @@ class CreateProject(Resource):
         role_id = get_jwt_identity()["role_id"]
         print("role_id={0}".format(role_id))
 
-        if role_id == (3, 5):
+        if role_id in (3, 5):
             user_id = get_jwt_identity()["user_id"]
             print("user_id={0}".format(user_id))
             parser = reqparse.RequestParser()
@@ -774,61 +774,82 @@ class GitProjectTag(Resource):
 class GitProjectDirectory(Resource):
     @jwt_required
     def post(self, repository_id, directory_path):
-        project_id = repository_id
-        directory_path = directory_path + "%2F%2Egitkeep"
-        parser = reqparse.RequestParser()
-        parser.add_argument('branch', type=str, required=True)
-        parser.add_argument('commit_message', type=str, required=True)
-        args = parser.parse_args()
-        logger.info("post body: {0}".format(args))
-        output = pjt.create_git_project_directory(logger, app, project_id,
-                                                  directory_path, args)
-        return output.json()
+        role_id = get_jwt_identity()["role_id"]
+        print("role_id={0}".format(role_id))
+
+        if role_id in (1, 5):
+            project_id = repository_id
+            directory_path = directory_path + "%2F%2Egitkeep"
+            parser = reqparse.RequestParser()
+            parser.add_argument('branch', type=str, required=True)
+            parser.add_argument('commit_message', type=str, required=True)
+            args = parser.parse_args()
+            logger.info("post body: {0}".format(args))
+            output = pjt.create_git_project_directory(logger, app, project_id,
+                                                      directory_path, args)
+            return output
+        else:
+            return {"message": "您無權限訪問！"}, 401
 
     @jwt_required
     def put(self, repository_id, directory_path):
-        project_id = repository_id
-        directory_path = directory_path + "%2F%2Egitkeep"
-        parser = reqparse.RequestParser()
-        parser.add_argument('branch', type=str, required=True)
-        parser.add_argument('author_name', type=str)
-        parser.add_argument('author_email', type=str)
-        parser.add_argument('encoding', type=str)
-        parser.add_argument('content', type=str, required=True)
-        parser.add_argument('commit_message', type=str, required=True)
-        args = parser.parse_args()
-        logger.info("put body: {0}".format(args))
-        output = pjt.update_git_project_directory(logger, app, project_id,
-                                                  directory_path, args)
-        return output.json()
+        role_id = get_jwt_identity()["role_id"]
+        print("role_id={0}".format(role_id))
+
+        if role_id in (1, 5):
+            project_id = repository_id
+            directory_path = directory_path + "%2F%2Egitkeep"
+            parser = reqparse.RequestParser()
+            parser.add_argument('branch', type=str, required=True)
+            parser.add_argument('author_name', type=str)
+            parser.add_argument('author_email', type=str)
+            parser.add_argument('encoding', type=str)
+            parser.add_argument('content', type=str, required=True)
+            parser.add_argument('commit_message', type=str, required=True)
+            args = parser.parse_args()
+            logger.info("put body: {0}".format(args))
+            output = pjt.update_git_project_directory(logger, app, project_id,
+                                                      directory_path, args)
+            return output
+        else:
+            return {"message": "您無權限訪問！"}, 401
 
     @jwt_required
     def delete(self, repository_id, directory_path):
-        project_id = repository_id
-        parser = reqparse.RequestParser()
-        parser.add_argument('branch', type=str, required=True)
-        parser.add_argument('commit_message', type=str, required=True)
-        args = parser.parse_args()
-        logger.info("delete body: {0}".format(args))
-        output = pjt.delete_git_project_directory(logger, app, project_id,
-                                                  directory_path, args)
-        if str(output) == "<Response [204]>":
-            return "Success Delete"
+        role_id = get_jwt_identity()["role_id"]
+        print("role_id={0}".format(role_id))
+
+        if role_id in (1, 5):
+            project_id = repository_id
+            parser = reqparse.RequestParser()
+            parser.add_argument('branch', type=str, required=True)
+            parser.add_argument('commit_message', type=str, required=True)
+            args = parser.parse_args()
+            logger.info("delete body: {0}".format(args))
+            output = pjt.delete_git_project_directory(logger, app, project_id,
+                                                      directory_path, args)
+            return output
         else:
-            return str(output)
+            return {"message": "您無權限訪問！"}, 401
 
 
 class GitProjectMergeBranch(Resource):
     @jwt_required
     def post(self, repository_id):
-        project_id = repository_id
-        parser = reqparse.RequestParser()
-        parser.add_argument('schemas', type=dict, required=True)
-        args = parser.parse_args()["schemas"]
-        logger.info("post body: {0}".format(args))
-        output = pjt.create_git_project_mergebranch(logger, app, project_id,
-                                                    args)
-        return output.json()
+        role_id = get_jwt_identity()["role_id"]
+        print("role_id={0}".format(role_id))
+
+        if role_id in (1, 5):
+            project_id = repository_id
+            parser = reqparse.RequestParser()
+            parser.add_argument('schemas', type=dict, required=True)
+            args = parser.parse_args()["schemas"]
+            logger.info("post body: {0}".format(args))
+            output = pjt.create_git_project_mergebranch(logger, app, project_id,
+                                                        args)
+            return output
+        else:
+            return {"message": "您無權限訪問！"}, 401
 
 
 class GitProjectBranchCommmits(Resource):
@@ -837,15 +858,7 @@ class GitProjectBranchCommmits(Resource):
         role_id = get_jwt_identity()["role_id"]
         print("role_id={0}".format(role_id))
 
-        # try:
-        #     role_id = db.engine.execute(
-        #         "SELECT role_id FROM public.project_user_role \
-        #         WHERE user_id = {0} AND project_id = {1}".format(
-        #             user_id, project_id)).fetchone()[0]
-        # except:
-        #     role_id = None
-
-        if role_id <= 5:
+        if role_id in (1, 5):
             project_id = repository_id
             parser = reqparse.RequestParser()
             parser.add_argument('branch', type=str, required=True)
@@ -853,17 +866,23 @@ class GitProjectBranchCommmits(Resource):
             logger.info("get body: {0}".format(args))
             output = pjt.get_git_project_branch_commits(
                 logger, app, project_id, args)
-            return output.json()
+            return output
         else:
-            return "您無權限訪問！"
+            return {"message": "您無權限訪問！"}, 401
 
 
 class GitProjectNetwork(Resource):
     @jwt_required
     def get(self, repository_id):
-        project_id = repository_id
-        output = pjt.get_git_project_network(logger, app, project_id)
-        return output
+        role_id = get_jwt_identity()["role_id"]
+        print("role_id={0}".format(role_id))
+
+        if role_id in (1, 5):
+            project_id = repository_id
+            output = pjt.get_git_project_network(logger, app, project_id)
+            return output
+        else:
+            return {"message": "您無權限訪問！"}, 401
 
 
 class GitProjectId(Resource):
@@ -1747,7 +1766,7 @@ api.add_resource(
 api.add_resource(GitProjectMergeBranch,
                  '/repositories/rd/<repository_id>/merge_branches')
 api.add_resource(GitProjectBranchCommmits,
-                 '/repositories/<repository_id>/commits')
+                 '/repositories/rd/<repository_id>/commits')
 api.add_resource(GitProjectNetwork, '/repositories/<repository_id>/overview')
 api.add_resource(GitProjectId, '/repositories/<repository_id>/id')
 
