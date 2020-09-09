@@ -122,9 +122,9 @@ class Issue(object):
             output = self.__dealwith_issue_redmine_output(
                 logger,
                 redmine_output_issue.json()['issue'])
+            return {"messsage": "success", "data": output}, 200
         else:
-            output = {"message": "could not get this redmine issue."}, 400
-        return output
+            return {"message": "could not get this redmine issue."}, 400
 
     def get_issue_by_project(self, logger, app, project_id, args):
         # get plan_project_id, git_repository_id, ci_project_id, ci_pipeline_id
