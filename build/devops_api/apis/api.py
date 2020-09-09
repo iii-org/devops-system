@@ -87,7 +87,7 @@ class TotalProjectList(Resource):
             except Exception as error:
                 return {"message": str(error)}, 400
         else:
-            return {"message": "您無權限訪問！"}, 401
+            return {"message": "your role art not PM/administrator"}, 401
 
 
 class CreateProject(Resource):
@@ -111,7 +111,7 @@ class CreateProject(Resource):
             except Exception as error:
                 return {"message": str(error)}, 400
         else:
-            return {"message": "您無權限訪問！"}, 401
+            return {"message": "your role art not PM/administrator"}, 401
 
 
 class Project(Resource):
@@ -127,7 +127,7 @@ class Project(Resource):
             except Exception as error:
                 return {"message": str(error)}, 400
         else:
-            return {"message": "您無權限訪問！"}, 401
+            return {"message": "your role art not PM/administrator"}, 401
 
     @jwt_required
     def put(self, project_id):
@@ -151,7 +151,7 @@ class Project(Resource):
             except Exception as error:
                 return {"message": str(error)}, 400
         else:
-            return {"message": "您無權限訪問！"}, 401
+            return {"message": "your role art not PM/administrator"}, 401
 
     @jwt_required
     def delete(self, project_id):
@@ -165,7 +165,7 @@ class Project(Resource):
             except Exception as error:
                 return {"message": str(error)}, 400
         else:
-            return {"message": "您無權限訪問！"}, 401
+            return {"message": "your role art not PM/administrator"}, 401
 
 
 class GitProjects(Resource):
@@ -551,7 +551,7 @@ class RoleList(Resource):
             except Exception as error:
                 return {"message": str(error)}, 400
         else:
-            return {"message": "your role art not administrator"}, 401
+            return {"message": "your role art not RD/PM/administrator"}, 401
 
 
 class GitProjectBranches(Resource):
@@ -568,7 +568,7 @@ class GitProjectBranches(Resource):
             except Exception as error:
                 return {"message": str(error)}, 400
         else:
-            return {"message": "您無權限訪問！"}, 401
+            return {"message": "your role art not RD/PM/administrator"}, 401
 
     @jwt_required
     def post(self, repository_id):
@@ -586,7 +586,7 @@ class GitProjectBranches(Resource):
                                                    args)
             return output
         else:
-            return {"message": "您無權限訪問！"}, 401
+            return {"message": "your role art not RD/PM/administrator"}, 401
 
 
 class GitProjectBranch(Resource):
@@ -602,7 +602,7 @@ class GitProjectBranch(Resource):
                                                 branch)
             return output
         else:
-            return {"message": "您無權限訪問！"}, 401
+            return {"message": "your role art not RD/PM/administrator"}, 401
 
     @jwt_required
     def delete(self, repository_id, branch_name):
@@ -616,7 +616,7 @@ class GitProjectBranch(Resource):
                                                    branch)
             return output
         else:
-            return {"message": "您無權限訪問！"}, 401
+            return {"message": "your role art not RD/PM/administrator"}, 401
 
 
 class GitProjectRepositories(Resource):
@@ -632,7 +632,7 @@ class GitProjectRepositories(Resource):
                                                       branch)
             return output
         else:
-            return {"message": "您無權限訪問！"}, 401
+            return {"message": "your role art not RD/PM/administrator"}, 401
 
 
 class GitProjectFiles(Resource):
@@ -659,7 +659,7 @@ class GitProjectFiles(Resource):
             return output
 
         else:
-            return {"message": "您無權限訪問！"}, 401
+            return {"message": "your role art not RD/PM/administrator"}, 401
 
     @jwt_required
     def put(self, repository_id):
@@ -684,7 +684,7 @@ class GitProjectFiles(Resource):
             return output
 
         else:
-            return {"message": "您無權限訪問！"}, 401
+            return {"message": "your role art not RD/PM/administrator"}, 401
 
 
 class GitProjectFile(Resource):
@@ -701,7 +701,7 @@ class GitProjectFile(Resource):
             return output
 
         else:
-            return {"message": "您無權限訪問！"}, 401
+            return {"message": "your role art not RD/PM/administrator"}, 401
 
     @jwt_required
     def delete(self, repository_id, branch_name, file_path):
@@ -720,7 +720,7 @@ class GitProjectFile(Resource):
             return output
 
         else:
-            return {"message": "您無權限訪問！"}, 401
+            return {"message": "your role art not RD/PM/administrator"}, 401
 
 
 class GitProjectTags(Resource):
@@ -734,7 +734,7 @@ class GitProjectTags(Resource):
             output = pjt.get_git_project_tags(logger, app, project_id)
             return output
         else:
-            return {"message": "您無權限訪問！"}, 401
+            return {"message": "your role art not RD/PM/administrator"}, 401
 
     @jwt_required
     def post(self, repository_id):
@@ -753,7 +753,7 @@ class GitProjectTags(Resource):
             output = pjt.create_git_project_tags(logger, app, project_id, args)
             return output
         else:
-            return {"message": "您無權限訪問！"}, 401
+            return {"message": "your role art not RD/PM/administrator"}, 401
 
 
 class GitProjectTag(Resource):
@@ -768,7 +768,7 @@ class GitProjectTag(Resource):
                                                 tag_name)
             return output
         else:
-            return {"message": "您無權限訪問！"}, 401
+            return {"message": "your role art not RD/PM/administrator"}, 401
 
 
 class GitProjectDirectory(Resource):
@@ -789,7 +789,7 @@ class GitProjectDirectory(Resource):
                                                       directory_path, args)
             return output
         else:
-            return {"message": "您無權限訪問！"}, 401
+            return {"message": "your role art not RD/administrator"}, 401
 
     @jwt_required
     def put(self, repository_id, directory_path):
@@ -812,7 +812,7 @@ class GitProjectDirectory(Resource):
                                                       directory_path, args)
             return output
         else:
-            return {"message": "您無權限訪問！"}, 401
+            return {"message": "your role art not RD/administrator"}, 401
 
     @jwt_required
     def delete(self, repository_id, directory_path):
@@ -830,7 +830,7 @@ class GitProjectDirectory(Resource):
                                                       directory_path, args)
             return output
         else:
-            return {"message": "您無權限訪問！"}, 401
+            return {"message": "your role art not RD/administrator"}, 401
 
 
 class GitProjectMergeBranch(Resource):
@@ -849,7 +849,7 @@ class GitProjectMergeBranch(Resource):
                                                         args)
             return output
         else:
-            return {"message": "您無權限訪問！"}, 401
+            return {"message": "your role art not RD/administrator"}, 401
 
 
 class GitProjectBranchCommmits(Resource):
@@ -868,7 +868,7 @@ class GitProjectBranchCommmits(Resource):
                 logger, app, project_id, args)
             return output
         else:
-            return {"message": "您無權限訪問！"}, 401
+            return {"message": "your role art not RD/administrator"}, 401
 
 
 class GitProjectNetwork(Resource):
@@ -882,7 +882,7 @@ class GitProjectNetwork(Resource):
             output = pjt.get_git_project_network(logger, app, project_id)
             return output
         else:
-            return {"message": "您無權限訪問！"}, 401
+            return {"message": "your role art not RD/administrator"}, 401
 
 
 class GitProjectId(Resource):
