@@ -59,6 +59,17 @@ class GitLab(object):
                                headers=self.headers,
                                verify=False)
         logger.info(
-            "gitlab project add member api output: status_code: {0}, message: {1}".
-            format(output.status_code, output.text))
+            "gitlab project add member api output: status_code: {0}, message: {1}"
+            .format(output.status_code, output.text))
+        return output, output.status_code
+
+    def project_delete_member(self, logger, app, project_id, user_id):
+        gitlab = GitLab(logger, app)
+        url = "http://{0}/api/{1}/projects/{2}/members/{3}?private_token={4}"\
+            .format(app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], \
+            project_id, user_id, gitlab.private_token)
+        output = requests.delete(url, headers=self.headers, verify=False)
+        logger.info(
+            "gitlab project delete member api output: status_code: {0}, message: {1}"
+            .format(output.status_code, output.text))
         return output, output.status_code

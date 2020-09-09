@@ -389,6 +389,7 @@ class ProjectUserList(Resource):
         else:
             return {"message": "your role art not administrator"}, 401
 
+
 class ProjectAddMember(Resource):
     @jwt_required
     def post(self, project_id):
@@ -397,6 +398,16 @@ class ProjectAddMember(Resource):
             parser.add_argument('user_id', type=int, required=True)
             args = parser.parse_args()
             output = au.project_add_member(logger, app, project_id, args)
+            return output
+        else:
+            return {"message": "your role are not PM or administrator"}, 401
+
+
+class ProjectDeleteMember(Resource):
+    @jwt_required
+    def delete(self, project_id, user_id):
+        if get_jwt_identity()["role_id"] in (3, 5):
+            output = au.project_delete_member(logger, app, project_id, user_id)
             return output
         else:
             return {"message": "your role are not PM or administrator"}, 401
@@ -1146,16 +1157,18 @@ class IssueStatistics(Resource):
 class IssueWeekStatistics(Resource):
     @jwt_required
     def get(self):
-        output = iss.get_issue_statistics_in_period(logger, app, 'week',
-                                          get_jwt_identity()['user_id'])
+        output = iss.get_issue_statistics_in_period(
+            logger, app, 'week',
+            get_jwt_identity()['user_id'])
         return output
 
 
 class IssueMonthStatistics(Resource):
     @jwt_required
     def get(self):
-        output = iss.get_issue_statistics_in_period(logger, app, 'month',
-                                                    get_jwt_identity()['user_id'])
+        output = iss.get_issue_statistics_in_period(
+            logger, app, 'month',
+            get_jwt_identity()['user_id'])
         return output
 
 
@@ -1755,6 +1768,8 @@ api.add_resource(GitProjectId, '/repositories/<repository_id>/id')
 api.add_resource(ProjectList, '/project/rd/<int:user_id>')
 api.add_resource(ProjectUserList, '/project/<int:project_id>/user/list')
 api.add_resource(ProjectAddMember, '/project/<int:project_id>/member')
+api.add_resource(ProjectDeleteMember,
+                 '/project/<int:project_id>/member/<int:user_id>')
 api.add_resource(ProjectWikiList, '/project/<int:project_id>/wiki')
 api.add_resource(ProjectWiki, '/project/<int:project_id>/wiki/<wiki_name>')
 api.add_resource(ProjectVersionList, '/project/<int:project_id>/version/list')
