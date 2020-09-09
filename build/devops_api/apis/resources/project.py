@@ -1,9 +1,8 @@
-from operator import truediv
 import requests
 import json
 from datetime import datetime
 
-from model import db, ProjectUserRole
+from model import db, ProjectUserRole, ProjectPluginRelation
 from .redmine import Redmine
 from .rancher import Rancher
 from .util import util
@@ -50,12 +49,12 @@ class Project(object):
         else:
             return False
 
-    def get_project_plugin_relation(self, logger):
-        result = db.engine.execute(
-            "SELECT * FROM public.project_plugin_relation")
-        project_plugin_relation_array = result.fetchall()
-        result.close()
-        return project_plugin_relation_array
+    def get_project_plugin_relation(self, logger, project_id):
+        select_project_relation_command = db.select([ProjectPluginRelation.stru_project_plug_relation])\
+            .where(db.and_(ProjectPluginRelation.stru_project_plug_relation.c.project_id==project_id))
+        reMessage = util.callsqlalchemy(self, select_project_relation_command,
+                                        logger).fetchone()
+        return reMessage
 
     # 查詢所有projects
     def get_all_git_projects(self, logger, app):
@@ -161,11 +160,12 @@ class Project(object):
         project_list = result.fetchall()
         result.close()
         logger.debug("project list: {0}".format(project_list))
-        if len(project_list) >0:
+        if len(project_list) > 0:
             # get user ids
-            result = db.engine.execute("SELECT plan_user_id, repository_user_id \
+            result = db.engine.execute(
+                "SELECT plan_user_id, repository_user_id \
                 FROM public.user_plugin_relation WHERE user_id = {0}; ".format(
-                user_id))
+                    user_id))
             userid_list_output = result.fetchone()
             if userid_list_output is not None:
                 plan_user_id = userid_list_output[0]
@@ -177,7 +177,9 @@ class Project(object):
                     output_dict['name'] = project['name']
                     output_dict['project_id'] = project['id']
 
-                    output_dict['repository_ids'] = [project['git_repository_id']]
+                    output_dict['repository_ids'] = [
+                        project['git_repository_id']
+                    ]
 
                     # get issue total cont
                     total_issue = Redmine.redmine_get_issues_by_project_and_user(self, logger, app, \
@@ -191,12 +193,15 @@ class Project(object):
                     for issue in total_issue['issues']:
                         if issue['due_date'] is not None:
                             issue_due_date_list.append(
-                                datetime.strptime(issue['due_date'], "%Y-%m-%d"))
-                    logger.info("issue_due_date_list: {0}".format(issue_due_date_list))
+                                datetime.strptime(issue['due_date'],
+                                                  "%Y-%m-%d"))
+                    logger.info(
+                        "issue_due_date_list: {0}".format(issue_due_date_list))
                     next_d_time = None
                     if len(issue_due_date_list) != 0:
-                        next_d_time = min(issue_due_date_list,
-                                        key=lambda d: abs(d - datetime.now()))
+                        next_d_time = min(
+                            issue_due_date_list,
+                            key=lambda d: abs(d - datetime.now()))
                     logger.info("next_d_time: {0}".format(next_d_time))
                     output_dict['next_d_time'] = next_d_time
 
@@ -210,27 +215,30 @@ class Project(object):
                         if status_code == 200:
                             branch_number = len(output['data']['branch_list'])
                         logger.info(
-                            "get_git_project_branches number: {0}".format(branch_number))
+                            "get_git_project_branches number: {0}".format(
+                                branch_number))
                         output_dict['branch'] = branch_number
                         # tag nubmer
                         tag_number = 0
-                        output, status_code = self.get_git_project_tags(logger, app,
-                                                        project['git_repository_id'])
+                        output, status_code = self.get_git_project_tags(
+                            logger, app, project['git_repository_id'])
                         if status_code == 200:
                             tag_number = len(output['data']['tag_list'])
-                        logger.info(
-                            "get_git_project_tags number: {0}".format(branch_number))
+                        logger.info("get_git_project_tags number: {0}".format(
+                            branch_number))
                         output_dict['tag'] = tag_number
 
-                    output_dict = self.get_ci_last_test_result(app, logger,
-                                                            output_dict, project)
+                    output_dict = self.get_ci_last_test_result(
+                        app, logger, output_dict, project)
                     output_array.append(output_dict)
                 return {"message": "success", "data": output_array}, 200
             else:
-                return {"message": "could not get plan_user_id and repository_id"}, 400
+                return {
+                    "message": "could not get plan_user_id and repository_id"
+                }, 400
         else:
             return {"message": "user did not join any project"}, 400
-        
+
     def get_ci_last_test_result(self, app, logger, output_dict, project):
         # get rancher pipeline
         output_dict['last_test_time'] = ""
