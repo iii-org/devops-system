@@ -59,6 +59,7 @@ class Parameter(object):
             update_at=datetime.datetime.now())
         logger.debug("insert_user_command: {0}".format(update_param_command))
         result = util.callsqlalchemy(self, update_param_command, logger)
+        return {}
         # reMessage = result.fetchall()
         # print(reMessage)
         # return {'123'}
