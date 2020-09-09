@@ -575,32 +575,32 @@ class auth(object):
             })
         return {"message": "success", "data": {"user_list": user_list}}, 200
 
-    def project_add_user(self, logger, app , project_id, args):
+    def project_add_membership(self, logger, app , project_id, args):
+        # get role_id by user
         role_id = None
         get_rl_cmd = db.select([ProjectUserRole.stru_project_user_role]).where(db.and_(\
             ProjectUserRole.stru_project_user_role.c.user_id==args['user_id']))
         get_role_out = util.callsqlalchemy(self, get_rl_cmd,logger).fetchone()
         if get_role_out is not None:
             role_id=get_role_out['role_id']
+        # Check ProjectUserRole table has relationship or not
         get_pj_ur_rl_cmd = db.select([ProjectUserRole.stru_project_user_role]).where(db.and_(\
             ProjectUserRole.stru_project_user_role.c.user_id==args['user_id'], \
             ProjectUserRole.stru_project_user_role.c.project_id==project_id,
             ProjectUserRole.stru_project_user_role.c.role_id==role_id))
         get_pj_ur_rl = util.callsqlalchemy(self, get_pj_ur_rl_cmd,
                                         logger).fetchone()
+        # if ProjectUserRole table not has relationship 
         if get_pj_ur_rl is None:
             # insert one relationship
-            get_pj_ur_rl_cmd = db.insert([ProjectUserRole.stru_project_user_role]).values(\
+            get_pj_ur_rl_cmd = db.insert(ProjectUserRole.stru_project_user_role).values(\
                 project_id = project_id, user_id = args['user_id'], role_id = role_id)
             reMessage = util.callsqlalchemy(self, get_pj_ur_rl_cmd,
                                         logger)
-        # get redmine role_id
+        # get redmine_role_id from role_id
         redmine_role_id = None
-        select_redmien_role_cmd = db.select([ProjectUserRole.stru_project_user_role, \
-            TableRolesPluginRelation.stru_rolerelation]).where(db.and_(\
-            ProjectUserRole.stru_project_user_role.c.user_id==args['user_id'], \
-            ProjectUserRole.stru_project_user_role.c.role_id==\
-            TableRolesPluginRelation.stru_rolerelation.c.role_id))
+        select_redmien_role_cmd = db.select([TableRolesPluginRelation.stru_rolerelation])\
+            .where(db.and_(TableRolesPluginRelation.stru_rolerelation.c.role_id==role_id))
         reMessage = util.callsqlalchemy(self, select_redmien_role_cmd,
                                         logger).fetchone()
         redmine_role_id = reMessage['plan_role_id']
@@ -619,9 +619,13 @@ class auth(object):
                 if project_relat['project_id'] == project_id:
                     redmine_project_id = project_relat['plan_project_id']
             if (redmine_role_id != None and redmine_user_id != None and redmine_project_id != None):
+                Redmine.get_redmine_key(self, logger, app)
                 output, status_code = Redmine.redmine_create_memberships(self, logger, app,  redmine_project_id, redmine_user_id, redmine_role_id)
                 if status_code == 201:
+                    logger.debug("output: {0}".format(output))
                     return {"message": "success", "data": output}, 200
+                elif status_code == 422:
+                    return {"message": "user alreay in redmine memebersip"}, 400
                 else:
                     return {"message": "Create membership error"}, 400
             else:

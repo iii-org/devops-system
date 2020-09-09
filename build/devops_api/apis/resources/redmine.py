@@ -256,10 +256,12 @@ class Redmine(object):
                 "role_ids": [role_id]
             }
         }
-        logger.info("post user param: {0}".format(param))
+        logger.info("redmine create membership url: {0}".format(url))
+        # logger.info("post user param: {0}".format(param))
         output = requests.post(url,
                                data=json.dumps(param),
                                headers=self.headers,
                                verify=False)
+        #logger.info("redmine create membership message: {0}".format(output.text))
         logger.info("post status code: {0}".format(output.status_code))
         return output, output.status_code

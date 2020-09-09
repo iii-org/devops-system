@@ -389,14 +389,14 @@ class ProjectUserList(Resource):
         else:
             return {"message": "your role art not administrator"}, 401
 
-class ProjectAddUser(Resource):
+class ProjectAddMembership(Resource):
     @jwt_required
     def post(self, project_id):
         if get_jwt_identity()["role_id"] in (3, 5):
             parser = reqparse.RequestParser()
             parser.add_argument('user_id', type=int, required=True)
             args = parser.parse_args()
-            output = au.project_add_user(logger, app, project_id, args)
+            output = au.project_add_membership(logger, app, project_id, args)
             return output
         else:
             return {"message": "your role are not PM or administrator"}, 401
@@ -1754,7 +1754,7 @@ api.add_resource(GitProjectId, '/repositories/<repository_id>/id')
 # Project
 api.add_resource(ProjectList, '/project/rd/<int:user_id>')
 api.add_resource(ProjectUserList, '/project/<int:project_id>/user/list')
-api.add_resource(ProjectAddUser, '/project/<int:project_id>/user')
+api.add_resource(ProjectAddMembership, '/project/<int:project_id>/membership')
 api.add_resource(ProjectWikiList, '/project/<int:project_id>/wiki')
 api.add_resource(ProjectWiki, '/project/<int:project_id>/wiki/<wiki_name>')
 api.add_resource(ProjectVersionList, '/project/<int:project_id>/version/list')
