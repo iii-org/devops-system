@@ -3,7 +3,7 @@ import requests
 import json
 from datetime import datetime
 
-from model import db, ProjectUserRole
+from model import db, ProjectUserRole, TableProjects
 from .redmine import Redmine
 from .rancher import Rancher
 from .util import util
@@ -1064,3 +1064,10 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                 "message": "error",
                 "data": "No such repository_id found!"
             }, 404
+    
+    def get_project_info(self, logger, project_id):
+        select_project_cmd = db.select([TableProjects.stru_projects])\
+            .where(db.and_(TableProjects.stru_projects.c.id==project_id ))
+        reMessage = util.callsqlalchemy(self, select_project_cmd,
+                                        logger).fetchone()
+        return reMessage
