@@ -37,7 +37,9 @@ class Issue(object):
         redmine_output['project']['id'] = prject_list['id']
         redmine_output['project']['name'] = project_name
         if 'assigned_to' in redmine_output:
-            redmine_output['author'] = redmine_output['assigned_to']
+            userInfo = auth.get_useridname_by_planuserid(self, logger, \
+                redmine_output['assigned_to']['id'])
+            redmine_output['author'] = {'id': userInfo['id'], 'name': userInfo['name']}
             redmine_output.pop('assigned_to', None)
         redmine_output.pop('is_private', None)
         redmine_output.pop('estimated_hours', None)
@@ -81,7 +83,9 @@ class Issue(object):
             output_list['due_date'] = redmine_output['due_date']
         output_list['assigned_to'] = None
         if 'assigned_to' in redmine_output:
-            output_list['assigned_to'] = redmine_output['assigned_to']['name']
+            userInfo = auth.get_useridname_by_planuserid(self, logger, \
+                redmine_output['assigned_to']['id'])
+            output_list['assigned_to'] = userInfo['name']
         output_list['parent_id'] = None
         if 'parent' in redmine_output:
             output_list['parent_id'] = redmine_output['parent']['id']
