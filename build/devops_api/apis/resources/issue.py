@@ -39,8 +39,8 @@ class Issue(object):
         if 'assigned_to' in redmine_output:
             userInfo = auth.get_useridname_by_planuserid(self, logger, \
                 redmine_output['assigned_to']['id'])
-            redmine_output['author'] = {'id': userInfo['id'], 'name': userInfo['name']}
-            redmine_output.pop('assigned_to', None)
+            redmine_output['assigned_to'] = {'id': userInfo['id'], 'name': userInfo['name']}
+            redmine_output.pop('author', None)
         redmine_output.pop('is_private', None)
         redmine_output.pop('estimated_hours', None)
         redmine_output.pop('total_estimated_hours', None)
