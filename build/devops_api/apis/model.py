@@ -183,6 +183,7 @@ class TableTestResult:
                               db.Column('run_at', db.DATETIME(255))
                                )
 
+
 class TableParameter():
     meta = db.MetaData()
     stru_param = db.Table('parameters', meta,
@@ -204,3 +205,13 @@ class TableParameterType():
     stru_paramType = db.Table('parameter_types', meta,
                               db.Column('id', db.Integer, primary_key=True),
                               db.Column('type', db.String(50)))
+
+
+class TableCheckMarx():
+    meta = db.MetaData()
+    stru_checkmarx = db.Table('checkmarx', meta,
+                              db.Column('checkmarx_project_id', db.Integer, primary_key=True),
+                              db.Column('git_url', db.String(255)),
+                              db.Column('scan_id', db.Integer),
+                              db.Column('report_id', db.Integer)
+                              )
