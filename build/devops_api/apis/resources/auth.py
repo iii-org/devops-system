@@ -788,3 +788,11 @@ class auth(object):
             }, 200
         else:
             return {"message": "Could not get role list"}, 400
+    
+    
+    def get_useridname_by_planuserid(self, logger, plan_user_id):
+        get_useridname_cmd = db.select([UserPluginRelation.stru_user_plug_relation,
+                                User.stru_user]).where(db.and_(\
+            UserPluginRelation.stru_user_plug_relation.c.plan_user_id==plan_user_id,
+            UserPluginRelation.stru_user_plug_relation.c.user_id==User.stru_user.c.id))
+        return util.callsqlalchemy(self, get_useridname_cmd, logger).fetchone()
