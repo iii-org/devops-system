@@ -1198,8 +1198,7 @@ class DashboardIssuePriority(Resource):
     def get(self, user_id):
         if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity(
         )['role_id'] in (3, 5):
-            output = iss.count_prioriry_number_by_issues(logger, app, user_id)
-            return jsonify({'message': 'success', 'data': output})
+            return iss.count_prioriry_number_by_issues(logger, app, user_id)
         else:
             return {'message': 'Access token is missing or invalid'}, 401
 
@@ -1209,8 +1208,7 @@ class DashboardIssueProject(Resource):
     def get(self, user_id):
         if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity(
         )['role_id'] in (3, 5):
-            output = iss.count_project_number_by_issues(logger, app, user_id)
-            return jsonify({'message': 'success', 'data': output})
+            return iss.count_project_number_by_issues(logger, app, user_id)
         else:
             return {'message': 'Access token is missing or invalid'}, 401
 
@@ -1220,8 +1218,7 @@ class DashboardIssueType(Resource):
     def get(self, user_id):
         if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity(
         )['role_id'] in (3, 5):
-            output = iss.count_type_number_by_issues(logger, app, user_id)
-            return jsonify({'message': 'success', 'data': output})
+            return iss.count_type_number_by_issues(logger, app, user_id)
         else:
             return {'message': 'Access token is missing or invalid'}, 401
 
