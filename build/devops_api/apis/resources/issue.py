@@ -122,9 +122,9 @@ class Issue(object):
             output = self.__dealwith_issue_redmine_output(
                 logger,
                 redmine_output_issue.json()['issue'])
+            return {"messsage": "success", "data": output}, 200
         else:
-            output = {"message": "could not get this redmine issue."}, 400
-        return output
+            return {"message": "could not get this redmine issue."}, 400
 
     def get_issue_by_project(self, logger, app, project_id, args):
         # get plan_project_id, git_repository_id, ci_project_id, ci_pipeline_id
@@ -386,18 +386,13 @@ class Issue(object):
         if 'parent_id' in args:
             args['parent_issue_id'] = args['parent_id']
             args.pop('parent_id', None)
-        project_plugin_relation_array = Project.get_project_plugin_relation(
-            self, logger)
-        for project_plugin_relation in project_plugin_relation_array:
-            if project_plugin_relation['project_id'] == args['project_id']:
-                args['project_id'] = project_plugin_relation['plan_project_id']
+        project_plugin_relation = Project.get_project_plugin_relation(
+            self, logger, args['project_id'])
+        args['project_id'] = project_plugin_relation['plan_project_id']
         if "assigned_to_id" in args:
-            user_plugin_relation_array = auth.get_user_plugin_relation(
-                self, logger)
-            for user_plugin_relation in user_plugin_relation_array:
-                if user_plugin_relation['user_id'] == args['assigned_to_id']:
-                    args['assigned_to_id'] = user_plugin_relation[
-                        'plan_user_id']
+            user_plugin_relation = auth.get_user_plugin_relation(
+                self, logger, user_id=args['assigned_to_id'])
+            args['assigned_to_id'] = user_plugin_relation['plan_user_id']
         logger.info("args: {0}".format(args))
         Redmine.get_redmine_key(self, logger, app)
         try:
@@ -417,16 +412,6 @@ class Issue(object):
 
     def update_issue_rd(self, logger, app, issue_id, args):
         args = {k: v for k, v in args.items() if v is not None}
-        '''
-        if "assigned_to_id" in args:
-            user_plugin_relation_array = auth.get_user_plugin_relation(
-                self, logger)
-            for user_plugin_relation in user_plugin_relation_array:
-                if user_plugin_relation['user_id'] == args['assigned_to_id']:
-                    args['Assignee'] = user_plugin_relation[
-                        'plan_user_id']
-                    args.pop('assigned_to_id', None)
-        '''
         if 'parent_id' in args:
             args['parent_issue_id'] = args['parent_id']
             args.pop('parent_id', None)
@@ -493,14 +478,14 @@ class Issue(object):
         Redmine.get_redmine_key(self, logger, app)
         if args["to_time"] is not None:
             args["due_date"] = "><{0}|{1}".format(args["from_time"],
-                                                       args["to_time"])
+                                                  args["to_time"])
         else:
             args["due_date"] = ">=".format(args["from_time"])
-        user_plugin_relation_array = auth.get_user_plugin_relation(
-            self, logger)
-        for user_plugin_relation in user_plugin_relation_array:
-            if user_plugin_relation['user_id'] == user_id:
-                args["assigned_to_id"] = user_plugin_relation['plan_user_id']
+        user_plugin_relation = auth.get_user_plugin_relation(self,
+                                                             logger,
+                                                             user_id=user_id)
+        if user_plugin_relation is not None:
+            args["assigned_to_id"] = user_plugin_relation['plan_user_id']
         try:
             redmine_output, status_code = Redmine.redmine_get_statistics(
                 self, logger, app, args)
@@ -516,14 +501,15 @@ class Issue(object):
     def get_issue_statistics_in_period(self, logger, app, period, user_id):
         current_date = date.today()
         if period == 'week':
-            monday = datetime.today() - timedelta(days=datetime.today().weekday() % 7)
+            monday = datetime.today() - timedelta(
+                days=datetime.today().weekday() % 7)
             sunday = monday + timedelta(days=6)
             from_time = monday.strftime('%Y-%m-%d')
             to_time = sunday.strftime('%Y-%m-%d')
         elif period == 'month':
             first_day = datetime.today().replace(day=1)
-            last_day = datetime.today().replace(
-                day=calendar.monthrange(current_date.year, current_date.month)[1])
+            last_day = datetime.today().replace(day=calendar.monthrange(
+                current_date.year, current_date.month)[1])
             from_time = first_day.strftime('%Y-%m-%d')
             to_time = last_day.strftime('%Y-%m-%d')
         else:
@@ -531,34 +517,39 @@ class Issue(object):
 
         Redmine.get_redmine_key(self, logger, app)
         args = {"due_date": "><{0}|{1}".format(from_time, to_time)}
-        user_plugin_relation_array = auth.get_user_plugin_relation(
-            self, logger)
-        for user_plugin_relation in user_plugin_relation_array:
-            if user_plugin_relation['user_id'] == user_id:
-                args["assigned_to_id"] = user_plugin_relation['plan_user_id']
+        user_plugin_relation = auth.get_user_plugin_relation(self,
+                                                             logger,
+                                                             user_id=user_id)
+        if user_plugin_relation is not None:
+            args["assigned_to_id"] = user_plugin_relation['plan_user_id']
+
         try:
             args['status_id'] = '*'
             redmine_output, status_code = Redmine.redmine_get_statistics(
                 self, logger, app, args)
             if status_code != 200:
-                return {'message': 'error when retrieving data from redmine',
-                        'data': redmine_output}, status_code
+                return {
+                    'message': 'error when retrieving data from redmine',
+                    'data': redmine_output
+                }, status_code
             total = redmine_output["total_count"]
 
             args['status_id'] = 'closed'
             redmine_output_6, status_code = Redmine.redmine_get_statistics(
                 self, logger, app, args)
             if status_code != 200:
-                return {'message': 'error when retrieving data from redmine',
-                        'data': redmine_output}, status_code
+                return {
+                    'message': 'error when retrieving data from redmine',
+                    'data': redmine_output
+                }, status_code
             closed = redmine_output_6["total_count"]
             return {
-                       "message": "success",
-                       "data": {
-                           "open": total - closed,
-                           "closed": closed
-                       }
-                   }, 200
+                "message": "success",
+                "data": {
+                    "open": total - closed,
+                    "closed": closed
+                }
+            }, 200
         except Exception as error:
             return {"message": str(error)}, 400
 
@@ -618,17 +609,15 @@ class Issue(object):
 
     def dump(self, logger, issue_id):
         output = {}
-        tables = ['requirements',
-                  'parameters',
-                  'flows',
-                  'test_cases',
-                  'test_items',
-                  'test_values'
-                  ]
+        tables = [
+            'requirements', 'parameters', 'flows', 'test_cases', 'test_items',
+            'test_values'
+        ]
         for table in tables:
             output[table] = []
-            result = db.engine.execute("SELECT * FROM public.{0} WHERE issue_id={1}"
-                                       .format(table, issue_id))
+            result = db.engine.execute(
+                "SELECT * FROM public.{0} WHERE issue_id={1}".format(
+                    table, issue_id))
             keys = result.keys()
             rows = result.fetchall()
             result.close()
@@ -640,5 +629,4 @@ class Issue(object):
                     else:
                         ele[key] = row[key]
                 output[table].append(ele)
-        return {'message': 'success',
-                'data': output}, 200
+        return {'message': 'success', 'data': output}, 200
