@@ -1,9 +1,8 @@
-from operator import truediv
 import requests
 import json
 from datetime import datetime
 
-from model import db, ProjectUserRole, TableProjects
+from model import db, ProjectUserRole, ProjectPluginRelation, TableProjects
 from .redmine import Redmine
 from .rancher import Rancher
 from .util import util
@@ -50,12 +49,12 @@ class Project(object):
         else:
             return False
 
-    def get_project_plugin_relation(self, logger):
-        result = db.engine.execute(
-            "SELECT * FROM public.project_plugin_relation")
-        project_plugin_relation_array = result.fetchall()
-        result.close()
-        return project_plugin_relation_array
+    def get_project_plugin_relation(self, logger, project_id):
+        select_project_relation_command = db.select([ProjectPluginRelation.stru_project_plug_relation])\
+            .where(db.and_(ProjectPluginRelation.stru_project_plug_relation.c.project_id==project_id))
+        reMessage = util.callsqlalchemy(self, select_project_relation_command,
+                                        logger).fetchone()
+        return reMessage
 
     # 查詢所有projects
     def get_all_git_projects(self, logger, app):
@@ -161,11 +160,12 @@ class Project(object):
         project_list = result.fetchall()
         result.close()
         logger.debug("project list: {0}".format(project_list))
-        if len(project_list) >0:
+        if len(project_list) > 0:
             # get user ids
-            result = db.engine.execute("SELECT plan_user_id, repository_user_id \
+            result = db.engine.execute(
+                "SELECT plan_user_id, repository_user_id \
                 FROM public.user_plugin_relation WHERE user_id = {0}; ".format(
-                user_id))
+                    user_id))
             userid_list_output = result.fetchone()
             if userid_list_output is not None:
                 plan_user_id = userid_list_output[0]
@@ -177,7 +177,9 @@ class Project(object):
                     output_dict['name'] = project['name']
                     output_dict['project_id'] = project['id']
 
-                    output_dict['repository_ids'] = [project['git_repository_id']]
+                    output_dict['repository_ids'] = [
+                        project['git_repository_id']
+                    ]
 
                     # get issue total cont
                     total_issue = Redmine.redmine_get_issues_by_project_and_user(self, logger, app, \
@@ -191,12 +193,15 @@ class Project(object):
                     for issue in total_issue['issues']:
                         if issue['due_date'] is not None:
                             issue_due_date_list.append(
-                                datetime.strptime(issue['due_date'], "%Y-%m-%d"))
-                    logger.info("issue_due_date_list: {0}".format(issue_due_date_list))
+                                datetime.strptime(issue['due_date'],
+                                                  "%Y-%m-%d"))
+                    logger.info(
+                        "issue_due_date_list: {0}".format(issue_due_date_list))
                     next_d_time = None
                     if len(issue_due_date_list) != 0:
-                        next_d_time = min(issue_due_date_list,
-                                        key=lambda d: abs(d - datetime.now()))
+                        next_d_time = min(
+                            issue_due_date_list,
+                            key=lambda d: abs(d - datetime.now()))
                     logger.info("next_d_time: {0}".format(next_d_time))
                     output_dict['next_d_time'] = next_d_time
 
@@ -210,27 +215,30 @@ class Project(object):
                         if status_code == 200:
                             branch_number = len(output['data']['branch_list'])
                         logger.info(
-                            "get_git_project_branches number: {0}".format(branch_number))
+                            "get_git_project_branches number: {0}".format(
+                                branch_number))
                         output_dict['branch'] = branch_number
                         # tag nubmer
                         tag_number = 0
-                        output, status_code = self.get_git_project_tags(logger, app,
-                                                        project['git_repository_id'])
+                        output, status_code = self.get_git_project_tags(
+                            logger, app, project['git_repository_id'])
                         if status_code == 200:
                             tag_number = len(output['data']['tag_list'])
-                        logger.info(
-                            "get_git_project_tags number: {0}".format(branch_number))
+                        logger.info("get_git_project_tags number: {0}".format(
+                            branch_number))
                         output_dict['tag'] = tag_number
 
-                    output_dict = self.get_ci_last_test_result(app, logger,
-                                                            output_dict, project)
+                    output_dict = self.get_ci_last_test_result(
+                        app, logger, output_dict, project)
                     output_array.append(output_dict)
                 return {"message": "success", "data": output_array}, 200
             else:
-                return {"message": "could not get plan_user_id and repository_id"}, 400
+                return {
+                    "message": "could not get plan_user_id and repository_id"
+                }, 400
         else:
             return {"message": "user did not join any project"}, 400
-        
+
     def get_ci_last_test_result(self, app, logger, output_dict, project):
         # get rancher pipeline
         output_dict['last_test_time'] = ""
@@ -275,7 +283,8 @@ class Project(object):
                 branch = {
                     "name": branch_info["name"],
                     "last_commit_message": branch_info["commit"]["message"],
-                    "last_commit_time": branch_info["commit"]["committed_date"],
+                    "last_commit_time":
+                    branch_info["commit"]["committed_date"],
                     "short_id": branch_info["commit"]["short_id"]
                 }
                 branch_list.append(branch)
@@ -286,9 +295,7 @@ class Project(object):
                 }
             }, 200
         else:
-            return {
-                "message": output.json()["message"]
-            }, output.status_code
+            return {"message": output.json()["message"]}, output.status_code
 
     # 用project_id新增project的branch
     def create_git_project_branch(self, logger, app, project_id, args):
@@ -296,16 +303,12 @@ class Project(object):
             app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, self.private_token, args["branch"], args["ref"])
         logger.info("create project branch url: {0}".format(url))
         output = requests.post(url, headers=self.headers, verify=False)
-        logger.info("create project branch output: {0} / {1}".format(output, output.json()))
+        logger.info("create project branch output: {0} / {1}".format(
+            output, output.json()))
         if output.status_code == 201:
-            return {
-                "message": "success",
-                "data": output.json()
-            }, 200
+            return {"message": "success", "data": output.json()}, 200
         else:
-            return {
-                "message": output.json()["message"]
-            }, output.status_code
+            return {"message": output.json()["message"]}, output.status_code
 
     # 用project_id及branch_name查詢project的branch
     def get_git_project_branch(self, logger, app, project_id, branch):
@@ -313,16 +316,12 @@ class Project(object):
             app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, branch, self.private_token)
         logger.info("get project branch url: {0}".format(url))
         output = requests.get(url, headers=self.headers, verify=False)
-        logger.info("get project branch output: {0} / {1}".format(output, output.json()))
+        logger.info("get project branch output: {0} / {1}".format(
+            output, output.json()))
         if output.status_code == 200:
-            return {
-                "message": "success",
-                "data": output.json()
-            }, 200
+            return {"message": "success", "data": output.json()}, 200
         else:
-            return {
-                "message": output.json()["message"]
-            }, output.status_code
+            return {"message": output.json()["message"]}, output.status_code
 
     # 用project_id及branch_name刪除project的branch
     def delete_git_project_branch(self, logger, app, project_id, branch):
@@ -332,13 +331,9 @@ class Project(object):
         output = requests.delete(url, headers=self.headers, verify=False)
         logger.info("delete project branch output: {0}".format(output))
         if output.status_code == 204:
-            return {
-                "message": "success"
-            }, 200
+            return {"message": "success"}, 200
         else:
-            return {
-                "message": output.json()["message"]
-            }, output.status_code
+            return {"message": output.json()["message"]}, output.status_code
 
     # 用project_id查詢project的repositories
     def get_git_project_repositories(self, logger, app, project_id, branch):
@@ -489,9 +484,12 @@ class Project(object):
             app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, directory_path, self.private_token, args["branch"], args["commit_message"], "")
         logger.info("create project directory url: {0}".format(url))
         output = requests.post(url, headers=self.headers, verify=False)
-        logger.info("create project directory output: {0}".format(
-            output.json()))
-        return output
+        logger.info("create project directory output: {0} / {1}".format(
+            output, output.json()))
+        if output.status_code == 201:
+            return {"message": "success", "data": output.json()}, 200
+        else:
+            return {"message": output.json()["message"]}, output.status_code
 
     # 用project_id及directory_path修改project的directory
     def update_git_project_directory(self, logger, app, project_id,
@@ -500,9 +498,12 @@ class Project(object):
             app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, directory_path, self.private_token, args["branch"], args["commit_message"], args["author_name"], args["author_email"], args["encoding"], args["content"])
         logger.info("update project directory url: {0}".format(url))
         output = requests.put(url, headers=self.headers, verify=False)
-        logger.info("update project directory output: {0}".format(
-            output.json()))
-        return output
+        logger.info("update project directory output: {0} / {1}".format(
+            output, output.json()))
+        if output.status_code == 200:
+            return {"message": "success", "data": output.json()}, 200
+        else:
+            return {"message": output.json()["message"]}, output.status_code
 
     # 用project_id及directory_path刪除project的directory
     def delete_git_project_directory(self, logger, app, project_id,
@@ -514,20 +515,31 @@ class Project(object):
         output1 = requests.get(url, headers=self.headers, verify=False)
         logger.info("get project directoryfiles output: {0} / {1}".format(
             output1, output1.json()))
-        if str(output1) == "<Response [200]>":
+        if output1.status_code == 200:
             # 依序刪除directory的files
-            for i in range(len(output1.json())):
-                path_encode = urllib.parse.quote(output1.json()[i]["path"],
-                                                 safe='')
-                url = "http://{0}/api/{1}/projects/{2}/repository/files/{3}?private_token={4}&branch={5}&commit_message={6}".format(\
-                    app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, path_encode, self.private_token, args["branch"], args["commit_message"])
-                logger.info("delete project directory url: {0}".format(url))
-                output2 = requests.delete(url,
-                                          headers=self.headers,
-                                          verify=False)
-                logger.info(
-                    "delete project directory output: {0}".format(output2))
-        return output2
+            try:
+                for file in output1.json():
+                    path_encode = urllib.parse.quote(file["path"], safe='')
+                    print(path_encode)
+                    url = "http://{0}/api/{1}/projects/{2}/repository/files/{3}?private_token={4}&branch={5}&commit_message={6}".format(\
+                        app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, path_encode, self.private_token, args["branch"], args["commit_message"])
+                    logger.info(
+                        "delete project directory url: {0}".format(url))
+                    output2 = requests.delete(url,
+                                              headers=self.headers,
+                                              verify=False)
+                    logger.info(
+                        "delete project directory output: {0}".format(output2))
+                if output2.status_code == 204:
+                    return {"message": "success"}, 200
+                else:
+                    return {
+                        "message": output2.json()["message"]
+                    }, output2.status_code
+            except Exception as error:
+                return {"message": str(error)}, 400
+        else:
+            return {"message": output1.json()["message"]}, output1.status_code
 
     # 用project_id合併project的任兩個branches
     def create_git_project_mergebranch(self, logger, app, project_id, args):
@@ -539,7 +551,7 @@ class Project(object):
         logger.info("post project mergerequest output:{0} / {1}".format(
             output, output.json()))
 
-        if str(output) == "<Response [201]>":
+        if output.status_code == 201:
             # 同意merge request
             merge_request_iid = output.json()["iid"]
             url = "http://{0}/api/{1}/projects/{2}/merge_requests/{3}/merge?private_token={4}".format(\
@@ -548,7 +560,11 @@ class Project(object):
             output = requests.put(url, headers=self.headers, verify=False)
             logger.info("post project acceptmerge output:{0} / {1}".format(
                 output, output.json()))
-            if str(output) != "<Response [200]>":
+            if output.status_code == 200:
+                return {
+                    "message": "success"
+                }, 200
+            else:
                 # 刪除merge request
                 url = "http://{0}/api/{1}/projects/{2}/merge_requests/{3}?private_token={4}".format(\
                     app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, merge_request_iid, self.private_token)
@@ -558,7 +574,16 @@ class Project(object):
                                                verify=False)
                 logger.info("delete project mergerequest output:{0}".format(
                     output_extra))
-        return output
+                if output_extra.status_code == 204:
+                    return {
+                        "message": "merge failed and already delete your merge request."
+                    }, 400
+                else:
+                    return {
+                        "message": "merge failed."
+                    }, output_extra.status_code
+        else:
+            return {"message": output.json()["message"]}, output.status_code
 
     def create_ranhcer_pipline_yaml(self, logger, app, project_id, args,
                                     action):
@@ -595,56 +620,68 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
             app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, self.private_token, args["branch"])
         logger.info("get project branch commits url: {0}".format(url))
         output = requests.get(url, headers=self.headers, verify=False)
-        logger.info("get project branch commits output: {0}".format(output))
-        return output
+        logger.info("get project branch commits output: {0} / {1}".format(
+            output, output.json()))
+        if output.status_code == 200:
+            return {"message": "success", "data": output.json()}, 200
+        else:
+            return {"message": output.json()["message"]}, output.status_code
 
     # 用project_id查詢project的網路圖
     def get_git_project_network(self, logger, app, project_id):
+        try:
+            branch_commit_list = []
+            tag_list = []
 
-        output_list = []
+            # 整理各branches的commit_list
+            branches = self.get_git_project_branches(logger, app, project_id)
+            for branch in branches[0]["data"]["branch_list"]:
+                args = {}
+                args["branch"] = branch["name"]
+                branch_commits = self.get_git_project_branch_commits(
+                    logger, app, project_id, args)
 
-        # 整理各branches的commit_list
-        branch_output, status_code = self.get_git_project_branches(logger, app,
-                                                 project_id)
-        for branch in branch_output['data']['branch_list']:
-            branch = branch["name"]
-            url = "http://{0}/api/{1}/projects/{2}/repository/commits?private_token={3}&ref_name={4}&per_page=100".format(\
-                app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, self.private_token, branch)
-            branch_commits = requests.get(url,
-                                          headers=self.headers,
-                                          verify=False).json()
+                commit_list = []
+                for branch_commit in branch_commits[0]["data"]:
+                    obj = {
+                        "id": branch_commit["id"],
+                        "message": branch_commit["message"],
+                        "author_name": branch_commit["author_name"],
+                        "committed_date": branch_commit["committed_date"]
+                    }
 
-            commit_list = []
+                    commit_list.append(obj)
 
-            for branch_commit in branch_commits:
-                obj = {
-                    "id": branch_commit["id"],
-                    "message": branch_commit["message"],
-                    "author_name": branch_commit["author_name"],
-                    "committed_date": branch_commit["committed_date"]
+                branch_obj = {
+                    "branch": branch["name"],
+                    "commit_list": commit_list
                 }
 
-                commit_list.append(obj)
+                branch_commit_list.append(branch_obj)
 
-            branch_obj = {"branch": branch, "commits": commit_list}
+            # 整理tags
+            tags = self.get_git_project_tags(logger, app, project_id)
+            for tag in tags[0]["data"]["tag_list"]:
+                tag_obj = {
+                    "tag": tag["name"],
+                    "message": tag["message"],
+                    "commit_id": tag["commit"]["id"],
+                    "commit_message": tag["commit"]["message"],
+                    "author_name": tag["commit"]["author_name"],
+                    "created_at": tag["commit"]["created_at"]
+                }
 
-            output_list.append(branch_obj)
+                tag_list.append(tag_obj)
 
-        # 整理各tags
-        tag_output, status_code = self.get_git_project_tags(logger, app, project_id)
-        for tag in tag_output['data']['tag_list']:
-            tag_obj = {
-                "tag": tag["name"],
-                "message": tag["message"],
-                "commit_id": tag["commit"]["id"],
-                "commit_message": tag["commit"]["message"],
-                "author_name": tag["commit"]["author_name"],
-                "created_at": tag["commit"]["created_at"]
-            }
-
-            output_list.append(tag_obj)
-
-        return output_list
+            return {
+                "message": "success",
+                "data": {
+                    "branch_commit_list": branch_commit_list,
+                    "tag_list": tag_list
+                }
+            }, 200
+        except Exception as error:
+            return {"message": str(error)}, 400
 
     # 查詢pm的project list
     def get_pm_project_list(self, logger, app, user_id):
@@ -860,7 +897,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         result.close()
 
         output = {
-            "id": project_info["id"],
+            "project_id": project_info["id"],
             "name": project_info["name"],
             "description": project_info["description"],
             "disabled": project_info["disabled"],
@@ -1055,10 +1092,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         result.close()
         if project_relation:
             project_id = project_relation['project_id']
-            return {
-                "message": "success",
-                "data": project_id
-            }, 200
+            return {"message": "success", "data": project_id}, 200
         else:
             return {
                 "message": "error",

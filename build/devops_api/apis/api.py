@@ -30,6 +30,7 @@ import resources.testData as testData
 import resources.flow as flow
 import resources.testResult as testResult
 import resources.cicd as cicd
+import resources.checkmarx as checkmarx
 
 app = Flask(__name__)
 app.config.from_object('config')
@@ -64,6 +65,7 @@ tv = testValue.TestValue()
 td = testData.TestData()
 tr = testResult.TestResult()
 ci = cicd.Cicd(logger, app)
+cm = checkmarx.CheckMarx()
 
 
 class Index(Resource):
@@ -87,7 +89,7 @@ class TotalProjectList(Resource):
             except Exception as error:
                 return {"message": str(error)}, 400
         else:
-            return {"message": "您無權限訪問！"}, 401
+            return {"message": "your role art not PM/administrator"}, 401
 
 
 class CreateProject(Resource):
@@ -96,7 +98,7 @@ class CreateProject(Resource):
         role_id = get_jwt_identity()["role_id"]
         print("role_id={0}".format(role_id))
 
-        if role_id == (3, 5):
+        if role_id in (3, 5):
             user_id = get_jwt_identity()["user_id"]
             print("user_id={0}".format(user_id))
             parser = reqparse.RequestParser()
@@ -111,7 +113,7 @@ class CreateProject(Resource):
             except Exception as error:
                 return {"message": str(error)}, 400
         else:
-            return {"message": "您無權限訪問！"}, 401
+            return {"message": "your role art not PM/administrator"}, 401
 
 
 class Project(Resource):
@@ -127,7 +129,7 @@ class Project(Resource):
             except Exception as error:
                 return {"message": str(error)}, 400
         else:
-            return {"message": "您無權限訪問！"}, 401
+            return {"message": "your role art not PM/administrator"}, 401
 
     @jwt_required
     def put(self, project_id):
@@ -151,7 +153,7 @@ class Project(Resource):
             except Exception as error:
                 return {"message": str(error)}, 400
         else:
-            return {"message": "您無權限訪問！"}, 401
+            return {"message": "your role art not PM/administrator"}, 401
 
     @jwt_required
     def delete(self, project_id):
@@ -165,7 +167,7 @@ class Project(Resource):
             except Exception as error:
                 return {"message": str(error)}, 400
         else:
-            return {"message": "您無權限訪問！"}, 401
+            return {"message": "your role art not PM/administrator"}, 401
 
 
 class GitProjects(Resource):
@@ -390,6 +392,29 @@ class ProjectUserList(Resource):
             return {"message": "your role art not administrator"}, 401
 
 
+class ProjectAddMember(Resource):
+    @jwt_required
+    def post(self, project_id):
+        if get_jwt_identity()["role_id"] in (3, 5):
+            parser = reqparse.RequestParser()
+            parser.add_argument('user_id', type=int, required=True)
+            args = parser.parse_args()
+            output = au.project_add_member(logger, app, project_id, args)
+            return output
+        else:
+            return {"message": "your role are not PM or administrator"}, 401
+
+
+class ProjectDeleteMember(Resource):
+    @jwt_required
+    def delete(self, project_id, user_id):
+        if get_jwt_identity()["role_id"] in (3, 5):
+            output = au.project_delete_member(logger, app, project_id, user_id)
+            return output
+        else:
+            return {"message": "your role are not PM or administrator"}, 401
+
+
 class ProjectWikiList(Resource):
     @jwt_required
     def get(self, project_id):
@@ -539,7 +564,7 @@ class RoleList(Resource):
             except Exception as error:
                 return {"message": str(error)}, 400
         else:
-            return {"message": "your role art not administrator"}, 401
+            return {"message": "your role art not RD/PM/administrator"}, 401
 
 
 class GitProjectBranches(Resource):
@@ -556,7 +581,7 @@ class GitProjectBranches(Resource):
             except Exception as error:
                 return {"message": str(error)}, 400
         else:
-            return {"message": "您無權限訪問！"}, 401
+            return {"message": "your role art not RD/PM/administrator"}, 401
 
     @jwt_required
     def post(self, repository_id):
@@ -574,7 +599,7 @@ class GitProjectBranches(Resource):
                                                    args)
             return output
         else:
-            return {"message": "您無權限訪問！"}, 401
+            return {"message": "your role art not RD/PM/administrator"}, 401
 
 
 class GitProjectBranch(Resource):
@@ -590,7 +615,7 @@ class GitProjectBranch(Resource):
                                                 branch)
             return output
         else:
-            return {"message": "您無權限訪問！"}, 401
+            return {"message": "your role art not RD/PM/administrator"}, 401
 
     @jwt_required
     def delete(self, repository_id, branch_name):
@@ -604,7 +629,7 @@ class GitProjectBranch(Resource):
                                                    branch)
             return output
         else:
-            return {"message": "您無權限訪問！"}, 401
+            return {"message": "your role art not RD/PM/administrator"}, 401
 
 
 class GitProjectRepositories(Resource):
@@ -620,7 +645,7 @@ class GitProjectRepositories(Resource):
                                                       branch)
             return output
         else:
-            return {"message": "您無權限訪問！"}, 401
+            return {"message": "your role art not RD/PM/administrator"}, 401
 
 
 class GitProjectFiles(Resource):
@@ -647,7 +672,7 @@ class GitProjectFiles(Resource):
             return output
 
         else:
-            return {"message": "您無權限訪問！"}, 401
+            return {"message": "your role art not RD/PM/administrator"}, 401
 
     @jwt_required
     def put(self, repository_id):
@@ -672,7 +697,7 @@ class GitProjectFiles(Resource):
             return output
 
         else:
-            return {"message": "您無權限訪問！"}, 401
+            return {"message": "your role art not RD/PM/administrator"}, 401
 
 
 class GitProjectFile(Resource):
@@ -689,7 +714,7 @@ class GitProjectFile(Resource):
             return output
 
         else:
-            return {"message": "您無權限訪問！"}, 401
+            return {"message": "your role art not RD/PM/administrator"}, 401
 
     @jwt_required
     def delete(self, repository_id, branch_name, file_path):
@@ -708,7 +733,7 @@ class GitProjectFile(Resource):
             return output
 
         else:
-            return {"message": "您無權限訪問！"}, 401
+            return {"message": "your role art not RD/PM/administrator"}, 401
 
 
 class GitProjectTags(Resource):
@@ -722,7 +747,7 @@ class GitProjectTags(Resource):
             output = pjt.get_git_project_tags(logger, app, project_id)
             return output
         else:
-            return {"message": "您無權限訪問！"}, 401
+            return {"message": "your role art not RD/PM/administrator"}, 401
 
     @jwt_required
     def post(self, repository_id):
@@ -741,7 +766,7 @@ class GitProjectTags(Resource):
             output = pjt.create_git_project_tags(logger, app, project_id, args)
             return output
         else:
-            return {"message": "您無權限訪問！"}, 401
+            return {"message": "your role art not RD/PM/administrator"}, 401
 
 
 class GitProjectTag(Resource):
@@ -756,67 +781,88 @@ class GitProjectTag(Resource):
                                                 tag_name)
             return output
         else:
-            return {"message": "您無權限訪問！"}, 401
+            return {"message": "your role art not RD/PM/administrator"}, 401
 
 
 class GitProjectDirectory(Resource):
     @jwt_required
     def post(self, repository_id, directory_path):
-        project_id = repository_id
-        directory_path = directory_path + "%2F%2Egitkeep"
-        parser = reqparse.RequestParser()
-        parser.add_argument('branch', type=str, required=True)
-        parser.add_argument('commit_message', type=str, required=True)
-        args = parser.parse_args()
-        logger.info("post body: {0}".format(args))
-        output = pjt.create_git_project_directory(logger, app, project_id,
-                                                  directory_path, args)
-        return output.json()
+        role_id = get_jwt_identity()["role_id"]
+        print("role_id={0}".format(role_id))
+
+        if role_id in (1, 5):
+            project_id = repository_id
+            directory_path = directory_path + "%2F%2Egitkeep"
+            parser = reqparse.RequestParser()
+            parser.add_argument('branch', type=str, required=True)
+            parser.add_argument('commit_message', type=str, required=True)
+            args = parser.parse_args()
+            logger.info("post body: {0}".format(args))
+            output = pjt.create_git_project_directory(logger, app, project_id,
+                                                      directory_path, args)
+            return output
+        else:
+            return {"message": "your role art not RD/administrator"}, 401
 
     @jwt_required
     def put(self, repository_id, directory_path):
-        project_id = repository_id
-        directory_path = directory_path + "%2F%2Egitkeep"
-        parser = reqparse.RequestParser()
-        parser.add_argument('branch', type=str, required=True)
-        parser.add_argument('author_name', type=str)
-        parser.add_argument('author_email', type=str)
-        parser.add_argument('encoding', type=str)
-        parser.add_argument('content', type=str, required=True)
-        parser.add_argument('commit_message', type=str, required=True)
-        args = parser.parse_args()
-        logger.info("put body: {0}".format(args))
-        output = pjt.update_git_project_directory(logger, app, project_id,
-                                                  directory_path, args)
-        return output.json()
+        role_id = get_jwt_identity()["role_id"]
+        print("role_id={0}".format(role_id))
+
+        if role_id in (1, 5):
+            project_id = repository_id
+            directory_path = directory_path + "%2F%2Egitkeep"
+            parser = reqparse.RequestParser()
+            parser.add_argument('branch', type=str, required=True)
+            parser.add_argument('author_name', type=str)
+            parser.add_argument('author_email', type=str)
+            parser.add_argument('encoding', type=str)
+            parser.add_argument('content', type=str, required=True)
+            parser.add_argument('commit_message', type=str, required=True)
+            args = parser.parse_args()
+            logger.info("put body: {0}".format(args))
+            output = pjt.update_git_project_directory(logger, app, project_id,
+                                                      directory_path, args)
+            return output
+        else:
+            return {"message": "your role art not RD/administrator"}, 401
 
     @jwt_required
     def delete(self, repository_id, directory_path):
-        project_id = repository_id
-        parser = reqparse.RequestParser()
-        parser.add_argument('branch', type=str, required=True)
-        parser.add_argument('commit_message', type=str, required=True)
-        args = parser.parse_args()
-        logger.info("delete body: {0}".format(args))
-        output = pjt.delete_git_project_directory(logger, app, project_id,
-                                                  directory_path, args)
-        if str(output) == "<Response [204]>":
-            return "Success Delete"
+        role_id = get_jwt_identity()["role_id"]
+        print("role_id={0}".format(role_id))
+
+        if role_id in (1, 5):
+            project_id = repository_id
+            parser = reqparse.RequestParser()
+            parser.add_argument('branch', type=str, required=True)
+            parser.add_argument('commit_message', type=str, required=True)
+            args = parser.parse_args()
+            logger.info("delete body: {0}".format(args))
+            output = pjt.delete_git_project_directory(logger, app, project_id,
+                                                      directory_path, args)
+            return output
         else:
-            return str(output)
+            return {"message": "your role art not RD/administrator"}, 401
 
 
 class GitProjectMergeBranch(Resource):
     @jwt_required
     def post(self, repository_id):
-        project_id = repository_id
-        parser = reqparse.RequestParser()
-        parser.add_argument('schemas', type=dict, required=True)
-        args = parser.parse_args()["schemas"]
-        logger.info("post body: {0}".format(args))
-        output = pjt.create_git_project_mergebranch(logger, app, project_id,
-                                                    args)
-        return output.json()
+        role_id = get_jwt_identity()["role_id"]
+        print("role_id={0}".format(role_id))
+
+        if role_id in (1, 5):
+            project_id = repository_id
+            parser = reqparse.RequestParser()
+            parser.add_argument('schemas', type=dict, required=True)
+            args = parser.parse_args()["schemas"]
+            logger.info("post body: {0}".format(args))
+            output = pjt.create_git_project_mergebranch(logger, app, project_id,
+                                                        args)
+            return output
+        else:
+            return {"message": "your role art not RD/administrator"}, 401
 
 
 class GitProjectBranchCommmits(Resource):
@@ -825,15 +871,7 @@ class GitProjectBranchCommmits(Resource):
         role_id = get_jwt_identity()["role_id"]
         print("role_id={0}".format(role_id))
 
-        # try:
-        #     role_id = db.engine.execute(
-        #         "SELECT role_id FROM public.project_user_role \
-        #         WHERE user_id = {0} AND project_id = {1}".format(
-        #             user_id, project_id)).fetchone()[0]
-        # except:
-        #     role_id = None
-
-        if role_id <= 5:
+        if role_id in (1, 5):
             project_id = repository_id
             parser = reqparse.RequestParser()
             parser.add_argument('branch', type=str, required=True)
@@ -841,17 +879,23 @@ class GitProjectBranchCommmits(Resource):
             logger.info("get body: {0}".format(args))
             output = pjt.get_git_project_branch_commits(
                 logger, app, project_id, args)
-            return output.json()
+            return output
         else:
-            return "您無權限訪問！"
+            return {"message": "your role art not RD/administrator"}, 401
 
 
 class GitProjectNetwork(Resource):
     @jwt_required
     def get(self, repository_id):
-        project_id = repository_id
-        output = pjt.get_git_project_network(logger, app, project_id)
-        return output
+        role_id = get_jwt_identity()["role_id"]
+        print("role_id={0}".format(role_id))
+
+        if role_id in (1, 5):
+            project_id = repository_id
+            output = pjt.get_git_project_network(logger, app, project_id)
+            return output
+        else:
+            return {"message": "your role art not RD/administrator"}, 401
 
 
 class GitProjectId(Resource):
@@ -1134,16 +1178,18 @@ class IssueStatistics(Resource):
 class IssueWeekStatistics(Resource):
     @jwt_required
     def get(self):
-        output = iss.get_issue_statistics_in_period(logger, app, 'week',
-                                          get_jwt_identity()['user_id'])
+        output = iss.get_issue_statistics_in_period(
+            logger, app, 'week',
+            get_jwt_identity()['user_id'])
         return output
 
 
 class IssueMonthStatistics(Resource):
     @jwt_required
     def get(self):
-        output = iss.get_issue_statistics_in_period(logger, app, 'month',
-                                                    get_jwt_identity()['user_id'])
+        output = iss.get_issue_statistics_in_period(
+            logger, app, 'month',
+            get_jwt_identity()['user_id'])
         return output
 
 
@@ -1701,6 +1747,18 @@ class DumpByIssue(Resource):
         output = iss.dump(logger, issue_id)
         return output
 
+class CheckmarxReport(Resource):
+    @jwt_required
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('cm_project_id', type=int, required=True)
+        parser.add_argument('repo_id', type=int, required=True)
+        parser.add_argument('scan_id', type=int, required=True)
+        parser.add_argument('report_id', type=int, required=True)
+        args = parser.parse_args()
+        output = cm.postReport(logger, args)
+        return output
+
 
 api.add_resource(Index, '/')
 
@@ -1735,13 +1793,16 @@ api.add_resource(
 api.add_resource(GitProjectMergeBranch,
                  '/repositories/rd/<repository_id>/merge_branches')
 api.add_resource(GitProjectBranchCommmits,
-                 '/repositories/<repository_id>/commits')
+                 '/repositories/rd/<repository_id>/commits')
 api.add_resource(GitProjectNetwork, '/repositories/<repository_id>/overview')
 api.add_resource(GitProjectId, '/repositories/<repository_id>/id')
 
 # Project
-api.add_resource(ProjectList, '/project/rd/<user_id>')
+api.add_resource(ProjectList, '/project/rd/<int:user_id>')
 api.add_resource(ProjectUserList, '/project/<int:project_id>/user/list')
+api.add_resource(ProjectAddMember, '/project/<int:project_id>/member')
+api.add_resource(ProjectDeleteMember,
+                 '/project/<int:project_id>/member/<int:user_id>')
 api.add_resource(ProjectWikiList, '/project/<int:project_id>/wiki')
 api.add_resource(ProjectWiki, '/project/<int:project_id>/wiki/<wiki_name>')
 api.add_resource(ProjectVersionList, '/project/<int:project_id>/version/list')
@@ -1840,6 +1901,9 @@ api.add_resource(TestResult, '/testResults')
 
 # Export tests to postman json format
 api.add_resource(ExportToPostman, '/export_to_postman/<project_id>')
+
+# Checkmarx report generation
+api.add_resource(CheckmarxReport, '/checkmarx_report')
 
 # Get everything by issue_id
 api.add_resource(DumpByIssue, '/dump_by_issue/<issue_id>')
