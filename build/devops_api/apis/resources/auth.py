@@ -47,7 +47,7 @@ class auth(object):
         else:
             self.private_token = app.config["GITLAB_PRIVATE_TOKEN"]
 
-    def __get_roleID_by_userID(self, logger, user_id):
+    def get_roleID_by_userID(self, logger, user_id):
         role_id = None
         get_rl_cmd = db.select([ProjectUserRole.stru_project_user_role]).where(db.and_(\
             ProjectUserRole.stru_project_user_role.c.user_id==user_id))
@@ -58,7 +58,7 @@ class auth(object):
         else:
             return {"message": "Could not get user role_id"}, 400
 
-    def __get_redmineRoleID_by_roleID(self, logger, role_id):
+    def get_redmineRoleID_by_roleID(self, logger, role_id):
         select_redmien_role_cmd = db.select([TableRolesPluginRelation.stru_rolerelation])\
             .where(db.and_(TableRolesPluginRelation.stru_rolerelation.c.role_id==role_id))
         logger.debug(
@@ -616,7 +616,7 @@ class auth(object):
 
     def project_add_member(self, logger, app, project_id, args):
         # get role_id by user
-        role_id = self.__get_roleID_by_userID(logger, args['user_id'])
+        role_id = auth.get_roleID_by_userID(self, logger, args['user_id'])
 
         # Check ProjectUserRole table has relationship or not
         get_pj_ur_rl_cmd = db.select([ProjectUserRole.stru_project_user_role]).where(db.and_(\
@@ -634,12 +634,12 @@ class auth(object):
         else:
             return {"message": "Projett_user_role table already has data"}, 400
         # get redmine_role_id from role_id
-        redmine_role_id = self.__get_redmineRoleID_by_roleID(logger, role_id)
+        redmine_role_id = auth.get_redmineRoleID_by_roleID(self, logger, role_id)
 
         # get redmine, gitlab user_id
         redmine_user_id = None
         gitlab_user_id = None
-        user_relation = self.get_user_plugin_relation(logger,
+        user_relation = auth.get_user_plugin_relation(self, logger,
                                                       user_id=args['user_id'])
         logger.debug("user_relation_list: {0}".format(user_relation))
         if user_relation is not None:
@@ -689,15 +689,15 @@ class auth(object):
 
     def project_delete_member(self, logger, app, project_id, user_id):
         # get role_id
-        role_id = self.__get_roleID_by_userID(logger, user_id)
+        role_id = auth.get_roleID_by_userID(self, logger, user_id)
 
         # get redmine role_id
-        redmine_role_id = self.__get_redmineRoleID_by_roleID(logger, role_id)
+        redmine_role_id = auth.get_redmineRoleID_by_roleID(self, logger, role_id)
 
         # get redmine, gitlab user_id
         redmine_user_id = None
         gitlab_user_id = None
-        user_relation = self.get_user_plugin_relation(logger, user_id=user_id)
+        user_relation = auth.get_user_plugin_relation(self, logger, user_id=user_id)
         logger.debug("user_relation_list: {0}".format(user_relation))
         if user_relation is not None:
             redmine_user_id = user_relation['plan_user_id']
