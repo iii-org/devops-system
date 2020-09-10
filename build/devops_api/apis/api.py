@@ -30,6 +30,7 @@ import resources.testData as testData
 import resources.flow as flow
 import resources.testResult as testResult
 import resources.cicd as cicd
+import resources.checkmarx as checkmarx
 
 app = Flask(__name__)
 app.config.from_object('config')
@@ -64,6 +65,7 @@ tv = testValue.TestValue()
 td = testData.TestData()
 tr = testResult.TestResult()
 ci = cicd.Cicd(logger, app)
+cm = checkmarx.CheckMarx()
 
 
 class Index(Resource):
@@ -1745,6 +1747,18 @@ class DumpByIssue(Resource):
         output = iss.dump(logger, issue_id)
         return output
 
+class CheckmarxReport(Resource):
+    @jwt_required
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('cm_project_id', type=int, required=True)
+        parser.add_argument('repo_id', type=int, required=True)
+        parser.add_argument('scan_id', type=int, required=True)
+        parser.add_argument('report_id', type=int, required=True)
+        args = parser.parse_args()
+        output = cm.postReport(logger, args)
+        return output
+
 
 api.add_resource(Index, '/')
 
@@ -1887,6 +1901,9 @@ api.add_resource(TestResult, '/testResults')
 
 # Export tests to postman json format
 api.add_resource(ExportToPostman, '/export_to_postman/<project_id>')
+
+# Checkmarx report generation
+api.add_resource(CheckmarxReport, '/checkmarx_report')
 
 # Get everything by issue_id
 api.add_resource(DumpByIssue, '/dump_by_issue/<issue_id>')

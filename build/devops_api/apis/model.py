@@ -207,11 +207,19 @@ class TableParameterType():
                               db.Column('type', db.String(50)))
 
 
+class TableRolesPluginRelation():
+    meta = db.MetaData()
+    stru_rolerelation = db.Table('roles_plugin_relation', meta,
+                                 db.Column('role_id', db.Integer),
+                                 db.Column('plan_role_id', db.Integer))
+
+
 class TableCheckMarx():
     meta = db.MetaData()
     stru_checkmarx = db.Table('checkmarx', meta,
-                              db.Column('checkmarx_project_id', db.Integer, primary_key=True),
-                              db.Column('git_url', db.String(255)),
+                              db.Column('cm_project_id', db.Integer, primary_key=True),
+                              db.Column('repo_id', db.Integer),
                               db.Column('scan_id', db.Integer),
-                              db.Column('report_id', db.Integer)
+                              db.Column('report_id', db.Integer),
+                              db.Column('run_at', db.DATETIME(255)),
                               )
