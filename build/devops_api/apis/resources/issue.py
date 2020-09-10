@@ -574,9 +574,9 @@ class Issue(object):
             output = []
             for key, value in priority_count.items():
                 output.append({'name': key, 'number': value})
-            return output
+            return {"message": "success", "data": output}, 200
         except Exception as error:
-            return str(error), 400
+            return {"message": str(error)}, 400
 
     def count_project_number_by_issues(self, logger, app, user_id):
         try:
@@ -584,17 +584,17 @@ class Issue(object):
             issues = self.get_issue_by_user(logger, app, user_id)
             logger.info("issues: {0}".format(issues))
             for issue in issues:
-                if issue['name'] not in project_count:
-                    project_count[issue['name']] = 1
+                if issue['project_name'] not in project_count:
+                    project_count[issue['project_name']] = 1
                 else:
-                    project_count[issue['name']] += 1
+                    project_count[issue['project_name']] += 1
             logger.info("project_count: {0}".format(project_count))
             output = []
             for key, value in project_count.items():
                 output.append({'name': key, 'number': value})
-            return output
+            return {"message": "success", "data": output}, 200
         except Exception as error:
-            return str(error), 400
+            return {"message": str(error)}, 400
 
     def count_type_number_by_issues(self, logger, app, user_id):
         try:
@@ -610,9 +610,9 @@ class Issue(object):
             output = []
             for key, value in tracker_count.items():
                 output.append({'name': key, 'number': value})
-            return output
+            return {"message": "success", "data": output}, 200
         except Exception as error:
-            return str(error), 400
+            return {"message": str(error)}, 400
 
     def dump(self, logger, issue_id):
         output = {}
