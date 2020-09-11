@@ -140,3 +140,19 @@ class Pipeline(object):
         rancher_ci_json = yaml.load(rancher_ci_yaml)
         logger.info('rancher_ci_json: {0}'.format(rancher_ci_json))
         return rancher_ci_json
+    
+    def get_phase_yaml(self, logger, app, repository_id, branch_name):
+        parameter = {}
+        parameter['branch'] = branch_name
+        parameter['file_path'] = '.rancher-pipeline.yaml'
+        yaml_info = Project.get_git_project_file_for_pipeline(
+            self, logger, app, repository_id, parameter)
+        parameter['file_path'] = '.rancher-pipeline.yml'
+        yml_info = Project.get_git_project_file_for_pipeline(
+            self, logger, app, repository_id, parameter)
+        get_yaml_data = None
+        if yaml_info.status_code != 404:
+            get_yaml_data = yaml_info.json()
+        elif yml_info.status_code != 404:
+            get_yaml_data = yml_info.json()
+        logger.info('get_yaml_data: {0}'.format(get_yaml_data))
