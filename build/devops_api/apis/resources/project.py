@@ -790,6 +790,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
 
     # 新增redmine & gitlab的project並將db相關table新增資訊
     def pm_create_project(self, logger, app, user_id, args):
+        from .auth import auth
         if args["description"] == None: args["description"] = ""
 
         identifier = args["name"].replace(' ', '')
@@ -853,9 +854,14 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                     .format(project_id, redmine_pj_id, gitlab_pj_id))
 
                 # 加關聯project_user_role
-                db.engine.execute(
-                    "INSERT INTO public.project_user_role (project_id, user_id, role_id) VALUES ('{0}', '{1}', '{2}')"
-                    .format(project_id, user_id, 3))
+                # db.engine.execute(
+                #     "INSERT INTO public.project_user_role (project_id, user_id, role_id) VALUES ('{0}', '{1}', '{2}')"
+                #     .format(project_id, user_id, 3))
+
+                args["user_id"] = user_id
+                output = auth.project_add_member(self, logger, app, project_id, args)
+                logger.info("project add member output: {0}".format(output))
+                print(output)
 
                 return {
                     "message": "success",
@@ -895,9 +901,8 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                 project_id))
         project_info = result.fetchone()
         result.close()
-
         output = {
-            "project_id": project_info["id"],
+            "project_id": project_info["project_id"],
             "name": project_info["name"],
             "description": project_info["description"],
             "disabled": project_info["disabled"],

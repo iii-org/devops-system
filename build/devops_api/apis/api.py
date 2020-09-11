@@ -96,11 +96,11 @@ class CreateProject(Resource):
     @jwt_required
     def post(self):
         role_id = get_jwt_identity()["role_id"]
-        print("role_id={0}".format(role_id))
+        # print("role_id={0}".format(role_id))
 
         if role_id in (3, 5):
             user_id = get_jwt_identity()["user_id"]
-            print("user_id={0}".format(user_id))
+            # print("user_id={0}".format(user_id))
             parser = reqparse.RequestParser()
             parser.add_argument('name', type=str, required=True)
             parser.add_argument('description', type=str)
