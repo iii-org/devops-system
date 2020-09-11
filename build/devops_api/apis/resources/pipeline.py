@@ -140,7 +140,7 @@ class Pipeline(object):
         rancher_ci_json = yaml.load(rancher_ci_yaml)
         logger.info('rancher_ci_json: {0}'.format(rancher_ci_json))
         return rancher_ci_json
-    
+
     def get_phase_yaml(self, logger, app, repository_id, branch_name):
         parameter = {}
         parameter['branch'] = branch_name
@@ -165,15 +165,21 @@ class Pipeline(object):
             phase_name_array = []
             phase_name = None
             soft_name = None
-            for rancher_satage in rancher_ci_json['stages']:
+            for index, rancher_satage in enumerate(rancher_ci_json['stages']):
                 if "--" in rancher_satage['name']:
                     cut_list = rancher_satage['name'].split('--')
                     phase_name = cut_list[0]
                     soft_name = cut_list[1]
                 else:
                     soft_name = rancher_satage['name']
-                phase_name_array.append({'phase': phase_name, 'software': soft_name})
+                phase_name_array.append({
+                    'id': index + 1,
+                    'phase': phase_name,
+                    'software': soft_name
+                })
             logger.info('phase_name_array: {0}'.format(phase_name_array))
             return {'message': "success", "data": phase_name_array}, 200
         except:
-            return {"message": "read yaml to get phase and software name error"}, 400
+            return {
+                "message": "read yaml to get phase and software name error"
+            }, 400
