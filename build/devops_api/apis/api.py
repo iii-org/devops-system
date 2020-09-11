@@ -858,8 +858,8 @@ class GitProjectMergeBranch(Resource):
             parser.add_argument('schemas', type=dict, required=True)
             args = parser.parse_args()["schemas"]
             logger.info("post body: {0}".format(args))
-            output = pjt.create_git_project_mergebranch(logger, app, project_id,
-                                                        args)
+            output = pjt.create_git_project_mergebranch(
+                logger, app, project_id, args)
             return output
         else:
             return {"message": "your role art not RD/administrator"}, 401
@@ -1743,6 +1743,7 @@ class DumpByIssue(Resource):
     def get(self, issue_id):
         output = iss.dump(logger, issue_id)
         return output
+
 
 class CheckmarxReport(Resource):
     @jwt_required
