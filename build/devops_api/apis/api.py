@@ -96,11 +96,11 @@ class CreateProject(Resource):
     @jwt_required
     def post(self):
         role_id = get_jwt_identity()["role_id"]
-        print("role_id={0}".format(role_id))
+        # print("role_id={0}".format(role_id))
 
         if role_id in (3, 5):
             user_id = get_jwt_identity()["user_id"]
-            print("user_id={0}".format(user_id))
+            # print("user_id={0}".format(user_id))
             parser = reqparse.RequestParser()
             parser.add_argument('name', type=str, required=True)
             parser.add_argument('description', type=str)
@@ -858,8 +858,8 @@ class GitProjectMergeBranch(Resource):
             parser.add_argument('schemas', type=dict, required=True)
             args = parser.parse_args()["schemas"]
             logger.info("post body: {0}".format(args))
-            output = pjt.create_git_project_mergebranch(logger, app, project_id,
-                                                        args)
+            output = pjt.create_git_project_mergebranch(
+                logger, app, project_id, args)
             return output
         else:
             return {"message": "your role art not RD/administrator"}, 401
@@ -1750,6 +1750,7 @@ class DumpByIssue(Resource):
     def get(self, issue_id):
         output = iss.dump(logger, issue_id)
         return output
+
 
 class CheckmarxReport(Resource):
     @jwt_required
