@@ -33,12 +33,14 @@ class Issue(object):
         logger.info("redmine get redmine_output: {0}".format(redmine_output))
         prject_list = Project.get_project_by_plan_project_id\
             (self, logger, redmine_output['project']['id'])
-        logger.info("redmine_output['project']['id']: {0}".format(
-            prject_list['id']))
+        project_name = Project.get_project_info(self, logger, prject_list['id'])['name']
         redmine_output['project']['id'] = prject_list['id']
+        redmine_output['project']['name'] = project_name
         if 'assigned_to' in redmine_output:
-            redmine_output['author'] = redmine_output['assigned_to']
-            redmine_output.pop('assigned_to', None)
+            userInfo = auth.get_useridname_by_planuserid(self, logger, \
+                redmine_output['assigned_to']['id'])
+            redmine_output['assigned_to'] = {'id': userInfo['id'], 'name': userInfo['name']}
+            redmine_output.pop('author', None)
         redmine_output.pop('is_private', None)
         redmine_output.pop('estimated_hours', None)
         redmine_output.pop('total_estimated_hours', None)
@@ -62,8 +64,11 @@ class Issue(object):
     def __dealwith_issue_by_user_redmine_output(self, logger, redmine_output):
         output_list = {}
         output_list['id'] = redmine_output['id']
-        output_list['project_id'] = redmine_output['project']['id']
-        output_list['project_name'] = redmine_output['project']['name']
+        prject_list = Project.get_project_by_plan_project_id\
+            (self, logger, redmine_output['project']['id'])
+        project_name = Project.get_project_info(self, logger, prject_list['id'])['name']
+        output_list['project_id'] = prject_list['id']
+        output_list['project_name'] = project_name
         output_list['issue_category'] = redmine_output['tracker']['name']
         output_list['issue_priority'] = redmine_output['priority']['name']
         output_list['issue_status'] = redmine_output['status']['name']
@@ -78,7 +83,9 @@ class Issue(object):
             output_list['due_date'] = redmine_output['due_date']
         output_list['assigned_to'] = None
         if 'assigned_to' in redmine_output:
-            output_list['assigned_to'] = redmine_output['assigned_to']['name']
+            userInfo = auth.get_useridname_by_planuserid(self, logger, \
+                redmine_output['assigned_to']['id'])
+            output_list['assigned_to'] = userInfo['name']
         output_list['parent_id'] = None
         if 'parent' in redmine_output:
             output_list['parent_id'] = redmine_output['parent']['id']
@@ -567,9 +574,9 @@ class Issue(object):
             output = []
             for key, value in priority_count.items():
                 output.append({'name': key, 'number': value})
-            return output
+            return {"message": "success", "data": output}, 200
         except Exception as error:
-            return str(error), 400
+            return {"message": str(error)}, 400
 
     def count_project_number_by_issues(self, logger, app, user_id):
         try:
@@ -577,17 +584,17 @@ class Issue(object):
             issues = self.get_issue_by_user(logger, app, user_id)
             logger.info("issues: {0}".format(issues))
             for issue in issues:
-                if issue['name'] not in project_count:
-                    project_count[issue['name']] = 1
+                if issue['project_name'] not in project_count:
+                    project_count[issue['project_name']] = 1
                 else:
-                    project_count[issue['name']] += 1
+                    project_count[issue['project_name']] += 1
             logger.info("project_count: {0}".format(project_count))
             output = []
             for key, value in project_count.items():
                 output.append({'name': key, 'number': value})
-            return output
+            return {"message": "success", "data": output}, 200
         except Exception as error:
-            return str(error), 400
+            return {"message": str(error)}, 400
 
     def count_type_number_by_issues(self, logger, app, user_id):
         try:
@@ -603,9 +610,9 @@ class Issue(object):
             output = []
             for key, value in tracker_count.items():
                 output.append({'name': key, 'number': value})
-            return output
+            return {"message": "success", "data": output}, 200
         except Exception as error:
-            return str(error), 400
+            return {"message": str(error)}, 400
 
     def dump(self, logger, issue_id):
         output = {}

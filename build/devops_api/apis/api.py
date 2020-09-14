@@ -96,11 +96,11 @@ class CreateProject(Resource):
     @jwt_required
     def post(self):
         role_id = get_jwt_identity()["role_id"]
-        print("role_id={0}".format(role_id))
+        # print("role_id={0}".format(role_id))
 
         if role_id in (3, 5):
             user_id = get_jwt_identity()["user_id"]
-            print("user_id={0}".format(user_id))
+            # print("user_id={0}".format(user_id))
             parser = reqparse.RequestParser()
             parser.add_argument('name', type=str, required=True)
             parser.add_argument('description', type=str)
@@ -858,8 +858,8 @@ class GitProjectMergeBranch(Resource):
             parser.add_argument('schemas', type=dict, required=True)
             args = parser.parse_args()["schemas"]
             logger.info("post body: {0}".format(args))
-            output = pjt.create_git_project_mergebranch(logger, app, project_id,
-                                                        args)
+            output = pjt.create_git_project_mergebranch(
+                logger, app, project_id, args)
             return output
         else:
             return {"message": "your role art not RD/administrator"}, 401
@@ -942,7 +942,7 @@ class PipelineSoftware(Resource):
         return jsonify({'message': 'success', 'data': output_list})
 
 
-class PipelineGenerateYaml(Resource):
+class PipelineYaml(Resource):
     @jwt_required
     def get(self, repository_id, branch_name):
         output_array = pipe.get_ci_yaml(logger, app, repository_id,
@@ -957,6 +957,13 @@ class PipelineGenerateYaml(Resource):
         output = pipe.generate_ci_yaml(logger, args, app, repository_id,
                                        branch_name)
         return output
+
+
+class PipelinePhaseYaml(Resource):
+    @jwt_required
+    def get(self, repository_id, branch_name):
+        return pipe.get_phase_yaml(logger, app, repository_id,
+                                        branch_name)
 
 
 class IssueByProject(Resource):
@@ -1198,8 +1205,7 @@ class DashboardIssuePriority(Resource):
     def get(self, user_id):
         if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity(
         )['role_id'] in (3, 5):
-            output = iss.count_prioriry_number_by_issues(logger, app, user_id)
-            return jsonify({'message': 'success', 'data': output})
+            return iss.count_prioriry_number_by_issues(logger, app, user_id)
         else:
             return {'message': 'Access token is missing or invalid'}, 401
 
@@ -1209,8 +1215,7 @@ class DashboardIssueProject(Resource):
     def get(self, user_id):
         if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity(
         )['role_id'] in (3, 5):
-            output = iss.count_project_number_by_issues(logger, app, user_id)
-            return jsonify({'message': 'success', 'data': output})
+            return iss.count_project_number_by_issues(logger, app, user_id)
         else:
             return {'message': 'Access token is missing or invalid'}, 401
 
@@ -1220,8 +1225,7 @@ class DashboardIssueType(Resource):
     def get(self, user_id):
         if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity(
         )['role_id'] in (3, 5):
-            output = iss.count_type_number_by_issues(logger, app, user_id)
-            return jsonify({'message': 'success', 'data': output})
+            return iss.count_type_number_by_issues(logger, app, user_id)
         else:
             return {'message': 'Access token is missing or invalid'}, 401
 
@@ -1747,6 +1751,7 @@ class DumpByIssue(Resource):
         output = iss.dump(logger, issue_id)
         return output
 
+
 class CheckmarxReport(Resource):
     @jwt_required
     def post(self):
@@ -1825,7 +1830,10 @@ api.add_resource(PipelineExec, '/pipelines/rd/<repository_id>/pipelines_exec')
 api.add_resource(PipelineExecLogs, '/pipelines/rd/logs')
 api.add_resource(PipelineSoftware, '/pipelines/software')
 api.add_resource(
-    PipelineGenerateYaml,
+    PipelinePhaseYaml,
+    '/pipelines/<repository_id>/branch/<branch_name>/phase_yaml')
+api.add_resource(
+    PipelineYaml,
     '/pipelines/<repository_id>/branch/<branch_name>/generate_ci_yaml')
 
 # issue

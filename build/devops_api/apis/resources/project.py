@@ -2,7 +2,7 @@ import requests
 import json
 from datetime import datetime
 
-from model import db, ProjectUserRole, ProjectPluginRelation
+from model import db, ProjectUserRole, ProjectPluginRelation, TableProjects
 from .redmine import Redmine
 from .rancher import Rancher
 from .util import util
@@ -561,9 +561,7 @@ class Project(object):
             logger.info("post project acceptmerge output:{0} / {1}".format(
                 output, output.json()))
             if output.status_code == 200:
-                return {
-                    "message": "success"
-                }, 200
+                return {"message": "success"}, 200
             else:
                 # 刪除merge request
                 url = "http://{0}/api/{1}/projects/{2}/merge_requests/{3}?private_token={4}".format(\
@@ -576,7 +574,8 @@ class Project(object):
                     output_extra))
                 if output_extra.status_code == 204:
                     return {
-                        "message": "merge failed and already delete your merge request."
+                        "message":
+                        "merge failed and already delete your merge request."
                     }, 400
                 else:
                     return {
@@ -697,76 +696,77 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
             # 用project_id依序查詢redmine的project_id
             for project_id in project_ids:
                 project_id = project_id[0]
-                result = db.engine.execute(
-                    "SELECT plan_project_id FROM public.project_plugin_relation WHERE project_id = '{0}'"
-                    .format(project_id))
-                plan_project_id = result.fetchone()[0]
-                result.close()
+                if project_id != None:
+                    result = db.engine.execute(
+                        "SELECT plan_project_id FROM public.project_plugin_relation WHERE project_id = '{0}'"
+                        .format(project_id))
+                    plan_project_id = result.fetchone()[0]
+                    result.close()
 
-                ## 用redmine api查詢相關資訊
-                # 抓專案最近更新時間
-                url1 = "http://{0}/projects/{1}.json?key={2}&limit=1000".format(
-                    app.config["REDMINE_IP_PORT"], plan_project_id,
-                    app.config["REDMINE_API_KEY"])
-                output1 = requests.get(url1,
-                                       headers=self.headers,
-                                       verify=False).json()
-                # 抓專案狀態＆專案工作進度＆進度落後數目
-                url2 = "http://{0}/issues.json?key={1}&project_id={2}&limit=1000".format(
-                    app.config["REDMINE_IP_PORT"],
-                    app.config["REDMINE_API_KEY"], plan_project_id)
-                output2 = requests.get(url2,
-                                       headers=self.headers,
-                                       verify=False).json()
+                    ## 用redmine api查詢相關資訊
+                    # 抓專案最近更新時間
+                    url1 = "http://{0}/projects/{1}.json?key={2}&limit=1000".format(
+                        app.config["REDMINE_IP_PORT"], plan_project_id,
+                        app.config["REDMINE_API_KEY"])
+                    output1 = requests.get(url1,
+                                        headers=self.headers,
+                                        verify=False).json()
+                    # 抓專案狀態＆專案工作進度＆進度落後數目
+                    url2 = "http://{0}/issues.json?key={1}&project_id={2}&limit=1000".format(
+                        app.config["REDMINE_IP_PORT"],
+                        app.config["REDMINE_API_KEY"], plan_project_id)
+                    output2 = requests.get(url2,
+                                        headers=self.headers,
+                                        verify=False).json()
 
-                closed_count = 0
-                overdue_count = 0
-                for issue in output2["issues"]:
-                    if issue["status"]["name"] == "Closed": closed_count += 1
-                    if issue["due_date"] != None:
-                        if (datetime.today() > datetime.strptime(
-                                issue["due_date"], "%Y-%m-%d")) == True:
-                            overdue_count += 1
+                    closed_count = 0
+                    overdue_count = 0
+                    for issue in output2["issues"]:
+                        if issue["status"]["name"] == "Closed": closed_count += 1
+                        if issue["due_date"] != None:
+                            if (datetime.today() > datetime.strptime(
+                                    issue["due_date"], "%Y-%m-%d")) == True:
+                                overdue_count += 1
 
-                project_status = "進行中"
-                if closed_count == output2["total_count"]:
-                    project_status = "已結案"
+                    project_status = "進行中"
+                    if closed_count == output2["total_count"]:
+                        project_status = "已結案"
 
-                # 查詢專案名稱＆專案說明＆＆專案狀態
-                result = db.engine.execute(
-                    "SELECT * FROM public.projects WHERE id = '{0}'".format(
-                        project_id))
-                project_info = result.fetchone()
-                result.close()
+                    # 查詢專案名稱＆專案說明＆＆專案狀態
+                    result = db.engine.execute(
+                        "SELECT * FROM public.projects WHERE id = '{0}'".format(
+                            project_id))
+                    project_info = result.fetchone()
+                    result.close()
 
-                # 查詢專案負責人id & name
-                result = db.engine.execute(
-                    "SELECT user_id FROM public.project_user_role WHERE project_id = '{0}' AND role_id = '{1}'"
-                    .format(project_id, 3))
-                user_id = result.fetchone()[0]
-                result.close()
+                    # 查詢專案負責人id & name
+                    result = db.engine.execute(
+                        "SELECT user_id FROM public.project_user_role WHERE project_id = '{0}' AND role_id = '{1}'"
+                        .format(project_id, 3))
+                    user_id = result.fetchone()[0]
+                    result.close()
 
-                result = db.engine.execute(
-                    "SELECT name FROM public.user WHERE id = '{0}'".format(
-                        user_id))
-                user_name = result.fetchone()[0]
-                result.close()
+                    result = db.engine.execute(
+                        "SELECT name FROM public.user WHERE id = '{0}'".format(
+                            user_id))
+                    user_name = result.fetchone()[0]
+                    result.close()
 
-                project_info = {
-                    "id": project_id,
-                    "name": project_info["name"],
-                    "description": project_info["description"],
-                    "disabled": project_info["disabled"],
-                    "pm_user_id": user_id,
-                    "pm_user_name": user_name,
-                    "updated_time": output1["project"]["updated_on"],
-                    "project_status": project_status,
-                    "closed_count": closed_count,
-                    "total_count": output2["total_count"],
-                    "overdue_count": overdue_count
-                }
+                    project_info = {
+                        "id": project_id,
+                        "name": project_info["name"],
+                        "description": project_info["description"],
+                        "disabled": project_info["disabled"],
+                        "pm_user_id": user_id,
+                        "pm_user_name": user_name,
+                        "updated_time": output1["project"]["updated_on"],
+                        "project_status": project_status,
+                        "closed_count": closed_count,
+                        "total_count": output2["total_count"],
+                        "overdue_count": overdue_count
+                    }
 
-                output_array.append(project_info)
+                    output_array.append(project_info)
 
             return {
                 "message": "success",
@@ -790,6 +790,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
 
     # 新增redmine & gitlab的project並將db相關table新增資訊
     def pm_create_project(self, logger, app, user_id, args):
+        from .auth import auth
         if args["description"] == None: args["description"] = ""
 
         identifier = args["name"].replace(' ', '')
@@ -853,9 +854,15 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                     .format(project_id, redmine_pj_id, gitlab_pj_id))
 
                 # 加關聯project_user_role
-                db.engine.execute(
-                    "INSERT INTO public.project_user_role (project_id, user_id, role_id) VALUES ('{0}', '{1}', '{2}')"
-                    .format(project_id, user_id, 3))
+                # db.engine.execute(
+                #     "INSERT INTO public.project_user_role (project_id, user_id, role_id) VALUES ('{0}', '{1}', '{2}')"
+                #     .format(project_id, user_id, 3))
+
+                args["user_id"] = user_id
+                output = auth.project_add_member(self, logger, app, project_id,
+                                                 args)
+                logger.info("project add member output: {0}".format(output))
+                print(output)
 
                 return {
                     "message": "success",
@@ -895,9 +902,8 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                 project_id))
         project_info = result.fetchone()
         result.close()
-
         output = {
-            "project_id": project_info["id"],
+            "project_id": project_info["project_id"],
             "name": project_info["name"],
             "description": project_info["description"],
             "disabled": project_info["disabled"],
@@ -931,6 +937,19 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
 
         redmine_project_id = project_relation["plan_project_id"]
         gitlab_project_id = project_relation["git_repository_id"]
+
+        if args["name"] == None:
+            result = db.engine.execute(
+                "SELECT name FROM public.projects WHERE id = '{0}'".format(
+                    project_id))
+            args["name"] = result.fetchone()[0]
+            result.close()
+        if args["description"] == None:
+            result = db.engine.execute(
+                "SELECT description FROM public.projects WHERE id = '{0}'".
+                format(project_id))
+            args["description"] = result.fetchone()[0]
+            result.close()
 
         # 更新gitlab project
         gitlab_url = "http://{0}/api/{1}/projects/{2}?private_token={3}&name={4}&description={5}".format(\
@@ -1098,3 +1117,10 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                 "message": "error",
                 "data": "No such repository_id found!"
             }, 404
+
+    def get_project_info(self, logger, project_id):
+        select_project_cmd = db.select([TableProjects.stru_projects])\
+            .where(db.and_(TableProjects.stru_projects.c.id==project_id ))
+        reMessage = util.callsqlalchemy(self, select_project_cmd,
+                                        logger).fetchone()
+        return reMessage
