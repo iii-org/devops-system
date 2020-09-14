@@ -8,7 +8,7 @@ logger = logging.getLogger('devops.api')
 class CheckMarx(object):
     headers = {'Content-Type': 'application/json'}
 
-    def save(self, logger, args):
+    def postReport(self, logger, args):
         try:
             db.engine.execute(
                 "INSERT INTO public.checkmarx "
