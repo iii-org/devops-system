@@ -31,9 +31,9 @@ class GitLab(object):
             gitlab.private_token)
         logger.info("gitlab create user url: {0}".format(url))
         parame = {
-            "name": args['login'],
+            "name": args['name'],
             "email": args['email'],
-            "username": args['name'],
+            "username": args['login'],
             "password": user_source_password
         }
         output = requests.post(url,
