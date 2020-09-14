@@ -8,12 +8,12 @@ logger = logging.getLogger('devops.api')
 class CheckMarx(object):
     headers = {'Content-Type': 'application/json'}
 
-    def save(self, logger, args):
+    def postReport(self, logger, args):
         try:
             db.engine.execute(
                 "INSERT INTO public.checkmarx "
                 "(cm_project_id, repo_id, scan_id, report_id, run_at) "
-                "VALUES ({0}, {1}, {2}, {3}, {4})"
+                "VALUES ({0}, {1}, {2}, {3}, '{4}')"
                 .format(
                     args['cm_project_id'],
                     args['repo_id'],
