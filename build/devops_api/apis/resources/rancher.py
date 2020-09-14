@@ -39,33 +39,50 @@ class Rancher(object):
 
     def get_rancher_pipelineexecutions_logs(self, app, logger, ci_project_id, ci_pipeline_id,\
         pipelines_exec_run, rancher_token):
-        output_array = []
+        output_dict = []
         headersandtoken = "Authorization: Bearer {0}".format(rancher_token)
         pipelineexecutions_output = Rancher.get_rancher_pipelineexecutions(self, app, logger, ci_project_id, ci_pipeline_id,\
         rancher_token)
-        stages_steps_numbers = []
         for pipelineexecution_output in pipelineexecutions_output:
             if pipelines_exec_run == pipelineexecution_output['run']:
-                for stage in pipelineexecution_output['pipelineConfig'][
-                        'stages']:
-                    stages_steps_numbers.append(len(stage['steps']))
-        logger.info(
-            "config_stages_steps_number: {0}".format(stages_steps_numbers))
-        i = 0
-        while i < len(stages_steps_numbers):
-            j = 0
-            while j < stages_steps_numbers[i]:
-                ws = websocket.WebSocket(sslopt={"cert_reqs": ssl.CERT_NONE})
-                url = "wss://{0}/{1}/project/{2}/pipelineExecutions/{3}-{4}/log?stage={5}&step={6}"\
-                    .format(app.config['RANCHER_IP_PORT'], app.config['RANCHER_API_VERSION'], \
-                    ci_project_id, ci_pipeline_id, pipelines_exec_run, i, j)
-                logger.info("wss url: {0}".format(url))
-                ws.connect(url, header=[headersandtoken])
-                result = ws.recv()
-                if 'Log is unavailable.' not in result:
-                    output_array.append(result)
-                    logger.info("Received :'%s'" % result)
-                ws.close()
-                j += 1
-            i += 1
-        return output_array
+                for index, stage in enumerate(
+                        pipelineexecution_output['pipelineConfig']['stages']):
+                    tmp_step_message = []
+                    for stepindex, step in enumerate(stage['steps']):
+                        ws = websocket.WebSocket(
+                            sslopt={"cert_reqs": ssl.CERT_NONE})
+                        url = "wss://{0}/{1}/project/{2}/pipelineExecutions/{3}-{4}/log?stage={5}&step={6}"\
+                            .format(app.config['RANCHER_IP_PORT'], app.config['RANCHER_API_VERSION'], \
+                            ci_project_id, ci_pipeline_id, pipelines_exec_run, index, stepindex)
+                        logger.info("wss url: {0}".format(url))
+                        ws.connect(url, header=[headersandtoken])
+                        result = ws.recv()
+                        # logger.info("Received :'%s'" % result)
+                        step_datail = pipelineexecution_output['stages'][
+                            index]['steps'][stepindex]
+                        if 'state' in step_datail:
+                            tmp_step_message.append({
+                                "state": step_datail['state'],
+                                "message": result
+                            })
+                        else:
+                            tmp_step_message.append({
+                                "state": None,
+                                "message": result
+                            })
+                        ws.close()
+                    stage_state = pipelineexecution_output['stages'][index]
+                    if 'state' in stage_state:
+                        output_dict.append({
+                            "name": stage['name'],
+                            "state": stage_state['state'],
+                            "steps": tmp_step_message
+                        })
+                    else:
+                        output_dict.append({
+                            "name": stage['name'],
+                            "state": None,
+                            "steps": tmp_step_message
+                        })
+        logger.debug("output_dict: {0}".format(output_dict))
+        return output_dict[1:]
