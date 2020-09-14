@@ -177,9 +177,13 @@ class Project(object):
                     output_dict['name'] = project['name']
                     output_dict['project_id'] = project['id']
 
-                    output_dict['repository_ids'] = [
-                        project['git_repository_id']
-                    ]
+                    output_dict['repository_ids'] = project['git_repository_id']
+                    output_dict['issues'] = None
+                    output_dict['branch'] = None
+                    output_dict['tag'] = None
+                    output_dict['next_d_time'] = None
+                    output_dict['last_test_time'] = ""
+                    output_dict['last_test_result'] = {}
 
                     # get issue total cont
                     total_issue = Redmine.redmine_get_issues_by_project_and_user(self, logger, app, \
@@ -203,10 +207,9 @@ class Project(object):
                             issue_due_date_list,
                             key=lambda d: abs(d - datetime.now()))
                     logger.info("next_d_time: {0}".format(next_d_time))
-                    output_dict['next_d_time'] = next_d_time
+                    if next_d_time is not None:
+                        output_dict['next_d_time'] = next_d_time.isoformat()
 
-                    output_dict['branch'] = None
-                    output_dict['tag'] = None
                     if project['git_repository_id'] is not None:
                         # branch bumber
                         branch_number = 0
@@ -225,12 +228,15 @@ class Project(object):
                         if status_code == 200:
                             tag_number = len(output['data']['tag_list'])
                         logger.info("get_git_project_tags number: {0}".format(
-                            branch_number))
+                            tag_number))
                         output_dict['tag'] = tag_number
 
-                    output_dict = self.get_ci_last_test_result(
-                        app, logger, output_dict, project)
+                    if project['ci_project_id'] is not None:
+                        output_dict = self.get_ci_last_test_result(
+                            app, logger, output_dict, project)
+                    logger.debug("output_dict: {0}".format(output_dict))
                     output_array.append(output_dict)
+                logger.debug("output_array: {0}".format(output_array))
                 return {"message": "success", "data": output_array}, 200
             else:
                 return {
@@ -241,8 +247,6 @@ class Project(object):
 
     def get_ci_last_test_result(self, app, logger, output_dict, project):
         # get rancher pipeline
-        output_dict['last_test_time'] = ""
-        output_dict['last_test_result'] = {}
         rancher_token = Rancher.get_rancher_token(self, app, logger)
         pipeline_output = Rancher.get_rancher_pipelineexecutions(self, app, logger, project["ci_project_id"],\
             project["ci_pipeline_id"], rancher_token)
