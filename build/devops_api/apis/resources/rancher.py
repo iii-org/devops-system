@@ -47,7 +47,7 @@ class Rancher(object):
             if pipelines_exec_run == pipelineexecution_output['run']:
                 for index, stage in enumerate(
                         pipelineexecution_output['pipelineConfig']['stages']):
-                    tmp_step_message = {}
+                    tmp_step_message = []
                     for stepindex, step in enumerate(stage['steps']):
                         ws = websocket.WebSocket(
                             sslopt={"cert_reqs": ssl.CERT_NONE})
@@ -61,15 +61,15 @@ class Rancher(object):
                         step_datail = pipelineexecution_output['stages'][
                             index]['steps'][stepindex]
                         if 'state' in step_datail:
-                            tmp_step_message[stepindex] = {
+                            tmp_step_message.append({
                                 "state": step_datail['state'],
                                 "message": result
-                            }
+                            })
                         else:
-                            tmp_step_message[stepindex] = {
+                            tmp_step_message.append({
                                 "state": None,
                                 "message": result
-                            }
+                            })
                         ws.close()
                     stage_state = pipelineexecution_output['stages'][index]
                     if 'state' in stage_state:
@@ -85,4 +85,4 @@ class Rancher(object):
                             "steps": tmp_step_message
                         })
         logger.debug("output_dict: {0}".format(output_dict))
-        return output_dict
+        return output_dict[1:]
