@@ -56,10 +56,13 @@ class Pipeline(object):
         project_relationship = result.fetchone()
         result.close()
         rancher_token = Rancher.get_rancher_token(self, app, logger)
-        output_array = Rancher.get_rancher_pipelineexecutions_logs(self, app, logger, \
-            project_relationship['ci_project_id'], project_relationship['ci_pipeline_id'],
-            args['pipelines_exec_run'], rancher_token)
-        return output_array
+        try:
+            output_array = Rancher.get_rancher_pipelineexecutions_logs(self, app, logger, \
+                project_relationship['ci_project_id'], project_relationship['ci_pipeline_id'],
+                args['pipelines_exec_run'], rancher_token)
+            return {"message": "success", "data": output_array}, 200
+        except:
+            return {"message": "get pipeline histroy errro"}, 400
 
     def pipeline_software(self, logger):
         result = db.engine.execute(
@@ -140,3 +143,46 @@ class Pipeline(object):
         rancher_ci_json = yaml.load(rancher_ci_yaml)
         logger.info('rancher_ci_json: {0}'.format(rancher_ci_json))
         return rancher_ci_json
+
+    def get_phase_yaml(self, logger, app, repository_id, branch_name):
+        parameter = {}
+        parameter['branch'] = branch_name
+        parameter['file_path'] = '.rancher-pipeline.yaml'
+        try:
+            yaml_info = Project.get_git_project_file_for_pipeline(
+                self, logger, app, repository_id, parameter)
+            parameter['file_path'] = '.rancher-pipeline.yml'
+            yml_info = Project.get_git_project_file_for_pipeline(
+                self, logger, app, repository_id, parameter)
+            get_yaml_data = None
+            if yaml_info.status_code != 404:
+                get_yaml_data = yaml_info.json()
+            elif yml_info.status_code != 404:
+                get_yaml_data = yml_info.json()
+            logger.debug('get_yaml_data: {0}'.format(get_yaml_data))
+            rancher_ci_yaml = base64.b64decode(
+                get_yaml_data['content']).decode("utf-8")
+            logger.debug('rancher_ci_yaml: {0}'.format(rancher_ci_yaml))
+            rancher_ci_json = yaml.load(rancher_ci_yaml)
+            logger.info('rancher_ci_json: {0}'.format(rancher_ci_json))
+            phase_name_array = []
+            phase_name = None
+            soft_name = None
+            for index, rancher_satage in enumerate(rancher_ci_json['stages']):
+                if "--" in rancher_satage['name']:
+                    cut_list = rancher_satage['name'].split('--')
+                    phase_name = cut_list[0]
+                    soft_name = cut_list[1]
+                else:
+                    soft_name = rancher_satage['name']
+                phase_name_array.append({
+                    'id': index + 1,
+                    'phase': phase_name,
+                    'software': soft_name
+                })
+            logger.info('phase_name_array: {0}'.format(phase_name_array))
+            return {'message': "success", "data": phase_name_array}, 200
+        except:
+            return {
+                "message": "read yaml to get phase and software name error"
+            }, 400
