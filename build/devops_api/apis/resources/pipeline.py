@@ -56,10 +56,13 @@ class Pipeline(object):
         project_relationship = result.fetchone()
         result.close()
         rancher_token = Rancher.get_rancher_token(self, app, logger)
-        output_array = Rancher.get_rancher_pipelineexecutions_logs(self, app, logger, \
-            project_relationship['ci_project_id'], project_relationship['ci_pipeline_id'],
-            args['pipelines_exec_run'], rancher_token)
-        return output_array
+        try:
+            output_array = Rancher.get_rancher_pipelineexecutions_logs(self, app, logger, \
+                project_relationship['ci_project_id'], project_relationship['ci_pipeline_id'],
+                args['pipelines_exec_run'], rancher_token)
+            return {"message": "success", "data": output_array}, 200
+        except:
+            return {"message": "get pipeline histroy errro"}, 400
 
     def pipeline_software(self, logger):
         result = db.engine.execute(
