@@ -1750,7 +1750,13 @@ class DumpByIssue(Resource):
         return output
 
 
-class CheckmarxReport(Resource):
+class GetCheckmarxReport(Resource):
+    @jwt_required
+    def get(self, report_id):
+        return cm.get_report(logger, app, report_id)
+
+
+class PostCheckmarxReport(Resource):
     @jwt_required
     def post(self):
         parser = reqparse.RequestParser()
@@ -1759,7 +1765,7 @@ class CheckmarxReport(Resource):
         parser.add_argument('scan_id', type=int, required=True)
         parser.add_argument('report_id', type=int, required=True)
         args = parser.parse_args()
-        output = cm.postReport(logger, args)
+        output = cm.post_report(logger, args)
         return output
 
 
@@ -1908,7 +1914,8 @@ api.add_resource(TestResult, '/testResults')
 api.add_resource(ExportToPostman, '/export_to_postman/<project_id>')
 
 # Checkmarx report generation
-api.add_resource(CheckmarxReport, '/checkmarx_report')
+api.add_resource(PostCheckmarxReport, '/checkmarx_report')
+api.add_resource(GetCheckmarxReport, '/checkmarx_report/<report_id>')
 
 # Get everything by issue_id
 api.add_resource(DumpByIssue, '/dump_by_issue/<issue_id>')
