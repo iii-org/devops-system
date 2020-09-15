@@ -961,8 +961,7 @@ class PipelineYaml(Resource):
 class PipelinePhaseYaml(Resource):
     @jwt_required
     def get(self, repository_id, branch_name):
-        return pipe.get_phase_yaml(logger, app, repository_id,
-                                        branch_name)
+        return pipe.get_phase_yaml(logger, app, repository_id, branch_name)
 
 
 class IssueByProject(Resource):
@@ -1178,6 +1177,13 @@ class IssueStatistics(Resource):
         args = parser.parse_args()
         output = iss.get_issue_statistics(logger, app, args,
                                           get_jwt_identity()['user_id'])
+        return output
+
+
+class NotFinishIssueStatistics(Resource):
+    @jwt_required
+    def get(self):
+        output = iss.get_not_finish_issue_statistics(logger, app, get_jwt_identity()['user_id'])
         return output
 
 
@@ -1828,9 +1834,8 @@ api.add_resource(RoleList, '/user/role/list')
 api.add_resource(PipelineExec, '/pipelines/rd/<repository_id>/pipelines_exec')
 api.add_resource(PipelineExecLogs, '/pipelines/rd/logs')
 api.add_resource(PipelineSoftware, '/pipelines/software')
-api.add_resource(
-    PipelinePhaseYaml,
-    '/pipelines/<repository_id>/branch/<branch_name>/phase_yaml')
+api.add_resource(PipelinePhaseYaml,
+                 '/pipelines/<repository_id>/branch/<branch_name>/phase_yaml')
 api.add_resource(
     PipelineYaml,
     '/pipelines/<repository_id>/branch/<branch_name>/generate_ci_yaml')
@@ -1854,6 +1859,7 @@ api.add_resource(IssuePrioriry, '/issues_priority')
 api.add_resource(IssueTracker, '/issues_tracker')
 api.add_resource(IssueRDbyUser, '/issues_by_user/rd/<user_id>')
 api.add_resource(IssueStatistics, '/issues/statistics')
+api.add_resource(NotFinishIssueStatistics, '/issues/not_finish_statistics')
 api.add_resource(IssueWeekStatistics, '/issues/week_statistics')
 api.add_resource(IssueMonthStatistics, '/issues/month_statistics')
 

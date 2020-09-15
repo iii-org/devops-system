@@ -177,7 +177,8 @@ class Project(object):
                     output_dict['name'] = project['name']
                     output_dict['project_id'] = project['id']
 
-                    output_dict['repository_ids'] = project['git_repository_id']
+                    output_dict['repository_ids'] = project[
+                        'git_repository_id']
                     output_dict['issues'] = None
                     output_dict['branch'] = None
                     output_dict['tag'] = None
@@ -713,20 +714,21 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                         app.config["REDMINE_IP_PORT"], plan_project_id,
                         app.config["REDMINE_API_KEY"])
                     output1 = requests.get(url1,
-                                        headers=self.headers,
-                                        verify=False).json()
+                                           headers=self.headers,
+                                           verify=False).json()
                     # 抓專案狀態＆專案工作進度＆進度落後數目
                     url2 = "http://{0}/issues.json?key={1}&project_id={2}&limit=1000".format(
                         app.config["REDMINE_IP_PORT"],
                         app.config["REDMINE_API_KEY"], plan_project_id)
                     output2 = requests.get(url2,
-                                        headers=self.headers,
-                                        verify=False).json()
+                                           headers=self.headers,
+                                           verify=False).json()
 
                     closed_count = 0
                     overdue_count = 0
                     for issue in output2["issues"]:
-                        if issue["status"]["name"] == "Closed": closed_count += 1
+                        if issue["status"]["name"] == "Closed":
+                            closed_count += 1
                         if issue["due_date"] != None:
                             if (datetime.today() > datetime.strptime(
                                     issue["due_date"], "%Y-%m-%d")) == True:
@@ -738,8 +740,8 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
 
                     # 查詢專案名稱＆專案說明＆＆專案狀態
                     result = db.engine.execute(
-                        "SELECT * FROM public.projects WHERE id = '{0}'".format(
-                            project_id))
+                        "SELECT * FROM public.projects WHERE id = '{0}'".
+                        format(project_id))
                     project_info = result.fetchone()
                     result.close()
 
@@ -880,20 +882,20 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
             else:
                 error_code = gitlab_output.status_code
                 return {
-                    "message": "error",
-                    "data": {
-                        "from": "gitlab",
-                        "result": gitlab_output.json()
+                    "message": {
+                        "gitlab": {
+                            "errors": gitlab_output.json()
+                        }
                     }
                 }, error_code
 
         else:
             error_code = redmine_output.status_code
             return {
-                "message": "error",
-                "data": {
-                    "from": "redmine",
-                    "result": redmine_output.json()
+                "message": {
+                    "redmine": {
+                        "errors": redmine_output.json()
+                    }
                 }
             }, error_code
 
@@ -1016,20 +1018,20 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
             else:
                 error_code = redmine_output.status_code
                 return {
-                    "message": "error",
-                    "data": {
-                        "from": "redmine",
-                        "result": redmine_output.json()
+                    "message": {
+                        "redmine": {
+                            "errors": redmine_output.json()
+                        }
                     }
                 }, error_code
 
         else:
             error_code = gitlab_output.status_code
             return {
-                "message": "error",
-                "data": {
-                    "from": "gitlab",
-                    "result": gitlab_output.json()
+                "message": {
+                    "gitlab": {
+                        "errors": gitlab_output.json()
+                    }
                 }
             }, error_code
 
@@ -1041,65 +1043,68 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
             .format(project_id))
         project_relation = result.fetchone()
         result.close()
-        redmine_project_id = project_relation["plan_project_id"]
-        gitlab_project_id = project_relation["git_repository_id"]
-        # 刪除gitlab project
-        gitlab_url = "http://{0}/api/{1}/projects/{2}?private_token={3}".format(\
-            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], gitlab_project_id, self.private_token)
-        logger.info("delete gitlab project url: {0}".format(gitlab_url))
-        gitlab_output = requests.delete(gitlab_url,
-                                        headers=self.headers,
-                                        verify=False)
-        logger.info("delete gitlab project output: {0} / {1}".format(
-            gitlab_output, gitlab_output.json()))
-        # 如果gitlab project成功被刪除則繼續刪除redmine project
-        if gitlab_output.status_code == 202:
-            redmine_url = "http://{0}/projects/{1}.json?key={2}".format(\
-                app.config["REDMINE_IP_PORT"], redmine_project_id, app.config["REDMINE_API_KEY"])
-            logger.info("delete redmine project url: {0}".format(redmine_url))
-            redmine_output = requests.delete(redmine_url,
-                                             headers=self.headers,
-                                             verify=False)
-            logger.info(
-                "delete redmine project output: {0}".format(redmine_output))
-            # 如果gitlab & redmine project都成功被刪除則繼續刪除db內相關tables欄位
-            if redmine_output.status_code == 204:
-                db.engine.execute(
-                    "DELETE FROM public.project_plugin_relation WHERE project_id = '{0}'"
-                    .format(project_id))
-                db.engine.execute(
-                    "DELETE FROM public.project_user_role WHERE project_id = '{0}'"
-                    .format(project_id))
-                db.engine.execute(
-                    "DELETE FROM public.projects WHERE id = '{0}'".format(
-                        project_id))
+        if project_relation is not None:
+            redmine_project_id = project_relation["plan_project_id"]
+            gitlab_project_id = project_relation["git_repository_id"]
+            # 刪除gitlab project
+            gitlab_url = "http://{0}/api/{1}/projects/{2}?private_token={3}".format(\
+                app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], gitlab_project_id, self.private_token)
+            logger.info("delete gitlab project url: {0}".format(gitlab_url))
+            gitlab_output = requests.delete(gitlab_url,
+                                            headers=self.headers,
+                                            verify=False)
+            logger.info("delete gitlab project output: {0} / {1}".format(
+                gitlab_output, gitlab_output.json()))
+            # 如果gitlab project成功被刪除則繼續刪除redmine project
+            if gitlab_output.status_code == 202:
+                redmine_url = "http://{0}/projects/{1}.json?key={2}".format(\
+                    app.config["REDMINE_IP_PORT"], redmine_project_id, app.config["REDMINE_API_KEY"])
+                logger.info("delete redmine project url: {0}".format(redmine_url))
+                redmine_output = requests.delete(redmine_url,
+                                                headers=self.headers,
+                                                verify=False)
+                logger.info(
+                    "delete redmine project output: {0}".format(redmine_output))
+                # 如果gitlab & redmine project都成功被刪除則繼續刪除db內相關tables欄位
+                if redmine_output.status_code == 204:
+                    db.engine.execute(
+                        "DELETE FROM public.project_plugin_relation WHERE project_id = '{0}'"
+                        .format(project_id))
+                    db.engine.execute(
+                        "DELETE FROM public.project_user_role WHERE project_id = '{0}'"
+                        .format(project_id))
+                    db.engine.execute(
+                        "DELETE FROM public.projects WHERE id = '{0}'".format(
+                            project_id))
 
-                return {
-                    "message": "success",
-                    "data": {
-                        "result": "success delete"
-                    }
-                }, 200
+                    return {
+                        "message": "success",
+                        "data": {
+                            "result": "success delete"
+                        }
+                    }, 200
+
+                else:
+                    error_code = redmine_output.status_code
+                    return {
+                        "message": {
+                            "redmine": {
+                                "errors": redmine_output.json()
+                            }
+                        }
+                    }, error_code
 
             else:
                 error_code = redmine_output.status_code
                 return {
-                    "message": "error",
-                    "data": {
-                        "from": "redmine",
-                        "result": redmine_output.json()
+                    "message": {
+                        "gitlab": {
+                            "errors": gitlab_output.json()
+                        }
                     }
                 }, error_code
-
         else:
-            error_code = redmine_output.status_code
-            return {
-                "message": "error",
-                "data": {
-                    "from": "gitlab",
-                    "result": gitlab_output.json()
-                }
-            }, error_code
+            return {"message": "can not find this project."}
 
         # db.engine.execute(
         #     "UPDATE public.projects SET disabled = '{0}' WHERE id = '{1}'".
