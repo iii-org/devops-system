@@ -504,6 +504,28 @@ class Issue(object):
             }, status_code
         except Exception as error:
             return {"message": str(error)}, 400
+    
+    def get_not_finish_issue_statistics(self, logger, app, user_id):
+        args = {}
+        args['limit']=100
+        user_plugin_relation = auth.get_user_plugin_relation(self,
+                                                             logger,
+                                                             user_id=user_id)
+        if user_plugin_relation is not None:
+            args["assigned_to_id"] = user_plugin_relation['plan_user_id']
+        Redmine.get_redmine_key(self, logger, app)
+        total_issue_output, status_code = Redmine.redmine_get_statistics(self, logger, app, args)
+        if status_code != 200:
+            return {"message": "could not get redmine total issue"}, 400
+        logger.debug("user_id {0} total issue number: {1}".format(user_id, total_issue_output["total_count"] ))
+        args['status_id'] = 'closed'
+        closed_issue_output, closed_status_code = Redmine.redmine_get_statistics(self, logger, app, args)
+        if closed_status_code != 200:
+            return {"message": "could not get redmine closed issue"}, 400
+        logger.debug("user_id {0} closed issue number: {1}".format(user_id, closed_issue_output["total_count"] ))
+        active_issue_number = total_issue_output["total_count"] - closed_issue_output["total_count"]
+        return {"message": "success", "data": {"active_issue_number": active_issue_number}}
+            
 
     def get_issue_statistics_in_period(self, logger, app, period, user_id):
         current_date = date.today()
