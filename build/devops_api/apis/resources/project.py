@@ -709,20 +709,21 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                         app.config["REDMINE_IP_PORT"], plan_project_id,
                         app.config["REDMINE_API_KEY"])
                     output1 = requests.get(url1,
-                                        headers=self.headers,
-                                        verify=False).json()
+                                           headers=self.headers,
+                                           verify=False).json()
                     # 抓專案狀態＆專案工作進度＆進度落後數目
                     url2 = "http://{0}/issues.json?key={1}&project_id={2}&limit=1000".format(
                         app.config["REDMINE_IP_PORT"],
                         app.config["REDMINE_API_KEY"], plan_project_id)
                     output2 = requests.get(url2,
-                                        headers=self.headers,
-                                        verify=False).json()
+                                           headers=self.headers,
+                                           verify=False).json()
 
                     closed_count = 0
                     overdue_count = 0
                     for issue in output2["issues"]:
-                        if issue["status"]["name"] == "Closed": closed_count += 1
+                        if issue["status"]["name"] == "Closed":
+                            closed_count += 1
                         if issue["due_date"] != None:
                             if (datetime.today() > datetime.strptime(
                                     issue["due_date"], "%Y-%m-%d")) == True:
@@ -734,8 +735,8 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
 
                     # 查詢專案名稱＆專案說明＆＆專案狀態
                     result = db.engine.execute(
-                        "SELECT * FROM public.projects WHERE id = '{0}'".format(
-                            project_id))
+                        "SELECT * FROM public.projects WHERE id = '{0}'".
+                        format(project_id))
                     project_info = result.fetchone()
                     result.close()
 

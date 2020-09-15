@@ -962,8 +962,7 @@ class PipelineYaml(Resource):
 class PipelinePhaseYaml(Resource):
     @jwt_required
     def get(self, repository_id, branch_name):
-        return pipe.get_phase_yaml(logger, app, repository_id,
-                                        branch_name)
+        return pipe.get_phase_yaml(logger, app, repository_id, branch_name)
 
 
 class IssueByProject(Resource):
@@ -1829,9 +1828,8 @@ api.add_resource(RoleList, '/user/role/list')
 api.add_resource(PipelineExec, '/pipelines/rd/<repository_id>/pipelines_exec')
 api.add_resource(PipelineExecLogs, '/pipelines/rd/logs')
 api.add_resource(PipelineSoftware, '/pipelines/software')
-api.add_resource(
-    PipelinePhaseYaml,
-    '/pipelines/<repository_id>/branch/<branch_name>/phase_yaml')
+api.add_resource(PipelinePhaseYaml,
+                 '/pipelines/<repository_id>/branch/<branch_name>/phase_yaml')
 api.add_resource(
     PipelineYaml,
     '/pipelines/<repository_id>/branch/<branch_name>/generate_ci_yaml')
