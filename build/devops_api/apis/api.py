@@ -925,8 +925,7 @@ class PipelineExecLogs(Resource):
         parser.add_argument('repository_id', type=int)
         parser.add_argument('pipelines_exec_run', type=int)
         args = parser.parse_args()
-        output_array = pipe.pipeline_exec_logs(logger, app, args)
-        return jsonify({'message': 'success', 'data': output_array})
+        return pipe.pipeline_exec_logs(logger, app, args)
 
 
 class PipelineSoftware(Resource):
@@ -1802,7 +1801,7 @@ api.add_resource(GitProjectNetwork, '/repositories/<repository_id>/overview')
 api.add_resource(GitProjectId, '/repositories/<repository_id>/id')
 
 # Project
-api.add_resource(ProjectList, '/project/rd/<int:user_id>')
+api.add_resource(ProjectList, '/project/<int:user_id>')
 api.add_resource(ProjectUserList, '/project/<int:project_id>/user/list')
 api.add_resource(ProjectAddMember, '/project/<int:project_id>/member')
 api.add_resource(ProjectDeleteMember,
