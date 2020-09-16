@@ -1059,12 +1059,13 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
             if gitlab_output.status_code == 202:
                 redmine_url = "http://{0}/projects/{1}.json?key={2}".format(\
                     app.config["REDMINE_IP_PORT"], redmine_project_id, app.config["REDMINE_API_KEY"])
-                logger.info("delete redmine project url: {0}".format(redmine_url))
-                redmine_output = requests.delete(redmine_url,
-                                                headers=self.headers,
-                                                verify=False)
                 logger.info(
-                    "delete redmine project output: {0}".format(redmine_output))
+                    "delete redmine project url: {0}".format(redmine_url))
+                redmine_output = requests.delete(redmine_url,
+                                                 headers=self.headers,
+                                                 verify=False)
+                logger.info("delete redmine project output: {0}".format(
+                    redmine_output))
                 # 如果gitlab & redmine project都成功被刪除則繼續刪除db內相關tables欄位
                 if redmine_output.status_code == 204:
                     db.engine.execute(
@@ -1133,3 +1134,28 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         reMessage = util.callsqlalchemy(self, select_project_cmd,
                                         logger).fetchone()
         return reMessage
+
+    def get_sonar_report(self, logger, app, project_id):
+        result = db.engine.execute(
+            "SELECT name FROM public.projects WHERE id = '{0}'".format(
+                project_id))
+        project_name = result.fetchone()[0]
+        result.close()
+        print(project_name)
+        # project_name = "devops-flask"
+        url = "http://{0}/api/measures/component?component={1}&metricKeys=bugs,vulnerabilities,security_hotspots,code_smells,coverage,duplicated_blocks,sqale_index,duplicated_lines_density".format(\
+            app.config["SONAR_IP_PORT"], project_name)
+        logger.info("get sonar report url: {0}".format(url))
+        output = requests.get(url, headers=self.headers, verify=False)
+        logger.info("get sonar report output: {0} / {1}".format(
+            output, output.json()))
+        if output.status_code == 200:
+            return {
+                "message": "success",
+                "data": output.json()["component"]["measures"]
+            }, 200
+        else:
+            error_msg_list = []
+            for error in output.json()["errors"]:
+                error_msg_list.append(error["msg"])
+            return {"message": {"errors": error_msg_list}}, output.status_code
