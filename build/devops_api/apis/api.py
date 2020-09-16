@@ -64,8 +64,8 @@ ti = testItem.TestItem()
 tv = testValue.TestValue()
 td = testData.TestData()
 tr = testResult.TestResult()
-ci = cicd.Cicd(logger, app)
-cm = checkmarx.CheckMarx()
+ci = cicd.Cicd(app)
+cm = checkmarx.CheckMarx(app)
 
 
 class Index(Resource):
@@ -1738,7 +1738,7 @@ class TestResult(Resource):
         parser.add_argument('total', type=int, required=True)
         parser.add_argument('fail', type=int, required=True)
         args = parser.parse_args()
-        output = tr.save(logger, args)
+        output = tr.save(args)
         return output
 
 
@@ -1761,7 +1761,7 @@ class DumpByIssue(Resource):
 class GetCheckmarxReport(Resource):
     @jwt_required
     def get(self, report_id):
-        return cm.get_report(logger, app, report_id)
+        return cm.get_report(logger, report_id)
 
 
 class PostCheckmarxReport(Resource):

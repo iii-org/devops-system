@@ -8,7 +8,7 @@ logger = logging.getLogger('devops.api')
 class TestResult(object):
     headers = {'Content-Type': 'application/json'}
 
-    def save(self, logger, args):
+    def save(self, args):
         try:
             db.engine.execute(
                 "INSERT INTO public.test_results "
