@@ -1747,7 +1747,7 @@ class ExportToPostman(Resource):
     def get(self, project_id):
         jwt_identity = get_jwt_identity()['user_id']
         target = flask_req.args.get('target')
-        output = ci.export_to_postman(logger, app, project_id, target, jwt_identity)
+        output = ci.export_to_postman(app, project_id, target, jwt_identity)
         return output
 
 
@@ -1761,7 +1761,7 @@ class DumpByIssue(Resource):
 class GetCheckmarxReport(Resource):
     @jwt_required
     def get(self, report_id):
-        return cm.get_report(logger, report_id)
+        return cm.get_report(report_id)
 
 
 class PostCheckmarxReport(Resource):

@@ -1,0 +1,456 @@
+2020 Sep 15, Tue 14:16:00 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 15, Tue 14:16:00 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 14:16:00 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 14:16:54 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 15, Tue 14:16:54 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 14:16:54 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 14:16:56 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 15, Tue 14:16:56 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 14:16:56 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 14:17:10 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 15, Tue 14:17:10 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 14:17:10 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 14:17:59 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 15, Tue 14:17:59 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 14:17:59 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 14:18:05 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 15, Tue 14:18:05 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 14:18:05 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 14:20:15 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 15, Tue 14:20:15 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 14:20:15 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 14:20:17 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 15, Tue 14:20:17 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 14:20:17 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 14:20:28 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 15, Tue 14:20:28 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 14:20:28 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 14:20:53 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 15, Tue 14:20:53 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 14:20:53 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 14:21:40 auth.py [line:87] INFO jwt access_token: eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE2MDAxNTA5MDAsIm5iZiI6MTYwMDE1MDkwMCwianRpIjoiMGM4MTZiMzUtM2ZkZi00NGQ2LTkyZDItNjk5YWM2OTZkOTlmIiwiZXhwIjoxNjAwMjM3MzAwLCJpZGVudGl0eSI6eyJ1c2VyX2lkIjoyLCJ1c2VyX2FjY291bnQiOiJiZWNreSIsInJvbGVfaWQiOjEsInJvbGVfbmFtZSI6IkVuZ2luZWVyIn0sImZyZXNoIjpmYWxzZSwidHlwZSI6ImFjY2VzcyJ9.ekfNnLsCv-g932cKpo3ufanVD1Zveef17kzJpaUm_IE
+2020 Sep 15, Tue 14:23:03 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 15, Tue 14:23:03 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 14:23:03 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 14:24:08 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 15, Tue 14:24:08 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 14:24:08 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 14:24:34 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 15, Tue 14:24:34 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 14:24:34 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 14:24:46 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 15, Tue 14:24:46 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 14:24:46 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 14:25:24 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 15, Tue 14:25:24 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 14:25:24 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 14:25:36 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 15, Tue 14:25:36 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 14:25:36 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 14:25:37 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 15, Tue 14:25:37 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 14:25:37 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 15:18:17 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 15, Tue 15:18:17 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 15:18:17 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 15:20:27 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 15, Tue 15:20:27 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 15:20:27 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 15:53:34 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 15, Tue 15:53:34 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 15:53:34 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 15:53:36 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 15, Tue 15:53:36 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 15:53:36 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 15:55:20 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 15, Tue 15:55:20 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 15:55:20 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 16:00:12 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 15, Tue 16:00:12 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 16:00:12 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 16:00:53 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 15, Tue 16:00:53 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 16:00:53 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 16:03:01 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 15, Tue 16:03:01 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 16:03:01 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 16:04:27 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 15, Tue 16:04:27 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 16:04:27 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 16:04:29 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 15, Tue 16:04:29 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 16:04:29 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 17:01:27 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 15, Tue 17:01:27 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 17:01:27 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 17:01:29 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 15, Tue 17:01:29 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 17:01:29 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 17:03:48 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 15, Tue 17:03:48 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 17:03:48 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 17:04:14 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 15, Tue 17:04:14 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 15, Tue 17:04:14 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 16, Wed 10:50:54 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 16, Wed 10:50:54 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 16, Wed 10:50:54 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 16, Wed 10:50:59 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 16, Wed 10:50:59 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 16, Wed 10:50:59 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 16, Wed 10:52:40 project.py [line:40] DEBUG select_project_user_role_command: SELECT project_user_role.project_id, project_user_role.user_id, project_user_role.role_id 
+FROM project_user_role 
+WHERE project_user_role.project_id = :project_id_1 AND project_user_role.user_id = :user_id_1
+2020 Sep 16, Wed 10:52:41 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 10:52:41 project.py [line:45] INFO reMessage: [(2, 87, 5)]
+2020 Sep 16, Wed 10:52:41 project.py [line:46] INFO reMessage len: 1
+2020 Sep 16, Wed 10:52:41 issue.py [line:140] DEBUG get_project_command: SELECT project_plugin_relation.project_id, project_plugin_relation.plan_project_id, project_plugin_relation.git_repository_id, project_plugin_relation.ci_project_id, project_plugin_relation.ci_pipeline_id 
+FROM project_plugin_relation 
+WHERE project_plugin_relation.project_id = :project_id_1
+2020 Sep 16, Wed 10:52:41 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 10:52:41 issue.py [line:143] DEBUG project_list: (2, 2, 11, 'c-n65kz:p-v2nzs', 'p-v2nzs:p-vqnw7')
+2020 Sep 16, Wed 10:52:42 redmine.py [line:27] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 16, Wed 10:52:42 redmine.py [line:48] INFO get issues by project output: {'issues': [{'id': 6, 'project': {'id': 2, 'name': '環境建構計畫WebUI開發'}, 'tracker': {'id': 1, 'name': 'Feature'}, 'status': {'id': 7, 'name': 'Active'}, 'priority': {'id': 3, 'name': '一般'}, 'author': {'id': 1, 'name': 'Redmine Admin'}, 'assigned_to': {'id': 8, 'name': 'kevin chang'}, 'subject': 'Web UI 工作清單', 'description': '開發專案清單頁面', 'start_date': '2020-05-05', 'due_date': '2020-05-06', 'done_ratio': 100, 'is_private': False, 'estimated_hours': 4.0, 'created_on': '2020-07-02T08:33:34Z', 'updated_on': '2020-07-03T11:13:17Z', 'closed_on': None}, {'id': 5, 'project': {'id': 2, 'name': '環境建構計畫WebUI開發'}, 'tracker': {'id': 1, 'name': 'Feature'}, 'status': {'id': 7, 'name': 'Active'}, 'priority': {'id': 2, 'name': '急'}, 'author': {'id': 1, 'name': 'Redmine Admin'}, 'assigned_to': {'id': 7, 'name': 'backy wu'}, 'subject': 'WebUI 專案清單', 'description': 'iServCloud 修改backend scheduler, 定期去檢查FT VM 到何運算節點，並把資訊更新到 nova DBaaa', 'start_date': '2020-05-04', 'due_date': '2020-05-05', 'done_ratio': 6, 'is_private': False, 'estimated_hours': 6.0, 'created_on': '2020-07-02T08:32:34Z', 'updated_on': '2020-09-06T12:07:49Z', 'closed_on': None}, {'id': 4, 'project': {'id': 2, 'name': '環境建構計畫WebUI開發'}, 'tracker': {'id': 1, 'name': 'Feature'}, 'status': {'id': 7, 'name': 'Active'}, 'priority': {'id': 1, 'name': '特急'}, 'author': {'id': 1, 'name': 'Redmine Admin'}, 'assigned_to': {'id': 6, 'name': 'nino lin'}, 'parent': {'id': 2}, 'subject': 'Subject changed2', 'description': '開發CI/CD內容詳細記錄頁面', 'start_date': '2020-05-12', 'due_date': '2020-07-10', 'done_ratio': 100, 'is_private': False, 'estimated_hours': 16.0, 'created_on': '2020-07-02T08:31:22Z', 'updated_on': '2020-09-04T10:20:14Z', 'closed_on': None}, {'id': 2, 'project': {'id': 2, 'name': '環境建構計畫WebUI開發'}, 'tracker': {'id': 1, 'name': 'Feature'}, 'status': {'id': 7, 'name': 'Active'}, 'priority': {'id': 1, 'name': '特急'}, 'author': {'id': 1, 'name': 'Redmine Admin'}, 'assigned_to': {'id': 7, 'name': 'backy wu'}, 'subject': 'RD Out API 文件', 'description': 'abc', 'start_date': '2020-05-12', 'due_date': '2020-07-10', 'done_ratio': 100, 'is_private': False, 'estimated_hours': 80.0, 'created_on': '2020-07-02T08:29:27Z', 'updated_on': '2020-09-06T03:56:48Z', 'closed_on': None}], 'total_count': 4, 'offset': 0, 'limit': 100}
+2020 Sep 16, Wed 10:52:42 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 10:52:42 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 10:52:42 issue.py [line:99] INFO get issue by user redmine_output: {'id': 6, 'project_id': 2, 'project_name': '環境建構計畫WebUI開發', 'issue_category': 'Feature', 'issue_priority': '一般', 'issue_status': 'Active', 'issue_name': 'Web UI 工作清單', 'description': '開發專案清單頁面', 'updated_on': '2020-07-03T11:13:17Z', 'start_date': '2020-05-05', 'due_date': '2020-05-06', 'assigned_to': 'kevin', 'parent_id': None, 'fixed_version_id': None, 'fixed_version_name': None}
+2020 Sep 16, Wed 10:52:42 util.py [line:76] INFO post url https://10.50.1.57/v3-public/localProviders/local?action=login
+2020 Sep 16, Wed 10:52:43 util.py [line:88] INFO Post api status code is : 201
+2020 Sep 16, Wed 10:52:43 rancher.py [line:31] INFO rancher_pipelineexecutions url: https://10.50.1.57/v3/projects/c-n65kz:p-v2nzs/pipelineexecutions?order=desc&pipelineId=p-v2nzs:p-vqnw7
+2020 Sep 16, Wed 10:52:43 util.py [line:126] INFO get api headers is : {'Content-Type': 'application/json', 'Authorization': 'Bearer token-nlq75:x4ls7kc9hjzbgpl68nvqq4k2m69v8g29kwnr2zfrz6pqskqj4576s4'}
+2020 Sep 16, Wed 10:52:43 util.py [line:127] INFO get api status code is : 200
+2020 Sep 16, Wed 10:52:43 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 10:52:43 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 10:52:43 issue.py [line:99] INFO get issue by user redmine_output: {'id': 5, 'project_id': 2, 'project_name': '環境建構計畫WebUI開發', 'issue_category': 'Feature', 'issue_priority': '急', 'issue_status': 'Active', 'issue_name': 'WebUI 專案清單', 'description': 'iServCloud 修改backend scheduler, 定期去檢查FT VM 到何運算節點，並把資訊更新到 nova DBaaa', 'updated_on': '2020-09-06T12:07:49Z', 'start_date': '2020-05-04', 'due_date': '2020-05-05', 'assigned_to': 'beckya', 'parent_id': None, 'fixed_version_id': None, 'fixed_version_name': None}
+2020 Sep 16, Wed 10:52:43 util.py [line:76] INFO post url https://10.50.1.57/v3-public/localProviders/local?action=login
+2020 Sep 16, Wed 10:52:44 util.py [line:88] INFO Post api status code is : 201
+2020 Sep 16, Wed 10:52:44 rancher.py [line:31] INFO rancher_pipelineexecutions url: https://10.50.1.57/v3/projects/c-n65kz:p-v2nzs/pipelineexecutions?order=desc&pipelineId=p-v2nzs:p-vqnw7
+2020 Sep 16, Wed 10:52:44 util.py [line:126] INFO get api headers is : {'Content-Type': 'application/json', 'Authorization': 'Bearer token-9kccs:jxw7zqgnpb7mvtmrvbtwvkkd8285br2g77nmjkv2xhq9c84762fzbf'}
+2020 Sep 16, Wed 10:52:44 util.py [line:127] INFO get api status code is : 200
+2020 Sep 16, Wed 10:52:44 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 10:52:44 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 10:52:44 issue.py [line:99] INFO get issue by user redmine_output: {'id': 4, 'project_id': 2, 'project_name': '環境建構計畫WebUI開發', 'issue_category': 'Feature', 'issue_priority': '特急', 'issue_status': 'Active', 'issue_name': 'Subject changed2', 'description': '開發CI/CD內容詳細記錄頁面', 'updated_on': '2020-09-04T10:20:14Z', 'start_date': '2020-05-12', 'due_date': '2020-07-10', 'assigned_to': 'nino', 'parent_id': 2, 'fixed_version_id': None, 'fixed_version_name': None}
+2020 Sep 16, Wed 10:52:44 util.py [line:76] INFO post url https://10.50.1.57/v3-public/localProviders/local?action=login
+2020 Sep 16, Wed 10:52:44 util.py [line:88] INFO Post api status code is : 201
+2020 Sep 16, Wed 10:52:44 rancher.py [line:31] INFO rancher_pipelineexecutions url: https://10.50.1.57/v3/projects/c-n65kz:p-v2nzs/pipelineexecutions?order=desc&pipelineId=p-v2nzs:p-vqnw7
+2020 Sep 16, Wed 10:52:45 util.py [line:126] INFO get api headers is : {'Content-Type': 'application/json', 'Authorization': 'Bearer token-sbddn:zvpdkcrqsfp78rwnfj6fg5bhj6xdrgv4fb5fg5lchw7fmsb7rwscvq'}
+2020 Sep 16, Wed 10:52:45 util.py [line:127] INFO get api status code is : 200
+2020 Sep 16, Wed 10:52:45 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 10:52:45 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 10:52:45 issue.py [line:99] INFO get issue by user redmine_output: {'id': 2, 'project_id': 2, 'project_name': '環境建構計畫WebUI開發', 'issue_category': 'Feature', 'issue_priority': '特急', 'issue_status': 'Active', 'issue_name': 'RD Out API 文件', 'description': 'abc', 'updated_on': '2020-09-06T03:56:48Z', 'start_date': '2020-05-12', 'due_date': '2020-07-10', 'assigned_to': 'beckya', 'parent_id': None, 'fixed_version_id': None, 'fixed_version_name': None}
+2020 Sep 16, Wed 10:52:45 util.py [line:76] INFO post url https://10.50.1.57/v3-public/localProviders/local?action=login
+2020 Sep 16, Wed 10:52:45 util.py [line:88] INFO Post api status code is : 201
+2020 Sep 16, Wed 10:52:45 rancher.py [line:31] INFO rancher_pipelineexecutions url: https://10.50.1.57/v3/projects/c-n65kz:p-v2nzs/pipelineexecutions?order=desc&pipelineId=p-v2nzs:p-vqnw7
+2020 Sep 16, Wed 10:52:45 util.py [line:126] INFO get api headers is : {'Content-Type': 'application/json', 'Authorization': 'Bearer token-75gl4:l7vsqcv4xn4tddsknbdddh7455qlsnnpqd6dnrtfzwfn2wdv6grdpk'}
+2020 Sep 16, Wed 10:52:45 util.py [line:127] INFO get api status code is : 200
+2020 Sep 16, Wed 10:52:45 testCase.py [line:16] DEBUG get_testCaseType_command: SELECT test_cases_type.id, test_cases_type.name 
+FROM test_cases_type
+2020 Sep 16, Wed 10:52:45 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 10:52:45 testCase.py [line:119] DEBUG get_testCase_command: SELECT test_cases.id, test_cases.name, test_cases.description, test_cases.issue_id, test_cases.project_id, test_cases.create_at, test_cases.update_at, test_cases.disabled, test_cases.data, test_cases.type_id 
+FROM test_cases 
+WHERE test_cases.issue_id = :issue_id_1 AND test_cases.disabled = false
+2020 Sep 16, Wed 10:52:45 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 10:52:46 testCase.py [line:16] DEBUG get_testCaseType_command: SELECT test_cases_type.id, test_cases_type.name 
+FROM test_cases_type
+2020 Sep 16, Wed 10:52:46 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 10:52:46 testCase.py [line:16] DEBUG get_testCaseType_command: SELECT test_cases_type.id, test_cases_type.name 
+FROM test_cases_type
+2020 Sep 16, Wed 10:52:46 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 10:52:46 testCase.py [line:119] DEBUG get_testCase_command: SELECT test_cases.id, test_cases.name, test_cases.description, test_cases.issue_id, test_cases.project_id, test_cases.create_at, test_cases.update_at, test_cases.disabled, test_cases.data, test_cases.type_id 
+FROM test_cases 
+WHERE test_cases.issue_id = :issue_id_1 AND test_cases.disabled = false
+2020 Sep 16, Wed 10:52:46 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 10:52:46 testCase.py [line:16] DEBUG get_testCaseType_command: SELECT test_cases_type.id, test_cases_type.name 
+FROM test_cases_type
+2020 Sep 16, Wed 10:52:46 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 10:52:46 testCase.py [line:16] DEBUG get_testCaseType_command: SELECT test_cases_type.id, test_cases_type.name 
+FROM test_cases_type
+2020 Sep 16, Wed 10:52:46 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 10:52:46 testCase.py [line:119] DEBUG get_testCase_command: SELECT test_cases.id, test_cases.name, test_cases.description, test_cases.issue_id, test_cases.project_id, test_cases.create_at, test_cases.update_at, test_cases.disabled, test_cases.data, test_cases.type_id 
+FROM test_cases 
+WHERE test_cases.issue_id = :issue_id_1 AND test_cases.disabled = false
+2020 Sep 16, Wed 10:52:46 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 10:52:46 testCase.py [line:16] DEBUG get_testCaseType_command: SELECT test_cases_type.id, test_cases_type.name 
+FROM test_cases_type
+2020 Sep 16, Wed 10:52:46 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 10:52:46 testCase.py [line:16] DEBUG get_testCaseType_command: SELECT test_cases_type.id, test_cases_type.name 
+FROM test_cases_type
+2020 Sep 16, Wed 10:52:46 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 10:52:46 testCase.py [line:119] DEBUG get_testCase_command: SELECT test_cases.id, test_cases.name, test_cases.description, test_cases.issue_id, test_cases.project_id, test_cases.create_at, test_cases.update_at, test_cases.disabled, test_cases.data, test_cases.type_id 
+FROM test_cases 
+WHERE test_cases.issue_id = :issue_id_1 AND test_cases.disabled = false
+2020 Sep 16, Wed 10:52:46 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 10:52:46 testCase.py [line:16] DEBUG get_testCaseType_command: SELECT test_cases_type.id, test_cases_type.name 
+FROM test_cases_type
+2020 Sep 16, Wed 10:52:46 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 10:52:46 testItem.py [line:91] DEBUG get_testItem_command: SELECT test_items.id, test_items.test_case_id, test_items.project_id, test_items.issue_id, test_items.name, test_items.is_passed, test_items.create_at, test_items.update_at, test_items.disabled 
+FROM test_items 
+WHERE test_items.test_case_id = :test_case_id_1 AND test_items.disabled = false
+2020 Sep 16, Wed 10:52:46 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 10:52:46 testItem.py [line:91] DEBUG get_testItem_command: SELECT test_items.id, test_items.test_case_id, test_items.project_id, test_items.issue_id, test_items.name, test_items.is_passed, test_items.create_at, test_items.update_at, test_items.disabled 
+FROM test_items 
+WHERE test_items.test_case_id = :test_case_id_1 AND test_items.disabled = false
+2020 Sep 16, Wed 10:52:46 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 10:52:46 testItem.py [line:91] DEBUG get_testItem_command: SELECT test_items.id, test_items.test_case_id, test_items.project_id, test_items.issue_id, test_items.name, test_items.is_passed, test_items.create_at, test_items.update_at, test_items.disabled 
+FROM test_items 
+WHERE test_items.test_case_id = :test_case_id_1 AND test_items.disabled = false
+2020 Sep 16, Wed 10:52:46 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 10:52:46 testItem.py [line:91] DEBUG get_testItem_command: SELECT test_items.id, test_items.test_case_id, test_items.project_id, test_items.issue_id, test_items.name, test_items.is_passed, test_items.create_at, test_items.update_at, test_items.disabled 
+FROM test_items 
+WHERE test_items.test_case_id = :test_case_id_1 AND test_items.disabled = false
+2020 Sep 16, Wed 10:52:46 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 10:52:46 testValue.py [line:108] DEBUG get_testValue_command: SELECT test_values.id, test_values.type_id, test_values.key, test_values.value, test_values.location_id, test_values.test_item_id, test_values.test_case_id, test_values.issue_id, test_values.project_id, test_values.create_at, test_values.update_at, test_values.disabled 
+FROM test_values 
+WHERE test_values.test_item_id = :test_item_id_1 AND test_values.disabled = false
+2020 Sep 16, Wed 10:52:46 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 10:52:46 testValue.py [line:108] DEBUG get_testValue_command: SELECT test_values.id, test_values.type_id, test_values.key, test_values.value, test_values.location_id, test_values.test_item_id, test_values.test_case_id, test_values.issue_id, test_values.project_id, test_values.create_at, test_values.update_at, test_values.disabled 
+FROM test_values 
+WHERE test_values.test_item_id = :test_item_id_1 AND test_values.disabled = false
+2020 Sep 16, Wed 10:52:46 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 10:52:46 testItem.py [line:91] DEBUG get_testItem_command: SELECT test_items.id, test_items.test_case_id, test_items.project_id, test_items.issue_id, test_items.name, test_items.is_passed, test_items.create_at, test_items.update_at, test_items.disabled 
+FROM test_items 
+WHERE test_items.test_case_id = :test_case_id_1 AND test_items.disabled = false
+2020 Sep 16, Wed 10:52:46 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 10:52:46 testItem.py [line:91] DEBUG get_testItem_command: SELECT test_items.id, test_items.test_case_id, test_items.project_id, test_items.issue_id, test_items.name, test_items.is_passed, test_items.create_at, test_items.update_at, test_items.disabled 
+FROM test_items 
+WHERE test_items.test_case_id = :test_case_id_1 AND test_items.disabled = false
+2020 Sep 16, Wed 10:52:46 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 10:52:46 testItem.py [line:91] DEBUG get_testItem_command: SELECT test_items.id, test_items.test_case_id, test_items.project_id, test_items.issue_id, test_items.name, test_items.is_passed, test_items.create_at, test_items.update_at, test_items.disabled 
+FROM test_items 
+WHERE test_items.test_case_id = :test_case_id_1 AND test_items.disabled = false
+2020 Sep 16, Wed 10:52:46 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 10:52:46 testValue.py [line:108] DEBUG get_testValue_command: SELECT test_values.id, test_values.type_id, test_values.key, test_values.value, test_values.location_id, test_values.test_item_id, test_values.test_case_id, test_values.issue_id, test_values.project_id, test_values.create_at, test_values.update_at, test_values.disabled 
+FROM test_values 
+WHERE test_values.test_item_id = :test_item_id_1 AND test_values.disabled = false
+2020 Sep 16, Wed 10:52:46 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 10:52:46 testValue.py [line:108] DEBUG get_testValue_command: SELECT test_values.id, test_values.type_id, test_values.key, test_values.value, test_values.location_id, test_values.test_item_id, test_values.test_case_id, test_values.issue_id, test_values.project_id, test_values.create_at, test_values.update_at, test_values.disabled 
+FROM test_values 
+WHERE test_values.test_item_id = :test_item_id_1 AND test_values.disabled = false
+2020 Sep 16, Wed 10:52:46 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 10:52:46 testItem.py [line:91] DEBUG get_testItem_command: SELECT test_items.id, test_items.test_case_id, test_items.project_id, test_items.issue_id, test_items.name, test_items.is_passed, test_items.create_at, test_items.update_at, test_items.disabled 
+FROM test_items 
+WHERE test_items.test_case_id = :test_case_id_1 AND test_items.disabled = false
+2020 Sep 16, Wed 10:52:46 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 10:52:46 testValue.py [line:108] DEBUG get_testValue_command: SELECT test_values.id, test_values.type_id, test_values.key, test_values.value, test_values.location_id, test_values.test_item_id, test_values.test_case_id, test_values.issue_id, test_values.project_id, test_values.create_at, test_values.update_at, test_values.disabled 
+FROM test_values 
+WHERE test_values.test_item_id = :test_item_id_1 AND test_values.disabled = false
+2020 Sep 16, Wed 10:52:46 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 10:52:46 testItem.py [line:91] DEBUG get_testItem_command: SELECT test_items.id, test_items.test_case_id, test_items.project_id, test_items.issue_id, test_items.name, test_items.is_passed, test_items.create_at, test_items.update_at, test_items.disabled 
+FROM test_items 
+WHERE test_items.test_case_id = :test_case_id_1 AND test_items.disabled = false
+2020 Sep 16, Wed 10:52:46 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 10:54:55 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 16, Wed 10:54:55 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 16, Wed 10:54:55 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 16, Wed 15:20:40 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 16, Wed 15:20:40 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 16, Wed 15:20:40 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 16, Wed 15:21:12 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 16, Wed 15:21:12 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 16, Wed 15:21:12 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 16, Wed 15:21:15 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 16, Wed 15:21:15 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 16, Wed 15:21:15 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 16, Wed 15:25:58 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 16, Wed 15:25:58 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 16, Wed 15:25:58 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 16, Wed 15:26:00 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 16, Wed 15:26:00 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 16, Wed 15:26:00 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 16, Wed 15:26:37 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 16, Wed 15:26:37 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 16, Wed 15:26:37 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 16, Wed 15:27:00 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 16, Wed 15:27:00 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 16, Wed 15:27:00 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 16, Wed 15:27:04 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 16, Wed 15:27:04 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 16, Wed 15:27:04 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 16, Wed 15:30:17 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 16, Wed 15:30:17 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 16, Wed 15:30:17 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 16, Wed 15:30:31 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 16, Wed 15:30:31 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 16, Wed 15:30:31 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 16, Wed 15:30:34 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 16, Wed 15:30:34 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 16, Wed 15:30:34 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 16, Wed 15:32:58 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 16, Wed 15:32:58 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 16, Wed 15:32:58 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 16, Wed 15:36:06 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 16, Wed 15:36:06 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 16, Wed 15:36:06 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 16, Wed 15:36:08 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 16, Wed 15:36:08 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 16, Wed 15:36:08 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 16, Wed 15:36:19 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 16, Wed 15:36:19 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 16, Wed 15:36:19 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 16, Wed 15:36:23 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 16, Wed 15:36:23 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 16, Wed 15:36:23 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 16, Wed 15:36:41 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 16, Wed 15:36:41 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 16, Wed 15:36:41 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 16, Wed 15:36:53 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 16, Wed 15:36:53 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 16, Wed 15:36:53 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 16, Wed 17:07:53 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 16, Wed 17:07:53 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 16, Wed 17:08:14 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 16, Wed 17:08:14 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 16, Wed 17:08:14 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 16, Wed 17:08:15 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 16, Wed 17:08:15 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 16, Wed 17:08:15 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 16, Wed 17:08:32 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 16, Wed 17:08:32 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 16, Wed 17:08:32 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 16, Wed 17:08:33 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 16, Wed 17:08:33 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 16, Wed 17:08:33 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 16, Wed 17:08:36 project.py [line:40] DEBUG select_project_user_role_command: SELECT project_user_role.project_id, project_user_role.user_id, project_user_role.role_id 
+FROM project_user_role 
+WHERE project_user_role.project_id = :project_id_1 AND project_user_role.user_id = :user_id_1
+2020 Sep 16, Wed 17:08:37 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 17:08:37 project.py [line:45] INFO reMessage: [(2, 87, 5)]
+2020 Sep 16, Wed 17:08:37 project.py [line:46] INFO reMessage len: 1
+2020 Sep 16, Wed 17:08:37 issue.py [line:140] DEBUG get_project_command: SELECT project_plugin_relation.project_id, project_plugin_relation.plan_project_id, project_plugin_relation.git_repository_id, project_plugin_relation.ci_project_id, project_plugin_relation.ci_pipeline_id 
+FROM project_plugin_relation 
+WHERE project_plugin_relation.project_id = :project_id_1
+2020 Sep 16, Wed 17:08:37 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 17:08:37 issue.py [line:143] DEBUG project_list: (2, 2, 11, 'c-n65kz:p-v2nzs', 'p-v2nzs:p-vqnw7')
+2020 Sep 16, Wed 17:08:37 redmine.py [line:27] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 16, Wed 17:08:39 redmine.py [line:48] INFO get issues by project output: {'issues': [{'id': 6, 'project': {'id': 2, 'name': '環境建構計畫WebUI開發'}, 'tracker': {'id': 1, 'name': 'Feature'}, 'status': {'id': 7, 'name': 'Active'}, 'priority': {'id': 3, 'name': '一般'}, 'author': {'id': 1, 'name': 'Redmine Admin'}, 'assigned_to': {'id': 8, 'name': 'kevin chang'}, 'subject': 'Web UI 工作清單', 'description': '開發專案清單頁面', 'start_date': '2020-05-05', 'due_date': '2020-05-06', 'done_ratio': 100, 'is_private': False, 'estimated_hours': 4.0, 'created_on': '2020-07-02T08:33:34Z', 'updated_on': '2020-07-03T11:13:17Z', 'closed_on': None}, {'id': 5, 'project': {'id': 2, 'name': '環境建構計畫WebUI開發'}, 'tracker': {'id': 1, 'name': 'Feature'}, 'status': {'id': 7, 'name': 'Active'}, 'priority': {'id': 2, 'name': '急'}, 'author': {'id': 1, 'name': 'Redmine Admin'}, 'assigned_to': {'id': 7, 'name': 'backy wu'}, 'subject': 'WebUI 專案清單', 'description': 'iServCloud 修改backend scheduler, 定期去檢查FT VM 到何運算節點，並把資訊更新到 nova DBaaa', 'start_date': '2020-05-04', 'due_date': '2020-05-05', 'done_ratio': 6, 'is_private': False, 'estimated_hours': 6.0, 'created_on': '2020-07-02T08:32:34Z', 'updated_on': '2020-09-06T12:07:49Z', 'closed_on': None}, {'id': 4, 'project': {'id': 2, 'name': '環境建構計畫WebUI開發'}, 'tracker': {'id': 1, 'name': 'Feature'}, 'status': {'id': 7, 'name': 'Active'}, 'priority': {'id': 1, 'name': '特急'}, 'author': {'id': 1, 'name': 'Redmine Admin'}, 'assigned_to': {'id': 6, 'name': 'nino lin'}, 'parent': {'id': 2}, 'subject': 'Subject changed2', 'description': '開發CI/CD內容詳細記錄頁面', 'start_date': '2020-05-12', 'due_date': '2020-07-10', 'done_ratio': 100, 'is_private': False, 'estimated_hours': 16.0, 'created_on': '2020-07-02T08:31:22Z', 'updated_on': '2020-09-04T10:20:14Z', 'closed_on': None}, {'id': 2, 'project': {'id': 2, 'name': '環境建構計畫WebUI開發'}, 'tracker': {'id': 1, 'name': 'Feature'}, 'status': {'id': 7, 'name': 'Active'}, 'priority': {'id': 1, 'name': '特急'}, 'author': {'id': 1, 'name': 'Redmine Admin'}, 'assigned_to': {'id': 7, 'name': 'backy wu'}, 'subject': 'RD Out API 文件', 'description': 'abc', 'start_date': '2020-05-12', 'due_date': '2020-07-10', 'done_ratio': 100, 'is_private': False, 'estimated_hours': 80.0, 'created_on': '2020-07-02T08:29:27Z', 'updated_on': '2020-09-06T03:56:48Z', 'closed_on': None}], 'total_count': 4, 'offset': 0, 'limit': 100}
+2020 Sep 16, Wed 17:08:39 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 17:08:39 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 17:08:39 issue.py [line:99] INFO get issue by user redmine_output: {'id': 6, 'project_id': 2, 'project_name': '環境建構計畫WebUI開發', 'issue_category': 'Feature', 'issue_priority': '一般', 'issue_status': 'Active', 'issue_name': 'Web UI 工作清單', 'description': '開發專案清單頁面', 'updated_on': '2020-07-03T11:13:17Z', 'start_date': '2020-05-05', 'due_date': '2020-05-06', 'assigned_to': 'kevin', 'parent_id': None, 'fixed_version_id': None, 'fixed_version_name': None}
+2020 Sep 16, Wed 17:08:39 util.py [line:76] INFO post url https://10.50.1.57/v3-public/localProviders/local?action=login
+2020 Sep 16, Wed 17:08:39 util.py [line:88] INFO Post api status code is : 201
+2020 Sep 16, Wed 17:08:39 rancher.py [line:31] INFO rancher_pipelineexecutions url: https://10.50.1.57/v3/projects/c-n65kz:p-v2nzs/pipelineexecutions?order=desc&pipelineId=p-v2nzs:p-vqnw7
+2020 Sep 16, Wed 17:08:40 util.py [line:126] INFO get api headers is : {'Content-Type': 'application/json', 'Authorization': 'Bearer token-8f56r:n9t8s44kts5dnhptknvcvrf8t7c5xz4w9k6mvs6rptq4x2wrkshfhv'}
+2020 Sep 16, Wed 17:08:40 util.py [line:127] INFO get api status code is : 200
+2020 Sep 16, Wed 17:08:40 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 17:08:40 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 17:08:40 issue.py [line:99] INFO get issue by user redmine_output: {'id': 5, 'project_id': 2, 'project_name': '環境建構計畫WebUI開發', 'issue_category': 'Feature', 'issue_priority': '急', 'issue_status': 'Active', 'issue_name': 'WebUI 專案清單', 'description': 'iServCloud 修改backend scheduler, 定期去檢查FT VM 到何運算節點，並把資訊更新到 nova DBaaa', 'updated_on': '2020-09-06T12:07:49Z', 'start_date': '2020-05-04', 'due_date': '2020-05-05', 'assigned_to': 'beckya', 'parent_id': None, 'fixed_version_id': None, 'fixed_version_name': None}
+2020 Sep 16, Wed 17:08:40 util.py [line:76] INFO post url https://10.50.1.57/v3-public/localProviders/local?action=login
+2020 Sep 16, Wed 17:08:40 util.py [line:88] INFO Post api status code is : 201
+2020 Sep 16, Wed 17:08:40 rancher.py [line:31] INFO rancher_pipelineexecutions url: https://10.50.1.57/v3/projects/c-n65kz:p-v2nzs/pipelineexecutions?order=desc&pipelineId=p-v2nzs:p-vqnw7
+2020 Sep 16, Wed 17:08:40 util.py [line:126] INFO get api headers is : {'Content-Type': 'application/json', 'Authorization': 'Bearer token-hks9x:pddwn9twbgppkfxsrsnj4lmkdzztskmsvt9ngwwk2gwqr8dt79448t'}
+2020 Sep 16, Wed 17:08:40 util.py [line:127] INFO get api status code is : 200
+2020 Sep 16, Wed 17:08:40 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 17:08:40 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 17:08:40 issue.py [line:99] INFO get issue by user redmine_output: {'id': 4, 'project_id': 2, 'project_name': '環境建構計畫WebUI開發', 'issue_category': 'Feature', 'issue_priority': '特急', 'issue_status': 'Active', 'issue_name': 'Subject changed2', 'description': '開發CI/CD內容詳細記錄頁面', 'updated_on': '2020-09-04T10:20:14Z', 'start_date': '2020-05-12', 'due_date': '2020-07-10', 'assigned_to': 'nino', 'parent_id': 2, 'fixed_version_id': None, 'fixed_version_name': None}
+2020 Sep 16, Wed 17:08:40 util.py [line:76] INFO post url https://10.50.1.57/v3-public/localProviders/local?action=login
+2020 Sep 16, Wed 17:08:40 util.py [line:88] INFO Post api status code is : 201
+2020 Sep 16, Wed 17:08:40 rancher.py [line:31] INFO rancher_pipelineexecutions url: https://10.50.1.57/v3/projects/c-n65kz:p-v2nzs/pipelineexecutions?order=desc&pipelineId=p-v2nzs:p-vqnw7
+2020 Sep 16, Wed 17:08:41 util.py [line:126] INFO get api headers is : {'Content-Type': 'application/json', 'Authorization': 'Bearer token-fbr4l:x87tczjx994gfl8wd4b9g4bmjg8gsjg228mdzbrmdcnvb2898qxnjr'}
+2020 Sep 16, Wed 17:08:41 util.py [line:127] INFO get api status code is : 200
+2020 Sep 16, Wed 17:08:41 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 17:08:41 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 17:08:41 issue.py [line:99] INFO get issue by user redmine_output: {'id': 2, 'project_id': 2, 'project_name': '環境建構計畫WebUI開發', 'issue_category': 'Feature', 'issue_priority': '特急', 'issue_status': 'Active', 'issue_name': 'RD Out API 文件', 'description': 'abc', 'updated_on': '2020-09-06T03:56:48Z', 'start_date': '2020-05-12', 'due_date': '2020-07-10', 'assigned_to': 'beckya', 'parent_id': None, 'fixed_version_id': None, 'fixed_version_name': None}
+2020 Sep 16, Wed 17:08:41 util.py [line:76] INFO post url https://10.50.1.57/v3-public/localProviders/local?action=login
+2020 Sep 16, Wed 17:08:41 util.py [line:88] INFO Post api status code is : 201
+2020 Sep 16, Wed 17:08:41 rancher.py [line:31] INFO rancher_pipelineexecutions url: https://10.50.1.57/v3/projects/c-n65kz:p-v2nzs/pipelineexecutions?order=desc&pipelineId=p-v2nzs:p-vqnw7
+2020 Sep 16, Wed 17:08:41 util.py [line:126] INFO get api headers is : {'Content-Type': 'application/json', 'Authorization': 'Bearer token-5j52r:f4ffvwhmsdcc26cljpnqrjmtmnbm9bmhkllwstphz4zvdwz56cg5l7'}
+2020 Sep 16, Wed 17:08:41 util.py [line:127] INFO get api status code is : 200
+2020 Sep 16, Wed 17:08:41 testCase.py [line:16] DEBUG get_testCaseType_command: SELECT test_cases_type.id, test_cases_type.name 
+FROM test_cases_type
+2020 Sep 16, Wed 17:08:41 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 17:08:41 testCase.py [line:119] DEBUG get_testCase_command: SELECT test_cases.id, test_cases.name, test_cases.description, test_cases.issue_id, test_cases.project_id, test_cases.create_at, test_cases.update_at, test_cases.disabled, test_cases.data, test_cases.type_id 
+FROM test_cases 
+WHERE test_cases.issue_id = :issue_id_1 AND test_cases.disabled = false
+2020 Sep 16, Wed 17:08:41 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 17:08:41 testCase.py [line:16] DEBUG get_testCaseType_command: SELECT test_cases_type.id, test_cases_type.name 
+FROM test_cases_type
+2020 Sep 16, Wed 17:08:41 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 17:08:41 testCase.py [line:16] DEBUG get_testCaseType_command: SELECT test_cases_type.id, test_cases_type.name 
+FROM test_cases_type
+2020 Sep 16, Wed 17:08:41 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 17:08:41 testCase.py [line:119] DEBUG get_testCase_command: SELECT test_cases.id, test_cases.name, test_cases.description, test_cases.issue_id, test_cases.project_id, test_cases.create_at, test_cases.update_at, test_cases.disabled, test_cases.data, test_cases.type_id 
+FROM test_cases 
+WHERE test_cases.issue_id = :issue_id_1 AND test_cases.disabled = false
+2020 Sep 16, Wed 17:08:41 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 17:08:41 testCase.py [line:16] DEBUG get_testCaseType_command: SELECT test_cases_type.id, test_cases_type.name 
+FROM test_cases_type
+2020 Sep 16, Wed 17:08:41 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 17:08:41 testCase.py [line:16] DEBUG get_testCaseType_command: SELECT test_cases_type.id, test_cases_type.name 
+FROM test_cases_type
+2020 Sep 16, Wed 17:08:42 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 17:08:42 testCase.py [line:119] DEBUG get_testCase_command: SELECT test_cases.id, test_cases.name, test_cases.description, test_cases.issue_id, test_cases.project_id, test_cases.create_at, test_cases.update_at, test_cases.disabled, test_cases.data, test_cases.type_id 
+FROM test_cases 
+WHERE test_cases.issue_id = :issue_id_1 AND test_cases.disabled = false
+2020 Sep 16, Wed 17:08:42 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 17:08:42 testCase.py [line:16] DEBUG get_testCaseType_command: SELECT test_cases_type.id, test_cases_type.name 
+FROM test_cases_type
+2020 Sep 16, Wed 17:08:42 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 17:08:42 testCase.py [line:16] DEBUG get_testCaseType_command: SELECT test_cases_type.id, test_cases_type.name 
+FROM test_cases_type
+2020 Sep 16, Wed 17:08:42 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 17:08:42 testCase.py [line:119] DEBUG get_testCase_command: SELECT test_cases.id, test_cases.name, test_cases.description, test_cases.issue_id, test_cases.project_id, test_cases.create_at, test_cases.update_at, test_cases.disabled, test_cases.data, test_cases.type_id 
+FROM test_cases 
+WHERE test_cases.issue_id = :issue_id_1 AND test_cases.disabled = false
+2020 Sep 16, Wed 17:08:42 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 17:08:42 testCase.py [line:16] DEBUG get_testCaseType_command: SELECT test_cases_type.id, test_cases_type.name 
+FROM test_cases_type
+2020 Sep 16, Wed 17:08:42 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 17:08:42 testItem.py [line:91] DEBUG get_testItem_command: SELECT test_items.id, test_items.test_case_id, test_items.project_id, test_items.issue_id, test_items.name, test_items.is_passed, test_items.create_at, test_items.update_at, test_items.disabled 
+FROM test_items 
+WHERE test_items.test_case_id = :test_case_id_1 AND test_items.disabled = false
+2020 Sep 16, Wed 17:08:42 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 17:08:42 testItem.py [line:91] DEBUG get_testItem_command: SELECT test_items.id, test_items.test_case_id, test_items.project_id, test_items.issue_id, test_items.name, test_items.is_passed, test_items.create_at, test_items.update_at, test_items.disabled 
+FROM test_items 
+WHERE test_items.test_case_id = :test_case_id_1 AND test_items.disabled = false
+2020 Sep 16, Wed 17:08:42 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 17:08:42 testItem.py [line:91] DEBUG get_testItem_command: SELECT test_items.id, test_items.test_case_id, test_items.project_id, test_items.issue_id, test_items.name, test_items.is_passed, test_items.create_at, test_items.update_at, test_items.disabled 
+FROM test_items 
+WHERE test_items.test_case_id = :test_case_id_1 AND test_items.disabled = false
+2020 Sep 16, Wed 17:08:42 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 17:08:42 testItem.py [line:91] DEBUG get_testItem_command: SELECT test_items.id, test_items.test_case_id, test_items.project_id, test_items.issue_id, test_items.name, test_items.is_passed, test_items.create_at, test_items.update_at, test_items.disabled 
+FROM test_items 
+WHERE test_items.test_case_id = :test_case_id_1 AND test_items.disabled = false
+2020 Sep 16, Wed 17:08:42 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 17:08:42 testValue.py [line:108] DEBUG get_testValue_command: SELECT test_values.id, test_values.type_id, test_values.key, test_values.value, test_values.location_id, test_values.test_item_id, test_values.test_case_id, test_values.issue_id, test_values.project_id, test_values.create_at, test_values.update_at, test_values.disabled 
+FROM test_values 
+WHERE test_values.test_item_id = :test_item_id_1 AND test_values.disabled = false
+2020 Sep 16, Wed 17:08:42 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 17:08:42 testValue.py [line:108] DEBUG get_testValue_command: SELECT test_values.id, test_values.type_id, test_values.key, test_values.value, test_values.location_id, test_values.test_item_id, test_values.test_case_id, test_values.issue_id, test_values.project_id, test_values.create_at, test_values.update_at, test_values.disabled 
+FROM test_values 
+WHERE test_values.test_item_id = :test_item_id_1 AND test_values.disabled = false
+2020 Sep 16, Wed 17:08:42 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 17:08:42 testItem.py [line:91] DEBUG get_testItem_command: SELECT test_items.id, test_items.test_case_id, test_items.project_id, test_items.issue_id, test_items.name, test_items.is_passed, test_items.create_at, test_items.update_at, test_items.disabled 
+FROM test_items 
+WHERE test_items.test_case_id = :test_case_id_1 AND test_items.disabled = false
+2020 Sep 16, Wed 17:08:42 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 17:08:42 testItem.py [line:91] DEBUG get_testItem_command: SELECT test_items.id, test_items.test_case_id, test_items.project_id, test_items.issue_id, test_items.name, test_items.is_passed, test_items.create_at, test_items.update_at, test_items.disabled 
+FROM test_items 
+WHERE test_items.test_case_id = :test_case_id_1 AND test_items.disabled = false
+2020 Sep 16, Wed 17:08:42 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 17:08:42 testItem.py [line:91] DEBUG get_testItem_command: SELECT test_items.id, test_items.test_case_id, test_items.project_id, test_items.issue_id, test_items.name, test_items.is_passed, test_items.create_at, test_items.update_at, test_items.disabled 
+FROM test_items 
+WHERE test_items.test_case_id = :test_case_id_1 AND test_items.disabled = false
+2020 Sep 16, Wed 17:08:42 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 17:08:42 testValue.py [line:108] DEBUG get_testValue_command: SELECT test_values.id, test_values.type_id, test_values.key, test_values.value, test_values.location_id, test_values.test_item_id, test_values.test_case_id, test_values.issue_id, test_values.project_id, test_values.create_at, test_values.update_at, test_values.disabled 
+FROM test_values 
+WHERE test_values.test_item_id = :test_item_id_1 AND test_values.disabled = false
+2020 Sep 16, Wed 17:08:42 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 17:08:42 testValue.py [line:108] DEBUG get_testValue_command: SELECT test_values.id, test_values.type_id, test_values.key, test_values.value, test_values.location_id, test_values.test_item_id, test_values.test_case_id, test_values.issue_id, test_values.project_id, test_values.create_at, test_values.update_at, test_values.disabled 
+FROM test_values 
+WHERE test_values.test_item_id = :test_item_id_1 AND test_values.disabled = false
+2020 Sep 16, Wed 17:08:42 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 17:08:42 testItem.py [line:91] DEBUG get_testItem_command: SELECT test_items.id, test_items.test_case_id, test_items.project_id, test_items.issue_id, test_items.name, test_items.is_passed, test_items.create_at, test_items.update_at, test_items.disabled 
+FROM test_items 
+WHERE test_items.test_case_id = :test_case_id_1 AND test_items.disabled = false
+2020 Sep 16, Wed 17:08:42 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 17:08:42 testValue.py [line:108] DEBUG get_testValue_command: SELECT test_values.id, test_values.type_id, test_values.key, test_values.value, test_values.location_id, test_values.test_item_id, test_values.test_case_id, test_values.issue_id, test_values.project_id, test_values.create_at, test_values.update_at, test_values.disabled 
+FROM test_values 
+WHERE test_values.test_item_id = :test_item_id_1 AND test_values.disabled = false
+2020 Sep 16, Wed 17:08:42 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 17:08:42 testItem.py [line:91] DEBUG get_testItem_command: SELECT test_items.id, test_items.test_case_id, test_items.project_id, test_items.issue_id, test_items.name, test_items.is_passed, test_items.create_at, test_items.update_at, test_items.disabled 
+FROM test_items 
+WHERE test_items.test_case_id = :test_case_id_1 AND test_items.disabled = false
+2020 Sep 16, Wed 17:08:42 util.py [line:65] INFO Call SQL successful messages: <class 'sqlalchemy.engine.result.ResultProxy'>
+2020 Sep 16, Wed 17:08:54 redmine.py [line:19] INFO redmine_key: dbb6c8960e37bd774718b99c659db5332c788de8
+2020 Sep 16, Wed 17:08:54 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
+2020 Sep 16, Wed 17:08:54 project.py [line:34] INFO private_token: _gTC84sWy8QgrXwzmz3D
