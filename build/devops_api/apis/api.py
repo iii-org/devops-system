@@ -250,12 +250,12 @@ class GitProjectWebhooks(Resource):
         output = pjt.delete_git_project_webhook(logger, app, project_id, args)
 
 
-class ProjectList(Resource):
+class ProjectsByUser(Resource):
     @jwt_required
     def get(self, user_id):
         if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity(
         )['role_id'] in (3, 5):
-            output = pjt.get_project_list(logger, app, user_id)
+            output = pjt.get_projects_by_user(logger, app, user_id)
             return output
         else:
             return {'message': 'Access token is missing or invalid'}, 401
@@ -1815,7 +1815,7 @@ api.add_resource(GitProjectNetwork, '/repositories/<repository_id>/overview')
 api.add_resource(GitProjectId, '/repositories/<repository_id>/id')
 
 # Project
-api.add_resource(ProjectList, '/project/<int:user_id>')
+api.add_resource(ProjectsByUser, '/projects_by_user/<int:user_id>')
 api.add_resource(ProjectUserList, '/project/<int:project_id>/user/list')
 api.add_resource(ProjectAddMember, '/project/<int:project_id>/member')
 api.add_resource(ProjectDeleteMember,
