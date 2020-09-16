@@ -103,8 +103,9 @@ class Issue(object):
 
     def verify_issue_user(self, logger, app, issue_id, user_id):
         # base on issus get project
-        issue_info = Issue.get_issue_rd(self, logger, app, issue_id)
-        project_id = issue_info['project']['id']
+        issue_info, status_code = Issue.get_issue_rd(self, logger, app, issue_id)
+        logger.debug("issue_id: {0}, issue_info: {1}".format(issue_id, issue_info))
+        project_id = issue_info['data']['project']['id']
         logger.info("issue_info: {0}".format(issue_info))
         select_project_user_role_command = db.select([ProjectUserRole.stru_project_user_role])\
             .where(db.and_(ProjectUserRole.stru_project_user_role.c.project_id==project_id, \
