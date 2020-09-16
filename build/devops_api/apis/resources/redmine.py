@@ -99,7 +99,7 @@ class Redmine(object):
                               headers=self.headers,
                               verify=False)
         logger.info("update issues output: {0}, status_code: {1}".format(
-            output, output.status_code))
+            output.text, output.status_code))
         return output, output.status_code
 
     def redmine_delete_issue(self, logger, app, issue_id):

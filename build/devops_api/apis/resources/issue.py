@@ -423,14 +423,18 @@ class Issue(object):
         if 'parent_id' in args:
             args['parent_issue_id'] = args['parent_id']
             args.pop('parent_id', None)
-        logger.info("args: {0}".format(args))
+        if "assigned_to_id" in args:
+            user_plugin_relation = auth.get_user_plugin_relation(
+                self, logger, user_id=args['assigned_to_id'])
+            args['assigned_to_id'] = user_plugin_relation['plan_user_id']
+        logger.info("update_issue_rd args: {0}".format(args))
         Redmine.get_redmine_key(self, logger, app)
         output, status_code = Redmine.redmine_update_issue(
             self, logger, app, issue_id, args)
         if status_code == 204:
             return {"message": "success"}, 200
         else:
-            return {"message": "update issue failed"}, 400
+            return {"message": "update issue failed, {0}".format(output.text)}, 400
 
     def delete_issue(self, logger, app, issue_id):
         Redmine.get_redmine_key(self, logger, app)
