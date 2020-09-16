@@ -85,7 +85,8 @@ class Issue(object):
         if 'assigned_to' in redmine_output:
             userInfo = auth.get_useridname_by_planuserid(self, logger, \
                 redmine_output['assigned_to']['id'])
-            output_list['assigned_to'] = userInfo['name']
+            if userInfo is not None:
+                output_list['assigned_to'] = userInfo['name']
         output_list['parent_id'] = None
         if 'parent' in redmine_output:
             output_list['parent_id'] = redmine_output['parent']['id']
@@ -102,8 +103,9 @@ class Issue(object):
 
     def verify_issue_user(self, logger, app, issue_id, user_id):
         # base on issus get project
-        issue_info = Issue.get_issue_rd(self, logger, app, issue_id)
-        project_id = issue_info['project']['id']
+        issue_info, status_code = Issue.get_issue_rd(self, logger, app, issue_id)
+        logger.debug("issue_id: {0}, issue_info: {1}".format(issue_id, issue_info))
+        project_id = issue_info['data']['project']['id']
         logger.info("issue_info: {0}".format(issue_info))
         select_project_user_role_command = db.select([ProjectUserRole.stru_project_user_role])\
             .where(db.and_(ProjectUserRole.stru_project_user_role.c.project_id==project_id, \
@@ -422,14 +424,18 @@ class Issue(object):
         if 'parent_id' in args:
             args['parent_issue_id'] = args['parent_id']
             args.pop('parent_id', None)
-        logger.info("args: {0}".format(args))
+        if "assigned_to_id" in args:
+            user_plugin_relation = auth.get_user_plugin_relation(
+                self, logger, user_id=args['assigned_to_id'])
+            args['assigned_to_id'] = user_plugin_relation['plan_user_id']
+        logger.info("update_issue_rd args: {0}".format(args))
         Redmine.get_redmine_key(self, logger, app)
         output, status_code = Redmine.redmine_update_issue(
             self, logger, app, issue_id, args)
         if status_code == 204:
             return {"message": "success"}, 200
         else:
-            return {"message": "update issue failed"}, 400
+            return {"message": "update issue failed, {0}".format(output.text)}, 400
 
     def delete_issue(self, logger, app, issue_id):
         Redmine.get_redmine_key(self, logger, app)

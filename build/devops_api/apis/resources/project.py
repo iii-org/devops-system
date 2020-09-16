@@ -149,7 +149,7 @@ class Project(object):
         result.close()
         return project
 
-    def get_project_list(self, logger, app, user_id):
+    def get_projects_by_user(self, logger, app, user_id):
         output_array = []
         result = db.engine.execute(
             "SELECT pj.id, pj.name, ppl.plan_project_id, \
