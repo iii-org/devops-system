@@ -4,6 +4,7 @@ import logging
 import requests
 from flask import send_file
 from io import BytesIO
+import time
 
 logger = logging.getLogger('devops.api')
 
@@ -11,7 +12,33 @@ logger = logging.getLogger('devops.api')
 class CheckMarx(object):
     headers = {'Content-Type': 'application/json'}
 
-    def post_report(self, logger, args):
+    def __init__(self, app):
+        self.app = app
+        self.access_token = None
+        self.expire_at = 0
+
+    def token(self):
+        if time.time() > self.expire_at:
+            self.login()
+        return self.access_token
+
+    def build_url(self, path):
+        return self.app.config['CHECKMARX_ORIGIN'] + path
+
+    def login(self):
+        url = self.build_url('/auth/identity/connect/token')
+        data = {'userName': self.app.config['CHECKMARX_USERNAME'],
+                'password': self.app.config['CHECKMARX_PASSWORD'],
+                'grant_type': 'password',
+                'scope': 'sast_rest_api',
+                'client_id': 'resource_owner_client',
+                'client_secret': self.app.config['CHECKMARX_SECRET']
+                }
+        self.access_token = requests.post(url, data).json().get('access_token')
+        self.expire_at = time.time() + 86400  # 1 day
+
+    @staticmethod
+    def post_report(args):
         try:
             db.engine.execute(
                 "INSERT INTO public.checkmarx "
@@ -28,22 +55,16 @@ class CheckMarx(object):
         except Exception as e:
             return {"message": "error", "data": e.__str__()}, 400
 
-    def get_report(self, logger, app, report_id):
-        try:
-            # Get Checkmarx token
-            url = app.config['CHECKMARX_ORIGIN'] + '/auth/identity/connect/token'
-            data = {'userName': app.config['CHECKMARX_USERNAME'],
-                    'password': app.config['CHECKMARX_PASSWORD'],
-                    'grant_type': 'password',
-                    'scope': 'sast_rest_api',
-                    'client_id': 'resource_owner_client',
-                    'client_secret': app.config['CHECKMARX_SECRET']
-                    }
-            token = requests.post(url, data).json().get('access_token')
+    def get_scan_status(self, scan_id):
+        url = self.build_url('/sast/scans/' + scan_id)
+        status = requests.get(url).json().status
+        return status.id, status.name
 
+    def get_report(self, report_id):
+        try:
             # Get report
-            url = app.config['CHECKMARX_ORIGIN'] + '/reports/sastScan/' + report_id
-            headers = {'Authorization': 'Bearer ' + token}
+            url = self.app.config['CHECKMARX_ORIGIN'] + '/reports/sastScan/' + report_id
+            headers = {'Authorization': 'Bearer ' + self.token()}
             r = requests.get(url, headers=headers, allow_redirects=True)
             file_obj = BytesIO(r.content)
             return send_file(

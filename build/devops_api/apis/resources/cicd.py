@@ -5,21 +5,24 @@ from .project import Project
 from .testCase import TestCase
 from .testItem import TestItem
 from .testValue import TestValue
+import logging
+
+logger = logging.getLogger('devops.api')
 
 
 class Cicd(object):
-    def __init__(self, logger, app):
+    def __init__(self, app):
         self.pjt = Project(logger, app)
         self.iss = Issue()
         self.tc = TestCase()
         self.ti = TestItem()
         self.tv = TestValue()
 
-    def export_to_postman(self, logger, app, project_id, target, jwt_identity):
+    def export_to_postman(self, app, project_id, target, jwt_identity):
         status = self.pjt.verify_project_user(logger, project_id, jwt_identity)
         if not status:
-            return {'message': 'Don\'t have authorization to access issue list on project: {0}' \
-                .format(project_id)}, 401
+            return {'message': 'Don\'t have authorization to access issue list on project: {0}'
+                    .format(project_id)}, 401
         output = {
             'info': {
                 'name':

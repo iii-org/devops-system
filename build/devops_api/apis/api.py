@@ -64,8 +64,8 @@ ti = testItem.TestItem()
 tv = testValue.TestValue()
 td = testData.TestData()
 tr = testResult.TestResult()
-ci = cicd.Cicd(logger, app)
-cm = checkmarx.CheckMarx()
+ci = cicd.Cicd(app)
+cm = checkmarx.CheckMarx(app)
 
 
 class Index(Resource):
@@ -1182,7 +1182,9 @@ class IssueStatistics(Resource):
 class NotFinishIssueStatistics(Resource):
     @jwt_required
     def get(self):
-        output = iss.get_not_finish_issue_statistics(logger, app, get_jwt_identity()['user_id'])
+        output = iss.get_not_finish_issue_statistics(
+            logger, app,
+            get_jwt_identity()['user_id'])
         return output
 
 
@@ -1737,7 +1739,7 @@ class TestResult(Resource):
         parser.add_argument('total', type=int, required=True)
         parser.add_argument('fail', type=int, required=True)
         args = parser.parse_args()
-        output = tr.save(logger, args)
+        output = tr.save(args)
         return output
 
 
@@ -1746,7 +1748,7 @@ class ExportToPostman(Resource):
     def get(self, project_id):
         jwt_identity = get_jwt_identity()['user_id']
         target = flask_req.args.get('target')
-        output = ci.export_to_postman(logger, app, project_id, target, jwt_identity)
+        output = ci.export_to_postman(app, project_id, target, jwt_identity)
         return output
 
 
@@ -1760,7 +1762,7 @@ class DumpByIssue(Resource):
 class GetCheckmarxReport(Resource):
     @jwt_required
     def get(self, report_id):
-        return cm.get_report(logger, app, report_id)
+        return cm.get_report(report_id)
 
 
 class PostCheckmarxReport(Resource):
@@ -1774,6 +1776,22 @@ class PostCheckmarxReport(Resource):
         args = parser.parse_args()
         output = cm.post_report(logger, args)
         return output
+
+
+class SonarReport(Resource):
+    @jwt_required
+    def get(self, project_id):
+        role_id = get_jwt_identity()["role_id"]
+        print("role_id={0}".format(role_id))
+
+        if role_id in (3, 5):
+            try:
+                output = pjt.get_sonar_report(logger, app, project_id)
+                return output
+            except Exception as error:
+                return {"message": str(error)}, 400
+        else:
+            return {"message": "your role art not PM/administrator"}, 401
 
 
 api.add_resource(Index, '/')
@@ -1927,6 +1945,9 @@ api.add_resource(GetCheckmarxReport, '/checkmarx_report/<report_id>')
 
 # Get everything by issue_id
 api.add_resource(DumpByIssue, '/dump_by_issue/<issue_id>')
+
+# Get Sonarqube report by project_id
+api.add_resource(SonarReport, '/sonar_report/<project_id>')
 
 if __name__ == "__main__":
     db.init_app(app)
