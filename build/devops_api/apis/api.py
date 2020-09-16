@@ -308,7 +308,6 @@ class UserInfo(Resource):
             parser.add_argument('password', type=str)
             parser.add_argument('phone', type=int)
             parser.add_argument('email', type=str)
-            parser.add_argument('project_id', action='append')
             parser.add_argument('status', type=str)
             args = parser.parse_args()
             try:

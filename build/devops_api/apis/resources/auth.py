@@ -140,6 +140,7 @@ class auth(object):
                 TableProjects.stru_projects, ProjectPluginRelation.stru_project_plug_relation])\
                 .where(db.and_(\
                 ProjectUserRole.stru_project_user_role.c.user_id==user_id, \
+                ProjectUserRole.stru_project_user_role.c.project_id!=-1,\
                 ProjectUserRole.stru_project_user_role.c.project_id==\
                 TableProjects.stru_projects.c.id,
                 ProjectUserRole.stru_project_user_role.c.project_id==\
@@ -203,40 +204,6 @@ class auth(object):
             "UPDATE public.user SET {0} WHERE id = {1}".format(
                 set_string, user_id))
         logger.debug("update db reslut: {0}".format(result))
-        # update project_user_role
-        if args["project_id"] is not None:
-            # get user role_id
-            select_pjuerl_by_userid = db.select([ProjectUserRole.stru_project_user_role]).where(db.and_(\
-                ProjectUserRole.stru_project_user_role.c.user_id==user_id))
-            logger.debug(
-                "select_pjuerl_by_userid: {0}".format(select_pjuerl_by_userid))
-            data_pjuerl_by_userid = util.callsqlalchemy(
-                self, select_pjuerl_by_userid, logger).fetchone()
-            logger.debug(
-                "data_pjuerl_by_userid: {0}".format(data_pjuerl_by_userid))
-
-            for project_id in args["project_id"]:
-                select_pjuerl_by_userpjtrl = db.select([ProjectUserRole.stru_project_user_role]).where(db.and_(\
-                ProjectUserRole.stru_project_user_role.c.user_id==user_id,\
-                ProjectUserRole.stru_project_user_role.c.project_id==project_id,\
-                ProjectUserRole.stru_project_user_role.c.role_id==data_pjuerl_by_userid['role_id']))
-                logger.debug("select_pjuerl_by_userpjtrl: {0}".format(
-                    select_pjuerl_by_userpjtrl))
-                data_pjuerl_by_userpjtrl = util.callsqlalchemy(
-                    self, select_pjuerl_by_userpjtrl, logger).fetchone()
-                logger.debug("data_pjuerl_by_userpjtrl: {0}".format(
-                    data_pjuerl_by_userpjtrl))
-
-                if not data_pjuerl_by_userpjtrl:
-                    # insert role and user into project_user_role
-                    insert_project_user_role_command = db.insert(ProjectUserRole.stru_project_user_role)\
-                        .values(user_id = user_id, role_id = data_pjuerl_by_userid['role_id'], project_id = project_id)
-                    logger.debug(
-                        "insert_project_user_role_command: {0}".format(
-                            insert_project_user_role_command))
-                    reMessage = util.callsqlalchemy(
-                        self, insert_project_user_role_command, logger)
-                    logger.info("reMessage: {0}".format(reMessage))
 
         return {'message': 'success'}, 200
 
@@ -411,7 +378,7 @@ class auth(object):
                 logger.info("reMessage: {0}".format(reMessage))
 
         insert_project_user_role_command = db.insert(ProjectUserRole.stru_project_user_role)\
-            .values(user_id = user_id, role_id = args['role_id'])
+            .values(project_id = -1, user_id = user_id, role_id = args['role_id'])
         logger.debug("insert_project_user_role_command: {0}".format(
             insert_project_user_role_command))
         reMessage = util.callsqlalchemy(self, insert_project_user_role_command,
@@ -467,6 +434,7 @@ class auth(object):
                 select_project_by_userid = db.select([ProjectUserRole.stru_project_user_role, \
                     TableProjects.stru_projects]).where(db.and_(\
                     ProjectUserRole.stru_project_user_role.c.user_id==user_data["id"], \
+                    ProjectUserRole.stru_project_user_role.c.project_id!=-1, \
                     ProjectUserRole.stru_project_user_role.c.project_id==\
                     TableProjects.stru_projects.c.id))
                 output_project_array = util.callsqlalchemy(
