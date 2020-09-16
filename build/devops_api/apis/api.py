@@ -1746,7 +1746,8 @@ class ExportToPostman(Resource):
     @jwt_required
     def get(self, project_id):
         jwt_identity = get_jwt_identity()['user_id']
-        output = ci.export_to_postman(logger, app, project_id, jwt_identity)
+        target = flask_req.args.get('target')
+        output = ci.export_to_postman(logger, app, project_id, target, jwt_identity)
         return output
 
 
