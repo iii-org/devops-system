@@ -85,7 +85,8 @@ class Issue(object):
         if 'assigned_to' in redmine_output:
             userInfo = auth.get_useridname_by_planuserid(self, logger, \
                 redmine_output['assigned_to']['id'])
-            output_list['assigned_to'] = userInfo['name']
+            if userInfo is not None:
+                output_list['assigned_to'] = userInfo['name']
         output_list['parent_id'] = None
         if 'parent' in redmine_output:
             output_list['parent_id'] = redmine_output['parent']['id']
