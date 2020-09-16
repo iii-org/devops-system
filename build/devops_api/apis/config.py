@@ -27,7 +27,7 @@ JWT_SECRET_KEY = 'iii-devops'
 
 WTF_CSRF_CHECK_DEFAULT = False
 
-#FLASK JSON
+# FLASK JSON
 JSON_AS_ASCII = False
 
 # SonarQube

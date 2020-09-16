@@ -510,53 +510,47 @@ class auth(object):
 
     def get_userlist_by_project(self, logger, project_id, args):
         logger.debug("args[exclude] {0}".format(args["exclude"]))
+
         if args["exclude"] is not None and args["exclude"] == 1:
             # exclude project users
-            select_userRole_by_project = db.select([ProjectUserRole.stru_project_user_role, \
-            User.stru_user, TableRole.stru_role])\
-            .where(db.and_(ProjectUserRole.stru_project_user_role.c.project_id!=project_id,\
-            ProjectUserRole.stru_project_user_role.c.role_id!=5,\
-            ProjectUserRole.stru_project_user_role.c.user_id==User.stru_user.c.id,\
-            User.stru_user.c.disabled == False,\
-            ProjectUserRole.stru_project_user_role.c.role_id==TableRole.stru_role.c.id))\
-            .distinct(ProjectUserRole.stru_project_user_role.c.user_id)\
-            .order_by(db.desc(ProjectUserRole.stru_project_user_role.c.user_id))
-            logger.debug("select_userRole_by_project: {0}".format(
-                select_userRole_by_project))
+            select_all_user_cmd = "select distinct on (ur.id) * from public.user as ur, \
+                public.project_user_role as pur , public.roles as rl \
+                where ur.disabled is false and ur.id = pur.user_id and pur.role_id!=5 and\
+                pur.role_id=rl.id ORDER BY ur.id DESC"
+
+            logger.debug(
+                "select_all_user_cmd: {0}".format(select_all_user_cmd))
             data_userRole_by_project_array = util.callsqlalchemy(
-                self, select_userRole_by_project, logger).fetchall()
+                self, select_all_user_cmd, logger).fetchall()
             logger.debug("data_userRole_by_project_array: {0}".format(
                 data_userRole_by_project_array))
-
-            # get user list when project is project_id
-            select_userid_by_project_array = db.select([ProjectUserRole.stru_project_user_role]) \
-                .where(db.and_(ProjectUserRole.stru_project_user_role.c.project_id==project_id))
-            data_userid_by_project_array = util.callsqlalchemy(
-                self, select_userid_by_project_array, logger).fetchall()
-            logger.debug("data_userid_by_project_array: {0}".format(
-                data_userid_by_project_array))
-
-            count_duplicate = []
-            for data_userRole_by_project in data_userRole_by_project_array:
-                for data_userid_by_project in data_userid_by_project_array:
-                    if data_userRole_by_project[ProjectUserRole.stru_project_user_role.c.user_id]\
-                        == data_userid_by_project[ProjectUserRole.stru_project_user_role.c.user_id]:
-                        logger.debug(type(data_userRole_by_project))
-                        count_duplicate.append(data_userRole_by_project[
-                            ProjectUserRole.stru_project_user_role.c.user_id])
-            count_duplicate = list(set(count_duplicate))
-            logger.debug("count_duplicate: {0}".format(count_duplicate))
+            select_user_in_this_project_list_cmd = "select distinct pur.user_id \
+                from public.project_user_role pur, public.user u , public.roles r \
+                where pur.project_id={0} and pur.role_id!=5 and pur.user_id=u.id and \
+                u.disabled is false and pur.role_id=r.id \
+                order by pur.user_id DESC".format(project_id)
+            logger.debug("select_user_in_this_project_list_cmd: {0}".format(
+                select_user_in_this_project_list_cmd))
+            select_user_in_this_project_list_output = util.callsqlalchemy(
+                self, select_user_in_this_project_list_cmd, logger).fetchall()
+            logger.debug("select_user_in_this_project_list_output: {0}".format(
+                select_user_in_this_project_list_output))
             i = 0
             while i < len(data_userRole_by_project_array):
-                if data_userRole_by_project_array[i][
-                        ProjectUserRole.stru_project_user_role.c.
-                        user_id] in count_duplicate:
-                    data_userRole_by_project_array.pop(i)
-                else:
-                    i += 1
+                j = 0
+                while j < len(select_user_in_this_project_list_output):
+                    # logger.debug("data_userRole_by_project_array['id']: {0}".format(data_userRole_by_project_array[i][0]))
+                    # logger.debug("select_user_in_this_project_list: {0}".format(select_user_in_this_project_list_output[j][0]))
+                    if data_userRole_by_project_array[i][
+                            0] == select_user_in_this_project_list_output[j][
+                                0]:
+                        del data_userRole_by_project_array[i]
+                    j += 1
+                i += 1
+                #logger.debug("j times: {0}".format(j))
+            #logger.debug("i times: {0}".format(i))
             logger.debug("data_userRole_by_project_array: {0}".format(
                 data_userRole_by_project_array))
-
         else:
             # in project users
             select_userRole_by_project = db.select([ProjectUserRole.stru_project_user_role, \
@@ -578,9 +572,6 @@ class auth(object):
             logger.debug("data_userRole_by_project: {0}".format(
                 data_userRole_by_project[
                     ProjectUserRole.stru_project_user_role.c.user_id]))
-            status = "disable"
-            if data_userRole_by_project[User.stru_user.c.disabled] == False:
-                status = "enable"
 
             user_list.append({
                 "id":
@@ -606,11 +597,6 @@ class auth(object):
                 data_userRole_by_project[TableRole.stru_role.c.id],
                 "role_name":
                 data_userRole_by_project[TableRole.stru_role.c.name],
-                "project_id":
-                data_userRole_by_project[
-                    ProjectUserRole.stru_project_user_role.c.project_id],
-                "status":
-                status
             })
         return {"message": "success", "data": {"user_list": user_list}}, 200
 
@@ -634,12 +620,14 @@ class auth(object):
         else:
             return {"message": "Projett_user_role table already has data"}, 400
         # get redmine_role_id from role_id
-        redmine_role_id = auth.get_redmineRoleID_by_roleID(self, logger, role_id)
+        redmine_role_id = auth.get_redmineRoleID_by_roleID(
+            self, logger, role_id)
 
         # get redmine, gitlab user_id
         redmine_user_id = None
         gitlab_user_id = None
-        user_relation = auth.get_user_plugin_relation(self, logger,
+        user_relation = auth.get_user_plugin_relation(self,
+                                                      logger,
                                                       user_id=args['user_id'])
         logger.debug("user_relation_list: {0}".format(user_relation))
         if user_relation is not None:
@@ -692,12 +680,15 @@ class auth(object):
         role_id = auth.get_roleID_by_userID(self, logger, user_id)
 
         # get redmine role_id
-        redmine_role_id = auth.get_redmineRoleID_by_roleID(self, logger, role_id)
+        redmine_role_id = auth.get_redmineRoleID_by_roleID(
+            self, logger, role_id)
 
         # get redmine, gitlab user_id
         redmine_user_id = None
         gitlab_user_id = None
-        user_relation = auth.get_user_plugin_relation(self, logger, user_id=user_id)
+        user_relation = auth.get_user_plugin_relation(self,
+                                                      logger,
+                                                      user_id=user_id)
         logger.debug("user_relation_list: {0}".format(user_relation))
         if user_relation is not None:
             redmine_user_id = user_relation['plan_user_id']
@@ -788,8 +779,7 @@ class auth(object):
             }, 200
         else:
             return {"message": "Could not get role list"}, 400
-    
-    
+
     def get_useridname_by_planuserid(self, logger, plan_user_id):
         get_useridname_cmd = db.select([UserPluginRelation.stru_user_plug_relation,
                                 User.stru_user]).where(db.and_(\
