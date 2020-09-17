@@ -33,9 +33,14 @@ class Issue(object):
         logger.info("redmine get redmine_output: {0}".format(redmine_output))
         prject_list = Project.get_project_by_plan_project_id\
             (self, logger, redmine_output['project']['id'])
-        project_name = Project.get_project_info(self, logger, prject_list['id'])['name']
-        redmine_output['project']['id'] = prject_list['id']
-        redmine_output['project']['name'] = project_name
+        logger.debug("prject_list: {0}".format(prject_list))
+        if prject_list is not None:
+            project_name = Project.get_project_info(self, logger, prject_list['project_id'])['name']
+            redmine_output['project']['id'] = prject_list['id']
+            redmine_output['project']['name'] = project_name
+        else:
+            redmine_output['project']['id'] = None
+            redmine_output['project']['name'] = None
         if 'assigned_to' in redmine_output:
             userInfo = auth.get_useridname_by_planuserid(self, logger, \
                 redmine_output['assigned_to']['id'])
