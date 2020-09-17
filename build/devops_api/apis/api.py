@@ -1759,23 +1759,39 @@ class DumpByIssue(Resource):
         return output
 
 
-class GetCheckmarxReport(Resource):
-    @jwt_required
-    def get(self, report_id):
-        return cm.get_report(report_id)
-
-
-class PostCheckmarxReport(Resource):
+class CreateCheckmarxScan(Resource):
     @jwt_required
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('cm_project_id', type=int, required=True)
         parser.add_argument('repo_id', type=int, required=True)
         parser.add_argument('scan_id', type=int, required=True)
-        parser.add_argument('report_id', type=int, required=True)
         args = parser.parse_args()
-        output = cm.post_report(logger, args)
-        return output
+        return cm.post_report(args)
+
+
+class GetCheckmarxReport(Resource):
+    @jwt_required
+    def get(self, report_id):
+        return cm.get_report(report_id)
+
+
+class GetCheckmarxScanStatus(Resource):
+    @jwt_required
+    def get(self, scan_id):
+        return cm.get_scan_status_wrapped(scan_id)
+
+
+class RegisterCheckmarxReport(Resource):
+    @jwt_required
+    def post(self, scan_id):
+        return cm.register_report(scan_id)
+
+
+class GetCheckmarxReportStatus(Resource):
+    @jwt_required
+    def get(self, report_id):
+        return cm.get_report_status_wrapped(report_id)
 
 
 class SonarReport(Resource):
@@ -1940,8 +1956,11 @@ api.add_resource(TestResult, '/testResults')
 api.add_resource(ExportToPostman, '/export_to_postman/<project_id>')
 
 # Checkmarx report generation
-api.add_resource(PostCheckmarxReport, '/checkmarx_report')
-api.add_resource(GetCheckmarxReport, '/checkmarx_report/<report_id>')
+api.add_resource(CreateCheckmarxScan, '/checkmarx/create_scan')
+api.add_resource(GetCheckmarxReport, '/checkmarx/report/<report_id>')
+api.add_resource(GetCheckmarxScanStatus, '/checkmarx/scan_status/<scan_id>')
+api.add_resource(RegisterCheckmarxReport, '/checkmarx/report/<scan_id>')
+api.add_resource(GetCheckmarxReportStatus, '/checkmarx/report_status/<report_id>')
 
 # Get everything by issue_id
 api.add_resource(DumpByIssue, '/dump_by_issue/<issue_id>')
