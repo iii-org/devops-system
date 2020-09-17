@@ -220,6 +220,10 @@ class TableCheckMarx():
                               db.Column('cm_project_id', db.Integer, primary_key=True),
                               db.Column('repo_id', db.Integer),
                               db.Column('scan_id', db.Integer),
-                              db.Column('report_id', db.Integer),
+                              # -1 if report is not registered yet
+                              db.Column('report_id', db.Integer, default=-1),
+                              # The time scan registered
                               db.Column('run_at', db.DATETIME(255)),
+                              db.Column('finished_at', db.DATETIME(255)),
+                              db.Column('finished', db.DATETIME(255)),
                               )
