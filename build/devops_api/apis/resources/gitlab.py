@@ -34,7 +34,8 @@ class GitLab(object):
             "name": args['name'],
             "email": args['email'],
             "username": args['login'],
-            "password": user_source_password
+            "password": user_source_password,
+            "skip_confirmation": True
         }
         output = requests.post(url,
                                data=json.dumps(parame),
