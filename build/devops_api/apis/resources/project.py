@@ -1142,17 +1142,109 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         project_name = result.fetchone()[0]
         result.close()
         print(project_name)
-        # project_name = "devops-flask"
-        url = "http://{0}/api/measures/component?component={1}&metricKeys=bugs,vulnerabilities,security_hotspots,code_smells,coverage,duplicated_blocks,sqale_index,duplicated_lines_density".format(\
+        project_name = "devops-flask"
+        url = "http://{0}/api/measures/component?component={1}&metricKeys=bugs,vulnerabilities,security_hotspots,code_smells,coverage,duplicated_blocks,sqale_index,duplicated_lines_density,reliability_rating,security_rating,security_review_rating,sqale_rating,security_hotspots_reviewed,lines_to_cover".format(\
             app.config["SONAR_IP_PORT"], project_name)
         logger.info("get sonar report url: {0}".format(url))
         output = requests.get(url, headers=self.headers, verify=False)
         logger.info("get sonar report output: {0} / {1}".format(
             output, output.json()))
         if output.status_code == 200:
+            data_list = output.json()["component"]["measures"]
+            reliability = []
+            security = []
+            security_review = []
+            maintainability = []
+            coverage = []
+            duplications = []
+
+            for data in data_list:
+                if data["metric"] == "bugs":
+                    reliability.append({
+                        "metric": "Bugs",
+                        "value": data["value"]
+                    })
+                if data["metric"] == "reliability_rating":
+                    reliability.append({
+                        "metric": "Rating",
+                        "value": data["value"]
+                    })
+
+                if data["metric"] == "vulnerabilities":
+                    security.append({
+                        "metric": "Vulnerabilities",
+                        "value": data["value"]
+                    })
+                if data["metric"] == "security_rating":
+                    security.append({
+                        "metric": "Rating",
+                        "value": data["value"]
+                    })
+
+                if data["metric"] == "security_hotspots":
+                    security_review.append({
+                        "metric": "Security Hotspots",
+                        "value": data["value"]
+                    })
+                if data["metric"] == "security_hotspots_reviewed":
+                    security_review.append({
+                        "metric": "Reviewed",
+                        "value": data["value"]
+                    })
+                if data["metric"] == "security_review_rating":
+                    security_review.append({
+                        "metric": "Rating",
+                        "value": data["value"]
+                    })
+
+                if data["metric"] == "sqale_index":
+                    maintainability.append({
+                        "metric": "Debt",
+                        "value": data["value"]
+                    })
+                if data["metric"] == "code_smells":
+                    maintainability.append({
+                        "metric": "Code Smells",
+                        "value": data["value"]
+                    })
+                if data["metric"] == "sqale_rating":
+                    maintainability.append({
+                        "metric": "Rating",
+                        "value": data["value"]
+                    })
+
+                if data["metric"] == "coverage":
+                    coverage.append({
+                        "metric": "Coverage",
+                        "value": data["value"]
+                    })
+                if data["metric"] == "lines_to_cover":
+                    coverage.append({
+                        "metric": "Lines to cover",
+                        "value": data["value"]
+                    })
+
+                if data["metric"] == "duplicated_lines_density":
+                    duplications.append({
+                        "metric": "Duplications",
+                        "value": data["value"]
+                    })
+                if data["metric"] == "duplicated_blocks":
+                    duplications.append({
+                        "metric": "Duplicated Blocks",
+                        "value": data["value"]
+                    })
+
             return {
                 "message": "success",
-                "data": output.json()["component"]["measures"]
+                "data": {
+                    "Reliability": reliability,
+                    "Security": security,
+                    "Security Review": security_review,
+                    "Maintainability": maintainability,
+                    "Coverage": coverage,
+                    "Duplications": duplications
+                }
             }, 200
         else:
             error_msg_list = []
