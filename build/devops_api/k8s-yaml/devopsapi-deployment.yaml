@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: devopsapi
 spec:
-  replicas: 1
+  replicas: 3
   selector:
     matchLabels:
       app: devopsapi
@@ -16,6 +16,6 @@ spec:
     spec:
       containers:
       - name: devopsapi
-        image: iiiorg/devops-api:20200715-2
+        image: iiiorg/devops-api:fe7a10e-09171830
         ports:
         - containerPort: 10009
