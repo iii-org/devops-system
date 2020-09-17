@@ -1767,7 +1767,7 @@ class CreateCheckmarxScan(Resource):
         parser.add_argument('repo_id', type=int, required=True)
         parser.add_argument('scan_id', type=int, required=True)
         args = parser.parse_args()
-        return cm.post_report(args)
+        return cm.create_scan(args)
 
 
 class GetCheckmarxReport(Resource):
