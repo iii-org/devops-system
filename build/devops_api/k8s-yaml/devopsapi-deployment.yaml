@@ -3,12 +3,10 @@ kind: Deployment
 metadata:
   name: devopsapi
 spec:
-  replicas: 1
+  replicas: 3
   selector:
     matchLabels:
       app: devopsapi
-  strategy:
-    type: Recreate
   template:
     metadata:
       labels:
@@ -16,6 +14,6 @@ spec:
     spec:
       containers:
       - name: devopsapi
-        image: iiiorg/devops-api:20200715-2
+        image: iiiorg/devops-api:tscors-09181018
         ports:
         - containerPort: 10009
