@@ -7,3 +7,4 @@ pycryptodomex
 flask-jwt-extended
 websocket-client
 pyyaml
+Flask-Cors

@@ -4,6 +4,7 @@ from flask import jsonify
 from flask import request as flask_req
 from flask_restful import Resource, Api, reqparse
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_cors import CORS
 
 import logging
 from logging import handlers
@@ -36,6 +37,7 @@ app = Flask(__name__)
 app.config.from_object('config')
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = datetime.timedelta(days=1)
 api = Api(app)
+CORS(app)
 
 handler = handlers.TimedRotatingFileHandler(
     'devops-api.log', when='D' \
@@ -1770,6 +1772,24 @@ class CreateCheckmarxScan(Resource):
         return cm.create_scan(args)
 
 
+class GetCheckmarxLatestScan(Resource):
+    @jwt_required
+    def get(self, project_id):
+        return cm.get_latest_scan_wrapped(project_id)
+
+
+class GetCheckmarxLatestScanStats(Resource):
+    @jwt_required
+    def get(self, project_id):
+        return cm.get_latest_scan_stats_wrapped(project_id)
+
+
+class GetCheckmarxLatestReport(Resource):
+    @jwt_required
+    def get(self, project_id):
+        return cm.get_latest_report_wrapped(project_id)
+
+
 class GetCheckmarxReport(Resource):
     @jwt_required
     def get(self, report_id):
@@ -1792,6 +1812,12 @@ class GetCheckmarxReportStatus(Resource):
     @jwt_required
     def get(self, report_id):
         return cm.get_report_status_wrapped(report_id)
+
+
+class GetCheckmarxScanStatistics(Resource):
+    @jwt_required
+    def get(self, scan_id):
+        return cm.get_scan_statistics_wrapped(scan_id)
 
 
 class SonarReport(Resource):
@@ -1957,8 +1983,12 @@ api.add_resource(ExportToPostman, '/export_to_postman/<project_id>')
 
 # Checkmarx report generation
 api.add_resource(CreateCheckmarxScan, '/checkmarx/create_scan')
+api.add_resource(GetCheckmarxLatestScan, '/checkmarx/latest_scan/<project_id>')
+api.add_resource(GetCheckmarxLatestScanStats, '/checkmarx/latest_scan_stats/<project_id>')
+api.add_resource(GetCheckmarxLatestReport, '/checkmarx/latest_report/<project_id>')
 api.add_resource(GetCheckmarxReport, '/checkmarx/report/<report_id>')
 api.add_resource(GetCheckmarxScanStatus, '/checkmarx/scan_status/<scan_id>')
+api.add_resource(GetCheckmarxScanStatistics, '/checkmarx/scan_stats/<scan_id>')
 api.add_resource(RegisterCheckmarxReport, '/checkmarx/report/<scan_id>')
 api.add_resource(GetCheckmarxReportStatus, '/checkmarx/report_status/<report_id>')
 
