@@ -701,7 +701,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
             # 用project_id依序查詢redmine的project_id
             for project_id in project_ids:
                 project_id = project_id[0]
-                if project_id != None:
+                if project_id is not None and project_id != -1:
                     result = db.engine.execute(
                         "SELECT plan_project_id FROM public.project_plugin_relation WHERE project_id = '{0}'"
                         .format(project_id))
