@@ -7,8 +7,6 @@ spec:
   selector:
     matchLabels:
       app: devopsapi
-  strategy:
-    type: Recreate
   template:
     metadata:
       labels:
@@ -16,6 +14,6 @@ spec:
     spec:
       containers:
       - name: devopsapi
-        image: iiiorg/devops-api:fe7a10e-09171830
+        image: iiiorg/devops-api:tscors-09181018
         ports:
         - containerPort: 10009
