@@ -3,12 +3,10 @@ kind: Deployment
 metadata:
   name: devopswebui
 spec:
-  replicas: 1
+  replicas: 3
   selector:
     matchLabels:
       app: devopswebui
-  strategy:
-    type: Recreate
   template:
     metadata:
       labels:
@@ -16,14 +14,7 @@ spec:
     spec:
       containers:
       - name: devopswebui
-        image: demoyuw/devops-webui
-        resources:
-          requests:
-            memory: "64Mi"
-            cpu: "250m"
-          limits:
-            memory: "1280Mi"
-            cpu: "5000m"
+        image: iiiorg/devops-ui:f4b0c86-09180952
         ports:
         - containerPort: 80
    
