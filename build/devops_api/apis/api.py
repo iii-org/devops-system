@@ -4,6 +4,7 @@ from flask import jsonify
 from flask import request as flask_req
 from flask_restful import Resource, Api, reqparse
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_cors import CORS
 
 import logging
 from logging import handlers
@@ -36,6 +37,7 @@ app = Flask(__name__)
 app.config.from_object('config')
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = datetime.timedelta(days=1)
 api = Api(app)
+CORS(app)
 
 handler = handlers.TimedRotatingFileHandler(
     'devops-api.log', when='D' \
