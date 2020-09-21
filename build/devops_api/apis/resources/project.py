@@ -735,7 +735,8 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                                 overdue_count += 1
 
                     project_status = "進行中"
-                    if closed_count == output2["total_count"]:
+                    if output2["total_count"] == 0: project_status = "未開始"
+                    if closed_count == output2["total_count"] and output2["total_count"] != 0:
                         project_status = "已結案"
 
                     # 查詢專案名稱＆專案說明＆專案狀態
@@ -821,8 +822,8 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
     def pm_create_project(self, logger, app, user_id, args):
         from .auth import auth
         if args["description"] == None: args["description"] = ""
-
-        identifier = args["name"].replace(' ', '')
+        
+        identifier = args["name"].replace(' ', '_').lower()
 
         # 建立redmine project
         redmine_url = "http://{0}/projects.json?key={1}".format(
