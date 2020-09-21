@@ -1984,13 +1984,16 @@ api.add_resource(ExportToPostman, '/export_to_postman/<project_id>')
 # Checkmarx report generation
 api.add_resource(CreateCheckmarxScan, '/checkmarx/create_scan')
 api.add_resource(GetCheckmarxLatestScan, '/checkmarx/latest_scan/<project_id>')
-api.add_resource(GetCheckmarxLatestScanStats, '/checkmarx/latest_scan_stats/<project_id>')
-api.add_resource(GetCheckmarxLatestReport, '/checkmarx/latest_report/<project_id>')
+api.add_resource(GetCheckmarxLatestScanStats,
+                 '/checkmarx/latest_scan_stats/<project_id>')
+api.add_resource(GetCheckmarxLatestReport,
+                 '/checkmarx/latest_report/<project_id>')
 api.add_resource(GetCheckmarxReport, '/checkmarx/report/<report_id>')
 api.add_resource(GetCheckmarxScanStatus, '/checkmarx/scan_status/<scan_id>')
 api.add_resource(GetCheckmarxScanStatistics, '/checkmarx/scan_stats/<scan_id>')
 api.add_resource(RegisterCheckmarxReport, '/checkmarx/report/<scan_id>')
-api.add_resource(GetCheckmarxReportStatus, '/checkmarx/report_status/<report_id>')
+api.add_resource(GetCheckmarxReportStatus,
+                 '/checkmarx/report_status/<report_id>')
 
 # Get everything by issue_id
 api.add_resource(DumpByIssue, '/dump_by_issue/<issue_id>')
