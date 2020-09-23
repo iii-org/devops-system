@@ -701,7 +701,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
             # 用project_id依序查詢redmine的project_id
             for project_id in project_ids:
                 project_id = project_id[0]
-                if project_id != None:
+                if project_id is not None and project_id != -1:
                     result = db.engine.execute(
                         "SELECT plan_project_id FROM public.project_plugin_relation WHERE project_id = '{0}'"
                         .format(project_id))
@@ -735,10 +735,12 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                                 overdue_count += 1
 
                     project_status = "進行中"
-                    if closed_count == output2["total_count"]:
+                    if output2["total_count"] == 0: project_status = "未開始"
+                    if closed_count == output2[
+                            "total_count"] and output2["total_count"] != 0:
                         project_status = "已結案"
 
-                    # 查詢專案名稱＆專案說明＆＆專案狀態
+                    # 查詢專案名稱＆專案說明＆專案狀態
                     result = db.engine.execute(
                         "SELECT * FROM public.projects WHERE id = '{0}'".
                         format(project_id))
@@ -758,10 +760,33 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                     user_name = result.fetchone()[0]
                     result.close()
 
-                    project_info = {
+                    # 查詢sonar_quality_score
+                    project_name = project_info["name"]
+                    # print(project_name)
+                    # project_name = "devops-flask"
+                    url = "http://{0}/api/measures/component?component={1}&metricKeys=reliability_rating,security_rating,security_review_rating,sqale_rating".format(\
+                        app.config["SONAR_IP_PORT"], project_name)
+                    logger.info("get sonar report url: {0}".format(url))
+                    output = requests.get(url,
+                                          headers=self.headers,
+                                          verify=False)
+                    logger.info("get sonar report output: {0} / {1}".format(
+                        output, output.json()))
+                    quality_score = None
+                    if output.status_code == 200:
+                        quality_score = 0
+                        data_list = output.json()["component"]["measures"]
+                        for data in data_list:
+                            # print(type(data["value"]))
+                            rating = float(data["value"])
+                            quality_score += (
+                                6 - rating) * 5  # A-25, B-20, C-15, D-10, E-5
+
+                    project_output = {
                         "id": project_id,
                         "name": project_info["name"],
                         "description": project_info["description"],
+                        "http_url": project_info["http_url"],
                         "disabled": project_info["disabled"],
                         "pm_user_id": user_id,
                         "pm_user_name": user_name,
@@ -769,10 +794,11 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                         "project_status": project_status,
                         "closed_count": closed_count,
                         "total_count": output2["total_count"],
-                        "overdue_count": overdue_count
+                        "overdue_count": overdue_count,
+                        "quality_score": quality_score
                     }
 
-                    output_array.append(project_info)
+                    output_array.append(project_output)
 
             return {
                 "message": "success",
@@ -799,7 +825,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         from .auth import auth
         if args["description"] == None: args["description"] = ""
 
-        identifier = args["name"].replace(' ', '')
+        identifier = args["name"].replace(' ', '_').lower()
 
         # 建立redmine project
         redmine_url = "http://{0}/projects.json?key={1}".format(
@@ -1142,7 +1168,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         project_name = result.fetchone()[0]
         result.close()
         print(project_name)
-        project_name = "devops-flask"
+        # project_name = "devops-flask"
         url = "http://{0}/api/measures/component?component={1}&metricKeys=bugs,vulnerabilities,security_hotspots,code_smells,coverage,duplicated_blocks,sqale_index,duplicated_lines_density,reliability_rating,security_rating,security_review_rating,sqale_rating,security_hotspots_reviewed,lines_to_cover".format(\
             app.config["SONAR_IP_PORT"], project_name)
         logger.info("get sonar report url: {0}".format(url))

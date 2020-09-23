@@ -75,7 +75,17 @@ class CheckMarx(object):
 
     def get_scan_status_wrapped(self, scan_id):
         status_id, name = self.get_scan_status(scan_id)
-        return {'message': 'success', 'data': {'id': status_id, 'name': name}}, 200
+        return CheckMarx.wrap({'id': status_id, 'name': name}, 200)
+
+    def get_scan_statistics(self, scan_id):
+        return self.get('/sast/scans/%s/resultsStatistics' % scan_id).json()
+
+    def get_scan_statistics_wrapped(self, scan_id):
+        stats = self.get_scan_statistics(scan_id)
+        if 'statisticsCalculationDate' in stats:
+            return CheckMarx.wrap(stats, 200)
+        else:
+            return CheckMarx.wrap(stats, 400)
 
     def register_report(self, scan_id):
         r = self.post('/reports/sastScan', {'reportType': 'PDF', 'scanId': scan_id})
@@ -106,7 +116,7 @@ class CheckMarx(object):
 
     def get_report_status_wrapped(self, report_id):
         status_id, value = self.get_report_status(report_id)
-        return {'message': 'success', 'data': {'id': status_id, 'value': value}}, 200
+        return CheckMarx.wrap({'id': status_id, 'value': value}, 200)
 
     def get_report(self, report_id):
         try:
@@ -117,7 +127,7 @@ class CheckMarx(object):
             if not row['finished']:
                 status, _ = self.get_report_status(report_id)
                 if status != 2:
-                    return {'message': 'Report is not available yet'}, 404
+                    return {'message': 'Report is not available yet'}, 400
         except Exception as e:
             return {"message": "error", "data": e.__str__()}, 500
         try:
@@ -131,3 +141,48 @@ class CheckMarx(object):
         except Exception as e:
             return {"message": "error", "data": e.__str__()}, 400
 
+    def get_latest(self, column, project_id):
+        row = db.engine.execute(
+            'SELECT git_repository_id FROM public.project_plugin_relation'
+            ' WHERE project_id={0}'
+            .format(project_id)
+        ).fetchone()
+        repo_id = row['git_repository_id']
+        cursor = db.engine.execute(
+            'SELECT {0} FROM public.checkmarx '
+            ' WHERE repo_id={1}'
+            ' ORDER BY run_at DESC'
+            .format(column, repo_id)
+        )
+        if cursor.rowcount == 0:
+            return -1
+        return cursor.fetchone()[column]
+
+    def get_latest_scan_wrapped(self, project_id):
+        scan_id = self.get_latest('scan_id', project_id)
+        if scan_id >= 0:
+            return CheckMarx.wrap({'scan_id': scan_id}, 200)
+        else:
+            return CheckMarx.wrap(None, 400, 'No scan found!')
+
+    def get_latest_scan_stats_wrapped(self, project_id):
+        scan_id = self.get_latest('scan_id', project_id)
+        if scan_id < 0:
+            return CheckMarx.wrap(None, 400, 'No scan in project')
+        return self.get_scan_statistics_wrapped(scan_id)
+
+    def get_latest_report_wrapped(self, project_id):
+        report_id = self.get_latest('report_id', project_id)
+        if report_id < 0:
+            return CheckMarx.wrap(None, 400, 'No report in project')
+        return self.get_report(report_id)
+
+    @staticmethod
+    def wrap(json, status_code, error=None):
+        if status_code / 100 == 2:
+            return {'message': 'success', 'data': json}, status_code
+        else:
+            if error is None:
+                return {'message': 'error', 'data': json}, status_code
+            else:
+                return {'message': error}, status_code

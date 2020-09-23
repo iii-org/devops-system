@@ -214,7 +214,7 @@ class TableRolesPluginRelation():
                                  db.Column('plan_role_id', db.Integer))
 
 
-class TableCheckMarx():
+class TableCheckMarx:
     meta = db.MetaData()
     stru_checkmarx = db.Table('checkmarx', meta,
                               db.Column('cm_project_id', db.Integer, primary_key=True),
