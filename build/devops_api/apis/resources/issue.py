@@ -47,7 +47,6 @@ class Issue(object):
             redmine_output['assigned_to'] = {'id': userInfo['id'], 'name': userInfo['name']}
             redmine_output.pop('author', None)
         redmine_output.pop('is_private', None)
-        redmine_output.pop('estimated_hours', None)
         redmine_output.pop('total_estimated_hours', None)
         redmine_output.pop('spent_hours', None)
         redmine_output.pop('total_spent_hours', None)
