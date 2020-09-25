@@ -481,7 +481,10 @@ class auth(object):
 
         if args["exclude"] is not None and args["exclude"] == 1:
             # exclude project users
-            select_all_user_cmd = "select distinct on (ur.id) * from public.user as ur, \
+            select_all_user_cmd = "select distinct on (ur.id) pur.user_id as user_id, \
+                ur.name as user_name, ur.email as email, ur.phone as phone, ur.login as login, \
+                ur.create_at as create_at, ur.update_at as update_at, rl.id as role_id, \
+                rl.name as role_name FROM public.user as ur, \
                 public.project_user_role as pur , public.roles as rl \
                 where ur.disabled is false and ur.id = pur.user_id and pur.role_id!=5 and\
                 pur.role_id=rl.id ORDER BY ur.id DESC"
@@ -493,9 +496,9 @@ class auth(object):
             logger.debug("data_userRole_by_project_array: {0}".format(
                 data_userRole_by_project_array))
             select_user_in_this_project_list_cmd = "select distinct pur.user_id \
-                from public.project_user_role pur, public.user u , public.roles r \
-                where pur.project_id={0} and pur.role_id!=5 and pur.user_id=u.id and \
-                u.disabled is false and pur.role_id=r.id \
+                from public.project_user_role pur, public.user ur , public.roles rl \
+                where pur.project_id={0} and pur.role_id!=5 and pur.user_id=ur.id and \
+                ur.disabled is false and pur.role_id=rl.id \
                 order by pur.user_id DESC".format(project_id)
             logger.debug("select_user_in_this_project_list_cmd: {0}".format(
                 select_user_in_this_project_list_cmd))
@@ -521,15 +524,13 @@ class auth(object):
                 data_userRole_by_project_array))
         else:
             # in project users
-            select_userRole_by_project = db.select([ProjectUserRole.stru_project_user_role, \
-            User.stru_user, TableRole.stru_role])\
-            .where(db.and_(ProjectUserRole.stru_project_user_role.c.project_id==project_id,\
-            ProjectUserRole.stru_project_user_role.c.role_id!=5,\
-            ProjectUserRole.stru_project_user_role.c.user_id==User.stru_user.c.id,\
-            User.stru_user.c.disabled == False,\
-            ProjectUserRole.stru_project_user_role.c.role_id==TableRole.stru_role.c.id))\
-            .distinct(ProjectUserRole.stru_project_user_role.c.user_id)\
-            .order_by(db.desc(ProjectUserRole.stru_project_user_role.c.user_id))
+            select_userRole_by_project = "SELECT distinct on (pur.user_id) pur.user_id as user_id, \
+                ur.name as user_name, ur.email as email, ur.phone as phone, ur.login as login, \
+                ur.create_at as create_at, ur.update_at as update_at, rl.id as role_id, \
+                rl.name as role_name FROM\
+                public.project_user_role as pur, public.user as ur, public.roles as rl \
+                WHERE pur.project_id={0} AND pur.role_id!=5 AND pur.user_id=ur.id AND \
+                ur.disabled=False AND pur.role_id=rl.id ORDER BY pur.user_id DESC".format(project_id)
             logger.debug("select_userRole_by_project: {0}".format(
                 select_userRole_by_project))
             data_userRole_by_project_array = util.callsqlalchemy(
@@ -539,32 +540,32 @@ class auth(object):
         for data_userRole_by_project in data_userRole_by_project_array:
             logger.debug("data_userRole_by_project: {0}".format(
                 data_userRole_by_project[
-                    ProjectUserRole.stru_project_user_role.c.user_id]))
+                    'user_id']))
 
             user_list.append({
                 "id":
                 data_userRole_by_project[
-                    ProjectUserRole.stru_project_user_role.c.user_id],
+                    'user_id'],
                 "name":
-                data_userRole_by_project[User.stru_user.c.name],
+                data_userRole_by_project['user_name'],
                 "email":
-                data_userRole_by_project[User.stru_user.c.email],
+                data_userRole_by_project['email'],
                 "phone":
-                int(data_userRole_by_project[User.stru_user.c.phone]),
+                int(data_userRole_by_project['phone']),
                 "login":
-                data_userRole_by_project[User.stru_user.c.login],
+                data_userRole_by_project['login'],
                 "create_at":
                 util.dateToStr(
                     self,
-                    data_userRole_by_project[User.stru_user.c.create_at]),
+                    data_userRole_by_project['create_at']),
                 "update_at":
                 util.dateToStr(
                     self,
-                    data_userRole_by_project[User.stru_user.c.update_at]),
+                    data_userRole_by_project['update_at']),
                 "role_id":
-                data_userRole_by_project[TableRole.stru_role.c.id],
+                data_userRole_by_project['role_id'],
                 "role_name":
-                data_userRole_by_project[TableRole.stru_role.c.name],
+                data_userRole_by_project['role_name'],
             })
         return {"message": "success", "data": {"user_list": user_list}}, 200
 
