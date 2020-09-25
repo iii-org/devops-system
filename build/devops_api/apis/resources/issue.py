@@ -36,7 +36,7 @@ class Issue(object):
         logger.debug("prject_list: {0}".format(prject_list))
         if prject_list is not None:
             project_name = Project.get_project_info(self, logger, prject_list['project_id'])['name']
-            redmine_output['project']['id'] = prject_list['id']
+            redmine_output['project']['id'] = prject_list['project_id']
             redmine_output['project']['name'] = project_name
         else:
             redmine_output['project']['id'] = None
