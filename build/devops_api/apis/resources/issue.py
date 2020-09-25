@@ -64,9 +64,9 @@ class Issue(object):
                 if redmine_output['journals'][i]['notes'] == "":
                     del redmine_output['journals'][i]
                 else:
-                    i += 1
                     redmine_output['journals'][i].pop('id', None)
                     redmine_output['journals'][i].pop('private_notes', None)
+                    i += 1
         logger.info("redmine issue redmine_output: {0}".format(redmine_output))
         return redmine_output
 
