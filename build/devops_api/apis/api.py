@@ -501,7 +501,7 @@ class ProjectVersion(Resource):
             root_args = root_parser.parse_args()
             output, status_code = vn.post_version_by_project(
                 logger, app, project_id, root_args)
-            return output
+            return output, status_code
         else:
             return {
                 "message": "your are not in this project or not administrator"
