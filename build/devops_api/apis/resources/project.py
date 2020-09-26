@@ -244,7 +244,7 @@ class Project(object):
                     "message": "could not get plan_user_id and repository_id"
                 }, 400
         else:
-            return {"message": "user did not join any project"}, 400
+            return {"message": "success", "data": []}, 200
 
     def get_ci_last_test_result(self, app, logger, output_dict, project):
         # get rancher pipeline
