@@ -1277,3 +1277,51 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
             for error in output.json()["errors"]:
                 error_msg_list.append(error["msg"])
             return {"message": {"errors": error_msg_list}}, output.status_code
+
+    def get_test_summary(self, logger, app, project_id, cm):
+        ret = {}
+
+        # newman
+        cursor = db.engine.execute(
+            'SELECT total, fail FROM public.test_results '
+            ' WHERE project_id={0}'
+            ' ORDER BY run_at DESC'
+            ' LIMIT 1'
+            .format(project_id))
+        if cursor.rowcount > 0:
+            row = cursor.fetchone()
+            total = row['total']
+            fail = row['fail']
+            passed = total - fail
+            ret['postman'] = {
+                "passed": passed,
+                "failed": fail,
+                "total": total
+            }
+        else:
+            ret['postman'] = {}
+
+        # checkmarx
+        scan_id = cm.get_latest('scan_id', project_id)
+        if scan_id > 0:
+            stats = cm.get_scan_statistics(scan_id)
+            ret['checkmarx'] = {
+                'high': stats['highSeverity'],
+                'medium': stats['mediumSeverity'],
+                'low': stats['lowSeverity'],
+                'info': stats['infoSeverity']
+            }
+        else:
+            ret['checkmarx'] = {}
+
+        # sonarqube
+        # qube = self.get_sonar_report(logger, app, project_id)
+        # FIXME: Fill qube values after connected
+        ret["sonarqube"] = {
+            "bug": 1,
+            "security": 1,
+            "security_review": 1,
+            "maintainability": 1
+        }
+
+        return {'message': 'success', 'data': {'test_results': ret}}, 200

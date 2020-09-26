@@ -142,16 +142,20 @@ class CheckMarx(object):
             return {"message": "error", "data": e.__str__()}, 400
 
     def get_latest(self, column, project_id):
-        row = db.engine.execute(
+        cursor = db.engine.execute(
             'SELECT git_repository_id FROM public.project_plugin_relation'
             ' WHERE project_id={0}'
             .format(project_id)
-        ).fetchone()
+        )
+        if cursor.rowcount == 0:
+            return -1
+        row = cursor.fetchone()
         repo_id = row['git_repository_id']
         cursor = db.engine.execute(
             'SELECT {0} FROM public.checkmarx '
             ' WHERE repo_id={1}'
             ' ORDER BY run_at DESC'
+            ' LIMIT 1'
             .format(column, repo_id)
         )
         if cursor.rowcount == 0:
