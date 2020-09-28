@@ -15,7 +15,7 @@ class Pipeline(object):
         output_array = []
         result = db.engine.execute(
             "SELECT * FROM public.project_plugin_relation \
-            WHERE git_repository_Id = {0};".format(repository_id))
+            WHERE git_repository_id = {0};".format(repository_id))
         project_relationship = result.fetchone()
         result.close()
         logger.info("project_relationship: {0}".format(
