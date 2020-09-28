@@ -55,7 +55,7 @@ class TestValue(object):
         get_testValue_command = db.select([TableTestValue.stru_testValue]).where(db.and_(
             TableTestValue.stru_testValue.c.id == testItem_id, TableTestValue.stru_testValue.c.disabled == False))
         logger.debug("get_testValue_command: {0}".format(get_testValue_command))
-        result = util.callsqlalchemy(self, get_testValue_command, logger)
+        result = util.callsqlalchemy(get_testValue_command, logger)
         row = result.fetchone()
         output = self._deal_with_TestValueObject(row)
         return output
@@ -68,7 +68,7 @@ class TestValue(object):
             update_at=datetime.datetime.now()
         ).returning(TableTestValue.stru_testValue.c.update_at,TableTestValue.stru_testValue.c.id)
         logger.debug("update_testValue_command: {0}".format(update_testValue_command))
-        result = util.callsqlalchemy(self, update_testValue_command, logger)
+        result = util.callsqlalchemy(update_testValue_command, logger)
         reMessage = result.fetchone()
         output = {}
         output['id'] = reMessage['id']
@@ -89,7 +89,7 @@ class TestValue(object):
         ).returning(TableTestValue.stru_testValue.c.update_at,TableTestValue.stru_testValue.c.id)
         print(update_testValue_command)
         logger.debug("update_testValue_command: {0}".format(update_testValue_command))
-        result = util.callsqlalchemy(self, update_testValue_command, logger)
+        result = util.callsqlalchemy(update_testValue_command, logger)
         reMessage = result.fetchone()
         output = {}
         output['id'] = reMessage['id']
@@ -106,7 +106,7 @@ class TestValue(object):
             get_testValue_command = db.select([TableTestValue.stru_testValue]).where(db.and_(
             TableTestValue.stru_testValue.c.test_item_id == testItem_id, TableTestValue.stru_testValue.c.disabled == False)).order_by(orderColumn)        
         logger.debug("get_testValue_command: {0}".format(get_testValue_command))
-        result = util.callsqlalchemy(self, get_testValue_command, logger)
+        result = util.callsqlalchemy(get_testValue_command, logger)
         reMessages = result.fetchall()
         i = 0
         output = []
@@ -131,7 +131,7 @@ class TestValue(object):
             update_at=datetime.datetime.now()
         )
         logger.debug("insert_testValue_command: {0}".format(insert_testValue_command))
-        reMessage = util.callsqlalchemy(self, insert_testValue_command, logger)
+        reMessage = util.callsqlalchemy(insert_testValue_command, logger)
         return {'testValue_id': reMessage.inserted_primary_key}
 
     def get_testValue_by_issue_id(self, logger, issue_id, user_id,orderColumn=''):
@@ -142,7 +142,7 @@ class TestValue(object):
             get_testValue_command = db.select([TableTestValue.stru_testValue]).where(db.and_(
                 TableTestValue.stru_testValue.c.issue_id == issue_id, TableTestValue.stru_testValue.c.disabled == False))
         print(get_testValue_command)
-        result = util.callsqlalchemy(self, get_testValue_command, logger)
+        result = util.callsqlalchemy(get_testValue_command, logger)
         reMessages = result.fetchall()
         i = 0
         output = []
@@ -154,7 +154,7 @@ class TestValue(object):
         get_testValue_command = db.select([TableTestValue.stru_testValue]).where(db.and_(
             TableTestValue.stru_testValue.c.project_id == project_id, TableTestValue.stru_testValue.c.disabled == False)).order_by(orderColumn)
         logger.debug("get_testValue_command: {0}".format(get_testValue_command))
-        result = util.callsqlalchemy(self, get_testValue_command, logger)
+        result = util.callsqlalchemy(get_testValue_command, logger)
         reMessages = result.fetchall()
         output = []
         for row in reMessages:

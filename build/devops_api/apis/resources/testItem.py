@@ -38,7 +38,7 @@ class TestItem(object):
                 TableTestItem.stru_testItem.c.disabled == False)
                 )
         logger.debug("get_testItem_command: {0}".format(get_testItem_command))
-        result = util.callsqlalchemy(self, get_testItem_command, logger)
+        result = util.callsqlalchemy(get_testItem_command, logger)
         row = result.fetchone()
         output = self._deal_with_TestItemObject(row)
         return output
@@ -55,7 +55,7 @@ class TestItem(object):
             TableTestItem.stru_testItem.c.id)
         logger.debug(
             "update_testItem_command: {0}".format(update_testItem_command))
-        result = util.callsqlalchemy(self, update_testItem_command, logger)
+        result = util.callsqlalchemy(update_testItem_command, logger)
         reMessage = result.fetchone()
         output = {}
         output['id'] = reMessage['id']
@@ -75,7 +75,7 @@ class TestItem(object):
         print(update_testItem_command)
         logger.debug(
             "update_testItem_command: {0}".format(update_testItem_command))
-        result = util.callsqlalchemy(self, update_testItem_command, logger)
+        result = util.callsqlalchemy(update_testItem_command, logger)
         reMessage = result.fetchone()
         output = {}
         output['id'] = reMessage['id']
@@ -89,7 +89,7 @@ class TestItem(object):
                 TableTestItem.stru_testItem.c.test_case_id == testCase_id,
                 TableTestItem.stru_testItem.c.disabled == False))
         logger.debug("get_testItem_command: {0}".format(get_testItem_command))
-        result = util.callsqlalchemy(self, get_testItem_command, logger)
+        result = util.callsqlalchemy(get_testItem_command, logger)
         reMessages = result.fetchall()
         output = []
         for row in reMessages:
@@ -110,7 +110,7 @@ class TestItem(object):
         )
         logger.debug("insert_testItem_command: {0}".format(
             insert_ti_command))
-        reMessage = util.callsqlalchemy(self, insert_ti_command, logger)
+        reMessage = util.callsqlalchemy(insert_ti_command, logger)
         return {'testItem_id': reMessage.inserted_primary_key}
 
     def get_testItem_by_issue_id(self, logger, issue_id, users_id, orderColumn):
@@ -119,7 +119,7 @@ class TestItem(object):
             TableTestItem.stru_testItem.c.issue_id == issue_id,
             TableTestItem.stru_testItem.c.disabled == False)).order_by(orderColumn)
         logger.debug("get_testItem_command: {0}".format(get_testItem_command))
-        result = util.callsqlalchemy(self, get_testItem_command, logger)
+        result = util.callsqlalchemy(get_testItem_command, logger)
         reMessages = result.fetchall()
         output = []
         for row in reMessages:
@@ -131,7 +131,7 @@ class TestItem(object):
         get_testItem_command = db.select([TableTestItem.stru_testItem]).where(db.and_(
             TableTestItem.stru_testItem.c.project_id == project_id, TableTestItem.stru_testItem.c.disabled == False)).order_by(orderColumn)
         logger.debug("get_testItem_command: {0}".format(get_testItem_command))
-        result = util.callsqlalchemy(self, get_testItem_command, logger)
+        result = util.callsqlalchemy(get_testItem_command, logger)
         reMessages = result.fetchall()
         output = []
         for row in reMessages:

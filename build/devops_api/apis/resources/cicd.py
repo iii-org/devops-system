@@ -11,12 +11,13 @@ logger = logging.getLogger('devops.api')
 
 
 class Cicd(object):
-    def __init__(self, app):
-        self.pjt = Project(logger, app)
-        self.iss = Issue()
-        self.tc = TestCase()
-        self.ti = TestItem()
-        self.tv = TestValue()
+    def __init__(self, app, pjt, iss, tc, ti, tv):
+        self.app = app
+        self.pjt = pjt
+        self.iss = iss
+        self.tc = tc
+        self.ti = ti
+        self.tv = tv
 
     def export_to_postman(self, app, project_id, target, jwt_identity):
         status = self.pjt.verify_project_user(logger, project_id, jwt_identity)

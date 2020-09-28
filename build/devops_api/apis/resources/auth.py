@@ -51,7 +51,7 @@ class auth(object):
         role_id = None
         get_rl_cmd = db.select([ProjectUserRole.stru_project_user_role]).where(db.and_(\
             ProjectUserRole.stru_project_user_role.c.user_id==user_id))
-        get_role_out = util.callsqlalchemy(self, get_rl_cmd, logger).fetchone()
+        get_role_out = util.callsqlalchemy(get_rl_cmd, logger).fetchone()
         if get_role_out is not None:
             role_id = get_role_out['role_id']
             return role_id
@@ -63,7 +63,7 @@ class auth(object):
             .where(db.and_(TableRolesPluginRelation.stru_rolerelation.c.role_id==role_id))
         logger.debug(
             "select_redmien_role_cmd: {0}".format(select_redmien_role_cmd))
-        reMessage = util.callsqlalchemy(self, select_redmien_role_cmd,
+        reMessage = util.callsqlalchemy(select_redmien_role_cmd,
                                         logger).fetchone()
         return reMessage['plan_role_id']
 
@@ -146,7 +146,7 @@ class auth(object):
                 ProjectUserRole.stru_project_user_role.c.project_id==\
                 ProjectPluginRelation.stru_project_plug_relation.c.project_id))
             logger.debug("select_project: {0}".format(select_project))
-            reMessage = util.callsqlalchemy(self, select_project,
+            reMessage = util.callsqlalchemy(select_project,
                                             logger).fetchall()
             logger.debug("reMessage: {0}".format(reMessage))
             if len(reMessage) > 0:
@@ -175,7 +175,7 @@ class auth(object):
             .where(db.and_(User.stru_user.c.id==user_id))
         logger.debug("select_user_to_disable_command: {0}".format(
             select_user_to_disable_command))
-        user_data = util.callsqlalchemy(self, select_user_to_disable_command,
+        user_data = util.callsqlalchemy(select_user_to_disable_command,
                                         logger).fetchone()
         set_string = ""
         if args["name"] is not None:
@@ -294,7 +294,7 @@ class auth(object):
             update_at = datetime.datetime.now(), disabled=disabled)
         logger.debug("update_user_to_disable_command: {0}".format(
             update_user_to_disable_command))
-        reMessage = util.callsqlalchemy(self, update_user_to_disable_command,
+        reMessage = util.callsqlalchemy(update_user_to_disable_command,
                                         logger)
         logger.info("reMessage: {0}".format(reMessage))
         return {'message': 'success'}, 200
@@ -320,14 +320,14 @@ class auth(object):
             disabled=disabled)
 
         logger.debug("insert_user_command: {0}".format(insert_user_command))
-        reMessage = util.callsqlalchemy(self, insert_user_command, logger)
+        reMessage = util.callsqlalchemy(insert_user_command, logger)
         logger.info("reMessage: {0}".format(reMessage))
 
         #get user_id
         get_user_command = db.select([User.stru_user]).where(
             db.and_(User.stru_user.c.login == args['login']))
         logger.debug("get_user_command: {0}".format(get_user_command))
-        reMessage = util.callsqlalchemy(self, get_user_command, logger)
+        reMessage = util.callsqlalchemy(get_user_command, logger)
         user_id = reMessage.fetchone()['id']
         logger.info("user_id: {0}".format(user_id))
 
@@ -361,8 +361,7 @@ class auth(object):
             repository_user_id = gitlab_user_id)
         logger.debug("insert_user_plugin_relation_command: {0}".format(
             insert_user_plugin_relation_command))
-        reMessage = util.callsqlalchemy(self,
-                                        insert_user_plugin_relation_command,
+        reMessage = util.callsqlalchemy(insert_user_plugin_relation_command,
                                         logger)
         logger.info("reMessage: {0}".format(reMessage))
 
@@ -374,14 +373,14 @@ class auth(object):
                 logger.debug("insert_project_user_role_command: {0}".format(
                     insert_project_user_role_command))
                 reMessage = util.callsqlalchemy(
-                    self, insert_project_user_role_command, logger)
+                    insert_project_user_role_command, logger)
                 logger.info("reMessage: {0}".format(reMessage))
 
         insert_project_user_role_command = db.insert(ProjectUserRole.stru_project_user_role)\
             .values(project_id = -1, user_id = user_id, role_id = args['role_id'])
         logger.debug("insert_project_user_role_command: {0}".format(
             insert_project_user_role_command))
-        reMessage = util.callsqlalchemy(self, insert_project_user_role_command,
+        reMessage = util.callsqlalchemy(insert_project_user_role_command,
                                         logger)
         logger.info("reMessage: {0}".format(reMessage))
 
@@ -406,7 +405,7 @@ class auth(object):
                 UserPluginRelation.stru_user_plug_relation.c.user_id==user_id))
         logger.debug("get_user_plugin_relation_command: {0}".format(
             get_user_plugin_relation_command))
-        reMessage = util.callsqlalchemy(self, get_user_plugin_relation_command,
+        reMessage = util.callsqlalchemy(get_user_plugin_relation_command,
                                         logger)
         user_plugin_relation = reMessage.fetchone()
         return user_plugin_relation
@@ -438,7 +437,7 @@ class auth(object):
                     ProjectUserRole.stru_project_user_role.c.project_id==\
                     TableProjects.stru_projects.c.id))
                 output_project_array = util.callsqlalchemy(
-                    self, select_project_by_userid, logger).fetchall()
+                    select_project_by_userid, logger).fetchall()
                 logger.debug(
                     "output_project: {0}".format(output_project_array))
                 project = []
@@ -492,7 +491,7 @@ class auth(object):
             logger.debug(
                 "select_all_user_cmd: {0}".format(select_all_user_cmd))
             data_userRole_by_project_array = util.callsqlalchemy(
-                self, select_all_user_cmd, logger).fetchall()
+                select_all_user_cmd, logger).fetchall()
             logger.debug("data_userRole_by_project_array: {0}".format(
                 data_userRole_by_project_array))
             select_user_in_this_project_list_cmd = "select distinct pur.user_id \
@@ -503,7 +502,7 @@ class auth(object):
             logger.debug("select_user_in_this_project_list_cmd: {0}".format(
                 select_user_in_this_project_list_cmd))
             select_user_in_this_project_list_output = util.callsqlalchemy(
-                self, select_user_in_this_project_list_cmd, logger).fetchall()
+                select_user_in_this_project_list_cmd, logger).fetchall()
             logger.debug("select_user_in_this_project_list_output: {0}".format(
                 select_user_in_this_project_list_output))
             i = 0
@@ -534,7 +533,7 @@ class auth(object):
             logger.debug("select_userRole_by_project: {0}".format(
                 select_userRole_by_project))
             data_userRole_by_project_array = util.callsqlalchemy(
-                self, select_userRole_by_project, logger).fetchall()
+                select_userRole_by_project, logger).fetchall()
 
         user_list = []
         for data_userRole_by_project in data_userRole_by_project_array:
@@ -578,14 +577,14 @@ class auth(object):
             ProjectUserRole.stru_project_user_role.c.user_id==args['user_id'], \
             ProjectUserRole.stru_project_user_role.c.project_id==project_id,
             ProjectUserRole.stru_project_user_role.c.role_id==role_id))
-        get_pj_ur_rl = util.callsqlalchemy(self, get_pj_ur_rl_cmd,
+        get_pj_ur_rl = util.callsqlalchemy(get_pj_ur_rl_cmd,
                                            logger).fetchone()
         # if ProjectUserRole table not has relationship
         if get_pj_ur_rl is None:
             # insert one relationship
             get_pj_ur_rl_cmd = db.insert(ProjectUserRole.stru_project_user_role).values(\
                 project_id = project_id, user_id=args['user_id'], role_id=role_id)
-            reMessage = util.callsqlalchemy(self, get_pj_ur_rl_cmd, logger)
+            reMessage = util.callsqlalchemy(get_pj_ur_rl_cmd, logger)
         else:
             return {"message": "Projett_user_role table already has data"}, 400
         # get redmine_role_id from role_id
@@ -712,7 +711,7 @@ class auth(object):
             ProjectUserRole.stru_project_user_role.c.user_id==user_id, \
             ProjectUserRole.stru_project_user_role.c.project_id==project_id,
             ProjectUserRole.stru_project_user_role.c.role_id==role_id))
-        delete_pj_ur_rl = util.callsqlalchemy(self, delete_pj_ur_rl_cmd,
+        delete_pj_ur_rl = util.callsqlalchemy(delete_pj_ur_rl_cmd,
                                               logger)
 
         # gitlab project delete member
@@ -754,4 +753,4 @@ class auth(object):
                                 User.stru_user]).where(db.and_(\
             UserPluginRelation.stru_user_plug_relation.c.plan_user_id==plan_user_id,
             UserPluginRelation.stru_user_plug_relation.c.user_id==User.stru_user.c.id))
-        return util.callsqlalchemy(self, get_useridname_cmd, logger).fetchone()
+        return util.callsqlalchemy(get_useridname_cmd, logger).fetchone()

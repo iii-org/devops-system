@@ -39,7 +39,7 @@ class Project(object):
             ProjectUserRole.stru_project_user_role.c.user_id==user_id))
         logger.debug("select_project_user_role_command: {0}".format(
             select_project_user_role_command))
-        reMessage = util.callsqlalchemy(self, select_project_user_role_command,
+        reMessage = util.callsqlalchemy(select_project_user_role_command,
                                         logger)
         match_list = reMessage.fetchall()
         logger.info("reMessage: {0}".format(match_list))
@@ -52,7 +52,7 @@ class Project(object):
     def get_project_plugin_relation(self, logger, project_id):
         select_project_relation_command = db.select([ProjectPluginRelation.stru_project_plug_relation])\
             .where(db.and_(ProjectPluginRelation.stru_project_plug_relation.c.project_id==project_id))
-        reMessage = util.callsqlalchemy(self, select_project_relation_command,
+        reMessage = util.callsqlalchemy(select_project_relation_command,
                                         logger).fetchone()
         return reMessage
 
@@ -1155,9 +1155,10 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
             }, 404
 
     def get_project_info(self, logger, project_id):
+        print(project_id)
         select_project_cmd = db.select([TableProjects.stru_projects])\
             .where(db.and_(TableProjects.stru_projects.c.id==project_id ))
-        reMessage = util.callsqlalchemy(self, select_project_cmd,
+        reMessage = util.callsqlalchemy(select_project_cmd,
                                         logger).fetchone()
         return reMessage
 

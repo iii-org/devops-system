@@ -15,7 +15,7 @@ class TestCase(object):
         get_testCaseType_command = db.select([TableCaseType.stru_tcType])
         logger.debug("get_testCaseType_command: {0}".format(
             get_testCaseType_command))
-        result = util.callsqlalchemy(self, get_testCaseType_command, logger)
+        result = util.callsqlalchemy(get_testCaseType_command, logger)
         reMessages = result.fetchall()
         caseType = {}
         for row in reMessages:
@@ -52,7 +52,7 @@ class TestCase(object):
         get_testCase_command = db.select([TableTestCase.stru_testCase]).where(db.and_(
             TableTestCase.stru_testCase.c.id == testCase_id, TableTestCase.stru_testCase.c.disabled == False))
         logger.debug("get_testCase_command: {0}".format(get_testCase_command))
-        result = util.callsqlalchemy(self, get_testCase_command, logger)
+        result = util.callsqlalchemy(get_testCase_command, logger)
         row = result.fetchone()
         output = self._deal_with_TestCaseObject(row)
         return output
@@ -66,7 +66,7 @@ class TestCase(object):
         ).returning(TableTestCase.stru_testCase.c.update_at, TableTestCase.stru_testCase.c.id)
         logger.debug("update_testCase_command: {0}".format(
             update_testCase_command))
-        result = util.callsqlalchemy(self, update_testCase_command, logger)
+        result = util.callsqlalchemy(update_testCase_command, logger)
         reMessage = result.fetchone()
         output = {}
         output['id'] = reMessage['id']
@@ -88,7 +88,7 @@ class TestCase(object):
         ).returning(TableTestCase.stru_testCase.c.update_at, TableTestCase.stru_testCase.c.id)
         logger.debug("update_testCase_command: {0}".format(
             update_testCase_command))
-        result = util.callsqlalchemy(self, update_testCase_command, logger)
+        result = util.callsqlalchemy(update_testCase_command, logger)
         reMessage = result.fetchone()
         output = {}
         output['id'] = reMessage['id']
@@ -107,7 +107,7 @@ class TestCase(object):
         else:
             return {}
         logger.debug("get_testCase_command: {0}".format(get_testCase_command))
-        result = util.callsqlalchemy(self, get_testCase_command, logger)
+        result = util.callsqlalchemy(get_testCase_command, logger)
         reMessages = result.fetchall()
         return self._del_with_fetchall(reMessages)
 
@@ -117,7 +117,7 @@ class TestCase(object):
         get_testCase_command = db.select([TableTestCase.stru_testCase]).where(db.and_(
             TableTestCase.stru_testCase.c.issue_id == issue_id, TableTestCase.stru_testCase.c.disabled == False))
         logger.debug("get_testCase_command: {0}".format(get_testCase_command))
-        result = util.callsqlalchemy(self, get_testCase_command, logger)
+        result = util.callsqlalchemy(get_testCase_command, logger)
         reMessages = result.fetchall()
         return self._del_with_fetchall(reMessages)
 
@@ -126,7 +126,7 @@ class TestCase(object):
         get_testCase_command = db.select([TableTestCase.stru_testCase]).where(db.and_(
             TableTestCase.stru_testCase.c.project_id == project_id, TableTestCase.stru_testCase.c.disabled == False))
         logger.debug("get_testCase_command: {0}".format(get_testCase_command))
-        result = util.callsqlalchemy(self, get_testCase_command, logger)
+        result = util.callsqlalchemy(get_testCase_command, logger)
         reMessages = result.fetchall()
         return self._del_with_fetchall(reMessages)
 
@@ -144,7 +144,7 @@ class TestCase(object):
         )
         logger.debug("insert_testCase_command: {0}".format(
             insert_testCase_command))
-        reMessage = util.callsqlalchemy(self, insert_testCase_command, logger)
+        reMessage = util.callsqlalchemy(insert_testCase_command, logger)
         return {'testCase_id': reMessage.inserted_primary_key}
 
     def get_api_method(self, logger, user_id):
