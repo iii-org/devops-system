@@ -783,11 +783,13 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                             quality_score += (
                                 6 - rating) * 5  # A-25, B-20, C-15, D-10, E-5
 
+                    redmine_url = "http://{0}/projects/{1}".format(app.config["REDMINE_IP_PORT"], plan_project_id)
                     project_output = {
                         "id": project_id,
                         "name": project_info["name"],
                         "description": project_info["description"],
-                        "http_url": project_info["http_url"],
+                        "git_url": project_info["http_url"],
+                        "redmine_url": redmine_url,
                         "disabled": project_info["disabled"],
                         "pm_user_id": user_id,
                         "pm_user_name": user_name,
@@ -935,12 +937,14 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                 project_id))
         project_info = result.fetchone()
         result.close()
+        redmine_url = "http://{0}/projects/{1}".format(app.config["REDMINE_IP_PORT"], plan_project_id)
         output = {
             "project_id": project_info["project_id"],
             "name": project_info["name"],
             "description": project_info["description"],
             "disabled": project_info["disabled"],
-            "http_url": project_info["http_url"],
+            "git_url": project_info["http_url"],
+            "redmine_url": redmine_url,
             "ssh_url": project_info["ssh_url"],
             "repository_id": project_info["git_repository_id"],
         }
