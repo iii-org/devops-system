@@ -1155,7 +1155,6 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
             }, 404
 
     def get_project_info(self, logger, project_id):
-        print(project_id)
         select_project_cmd = db.select([TableProjects.stru_projects])\
             .where(db.and_(TableProjects.stru_projects.c.id==project_id ))
         reMessage = util.callsqlalchemy(select_project_cmd,
@@ -1168,7 +1167,6 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                 project_id))
         project_name = result.fetchone()[0]
         result.close()
-        print(project_name)
         # project_name = "devops-flask"
         url = "http://{0}/api/measures/component?component={1}&metricKeys=bugs,vulnerabilities,security_hotspots,code_smells,coverage,duplicated_blocks,sqale_index,duplicated_lines_density,reliability_rating,security_rating,security_review_rating,sqale_rating,security_hotspots_reviewed,lines_to_cover".format(\
             app.config["SONAR_IP_PORT"], project_name)
