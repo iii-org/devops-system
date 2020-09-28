@@ -301,7 +301,8 @@ class Project(object):
                 }
             }, 200
         else:
-            return {"message": output.json()["message"]}, output.status_code
+            logger.info("gitlab repository get branch list error: {0}".format(output.json()["message"]))
+            return {"message": "gitlab don't has this repository project id"}, 400
 
     # 用project_id新增project的branch
     def create_git_project_branch(self, logger, app, project_id, args):
