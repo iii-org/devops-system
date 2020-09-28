@@ -501,7 +501,7 @@ class ProjectVersion(Resource):
             root_args = root_parser.parse_args()
             output, status_code = vn.post_version_by_project(
                 logger, app, project_id, root_args)
-            return output
+            return output, status_code
         else:
             return {
                 "message": "your are not in this project or not administrator"
@@ -1836,6 +1836,20 @@ class SonarReport(Resource):
             return {"message": "your role art not PM/administrator"}, 401
 
 
+class GetTestSummary(Resource):
+    @jwt_required
+    def get(self, project_id):
+        role_id = get_jwt_identity()["role_id"]
+
+        if role_id in (3, 5):
+            try:
+                return pjt.get_test_summary(logger, app, project_id, cm)
+            except Exception as error:
+                return {"message": str(error)}, 400
+        else:
+            return {"message": "your role art not PM/administrator"}, 401
+
+
 api.add_resource(Index, '/')
 
 # Project list
@@ -2000,6 +2014,9 @@ api.add_resource(DumpByIssue, '/dump_by_issue/<issue_id>')
 
 # Get Sonarqube report by project_id
 api.add_resource(SonarReport, '/sonar_report/<project_id>')
+
+# Get three test results
+api.add_resource(GetTestSummary, '/test_summary/<project_id>')
 
 if __name__ == "__main__":
     db.init_app(app)

@@ -15,6 +15,8 @@ class Version(object):
                 return {"message": "success", "data": version_list.json()}, 200
             else:
                 return {"message": "get redmine wiki list error"}, 401
+        else:
+            return {"message": "No project id %d found" % project_id}, 422
 
     def post_version_by_project(self, logger, app, project_id, message_args):
         project_plugin_relation = Project.get_project_plugin_relation(
