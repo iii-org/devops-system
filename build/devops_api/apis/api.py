@@ -19,6 +19,7 @@ import resources.auth as auth
 import resources.issue as issue
 import resources.redmine as redmine
 import resources.project as project
+import resources.gitlab as gitlab
 import resources.pipeline as pipeline
 import resources.requirement as requirement
 import resources.parameter as parameter
@@ -51,6 +52,8 @@ logger.addHandler(handler)
 
 ut = util.util()
 redmine = redmine.Redmine(logger, app)
+git = gitlab.GitLab(logger, app)
+au = auth.auth(logger, app, redmine, git)
 pjt = project.Project(logger, app)
 au = auth.auth(logger, app, redmine)
 iss = issue.Issue(pjt)
@@ -360,7 +363,6 @@ class User(Resource):
             parser.add_argument('phone', type=int, required=True)
             parser.add_argument('login', type=str, required=True)
             parser.add_argument('password', type=str, required=True)
-            parser.add_argument('project_id', action='append')
             parser.add_argument('role_id', type=int, required=True)
             parser.add_argument('status', type=str)
             args = parser.parse_args()

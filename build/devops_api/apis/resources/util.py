@@ -63,8 +63,7 @@ class util(object):
         session = DBSession()
         try:
             reMessage = session.execute(command)
-            logger.info("Call SQL successful messages: {0}".format(
-                type(reMessage)))
+            #logger.info("Call SQL successful messages: {0}".format(type(reMessage)))
             session.commit()
             session.close()
             return reMessage

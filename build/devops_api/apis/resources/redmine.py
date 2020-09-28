@@ -14,6 +14,8 @@ class Redmine(object):
     headers = {'Content-Type': 'application/json'}
 
     def __init__(self, logger, app):
+        self.app = app
+        self.headers = {'Content-Type': 'application/json'}
         # get redmine_key
         self.app = app
         url = "http://{0}:{1}@{2}/users/current.json".format(app.config['REDMINE_ADMIN_ACCOUNT'],\
@@ -106,11 +108,11 @@ class Redmine(object):
             output.text, output.status_code))
         return output, output.status_code
 
-    def redmine_delete_issue(self, logger, app, issue_id):
+    def redmine_delete_issue(self, issue_id):
         url = "http://{0}/issues/{1}.json?key={2}&include=journals".format(\
-            app.config['REDMINE_IP_PORT'], issue_id, self.redmine_key)
+            self.app.config['REDMINE_IP_PORT'], issue_id, self.redmine_key)
         output = requests.delete(url, headers=self.headers, verify=False)
-        logger.info("get issues output: {0}".format(output))
+        logger.info("redmine delete user output: {0}".format(output))
         return output
 
     def redmine_get_issue_status(self, logger, app):
@@ -168,6 +170,27 @@ class Redmine(object):
             return None
         else:
             return output
+    def redmine_get_user_list(self, args):
+        args['key'] = self.redmine_key
+        url = "http://{0}/users.json".format(
+            self.app.config['REDMINE_IP_PORT'])
+        logger.info("args: {0}".format(args))
+        output = requests.get(url,
+                              headers=self.headers,
+                              verify=False,
+                              params=args)
+        return output.json()
+
+    def redmine_delete_user(self, redmine_user_id):
+        redmine_url = "http://{0}/users/{1}.json?key={2}".format(
+            self.app.config["REDMINE_IP_PORT"], redmine_user_id, 
+            self.app.config["REDMINE_API_KEY"])
+        logger.info("delete redmine user url: {0}".format(redmine_url))
+        redmine_output = requests.delete(redmine_url,
+                                            headers=self.headers,
+                                            verify=False)
+        logger.info(
+            "delete redmine user output: {0}".format(redmine_output))
 
     def redmine_get_wiki_list(self, logger, app, project_id):
         url = "http://{0}/projects/{1}/wiki/index.json?key={2}".format(
@@ -297,3 +320,4 @@ class Redmine(object):
         output = requests.get(url, headers=self.headers, verify=False)
         logger.info("post status code: {0}".format(output.status_code))
         return output, output.status_code
+    
