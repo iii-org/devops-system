@@ -40,7 +40,7 @@ api = Api(app)
 CORS(app)
 
 handler = handlers.TimedRotatingFileHandler(
-    'devops-api.log', when='D' \
+    'devops-api.log', when='D'
     , interval=1, backupCount=14)
 handler.setFormatter(logging.Formatter(
     '%(asctime)s %(filename)s [line:%(lineno)d] %(levelname)s %(message)s' \
@@ -52,11 +52,11 @@ logger.addHandler(handler)
 ut = util.util()
 au = auth.auth(logger, app)
 redmine = redmine.Redmine(logger, app)
-iss = issue.Issue()
 pjt = project.Project(logger, app)
+iss = issue.Issue(pjt)
 pipe = pipeline.Pipeline()
 wk = wiki.Wiki()
-vn = version.Version()
+vn = version.Version(redmine)
 
 rqmt = requirement.Requirement()
 flow = flow.Flow()
@@ -66,7 +66,7 @@ ti = testItem.TestItem()
 tv = testValue.TestValue()
 td = testData.TestData()
 tr = testResult.TestResult()
-ci = cicd.Cicd(app)
+ci = cicd.Cicd(app, pjt, iss, tc, ti, tv)
 cm = checkmarx.CheckMarx(app)
 
 

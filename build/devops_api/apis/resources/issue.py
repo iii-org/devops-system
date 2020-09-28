@@ -12,8 +12,8 @@ import calendar
 class Issue(object):
     headers = {'Content-Type': 'application/json'}
 
-    def __init__(self):
-        pass
+    def __init__(self, pjt):
+        self.pjt = pjt
 
     def __get_dict_userid(self, logger):
         result = db.engine.execute(
@@ -31,11 +31,11 @@ class Issue(object):
 
     def __dealwith_issue_redmine_output(self, logger, redmine_output):
         logger.info("redmine get redmine_output: {0}".format(redmine_output))
-        prject_list = Project.get_project_by_plan_project_id\
-            (self, logger, redmine_output['project']['id'])
+        prject_list = self.pjt.get_project_by_plan_project_id\
+            (logger, redmine_output['project']['id'])
         logger.debug("prject_list: {0}".format(prject_list))
         if prject_list is not None:
-            project_name = Project.get_project_info(self, logger, prject_list['project_id'])['name']
+            project_name = self.pjt.get_project_info(logger, prject_list['project_id'])['name']
             redmine_output['project']['id'] = prject_list['project_id']
             redmine_output['project']['name'] = project_name
         else:
@@ -73,10 +73,10 @@ class Issue(object):
     def __dealwith_issue_by_user_redmine_output(self, logger, redmine_output):
         output_list = {}
         output_list['id'] = redmine_output['id']
-        prject_list = Project.get_project_by_plan_project_id\
-            (self, logger, redmine_output['project']['id'])
-        project_name = Project.get_project_info(self, logger, prject_list['id'])['name']
-        output_list['project_id'] = prject_list['id']
+        project_list = self.pjt.get_project_by_plan_project_id(logger, redmine_output['project']['id'])
+        project = self.pjt.get_project_info(logger, project_list['project_id'])
+        project_name = project['name']
+        output_list['project_id'] = project_list['project_id']
         output_list['project_name'] = project_name
         output_list['issue_category'] = redmine_output['tracker']['name']
         output_list['issue_priority'] = redmine_output['priority']['name']
@@ -121,7 +121,7 @@ class Issue(object):
             ProjectUserRole.stru_project_user_role.c.user_id==user_id))
         logger.debug("select_project_user_role_command: {0}".format(
             select_project_user_role_command))
-        reMessage = util.callsqlalchemy(self, select_project_user_role_command,
+        reMessage = util.callsqlalchemy(select_project_user_role_command,
                                         logger)
         match_list = reMessage.fetchall()
         logger.info("reMessage: {0}".format(match_list))
@@ -149,7 +149,7 @@ class Issue(object):
         get_project_command = db.select([ProjectPluginRelation.stru_project_plug_relation])\
         .where(db.and_(ProjectPluginRelation.stru_project_plug_relation.c.project_id==project_id))
         logger.debug("get_project_command: {0}".format(get_project_command))
-        reMessage = util.callsqlalchemy(self, get_project_command, logger)
+        reMessage = util.callsqlalchemy(get_project_command, logger)
         project_dict = reMessage.fetchone()
         logger.debug("project_list: {0}".format(project_dict))
         if project_dict is not None:
@@ -161,8 +161,8 @@ class Issue(object):
             for redmine_issue in redmine_output_issue_array['issues']:
                 output_dict = self.__dealwith_issue_by_user_redmine_output(
                     logger, redmine_issue)
-                output_dict = Project.get_ci_last_test_result(
-                    self, app, logger, output_dict, project_dict)
+                output_dict = self.pjt.get_ci_last_test_result(
+                    app, logger, output_dict, project_dict)
                 output_array.append(output_dict)
             return {"message": "success", "data": output_array}, 200
         else:
@@ -391,11 +391,11 @@ class Issue(object):
         for redmine_issue in redmine_output_issue_array['issues']:
             output_dict = self.__dealwith_issue_by_user_redmine_output(
                 logger, redmine_issue)
-            project = Project.get_project_by_plan_project_id(
-                self, logger, redmine_issue['project']['id'])
+            project = self.pjt.get_project_by_plan_project_id(
+                logger, redmine_issue['project']['id'])
             logger.info("project: {0}".format(project))
-            output_dict = Project.get_ci_last_test_result(
-                self, app, logger, output_dict, project)
+            output_dict = self.pjt.get_ci_last_test_result(
+                app, logger, output_dict, project)
             output_array.append(output_dict)
         return output_array
 
@@ -404,8 +404,8 @@ class Issue(object):
         if 'parent_id' in args:
             args['parent_issue_id'] = args['parent_id']
             args.pop('parent_id', None)
-        project_plugin_relation = Project.get_project_plugin_relation(
-            self, logger, args['project_id'])
+        project_plugin_relation = self.pjt.get_project_plugin_relation(
+            logger, args['project_id'])
         args['project_id'] = project_plugin_relation['plan_project_id']
         if "assigned_to_id" in args:
             user_plugin_relation = auth.get_user_plugin_relation(

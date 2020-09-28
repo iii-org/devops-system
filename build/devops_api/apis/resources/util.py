@@ -55,7 +55,8 @@ class util(object):
 
         return reMessage
 
-    def callsqlalchemy(self, command, logger):
+    @staticmethod
+    def callsqlalchemy(command, logger):
         reMessage = None
 
         DBSession = orm.sessionmaker(bind=db.engine)
