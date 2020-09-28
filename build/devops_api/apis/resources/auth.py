@@ -607,7 +607,7 @@ class auth(object):
         redmine_project_id = None
         gitlab_project_id = None
         project_relat = Project.get_project_plugin_relation(
-            self, logger, project_id)
+            logger, project_id)
         if project_relat is not None:
             redmine_project_id = project_relat['plan_project_id']
             gitlab_project_id = project_relat['git_repository_id']
@@ -665,7 +665,7 @@ class auth(object):
             return {"cloud not get user plug relation data"}, 400
 
         project_relat = Project.get_project_plugin_relation(
-            self, logger, project_id)
+            logger, project_id)
         if project_relat is not None:
             redmine_project_id = project_relat['plan_project_id']
             gitlab_project_id = project_relat['git_repository_id']

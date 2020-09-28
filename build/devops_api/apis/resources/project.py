@@ -49,7 +49,8 @@ class Project(object):
         else:
             return False
 
-    def get_project_plugin_relation(self, logger, project_id):
+    @staticmethod
+    def get_project_plugin_relation(logger, project_id):
         select_project_relation_command = db.select([ProjectPluginRelation.stru_project_plug_relation])\
             .where(db.and_(ProjectPluginRelation.stru_project_plug_relation.c.project_id==project_id))
         reMessage = util.callsqlalchemy(select_project_relation_command,

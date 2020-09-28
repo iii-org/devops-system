@@ -56,7 +56,7 @@ pjt = project.Project(logger, app)
 iss = issue.Issue(pjt)
 pipe = pipeline.Pipeline()
 wk = wiki.Wiki()
-vn = version.Version()
+vn = version.Version(redmine)
 
 rqmt = requirement.Requirement()
 flow = flow.Flow()
