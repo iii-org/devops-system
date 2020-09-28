@@ -26,9 +26,11 @@ class auth(object):
             'role_name': row['role_name']
         }
 
-    def __init__(self, logger, app):
+    def __init__(self, logger, app, redmine, git):
         self.redmine_key = None
         self.headers = {'Content-Type': 'application/json'}
+        self.redmine = redmine
+        self.git = git
 
         if app.config["GITLAB_API_VERSION"] == "v3":
             # get gitlab admin token
@@ -303,7 +305,74 @@ class auth(object):
         ''' create user in plan phase software(redmine) and repository_user_id(gitlab)
         Create DB user, user_plugin_relation, project_user_role, groups_has_users 4 table
         '''
+        # Check DB has this login, email, if has, return error 400
+        chekc_email_login_command = db.select([User.stru_user]).where(
+            db.or_(User.stru_user.c.login == args['login'], User.stru_user.c.email == args['email']))
+        logger.debug("chekc_email_login_command: {0}".format(chekc_email_login_command))
+        reMessage = util.callsqlalchemy(chekc_email_login_command, logger)
+        user_info = reMessage.fetchone()
+        logger.info("Check user table has this account or email: {0}".format(user_info))
+        if user_info is not None:
+            return {
+                "message": "System already has this account or email"
+            }, 400
+        # Check Redmine has this login, email, if has, return error 400
+        offset = 0
+        limit = 25
+        total_count = 1
+        while offset < total_count:
+            # logger.debug("offset: {0}, total_count: {1}".format(offset, total_count))
+            parame={'offset': offset, 'limit': limit}
+            user_list_output = self.redmine.redmine_get_user_list(parame)
+            # logger.debug("user_list_output: {0}".format(user_list_output))
+            total_count = user_list_output['total_count']
+            for user in user_list_output['users']:
+                if user['login'] == args['login'] or user['mail'] == args['email']:
+                    return {
+                        "message": "Redmine already has this account or email"
+                    }, 400
+            offset += limit
+        # Check Gitlab has this login, email, if has, return error 400
+        page = 1
+        X_Total_Pages = 10
+        while page <= X_Total_Pages:
+            logger.debug("page: {0}, X_Total_Pages: {1}".format(page, X_Total_Pages))
+            parame={'page': page}
+            user_list_output = self.git.get_user_list(parame)
+            X_Total_Pages = user_list_output.headers['X-Total-Pages']
+            logger.debug("X_Total_Pages: {0}".format(X_Total_Pages))
+            for user in user_list_output.json():
+                if user['name'] == args['login'] or user['email'] == args['email']:
+                    return {
+                        "message": "gitlab already has this account or email"
+                    }, 400
+            page += 1
+
         user_source_password = args["password"]
+        # plan software user create
+        Redmine.get_redmine_key(self, logger, app)
+        red_user = Redmine.redmine_post_user(self, logger, app, args,
+                                             user_source_password)
+        if red_user.status_code == 201:
+            redmine_user_id = red_user.json()['user']['id']
+        else:
+            return {
+                "message": red_user.text
+            }, red_user.status_code
+
+        # gitlab software user create
+        git_user = GitLab.create_user(self, logger, app, args,
+                                      user_source_password)
+        if git_user.status_code == 201:
+            gitlab_user_id = git_user.json()['id']
+        else:
+            # delte redmine user
+            self.redmine.redmine_delete_user(redmine_user_id)
+            return {
+                "message": git_user.text
+            }, git_user.status_code
+
+
         h = SHA256.new()
         h.update(args["password"].encode())
         args["password"] = h.hexdigest()
@@ -331,30 +400,6 @@ class auth(object):
         user_id = reMessage.fetchone()['id']
         logger.info("user_id: {0}".format(user_id))
 
-        # plan software user create
-        Redmine.get_redmine_key(self, logger, app)
-        red_user = Redmine.redmine_post_user(self, logger, app, args,
-                                             user_source_password)
-        if red_user.status_code == 201:
-            redmine_user_id = red_user.json()['user']['id']
-        else:
-            return {
-                "message": {
-                    "redmine": red_user.json()
-                }
-            }, red_user.status_code
-        # git software user create
-        git_user = GitLab.create_user(self, logger, app, args,
-                                      user_source_password)
-        if git_user.status_code == 201:
-            gitlab_user_id = git_user.json()['id']
-        else:
-            return {
-                "message": {
-                    "gitlab": git_user.json()
-                }
-            }, git_user.status_code
-
         #insert user_plugin_relation table
         insert_user_plugin_relation_command = db.insert(UserPluginRelation.stru_user_plug_relation)\
             .values(user_id = user_id, plan_user_id = redmine_user_id, \
@@ -365,17 +410,7 @@ class auth(object):
                                         logger)
         logger.info("reMessage: {0}".format(reMessage))
 
-        if args["project_id"] is not None:
-            for project_id in args["project_id"]:
-                # insert role and user into project_user_role
-                insert_project_user_role_command = db.insert(ProjectUserRole.stru_project_user_role)\
-                    .values(user_id = user_id, role_id = args['role_id'], project_id = project_id)
-                logger.debug("insert_project_user_role_command: {0}".format(
-                    insert_project_user_role_command))
-                reMessage = util.callsqlalchemy(
-                    insert_project_user_role_command, logger)
-                logger.info("reMessage: {0}".format(reMessage))
-
+        #insert project_user_role
         insert_project_user_role_command = db.insert(ProjectUserRole.stru_project_user_role)\
             .values(project_id = -1, user_id = user_id, role_id = args['role_id'])
         logger.debug("insert_project_user_role_command: {0}".format(
@@ -423,13 +458,13 @@ class auth(object):
             left join public.roles as rl \
             on pur.role_id = rl.id \
             group by ur.id, rl.id\
-            ORDER BY ur.id ASC")
+            ORDER BY ur.id DESC")
         user_data_array = result.fetchall()
         result.close()
         if user_data_array:
             output_array = []
             for user_data in user_data_array:
-                logger.info("user_data: {0}".format(user_data))
+                # logger.info("user_data: {0}".format(user_data))
                 select_project_by_userid = db.select([ProjectUserRole.stru_project_user_role, \
                     TableProjects.stru_projects]).where(db.and_(\
                     ProjectUserRole.stru_project_user_role.c.user_id==user_data["id"], \
@@ -438,8 +473,7 @@ class auth(object):
                     TableProjects.stru_projects.c.id))
                 output_project_array = util.callsqlalchemy(
                     select_project_by_userid, logger).fetchall()
-                logger.debug(
-                    "output_project: {0}".format(output_project_array))
+                #logger.debug("output_project: {0}".format(output_project_array))
                 project = []
                 if output_project_array:
                     for output_project in output_project_array:

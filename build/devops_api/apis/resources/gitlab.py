@@ -1,5 +1,7 @@
 import requests
 import json
+import logging
+logger = logging.getLogger('devops.api')
 
 
 class GitLab(object):
@@ -7,6 +9,7 @@ class GitLab(object):
     headers = {'Content-Type': 'application/json'}
 
     def __init__(self, logger, app):
+        self.app = app
         if app.config["GITLAB_API_VERSION"] == "v3":
             # get gitlab admin token
             url = "http://{0}/api/v3/session".format(\
@@ -43,6 +46,21 @@ class GitLab(object):
                                verify=False)
         logger.info(
             "gitlab create user api output: status_code: {0}, message: {1}".
+            format(output.status_code, output.json()))
+        return output
+
+    def get_user_list(self, args):
+        url = "http://{0}/api/{1}/users"\
+            .format(self.app.config["GITLAB_IP_PORT"], self.app.config["GITLAB_API_VERSION"], \
+            )
+        args['private_token'] = self.private_token
+        logger.info("gitlab create user url: {0}".format(url))
+        output = requests.get(url,
+                               params=args,
+                               headers=self.headers,
+                               verify=False)
+        logger.info(
+            "gitlab get user list output: status_code: {0}, message: {1}".
             format(output.status_code, output.json()))
         return output
 
