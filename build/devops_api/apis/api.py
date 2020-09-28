@@ -80,11 +80,11 @@ class TotalProjectList(Resource):
     @jwt_required
     def get(self):
         role_id = get_jwt_identity()["role_id"]
-        print("role_id={0}".format(role_id))
+        # print("role_id={0}".format(role_id))
 
         if role_id in (3, 5):
             user_id = get_jwt_identity()["user_id"]
-            print("user_id={0}".format(user_id))
+            # print("user_id={0}".format(user_id))
             try:
                 output = pjt.get_pm_project_list(logger, app, user_id)
                 return output
