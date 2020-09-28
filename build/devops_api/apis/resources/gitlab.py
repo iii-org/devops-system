@@ -7,6 +7,7 @@ class GitLab(object):
     headers = {'Content-Type': 'application/json'}
 
     def __init__(self, logger, app):
+        self.app = app
         if app.config["GITLAB_API_VERSION"] == "v3":
             # get gitlab admin token
             url = "http://{0}/api/v3/session".format(\
@@ -45,6 +46,19 @@ class GitLab(object):
             "gitlab create user api output: status_code: {0}, message: {1}".
             format(output.status_code, output.json()))
         return output
+
+    def update_password(self, repository_user_id, new_pwd):
+        url = "http://{0}/api/{1}/users/{2}?private_token={3}".format(
+            self.app.config["GITLAB_IP_PORT"],
+            self.app.config["GITLAB_API_VERSION"],
+            repository_user_id,
+            self.private_token)
+        param = {"password": new_pwd}
+        output = requests.put(url, data=json.dumps(param), headers=self.headers, verify=False)
+        if output.status_code == 200:
+            return None
+        else:
+            return output
 
     def project_add_member(self, logger, app, project_id, user_id):
         gitlab = GitLab(logger, app)
