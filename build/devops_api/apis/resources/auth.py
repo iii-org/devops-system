@@ -148,8 +148,7 @@ class auth(object):
                 ProjectUserRole.stru_project_user_role.c.project_id==\
                 ProjectPluginRelation.stru_project_plug_relation.c.project_id))
             logger.debug("select_project: {0}".format(select_project))
-            reMessage = util.callsqlalchemy(select_project,
-                                            logger).fetchall()
+            reMessage = util.callsqlalchemy(select_project, logger).fetchall()
             logger.debug("reMessage: {0}".format(reMessage))
             if len(reMessage) > 0:
                 project_list = []
@@ -296,8 +295,7 @@ class auth(object):
             update_at = datetime.datetime.now(), disabled=disabled)
         logger.debug("update_user_to_disable_command: {0}".format(
             update_user_to_disable_command))
-        reMessage = util.callsqlalchemy(update_user_to_disable_command,
-                                        logger)
+        reMessage = util.callsqlalchemy(update_user_to_disable_command, logger)
         logger.info("reMessage: {0}".format(reMessage))
         return {'message': 'success'}, 200
 
@@ -307,27 +305,29 @@ class auth(object):
         '''
         # Check DB has this login, email, if has, return error 400
         chekc_email_login_command = db.select([User.stru_user]).where(
-            db.or_(User.stru_user.c.login == args['login'], User.stru_user.c.email == args['email']))
-        logger.debug("chekc_email_login_command: {0}".format(chekc_email_login_command))
+            db.or_(User.stru_user.c.login == args['login'],
+                   User.stru_user.c.email == args['email']))
+        logger.debug(
+            "chekc_email_login_command: {0}".format(chekc_email_login_command))
         reMessage = util.callsqlalchemy(chekc_email_login_command, logger)
         user_info = reMessage.fetchone()
-        logger.info("Check user table has this account or email: {0}".format(user_info))
+        logger.info("Check user table has this account or email: {0}".format(
+            user_info))
         if user_info is not None:
-            return {
-                "message": "System already has this account or email"
-            }, 400
+            return {"message": "System already has this account or email"}, 400
         # Check Redmine has this login, email, if has, return error 400
         offset = 0
         limit = 25
         total_count = 1
         while offset < total_count:
             # logger.debug("offset: {0}, total_count: {1}".format(offset, total_count))
-            parame={'offset': offset, 'limit': limit}
+            parame = {'offset': offset, 'limit': limit}
             user_list_output = self.redmine.redmine_get_user_list(parame)
             # logger.debug("user_list_output: {0}".format(user_list_output))
             total_count = user_list_output['total_count']
             for user in user_list_output['users']:
-                if user['login'] == args['login'] or user['mail'] == args['email']:
+                if user['login'] == args['login'] or user['mail'] == args[
+                        'email']:
                     return {
                         "message": "Redmine already has this account or email"
                     }, 400
@@ -336,13 +336,16 @@ class auth(object):
         page = 1
         X_Total_Pages = 10
         while page <= X_Total_Pages:
-            logger.debug("page: {0}, X_Total_Pages: {1}".format(page, X_Total_Pages))
-            parame={'page': page}
+            #logger.debug("page: {0}, X_Total_Pages: {1}".format(page, X_Total_Pages))
+            parame = {'page': page}
             user_list_output = self.git.get_user_list(parame)
-            X_Total_Pages = user_list_output.headers['X-Total-Pages']
-            logger.debug("X_Total_Pages: {0}".format(X_Total_Pages))
+            X_Total_Pages = int(user_list_output.headers['X-Total-Pages'])
+            #logger.debug("X_Total_Pages: {0}".format(X_Total_Pages))
             for user in user_list_output.json():
-                if user['name'] == args['login'] or user['email'] == args['email']:
+                logger.debug("gitlab login: {0}, email: {1}".format(
+                    user['name'], user['email']))
+                if user['name'] == args['login'] or user['email'] == args[
+                        'email']:
                     return {
                         "message": "gitlab already has this account or email"
                     }, 400
@@ -356,9 +359,7 @@ class auth(object):
         if red_user.status_code == 201:
             redmine_user_id = red_user.json()['user']['id']
         else:
-            return {
-                "message": red_user.text
-            }, red_user.status_code
+            return {"message": red_user.text}, red_user.status_code
 
         # gitlab software user create
         git_user = GitLab.create_user(self, logger, app, args,
@@ -368,10 +369,7 @@ class auth(object):
         else:
             # delte redmine user
             self.redmine.redmine_delete_user(redmine_user_id)
-            return {
-                "message": git_user.text
-            }, git_user.status_code
-
+            return {"message": git_user.text}, git_user.status_code
 
         h = SHA256.new()
         h.update(args["password"].encode())
@@ -563,7 +561,8 @@ class auth(object):
                 rl.name as role_name FROM\
                 public.project_user_role as pur, public.user as ur, public.roles as rl \
                 WHERE pur.project_id={0} AND pur.role_id!=5 AND pur.user_id=ur.id AND \
-                ur.disabled=False AND pur.role_id=rl.id ORDER BY pur.user_id DESC".format(project_id)
+                ur.disabled=False AND pur.role_id=rl.id ORDER BY pur.user_id DESC".format(
+                project_id)
             logger.debug("select_userRole_by_project: {0}".format(
                 select_userRole_by_project))
             data_userRole_by_project_array = util.callsqlalchemy(
@@ -572,13 +571,11 @@ class auth(object):
         user_list = []
         for data_userRole_by_project in data_userRole_by_project_array:
             logger.debug("data_userRole_by_project: {0}".format(
-                data_userRole_by_project[
-                    'user_id']))
+                data_userRole_by_project['user_id']))
 
             user_list.append({
                 "id":
-                data_userRole_by_project[
-                    'user_id'],
+                data_userRole_by_project['user_id'],
                 "name":
                 data_userRole_by_project['user_name'],
                 "email":
@@ -588,13 +585,9 @@ class auth(object):
                 "login":
                 data_userRole_by_project['login'],
                 "create_at":
-                util.dateToStr(
-                    self,
-                    data_userRole_by_project['create_at']),
+                util.dateToStr(self, data_userRole_by_project['create_at']),
                 "update_at":
-                util.dateToStr(
-                    self,
-                    data_userRole_by_project['update_at']),
+                util.dateToStr(self, data_userRole_by_project['update_at']),
                 "role_id":
                 data_userRole_by_project['role_id'],
                 "role_name":
@@ -611,8 +604,7 @@ class auth(object):
             ProjectUserRole.stru_project_user_role.c.user_id==args['user_id'], \
             ProjectUserRole.stru_project_user_role.c.project_id==project_id,
             ProjectUserRole.stru_project_user_role.c.role_id==role_id))
-        get_pj_ur_rl = util.callsqlalchemy(get_pj_ur_rl_cmd,
-                                           logger).fetchone()
+        get_pj_ur_rl = util.callsqlalchemy(get_pj_ur_rl_cmd, logger).fetchone()
         # if ProjectUserRole table not has relationship
         if get_pj_ur_rl is None:
             # insert one relationship
@@ -640,8 +632,7 @@ class auth(object):
         # get redmine, gitlab project id
         redmine_project_id = None
         gitlab_project_id = None
-        project_relat = Project.get_project_plugin_relation(
-            logger, project_id)
+        project_relat = Project.get_project_plugin_relation(logger, project_id)
         if project_relat is not None:
             redmine_project_id = project_relat['plan_project_id']
             gitlab_project_id = project_relat['git_repository_id']
@@ -698,8 +689,7 @@ class auth(object):
         else:
             return {"cloud not get user plug relation data"}, 400
 
-        project_relat = Project.get_project_plugin_relation(
-            logger, project_id)
+        project_relat = Project.get_project_plugin_relation(logger, project_id)
         if project_relat is not None:
             redmine_project_id = project_relat['plan_project_id']
             gitlab_project_id = project_relat['git_repository_id']
@@ -745,8 +735,7 @@ class auth(object):
             ProjectUserRole.stru_project_user_role.c.user_id==user_id, \
             ProjectUserRole.stru_project_user_role.c.project_id==project_id,
             ProjectUserRole.stru_project_user_role.c.role_id==role_id))
-        delete_pj_ur_rl = util.callsqlalchemy(delete_pj_ur_rl_cmd,
-                                              logger)
+        delete_pj_ur_rl = util.callsqlalchemy(delete_pj_ur_rl_cmd, logger)
 
         # gitlab project delete member
         if gitlab_project_id is not None and gitlab_user_id is not None:
