@@ -377,8 +377,8 @@ class auth(object):
 
         user_source_password = args["password"]
         # plan software user create
-        self.redmine.get_redmine_key(self, logger, app)
-        red_user = self.redmine.redmine_post_user(self, logger, app, args,
+        self.redmine.get_redmine_key(logger, app)
+        red_user = self.redmine.redmine_post_user(logger, app, args,
                                              user_source_password)
         if red_user.status_code == 201:
             redmine_user_id = red_user.json()['user']['id']
