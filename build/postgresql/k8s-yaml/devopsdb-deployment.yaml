@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: devopsdb
-        image: postgres
+        image: postgres:12
         env:
         - name: POSTGRES_PASSWORD
           value: iiidevops
