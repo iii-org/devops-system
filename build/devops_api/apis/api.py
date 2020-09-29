@@ -51,7 +51,7 @@ logger.setLevel(logging.DEBUG)
 logger.addHandler(handler)
 
 ut = util.util()
-redmine = redmine.Redmine(logger, app)
+redmine = redmine.Redmine(app)
 git = gitlab.GitLab(logger, app)
 au = auth.auth(logger, app, redmine, git)
 pjt = project.Project(logger, app, au)
@@ -1851,6 +1851,32 @@ class GetTestSummary(Resource):
             return {"message": "your role art not PM/administrator"}, 401
 
 
+class ProjectFiles(Resource):
+    @jwt_required
+    def post(self, project_id):
+        plan_project_id = pjt.get_plan_project_id(project_id)
+        parser = reqparse.RequestParser()
+        parser.add_argument('version_id', type=str)
+        parser.add_argument('description', type=str)
+        args = parser.parse_args()
+        return redmine.redmine_upload(plan_project_id, args)
+
+    @jwt_required
+    def get(self, project_id):
+        plan_project_id = pjt.get_plan_project_id(project_id)
+        return redmine.redmine_list_file(plan_project_id)
+
+
+class DownloadFile(Resource):
+    @jwt_required
+    def get(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('id', type=int)
+        parser.add_argument('filename', type=str)
+        args = parser.parse_args()
+        return redmine.redmine_download_attachment(args)
+
+
 api.add_resource(Index, '/')
 
 # Project list
@@ -2018,6 +2044,11 @@ api.add_resource(SonarReport, '/sonar_report/<project_id>')
 
 # Get three test results
 api.add_resource(GetTestSummary, '/test_summary/<project_id>')
+
+# Files
+api.add_resource(ProjectFiles, '/project/<project_id>/file')
+api.add_resource(DownloadFile, '/download')
+
 
 if __name__ == "__main__":
     db.init_app(app)

@@ -1,11 +1,8 @@
-from urllib.parse import urlparse
-from flask import jsonify
-from .issue import Issue
-from .project import Project
-from .testCase import TestCase
-from .testItem import TestItem
-from .testValue import TestValue
+import json
 import logging
+from urllib.parse import urlparse
+
+from flask import jsonify
 
 logger = logging.getLogger('devops.api')
 
@@ -57,10 +54,13 @@ class Cicd(object):
                 for value in part_values:
                     values.append(value)
 
+                scheme = url.scheme
+                if scheme == b'':
+                    scheme = ''
                 o_request = {
                     'method': method,
                     'url': {
-                        'protocol': url.scheme,
+                        'protocol': scheme,
                         'port': url.port
                     },
                     'header': []
@@ -121,4 +121,4 @@ class Cicd(object):
                     }]
                 output['item'].append(o_item)
 
-        return jsonify({'message': 'success', 'data': output})
+        return jsonify({'message': 'success', 'data': json.dumps(output)})
