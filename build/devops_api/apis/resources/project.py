@@ -150,6 +150,19 @@ class Project(object):
         result.close()
         return project
 
+    @staticmethod
+    def get_plan_project_id(project_id):
+        result = db.engine.execute(
+            "SELECT plan_project_id FROM public.project_plugin_relation"
+            " WHERE project_id = {0}".format(project_id))
+        if result.rowcount > 0:
+            project = result.fetchone()
+            ret = project['plan_project_id']
+        else:
+            ret = -1
+        result.close()
+        return ret
+
     def get_projects_by_user(self, logger, app, user_id):
         output_array = []
         result = db.engine.execute(

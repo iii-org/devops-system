@@ -1,6 +1,8 @@
-import requests
-import json
-import logging
+import requests, json, logging
+import werkzeug
+from flask_restful import reqparse
+from flask import send_file
+from io import BytesIO
 
 # from model import db, Project_relationship
 # from .util import util
@@ -13,16 +15,38 @@ class Redmine(object):
     redmine_key = None
     headers = {'Content-Type': 'application/json'}
 
-    def __init__(self, logger, app):
+    def __init__(self, app):
         self.app = app
         self.headers = {'Content-Type': 'application/json'}
         # get redmine_key
-        self.app = app
         url = "http://{0}:{1}@{2}/users/current.json".format(app.config['REDMINE_ADMIN_ACCOUNT'],\
             app.config['REDMINE_ADMIN_PASSWORD'], app.config['REDMINE_IP_PORT'])
         output = requests.get(url, headers=self.headers, verify=False)
         self.redmine_key = output.json()['user']['api_key']
         logger.info("redmine_key: {0}".format(self.redmine_key))
+
+    def api_post(self, path, data=None, params=None):
+        if data is None:
+            data = {}
+        if params is None:
+            params = {}
+        params['key'] = self.redmine_key
+        url = "http://{0}{1}.json".format(self.app.config['REDMINE_IP_PORT'], path)
+        headers = self.headers.copy()
+        if type(data) is dict:
+            output = requests.post(url, data=json.dumps(data), params=params,
+                                   headers=headers, verify=False)
+        else:
+            headers['Content-Type'] = 'application/octet-stream'
+            output = requests.post(url, data=data, params=params,
+                                   headers=headers, verify=False)
+        return output
+
+    def api_get(self, path):
+        url = "http://{0}{1}.json?key={2}".format(
+            self.app.config['REDMINE_IP_PORT'], path, self.redmine_key)
+        output = requests.get(url, headers=self.headers, verify=False)
+        return output
 
     def get_redmine_key(self, logger, app):
         # get redmine_key
@@ -74,7 +98,6 @@ class Redmine(object):
         args['key'] = self.redmine_key
         url = "http://{0}/issues.json".format(app.config['REDMINE_IP_PORT'])
         logger.info("args: {0}".format(args))
-        print(args)
         output = requests.get(url,
                               headers=self.headers,
                               verify=False,
@@ -170,6 +193,7 @@ class Redmine(object):
             return None
         else:
             return output
+
     def redmine_get_user_list(self, args):
         args['key'] = self.redmine_key
         url = "http://{0}/users.json".format(
@@ -271,7 +295,6 @@ class Redmine(object):
         url = "http://{0}/versions/{1}.json?key={2}".format(
             app.config['REDMINE_IP_PORT'], version_id, self.redmine_key)
         logger.info("url: {0}".format(url))
-        print(args)
         output = requests.put(url,
                               data=json.dumps(args),
                               headers=Redmine.headers,
@@ -320,4 +343,51 @@ class Redmine(object):
         output = requests.get(url, headers=self.headers, verify=False)
         logger.info("post status code: {0}".format(output.status_code))
         return output, output.status_code
-    
+
+    def redmine_upload(self, plan_project_id, args):
+        parse = reqparse.RequestParser()
+        parse.add_argument('file', type=werkzeug.datastructures.FileStorage, location='files')
+        f_args = parse.parse_args()
+        file = f_args['file']
+        filename = file.filename
+        res = self.api_post('/uploads', file)
+        if res.status_code != 201:
+            return {"message": "Error while uploads to redmine", "data": res.text}, res.status_code
+        token = res.json().get('upload').get('token')
+        params = {
+            'token': token,
+            'filename': filename
+        }
+        if args['description'] is not None:
+            params['description'] = args['description']
+        if args['version_id'] is not None:
+            params['version_id'] = args['version_id']
+        data = {'file': params}
+        res = self.api_post('/projects/%d/files' % plan_project_id, data)
+        if res.status_code == 204:
+            return None, 201
+        else:
+            return {"message": "Error while uploads to redmine", "data": res.text}, res.status_code
+
+    def redmine_list_file(self, plan_project_id):
+        res = self.api_get('/projects/%d/files' % plan_project_id)
+        return {"message": "success", "data": res.json()}, 200
+
+    def redmine_download_attachment(self, args):
+        a_id = args['id']
+        filename = args['filename']
+        try:
+            url = "http://{0}/attachments/download/{1}/{2}?key={3}".format(
+                self.app.config['REDMINE_IP_PORT'],
+                a_id,
+                filename,
+                self.redmine_key)
+            r = requests.get(url, headers=self.headers, verify=False)
+            file_obj = BytesIO(r.content)
+            return send_file(
+                file_obj,
+                attachment_filename=filename
+            )
+        except Exception as e:
+            return {"message": "error", "data": e.__str__()}, 400
+
