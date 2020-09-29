@@ -409,7 +409,7 @@ class Issue(object):
         args['project_id'] = project_plugin_relation['plan_project_id']
         if "assigned_to_id" in args:
             user_plugin_relation = auth.get_user_plugin_relation(
-                self, logger, user_id=args['assigned_to_id'])
+                logger, user_id=args['assigned_to_id'])
             args['assigned_to_id'] = user_plugin_relation['plan_user_id']
         logger.info("args: {0}".format(args))
         Redmine.get_redmine_key(self, logger, app)
@@ -435,7 +435,7 @@ class Issue(object):
             args.pop('parent_id', None)
         if "assigned_to_id" in args:
             user_plugin_relation = auth.get_user_plugin_relation(
-                self, logger, user_id=args['assigned_to_id'])
+                logger, user_id=args['assigned_to_id'])
             args['assigned_to_id'] = user_plugin_relation['plan_user_id']
         logger.info("update_issue_rd args: {0}".format(args))
         Redmine.get_redmine_key(self, logger, app)
@@ -503,8 +503,7 @@ class Issue(object):
                                                   args["to_time"])
         else:
             args["due_date"] = ">=".format(args["from_time"])
-        user_plugin_relation = auth.get_user_plugin_relation(self,
-                                                             logger,
+        user_plugin_relation = auth.get_user_plugin_relation(logger,
                                                              user_id=user_id)
         if user_plugin_relation is not None:
             args["assigned_to_id"] = user_plugin_relation['plan_user_id']
@@ -523,8 +522,7 @@ class Issue(object):
     def get_not_finish_issue_statistics(self, logger, app, user_id):
         args = {}
         args['limit']=100
-        user_plugin_relation = auth.get_user_plugin_relation(self,
-                                                             logger,
+        user_plugin_relation = auth.get_user_plugin_relation(logger,
                                                              user_id=user_id)
         if user_plugin_relation is not None:
             args["assigned_to_id"] = user_plugin_relation['plan_user_id']
@@ -561,8 +559,7 @@ class Issue(object):
 
         Redmine.get_redmine_key(self, logger, app)
         args = {"due_date": "><{0}|{1}".format(from_time, to_time)}
-        user_plugin_relation = auth.get_user_plugin_relation(self,
-                                                             logger,
+        user_plugin_relation = auth.get_user_plugin_relation(logger,
                                                              user_id=user_id)
         if user_plugin_relation is not None:
             args["assigned_to_id"] = user_plugin_relation['plan_user_id']

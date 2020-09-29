@@ -1,10 +1,10 @@
 import datetime
 import requests
 import json
+import logging
 from Cryptodome.Hash import SHA256
 
 from .util import util
-from .redmine import Redmine
 from .gitlab import GitLab
 from .project import Project
 from model import db, User, UserPluginRelation, ProjectUserRole, TableProjects, TableRole, ProjectPluginRelation, TableRolesPluginRelation
@@ -12,6 +12,7 @@ from model import db, User, UserPluginRelation, ProjectUserRole, TableProjects, 
 # from jsonwebtoken import jsonwebtoken
 from flask_jwt_extended import (create_access_token, JWTManager,
                                 get_jwt_claims)
+logger = logging.getLogger('devops.api')
 
 jwt = JWTManager()
 
@@ -27,6 +28,7 @@ class auth(object):
         }
 
     def __init__(self, logger, app, redmine, git):
+        self.app = app
         self.redmine_key = None
         self.headers = {'Content-Type': 'application/json'}
         self.redmine = redmine
@@ -171,7 +173,7 @@ class auth(object):
             return {"message": "Could not found user information"}, 400
 
     def update_user_info(self, logger, user_id, args):
-        #Check user id disabled or not.
+        # Check user id disabled or not.
         select_user_to_disable_command = db.select([User.stru_user])\
             .where(db.and_(User.stru_user.c.id==user_id))
         logger.debug("select_user_to_disable_command: {0}".format(
@@ -183,6 +185,9 @@ class auth(object):
             set_string += "name = '{0}'".format(args["name"])
             set_string += ","
         if args["password"] is not None:
+            err = self.update_external_passwords(user_id, args["password"])
+            if err is not None:
+                logger.error(err) # Don't stop change password on API server
             h = SHA256.new()
             h.update(args["password"].encode())
             set_string += "password = '{0}'".format(h.hexdigest())
@@ -204,9 +209,28 @@ class auth(object):
         result = db.engine.execute(
             "UPDATE public.user SET {0} WHERE id = {1}".format(
                 set_string, user_id))
-        logger.debug("update db reslut: {0}".format(result))
+        logger.debug("update db result: {0}".format(result))
 
         return {'message': 'success'}, 200
+
+    def update_external_passwords(self, user_id, new_pwd):
+        user_relation = auth.get_user_plugin_relation(logger, user_id=user_id)
+        logger.debug("user_relation_list: {0}".format(user_relation))
+        if user_relation is not None:
+            redmine_user_id = user_relation['plan_user_id']
+            err = self.redmine.redmine_update_password(redmine_user_id, new_pwd)
+            if err is not None:
+                return err
+
+            gitlab_user_id = user_relation['repository_user_id']
+            gitlab = GitLab(logger, self.app)
+            err = gitlab.update_password(gitlab_user_id, new_pwd)
+            if err is not None:
+                return err
+
+            return None
+        else:
+            return "cloud not get user plug relation data"
 
     def delete_user(self, logger, app, user_id):
         ''' disable user on user table'''
@@ -419,8 +443,8 @@ class auth(object):
 
         return {"message": "success", "data": {"user_id": user_id}}, 200
 
-    def get_user_plugin_relation(self,
-                                 logger,
+    @staticmethod
+    def get_user_plugin_relation(logger,
                                  user_id=None,
                                  plan_user_id=None,
                                  repository_user_id=None):
@@ -620,8 +644,7 @@ class auth(object):
         # get redmine, gitlab user_id
         redmine_user_id = None
         gitlab_user_id = None
-        user_relation = auth.get_user_plugin_relation(self,
-                                                      logger,
+        user_relation = auth.get_user_plugin_relation(logger,
                                                       user_id=args['user_id'])
         logger.debug("user_relation_list: {0}".format(user_relation))
         if user_relation is not None:
@@ -640,8 +663,8 @@ class auth(object):
             return {"message": "Could not get project relationship data"}, 400
         if (redmine_role_id != None and redmine_user_id != None
                 and redmine_project_id != None):
-            Redmine.get_redmine_key(self, logger, app)
-            output, status_code = Redmine.redmine_create_memberships(self, logger, app, \
+            self.redmine.get_redmine_key(logger, app)
+            output, status_code = self.redmine.redmine_create_memberships(logger, app, \
                 redmine_project_id, redmine_user_id, redmine_role_id)
             if status_code == 201:
                 logger.debug(
@@ -679,8 +702,7 @@ class auth(object):
         # get redmine, gitlab user_id
         redmine_user_id = None
         gitlab_user_id = None
-        user_relation = auth.get_user_plugin_relation(self,
-                                                      logger,
+        user_relation = auth.get_user_plugin_relation(logger,
                                                       user_id=user_id)
         logger.debug("user_relation_list: {0}".format(user_relation))
         if user_relation is not None:
@@ -698,10 +720,10 @@ class auth(object):
 
         if (redmine_role_id != None and redmine_user_id != None
                 and redmine_project_id != None):
-            Redmine.get_redmine_key(self, logger, app)
+            self.redmine.get_redmine_key(logger, app)
             # get memebership id
-            memeberships, status_code = Redmine.redmine_get_memberships_list(
-                self, logger, app, redmine_project_id)
+            memeberships, status_code = self.redmine.redmine_get_memberships_list(
+                logger, app, redmine_project_id)
             redmine_membership_id = None
             if status_code == 200:
                 for membership in memeberships.json()['memberships']:
@@ -709,8 +731,8 @@ class auth(object):
                         redmine_membership_id = membership['id']
             if redmine_membership_id is not None:
                 #delete membership
-                output, status_code = Redmine.redmine_delete_memberships(
-                    self, logger, app, redmine_membership_id)
+                output, status_code = self.redmine.redmine_delete_memberships(
+                    logger, app, redmine_membership_id)
                 if status_code == 204:
                     logger.debug(
                         "redmine delete membership success, output: {0}".

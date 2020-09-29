@@ -42,9 +42,9 @@ class Version(object):
                 }, 200
             else:
                 return {
-                    "message": "Create redmine Version error",
+                    "message": "Create Rredmine Version error",
                     "data": {}
-                }, 401
+                }, statu_code
 
     def get_version_by_version_id(self, logger, app, project_id, version_id):
         redmine_key = self.redmine.get_redmine_key(logger, app)
@@ -53,7 +53,7 @@ class Version(object):
         if statu_code == 200:
             return {"message": "success", "data": version.json()}, 200
         else:
-            return {"message": "get redmine version  error", "data": {}}, 401
+            return {"message": "get redmine version  error", "data": {}}, statu_code
 
     def put_version_by_version_id(self, logger, app, project_id, version_id,
                                   args):
@@ -65,7 +65,7 @@ class Version(object):
         elif statu_code == 201:
             return {"message": "create version success", "data": {}}, 200
         else:
-            return {"message": "put redmine version error"}, 401
+            return {"message": "put redmine version error"}, statu_code
 
     def delete_version_by_version_id(self, logger, app, project_id,
                                      version_id):
@@ -76,4 +76,4 @@ class Version(object):
         if statu_code == 204:
             return {"message": "success", "data": {}}, 200
         else:
-            return {"message": "delete redmine wiki error", "data": {}}, 401
+            return {"message": "delete redmine wiki error", "data": {}}, statu_code

@@ -49,6 +49,18 @@ class GitLab(object):
             format(output.status_code, output.json()))
         return output
 
+    def update_password(self, repository_user_id, new_pwd):
+        url = "http://{0}/api/{1}/users/{2}?private_token={3}".format(
+            self.app.config["GITLAB_IP_PORT"],
+            self.app.config["GITLAB_API_VERSION"],
+            repository_user_id,
+            self.private_token)
+        param = {"password": new_pwd}
+        output = requests.put(url, data=json.dumps(param), headers=self.headers, verify=False)
+        if output.status_code == 200:
+            return None
+        else:
+            return output
     def get_user_list(self, args):
         url = "http://{0}/api/{1}/users"\
             .format(self.app.config["GITLAB_IP_PORT"], self.app.config["GITLAB_API_VERSION"], \

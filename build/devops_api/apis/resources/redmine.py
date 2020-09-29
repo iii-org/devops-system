@@ -1,10 +1,11 @@
 import requests
 import json
 import logging
-logger = logging.getLogger('devops.api')
 
 # from model import db, Project_relationship
 # from .util import util
+
+logger = logging.getLogger('devops.api')
 
 
 class Redmine(object):
@@ -16,6 +17,7 @@ class Redmine(object):
         self.app = app
         self.headers = {'Content-Type': 'application/json'}
         # get redmine_key
+        self.app = app
         url = "http://{0}:{1}@{2}/users/current.json".format(app.config['REDMINE_ADMIN_ACCOUNT'],\
             app.config['REDMINE_ADMIN_PASSWORD'], app.config['REDMINE_IP_PORT'])
         output = requests.get(url, headers=self.headers, verify=False)
@@ -156,6 +158,18 @@ class Redmine(object):
             format(output.status_code, output.json()))
         return output
 
+    def redmine_update_password(self, plan_user_id, new_pwd):
+        url = "http://{0}/users/{1}.json?key={2}".format(
+            self.app.config['REDMINE_IP_PORT'], plan_user_id, self.redmine_key)
+        param = {"user": {"password": new_pwd}}
+        output = requests.put(url,
+                              data=json.dumps(param),
+                              headers=self.headers,
+                              verify=False)
+        if output.status_code == 204:
+            return None
+        else:
+            return output
     def redmine_get_user_list(self, args):
         args['key'] = self.redmine_key
         url = "http://{0}/users.json".format(
