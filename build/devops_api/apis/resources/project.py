@@ -14,7 +14,8 @@ class Project(object):
     private_token = None
     headers = {'Content-Type': 'application/json'}
 
-    def __init__(self, logger, app):
+    def __init__(self, logger, app, au):
+        self.au = au
         if app.config["GITLAB_API_VERSION"] == "v3":
             # get gitlab admin token
             url = "http://{0}/api/v3/session".format(\
@@ -908,7 +909,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                 #     .format(project_id, user_id, 3))
 
                 args["user_id"] = user_id
-                output = auth.project_add_member(self, logger, app, project_id,
+                output = self.au.project_add_member(logger, app, project_id,
                                                  args)
                 logger.info("project add member output: {0}".format(output))
                 print(output)
