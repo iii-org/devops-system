@@ -124,7 +124,6 @@ class Project(Resource):
     @jwt_required
     def get(self, project_id):
         role_id = get_jwt_identity()["role_id"]
-        print("role_id={0}".format(role_id))
 
         if role_id in (3, 5):
             try:

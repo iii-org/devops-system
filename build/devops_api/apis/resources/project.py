@@ -945,6 +945,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
 
     # 用project_id查詢db的相關table欄位資訊
     def pm_get_project(self, logger, app, project_id):
+        plan_project_id = self.get_plan_project_id(project_id)
         # 查詢專案名稱＆專案說明＆＆專案狀態
         result = db.engine.execute(
             "SELECT * FROM public.projects as pj, public.project_plugin_relation as ppr\
