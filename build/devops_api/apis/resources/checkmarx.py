@@ -59,7 +59,7 @@ class CheckMarx(object):
                 "INSERT INTO public.checkmarx "
                 "(cm_project_id, repo_id, scan_id, run_at) "
                 "VALUES ({0}, {1}, {2}, '{3}')"
-                .format(
+                    .format(
                     args['cm_project_id'],
                     args['repo_id'],
                     args['scan_id'],
@@ -70,7 +70,7 @@ class CheckMarx(object):
             return {"message": "error", "data": e.__str__()}, 400
 
     def get_scan_status(self, scan_id):
-        status = self.get('/sast/scans/' + scan_id).json().get('status')
+        status = self.get('/sast/scans/{0}'.format(scan_id)).json().get('status')
         return status.get('id'), status.get('name')
 
     def get_scan_status_wrapped(self, scan_id):
@@ -94,11 +94,11 @@ class CheckMarx(object):
             "UPDATE public.checkmarx "
             "SET report_id={0}"
             "WHERE scan_id={1}"
-            .format(report_id, scan_id)
+                .format(report_id, scan_id)
         )
         if r.status_code % 100 == 2:
             return {'message': 'success', 'data':
-                    {'scanId': scan_id, 'reportId': report_id}
+                {'scanId': scan_id, 'reportId': report_id}
                     }, r.status_code
         else:
             return {'message': 'error'}, r.status_code
@@ -110,7 +110,7 @@ class CheckMarx(object):
                 "UPDATE public.checkmarx "
                 "SET finished_at='{0}', finished=true "
                 "WHERE report_id={1}"
-                .format(datetime.datetime.now(), report_id)
+                    .format(datetime.datetime.now(), report_id)
             )
         return status.get('id'), status.get('value')
 
@@ -145,7 +145,7 @@ class CheckMarx(object):
         cursor = db.engine.execute(
             'SELECT git_repository_id FROM public.project_plugin_relation'
             ' WHERE project_id={0}'
-            .format(project_id)
+                .format(project_id)
         )
         if cursor.rowcount == 0:
             return -1
@@ -156,7 +156,7 @@ class CheckMarx(object):
             ' WHERE repo_id={1}'
             ' ORDER BY run_at DESC'
             ' LIMIT 1'
-            .format(column, repo_id)
+                .format(column, repo_id)
         )
         if cursor.rowcount == 0:
             return -1
@@ -190,3 +190,26 @@ class CheckMarx(object):
                 return {'message': 'error', 'data': json}, status_code
             else:
                 return {'message': error}, status_code
+
+    def get_result(self, project_id):
+        scan_id = self.get_latest('scan_id', project_id)
+        if scan_id < 0:
+            return {'message': 'This project does not have any scan.', 'status': -1}, 400
+        st_id, st_name = self.get_scan_status(scan_id)
+        if st_id != 7:
+            return {'message': 'The scan is not completed yet.', 'status': 1}, 200
+        report_id = self.get_latest('report_id', project_id)
+        if report_id < 0:
+            json, status_code = self.register_report(scan_id)
+            if status_code % 100 != 2:
+                return json, status_code
+            report_id = json.data.reportId
+        rst_id, rst_name = self.get_report_status(report_id)
+        if rst_id != 2:
+            return {'message': 'The report is not ready yet.', 'status': 2,
+                    'data': {'stats': self.get_scan_statistics(scan_id)}}, 200
+        return {'message': 'success', 'status': 3, 'data': {
+                'stats': self.get_scan_statistics(scan_id),
+                'report_id': report_id
+                }
+                }, 200
