@@ -1301,17 +1301,19 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
 
         # newman
         cursor = db.engine.execute(
-            'SELECT total, fail FROM public.test_results '
+            'SELECT id, total, fail FROM public.test_results '
             ' WHERE project_id={0}'
-            ' ORDER BY run_at DESC'
+            ' ORDER BY id DESC'
             ' LIMIT 1'
             .format(project_id))
         if cursor.rowcount > 0:
             row = cursor.fetchone()
+            id = row['id']
             total = row['total']
             fail = row['fail']
             passed = total - fail
             ret['postman'] = {
+                "id": id,
                 "passed": passed,
                 "failed": fail,
                 "total": total
