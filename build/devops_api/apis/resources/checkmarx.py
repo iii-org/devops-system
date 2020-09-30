@@ -131,7 +131,7 @@ class CheckMarx(object):
         except Exception as e:
             return {"message": "error", "data": e.__str__()}, 500
         try:
-            r = self.get('/reports/sastScan/' + report_id)
+            r = self.get('/reports/sastScan/{0}'.format(report_id))
             file_obj = BytesIO(r.content)
             return send_file(
                 file_obj,
