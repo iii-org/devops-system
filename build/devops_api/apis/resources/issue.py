@@ -145,7 +145,6 @@ class Issue(object):
             return {"message": "could not get this redmine issue."}, 400
 
     def get_issue_by_project(self, logger, app, project_id, args):
-        # get plan_project_id, git_repository_id, ci_project_id, ci_pipeline_id
         get_project_command = db.select([ProjectPluginRelation.stru_project_plug_relation])\
         .where(db.and_(ProjectPluginRelation.stru_project_plug_relation.c.project_id==project_id))
         logger.debug("get_project_command: {0}".format(get_project_command))

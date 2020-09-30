@@ -86,3 +86,29 @@ class Rancher(object):
                         })
         logger.debug("output_dict: {0}".format(output_dict))
         return output_dict[1:]
+    
+    def get_rancher_cluster_id(self, app, logger, cluster_name, rancher_token):
+        url= "https://{0}/{1}/clusters".format(\
+            app.config['RANCHER_IP_PORT'], app.config['RANCHER_API_VERSION'])
+        logger.info("get_rancher_cluster_id url: {0}".format(url))
+        headersandtoken = Rancher.headers
+        headersandtoken['Authorization'] = "Bearer {0}".format(rancher_token)
+        pipelineexecutions_output = util.callgetapi(self, url, logger,
+                                                    headersandtoken)
+        output_array = pipelineexecutions_output.json()['data']
+        for output in output_array:
+            if output['displayName'] == app.config['RANCHER_CLUSTER_NAME']:
+                return output['id']
+    
+    def get_rancher_project_id(self, app, logger, cluster_id, rancher_token):
+        url= "https://{0}/{1}/clusters/{2}/projects".format(\
+            app.config['RANCHER_IP_PORT'], app.config['RANCHER_API_VERSION'], cluster_id)
+        logger.info("get_rancher_cluster_id url: {0}".format(url))
+        headersandtoken = Rancher.headers
+        headersandtoken['Authorization'] = "Bearer {0}".format(rancher_token)
+        pipelineexecutions_output = util.callgetapi(self, url, logger,
+                                                    headersandtoken)
+        output_array = pipelineexecutions_output.json()['data']
+        for output in output_array:
+            if output['name'] == "Default":
+                return output['id']
