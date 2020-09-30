@@ -18,8 +18,8 @@ class Cicd(object):
 
     def export_to_postman(self, app, project_id, target, jwt_identity):
         authed = False
-        status = self.pjt.verify_project_user(logger, project_id, jwt_identity)
-        if not (status or jwt_identity == 5):
+        status = self.pjt.verify_project_user(logger, project_id, jwt_identity['user_id'])
+        if not (status or jwt_identity['role_id'] == 5):
             return {'message': 'Don\'t have authorization to access issue list on project: {0}'
                     .format(project_id)}, 401
         output = {
@@ -37,7 +37,7 @@ class Cicd(object):
         cases = []
         for issue in issues['data']:
             issue_id = issue['id']
-            part_cases = self.tc.get_testCase_by_issue_id(logger, issue_id, jwt_identity)
+            part_cases = self.tc.get_testCase_by_issue_id(logger, issue_id, jwt_identity['user_id'])
             for case in part_cases:
                 cases.append(case)
 
@@ -45,13 +45,13 @@ class Cicd(object):
             case_id = case['id']
             method = case['data']['method']
             url = urlparse(target)
-            items = self.ti.get_testItem_by_testCase_id(logger, case_id, jwt_identity)
+            items = self.ti.get_testItem_by_testCase_id(logger, case_id, jwt_identity['user_id'])
             for item in items:
                 item_id = item['id']
                 o_item = {'name': '%s #%s' % (case['name'], item_id)}
                 values = []
                 part_values = self.tv.get_testValue_by_testItem_id(
-                    logger, item_id, jwt_identity)
+                    logger, item_id, jwt_identity['user_id'])
                 for value in part_values:
                     values.append(value)
 
