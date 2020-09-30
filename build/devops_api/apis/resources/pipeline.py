@@ -10,6 +10,10 @@ from .project import Project
 
 class Pipeline(object):
     headers = {'Content-Type': 'application/json'}
+    
+    def __init__(self, app, pjt):
+        self.app = app
+        self.pjt = pjt
 
     def pipeline_exec_list(self, logger, app, repository_id):
         output_array = []
@@ -107,11 +111,11 @@ class Pipeline(object):
         parameter['author_email'] = "admin@example.com"
         parameter['author_name'] = "admin"
         parameter['file_path'] = '.rancher-pipeline.yaml'
-        yaml_info = Project.get_git_project_file_for_pipeline(
-            self, logger, app, repository_id, parameter)
+        yaml_info = self.pjt.get_git_project_file_for_pipeline(
+            logger, app, repository_id, parameter)
         parameter['file_path'] = '.rancher-pipeline.yml'
-        yml_info = Project.get_git_project_file_for_pipeline(
-            self, logger, app, repository_id, parameter)
+        yml_info = self.pjt.get_git_project_file_for_pipeline(
+            logger, app, repository_id, parameter)
         if yaml_info.status_code == 404 and yml_info.status_code == 404:
             action = "post"
             parameter['commit_message'] = "add .rancher-pipeline.yml"
@@ -126,11 +130,11 @@ class Pipeline(object):
         parameter = {}
         parameter['branch'] = branch_name
         parameter['file_path'] = '.rancher-pipeline.yaml'
-        yaml_info = Project.get_git_project_file_for_pipeline(
-            self, logger, app, repository_id, parameter)
+        yaml_info = self.pjt.get_git_project_file_for_pipeline(
+            logger, app, repository_id, parameter)
         parameter['file_path'] = '.rancher-pipeline.yml'
-        yml_info = Project.get_git_project_file_for_pipeline(
-            self, logger, app, repository_id, parameter)
+        yml_info = self.pjt.get_git_project_file_for_pipeline(
+            logger, app, repository_id, parameter)
         get_yaml_data = None
         if yaml_info.status_code != 404:
             get_yaml_data = yaml_info.json()
@@ -149,40 +153,42 @@ class Pipeline(object):
         parameter['branch'] = branch_name
         parameter['file_path'] = '.rancher-pipeline.yaml'
         try:
-            yaml_info = Project.get_git_project_file_for_pipeline(
-                self, logger, app, repository_id, parameter)
+            logger.debug("get_phase_yaml self {0}".format(self))
+            yaml_info = self.pjt.get_git_project_file_for_pipeline(
+                logger, app, repository_id, parameter)
             parameter['file_path'] = '.rancher-pipeline.yml'
-            yml_info = Project.get_git_project_file_for_pipeline(
-                self, logger, app, repository_id, parameter)
-            get_yaml_data = None
-            if yaml_info.status_code != 404:
-                get_yaml_data = yaml_info.json()
-            elif yml_info.status_code != 404:
-                get_yaml_data = yml_info.json()
-            logger.debug('get_yaml_data: {0}'.format(get_yaml_data))
-            rancher_ci_yaml = base64.b64decode(
-                get_yaml_data['content']).decode("utf-8")
-            logger.debug('rancher_ci_yaml: {0}'.format(rancher_ci_yaml))
-            rancher_ci_json = yaml.load(rancher_ci_yaml)
-            logger.info('rancher_ci_json: {0}'.format(rancher_ci_json))
-            phase_name_array = []
-            phase_name = None
-            soft_name = None
-            for index, rancher_satage in enumerate(rancher_ci_json['stages']):
-                if "--" in rancher_satage['name']:
-                    cut_list = rancher_satage['name'].split('--')
-                    phase_name = cut_list[0]
-                    soft_name = cut_list[1]
-                else:
-                    soft_name = rancher_satage['name']
-                phase_name_array.append({
-                    'id': index + 1,
-                    'phase': phase_name,
-                    'software': soft_name
-                })
-            logger.info('phase_name_array: {0}'.format(phase_name_array))
-            return {'message': "success", "data": phase_name_array}, 200
+            yml_info = self.pjt.get_git_project_file_for_pipeline(
+                logger, app, repository_id, parameter)
         except:
             return {
                 "message": "read yaml to get phase and software name error"
             }, 400
+        get_yaml_data = None
+        if yaml_info.status_code != 404:
+            get_yaml_data = yaml_info.json()
+        elif yml_info.status_code != 404:
+            get_yaml_data = yml_info.json()
+        logger.debug('get_yaml_data: {0}'.format(get_yaml_data))
+        rancher_ci_yaml = base64.b64decode(
+            get_yaml_data['content']).decode("utf-8")
+        logger.debug('rancher_ci_yaml: {0}'.format(rancher_ci_yaml))
+        rancher_ci_json = yaml.load(rancher_ci_yaml)
+        logger.info('rancher_ci_json: {0}'.format(rancher_ci_json))
+        phase_name_array = []
+        phase_name = None
+        soft_name = None
+        for index, rancher_satage in enumerate(rancher_ci_json['stages']):
+            if "--" in rancher_satage['name']:
+                cut_list = rancher_satage['name'].split('--')
+                phase_name = cut_list[0]
+                soft_name = cut_list[1]
+            else:
+                soft_name = rancher_satage['name']
+            phase_name_array.append({
+                'id': index + 1,
+                'phase': phase_name,
+                'software': soft_name
+            })
+        logger.info('phase_name_array: {0}'.format(phase_name_array))
+        return {'message': "success", "data": phase_name_array}, 200
+
