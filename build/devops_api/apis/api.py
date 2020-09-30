@@ -56,7 +56,7 @@ git = gitlab.GitLab(logger, app)
 au = auth.auth(logger, app, redmine, git)
 pjt = project.Project(logger, app, au)
 iss = issue.Issue(pjt)
-pipe = pipeline.Pipeline()
+pipe = pipeline.Pipeline(app, pjt)
 wk = wiki.Wiki()
 vn = version.Version(redmine)
 

@@ -607,11 +607,10 @@ class Project(object):
 
     def create_ranhcer_pipline_yaml(self, logger, app, project_id, args,
                                     action):
-        pro = Project(logger, app)
         url = "http://{0}/api/{1}/projects/{2}/repository/files/{3}?private_token={4}&branch={5}&\
 start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&commit_message={11}" \
             .format( app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, \
-            args["file_path"], pro.private_token, args["branch"], args["start_branch"], \
+            args["file_path"], self.private_token, args["branch"], args["start_branch"], \
             args["encoding"], args["author_email"], args["author_name"], args["content"], \
             args["commit_message"])
         if action == 'post':
@@ -625,10 +624,9 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         return output
 
     def get_git_project_file_for_pipeline(self, logger, app, project_id, args):
-        pro = Project(logger, app)
         url = "http://{0}/api/{1}/projects/{2}/repository/files/{3}?private_token={4}&ref={5}"\
             .format(app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, \
-            args["file_path"], pro.private_token, args["branch"])
+            args["file_path"], self.private_token, args["branch"])
         logger.info("get project file url: {0}".format(url))
         output = requests.get(url, headers=self.headers, verify=False)
         logger.info("get project file output: {0}".format(output.json()))
