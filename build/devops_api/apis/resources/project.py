@@ -1321,7 +1321,18 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
 
         # checkmarx
         cm_json, status_code = cm.get_result(project_id)
-        ret['checkmarx'] = cm_json
+        cm_data = {}
+        for key, value in cm_json.items():
+            if key != 'data':
+                cm_data[key] = value
+            else:
+                for k2, v2 in value.items():
+                    if k2 != 'stats':
+                        cm_data[k2] = v2
+                    else:
+                        for k3, v3 in v2.items():
+                            cm_data[k3] = v3
+        ret['checkmarx'] = cm_data
 
         # sonarqube
         # qube = self.get_sonar_report(logger, app, project_id)
