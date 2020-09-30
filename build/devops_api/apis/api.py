@@ -1749,7 +1749,11 @@ class ExportToPostman(Resource):
     @jwt_required
     def get(self, project_id):
         jwt_identity = get_jwt_identity()
-        output = ci.export_to_postman(app, project_id, jwt_identity)
+        parser = reqparse.RequestParser()
+        parser.add_argument('target', type=str, required=True)
+        args = parser.parse_args()
+        target = args['target']
+        output = ci.export_to_postman(app, project_id, target, jwt_identity)
         return output
 
 
