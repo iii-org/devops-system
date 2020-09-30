@@ -5,7 +5,6 @@ import os
 
 from model import db
 from .rancher import Rancher
-from .project import Project
 
 
 class Pipeline(object):
@@ -97,6 +96,7 @@ class Pipeline(object):
         logger.info("project_relationship: {0}".format(project_relationship['ci_project_id']))
         '''
         parameter = {}
+        logger.debug("generate_ci_yaml detail: {0}".format(args['detail']))
         dict_object = json.loads(args['detail'].replace("'", '"'))
         docum = yaml.dump(dict_object)
         logger.info("generate_ci_yaml documents: {0}".format(docum))
@@ -122,7 +122,7 @@ class Pipeline(object):
         else:
             action = "put"
             parameter['commit_message'] = "modify .rancher-pipeline.yml"
-        Project.create_ranhcer_pipline_yaml(self, logger, app, repository_id,
+        self.pjt.create_ranhcer_pipline_yaml(logger, app, repository_id,
                                             parameter, action)
         return {"message": "success"}, 200
 
