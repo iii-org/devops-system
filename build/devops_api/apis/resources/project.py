@@ -1335,11 +1335,11 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         # sonarqube
         # qube = self.get_sonar_report(logger, app, project_id)
         # FIXME: Fill qube values after connected
-        ret["sonarqube"] = {
-            "bug": 1,
-            "security": 1,
-            "security_review": 1,
-            "maintainability": 1
-        }
+        # ret["sonarqube"] = {
+        #     "bug": 1,
+        #     "security": 1,
+        #     "security_review": 1,
+        #     "maintainability": 1
+        # }
 
         return {'message': 'success', 'data': {'test_results': ret}}, 200
