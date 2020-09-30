@@ -1320,17 +1320,8 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
             ret['postman'] = {}
 
         # checkmarx
-        scan_id = cm.get_latest('scan_id', project_id)
-        if scan_id > 0:
-            stats = cm.get_scan_statistics(scan_id)
-            ret['checkmarx'] = {
-                'high': stats['highSeverity'],
-                'medium': stats['mediumSeverity'],
-                'low': stats['lowSeverity'],
-                'info': stats['infoSeverity']
-            }
-        else:
-            ret['checkmarx'] = {}
+        cm_json, status_code = cm.get_result(project_id)
+        ret['checkmarx'] = cm_json
 
         # sonarqube
         # qube = self.get_sonar_report(logger, app, project_id)

@@ -1819,12 +1819,6 @@ class GetCheckmarxScanStatistics(Resource):
         return cm.get_scan_statistics_wrapped(scan_id)
 
 
-class CheckmarxResult(Resource):
-    @jwt_required
-    def get(self, project_id):
-        return cm.get_result(project_id)
-
-
 class SonarReport(Resource):
     @jwt_required
     def get(self, project_id):
@@ -2039,7 +2033,6 @@ api.add_resource(GetCheckmarxScanStatistics, '/checkmarx/scan_stats/<scan_id>')
 api.add_resource(RegisterCheckmarxReport, '/checkmarx/report/<scan_id>')
 api.add_resource(GetCheckmarxReportStatus,
                  '/checkmarx/report_status/<report_id>')
-api.add_resource(CheckmarxResult, '/checkmarx/<project_id>')
 
 # Get everything by issue_id
 api.add_resource(DumpByIssue, '/dump_by_issue/<issue_id>')
