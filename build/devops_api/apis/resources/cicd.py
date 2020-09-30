@@ -19,7 +19,7 @@ class Cicd(object):
     def export_to_postman(self, app, project_id, target, jwt_identity):
         authed = False
         status = self.pjt.verify_project_user(logger, project_id, jwt_identity)
-        if not (status or jwt_identity['role_id'] == 5):
+        if not (status or jwt_identity == 5):
             return {'message': 'Don\'t have authorization to access issue list on project: {0}'
                     .format(project_id)}, 401
         output = {
