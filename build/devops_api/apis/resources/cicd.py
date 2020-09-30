@@ -16,8 +16,7 @@ class Cicd(object):
         self.ti = ti
         self.tv = tv
 
-    def export_to_postman(self, app, project_id, target, jwt_identity):
-        authed = False
+    def export_to_postman(self, app, project_id, jwt_identity):
         status = self.pjt.verify_project_user(logger, project_id, jwt_identity['user_id'])
         if not (status or jwt_identity['role_id'] == 5):
             return {'message': 'Don\'t have authorization to access issue list on project: {0}'
@@ -44,7 +43,7 @@ class Cicd(object):
         for case in cases:
             case_id = case['id']
             method = case['data']['method']
-            url = urlparse(target)
+            url = urlparse(case['data']['url'])
             items = self.ti.get_testItem_by_testCase_id(logger, case_id, jwt_identity['user_id'])
             for item in items:
                 item_id = item['id']
