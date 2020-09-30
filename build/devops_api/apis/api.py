@@ -124,7 +124,6 @@ class Project(Resource):
     @jwt_required
     def get(self, project_id):
         role_id = get_jwt_identity()["role_id"]
-        print("role_id={0}".format(role_id))
 
         if role_id in (3, 5):
             try:
@@ -1749,8 +1748,11 @@ class TestResult(Resource):
 class ExportToPostman(Resource):
     @jwt_required
     def get(self, project_id):
-        jwt_identity = get_jwt_identity()['user_id']
-        target = flask_req.args.get('target')
+        jwt_identity = get_jwt_identity()
+        parser = reqparse.RequestParser()
+        parser.add_argument('target', type=str, required=True)
+        args = parser.parse_args()
+        target = args['target']
         output = ci.export_to_postman(app, project_id, target, jwt_identity)
         return output
 
@@ -2043,7 +2045,7 @@ api.add_resource(DumpByIssue, '/dump_by_issue/<issue_id>')
 api.add_resource(SonarReport, '/sonar_report/<project_id>')
 
 # Get three test results
-api.add_resource(GetTestSummary, '/test_summary/<project_id>')
+api.add_resource(GetTestSummary, '/project/<project_id>/test_summary')
 
 # Files
 api.add_resource(ProjectFiles, '/project/<project_id>/file')

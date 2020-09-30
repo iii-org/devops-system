@@ -943,6 +943,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
 
     # 用project_id查詢db的相關table欄位資訊
     def pm_get_project(self, logger, app, project_id):
+        plan_project_id = self.get_plan_project_id(project_id)
         # 查詢專案名稱＆專案說明＆＆專案狀態
         result = db.engine.execute(
             "SELECT * FROM public.projects as pj, public.project_plugin_relation as ppr\
@@ -1300,17 +1301,19 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
 
         # newman
         cursor = db.engine.execute(
-            'SELECT total, fail FROM public.test_results '
+            'SELECT id, total, fail FROM public.test_results '
             ' WHERE project_id={0}'
-            ' ORDER BY run_at DESC'
+            ' ORDER BY id DESC'
             ' LIMIT 1'
             .format(project_id))
         if cursor.rowcount > 0:
             row = cursor.fetchone()
+            id = row['id']
             total = row['total']
             fail = row['fail']
             passed = total - fail
             ret['postman'] = {
+                "id": id,
                 "passed": passed,
                 "failed": fail,
                 "total": total
@@ -1319,26 +1322,28 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
             ret['postman'] = {}
 
         # checkmarx
-        scan_id = cm.get_latest('scan_id', project_id)
-        if scan_id > 0:
-            stats = cm.get_scan_statistics(scan_id)
-            ret['checkmarx'] = {
-                'high': stats['highSeverity'],
-                'medium': stats['mediumSeverity'],
-                'low': stats['lowSeverity'],
-                'info': stats['infoSeverity']
-            }
-        else:
-            ret['checkmarx'] = {}
+        cm_json, status_code = cm.get_result(project_id)
+        cm_data = {}
+        for key, value in cm_json.items():
+            if key != 'data':
+                cm_data[key] = value
+            else:
+                for k2, v2 in value.items():
+                    if k2 != 'stats':
+                        cm_data[k2] = v2
+                    else:
+                        for k3, v3 in v2.items():
+                            cm_data[k3] = v3
+        ret['checkmarx'] = cm_data
 
         # sonarqube
         # qube = self.get_sonar_report(logger, app, project_id)
         # FIXME: Fill qube values after connected
-        ret["sonarqube"] = {
-            "bug": 1,
-            "security": 1,
-            "security_review": 1,
-            "maintainability": 1
-        }
+        # ret["sonarqube"] = {
+        #     "bug": 1,
+        #     "security": 1,
+        #     "security_review": 1,
+        #     "maintainability": 1
+        # }
 
         return {'message': 'success', 'data': {'test_results': ret}}, 200
