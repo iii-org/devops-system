@@ -2041,7 +2041,7 @@ api.add_resource(DumpByIssue, '/dump_by_issue/<issue_id>')
 api.add_resource(SonarReport, '/sonar_report/<project_id>')
 
 # Get three test results
-api.add_resource(GetTestSummary, '/test_summary/<project_id>')
+api.add_resource(GetTestSummary, '/project/<project_id>/test_summary')
 
 # Files
 api.add_resource(ProjectFiles, '/project/<project_id>/file')
