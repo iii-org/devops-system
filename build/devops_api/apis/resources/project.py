@@ -895,7 +895,18 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                         gitlab_pj_name))
                 project_id = result.fetchone()[0]
                 result.close()
-
+                
+                
+                #enable rancher pipline
+                rancher_token = Rancher.get_rancher_token(self, app, logger)
+                logger.debug("rancher_token: {0}".format(rancher_token))
+                rancher_project_id = Rancher.get_rancher_project_id(self, app, logger, rancher_token)
+                logger.debug("rancher_project_id: {0}".format(rancher_project_id))
+                rancher_pipeline_id = Rancher.enable_rancher_projejct_pipline(self, app, logger, gitlab_pj_http_url, 
+                                                              rancher_token)
+                logger.debug("rancher_pipeline_id: {0}".format(rancher_pipeline_id))
+                
+                
                 # 加關聯project_plugin_relation
                 db.engine.execute(
                     "INSERT INTO public.project_plugin_relation (project_id, plan_project_id, git_repository_id) VALUES ('{0}', '{1}', '{2}')"
@@ -911,7 +922,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                                                  args)
                 logger.info("project add member output: {0}".format(output))
                 print(output)
-
+                
                 return {
                     "message": "success",
                     "data": {

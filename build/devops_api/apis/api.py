@@ -34,6 +34,11 @@ import resources.testResult as testResult
 import resources.cicd as cicd
 import resources.checkmarx as checkmarx
 
+#tmp
+import resources.rancher as rancher
+
+ran = rancher.Rancher()
+
 app = Flask(__name__)
 app.config.from_object('config')
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = datetime.timedelta(days=1)
@@ -1878,6 +1883,16 @@ class DownloadFile(Resource):
         args = parser.parse_args()
         return redmine.redmine_download_attachment(args)
 
+class tmp_enable_pipline(Resource):
+    def get(self):
+        git_repoitory = "http://10.50.1.53/root/yuwei_1001_0721_pj.git"
+        rancher_token = ran.get_rancher_token(app, logger)
+        return ran.enable_rancher_projejct_pipline(app, logger, git_repoitory, rancher_token)
+
+class tmp_disable_pipline(Resource):
+    def delete(self, pipeline_id):
+        rancher_token = ran.get_rancher_token(app, logger)
+        return ran.disable_rancher_projejct_pipline(app, logger, pipeline_id, rancher_token)
 
 api.add_resource(Index, '/')
 
@@ -2050,6 +2065,10 @@ api.add_resource(GetTestSummary, '/project/<project_id>/test_summary')
 # Files
 api.add_resource(ProjectFiles, '/project/<project_id>/file')
 api.add_resource(DownloadFile, '/download')
+
+api.add_resource(tmp_enable_pipline, '/tmp_enable')
+api.add_resource(tmp_disable_pipline, '/tmp_disable/<pipeline_id>')
+
 
 
 if __name__ == "__main__":
