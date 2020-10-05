@@ -1,2 +1,4 @@
 /build/devops_api/apis/config.py
 *.log
+venv
+.idea
