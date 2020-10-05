@@ -168,7 +168,7 @@ class Project(object):
         output_array = []
         result = db.engine.execute(
             "SELECT pj.id, pj.name, ppl.plan_project_id, \
-            ppl.git_repository_id, ppl.ci_project_id, ppl.ci_pipeline_id\
+            ppl.git_repository_id, ppl.ci_project_id, ppl.ci_pipeline_id, pj.http_url\
             FROM public.project_user_role as pur, public.projects as pj, public.project_plugin_relation as ppl\
             WHERE pur.user_id = {0} AND pur.project_id = pj.id AND pj.id = ppl.project_id;"
             .format(user_id))
@@ -191,7 +191,9 @@ class Project(object):
                     output_dict = {}
                     output_dict['name'] = project['name']
                     output_dict['project_id'] = project['id']
-
+                    output_dict['git_url'] = project['http_url']
+                    output_dict['redmine_url'] = "http://{0}/projects/{1}".format(
+                        app.config["REDMINE_IP_PORT"], project['plan_project_id'])
                     output_dict['repository_ids'] = project[
                         'git_repository_id']
                     output_dict['issues'] = None
