@@ -740,7 +740,6 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                     output2 = requests.get(url2,
                                            headers=self.headers,
                                            verify=False).json()
-                    print(1)
                     closed_count = 0
                     overdue_count = 0
                     for issue in output2["issues"]:
@@ -818,7 +817,6 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                         "quality_score": quality_score
                     }
 
-                    print(2)
                     output_array.append(project_output)
 
             return {
