@@ -76,8 +76,10 @@ class Issue(object):
         project_list = self.pjt.get_project_by_plan_project_id(logger, redmine_output['project']['id'])
         project = self.pjt.get_project_info(logger, project_list['project_id'])
         project_name = project['name']
+        project_display = project['display']
         output_list['project_id'] = project_list['project_id']
         output_list['project_name'] = project_name
+        output_list['project_display'] = project_display
         output_list['issue_category'] = redmine_output['tracker']['name']
         output_list['issue_priority'] = redmine_output['priority']['name']
         output_list['issue_status'] = redmine_output['status']['name']

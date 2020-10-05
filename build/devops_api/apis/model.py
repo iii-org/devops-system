@@ -66,8 +66,10 @@ class ProjectUserRole():
 
 class TableProjects():
     meta = db.MetaData()
-    stru_projects = db.Table('projects', meta, db.Column('id', db.Integer),
-                             db.Column('name', db.String))
+    stru_projects = db.Table('projects', meta,
+                             db.Column('id', db.Integer),
+                             db.Column('name', db.String),
+                             db.Column('display', db.String))
 
 
 class TableRequirement():

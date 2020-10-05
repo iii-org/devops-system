@@ -167,7 +167,7 @@ class Project(object):
     def get_projects_by_user(self, logger, app, user_id):
         output_array = []
         result = db.engine.execute(
-            "SELECT pj.id, pj.name, ppl.plan_project_id, \
+            "SELECT pj.id, pj.name, pj.display, ppl.plan_project_id, \
             ppl.git_repository_id, ppl.ci_project_id, ppl.ci_pipeline_id, pj.http_url\
             FROM public.project_user_role as pur, public.projects as pj, public.project_plugin_relation as ppl\
             WHERE pur.user_id = {0} AND pur.project_id = pj.id AND pj.id = ppl.project_id;"
@@ -190,6 +190,7 @@ class Project(object):
                 for project in project_list:
                     output_dict = {}
                     output_dict['name'] = project['name']
+                    output_dict['display'] = project['display']
                     output_dict['project_id'] = project['id']
                     output_dict['git_url'] = project['http_url']
                     output_dict['redmine_url'] = "http://{0}/projects/{1}".format(
@@ -802,6 +803,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                     project_output = {
                         "id": project_id,
                         "name": project_info["name"],
+                        "display": project_info["display"],
                         "description": project_info["description"],
                         "git_url": project_info["http_url"],
                         "redmine_url": redmine_url,

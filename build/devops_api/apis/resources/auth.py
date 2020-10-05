@@ -161,6 +161,8 @@ class auth(object):
                         project["id"],
                         "name":
                         project["name"],
+                        "display":
+                        project["display"],
                         "repository_id":
                         project["git_repository_id"]
                     })
@@ -501,7 +503,8 @@ class auth(object):
                     for output_project in output_project_array:
                         project.append({
                             "id": output_project["id"],
-                            "name": output_project["name"]
+                            "name": output_project["name"],
+                            "display": output_project["display"]
                         })
                 status = "disable"
                 if user_data["disabled"] == False:
