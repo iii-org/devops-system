@@ -705,7 +705,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
     def get_pm_project_list(self, logger, app, user_id):
         # 查詢db該pm負責的project_id並存入project_ids array
         result = db.engine.execute(
-            "SELECT project_id FROM public.project_user_role WHERE user_id = '{0}'"
+            "SELECT project_id FROM public.project_user_role WHERE user_id = '{0}' ORDER BY project_id DESC"
             .format(user_id))
         project_ids = result.fetchall()
         result.close()
