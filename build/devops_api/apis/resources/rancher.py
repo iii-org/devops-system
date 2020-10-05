@@ -154,8 +154,7 @@ class Rancher(object):
         logger.debug("enable_rancher_projejct_pipline output: {0}".format(output.json()))
         return output.json()['id']
     
-    def disable_rancher_projejct_pipline(self, app, logger, pipeline_id, rancher_token):
-        project_id = Rancher.get_rancher_project_id(self, app, logger, rancher_token)
+    def disable_rancher_projejct_pipline(self, app, logger, project_id, pipeline_id, rancher_token):
         url="https://{0}/{1}/projects/{2}/pipelines/{3}"\
             .format(app.config['RANCHER_IP_PORT'], app.config['RANCHER_API_VERSION'], project_id,
                     pipeline_id)
@@ -167,6 +166,7 @@ class Rancher(object):
             logger.info("disable_rancher_projejct_pipline successful !")
         else:
             logger.info("disable_rancher_projejct_pipline error, error message: {0}".format(rancher_output.text))
+            abort(400, message='"disable_rancher_projejct_pipline error, error message: {0}'.format(rancher_output.text))
         
     def get_rancher_projejct_pipline(self, app, logger, repository_url, rancher_token):
         project_id = Rancher.get_rancher_project_id(self, app, logger, rancher_token)
