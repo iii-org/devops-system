@@ -25,7 +25,7 @@ class Rancher(object):
 
     def get_rancher_pipelineexecutions(self, app, logger, ci_project_id, ci_pipeline_id,\
         rancher_token):
-        url= "https://{0}/{1}/projects/{2}/pipelineexecutions?order=desc&pipelineId={3}".format(\
+        url= "https://{0}/{1}/projects/{2}/pipelineexecutions?order=desc&sort=started&pipelineId={3}".format(\
             app.config['RANCHER_IP_PORT'], app.config['RANCHER_API_VERSION'], ci_project_id,\
             ci_pipeline_id)
         logger.info("rancher_pipelineexecutions url: {0}".format(url))
