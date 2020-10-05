@@ -947,7 +947,7 @@ class PipelineYaml(Resource):
     def get(self, repository_id, branch_name):
         output_array = pipe.get_ci_yaml(logger, app, repository_id,
                                         branch_name)
-        return jsonify({'message': 'success', 'data': output_array})
+        return output_array
 
     @jwt_required
     def post(self, repository_id, branch_name):
