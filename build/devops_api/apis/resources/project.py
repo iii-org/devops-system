@@ -707,7 +707,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
     def get_pm_project_list(self, logger, app, user_id):
         # 查詢db該pm負責的project_id並存入project_ids array
         result = db.engine.execute(
-            "SELECT project_id FROM public.project_user_role WHERE user_id = '{0}'"
+            "SELECT project_id FROM public.project_user_role WHERE user_id = '{0}' ORDER BY project_id DESC"
             .format(user_id))
         project_ids = result.fetchall()
         result.close()
@@ -883,7 +883,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                 gitlab_pj_name = gitlab_output.json()["name"]
                 gitlab_pj_ssh_url = gitlab_output.json()["ssh_url_to_repo"]
                 gitlab_pj_http_url = gitlab_output.json()["http_url_to_repo"]
-
+                
                 # 寫入projects
                 db.engine.execute(
                     "INSERT INTO public.projects (name, description, ssh_url, http_url, disabled) VALUES ('{0}', '{1}', '{2}', '{3}', '{4}')"
@@ -897,11 +897,21 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                         gitlab_pj_name))
                 project_id = result.fetchone()[0]
                 result.close()
-
+                
+                #enable rancher pipline
+                rancher_token = Rancher.get_rancher_token(self, app, logger)
+                logger.debug("rancher_token: {0}".format(rancher_token))
+                rancher_project_id = Rancher.get_rancher_project_id(self, app, logger, rancher_token)
+                logger.debug("rancher_project_id: {0}".format(rancher_project_id))
+                logger.debug("gitlab_pj_http_url: {0}".format(gitlab_pj_http_url))
+                rancher_pipeline_id = Rancher.enable_rancher_projejct_pipline(self, app, logger, gitlab_pj_http_url, 
+                                                              rancher_token)
+                logger.debug("rancher_pipeline_id: {0}".format(rancher_pipeline_id))
+                
                 # 加關聯project_plugin_relation
                 db.engine.execute(
-                    "INSERT INTO public.project_plugin_relation (project_id, plan_project_id, git_repository_id) VALUES ('{0}', '{1}', '{2}')"
-                    .format(project_id, redmine_pj_id, gitlab_pj_id))
+                    "INSERT INTO public.project_plugin_relation (project_id, plan_project_id, git_repository_id, ci_project_id, ci_pipeline_id) VALUES ('{0}', '{1}', '{2}', '{3}', '{4}')"
+                    .format(project_id, redmine_pj_id, gitlab_pj_id, rancher_project_id, rancher_pipeline_id))
 
                 # 加關聯project_user_role
                 # db.engine.execute(
@@ -913,7 +923,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                                                  args)
                 logger.info("project add member output: {0}".format(output))
                 print(output)
-
+                
                 return {
                     "message": "success",
                     "data": {
@@ -1093,6 +1103,14 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         if project_relation is not None:
             redmine_project_id = project_relation["plan_project_id"]
             gitlab_project_id = project_relation["git_repository_id"]
+            
+            # disabled rancher pipeline
+            rancher_token = Rancher.get_rancher_token(self, app, logger)
+            logger.debug("rancher_token: {0}".format(rancher_token))
+            Rancher.disable_rancher_projejct_pipline(self, app, logger, 
+                project_relation["ci_project_id"] , project_relation["ci_pipeline_id"], 
+                rancher_token)
+            
             # 刪除gitlab project
             gitlab_url = "http://{0}/api/{1}/projects/{2}?private_token={3}".format(\
                 app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], gitlab_project_id, self.private_token)

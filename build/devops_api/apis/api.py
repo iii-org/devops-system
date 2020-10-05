@@ -2051,7 +2051,6 @@ api.add_resource(GetTestSummary, '/project/<project_id>/test_summary')
 api.add_resource(ProjectFiles, '/project/<project_id>/file')
 api.add_resource(DownloadFile, '/download')
 
-
 if __name__ == "__main__":
     db.init_app(app)
     jsonwebtoken.init_app(app)
