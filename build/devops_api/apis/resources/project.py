@@ -740,7 +740,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                     output2 = requests.get(url2,
                                            headers=self.headers,
                                            verify=False).json()
-
+                    print(1)
                     closed_count = 0
                     overdue_count = 0
                     for issue in output2["issues"]:
@@ -818,6 +818,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                         "quality_score": quality_score
                     }
 
+                    print(2)
                     output_array.append(project_output)
 
             return {
@@ -888,8 +889,9 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                 
                 # 寫入projects
                 db.engine.execute(
-                    "INSERT INTO public.projects (name, description, ssh_url, http_url, disabled) VALUES ('{0}', '{1}', '{2}', '{3}', '{4}')"
-                    .format(gitlab_pj_name, args["description"],
+                    "INSERT INTO public.projects (name, display, description, ssh_url, http_url, disabled)"
+                    " VALUES ('{0}', '{1}', '{2}', '{3}', '{4}', '{5}')"
+                    .format(gitlab_pj_name, args["display"], args["description"],
                             gitlab_pj_ssh_url, gitlab_pj_http_url,
                             args["disabled"]))
 
@@ -969,6 +971,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         output = {
             "project_id": project_info["project_id"],
             "name": project_info["name"],
+            "display": project_info["display"],
             "description": project_info["description"],
             "disabled": project_info["disabled"],
             "git_url": project_info["http_url"],
@@ -1008,6 +1011,12 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                 "SELECT name FROM public.projects WHERE id = '{0}'".format(
                     project_id))
             args["name"] = result.fetchone()[0]
+            result.close()
+        if args["display"] is None:
+            result = db.engine.execute(
+                "SELECT name FROM public.projects WHERE id = '{0}'".format(
+                    project_id))
+            args["display"] = result.fetchone()[0]
             result.close()
         if args["description"] == None:
             result = db.engine.execute(
@@ -1052,6 +1061,10 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                     db.engine.execute(
                         "UPDATE public.projects SET name = '{0}' WHERE id = '{1}'"
                         .format(args["name"], project_id))
+                if args["display"] is not None:
+                    db.engine.execute(
+                        "UPDATE public.projects SET display = '{0}' WHERE id = '{1}'"
+                        .format(args["display"], project_id))
                 if args["description"] != None:
                     db.engine.execute(
                         "UPDATE public.projects SET description = '{0}' WHERE id = '{1}'"
