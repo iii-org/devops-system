@@ -147,6 +147,8 @@ class Issue(object):
             return {"message": "could not get this redmine issue."}, 400
 
     def get_issue_by_project(self, logger, app, project_id, args):
+        if util.is_dummy_project(project_id):
+            return util.success([])
         get_project_command = db.select([ProjectPluginRelation.stru_project_plug_relation])\
         .where(db.and_(ProjectPluginRelation.stru_project_plug_relation.c.project_id==project_id))
         logger.debug("get_project_command: {0}".format(get_project_command))
@@ -192,6 +194,8 @@ class Issue(object):
             return {"message": "could not get issue list"}, 400
 
     def get_issue_by_status_by_project(self, logger, app, project_id):
+        if util.is_dummy_project(project_id):
+            return util.success({})
         args = {}
         issue_list_output, status_code = self.get_issue_by_project(
             logger, app, project_id, args)
@@ -212,6 +216,8 @@ class Issue(object):
             return {"message": "could not get issue list"}, 400
 
     def get_issue_by_date_by_project(self, logger, app, project_id):
+        if util.is_dummy_project(project_id):
+            return util.success({})
         args = {}
         issue_list_output, status_code = self.get_issue_by_project(
             logger, app, project_id, args)

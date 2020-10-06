@@ -13,6 +13,7 @@ import datetime
 from model import db
 
 from jsonwebtoken import jsonwebtoken
+from werkzeug.routing import IntegerConverter
 
 import resources.util as util
 import resources.auth as auth
@@ -39,6 +40,13 @@ app.config.from_object('config')
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = datetime.timedelta(days=1)
 api = Api(app)
 CORS(app)
+
+
+class SignedIntConverter(IntegerConverter):
+    regex = r'-?\d+'
+
+
+app.url_map.converters['sint'] = SignedIntConverter
 
 handler = handlers.TimedRotatingFileHandler(
     'devops-api.log', when='D'
@@ -421,9 +429,9 @@ class ProjectDeleteMember(Resource):
 class ProjectWikiList(Resource):
     @jwt_required
     def get(self, project_id):
-        stauts = pjt.verify_project_user(logger, project_id,
+        status = pjt.verify_project_user(logger, project_id,
                                          get_jwt_identity()['user_id'])
-        if stauts or get_jwt_identity()['role_id'] == 5:
+        if status or get_jwt_identity()['role_id'] == 5:
             output = wk.get_wiki_list_by_project(logger, app, project_id)
             return output
         else:
@@ -435,9 +443,9 @@ class ProjectWikiList(Resource):
 class ProjectWiki(Resource):
     @jwt_required
     def get(self, project_id, wiki_name):
-        stauts = pjt.verify_project_user(logger, project_id,
+        status = pjt.verify_project_user(logger, project_id,
                                          get_jwt_identity()['user_id'])
-        if stauts or get_jwt_identity()['role_id'] == 5:
+        if status or get_jwt_identity()['role_id'] == 5:
             output, status_code = wk.get_wiki_by_project(
                 logger, app, project_id, wiki_name)
             return output, status_code
@@ -448,9 +456,9 @@ class ProjectWiki(Resource):
 
     @jwt_required
     def put(self, project_id, wiki_name):
-        stauts = pjt.verify_project_user(logger, project_id,
+        status = pjt.verify_project_user(logger, project_id,
                                          get_jwt_identity()['user_id'])
-        if stauts or get_jwt_identity()['role_id'] == 5:
+        if status or get_jwt_identity()['role_id'] == 5:
             parser = reqparse.RequestParser()
             parser.add_argument('wiki_text', type=str, required=True)
             args = parser.parse_args()
@@ -464,9 +472,9 @@ class ProjectWiki(Resource):
 
     @jwt_required
     def delete(self, project_id, wiki_name):
-        stauts = pjt.verify_project_user(logger, project_id,
+        status = pjt.verify_project_user(logger, project_id,
                                          get_jwt_identity()['user_id'])
-        if stauts or get_jwt_identity()['role_id'] == 5:
+        if status or get_jwt_identity()['role_id'] == 5:
             output, status_code = wk.delete_wiki_by_project(
                 logger, app, project_id, wiki_name)
             return output, status_code
@@ -480,9 +488,9 @@ class ProjectWiki(Resource):
 class ProjectVersionList(Resource):
     @jwt_required
     def get(self, project_id):
-        stauts = pjt.verify_project_user(logger, project_id,
+        status = pjt.verify_project_user(logger, project_id,
                                          get_jwt_identity()['user_id'])
-        if stauts or get_jwt_identity()['role_id'] == 5:
+        if status or get_jwt_identity()['role_id'] == 5:
             output = vn.get_version_list_by_project(logger, app, project_id)
             return output
         else:
@@ -495,9 +503,9 @@ class ProjectVersionList(Resource):
 class ProjectVersion(Resource):
     @jwt_required
     def post(self, project_id):
-        stauts = pjt.verify_project_user(logger, project_id,
+        status = pjt.verify_project_user(logger, project_id,
                                          get_jwt_identity()['user_id'])
-        if stauts or get_jwt_identity()['role_id'] == 5:
+        if status or get_jwt_identity()['role_id'] == 5:
             root_parser = reqparse.RequestParser()
             root_parser.add_argument('version', type=dict, required=True)
             root_args = root_parser.parse_args()
@@ -514,9 +522,9 @@ class ProjectVersion(Resource):
 class ProjectVersionInfo(Resource):
     @jwt_required
     def get(self, project_id, version_id):
-        stauts = pjt.verify_project_user(logger, project_id,
+        status = pjt.verify_project_user(logger, project_id,
                                          get_jwt_identity()['user_id'])
-        if stauts or get_jwt_identity()['role_id'] == 5:
+        if status or get_jwt_identity()['role_id'] == 5:
             output, status_code = vn.get_version_by_version_id(
                 logger, app, project_id, version_id)
             return output, status_code
@@ -527,9 +535,9 @@ class ProjectVersionInfo(Resource):
 
     @jwt_required
     def put(self, project_id, version_id):
-        stauts = pjt.verify_project_user(logger, project_id,
+        status = pjt.verify_project_user(logger, project_id,
                                          get_jwt_identity()['user_id'])
-        if stauts or get_jwt_identity()['role_id'] == 5:
+        if status or get_jwt_identity()['role_id'] == 5:
             root_parser = reqparse.RequestParser()
             root_parser.add_argument('version', type=dict, required=True)
             root_args = root_parser.parse_args()
@@ -544,9 +552,9 @@ class ProjectVersionInfo(Resource):
 
     @jwt_required
     def delete(self, project_id, version_id):
-        stauts = pjt.verify_project_user(logger, project_id,
+        status = pjt.verify_project_user(logger, project_id,
                                          get_jwt_identity()['user_id'])
-        if stauts or get_jwt_identity()['role_id'] == 5:
+        if status or get_jwt_identity()['role_id'] == 5:
             output, status_code = vn.delete_version_by_version_id(
                 logger, app, project_id, version_id)
             return output, status_code
@@ -970,9 +978,9 @@ class PipelinePhaseYaml(Resource):
 class IssueByProject(Resource):
     @jwt_required
     def get(self, project_id):
-        stauts = pjt.verify_project_user(logger, project_id,
+        status = pjt.verify_project_user(logger, project_id,
                                          get_jwt_identity()['user_id'])
-        if stauts or get_jwt_identity()['role_id'] == 5:
+        if status or get_jwt_identity()['role_id'] == 5:
             parser = reqparse.RequestParser()
             parser.add_argument('fixed_version_id', type=int)
             args = parser.parse_args()
@@ -987,9 +995,9 @@ class IssueByProject(Resource):
 class IssueByTreeByProject(Resource):
     @jwt_required
     def get(self, project_id):
-        stauts = pjt.verify_project_user(logger, project_id,
+        status = pjt.verify_project_user(logger, project_id,
                                          get_jwt_identity()['user_id'])
-        if stauts or get_jwt_identity()['role_id'] == 5:
+        if status or get_jwt_identity()['role_id'] == 5:
             output, status_code = iss.get_issue_by_tree_by_project(
                 logger, app, project_id)
             return output, status_code
@@ -1001,9 +1009,9 @@ class IssueByTreeByProject(Resource):
 class IssueByStatusByProject(Resource):
     @jwt_required
     def get(self, project_id):
-        stauts = pjt.verify_project_user(logger, project_id,
+        status = pjt.verify_project_user(logger, project_id,
                                          get_jwt_identity()['user_id'])
-        if stauts or get_jwt_identity()['role_id'] == 5:
+        if status or get_jwt_identity()['role_id'] == 5:
             output, status_code = iss.get_issue_by_status_by_project(
                 logger, app, project_id)
             return output, status_code
@@ -1015,9 +1023,9 @@ class IssueByStatusByProject(Resource):
 class IssueByDateByProject(Resource):
     @jwt_required
     def get(self, project_id):
-        stauts = pjt.verify_project_user(logger, project_id,
+        status = pjt.verify_project_user(logger, project_id,
                                          get_jwt_identity()['user_id'])
-        if stauts or get_jwt_identity()['role_id'] == 5:
+        if status or get_jwt_identity()['role_id'] == 5:
             output, status_code = iss.get_issue_by_date_by_project(
                 logger, app, project_id)
             return output, status_code
@@ -1029,9 +1037,9 @@ class IssueByDateByProject(Resource):
 class IssuesProgressByProject(Resource):
     @jwt_required
     def get(self, project_id):
-        stauts = pjt.verify_project_user(logger, project_id,
+        status = pjt.verify_project_user(logger, project_id,
                                          get_jwt_identity()['user_id'])
-        if stauts or get_jwt_identity()['role_id'] == 5:
+        if status or get_jwt_identity()['role_id'] == 5:
             parser = reqparse.RequestParser()
             parser.add_argument('fixed_version_id', type=int)
             args = parser.parse_args()
@@ -1048,9 +1056,9 @@ class IssuesProgressByProject(Resource):
 class IssuesProgressAllVersionByProject(Resource):
     @jwt_required
     def get(self, project_id):
-        stauts = pjt.verify_project_user(logger, project_id,
+        status = pjt.verify_project_user(logger, project_id,
                                          get_jwt_identity()['user_id'])
-        if stauts or get_jwt_identity()['role_id'] == 5:
+        if status or get_jwt_identity()['role_id'] == 5:
             output_array = iss.get_issueProgress_allVersion_by_project(
                 logger, app, project_id)
             return output_array
@@ -1062,9 +1070,9 @@ class IssuesProgressAllVersionByProject(Resource):
 class IssuesStatisticsByProject(Resource):
     @jwt_required
     def get(self, project_id):
-        stauts = pjt.verify_project_user(logger, project_id,
+        status = pjt.verify_project_user(logger, project_id,
                                          get_jwt_identity()['user_id'])
-        if stauts or get_jwt_identity()['role_id'] == 5:
+        if status or get_jwt_identity()['role_id'] == 5:
             parser = reqparse.RequestParser()
             parser.add_argument('fixed_version_id', type=int)
             args = parser.parse_args()
@@ -1128,9 +1136,9 @@ class Issue(Resource):
 
     @jwt_required
     def delete(self, issue_id):
-        stauts = iss.verify_issue_user(logger, app, issue_id,
+        status = iss.verify_issue_user(logger, app, issue_id,
                                        get_jwt_identity()['user_id'])
-        if stauts and get_jwt_identity()['role_id'] in (3, 5):
+        if status and get_jwt_identity()['role_id'] in (3, 5):
             output = iss.delete_issue(logger, app, issue_id)
             return output
         else:
@@ -1888,12 +1896,12 @@ api.add_resource(TotalProjectList, '/project/list')
 
 # Project(redmine & gitlab & db)
 api.add_resource(CreateProject, '/project')
-api.add_resource(Project, '/project/<project_id>')
+api.add_resource(Project, '/project/<sint:project_id>')
 
 # Gitlab project
 api.add_resource(GitProjects, '/git_projects')
-api.add_resource(GitOneProject, '/git_one_project/<project_id>')
-api.add_resource(GitProjectWebhooks, '/git_project_webhooks/<project_id>')
+api.add_resource(GitOneProject, '/git_one_project/<sint:project_id>')
+api.add_resource(GitProjectWebhooks, '/git_project_webhooks/<sint:project_id>')
 
 api.add_resource(GitProjectBranches, '/repositories/<repository_id>/branches')
 api.add_resource(GitProjectBranch,
@@ -1920,16 +1928,16 @@ api.add_resource(GitProjectId, '/repositories/<repository_id>/id')
 
 # Project
 api.add_resource(ProjectsByUser, '/projects_by_user/<int:user_id>')
-api.add_resource(ProjectUserList, '/project/<int:project_id>/user/list')
-api.add_resource(ProjectAddMember, '/project/<int:project_id>/member')
+api.add_resource(ProjectUserList, '/project/<sint:project_id>/user/list')
+api.add_resource(ProjectAddMember, '/project/<sint:project_id>/member')
 api.add_resource(ProjectDeleteMember,
-                 '/project/<int:project_id>/member/<int:user_id>')
-api.add_resource(ProjectWikiList, '/project/<int:project_id>/wiki')
-api.add_resource(ProjectWiki, '/project/<int:project_id>/wiki/<wiki_name>')
-api.add_resource(ProjectVersionList, '/project/<int:project_id>/version/list')
-api.add_resource(ProjectVersion, '/project/<int:project_id>/version')
+                 '/project/<sint:project_id>/member/<int:user_id>')
+api.add_resource(ProjectWikiList, '/project/<sint:project_id>/wiki')
+api.add_resource(ProjectWiki, '/project/<sint:project_id>/wiki/<wiki_name>')
+api.add_resource(ProjectVersionList, '/project/<sint:project_id>/version/list')
+api.add_resource(ProjectVersion, '/project/<sint:project_id>/version')
 api.add_resource(ProjectVersionInfo,
-                 '/project/<int:project_id>/version/<int:version_id>')
+                 '/project/<sint:project_id>/version/<int:version_id>')
 
 # User
 api.add_resource(UserLogin, '/user/login')
@@ -1952,17 +1960,17 @@ api.add_resource(
     '/pipelines/<repository_id>/branch/<branch_name>/generate_ci_yaml')
 
 # issue
-api.add_resource(IssueByProject, '/project/<project_id>/issues')
-api.add_resource(IssueByTreeByProject, '/project/<project_id>/issues_by_tree')
+api.add_resource(IssueByProject, '/project/<sint:project_id>/issues')
+api.add_resource(IssueByTreeByProject, '/project/<sint:project_id>/issues_by_tree')
 api.add_resource(IssueByStatusByProject,
-                 '/project/<project_id>/issues_by_status')
-api.add_resource(IssueByDateByProject, '/project/<project_id>/issues_by_date')
+                 '/project/<sint:project_id>/issues_by_status')
+api.add_resource(IssueByDateByProject, '/project/<sint:project_id>/issues_by_date')
 api.add_resource(IssuesProgressByProject,
-                 '/project/<project_id>/issues_progress')
+                 '/project/<sint:project_id>/issues_progress')
 api.add_resource(IssuesProgressAllVersionByProject,
-                 '/project/<project_id>/issues_progress/all_version')
+                 '/project/<sint:project_id>/issues_progress/all_version')
 api.add_resource(IssuesStatisticsByProject,
-                 '/project/<project_id>/issues_statistics')
+                 '/project/<sint:project_id>/issues_statistics')
 api.add_resource(IssueCreate, '/issues')
 api.add_resource(Issue, '/issues/<issue_id>')
 api.add_resource(IssueStatus, '/issues_status')
@@ -2024,15 +2032,15 @@ api.add_resource(TestValue, '/testValues/<testValue_id>')
 api.add_resource(TestResult, '/testResults')
 
 # Export tests to postman json format
-api.add_resource(ExportToPostman, '/export_to_postman/<project_id>')
+api.add_resource(ExportToPostman, '/export_to_postman/<sint:project_id>')
 
 # Checkmarx report generation
 api.add_resource(CreateCheckmarxScan, '/checkmarx/create_scan')
-api.add_resource(GetCheckmarxLatestScan, '/checkmarx/latest_scan/<project_id>')
+api.add_resource(GetCheckmarxLatestScan, '/checkmarx/latest_scan/<sint:project_id>')
 api.add_resource(GetCheckmarxLatestScanStats,
-                 '/checkmarx/latest_scan_stats/<project_id>')
+                 '/checkmarx/latest_scan_stats/<sint:project_id>')
 api.add_resource(GetCheckmarxLatestReport,
-                 '/checkmarx/latest_report/<project_id>')
+                 '/checkmarx/latest_report/<sint:project_id>')
 api.add_resource(GetCheckmarxReport, '/checkmarx/report/<report_id>')
 api.add_resource(GetCheckmarxScanStatus, '/checkmarx/scan_status/<scan_id>')
 api.add_resource(GetCheckmarxScanStatistics, '/checkmarx/scan_stats/<scan_id>')
@@ -2044,13 +2052,13 @@ api.add_resource(GetCheckmarxReportStatus,
 api.add_resource(DumpByIssue, '/dump_by_issue/<issue_id>')
 
 # Get Sonarqube report by project_id
-api.add_resource(SonarReport, '/sonar_report/<project_id>')
+api.add_resource(SonarReport, '/sonar_report/<sint:project_id>')
 
 # Get three test results
-api.add_resource(GetTestSummary, '/project/<project_id>/test_summary')
+api.add_resource(GetTestSummary, '/project/<sint:project_id>/test_summary')
 
 # Files
-api.add_resource(ProjectFiles, '/project/<project_id>/file')
+api.add_resource(ProjectFiles, '/project/<sint:project_id>/file')
 api.add_resource(DownloadFile, '/download')
 
 if __name__ == "__main__":

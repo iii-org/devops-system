@@ -35,6 +35,8 @@ class Project(object):
         logger.info("private_token: {0}".format(self.private_token))
 
     def verify_project_user(self, logger, project_id, user_id):
+        if util.is_dummy_project(project_id):
+            return True
         select_project_user_role_command = db.select([ProjectUserRole.stru_project_user_role])\
             .where(db.and_(ProjectUserRole.stru_project_user_role.c.project_id==project_id, \
             ProjectUserRole.stru_project_user_role.c.user_id==user_id))

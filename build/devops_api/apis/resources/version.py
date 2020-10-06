@@ -1,14 +1,19 @@
 from .redmine import Redmine
 from .project import Project
+from .util import util
 import json
 
 
 class Version(object):
 
+    EMPTY_VERSIONS = {"versions": [], "total_count": 0}
+
     def __init__(self, redmine):
         self.redmine = redmine
 
     def get_version_list_by_project(self, logger, app, project_id):
+        if util.is_dummy_project(project_id):
+            return util.success(Version.EMPTY_VERSIONS)
         project_plugin_relation = Project.get_project_plugin_relation(
             logger, project_id)
         if project_plugin_relation is not None:

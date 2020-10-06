@@ -1,9 +1,12 @@
 from .redmine import Redmine
 from .project import Project
+from .util import util
 
 
 class Wiki(object):
     def get_wiki_list_by_project(self, logger, app, project_id):
+        if util.is_dummy_project(project_id):
+            return util.success({"wiki_pages": []})
         project_plugin_relation = Project.get_project_plugin_relation(
             logger, project_id)
         redmine_key = Redmine.get_redmine_key(self, logger, app)
