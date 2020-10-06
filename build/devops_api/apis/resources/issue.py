@@ -457,7 +457,7 @@ class Issue(object):
         Redmine.get_redmine_key(self, logger, app)
         try:
             # go to redmine, delete issue
-            output = Redmine.redmine_delete_issue(self, logger, app, issue_id)
+            output = Redmine.redmine_delete_issue(self, issue_id)
             return {"message": "success"}, 201
         except Exception as error:
             return str(error), 400
