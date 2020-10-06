@@ -140,13 +140,15 @@ class Pipeline(object):
             get_yaml_data = yaml_info.json()
         elif yml_info.status_code != 404:
             get_yaml_data = yml_info.json()
+        if get_yaml_data is None:
+            return {'message': "success", "data": {}}, 200
         logger.info('get_yaml_data: {0}'.format(get_yaml_data['content']))
         rancher_ci_yaml = base64.b64decode(
             get_yaml_data['content']).decode("utf-8")
         logger.info('rancher_ci_yaml: {0}'.format(rancher_ci_yaml))
-        rancher_ci_json = yaml.load(rancher_ci_yaml)
+        rancher_ci_json = yaml.safe_load(rancher_ci_yaml)
         logger.info('rancher_ci_json: {0}'.format(rancher_ci_json))
-        return rancher_ci_json
+        return {"message": "success", "data": rancher_ci_json}, 200
 
     def get_phase_yaml(self, logger, app, repository_id, branch_name):
         parameter = {}
@@ -169,10 +171,12 @@ class Pipeline(object):
         elif yml_info.status_code != 404:
             get_yaml_data = yml_info.json()
         logger.debug('get_yaml_data: {0}'.format(get_yaml_data))
+        if get_yaml_data is None:
+            return {'message': "success", "data": []}, 200
         rancher_ci_yaml = base64.b64decode(
             get_yaml_data['content']).decode("utf-8")
         logger.debug('rancher_ci_yaml: {0}'.format(rancher_ci_yaml))
-        rancher_ci_json = yaml.load(rancher_ci_yaml)
+        rancher_ci_json = yaml.safe_load(rancher_ci_yaml)
         logger.info('rancher_ci_json: {0}'.format(rancher_ci_json))
         phase_name_array = []
         phase_name = None
