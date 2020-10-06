@@ -1129,14 +1129,14 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         if project_relation is not None:
             redmine_project_id = project_relation["plan_project_id"]
             gitlab_project_id = project_relation["git_repository_id"]
-            
+
             # disabled rancher pipeline
             rancher_token = Rancher.get_rancher_token(self, app, logger)
             logger.debug("rancher_token: {0}".format(rancher_token))
             Rancher.disable_rancher_projejct_pipline(self, app, logger, 
                 project_relation["ci_project_id"] , project_relation["ci_pipeline_id"], 
                 rancher_token)
-            
+
             # 刪除gitlab project
             gitlab_url = "http://{0}/api/{1}/projects/{2}?private_token={3}".format(\
                 app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], gitlab_project_id, self.private_token)
@@ -1187,7 +1187,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                     }, error_code
 
             else:
-                error_code = redmine_output.status_code
+                error_code = gitlab_output.status_code
                 return {
                     "message": {
                         "gitlab": {
