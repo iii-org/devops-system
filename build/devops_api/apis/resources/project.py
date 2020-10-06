@@ -850,7 +850,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         if display is None:
             display = args['name']
 
-        identifier = args["name"].replace(' ', '_').lower()
+        # identifier = args["name"].replace(' ', '_').lower()
 
         # 建立redmine project
         redmine_url = "http://{0}/projects.json?key={1}".format(
@@ -863,7 +863,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                     <description>{2}</description>
                     </project>""".format(
             display,
-            identifier,
+            args["identifier"],
             args["description"])
         logger.info("create redmine project body: {0}".format(xml_body))
         headers = {'Content-Type': 'application/xml'}
