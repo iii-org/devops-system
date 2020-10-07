@@ -12,8 +12,9 @@ import calendar
 class Issue(object):
     headers = {'Content-Type': 'application/json'}
 
-    def __init__(self, pjt):
+    def __init__(self, pjt, redmine):
         self.pjt = pjt
+        self.redmine = redmine
 
     def __get_dict_userid(self, logger):
         result = db.engine.execute(
@@ -158,9 +159,8 @@ class Issue(object):
         if project_dict is not None:
             redmine_key = Redmine.get_redmine_key(self, logger, app)
             output_array = []
-            redmine_output_issue_array = Redmine.redmine_get_issues_by_project(
-                self, logger, app, project_dict['plan_project_id'],
-                redmine_key, args)
+            redmine_output_issue_array = self.redmine.redmine_get_issues_by_project(
+                project_dict['plan_project_id'], args)
             for redmine_issue in redmine_output_issue_array['issues']:
                 output_dict = self.__dealwith_issue_by_user_redmine_output(
                     logger, redmine_issue)
@@ -419,10 +419,8 @@ class Issue(object):
                 logger, user_id=args['assigned_to_id'])
             args['assigned_to_id'] = user_plugin_relation['plan_user_id']
         logger.info("args: {0}".format(args))
-        Redmine.get_redmine_key(self, logger, app)
         try:
-            output, status_code = Redmine.redmine_create_issue(
-                self, logger, app, args)
+            output, status_code = self.redmine.redmine_create_issue(args)
             if status_code == 201:
                 return {
                     "message": "success",

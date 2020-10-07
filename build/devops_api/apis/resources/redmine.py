@@ -68,12 +68,11 @@ class Redmine(object):
         logger.info("get issues by output: {0}".format(output.json()))
         return output.json()
 
-    def redmine_get_issues_by_project(self, logger, app, project_id,
-                                      redmine_key, args):
-        args['key'] = redmine_key
-        args['project_id'] = project_id
+    def redmine_get_issues_by_project(self, plan_project_id, args):
+        args['key'] = self.redmine_key
+        args['project_id'] = plan_project_id
         args['limit'] = 1000
-        url = "http://{0}/issues.json".format(app.config['REDMINE_IP_PORT'])
+        url = "http://{0}/issues.json".format(self.app.config['REDMINE_IP_PORT'])
         output = requests.get(url,
                               params=args,
                               headers=self.headers,
@@ -108,9 +107,9 @@ class Redmine(object):
         logger.info("get issues output: {0}".format(output.json()))
         return output.json(), output.status_code
 
-    def redmine_create_issue(self, logger, app, args):
-        url = "http://{0}/issues.json?key={1}".format(\
-            app.config['REDMINE_IP_PORT'], self.redmine_key)
+    def redmine_create_issue(self, args):
+        url = "http://{0}/issues.json?key={1}".format(
+            self.app.config['REDMINE_IP_PORT'], self.redmine_key)
         param = {"issue": args}
         logger.info("create issues param: {0}".format(param))
         output = requests.post(url,
