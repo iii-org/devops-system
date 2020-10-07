@@ -666,11 +666,17 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
 
                 commit_list = []
                 for branch_commit in branch_commits[0]["data"]:
+                    if branch_commit["title"][0:5] == "Merge":
+                        merge_msg = branch_commit["title"]
+                    else:
+                        merge_msg = ""
                     obj = {
                         "id": branch_commit["id"],
                         "message": branch_commit["message"],
                         "author_name": branch_commit["author_name"],
-                        "committed_date": branch_commit["committed_date"]
+                        "committed_date": branch_commit["committed_date"],
+                        "parent_ids": branch_commit["parent_ids"],
+                        "merge_msg": merge_msg
                     }
 
                     commit_list.append(obj)
