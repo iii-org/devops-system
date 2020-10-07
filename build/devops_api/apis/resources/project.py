@@ -35,6 +35,8 @@ class Project(object):
         logger.info("private_token: {0}".format(self.private_token))
 
     def verify_project_user(self, logger, project_id, user_id):
+        if util.is_dummy_project(project_id):
+            return True
         select_project_user_role_command = db.select([ProjectUserRole.stru_project_user_role])\
             .where(db.and_(ProjectUserRole.stru_project_user_role.c.project_id==project_id, \
             ProjectUserRole.stru_project_user_role.c.user_id==user_id))
@@ -167,8 +169,8 @@ class Project(object):
     def get_projects_by_user(self, logger, app, user_id):
         output_array = []
         result = db.engine.execute(
-            "SELECT pj.id, pj.name, ppl.plan_project_id, \
-            ppl.git_repository_id, ppl.ci_project_id, ppl.ci_pipeline_id\
+            "SELECT pj.id, pj.name, pj.display, ppl.plan_project_id, \
+            ppl.git_repository_id, ppl.ci_project_id, ppl.ci_pipeline_id, pj.http_url\
             FROM public.project_user_role as pur, public.projects as pj, public.project_plugin_relation as ppl\
             WHERE pur.user_id = {0} AND pur.project_id = pj.id AND pj.id = ppl.project_id;"
             .format(user_id))
@@ -190,8 +192,11 @@ class Project(object):
                 for project in project_list:
                     output_dict = {}
                     output_dict['name'] = project['name']
+                    output_dict['display'] = project['display']
                     output_dict['project_id'] = project['id']
-
+                    output_dict['git_url'] = project['http_url']
+                    output_dict['redmine_url'] = "http://{0}/projects/{1}".format(
+                        app.config["REDMINE_IP_PORT"], project['plan_project_id'])
                     output_dict['repository_ids'] = project[
                         'git_repository_id']
                     output_dict['issues'] = None
@@ -737,7 +742,6 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                     output2 = requests.get(url2,
                                            headers=self.headers,
                                            verify=False).json()
-
                     closed_count = 0
                     overdue_count = 0
                     for issue in output2["issues"]:
@@ -800,6 +804,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                     project_output = {
                         "id": project_id,
                         "name": project_info["name"],
+                        "display": project_info["display"],
                         "description": project_info["description"],
                         "git_url": project_info["http_url"],
                         "redmine_url": redmine_url,
@@ -839,7 +844,11 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
     # 新增redmine & gitlab的project並將db相關table新增資訊
     def pm_create_project(self, logger, app, user_id, args):
         from .auth import auth
-        if args["description"] == None: args["description"] = ""
+        if args["description"] is None:
+            args["description"] = ""
+        display = args['display']
+        if display is None:
+            display = args['name']
 
         identifier = args["name"].replace(' ', '_').lower()
 
@@ -847,18 +856,20 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         redmine_url = "http://{0}/projects.json?key={1}".format(
             app.config["REDMINE_IP_PORT"], app.config["REDMINE_API_KEY"])
         logger.info("create redmine project url: {0}".format(redmine_url))
-        xml_body = """<?xml version="1.0" encoding="UTF-8"?>\
-                    <project>\
-                    <name>{0}</name>\
-                    <identifier>{1}</identifier>\
-                    <description>{2}</description>\
-                    </project>""".format(args["name"], identifier,
-                                         args["description"])
+        xml_body = """<?xml version="1.0" encoding="UTF-8"?>
+                    <project>
+                    <name>{0}</name>
+                    <identifier>{1}</identifier>
+                    <description>{2}</description>
+                    </project>""".format(
+            display,
+            identifier,
+            args["description"])
         logger.info("create redmine project body: {0}".format(xml_body))
         headers = {'Content-Type': 'application/xml'}
         redmine_output = requests.post(redmine_url,
                                        headers=headers,
-                                       data=xml_body,
+                                       data=xml_body.encode('utf-8'),
                                        verify=False)
         logger.info("create redmine project output: {0} / {1}".format(
             redmine_output, redmine_output.json()))
@@ -884,8 +895,9 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                 
                 # 寫入projects
                 db.engine.execute(
-                    "INSERT INTO public.projects (name, description, ssh_url, http_url, disabled) VALUES ('{0}', '{1}', '{2}', '{3}', '{4}')"
-                    .format(gitlab_pj_name, args["description"],
+                    "INSERT INTO public.projects (name, display, description, ssh_url, http_url, disabled)"
+                    " VALUES ('{0}', '{1}', '{2}', '{3}', '{4}', '{5}')"
+                    .format(gitlab_pj_name, display, args["description"],
                             gitlab_pj_ssh_url, gitlab_pj_http_url,
                             args["disabled"]))
 
@@ -965,6 +977,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         output = {
             "project_id": project_info["project_id"],
             "name": project_info["name"],
+            "display": project_info["display"],
             "description": project_info["description"],
             "disabled": project_info["disabled"],
             "git_url": project_info["http_url"],
@@ -999,13 +1012,19 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         redmine_project_id = project_relation["plan_project_id"]
         gitlab_project_id = project_relation["git_repository_id"]
 
-        if args["name"] == None:
+        if args["name"] is None:
             result = db.engine.execute(
                 "SELECT name FROM public.projects WHERE id = '{0}'".format(
                     project_id))
             args["name"] = result.fetchone()[0]
             result.close()
-        if args["description"] == None:
+        if args["display"] is None:
+            result = db.engine.execute(
+                "SELECT name FROM public.projects WHERE id = '{0}'".format(
+                    project_id))
+            args["display"] = result.fetchone()[0]
+            result.close()
+        if args["description"] is None:
             result = db.engine.execute(
                 "SELECT description FROM public.projects WHERE id = '{0}'".
                 format(project_id))
@@ -1013,8 +1032,13 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
             result.close()
 
         # 更新gitlab project
-        gitlab_url = "http://{0}/api/{1}/projects/{2}?private_token={3}&name={4}&description={5}".format(\
-            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], gitlab_project_id, self.private_token, args["name"], args["description"])
+        gitlab_url = ('http://{0}/api/{1}/projects/{2}?'
+                      'private_token={3}&description={4}').format(
+            app.config["GITLAB_IP_PORT"],
+            app.config["GITLAB_API_VERSION"],
+            gitlab_project_id,
+            self.private_token,
+            args["description"])
         logger.info("update gitlab project url: {0}".format(gitlab_url))
         gitlab_output = requests.put(gitlab_url,
                                      headers=self.headers,
@@ -1024,19 +1048,21 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
 
         # 更新redmine project
         if gitlab_output.status_code == 200:
-            redmine_url = "http://{0}/projects/{1}.json?key={2}".format(\
+            redmine_url = "http://{0}/projects/{1}.json?key={2}".format(
                 app.config["REDMINE_IP_PORT"], redmine_project_id, app.config["REDMINE_API_KEY"])
             logger.info("update redmine project url: {0}".format(redmine_url))
-            xml_body = """<?xml version="1.0" encoding="UTF-8"?>\
-                    <project>\
-                    <name>{0}</name>\
-                    <description>{1}</description>\
-                    </project>""".format(args["name"], args["description"])
+            xml_body = """<?xml version="1.0" encoding="UTF-8"?>
+                    <project>
+                    <name>{0}</name>
+                    <description>{1}</description>
+                    </project>""".format(
+                args["display"],
+                args["description"])
             logger.info("update redmine project body: {0}".format(xml_body))
             headers = {'Content-Type': 'application/xml'}
             redmine_output = requests.put(redmine_url,
                                           headers=headers,
-                                          data=xml_body,
+                                          data=xml_body.encode('utf-8'),
                                           verify=False)
             logger.info(
                 "update redmine project output: {0}".format(redmine_output))
@@ -1048,6 +1074,10 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                     db.engine.execute(
                         "UPDATE public.projects SET name = '{0}' WHERE id = '{1}'"
                         .format(args["name"], project_id))
+                if args["display"] is not None:
+                    r = db.engine.execute(
+                        "UPDATE public.projects SET display = '{0}' WHERE id = '{1}'"
+                        .format(args["display"], project_id))
                 if args["description"] != None:
                     db.engine.execute(
                         "UPDATE public.projects SET description = '{0}' WHERE id = '{1}'"
@@ -1101,14 +1131,14 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         if project_relation is not None:
             redmine_project_id = project_relation["plan_project_id"]
             gitlab_project_id = project_relation["git_repository_id"]
-            
+
             # disabled rancher pipeline
             rancher_token = Rancher.get_rancher_token(self, app, logger)
             logger.debug("rancher_token: {0}".format(rancher_token))
             Rancher.disable_rancher_projejct_pipline(self, app, logger, 
                 project_relation["ci_project_id"] , project_relation["ci_pipeline_id"], 
                 rancher_token)
-            
+
             # 刪除gitlab project
             gitlab_url = "http://{0}/api/{1}/projects/{2}?private_token={3}".format(\
                 app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], gitlab_project_id, self.private_token)
@@ -1159,7 +1189,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                     }, error_code
 
             else:
-                error_code = redmine_output.status_code
+                error_code = gitlab_output.status_code
                 return {
                     "message": {
                         "gitlab": {

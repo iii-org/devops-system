@@ -12,8 +12,9 @@ import calendar
 class Issue(object):
     headers = {'Content-Type': 'application/json'}
 
-    def __init__(self, pjt):
+    def __init__(self, pjt, redmine):
         self.pjt = pjt
+        self.redmine = redmine
 
     def __get_dict_userid(self, logger):
         result = db.engine.execute(
@@ -76,8 +77,10 @@ class Issue(object):
         project_list = self.pjt.get_project_by_plan_project_id(logger, redmine_output['project']['id'])
         project = self.pjt.get_project_info(logger, project_list['project_id'])
         project_name = project['name']
+        project_display = project['display']
         output_list['project_id'] = project_list['project_id']
         output_list['project_name'] = project_name
+        output_list['project_display'] = project_display
         output_list['issue_category'] = redmine_output['tracker']['name']
         output_list['issue_priority'] = redmine_output['priority']['name']
         output_list['issue_status'] = redmine_output['status']['name']
@@ -145,6 +148,8 @@ class Issue(object):
             return {"message": "could not get this redmine issue."}, 400
 
     def get_issue_by_project(self, logger, app, project_id, args):
+        if util.is_dummy_project(project_id):
+            return util.success([])
         get_project_command = db.select([ProjectPluginRelation.stru_project_plug_relation])\
         .where(db.and_(ProjectPluginRelation.stru_project_plug_relation.c.project_id==project_id))
         logger.debug("get_project_command: {0}".format(get_project_command))
@@ -154,9 +159,8 @@ class Issue(object):
         if project_dict is not None:
             redmine_key = Redmine.get_redmine_key(self, logger, app)
             output_array = []
-            redmine_output_issue_array = Redmine.redmine_get_issues_by_project(
-                self, logger, app, project_dict['plan_project_id'],
-                redmine_key, args)
+            redmine_output_issue_array = self.redmine.redmine_get_issues_by_project(
+                project_dict['plan_project_id'], args)
             for redmine_issue in redmine_output_issue_array['issues']:
                 output_dict = self.__dealwith_issue_by_user_redmine_output(
                     logger, redmine_issue)
@@ -190,6 +194,8 @@ class Issue(object):
             return {"message": "could not get issue list"}, 400
 
     def get_issue_by_status_by_project(self, logger, app, project_id):
+        if util.is_dummy_project(project_id):
+            return util.success({})
         args = {}
         issue_list_output, status_code = self.get_issue_by_project(
             logger, app, project_id, args)
@@ -210,6 +216,8 @@ class Issue(object):
             return {"message": "could not get issue list"}, 400
 
     def get_issue_by_date_by_project(self, logger, app, project_id):
+        if util.is_dummy_project(project_id):
+            return util.success({})
         args = {}
         issue_list_output, status_code = self.get_issue_by_project(
             logger, app, project_id, args)
@@ -411,10 +419,8 @@ class Issue(object):
                 logger, user_id=args['assigned_to_id'])
             args['assigned_to_id'] = user_plugin_relation['plan_user_id']
         logger.info("args: {0}".format(args))
-        Redmine.get_redmine_key(self, logger, app)
         try:
-            output, status_code = Redmine.redmine_create_issue(
-                self, logger, app, args)
+            output, status_code = self.redmine.redmine_create_issue(args)
             if status_code == 201:
                 return {
                     "message": "success",
@@ -445,11 +451,10 @@ class Issue(object):
         else:
             return {"message": "update issue failed, {0}".format(output.text)}, 400
 
-    def delete_issue(self, logger, app, issue_id):
-        Redmine.get_redmine_key(self, logger, app)
+    def delete_issue(self, issue_id):
         try:
             # go to redmine, delete issue
-            output = Redmine.redmine_delete_issue(self, logger, app, issue_id)
+            output = self.redmine.redmine_delete_issue(issue_id)
             return {"message": "success"}, 201
         except Exception as error:
             return str(error), 400

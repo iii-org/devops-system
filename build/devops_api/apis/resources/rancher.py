@@ -164,6 +164,8 @@ class Rancher(object):
                                                     headersandtoken)
         if rancher_output.status_code == 200:
             logger.info("disable_rancher_projejct_pipline successful !")
+        elif rancher_output.status_code == 404:
+            logger.info("project does not exist, don't need to delete.")
         else:
             logger.info("disable_rancher_projejct_pipline error, error message: {0}".format(rancher_output.text))
             abort(400, message='"disable_rancher_projejct_pipline error, error message: {0}'.format(rancher_output.text))

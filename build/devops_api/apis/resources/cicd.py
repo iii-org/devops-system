@@ -97,10 +97,13 @@ class Cicd(object):
                         if location_id == 1:
                             pass
                         elif location_id == 2:
+                            negative = ''
+                            if not item['is_passed']:
+                                negative = '.not'
                             o_execs.append(
-                                'pm.test("value #%d", function () { '
-                                'pm.expect(pm.response.json().%s).to.be.eql("%s");});'
-                                % (value['id'], value['key'], value['value']))
+                                'pm.test("value #{0}", function () {{ '
+                                'pm.expect(pm.response.json().{1}).to.be{2}.eql("{3}");}});'.format(
+                                    value['id'], value['key'], negative, value['value']))
                     else:
                         pass
 

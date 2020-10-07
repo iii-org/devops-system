@@ -158,3 +158,13 @@ class util(object):
         else:
             return None
 
+    @staticmethod
+    def is_dummy_project(project_id):
+        if type(project_id == str):
+            return int(project_id) == -1
+        else:
+            return project_id == -1
+
+    @staticmethod
+    def success(data):
+        return {'message': 'success', 'data': data}, 200
