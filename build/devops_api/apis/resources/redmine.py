@@ -134,7 +134,7 @@ class Redmine(object):
         return output, output.status_code
 
     def redmine_delete_issue(self, issue_id):
-        url = "http://{0}/issues/{1}.json?key={2}&include=journals".format(\
+        url = "http://{0}/issues/{1}.json?key={2}&include=journals".format(
             self.app.config['REDMINE_IP_PORT'], issue_id, self.redmine_key)
         output = requests.delete(url, headers=self.headers, verify=False)
         logger.info("redmine delete user output: {0}".format(output))

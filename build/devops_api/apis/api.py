@@ -1139,7 +1139,7 @@ class Issue(Resource):
         status = iss.verify_issue_user(logger, app, issue_id,
                                        get_jwt_identity()['user_id'])
         if status and get_jwt_identity()['role_id'] in (3, 5):
-            output = iss.delete_issue(logger, app, issue_id)
+            output = iss.delete_issue(issue_id)
             return output
         else:
             return {'message': 'Dont have authorization to delete issue for thie user: {0}' \

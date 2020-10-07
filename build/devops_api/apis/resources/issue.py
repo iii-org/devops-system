@@ -451,11 +451,10 @@ class Issue(object):
         else:
             return {"message": "update issue failed, {0}".format(output.text)}, 400
 
-    def delete_issue(self, logger, app, issue_id):
-        Redmine.get_redmine_key(self, logger, app)
+    def delete_issue(self, issue_id):
         try:
             # go to redmine, delete issue
-            output = Redmine.redmine_delete_issue(self, issue_id)
+            output = self.redmine.redmine_delete_issue(issue_id)
             return {"message": "success"}, 201
         except Exception as error:
             return str(error), 400
