@@ -455,7 +455,7 @@ class Issue(object):
         try:
             # go to redmine, delete issue
             output = self.redmine.redmine_delete_issue(issue_id)
-            return {"message": "success"}, 201
+            return {"message": "success"}, 200
         except Exception as error:
             return str(error), 400
 

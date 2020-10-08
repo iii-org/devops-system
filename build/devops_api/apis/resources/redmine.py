@@ -351,11 +351,13 @@ class Redmine(object):
         parse.add_argument('file', type=werkzeug.datastructures.FileStorage, location='files')
         f_args = parse.parse_args()
         file = f_args['file']
-        filename = file.filename
         res = self.api_post('/uploads', file)
         if res.status_code != 201:
-            return {"message": "Error while uploads to redmine", "data": res.text}, res.status_code
+            return {"message": "Error while uploading to redmine", "data": res.text}, res.status_code
         token = res.json().get('upload').get('token')
+        filename = args['filename']
+        if filename is None:
+            filename = file.filename
         params = {
             'token': token,
             'filename': filename
@@ -369,7 +371,7 @@ class Redmine(object):
         if res.status_code == 204:
             return None, 201
         else:
-            return {"message": "Error while uploads to redmine", "data": res.text}, res.status_code
+            return {"message": "Error while adding the file to redmine", "data": res.text}, res.status_code
 
     def redmine_list_file(self, plan_project_id):
         res = self.api_get('/projects/%d/files' % plan_project_id)
