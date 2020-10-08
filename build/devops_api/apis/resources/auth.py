@@ -195,7 +195,7 @@ class auth(object):
             set_string += "password = '{0}'".format(h.hexdigest())
             set_string += ","
         if args["phone"] is not None:
-            set_string += "phone = {0}".format(args["phone"])
+            set_string += "phone = '{0}'".format(args["phone"])
             set_string += ","
         if args["email"] is not None:
             set_string += "email = '{0}'".format(args["email"])
@@ -211,7 +211,7 @@ class auth(object):
         result = db.engine.execute(
             "UPDATE public.user SET {0} WHERE id = {1}".format(
                 set_string, user_id))
-        logger.debug("update db result: {0}".format(result))
+        logger.debug("{0} rows updated.".format(result.rowcount))
 
         return {'message': 'success'}, 200
 
@@ -608,7 +608,7 @@ class auth(object):
                 "email":
                 data_userRole_by_project['email'],
                 "phone":
-                int(data_userRole_by_project['phone']),
+                data_userRole_by_project['phone'],
                 "login":
                 data_userRole_by_project['login'],
                 "create_at":
