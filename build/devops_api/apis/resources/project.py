@@ -1,6 +1,7 @@
 import requests
 import json
 from datetime import datetime
+import config
 
 from model import db, ProjectUserRole, ProjectPluginRelation, TableProjects
 from .redmine import Redmine
@@ -16,13 +17,13 @@ class Project(object):
 
     def __init__(self, logger, app, au):
         self.au = au
-        if app.config["GITLAB_API_VERSION"] == "v3":
+        if config.get("GITLAB_API_VERSION") == "v3":
             # get gitlab admin token
             url = "http://{0}/api/v3/session".format(\
-                app.config["GITLAB_IP_PORT"])
+                config.get("GITLAB_IP_PORT"))
             parame = {}
-            parame["login"] = app.config["GITLAB_ADMIN_ACCOUNT"]
-            parame["password"] = app.config["GITLAB_ADMIN_PASSWORD"]
+            parame["login"] = config.get("GITLAB_ADMIN_ACCOUNT")
+            parame["password"] = config.get("GITLAB_ADMIN_PASSWORD")
 
             output = requests.post(url,
                                    data=json.dumps(parame),
@@ -31,7 +32,7 @@ class Project(object):
             # logger.info("private_token api output: {0}".format(output))
             self.private_token = output.json()['private_token']
         else:
-            self.private_token = app.config["GITLAB_PRIVATE_TOKEN"]
+            self.private_token = config.get("GITLAB_PRIVATE_TOKEN")
         logger.info("private_token: {0}".format(self.private_token))
 
     def verify_project_user(self, logger, project_id, user_id):
@@ -63,7 +64,7 @@ class Project(object):
     # 查詢所有projects
     def get_all_git_projects(self, logger, app):
         url = "http://{0}/api/{1}/projects?private_token={2}".format(\
-            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], self.private_token)
+            config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), self.private_token)
         logger.info("get all projects url: {0}".format(url))
         output = requests.get(url, headers=self.headers, verify=False)
         logger.info("get all projects output: {0}".format(output.json()))
@@ -72,7 +73,7 @@ class Project(object):
     # 新增單一project（name/visibility）
     def create_git_project(self, logger, app, args):
         url = "http://{0}/api/{1}/projects?private_token={2}&name={3}&visibility={4}".format(\
-            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], self.private_token, args["name"], args["visibility"])
+            config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), self.private_token, args["name"], args["visibility"])
         logger.info("create project url: {0}".format(url))
         output = requests.post(url, headers=self.headers, verify=False)
         logger.info("create project output: {0}".format(output.json()))
@@ -81,7 +82,7 @@ class Project(object):
     # 用project_id查詢單一project
     def get_one_git_project(self, logger, app, project_id):
         url = "http://{0}/api/{1}/projects/{2}?private_token={3}".format(\
-            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, self.private_token)
+            config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id, self.private_token)
         logger.info("get one project url: {0}".format(url))
         output = requests.get(url, headers=self.headers, verify=False)
         logger.info("get one project output: {0}".format(output.json()))
@@ -90,7 +91,7 @@ class Project(object):
     # 用project_id修改單一project（name/visibility）
     def update_git_project(self, logger, app, project_id, args):
         url = "http://{0}/api/{1}/projects/{2}?private_token={3}&name={4}&visibility={5}".format(\
-            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, self.private_token, args["name"], args["visibility"])
+            config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id, self.private_token, args["name"], args["visibility"])
         logger.info("update project url: {0}".format(url))
         output = requests.put(url, headers=self.headers, verify=False)
         logger.info("update project output: {0}".format(output))
@@ -99,7 +100,7 @@ class Project(object):
     # 用project_id刪除單一project
     def delete_git_project(self, logger, app, project_id):
         url = "http://{0}/api/{1}/projects/{2}?private_token={3}".format(\
-            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, self.private_token)
+            config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id, self.private_token)
         logger.info("delete project url: {0}".format(url))
         output = requests.delete(url, headers=self.headers, verify=False)
         logger.info("delete project output: {0}".format(output.json()))
@@ -108,7 +109,7 @@ class Project(object):
     # 用project_id查詢project的webhooks
     def get_git_project_webhooks(self, logger, app, project_id):
         url = "http://{0}/api/{1}/projects/{2}/hooks?private_token={3}".format(\
-            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, self.private_token)
+            config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id, self.private_token)
         logger.info("get project webhooks url: {0}".format(url))
         output = requests.get(url, headers=self.headers, verify=False)
         logger.info("get project webhooks output: {0}".format(output.json()))
@@ -117,7 +118,7 @@ class Project(object):
     # 用project_id新增project的webhook
     def create_git_project_webhook(self, logger, app, project_id, args):
         url = "http://{0}/api/{1}/projects/{2}/hooks?private_token={3}&url={4}&push_events={5}&push_events_branch_filter={6}&enable_ssl_verification={7}&token={8}".format(\
-            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, self.private_token, \
+            config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id, self.private_token, \
             args["url"], args["push_events"], args["push_events_branch_filter"], args["enable_ssl_verification"], \
             args["token"])
         logger.info("create project webhook url: {0}".format(url))
@@ -128,7 +129,7 @@ class Project(object):
     # 用project_id & hook_id修改project的webhook
     def update_git_project_webhook(self, logger, app, project_id, args):
         url = "http://{0}/api/{1}/projects/{2}/hooks/{3}?private_token={4}&url={5}&push_events={6}&push_events_branch_filter={7}&enable_ssl_verification={8}&token={9}".format(\
-            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, args["hook_id"], self.private_token, \
+            config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id, args["hook_id"], self.private_token, \
             args["url"], args["push_events"], args["push_events_branch_filter"], args["enable_ssl_verification"], \
             args["token"])
         logger.info("update project webhook url: {0}".format(url))
@@ -139,7 +140,7 @@ class Project(object):
     # 用project_id & hook_id刪除project的webhook
     def delete_git_project_webhook(self, logger, app, project_id, args):
         url = "http://{0}/api/{1}/projects/{2}/hooks/{3}?private_token={4}".format(\
-            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, args["hook_id"], self.private_token)
+            config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id, args["hook_id"], self.private_token)
         logger.info("delete project webhook url: {0}".format(url))
         output = requests.delete(url, headers=self.headers, verify=False)
         logger.info("delete project webhook output: {0}".format(output))
@@ -196,7 +197,7 @@ class Project(object):
                     output_dict['project_id'] = project['id']
                     output_dict['git_url'] = project['http_url']
                     output_dict['redmine_url'] = "http://{0}/projects/{1}".format(
-                        app.config["REDMINE_IP_PORT"], project['plan_project_id'])
+                        config.get("REDMINE_IP_PORT"), project['plan_project_id'])
                     output_dict['repository_ids'] = project[
                         'git_repository_id']
                     output_dict['issues'] = None
@@ -296,7 +297,7 @@ class Project(object):
     # 用project_id查詢project的branches
     def get_git_project_branches(self, logger, app, project_id):
         url = "http://{0}/api/{1}/projects/{2}/repository/branches?private_token={3}".format(\
-            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, self.private_token)
+            config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id, self.private_token)
         logger.info("get project branches url: {0}".format(url))
         logger.info("get project branches headers: {0}".format(self.headers))
         output = requests.get(url, headers=self.headers, verify=False)
@@ -326,7 +327,7 @@ class Project(object):
     # 用project_id新增project的branch
     def create_git_project_branch(self, logger, app, project_id, args):
         url = "http://{0}/api/{1}/projects/{2}/repository/branches?private_token={3}&branch={4}&ref={5}".format(\
-            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, self.private_token, args["branch"], args["ref"])
+            config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id, self.private_token, args["branch"], args["ref"])
         logger.info("create project branch url: {0}".format(url))
         output = requests.post(url, headers=self.headers, verify=False)
         logger.info("create project branch output: {0} / {1}".format(
@@ -339,7 +340,7 @@ class Project(object):
     # 用project_id及branch_name查詢project的branch
     def get_git_project_branch(self, logger, app, project_id, branch):
         url = "http://{0}/api/{1}/projects/{2}/repository/branches/{3}?private_token={4}".format(\
-            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, branch, self.private_token)
+            config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id, branch, self.private_token)
         logger.info("get project branch url: {0}".format(url))
         output = requests.get(url, headers=self.headers, verify=False)
         logger.info("get project branch output: {0} / {1}".format(
@@ -352,7 +353,7 @@ class Project(object):
     # 用project_id及branch_name刪除project的branch
     def delete_git_project_branch(self, logger, app, project_id, branch):
         url = "http://{0}/api/{1}/projects/{2}/repository/branches/{3}?private_token={4}".format(\
-            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, branch, self.private_token)
+            config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id, branch, self.private_token)
         logger.info("delete project branch url: {0}".format(url))
         output = requests.delete(url, headers=self.headers, verify=False)
         logger.info("delete project branch output: {0}".format(output))
@@ -364,7 +365,7 @@ class Project(object):
     # 用project_id查詢project的repositories
     def get_git_project_repositories(self, logger, app, project_id, branch):
         url = "http://{0}/api/{1}/projects/{2}/repository/tree?private_token={3}&ref={4}".format(\
-            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, self.private_token, branch)
+            config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id, self.private_token, branch)
         logger.info("get project repositories url: {0}".format(url))
         output = requests.get(url, headers=self.headers, verify=False)
         logger.info("get project repositories output: {0} / {1}".format(
@@ -382,7 +383,7 @@ class Project(object):
     # 用project_id及branch_name及file_path查詢project的file
     def get_git_project_file(self, logger, app, project_id, branch, file_path):
         url = "http://{0}/api/{1}/projects/{2}/repository/files/{3}?private_token={4}&ref={5}".format(\
-            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, file_path, self.private_token, branch)
+            config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id, file_path, self.private_token, branch)
         logger.info("get project file url: {0}".format(url))
         output = requests.get(url, headers=self.headers, verify=False)
         logger.info("get project file output: {0} / {1}".format(
@@ -408,7 +409,7 @@ class Project(object):
     # 用project_id及branch_name及file_path新增project的file
     def create_git_project_file(self, logger, app, project_id, args):
         url = "http://{0}/api/{1}/projects/{2}/repository/files/{3}?private_token={4}&branch={5}&start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&commit_message={11}".format(\
-            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, args["file_path"], self.private_token, args["branch"], args["start_branch"], args["encoding"], args["author_email"], args["author_name"], args["content"], args["commit_message"])
+            config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id, args["file_path"], self.private_token, args["branch"], args["start_branch"], args["encoding"], args["author_email"], args["author_name"], args["content"], args["commit_message"])
         logger.info("post project file url: {0}".format(url))
         output = requests.post(url, headers=self.headers, verify=False)
         logger.info("post project file output: {0} / {1}".format(
@@ -428,7 +429,7 @@ class Project(object):
     # 用project_id及branch_name及file_path修改project的file
     def update_git_project_file(self, logger, app, project_id, args):
         url = "http://{0}/api/{1}/projects/{2}/repository/files/{3}?private_token={4}&branch={5}&start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&commit_message={11}".format(\
-            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, args["file_path"], self.private_token, args["branch"], args["start_branch"], args["encoding"], args["author_email"], args["author_name"], args["content"], args["commit_message"])
+            config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id, args["file_path"], self.private_token, args["branch"], args["start_branch"], args["encoding"], args["author_email"], args["author_name"], args["content"], args["commit_message"])
         logger.info("put project file url: {0}".format(url))
         output = requests.put(url, headers=self.headers, verify=False)
         logger.info("put project file output: {0}".format(output))
@@ -448,7 +449,7 @@ class Project(object):
     def delete_git_project_file(self, logger, app, project_id, branch,
                                 file_path, args):
         url = "http://{0}/api/{1}/projects/{2}/repository/files/{3}?private_token={4}&branch={5}&commit_message={6}".format(\
-            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, file_path, self.private_token, branch, args["commit_message"])
+            config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id, file_path, self.private_token, branch, args["commit_message"])
         logger.info("delete project file url: {0}".format(url))
         output = requests.delete(url, headers=self.headers, verify=False)
         logger.info("delete project file output: {0}".format(output))
@@ -461,7 +462,7 @@ class Project(object):
     # 用project_id查詢project的tags
     def get_git_project_tags(self, logger, app, project_id):
         url = "http://{0}/api/{1}/projects/{2}/repository/tags?private_token={3}".format(\
-            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, self.private_token)
+            config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id, self.private_token)
         logger.info("get project tags url: {0}".format(url))
         output = requests.get(url, headers=self.headers, verify=False)
         logger.info("get project tags output: {0} / {1} ".format(
@@ -481,7 +482,7 @@ class Project(object):
     # 用project_id新增project的tag
     def create_git_project_tags(self, logger, app, project_id, args):
         url = "http://{0}/api/{1}/projects/{2}/repository/tags?private_token={3}&tag_name={4}&ref={5}&message={6}&release_description={7}".format(\
-            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, self.private_token, args["tag_name"], args["ref"], args["message"], args["release_description"])
+            config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id, self.private_token, args["tag_name"], args["ref"], args["message"], args["release_description"])
         logger.info("create project tag url: {0}".format(url))
         output = requests.post(url, headers=self.headers, verify=False)
         logger.info("create project tag output: {0} / {1}".format(
@@ -494,7 +495,7 @@ class Project(object):
     # 用project_id及tag_name刪除project的tag
     def delete_git_project_tag(self, logger, app, project_id, tag_name):
         url = "http://{0}/api/{1}/projects/{2}/repository/tags/{3}?private_token={4}".format(\
-            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, tag_name, self.private_token)
+            config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id, tag_name, self.private_token)
         logger.info("delete project tag url: {0}".format(url))
         output = requests.delete(url, headers=self.headers, verify=False)
         logger.info("delete project tag output: {0}".format(output))
@@ -507,7 +508,7 @@ class Project(object):
     def create_git_project_directory(self, logger, app, project_id,
                                      directory_path, args):
         url = "http://{0}/api/{1}/projects/{2}/repository/files/{3}?private_token={4}&branch={5}&commit_message={6}&content={7}".format(\
-            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, directory_path, self.private_token, args["branch"], args["commit_message"], "")
+            config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id, directory_path, self.private_token, args["branch"], args["commit_message"], "")
         logger.info("create project directory url: {0}".format(url))
         output = requests.post(url, headers=self.headers, verify=False)
         logger.info("create project directory output: {0} / {1}".format(
@@ -521,7 +522,7 @@ class Project(object):
     def update_git_project_directory(self, logger, app, project_id,
                                      directory_path, args):
         url = "http://{0}/api/{1}/projects/{2}/repository/files/{3}?private_token={4}&branch={5}&commit_message={6}&author_name={7}&author_email={8}&encoding={9}&content={10}".format(\
-            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, directory_path, self.private_token, args["branch"], args["commit_message"], args["author_name"], args["author_email"], args["encoding"], args["content"])
+            config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id, directory_path, self.private_token, args["branch"], args["commit_message"], args["author_name"], args["author_email"], args["encoding"], args["content"])
         logger.info("update project directory url: {0}".format(url))
         output = requests.put(url, headers=self.headers, verify=False)
         logger.info("update project directory output: {0} / {1}".format(
@@ -536,7 +537,7 @@ class Project(object):
                                      directory_path, args):
         # 查詢directory的files
         url = "http://{0}/api/{1}/projects/{2}/repository/tree?private_token={3}&ref={4}&path={5}".format(\
-            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, self.private_token, args["branch"], directory_path)
+            config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id, self.private_token, args["branch"], directory_path)
         logger.info("get project directoryfiles url: {0}".format(url))
         output1 = requests.get(url, headers=self.headers, verify=False)
         logger.info("get project directoryfiles output: {0} / {1}".format(
@@ -548,7 +549,7 @@ class Project(object):
                     path_encode = urllib.parse.quote(file["path"], safe='')
                     print(path_encode)
                     url = "http://{0}/api/{1}/projects/{2}/repository/files/{3}?private_token={4}&branch={5}&commit_message={6}".format(\
-                        app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, path_encode, self.private_token, args["branch"], args["commit_message"])
+                        config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id, path_encode, self.private_token, args["branch"], args["commit_message"])
                     logger.info(
                         "delete project directory url: {0}".format(url))
                     output2 = requests.delete(url,
@@ -571,7 +572,7 @@ class Project(object):
     def create_git_project_mergebranch(self, logger, app, project_id, args):
         # 新增merge request
         url = "http://{0}/api/{1}/projects/{2}/merge_requests?private_token={3}&source_branch={4}&target_branch={5}&title={6}".format(\
-            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, self.private_token, args["source_branch"], args["target_branch"], args["title"])
+            config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id, self.private_token, args["source_branch"], args["target_branch"], args["title"])
         logger.info("post project mergerequest url: {0}".format(url))
         output = requests.post(url, headers=self.headers, verify=False)
         logger.info("post project mergerequest output:{0} / {1}".format(
@@ -581,7 +582,7 @@ class Project(object):
             # 同意merge request
             merge_request_iid = output.json()["iid"]
             url = "http://{0}/api/{1}/projects/{2}/merge_requests/{3}/merge?private_token={4}".format(\
-                app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, merge_request_iid, self.private_token)
+                config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id, merge_request_iid, self.private_token)
             logger.info("post project acceptmerge url: {0}".format(url))
             output = requests.put(url, headers=self.headers, verify=False)
             logger.info("post project acceptmerge output:{0} / {1}".format(
@@ -591,7 +592,7 @@ class Project(object):
             else:
                 # 刪除merge request
                 url = "http://{0}/api/{1}/projects/{2}/merge_requests/{3}?private_token={4}".format(\
-                    app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, merge_request_iid, self.private_token)
+                    config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id, merge_request_iid, self.private_token)
                 logger.info("delete project mergerequest url: {0}".format(url))
                 output_extra = requests.delete(url,
                                                headers=self.headers,
@@ -614,10 +615,10 @@ class Project(object):
                                     action):
         url = "http://{0}/api/{1}/projects/{2}/repository/files/{3}?private_token={4}&branch={5}&\
 start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&commit_message={11}" \
-            .format( app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, \
-            args["file_path"], self.private_token, args["branch"], args["start_branch"], \
-            args["encoding"], args["author_email"], args["author_name"], args["content"], \
-            args["commit_message"])
+            .format(config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id, \
+                    args["file_path"], self.private_token, args["branch"], args["start_branch"], \
+                    args["encoding"], args["author_email"], args["author_name"], args["content"], \
+                    args["commit_message"])
         if action == 'post':
             logger.info("post project file url: {0}".format(url))
             output = requests.post(url, headers=self.headers, verify=False)
@@ -630,8 +631,8 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
 
     def get_git_project_file_for_pipeline(self, logger, app, project_id, args):
         url = "http://{0}/api/{1}/projects/{2}/repository/files/{3}?private_token={4}&ref={5}"\
-            .format(app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, \
-            args["file_path"], self.private_token, args["branch"])
+            .format(config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id, \
+                    args["file_path"], self.private_token, args["branch"])
         logger.info("get project file url: {0}".format(url))
         output = requests.get(url, headers=self.headers, verify=False)
         logger.info("get project file output: {0}".format(output.json()))
@@ -640,7 +641,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
     # 用project_id查詢project的commits
     def get_git_project_branch_commits(self, logger, app, project_id, args):
         url = "http://{0}/api/{1}/projects/{2}/repository/commits?private_token={3}&ref_name={4}&per_page=100".format(\
-            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], project_id, self.private_token, args["branch"])
+            config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id, self.private_token, args["branch"])
         logger.info("get project branch commits url: {0}".format(url))
         output = requests.get(url, headers=self.headers, verify=False)
         logger.info("get project branch commits output: {0} / {1}".format(
@@ -730,15 +731,15 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                     ## 用redmine api查詢相關資訊
                     # 抓專案最近更新時間
                     url1 = "http://{0}/projects/{1}.json?key={2}&limit=1000".format(
-                        app.config["REDMINE_IP_PORT"], plan_project_id,
-                        app.config["REDMINE_API_KEY"])
+                        config.get("REDMINE_IP_PORT"), plan_project_id,
+                        config.get("REDMINE_API_KEY"))
                     output1 = requests.get(url1,
                                            headers=self.headers,
                                            verify=False).json()
                     # 抓專案狀態＆專案工作進度＆進度落後數目
                     url2 = "http://{0}/issues.json?key={1}&project_id={2}&limit=1000".format(
-                        app.config["REDMINE_IP_PORT"],
-                        app.config["REDMINE_API_KEY"], plan_project_id)
+                        config.get("REDMINE_IP_PORT"),
+                        config.get("REDMINE_API_KEY"), plan_project_id)
                     output2 = requests.get(url2,
                                            headers=self.headers,
                                            verify=False).json()
@@ -783,7 +784,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                     # print(project_name)
                     # project_name = "devops-flask"
                     url = "http://{0}/api/measures/component?component={1}&metricKeys=reliability_rating,security_rating,security_review_rating,sqale_rating".format(\
-                        app.config["SONAR_IP_PORT"], project_name)
+                        config.get("SONAR_IP_PORT"), project_name)
                     logger.info("get sonar report url: {0}".format(url))
                     output = requests.get(url,
                                           headers=self.headers,
@@ -800,7 +801,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                             quality_score += (
                                 6 - rating) * 5  # A-25, B-20, C-15, D-10, E-5
 
-                    redmine_url = "http://{0}/projects/{1}".format(app.config["REDMINE_IP_PORT"], plan_project_id)
+                    redmine_url = "http://{0}/projects/{1}".format(config.get("REDMINE_IP_PORT"), plan_project_id)
                     project_output = {
                         "id": project_id,
                         "name": project_info["name"],
@@ -833,8 +834,8 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
     # 用project_id查詢redmine的單一project
     def get_redmine_one_project(self, logger, app, project_id):
         url = "http://{0}/projects/{1}.json?key={2}".format(
-            app.config["REDMINE_IP_PORT"], project_id,
-            app.config["REDMINE_API_KEY"])
+            config.get("REDMINE_IP_PORT"), project_id,
+            config.get("REDMINE_API_KEY"))
         logger.info("get redmine one project url: {0}".format(url))
         output = requests.get(url, headers=self.headers, verify=False)
         logger.info("get redmine one project output: {0} / {1}".format(
@@ -854,7 +855,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
 
         # 建立redmine project
         redmine_url = "http://{0}/projects.json?key={1}".format(
-            app.config["REDMINE_IP_PORT"], app.config["REDMINE_API_KEY"])
+            config.get("REDMINE_IP_PORT"), config.get("REDMINE_API_KEY"))
         logger.info("create redmine project url: {0}".format(redmine_url))
         xml_body = """<?xml version="1.0" encoding="UTF-8"?>
                     <project>
@@ -877,7 +878,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         # 建立gitlab project
         if redmine_output.status_code == 201:
             gitlab_url = "http://{0}/api/{1}/projects?private_token={2}&name={3}&description={4}".format(\
-                app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], self.private_token, args["name"], args["description"])
+                config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), self.private_token, args["name"], args["description"])
             logger.info("create gitlab project url: {0}".format(gitlab_url))
             gitlab_output = requests.post(gitlab_url,
                                           headers=self.headers,
@@ -973,7 +974,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                 project_id))
         project_info = result.fetchone()
         result.close()
-        redmine_url = "http://{0}/projects/{1}".format(app.config["REDMINE_IP_PORT"], plan_project_id)
+        redmine_url = "http://{0}/projects/{1}".format(config.get("REDMINE_IP_PORT"), plan_project_id)
         output = {
             "project_id": project_info["project_id"],
             "name": project_info["name"],
@@ -1034,8 +1035,8 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         # 更新gitlab project
         gitlab_url = ('http://{0}/api/{1}/projects/{2}?'
                       'private_token={3}&description={4}').format(
-            app.config["GITLAB_IP_PORT"],
-            app.config["GITLAB_API_VERSION"],
+            config.get("GITLAB_IP_PORT"),
+            config.get("GITLAB_API_VERSION"),
             gitlab_project_id,
             self.private_token,
             args["description"])
@@ -1049,7 +1050,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         # 更新redmine project
         if gitlab_output.status_code == 200:
             redmine_url = "http://{0}/projects/{1}.json?key={2}".format(
-                app.config["REDMINE_IP_PORT"], redmine_project_id, app.config["REDMINE_API_KEY"])
+                config.get("REDMINE_IP_PORT"), redmine_project_id, config.get("REDMINE_API_KEY"))
             logger.info("update redmine project url: {0}".format(redmine_url))
             xml_body = """<?xml version="1.0" encoding="UTF-8"?>
                     <project>
@@ -1141,7 +1142,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
 
             # 刪除gitlab project
             gitlab_url = "http://{0}/api/{1}/projects/{2}?private_token={3}".format(\
-                app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], gitlab_project_id, self.private_token)
+                config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), gitlab_project_id, self.private_token)
             logger.info("delete gitlab project url: {0}".format(gitlab_url))
             gitlab_output = requests.delete(gitlab_url,
                                             headers=self.headers,
@@ -1151,7 +1152,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
             # 如果gitlab project成功被刪除則繼續刪除redmine project
             if gitlab_output.status_code == 202:
                 redmine_url = "http://{0}/projects/{1}.json?key={2}".format(\
-                    app.config["REDMINE_IP_PORT"], redmine_project_id, app.config["REDMINE_API_KEY"])
+                    config.get("REDMINE_IP_PORT"), redmine_project_id, config.get("REDMINE_API_KEY"))
                 logger.info(
                     "delete redmine project url: {0}".format(redmine_url))
                 redmine_output = requests.delete(redmine_url,
@@ -1236,7 +1237,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         result.close()
         # project_name = "devops-flask"
         url = "http://{0}/api/measures/component?component={1}&metricKeys=bugs,vulnerabilities,security_hotspots,code_smells,coverage,duplicated_blocks,sqale_index,duplicated_lines_density,reliability_rating,security_rating,security_review_rating,sqale_rating,security_hotspots_reviewed,lines_to_cover".format(\
-            app.config["SONAR_IP_PORT"], project_name)
+            config.get("SONAR_IP_PORT"), project_name)
         logger.info("get sonar report url: {0}".format(url))
         output = requests.get(url, headers=self.headers, verify=False)
         logger.info("get sonar report output: {0} / {1}".format(

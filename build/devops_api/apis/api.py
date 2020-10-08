@@ -11,6 +11,7 @@ from logging import handlers
 import json
 import datetime
 from model import db
+import config
 
 from jsonwebtoken import jsonwebtoken
 from werkzeug.routing import IntegerConverter
@@ -36,7 +37,14 @@ import resources.cicd as cicd
 import resources.checkmarx as checkmarx
 
 app = Flask(__name__)
-app.config.from_object('config')
+for key in ['JWT_SECRET_KEY',
+            'SQLALCHEMY_DATABASE_URI',
+            'SQLALCHEMY_TRACK_MODIFICATIONS',
+            'WTF_CSRF_CHECK_DEFAULT',
+            'JSON_AS_ASCII'
+            ]:
+    app.config[key] = config.get(key)
+
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = datetime.timedelta(days=1)
 api = Api(app)
 CORS(app)

@@ -1,6 +1,7 @@
 import websocket
 import ssl
 from flask_restful import abort
+import config
 
 from .util import util
 
@@ -14,10 +15,10 @@ class Rancher(object):
 
     def get_rancher_token(self, app, logger):
         url="https://{0}/{1}-public/localProviders/local?action=login"\
-            .format(app.config['RANCHER_IP_PORT'], app.config['RANCHER_API_VERSION'])
+            .format(config.get('RANCHER_IP_PORT'), config.get('RANCHER_API_VERSION'))
         parameter = {
-            "username": "{0}".format(app.config['RANCHER_ADMIN_ACCOUNT']),
-            "password": "{0}".format(app.config['RANCHER_ADMIN_PASSWORD'])
+            "username": "{0}".format(config.get('RANCHER_ADMIN_ACCOUNT')),
+            "password": "{0}".format(config.get('RANCHER_ADMIN_PASSWORD'))
         }
         output = util.callpostapi(self, url, parameter, logger,
                                   Rancher.headers)
@@ -26,7 +27,7 @@ class Rancher(object):
     def get_rancher_pipelineexecutions(self, app, logger, ci_project_id, ci_pipeline_id,\
         rancher_token):
         url= "https://{0}/{1}/projects/{2}/pipelineexecutions?order=desc&sort=started&pipelineId={3}".format(\
-            app.config['RANCHER_IP_PORT'], app.config['RANCHER_API_VERSION'], ci_project_id,\
+            config.get('RANCHER_IP_PORT'), config.get('RANCHER_API_VERSION'), ci_project_id,\
             ci_pipeline_id)
         logger.info("rancher_pipelineexecutions url: {0}".format(url))
         headersandtoken = Rancher.headers
@@ -52,8 +53,8 @@ class Rancher(object):
                         ws = websocket.WebSocket(
                             sslopt={"cert_reqs": ssl.CERT_NONE})
                         url = "wss://{0}/{1}/project/{2}/pipelineExecutions/{3}-{4}/log?stage={5}&step={6}"\
-                            .format(app.config['RANCHER_IP_PORT'], app.config['RANCHER_API_VERSION'], \
-                            ci_project_id, ci_pipeline_id, pipelines_exec_run, index, stepindex)
+                            .format(config.get('RANCHER_IP_PORT'), config.get('RANCHER_API_VERSION'), \
+                                    ci_project_id, ci_pipeline_id, pipelines_exec_run, index, stepindex)
                         logger.info("wss url: {0}".format(url))
                         ws.connect(url, header=[headersandtoken])
                         result = ws.recv()
@@ -89,7 +90,7 @@ class Rancher(object):
     
     def get_rancher_cluster_id(self, app, logger, rancher_token):
         url= "https://{0}/{1}/clusters".format(\
-            app.config['RANCHER_IP_PORT'], app.config['RANCHER_API_VERSION'])
+            config.get('RANCHER_IP_PORT'), config.get('RANCHER_API_VERSION'))
         logger.info("get_rancher_cluster_id url: {0}".format(url))
         headersandtoken = Rancher.headers
         headersandtoken['Authorization'] = "Bearer {0}".format(rancher_token)
@@ -98,14 +99,14 @@ class Rancher(object):
         output_array = rancher_output.json()['data']
         for output in output_array:
             logger.debug("get_rancher_cluster output: {0}".format(output['name']))
-            if output['name'] == app.config['RANCHER_CLUSTER_NAME']:
+            if output['name'] == config.get('RANCHER_CLUSTER_NAME'):
                 return output['id']
     
     def get_rancher_project_id(self, app, logger, rancher_token):
         cluster_id = Rancher.get_rancher_cluster_id(self, app, logger, rancher_token)
         logger.debug("get rancher cluster_id: {0}".format(cluster_id))
         url= "https://{0}/{1}/clusters/{2}/projects".format(\
-            app.config['RANCHER_IP_PORT'], app.config['RANCHER_API_VERSION'], cluster_id)
+            config.get('RANCHER_IP_PORT'), config.get('RANCHER_API_VERSION'), cluster_id)
         logger.info("get_rancher_project_id url: {0}".format(url))
         headersandtoken = Rancher.headers
         headersandtoken['Authorization'] = "Bearer {0}".format(rancher_token)
@@ -118,7 +119,7 @@ class Rancher(object):
     
     def get_rancher_admin_user_id(self, app, logger, rancher_token):
         url= "https://{0}/{1}/users".format(\
-            app.config['RANCHER_IP_PORT'], app.config['RANCHER_API_VERSION'])
+            config.get('RANCHER_IP_PORT'), config.get('RANCHER_API_VERSION'))
         logger.info("get_rancher_admin_user_id url: {0}".format(url))
         headersandtoken = Rancher.headers
         headersandtoken['Authorization'] = "Bearer {0}".format(rancher_token)
@@ -138,7 +139,7 @@ class Rancher(object):
                 abort(400, message='rancher pipline already enable this repository {0}'.format(repository_url))
         user_id = Rancher.get_rancher_admin_user_id(self, app, logger, rancher_token)
         url="https://{0}/{1}/projects/{2}/pipelines"\
-            .format(app.config['RANCHER_IP_PORT'], app.config['RANCHER_API_VERSION'], project_id)
+            .format(config.get('RANCHER_IP_PORT'), config.get('RANCHER_API_VERSION'), project_id)
         headersandtoken = Rancher.headers
         headersandtoken['Authorization'] = "Bearer {0}".format(rancher_token)
         parameter = {
@@ -156,7 +157,7 @@ class Rancher(object):
     
     def disable_rancher_projejct_pipline(self, app, logger, project_id, pipeline_id, rancher_token):
         url="https://{0}/{1}/projects/{2}/pipelines/{3}"\
-            .format(app.config['RANCHER_IP_PORT'], app.config['RANCHER_API_VERSION'], project_id,
+            .format(config.get('RANCHER_IP_PORT'), config.get('RANCHER_API_VERSION'), project_id,
                     pipeline_id)
         headersandtoken = Rancher.headers
         headersandtoken['Authorization'] = "Bearer {0}".format(rancher_token)
@@ -173,7 +174,7 @@ class Rancher(object):
     def get_rancher_projejct_pipline(self, app, logger, repository_url, rancher_token):
         project_id = Rancher.get_rancher_project_id(self, app, logger, rancher_token)
         url="https://{0}/{1}/projects/{2}/pipelines"\
-            .format(app.config['RANCHER_IP_PORT'], app.config['RANCHER_API_VERSION'], project_id)
+            .format(config.get('RANCHER_IP_PORT'), config.get('RANCHER_API_VERSION'), project_id)
         headersandtoken = Rancher.headers
         headersandtoken['Authorization'] = "Bearer {0}".format(rancher_token)
         output = util.callgetapi(self, url, logger, headersandtoken)

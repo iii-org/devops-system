@@ -1,7 +1,7 @@
 from io import BytesIO
 
 import json
-import logging
+import logging, config
 import requests
 import werkzeug
 from flask import send_file
@@ -22,8 +22,8 @@ class Redmine(object):
         self.app = app
         self.headers = {'Content-Type': 'application/json'}
         # get redmine_key
-        url = "http://{0}:{1}@{2}/users/current.json".format(app.config['REDMINE_ADMIN_ACCOUNT'],\
-            app.config['REDMINE_ADMIN_PASSWORD'], app.config['REDMINE_IP_PORT'])
+        url = "http://{0}:{1}@{2}/users/current.json".format(config.get('REDMINE_ADMIN_ACCOUNT'), \
+                                                             config.get('REDMINE_ADMIN_PASSWORD'), config.get('REDMINE_IP_PORT'))
         output = requests.get(url, headers=self.headers, verify=False)
         self.redmine_key = output.json()['user']['api_key']
         logger.info("redmine_key: {0}".format(self.redmine_key))
@@ -34,7 +34,7 @@ class Redmine(object):
         if params is None:
             params = {}
         params['key'] = self.redmine_key
-        url = "http://{0}{1}.json".format(self.app.config['REDMINE_IP_PORT'], path)
+        url = "http://{0}{1}.json".format(config.get('REDMINE_IP_PORT'), path)
         headers = self.headers.copy()
         if type(data) is dict:
             output = requests.post(url, data=json.dumps(data), params=params,
@@ -47,14 +47,14 @@ class Redmine(object):
 
     def api_get(self, path):
         url = "http://{0}{1}.json?key={2}".format(
-            self.app.config['REDMINE_IP_PORT'], path, self.redmine_key)
+            config.get('REDMINE_IP_PORT'), path, self.redmine_key)
         output = requests.get(url, headers=self.headers, verify=False)
         return output
 
     def get_redmine_key(self, logger, app):
         # get redmine_key
-        url = "http://{0}:{1}@{2}/users/current.json".format(app.config['REDMINE_ADMIN_ACCOUNT'],\
-            app.config['REDMINE_ADMIN_PASSWORD'], app.config['REDMINE_IP_PORT'])
+        url = "http://{0}:{1}@{2}/users/current.json".format(config.get('REDMINE_ADMIN_ACCOUNT'), \
+                                                             config.get('REDMINE_ADMIN_PASSWORD'), config.get('REDMINE_IP_PORT'))
         output = requests.get(url, headers=Redmine.headers, verify=False)
         self.redmine_key = output.json()['user']['api_key']
         logger.info("redmine_key: {0}".format(self.redmine_key))
@@ -63,7 +63,7 @@ class Redmine(object):
     def redmine_get_issues_by_user(self, logger, app, user_id):
 
         url = "http://{0}/issues.json?key={1}&assigned_to_id={2}&limit=100".format(\
-            app.config['REDMINE_IP_PORT'], self.redmine_key, user_id)
+            config.get('REDMINE_IP_PORT'), self.redmine_key, user_id)
         output = requests.get(url, headers=self.headers, verify=False)
         logger.info("get issues by output: {0}".format(output.json()))
         return output.json()
@@ -72,7 +72,7 @@ class Redmine(object):
         args['key'] = self.redmine_key
         args['project_id'] = plan_project_id
         args['limit'] = 1000
-        url = "http://{0}/issues.json".format(self.app.config['REDMINE_IP_PORT'])
+        url = "http://{0}/issues.json".format(config.get('REDMINE_IP_PORT'))
         output = requests.get(url,
                               params=args,
                               headers=self.headers,
@@ -83,7 +83,7 @@ class Redmine(object):
     def redmine_get_issues_by_project_and_user(self, logger, app, user_id,
                                                project_id, redmine_key):
         url = "http://{0}/issues.json?key={1}&assigned_to_id={2}&project_id={3}".format(\
-            app.config['REDMINE_IP_PORT'], redmine_key, user_id, project_id)
+            config.get('REDMINE_IP_PORT'), redmine_key, user_id, project_id)
         output = requests.get(url, headers=self.headers, verify=False)
         logger.info("get issues by project&user output: {0}".format(
             output.json()))
@@ -91,14 +91,14 @@ class Redmine(object):
 
     def redmine_get_issue(self, logger, app, issue_id):
         url = "http://{0}/issues/{1}.json?key={2}&include=journals".format(\
-            app.config['REDMINE_IP_PORT'], issue_id, self.redmine_key)
+            config.get('REDMINE_IP_PORT'), issue_id, self.redmine_key)
         output = requests.get(url, headers=self.headers, verify=False)
         logger.info("get issues output: {0}".format(output))
         return output
 
     def redmine_get_statistics(self, logger, app, args):
         args['key'] = self.redmine_key
-        url = "http://{0}/issues.json".format(app.config['REDMINE_IP_PORT'])
+        url = "http://{0}/issues.json".format(config.get('REDMINE_IP_PORT'))
         logger.info("args: {0}".format(args))
         output = requests.get(url,
                               headers=self.headers,
@@ -109,7 +109,7 @@ class Redmine(object):
 
     def redmine_create_issue(self, args):
         url = "http://{0}/issues.json?key={1}".format(
-            self.app.config['REDMINE_IP_PORT'], self.redmine_key)
+            config.get('REDMINE_IP_PORT'), self.redmine_key)
         param = {"issue": args}
         logger.info("create issues param: {0}".format(param))
         output = requests.post(url,
@@ -122,7 +122,7 @@ class Redmine(object):
 
     def redmine_update_issue(self, logger, app, issue_id, args):
         url = "http://{0}/issues/{1}.json?key={2}".format(\
-            app.config['REDMINE_IP_PORT'], issue_id, self.redmine_key)
+            config.get('REDMINE_IP_PORT'), issue_id, self.redmine_key)
         param = {"issue": args}
         logger.info("update issues param: {0}".format(param))
         output = requests.put(url,
@@ -135,35 +135,35 @@ class Redmine(object):
 
     def redmine_delete_issue(self, issue_id):
         url = "http://{0}/issues/{1}.json?key={2}&include=journals".format(
-            self.app.config['REDMINE_IP_PORT'], issue_id, self.redmine_key)
+            config.get('REDMINE_IP_PORT'), issue_id, self.redmine_key)
         output = requests.delete(url, headers=self.headers, verify=False)
         logger.info("redmine delete user output: {0}".format(output))
         return output
 
     def redmine_get_issue_status(self, logger, app):
         url="http://{0}/issue_statuses.json?key={1}".format(\
-            app.config['REDMINE_IP_PORT'], self.redmine_key,)
+            config.get('REDMINE_IP_PORT'), self.redmine_key,)
         output = requests.get(url, headers=self.headers, verify=False)
         logger.info("get issues stauts list output: {0}".format(output.json()))
         return output.json()
 
     def redmine_get_priority(self, logger, app):
         url="http://{0}/enumerations/issue_priorities.json?key={1}".format(\
-            app.config['REDMINE_IP_PORT'], self.redmine_key)
+            config.get('REDMINE_IP_PORT'), self.redmine_key)
         output = requests.get(url, headers=self.headers, verify=False)
         logger.info("get issues stauts list output: {0}".format(output.json()))
         return output.json()
 
     def redmine_get_trackers(self, logger, app):
         url="http://{0}/trackers.json?key={1}".format(\
-            app.config['REDMINE_IP_PORT'], self.redmine_key)
+            config.get('REDMINE_IP_PORT'), self.redmine_key)
         output = requests.get(url, headers=self.headers, verify=False)
         logger.info("get issues stauts list output: {0}".format(output.json()))
         return output.json()
 
     def redmine_post_user(self, logger, app, args, user_source_password):
         url = "http://{0}/users.json?key={1}".format(
-            app.config['REDMINE_IP_PORT'], self.redmine_key)
+            config.get('REDMINE_IP_PORT'), self.redmine_key)
         param = {
             "user": {
                 "login": args["login"],
@@ -185,7 +185,7 @@ class Redmine(object):
 
     def redmine_update_password(self, plan_user_id, new_pwd):
         url = "http://{0}/users/{1}.json?key={2}".format(
-            self.app.config['REDMINE_IP_PORT'], plan_user_id, self.redmine_key)
+            config.get('REDMINE_IP_PORT'), plan_user_id, self.redmine_key)
         param = {"user": {"password": new_pwd}}
         output = requests.put(url,
                               data=json.dumps(param),
@@ -199,7 +199,7 @@ class Redmine(object):
     def redmine_get_user_list(self, args):
         args['key'] = self.redmine_key
         url = "http://{0}/users.json".format(
-            self.app.config['REDMINE_IP_PORT'])
+            config.get('REDMINE_IP_PORT'))
         logger.info("args: {0}".format(args))
         output = requests.get(url,
                               headers=self.headers,
@@ -209,8 +209,8 @@ class Redmine(object):
 
     def redmine_delete_user(self, redmine_user_id):
         redmine_url = "http://{0}/users/{1}.json?key={2}".format(
-            self.app.config["REDMINE_IP_PORT"], redmine_user_id, 
-            self.app.config["REDMINE_API_KEY"])
+            config.get("REDMINE_IP_PORT"), redmine_user_id,
+            config.get("REDMINE_API_KEY"))
         logger.info("delete redmine user url: {0}".format(redmine_url))
         redmine_output = requests.delete(redmine_url,
                                             headers=self.headers,
@@ -220,7 +220,7 @@ class Redmine(object):
 
     def redmine_get_wiki_list(self, logger, app, project_id):
         url = "http://{0}/projects/{1}/wiki/index.json?key={2}".format(
-            app.config['REDMINE_IP_PORT'], project_id, self.redmine_key)
+            config.get('REDMINE_IP_PORT'), project_id, self.redmine_key)
         logger.info("url: {0}".format(url))
         output = requests.get(url, headers=Redmine.headers, verify=False)
         logger.info("get wiki list output and status: {0} and {1}".format(
@@ -229,7 +229,7 @@ class Redmine(object):
 
     def redmine_get_wiki(self, logger, app, project_id, wiki_name):
         url = "http://{0}/projects/{1}/wiki/{2}.json?key={3}".format(
-            app.config['REDMINE_IP_PORT'], project_id, wiki_name,
+            config.get('REDMINE_IP_PORT'), project_id, wiki_name,
             self.redmine_key)
         logger.info("url: {0}".format(url))
         output = requests.get(url, headers=Redmine.headers, verify=False)
@@ -239,7 +239,7 @@ class Redmine(object):
 
     def redmine_put_wiki(self, logger, app, project_id, wiki_name, args):
         url = "http://{0}/projects/{1}/wiki/{2}.json?key={3}".format(
-            app.config['REDMINE_IP_PORT'], project_id, wiki_name,
+            config.get('REDMINE_IP_PORT'), project_id, wiki_name,
             self.redmine_key)
         logger.info("url: {0}".format(url))
         param = {"wiki_page": {"text": args['wiki_text']}}
@@ -253,7 +253,7 @@ class Redmine(object):
 
     def redmine_delete_wiki(self, logger, app, project_id, wiki_name):
         url = "http://{0}/projects/{1}/wiki/{2}.json?key={3}".format(
-            app.config['REDMINE_IP_PORT'], project_id, wiki_name,
+            config.get('REDMINE_IP_PORT'), project_id, wiki_name,
             self.redmine_key)
         logger.info("url: {0}".format(url))
         output = requests.delete(url, headers=Redmine.headers, verify=False)
@@ -264,7 +264,7 @@ class Redmine(object):
     # Get Redmine Version List
     def redmine_get_version_list(self, logger, app, project_id):
         url = "http://{0}/projects/{1}/versions.json?key={2}".format(
-            app.config['REDMINE_IP_PORT'], project_id, self.redmine_key)
+            config.get('REDMINE_IP_PORT'), project_id, self.redmine_key)
         logger.info("url: {0}".format(url))
         output = requests.get(url, headers=Redmine.headers, verify=False)
         logger.info("get version list output and status: {0} and {1}".format(
@@ -274,7 +274,7 @@ class Redmine(object):
     # Create Redmine Version
     def redmine_post_version(self, logger, app, project_id, args):
         url = "http://{0}/projects/{1}/versions.json?key={2}".format(
-            app.config['REDMINE_IP_PORT'], project_id, self.redmine_key)
+            config.get('REDMINE_IP_PORT'), project_id, self.redmine_key)
         logger.info("url: {0}".format(url))
         output = requests.post(url,
                                data=json.dumps(args),
@@ -286,7 +286,7 @@ class Redmine(object):
 
     def redmine_get_version(self, logger, app, version_id):
         url = "http://{0}/versions/{1}.json?key={2}".format(
-            app.config['REDMINE_IP_PORT'], version_id, self.redmine_key)
+            config.get('REDMINE_IP_PORT'), version_id, self.redmine_key)
         logger.info("url: {0}".format(url))
         output = requests.get(url, headers=Redmine.headers, verify=False)
         logger.info("get version output and status: {0} and {1}".format(
@@ -295,7 +295,7 @@ class Redmine(object):
 
     def redmine_put_version(self, logger, app, version_id, args):
         url = "http://{0}/versions/{1}.json?key={2}".format(
-            app.config['REDMINE_IP_PORT'], version_id, self.redmine_key)
+            config.get('REDMINE_IP_PORT'), version_id, self.redmine_key)
         logger.info("url: {0}".format(url))
         output = requests.put(url,
                               data=json.dumps(args),
@@ -307,7 +307,7 @@ class Redmine(object):
 
     def redmine_delete_version(self, logger, app, version_id):
         url = "http://{0}/versions/{1}.json?key={2}".format(
-            app.config['REDMINE_IP_PORT'], version_id, self.redmine_key)
+            config.get('REDMINE_IP_PORT'), version_id, self.redmine_key)
         logger.info("url: {0}".format(url))
         output = requests.delete(url, headers=Redmine.headers, verify=False)
         logger.info("Delete version output and status: {0} and {1}".format(
@@ -317,7 +317,7 @@ class Redmine(object):
     def redmine_create_memberships(self, logger, app, project_id, user_id,
                                    role_id):
         url = "http://{0}/projects/{1}/memberships.json?key={2}".format(
-            app.config['REDMINE_IP_PORT'], project_id, self.redmine_key)
+            config.get('REDMINE_IP_PORT'), project_id, self.redmine_key)
         param = {"membership": {"user_id": user_id, "role_ids": [role_id]}}
         logger.info("redmine create membership url: {0}".format(url))
         # logger.info("post user param: {0}".format(param))
@@ -331,7 +331,7 @@ class Redmine(object):
 
     def redmine_delete_memberships(self, logger, app, membership_id):
         url = "http://{0}/memberships/{1}.json?key={2}".format(
-            app.config['REDMINE_IP_PORT'], membership_id, self.redmine_key)
+            config.get('REDMINE_IP_PORT'), membership_id, self.redmine_key)
         output = requests.delete(url, headers=self.headers, verify=False)
         logger.info("delete status code: {0}".format(output.status_code))
         logger.info("redmine_delete_memberships message: {0}".format(
@@ -340,7 +340,7 @@ class Redmine(object):
 
     def redmine_get_memberships_list(self, logger, app, project_id):
         url = "http://{0}/projects/{1}/memberships.json?key={2}".format(
-            app.config['REDMINE_IP_PORT'], project_id, self.redmine_key)
+            config.get('REDMINE_IP_PORT'), project_id, self.redmine_key)
         logger.info("redmine get membership list url: {0}".format(url))
         output = requests.get(url, headers=self.headers, verify=False)
         logger.info("post status code: {0}".format(output.status_code))
@@ -382,7 +382,7 @@ class Redmine(object):
         filename = args['filename']
         try:
             url = "http://{0}/attachments/download/{1}/{2}?key={3}".format(
-                self.app.config['REDMINE_IP_PORT'],
+                config.get('REDMINE_IP_PORT'),
                 a_id,
                 filename,
                 self.redmine_key)

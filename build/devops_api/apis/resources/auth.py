@@ -1,7 +1,7 @@
 import datetime
 import requests
 import json
-import logging
+import logging, config
 from Cryptodome.Hash import SHA256
 
 from .util import util
@@ -34,13 +34,13 @@ class auth(object):
         self.redmine = redmine
         self.git = git
 
-        if app.config["GITLAB_API_VERSION"] == "v3":
+        if config.get("GITLAB_API_VERSION") == "v3":
             # get gitlab admin token
             url = "http://{0}/api/v3/session".format(\
-                app.config["GITLAB_IP_PORT"])
+                config.get("GITLAB_IP_PORT"))
             parame = {}
-            parame["login"] = app.config["GITLAB_ADMIN_ACCOUNT"]
-            parame["password"] = app.config["GITLAB_ADMIN_PASSWORD"]
+            parame["login"] = config.get("GITLAB_ADMIN_ACCOUNT")
+            parame["password"] = config.get("GITLAB_ADMIN_PASSWORD")
 
             output = requests.post(url,
                                    data=json.dumps(parame),
@@ -49,7 +49,7 @@ class auth(object):
             # logger.info("private_token api output: {0}".format(output))
             self.private_token = output.json()['private_token']
         else:
-            self.private_token = app.config["GITLAB_PRIVATE_TOKEN"]
+            self.private_token = config.get("GITLAB_PRIVATE_TOKEN")
 
     def get_roleID_by_userID(self, logger, user_id):
         role_id = None
@@ -255,7 +255,7 @@ class auth(object):
         gitlab_user_id = user_relation["repository_user_id"]
         # 刪除gitlab user
         gitlab_url = "http://{0}/api/{1}/users/{2}?private_token={3}".format(\
-            app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], gitlab_user_id, self.private_token)
+            config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), gitlab_user_id, self.private_token)
         logger.info("delete gitlab user url: {0}".format(gitlab_url))
         gitlab_output = requests.delete(gitlab_url,
                                         headers=self.headers,
@@ -264,7 +264,7 @@ class auth(object):
         # 如果gitlab user成功被刪除則繼續刪除redmine user
         if gitlab_output.status_code == 204:
             redmine_url = "http://{0}/users/{1}.json?key={2}".format(\
-                app.config["REDMINE_IP_PORT"], redmine_user_id, app.config["REDMINE_API_KEY"])
+                config.get("REDMINE_IP_PORT"), redmine_user_id, config.get("REDMINE_API_KEY"))
             logger.info("delete redmine user url: {0}".format(redmine_url))
             redmine_output = requests.delete(redmine_url,
                                              headers=self.headers,

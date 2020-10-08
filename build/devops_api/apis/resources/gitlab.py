@@ -1,6 +1,6 @@
 import requests
 import json
-import logging
+import logging, config
 logger = logging.getLogger('devops.api')
 
 
@@ -10,13 +10,13 @@ class GitLab(object):
 
     def __init__(self, logger, app):
         self.app = app
-        if app.config["GITLAB_API_VERSION"] == "v3":
+        if config.get("GITLAB_API_VERSION") == "v3":
             # get gitlab admin token
             url = "http://{0}/api/v3/session".format(\
-                app.config["GITLAB_IP_PORT"])
+                config.get("GITLAB_IP_PORT"))
             parame = {}
-            parame["login"] = app.config["GITLAB_ADMIN_ACCOUNT"]
-            parame["password"] = app.config["GITLAB_ADMIN_PASSWORD"]
+            parame["login"] = config.get("GITLAB_ADMIN_ACCOUNT")
+            parame["password"] = config.get("GITLAB_ADMIN_PASSWORD")
 
             output = requests.post(url,
                                    data=json.dumps(parame),
@@ -24,14 +24,14 @@ class GitLab(object):
                                    verify=False)
             self.private_token = output.json()['private_token']
         else:
-            self.private_token = app.config["GITLAB_PRIVATE_TOKEN"]
+            self.private_token = config.get("GITLAB_PRIVATE_TOKEN")
         logger.info("private_token: {0}".format(self.private_token))
 
     def create_user(self, logger, app, args, user_source_password):
         gitlab = GitLab(logger, app)
         url = "http://{0}/api/{1}/users?private_token={2}"\
-            .format(app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], \
-            gitlab.private_token)
+            .format(config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), \
+                    gitlab.private_token)
         logger.info("gitlab create user url: {0}".format(url))
         parame = {
             "name": args['name'],
@@ -51,8 +51,8 @@ class GitLab(object):
 
     def update_password(self, repository_user_id, new_pwd):
         url = "http://{0}/api/{1}/users/{2}?private_token={3}".format(
-            self.app.config["GITLAB_IP_PORT"],
-            self.app.config["GITLAB_API_VERSION"],
+            config.get("GITLAB_IP_PORT"),
+            config.get("GITLAB_API_VERSION"),
             repository_user_id,
             self.private_token)
         param = {"password": new_pwd}
@@ -63,8 +63,8 @@ class GitLab(object):
             return output
     def get_user_list(self, args):
         url = "http://{0}/api/{1}/users"\
-            .format(self.app.config["GITLAB_IP_PORT"], self.app.config["GITLAB_API_VERSION"], \
-            )
+            .format(config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), \
+                    )
         args['private_token'] = self.private_token
         logger.info("gitlab create user url: {0}".format(url))
         output = requests.get(url,
@@ -78,8 +78,8 @@ class GitLab(object):
     def project_add_member(self, logger, app, project_id, user_id):
         gitlab = GitLab(logger, app)
         url = "http://{0}/api/{1}/projects/{2}/members?private_token={3}"\
-            .format(app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], \
-            project_id, gitlab.private_token)
+            .format(config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), \
+                    project_id, gitlab.private_token)
         parame = {
             "user_id": user_id,
             "access_level": 40,
@@ -96,8 +96,8 @@ class GitLab(object):
     def project_delete_member(self, logger, app, project_id, user_id):
         gitlab = GitLab(logger, app)
         url = "http://{0}/api/{1}/projects/{2}/members/{3}?private_token={4}"\
-            .format(app.config["GITLAB_IP_PORT"], app.config["GITLAB_API_VERSION"], \
-            project_id, user_id, gitlab.private_token)
+            .format(config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), \
+                    project_id, user_id, gitlab.private_token)
         output = requests.delete(url, headers=self.headers, verify=False)
         logger.info(
             "gitlab project delete member api output: status_code: {0}, message: {1}"

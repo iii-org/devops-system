@@ -1,6 +1,6 @@
 from model import db
 import datetime
-import logging
+import logging, config
 import requests
 from flask import send_file
 from io import BytesIO
@@ -23,16 +23,16 @@ class CheckMarx(object):
         return self.access_token
 
     def build_url(self, path):
-        return self.app.config['CHECKMARX_ORIGIN'] + path
+        return config.get('CHECKMARX_ORIGIN') + path
 
     def login(self):
         url = self.build_url('/auth/identity/connect/token')
-        data = {'userName': self.app.config['CHECKMARX_USERNAME'],
-                'password': self.app.config['CHECKMARX_PASSWORD'],
+        data = {'userName': config.get('CHECKMARX_USERNAME'),
+                'password': config.get('CHECKMARX_PASSWORD'),
                 'grant_type': 'password',
                 'scope': 'sast_rest_api',
                 'client_id': 'resource_owner_client',
-                'client_secret': self.app.config['CHECKMARX_SECRET']
+                'client_secret': config.get('CHECKMARX_SECRET')
                 }
         self.access_token = requests.post(url, data).json().get('access_token')
         self.expire_at = time.time() + 43700  # 0.5 day
