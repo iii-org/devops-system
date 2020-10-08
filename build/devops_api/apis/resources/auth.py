@@ -698,10 +698,6 @@ class auth(object):
         # get role_id
         role_id = auth.get_roleID_by_userID(self, logger, user_id)
 
-        # get redmine role_id
-        redmine_role_id = auth.get_redmineRoleID_by_roleID(
-            self, logger, role_id)
-
         # get redmine, gitlab user_id
         redmine_user_id = None
         gitlab_user_id = None
@@ -721,8 +717,7 @@ class auth(object):
         else:
             return {"message": "Could not get project relationship data"}, 400
 
-        if (redmine_role_id != None and redmine_user_id != None
-                and redmine_project_id != None):
+        if (redmine_user_id != None and redmine_project_id != None):
             self.redmine.get_redmine_key(logger, app)
             # get memebership id
             memeberships, status_code = self.redmine.redmine_get_memberships_list(
@@ -752,8 +747,8 @@ class auth(object):
                 return {"message": "could not get redmine membership id"}, 400
         else:
             return {
-                "message": "Could not get redmine user: {0} or project: {1} or role id: {2}"\
-            .format(redmine_project_id, redmine_user_id, redmine_role_id)}, 400
+                "message": "Could not get redmine user: {0} or project: {1}"\
+            .format(redmine_project_id, redmine_user_id)}, 400
 
         # delete relationship from  ProjectUserRole table.
         delete_pj_ur_rl_cmd = db.delete(ProjectUserRole.stru_project_user_role).where(db.and_(\
