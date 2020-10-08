@@ -1868,6 +1868,7 @@ class ProjectFiles(Resource):
     def post(self, project_id):
         plan_project_id = pjt.get_plan_project_id(project_id)
         parser = reqparse.RequestParser()
+        parser.add_argument('filename', type=str)
         parser.add_argument('version_id', type=str)
         parser.add_argument('description', type=str)
         args = parser.parse_args()
