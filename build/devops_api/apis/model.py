@@ -9,7 +9,7 @@ class User():
         'user', meta,
         db.Column('id', db.Integer, primary_key=True, nullable=True),
         db.Column('name', db.String(255)), db.Column('email', db.String(255)),
-        db.Column('phone', db.Integer), db.Column('login', db.String(255)),
+        db.Column('phone', db.String(40)), db.Column('login', db.String(255)),
         db.Column('password', db.String(255)),
         db.Column('create_at', db.DATETIME(255)),
         db.Column('update_at', db.DATETIME(255)),
