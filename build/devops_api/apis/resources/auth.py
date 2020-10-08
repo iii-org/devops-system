@@ -513,7 +513,7 @@ class auth(object):
                     "id": user_data["id"],
                     "name": user_data["name"],
                     "email": user_data["email"],
-                    "phone": int(user_data["phone"]),
+                    "phone": user_data["phone"],
                     "login": user_data["login"],
                     "create_at": util.dateToStr(self, user_data["create_at"]),
                     "update_at": util.dateToStr(self, user_data["update_at"]),
