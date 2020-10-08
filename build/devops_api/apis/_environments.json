@@ -1,4 +1,12 @@
 {
+    "SQLALCHEMY_DATABASE_URI": "",
+    "SQLALCHEMY_TRACK_MODIFICATIONS": false,
+
+    "JWT_SECRET_KEY": "",
+    "WTF_CSRF_CHECK_DEFAULT": false,
+
+    "JSON_AS_ASCII": false,
+
     "REDMINE_IP_PORT": "",
     "REDMINE_ADMIN_ACCOUNT": "",
     "REDMINE_ADMIN_PASSWORD": "",
