@@ -125,7 +125,7 @@ class CreateProject(Resource):
             # print("user_id={0}".format(user_id))
             parser = reqparse.RequestParser()
             parser.add_argument('name', type=str, required=True)
-            parser.add_argument('identifier', type=str, required=True)
+            # parser.add_argument('identifier', type=str, required=True)
             parser.add_argument('display', type=str)
             parser.add_argument('description', type=str)
             parser.add_argument('disabled', type=bool, required=True)
@@ -133,16 +133,16 @@ class CreateProject(Resource):
             logger.info("post body: {0}".format(args))
 
             pattern = "^([a-z])([a-z]|[0-9]|-|_)*"
-            result = re.fullmatch(pattern, args["identifier"])
-            if result and (len(args["identifier"]) <= 30):
-                # return {"message": "identifier ok"}, 200
+            result = re.fullmatch(pattern, args["name"])
+            if result and (len(args["name"]) <= 30):
                 try:
+                    args["identifier"] = args["name"]
                     output = pjt.pm_create_project(logger, app, user_id, args)
                     return output
                 except Exception as error:
                     return {"message": str(error)}, 400
             else:
-                return {"message": "identifier error"}, 400
+                return {"message": "name error"}, 400
         else:
             return {"message": "your role art not PM/administrator"}, 401
 
