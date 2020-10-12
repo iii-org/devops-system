@@ -36,6 +36,8 @@ import resources.testResult as testResult
 import resources.cicd as cicd
 import resources.checkmarx as checkmarx
 
+import re
+
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
             'SQLALCHEMY_DATABASE_URI',
@@ -123,16 +125,24 @@ class CreateProject(Resource):
             # print("user_id={0}".format(user_id))
             parser = reqparse.RequestParser()
             parser.add_argument('name', type=str, required=True)
+            parser.add_argument('identifier', type=str, required=True)
             parser.add_argument('display', type=str)
             parser.add_argument('description', type=str)
             parser.add_argument('disabled', type=bool, required=True)
             args = parser.parse_args()
             logger.info("post body: {0}".format(args))
-            try:
-                output = pjt.pm_create_project(logger, app, user_id, args)
-                return output
-            except Exception as error:
-                return {"message": str(error)}, 400
+
+            pattern = "^([a-z])([a-z]|[0-9]|-|_)*"
+            result = re.fullmatch(pattern, args["identifier"])
+            if result and (len(args["identifier"]) <= 30):
+                # return {"message": "identifier ok"}, 200
+                try:
+                    output = pjt.pm_create_project(logger, app, user_id, args)
+                    return output
+                except Exception as error:
+                    return {"message": str(error)}, 400
+            else:
+                return {"message": "identifier error"}, 400
         else:
             return {"message": "your role art not PM/administrator"}, 401
 
