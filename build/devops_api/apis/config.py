@@ -18,5 +18,7 @@ def get(key):
         return env
     if key in in_file and in_file[key] is not None:
         return in_file[key]
-    else:
+    elif key in FIXED:
         return FIXED[key]
+    else:
+        return None
