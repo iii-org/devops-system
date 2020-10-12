@@ -667,11 +667,17 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
 
                 commit_list = []
                 for branch_commit in branch_commits[0]["data"]:
+                    if branch_commit["title"][0:5] == "Merge":
+                        merge_msg = branch_commit["title"]
+                    else:
+                        merge_msg = ""
                     obj = {
                         "id": branch_commit["id"],
                         "message": branch_commit["message"],
                         "author_name": branch_commit["author_name"],
-                        "committed_date": branch_commit["committed_date"]
+                        "committed_date": branch_commit["committed_date"],
+                        "parent_ids": branch_commit["parent_ids"],
+                        "merge_msg": merge_msg
                     }
 
                     commit_list.append(obj)
@@ -851,7 +857,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         if display is None:
             display = args['name']
 
-        identifier = args["name"].replace(' ', '_').lower()
+        # identifier = args["name"].replace(' ', '_').lower()
 
         # 建立redmine project
         redmine_url = "http://{0}/projects.json?key={1}".format(
@@ -864,7 +870,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                     <description>{2}</description>
                     </project>""".format(
             display,
-            identifier,
+            args["identifier"],
             args["description"])
         logger.info("create redmine project body: {0}".format(xml_body))
         headers = {'Content-Type': 'application/xml'}
