@@ -7,8 +7,8 @@ FIXED = {
 }
 
 in_file = {}
-if os.path.isfile('environments.json'):
-    env_file = open('environments.json', 'r')
+if os.path.isfile('../environments.json'):
+    env_file = open('../environments.json', 'r')
     in_file = json.load(env_file)
 
 

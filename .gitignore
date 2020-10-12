@@ -1,4 +1,4 @@
 *.log
 venv
 .idea
-/build/devops_api/apis/environments.json
+/build/devops_api/environments.json
