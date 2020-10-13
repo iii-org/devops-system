@@ -161,6 +161,7 @@ class Issue(object):
             output_array = []
             redmine_output_issue_array = self.redmine.redmine_get_issues_by_project(
                 project_dict['plan_project_id'], args)
+
             for redmine_issue in redmine_output_issue_array['issues']:
                 output_dict = self.__dealwith_issue_by_user_redmine_output(
                     logger, redmine_issue)
@@ -249,7 +250,8 @@ class Issue(object):
         if status_code == 200:
             open_issue = 0
             for issue in issue_list['data']:
-                if issue["issue_status"] != "closed":
+                print(issue["issue_status"])
+                if issue["issue_status"] != "Closed":
                     open_issue += 1
             return {
                 "message": "success",
@@ -273,7 +275,7 @@ class Issue(object):
                         'fixed_version_name'] not in get_issue_sortby_version_output:
                     get_issue_sortby_version_output[
                         issue['fixed_version_name']] = count_dict
-                if issue["issue_status"] != "closed":
+                if issue["issue_status"] != "Closed":
                     get_issue_sortby_version_output[
                         issue['fixed_version_name']]['open'] += 1
                 else:
@@ -298,7 +300,7 @@ class Issue(object):
             for issue in issue_list['data']:
                 #count priority
                 if issue["issue_priority"] not in priority_list:
-                    if issue["issue_status"] != "closed":
+                    if issue["issue_status"] != "Closed":
                         priority_list[issue["issue_priority"]] = {
                             "open": 1,
                             "closed": 0
@@ -313,7 +315,7 @@ class Issue(object):
                         issue["issue_priority"]]["open"]
                     closed_count = priority_list[
                         issue["issue_priority"]]["closed"]
-                    if issue["issue_status"] != "closed":
+                    if issue["issue_status"] != "Closed":
                         priority_list[issue["issue_priority"]] = {
                             "open": open_count + 1,
                             "closed": closed_count
@@ -325,7 +327,7 @@ class Issue(object):
                         }
                 #count category
                 if issue["issue_category"] not in category_list:
-                    if issue["issue_status"] != "closed":
+                    if issue["issue_status"] != "Closed":
                         category_list[issue["issue_category"]] = {
                             "open": 1,
                             "closed": 0
@@ -340,7 +342,7 @@ class Issue(object):
                         issue["issue_category"]]["open"]
                     closed_count = category_list[
                         issue["issue_category"]]["closed"]
-                    if issue["issue_status"] != "closed":
+                    if issue["issue_status"] != "Closed":
                         category_list[issue["issue_category"]] = {
                             "open": open_count + 1,
                             "closed": closed_count
@@ -352,7 +354,7 @@ class Issue(object):
                         }
                 #count owner
                 if issue["assigned_to"] not in owner_list:
-                    if issue["issue_status"] != "closed":
+                    if issue["issue_status"] != "Closed":
                         owner_list[issue["assigned_to"]] = {
                             "open": 1,
                             "closed": 0
@@ -366,7 +368,7 @@ class Issue(object):
                     open_count = owner_list[
                         issue["assigned_to"]]["open"]
                     closed_count = owner_list[issue["assigned_to"]]["closed"]
-                    if issue["issue_status"] != "closed":
+                    if issue["issue_status"] != "Closed":
                         owner_list[issue["assigned_to"]] = {
                             "open": open_count + 1,
                             "closed": closed_count
@@ -537,7 +539,7 @@ class Issue(object):
         if status_code != 200:
             return {"message": "could not get redmine total issue"}, 400
         logger.debug("user_id {0} total issue number: {1}".format(user_id, total_issue_output["total_count"] ))
-        args['status_id'] = 'closed'
+        args['status_id'] = 'Closed'
         closed_issue_output, closed_status_code = Redmine.redmine_get_statistics(self, logger, app, args)
         if closed_status_code != 200:
             return {"message": "could not get redmine closed issue"}, 400
@@ -581,7 +583,7 @@ class Issue(object):
                 }, status_code
             total = redmine_output["total_count"]
 
-            args['status_id'] = 'closed'
+            args['status_id'] = 'Closed'
             redmine_output_6, status_code = Redmine.redmine_get_statistics(
                 self, logger, app, args)
             if status_code != 200:
