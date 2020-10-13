@@ -173,6 +173,7 @@ class Issue(object):
 
     def get_issue_by_tree_by_project(self, logger, app, project_id):
         args = {}
+
         issue_list_output, status_code = self.get_issue_by_project(
             logger, app, project_id, args)
         if status_code == 200:
@@ -189,6 +190,7 @@ class Issue(object):
                     parent = nodes[issue_list['parent_id']]
                     parent['children'].append(node)
             # logger.debug("forest: {0}".format(forest))
+
             return {"message": "success", "data": forest}, 200
         else:
             return {"message": "could not get issue list"}, 400
@@ -245,14 +247,14 @@ class Issue(object):
         logger.debug("issue_list: {0}, status_code: {1}".format(
             issue_list, status_code))
         if status_code == 200:
-            unfinish_number = 0
+            open_issue = 0
             for issue in issue_list['data']:
                 if issue["issue_status"] != "closed":
-                    unfinish_number += 1
+                    open_issue += 1
             return {
                 "message": "success",
                 "data": {
-                    "unfinish_number": unfinish_number,
+                    "open": open_issue,
                     "total_issue": len(issue_list['data'])
                 }
             }
@@ -266,17 +268,17 @@ class Issue(object):
         if status_code == 200:
             get_issue_sortby_version_output = {}
             for issue in issue_list['data']:
-                count_dict = {'unfinish_number': 0, 'finish_number': 0}
+                count_dict = {'open': 0, 'closed': 0}
                 if issue[
                         'fixed_version_name'] not in get_issue_sortby_version_output:
                     get_issue_sortby_version_output[
                         issue['fixed_version_name']] = count_dict
                 if issue["issue_status"] != "closed":
                     get_issue_sortby_version_output[
-                        issue['fixed_version_name']]['unfinish_number'] += 1
+                        issue['fixed_version_name']]['open'] += 1
                 else:
                     get_issue_sortby_version_output[
-                        issue['fixed_version_name']]['finish_number'] += 1
+                        issue['fixed_version_name']]['closed'] += 1
             return {
                 "message": "success",
                 "data": get_issue_sortby_version_output
@@ -298,81 +300,81 @@ class Issue(object):
                 if issue["issue_priority"] not in priority_list:
                     if issue["issue_status"] != "closed":
                         priority_list[issue["issue_priority"]] = {
-                            "unfinish": 1,
-                            "finished": 0
+                            "open": 1,
+                            "closed": 0
                         }
                     else:
                         priority_list[issue["issue_priority"]] = {
-                            "unfinish": 0,
-                            "finished": 1
+                            "open": 0,
+                            "closed": 1
                         }
                 else:
-                    unfinish_value = priority_list[
-                        issue["issue_priority"]]["unfinish"]
-                    finish_value = priority_list[
-                        issue["issue_priority"]]["finished"]
+                    open_count = priority_list[
+                        issue["issue_priority"]]["open"]
+                    closed_count = priority_list[
+                        issue["issue_priority"]]["closed"]
                     if issue["issue_status"] != "closed":
                         priority_list[issue["issue_priority"]] = {
-                            "unfinish": unfinish_value + 1,
-                            "finished": finish_value
+                            "open": open_count + 1,
+                            "closed": closed_count
                         }
                     else:
                         priority_list[issue["issue_priority"]] = {
-                            "unfinish": unfinish_value,
-                            "finished": finish_value + 1
+                            "open": open_count,
+                            "closed": closed_count + 1
                         }
                 #count category
                 if issue["issue_category"] not in category_list:
                     if issue["issue_status"] != "closed":
                         category_list[issue["issue_category"]] = {
-                            "unfinish": 1,
-                            "finished": 0
+                            "open": 1,
+                            "closed": 0
                         }
                     else:
                         category_list[issue["issue_category"]] = {
-                            "unfinish": 0,
-                            "finished": 1
+                            "open": 0,
+                            "closed": 1
                         }
                 else:
-                    unfinish_value = category_list[
-                        issue["issue_category"]]["unfinish"]
-                    finish_value = category_list[
-                        issue["issue_category"]]["finished"]
+                    open_count = category_list[
+                        issue["issue_category"]]["open"]
+                    closed_count = category_list[
+                        issue["issue_category"]]["closed"]
                     if issue["issue_status"] != "closed":
                         category_list[issue["issue_category"]] = {
-                            "unfinish": unfinish_value + 1,
-                            "finished": finish_value
+                            "open": open_count + 1,
+                            "closed": closed_count
                         }
                     else:
                         category_list[issue["issue_category"]] = {
-                            "unfinish": unfinish_value,
-                            "finished": finish_value + 1
+                            "open": open_count,
+                            "closed": closed_count + 1
                         }
                 #count owner
                 if issue["assigned_to"] not in owner_list:
                     if issue["issue_status"] != "closed":
                         owner_list[issue["assigned_to"]] = {
-                            "unfinish": 1,
-                            "finished": 0
+                            "open": 1,
+                            "closed": 0
                         }
                     else:
                         owner_list[issue["assigned_to"]] = {
-                            "unfinish": 0,
-                            "finished": 1
+                            "open": 0,
+                            "closed": 1
                         }
                 else:
-                    unfinish_value = owner_list[
-                        issue["assigned_to"]]["unfinish"]
-                    finish_value = owner_list[issue["assigned_to"]]["finished"]
+                    open_count = owner_list[
+                        issue["assigned_to"]]["open"]
+                    closed_count = owner_list[issue["assigned_to"]]["closed"]
                     if issue["issue_status"] != "closed":
                         owner_list[issue["assigned_to"]] = {
-                            "unfinish": unfinish_value + 1,
-                            "finished": finish_value
+                            "open": open_count + 1,
+                            "closed": closed_count
                         }
                     else:
                         owner_list[issue["assigned_to"]] = {
-                            "unfinish": unfinish_value,
-                            "finished": finish_value + 1
+                            "open": open_count,
+                            "closed": closed_count + 1
                         }
             logger.info("issue_list: {0}".format(priority_list))
             logger.info("category_list: {0}".format(category_list))
@@ -523,9 +525,9 @@ class Issue(object):
         except Exception as error:
             return {"message": str(error)}, 400
     
-    def get_not_finish_issue_statistics(self, logger, app, user_id):
+    def get_open_issue_statistics(self, logger, app, user_id):
         args = {}
-        args['limit']=100
+        args['limit'] = 100
         user_plugin_relation = auth.get_user_plugin_relation(logger,
                                                              user_id=user_id)
         if user_plugin_relation is not None:

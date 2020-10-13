@@ -1209,10 +1209,10 @@ class IssueStatistics(Resource):
         return output
 
 
-class NotFinishIssueStatistics(Resource):
+class OpenIssueStatistics(Resource):
     @jwt_required
     def get(self):
-        output = iss.get_not_finish_issue_statistics(
+        output = iss.get_open_issue_statistics(
             logger, app,
             get_jwt_identity()['user_id'])
         return output
@@ -1997,7 +1997,7 @@ api.add_resource(IssuePrioriry, '/issues_priority')
 api.add_resource(IssueTracker, '/issues_tracker')
 api.add_resource(IssueRDbyUser, '/issues_by_user/rd/<user_id>')
 api.add_resource(IssueStatistics, '/issues/statistics')
-api.add_resource(NotFinishIssueStatistics, '/issues/not_finish_statistics')
+api.add_resource(OpenIssueStatistics, '/issues/open_statistics')
 api.add_resource(IssueWeekStatistics, '/issues/week_statistics')
 api.add_resource(IssueMonthStatistics, '/issues/month_statistics')
 
