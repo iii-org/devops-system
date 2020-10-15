@@ -4,6 +4,7 @@ import json
 import logging, config
 import requests
 import werkzeug
+from .util import util
 from flask import send_file
 from flask_restful import reqparse
 
@@ -347,13 +348,17 @@ class Redmine(object):
         return output, output.status_code
 
     def redmine_upload(self, plan_project_id, args):
+        if plan_project_id < 0:
+            return util.respond(400, 'Project does not exist.')
         parse = reqparse.RequestParser()
         parse.add_argument('file', type=werkzeug.datastructures.FileStorage, location='files')
         f_args = parse.parse_args()
         file = f_args['file']
+        if file is None:
+            return util.respond(400, 'No file is sent.')
         res = self.api_post('/uploads', file)
         if res.status_code != 201:
-            return {"message": "Error while uploading to redmine", "data": res.text}, res.status_code
+            return util.respond(res.status_code, "Error while uploading to redmine", res.text)
         token = res.json().get('upload').get('token')
         filename = args['filename']
         if filename is None:
@@ -371,7 +376,7 @@ class Redmine(object):
         if res.status_code == 204:
             return None, 201
         else:
-            return {"message": "Error while adding the file to redmine", "data": res.text}, res.status_code
+            return util.respond(res.status_code, "Error while adding the file to redmine", res.text)
 
     def redmine_list_file(self, plan_project_id):
         res = self.api_get('/projects/%d/files' % plan_project_id)

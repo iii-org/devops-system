@@ -169,3 +169,12 @@ class util(object):
     def success(data):
         return {'message': 'success', 'data': data}, 200
 
+    @staticmethod
+    def respond(status_code, message, data=None):
+        message_obj = {'message': message}
+        if data is not None:
+            try:
+                message_obj['data'] = json.loads(data)
+            except ValueError:
+                message_obj['data'] = data
+        return message_obj, status_code
