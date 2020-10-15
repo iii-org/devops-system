@@ -122,7 +122,7 @@ class Redmine(object):
         return output, output.status_code
 
     def redmine_update_issue(self, logger, app, issue_id, args):
-        url = "http://{0}/issues/{1}.json?key={2}".format(\
+        url = "http://{0}/issues/{1}.json?key={2}".format(
             config.get('REDMINE_IP_PORT'), issue_id, self.redmine_key)
         param = {"issue": args}
         logger.info("update issues param: {0}".format(param))
@@ -347,7 +347,29 @@ class Redmine(object):
         logger.info("post status code: {0}".format(output.status_code))
         return output, output.status_code
 
-    def redmine_upload(self, plan_project_id, args):
+    def redmine_upload(self, args):
+        file = args['upload_file']
+        if file is None:
+            return None
+        res = self.api_post('/uploads', file)
+        if res.status_code != 201:
+            return util.respond(res.status_code, "Error while uploading to redmine", res.text)
+        token = res.json().get('upload').get('token')
+        filename = file.filename
+        del args['upload_file']
+        if 'upload_filename' in args:
+            filename = args['upload_filename']
+            del args['upload_filename']
+        ret = {
+            'token': token,
+            'filename': filename
+        }
+        if 'upload_description' in args:
+            ret['description'] = args['upload_description']
+            del args['upload_description']
+        return ret
+
+    def redmine_upload_to_project(self, plan_project_id, args):
         if plan_project_id < 0:
             return util.respond(400, 'Project does not exist.')
         parse = reqparse.RequestParser()

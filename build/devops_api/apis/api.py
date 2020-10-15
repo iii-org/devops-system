@@ -5,6 +5,7 @@ from flask import request as flask_req
 from flask_restful import Resource, Api, reqparse
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_cors import CORS
+import werkzeug
 
 import logging
 from logging import handlers
@@ -1148,6 +1149,12 @@ class Issue(Resource):
         parser.add_argument('due_date', type=str)
         parser.add_argument('done_ratio', type=int)
         parser.add_argument('notes', type=str)
+
+        # Attachment upload
+        parser.add_argument('upload_file', type=werkzeug.datastructures.FileStorage, location='files')
+        parser.add_argument('upload_filename', type=str)
+        parser.add_argument('upload_description', type=str)
+
         args = parser.parse_args()
         output = iss.update_issue_rd(logger, app, issue_id, args)
         return output
@@ -1890,7 +1897,7 @@ class ProjectFiles(Resource):
         parser.add_argument('version_id', type=str)
         parser.add_argument('description', type=str)
         args = parser.parse_args()
-        return redmine.redmine_upload(plan_project_id, args)
+        return redmine.redmine_upload_to_project(plan_project_id, args)
 
     @jwt_required
     def get(self, project_id):

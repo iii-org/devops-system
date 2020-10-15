@@ -1,10 +1,8 @@
 from model import db, ProjectPluginRelation, ProjectUserRole
 from .util import util
 from .redmine import Redmine
-from .project import Project
 from .auth import auth
 
-from flask import jsonify
 from datetime import datetime, date, timedelta
 import calendar
 
@@ -448,6 +446,12 @@ class Issue(object):
             args['assigned_to_id'] = user_plugin_relation['plan_user_id']
         logger.info("update_issue_rd args: {0}".format(args))
         Redmine.get_redmine_key(self, logger, app)
+
+        attachment = self.redmine.redmine_upload(args)
+        print(attachment)
+        if attachment is not None:
+            args['uploads'] = [attachment]
+
         output, status_code = Redmine.redmine_update_issue(
             self, logger, app, issue_id, args)
         if status_code == 204:
