@@ -10,6 +10,7 @@ import werkzeug
 import logging
 from logging import handlers
 import json
+import os
 import datetime
 from model import db
 import config
@@ -1915,6 +1916,15 @@ class DownloadFile(Resource):
         return redmine.redmine_download_attachment(args)
 
 
+class SystemGitCommitID(Resource):
+    def get(self):
+        if os.path.exists("git_commit"):
+            with open("git_commit") as f:
+                git_commit_id = f.read().splitlines()[0]
+                return {"message": "success", "data": {"git_commit_id": "{0}".format(git_commit_id)}}
+        else:
+            return {"message": "git_commit file is not exist"}, 400
+
 api.add_resource(Index, '/')
 
 # Project list
@@ -2086,6 +2096,9 @@ api.add_resource(GetTestSummary, '/project/<sint:project_id>/test_summary')
 # Files
 api.add_resource(ProjectFiles, '/project/<sint:project_id>/file')
 api.add_resource(DownloadFile, '/download')
+
+#git commit
+api.add_resource(SystemGitCommitID, '/system_git_commit_id')
 
 if __name__ == "__main__":
     db.init_app(app)
