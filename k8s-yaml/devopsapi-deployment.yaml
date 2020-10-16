@@ -1,20 +1,19 @@
 apiVersion: apps/v1 # for versions before 1.9.0 use apps/v1beta2
 kind: Deployment
 metadata:
-  name: devopswebui
+  name: devopsapi
 spec:
-  replicas: 3
+  replicas: 1
   selector:
     matchLabels:
-      app: devopswebui
+      app: devopsapi
   template:
     metadata:
       labels:
-        app: devopswebui
+        app: devopsapi
     spec:
       containers:
-      - name: devopswebui
-        image: iiiorg/devops-ui:f4b0c86-09180952
+      - name: devopsapi
+        image: iiiorg/devops-api:3f642ce-10121446
         ports:
-        - containerPort: 80
-   
+        - containerPort: 10009
