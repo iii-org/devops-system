@@ -655,7 +655,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
     def get_git_project_network(self, logger, app, project_id):
         try:
             branch_commit_list = []
-            tag_list = []
+            # tag_list = []
 
             # 整理各branches的commit_list
             branches = self.get_git_project_branches(logger, app, project_id)
@@ -665,51 +665,51 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                 branch_commits = self.get_git_project_branch_commits(
                     logger, app, project_id, args)
 
-                commit_list = []
+                # commit_list = []
                 for branch_commit in branch_commits[0]["data"]:
-                    if branch_commit["title"][0:5] == "Merge":
-                        merge_msg = branch_commit["title"]
-                    else:
-                        merge_msg = ""
+                    # if branch_commit["title"][0:5] == "Merge":
+                    #     merge_msg = branch_commit["title"]
+                    # else:
+                    #     merge_msg = ""
                     obj = {
                         "id": branch_commit["id"],
                         "message": branch_commit["message"],
                         "author_name": branch_commit["author_name"],
                         "committed_date": branch_commit["committed_date"],
                         "parent_ids": branch_commit["parent_ids"],
-                        "merge_msg": merge_msg
+                        "branch_name": branch["name"]
+                        # "merge_msg": merge_msg
                     }
 
-                    commit_list.append(obj)
+                    branch_commit_list.append(obj)
 
-                branch_obj = {
-                    "branch": branch["name"],
-                    "commit_list": commit_list
-                }
+                # branch_obj = {
+                #     "branch": branch["name"],
+                #     "commit_list": commit_list
+                # }
 
-                branch_commit_list.append(branch_obj)
+                # branch_commit_list.append(branch_obj)
 
-            # 整理tags
-            tags = self.get_git_project_tags(logger, app, project_id)
-            for tag in tags[0]["data"]["tag_list"]:
-                tag_obj = {
-                    "tag": tag["name"],
-                    "message": tag["message"],
-                    "commit_id": tag["commit"]["id"],
-                    "commit_message": tag["commit"]["message"],
-                    "author_name": tag["commit"]["author_name"],
-                    "created_at": tag["commit"]["created_at"]
-                }
+            # # 整理tags
+            # tags = self.get_git_project_tags(logger, app, project_id)
+            # for tag in tags[0]["data"]["tag_list"]:
+            #     tag_obj = {
+            #         "tag": tag["name"],
+            #         "message": tag["message"],
+            #         "commit_id": tag["commit"]["id"],
+            #         "commit_message": tag["commit"]["message"],
+            #         "author_name": tag["commit"]["author_name"],
+            #         "created_at": tag["commit"]["created_at"]
+            #     }
 
-                tag_list.append(tag_obj)
+            #     tag_list.append(tag_obj)
+            
+            data_by_time = sorted(branch_commit_list, reverse=True, key = lambda branch_commit_list : branch_commit_list["committed_date"])
+            data_del_some = data_by_time
 
             return {
                 "message": "success",
-                "data": {
-                    "branch_commit_list": branch_commit_list,
-                    "tag_list": tag_list
-                }
-            }, 200
+                "data": data_del_some}, 200
         except Exception as error:
             return {"message": str(error)}, 400
 
