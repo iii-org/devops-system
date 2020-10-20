@@ -140,11 +140,11 @@ class auth(object):
                 "status": status
             }
             # get user involve project list
-            select_project = db.select([ProjectUserRole.stru_project_user_role, \
-                TableProjects.stru_projects, ProjectPluginRelation.stru_project_plug_relation])\
-                .where(db.and_(\
-                ProjectUserRole.stru_project_user_role.c.user_id==user_id, \
-                ProjectUserRole.stru_project_user_role.c.project_id!=-1,\
+            select_project = db.select([ProjectUserRole.stru_project_user_role,
+                TableProjects.stru_projects, ProjectPluginRelation.stru_project_plug_relation]).where(
+                db.and_(
+                ProjectUserRole.stru_project_user_role.c.user_id==user_id,
+                ProjectUserRole.stru_project_user_role.c.project_id!=-1,
                 ProjectUserRole.stru_project_user_role.c.project_id==\
                 TableProjects.stru_projects.c.id,
                 ProjectUserRole.stru_project_user_role.c.project_id==\
@@ -464,8 +464,7 @@ class auth(object):
                 UserPluginRelation.stru_user_plug_relation.c.user_id==user_id))
         logger.debug("get_user_plugin_relation_command: {0}".format(
             get_user_plugin_relation_command))
-        reMessage = util.callsqlalchemy(get_user_plugin_relation_command,
-                                        logger)
+        reMessage = db.engine.execute(get_user_plugin_relation_command)
         user_plugin_relation = reMessage.fetchone()
         return user_plugin_relation
 

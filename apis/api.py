@@ -1126,6 +1126,12 @@ class IssueCreate(Resource):
         parser.add_argument('due_date', type=str, required=True)
         parser.add_argument('done_ratio', type=int, required=True)
         parser.add_argument('estimated_hours', type=int, required=True)
+
+        # Attachment upload
+        parser.add_argument('upload_file', type=werkzeug.datastructures.FileStorage, location='files')
+        parser.add_argument('upload_filename', type=str)
+        parser.add_argument('upload_description', type=str)
+
         args = parser.parse_args()
         output = iss.create_issue(logger, app, args)
         return output
