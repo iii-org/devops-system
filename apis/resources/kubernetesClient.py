@@ -22,10 +22,10 @@ class KubernetesClient(object):
                 "type": service.spec.type,
                 "ports": port_list
             })
-        logger.info("list_service_all_namespaces service_list: {0}".format(service_list))
+        # logger.info("list_service_all_namespaces service_list: {0}".format(service_list))
         return service_list
 
-    def list_worknode(self):
+    def list_work_node(self):
         k8s_config.load_kube_config()
         v1 = k8s_client.CoreV1Api()
         node_list =[]
@@ -34,14 +34,17 @@ class KubernetesClient(object):
                 node.metadata.labels['node-role.kubernetes.io/worker']))
             ip = None
             hostname = None
-            for address in node.status.addresses:
-                if address['type'] == 'InternalIP':
-                    ip = address['address']
-                elif address['type']  
-            node_list.append({
-                "worker": node.metadata.labels['node-role.kubernetes.io/worker'],
-                "ip": service.metadata.namespace,
-                "hostname": service.spec.type
-            })
+            if node.metadata.labels['node-role.kubernetes.io/worker']:
+                for address in node.status.addresses:
+                    # logger.info('address: {0}'.format(address))
+                    if address.type == 'InternalIP':
+                        ip = address.address
+                    elif address.type == 'Hostname': 
+                        hostname = address.address
+                node_list.append({
+                    "worker": node.metadata.labels['node-role.kubernetes.io/worker'],
+                    "ip": ip,
+                    "hostname": hostname
+                })
         logger.info("list_worknode node_list: {0}".format(node_list))
         return node_list
