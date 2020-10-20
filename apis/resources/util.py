@@ -57,19 +57,7 @@ class util(object):
 
     @staticmethod
     def callsqlalchemy(command, logger):
-        reMessage = None
-
-        DBSession = orm.sessionmaker(bind=db.engine)
-        session = DBSession()
-        try:
-            reMessage = session.execute(command)
-            #logger.info("Call SQL successful messages: {0}".format(type(reMessage)))
-            session.commit()
-            session.close()
-            return reMessage
-        except Exception as error:
-            session.rollback()
-            logger.error("Call SQL Fail messages: {0}".format(str(error)))
+        return db.engine.execute(command)
 
     def callpostapi(self, url, parameter, logger, headers):
         try:

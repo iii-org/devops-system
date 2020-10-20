@@ -464,8 +464,7 @@ class auth(object):
                 UserPluginRelation.stru_user_plug_relation.c.user_id==user_id))
         logger.debug("get_user_plugin_relation_command: {0}".format(
             get_user_plugin_relation_command))
-        reMessage = util.callsqlalchemy(get_user_plugin_relation_command,
-                                        logger)
+        reMessage = db.engine.execute(get_user_plugin_relation_command)
         user_plugin_relation = reMessage.fetchone()
         return user_plugin_relation
 
