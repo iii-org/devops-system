@@ -421,6 +421,11 @@ class Issue(object):
                 logger, user_id=args['assigned_to_id'])
             args['assigned_to_id'] = user_plugin_relation['plan_user_id']
         logger.info("args: {0}".format(args))
+
+        attachment = self.redmine.redmine_upload(args)
+        if attachment is not None:
+            args['uploads'] = [attachment]
+
         try:
             output, status_code = self.redmine.redmine_create_issue(args)
             if status_code == 201:
@@ -448,7 +453,6 @@ class Issue(object):
         Redmine.get_redmine_key(self, logger, app)
 
         attachment = self.redmine.redmine_upload(args)
-        print(attachment)
         if attachment is not None:
             args['uploads'] = [attachment]
 

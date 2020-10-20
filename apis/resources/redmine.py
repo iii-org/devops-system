@@ -91,7 +91,7 @@ class Redmine(object):
         return output.json()
 
     def redmine_get_issue(self, logger, app, issue_id):
-        url = "http://{0}/issues/{1}.json?key={2}&include=journals".format(\
+        url = "http://{0}/issues/{1}.json?key={2}&include=journals,attachments".format(
             config.get('REDMINE_IP_PORT'), issue_id, self.redmine_key)
         output = requests.get(url, headers=self.headers, verify=False)
         logger.info("get issues output: {0}".format(output))
