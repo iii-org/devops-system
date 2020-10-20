@@ -11,3 +11,4 @@ Flask-Cors
 
 Werkzeug
 SQLAlchemy
+kubernetes

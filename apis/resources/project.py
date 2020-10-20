@@ -16,7 +16,8 @@ class Project(object):
     private_token = None
     headers = {'Content-Type': 'application/json'}
 
-    def __init__(self, logger, app, au):
+    def __init__(self, logger, app, au, k8s):
+        self.k8s = k8s
         self.au = au
         if config.get("GITLAB_API_VERSION") == "v3":
             # get gitlab admin token
@@ -305,14 +306,33 @@ class Project(object):
         logger.info("get project branches output: {0} / {1}".format(
             output, output.json()))
         if output.status_code == 200:
+            # get gitlab project path
+            projtct_detail = self.get_one_git_project(logger, app, project_id)
+            logger.info("Get git path: {0}".format(projtct_detail.json()['path']))
+            # get kubernetes service nodePort url
+            k8s_service_list = self.k8s.list_service_all_namespaces()
+            k8s_node_list = self.k8s.list_work_node()
+            work_node_ip = k8s_node_list[0]['ip']
+            logger.info("k8s_node ip: {0}".format(work_node_ip))
+        
             branch_list = []
             for branch_info in output.json():
+                env_url_list = []
+                for k8s_service in k8s_service_list:
+                    if k8s_service['type'] == 'NodePort' and \
+                    "{0}-{1}".format(projtct_detail.json()['path'], branch_info["name"]) \
+                    in k8s_service['name']:
+                        port_list = []
+                        for port in  k8s_service['ports']:
+                            port_list.append({"port": port['port'],"url": "{0}:{1}".format(work_node_ip, port['nodePort'])})
+                        env_url_list.append({k8s_service['name']: port_list})
                 branch = {
                     "name": branch_info["name"],
                     "last_commit_message": branch_info["commit"]["message"],
                     "last_commit_time":
                     branch_info["commit"]["committed_date"],
-                    "short_id": branch_info["commit"]["short_id"]
+                    "short_id": branch_info["commit"]["short_id"],
+                    "env_url": env_url_list
                 }
                 branch_list.append(branch)
             return {

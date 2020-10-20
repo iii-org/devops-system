@@ -7,6 +7,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_cors import CORS
 import werkzeug
 
+
 import logging
 from logging import handlers
 import json
@@ -37,6 +38,7 @@ import resources.flow as flow
 import resources.testResult as testResult
 import resources.cicd as cicd
 import resources.checkmarx as checkmarx
+import resources.kubernetesClient as kubernetesClient
 
 import re
 
@@ -70,11 +72,12 @@ logger = logging.getLogger('devops.api')
 logger.setLevel(logging.DEBUG)
 logger.addHandler(handler)
 
+k8s = kubernetesClient.KubernetesClient()
 ut = util.util()
 redmine = redmine.Redmine(app)
 git = gitlab.GitLab(logger, app)
 au = auth.auth(logger, app, redmine, git)
-pjt = project.Project(logger, app, au)
+pjt = project.Project(logger, app, au, k8s)
 iss = issue.Issue(pjt, redmine)
 pipe = pipeline.Pipeline(app, pjt)
 wk = wiki.Wiki()

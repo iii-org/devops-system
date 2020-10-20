@@ -1,4 +1,5 @@
 *.log
 venv
 .idea
+config
 environments.json
