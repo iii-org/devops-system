@@ -7,6 +7,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_cors import CORS
 import werkzeug
 
+
 import logging
 from logging import handlers
 import json
@@ -37,6 +38,8 @@ import resources.flow as flow
 import resources.testResult as testResult
 import resources.cicd as cicd
 import resources.checkmarx as checkmarx
+import resources.kubernetesClient as kubernetesClient
+k8s = kubernetesClient.KubernetesClient()
 
 import re
 
@@ -1916,6 +1919,11 @@ class DownloadFile(Resource):
         return redmine.redmine_download_attachment(args)
 
 
+class KubernetesService(Resource):
+    def get(self):
+       return k8s.list_service_all_namespaces()
+
+
 class SystemGitCommitID(Resource):
     def get(self):
         if os.path.exists("git_commit"):
@@ -2096,6 +2104,9 @@ api.add_resource(GetTestSummary, '/project/<sint:project_id>/test_summary')
 # Files
 api.add_resource(ProjectFiles, '/project/<sint:project_id>/file')
 api.add_resource(DownloadFile, '/download')
+
+#kubernetes
+api.add_resource(KubernetesService, '/kubernetes_service')
 
 #git commit
 api.add_resource(SystemGitCommitID, '/system_git_commit_id')
