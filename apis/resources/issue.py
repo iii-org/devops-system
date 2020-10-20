@@ -30,7 +30,7 @@ class Issue(object):
 
     def __dealwith_issue_redmine_output(self, logger, redmine_output):
         logger.info("redmine get redmine_output: {0}".format(redmine_output))
-        prject_list = self.pjt.get_project_by_plan_project_id\
+        prject_list = self.pjt.get_project_by_plan_project_id \
             (logger, redmine_output['project']['id'])
         logger.debug("prject_list: {0}".format(prject_list))
         if prject_list is not None:
@@ -42,7 +42,7 @@ class Issue(object):
             redmine_output['project']['name'] = None
         if 'assigned_to' in redmine_output:
             userInfo = auth.get_useridname_by_planuserid(self, logger, \
-                redmine_output['assigned_to']['id'])
+                                                         redmine_output['assigned_to']['id'])
             redmine_output['assigned_to'] = {'id': userInfo['id'], 'name': userInfo['name']}
             redmine_output.pop('author', None)
         redmine_output.pop('is_private', None)
@@ -58,7 +58,7 @@ class Issue(object):
             redmine_output['parent_id'] = redmine_output['parent']['id']
             redmine_output.pop('parent', None)
         if 'journals' in redmine_output:
-            i  = 0
+            i = 0
             while i < len(redmine_output['journals']):
                 if redmine_output['journals'][i]['notes'] == "":
                     del redmine_output['journals'][i]
@@ -94,7 +94,7 @@ class Issue(object):
         output_list['assigned_to'] = None
         if 'assigned_to' in redmine_output:
             userInfo = auth.get_useridname_by_planuserid(self, logger, \
-                redmine_output['assigned_to']['id'])
+                                                         redmine_output['assigned_to']['id'])
             if userInfo is not None:
                 output_list['assigned_to'] = userInfo['name']
         output_list['parent_id'] = None
@@ -117,9 +117,9 @@ class Issue(object):
         logger.debug("issue_id: {0}, issue_info: {1}".format(issue_id, issue_info))
         project_id = issue_info['data']['project']['id']
         logger.info("issue_info: {0}".format(issue_info))
-        select_project_user_role_command = db.select([ProjectUserRole.stru_project_user_role])\
-            .where(db.and_(ProjectUserRole.stru_project_user_role.c.project_id==project_id, \
-            ProjectUserRole.stru_project_user_role.c.user_id==user_id))
+        select_project_user_role_command = db.select([ProjectUserRole.stru_project_user_role]) \
+            .where(db.and_(ProjectUserRole.stru_project_user_role.c.project_id == project_id, \
+                           ProjectUserRole.stru_project_user_role.c.user_id == user_id))
         logger.debug("select_project_user_role_command: {0}".format(
             select_project_user_role_command))
         reMessage = util.callsqlalchemy(select_project_user_role_command,
@@ -148,8 +148,8 @@ class Issue(object):
     def get_issue_by_project(self, logger, app, project_id, args):
         if util.is_dummy_project(project_id):
             return util.success([])
-        get_project_command = db.select([ProjectPluginRelation.stru_project_plug_relation])\
-        .where(db.and_(ProjectPluginRelation.stru_project_plug_relation.c.project_id==project_id))
+        get_project_command = db.select([ProjectPluginRelation.stru_project_plug_relation]) \
+            .where(db.and_(ProjectPluginRelation.stru_project_plug_relation.c.project_id == project_id))
         logger.debug("get_project_command: {0}".format(get_project_command))
         reMessage = util.callsqlalchemy(get_project_command, logger)
         project_dict = reMessage.fetchone()
@@ -204,15 +204,15 @@ class Issue(object):
             get_issue_by_status_output = {}
             for issue_list in issue_list_output['data']:
                 if issue_list[
-                        'issue_status'] not in get_issue_by_status_output:
+                    'issue_status'] not in get_issue_by_status_output:
                     get_issue_by_status_output[issue_list['issue_status']] = []
                 get_issue_by_status_output[issue_list['issue_status']].append(
                     issue_list)
             # logger.debug("get_issue_by_status_output: {0}".format(get_issue_by_status_output))
             return {
-                "message": "success",
-                "data": get_issue_by_status_output
-            }, 200
+                       "message": "success",
+                       "data": get_issue_by_status_output
+                   }, 200
         else:
             return {"message": "could not get issue list"}, 400
 
@@ -234,9 +234,9 @@ class Issue(object):
                 get_issue_by_date_output[issue_updated_date].append(issue_list)
             # logger.debug("get_issue_by_date_output: {0}".format(get_issue_by_date_output))
             return {
-                "message": "success",
-                "data": get_issue_by_date_output
-            }, 200
+                       "message": "success",
+                       "data": get_issue_by_date_output
+                   }, 200
         else:
             return {"message": "could not get issue list"}, 400
 
@@ -270,7 +270,7 @@ class Issue(object):
             for issue in issue_list['data']:
                 count_dict = {'open': 0, 'closed': 0}
                 if issue[
-                        'fixed_version_name'] not in get_issue_sortby_version_output:
+                    'fixed_version_name'] not in get_issue_sortby_version_output:
                     get_issue_sortby_version_output[
                         issue['fixed_version_name']] = count_dict
                 if issue["issue_status"] != "Closed":
@@ -296,7 +296,7 @@ class Issue(object):
             category_list = {}
             owner_list = {}
             for issue in issue_list['data']:
-                #count priority
+                # count priority
                 if issue["issue_priority"] not in priority_list:
                     if issue["issue_status"] != "Closed":
                         priority_list[issue["issue_priority"]] = {
@@ -323,7 +323,7 @@ class Issue(object):
                             "open": open_count,
                             "closed": closed_count + 1
                         }
-                #count category
+                # count category
                 if issue["issue_category"] not in category_list:
                     if issue["issue_status"] != "Closed":
                         category_list[issue["issue_category"]] = {
@@ -350,7 +350,7 @@ class Issue(object):
                             "open": open_count,
                             "closed": closed_count + 1
                         }
-                #count owner
+                # count owner
                 if issue["assigned_to"] not in owner_list:
                     if issue["issue_status"] != "Closed":
                         owner_list[issue["assigned_to"]] = {
@@ -380,13 +380,13 @@ class Issue(object):
             logger.info("category_list: {0}".format(category_list))
             logger.info("owner_list: {0}".format(owner_list))
             return {
-                "message": "success",
-                "data": {
-                    "priority": priority_list,
-                    "category": category_list,
-                    "owner": owner_list
-                }
-            }, 200
+                       "message": "success",
+                       "data": {
+                           "priority": priority_list,
+                           "category": category_list,
+                           "owner": owner_list
+                       }
+                   }, 200
         else:
             return {"message": "could not get issue list"}, 400
 
@@ -430,11 +430,11 @@ class Issue(object):
             output, status_code = self.redmine.redmine_create_issue(args)
             if status_code == 201:
                 return {
-                    "message": "success",
-                    "data": {
-                        "issue_id": output.json()["issue"]["id"]
-                    }
-                }, 200
+                           "message": "success",
+                           "data": {
+                               "issue_id": output.json()["issue"]["id"]
+                           }
+                       }, 200
             else:
                 return {"message": output.text}, 400
         except Exception as error:
@@ -527,14 +527,14 @@ class Issue(object):
             redmine_output, status_code = Redmine.redmine_get_statistics(
                 self, logger, app, args)
             return {
-                "message": "success",
-                "data": {
-                    "issue_number": redmine_output["total_count"]
-                }
-            }, status_code
+                       "message": "success",
+                       "data": {
+                           "issue_number": redmine_output["total_count"]
+                       }
+                   }, status_code
         except Exception as error:
             return {"message": str(error)}, 400
-    
+
     def get_open_issue_statistics(self, logger, app, user_id):
         args = {}
         args['limit'] = 100
@@ -546,15 +546,14 @@ class Issue(object):
         total_issue_output, status_code = Redmine.redmine_get_statistics(self, logger, app, args)
         if status_code != 200:
             return {"message": "could not get redmine total issue"}, 400
-        logger.debug("user_id {0} total issue number: {1}".format(user_id, total_issue_output["total_count"] ))
-        args['status_id'] = 'Closed'
+        logger.debug("user_id {0} total issue number: {1}".format(user_id, total_issue_output["total_count"]))
+        args['status_id'] = 'closed'
         closed_issue_output, closed_status_code = Redmine.redmine_get_statistics(self, logger, app, args)
         if closed_status_code != 200:
             return {"message": "could not get redmine closed issue"}, 400
-        logger.debug("user_id {0} closed issue number: {1}".format(user_id, closed_issue_output["total_count"] ))
+        logger.debug("user_id {0} closed issue number: {1}".format(user_id, closed_issue_output["total_count"]))
         active_issue_number = total_issue_output["total_count"] - closed_issue_output["total_count"]
         return {"message": "success", "data": {"active_issue_number": active_issue_number}}
-            
 
     def get_issue_statistics_in_period(self, logger, app, period, user_id):
         current_date = date.today()
@@ -573,7 +572,6 @@ class Issue(object):
         else:
             return {'message': 'Type error, should be week or month'}, 400
 
-        Redmine.get_redmine_key(self, logger, app)
         args = {"due_date": "><{0}|{1}".format(from_time, to_time)}
         user_plugin_relation = auth.get_user_plugin_relation(logger,
                                                              user_id=user_id)
@@ -582,31 +580,31 @@ class Issue(object):
 
         try:
             args['status_id'] = '*'
-            redmine_output, status_code = Redmine.redmine_get_statistics(
-                self, logger, app, args)
+            redmine_output, status_code = self.redmine.redmine_get_statistics(
+                logger, app, args)
             if status_code != 200:
                 return {
-                    'message': 'error when retrieving data from redmine',
-                    'data': redmine_output
-                }, status_code
+                           'message': 'error when retrieving data from redmine',
+                           'data': redmine_output
+                       }, status_code
             total = redmine_output["total_count"]
 
-            args['status_id'] = 'Closed'
-            redmine_output_6, status_code = Redmine.redmine_get_statistics(
-                self, logger, app, args)
+            args['status_id'] = 'closed'
+            redmine_output_6, status_code = self.redmine.redmine_get_statistics(
+                logger, app, args)
             if status_code != 200:
                 return {
-                    'message': 'error when retrieving data from redmine',
-                    'data': redmine_output
-                }, status_code
+                           'message': 'error when retrieving data from redmine',
+                           'data': redmine_output
+                       }, status_code
             closed = redmine_output_6["total_count"]
             return {
-                "message": "success",
-                "data": {
-                    "open": total - closed,
-                    "closed": closed
-                }
-            }, 200
+                       "message": "success",
+                       "data": {
+                           "open": total - closed,
+                           "closed": closed
+                       }
+                   }, 200
         except Exception as error:
             return {"message": str(error)}, 400
 

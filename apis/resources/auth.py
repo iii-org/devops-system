@@ -140,11 +140,11 @@ class auth(object):
                 "status": status
             }
             # get user involve project list
-            select_project = db.select([ProjectUserRole.stru_project_user_role, \
-                TableProjects.stru_projects, ProjectPluginRelation.stru_project_plug_relation])\
-                .where(db.and_(\
-                ProjectUserRole.stru_project_user_role.c.user_id==user_id, \
-                ProjectUserRole.stru_project_user_role.c.project_id!=-1,\
+            select_project = db.select([ProjectUserRole.stru_project_user_role,
+                TableProjects.stru_projects, ProjectPluginRelation.stru_project_plug_relation]).where(
+                db.and_(
+                ProjectUserRole.stru_project_user_role.c.user_id==user_id,
+                ProjectUserRole.stru_project_user_role.c.project_id!=-1,
                 ProjectUserRole.stru_project_user_role.c.project_id==\
                 TableProjects.stru_projects.c.id,
                 ProjectUserRole.stru_project_user_role.c.project_id==\
