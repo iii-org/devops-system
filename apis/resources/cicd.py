@@ -1,6 +1,7 @@
 import json
 import logging
 from urllib.parse import urlparse
+from .util import util
 
 from flask import jsonify
 
@@ -43,7 +44,8 @@ class Cicd(object):
         for case in cases:
             case_id = case['id']
             method = case['data']['method']
-            url = urlparse(target + case['data']['url'])
+            path = case['data']['url']
+            url = urlparse(target + path)
             items = self.ti.get_testItem_by_testCase_id(logger, case_id, jwt_identity['user_id'])
             for item in items:
                 item_id = item['id']
@@ -54,17 +56,25 @@ class Cicd(object):
                 for value in part_values:
                     values.append(value)
 
-                scheme = url.scheme
-                if scheme == b'':
-                    scheme = ''
-                o_request = {
-                    'method': method,
-                    'url': {
-                        'protocol': scheme,
-                        'port': url.port
-                    },
-                    'header': []
-                }
+                try:
+                    scheme = url.scheme
+                    if scheme == b'':
+                        scheme = ''
+                    o_request = {
+                        'method': method,
+                        'url': {
+                            'protocol': scheme,
+                            'port': url.port
+                        },
+                        'header': []
+                    }
+                except ValueError:
+                    return util.respond(400, 'url is malformed', {
+                        'case_id': case_id,
+                        'item_id': item_id,
+                        'url': url
+                    })
+
                 if bool(url.hostname):
                     o_request['url']['host'] = url.hostname.split('.')
                 if len(url.path) > 0:
