@@ -324,7 +324,7 @@ class Project(object):
                     in k8s_service['name']:
                         port_list = []
                         for port in  k8s_service['ports']:
-                            port_list.append({"port": port['port'],"url": "{0}:{1}".format(work_node_ip, port['nodePort'])})
+                            port_list.append({"port": port['port'],"url": "http://{0}:{1}".format(work_node_ip, port['nodePort'])})
                         env_url_list.append({k8s_service['name']: port_list})
                 branch = {
                     "name": branch_info["name"],
