@@ -3,8 +3,9 @@ kind: Config
 clusters:
 - name: "10-50-1-58-v2k8s"
   cluster:
-    server: ""
+    server: "https://10.50.1.57/k8s/clustr"
     certificate-authority-data: ""
+
 users:
 - name: "10-50-1-58-v2k8s"
   user:
@@ -15,5 +16,6 @@ contexts:
   context:
     user: "10-50-1-58-v2k8s"
     cluster: "10-50-1-58-v2k8s"
+
 current-context: "10-50-1-58-v2k8s"
 

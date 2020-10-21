@@ -348,8 +348,11 @@ class Redmine(object):
         return output, output.status_code
 
     def redmine_upload(self, args):
-        file = args['upload_file']
-        if file is None:
+        if 'upload_file' in args:
+            file = args['upload_file']
+            if file is None:
+                return None
+        else:
             return None
         res = self.api_post('/uploads', file)
         if res.status_code != 201:

@@ -161,8 +161,11 @@ class util(object):
     def respond(status_code, message, data=None):
         message_obj = {'message': message}
         if data is not None:
-            try:
-                message_obj['data'] = json.loads(data)
-            except ValueError:
+            if type(data) is dict:
                 message_obj['data'] = data
+            else:
+                try:
+                    message_obj['data'] = json.loads(data)
+                except ValueError or TypeError:
+                    message_obj['data'] = data
         return message_obj, status_code

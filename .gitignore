@@ -1,5 +1,6 @@
 *.log
 venv
 .idea
-config
+k8s_config
 environments.json
+/.kube/config
