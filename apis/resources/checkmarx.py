@@ -151,6 +151,8 @@ class CheckMarx(object):
             return -1
         row = cursor.fetchone()
         repo_id = row['git_repository_id']
+        if repo_id is None:
+            return -1
         cursor = db.engine.execute(
             'SELECT {0} FROM public.checkmarx '
             ' WHERE repo_id={1}'
