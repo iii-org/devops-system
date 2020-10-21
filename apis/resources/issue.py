@@ -248,7 +248,6 @@ class Issue(object):
         if status_code == 200:
             open_issue = 0
             for issue in issue_list['data']:
-                print(issue["issue_status"])
                 if issue["issue_status"] != "Closed":
                     open_issue += 1
             return {
@@ -395,6 +394,8 @@ class Issue(object):
         Redmine.get_redmine_key(self, logger, app)
         logger.info("self.redmine_key: {0}".format(self.redmine_key))
         output_array = []
+        if str(user_id) not in user_to_plan:
+            return util.respond(400, 'Cannot find user in redmine')
         redmine_output_issue_array = Redmine.redmine_get_issues_by_user(
             self, logger, app, user_to_plan[str(user_id)])
         for redmine_issue in redmine_output_issue_array['issues']:
@@ -406,7 +407,7 @@ class Issue(object):
             output_dict = self.pjt.get_ci_last_test_result(
                 app, logger, output_dict, project)
             output_array.append(output_dict)
-        return output_array
+        return {'message': 'success', 'data': output_array}, 200
 
     def create_issue(self, logger, app, args):
         args = {k: v for k, v in args.items() if v is not None}
@@ -608,16 +609,20 @@ class Issue(object):
         except Exception as error:
             return {"message": str(error)}, 400
 
-    def count_prioriry_number_by_issues(self, logger, app, user_id):
+    def count_priority_number_by_issues(self, logger, app, user_id):
         try:
             priority_count = {}
-            issues = self.get_issue_by_user(logger, app, user_id)
+            data, status_code = self.get_issue_by_user(logger, app, user_id)
+            if status_code / 100 != 2:
+                return util.respond(status_code, 'Error while getting issues by user', data)
+            issues = data['data']
             logger.info("issues: {0}".format(issues))
             for issue in issues:
-                if issue['issue_priority'] not in priority_count:
-                    priority_count[issue['issue_priority']] = 1
+                priority = issue['issue_priority']
+                if priority not in priority_count:
+                    priority_count[priority] = 1
                 else:
-                    priority_count[issue['issue_priority']] += 1
+                    priority_count[priority] += 1
             logger.info("priority_count: {0}".format(priority_count))
             output = []
             for key, value in priority_count.items():
