@@ -663,23 +663,36 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
             for branch in branches[0]["data"]["branch_list"]:
                 args = {}
                 args["branch"] = branch["name"]
+                
                 branch_commits = self.get_git_project_branch_commits(
                     logger, app, project_id, args)
-
+                
                 for branch_commit in branch_commits[0]["data"]:
+                    
                     commit_msg = {}
                     if branch_commit["title"] != branch_commit["message"]:
-                        commit_msg["msg"] = branch_commit["title"]
                         
-                        msg_split = re.split(' |\'', branch_commit["title"])
+                        
+                        msg_split = re.split(' into | ', branch_commit["title"])
+                        
                         if msg_split[0] == "Merge":
-                            commit_msg["branch"] = msg_split[7]
-                            commit_msg["type"] = msg_split[0]
-                            commit_msg["target"] = msg_split[3]
+                            commit_msg["msg"] = branch_commit["title"]
 
+                            if msg_split[-1][0] == "\'":
+                                commit_msg["branch"] = re.split("\'", msg_split[-1])[0]
+                            else:
+                                commit_msg["branch"] = msg_split[-1]
+
+                            commit_msg["type"] = msg_split[0]
+                            
+                            if msg_split[-2][0] == "\'":
+                                commit_msg["target"] = re.split("\'", msg_split[-2])[1]
+                            else:
+                                commit_msg["target"] = msg_split[-2]
+                    
                     obj = {
                         "id": branch_commit["id"],
-                        # "title": branch_commit["title"],
+                        "title": branch_commit["title"],
                         "message": branch_commit["message"],
                         "author_name": branch_commit["author_name"],
                         "committed_date": branch_commit["committed_date"],
