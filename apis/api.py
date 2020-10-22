@@ -956,8 +956,8 @@ class PipelineExecLogs(Resource):
     @jwt_required
     def get(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('repository_id', type=int)
-        parser.add_argument('pipelines_exec_run', type=int)
+        parser.add_argument('repository_id', type=int, required=True)
+        parser.add_argument('pipelines_exec_run', type=int, required=True)
         args = parser.parse_args()
         return pipe.pipeline_exec_logs(logger, app, args)
 
