@@ -672,11 +672,11 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         else:
             return {"message": output.json()["message"]}, output.status_code
 
+
     # 用project_id查詢project的網路圖
     def get_git_project_network(self, logger, app, project_id):
         try:
             branch_commit_list = []
-            # tag_list = []
 
             # 整理各branches的commit_list
             branches = self.get_git_project_branches(logger, app, project_id)
@@ -718,31 +718,38 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                         "committed_date": branch_commit["committed_date"],
                         "parent_ids": branch_commit["parent_ids"],
                         "branch_name": branch["name"],
-                        "commit_msg": commit_msg
+                        "commit_msg": commit_msg,
+                        "tag": ""
                     }
 
                     branch_commit_list.append(obj)
 
-            # # 整理tags
-            # tags = self.get_git_project_tags(logger, app, project_id)
-            # for tag in tags[0]["data"]["tag_list"]:
-            #     tag_obj = {
-            #         "tag": tag["name"],
-            #         "message": tag["message"],
-            #         "commit_id": tag["commit"]["id"],
-            #         "commit_message": tag["commit"]["message"],
-            #         "author_name": tag["commit"]["author_name"],
-            #         "created_at": tag["commit"]["created_at"]
-            #     }
+            # tag_list = []
 
-            #     tag_list.append(tag_obj)
-            
+            # 整理tags
+            tags = self.get_git_project_tags(logger, app, project_id)
+            for tag in tags[0]["data"]["tag_list"]:
+                # tag_obj = {
+                #     "tag": tag["name"],
+                #     # "message": tag["message"],
+                #     "commit_id": tag["commit"]["id"]
+                #     # "commit_message": tag["commit"]["message"],
+                #     # "author_name": tag["commit"]["author_name"],
+                #     # "created_at": tag["commit"]["created_at"]
+                # }
+
+                # tag_list.append(tag_obj)
+                # print(tag_obj)
+                for commit in branch_commit_list:
+                    if commit["id"] == tag["commit"]["id"]:
+                        commit["tag"] = tag["name"]
+
             data_by_time = sorted(branch_commit_list, reverse=True, key = lambda branch_commit_list : branch_commit_list["committed_date"])
-            data_del_some = data_by_time
+            # data_del_some = data_by_time
 
             return {
                 "message": "success",
-                "data": data_del_some}, 200
+                "data": data_by_time}, 200
         except Exception as error:
             return {"message": str(error)}, 400
 
