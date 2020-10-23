@@ -12,11 +12,12 @@ class TestResult(object):
         try:
             db.engine.execute(
                 "INSERT INTO public.test_results "
-                "(project_id, total, fail, run_at) VALUES ({0}, {1}, {2}, '{3}')"
+                "(project_id, total, fail, report, run_at) VALUES ({0}, {1}, {2}, '{3}', '{4}')"
                 .format(
                     args['project_id'],
                     args['total'],
                     args['fail'],
+                    args['report'],
                     datetime.datetime.now()
                 ))
             return {"message": "success"}, 200

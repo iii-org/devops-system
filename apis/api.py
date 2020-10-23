@@ -1785,6 +1785,7 @@ class TestResult(Resource):
         parser.add_argument('project_id', type=int, required=True)
         parser.add_argument('total', type=int, required=True)
         parser.add_argument('fail', type=int, required=True)
+        parser.add_argument('report', type=str, required=True)
         args = parser.parse_args()
         output = tr.save(args)
         return output
