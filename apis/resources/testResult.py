@@ -1,4 +1,5 @@
-from model import db
+from model import db, TableTestResult
+from .util import util
 import datetime
 import logging
 
@@ -14,17 +15,15 @@ class TestResult(object):
                 branch = args['branch']
             else:
                 branch = None
-            db.engine.execute(
-                "INSERT INTO public.test_results "
-                "(project_id, total, fail, branch, report, run_at) VALUES ({0}, {1}, {2}, '{3}', '{4}', '{5}')"
-                .format(
-                    args['project_id'],
-                    args['total'],
-                    args['fail'],
-                    branch,
-                    args['report'],
-                    datetime.datetime.now()
-                ))
+            cmd = db.insert(TableTestResult.stru_testResult).values(
+                project_id=args['project_id'],
+                total=args['total'],
+                fail=args['fail'],
+                branch=branch,
+                report=args['report'],
+                run_at=datetime.datetime.now()
+            )
+            util.callsqlalchemy(cmd, logger)
             return {"message": "success"}, 200
         except Exception as e:
-            return {"message": "error", "data": e.__str__()}, 400
+            return {"message": e.__str__()}, 400

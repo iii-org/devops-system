@@ -180,6 +180,7 @@ class TableTestResult:
                               db.Column('id', db.Integer, primary_key=True),
                               db.Column('project_id', db.Integer),
                               db.Column('branch', db.String(50)),
+                              db.Column('report', db.String),
                               db.Column('total', db.Integer),
                               db.Column('fail', db.Integer),
                               db.Column('run_at', db.DATETIME(255))
