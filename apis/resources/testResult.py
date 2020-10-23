@@ -10,13 +10,18 @@ class TestResult(object):
 
     def save(self, args):
         try:
+            if 'branch' in args:
+                branch = args['branch']
+            else:
+                branch = None
             db.engine.execute(
                 "INSERT INTO public.test_results "
-                "(project_id, total, fail, report, run_at) VALUES ({0}, {1}, {2}, '{3}', '{4}')"
+                "(project_id, total, fail, branch, report, run_at) VALUES ({0}, {1}, {2}, '{3}', '{4}', '{5}')"
                 .format(
                     args['project_id'],
                     args['total'],
                     args['fail'],
+                    branch,
                     args['report'],
                     datetime.datetime.now()
                 ))
