@@ -634,7 +634,10 @@ class Issue(object):
     def count_project_number_by_issues(self, logger, app, user_id):
         try:
             project_count = {}
-            issues = self.get_issue_by_user(logger, app, user_id)
+            data, status_code = self.get_issue_by_user(logger, app, user_id)
+            if status_code / 100 != 2:
+                return util.respond(status_code, 'Error while getting issues by user', data)
+            issues = data['data']
             logger.info("issues: {0}".format(issues))
             for issue in issues:
                 if issue['project_name'] not in project_count:
@@ -652,7 +655,10 @@ class Issue(object):
     def count_type_number_by_issues(self, logger, app, user_id):
         try:
             tracker_count = {}
-            issues = self.get_issue_by_user(logger, app, user_id)
+            data, status_code = self.get_issue_by_user(logger, app, user_id)
+            if status_code / 100 != 2:
+                return util.respond(status_code, 'Error while getting issues by user', data)
+            issues = data['data']
             logger.info("issues: {0}".format(issues))
             for issue in issues:
                 if issue['issue_category'] not in tracker_count:
