@@ -90,7 +90,7 @@ tc = testCase.TestCase()
 ti = testItem.TestItem()
 tv = testValue.TestValue()
 td = testData.TestData()
-tr = testResult.TestResult()
+tr = testResult.TestResult(logger)
 ci = cicd.Cicd(app, pjt, iss, tc, ti, tv)
 cm = checkmarx.CheckMarx(app)
 
@@ -1785,11 +1785,17 @@ class TestResult(Resource):
         parser.add_argument('project_id', type=int, required=True)
         parser.add_argument('total', type=int, required=True)
         parser.add_argument('fail', type=int, required=True)
-        parser.add_argument('branch', type=str)
+        parser.add_argument('branch', type=str, required=True)
         parser.add_argument('report', type=str, required=True)
         args = parser.parse_args()
         output = tr.save(args)
         return output
+
+
+class GetPostmanReport(Resource):
+    @jwt_required
+    def get(self, project_id):
+        return tr.get_report(project_id)
 
 
 class ExportToPostman(Resource):
@@ -2077,6 +2083,7 @@ api.add_resource(TestValue, '/testValues/<testValue_id>')
 
 # TestResult writing
 api.add_resource(TestResult, '/testResults')
+api.add_resource(GetPostmanReport, '/postman_report/<sint:project_id>')
 
 # Export tests to postman json format
 api.add_resource(ExportToPostman, '/export_to_postman/<sint:project_id>')

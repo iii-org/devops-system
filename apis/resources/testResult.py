@@ -1,13 +1,13 @@
 from model import db, TableTestResult
 from .util import util
 import datetime
-import logging
-
-logger = logging.getLogger('devops.api')
+import json
 
 
 class TestResult(object):
-    headers = {'Content-Type': 'application/json'}
+
+    def __init__(self, logger):
+        self.logger = logger
 
     def save(self, args):
         try:
@@ -23,7 +23,21 @@ class TestResult(object):
                 report=args['report'],
                 run_at=datetime.datetime.now()
             )
-            util.callsqlalchemy(cmd, logger)
-            return {"message": "success"}, 200
+            util.callsqlalchemy(cmd, self.logger)
+            return util.success()
         except Exception as e:
-            return {"message": e.__str__()}, 400
+            return util.respond(400, e.__str__())
+
+    def get_report(self, project_id):
+        try:
+            result = db.engine.execute(
+                'SELECT report FROM test_results WHERE project_id={0} ORDER BY id DESC LIMIT 1'
+                    .format(project_id))
+            if result.rowcount == 0:
+                return util.respond(400, 'No postman report for this project.')
+            report = result.fetchone()['report']
+            if report is None:
+                return util.respond(400, 'No postman report for this project.')
+            return util.success(json.loads(report))
+        except Exception as e:
+            return util.respond(400, e.__str__())

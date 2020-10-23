@@ -154,8 +154,11 @@ class util(object):
             return project_id == -1
 
     @staticmethod
-    def success(data):
-        return {'message': 'success', 'data': data}, 200
+    def success(data=None):
+        if data is None:
+            return {'message': 'success'}, 200
+        else:
+            return {'message': 'success', 'data': data}, 200
 
     @staticmethod
     def respond(status_code, message, data=None):
