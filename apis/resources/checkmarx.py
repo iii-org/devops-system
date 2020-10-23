@@ -205,7 +205,7 @@ class CheckMarx(object):
             json, status_code = self.register_report(scan_id)
             if status_code % 100 != 2:
                 return json, status_code
-            report_id = json.data.reportId
+            report_id = json['data']['reportId']
         rst_id, rst_name = self.get_report_status(report_id)
         if rst_id != 2:
             return {'message': 'The report is not ready yet.', 'status': 2,
