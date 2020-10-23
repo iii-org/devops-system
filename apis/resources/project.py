@@ -672,7 +672,6 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         else:
             return {"message": output.json()["message"]}, output.status_code
 
-
     # 用project_id查詢project的網路圖
     def get_git_project_network(self, logger, app, project_id):
         try:
@@ -680,6 +679,8 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
 
             # 整理各branches的commit_list
             branches = self.get_git_project_branches(logger, app, project_id)
+            if branches[1] / 100 != 2:
+                return branches
             for branch in branches[0]["data"]["branch_list"]:
                 args = {}
                 args["branch"] = branch["name"]
@@ -728,6 +729,8 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
 
             # 整理tags
             tags = self.get_git_project_tags(logger, app, project_id)
+            if tags[1] / 100 != 2:
+                return tags
             for tag in tags[0]["data"]["tag_list"]:
                 # tag_obj = {
                 #     "tag": tag["name"],
@@ -751,7 +754,9 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                 "message": "success",
                 "data": data_by_time}, 200
         except Exception as error:
-            return {"message": str(error)}, 400
+            import traceback
+            traceback.print_exc()
+            return {"message": repr(error)}, 400
 
     # 查詢pm的project list
     def get_pm_project_list(self, logger, app, user_id):
