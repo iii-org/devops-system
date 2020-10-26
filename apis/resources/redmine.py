@@ -1,7 +1,7 @@
 from io import BytesIO
 
 import json
-import logging, config
+import logging, config, time
 import requests
 import werkzeug
 from .util import util
@@ -22,6 +22,7 @@ class Redmine(object):
     def __init__(self, app):
         self.app = app
         self.headers = {'Content-Type': 'application/json'}
+        self.key_generated = 0.0
         # get redmine_key
         url = "http://{0}:{1}@{2}/users/current.json".format(config.get('REDMINE_ADMIN_ACCOUNT'), \
                                                              config.get('REDMINE_ADMIN_PASSWORD'), config.get('REDMINE_IP_PORT'))
@@ -30,6 +31,7 @@ class Redmine(object):
         logger.info("redmine_key: {0}".format(self.redmine_key))
 
     def api_post(self, path, data=None, params=None):
+        self.key_check()
         if data is None:
             data = {}
         if params is None:
@@ -47,17 +49,24 @@ class Redmine(object):
         return output
 
     def api_get(self, path):
+        self.key_check()
         url = "http://{0}{1}.json?key={2}".format(
             config.get('REDMINE_IP_PORT'), path, self.redmine_key)
         output = requests.get(url, headers=self.headers, verify=False)
         return output
 
-    def get_redmine_key(self, logger, app):
+    def key_check(self):
+        # Check if key expires first, seems to expire in 2 hours in default
+        if time.time() - self.key_generated >= 7200:
+            self.get_redmine_key()
+
+    def get_redmine_key(self, logger=logger, app=None):
         # get redmine_key
         url = "http://{0}:{1}@{2}/users/current.json".format(config.get('REDMINE_ADMIN_ACCOUNT'), \
                                                              config.get('REDMINE_ADMIN_PASSWORD'), config.get('REDMINE_IP_PORT'))
         output = requests.get(url, headers=Redmine.headers, verify=False)
         self.redmine_key = output.json()['user']['api_key']
+        self.key_generated = time.time()
         logger.info("redmine_key: {0}".format(self.redmine_key))
         return self.redmine_key
 
