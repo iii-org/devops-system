@@ -660,9 +660,9 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         return output
 
     # 用project_id查詢project的commits
-    def get_git_project_branch_commits(self, logger, app, project_id, args):
-        url = "http://{0}/api/{1}/projects/{2}/repository/commits?private_token={3}&ref_name={4}&per_page=100".format(\
-            config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id, self.private_token, args["branch"])
+    def get_git_project_branch_commits(self, logger, project_id, branch):
+        url = "http://{0}/api/{1}/projects/{2}/repository/commits?private_token={3}&ref_name={4}&per_page=100".format(
+            config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id, self.private_token, branch)
         logger.info("get project branch commits url: {0}".format(url))
         output = requests.get(url, headers=self.headers, verify=False)
         logger.info("get project branch commits output: {0} / {1}".format(
@@ -682,35 +682,11 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
             if branches[1] / 100 != 2:
                 return branches
             for branch in branches[0]["data"]["branch_list"]:
-                args = {}
-                args["branch"] = branch["name"]
-                
                 branch_commits = self.get_git_project_branch_commits(
-                    logger, app, project_id, args)
-                
+                    logger, project_id, branch["name"])
+                if branch_commits[1] / 100 != 2:
+                    return branch_commits
                 for branch_commit in branch_commits[0]["data"]:
-                    
-                    commit_msg = {}
-                    if branch_commit["title"] != branch_commit["message"]:
-                        
-                        
-                        msg_split = re.split(' into | ', branch_commit["title"])
-                        
-                        if msg_split[0] == "Merge":
-                            commit_msg["msg"] = branch_commit["title"]
-
-                            if msg_split[-1][0] == "\'":
-                                commit_msg["branch"] = re.split("\'", msg_split[-1])[0]
-                            else:
-                                commit_msg["branch"] = msg_split[-1]
-
-                            commit_msg["type"] = msg_split[0]
-                            
-                            if msg_split[-2][0] == "\'":
-                                commit_msg["target"] = re.split("\'", msg_split[-2])[1]
-                            else:
-                                commit_msg["target"] = msg_split[-2]
-                    
                     obj = {
                         "id": branch_commit["id"],
                         "title": branch_commit["title"],
@@ -719,8 +695,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                         "committed_date": branch_commit["committed_date"],
                         "parent_ids": branch_commit["parent_ids"],
                         "branch_name": branch["name"],
-                        "commit_msg": commit_msg,
-                        "tag": ""
+                        "tags": []
                     }
 
                     branch_commit_list.append(obj)
@@ -745,9 +720,11 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                 # print(tag_obj)
                 for commit in branch_commit_list:
                     if commit["id"] == tag["commit"]["id"]:
-                        commit["tag"] = tag["name"]
+                        commit["tags"].append(tag["name"])
 
-            data_by_time = sorted(branch_commit_list, reverse=True, key = lambda branch_commit_list : branch_commit_list["committed_date"])
+            data_by_time = sorted(branch_commit_list,
+                                  reverse=False,
+                                  key=lambda c_list: c_list["committed_date"])
             # data_del_some = data_by_time
 
             return {

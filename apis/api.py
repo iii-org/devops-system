@@ -912,7 +912,7 @@ class GitProjectBranchCommmits(Resource):
             args = parser.parse_args()
             logger.info("get body: {0}".format(args))
             output = pjt.get_git_project_branch_commits(
-                logger, app, project_id, args)
+                logger, project_id, args['branch'])
             return output
         else:
             return {"message": "your role art not RD/administrator"}, 401
