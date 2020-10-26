@@ -105,7 +105,6 @@ class TotalProjectList(Resource):
     @jwt_required
     def get(self):
         role_id = get_jwt_identity()["role_id"]
-        # print("role_id={0}".format(role_id))
 
         if role_id in (3, 5):
             user_id = get_jwt_identity()["user_id"]
@@ -169,7 +168,6 @@ class Project(Resource):
     @jwt_required
     def put(self, project_id):
         role_id = get_jwt_identity()["role_id"]
-        print("role_id={0}".format(role_id))
 
         if role_id in (3, 5):
             # user_id = get_jwt_identity()["user_id"]
@@ -194,7 +192,6 @@ class Project(Resource):
     @jwt_required
     def delete(self, project_id):
         role_id = get_jwt_identity()["role_id"]
-        print("role_id={0}".format(role_id))
 
         if role_id in (3, 5):
             try:
@@ -605,7 +602,6 @@ class GitProjectBranches(Resource):
     @jwt_required
     def get(self, repository_id):
         role_id = get_jwt_identity()["role_id"]
-        print("role_id={0}".format(role_id))
 
         if role_id in (1, 3, 5):
             project_id = repository_id
@@ -620,7 +616,6 @@ class GitProjectBranches(Resource):
     @jwt_required
     def post(self, repository_id):
         role_id = get_jwt_identity()["role_id"]
-        print("role_id={0}".format(role_id))
 
         if role_id in (1, 3, 5):
             project_id = repository_id
@@ -640,7 +635,6 @@ class GitProjectBranch(Resource):
     @jwt_required
     def get(self, repository_id, branch_name):
         role_id = get_jwt_identity()["role_id"]
-        print("role_id={0}".format(role_id))
 
         if role_id in (1, 3, 5):
             project_id = repository_id
@@ -654,7 +648,6 @@ class GitProjectBranch(Resource):
     @jwt_required
     def delete(self, repository_id, branch_name):
         role_id = get_jwt_identity()["role_id"]
-        print("role_id={0}".format(role_id))
 
         if role_id in (1, 3, 5):
             project_id = repository_id
@@ -670,7 +663,6 @@ class GitProjectRepositories(Resource):
     @jwt_required
     def get(self, repository_id, branch_name):
         role_id = get_jwt_identity()["role_id"]
-        print("role_id={0}".format(role_id))
 
         if role_id in (1, 3, 5):
             project_id = repository_id
@@ -686,7 +678,6 @@ class GitProjectFiles(Resource):
     @jwt_required
     def post(self, repository_id):
         role_id = get_jwt_identity()["role_id"]
-        print("role_id={0}".format(role_id))
 
         if role_id in (1, 3, 5):
             project_id = repository_id
@@ -711,7 +702,6 @@ class GitProjectFiles(Resource):
     @jwt_required
     def put(self, repository_id):
         role_id = get_jwt_identity()["role_id"]
-        print("role_id={0}".format(role_id))
 
         if role_id in (1, 3, 5):
             project_id = repository_id
@@ -738,7 +728,6 @@ class GitProjectFile(Resource):
     @jwt_required
     def get(self, repository_id, branch_name, file_path):
         role_id = get_jwt_identity()["role_id"]
-        print("role_id={0}".format(role_id))
 
         if role_id in (1, 3, 5):
             project_id = repository_id
@@ -753,7 +742,6 @@ class GitProjectFile(Resource):
     @jwt_required
     def delete(self, repository_id, branch_name, file_path):
         role_id = get_jwt_identity()["role_id"]
-        print("role_id={0}".format(role_id))
 
         if role_id in (1, 3, 5):
             project_id = repository_id
@@ -774,7 +762,6 @@ class GitProjectTags(Resource):
     @jwt_required
     def get(self, repository_id):
         role_id = get_jwt_identity()["role_id"]
-        print("role_id={0}".format(role_id))
 
         if role_id in (1, 3, 5):
             project_id = repository_id
@@ -786,7 +773,6 @@ class GitProjectTags(Resource):
     @jwt_required
     def post(self, repository_id):
         role_id = get_jwt_identity()["role_id"]
-        print("role_id={0}".format(role_id))
 
         if role_id in (1, 3, 5):
             project_id = repository_id
@@ -807,7 +793,6 @@ class GitProjectTag(Resource):
     @jwt_required
     def delete(self, repository_id, tag_name):
         role_id = get_jwt_identity()["role_id"]
-        print("role_id={0}".format(role_id))
 
         if role_id in (1, 3, 5):
             project_id = repository_id
@@ -822,7 +807,6 @@ class GitProjectDirectory(Resource):
     @jwt_required
     def post(self, repository_id, directory_path):
         role_id = get_jwt_identity()["role_id"]
-        print("role_id={0}".format(role_id))
 
         if role_id in (1, 5):
             project_id = repository_id
@@ -841,7 +825,6 @@ class GitProjectDirectory(Resource):
     @jwt_required
     def put(self, repository_id, directory_path):
         role_id = get_jwt_identity()["role_id"]
-        print("role_id={0}".format(role_id))
 
         if role_id in (1, 5):
             project_id = repository_id
@@ -864,7 +847,6 @@ class GitProjectDirectory(Resource):
     @jwt_required
     def delete(self, repository_id, directory_path):
         role_id = get_jwt_identity()["role_id"]
-        print("role_id={0}".format(role_id))
 
         if role_id in (1, 5):
             project_id = repository_id
@@ -884,7 +866,6 @@ class GitProjectMergeBranch(Resource):
     @jwt_required
     def post(self, repository_id):
         role_id = get_jwt_identity()["role_id"]
-        print("role_id={0}".format(role_id))
 
         if role_id in (1, 5):
             project_id = repository_id
@@ -903,7 +884,6 @@ class GitProjectBranchCommmits(Resource):
     @jwt_required
     def get(self, repository_id):
         role_id = get_jwt_identity()["role_id"]
-        print("role_id={0}".format(role_id))
 
         if role_id in (1, 5):
             project_id = repository_id
@@ -922,7 +902,6 @@ class GitProjectNetwork(Resource):
     @jwt_required
     def get(self, repository_id):
         role_id = get_jwt_identity()["role_id"]
-        print("role_id={0}".format(role_id))
 
         if role_id in (1, 5):
             project_id = repository_id
@@ -1880,7 +1859,6 @@ class SonarReport(Resource):
     @jwt_required
     def get(self, project_id):
         role_id = get_jwt_identity()["role_id"]
-        print("role_id={0}".format(role_id))
 
         if role_id in (3, 5):
             try:
