@@ -1572,6 +1572,30 @@ class TestCaseByIssue(Resource):
                                               get_jwt_identity()['user_id'])
         return jsonify({'message': 'success', 'data': output})
 
+class TestCaseByProject(Resource):
+
+    ## 用issues ID 取得目前所有的目前測試案例
+    @jwt_required
+    def get(self, project_id):
+        output = {}
+        output = tc.get_testCase_by_project_id(logger, project_id,
+                                             get_jwt_identity()['user_id'])
+        return jsonify({'message': 'success', 'data': output})
+
+    ## 用issues ID 新建立測試案例
+    @jwt_required
+    def post(self, project_id):
+        output = {}
+        parser = reqparse.RequestParser()
+        parser.add_argument('name', type=str)
+        parser.add_argument('data', type=str)
+        parser.add_argument('type_id', type=int)
+        parser.add_argument('description', type=str)
+        args = parser.parse_args()
+        output = tc.post_testCase_by_project_id(logger, project_id, args,
+                                              get_jwt_identity()['user_id'])
+        return jsonify({'message': 'success', 'data': output})
+
 
 class TestCase(Resource):
 
@@ -2044,6 +2068,7 @@ api.add_resource(GetTestCaseType, '/testCases/support_type')
 
 # testPhase TestCase
 api.add_resource(TestCaseByIssue, '/testCases_by_issue/<issue_id>')
+api.add_resource(TestCaseByProject, '/testCases_by_project/<project_id>')
 api.add_resource(TestCase, '/testCases/<testCase_id>')
 
 # testPhase TestCase Support API Method
