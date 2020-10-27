@@ -3,4 +3,4 @@ venv
 .idea
 k8s_config
 environments.json
-/.kube/config
+devops-api.log*
