@@ -755,7 +755,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                         .format(project_id))
                     plan_project_id = result.fetchone()[0]
                     result.close()
-
+                    
                     ## 用redmine api查詢相關資訊
                     # 抓專案最近更新時間
                     url1 = "http://{0}/projects/{1}.json?key={2}&limit=1000".format(
@@ -1227,7 +1227,10 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                     }
                 }, error_code
         else:
-            return {"message": "can not find this project."}
+            # db.engine.execute(
+            #         "DELETE FROM public.project_user_role WHERE project_id = '{0}'"
+            #         .format(project_id))
+            return {"message": "can not find this project."}, 200
 
         # db.engine.execute(
         #     "UPDATE public.projects SET disabled = '{0}' WHERE id = '{1}'".
