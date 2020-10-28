@@ -163,7 +163,6 @@ class Issue(object):
             for redmine_issue in redmine_output_issue_array['issues']:
                 output_dict = self.__dealwith_issue_by_user_redmine_output(
                     logger, redmine_issue)
-                # output_dict = self.pjt.get_ci_last_test_result(app, logger, output_dict, project_dict)
                 output_array.append(output_dict)
             return {"message": "success", "data": output_array}, 200
         else:
@@ -403,8 +402,7 @@ class Issue(object):
             project = self.pjt.get_project_by_plan_project_id(
                 logger, redmine_issue['project']['id'])
             logger.info("project: {0}".format(project))
-            output_dict = self.pjt.get_ci_last_test_result(
-                app, logger, output_dict, project)
+            # output_dict = self.pjt.get_ci_last_test_result(app, logger, output_dict, project)
             output_array.append(output_dict)
         return {'message': 'success', 'data': output_array}, 200
 
