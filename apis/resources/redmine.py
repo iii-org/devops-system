@@ -177,7 +177,7 @@ class Redmine(object):
         param = {
             "user": {
                 "login": args["login"],
-                "firstname": args["name"],
+                "firstname": '#',
                 "lastname": args["name"],
                 "mail": args["email"],
                 "password": user_source_password

@@ -193,14 +193,16 @@ class Project(Resource):
     def delete(self, project_id):
         role_id = get_jwt_identity()["role_id"]
 
-        if role_id in (3, 5):
+        status = pjt.verify_project_user(logger, project_id,
+                                         get_jwt_identity()['user_id'])
+        if (role_id == 3 and status) or (role_id == 5):
             try:
                 output = pjt.pm_delete_project(logger, app, project_id)
                 return output
             except Exception as error:
                 return {"message": str(error)}, 400
         else:
-            return {"message": "your role art not PM/administrator"}, 401
+            return {"message": "you are not an administrator, and you are not a PM in this project."}, 401
 
 
 class GitProjects(Resource):
