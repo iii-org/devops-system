@@ -65,7 +65,6 @@ class Rancher(object):
             "password": "{0}".format(config.get('RANCHER_ADMIN_PASSWORD'))
         }
         output = self.api_post(url, parameter, self.headers)
-        print('rancher token refreshed!')
         return output.json()['token']
 
     def get_rancher_token(self, app, logger):
