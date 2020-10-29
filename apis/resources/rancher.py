@@ -25,41 +25,37 @@ class Rancher(object):
             ret['Authorization'] = "Bearer {0}".format(self.token)
         return ret
 
-    def api_post(self, url, parameter, headers, with_token=True, retried=False):
-        final_headers = self.auth_headers(headers, with_token)
-        try:
-            self.logger.info("post url {0}".format(url))
-            response = requests.post(url,
-                                    data=json.dumps(parameter),
-                                    headers=final_headers,
-                                    verify=False)
-            self.logger.info("Post api status code is : {0}".format(
-                response.status_code))
-            if response.status_code == 401 and retried is False:
-                self.token = self.generate_token()
-                return self.api_post(url, parameter, headers, True)
-            return response
-
-        except Exception as e:
-            self.logger.error("api_post error : {0}".format(e))
-            return e
-
-    def api_get(self, url, headers=None, with_token=True, retried=False):
+    def api_request(self, method, url, headers, parameter=None, with_token=True, retried=False):
         try:
             final_headers = self.auth_headers(headers, with_token)
-            response = requests.get(url, headers=final_headers, verify=False)
+            if method.upper() == 'GET':
+                response = requests.get(url, headers=final_headers, verify=False)
+            elif method.upper() == 'POST':
+                response = requests.post(url,
+                                         data=json.dumps(parameter),
+                                         headers=final_headers,
+                                         verify=False)
+            else:
+                return None
 
-            self.logger.info("get api headers is : {0}".format(headers))
-            self.logger.info("get api status code is : {0}".format(
-                response.status_code))
+            self.logger.info("api {1} headers is : {0}".format(headers, method))
+            self.logger.info("api {1} status code is : {0}".format(
+                response.status_code, method))
             if response.status_code == 401 and retried is False:
                 self.token = self.generate_token()
-                return self.api_get(url, headers, True)
+                return self.api_request(method, url, headers, parameter, with_token, True)
             return response
 
         except Exception as e:
             self.logger.error("callgetapi error : {0}".format(e))
             return e
+
+    def api_post(self, url, parameter, headers, with_token=True):
+        return self.api_request('POST', url=url, parameter=parameter,
+                                headers=headers, with_token=with_token)
+
+    def api_get(self, url, headers=None, with_token=True):
+        return self.api_request('GET', url=url, headers=headers, with_token=with_token)
 
     def generate_token(self):
         url = "https://{0}/{1}-public/localProviders/local?action=login"\
@@ -144,7 +140,7 @@ class Rancher(object):
                         })
         self.logger.debug("output_dict: {0}".format(output_dict))
         return output_dict[1:]
-    
+
     def get_rancher_cluster_id(self, app, logger, rancher_token):
         url= "https://{0}/{1}/clusters".format(\
             config.get('RANCHER_IP_PORT'), config.get('RANCHER_API_VERSION'))
@@ -158,7 +154,7 @@ class Rancher(object):
             logger.debug("get_rancher_cluster output: {0}".format(output['name']))
             if output['name'] == config.get('RANCHER_CLUSTER_NAME'):
                 return output['id']
-    
+
     def get_rancher_project_id(self, app, logger, rancher_token):
         cluster_id = Rancher.get_rancher_cluster_id(self, app, logger, rancher_token)
         logger.debug("get rancher cluster_id: {0}".format(cluster_id))
@@ -173,7 +169,7 @@ class Rancher(object):
         for output in output_array:
             if output['name'] == "Default":
                 return output['id']
-    
+
     def get_rancher_admin_user_id(self, app, logger, rancher_token):
         url= "https://{0}/{1}/users".format(\
             config.get('RANCHER_IP_PORT'), config.get('RANCHER_API_VERSION'))
@@ -186,7 +182,7 @@ class Rancher(object):
         for output in output_array:
             if output['username'] == 'admin':
                 return output['id']
-    
+
     def enable_rancher_projejct_pipline(self, app, logger, repository_url, rancher_token):
         project_id = Rancher.get_rancher_project_id(self, app, logger, rancher_token)
         pipeline_list = Rancher.get_rancher_projejct_pipline(self, app, logger, repository_url, rancher_token)
@@ -211,7 +207,7 @@ class Rancher(object):
                                 headersandtoken)
         logger.debug("enable_rancher_projejct_pipline output: {0}".format(output.json()))
         return output.json()['id']
-    
+
     def disable_rancher_projejct_pipline(self, app, logger, project_id, pipeline_id, rancher_token):
         url="https://{0}/{1}/projects/{2}/pipelines/{3}"\
             .format(config.get('RANCHER_IP_PORT'), config.get('RANCHER_API_VERSION'), project_id,
@@ -227,7 +223,7 @@ class Rancher(object):
         else:
             logger.info("disable_rancher_projejct_pipline error, error message: {0}".format(rancher_output.text))
             abort(400, message='"disable_rancher_projejct_pipline error, error message: {0}'.format(rancher_output.text))
-        
+
     def get_rancher_projejct_pipline(self, app, logger, repository_url, rancher_token):
         project_id = Rancher.get_rancher_project_id(self, app, logger, rancher_token)
         url="https://{0}/{1}/projects/{2}/pipelines"\
