@@ -1,9 +1,11 @@
 #!/usr/bin/python
-import json, os
+import json
 import subprocess
-import sqlalchemy
-from sqlalchemy import orm
+
 import requests
+import sqlalchemy
+import time
+from sqlalchemy import orm
 
 from model import db
 
@@ -172,3 +174,9 @@ class util(object):
                 except ValueError or TypeError:
                     message_obj['data'] = data
         return message_obj, status_code
+
+    @staticmethod
+    def tick(last_time):
+        now = time.time()
+        print('%f seconds elapsed.' % (now - last_time))
+        return now

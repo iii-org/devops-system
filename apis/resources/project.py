@@ -17,8 +17,10 @@ class Project(object):
     headers = {'Content-Type': 'application/json'}
 
     def __init__(self, logger, app, au, k8s):
+        self.logger = logger
         self.k8s = k8s
         self.au = au
+        self.rancher = Rancher(logger)
         if config.get("GITLAB_API_VERSION") == "v3":
             # get gitlab admin token
             url = "http://{0}/api/v3/session".format(\
@@ -271,9 +273,8 @@ class Project(object):
 
     def get_ci_last_test_result(self, app, logger, output_dict, project):
         # get rancher pipeline
-        rancher_token = Rancher.get_rancher_token(self, app, logger)
-        pipeline_output = Rancher.get_rancher_pipelineexecutions(self, app, logger, project["ci_project_id"],\
-            project["ci_pipeline_id"], rancher_token)
+        pipeline_output = self.rancher.get_rancher_pipelineexecutions(
+            project["ci_project_id"], project["ci_pipeline_id"])
         if len(pipeline_output) != 0:
             logger.info(pipeline_output[0]['name'])
             logger.info(pipeline_output[0]['created'])

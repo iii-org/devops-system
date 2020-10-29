@@ -13,6 +13,7 @@ class Pipeline(object):
     def __init__(self, app, pjt):
         self.app = app
         self.pjt = pjt
+        self.rancher = Rancher(pjt.logger)
 
     def pipeline_exec_list(self, logger, app, repository_id):
         output_array = []
@@ -23,9 +24,10 @@ class Pipeline(object):
         result.close()
         logger.info("project_relationship: {0}".format(
             project_relationship['ci_project_id']))
-        rancher_token = Rancher.get_rancher_token(self, app, logger)
-        pipeline_outputs = Rancher.get_rancher_pipelineexecutions(self, app, logger, project_relationship['ci_project_id'], \
-        project_relationship['ci_pipeline_id'], rancher_token)
+        rancher = Rancher(logger)
+        pipeline_outputs = rancher.get_rancher_pipelineexecutions(
+            project_relationship['ci_project_id'],
+            project_relationship['ci_pipeline_id'])
         for pipeline_output in pipeline_outputs:
             output_dict = {}
             output_dict['id'] = pipeline_output['run']
@@ -58,11 +60,11 @@ class Pipeline(object):
             WHERE git_repository_id = {0};".format(args['repository_id']))
         project_relationship = result.fetchone()
         result.close()
-        rancher_token = Rancher.get_rancher_token(self, app, logger)
         try:
-            output_array = Rancher.get_rancher_pipelineexecutions_logs(self, app, logger, \
-                project_relationship['ci_project_id'], project_relationship['ci_pipeline_id'],
-                args['pipelines_exec_run'], rancher_token)
+            output_array = self.rancher.get_rancher_pipelineexecutions_logs(
+                project_relationship['ci_project_id'],
+                project_relationship['ci_pipeline_id'],
+                args['pipelines_exec_run'])
             return {"message": "success", "data": output_array}, 200
         except:
             return {"message": "get pipeline histroy errro"}, 400
