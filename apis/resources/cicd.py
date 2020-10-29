@@ -31,16 +31,8 @@ class Cicd(object):
             },
             'item': []
         }
-        args = {}
-        issues, status_code = self.iss.get_issue_by_project(logger, app, project_id,
-                                                       args)
-        cases = []
-        for issue in issues['data']:
-            issue_id = issue['id']
-            part_cases = self.tc.get_testCase_by_issue_id(logger, issue_id, jwt_identity['user_id'])
-            for case in part_cases:
-                cases.append(case)
 
+        cases = self.tc.get_testCase_by_project_id(logger, project_id, jwt_identity['user_id'])
         for case in cases:
             case_id = case['id']
             method = case['data']['method']

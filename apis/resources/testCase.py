@@ -8,8 +8,12 @@ logger = logging.getLogger('devops.api')
 
 
 class TestCase(object):
-    headers = {'Content-Type': 'application/json'}
-    httpMethod = {"1": "GET", "2": "POST", "3": "PUT", "4": "DELETE"}
+    
+    
+    def __init__(self):
+        self.httpMethod = {"1": "GET", "2": "POST", "3": "PUT", "4": "DELETE"}
+        self.headers = {'Content-Type': 'application/json'}
+
 
     def _get_testCasetType(self):
         get_testCaseType_command = db.select([TableCaseType.stru_tcType])
@@ -75,10 +79,6 @@ class TestCase(object):
 
     # 修改 TestCase 內資訊
     def modify_testCase_by_tc_id(self, logger, testCase_id, args, user_id):
-
-        print(type(args['data']))
-        print(ast.literal_eval(args['data']))
-        print(type(ast.literal_eval(args['data'])))
         update_testCase_command = db.update(TableTestCase.stru_testCase).where(db.and_(TableTestCase.stru_testCase.c.id == testCase_id)).values(
             data = json.dumps(ast.literal_eval(args['data'])),
             name=args['name'],
@@ -135,6 +135,22 @@ class TestCase(object):
         insert_testCase_command = db.insert(TableTestCase.stru_testCase).values(
             issue_id=issue_id,
             project_id=args['project_id'],
+            data = json.dumps(ast.literal_eval(args['data'])),
+            name=args['name'],
+            description=args['description'],
+            type_id=args['type_id'],
+            create_at=datetime.datetime.now(),
+            update_at=datetime.datetime.now()
+        )
+        logger.debug("insert_testCase_command: {0}".format(
+            insert_testCase_command))
+        reMessage = util.callsqlalchemy(insert_testCase_command, logger)
+        return {'testCase_id': reMessage.inserted_primary_key}
+    
+    # 新增同Project Id 內 TestCase 的資訊
+    def post_testCase_by_project_id(self, logger,  project_id, args, user_id):
+        insert_testCase_command = db.insert(TableTestCase.stru_testCase).values(
+            project_id=project_id,
             data = json.dumps(ast.literal_eval(args['data'])),
             name=args['name'],
             description=args['description'],
