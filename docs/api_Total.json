@@ -1,14 +1,14 @@
 {
   "openapi": "3.0.0",
   "info": {
-    "title": "DevOps Front End API",
+    "title": "DevOps Front End API For RD",
     "description": "Optional multiline or single-line description in [CommonMark](http://commonmark.org/help/) or HTML.",
     "version": "DevOps Dev Version V1"
   },
   "servers": [
     {
       "url": "http://10.50.1.56:31850",
-      "description": "Optional server description, e.g. Main (production) server"
+      "description": "API server for Front End"
     }
   ],
   "tags": [
@@ -17,11 +17,11 @@
       "description": "DevOps project"
     },
     {
-      "name": "issues",
+      "name": "issue",
       "description": "Redmine issues"
     },
     {
-      "name": "pipelines",
+      "name": "pipeline",
       "description": "CICD pipeline ID"
     },
     {
@@ -39,7 +39,7 @@
   ],
   "paths": {
     "/user/login": {
-      "description": "登入頁面",
+      "description": "登入頁面;none",
       "post": {
         "tags": [
           "user"
@@ -87,18 +87,26 @@
               }
             }
           },
-          "400": {
-            "description": "Invalid username/password supplied"
+          "405": {
+            "$ref": "#/components/responses/InvalidInput"
           }
         }
       }
     },
     "/user/forgetPassword": {
+      "description": "忘記密碼頁面;none",
       "post": {
         "tags": [
           "user"
         ],
         "summary": "使用者忘記帳號密碼",
+        "security": [
+          {
+            "bearerAuth": [
+
+            ]
+          }
+        ],
         "operationId": "userForgetPassword",
         "requestBody": {
           "description": "User forget password",
@@ -111,13 +119,13 @@
                   "mail": {
                     "type": "string"
                   },
-                  "user_account": {
+                  "user_name": {
                     "type": "string"
                   }
                 },
                 "required": [
                   "mail",
-                  "user_account"
+                  "user_name"
                 ]
               }
             }
@@ -126,12 +134,26 @@
         "responses": {
           "200": {
             "description": "Success Reset Password"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "405": {
+            "$ref": "#/components/responses/InvalidInput"
           }
         }
       }
     },
     "/user/{user_id}": {
+      "description": "4.1_用戶管理",
       "get": {
+        "security": [
+          {
+            "bearerAuth": [
+
+            ]
+          }
+        ],
         "summary": "取得用戶資訊",
         "operationId": "getUserInformation",
         "tags": [
@@ -144,18 +166,34 @@
             "required": true,
             "description": "User PK",
             "schema": {
-              "$ref": "#/components/schemas/User"
+              "type": "integer",
+              "example": 1,
+              "format": "int64"
             }
           }
         ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserInfo"
+                }
+              }
+            }
           }
         }
       },
       "put": {
-        "summary": "修改用戶資訊",
+        "security": [
+          {
+            "bearerAuth": [
+
+            ]
+          }
+        ],
+        "summary": "修改用戶資訊, 用戶密碼變更",
         "tags": [
           "user"
         ],
@@ -166,7 +204,7 @@
             "required": true,
             "description": "User PK",
             "schema": {
-              "$ref": "#/components/schemas/User"
+              "$ref": "#/components/schemas/UpdateUser"
             }
           }
         ],
@@ -177,7 +215,7 @@
         }
       }
     },
-    "/project": {
+    "/project/rd": {
       "get": {
         "summary": "取得目前所有專案ID",
         "tags": [
@@ -190,24 +228,26 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Project"
+                  "$ref": "#/components/schemas/Ids"
                 }
               }
             }
           }
-        }
+        },
+        "deprecated": true
       }
     },
-    "/project/{user_account}": {
+    "/project/rd/{user_id}": {
+      "description": "3_專案清單",
       "get": {
         "summary": "取得使用者目前專案資訊",
         "tags": [
           "project"
         ],
-        "description": "Optional extended description in CommonMark or HTML.",
+        "description": "取得使用者目前專案資訊",
         "parameters": [
           {
-            "name": "user_account",
+            "name": "user_id",
             "in": "path",
             "required": true,
             "schema": {
@@ -229,78 +269,17 @@
         }
       }
     },
-    "/project/{project_id}/pipelines_info": {
+    "/pipelines/rd/{project_id}/pipelines_info": {
+      "description": "3.3.1_CICD紀錄清單",
       "get": {
-        "summary": "取得專案pipelines設定的ID",
+        "summary": "3.3.1_CICD紀錄清單",
         "tags": [
           "pipelines"
         ],
-        "description": "",
+        "description": "取得專案執行pipelines的設定值",
         "parameters": [
           {
             "name": "project_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "$ref": "#/components/schemas/Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "A JSON array of issues id",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Id"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/project/{roject_id}/pipelines_exec": {
-      "get": {
-        "summary": "取得專案執行pipelines的ID",
-        "tags": [
-          "pipelines"
-        ],
-        "description": "",
-        "parameters": [
-          {
-            "name": "project_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "$ref": "#/components/schemas/Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "A JSON array of issues id",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Id"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/pipelines_info/{pipelines_info_id}": {
-      "get": {
-        "summary": "取得專案pipelines的設定",
-        "tags": [
-          "pipelines"
-        ],
-        "description": "",
-        "parameters": [
-          {
-            "name": "pipelines_info_id",
             "in": "path",
             "required": true,
             "schema": {
@@ -322,16 +301,17 @@
         }
       }
     },
-    "/pipelines_exec/{pipelines_exec_id}": {
+    "/pipelines/rd/{project_id}/pipelines_exec": {
+      "description": "3.4_CICD紀錄清單",
       "get": {
-        "summary": "取得專案pipelines執行資訊列表",
+        "summary": "3.4_CICD紀錄清單",
         "tags": [
           "pipelines"
         ],
-        "description": "",
+        "description": "取得專案執行pipelines的列表",
         "parameters": [
           {
-            "name": "pipelines_exec_id",
+            "name": "project_id",
             "in": "path",
             "required": true,
             "schema": {
@@ -345,7 +325,10 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PipelinesExecInfo"
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PipelinesExecInfo"
+                  }
                 }
               }
             }
@@ -353,13 +336,14 @@
         }
       }
     },
-    "/pipelines_log/{pipelines_exec_id}": {
+    "/pipelines/rd/logs/{pipelines_exec_id}": {
+      "description": "3.4.1_CICD詳細記錄",
       "get": {
-        "summary": "取得專案pipelines的執行LOG檔案",
+        "summary": "3.4.1_CICD詳細記錄",
         "tags": [
           "pipelines"
         ],
-        "description": "",
+        "description": "取得專案pipelines的執行LOG檔案",
         "parameters": [
           {
             "name": "pipelines_exec_id",
@@ -384,7 +368,7 @@
         }
       }
     },
-    "/project/{project_id}/issues": {
+    "/project/rd/{project_id}/issues": {
       "get": {
         "summary": "取得專案內issues的ID",
         "tags": [
@@ -407,65 +391,23 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/IdList"
+                  "$ref": "#/components/schemas/Ids"
                 }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/issues": {
-      "get": {
-        "summary": "Returns a list of issues ID",
-        "tags": [
-          "issues"
-        ],
-        "description": "",
-        "responses": {
-          "200": {
-            "description": "A JSON array of issues id",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/IdList"
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "summary": "建立Issues",
-        "tags": [
-          "issues"
-        ],
-        "description": "",
-        "requestBody": {
-          "description": "XML建立議題",
-          "required": true,
-          "content": {
-            "application/xml": {
-              "schema": {
-                "$ref": "#/components/schemas/AddIssue"
               }
             }
           }
         },
-        "responses": {
-          "200": {
-            "description": "successful create issues"
-          }
-        }
+        "deprecated": true
       }
     },
-    "/issues/{issue_id}": {
+    "/issues/rd/{issue_id}": {
+      "description": "2.1 工作詳細內容 2.1.2 更新工作內容",
       "get": {
-        "summary": "取得Issues內的資訊",
+        "summary": "2.1 工作詳細內容",
         "tags": [
           "issues"
         ],
-        "description": "Optional extended description in CommonMark or HTML.",
+        "description": "取得Issues內的資訊",
         "parameters": [
           {
             "name": "issue_id",
@@ -482,7 +424,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Issues"
+                  "$ref": "#/components/schemas/IssueInfo"
                 }
               }
             }
@@ -490,11 +432,11 @@
         }
       },
       "put": {
-        "summary": "更新Issues內的資訊",
+        "summary": "2.1.2 更新工作內容",
         "tags": [
           "issues"
         ],
-        "description": "Optional extended description in CommonMark or HTML.",
+        "description": "更新ssues內的資訊",
         "parameters": [
           {
             "name": "issue_id",
@@ -505,25 +447,28 @@
             }
           }
         ],
-        "responses": {
-          "200": {
-            "description": "A JSON array of Issues id",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Issues"
-                }
+        "requestBody": {
+          "description": "更新Issues內的資訊",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateIssue"
               }
             }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/schemas/successful"
           }
         }
       },
       "delete": {
-        "summary": "刪除Issues",
+        "summary": "刪除Issues (not essential)",
         "tags": [
           "issues"
         ],
-        "description": "Optional extended description in CommonMark or HTML.",
+        "description": "刪除Issues",
         "parameters": [
           {
             "name": "issue_id",
@@ -541,7 +486,8 @@
         }
       }
     },
-    "/issues/{issue_id}/function": {
+    "/issues/rd/{issue_id}/function": {
+      "summary": "test",
       "get": {
         "summary": "取得Issues內的功能(API)的ID",
         "tags": [
@@ -564,21 +510,25 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Id"
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FuntionList"
+                  }
                 }
               }
             }
           }
-        }
+        },
+        "deprecated": true
       }
     },
-    "/funtion/{funtion_id}": {
+    "/funtion/rd/{funtion_id}": {
       "get": {
-        "summary": "取得Issues內功能資訊",
+        "summary": "2.1.4_設定API",
         "tags": [
           "issues"
         ],
-        "description": "Optional extended description in CommonMark or HTML.",
+        "description": "取得Issues內功能資訊",
         "parameters": [
           {
             "name": "funtion_id",
@@ -600,14 +550,15 @@
               }
             }
           }
-        }
+        },
+        "deprecated": true
       },
       "put": {
-        "summary": "更新Issues內的資訊",
+        "summary": "2.1.4_設定API",
         "tags": [
           "issues"
         ],
-        "description": "Optional extended description in CommonMark or HTML.",
+        "description": "設定API",
         "parameters": [
           {
             "name": "funtion_id",
@@ -629,14 +580,15 @@
               }
             }
           }
-        }
+        },
+        "deprecated": true
       },
       "delete": {
-        "summary": "刪除Issues",
+        "summary": "刪除function",
         "tags": [
           "issues"
         ],
-        "description": "Optional extended description in CommonMark or HTML.",
+        "description": "delete Function",
         "parameters": [
           {
             "name": "funtion_id",
@@ -651,10 +603,11 @@
           "200": {
             "description": "delete successful"
           }
-        }
+        },
+        "deprecated": true
       }
     },
-    "/issues/{issue_id}/{funtion_id}/parameters": {
+    "/issues/rd/{issue_id}/{funtion_id}/parameters": {
       "get": {
         "summary": "取得Issues內的功能(API)",
         "tags": [
@@ -690,16 +643,17 @@
               }
             }
           }
-        }
+        },
+        "deprecated": true
       }
     },
-    "/parameters/{parameters_id}": {
+    "/parameters/rd/{parameters_id}": {
       "get": {
-        "summary": "取得Issues內功能資訊",
+        "summary": "2.1.4.1_設定參數",
         "tags": [
           "issues"
         ],
-        "description": "Optional extended description in CommonMark or HTML.",
+        "description": "2.1.4.1_設定參數",
         "parameters": [
           {
             "name": "parameters_id",
@@ -721,14 +675,15 @@
               }
             }
           }
-        }
+        },
+        "deprecated": true
       },
       "put": {
-        "summary": "更新Issues內的資訊",
+        "summary": "2.1.4.1_設定參數",
         "tags": [
           "issues"
         ],
-        "description": "Optional extended description in CommonMark or HTML.",
+        "description": "2.1.4.1_設定參數",
         "parameters": [
           {
             "name": "parameters_id",
@@ -750,14 +705,15 @@
               }
             }
           }
-        }
+        },
+        "deprecated": true
       },
       "delete": {
-        "summary": "刪除Issues",
+        "summary": "2.1.4.1_設定參數",
         "tags": [
           "issues"
         ],
-        "description": "Optional extended description in CommonMark or HTML.",
+        "description": "2.1.4.1_設定參數",
         "parameters": [
           {
             "name": "parameters_id",
@@ -772,23 +728,27 @@
           "200": {
             "description": "delete successful"
           }
-        }
+        },
+        "deprecated": true
       }
     },
     "/issues_status": {
       "get": {
-        "summary": "取得目前議題可使用狀態",
+        "summary": "取得目前議題可使用狀態(For 所有議題)",
         "tags": [
           "issues"
         ],
-        "description": "Optional extended description in CommonMark or HTML.",
+        "description": "取得議題可使用的狀態列表 如 已被分配等",
         "responses": {
           "200": {
-            "description": "A JSON array of Issues Information",
+            "description": "A JSON array of Issues Status Information",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/IssuesStatus"
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/IssuesStatus"
+                  }
                 }
               }
             }
@@ -798,18 +758,21 @@
     },
     "/issues_priority": {
       "get": {
-        "summary": "取得目前議題可使用優先級別",
+        "summary": "取得目前議題可使用優先級別(For 所有議題)",
         "tags": [
           "issues"
         ],
-        "description": "Optional extended description in CommonMark or HTML.",
+        "description": "取得目前議題可使用優先級別(如 急 等)",
         "responses": {
           "200": {
             "description": "A JSON array of Issues Information",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/IssuesPriority"
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/IssuesPriority"
+                  }
                 }
               }
             }
@@ -819,11 +782,11 @@
     },
     "/issuses_category/{project_id}": {
       "get": {
-        "summary": "取得目前議題可使用狀態",
+        "summary": "取得目前議題可使用狀態(For 所有議題)",
         "tags": [
           "issues"
         ],
-        "description": "Optional extended description in CommonMark or HTML.",
+        "description": "取得目前議題可使用狀態 如 Feature",
         "parameters": [
           {
             "name": "project_id",
@@ -840,7 +803,10 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/IssuesCategories"
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/IssuesCategories"
+                  }
                 }
               }
             }
@@ -848,16 +814,17 @@
         }
       }
     },
-    "/issues_by_user/{user_account}": {
+    "/issues_by_user/rd/{user_id}": {
+      "description": "2_工作清單",
       "get": {
-        "summary": "取得使用者所擁有Issues的資訊",
+        "summary": "2_工作清單",
         "tags": [
           "issues"
         ],
-        "description": "Optional extended description in CommonMark or HTML.",
+        "description": "取得使用者所擁有Issues的資訊",
         "parameters": [
           {
-            "name": "user_account",
+            "name": "user_id",
             "in": "path",
             "required": true,
             "schema": {
@@ -871,7 +838,10 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Issues"
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/IssuesList"
+                  }
                 }
               }
             }
@@ -879,13 +849,13 @@
         }
       }
     },
-    "/project/{project_id}/repository": {
+    "/project/rd/{project_id}/repository": {
       "get": {
         "summary": "取得專案內Repository的list ID",
         "tags": [
-          "repository"
+          "repositories"
         ],
-        "description": "",
+        "description": "取得專案內Repository的list ID",
         "parameters": [
           {
             "name": "project_id",
@@ -908,13 +878,15 @@
             }
           }
         }
-      },
+      }
+    },
+    "/project/pm/{project_id}/repository": {
       "post": {
         "summary": "建立GitLab Project",
         "tags": [
-          "repository"
+          "repositories"
         ],
-        "description": "Optional extended description in CommonMark or HTML.",
+        "description": "建立GitLab 專案",
         "parameters": [
           {
             "name": "project_id",
@@ -947,7 +919,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Tags"
+                  "$ref": "#/components/schemas/Id"
                 }
               }
             }
@@ -955,13 +927,50 @@
         }
       }
     },
-    "/repository/{repository_id}": {
+    "/repositories/rd/{user_id}": {
+      "description": "3 程式碼清單(none)",
       "get": {
-        "summary": "取得專案內Repository的資訊",
+        "summary": "3 程式碼清單",
         "tags": [
-          "repository"
+          "repositories"
         ],
-        "description": "",
+        "description": "取得使用者目前程式碼資訊",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A JSON array of project object",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProjectList"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "deprecated": true
+      }
+    },
+    "/repositories/{repository_id}": {
+      "description": "3.2 程式碼蓋覽圖 (none)",
+      "get": {
+        "summary": "3.2 程式碼蓋覽圖 (none)",
+        "tags": [
+          "repositories"
+        ],
+        "description": "3.2 程式碼蓋覽圖 (none)",
         "parameters": [
           {
             "name": "repository_id",
@@ -986,11 +995,59 @@
         }
       }
     },
-    "/repository/{repository_id}/tags": {
+    "/repositories/rd/{repository_id}/merge_branches": {
+      "description": "3.2.8 合併分支",
+      "post": {
+        "summary": "3.2.8 合併分支",
+        "tags": [
+          "repositories"
+        ],
+        "description": "3.2.8 合併分支",
+        "parameters": [
+          {
+            "name": "repository_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "建立Tags",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "schemas": {
+                    "$ref": "#/components/schemas/MergeBranchs"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "A JSON array of issues id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Tag"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/repositories/rd/{repository_id}/tags": {
       "get": {
         "summary": "取得專案內Repository的Tags的ID",
         "tags": [
-          "repository"
+          "repositories"
         ],
         "description": "",
         "parameters": [
@@ -1017,11 +1074,11 @@
         }
       },
       "post": {
-        "summary": "建立Tag",
+        "summary": "3.2.5 新增版本號",
         "tags": [
-          "repository"
+          "repositories"
         ],
-        "description": "Optional extended description in CommonMark or HTML.",
+        "description": "3.2.5 新增版本號 建立Tag",
         "parameters": [
           {
             "name": "repository_id",
@@ -1054,7 +1111,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Tags"
+                  "$ref": "#/components/schemas/Tag"
                 }
               }
             }
@@ -1062,16 +1119,17 @@
         }
       }
     },
-    "/repository/{repository_id}/tags/{tags_id}": {
+    "/repositories/rd/{repository_id}/tags/{tag_id}": {
+      "description": "3.2.10 刪除版本  ",
       "delete": {
-        "summary": "刪除Tag",
+        "summary": "3.2.10 刪除版本",
         "tags": [
-          "repository"
+          "repositories"
         ],
-        "description": "刪除Tag",
+        "description": "3.2.10 刪除版本",
         "parameters": [
           {
-            "name": "tags_id",
+            "name": "tag_id",
             "in": "path",
             "required": true,
             "schema": {
@@ -1102,11 +1160,11 @@
         "summary": "取得Tag",
         "description": "取得Tag",
         "tags": [
-          "repository"
+          "repositories"
         ],
         "parameters": [
           {
-            "name": "tags_id",
+            "name": "tag_id",
             "in": "path",
             "required": true,
             "schema": {
@@ -1133,16 +1191,18 @@
               }
             }
           }
-        }
+        },
+        "deprecated": true
       }
     },
-    "/repository/{repository_id}/branch": {
+    "/repositories/rd/{repository_id}/branch": {
+      "description": "3.2.1 分支列表  3.2.4 新增分支",
       "get": {
-        "summary": "取得專案內Repository的branch的ID",
+        "summary": "3.2.1 分支列表",
         "tags": [
-          "repository"
+          "repositories"
         ],
-        "description": "",
+        "description": "3.2.1 分支列表 ",
         "parameters": [
           {
             "name": "repository_id",
@@ -1159,7 +1219,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/IdList"
+                  "$ref": "#/components/schemas/BranchList"
                 }
               }
             }
@@ -1167,11 +1227,21 @@
         }
       },
       "post": {
-        "summary": "建立Branch",
+        "summary": "3.2.4 新增分支",
         "tags": [
-          "repository"
+          "repositories"
         ],
-        "description": "",
+        "description": "3.2.4 新增分支",
+        "parameters": [
+          {
+            "name": "repository_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          }
+        ],
         "requestBody": {
           "description": "建立Branch",
           "required": true,
@@ -1216,11 +1286,12 @@
         }
       }
     },
-    "/repository/{repository_id}/branch/{branch_id}": {
+    "/repositories/rd/{repository_id}/branch/{branch_id}": {
+      "description": "3.2.1.1檔案清單 3.2.9 刪除分支",
       "delete": {
-        "summary": "刪除分支",
+        "summary": "3.2.9 刪除分支",
         "tags": [
-          "repository"
+          "repositories"
         ],
         "description": "刪除分支",
         "parameters": [
@@ -1253,10 +1324,10 @@
         }
       },
       "get": {
-        "summary": "取得分支",
-        "description": "取得分支",
+        "summary": "3.2.1.1檔案清單",
+        "description": "3.2.1.1檔案清單",
         "tags": [
-          "repository"
+          "repositories"
         ],
         "parameters": [
           {
@@ -1290,11 +1361,11 @@
         }
       }
     },
-    "/repository/{repository_id}/branch/{branch_id}/deleteAllBranch": {
+    "/repositories/rd/{repository_id}/branch/{branch_id}/deleteAllBranch": {
       "delete": {
         "summary": "刪除分支底下全部分支",
         "tags": [
-          "repository"
+          "repositories"
         ],
         "description": "刪除分支底下全部分支",
         "parameters": [
@@ -1327,11 +1398,12 @@
         }
       }
     },
-    "/repository/{repository_id}/branch/{branch_id}/tree": {
+    "/repositories/rd/{repository_id}/branch/{branch_id}/tree": {
+      "description": "3.2.1.1 檔案清單",
       "get": {
-        "summary": "取得專案檔案樹狀階層",
+        "summary": "3.2.1.1 檔案清單",
         "tags": [
-          "repository"
+          "repositories"
         ],
         "description": "",
         "parameters": [
@@ -1366,16 +1438,17 @@
         }
       }
     },
-    "/repository/{project_id}/files/{file_path}": {
+    "/repositories/rd/{repository_id}/files/{file_path}": {
+      "description": "3.2.1 分支編輯檔案  3.2.2.2 分支新增檔案  3.2.2 分支上傳檔案",
       "get": {
         "summary": "取得檔案內容",
         "tags": [
-          "repository"
+          "repositories"
         ],
         "description": "",
         "parameters": [
           {
-            "name": "project_id",
+            "name": "repository_id",
             "in": "path",
             "required": true,
             "schema": {
@@ -1416,14 +1489,14 @@
         }
       },
       "post": {
-        "summary": "新增檔案內容",
+        "summary": "3.2.2.2 分支新增檔案 3.2.2 分支上傳檔案",
         "tags": [
-          "repository"
+          "repositories"
         ],
         "description": "",
         "parameters": [
           {
-            "name": "project_id",
+            "name": "repository_id",
             "in": "path",
             "required": true,
             "schema": {
@@ -1482,14 +1555,14 @@
         }
       },
       "put": {
-        "summary": "新增檔案內容",
+        "summary": "3.2.1 分支編輯檔案",
         "tags": [
-          "repository"
+          "repositories"
         ],
-        "description": "",
+        "description": "3.2.1 分支編輯檔案",
         "parameters": [
           {
-            "name": "project_id",
+            "name": "repository_id",
             "in": "path",
             "required": true,
             "schema": {
@@ -1550,12 +1623,12 @@
       "delete": {
         "summary": "刪除檔案內容",
         "tags": [
-          "repository"
+          "repositories"
         ],
         "description": "",
         "parameters": [
           {
-            "name": "project_id",
+            "name": "repository_id",
             "in": "path",
             "required": true,
             "schema": {
@@ -1564,6 +1637,109 @@
           },
           {
             "name": "file_path",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/FilePath"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A JSON array of issues id",
+            "content": {
+              "text/plain": {
+                "example": "Success Delete FI"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/repositories/rd/{repository_id}/directory/{directory_path}": {
+      "post": {
+        "summary": "3.2.3 分支新增資料夾",
+        "tags": [
+          "repositories"
+        ],
+        "description": "",
+        "parameters": [
+          {
+            "name": "repository_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          },
+          {
+            "name": "directory_path",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/FilePath"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadDirectory"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "File System Tree",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "file_path": {
+                      "type": "string",
+                      "example": {
+                        "$ref": "#/components/schemas/FilePath"
+                      }
+                    },
+                    "branch": {
+                      "type": "string",
+                      "example": "master"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Non FIle",
+            "content": {
+              "text/plain": {
+                "example": "no file"
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "3.2.1 分支編輯檔案",
+        "tags": [
+          "repositories"
+        ],
+        "description": "3.2.1 分支編輯檔案",
+        "parameters": [
+          {
+            "name": "repository_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          },
+          {
+            "name": "directory_path",
             "in": "path",
             "required": true,
             "schema": {
@@ -1582,17 +1758,74 @@
         },
         "responses": {
           "200": {
+            "description": "File System Tree",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "file_path": {
+                      "type": "string",
+                      "example": {
+                        "$ref": "#/components/schemas/FilePath"
+                      }
+                    },
+                    "branch": {
+                      "type": "string",
+                      "example": "master"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Non FIle",
+            "content": {
+              "text/plain": {
+                "example": "no file"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "刪除檔案內容",
+        "tags": [
+          "repositories"
+        ],
+        "description": "",
+        "parameters": [
+          {
+            "name": "repository_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          },
+          {
+            "name": "directory_path",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/FilePath"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
             "description": "A JSON array of issues id",
             "content": {
               "text/plain": {
-                "example": "Success Delete FI"
+                "example": "Success Delete"
               }
             }
           }
         }
       }
     },
-    "/dashboard_issues_priority/{user_account}": {
+    "/dashboard_issues_priority/rd/{user_account}": {
       "get": {
         "summary": "取得使用者儀錶板資訊(工作等級)",
         "tags": [
@@ -1706,7 +1939,7 @@
       "Id": {
         "type": "integer"
       },
-      "IdList": {
+      "Ids": {
         "type": "array",
         "items": {
           "type": "integer"
@@ -1755,6 +1988,57 @@
           }
         }
       },
+      "IssuesList": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": "7224"
+          },
+          "name": {
+            "type": "string",
+            "description": "專案名稱",
+            "example": "IServCloud UI開發"
+          },
+          "issue_category": {
+            "type": "string",
+            "description": "議題類型",
+            "example": "Bug"
+          },
+          "issue_priority": {
+            "type": "string",
+            "description": "優先級別",
+            "example": "特急"
+          },
+          "issue_status": {
+            "type": "string",
+            "description": "議題狀態",
+            "example": "進行中"
+          },
+          "branch": {
+            "type": "integer",
+            "description": "分支數量"
+          },
+          "last_test_time": {
+            "type": "string",
+            "format": "date-time",
+            "description": "最近測試時間"
+          },
+          "last_test_result": {
+            "type": "object",
+            "properties": {
+              "total": {
+                "type": "integer",
+                "description": "總共測試數目"
+              },
+              "success": {
+                "type": "integer",
+                "description": "總共成功數目"
+              }
+            }
+          }
+        }
+      },
       "AddIssue": {
         "type": "object",
         "properties": {
@@ -1785,41 +2069,35 @@
         }
       },
       "IssuesPriority": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "properties": {
-            "id": {
-              "type": "integer"
-            },
-            "name": {
-              "description": "優先級別名稱",
-              "type": "string"
-            },
-            "is_closed": {
-              "description": "是否停用",
-              "type": "boolean"
-            }
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "description": "優先級別名稱",
+            "type": "string"
+          },
+          "is_closed": {
+            "description": "是否停用",
+            "type": "boolean"
           }
         }
       },
       "IssuesStatus": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "properties": {
-            "id": {
-              "type": "integer",
-              "example": 1
-            },
-            "name": {
-              "type": "string",
-              "example": "open"
-            },
-            "is_closed": {
-              "type": "boolean",
-              "example": false
-            }
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "name": {
+            "type": "string",
+            "example": "已被分配"
+          },
+          "is_closed": {
+            "type": "boolean",
+            "example": false
           }
         }
       },
@@ -1880,7 +2158,8 @@
           },
           "name": {
             "type": "string",
-            "description": "使用者姓名"
+            "description": "使用者姓名",
+            "example": null
           },
           "username": {
             "type": "string",
@@ -1893,7 +2172,13 @@
           },
           "email": {
             "type": "string",
-            "description": "使用者電子郵件信箱"
+            "description": "使用者電子郵件信箱",
+            "example": "johndoe@example.com"
+          },
+          "phone": {
+            "type": "string",
+            "description": "使用者電話",
+            "example": "0933333666"
           },
           "created_at": {
             "type": "string",
@@ -1904,6 +2189,83 @@
             "type": "string",
             "format": "date-time",
             "description": "更新時間"
+          },
+          "group": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "群組名稱"
+              }
+            }
+          },
+          "role": {
+            "type": "object",
+            "properties": {
+              "nname": {
+                "type": "string",
+                "description": "角色名稱"
+              }
+            }
+          }
+        }
+      },
+      "UpdateUser": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "使用者姓名"
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "description": "密碼"
+          },
+          "phone": {
+            "type": "string",
+            "description": "使用者電話",
+            "example": "0933333666"
+          },
+          "email": {
+            "type": "string",
+            "description": "使用者電子郵件信箱"
+          },
+          "group": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "群組名稱"
+              }
+            }
+          },
+          "role": {
+            "type": "object",
+            "properties": {
+              "nname": {
+                "type": "string",
+                "description": "角色名稱"
+              }
+            }
+          }
+        }
+      },
+      "UserInfo": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "使用者姓名"
+          },
+          "email": {
+            "type": "string",
+            "description": "使用者電子郵件信箱"
+          },
+          "phone": {
+            "type": "string",
+            "description": "使用者電話",
+            "example": "0933333666"
           },
           "group": {
             "type": "object",
@@ -1975,6 +2337,17 @@
               }
             }
           },
+          "category": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            }
+          },
           "author": {
             "type": "object",
             "properties": {
@@ -2017,6 +2390,312 @@
           }
         }
       },
+      "IssueInfo": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "project": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            }
+          },
+          "tracker": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            }
+          },
+          "status": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            }
+          },
+          "priority": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            }
+          },
+          "description": {
+            "type": "string",
+            "example": "iServCloud 修改backend scheduler, 定期去檢查FT VM 到何運算節點，並把資訊更新到 nova DB"
+          },
+          "author": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            }
+          },
+          "parent_id": {
+            "type": "integer"
+          },
+          "subject": {
+            "type": "string"
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "due_date": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "done_ratio": {
+            "type": "integer"
+          },
+          "created_date": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_date": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "custom_fields": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": "string"
+                },
+                "create_time": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          }
+        }
+      },
+      "UploadIssue": {
+        "type": "object",
+        "properties": {
+          "project": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            }
+          },
+          "tracker": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            }
+          },
+          "status": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            }
+          },
+          "priority": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            }
+          },
+          "description": {
+            "type": "string",
+            "example": "iServCloud 修改backend scheduler, 定期去檢查FT VM 到何運算節點，並把資訊更新到 nova DB"
+          },
+          "author": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            }
+          },
+          "parent_id": {
+            "type": "integer"
+          },
+          "subject": {
+            "type": "string"
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "due_date": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "done_ratio": {
+            "type": "integer"
+          },
+          "custom_fields": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": "string"
+                },
+                "create_time": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          }
+        }
+      },
+      "UpdateIssue": {
+        "type": "object",
+        "properties": {
+          "project": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            }
+          },
+          "tracker": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            }
+          },
+          "status": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            }
+          },
+          "priority": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            }
+          },
+          "description": {
+            "type": "string",
+            "example": "iServCloud 修改backend scheduler, 定期去檢查FT VM 到何運算節點，並把資訊更新到 nova DB"
+          },
+          "parent_id": {
+            "type": "integer"
+          },
+          "subject": {
+            "type": "string"
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "due_date": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "done_ratio": {
+            "type": "integer"
+          },
+          "custom_fields": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": "string"
+                },
+                "create_time": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          }
+        }
+      },
       "Function": {
         "type": "object",
         "description": "依據議題所設計的功能",
@@ -2053,6 +2732,28 @@
                 }
               }
             }
+          }
+        }
+      },
+      "FuntcionList": {
+        "type": "object",
+        "description": "議題所設計功能列表",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "URL": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "last_commit_time": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },
@@ -2739,6 +3440,80 @@
             "type": "string",
             "example": "Projcet Backend Service"
           }
+        }
+      },
+      "MergeBranchs": {
+        "type": "object",
+        "required": [
+          "source_branch",
+          "target_branch"
+        ],
+        "properties": {
+          "source_branch": {
+            "type": "string",
+            "example": "test1"
+          },
+          "target_branch": {
+            "type": "string",
+            "example": "master"
+          },
+          "merge_commit_message": {
+            "type": "string",
+            "example": "Merge to Master"
+          }
+        }
+      },
+      "UploadDirectory": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Docs"
+          },
+          "commit_message": {
+            "type": "string",
+            "example": "第一版"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "responses": {
+      "UnauthorizedError": {
+        "description": "Access token is missing or invalid"
+      },
+      "InvalidInput": {
+        "description": "Invalid input"
+      },
+      "successful": {
+        "description": "request sucessful"
+      }
+    },
+    "parameters": {
+      "user_id": {
+        "name": "user_id",
+        "in": "path",
+        "required": true,
+        "description": "User PK",
+        "schema": {
+          "$ref": "#/components/schemas/Id"
+        }
+      },
+      "issue_id": {
+        "name": "issue_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "$ref": "#/components/schemas/Id"
         }
       }
     }
