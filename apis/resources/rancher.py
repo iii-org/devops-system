@@ -1,6 +1,7 @@
+import json
+import logging
 import ssl
 
-import json
 import requests
 import websocket
 from flask_restful import abort
@@ -8,12 +9,13 @@ from flask_restful import abort
 import config
 from .util import util
 
+logger = logging.getLogger(config.get('LOGGER_NAME'))
+
 
 class Rancher(object):
     headers = {'Content-Type': 'application/json'}
 
-    def __init__(self, logger):
-        self.logger = logger
+    def __init__(self):
         self.token = 'dummy string to make API returns 401'
 
     def auth_headers(self, headers, with_token):
@@ -47,7 +49,7 @@ class Rancher(object):
             return response
 
         except Exception as e:
-            self.logger.error("callgetapi error : {0}".format(e))
+            self.logger.build_error("callgetapi error : {0}".format(e))
             return e
 
     def api_post(self, url, parameter, headers, with_token=True):

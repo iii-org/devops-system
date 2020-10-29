@@ -13,7 +13,7 @@ class Pipeline(object):
     def __init__(self, app, pjt):
         self.app = app
         self.pjt = pjt
-        self.rancher = Rancher(pjt.logger)
+        self.rancher = Rancher()
 
     def pipeline_exec_list(self, logger, app, repository_id):
         output_array = []
@@ -24,7 +24,7 @@ class Pipeline(object):
         result.close()
         logger.info("project_relationship: {0}".format(
             project_relationship['ci_project_id']))
-        rancher = Rancher(logger)
+        rancher = Rancher()
         pipeline_outputs = rancher.get_rancher_pipelineexecutions(
             project_relationship['ci_project_id'],
             project_relationship['ci_pipeline_id'])

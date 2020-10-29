@@ -75,9 +75,9 @@ logger.addHandler(handler)
 k8s = kubernetesClient.KubernetesClient()
 ut = util.util()
 redmine = redmine.Redmine(app)
-git = gitlab.GitLab(logger, app)
+git = gitlab.GitLab(app)
 au = auth.auth(logger, app, redmine, git)
-pjt = project.Project(logger, app, au, k8s)
+pjt = project.Project(app, au, k8s, redmine, git)
 iss = issue.Issue(pjt, redmine)
 pipe = pipeline.Pipeline(app, pjt)
 wk = wiki.Wiki()
@@ -141,9 +141,11 @@ class CreateProject(Resource):
             if result and (len(args["name"]) <= 30):
                 try:
                     args["identifier"] = args["name"]
-                    output = pjt.pm_create_project(logger, app, user_id, args)
+                    output = pjt.pm_create_project(user_id, args)
                     return output
                 except Exception as error:
+                    import traceback
+                    traceback.print_exc()
                     return {"message": str(error)}, 400
             else:
                 return {"message": "name error"}, 400
@@ -209,16 +211,6 @@ class GitProjects(Resource):
     @jwt_required
     def get(self):
         output = pjt.get_all_git_projects(logger, app)
-        return output.json()
-
-    @jwt_required
-    def post(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument('name', type=str)
-        parser.add_argument('visibility', type=str)
-        args = parser.parse_args()
-        logger.info("post body: {0}".format(args))
-        output = pjt.create_git_project(logger, app, args)
         return output.json()
 
 

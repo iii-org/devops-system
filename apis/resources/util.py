@@ -53,7 +53,7 @@ class util(object):
             reMessage = session.execute(commandText)
             session.close()
         except Exception as e:
-            logger.error("Call SQL Fail messages: {0}".format(e))
+            logger.build_error("Call SQL Fail messages: {0}".format(e))
 
         return reMessage
 
@@ -83,7 +83,7 @@ class util(object):
             return callapi
 
         except Exception as e:
-            logger.error("callpostapi error : {0}".format(e))
+            logger.build_error("callpostapi error : {0}".format(e))
             return e
 
     def callputapi(self, url, parameter, logger, headers):
@@ -104,7 +104,7 @@ class util(object):
             return callapi
 
         except Exception as e:
-            logger.error("callpostapi error : {0}".format(e))
+            logger.build_error("callpostapi error : {0}".format(e))
             return e
 
     def callgetapi(self, url, logger, headers):
@@ -120,7 +120,7 @@ class util(object):
             return callapi
 
         except Exception as e:
-            logger.error("callgetapi error : {0}".format(e))
+            logger.build_error("callgetapi error : {0}".format(e))
             return e
 
     def calldeleteapi(self, url, logger, headers):
@@ -136,7 +136,7 @@ class util(object):
             return callapi
 
         except Exception as e:
-            logger.error("calldeleteapi error : {0}".format(e))
+            logger.build_error("calldeleteapi error : {0}".format(e))
             return e
 
     def jsonToStr(self,data):
@@ -163,7 +163,7 @@ class util(object):
             return {'message': 'success', 'data': data}, 200
 
     @staticmethod
-    def respond(status_code, message, data=None):
+    def respond(status_code, message, data=None, error=None):
         message_obj = {'message': message}
         if data is not None:
             if type(data) is dict:
@@ -173,7 +173,16 @@ class util(object):
                     message_obj['data'] = json.loads(data)
                 except ValueError or TypeError:
                     message_obj['data'] = data
+        if error is not None:
+            message_obj['error'] = error
         return message_obj, status_code
+
+    @staticmethod
+    def build_error(error_code, error_message):
+        return {
+            'code': error_code,
+            'message': error_message
+        }
 
     @staticmethod
     def tick(last_time):
