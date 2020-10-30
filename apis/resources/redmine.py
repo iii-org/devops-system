@@ -32,6 +32,7 @@ class Redmine:
         url = "http://{0}{1}.json?key={2}".format(
             config.get('REDMINE_IP_PORT'), path, self.redmine_key)
         output = requests.get(url, headers=self.headers, verify=False)
+        logger.debug('GET to redmine {0}, output={1}', url, str(output))
         return output
 
     def api_post(self, path, headers=None, data=None, params=None):
@@ -54,7 +55,7 @@ class Redmine:
                 headers['Content-Type'] = 'application/octet-stream'
             output = requests.post(url, data=data, params=params,
                                    headers=headers, verify=False)
-        logger.info('POST to redmine {0}, output={1}', url, output)
+        logger.debug('POST to redmine {0}, output={1}', url, str(output))
         return output
 
     def api_delete(self, path):
@@ -62,6 +63,7 @@ class Redmine:
         url = "http://{0}{1}.json?key={2}".format(
             config.get('REDMINE_IP_PORT'), path, self.redmine_key)
         output = requests.delete(url, headers=self.headers, verify=False)
+        logger.debug('DELETE to redmine {0}, output={1}', url, str(output))
         return output
 
     def key_check(self):
@@ -460,11 +462,11 @@ class Redmine:
                                        data=xml_body.encode('utf-8'))
         logger.info("create redmine project output: {0} / {1}".format(
             redmine_output, redmine_output.json()))
+
         return redmine_output
 
-    @staticmethod
-    def redmine_delete_project():
-        pass
+    def project(self, plan_project_id):
+        return RedmineProject(self, plan_project_id)
 
 
 class RedmineProject:

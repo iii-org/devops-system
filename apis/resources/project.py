@@ -25,6 +25,7 @@ class Project(object):
         self.rancher = Rancher()
         self.redmine = redmine
         self.gitlab = gitlab
+        self.private_token = gitlab.private_token
 
     def verify_project_user(self, logger, project_id, user_id):
         if util.is_dummy_project(project_id):
@@ -882,6 +883,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
 
         # 建立redmine project
         redmine_output = self.redmine.redmine_create_project(args)
+        redmine_pj_id = redmine_output.json()["project"]["id"]
 
         if redmine_output.status_code != 201:
             status_code = redmine_output.status_code
@@ -897,6 +899,9 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         gitlab_output = self.gitlab.create_project(args)
 
         if gitlab_output.status_code != 201:
+            # Rollback
+            self.redmine.project(redmine_pj_id).delete()
+
             status_code = gitlab_output.status_code
             return {
                        "message": {
@@ -907,7 +912,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                    }, status_code
 
         # 寫入db
-        redmine_pj_id = redmine_output.json()["project"]["id"]
+
         gitlab_pj_id = gitlab_output.json()["id"]
         gitlab_pj_name = gitlab_output.json()["name"]
         gitlab_pj_ssh_url = gitlab_output.json()["ssh_url_to_repo"]
@@ -1141,8 +1146,11 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                                                      rancher_token)
 
             # 刪除gitlab project
-            gitlab_url = "http://{0}/api/{1}/projects/{2}?private_token={3}".format( \
-                config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), gitlab_project_id, self.private_token)
+            gitlab_url = "http://{0}/api/{1}/projects/{2}?private_token={3}".format(
+                config.get("GITLAB_IP_PORT"),
+                config.get("GITLAB_API_VERSION"),
+                gitlab_project_id,
+                self.private_token)
             logger.info("delete gitlab project url: {0}".format(gitlab_url))
             gitlab_output = requests.delete(gitlab_url,
                                             headers=self.headers,
