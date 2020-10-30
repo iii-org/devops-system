@@ -37,17 +37,18 @@ class Redmine:
             headers = {}
         if params is None:
             params = {}
+        if 'Content-Type' not in headers:
+            if data is not None and type(data) != dict:
+                headers['Content-Type'] = 'application/octet-stream'
+            else:
+                headers['Content-Type'] = 'application/json'
 
         url = "http://{0}{1}.json".format(config.get('REDMINE_IP_PORT'), path)
         params['key'] = self.redmine_key
 
         if method.upper() == 'GET':
-            if 'Content-Type' not in headers:
-                headers['Content-Type'] = 'application/json'
             output = requests.get(url, headers=headers, params=params, verify=False)
         elif method.upper() == 'POST':
-            if data is None:
-                data = {}
             params['key'] = self.redmine_key
             if type(data) is dict:
                 if 'Content-Type' not in headers:
@@ -55,20 +56,21 @@ class Redmine:
                 output = requests.post(url, data=json.dumps(data), params=params,
                                        headers=headers, verify=False)
             else:
-                if 'Content-Type' not in headers:
-                    headers['Content-Type'] = 'application/octet-stream'
                 output = requests.post(url, data=data, params=params,
                                        headers=headers, verify=False)
+        elif method.upper() == 'PUT':
+            output = requests.put(url, data=json.dumps(data), params=params,
+                                  headers=headers, verify=False)
         elif method.upper() == 'DELETE':
-            if 'Content-Type' not in headers:
-                headers['Content-Type'] = 'application/json'
             output = requests.delete(url, headers=headers, verify=False)
         else:
             return util.respond(
                 500, 'Error while request {0} {1}'.format(method, url),
                 error=Error.attach_details(Error.UNKNOWN_METHOD, {'method': method}))
-        logger.info('redmine api {0} {1}, params={2}, output={3}'.format(
-            method, url, params.__str__(), output.text))
+
+        logger.info('redmine api {0} {1}, params={2}, response={3} {4}'.format(
+            method, url, params.__str__(), output.status_code, output.text))
+
         return output
 
     def api_get(self, path, params=None, headers=None):
@@ -76,6 +78,9 @@ class Redmine:
 
     def api_post(self, path, params=None, headers=None, data=None):
         return self.api_request('POST', path, headers=headers, data=data, params=params)
+
+    def api_put(self, path, params=None, headers=None, data=None):
+        return self.api_request('PUT', path, headers=headers, data=data, params=params)
 
     def api_delete(self, path, params=None, headers=None):
         return self.api_request('DELETE', path, params=params, headers=headers)
@@ -131,17 +136,8 @@ class Redmine:
         output = self.api_post('/issues', data=data)
         return output, output.status_code
 
-    def redmine_update_issue(self, logger, app, issue_id, args):
-        url = "http://{0}/issues/{1}.json?key={2}".format(
-            config.get('REDMINE_IP_PORT'), issue_id, self.redmine_key)
-        param = {"issue": args}
-        logger.info("update issues param: {0}".format(param))
-        output = requests.put(url,
-                              data=json.dumps(param),
-                              headers=self.headers,
-                              verify=False)
-        logger.info("update issues output: {0}, status_code: {1}".format(
-            output.text, output.status_code))
+    def redmine_update_issue(self, issue_id, args):
+        output = self.api_put('/issues/{0}'.format(issue_id), data={"issue": args})
         return output, output.status_code
 
     def redmine_delete_issue(self, issue_id):

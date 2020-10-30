@@ -5,6 +5,7 @@ from datetime import datetime, date, timedelta
 
 from model import db, ProjectPluginRelation, ProjectUserRole
 from .auth import auth
+from .error import Error
 from .redmine import Redmine
 from .util import util
 
@@ -445,18 +446,19 @@ class Issue(object):
                 logger, user_id=args['assigned_to_id'])
             args['assigned_to_id'] = user_plugin_relation['plan_user_id']
         logger.info("update_issue_rd args: {0}".format(args))
-        Redmine.get_redmine_key(self)
 
         attachment = self.redmine.redmine_upload(args)
         if attachment is not None:
             args['uploads'] = [attachment]
 
-        output, status_code = Redmine.redmine_update_issue(
-            self, logger, app, issue_id, args)
+        output, status_code = self.redmine.redmine_update_issue(issue_id, args)
         if status_code == 204:
             return {"message": "success"}, 200
         else:
-            return {"message": "update issue failed, {0}".format(output.text)}, 400
+            return util.respond(
+                400, "update issue failed",
+                error=Error.attach_details(Error.REDMINE_RESPONSE_ERROR, output.json())
+            )
 
     def delete_issue(self, issue_id):
         try:
