@@ -878,8 +878,10 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         if args['display'] is None:
             args['display'] = args['name']
 
+        # 建立順序為 redmine, gitlab, rancher, api server，有失敗時 rollback 依此次序處理
+
         # 建立redmine project
-        redmine_output = Redmine.redmine_create_project(args)
+        redmine_output = self.redmine.redmine_create_project(args)
 
         if redmine_output.status_code != 201:
             status_code = redmine_output.status_code

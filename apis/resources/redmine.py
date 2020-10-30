@@ -11,7 +11,7 @@ from flask_restful import reqparse
 logger = logging.getLogger(config.get('LOGGER_NAME'))
 
 
-class Redmine(object):
+class Redmine:
 
     redmine_key = None
     headers = {'Content-Type': 'application/json'}
@@ -27,7 +27,14 @@ class Redmine(object):
         self.redmine_key = output.json()['user']['api_key']
         logger.info("redmine_key: {0}".format(self.redmine_key))
 
-    def api_post(self, path, data=None, params=None):
+    def api_get(self, path):
+        self.key_check()
+        url = "http://{0}{1}.json?key={2}".format(
+            config.get('REDMINE_IP_PORT'), path, self.redmine_key)
+        output = requests.get(url, headers=self.headers, verify=False)
+        return output
+
+    def api_post(self, path, headers=None, data=None, params=None):
         self.key_check()
         if data is None:
             data = {}
@@ -35,21 +42,26 @@ class Redmine(object):
             params = {}
         params['key'] = self.redmine_key
         url = "http://{0}{1}.json".format(config.get('REDMINE_IP_PORT'), path)
-        headers = self.headers.copy()
+        if headers is None:
+            headers = {}
         if type(data) is dict:
+            if 'Content-Type' not in headers:
+                headers['Content-Type'] = 'application/json'
             output = requests.post(url, data=json.dumps(data), params=params,
                                    headers=headers, verify=False)
         else:
-            headers['Content-Type'] = 'application/octet-stream'
+            if 'Content-Type' not in headers:
+                headers['Content-Type'] = 'application/octet-stream'
             output = requests.post(url, data=data, params=params,
                                    headers=headers, verify=False)
+        logger.info('POST to redmine {0}, output={1}', url, output)
         return output
 
-    def api_get(self, path):
+    def api_delete(self, path):
         self.key_check()
         url = "http://{0}{1}.json?key={2}".format(
             config.get('REDMINE_IP_PORT'), path, self.redmine_key)
-        output = requests.get(url, headers=self.headers, verify=False)
+        output = requests.delete(url, headers=self.headers, verify=False)
         return output
 
     def key_check(self):
@@ -360,7 +372,7 @@ class Redmine(object):
                 return None
         else:
             return None
-        res = self.api_post('/uploads', file)
+        res = self.api_post('/uploads', data=file)
         if res.status_code != 201:
             return util.respond(res.status_code, "Error while uploading to redmine", res.text)
         token = res.json().get('upload').get('token')
@@ -387,7 +399,7 @@ class Redmine(object):
         file = f_args['file']
         if file is None:
             return util.respond(400, 'No file is sent.')
-        res = self.api_post('/uploads', file)
+        res = self.api_post('/uploads', data=file)
         if res.status_code != 201:
             return util.respond(res.status_code, "Error while uploading to redmine", res.text)
         token = res.json().get('upload').get('token')
@@ -403,7 +415,7 @@ class Redmine(object):
         if args['version_id'] is not None:
             params['version_id'] = args['version_id']
         data = {'file': params}
-        res = self.api_post('/projects/%d/files' % plan_project_id, data)
+        res = self.api_post('/projects/%d/files' % plan_project_id, data=data)
         if res.status_code == 204:
             return None, 201
         else:
@@ -431,11 +443,7 @@ class Redmine(object):
         except Exception as e:
             return {"message": "error", "data": e.__str__()}, 400
 
-    @staticmethod
-    def redmine_create_project(args):
-        redmine_url = "http://{0}/projects.json?key={1}".format(
-            config.get("REDMINE_IP_PORT"), config.get("REDMINE_API_KEY"))
-        logger.info("create redmine project url: {0}".format(redmine_url))
+    def redmine_create_project(self, args):
         xml_body = """<?xml version="1.0" encoding="UTF-8"?>
                     <project>
                     <name>{0}</name>
@@ -447,10 +455,25 @@ class Redmine(object):
             args["description"])
         logger.info("create redmine project body: {0}".format(xml_body))
         headers = {'Content-Type': 'application/xml'}
-        redmine_output = requests.post(redmine_url,
+        redmine_output = self.api_post('/projects',
                                        headers=headers,
-                                       data=xml_body.encode('utf-8'),
-                                       verify=False)
+                                       data=xml_body.encode('utf-8'))
         logger.info("create redmine project output: {0} / {1}".format(
             redmine_output, redmine_output.json()))
+        return redmine_output
+
+    @staticmethod
+    def redmine_delete_project():
+        pass
+
+
+class RedmineProject:
+    def __init__(self, redmine, plan_project_id):
+        self.redmine = redmine
+        self.id = plan_project_id
+
+    def delete(self):
+        logger.info("delete redmine project plan_id: {0}".format(self.id))
+        redmine_output = self.redmine.api_delete('/projects/{0}'.format(self.id))
+        logger.info("delete redmine project output: {0}".format(redmine_output))
         return redmine_output
