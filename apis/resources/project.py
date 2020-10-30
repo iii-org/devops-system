@@ -890,6 +890,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                     <name>{0}</name>
                     <identifier>{1}</identifier>
                     <description>{2}</description>
+                    <is_public>false</is_public>
                     </project>""".format(
             display,
             args["identifier"],
