@@ -194,10 +194,8 @@ class Project(object):
                     output_dict['last_test_result'] = {}
 
                     # get issue total cont
-                    total_issue = Redmine.redmine_get_issues_by_project_and_user(self, logger, app, \
-                                                                                 plan_user_id,
-                                                                                 project['plan_project_id'],
-                                                                                 redmine_key)
+                    total_issue = self.redmine.get_issues_by_project_and_user(
+                        plan_user_id, project['plan_project_id'])
                     logger.info("issue total count by user: {0}".format(
                         total_issue['total_count']))
                     output_dict['issues'] = total_issue['total_count']

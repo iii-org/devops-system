@@ -1108,14 +1108,14 @@ class IssueCreate(Resource):
         parser.add_argument('upload_description', type=str)
 
         args = parser.parse_args()
-        output = iss.create_issue(logger, app, args)
+        output = iss.create_issue(args)
         return output
 
 
 class Issue(Resource):
     @jwt_required
     def get(self, issue_id):
-        output = iss.get_issue_rd(logger, app, issue_id)
+        output = iss.get_issue_rd(issue_id)
         return output
 
     @jwt_required
@@ -1182,7 +1182,7 @@ class IssueRDbyUser(Resource):
     def get(self, user_id):
         if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity(
         )['role_id'] in (3, 5):
-            output = iss.get_issue_by_user(logger, app, user_id)
+            output = iss.get_issue_by_user(user_id)
             return output
         else:
             return {'message': 'Access token is missing or invalid'}, 401
@@ -1196,17 +1196,14 @@ class IssueStatistics(Resource):
         parser.add_argument('to_time', type=str)
         parser.add_argument('status_id', type=int)
         args = parser.parse_args()
-        output = iss.get_issue_statistics(logger, app, args,
-                                          get_jwt_identity()['user_id'])
+        output = iss.get_issue_statistics(args, get_jwt_identity()['user_id'])
         return output
 
 
 class OpenIssueStatistics(Resource):
     @jwt_required
     def get(self):
-        output = iss.get_open_issue_statistics(
-            logger, app,
-            get_jwt_identity()['user_id'])
+        output = iss.get_open_issue_statistics(get_jwt_identity()['user_id'])
         return output
 
 
@@ -1233,7 +1230,7 @@ class DashboardIssuePriority(Resource):
     def get(self, user_id):
         if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity(
         )['role_id'] in (3, 5):
-            return iss.count_priority_number_by_issues(logger, app, user_id)
+            return iss.count_priority_number_by_issues(user_id)
         else:
             return {'message': 'Access token is missing or invalid'}, 401
 
@@ -2120,4 +2117,4 @@ api.add_resource(SystemGitCommitID, '/system_git_commit_id')
 if __name__ == "__main__":
     db.init_app(app)
     jsonwebtoken.init_app(app)
-    app.run(host='0.0.0.0', port=10009, debug=False)
+    app.run(host='0.0.0.0', port=10009, debug=(config.get('DEBUG') is True))

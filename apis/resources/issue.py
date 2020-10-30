@@ -1,10 +1,14 @@
-from model import db, ProjectPluginRelation, ProjectUserRole
-from .util import util
-from .redmine import Redmine
-from .auth import auth
-
-from datetime import datetime, date, timedelta
 import calendar
+import config
+import logging
+from datetime import datetime, date, timedelta
+
+from model import db, ProjectPluginRelation, ProjectUserRole
+from .auth import auth
+from .redmine import Redmine
+from .util import util
+
+logger = logging.getLogger(config.get('LOGGER_NAME'))
 
 
 class Issue(object):
@@ -113,7 +117,7 @@ class Issue(object):
 
     def verify_issue_user(self, logger, app, issue_id, user_id):
         # base on issus get project
-        issue_info, status_code = Issue.get_issue_rd(self, logger, app, issue_id)
+        issue_info, status_code = Issue.get_issue_rd(self, issue_id)
         logger.debug("issue_id: {0}, issue_info: {1}".format(issue_id, issue_info))
         project_id = issue_info['data']['project']['id']
         logger.info("issue_info: {0}".format(issue_info))
@@ -132,16 +136,13 @@ class Issue(object):
         else:
             return False
 
-    def get_issue_rd(self, logger, app, issue_id):
-        Redmine.get_redmine_key(self)
-        logger.info("self.redmine_key: {0}".format(self.redmine_key))
-        redmine_output_issue = Redmine.redmine_get_issue(
-            self, logger, app, issue_id)
+    def get_issue_rd(self, issue_id):
+        redmine_output_issue = self.redmine.get_issue(issue_id)
         if redmine_output_issue.status_code == 200:
             output = self.__dealwith_issue_redmine_output(
                 logger,
                 redmine_output_issue.json()['issue'])
-            return {"messsage": "success", "data": output}, 200
+            return {"message": "success", "data": output}, 200
         else:
             return {"message": "could not get this redmine issue."}, 400
 
@@ -155,10 +156,9 @@ class Issue(object):
         project_dict = reMessage.fetchone()
         logger.debug("project_list: {0}".format(project_dict))
         if project_dict is not None:
-            redmine_key = Redmine.get_redmine_key(self)
             output_array = []
-            redmine_output_issue_array = self.redmine.redmine_get_issues_by_project(
-                project_dict['plan_project_id'], args)
+            redmine_output_issue_array = self.redmine.get_issues_by_project(
+                project_dict['plan_project_id'])
 
             for redmine_issue in redmine_output_issue_array['issues']:
                 output_dict = self.__dealwith_issue_by_user_redmine_output(
@@ -387,15 +387,12 @@ class Issue(object):
         else:
             return {"message": "could not get issue list"}, 400
 
-    def get_issue_by_user(self, logger, app, user_id):
+    def get_issue_by_user(self, user_id):
         user_to_plan, plan_to_user = self.__get_dict_userid(logger)
-        Redmine.get_redmine_key(self)
-        logger.info("self.redmine_key: {0}".format(self.redmine_key))
         output_array = []
         if str(user_id) not in user_to_plan:
             return util.respond(400, 'Cannot find user in redmine')
-        redmine_output_issue_array = Redmine.redmine_get_issues_by_user(
-            self, logger, app, user_to_plan[str(user_id)])
+        redmine_output_issue_array = self.redmine.get_issues_by_user(user_to_plan[str(user_id)])
         for redmine_issue in redmine_output_issue_array['issues']:
             output_dict = self.__dealwith_issue_by_user_redmine_output(
                 logger, redmine_issue)
@@ -406,7 +403,7 @@ class Issue(object):
             output_array.append(output_dict)
         return {'message': 'success', 'data': output_array}, 200
 
-    def create_issue(self, logger, app, args):
+    def create_issue(self, args):
         args = {k: v for k, v in args.items() if v is not None}
         if 'parent_id' in args:
             args['parent_issue_id'] = args['parent_id']
@@ -425,7 +422,7 @@ class Issue(object):
             args['uploads'] = [attachment]
 
         try:
-            output, status_code = self.redmine.redmine_create_issue(args)
+            output, status_code = self.redmine.create_issue(args)
             if status_code == 201:
                 return {
                            "message": "success",
@@ -510,8 +507,7 @@ class Issue(object):
         except Exception as error:
             return str(error), 400
 
-    def get_issue_statistics(self, logger, app, args, user_id):
-        Redmine.get_redmine_key(self)
+    def get_issue_statistics(self, args, user_id):
         if args["to_time"] is not None:
             args["due_date"] = "><{0}|{1}".format(args["from_time"],
                                                   args["to_time"])
@@ -522,8 +518,7 @@ class Issue(object):
         if user_plugin_relation is not None:
             args["assigned_to_id"] = user_plugin_relation['plan_user_id']
         try:
-            redmine_output, status_code = Redmine.redmine_get_statistics(
-                self, logger, app, args)
+            redmine_output, status_code = self.redmine.get_statistics(args)
             return {
                        "message": "success",
                        "data": {
@@ -533,20 +528,19 @@ class Issue(object):
         except Exception as error:
             return {"message": str(error)}, 400
 
-    def get_open_issue_statistics(self, logger, app, user_id):
+    def get_open_issue_statistics(self, user_id):
         args = {}
         args['limit'] = 100
         user_plugin_relation = auth.get_user_plugin_relation(logger,
                                                              user_id=user_id)
         if user_plugin_relation is not None:
             args["assigned_to_id"] = user_plugin_relation['plan_user_id']
-        Redmine.get_redmine_key(self)
-        total_issue_output, status_code = Redmine.redmine_get_statistics(self, logger, app, args)
+        total_issue_output, status_code = self.redmine.get_statistics(args)
         if status_code != 200:
             return {"message": "could not get redmine total issue"}, 400
         logger.debug("user_id {0} total issue number: {1}".format(user_id, total_issue_output["total_count"]))
         args['status_id'] = 'closed'
-        closed_issue_output, closed_status_code = Redmine.redmine_get_statistics(self, logger, app, args)
+        closed_issue_output, closed_status_code = self.redmine.get_statistics(args)
         if closed_status_code != 200:
             return {"message": "could not get redmine closed issue"}, 400
         logger.debug("user_id {0} closed issue number: {1}".format(user_id, closed_issue_output["total_count"]))
@@ -578,8 +572,7 @@ class Issue(object):
 
         try:
             args['status_id'] = '*'
-            redmine_output, status_code = self.redmine.redmine_get_statistics(
-                logger, app, args)
+            redmine_output, status_code = self.redmine.get_statistics(args)
             if status_code != 200:
                 return {
                            'message': 'error when retrieving data from redmine',
@@ -588,8 +581,7 @@ class Issue(object):
             total = redmine_output["total_count"]
 
             args['status_id'] = 'closed'
-            redmine_output_6, status_code = self.redmine.redmine_get_statistics(
-                logger, app, args)
+            redmine_output_6, status_code = self.redmine.get_statistics(args)
             if status_code != 200:
                 return {
                            'message': 'error when retrieving data from redmine',
@@ -606,10 +598,10 @@ class Issue(object):
         except Exception as error:
             return {"message": str(error)}, 400
 
-    def count_priority_number_by_issues(self, logger, app, user_id):
+    def count_priority_number_by_issues(self, user_id):
         try:
             priority_count = {}
-            data, status_code = self.get_issue_by_user(logger, app, user_id)
+            data, status_code = self.get_issue_by_user(user_id)
             if status_code / 100 != 2:
                 return util.respond(status_code, 'Error while getting issues by user', data)
             issues = data['data']
@@ -631,7 +623,7 @@ class Issue(object):
     def count_project_number_by_issues(self, logger, app, user_id):
         try:
             project_count = {}
-            data, status_code = self.get_issue_by_user(logger, app, user_id)
+            data, status_code = self.get_issue_by_user(user_id)
             if status_code / 100 != 2:
                 return util.respond(status_code, 'Error while getting issues by user', data)
             issues = data['data']
@@ -652,7 +644,7 @@ class Issue(object):
     def count_type_number_by_issues(self, logger, app, user_id):
         try:
             tracker_count = {}
-            data, status_code = self.get_issue_by_user(logger, app, user_id)
+            data, status_code = self.get_issue_by_user(user_id)
             if status_code / 100 != 2:
                 return util.respond(status_code, 'Error while getting issues by user', data)
             issues = data['data']
