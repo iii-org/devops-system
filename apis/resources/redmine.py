@@ -67,7 +67,8 @@ class Redmine:
             return util.respond(
                 500, 'Error while request {0} {1}'.format(method, url),
                 error=Error.attach_details(Error.UNKNOWN_METHOD, {'method': method}))
-        logger.info('redmine api {0} {1}, output={2}'.format(method, url, output.text))
+        logger.info('redmine api {0} {1}, params={2}, output={3}'.format(
+            method, url, params.__str__(), output.text))
         return output
 
     def api_get(self, path, params=None, headers=None):

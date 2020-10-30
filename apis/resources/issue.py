@@ -389,7 +389,6 @@ class Issue(object):
 
     def get_issue_by_user(self, user_id):
         user_to_plan, plan_to_user = self.__get_dict_userid(logger)
-        logger.info("self.redmine_key: {0}".format(self.redmine_key))
         output_array = []
         if str(user_id) not in user_to_plan:
             return util.respond(400, 'Cannot find user in redmine')
@@ -599,7 +598,7 @@ class Issue(object):
         except Exception as error:
             return {"message": str(error)}, 400
 
-    def count_priority_number_by_issues(self, logger, app, user_id):
+    def count_priority_number_by_issues(self, user_id):
         try:
             priority_count = {}
             data, status_code = self.get_issue_by_user(user_id)
