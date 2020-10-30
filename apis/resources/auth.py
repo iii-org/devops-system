@@ -84,7 +84,10 @@ class auth(object):
         for row in result:
             if row['login'] == args["username"] and row[
                     'password'] == h.hexdigest():
-                expires = datetime.timedelta(days=1)
+                if args["username"] == "admin":
+                    expires = datetime.timedelta(days=36500)
+                else:
+                    expires = datetime.timedelta(days=1)
                 access_token = create_access_token(
                     identity=auth.jwt_response_data(row),
                     expires_delta=expires)
