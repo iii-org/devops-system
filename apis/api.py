@@ -428,7 +428,9 @@ class ProjectUserList(Resource):
 class ProjectAddMember(Resource):
     @jwt_required
     def post(self, project_id):
-        if get_jwt_identity()["role_id"] in (3, 5):
+        status = pjt.verify_project_user(logger, project_id,
+                                         get_jwt_identity()['user_id'])
+        if (get_jwt_identity()["role_id"] == 5) or (get_jwt_identity()["role_id"] == 3 and status):
             parser = reqparse.RequestParser()
             parser.add_argument('user_id', type=int, required=True)
             args = parser.parse_args()
