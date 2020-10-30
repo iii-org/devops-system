@@ -68,7 +68,7 @@ class Redmine:
     def api_get(self, path):
         return self.api_request('GET', path)
 
-    def api_post(self, path, headers=None, data=None, params=None):
+    def api_post(self, path, params=None, headers=None, data=None):
         return self.api_request('POST', path, headers=headers, data=data, params=params)
 
     def api_delete(self, path):
