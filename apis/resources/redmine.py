@@ -38,10 +38,7 @@ class Redmine:
         if params is None:
             params = {}
         if 'Content-Type' not in headers:
-            if data is not None and type(data) != dict:
-                headers['Content-Type'] = 'application/octet-stream'
-            else:
-                headers['Content-Type'] = 'application/json'
+            headers['Content-Type'] = 'application/json'
 
         url = "http://{0}{1}.json".format(config.get('REDMINE_IP_PORT'), path)
         params['key'] = self.redmine_key
@@ -62,14 +59,14 @@ class Redmine:
             output = requests.put(url, data=json.dumps(data), params=params,
                                   headers=headers, verify=False)
         elif method.upper() == 'DELETE':
-            output = requests.delete(url, headers=headers, verify=False)
+            output = requests.delete(url, headers=headers, params=params, verify=False)
         else:
             return util.respond(
                 500, 'Error while request {0} {1}'.format(method, url),
-                error=Error.attach_details(Error.UNKNOWN_METHOD, {'method': method}))
+                error=Error.detail(Error.UNKNOWN_METHOD, {'method': method}))
 
-        logger.info('redmine api {0} {1}, params={2}, response={3} {4}'.format(
-            method, url, params.__str__(), output.status_code, output.text))
+        logger.info('redmine api {0} {1}, params={2}, body={5}, response={3} {4}'.format(
+            method, url, params.__str__(), output.status_code, output.text, data))
 
         return output
 
@@ -136,42 +133,26 @@ class Redmine:
         output = self.api_post('/issues', data=data)
         return output, output.status_code
 
-    def redmine_update_issue(self, issue_id, args):
+    def update_issue(self, issue_id, args):
         output = self.api_put('/issues/{0}'.format(issue_id), data={"issue": args})
         return output, output.status_code
 
-    def redmine_delete_issue(self, issue_id):
-        url = "http://{0}/issues/{1}.json?key={2}&include=journals".format(
-            config.get('REDMINE_IP_PORT'), issue_id, self.redmine_key)
-        output = requests.delete(url, headers=self.headers, verify=False)
-        logger.info("redmine delete user output: {0}".format(output))
-        return output
+    def delete_issue(self, issue_id):
+        params = {'include': 'journals,attachment'}
+        output = self.api_delete('/issues/{0}'.format(issue_id), params=params)
+        return output, output.status_code
 
-    def redmine_get_issue_status(self, logger, app):
-        url="http://{0}/issue_statuses.json?key={1}".format(\
-            config.get('REDMINE_IP_PORT'), self.redmine_key,)
-        output = requests.get(url, headers=self.headers, verify=False)
-        logger.info("get issues stauts list output: {0}".format(output.json()))
-        return output.json()
+    def get_issue_status(self):
+        return self.api_get('/issue_statuses').json()
 
-    def redmine_get_priority(self, logger, app):
-        url="http://{0}/enumerations/issue_priorities.json?key={1}".format(\
-            config.get('REDMINE_IP_PORT'), self.redmine_key)
-        output = requests.get(url, headers=self.headers, verify=False)
-        logger.info("get issues stauts list output: {0}".format(output.json()))
-        return output.json()
+    def get_priority(self):
+        return self.api_get('/enumerations/issue_priorities').json()
 
-    def redmine_get_trackers(self, logger, app):
-        url="http://{0}/trackers.json?key={1}".format(\
-            config.get('REDMINE_IP_PORT'), self.redmine_key)
-        output = requests.get(url, headers=self.headers, verify=False)
-        logger.info("get issues stauts list output: {0}".format(output.json()))
-        return output.json()
+    def get_trackers(self):
+        return self.api_get('/trackers').json()
 
-    def redmine_post_user(self, logger, app, args, user_source_password):
-        url = "http://{0}/users.json?key={1}".format(
-            config.get('REDMINE_IP_PORT'), self.redmine_key)
-        param = {
+    def create_user(self, args, user_source_password):
+        params = {
             "user": {
                 "login": args["login"],
                 "firstname": '#',
@@ -180,24 +161,12 @@ class Redmine:
                 "password": user_source_password
             }
         }
-        logger.info("post user param: {0}".format(param))
-        output = requests.post(url,
-                               data=json.dumps(param),
-                               headers=self.headers,
-                               verify=False)
-        logger.info(
-            "redmine create user api output: status_code: {0}, message: {1}".
-            format(output.status_code, output.json()))
+        output = self.api_post('/users', data=params)
         return output
 
-    def redmine_update_password(self, plan_user_id, new_pwd):
-        url = "http://{0}/users/{1}.json?key={2}".format(
-            config.get('REDMINE_IP_PORT'), plan_user_id, self.redmine_key)
+    def update_password(self, plan_user_id, new_pwd):
         param = {"user": {"password": new_pwd}}
-        output = requests.put(url,
-                              data=json.dumps(param),
-                              headers=self.headers,
-                              verify=False)
+        output = self.api_put('/users/{0}'.format(plan_user_id), data=param)
         if output.status_code == 204:
             return None
         else:
@@ -360,7 +329,8 @@ class Redmine:
                 return None
         else:
             return None
-        res = self.api_post('/uploads', data=file)
+        headers = {'Content-Type': 'application/octet-stream'}
+        res = self.api_post('/uploads', data=file, headers=headers)
         if res.status_code != 201:
             return util.respond(res.status_code, "Error while uploading to redmine", res.text)
         token = res.json().get('upload').get('token')
@@ -387,7 +357,8 @@ class Redmine:
         file = f_args['file']
         if file is None:
             return util.respond(400, 'No file is sent.')
-        res = self.api_post('/uploads', data=file)
+        headers = {'Content-Type': 'application/octet-stream'}
+        res = self.api_post('/uploads', data=file, headers=headers)
         if res.status_code != 201:
             return util.respond(res.status_code, "Error while uploading to redmine", res.text)
         token = res.json().get('upload').get('token')

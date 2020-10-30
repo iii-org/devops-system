@@ -76,7 +76,7 @@ k8s = kubernetesClient.KubernetesClient()
 ut = util.util()
 redmine = redmine.Redmine(app)
 git = gitlab.GitLab(app)
-au = auth.auth(logger, app, redmine, git)
+au = auth.auth(app, redmine, git)
 pjt = project.Project(app, au, k8s, redmine, git)
 iss = issue.Issue(pjt, redmine)
 pipe = pipeline.Pipeline(app, pjt)
@@ -338,7 +338,7 @@ class UserInfo(Resource):
             parser.add_argument('status', type=str)
             args = parser.parse_args()
             try:
-                output = au.update_user_info(logger, user_id, args)
+                output = au.update_user_info(user_id, args)
                 return output
             except Exception as error:
                 return jsonify({"message": str(error)}), 400
@@ -1159,21 +1159,21 @@ class Issue(Resource):
 class IssueStatus(Resource):
     @jwt_required
     def get(self):
-        output = iss.get_issue_status(logger, app)
+        output = iss.get_issue_status()
         return jsonify({'message': 'success', 'data': output})
 
 
 class IssuePrioriry(Resource):
     @jwt_required
     def get(self):
-        output = iss.get_issue_priority(logger, app)
+        output = iss.get_issue_priority()
         return jsonify({'message': 'success', 'data': output})
 
 
 class IssueTracker(Resource):
     @jwt_required
     def get(self):
-        output = iss.get_issue_trackers(logger, app)
+        output = iss.get_issue_trackers()
         return jsonify({'message': 'success', 'data': output})
 
 

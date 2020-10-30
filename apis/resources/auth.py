@@ -4,6 +4,7 @@ import json
 import logging, config
 from Cryptodome.Hash import SHA256
 
+from .error import Error
 from .util import util
 from .gitlab import GitLab
 from .project import Project
@@ -12,7 +13,7 @@ from model import db, User, UserPluginRelation, ProjectUserRole, TableProjects, 
 # from jsonwebtoken import jsonwebtoken
 from flask_jwt_extended import (create_access_token, JWTManager,
                                 get_jwt_claims)
-logger = logging.getLogger('devops.api')
+logger = logging.getLogger(config.get('LOGGER_NAME'))
 
 jwt = JWTManager()
 
@@ -27,7 +28,7 @@ class auth(object):
             'role_name': row['role_name']
         }
 
-    def __init__(self, logger, app, redmine, git):
+    def __init__(self, app, redmine, git):
         self.app = app
         self.redmine_key = None
         self.headers = {'Content-Type': 'application/json'}
@@ -177,7 +178,7 @@ class auth(object):
         else:
             return {"message": "Could not found user information"}, 400
 
-    def update_user_info(self, logger, user_id, args):
+    def update_user_info(self, user_id, args):
         # Check user id disabled or not.
         select_user_to_disable_command = db.select([User.stru_user])\
             .where(db.and_(User.stru_user.c.id==user_id))
@@ -192,7 +193,7 @@ class auth(object):
         if args["password"] is not None:
             err = self.update_external_passwords(user_id, args["password"])
             if err is not None:
-                logger.build_error(err) # Don't stop change password on API server
+                logger.exception(err)  # Don't stop change password on API server
             h = SHA256.new()
             h.update(args["password"].encode())
             set_string += "password = '{0}'".format(h.hexdigest())
@@ -219,23 +220,22 @@ class auth(object):
         return {'message': 'success'}, 200
 
     def update_external_passwords(self, user_id, new_pwd):
-        user_relation = auth.get_user_plugin_relation(logger, user_id=user_id)
+        user_relation = auth.get_user_plugin_relation(user_id=user_id)
         logger.debug("user_relation_list: {0}".format(user_relation))
-        if user_relation is not None:
-            redmine_user_id = user_relation['plan_user_id']
-            err = self.redmine.redmine_update_password(redmine_user_id, new_pwd)
-            if err is not None:
-                return err
+        if user_relation is None:
+            return util.respond(404, 'Error when updating password', error=Error.user_not_found(user_id))
+        redmine_user_id = user_relation['plan_user_id']
+        err = self.redmine.update_password(redmine_user_id, new_pwd)
+        if err is not None:
+            return err
 
-            gitlab_user_id = user_relation['repository_user_id']
-            gitlab = GitLab(self.app)
-            err = gitlab.update_password(gitlab_user_id, new_pwd)
-            if err is not None:
-                return err
+        gitlab_user_id = user_relation['repository_user_id']
+        gitlab = GitLab(self.app)
+        err = gitlab.update_password(gitlab_user_id, new_pwd)
+        if err is not None:
+            return err
 
-            return None
-        else:
-            return "cloud not get user plug relation data"
+        return None
 
     def delete_user(self, logger, app, user_id):
         ''' disable user on user table'''
@@ -383,8 +383,7 @@ class auth(object):
         user_source_password = args["password"]
         # plan software user create
         self.redmine.get_redmine_key()
-        red_user = self.redmine.redmine_post_user(logger, app, args,
-                                             user_source_password)
+        red_user = self.redmine.create_user(args, user_source_password)
         if red_user.status_code == 201:
             redmine_user_id = red_user.json()['user']['id']
         else:
@@ -449,10 +448,7 @@ class auth(object):
         return {"message": "success", "data": {"user_id": user_id}}, 200
 
     @staticmethod
-    def get_user_plugin_relation(logger,
-                                 user_id=None,
-                                 plan_user_id=None,
-                                 repository_user_id=None):
+    def get_user_plugin_relation(user_id=None, plan_user_id=None, repository_user_id=None):
         if plan_user_id is not None:
             get_user_plugin_relation_command = db.select(
                 [UserPluginRelation.stru_user_plug_relation]).where(db.and_(\
@@ -649,8 +645,7 @@ class auth(object):
         # get redmine, gitlab user_id
         redmine_user_id = None
         gitlab_user_id = None
-        user_relation = auth.get_user_plugin_relation(logger,
-                                                      user_id=args['user_id'])
+        user_relation = auth.get_user_plugin_relation(user_id=args['user_id'])
         logger.debug("user_relation_list: {0}".format(user_relation))
         if user_relation is not None:
             redmine_user_id = user_relation['plan_user_id']
@@ -703,8 +698,7 @@ class auth(object):
         # get redmine, gitlab user_id
         redmine_user_id = None
         gitlab_user_id = None
-        user_relation = auth.get_user_plugin_relation(logger,
-                                                      user_id=user_id)
+        user_relation = auth.get_user_plugin_relation(user_id=user_id)
         logger.debug("user_relation_list: {0}".format(user_relation))
         if user_relation is not None:
             redmine_user_id = user_relation['plan_user_id']
