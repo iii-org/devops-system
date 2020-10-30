@@ -90,7 +90,7 @@ tc = testCase.TestCase()
 ti = testItem.TestItem()
 tv = testValue.TestValue()
 td = testData.TestData()
-tr = testResult.TestResult(logger)
+tr = testResult.TestResult()
 ci = cicd.Cicd(app, pjt, iss, tc, ti, tv)
 cm = checkmarx.CheckMarx(app)
 
