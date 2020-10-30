@@ -19,7 +19,6 @@ class Project(object):
     headers = {'Content-Type': 'application/json'}
 
     def __init__(self, app, au, k8s, redmine, gitlab):
-        self.logger = logger
         self.app = app
         self.k8s = k8s
         self.au = au
@@ -902,7 +901,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         if gitlab_output.status_code != 201:
             # Rollback
             self.redmine.redmine_delete_project(redmine_pj_id)
-            
+
             status_code = gitlab_output.status_code
             if status_code == 400:
                 try:
