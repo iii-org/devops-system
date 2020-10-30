@@ -30,6 +30,8 @@ class Redmine:
 
     def api_request(self, method, path, headers=None, params=None, data=None):
         self.key_check()
+        if headers is None:
+            headers = {}
         url = "http://{0}{1}.json?key={2}".format(
             config.get('REDMINE_IP_PORT'), path, self.redmine_key)
         if method.upper() == 'GET':
