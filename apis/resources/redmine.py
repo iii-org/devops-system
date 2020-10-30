@@ -8,10 +8,7 @@ from .util import util
 from flask import send_file
 from flask_restful import reqparse
 
-# from model import db, Project_relationship
-# from .util import util
-
-logger = logging.getLogger('devops.api')
+logger = logging.getLogger(config.get('LOGGER_NAME'))
 
 
 class Redmine(object):
@@ -62,8 +59,9 @@ class Redmine(object):
 
     def get_redmine_key(self, logger=logger, app=None):
         # get redmine_key
-        url = "http://{0}:{1}@{2}/users/current.json".format(config.get('REDMINE_ADMIN_ACCOUNT'), \
-                                                             config.get('REDMINE_ADMIN_PASSWORD'), config.get('REDMINE_IP_PORT'))
+        url = "http://{0}:{1}@{2}/users/current.json".format(config.get('REDMINE_ADMIN_ACCOUNT'),
+                                                             config.get('REDMINE_ADMIN_PASSWORD'),
+                                                             config.get('REDMINE_IP_PORT'))
         output = requests.get(url, headers=Redmine.headers, verify=False)
         self.redmine_key = output.json()['user']['api_key']
         self.key_generated = time.time()
@@ -71,8 +69,7 @@ class Redmine(object):
         return self.redmine_key
 
     def redmine_get_issues_by_user(self, logger, app, user_id):
-
-        url = "http://{0}/issues.json?key={1}&assigned_to_id={2}&limit=100".format(\
+        url = "http://{0}/issues.json?key={1}&assigned_to_id={2}&limit=100".format(
             config.get('REDMINE_IP_PORT'), self.redmine_key, user_id)
         output = requests.get(url, headers=self.headers, verify=False)
         logger.info("get issues by output: {0}".format(output.json()))
@@ -434,3 +431,26 @@ class Redmine(object):
         except Exception as e:
             return {"message": "error", "data": e.__str__()}, 400
 
+    @staticmethod
+    def redmine_create_project(args):
+        redmine_url = "http://{0}/projects.json?key={1}".format(
+            config.get("REDMINE_IP_PORT"), config.get("REDMINE_API_KEY"))
+        logger.info("create redmine project url: {0}".format(redmine_url))
+        xml_body = """<?xml version="1.0" encoding="UTF-8"?>
+                    <project>
+                    <name>{0}</name>
+                    <identifier>{1}</identifier>
+                    <description>{2}</description>
+                    </project>""".format(
+            args["display"],
+            args["identifier"],
+            args["description"])
+        logger.info("create redmine project body: {0}".format(xml_body))
+        headers = {'Content-Type': 'application/xml'}
+        redmine_output = requests.post(redmine_url,
+                                       headers=headers,
+                                       data=xml_body.encode('utf-8'),
+                                       verify=False)
+        logger.info("create redmine project output: {0} / {1}".format(
+            redmine_output, redmine_output.json()))
+        return redmine_output

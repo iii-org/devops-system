@@ -189,7 +189,7 @@ class auth(object):
         if args["password"] is not None:
             err = self.update_external_passwords(user_id, args["password"])
             if err is not None:
-                logger.error(err) # Don't stop change password on API server
+                logger.build_error(err) # Don't stop change password on API server
             h = SHA256.new()
             h.update(args["password"].encode())
             set_string += "password = '{0}'".format(h.hexdigest())
@@ -225,7 +225,7 @@ class auth(object):
                 return err
 
             gitlab_user_id = user_relation['repository_user_id']
-            gitlab = GitLab(logger, self.app)
+            gitlab = GitLab(self.app)
             err = gitlab.update_password(gitlab_user_id, new_pwd)
             if err is not None:
                 return err
