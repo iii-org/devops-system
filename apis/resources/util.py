@@ -178,13 +178,6 @@ class util(object):
         return message_obj, status_code
 
     @staticmethod
-    def build_error(error_code, error_message):
-        return {
-            'code': error_code,
-            'message': error_message
-        }
-
-    @staticmethod
     def tick(last_time):
         now = time.time()
         print('%f seconds elapsed.' % (now - last_time))

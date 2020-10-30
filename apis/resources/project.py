@@ -9,6 +9,7 @@ from model import db, ProjectUserRole, ProjectPluginRelation, TableProjects
 from .rancher import Rancher
 from .redmine import Redmine
 from .util import util
+from .error import Error
 
 logger = logging.getLogger(config.get('LOGGER_NAME'))
 
@@ -18,13 +19,13 @@ class Project(object):
     headers = {'Content-Type': 'application/json'}
 
     def __init__(self, app, au, k8s, redmine, gitlab):
-        self.logger = logger
         self.app = app
         self.k8s = k8s
         self.au = au
         self.rancher = Rancher()
         self.redmine = redmine
         self.gitlab = gitlab
+        self.private_token = gitlab.private_token
 
     def verify_project_user(self, logger, project_id, user_id):
         if util.is_dummy_project(project_id):
@@ -174,7 +175,7 @@ class Project(object):
                 plan_user_id = userid_list_output[0]
                 result.close()
                 logger.info("get user_ids SQL: {0}".format(plan_user_id))
-                redmine_key = Redmine.get_redmine_key(self, logger, app)
+                redmine_key = Redmine.get_redmine_key(self)
                 for project in project_list:
                     output_dict = {}
                     output_dict['name'] = project['name']
@@ -193,10 +194,8 @@ class Project(object):
                     output_dict['last_test_result'] = {}
 
                     # get issue total cont
-                    total_issue = Redmine.redmine_get_issues_by_project_and_user(self, logger, app, \
-                                                                                 plan_user_id,
-                                                                                 project['plan_project_id'],
-                                                                                 redmine_key)
+                    total_issue = self.redmine.get_issues_by_project_and_user(
+                        plan_user_id, project['plan_project_id'])
                     logger.info("issue total count by user: {0}".format(
                         total_issue['total_count']))
                     output_dict['issues'] = total_issue['total_count']
@@ -878,8 +877,11 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         if args['display'] is None:
             args['display'] = args['name']
 
+        # 建立順序為 redmine, gitlab, rancher, api server，有失敗時 rollback 依此次序處理
+
         # 建立redmine project
-        redmine_output = Redmine.redmine_create_project(args)
+        redmine_output = self.redmine.redmine_create_project(args)
+        redmine_pj_id = redmine_output.json()["project"]["id"]
 
         if redmine_output.status_code != 201:
             status_code = redmine_output.status_code
@@ -888,24 +890,30 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
             if status_code == 422 and 'errors' in resp:
                 if len(resp['errors']) > 0:
                     if resp['errors'][0] == 'Identifier has already been taken':
-                        error = util.build_error(1001, 'Project identifier has been taken.')
+                        error = Error.IDENTIFIER_HAS_BEEN_TAKEN
             return util.respond(status_code, {"redmine": resp}, error=error)
 
         # 建立gitlab project
         gitlab_output = self.gitlab.create_project(args)
 
         if gitlab_output.status_code != 201:
+            # Rollback
+            self.redmine.redmine_delete_project(redmine_pj_id)
+
             status_code = gitlab_output.status_code
-            return {
-                       "message": {
-                           "gitlab": {
-                               "errors": gitlab_output.json()
-                           }
-                       }
-                   }, status_code
+            if status_code == 400:
+                try:
+                    if gitlab_output['message']['name'][0] == 'has already been taken':
+                        return util.respond(
+                            status_code, {"gitlab": gitlab_output.json()},
+                            error=Error.IDENTIFIER_HAS_BEEN_TAKEN
+                        )
+                except (KeyError, IndexError):
+                    pass
+            return util.respond(status_code, {"gitlab": gitlab_output.json()})
 
         # 寫入db
-        redmine_pj_id = redmine_output.json()["project"]["id"]
+
         gitlab_pj_id = gitlab_output.json()["id"]
         gitlab_pj_name = gitlab_output.json()["name"]
         gitlab_pj_ssh_url = gitlab_output.json()["ssh_url_to_repo"]
@@ -1139,8 +1147,11 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                                                      rancher_token)
 
             # 刪除gitlab project
-            gitlab_url = "http://{0}/api/{1}/projects/{2}?private_token={3}".format( \
-                config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), gitlab_project_id, self.private_token)
+            gitlab_url = "http://{0}/api/{1}/projects/{2}?private_token={3}".format(
+                config.get("GITLAB_IP_PORT"),
+                config.get("GITLAB_API_VERSION"),
+                gitlab_project_id,
+                self.private_token)
             logger.info("delete gitlab project url: {0}".format(gitlab_url))
             gitlab_output = requests.delete(gitlab_url,
                                             headers=self.headers,
