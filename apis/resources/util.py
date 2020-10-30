@@ -180,8 +180,7 @@ class util(object):
     @staticmethod
     def build_error(error_code, error_message):
         return {
-            'code': error_code,
-            'message': error_message
+
         }
 
     @staticmethod

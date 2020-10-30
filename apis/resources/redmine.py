@@ -7,6 +7,7 @@ import werkzeug
 from .util import util
 from flask import send_file
 from flask_restful import reqparse
+from .error import Error
 
 logger = logging.getLogger(config.get('LOGGER_NAME'))
 
@@ -27,51 +28,56 @@ class Redmine:
         self.redmine_key = output.json()['user']['api_key']
         logger.info("redmine_key: {0}".format(self.redmine_key))
 
-    def api_get(self, path):
+    def api_request(self, method, path, headers=None, params=None, data=None):
         self.key_check()
         url = "http://{0}{1}.json?key={2}".format(
             config.get('REDMINE_IP_PORT'), path, self.redmine_key)
-        output = requests.get(url, headers=self.headers, verify=False)
-        logger.debug('GET to redmine {0}, output={1}', url, str(output))
-        return output
-
-    def api_post(self, path, headers=None, data=None, params=None):
-        self.key_check()
-        if data is None:
-            data = {}
-        if params is None:
-            params = {}
-        params['key'] = self.redmine_key
-        url = "http://{0}{1}.json".format(config.get('REDMINE_IP_PORT'), path)
-        if headers is None:
-            headers = {}
-        if type(data) is dict:
+        if method.upper() == 'GET':
             if 'Content-Type' not in headers:
                 headers['Content-Type'] = 'application/json'
-            output = requests.post(url, data=json.dumps(data), params=params,
-                                   headers=headers, verify=False)
-        else:
+            output = requests.get(url, headers=headers, verify=False)
+        elif method.upper() == 'POST':
+            if data is None:
+                data = {}
+            if params is None:
+                params = {}
+            params['key'] = self.redmine_key
+            if type(data) is dict:
+                if 'Content-Type' not in headers:
+                    headers['Content-Type'] = 'application/json'
+                output = requests.post(url, data=json.dumps(data), params=params,
+                                       headers=headers, verify=False)
+            else:
+                if 'Content-Type' not in headers:
+                    headers['Content-Type'] = 'application/octet-stream'
+                output = requests.post(url, data=data, params=params,
+                                       headers=headers, verify=False)
+        elif method.upper() == 'DELETE':
             if 'Content-Type' not in headers:
-                headers['Content-Type'] = 'application/octet-stream'
-            output = requests.post(url, data=data, params=params,
-                                   headers=headers, verify=False)
-        logger.debug('POST to redmine {0}, output={1}', url, str(output))
+                headers['Content-Type'] = 'application/json'
+            output = requests.delete(url, headers=headers, verify=False)
+        else:
+            return util.respond(
+                500, 'Error while request {0} {1}'.format(method, url),
+                error=Error.attach_details(Error.UNKNOWN_METHOD, {'method': method}))
+        logger.info('redmine api {0} {1}, output={2}', method, url, str(output))
         return output
+
+    def api_get(self, path):
+        return self.api_request('GET', path)
+
+    def api_post(self, path, headers=None, data=None, params=None):
+        return self.api_request('POST', path, headers=headers, data=data, params=params)
 
     def api_delete(self, path):
-        self.key_check()
-        url = "http://{0}{1}.json?key={2}".format(
-            config.get('REDMINE_IP_PORT'), path, self.redmine_key)
-        output = requests.delete(url, headers=self.headers, verify=False)
-        logger.debug('DELETE to redmine {0}, output={1}', url, str(output))
-        return output
+        return self.api_request('DELETE', path)
 
     def key_check(self):
-        # Check if key expires first, seems to expire in 2 hours in default
+        # Check if key expires first, seems to expire in 2 hours in default?
         if time.time() - self.key_generated >= 7200:
             self.get_redmine_key()
 
-    def get_redmine_key(self, logger=logger, app=None):
+    def get_redmine_key(self):
         # get redmine_key
         url = "http://{0}:{1}@{2}/users/current.json".format(config.get('REDMINE_ADMIN_ACCOUNT'),
                                                              config.get('REDMINE_ADMIN_PASSWORD'),
@@ -465,17 +471,9 @@ class Redmine:
 
         return redmine_output
 
-    def project(self, plan_project_id):
-        return RedmineProject(self, plan_project_id)
-
-
-class RedmineProject:
-    def __init__(self, redmine, plan_project_id):
-        self.redmine = redmine
-        self.id = plan_project_id
-
-    def delete(self):
-        logger.info("delete redmine project plan_id: {0}".format(self.id))
-        redmine_output = self.redmine.api_delete('/projects/{0}'.format(self.id))
+    def redmine_delete_project(self, plan_project_id):
+        logger.info("delete redmine project plan_id: {0}".format(plan_project_id))
+        redmine_output = self.api_delete('/projects/{0}'.format(plan_project_id))
         logger.info("delete redmine project output: {0}".format(redmine_output))
         return redmine_output
+

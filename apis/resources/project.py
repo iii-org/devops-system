@@ -9,6 +9,7 @@ from model import db, ProjectUserRole, ProjectPluginRelation, TableProjects
 from .rancher import Rancher
 from .redmine import Redmine
 from .util import util
+from .error import Error
 
 logger = logging.getLogger(config.get('LOGGER_NAME'))
 
@@ -175,7 +176,7 @@ class Project(object):
                 plan_user_id = userid_list_output[0]
                 result.close()
                 logger.info("get user_ids SQL: {0}".format(plan_user_id))
-                redmine_key = Redmine.get_redmine_key(self, logger, app)
+                redmine_key = Redmine.get_redmine_key(self)
                 for project in project_list:
                     output_dict = {}
                     output_dict['name'] = project['name']
@@ -892,7 +893,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
             if status_code == 422 and 'errors' in resp:
                 if len(resp['errors']) > 0:
                     if resp['errors'][0] == 'Identifier has already been taken':
-                        error = util.build_error(1001, 'Project identifier has been taken.')
+                        error = Error.IDENTIFIER_HAS_BEEN_TAKEN
             return util.respond(status_code, {"redmine": resp}, error=error)
 
         # 建立gitlab project
@@ -900,16 +901,19 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
 
         if gitlab_output.status_code != 201:
             # Rollback
-            self.redmine.project(redmine_pj_id).delete()
-
+            self.redmine.redmine_delete_project(redmine_pj_id)
+            
             status_code = gitlab_output.status_code
-            return {
-                       "message": {
-                           "gitlab": {
-                               "errors": gitlab_output.json()
-                           }
-                       }
-                   }, status_code
+            if status_code == 400:
+                try:
+                    if gitlab_output['message']['name'][0] == 'has already been taken':
+                        return util.respond(
+                            status_code, {"gitlab": gitlab_output.json()},
+                            error=Error.IDENTIFIER_HAS_BEEN_TAKEN
+                        )
+                except (KeyError, IndexError):
+                    pass
+            return util.respond(status_code, {"gitlab": gitlab_output.json()})
 
         # 寫入db
 

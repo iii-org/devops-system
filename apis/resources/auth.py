@@ -379,7 +379,7 @@ class auth(object):
 
         user_source_password = args["password"]
         # plan software user create
-        self.redmine.get_redmine_key(logger, app)
+        self.redmine.get_redmine_key()
         red_user = self.redmine.redmine_post_user(logger, app, args,
                                              user_source_password)
         if red_user.status_code == 201:
@@ -665,7 +665,7 @@ class auth(object):
             return {"message": "Could not get project relationship data"}, 400
         if (redmine_role_id != None and redmine_user_id != None
                 and redmine_project_id != None):
-            self.redmine.get_redmine_key(logger, app)
+            self.redmine.get_redmine_key()
             output, status_code = self.redmine.redmine_create_memberships(logger, app, \
                 redmine_project_id, redmine_user_id, redmine_role_id)
             if status_code == 201:
@@ -717,7 +717,7 @@ class auth(object):
             return {"message": "Could not get project relationship data"}, 400
 
         if (redmine_user_id != None and redmine_project_id != None):
-            self.redmine.get_redmine_key(logger, app)
+            self.redmine.get_redmine_key()
             # get memebership id
             memeberships, status_code = self.redmine.redmine_get_memberships_list(
                 logger, app, redmine_project_id)

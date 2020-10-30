@@ -40,8 +40,8 @@ class Rancher(object):
             else:
                 return None
 
-            self.logger.info("api {1} headers is : {0}".format(headers, method))
-            self.logger.info("api {1} status code is : {0}".format(
+            logger.info("api {1} headers is : {0}".format(headers, method))
+            logger.info("api {1} status code is : {0}".format(
                 response.status_code, method))
             if response.status_code == 401 and retried is False:
                 self.token = self.generate_token()
@@ -49,7 +49,7 @@ class Rancher(object):
             return response
 
         except Exception as e:
-            self.logger.build_error("callgetapi error : {0}".format(e))
+            logger.build_error("callgetapi error : {0}".format(e))
             return e
 
     def api_post(self, url, parameter, headers, with_token=True):
@@ -86,7 +86,7 @@ class Rancher(object):
             config.get('RANCHER_API_VERSION'),
             ci_project_id,
             ci_pipeline_id)
-        self.logger.info("rancher_pipelineexecutions url: {0}".format(url))
+        logger.info("rancher_pipelineexecutions url: {0}".format(url))
         response = self.api_get(url, self.headers)
         output_array = response.json()['data']
         # logger.info ("get_rancher_pipelineexecutions output: {0}".format(output_array))
@@ -109,7 +109,7 @@ class Rancher(object):
                         url = "wss://{0}/{1}/project/{2}/pipelineExecutions/{3}-{4}/log?stage={5}&step={6}"\
                             .format(config.get('RANCHER_IP_PORT'), config.get('RANCHER_API_VERSION'), \
                                     ci_project_id, ci_pipeline_id, pipelines_exec_run, index, stepindex)
-                        self.logger.info("wss url: {0}".format(url))
+                        logger.info("wss url: {0}".format(url))
                         ws.connect(url, header=[headersandtoken])
                         result = ws.recv()
                         # logger.info("Received :'%s'" % result)
@@ -139,7 +139,7 @@ class Rancher(object):
                             "state": None,
                             "steps": tmp_step_message
                         })
-        self.logger.debug("output_dict: {0}".format(output_dict))
+        logger.debug("output_dict: {0}".format(output_dict))
         return output_dict[1:]
 
     def get_rancher_cluster_id(self, app, logger, rancher_token):

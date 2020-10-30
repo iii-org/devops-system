@@ -133,7 +133,7 @@ class Issue(object):
             return False
 
     def get_issue_rd(self, logger, app, issue_id):
-        Redmine.get_redmine_key(self, logger, app)
+        Redmine.get_redmine_key(self)
         logger.info("self.redmine_key: {0}".format(self.redmine_key))
         redmine_output_issue = Redmine.redmine_get_issue(
             self, logger, app, issue_id)
@@ -155,7 +155,7 @@ class Issue(object):
         project_dict = reMessage.fetchone()
         logger.debug("project_list: {0}".format(project_dict))
         if project_dict is not None:
-            redmine_key = Redmine.get_redmine_key(self, logger, app)
+            redmine_key = Redmine.get_redmine_key(self)
             output_array = []
             redmine_output_issue_array = self.redmine.redmine_get_issues_by_project(
                 project_dict['plan_project_id'], args)
@@ -389,7 +389,7 @@ class Issue(object):
 
     def get_issue_by_user(self, logger, app, user_id):
         user_to_plan, plan_to_user = self.__get_dict_userid(logger)
-        Redmine.get_redmine_key(self, logger, app)
+        Redmine.get_redmine_key(self)
         logger.info("self.redmine_key: {0}".format(self.redmine_key))
         output_array = []
         if str(user_id) not in user_to_plan:
@@ -448,7 +448,7 @@ class Issue(object):
                 logger, user_id=args['assigned_to_id'])
             args['assigned_to_id'] = user_plugin_relation['plan_user_id']
         logger.info("update_issue_rd args: {0}".format(args))
-        Redmine.get_redmine_key(self, logger, app)
+        Redmine.get_redmine_key(self)
 
         attachment = self.redmine.redmine_upload(args)
         if attachment is not None:
@@ -470,7 +470,7 @@ class Issue(object):
             return str(error), 400
 
     def get_issue_status(self, logger, app):
-        Redmine.get_redmine_key(self, logger, app)
+        Redmine.get_redmine_key(self)
         try:
             issus_status_output = Redmine.redmine_get_issue_status(
                 self, logger, app)
@@ -479,7 +479,7 @@ class Issue(object):
             return str(error), 400
 
     def get_issue_priority(self, logger, app):
-        Redmine.get_redmine_key(self, logger, app)
+        Redmine.get_redmine_key(self)
         try:
             output = []
             issus_status_output = Redmine.redmine_get_priority(
@@ -497,7 +497,7 @@ class Issue(object):
             return str(error), 400
 
     def get_issue_trackers(self, logger, app):
-        Redmine.get_redmine_key(self, logger, app)
+        Redmine.get_redmine_key(self)
         output = []
         try:
             redmine_trackers_output = Redmine.redmine_get_trackers(
@@ -511,7 +511,7 @@ class Issue(object):
             return str(error), 400
 
     def get_issue_statistics(self, logger, app, args, user_id):
-        Redmine.get_redmine_key(self, logger, app)
+        Redmine.get_redmine_key(self)
         if args["to_time"] is not None:
             args["due_date"] = "><{0}|{1}".format(args["from_time"],
                                                   args["to_time"])
@@ -540,7 +540,7 @@ class Issue(object):
                                                              user_id=user_id)
         if user_plugin_relation is not None:
             args["assigned_to_id"] = user_plugin_relation['plan_user_id']
-        Redmine.get_redmine_key(self, logger, app)
+        Redmine.get_redmine_key(self)
         total_issue_output, status_code = Redmine.redmine_get_statistics(self, logger, app, args)
         if status_code != 200:
             return {"message": "could not get redmine total issue"}, 400
