@@ -1,20 +1,21 @@
+import config
+import json
+import logging
+import time
 from io import BytesIO
 
-import json
-import logging, config, time
 import requests
 import werkzeug
-from .util import util
 from flask import send_file
 from flask_restful import reqparse
 
-# from model import db, Project_relationship
-# from .util import util
+from .error import Error
+from .util import util
 
-logger = logging.getLogger('devops.api')
+logger = logging.getLogger(config.get('LOGGER_NAME'))
 
 
-class Redmine(object):
+class Redmine:
 
     redmine_key = None
     headers = {'Content-Type': 'application/json'}
@@ -30,104 +31,104 @@ class Redmine(object):
         self.redmine_key = output.json()['user']['api_key']
         logger.info("redmine_key: {0}".format(self.redmine_key))
 
-    def api_post(self, path, data=None, params=None):
+    def api_request(self, method, path, headers=None, params=None, data=None):
         self.key_check()
-        if data is None:
-            data = {}
+        if headers is None:
+            headers = {}
         if params is None:
             params = {}
-        params['key'] = self.redmine_key
+
         url = "http://{0}{1}.json".format(config.get('REDMINE_IP_PORT'), path)
-        headers = self.headers.copy()
-        if type(data) is dict:
-            output = requests.post(url, data=json.dumps(data), params=params,
-                                   headers=headers, verify=False)
+        params['key'] = self.redmine_key
+
+        if method.upper() == 'GET':
+            if 'Content-Type' not in headers:
+                headers['Content-Type'] = 'application/json'
+            output = requests.get(url, headers=headers, params=params, verify=False)
+        elif method.upper() == 'POST':
+            if data is None:
+                data = {}
+            params['key'] = self.redmine_key
+            if type(data) is dict:
+                if 'Content-Type' not in headers:
+                    headers['Content-Type'] = 'application/json'
+                output = requests.post(url, data=json.dumps(data), params=params,
+                                       headers=headers, verify=False)
+            else:
+                if 'Content-Type' not in headers:
+                    headers['Content-Type'] = 'application/octet-stream'
+                output = requests.post(url, data=data, params=params,
+                                       headers=headers, verify=False)
+        elif method.upper() == 'DELETE':
+            if 'Content-Type' not in headers:
+                headers['Content-Type'] = 'application/json'
+            output = requests.delete(url, headers=headers, verify=False)
         else:
-            headers['Content-Type'] = 'application/octet-stream'
-            output = requests.post(url, data=data, params=params,
-                                   headers=headers, verify=False)
+            return util.respond(
+                500, 'Error while request {0} {1}'.format(method, url),
+                error=Error.attach_details(Error.UNKNOWN_METHOD, {'method': method}))
+        logger.info('redmine api {0} {1}, params={2}, output={3}'.format(
+            method, url, params.__str__(), output.text))
         return output
 
-    def api_get(self, path):
-        self.key_check()
-        url = "http://{0}{1}.json?key={2}".format(
-            config.get('REDMINE_IP_PORT'), path, self.redmine_key)
-        output = requests.get(url, headers=self.headers, verify=False)
-        return output
+    def api_get(self, path, params=None, headers=None):
+        return self.api_request('GET', path, params=params, headers=headers)
+
+    def api_post(self, path, params=None, headers=None, data=None):
+        return self.api_request('POST', path, headers=headers, data=data, params=params)
+
+    def api_delete(self, path, params=None, headers=None):
+        return self.api_request('DELETE', path, params=params, headers=headers)
 
     def key_check(self):
-        # Check if key expires first, seems to expire in 2 hours in default
+        # Check if key expires first, seems to expire in 2 hours in default?
         if time.time() - self.key_generated >= 7200:
             self.get_redmine_key()
 
-    def get_redmine_key(self, logger=logger, app=None):
+    def get_redmine_key(self):
         # get redmine_key
-        url = "http://{0}:{1}@{2}/users/current.json".format(config.get('REDMINE_ADMIN_ACCOUNT'), \
-                                                             config.get('REDMINE_ADMIN_PASSWORD'), config.get('REDMINE_IP_PORT'))
+        url = "http://{0}:{1}@{2}/users/current.json".format(config.get('REDMINE_ADMIN_ACCOUNT'),
+                                                             config.get('REDMINE_ADMIN_PASSWORD'),
+                                                             config.get('REDMINE_IP_PORT'))
         output = requests.get(url, headers=Redmine.headers, verify=False)
         self.redmine_key = output.json()['user']['api_key']
         self.key_generated = time.time()
         logger.info("redmine_key: {0}".format(self.redmine_key))
         return self.redmine_key
 
-    def redmine_get_issues_by_user(self, logger, app, user_id):
-
-        url = "http://{0}/issues.json?key={1}&assigned_to_id={2}&limit=100".format(\
-            config.get('REDMINE_IP_PORT'), self.redmine_key, user_id)
-        output = requests.get(url, headers=self.headers, verify=False)
+    def get_issues_by_user(self, user_id):
+        params = {'assigned_to_id': user_id, 'limit': 100}
+        output = self.api_get('/issues', params=params)
         logger.info("get issues by output: {0}".format(output.json()))
         return output.json()
 
-    def redmine_get_issues_by_project(self, plan_project_id, args):
-        args['key'] = self.redmine_key
-        args['project_id'] = plan_project_id
-        args['limit'] = 1000
-        url = "http://{0}/issues.json".format(config.get('REDMINE_IP_PORT'))
-        output = requests.get(url,
-                              params=args,
-                              headers=self.headers,
-                              verify=False)
-        logger.info("get issues by project output: {0}".format(output.json()))
+    def get_issues_by_project(self, plan_project_id):
+        params = {'project_id': plan_project_id, 'limit': 1000}
+        output = self.api_get('/issues', params=params)
         return output.json()
 
-    def redmine_get_issues_by_project_and_user(self, logger, app, user_id,
-                                               project_id, redmine_key):
-        url = "http://{0}/issues.json?key={1}&assigned_to_id={2}&project_id={3}".format(\
-            config.get('REDMINE_IP_PORT'), redmine_key, user_id, project_id)
-        output = requests.get(url, headers=self.headers, verify=False)
-        logger.info("get issues by project&user output: {0}".format(
-            output.json()))
+    def get_issues_by_project_and_user(self, user_id, plan_project_id):
+        params = {
+            'assigned_to_id': user_id,
+            'project_id': plan_project_id,
+            'limit': 100
+        }
+        output = self.api_get('/issues', params=params)
         return output.json()
 
-    def redmine_get_issue(self, logger, app, issue_id):
-        url = "http://{0}/issues/{1}.json?key={2}&include=journals,attachments".format(
-            config.get('REDMINE_IP_PORT'), issue_id, self.redmine_key)
-        output = requests.get(url, headers=self.headers, verify=False)
+    def get_issue(self, issue_id):
+        params = {'include': 'journals,attachment'}
+        output = self.api_get('/issues/{0}'.format(issue_id), params=params)
         logger.info("get issues output: {0}".format(output))
         return output
 
-    def redmine_get_statistics(self, logger, app, args):
-        args['key'] = self.redmine_key
-        url = "http://{0}/issues.json".format(config.get('REDMINE_IP_PORT'))
-        logger.info("args: {0}".format(args))
-        output = requests.get(url,
-                              headers=self.headers,
-                              verify=False,
-                              params=args)
-        logger.info("get issues output: {0}".format(output.json()))
+    def get_statistics(self, params):
+        output = self.api_get('/issues', params=params)
         return output.json(), output.status_code
 
-    def redmine_create_issue(self, args):
-        url = "http://{0}/issues.json?key={1}".format(
-            config.get('REDMINE_IP_PORT'), self.redmine_key)
-        param = {"issue": args}
-        logger.info("create issues param: {0}".format(param))
-        output = requests.post(url,
-                               data=json.dumps(param),
-                               headers=self.headers,
-                               verify=False)
-        logger.info("create issues output: {0}, status_code: {1}".format(
-            output.json(), output.status_code))
+    def create_issue(self, args):
+        data = {"issue": args}
+        output = self.api_post('/issues', data=data)
         return output, output.status_code
 
     def redmine_update_issue(self, logger, app, issue_id, args):
@@ -363,7 +364,7 @@ class Redmine(object):
                 return None
         else:
             return None
-        res = self.api_post('/uploads', file)
+        res = self.api_post('/uploads', data=file)
         if res.status_code != 201:
             return util.respond(res.status_code, "Error while uploading to redmine", res.text)
         token = res.json().get('upload').get('token')
@@ -390,7 +391,7 @@ class Redmine(object):
         file = f_args['file']
         if file is None:
             return util.respond(400, 'No file is sent.')
-        res = self.api_post('/uploads', file)
+        res = self.api_post('/uploads', data=file)
         if res.status_code != 201:
             return util.respond(res.status_code, "Error while uploading to redmine", res.text)
         token = res.json().get('upload').get('token')
@@ -406,7 +407,7 @@ class Redmine(object):
         if args['version_id'] is not None:
             params['version_id'] = args['version_id']
         data = {'file': params}
-        res = self.api_post('/projects/%d/files' % plan_project_id, data)
+        res = self.api_post('/projects/%d/files' % plan_project_id, data=data)
         if res.status_code == 204:
             return None, 201
         else:
@@ -433,4 +434,31 @@ class Redmine(object):
             )
         except Exception as e:
             return {"message": "error", "data": e.__str__()}, 400
+
+    def redmine_create_project(self, args):
+        xml_body = """<?xml version="1.0" encoding="UTF-8"?>
+                    <project>
+                    <name>{0}</name>
+                    <identifier>{1}</identifier>
+                    <description>{2}</description>
+                    <is_public>false</is_public>
+                    </project>""".format(
+            args["display"],
+            args["identifier"],
+            args["description"])
+        logger.info("create redmine project body: {0}".format(xml_body))
+        headers = {'Content-Type': 'application/xml'}
+        redmine_output = self.api_post('/projects',
+                                       headers=headers,
+                                       data=xml_body.encode('utf-8'))
+        logger.info("create redmine project output: {0} / {1}".format(
+            redmine_output, redmine_output.json()))
+
+        return redmine_output
+
+    def redmine_delete_project(self, plan_project_id):
+        logger.info("delete redmine project plan_id: {0}".format(plan_project_id))
+        redmine_output = self.api_delete('/projects/{0}'.format(plan_project_id))
+        logger.info("delete redmine project output: {0}".format(redmine_output))
+        return redmine_output
 

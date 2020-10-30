@@ -2,12 +2,15 @@ from model import db, TableTestResult
 from .util import util
 import datetime
 import json
+import logging, config
+
+logger = logging.getLogger(config.get('LOGGER_NAME'))
 
 
 class TestResult(object):
 
-    def __init__(self, logger):
-        self.logger = logger
+    def __init__(self):
+        pass
 
     def save(self, args):
         try:
@@ -23,7 +26,7 @@ class TestResult(object):
                 report=args['report'],
                 run_at=datetime.datetime.now()
             )
-            util.callsqlalchemy(cmd, self.logger)
+            util.callsqlalchemy(cmd, logger)
             return util.success()
         except Exception as e:
             return util.respond(400, e.__str__())

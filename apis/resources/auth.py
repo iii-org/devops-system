@@ -192,7 +192,7 @@ class auth(object):
         if args["password"] is not None:
             err = self.update_external_passwords(user_id, args["password"])
             if err is not None:
-                logger.error(err) # Don't stop change password on API server
+                logger.build_error(err) # Don't stop change password on API server
             h = SHA256.new()
             h.update(args["password"].encode())
             set_string += "password = '{0}'".format(h.hexdigest())
@@ -228,7 +228,7 @@ class auth(object):
                 return err
 
             gitlab_user_id = user_relation['repository_user_id']
-            gitlab = GitLab(logger, self.app)
+            gitlab = GitLab(self.app)
             err = gitlab.update_password(gitlab_user_id, new_pwd)
             if err is not None:
                 return err
@@ -382,7 +382,7 @@ class auth(object):
 
         user_source_password = args["password"]
         # plan software user create
-        self.redmine.get_redmine_key(logger, app)
+        self.redmine.get_redmine_key()
         red_user = self.redmine.redmine_post_user(logger, app, args,
                                              user_source_password)
         if red_user.status_code == 201:
@@ -668,7 +668,7 @@ class auth(object):
             return {"message": "Could not get project relationship data"}, 400
         if (redmine_role_id != None and redmine_user_id != None
                 and redmine_project_id != None):
-            self.redmine.get_redmine_key(logger, app)
+            self.redmine.get_redmine_key()
             output, status_code = self.redmine.redmine_create_memberships(logger, app, \
                 redmine_project_id, redmine_user_id, redmine_role_id)
             if status_code == 201:
@@ -720,7 +720,7 @@ class auth(object):
             return {"message": "Could not get project relationship data"}, 400
 
         if (redmine_user_id != None and redmine_project_id != None):
-            self.redmine.get_redmine_key(logger, app)
+            self.redmine.get_redmine_key()
             # get memebership id
             memeberships, status_code = self.redmine.redmine_get_memberships_list(
                 logger, app, redmine_project_id)
