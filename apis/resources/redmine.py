@@ -408,6 +408,7 @@ class Redmine:
                     <name>{0}</name>
                     <identifier>{1}</identifier>
                     <description>{2}</description>
+                    <is_public>false</is_public>
                     </project>""".format(
             args["display"],
             args["identifier"],
