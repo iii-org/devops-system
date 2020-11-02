@@ -85,7 +85,6 @@ class Rancher(object):
                             "state": None,
                             "steps": tmp_step_message
                         })
-        logger.debug("output_dict: {0}".format(output_dict))
         return output_dict[1:]
     
     def get_rancher_cluster_id(self, app, logger, rancher_token):
