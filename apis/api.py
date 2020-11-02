@@ -1108,7 +1108,7 @@ class IssueCreate(Resource):
         parser.add_argument('upload_description', type=str)
 
         args = parser.parse_args()
-        output = iss.create_issue(args)
+        output = iss.create_issue(args, get_jwt_identity()['user_id'])
         return output
 
 

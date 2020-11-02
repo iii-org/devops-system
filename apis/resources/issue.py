@@ -404,7 +404,7 @@ class Issue(object):
             output_array.append(output_dict)
         return {'message': 'success', 'data': output_array}, 200
 
-    def create_issue(self, args):
+    def create_issue(self, args, operator_id):
         args = {k: v for k, v in args.items() if v is not None}
         if 'parent_id' in args:
             args['parent_issue_id'] = args['parent_id']
@@ -422,7 +422,9 @@ class Issue(object):
             args['uploads'] = [attachment]
 
         try:
-            output, status_code = self.redmine.create_issue(args)
+            operator_plugin_relation = auth.get_user_plugin_relation(user_id=operator_id)
+            plan_operator_id = operator_plugin_relation['plan_user_id']
+            output, status_code = self.redmine.create_issue(args, plan_operator_id)
             if status_code == 201:
                 return {
                            "message": "success",

@@ -31,7 +31,7 @@ class Redmine:
         self.redmine_key = output.json()['user']['api_key']
         logger.info("redmine_key: {0}".format(self.redmine_key))
 
-    def api_request(self, method, path, headers=None, params=None, data=None):
+    def api_request(self, method, path, headers=None, params=None, data=None, operator_id=None):
         self.key_check()
         if headers is None:
             headers = {}
@@ -41,12 +41,15 @@ class Redmine:
             headers['Content-Type'] = 'application/json'
 
         url = "http://{0}{1}.json".format(config.get('REDMINE_IP_PORT'), path)
-        params['key'] = self.redmine_key
+        if operator_id is not None:
+            self.get_redmine_key(operator_id)
+            params['key'] = self.redmine_key
+        else:
+            params['key'] = self.redmine_key
 
         if method.upper() == 'GET':
             output = requests.get(url, headers=headers, params=params, verify=False)
         elif method.upper() == 'POST':
-            params['key'] = self.redmine_key
             if type(data) is dict:
                 if 'Content-Type' not in headers:
                     headers['Content-Type'] = 'application/json'
@@ -73,30 +76,36 @@ class Redmine:
     def api_get(self, path, params=None, headers=None):
         return self.api_request('GET', path, params=params, headers=headers)
 
-    def api_post(self, path, params=None, headers=None, data=None):
-        return self.api_request('POST', path, headers=headers, data=data, params=params)
+    def api_post(self, path, params=None, headers=None, data=None, operator_id=None):
+        return self.api_request('POST', path, headers=headers, data=data, params=params, operator_id=operator_id)
 
-    def api_put(self, path, params=None, headers=None, data=None):
-        return self.api_request('PUT', path, headers=headers, data=data, params=params)
+    def api_put(self, path, params=None, headers=None, data=None, operator_id=None):
+        return self.api_request('PUT', path, headers=headers, data=data, params=params, operator_id=operator_id)
 
-    def api_delete(self, path, params=None, headers=None):
-        return self.api_request('DELETE', path, params=params, headers=headers)
+    def api_delete(self, path, params=None, headers=None, operator_id=None):
+        return self.api_request('DELETE', path, params=params, headers=headers, operator_id=operator_id)
 
     def key_check(self):
         # Check if key expires first, seems to expire in 2 hours in default?
         if time.time() - self.key_generated >= 7200:
             self.get_redmine_key()
 
-    def get_redmine_key(self):
+    def get_redmine_key(self, operator_id=None):
+        if operator_id is None:
         # get redmine_key
-        url = "http://{0}:{1}@{2}/users/current.json".format(config.get('REDMINE_ADMIN_ACCOUNT'),
-                                                             config.get('REDMINE_ADMIN_PASSWORD'),
-                                                             config.get('REDMINE_IP_PORT'))
+            url = "http://{0}:{1}@{2}/users/current.json".format(config.get('REDMINE_ADMIN_ACCOUNT'),
+                                                                config.get('REDMINE_ADMIN_PASSWORD'),
+                                                                config.get('REDMINE_IP_PORT'))
+            self.key_generated = time.time()
+        else:
+            url = "http://{0}:{1}@{2}/users/{3}.json".format(config.get('REDMINE_ADMIN_ACCOUNT'),
+                                                                config.get('REDMINE_ADMIN_PASSWORD'),
+                                                                config.get('REDMINE_IP_PORT'),
+                                                                operator_id)
         output = requests.get(url, headers=Redmine.headers, verify=False)
         self.redmine_key = output.json()['user']['api_key']
-        self.key_generated = time.time()
         logger.info("redmine_key: {0}".format(self.redmine_key))
-        return self.redmine_key
+        # return self.redmine_key
 
     def get_issues_by_user(self, user_id):
         params = {'assigned_to_id': user_id, 'limit': 100}
@@ -128,9 +137,9 @@ class Redmine:
         output = self.api_get('/issues', params=params)
         return output.json(), output.status_code
 
-    def create_issue(self, args):
+    def create_issue(self, args, operator_id):
         data = {"issue": args}
-        output = self.api_post('/issues', data=data)
+        output = self.api_post('/issues', data=data, operator_id=operator_id)
         return output, output.status_code
 
     def update_issue(self, issue_id, args):
