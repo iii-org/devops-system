@@ -903,10 +903,11 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
             status_code = gitlab_output.status_code
             if status_code == 400:
                 try:
-                    if gitlab_output['message']['name'][0] == 'has already been taken':
+                    gitlab_json = gitlab_output.json()
+                    if gitlab_json['message']['name'][0] == 'has already been taken':
                         return util.respond(
-                            status_code, {"gitlab": gitlab_output.json()},
-                            error = Error.identifier_has_been_token(args['name'])
+                            status_code, {"gitlab": gitlab_json},
+                            error=Error.identifier_has_been_token(args['name'])
                         )
                 except (KeyError, IndexError):
                     pass

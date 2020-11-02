@@ -395,8 +395,8 @@ class auth(object):
         if git_user.status_code == 201:
             gitlab_user_id = git_user.json()['id']
         else:
-            # delte redmine user
-            self.redmine.redmine_delete_user(redmine_user_id)
+            # delete redmine user
+            self.redmine.rm_delete_user(redmine_user_id)
             return {"message": git_user.text}, git_user.status_code
 
         h = SHA256.new()

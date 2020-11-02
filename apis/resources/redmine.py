@@ -176,34 +176,18 @@ class Redmine:
         output = self.api_get('/users', params=args)
         return output.json()
 
-    def redmine_delete_user(self, redmine_user_id):
-        redmine_url = "http://{0}/users/{1}.json?key={2}".format(
-            config.get("REDMINE_IP_PORT"), redmine_user_id,
-            config.get("REDMINE_API_KEY"))
-        logger.info("delete redmine user url: {0}".format(redmine_url))
-        redmine_output = requests.delete(redmine_url,
-                                            headers=self.headers,
-                                            verify=False)
-        logger.info(
-            "delete redmine user output: {0}".format(redmine_output))
+    def rm_delete_user(self, redmine_user_id):
+        redmine_output = self.api_delete('/users/{0}'.format(redmine_user_id))
+        return redmine_output, redmine_output.status_code
 
-    def redmine_get_wiki_list(self, project_id):
-        url = "http://{0}/projects/{1}/wiki/index.json?key={2}".format(
-            config.get('REDMINE_IP_PORT'), project_id, self.redmine_key)
-        logger.info("url: {0}".format(url))
-        output = requests.get(url, headers=Redmine.headers, verify=False)
-        logger.info("get wiki list output and status: {0} and {1}".format(
-            output, output.status_code))
+    def rm_get_wiki_list(self, project_id):
+        output = self.api_get('/projects/{0}/wiki/index'.format(project_id))
         return output, output.status_code
 
-    def redmine_get_wiki(self, logger, app, project_id, wiki_name):
-        url = "http://{0}/projects/{1}/wiki/{2}.json?key={3}".format(
-            config.get('REDMINE_IP_PORT'), project_id, wiki_name,
-            self.redmine_key)
-        logger.info("url: {0}".format(url))
-        output = requests.get(url, headers=Redmine.headers, verify=False)
-        logger.info("get wiki list output and status: {0} and {1}".format(
-            output, output.status_code))
+    def rm_get_wiki(self, project_id, wiki_name):
+        output = self.api_get('/projects/{0}/wiki/{1}'.format(
+            project_id, wiki_name,
+        ))
         return output, output.status_code
 
     def redmine_put_wiki(self, logger, app, project_id, wiki_name, args):

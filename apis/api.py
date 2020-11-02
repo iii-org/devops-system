@@ -80,7 +80,7 @@ au = auth.auth(app, redmine, git)
 pjt = project.Project(app, au, k8s, redmine, git)
 iss = issue.Issue(pjt, redmine)
 pipe = pipeline.Pipeline(app, pjt)
-wk = wiki.Wiki()
+wk = wiki.Wiki(redmine)
 vn = version.Version(redmine)
 
 rqmt = requirement.Requirement()

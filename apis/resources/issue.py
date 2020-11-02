@@ -455,7 +455,7 @@ class Issue(object):
         else:
             return util.respond(
                 400, "update issue failed",
-                error=Error.redmine_error(output.json())
+                error=Error.redmine_error(output.text)
             )
 
     def delete_issue(self, issue_id):
@@ -463,7 +463,7 @@ class Issue(object):
             output, status_code = self.redmine.rm_delete_issue(issue_id)
             if status_code != 204 and status_code != 404:
                 return util.respond(status_code, 'Error when deleting issue',
-                                    Error.redmine_error(output.json()))
+                                    Error.redmine_error(output.text))
             return {"message": "success"}, 200
         except Exception as error:
             return util.respond(500, 'Error when deleting issue',
