@@ -1,18 +1,21 @@
+import config
 import datetime
-import requests
 import json
-import logging, config
-from Cryptodome.Hash import SHA256
+import logging
+import re
 
+import requests
+from Cryptodome.Hash import SHA256
+# from jsonwebtoken import jsonwebtoken
+from flask_jwt_extended import (create_access_token, JWTManager)
+
+from model import db, User, UserPluginRelation, ProjectUserRole, TableProjects, ProjectPluginRelation, \
+    TableRolesPluginRelation
 from .error import Error
-from .util import util
 from .gitlab import GitLab
 from .project import Project
-from model import db, User, UserPluginRelation, ProjectUserRole, TableProjects, TableRole, ProjectPluginRelation, TableRolesPluginRelation
+from .util import util
 
-# from jsonwebtoken import jsonwebtoken
-from flask_jwt_extended import (create_access_token, JWTManager,
-                                get_jwt_claims)
 logger = logging.getLogger(config.get('LOGGER_NAME'))
 
 jwt = JWTManager()
@@ -329,9 +332,27 @@ class auth(object):
         return {'message': 'success'}, 200
 
     def create_user(self, logger, args, app):
-        ''' create user in plan phase software(redmine) and repository_user_id(gitlab)
+        """
+        Create user in plan phase software(redmine) and repository_user_id(gitlab)
         Create DB user, user_plugin_relation, project_user_role, groups_has_users 4 table
-        '''
+        """
+
+        # Check if name is valid
+        name = args['name']
+        if re.fullmatch(r'^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,58}[a-zA-Z0-9]$', name) is None:
+            return util.respond(400, "Error when creating new user", error=
+                                Error.invalid_user_name(name))
+
+        user_source_password = args["password"]
+        if re.fullmatch(r'(?=.*\d)(?=.*[a-z])(?=.*[A-Z])'
+                        r'^[\w!@#$%^&*()+|{}\[\]`~\-\'\";:/?.\\>,<]{8,20}$',
+                        user_source_password) is None:
+            return util.respond(400, "Error when creating new user", error=
+                                Error.invalid_user_password())
+
+
+
+
         # Check DB has this login, email, if has, return error 400
         chekc_email_login_command = db.select([User.stru_user]).where(
             db.or_(User.stru_user.c.login == args['login'],
@@ -380,7 +401,6 @@ class auth(object):
                     }, 400
             page += 1
 
-        user_source_password = args["password"]
         # plan software user create
         self.redmine.rm_refresh_key()
         red_user = self.redmine.rm_create_user(args, user_source_password)

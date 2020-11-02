@@ -42,6 +42,8 @@ import resources.kubernetesClient as kubernetesClient
 
 import re
 
+from resources.error import Error
+
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
             'SQLALCHEMY_DATABASE_URI',
@@ -122,23 +124,20 @@ class CreateProject(Resource):
     @jwt_required
     def post(self):
         role_id = get_jwt_identity()["role_id"]
-        # print("role_id={0}".format(role_id))
 
         if role_id in (3, 5):
             user_id = get_jwt_identity()["user_id"]
-            # print("user_id={0}".format(user_id))
             parser = reqparse.RequestParser()
             parser.add_argument('name', type=str, required=True)
-            # parser.add_argument('identifier', type=str, required=True)
             parser.add_argument('display', type=str)
             parser.add_argument('description', type=str)
             parser.add_argument('disabled', type=bool, required=True)
             args = parser.parse_args()
             logger.info("post body: {0}".format(args))
 
-            pattern = "^([a-z])([a-z]|[0-9]|-|_)*"
+            pattern = "^[a-zA-Z0-9][a-zA-Z0-9-]{0,253}[a-zA-Z0-9]$"
             result = re.fullmatch(pattern, args["name"])
-            if result and (len(args["name"]) <= 30):
+            if result is not None:
                 try:
                     args["identifier"] = args["name"]
                     output = pjt.pm_create_project(user_id, args)
@@ -148,7 +147,8 @@ class CreateProject(Resource):
                     traceback.print_exc()
                     return {"message": str(error)}, 400
             else:
-                return {"message": "name error"}, 400
+                return ut.respond(400, 'Error while creating project',
+                                  error=Error.invalid_project_name(args['name']))
         else:
             return {"message": "your role art not PM/administrator"}, 401
 
