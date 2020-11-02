@@ -225,7 +225,7 @@ class auth(object):
         if user_relation is None:
             return util.respond(404, 'Error when updating password', error=Error.user_not_found(user_id))
         redmine_user_id = user_relation['plan_user_id']
-        err = self.redmine.update_password(redmine_user_id, new_pwd)
+        err = self.redmine.rm_update_password(redmine_user_id, new_pwd)
         if err is not None:
             return err
 
@@ -351,7 +351,7 @@ class auth(object):
         while offset < total_count:
             # logger.debug("offset: {0}, total_count: {1}".format(offset, total_count))
             parame = {'offset': offset, 'limit': limit}
-            user_list_output = self.redmine.redmine_get_user_list(parame)
+            user_list_output = self.redmine.rm_get_user_list(parame)
             # logger.debug("user_list_output: {0}".format(user_list_output))
             total_count = user_list_output['total_count']
             for user in user_list_output['users']:
@@ -382,8 +382,8 @@ class auth(object):
 
         user_source_password = args["password"]
         # plan software user create
-        self.redmine.get_redmine_key()
-        red_user = self.redmine.create_user(args, user_source_password)
+        self.redmine.rm_refresh_key()
+        red_user = self.redmine.rm_create_user(args, user_source_password)
         if red_user.status_code == 201:
             redmine_user_id = red_user.json()['user']['id']
         else:
@@ -663,7 +663,7 @@ class auth(object):
             return {"message": "Could not get project relationship data"}, 400
         if (redmine_role_id != None and redmine_user_id != None
                 and redmine_project_id != None):
-            self.redmine.get_redmine_key()
+            self.redmine.rm_refresh_key()
             output, status_code = self.redmine.redmine_create_memberships(logger, app, \
                 redmine_project_id, redmine_user_id, redmine_role_id)
             if status_code == 201:
@@ -714,7 +714,7 @@ class auth(object):
             return {"message": "Could not get project relationship data"}, 400
 
         if (redmine_user_id != None and redmine_project_id != None):
-            self.redmine.get_redmine_key()
+            self.redmine.rm_refresh_key()
             # get memebership id
             memeberships, status_code = self.redmine.redmine_get_memberships_list(
                 logger, app, redmine_project_id)

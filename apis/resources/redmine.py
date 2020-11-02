@@ -85,9 +85,9 @@ class Redmine:
     def key_check(self):
         # Check if key expires first, seems to expire in 2 hours in default?
         if time.time() - self.key_generated >= 7200:
-            self.get_redmine_key()
+            self.rm_refresh_key()
 
-    def get_redmine_key(self):
+    def rm_refresh_key(self):
         # get redmine_key
         url = "http://{0}:{1}@{2}/users/current.json".format(config.get('REDMINE_ADMIN_ACCOUNT'),
                                                              config.get('REDMINE_ADMIN_PASSWORD'),
@@ -98,18 +98,18 @@ class Redmine:
         logger.info("redmine_key: {0}".format(self.redmine_key))
         return self.redmine_key
 
-    def get_issues_by_user(self, user_id):
+    def rm_get_issues_by_user(self, user_id):
         params = {'assigned_to_id': user_id, 'limit': 100}
         output = self.api_get('/issues', params=params)
         logger.info("get issues by output: {0}".format(output.json()))
         return output.json()
 
-    def get_issues_by_project(self, plan_project_id):
+    def rm_get_issues_by_project(self, plan_project_id):
         params = {'project_id': plan_project_id, 'limit': 1000}
         output = self.api_get('/issues', params=params)
         return output.json()
 
-    def get_issues_by_project_and_user(self, user_id, plan_project_id):
+    def rm_get_issues_by_project_and_user(self, user_id, plan_project_id):
         params = {
             'assigned_to_id': user_id,
             'project_id': plan_project_id,
@@ -118,40 +118,40 @@ class Redmine:
         output = self.api_get('/issues', params=params)
         return output.json()
 
-    def get_issue(self, issue_id):
+    def rm_get_issue(self, issue_id):
         params = {'include': 'journals,attachment'}
         output = self.api_get('/issues/{0}'.format(issue_id), params=params)
         logger.info("get issues output: {0}".format(output))
         return output
 
-    def get_statistics(self, params):
+    def rm_get_statistics(self, params):
         output = self.api_get('/issues', params=params)
         return output.json(), output.status_code
 
-    def create_issue(self, args):
+    def rm_create_issue(self, args):
         data = {"issue": args}
         output = self.api_post('/issues', data=data)
         return output, output.status_code
 
-    def update_issue(self, issue_id, args):
+    def rm_update_issue(self, issue_id, args):
         output = self.api_put('/issues/{0}'.format(issue_id), data={"issue": args})
         return output, output.status_code
 
-    def delete_issue(self, issue_id):
+    def rm_delete_issue(self, issue_id):
         params = {'include': 'journals,attachment'}
         output = self.api_delete('/issues/{0}'.format(issue_id), params=params)
         return output, output.status_code
 
-    def get_issue_status(self):
+    def rm_get_issue_status(self):
         return self.api_get('/issue_statuses').json()
 
-    def get_priority(self):
+    def rm_get_priority(self):
         return self.api_get('/enumerations/issue_priorities').json()
 
-    def get_trackers(self):
+    def rm_get_trackers(self):
         return self.api_get('/trackers').json()
 
-    def create_user(self, args, user_source_password):
+    def rm_create_user(self, args, user_source_password):
         params = {
             "user": {
                 "login": args["login"],
@@ -164,7 +164,7 @@ class Redmine:
         output = self.api_post('/users', data=params)
         return output
 
-    def update_password(self, plan_user_id, new_pwd):
+    def rm_update_password(self, plan_user_id, new_pwd):
         param = {"user": {"password": new_pwd}}
         output = self.api_put('/users/{0}'.format(plan_user_id), data=param)
         if output.status_code == 204:
@@ -172,15 +172,8 @@ class Redmine:
         else:
             return output
 
-    def redmine_get_user_list(self, args):
-        args['key'] = self.redmine_key
-        url = "http://{0}/users.json".format(
-            config.get('REDMINE_IP_PORT'))
-        logger.info("args: {0}".format(args))
-        output = requests.get(url,
-                              headers=self.headers,
-                              verify=False,
-                              params=args)
+    def rm_get_user_list(self, args):
+        output = self.api_get('/users', params=args)
         return output.json()
 
     def redmine_delete_user(self, redmine_user_id):
@@ -194,7 +187,7 @@ class Redmine:
         logger.info(
             "delete redmine user output: {0}".format(redmine_output))
 
-    def redmine_get_wiki_list(self, logger, app, project_id):
+    def redmine_get_wiki_list(self, project_id):
         url = "http://{0}/projects/{1}/wiki/index.json?key={2}".format(
             config.get('REDMINE_IP_PORT'), project_id, self.redmine_key)
         logger.info("url: {0}".format(url))

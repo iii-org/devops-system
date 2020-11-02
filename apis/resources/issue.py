@@ -138,7 +138,7 @@ class Issue(object):
             return False
 
     def get_issue_rd(self, issue_id):
-        redmine_output_issue = self.redmine.get_issue(issue_id)
+        redmine_output_issue = self.redmine.rm_get_issue(issue_id)
         if redmine_output_issue.status_code == 200:
             output = self.__dealwith_issue_redmine_output(
                 logger,
@@ -158,7 +158,7 @@ class Issue(object):
         logger.debug("project_list: {0}".format(project_dict))
         if project_dict is not None:
             output_array = []
-            redmine_output_issue_array = self.redmine.get_issues_by_project(
+            redmine_output_issue_array = self.redmine.rm_get_issues_by_project(
                 project_dict['plan_project_id'])
 
             for redmine_issue in redmine_output_issue_array['issues']:
@@ -393,7 +393,7 @@ class Issue(object):
         output_array = []
         if str(user_id) not in user_to_plan:
             return util.respond(400, 'Cannot find user in redmine')
-        redmine_output_issue_array = self.redmine.get_issues_by_user(user_to_plan[str(user_id)])
+        redmine_output_issue_array = self.redmine.rm_get_issues_by_user(user_to_plan[str(user_id)])
         for redmine_issue in redmine_output_issue_array['issues']:
             output_dict = self.__dealwith_issue_by_user_redmine_output(
                 logger, redmine_issue)
@@ -422,7 +422,7 @@ class Issue(object):
             args['uploads'] = [attachment]
 
         try:
-            output, status_code = self.redmine.create_issue(args)
+            output, status_code = self.redmine.rm_create_issue(args)
             if status_code == 201:
                 return {
                            "message": "success",
@@ -449,7 +449,7 @@ class Issue(object):
         if attachment is not None:
             args['uploads'] = [attachment]
 
-        output, status_code = self.redmine.update_issue(issue_id, args)
+        output, status_code = self.redmine.rm_update_issue(issue_id, args)
         if status_code == 204:
             return {"message": "success"}, 200
         else:
@@ -460,7 +460,7 @@ class Issue(object):
 
     def delete_issue(self, issue_id):
         try:
-            output, status_code = self.redmine.delete_issue(issue_id)
+            output, status_code = self.redmine.rm_delete_issue(issue_id)
             if status_code != 204 and status_code != 404:
                 return util.respond(status_code, 'Error when deleting issue',
                                     Error.detail(Error.REDMINE_RESPONSE_ERROR, output.text))
@@ -472,7 +472,7 @@ class Issue(object):
 
     def get_issue_status(self):
         try:
-            issue_status_output = self.redmine.get_issue_status()
+            issue_status_output = self.redmine.rm_get_issue_status()
             return issue_status_output['issue_statuses']
         except Exception as error:
             return util.respond(500, 'Error when deleting issue',
@@ -482,7 +482,7 @@ class Issue(object):
     def get_issue_priority(self):
         try:
             output = []
-            issue_status_output = self.redmine.get_priority()
+            issue_status_output = self.redmine.rm_get_priority()
             for issus_status in issue_status_output['issue_priorities']:
                 issus_status.pop('is_default', None)
                 if issus_status['active'] is True:
@@ -498,7 +498,7 @@ class Issue(object):
     def get_issue_trackers(self):
         output = []
         try:
-            redmine_trackers_output = self.redmine.get_trackers()
+            redmine_trackers_output = self.redmine.rm_get_trackers()
             for redmine_tracker in redmine_trackers_output['trackers']:
                 redmine_tracker.pop('default_status', None)
                 redmine_tracker.pop('description', None)
@@ -517,7 +517,7 @@ class Issue(object):
         if user_plugin_relation is not None:
             args["assigned_to_id"] = user_plugin_relation['plan_user_id']
         try:
-            redmine_output, status_code = self.redmine.get_statistics(args)
+            redmine_output, status_code = self.redmine.rm_get_statistics(args)
             return {
                        "message": "success",
                        "data": {
@@ -533,12 +533,12 @@ class Issue(object):
         user_plugin_relation = auth.get_user_plugin_relation(user_id=user_id)
         if user_plugin_relation is not None:
             args["assigned_to_id"] = user_plugin_relation['plan_user_id']
-        total_issue_output, status_code = self.redmine.get_statistics(args)
+        total_issue_output, status_code = self.redmine.rm_get_statistics(args)
         if status_code != 200:
             return {"message": "could not get redmine total issue"}, 400
         logger.debug("user_id {0} total issue number: {1}".format(user_id, total_issue_output["total_count"]))
         args['status_id'] = 'closed'
-        closed_issue_output, closed_status_code = self.redmine.get_statistics(args)
+        closed_issue_output, closed_status_code = self.redmine.rm_get_statistics(args)
         if closed_status_code != 200:
             return {"message": "could not get redmine closed issue"}, 400
         logger.debug("user_id {0} closed issue number: {1}".format(user_id, closed_issue_output["total_count"]))
@@ -569,7 +569,7 @@ class Issue(object):
 
         try:
             args['status_id'] = '*'
-            redmine_output, status_code = self.redmine.get_statistics(args)
+            redmine_output, status_code = self.redmine.rm_get_statistics(args)
             if status_code != 200:
                 return {
                            'message': 'error when retrieving data from redmine',
@@ -578,7 +578,7 @@ class Issue(object):
             total = redmine_output["total_count"]
 
             args['status_id'] = 'closed'
-            redmine_output_6, status_code = self.redmine.get_statistics(args)
+            redmine_output_6, status_code = self.redmine.rm_get_statistics(args)
             if status_code != 200:
                 return {
                            'message': 'error when retrieving data from redmine',
