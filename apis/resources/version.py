@@ -17,7 +17,7 @@ class Version(object):
         project_plugin_relation = Project.get_project_plugin_relation(
             logger, project_id)
         if project_plugin_relation is not None:
-            redmine_key = self.redmine.get_redmine_key()
+            redmine_key = self.redmine.rm_refresh_key()
             version_list, status_code = self.redmine.redmine_get_version_list(
                 logger, app, project_plugin_relation['plan_project_id'])
             if status_code == 200:
@@ -31,7 +31,7 @@ class Version(object):
         project_plugin_relation = Project.get_project_plugin_relation(
             logger, project_id)
         if project_plugin_relation is not None:
-            redmine_key = self.redmine.get_redmine_key()
+            redmine_key = self.redmine.rm_refresh_key()
             version, status_code = self.redmine.redmine_post_version(
                 logger, app, project_plugin_relation['plan_project_id'],
                 message_args)
@@ -52,7 +52,7 @@ class Version(object):
                 }, status_code
 
     def get_version_by_version_id(self, logger, app, project_id, version_id):
-        redmine_key = self.redmine.get_redmine_key()
+        redmine_key = self.redmine.rm_refresh_key()
         version, status_code = self.redmine.redmine_get_version(
             logger, app, version_id)
         if status_code == 200:
@@ -62,7 +62,7 @@ class Version(object):
 
     def put_version_by_version_id(self, logger, app, project_id, version_id,
                                   args):
-        redmine_key = self.redmine.get_redmine_key()
+        redmine_key = self.redmine.rm_refresh_key()
         version, status_code = self.redmine.redmine_put_version(
             logger, app, version_id, args)
         if status_code == 204:
@@ -74,7 +74,7 @@ class Version(object):
 
     def delete_version_by_version_id(self, logger, app, project_id,
                                      version_id):
-        redmine_key = self.redmine.get_redmine_key()
+        redmine_key = self.redmine.rm_refresh_key()
         output, status_code = self.redmine.redmine_delete_version(
             logger, app, version_id)
         logger.debug("Delete Redmine Version : {0}".format(output))

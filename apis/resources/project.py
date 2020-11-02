@@ -175,7 +175,7 @@ class Project(object):
                 plan_user_id = userid_list_output[0]
                 result.close()
                 logger.info("get user_ids SQL: {0}".format(plan_user_id))
-                redmine_key = Redmine.get_redmine_key(self)
+                redmine_key = Redmine.rm_refresh_key(self)
                 for project in project_list:
                     output_dict = {}
                     output_dict['name'] = project['name']
@@ -194,7 +194,7 @@ class Project(object):
                     output_dict['last_test_result'] = {}
 
                     # get issue total cont
-                    total_issue = self.redmine.get_issues_by_project_and_user(
+                    total_issue = self.redmine.rm_get_issues_by_project_and_user(
                         plan_user_id, project['plan_project_id'])
                     logger.info("issue total count by user: {0}".format(
                         total_issue['total_count']))
@@ -743,7 +743,6 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                 .format(user_id))
         project_ids = result.fetchall()
         result.close()
-        print(project_ids)
         if project_ids:
             output_array = []
             # 用project_id依序查詢redmine的project_id
@@ -753,7 +752,10 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                     result = db.engine.execute(
                         "SELECT plan_project_id FROM public.project_plugin_relation WHERE project_id = '{0}'"
                             .format(project_id))
-                    plan_project_id = result.fetchone()[0]
+                    fetch = result.fetchone()
+                    if fetch is None:
+                        continue
+                    plan_project_id = fetch[0]
                     result.close()
 
                     ## 用redmine api查詢相關資訊
@@ -890,7 +892,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
             if status_code == 422 and 'errors' in resp:
                 if len(resp['errors']) > 0:
                     if resp['errors'][0] == 'Identifier has already been taken':
-                        error = Error.IDENTIFIER_HAS_BEEN_TAKEN
+                        error = Error.identifier_has_been_token(args['name'])
             return util.respond(status_code, {"redmine": resp}, error=error)
 
         # 建立gitlab project
@@ -903,10 +905,11 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
             status_code = gitlab_output.status_code
             if status_code == 400:
                 try:
-                    if gitlab_output['message']['name'][0] == 'has already been taken':
+                    gitlab_json = gitlab_output.json()
+                    if gitlab_json['message']['name'][0] == 'has already been taken':
                         return util.respond(
-                            status_code, {"gitlab": gitlab_output.json()},
-                            error=Error.IDENTIFIER_HAS_BEEN_TAKEN
+                            status_code, {"gitlab": gitlab_json},
+                            error=Error.identifier_has_been_token(args['name'])
                         )
                 except (KeyError, IndexError):
                     pass

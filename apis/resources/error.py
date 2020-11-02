@@ -6,11 +6,22 @@ class Error:
         return error
 
     # Project errors
-    IDENTIFIER_HAS_BEEN_TAKEN = {'code': 1001, 'message': 'Project identifier has been taken'}
+    @staticmethod
+    def identifier_has_been_token(identifier):
+        return {'code': 1001, 'message': 'Project identifier has been taken',
+                'details': {'identifier': identifier}}
+
     # Third party service errors
-    REDMINE_RESPONSE_ERROR = {'code': 8001, 'message': 'Redmine responds error'}
+    @staticmethod
+    def redmine_error(response):
+        return {'code': 8001, 'message': 'Redmine responds error',
+                'details': response}
+
     # Internal errors
-    UNKNOWN_METHOD = {'code': 9001, 'message': 'A request with unknown method is made'}
+    @staticmethod
+    def unknown_method(method):
+        return {'code': 9001, 'message': 'A request with unknown method is made',
+                'details': {'method': method}}
 
     # User errors
     @staticmethod
