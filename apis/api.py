@@ -1141,7 +1141,7 @@ class Issue(Resource):
         parser.add_argument('upload_description', type=str)
 
         args = parser.parse_args()
-        output = iss.update_issue_rd(logger, app, issue_id, args)
+        output = iss.update_issue_rd(logger, app, issue_id, args, get_jwt_identity()['user_id'])
         return output
 
     @jwt_required

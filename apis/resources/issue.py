@@ -422,8 +422,10 @@ class Issue(object):
             args['uploads'] = [attachment]
 
         try:
-            operator_plugin_relation = auth.get_user_plugin_relation(user_id=operator_id)
-            plan_operator_id = operator_plugin_relation['plan_user_id']
+            plan_operator_id = None
+            if operator_id is not None:
+                operator_plugin_relation = auth.get_user_plugin_relation(user_id=operator_id)
+                plan_operator_id = operator_plugin_relation['plan_user_id']
             output, status_code = self.redmine.create_issue(args, plan_operator_id)
             if status_code == 201:
                 return {
@@ -437,7 +439,7 @@ class Issue(object):
         except Exception as error:
             return {"message": str(error)}, 400
 
-    def update_issue_rd(self, logger, app, issue_id, args):
+    def update_issue_rd(self, logger, app, issue_id, args, operator_id):
         args = {k: v for k, v in args.items() if v is not None}
         if 'parent_id' in args:
             args['parent_issue_id'] = args['parent_id']
@@ -450,8 +452,11 @@ class Issue(object):
         attachment = self.redmine.redmine_upload(args)
         if attachment is not None:
             args['uploads'] = [attachment]
-
-        output, status_code = self.redmine.update_issue(issue_id, args)
+        plan_operator_id = None
+        if operator_id is not None:
+            operator_plugin_relation = auth.get_user_plugin_relation(user_id=operator_id)
+            plan_operator_id = operator_plugin_relation['plan_user_id']
+        output, status_code = self.redmine.update_issue(issue_id, args, plan_operator_id)
         if status_code == 204:
             return {"message": "success"}, 200
         else:

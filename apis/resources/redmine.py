@@ -105,7 +105,6 @@ class Redmine:
         output = requests.get(url, headers=Redmine.headers, verify=False)
         self.redmine_key = output.json()['user']['api_key']
         logger.info("redmine_key: {0}".format(self.redmine_key))
-        # return self.redmine_key
 
     def get_issues_by_user(self, user_id):
         params = {'assigned_to_id': user_id, 'limit': 100}
@@ -142,8 +141,8 @@ class Redmine:
         output = self.api_post('/issues', data=data, operator_id=operator_id)
         return output, output.status_code
 
-    def update_issue(self, issue_id, args):
-        output = self.api_put('/issues/{0}'.format(issue_id), data={"issue": args})
+    def update_issue(self, issue_id, args, operator_id):
+        output = self.api_put('/issues/{0}'.format(issue_id), data={"issue": args}, operator_id=operator_id)
         return output, output.status_code
 
     def delete_issue(self, issue_id):
