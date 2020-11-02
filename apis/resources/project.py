@@ -743,7 +743,6 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                 .format(user_id))
         project_ids = result.fetchall()
         result.close()
-        print(project_ids)
         if project_ids:
             output_array = []
             # 用project_id依序查詢redmine的project_id
@@ -753,7 +752,10 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                     result = db.engine.execute(
                         "SELECT plan_project_id FROM public.project_plugin_relation WHERE project_id = '{0}'"
                             .format(project_id))
-                    plan_project_id = result.fetchone()[0]
+                    fetch = result.fetchone()
+                    if fetch is None:
+                        continue
+                    plan_project_id = fetch[0]
                     result.close()
 
                     ## 用redmine api查詢相關資訊
