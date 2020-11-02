@@ -25,7 +25,6 @@ class GitLab(object):
             self.private_token = output.json()['private_token']
         else:
             self.private_token = config.get("GITLAB_PRIVATE_TOKEN")
-        logger.info("private_token: {0}".format(self.private_token))
 
     def create_user(self, logger, app, args, user_source_password):
         gitlab = GitLab(logger, app)
