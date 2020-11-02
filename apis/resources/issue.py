@@ -5,6 +5,7 @@ from datetime import datetime, date, timedelta
 
 from model import db, ProjectPluginRelation, ProjectUserRole
 from .auth import auth
+from .error import Error
 from .redmine import Redmine
 from .util import util
 
@@ -412,8 +413,7 @@ class Issue(object):
             logger, args['project_id'])
         args['project_id'] = project_plugin_relation['plan_project_id']
         if "assigned_to_id" in args:
-            user_plugin_relation = auth.get_user_plugin_relation(
-                logger, user_id=args['assigned_to_id'])
+            user_plugin_relation = auth.get_user_plugin_relation(user_id=args['assigned_to_id'])
             args['assigned_to_id'] = user_plugin_relation['plan_user_id']
         logger.info("args: {0}".format(args))
 
@@ -441,47 +441,49 @@ class Issue(object):
             args['parent_issue_id'] = args['parent_id']
             args.pop('parent_id', None)
         if "assigned_to_id" in args:
-            user_plugin_relation = auth.get_user_plugin_relation(
-                logger, user_id=args['assigned_to_id'])
+            user_plugin_relation = auth.get_user_plugin_relation(user_id=args['assigned_to_id'])
             args['assigned_to_id'] = user_plugin_relation['plan_user_id']
         logger.info("update_issue_rd args: {0}".format(args))
-        Redmine.get_redmine_key(self)
 
         attachment = self.redmine.redmine_upload(args)
         if attachment is not None:
             args['uploads'] = [attachment]
 
-        output, status_code = Redmine.redmine_update_issue(
-            self, logger, app, issue_id, args)
+        output, status_code = self.redmine.update_issue(issue_id, args)
         if status_code == 204:
             return {"message": "success"}, 200
         else:
-            return {"message": "update issue failed, {0}".format(output.text)}, 400
+            return util.respond(
+                400, "update issue failed",
+                error=Error.detail(Error.REDMINE_RESPONSE_ERROR, str(output))
+            )
 
     def delete_issue(self, issue_id):
         try:
-            # go to redmine, delete issue
-            output = self.redmine.redmine_delete_issue(issue_id)
+            output, status_code = self.redmine.delete_issue(issue_id)
+            if status_code != 204 and status_code != 404:
+                return util.respond(status_code, 'Error when deleting issue',
+                                    Error.detail(Error.REDMINE_RESPONSE_ERROR, output.text))
             return {"message": "success"}, 200
         except Exception as error:
-            return str(error), 400
+            return util.respond(500, 'Error when deleting issue',
+                                Error.detail(Error.REDMINE_RESPONSE_ERROR,
+                                             str(type(error)) + ':' + error.__str__()))
 
-    def get_issue_status(self, logger, app):
-        Redmine.get_redmine_key(self)
+    def get_issue_status(self):
         try:
-            issus_status_output = Redmine.redmine_get_issue_status(
-                self, logger, app)
-            return issus_status_output['issue_statuses']
+            issue_status_output = self.redmine.get_issue_status()
+            return issue_status_output['issue_statuses']
         except Exception as error:
-            return str(error), 400
+            return util.respond(500, 'Error when deleting issue',
+                                Error.detail(Error.REDMINE_RESPONSE_ERROR,
+                                             str(type(error)) + ':' + error.__str__()))
 
-    def get_issue_priority(self, logger, app):
-        Redmine.get_redmine_key(self)
+    def get_issue_priority(self):
         try:
             output = []
-            issus_status_output = Redmine.redmine_get_priority(
-                self, logger, app)
-            for issus_status in issus_status_output['issue_priorities']:
+            issue_status_output = self.redmine.get_priority()
+            for issus_status in issue_status_output['issue_priorities']:
                 issus_status.pop('is_default', None)
                 if issus_status['active'] is True:
                     issus_status["is_closed"] = False
@@ -493,12 +495,10 @@ class Issue(object):
         except Exception as error:
             return str(error), 400
 
-    def get_issue_trackers(self, logger, app):
-        Redmine.get_redmine_key(self)
+    def get_issue_trackers(self):
         output = []
         try:
-            redmine_trackers_output = Redmine.redmine_get_trackers(
-                self, logger, app)
+            redmine_trackers_output = self.redmine.get_trackers()
             for redmine_tracker in redmine_trackers_output['trackers']:
                 redmine_tracker.pop('default_status', None)
                 redmine_tracker.pop('description', None)
@@ -513,8 +513,7 @@ class Issue(object):
                                                   args["to_time"])
         else:
             args["due_date"] = ">=".format(args["from_time"])
-        user_plugin_relation = auth.get_user_plugin_relation(logger,
-                                                             user_id=user_id)
+        user_plugin_relation = auth.get_user_plugin_relation(user_id=user_id)
         if user_plugin_relation is not None:
             args["assigned_to_id"] = user_plugin_relation['plan_user_id']
         try:
@@ -531,8 +530,7 @@ class Issue(object):
     def get_open_issue_statistics(self, user_id):
         args = {}
         args['limit'] = 100
-        user_plugin_relation = auth.get_user_plugin_relation(logger,
-                                                             user_id=user_id)
+        user_plugin_relation = auth.get_user_plugin_relation(user_id=user_id)
         if user_plugin_relation is not None:
             args["assigned_to_id"] = user_plugin_relation['plan_user_id']
         total_issue_output, status_code = self.redmine.get_statistics(args)
@@ -565,8 +563,7 @@ class Issue(object):
             return {'message': 'Type error, should be week or month'}, 400
 
         args = {"due_date": "><{0}|{1}".format(from_time, to_time)}
-        user_plugin_relation = auth.get_user_plugin_relation(logger,
-                                                             user_id=user_id)
+        user_plugin_relation = auth.get_user_plugin_relation(user_id=user_id)
         if user_plugin_relation is not None:
             args["assigned_to_id"] = user_plugin_relation['plan_user_id']
 
