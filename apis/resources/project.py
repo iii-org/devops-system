@@ -890,7 +890,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
             if status_code == 422 and 'errors' in resp:
                 if len(resp['errors']) > 0:
                     if resp['errors'][0] == 'Identifier has already been taken':
-                        error = Error.IDENTIFIER_HAS_BEEN_TAKEN
+                        error = Error.identifier_has_been_token(args['name'])
             return util.respond(status_code, {"redmine": resp}, error=error)
 
         # 建立gitlab project
@@ -906,7 +906,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                     if gitlab_output['message']['name'][0] == 'has already been taken':
                         return util.respond(
                             status_code, {"gitlab": gitlab_output.json()},
-                            error=Error.IDENTIFIER_HAS_BEEN_TAKEN
+                            error = Error.identifier_has_been_token(args['name'])
                         )
                 except (KeyError, IndexError):
                     pass

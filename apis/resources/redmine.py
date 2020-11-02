@@ -63,7 +63,7 @@ class Redmine:
         else:
             return util.respond(
                 500, 'Error while request {0} {1}'.format(method, url),
-                error=Error.detail(Error.UNKNOWN_METHOD, {'method': method}))
+                error=Error.unknown_method(method))
 
         logger.info('redmine api {0} {1}, params={2}, body={5}, response={3} {4}'.format(
             method, url, params.__str__(), output.status_code, output.text, data))
