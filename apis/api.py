@@ -80,7 +80,7 @@ au = auth.auth(app, redmine, git)
 pjt = project.Project(app, au, k8s, redmine, git)
 iss = issue.Issue(pjt, redmine)
 pipe = pipeline.Pipeline(app, pjt)
-wk = wiki.Wiki()
+wk = wiki.Wiki(redmine)
 vn = version.Version(redmine)
 
 rqmt = requirement.Requirement()
@@ -448,7 +448,7 @@ class ProjectWikiList(Resource):
         status = pjt.verify_project_user(logger, project_id,
                                          get_jwt_identity()['user_id'])
         if status or get_jwt_identity()['role_id'] == 5:
-            output = wk.get_wiki_list_by_project(logger, app, project_id)
+            output = wk.get_wiki_list_by_project(project_id)
             return output
         else:
             return {
@@ -459,11 +459,10 @@ class ProjectWikiList(Resource):
 class ProjectWiki(Resource):
     @jwt_required
     def get(self, project_id, wiki_name):
-        status = pjt.verify_project_user(logger, project_id,
+        status = pjt.verify_project_user(logger,  project_id,
                                          get_jwt_identity()['user_id'])
         if status or get_jwt_identity()['role_id'] == 5:
-            output, status_code = wk.get_wiki_by_project(
-                logger, app, project_id, wiki_name)
+            output, status_code = wk.get_wiki_by_project(project_id, wiki_name)
             return output, status_code
         else:
             return {
@@ -478,8 +477,7 @@ class ProjectWiki(Resource):
             parser = reqparse.RequestParser()
             parser.add_argument('wiki_text', type=str, required=True)
             args = parser.parse_args()
-            output, status_code = wk.put_wiki_by_project(
-                logger, app, project_id, wiki_name, args)
+            output, status_code = wk.put_wiki_by_project(project_id, wiki_name, args, get_jwt_identity()['user_id'])
             return output, status_code
         else:
             return {
@@ -491,8 +489,7 @@ class ProjectWiki(Resource):
         status = pjt.verify_project_user(logger, project_id,
                                          get_jwt_identity()['user_id'])
         if status or get_jwt_identity()['role_id'] == 5:
-            output, status_code = wk.delete_wiki_by_project(
-                logger, app, project_id, wiki_name)
+            output, status_code = wk.delete_wiki_by_project(project_id, wiki_name)
             return output, status_code
         else:
             return {

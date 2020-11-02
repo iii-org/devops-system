@@ -202,7 +202,7 @@ class Redmine:
         logger.info(
             "delete redmine user output: {0}".format(redmine_output))
 
-    def redmine_get_wiki_list(self, logger, app, project_id):
+    def redmine_get_wiki_list(self, project_id):
         url = "http://{0}/projects/{1}/wiki/index.json?key={2}".format(
             config.get('REDMINE_IP_PORT'), project_id, self.redmine_key)
         logger.info("url: {0}".format(url))
@@ -211,7 +211,7 @@ class Redmine:
             output, output.status_code))
         return output, output.status_code
 
-    def redmine_get_wiki(self, logger, app, project_id, wiki_name):
+    def redmine_get_wiki(self, project_id, wiki_name):
         url = "http://{0}/projects/{1}/wiki/{2}.json?key={3}".format(
             config.get('REDMINE_IP_PORT'), project_id, wiki_name,
             self.redmine_key)
@@ -221,21 +221,12 @@ class Redmine:
             output, output.status_code))
         return output, output.status_code
 
-    def redmine_put_wiki(self, logger, app, project_id, wiki_name, args):
-        url = "http://{0}/projects/{1}/wiki/{2}.json?key={3}".format(
-            config.get('REDMINE_IP_PORT'), project_id, wiki_name,
-            self.redmine_key)
-        logger.info("url: {0}".format(url))
+    def redmine_put_wiki(self, project_id, wiki_name, args, operator_id):
         param = {"wiki_page": {"text": args['wiki_text']}}
-        output = requests.put(url,
-                              data=json.dumps(param),
-                              headers=Redmine.headers,
-                              verify=False)
-        logger.info("get wiki list output and status: {0} and {1}".format(
-            output, output.status_code))
+        output = self.api_put('/projects/{0}/wiki/{1}'.format(project_id, wiki_name), data=param, operator_id=operator_id)
         return output, output.status_code
 
-    def redmine_delete_wiki(self, logger, app, project_id, wiki_name):
+    def redmine_delete_wiki(self, project_id, wiki_name):
         url = "http://{0}/projects/{1}/wiki/{2}.json?key={3}".format(
             config.get('REDMINE_IP_PORT'), project_id, wiki_name,
             self.redmine_key)
