@@ -196,19 +196,6 @@ class Redmine:
         output = self.api_get('/projects/{0}/wiki/{1}'.format(
             project_id, wiki_name,
         ))
-    def rm_delete_user(self, redmine_user_id):
-        redmine_output = self.api_delete('/users/{0}'.format(redmine_user_id))
-        return redmine_output, redmine_output.status_code
-
-    def rm_get_wiki_list(self, project_id):
-        output = self.api_get('/projects/{0}/wiki/index'.format(project_id))
-        return output, output.status_code
-
-    def rm_get_wiki(self, project_id, wiki_name):
-        output = self.api_get('/projects/{0}/wiki/{1}'.format(
-            project_id, wiki_name,
-        ))
-        return output, output.status_code
 
     def redmine_put_wiki(self, project_id, wiki_name, args, operator_id):
         param = {"wiki_page": {"text": args['wiki_text']}}
