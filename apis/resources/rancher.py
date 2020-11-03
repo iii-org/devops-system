@@ -199,9 +199,9 @@ class Rancher(object):
             "type": "pipeline",
             "sourceCodeCredentialId": "{0}:{1}-gitlab-root".format(user_id, project_id.split(':')[1]),
             "repositoryUrl": repository_url,
-            "triggerWebhookPr": False,
+            "triggerWebhookPr": True,
             "triggerWebhookPush": True,
-            "triggerWebhookTag": False
+            "triggerWebhookTag": True
         }
         output = util.callpostapi(self, url, parameter, logger,
                                 headersandtoken)
