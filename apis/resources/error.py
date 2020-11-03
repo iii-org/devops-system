@@ -45,7 +45,12 @@ class Error:
     # Third party service errors
     @staticmethod
     def redmine_error(response):
-        return build(8001, 'Redmine responds error.', response)
+        if type(response) is str:
+            return build(8001, 'Redmine responds error.', response)
+        try:
+            return build(8001, 'Redmine responds error.', response.json())
+        except Exception:
+            return build(8001, 'Redmine responds error.', response.text)
 
     # Internal errors
     @staticmethod

@@ -1,3 +1,4 @@
+from .error import Error
 from .redmine import Redmine
 from .project import Project
 from .util import util
@@ -51,9 +52,10 @@ class Version(object):
     def get_version_by_version_id(self, logger, app, project_id, version_id):
         version, status_code = self.redmine.rm_get_version(version_id)
         if status_code == 200:
-            return {"message": "success", "data": version.json()}, 200
+            return util.success(version.json())
         else:
-            return {"message": "get redmine version  error", "data": {}}, status_code
+            return util.respond(status_code, "Error when getting version info.",
+                                error=Error.redmine_error(version))
 
     def put_version_by_version_id(self, logger, app, project_id, version_id,
                                   args):
