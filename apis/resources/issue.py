@@ -417,7 +417,7 @@ class Issue(object):
             args['assigned_to_id'] = user_plugin_relation['plan_user_id']
         logger.info("args: {0}".format(args))
 
-        attachment = self.redmine.redmine_upload(args)
+        attachment = self.redmine.rm_upload(args)
         if attachment is not None:
             args['uploads'] = [attachment]
 
@@ -449,7 +449,7 @@ class Issue(object):
             args['assigned_to_id'] = user_plugin_relation['plan_user_id']
         logger.info("update_issue_rd args: {0}".format(args))
 
-        attachment = self.redmine.redmine_upload(args)
+        attachment = self.redmine.rm_upload(args)
         if attachment is not None:
             args['uploads'] = [attachment]
         plan_operator_id = None

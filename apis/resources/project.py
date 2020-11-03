@@ -882,7 +882,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         # 建立順序為 redmine, gitlab, rancher, api server，有失敗時 rollback 依此次序處理
 
         # 建立redmine project
-        redmine_output = self.redmine.redmine_create_project(args)
+        redmine_output = self.redmine.rm_create_project(args)
         redmine_pj_id = redmine_output.json()["project"]["id"]
 
         if redmine_output.status_code != 201:
@@ -900,7 +900,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
 
         if gitlab_output.status_code != 201:
             # Rollback
-            self.redmine.redmine_delete_project(redmine_pj_id)
+            self.redmine.rm_delete_project(redmine_pj_id)
 
             status_code = gitlab_output.status_code
             if status_code == 400:
