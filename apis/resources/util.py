@@ -163,7 +163,9 @@ class util(object):
             return {'message': 'success', 'data': data}, 200
 
     @staticmethod
-    def respond(status_code, message, data=None, error=None):
+    def respond(status_code, message=None, data=None, error=None):
+        if message is None:
+            return None, status_code
         message_obj = {'message': message}
         if data is not None:
             if type(data) is dict:

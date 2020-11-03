@@ -17,9 +17,8 @@ class Version(object):
         project_plugin_relation = Project.get_project_plugin_relation(
             logger, project_id)
         if project_plugin_relation is not None:
-            redmine_key = self.redmine.rm_refresh_key()
-            version_list, status_code = self.redmine.redmine_get_version_list(
-                logger, app, project_plugin_relation['plan_project_id'])
+            version_list, status_code = self.redmine.rm_get_version_list(
+                project_plugin_relation['plan_project_id'])
             if status_code == 200:
                 return {"message": "success", "data": version_list.json()}, 200
             else:
@@ -31,10 +30,8 @@ class Version(object):
         project_plugin_relation = Project.get_project_plugin_relation(
             logger, project_id)
         if project_plugin_relation is not None:
-            redmine_key = self.redmine.rm_refresh_key()
-            version, status_code = self.redmine.redmine_post_version(
-                logger, app, project_plugin_relation['plan_project_id'],
-                message_args)
+            version, status_code = self.redmine.rm_post_version(project_plugin_relation['plan_project_id'],
+                                                                message_args)
             if status_code == 204:
                 return {
                     "message": "update Version success",
@@ -52,9 +49,7 @@ class Version(object):
                 }, status_code
 
     def get_version_by_version_id(self, logger, app, project_id, version_id):
-        redmine_key = self.redmine.rm_refresh_key()
-        version, status_code = self.redmine.redmine_get_version(
-            logger, app, version_id)
+        version, status_code = self.redmine.rm_get_version(version_id)
         if status_code == 200:
             return {"message": "success", "data": version.json()}, 200
         else:
@@ -62,9 +57,7 @@ class Version(object):
 
     def put_version_by_version_id(self, logger, app, project_id, version_id,
                                   args):
-        redmine_key = self.redmine.rm_refresh_key()
-        version, status_code = self.redmine.redmine_put_version(
-            logger, app, version_id, args)
+        version, status_code = self.redmine.rm_put_version(version_id, args)
         if status_code == 204:
             return {"message": "update version success", "data": {}}, 200
         elif status_code == 201:
@@ -75,8 +68,7 @@ class Version(object):
     def delete_version_by_version_id(self, logger, app, project_id,
                                      version_id):
         redmine_key = self.redmine.rm_refresh_key()
-        output, status_code = self.redmine.redmine_delete_version(
-            logger, app, version_id)
+        output, status_code = self.redmine.redmine_delete_version(version_id)
         logger.debug("Delete Redmine Version : {0}".format(output))
         if status_code == 204:
             return {"message": "success", "data": {}}, 200

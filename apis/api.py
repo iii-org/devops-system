@@ -1902,17 +1902,21 @@ class ProjectFiles(Resource):
     @jwt_required
     def post(self, project_id):
         plan_project_id = pjt.get_plan_project_id(project_id)
+        if plan_project_id < 0:
+            return ut.respond(400, 'Error while uploading a file to a project.',
+                              error=Error.project_not_found(project_id))
+
         parser = reqparse.RequestParser()
         parser.add_argument('filename', type=str)
         parser.add_argument('version_id', type=str)
         parser.add_argument('description', type=str)
         args = parser.parse_args()
-        return redmine.redmine_upload_to_project(plan_project_id, args)
+        return redmine.rm_upload_to_project(plan_project_id, args)
 
     @jwt_required
     def get(self, project_id):
         plan_project_id = pjt.get_plan_project_id(project_id)
-        return redmine.redmine_list_file(plan_project_id)
+        return redmine.rm_list_file(plan_project_id)
 
 
 class DownloadFile(Resource):
@@ -1922,7 +1926,7 @@ class DownloadFile(Resource):
         parser.add_argument('id', type=int)
         parser.add_argument('filename', type=str)
         args = parser.parse_args()
-        return redmine.redmine_download_attachment(args)
+        return redmine.rm_download_attachment(args)
 
 
 class SystemGitCommitID(Resource):

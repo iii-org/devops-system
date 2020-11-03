@@ -684,8 +684,8 @@ class auth(object):
         if (redmine_role_id != None and redmine_user_id != None
                 and redmine_project_id != None):
             self.redmine.rm_refresh_key()
-            output, status_code = self.redmine.redmine_create_memberships(logger, app, \
-                redmine_project_id, redmine_user_id, redmine_role_id)
+            output, status_code = self.redmine.redmine_create_memberships(redmine_project_id, redmine_user_id,
+                                                                          redmine_role_id)
             if status_code == 201:
                 logger.debug(
                     "redmine add member success, output: {0}".format(output))
@@ -734,10 +734,8 @@ class auth(object):
             return {"message": "Could not get project relationship data"}, 400
 
         if (redmine_user_id != None and redmine_project_id != None):
-            self.redmine.rm_refresh_key()
             # get memebership id
-            memeberships, status_code = self.redmine.redmine_get_memberships_list(
-                logger, app, redmine_project_id)
+            memeberships, status_code = self.redmine.rm_get_memberships_list(redmine_project_id)
             redmine_membership_id = None
             if status_code == 200:
                 for membership in memeberships.json()['memberships']:
@@ -745,8 +743,7 @@ class auth(object):
                         redmine_membership_id = membership['id']
             if redmine_membership_id is not None:
                 #delete membership
-                output, status_code = self.redmine.redmine_delete_memberships(
-                    logger, app, redmine_membership_id)
+                output, status_code = self.redmine.rm_delete_memberships(redmine_membership_id)
                 if status_code == 204:
                     logger.debug(
                         "redmine delete membership success, output: {0}".
