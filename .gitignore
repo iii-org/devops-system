@@ -4,3 +4,4 @@ venv
 k8s_config
 environments.json
 devops-api.log*
+__pycache__

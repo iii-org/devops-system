@@ -43,7 +43,7 @@ class Wiki(object):
         if operator_id is not None:
             operator_plugin_relation = auth.get_user_plugin_relation(user_id=operator_id)
             plan_operator_id = operator_plugin_relation['plan_user_id']
-        wiki_list, status_code = self.redmine.redmine_put_wiki(
+        wiki_list, status_code = self.redmine.rm_put_wiki(
             project_plugin_relation['plan_project_id'], wiki_name, args, plan_operator_id)
         if status_code == 204:
             return {"message": "update wiki success"}, 200
@@ -55,7 +55,7 @@ class Wiki(object):
     def delete_wiki_by_project(self, project_id, wiki_name):
         project_plugin_relation = Project.get_project_plugin_relation(
             logger, project_id)
-        wiki_list, status_code = self.redmine.redmine_delete_wiki(
+        wiki_list, status_code = self.redmine.rm_delete_wiki(
             project_plugin_relation['plan_project_id'],
             wiki_name)
         if status_code == 204:

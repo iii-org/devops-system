@@ -92,7 +92,7 @@ class Redmine:
 
     def rm_refresh_key(self, operator_id=None):
         if operator_id is None:
-        # get redmine_key
+            # get redmine_key
             url = "http://{0}:{1}@{2}/users/current.json".format(config.get('REDMINE_ADMIN_ACCOUNT'),
                                                                 config.get('REDMINE_ADMIN_PASSWORD'),
                                                                 config.get('REDMINE_IP_PORT'))
@@ -197,19 +197,15 @@ class Redmine:
             project_id, wiki_name,
         ))
 
-    def redmine_put_wiki(self, project_id, wiki_name, args, operator_id):
+    def rm_put_wiki(self, project_id, wiki_name, args, operator_id):
         param = {"wiki_page": {"text": args['wiki_text']}}
-        output = self.api_put('/projects/{0}/wiki/{1}'.format(project_id, wiki_name), data=param, operator_id=operator_id)
+        output = self.api_put('/projects/{0}/wiki/{1}'.format(project_id, wiki_name),
+                              data=param, operator_id=operator_id)
         return output, output.status_code
 
-    def redmine_delete_wiki(self, project_id, wiki_name):
-        url = "http://{0}/projects/{1}/wiki/{2}.json?key={3}".format(
-            config.get('REDMINE_IP_PORT'), project_id, wiki_name,
-            self.redmine_key)
-        logger.info("url: {0}".format(url))
-        output = requests.delete(url, headers=Redmine.headers, verify=False)
-        logger.info("get wiki list output and status: {0} and {1}".format(
-            output, output.status_code))
+    def rm_delete_wiki(self, project_id, wiki_name):
+        output = self.api_delete('/projects/{0}/wiki/{1}'.format(
+            project_id, wiki_name))
         return output, output.status_code
 
     # Get Redmine Version List
@@ -377,7 +373,7 @@ class Redmine:
         except Exception as e:
             return {"message": "error", "data": e.__str__()}, 400
 
-    def redmine_create_project(self, args):
+    def rm_create_project(self, args):
         xml_body = """<?xml version="1.0" encoding="UTF-8"?>
                     <project>
                     <name>{0}</name>
@@ -398,7 +394,7 @@ class Redmine:
 
         return redmine_output
 
-    def redmine_delete_project(self, plan_project_id):
+    def rm_delete_project(self, plan_project_id):
         logger.info("delete redmine project plan_id: {0}".format(plan_project_id))
         redmine_output = self.api_delete('/projects/{0}'.format(plan_project_id))
         logger.info("delete redmine project output: {0}".format(redmine_output))
