@@ -44,8 +44,8 @@ class Version(object):
                 }, 200
             else:
                 return {
-                    "message": "Create Rredmine Version error",
-                    "data": {}
+                    "message": "Create Redmine Version error",
+                    "data": version.json()
                 }, status_code
 
     def get_version_by_version_id(self, logger, app, project_id, version_id):

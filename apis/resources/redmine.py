@@ -50,7 +50,7 @@ class Redmine:
         if method.upper() == 'GET':
             output = requests.get(url, headers=headers, params=params, verify=False)
         elif method.upper() == 'POST':
-            if type(data) is dict:
+            if type(data) is dict or type(data) is reqparse.Namespace:
                 if 'Content-Type' not in headers:
                     headers['Content-Type'] = 'application/json'
                 output = requests.post(url, data=json.dumps(data), params=params,
