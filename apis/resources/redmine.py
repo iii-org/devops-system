@@ -31,7 +31,7 @@ class Redmine:
         self.redmine_key = output.json()['user']['api_key']
         logger.info("redmine_key: {0}".format(self.redmine_key))
 
-    def api_request(self, method, path, headers=None, params=None, data=None):
+    def api_request(self, method, path, headers=None, params=None, data=None, operator_id=None):
         self.key_check()
         if headers is None:
             headers = {}
@@ -41,12 +41,15 @@ class Redmine:
             headers['Content-Type'] = 'application/json'
 
         url = "http://{0}{1}.json".format(config.get('REDMINE_IP_PORT'), path)
-        params['key'] = self.redmine_key
+        if operator_id is not None:
+            self.rm_refresh_key(operator_id)
+            params['key'] = self.redmine_key
+        else:
+            params['key'] = self.redmine_key
 
         if method.upper() == 'GET':
             output = requests.get(url, headers=headers, params=params, verify=False)
         elif method.upper() == 'POST':
-            params['key'] = self.redmine_key
             if type(data) is dict:
                 if 'Content-Type' not in headers:
                     headers['Content-Type'] = 'application/json'
@@ -73,30 +76,35 @@ class Redmine:
     def api_get(self, path, params=None, headers=None):
         return self.api_request('GET', path, params=params, headers=headers)
 
-    def api_post(self, path, params=None, headers=None, data=None):
-        return self.api_request('POST', path, headers=headers, data=data, params=params)
+    def api_post(self, path, params=None, headers=None, data=None, operator_id=None):
+        return self.api_request('POST', path, headers=headers, data=data, params=params, operator_id=operator_id)
 
-    def api_put(self, path, params=None, headers=None, data=None):
-        return self.api_request('PUT', path, headers=headers, data=data, params=params)
+    def api_put(self, path, params=None, headers=None, data=None, operator_id=None):
+        return self.api_request('PUT', path, headers=headers, data=data, params=params, operator_id=operator_id)
 
-    def api_delete(self, path, params=None, headers=None):
-        return self.api_request('DELETE', path, params=params, headers=headers)
+    def api_delete(self, path, params=None, headers=None, operator_id=None):
+        return self.api_request('DELETE', path, params=params, headers=headers, operator_id=operator_id)
 
     def key_check(self):
         # Check if key expires first, seems to expire in 2 hours in default?
         if time.time() - self.key_generated >= 7200:
             self.rm_refresh_key()
 
-    def rm_refresh_key(self):
+    def rm_refresh_key(self, operator_id=None):
+        if operator_id is None:
         # get redmine_key
-        url = "http://{0}:{1}@{2}/users/current.json".format(config.get('REDMINE_ADMIN_ACCOUNT'),
-                                                             config.get('REDMINE_ADMIN_PASSWORD'),
-                                                             config.get('REDMINE_IP_PORT'))
+            url = "http://{0}:{1}@{2}/users/current.json".format(config.get('REDMINE_ADMIN_ACCOUNT'),
+                                                                config.get('REDMINE_ADMIN_PASSWORD'),
+                                                                config.get('REDMINE_IP_PORT'))
+            self.key_generated = time.time()
+        else:
+            url = "http://{0}:{1}@{2}/users/{3}.json".format(config.get('REDMINE_ADMIN_ACCOUNT'),
+                                                                config.get('REDMINE_ADMIN_PASSWORD'),
+                                                                config.get('REDMINE_IP_PORT'),
+                                                                operator_id)
         output = requests.get(url, headers=Redmine.headers, verify=False)
         self.redmine_key = output.json()['user']['api_key']
-        self.key_generated = time.time()
         logger.info("redmine_key: {0}".format(self.redmine_key))
-        return self.redmine_key
 
     def rm_get_issues_by_user(self, user_id):
         params = {'assigned_to_id': user_id, 'limit': 100}
@@ -128,13 +136,13 @@ class Redmine:
         output = self.api_get('/issues', params=params)
         return output.json(), output.status_code
 
-    def rm_create_issue(self, args):
+    def rm_create_issue(self, args, operator_id):
         data = {"issue": args}
-        output = self.api_post('/issues', data=data)
+        output = self.api_post('/issues', data=data, operator_id=operator_id)
         return output, output.status_code
 
-    def rm_update_issue(self, issue_id, args):
-        output = self.api_put('/issues/{0}'.format(issue_id), data={"issue": args})
+    def rm_update_issue(self, issue_id, args, operator_id):
+        output = self.api_put('/issues/{0}'.format(issue_id), data={"issue": args}, operator_id=operator_id)
         return output, output.status_code
 
     def rm_delete_issue(self, issue_id):
@@ -188,23 +196,13 @@ class Redmine:
         output = self.api_get('/projects/{0}/wiki/{1}'.format(
             project_id, wiki_name,
         ))
-        return output, output.status_code
 
-    def redmine_put_wiki(self, logger, app, project_id, wiki_name, args):
-        url = "http://{0}/projects/{1}/wiki/{2}.json?key={3}".format(
-            config.get('REDMINE_IP_PORT'), project_id, wiki_name,
-            self.redmine_key)
-        logger.info("url: {0}".format(url))
+    def redmine_put_wiki(self, project_id, wiki_name, args, operator_id):
         param = {"wiki_page": {"text": args['wiki_text']}}
-        output = requests.put(url,
-                              data=json.dumps(param),
-                              headers=Redmine.headers,
-                              verify=False)
-        logger.info("get wiki list output and status: {0} and {1}".format(
-            output, output.status_code))
+        output = self.api_put('/projects/{0}/wiki/{1}'.format(project_id, wiki_name), data=param, operator_id=operator_id)
         return output, output.status_code
 
-    def redmine_delete_wiki(self, logger, app, project_id, wiki_name):
+    def redmine_delete_wiki(self, project_id, wiki_name):
         url = "http://{0}/projects/{1}/wiki/{2}.json?key={3}".format(
             config.get('REDMINE_IP_PORT'), project_id, wiki_name,
             self.redmine_key)

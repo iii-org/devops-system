@@ -42,6 +42,8 @@ import resources.kubernetesClient as kubernetesClient
 
 import re
 
+from resources.error import Error
+
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
             'SQLALCHEMY_DATABASE_URI',
@@ -122,23 +124,20 @@ class CreateProject(Resource):
     @jwt_required
     def post(self):
         role_id = get_jwt_identity()["role_id"]
-        # print("role_id={0}".format(role_id))
 
         if role_id in (3, 5):
             user_id = get_jwt_identity()["user_id"]
-            # print("user_id={0}".format(user_id))
             parser = reqparse.RequestParser()
             parser.add_argument('name', type=str, required=True)
-            # parser.add_argument('identifier', type=str, required=True)
             parser.add_argument('display', type=str)
             parser.add_argument('description', type=str)
             parser.add_argument('disabled', type=bool, required=True)
             args = parser.parse_args()
             logger.info("post body: {0}".format(args))
 
-            pattern = "^([a-z])([a-z]|[0-9]|-|_)*"
+            pattern = "^[a-z0-9][a-z0-9-]{0,253}[a-z0-9]$"
             result = re.fullmatch(pattern, args["name"])
-            if result and (len(args["name"]) <= 30):
+            if result is not None:
                 try:
                     args["identifier"] = args["name"]
                     output = pjt.pm_create_project(user_id, args)
@@ -148,7 +147,8 @@ class CreateProject(Resource):
                     traceback.print_exc()
                     return {"message": str(error)}, 400
             else:
-                return {"message": "name error"}, 400
+                return ut.respond(400, 'Error while creating project',
+                                  error=Error.invalid_project_name(args['name']))
         else:
             return {"message": "your role art not PM/administrator"}, 401
 
@@ -448,7 +448,7 @@ class ProjectWikiList(Resource):
         status = pjt.verify_project_user(logger, project_id,
                                          get_jwt_identity()['user_id'])
         if status or get_jwt_identity()['role_id'] == 5:
-            output = wk.get_wiki_list_by_project(logger, app, project_id)
+            output = wk.get_wiki_list_by_project(project_id)
             return output
         else:
             return {
@@ -459,11 +459,10 @@ class ProjectWikiList(Resource):
 class ProjectWiki(Resource):
     @jwt_required
     def get(self, project_id, wiki_name):
-        status = pjt.verify_project_user(logger, project_id,
+        status = pjt.verify_project_user(logger,  project_id,
                                          get_jwt_identity()['user_id'])
         if status or get_jwt_identity()['role_id'] == 5:
-            output, status_code = wk.get_wiki_by_project(
-                logger, app, project_id, wiki_name)
+            output, status_code = wk.get_wiki_by_project(project_id, wiki_name)
             return output, status_code
         else:
             return {
@@ -478,8 +477,7 @@ class ProjectWiki(Resource):
             parser = reqparse.RequestParser()
             parser.add_argument('wiki_text', type=str, required=True)
             args = parser.parse_args()
-            output, status_code = wk.put_wiki_by_project(
-                logger, app, project_id, wiki_name, args)
+            output, status_code = wk.put_wiki_by_project(project_id, wiki_name, args, get_jwt_identity()['user_id'])
             return output, status_code
         else:
             return {
@@ -491,8 +489,7 @@ class ProjectWiki(Resource):
         status = pjt.verify_project_user(logger, project_id,
                                          get_jwt_identity()['user_id'])
         if status or get_jwt_identity()['role_id'] == 5:
-            output, status_code = wk.delete_wiki_by_project(
-                logger, app, project_id, wiki_name)
+            output, status_code = wk.delete_wiki_by_project(project_id, wiki_name)
             return output, status_code
         else:
             return {
@@ -1108,7 +1105,7 @@ class IssueCreate(Resource):
         parser.add_argument('upload_description', type=str)
 
         args = parser.parse_args()
-        output = iss.create_issue(args)
+        output = iss.create_issue(args, get_jwt_identity()['user_id'])
         return output
 
 
@@ -1141,7 +1138,7 @@ class Issue(Resource):
         parser.add_argument('upload_description', type=str)
 
         args = parser.parse_args()
-        output = iss.update_issue_rd(logger, app, issue_id, args)
+        output = iss.update_issue_rd(logger, app, issue_id, args, get_jwt_identity()['user_id'])
         return output
 
     @jwt_required
