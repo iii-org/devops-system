@@ -135,7 +135,7 @@ class CreateProject(Resource):
             args = parser.parse_args()
             logger.info("post body: {0}".format(args))
 
-            pattern = "^[a-zA-Z0-9][a-zA-Z0-9-]{0,253}[a-zA-Z0-9]$"
+            pattern = "^[a-z0-9][a-z0-9-]{0,253}[a-z0-9]$"
             result = re.fullmatch(pattern, args["name"])
             if result is not None:
                 try:

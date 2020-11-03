@@ -13,7 +13,7 @@ class Error:
 
     @staticmethod
     def invalid_project_name(name):
-        return Error.build(1002, 'Project name may only contain a-z, A-Z, 0-9, dash, '
+        return Error.build(1002, 'Project name may only contain lower cases, numbers, dash, '
                                  'the heading and trailing character should be alphanumeric,'
                                  'and should be 2 to 225 characters long.',
                            {'name': name})
