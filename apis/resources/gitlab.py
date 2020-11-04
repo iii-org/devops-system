@@ -81,58 +81,28 @@ class GitLab(object):
         output = self.__api_post('/users', data=data)
         return output
 
-    def update_password(self, repository_user_id, new_pwd):
-        url = "http://{0}/api/{1}/users/{2}?private_token={3}".format(
-            config.get("GITLAB_IP_PORT"),
-            config.get("GITLAB_API_VERSION"),
-            repository_user_id,
-            self.private_token)
-        param = {"password": new_pwd}
-        output = requests.put(url, data=json.dumps(param), headers=self.headers, verify=False)
+    def gl_update_password(self, repository_user_id, new_pwd):
+        output = self.__api_put('/users/{0}'.format(repository_user_id),
+                                params={"password": new_pwd})
         if output.status_code == 200:
             return None
         else:
             return output
 
-    def get_user_list(self, args):
-        url = "http://{0}/api/{1}/users"\
-            .format(config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), \
-                    )
-        args['private_token'] = self.private_token
-        logger.info("gitlab create user url: {0}".format(url))
-        output = requests.get(url,
-                              params=args,
-                              headers=self.headers,
-                              verify=False)
-        #logger.info("gitlab get user list output: status_code: {0}, message: {1}".
-        # format(output.status_code, output.json()))
+    def gl_get_user_list(self, args):
+        output = self.__api_get('/users', params=args)
         return output
 
-    def project_add_member(self, logger, app, project_id, user_id):
-        gitlab = GitLab(app)
-        url = "http://{0}/api/{1}/projects/{2}/members?private_token={3}"\
-            .format(config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), \
-                    project_id, gitlab.private_token)
-        parame = {
+    def gl_project_add_member(self, project_id, user_id):
+        params = {
             "user_id": user_id,
             "access_level": 40,
         }
-        output = requests.post(url,
-                               data=json.dumps(parame),
-                               headers=self.headers,
-                               verify=False)
-        logger.info(
-            "gitlab project add member api output: status_code: {0}, message: {1}"
-            .format(output.status_code, output.text))
-        return output, output.status_code
+        output = self.__api_post('/projects/{0}/members'.format(project_id),
+                                 params=params)
+        return output
 
-    def project_delete_member(self, logger, app, project_id, user_id):
-        gitlab = GitLab(app)
-        url = "http://{0}/api/{1}/projects/{2}/members/{3}?private_token={4}"\
-            .format(config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), \
-                    project_id, user_id, gitlab.private_token)
-        output = requests.delete(url, headers=self.headers, verify=False)
-        logger.info(
-            "gitlab project delete member api output: status_code: {0}, message: {1}"
-            .format(output.status_code, output.text))
-        return output, output.status_code
+    def gl_project_delete_member(self, project_id, user_id):
+        output = self.__api_delete('/projects/{0}/members/{1}'.format(
+            project_id, user_id))
+        return output

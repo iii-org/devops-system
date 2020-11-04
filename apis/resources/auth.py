@@ -233,8 +233,7 @@ class auth(object):
             return err
 
         gitlab_user_id = user_relation['repository_user_id']
-        gitlab = GitLab(self.app)
-        err = gitlab.update_password(gitlab_user_id, new_pwd)
+        err = self.git.gl_update_password(gitlab_user_id, new_pwd)
         if err is not None:
             return err
 
@@ -394,7 +393,7 @@ class auth(object):
         while page <= X_Total_Pages:
             #logger.debug("page: {0}, X_Total_Pages: {1}".format(page, X_Total_Pages))
             parame = {'page': page}
-            user_list_output = self.git.get_user_list(parame)
+            user_list_output = self.git.gl_get_user_list(parame)
             X_Total_Pages = int(user_list_output.headers['X-Total-Pages'])
             #logger.debug("X_Total_Pages: {0}".format(X_Total_Pages))
             for user in user_list_output.json():
@@ -705,8 +704,8 @@ class auth(object):
 
         # gitlab project add member
         if gitlab_project_id is not None and gitlab_user_id is not None:
-            output, status_code = GitLab.project_add_member(self, logger, app, gitlab_project_id,\
-                 gitlab_user_id)
+            output = self.git.gl_project_add_member(gitlab_project_id, gitlab_user_id)
+            status_code = output.status_code
             if status_code == 201:
                 logger.debug(
                     "gitlab add member success, output: {0}".format(output))
@@ -777,8 +776,8 @@ class auth(object):
 
         # gitlab project delete member
         if gitlab_project_id is not None and gitlab_user_id is not None:
-            output, status_code = GitLab.project_delete_member(self, logger, app, gitlab_project_id,\
-                 gitlab_user_id)
+            output = self.git.gl_project_delete_member(gitlab_project_id, gitlab_user_id)
+            status_code = output.status_code
             if status_code == 204:
                 logger.debug("gitlab delete member success, output")
             else:
