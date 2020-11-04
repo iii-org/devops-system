@@ -45,6 +45,7 @@ class Redmine:
             self.rm_refresh_key(operator_id)
             params['key'] = self.redmine_key
         else:
+            self.rm_refresh_key()
             params['key'] = self.redmine_key
 
         if method.upper() == 'GET':
@@ -94,14 +95,14 @@ class Redmine:
         if operator_id is None:
             # get redmine_key
             url = "http://{0}:{1}@{2}/users/current.json".format(config.get('REDMINE_ADMIN_ACCOUNT'),
-                                                                config.get('REDMINE_ADMIN_PASSWORD'),
-                                                                config.get('REDMINE_IP_PORT'))
+                                                                 config.get('REDMINE_ADMIN_PASSWORD'),
+                                                                 config.get('REDMINE_IP_PORT'))
             self.key_generated = time.time()
         else:
             url = "http://{0}:{1}@{2}/users/{3}.json".format(config.get('REDMINE_ADMIN_ACCOUNT'),
-                                                                config.get('REDMINE_ADMIN_PASSWORD'),
-                                                                config.get('REDMINE_IP_PORT'),
-                                                                operator_id)
+                                                             config.get('REDMINE_ADMIN_PASSWORD'),
+                                                             config.get('REDMINE_IP_PORT'),
+                                                             operator_id)
         output = requests.get(url, headers=Redmine.headers, verify=False)
         self.redmine_key = output.json()['user']['api_key']
         logger.info("redmine_key: {0}".format(self.redmine_key))
