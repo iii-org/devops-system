@@ -416,8 +416,7 @@ class auth(object):
             return {"message": red_user.text}, red_user.status_code
 
         # gitlab software user create
-        git_user = GitLab.create_user(self, logger, app, args,
-                                      user_source_password)
+        git_user = self.git.gl_create_user(args, user_source_password)
         if git_user.status_code == 201:
             gitlab_user_id = git_user.json()['id']
         else:
