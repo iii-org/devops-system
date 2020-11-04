@@ -37,6 +37,7 @@ class Pipeline(object):
             else:
                 output_dict['commit_message'] = None
             output_dict['commit_branch'] = pipeline_output['branch']
+            output_dict['commit_id'] = pipeline_output['commit']
             stage_status = []
             # logger.info(pipeline_output[0]['stages'])
             for stage in pipeline_output['stages']:
