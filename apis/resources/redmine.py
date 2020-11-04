@@ -124,7 +124,7 @@ class Redmine:
             'limit': 100
         }
         output = self.api_get('/issues', params=params)
-        return output.json()
+        return output, output.status_code
 
     def rm_get_issue(self, issue_id):
         params = {'include': 'journals,attachment'}
@@ -182,7 +182,7 @@ class Redmine:
 
     def rm_get_user_list(self, args):
         output = self.api_get('/users', params=args)
-        return output.json()
+        return output, output.status_code
 
     def rm_delete_user(self, redmine_user_id):
         redmine_output = self.api_delete('/users/{0}'.format(redmine_user_id))
@@ -311,12 +311,9 @@ class Redmine:
         a_id = args['id']
         filename = args['filename']
         try:
-            url = "http://{0}/attachments/download/{1}/{2}?key={3}".format(
-                config.get('REDMINE_IP_PORT'),
-                a_id,
-                filename,
-                self.redmine_key)
-            r = requests.get(url, headers=self.headers, verify=False)
+            r = self.api_get('/attachments/download/{0}/{1}'.format(
+                a_id, filename
+            ))
             file_obj = BytesIO(r.content)
             return send_file(
                 file_obj,
@@ -324,7 +321,7 @@ class Redmine:
             )
         except Exception as e:
             return util.respond(500, 'Error when downloading an attachment.',
-                                error=Error.uncaught_exception(e))
+                                error=Error.redmine_error(r))
 
     def rm_create_project(self, args):
         xml_body = """<?xml version="1.0" encoding="UTF-8"?>
@@ -342,10 +339,7 @@ class Redmine:
         redmine_output = self.api_post('/projects',
                                        headers=headers,
                                        data=xml_body.encode('utf-8'))
-        logger.info("create redmine project output: {0} / {1}".format(
-            redmine_output, redmine_output.json()))
-
-        return redmine_output
+        return redmine_output, redmine_output.status_code
 
     def rm_delete_project(self, plan_project_id):
         logger.info("delete redmine project plan_id: {0}".format(plan_project_id))
