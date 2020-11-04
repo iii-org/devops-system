@@ -69,12 +69,11 @@ class Version(object):
 
     def delete_version_by_version_id(self, logger, app, project_id,
                                      version_id):
-        redmine_key = self.redmine.rm_refresh_key()
         output, status_code = self.redmine.redmine_delete_version(version_id)
-        logger.debug("Delete Redmine Version : {0}".format(output))
         if status_code == 204:
-            return {"message": "success", "data": {}}, 200
+            return util.success()
         elif status_code == 404:
-            return {"message": "already deleted", "data": {}}, 200
+            return util.respond(200, "already deleted")
         else:
-            return {"message": "delete redmine wiki error", "data": {}}, status_code
+            return util.respond(status_code, "delete redmine wiki error",
+                                error=Error.redmine_error(output))

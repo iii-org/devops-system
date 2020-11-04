@@ -46,11 +46,11 @@ class Error:
     @staticmethod
     def redmine_error(response):
         if type(response) is str:
-            return build(8001, 'Redmine responds error.', response)
+            return build(8001, 'Redmine responds error.', {'response': response})
         try:
-            return build(8001, 'Redmine responds error.', response.json())
+            return build(8001, 'Redmine responds error.', {'response': response.json()})
         except Exception:
-            return build(8001, 'Redmine responds error.', response.text)
+            return build(8001, 'Redmine responds error.', {'response': response.text})
 
     # Internal errors
     @staticmethod

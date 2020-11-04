@@ -372,7 +372,13 @@ class auth(object):
         while offset < total_count:
             # logger.debug("offset: {0}, total_count: {1}".format(offset, total_count))
             parame = {'offset': offset, 'limit': limit}
-            user_list_output = self.redmine.rm_get_user_list(parame)
+            user_list_output, status_code = self.redmine.rm_get_user_list(parame)
+            try:
+                user_list_output = user_list_output.json()
+            except Exception as e:
+                return util.respond(500, str(type(e)) + ': ' + str(e),
+                                    error=Error.redmine_error(user_list_output))
+
             # logger.debug("user_list_output: {0}".format(user_list_output))
             total_count = user_list_output['total_count']
             for user in user_list_output['users']:

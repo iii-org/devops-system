@@ -194,8 +194,13 @@ class Project(object):
                     output_dict['last_test_result'] = {}
 
                     # get issue total cont
-                    total_issue = self.redmine.rm_get_issues_by_project_and_user(
+                    issue_output, status_code = self.redmine.rm_get_issues_by_project_and_user(
                         plan_user_id, project['plan_project_id'])
+                    try:
+                        total_issue = issue_output.json()
+                    except Exception as e:
+                        return util.respond(500, "Error when getting issues for a user",
+                                            error=Error.redmine_error(issue_output))
                     logger.info("issue total count by user: {0}".format(
                         total_issue['total_count']))
                     output_dict['issues'] = total_issue['total_count']
@@ -882,8 +887,12 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         # 建立順序為 redmine, gitlab, rancher, api server，有失敗時 rollback 依此次序處理
 
         # 建立redmine project
-        redmine_output = self.redmine.rm_create_project(args)
-        redmine_pj_id = redmine_output.json()["project"]["id"]
+        redmine_output, output_status = self.redmine.rm_create_project(args)
+        try:
+            redmine_pj_id = redmine_output.json()["project"]["id"]
+        except Exception as e:
+            return util.respond(500, "Error while creating redmine project",
+                                error=Error.redmine_error(redmine_output))
 
         if redmine_output.status_code != 201:
             status_code = redmine_output.status_code
@@ -961,7 +970,6 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         output = self.au.project_add_member(logger, self.app, project_id,
                                             args)
         logger.info("project add member output: {0}".format(output))
-        print(output)
 
         return {
                    "message": "success",

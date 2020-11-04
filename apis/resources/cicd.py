@@ -41,7 +41,7 @@ class Cicd(object):
             items = self.ti.get_testItem_by_testCase_id(logger, case_id, jwt_identity['user_id'])
             for item in items:
                 item_id = item['id']
-                o_item = {'name': '%s #%s' % (case['name'], item_id)}
+                o_item = {'name': '{0}-{1}'.format(case_id, item_id)}
                 values = []
                 part_values = self.tv.get_testValue_by_testItem_id(
                     logger, item_id, jwt_identity['user_id'])
