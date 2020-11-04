@@ -338,10 +338,10 @@ class auth(object):
         """
 
         # Check if name is valid
-        name = args['name']
-        if re.fullmatch(r'^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,58}[a-zA-Z0-9]$', name) is None:
+        login = args['login']
+        if re.fullmatch(r'^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,58}[a-zA-Z0-9]$', login) is None:
             return util.respond(400, "Error when creating new user", error=
-                                Error.invalid_user_name(name))
+                                Error.invalid_user_name(login))
 
         user_source_password = args["password"]
         if re.fullmatch(r'(?=.*\d)(?=.*[a-z])(?=.*[A-Z])'
