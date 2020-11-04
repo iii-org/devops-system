@@ -86,13 +86,13 @@ class Redmine:
         logger.info("redmine_key: {0}".format(self.redmine_key))
 
     def rm_get_issues_by_user(self, user_id):
-        params = {'assigned_to_id': user_id, 'limit': 100}
+        params = {'assigned_to_id': user_id, 'limit': 100, 'status_id': '*'}
         output = self.__api_get('/issues', params=params)
         logger.info("get issues by output: {0}".format(output.json()))
         return output.json()
 
     def rm_get_issues_by_project(self, plan_project_id):
-        params = {'project_id': plan_project_id, 'limit': 1000}
+        params = {'project_id': plan_project_id, 'limit': 1000, 'status_id': '*'}
         output = self.__api_get('/issues', params=params)
         return output.json()
 
@@ -100,7 +100,8 @@ class Redmine:
         params = {
             'assigned_to_id': user_id,
             'project_id': plan_project_id,
-            'limit': 100
+            'limit': 100,
+            'status_id': '*'
         }
         output = self.__api_get('/issues', params=params)
         return output, output.status_code
@@ -112,6 +113,7 @@ class Redmine:
         return output
 
     def rm_get_statistics(self, params):
+        params['status_id'] = '*'
         output = self.__api_get('/issues', params=params)
         return output.json(), output.status_code
 
