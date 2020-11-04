@@ -428,16 +428,13 @@ class Issue(object):
                 plan_operator_id = operator_plugin_relation['plan_user_id']
             output, status_code = self.redmine.rm_create_issue(args, plan_operator_id)
             if status_code == 201:
-                return {
-                           "message": "success",
-                           "data": {
-                               "issue_id": output.json()["issue"]["id"]
-                           }
-                       }, 200
+                return util.success({"issue_id": output.json()["issue"]["id"]})
             else:
-                return {"message": output.text}, 400
+                return util.respond(status_code, "Error while creating issue",
+                                    error=Error.redmine_error(output))
         except Exception as error:
-            return {"message": str(error)}, 400
+            return util.respond(500, "Error while creating issue",
+                                error=Error.uncaught_exception(error))
 
     def update_issue_rd(self, logger, app, issue_id, args, operator_id):
         args = {k: v for k, v in args.items() if v is not None}

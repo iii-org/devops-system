@@ -5,9 +5,12 @@ import subprocess
 import requests
 import sqlalchemy
 import time
+
+from flask_restful import reqparse
 from sqlalchemy import orm
 
 from model import db
+from resources.error import Error
 
 
 class util(object):
@@ -40,8 +43,8 @@ class util(object):
                 if "#" not in line and "=" in line:
                     imageDetails[line.split("=")[0].replace(
                         "export", "").replace(
-                            "_",
-                            "").strip(None)] = line.split("=")[1].strip(None)
+                        "_",
+                        "").strip(None)] = line.split("=")[1].strip(None)
         return imageDetails
 
     def callSQL(self, command, conf, logger):
@@ -77,7 +80,7 @@ class util(object):
             # logger.info("Post api parameter is : {0}".format(parameter))
             logger.info("Post api status code is : {0}".format(
                 callapi.status_code))
-            #logger.debug("Post api waste time: {0}".format(
+            # logger.debug("Post api waste time: {0}".format(
             #    callapi.elapsed.total_seconds()))
             # logger.info("Post api message is : {0}".format(callapi.text))
             return callapi
@@ -139,7 +142,7 @@ class util(object):
             logger.build_error("calldeleteapi error : {0}".format(e))
             return e
 
-    def jsonToStr(self,data):
+    def jsonToStr(self, data):
         return json.dumps(data, ensure_ascii=False, separators=(',', ':'))
 
     def dateToStr(self, data):
@@ -156,6 +159,8 @@ class util(object):
             return project_id == -1
 
     @staticmethod
+    # Return 200 and success message, can with data.
+    # If you need to return 201, 204 or other success, use util#respond.
     def success(data=None):
         if data is None:
             return {'message': 'success'}, 200
@@ -184,3 +189,26 @@ class util(object):
         now = time.time()
         print('%f seconds elapsed.' % (now - last_time))
         return now
+
+    @staticmethod
+    def api_request(method, url, headers=None, params=None, data=None):
+        if method.upper() == 'GET':
+            return requests.get(url, headers=headers, params=params, verify=False)
+        elif method.upper() == 'POST':
+            if type(data) is dict or type(data) is reqparse.Namespace:
+                if 'Content-Type' not in headers:
+                    headers['Content-Type'] = 'application/json'
+                return requests.post(url, data=json.dumps(data), params=params,
+                                     headers=headers, verify=False)
+            else:
+                return requests.post(url, data=data, params=params,
+                                     headers=headers, verify=False)
+        elif method.upper() == 'PUT':
+            return requests.put(url, data=json.dumps(data), params=params,
+                                headers=headers, verify=False)
+        elif method.upper() == 'DELETE':
+            return requests.delete(url, headers=headers, params=params, verify=False)
+        else:
+            return util.respond(
+                500, 'Error while request {0} {1}'.format(method, url),
+                error=Error.unknown_method(method))

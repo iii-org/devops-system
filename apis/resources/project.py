@@ -905,7 +905,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
             return util.respond(status_code, {"redmine": resp}, error=error)
 
         # 建立gitlab project
-        gitlab_output = self.gitlab.create_project(args)
+        gitlab_output = self.gitlab.gl_create_project(args)
 
         if gitlab_output.status_code != 201:
             # Rollback
@@ -967,8 +967,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         #     .format(project_id, user_id, 3))
 
         args["user_id"] = user_id
-        output = self.au.project_add_member(logger, self.app, project_id,
-                                            args)
+        output = self.au.project_add_member(project_id, args)
         logger.info("project add member output: {0}".format(output))
 
         return {
