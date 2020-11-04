@@ -30,7 +30,10 @@ class Pipeline(object):
             output_dict = {}
             output_dict['id'] = pipeline_output['run']
             output_dict['last_test_time'] = pipeline_output['created']
-            output_dict['commit_message'] = pipeline_output['message']
+            if 'message' in pipeline_output:
+                output_dict['commit_message'] = pipeline_output['message']
+            else:
+                output_dict['commit_message'] = None
             output_dict['commit_branch'] = pipeline_output['branch']
             stage_status = []
             # logger.info(pipeline_output[0]['stages'])
