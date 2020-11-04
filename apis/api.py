@@ -426,7 +426,7 @@ class ProjectAddMember(Resource):
             parser = reqparse.RequestParser()
             parser.add_argument('user_id', type=int, required=True)
             args = parser.parse_args()
-            output = au.project_add_member(logger, app, project_id, args)
+            output = au.project_add_member(project_id, args)
             return output
         else:
             return {"message": "your role are not PM or administrator"}, 401

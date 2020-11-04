@@ -40,7 +40,7 @@ class auth(object):
 
         if config.get("GITLAB_API_VERSION") == "v3":
             # get gitlab admin token
-            url = "http://{0}/api/v3/session".format(\
+            url = "http://{0}/api/v3/session".format(
                 config.get("GITLAB_IP_PORT"))
             parame = {}
             parame["login"] = config.get("GITLAB_ADMIN_ACCOUNT")
@@ -644,7 +644,7 @@ class auth(object):
             })
         return {"message": "success", "data": {"user_list": user_list}}, 200
 
-    def project_add_member(self, logger, app, project_id, args):
+    def project_add_member(self, project_id, args):
         # get role_id by user
         role_id = auth.get_roleID_by_userID(self, logger, args['user_id'])
 
