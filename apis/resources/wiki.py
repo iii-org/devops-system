@@ -1,6 +1,7 @@
 import logging
 
 import config
+from .error import Error
 from .redmine import Redmine
 from .project import Project
 from .util import util
@@ -55,10 +56,11 @@ class Wiki(object):
     def delete_wiki_by_project(self, project_id, wiki_name):
         project_plugin_relation = Project.get_project_plugin_relation(
             logger, project_id)
-        wiki_list, status_code = self.redmine.rm_delete_wiki(
+        resp_wiki_list, status_code = self.redmine.rm_delete_wiki(
             project_plugin_relation['plan_project_id'],
             wiki_name)
         if status_code == 204:
-            return {"message": "success"}, 200
+            return util.success()
         else:
-            return {"message": "delete redmine wiki error"}, 401
+            return util.respond(401, "delete redmine wiki error",
+                                error=Error.redmine_error(resp_wiki_list))
