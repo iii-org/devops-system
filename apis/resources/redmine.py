@@ -72,7 +72,7 @@ class Redmine(object):
 
     def redmine_get_issues_by_user(self, logger, app, user_id):
 
-        url = "http://{0}/issues.json?key={1}&assigned_to_id={2}&limit=100".format(\
+        url = "http://{0}/issues.json?key={1}&assigned_to_id={2}&limit=100&status_id=*".format(\
             config.get('REDMINE_IP_PORT'), self.redmine_key, user_id)
         output = requests.get(url, headers=self.headers, verify=False)
         logger.info("get issues by output: {0}".format(output.json()))
@@ -82,6 +82,7 @@ class Redmine(object):
         args['key'] = self.redmine_key
         args['project_id'] = plan_project_id
         args['limit'] = 1000
+        args['status_id'] = '*'
         url = "http://{0}/issues.json".format(config.get('REDMINE_IP_PORT'))
         output = requests.get(url,
                               params=args,
@@ -92,7 +93,7 @@ class Redmine(object):
 
     def redmine_get_issues_by_project_and_user(self, logger, app, user_id,
                                                project_id, redmine_key):
-        url = "http://{0}/issues.json?key={1}&assigned_to_id={2}&project_id={3}".format(\
+        url = "http://{0}/issues.json?key={1}&assigned_to_id={2}&project_id={3}&status_id=*".format(\
             config.get('REDMINE_IP_PORT'), redmine_key, user_id, project_id)
         output = requests.get(url, headers=self.headers, verify=False)
         logger.info("get issues by project&user output: {0}".format(
@@ -108,6 +109,7 @@ class Redmine(object):
 
     def redmine_get_statistics(self, logger, app, args):
         args['key'] = self.redmine_key
+        args['status_id'] = '*'
         url = "http://{0}/issues.json".format(config.get('REDMINE_IP_PORT'))
         logger.info("args: {0}".format(args))
         output = requests.get(url,
