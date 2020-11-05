@@ -159,7 +159,7 @@ class Issue(object):
         if project_dict is not None:
             output_array = []
             redmine_output_issue_array = self.redmine.rm_get_issues_by_project(
-                project_dict['plan_project_id'])
+                project_dict['plan_project_id'], args)
 
             for redmine_issue in redmine_output_issue_array['issues']:
                 output_dict = self.__dealwith_issue_by_user_redmine_output(
