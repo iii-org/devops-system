@@ -1,6 +1,6 @@
 import datetime
 import json
-from .util import util
+from .util import Util
 from model import db, TableRequirement
 
 
@@ -29,7 +29,7 @@ class Requirement(object):
             [TableRequirement.stru_rqmt.c.id]).where(
                 db.and_(TableRequirement.stru_rqmt.c.issue_id == issue_id)).order_by(TableRequirement.stru_rqmt.c.id.asc())
         logger.debug("get_rqmt_command: {0}".format(get_rqmt_command))
-        result = util.callsqlalchemy(get_rqmt_command, logger)
+        result = Util.call_sqlalchemy(get_rqmt_command)
         reMessages = result.fetchall()
         requirement_ids = []
         for reMessage in reMessages:
@@ -45,7 +45,7 @@ class Requirement(object):
             TableRequirement.stru_rqmt.c.flow_info
         ]).where(db.and_(TableRequirement.stru_rqmt.c.id == requirement_id))
         logger.debug("get_rqmt_command: {0}".format(get_rqmt_command))
-        result = util.callsqlalchemy(get_rqmt_command, logger)
+        result = Util.call_sqlalchemy(get_rqmt_command)
         reMessage = result.fetchone()
         output = json.loads(str(reMessage['flow_info']))
         return {'flow_info': output}
@@ -59,7 +59,7 @@ class Requirement(object):
                 disabled=True,
                 update_at=datetime.datetime.now())
         logger.debug("insert_user_command: {0}".format(update_rqmt_command))
-        reMessage = util.callsqlalchemy(update_rqmt_command, logger)
+        reMessage = Util.call_sqlalchemy(update_rqmt_command)
 
     # 修改  requirement 內資訊
     def modify_requirement_by_rqmt_id(self, logger, requirement_id, args,
@@ -71,7 +71,7 @@ class Requirement(object):
                 flow_info=self._deal_with_json(args['flow_info'])).returning(
                     TableRequirement.stru_rqmt.c.update_at)
         logger.debug("insert_user_command: {0}".format(update_rqmt_command))
-        reMessage = util.callsqlalchemy(update_rqmt_command, logger)
+        reMessage = Util.call_sqlalchemy(update_rqmt_command)
 
     # 取得同Issue Id 內  requirements 的所有資訊
     def get_requirements_by_issue_id(self, logger, issue_id, user_id):
@@ -80,7 +80,7 @@ class Requirement(object):
                 db.and_(TableRequirement.stru_rqmt.c.issue_id == issue_id,
                         TableRequirement.stru_rqmt.c.disabled == False))
         logger.debug("get_rqmt_command: {0}".format(get_rqmt_command))
-        result = util.callsqlalchemy(get_rqmt_command, logger)
+        result = Util.call_sqlalchemy(get_rqmt_command)
         reMessages = result.fetchall()
         i = 0
         output = {}
@@ -99,7 +99,7 @@ class Requirement(object):
             create_at=datetime.datetime.now(),
             update_at=datetime.datetime.now())
         logger.debug("insert_user_command: {0}".format(insert_rqmt_command))
-        reMessage = util.callsqlalchemy(insert_rqmt_command, logger)
+        reMessage = Util.call_sqlalchemy(insert_rqmt_command)
         print(reMessage)
         return {'requirement_id': reMessage.inserted_primary_key}
     
@@ -111,7 +111,7 @@ class Requirement(object):
                 db.and_(TableRequirement.stru_rqmt.c.project_id == project_id,
                         TableRequirement.stru_rqmt.c.disabled == False))
         logger.debug("get_rqmt_command: {0}".format(get_rqmt_command))
-        result = util.callsqlalchemy(get_rqmt_command, logger)
+        result = Util.call_sqlalchemy(get_rqmt_command)
         reMessages = result.fetchall()
         i = 0
         output = {}

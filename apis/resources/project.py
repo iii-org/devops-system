@@ -8,7 +8,7 @@ import config
 from model import db, ProjectUserRole, ProjectPluginRelation, TableProjects
 from .rancher import Rancher
 from .redmine import Redmine
-from .util import util
+from .util import Util
 from .error import Error
 
 logger = logging.getLogger(config.get('LOGGER_NAME'))
@@ -28,15 +28,14 @@ class Project(object):
         self.private_token = gitlab.private_token
 
     def verify_project_user(self, logger, project_id, user_id):
-        if util.is_dummy_project(project_id):
+        if Util.is_dummy_project(project_id):
             return True
         select_project_user_role_command = db.select([ProjectUserRole.stru_project_user_role]) \
             .where(db.and_(ProjectUserRole.stru_project_user_role.c.project_id == project_id, \
                            ProjectUserRole.stru_project_user_role.c.user_id == user_id))
         logger.debug("select_project_user_role_command: {0}".format(
             select_project_user_role_command))
-        reMessage = util.callsqlalchemy(select_project_user_role_command,
-                                        logger)
+        reMessage = Util.call_sqlalchemy(select_project_user_role_command)
         match_list = reMessage.fetchall()
         logger.info("reMessage: {0}".format(match_list))
         logger.info("reMessage len: {0}".format(len(match_list)))
@@ -49,8 +48,7 @@ class Project(object):
     def get_project_plugin_relation(logger, project_id):
         select_project_relation_command = db.select([ProjectPluginRelation.stru_project_plug_relation]) \
             .where(db.and_(ProjectPluginRelation.stru_project_plug_relation.c.project_id == project_id))
-        reMessage = util.callsqlalchemy(select_project_relation_command,
-                                        logger).fetchone()
+        reMessage = Util.call_sqlalchemy(select_project_relation_command).fetchone()
         return reMessage
 
     # 查詢所有projects
@@ -199,7 +197,7 @@ class Project(object):
                     try:
                         total_issue = issue_output.json()
                     except Exception as e:
-                        return util.respond(500, "Error when getting issues for a user",
+                        return Util.respond(500, "Error when getting issues for a user",
                                             error=Error.redmine_error(issue_output))
                     logger.info("issue total count by user: {0}".format(
                         total_issue['total_count']))
@@ -260,7 +258,7 @@ class Project(object):
 
     def get_ci_last_test_result(self, app, logger, output_dict, project):
         # get rancher pipeline
-        pipeline_output = self.rancher.get_rancher_pipelineexecutions(
+        pipeline_output = self.rancher.rc_get_pipeline_executions(
             project["ci_project_id"], project["ci_pipeline_id"])
         if len(pipeline_output) != 0:
             logger.info(pipeline_output[0]['name'])
@@ -891,7 +889,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         try:
             redmine_pj_id = redmine_output.json()["project"]["id"]
         except Exception as e:
-            return util.respond(500, "Error while creating redmine project",
+            return Util.respond(500, "Error while creating redmine project",
                                 error=Error.redmine_error(redmine_output))
 
         if redmine_output.status_code != 201:
@@ -902,7 +900,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                 if len(resp['errors']) > 0:
                     if resp['errors'][0] == 'Identifier has already been taken':
                         error = Error.identifier_has_been_token(args['name'])
-            return util.respond(status_code, {"redmine": resp}, error=error)
+            return Util.respond(status_code, {"redmine": resp}, error=error)
 
         # 建立gitlab project
         gitlab_output = self.gitlab.gl_create_project(args)
@@ -916,13 +914,13 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                 try:
                     gitlab_json = gitlab_output.json()
                     if gitlab_json['message']['name'][0] == 'has already been taken':
-                        return util.respond(
+                        return Util.respond(
                             status_code, {"gitlab": gitlab_json},
                             error=Error.identifier_has_been_token(args['name'])
                         )
                 except (KeyError, IndexError):
                     pass
-            return util.respond(status_code, {"gitlab": gitlab_output.json()})
+            return Util.respond(status_code, {"gitlab": gitlab_output.json()})
 
         # 寫入db
 
@@ -947,13 +945,10 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         result.close()
 
         # enable rancher pipeline
-        rancher_token = self.rancher.get_rancher_token(self.app, logger)
-        logger.debug("rancher_token: {0}".format(rancher_token))
-        rancher_project_id = Rancher.get_rancher_project_id(self, self.app, logger, rancher_token)
+        rancher_project_id = self.rancher.rc_get_project_id()
         logger.debug("rancher_project_id: {0}".format(rancher_project_id))
         logger.debug("gitlab_pj_http_url: {0}".format(gitlab_pj_http_url))
-        rancher_pipeline_id = Rancher.enable_rancher_projejct_pipline(self, self.app, logger, gitlab_pj_http_url,
-                                                                      rancher_token)
+        rancher_pipeline_id = self.rancher.rc_enable_project_pipeline(gitlab_pj_http_url)
         logger.debug("rancher_pipeline_id: {0}".format(rancher_pipeline_id))
 
         # 加關聯project_plugin_relation
@@ -1149,12 +1144,9 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
             gitlab_project_id = project_relation["git_repository_id"]
 
             # disabled rancher pipeline
-            rancher_token = Rancher.get_rancher_token(self, app, logger)
-            logger.debug("rancher_token: {0}".format(rancher_token))
-            Rancher.disable_rancher_projejct_pipline(self, app, logger,
-                                                     project_relation["ci_project_id"],
-                                                     project_relation["ci_pipeline_id"],
-                                                     rancher_token)
+            self.rancher.rc_disable_project_pipeline(
+                project_relation["ci_project_id"],
+                project_relation["ci_pipeline_id"])
 
             # 刪除gitlab project
             gitlab_url = "http://{0}/api/{1}/projects/{2}?private_token={3}".format(
@@ -1244,8 +1236,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
     def get_project_info(self, logger, project_id):
         select_project_cmd = db.select([TableProjects.stru_projects]) \
             .where(db.and_(TableProjects.stru_projects.c.id == project_id))
-        reMessage = util.callsqlalchemy(select_project_cmd,
-                                        logger).fetchone()
+        reMessage = Util.call_sqlalchemy(select_project_cmd).fetchone()
         return reMessage
 
     def get_sonar_report(self, logger, app, project_id):

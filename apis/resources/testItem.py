@@ -1,5 +1,5 @@
 from model import db, TableTestItem 
-from .util import util
+from .util import Util
 import datetime
 import logging
 logger = logging.getLogger('devops.api')
@@ -16,8 +16,8 @@ class TestItem(object):
         output['issue_id'] = sqlRow['issue_id']
         output['testCase_id'] = sqlRow['test_case_id']
         output['is_passed'] = sqlRow['is_passed']
-        output['update_at'] = util.dateToStr(self, sqlRow['update_at'])
-        output['create_at'] = util.dateToStr(self, sqlRow['create_at'])
+        output['update_at'] = Util.date_to_str(sqlRow['update_at'])
+        output['create_at'] = Util.date_to_str(sqlRow['create_at'])
         return output
 
     def get_testItem_by_Column(self, logger, args, user_id, orderColumn=''):
@@ -38,7 +38,7 @@ class TestItem(object):
                 TableTestItem.stru_testItem.c.disabled == False)
                 )
         logger.debug("get_testItem_command: {0}".format(get_testItem_command))
-        result = util.callsqlalchemy(get_testItem_command, logger)
+        result = Util.call_sqlalchemy(get_testItem_command)
         row = result.fetchone()
         output = self._deal_with_TestItemObject(row)
         return output
@@ -55,11 +55,11 @@ class TestItem(object):
             TableTestItem.stru_testItem.c.id)
         logger.debug(
             "update_testItem_command: {0}".format(update_testItem_command))
-        result = util.callsqlalchemy(update_testItem_command, logger)
+        result = Util.call_sqlalchemy(update_testItem_command)
         reMessage = result.fetchone()
         output = {}
         output['id'] = reMessage['id']
-        output['update_at'] = util.dateToStr(self, reMessage['update_at'])
+        output['update_at'] = Util.date_to_str(reMessage['update_at'])
         return output
 
     # 修改 TestItem 內資訊
@@ -75,11 +75,11 @@ class TestItem(object):
         print(update_testItem_command)
         logger.debug(
             "update_testItem_command: {0}".format(update_testItem_command))
-        result = util.callsqlalchemy(update_testItem_command, logger)
+        result = Util.call_sqlalchemy(update_testItem_command)
         reMessage = result.fetchone()
         output = {}
         output['id'] = reMessage['id']
-        output['update_at'] = util.dateToStr(self, reMessage['update_at'])
+        output['update_at'] = Util.date_to_str(reMessage['update_at'])
         return output
 
     # 取得同Issue Id 內  TestItem 的所有資訊
@@ -89,7 +89,7 @@ class TestItem(object):
                 TableTestItem.stru_testItem.c.test_case_id == testCase_id,
                 TableTestItem.stru_testItem.c.disabled == False))
         logger.debug("get_testItem_command: {0}".format(get_testItem_command))
-        result = util.callsqlalchemy(get_testItem_command, logger)
+        result = Util.call_sqlalchemy(get_testItem_command)
         reMessages = result.fetchall()
         output = []
         for row in reMessages:
@@ -110,7 +110,7 @@ class TestItem(object):
         )
         logger.debug("insert_testItem_command: {0}".format(
             insert_ti_command))
-        reMessage = util.callsqlalchemy(insert_ti_command, logger)
+        reMessage = Util.call_sqlalchemy(insert_ti_command)
         return {'testItem_id': reMessage.inserted_primary_key}
 
     def get_testItem_by_issue_id(self, logger, issue_id, users_id, orderColumn):
@@ -119,7 +119,7 @@ class TestItem(object):
             TableTestItem.stru_testItem.c.issue_id == issue_id,
             TableTestItem.stru_testItem.c.disabled == False)).order_by(orderColumn)
         logger.debug("get_testItem_command: {0}".format(get_testItem_command))
-        result = util.callsqlalchemy(get_testItem_command, logger)
+        result = Util.call_sqlalchemy(get_testItem_command)
         reMessages = result.fetchall()
         output = []
         for row in reMessages:
@@ -131,7 +131,7 @@ class TestItem(object):
         get_testItem_command = db.select([TableTestItem.stru_testItem]).where(db.and_(
             TableTestItem.stru_testItem.c.project_id == project_id, TableTestItem.stru_testItem.c.disabled == False)).order_by(orderColumn)
         logger.debug("get_testItem_command: {0}".format(get_testItem_command))
-        result = util.callsqlalchemy(get_testItem_command, logger)
+        result = Util.call_sqlalchemy(get_testItem_command)
         reMessages = result.fetchall()
         output = []
         for row in reMessages:

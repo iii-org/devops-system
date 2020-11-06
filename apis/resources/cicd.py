@@ -1,7 +1,7 @@
 import json
 import logging
 from urllib.parse import urlparse
-from .util import util
+from .util import Util
 
 from flask import jsonify
 
@@ -61,7 +61,7 @@ class Cicd(object):
                         'header': []
                     }
                 except ValueError:
-                    return util.respond(400, 'url is malformed', {
+                    return Util.respond(400, 'url is malformed', {
                         'case_id': case_id,
                         'item_id': item_id,
                         'url': url

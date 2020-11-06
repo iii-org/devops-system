@@ -13,55 +13,12 @@ from model import db
 from resources.error import Error
 
 
-class util(object):
+class Util(object):
     def __init__(self):
         pass
 
-    def util_subProc(self, cmd):
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True)
-        output = proc.stdout.read()
-        return output
-
-    def util_subProc_noshell(self, cmd):
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=False)
-        output = proc.stdout.read()
-        return output
-
-    def read_conf_file(self, file_location):
-        imageDetails = {}
-        with open(file_location) as f:
-            for line in f.readlines():
-                if "#" not in line and "=" in line:
-                    imageDetails[line.split("=")[0].strip(None)] = line.split(
-                        "=")[1].strip(None)
-        return imageDetails
-
-    def read_source_file(self, file_location):
-        imageDetails = {}
-        with open(file_location) as f:
-            for line in f.readlines():
-                if "#" not in line and "=" in line:
-                    imageDetails[line.split("=")[0].replace(
-                        "export", "").replace(
-                        "_",
-                        "").strip(None)] = line.split("=")[1].strip(None)
-        return imageDetails
-
-    def callSQL(self, command, conf, logger):
-        reMessage = None
-        try:
-            Session = orm.sessionmaker(bind=db.engine)
-            session = Session()
-            commandText = sqlalchemy.text(command)
-            reMessage = session.execute(commandText)
-            session.close()
-        except Exception as e:
-            logger.build_error("Call SQL Fail messages: {0}".format(e))
-
-        return reMessage
-
     @staticmethod
-    def callsqlalchemy(command, logger):
+    def call_sqlalchemy(command):
         return db.engine.execute(command)
 
     def callpostapi(self, url, parameter, logger, headers):
@@ -142,10 +99,8 @@ class util(object):
             logger.build_error("calldeleteapi error : {0}".format(e))
             return e
 
-    def jsonToStr(self, data):
-        return json.dumps(data, ensure_ascii=False, separators=(',', ':'))
-
-    def dateToStr(self, data):
+    @staticmethod
+    def date_to_str(data):
         if data is not None:
             return data.isoformat()
         else:
@@ -185,6 +140,12 @@ class util(object):
         return message_obj, status_code
 
     @staticmethod
+    def respond_request_style(status_code, message=None, data=None, error=None):
+        ret = Util.respond(status_code, message, data, error)
+        ret[0]['status_code'] = ret[1]
+        return ret[0]
+
+    @staticmethod
     def tick(last_time):
         now = time.time()
         print('%f seconds elapsed.' % (now - last_time))
@@ -209,6 +170,6 @@ class util(object):
         elif method.upper() == 'DELETE':
             return requests.delete(url, headers=headers, params=params, verify=False)
         else:
-            return util.respond(
+            return Util.respond_request_style(
                 500, 'Error while request {0} {1}'.format(method, url),
                 error=Error.unknown_method(method))

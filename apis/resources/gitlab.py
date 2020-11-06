@@ -4,7 +4,7 @@ import logging
 
 import requests
 
-from resources.util import util
+from resources.util import Util
 
 logger = logging.getLogger(config.get('LOGGER_NAME'))
 
@@ -44,7 +44,7 @@ class GitLab(object):
             path,
             self.private_token)
 
-        output = util.api_request(method, url, headers, params, data)
+        output = Util.api_request(method, url, headers, params, data)
 
         logger.info('gitlab api {0} {1}, params={2}, body={5}, response={3} {4}'.format(
             method, url, params.__str__(), output.status_code, output.text, data))

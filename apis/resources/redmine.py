@@ -9,7 +9,7 @@ from flask import send_file
 from flask_restful import reqparse
 
 from .error import Error
-from .util import util
+from .util import Util
 
 logger = logging.getLogger(config.get('LOGGER_NAME'))
 
@@ -45,7 +45,7 @@ class Redmine:
                 self.rm_refresh_key()
         params['key'] = self.redmine_key
 
-        output = util.api_request(method, url, headers, params, data)
+        output = Util.api_request(method, url, headers, params, data)
 
         logger.info('redmine api {0} {1}, params={2}, body={5}, response={3} {4}'.format(
             method, url, params.__str__(), output.status_code, output.text, data))
@@ -238,7 +238,7 @@ class Redmine:
         headers = {'Content-Type': 'application/octet-stream'}
         res = self.__api_post('/uploads', data=file, headers=headers)
         if res.status_code != 201:
-            return util.respond(res.status_code, "Error while uploading to redmine",
+            return Util.respond(res.status_code, "Error while uploading to redmine",
                                 error=Error.redmine_error(res.text))
         token = res.json().get('upload').get('token')
         filename = file.filename
@@ -261,11 +261,11 @@ class Redmine:
         f_args = parse.parse_args()
         file = f_args['file']
         if file is None:
-            return util.respond(400, 'No file is sent.')
+            return Util.respond(400, 'No file is sent.')
         headers = {'Content-Type': 'application/octet-stream'}
         res = self.__api_post('/uploads', data=file, headers=headers)
         if res.status_code != 201:
-            return util.respond(res.status_code, "Error while uploading to redmine",
+            return Util.respond(res.status_code, "Error while uploading to redmine",
                                 error=Error.redmine_error(res.text))
         token = res.json().get('upload').get('token')
         filename = args['filename']
@@ -282,9 +282,9 @@ class Redmine:
         data = {'file': params}
         res = self.__api_post('/projects/%d/files' % plan_project_id, data=data)
         if res.status_code == 204:
-            return util.respond(201, None)
+            return Util.respond(201, None)
         else:
-            return util.respond(res.status_code, "Error while adding the file to redmine",
+            return Util.respond(res.status_code, "Error while adding the file to redmine",
                                 error=Error.redmine_error(res.text))
 
     def rm_list_file(self, plan_project_id):
@@ -304,7 +304,7 @@ class Redmine:
                 attachment_filename=filename
             )
         except Exception as e:
-            return util.respond(500, 'Error when downloading an attachment.',
+            return Util.respond(500, 'Error when downloading an attachment.',
                                 error=Error.redmine_error(r))
 
     def rm_create_project(self, args):

@@ -75,7 +75,7 @@ logger.setLevel(logging.DEBUG)
 logger.addHandler(handler)
 
 k8s = kubernetesClient.KubernetesClient()
-ut = util.util()
+ut = util.Util()
 redmine = redmine.Redmine(app)
 git = gitlab.GitLab(app)
 au = auth.auth(app, redmine, git)

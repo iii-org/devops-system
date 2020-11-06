@@ -25,7 +25,7 @@ class Pipeline(object):
         logger.info("project_relationship: {0}".format(
             project_relationship['ci_project_id']))
         rancher = Rancher()
-        pipeline_outputs = rancher.get_rancher_pipelineexecutions(
+        pipeline_outputs = rancher.rc_get_pipeline_executions(
             project_relationship['ci_project_id'],
             project_relationship['ci_pipeline_id'])
         for pipeline_output in pipeline_outputs:
@@ -65,7 +65,7 @@ class Pipeline(object):
         project_relationship = result.fetchone()
         result.close()
         try:
-            output_array = self.rancher.get_rancher_pipelineexecutions_logs(
+            output_array = self.rancher.rc_get_pipeline_executions_logs(
                 project_relationship['ci_project_id'],
                 project_relationship['ci_pipeline_id'],
                 args['pipelines_exec_run'])

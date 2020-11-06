@@ -1,5 +1,5 @@
 from model import db, TableTestCase, TableCaseType, TableHttpMethod
-from .util import util
+from .util import Util
 import json
 import datetime
 import logging
@@ -19,7 +19,7 @@ class TestCase(object):
         get_testCaseType_command = db.select([TableCaseType.stru_tcType])
         logger.debug("get_testCaseType_command: {0}".format(
             get_testCaseType_command))
-        result = util.callsqlalchemy(get_testCaseType_command, logger)
+        result = Util.call_sqlalchemy(get_testCaseType_command)
         reMessages = result.fetchall()
         caseType = {}
         for row in reMessages:
@@ -46,8 +46,8 @@ class TestCase(object):
         output['type'] = caseType[sqlRow['type_id']]
         output['description'] = sqlRow['description']
         output['data'] = json.loads(sqlRow['data'])
-        output['update_at'] = util.dateToStr(self, sqlRow['update_at'])
-        output['create_at'] = util.dateToStr(self, sqlRow['create_at'])
+        output['update_at'] = Util.date_to_str(sqlRow['update_at'])
+        output['create_at'] = Util.date_to_str(sqlRow['create_at'])
         return output
 
     # 取得 TestCase  靠 test case id
@@ -56,7 +56,7 @@ class TestCase(object):
         get_testCase_command = db.select([TableTestCase.stru_testCase]).where(db.and_(
             TableTestCase.stru_testCase.c.id == testCase_id, TableTestCase.stru_testCase.c.disabled == False))
         logger.debug("get_testCase_command: {0}".format(get_testCase_command))
-        result = util.callsqlalchemy(get_testCase_command, logger)
+        result = Util.call_sqlalchemy(get_testCase_command)
         row = result.fetchone()
         output = self._deal_with_TestCaseObject(row)
         return output
@@ -70,11 +70,11 @@ class TestCase(object):
         ).returning(TableTestCase.stru_testCase.c.update_at, TableTestCase.stru_testCase.c.id)
         logger.debug("update_testCase_command: {0}".format(
             update_testCase_command))
-        result = util.callsqlalchemy(update_testCase_command, logger)
+        result = Util.call_sqlalchemy(update_testCase_command)
         reMessage = result.fetchone()
         output = {}
         output['id'] = reMessage['id']
-        output['update_at'] = util.dateToStr(self, reMessage['update_at'])
+        output['update_at'] = Util.date_to_str(reMessage['update_at'])
         return output
 
     # 修改 TestCase 內資訊
@@ -88,11 +88,11 @@ class TestCase(object):
         ).returning(TableTestCase.stru_testCase.c.update_at, TableTestCase.stru_testCase.c.id)
         logger.debug("update_testCase_command: {0}".format(
             update_testCase_command))
-        result = util.callsqlalchemy(update_testCase_command, logger)
+        result = Util.call_sqlalchemy(update_testCase_command)
         reMessage = result.fetchone()
         output = {}
         output['id'] = reMessage['id']
-        output['update_at'] = util.dateToStr(self, reMessage['update_at'])
+        output['update_at'] = Util.date_to_str(reMessage['update_at'])
         return output
 
     def get_testCase_by_Column(self, logger, args, user_id):
@@ -107,7 +107,7 @@ class TestCase(object):
         else:
             return {}
         logger.debug("get_testCase_command: {0}".format(get_testCase_command))
-        result = util.callsqlalchemy(get_testCase_command, logger)
+        result = Util.call_sqlalchemy(get_testCase_command)
         reMessages = result.fetchall()
         return self._del_with_fetchall(reMessages)
 
@@ -117,7 +117,7 @@ class TestCase(object):
         get_testCase_command = db.select([TableTestCase.stru_testCase]).where(db.and_(
             TableTestCase.stru_testCase.c.issue_id == issue_id, TableTestCase.stru_testCase.c.disabled == False))
         logger.debug("get_testCase_command: {0}".format(get_testCase_command))
-        result = util.callsqlalchemy(get_testCase_command, logger)
+        result = Util.call_sqlalchemy(get_testCase_command)
         reMessages = result.fetchall()
         return self._del_with_fetchall(reMessages)
 
@@ -126,7 +126,7 @@ class TestCase(object):
         get_testCase_command = db.select([TableTestCase.stru_testCase]).where(db.and_(
             TableTestCase.stru_testCase.c.project_id == project_id, TableTestCase.stru_testCase.c.disabled == False))
         logger.debug("get_testCase_command: {0}".format(get_testCase_command))
-        result = util.callsqlalchemy(get_testCase_command, logger)
+        result = Util.call_sqlalchemy(get_testCase_command)
         reMessages = result.fetchall()
         return self._del_with_fetchall(reMessages)
 
@@ -144,7 +144,7 @@ class TestCase(object):
         )
         logger.debug("insert_testCase_command: {0}".format(
             insert_testCase_command))
-        reMessage = util.callsqlalchemy(insert_testCase_command, logger)
+        reMessage = Util.call_sqlalchemy(insert_testCase_command)
         return {'testCase_id': reMessage.inserted_primary_key}
     
     # 新增同Project Id 內 TestCase 的資訊
@@ -160,7 +160,7 @@ class TestCase(object):
         )
         logger.debug("insert_testCase_command: {0}".format(
             insert_testCase_command))
-        reMessage = util.callsqlalchemy(insert_testCase_command, logger)
+        reMessage = Util.call_sqlalchemy(insert_testCase_command)
         return {'testCase_id': reMessage.inserted_primary_key}
 
     def get_api_method(self, logger, user_id):
