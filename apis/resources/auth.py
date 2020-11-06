@@ -14,7 +14,7 @@ from model import db, User, UserPluginRelation, ProjectUserRole, TableProjects, 
 from .error import Error
 from .gitlab import GitLab
 from .project import Project
-from .util import util
+from .util import Util
 
 logger = logging.getLogger(config.get('LOGGER_NAME'))
 
@@ -59,7 +59,7 @@ class auth(object):
         role_id = None
         get_rl_cmd = db.select([ProjectUserRole.stru_project_user_role]).where(db.and_(\
             ProjectUserRole.stru_project_user_role.c.user_id==user_id))
-        get_role_out = util.callsqlalchemy(get_rl_cmd, logger).fetchone()
+        get_role_out = Util.call_sqlalchemy(get_rl_cmd).fetchone()
         if get_role_out is not None:
             role_id = get_role_out['role_id']
             return role_id
@@ -71,8 +71,7 @@ class auth(object):
             .where(db.and_(TableRolesPluginRelation.stru_rolerelation.c.role_id==role_id))
         logger.debug(
             "select_redmien_role_cmd: {0}".format(select_redmien_role_cmd))
-        reMessage = util.callsqlalchemy(select_redmien_role_cmd,
-                                        logger).fetchone()
+        reMessage = Util.call_sqlalchemy(select_redmien_role_cmd).fetchone()
         return reMessage['plan_role_id']
 
     def user_login(self, logger, args):
@@ -138,8 +137,8 @@ class auth(object):
                 "email": user_data["email"],
                 "phone": user_data["phone"],
                 "login": user_data["login"],
-                "create_at": util.dateToStr(self, user_data["create_at"]),
-                "update_at": util.dateToStr(self, user_data["update_at"]),
+                "create_at": Util.date_to_str(user_data["create_at"]),
+                "update_at": Util.date_to_str(user_data["update_at"]),
                 "role": {
                     "name": user_data["role_name"],
                     "id": user_data["role_id"]
@@ -157,7 +156,7 @@ class auth(object):
                 ProjectUserRole.stru_project_user_role.c.project_id==\
                 ProjectPluginRelation.stru_project_plug_relation.c.project_id))
             logger.debug("select_project: {0}".format(select_project))
-            reMessage = util.callsqlalchemy(select_project, logger).fetchall()
+            reMessage = Util.call_sqlalchemy(select_project).fetchall()
             logger.debug("reMessage: {0}".format(reMessage))
             if len(reMessage) > 0:
                 project_list = []
@@ -187,8 +186,7 @@ class auth(object):
             .where(db.and_(User.stru_user.c.id==user_id))
         logger.debug("select_user_to_disable_command: {0}".format(
             select_user_to_disable_command))
-        user_data = util.callsqlalchemy(select_user_to_disable_command,
-                                        logger).fetchone()
+        user_data = Util.call_sqlalchemy(select_user_to_disable_command).fetchone()
         set_string = ""
         if args["name"] is not None:
             set_string += "name = '{0}'".format(args["name"])
@@ -226,7 +224,7 @@ class auth(object):
         user_relation = auth.get_user_plugin_relation(user_id=user_id)
         logger.debug("user_relation_list: {0}".format(user_relation))
         if user_relation is None:
-            return util.respond(404, 'Error when updating password', error=Error.user_not_found(user_id))
+            return Util.respond(404, 'Error when updating password', error=Error.user_not_found(user_id))
         redmine_user_id = user_relation['plan_user_id']
         err = self.redmine.rm_update_password(redmine_user_id, new_pwd)
         if err is not None:
@@ -326,7 +324,7 @@ class auth(object):
             update_at = datetime.datetime.now(), disabled=disabled)
         logger.debug("update_user_to_disable_command: {0}".format(
             update_user_to_disable_command))
-        reMessage = util.callsqlalchemy(update_user_to_disable_command, logger)
+        reMessage = Util.call_sqlalchemy(update_user_to_disable_command)
         logger.info("reMessage: {0}".format(reMessage))
         return {'message': 'success'}, 200
 
@@ -339,14 +337,14 @@ class auth(object):
         # Check if name is valid
         login = args['login']
         if re.fullmatch(r'^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,58}[a-zA-Z0-9]$', login) is None:
-            return util.respond(400, "Error when creating new user", error=
+            return Util.respond(400, "Error when creating new user", error=
                                 Error.invalid_user_name(login))
 
         user_source_password = args["password"]
         if re.fullmatch(r'(?=.*\d)(?=.*[a-z])(?=.*[A-Z])'
                         r'^[\w!@#$%^&*()+|{}\[\]`~\-\'\";:/?.\\>,<]{8,20}$',
                         user_source_password) is None:
-            return util.respond(400, "Error when creating new user", error=
+            return Util.respond(400, "Error when creating new user", error=
                                 Error.invalid_user_password())
 
 
@@ -358,7 +356,7 @@ class auth(object):
                    User.stru_user.c.email == args['email']))
         logger.debug(
             "chekc_email_login_command: {0}".format(chekc_email_login_command))
-        reMessage = util.callsqlalchemy(chekc_email_login_command, logger)
+        reMessage = Util.call_sqlalchemy(chekc_email_login_command)
         user_info = reMessage.fetchone()
         logger.info("Check user table has this account or email: {0}".format(
             user_info))
@@ -375,7 +373,7 @@ class auth(object):
             try:
                 user_list_output = user_list_output.json()
             except Exception as e:
-                return util.respond(500, str(type(e)) + ': ' + str(e),
+                return Util.respond(500, str(type(e)) + ': ' + str(e),
                                     error=Error.redmine_error(user_list_output))
 
             # logger.debug("user_list_output: {0}".format(user_list_output))
@@ -439,14 +437,14 @@ class auth(object):
             disabled=disabled)
 
         logger.debug("insert_user_command: {0}".format(insert_user_command))
-        reMessage = util.callsqlalchemy(insert_user_command, logger)
+        reMessage = Util.call_sqlalchemy(insert_user_command)
         logger.info("reMessage: {0}".format(reMessage))
 
         #get user_id
         get_user_command = db.select([User.stru_user]).where(
             db.and_(User.stru_user.c.login == args['login']))
         logger.debug("get_user_command: {0}".format(get_user_command))
-        reMessage = util.callsqlalchemy(get_user_command, logger)
+        reMessage = Util.call_sqlalchemy(get_user_command)
         user_id = reMessage.fetchone()['id']
         logger.info("user_id: {0}".format(user_id))
 
@@ -456,8 +454,7 @@ class auth(object):
             repository_user_id = gitlab_user_id)
         logger.debug("insert_user_plugin_relation_command: {0}".format(
             insert_user_plugin_relation_command))
-        reMessage = util.callsqlalchemy(insert_user_plugin_relation_command,
-                                        logger)
+        reMessage = Util.call_sqlalchemy(insert_user_plugin_relation_command)
         logger.info("reMessage: {0}".format(reMessage))
 
         #insert project_user_role
@@ -465,8 +462,7 @@ class auth(object):
             .values(project_id = -1, user_id = user_id, role_id = args['role_id'])
         logger.debug("insert_project_user_role_command: {0}".format(
             insert_project_user_role_command))
-        reMessage = util.callsqlalchemy(insert_project_user_role_command,
-                                        logger)
+        reMessage = Util.call_sqlalchemy(insert_project_user_role_command)
         logger.info("reMessage: {0}".format(reMessage))
 
         return {"message": "success", "data": {"user_id": user_id}}, 200
@@ -517,8 +513,7 @@ class auth(object):
                     ProjectUserRole.stru_project_user_role.c.project_id!=-1, \
                     ProjectUserRole.stru_project_user_role.c.project_id==\
                     TableProjects.stru_projects.c.id))
-                output_project_array = util.callsqlalchemy(
-                    select_project_by_userid, logger).fetchall()
+                output_project_array = Util.call_sqlalchemy(select_project_by_userid).fetchall()
                 #logger.debug("output_project: {0}".format(output_project_array))
                 project = []
                 if output_project_array:
@@ -537,8 +532,8 @@ class auth(object):
                     "email": user_data["email"],
                     "phone": user_data["phone"],
                     "login": user_data["login"],
-                    "create_at": util.dateToStr(self, user_data["create_at"]),
-                    "update_at": util.dateToStr(self, user_data["update_at"]),
+                    "create_at": Util.date_to_str(user_data["create_at"]),
+                    "update_at": Util.date_to_str(user_data["update_at"]),
                     "role": {
                         "name": user_data["role_name"],
                         "id": user_data["role_id"]
@@ -571,8 +566,7 @@ class auth(object):
 
             logger.debug(
                 "select_all_user_cmd: {0}".format(select_all_user_cmd))
-            data_userRole_by_project_array = util.callsqlalchemy(
-                select_all_user_cmd, logger).fetchall()
+            data_userRole_by_project_array = Util.call_sqlalchemy(select_all_user_cmd).fetchall()
             logger.debug("data_userRole_by_project_array: {0}".format(
                 data_userRole_by_project_array))
             select_user_in_this_project_list_cmd = "select distinct pur.user_id \
@@ -582,8 +576,8 @@ class auth(object):
                 order by pur.user_id DESC".format(project_id)
             logger.debug("select_user_in_this_project_list_cmd: {0}".format(
                 select_user_in_this_project_list_cmd))
-            select_user_in_this_project_list_output = util.callsqlalchemy(
-                select_user_in_this_project_list_cmd, logger).fetchall()
+            select_user_in_this_project_list_output = Util.call_sqlalchemy(
+                select_user_in_this_project_list_cmd).fetchall()
             logger.debug("select_user_in_this_project_list_output: {0}".format(
                 select_user_in_this_project_list_output))
             i = 0
@@ -614,8 +608,7 @@ class auth(object):
                 project_id)
             logger.debug("select_userRole_by_project: {0}".format(
                 select_userRole_by_project))
-            data_userRole_by_project_array = util.callsqlalchemy(
-                select_userRole_by_project, logger).fetchall()
+            data_userRole_by_project_array = Util.call_sqlalchemy(select_userRole_by_project).fetchall()
 
         user_list = []
         for data_userRole_by_project in data_userRole_by_project_array:
@@ -634,9 +627,9 @@ class auth(object):
                 "login":
                 data_userRole_by_project['login'],
                 "create_at":
-                util.dateToStr(self, data_userRole_by_project['create_at']),
+                    Util.date_to_str(data_userRole_by_project['create_at']),
                 "update_at":
-                util.dateToStr(self, data_userRole_by_project['update_at']),
+                    Util.date_to_str(data_userRole_by_project['update_at']),
                 "role_id":
                 data_userRole_by_project['role_id'],
                 "role_name":
@@ -653,13 +646,13 @@ class auth(object):
             ProjectUserRole.stru_project_user_role.c.user_id==args['user_id'], \
             ProjectUserRole.stru_project_user_role.c.project_id==project_id,
             ProjectUserRole.stru_project_user_role.c.role_id==role_id))
-        get_pj_ur_rl = util.callsqlalchemy(get_pj_ur_rl_cmd, logger).fetchone()
+        get_pj_ur_rl = Util.call_sqlalchemy(get_pj_ur_rl_cmd).fetchone()
         # if ProjectUserRole table not has relationship
         if get_pj_ur_rl is None:
             # insert one relationship
             get_pj_ur_rl_cmd = db.insert(ProjectUserRole.stru_project_user_role).values(\
                 project_id = project_id, user_id=args['user_id'], role_id=role_id)
-            reMessage = util.callsqlalchemy(get_pj_ur_rl_cmd, logger)
+            reMessage = Util.call_sqlalchemy(get_pj_ur_rl_cmd)
         else:
             return {"message": "Projett_user_role table already has data"}, 400
         # get redmine_role_id from role_id
@@ -772,7 +765,7 @@ class auth(object):
             ProjectUserRole.stru_project_user_role.c.user_id==user_id, \
             ProjectUserRole.stru_project_user_role.c.project_id==project_id,
             ProjectUserRole.stru_project_user_role.c.role_id==role_id))
-        delete_pj_ur_rl = util.callsqlalchemy(delete_pj_ur_rl_cmd, logger)
+        delete_pj_ur_rl = Util.call_sqlalchemy(delete_pj_ur_rl_cmd)
 
         # gitlab project delete member
         if gitlab_project_id is not None and gitlab_user_id is not None:
@@ -813,4 +806,4 @@ class auth(object):
                                 User.stru_user]).where(db.and_(\
             UserPluginRelation.stru_user_plug_relation.c.plan_user_id==plan_user_id,
             UserPluginRelation.stru_user_plug_relation.c.user_id==User.stru_user.c.id))
-        return util.callsqlalchemy(get_useridname_cmd, logger).fetchone()
+        return Util.call_sqlalchemy(get_useridname_cmd).fetchone()

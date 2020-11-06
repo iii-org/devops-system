@@ -75,7 +75,7 @@ logger.setLevel(logging.DEBUG)
 logger.addHandler(handler)
 
 k8s = kubernetesClient.KubernetesClient()
-ut = util.util()
+ut = util.Util()
 redmine = redmine.Redmine(app)
 git = gitlab.GitLab(app)
 au = auth.auth(app, redmine, git)
@@ -931,7 +931,7 @@ class PipelineExecLogs(Resource):
         parser.add_argument('repository_id', type=int, required=True)
         parser.add_argument('pipelines_exec_run', type=int, required=True)
         args = parser.parse_args()
-        return pipe.pipeline_exec_logs(logger, app, args)
+        return pipe.pipeline_exec_logs(args)
 
 
 class PipelineSoftware(Resource):
@@ -1799,7 +1799,7 @@ class ExportToPostman(Resource):
         parser.add_argument('target', type=str, required=True)
         args = parser.parse_args()
         target = args['target']
-        output = ci.export_to_postman(app, project_id, target, jwt_identity)
+        output = ci.export_to_postman(project_id, target, jwt_identity)
         return output
 
 

@@ -1,6 +1,6 @@
 import datetime
 import json
-from .util import util
+from .util import Util
 from model import db, TableFlow
 
 
@@ -30,8 +30,8 @@ class Flow(object):
         output['name'] = sqlRow['name']
         output['description'] = sqlRow['description']
         output['serial_id'] = sqlRow['serial_id']
-        output['update_at'] = util.dateToStr(self, sqlRow['update_at'])
-        output['create_at'] = util.dateToStr(self, sqlRow['create_at'])
+        output['update_at'] = Util.date_to_str(sqlRow['update_at'])
+        output['create_at'] = Util.date_to_str(sqlRow['create_at'])
         return output
 
 
@@ -47,7 +47,7 @@ class Flow(object):
             TableFlow.stru_flow
         ]).where(db.and_(TableFlow.stru_flow.c.id == flow_id))
         logger.debug("get_flow_command: {0}".format(get_flow_command))
-        result = util.callsqlalchemy(get_flow_command, logger)
+        result = Util.call_sqlalchemy(get_flow_command)
         reMessage = result.fetchone()
         # output = json.loads(str(reMessage['flow_info']))
         return self._deal_with_FlowObject(reMessage)
@@ -61,7 +61,7 @@ class Flow(object):
                 disabled=True,
                 update_at=datetime.datetime.now())
         logger.debug("update_flow_command: {0}".format(update_flow_command))
-        reMessage = util.callsqlalchemy(update_flow_command, logger)
+        reMessage = Util.call_sqlalchemy(update_flow_command)
         return {'last_modified': reMessage.last_updated_params()}
     # 修改  requirement 內資訊
     def modify_flow_by_flow_id(self, logger, flow_id, args,
@@ -76,7 +76,7 @@ class Flow(object):
                 ).returning(
                     TableFlow.stru_flow.c.update_at)
         logger.debug("update_flow_command: {0}".format(update_flow_command))
-        reMessage = util.callsqlalchemy(update_flow_command, logger)
+        reMessage = Util.call_sqlalchemy(update_flow_command)
         return {'last_modified': reMessage.last_updated_params()}
         
 
@@ -88,7 +88,7 @@ class Flow(object):
                 db.and_(TableFlow.stru_flow.c.requirement_id == requirement_id,
                         TableFlow.stru_flow.c.disabled == False))
         logger.debug("get_rqmt_command: {0}".format(get_rqmt_command))
-        result = util.callsqlalchemy(get_rqmt_command, logger)
+        result = Util.call_sqlalchemy(get_rqmt_command)
         reMessages = result.fetchall()
         output = []
         for reMessage in reMessages:
@@ -101,7 +101,7 @@ class Flow(object):
         get_flow_command = db.select(
             [TableFlow.stru_flow.c.serial_id]).where(
                 db.and_(TableFlow.stru_flow.c.requirement_id == requirement_id)).order_by(TableFlow.stru_flow.c.serial_id.asc())
-        result = util.callsqlalchemy(get_flow_command, logger)
+        result = Util.call_sqlalchemy(get_flow_command)
         flow_serial_ids = []
         if result != None:
             reMessages = result.fetchall()            
@@ -124,7 +124,7 @@ class Flow(object):
             update_at=datetime.datetime.now()
             )
         logger.debug("insert_user_command: {0}".format(insert_flow_command))
-        reMessage = util.callsqlalchemy(insert_flow_command, logger)
+        reMessage = Util.call_sqlalchemy(insert_flow_command)
         return {'flow_id': reMessage.inserted_primary_key}
     
 

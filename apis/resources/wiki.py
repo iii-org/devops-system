@@ -1,23 +1,22 @@
 import logging
 
 import config
-from .error import Error
-from .redmine import Redmine
-from .project import Project
-from .util import util
 from .auth import auth
-import logging
+from .error import Error
+from .project import Project
+from .util import Util
 
 logger = logging.getLogger(config.get('LOGGER_NAME'))
 
+
 class Wiki(object):
-    
+
     def __init__(self, redmine):
         self.redmine = redmine
-        
+
     def get_wiki_list_by_project(self, project_id):
-        if util.is_dummy_project(project_id):
-            return util.success({"wiki_pages": []})
+        if Util.is_dummy_project(project_id):
+            return Util.success({"wiki_pages": []})
         project_plugin_relation = Project.get_project_plugin_relation(
             logger, project_id)
         wiki_list, status_code = self.redmine.rm_get_wiki_list(
@@ -60,7 +59,7 @@ class Wiki(object):
             project_plugin_relation['plan_project_id'],
             wiki_name)
         if status_code == 204:
-            return util.success()
+            return Util.success()
         else:
-            return util.respond(401, "delete redmine wiki error",
+            return Util.respond(401, "delete redmine wiki error",
                                 error=Error.redmine_error(resp_wiki_list))

@@ -4,7 +4,9 @@ import base64
 import os
 
 from model import db
+from .error import Error
 from .rancher import Rancher
+from .util import Util
 
 
 class Pipeline(object):
@@ -20,12 +22,12 @@ class Pipeline(object):
         result = db.engine.execute(
             "SELECT * FROM public.project_plugin_relation \
             WHERE git_repository_id = {0};".format(repository_id))
+        if result.rowcount == 0:
+            return Util.respond(404, 'No such project',
+                                error=Error.repository_id_not_found(repository_id))
         project_relationship = result.fetchone()
         result.close()
-        logger.info("project_relationship: {0}".format(
-            project_relationship['ci_project_id']))
-        rancher = Rancher()
-        pipeline_outputs = rancher.get_rancher_pipelineexecutions(
+        pipeline_outputs, response = self.rancher.rc_get_pipeline_executions(
             project_relationship['ci_project_id'],
             project_relationship['ci_pipeline_id'])
         for pipeline_output in pipeline_outputs:
@@ -58,20 +60,24 @@ class Pipeline(object):
         logger.info("ci/cd output: {0}".format(output_array))
         return output_array
 
-    def pipeline_exec_logs(self, logger, app, args):
+    def pipeline_exec_logs(self, args):
         result = db.engine.execute(
             "SELECT * FROM public.project_plugin_relation \
             WHERE git_repository_id = {0};".format(args['repository_id']))
         project_relationship = result.fetchone()
         result.close()
         try:
-            output_array = self.rancher.get_rancher_pipelineexecutions_logs(
+            output_array, response = self.rancher.rc_get_pipeline_executions_logs(
                 project_relationship['ci_project_id'],
                 project_relationship['ci_pipeline_id'],
                 args['pipelines_exec_run'])
+            if response.status_code / 100 != 2:
+                return Util.respond(400, "get pipeline history error",
+                                    error=Error.rancher_error(response))
             return {"message": "success", "data": output_array}, 200
-        except:
-            return {"message": "get pipeline histroy errro"}, 400
+        except Exception as e:
+            return Util.respond(500, "get pipeline history error",
+                                error=Error.uncaught_exception(e))
 
     def pipeline_software(self, logger):
         result = db.engine.execute(

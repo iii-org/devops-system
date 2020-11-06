@@ -1,5 +1,5 @@
 from model import db, TableTestResult
-from .util import util
+from .util import Util
 import datetime
 import json
 import logging, config
@@ -26,10 +26,10 @@ class TestResult(object):
                 report=args['report'],
                 run_at=datetime.datetime.now()
             )
-            util.callsqlalchemy(cmd, logger)
-            return util.success()
+            Util.call_sqlalchemy(cmd)
+            return Util.success()
         except Exception as e:
-            return util.respond(400, e.__str__())
+            return Util.respond(400, e.__str__())
 
     def get_report(self, project_id):
         try:
@@ -37,10 +37,10 @@ class TestResult(object):
                 'SELECT report FROM test_results WHERE project_id={0} ORDER BY id DESC LIMIT 1'
                     .format(project_id))
             if result.rowcount == 0:
-                return util.respond(400, 'No postman report for this project.')
+                return Util.respond(400, 'No postman report for this project.')
             report = result.fetchone()['report']
             if report is None:
-                return util.respond(400, 'No postman report for this project.')
-            return util.success(json.loads(report))
+                return Util.respond(400, 'No postman report for this project.')
+            return Util.success(json.loads(report))
         except Exception as e:
-            return util.respond(400, e.__str__())
+            return Util.respond(400, e.__str__())

@@ -1,7 +1,7 @@
 import json
 import logging
 from urllib.parse import urlparse
-from .util import util
+from .util import Util
 
 from flask import jsonify
 
@@ -17,7 +17,7 @@ class Cicd(object):
         self.ti = ti
         self.tv = tv
 
-    def export_to_postman(self, app, project_id, target, jwt_identity):
+    def export_to_postman(self, project_id, target, jwt_identity):
         status = self.pjt.verify_project_user(logger, project_id, jwt_identity['user_id'])
         if not (status or jwt_identity['role_id'] == 5):
             return {'message': 'Don\'t have authorization to access issue list on project: {0}'
@@ -61,7 +61,7 @@ class Cicd(object):
                         'header': []
                     }
                 except ValueError:
-                    return util.respond(400, 'url is malformed', {
+                    return Util.respond(400, 'url is malformed', {
                         'case_id': case_id,
                         'item_id': item_id,
                         'url': url

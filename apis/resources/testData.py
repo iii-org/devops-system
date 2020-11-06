@@ -1,6 +1,6 @@
 
 from model import db, TableTestCase, TableCaseType, TableHttpMethod, TableRequirement
-from .util import util
+from .util import Util
 
 from .redmine import Redmine
 from .testCase import TestCase
