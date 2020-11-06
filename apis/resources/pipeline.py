@@ -4,7 +4,9 @@ import base64
 import os
 
 from model import db
+from .error import Error
 from .rancher import Rancher
+from .util import Util
 
 
 class Pipeline(object):
@@ -20,12 +22,12 @@ class Pipeline(object):
         result = db.engine.execute(
             "SELECT * FROM public.project_plugin_relation \
             WHERE git_repository_id = {0};".format(repository_id))
+        if result.rowcount == 0:
+            return Util.respond(404, 'No such project',
+                                error=Error.repository_id_not_found(repository_id))
         project_relationship = result.fetchone()
         result.close()
-        logger.info("project_relationship: {0}".format(
-            project_relationship['ci_project_id']))
-        rancher = Rancher()
-        pipeline_outputs = rancher.rc_get_pipeline_executions(
+        pipeline_outputs = self.rancher.rc_get_pipeline_executions(
             project_relationship['ci_project_id'],
             project_relationship['ci_pipeline_id'])
         for pipeline_output in pipeline_outputs:

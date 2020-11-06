@@ -62,13 +62,13 @@ class Rancher(object):
                                   headers=headers, with_token=with_token)
 
     def __generate_token(self):
-        url = "https://{0}/{1}-public/localProviders/local?action=login".format(
-            config.get('RANCHER_IP_PORT'), config.get('RANCHER_API_VERSION'))
-        parameter = {
+        body = {
             "username": config.get('RANCHER_ADMIN_ACCOUNT'),
             "password": config.get('RANCHER_ADMIN_PASSWORD')
         }
-        output, status_code = self.__api_post(url, data=parameter)
+        params = {'action': 'login'}
+        output, status_code = self.__api_post('-public/localProviders/local', params=params,
+                                              data=body, with_token=False)
         return output.json()['token']
 
     def rc_get_pipeline_executions(self, ci_project_id, ci_pipeline_id):

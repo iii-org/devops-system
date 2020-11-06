@@ -22,6 +22,10 @@ class Error:
     def project_not_found(project_id=None):
         return build(1003, 'Project not found.', {'project_id': project_id})
 
+    @staticmethod
+    def repository_id_not_found(repository_id=None):
+        return build(1004, 'Gitlab project not found.', {'repository_id': repository_id})
+
     # User errors
     @staticmethod
     def user_not_found(user_id):
