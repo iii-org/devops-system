@@ -5,6 +5,15 @@ def build(err_code, message, details=None):
         return {'code': err_code, 'message': message, 'details': details}
 
 
+def error_3rd_party_api(err_code, api_name, response):
+    if type(response) is str:
+        return build(err_code, '{0} responds error.'.format(api_name), {'response': response})
+    try:
+        return build(err_code, '{0} responds error.'.format(api_name), {'response': response.json()})
+    except Exception:
+        return build(err_code, '{0} responds error.'.format(api_name), {'response': response.text})
+
+
 class Error:
     # Project errors
     @staticmethod
@@ -49,12 +58,15 @@ class Error:
     # Third party service errors
     @staticmethod
     def redmine_error(response):
-        if type(response) is str:
-            return build(8001, 'Redmine responds error.', {'response': response})
-        try:
-            return build(8001, 'Redmine responds error.', {'response': response.json()})
-        except Exception:
-            return build(8001, 'Redmine responds error.', {'response': response.text})
+        return error_3rd_party_api(8001, 'Redmine', response)
+
+    @staticmethod
+    def gitlab_error(response):
+        return error_3rd_party_api(8002, 'Gitlab', response)
+
+    @staticmethod
+    def rancher_error(response):
+        return error_3rd_party_api(8003, 'Rancher', response)
 
     # Internal errors
     @staticmethod

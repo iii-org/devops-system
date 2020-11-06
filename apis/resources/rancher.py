@@ -31,7 +31,8 @@ class Rancher(object):
             response = Util.api_request(method, url, headers=final_headers, params=params, data=data)
             if response.status_code == 401 and retried is False:
                 self.token = self.__generate_token()
-                return self.__api_request(method, url, headers, params, with_token, True)
+                return self.__api_request(method, path, headers=headers, params=params, data=data,
+                                          with_token=True, retried=True)
             logger.info('Rancher api {0} {1}, params={2}, body={5}, response={3} {4}'.format(
                 method, url, params.__str__(), response.status_code, response.text, data))
             return response, response.status_code
@@ -78,14 +79,14 @@ class Rancher(object):
             'sort': 'started',
             'pipelineId': ci_pipeline_id
         }
-        response, status_code = self.__api_get(path, params)
+        response, status_code = self.__api_get(path, params=params)
         output_array = response.json()['data']
-        return output_array
+        return output_array, response
 
     def rc_get_pipeline_executions_logs(self, ci_project_id, ci_pipeline_id,
                                         pipelines_exec_run):
         output_dict = []
-        output_executions = self.rc_get_pipeline_executions(
+        output_executions, response = self.rc_get_pipeline_executions(
             ci_project_id, ci_pipeline_id)
         for output_execution in output_executions:
             if pipelines_exec_run == output_execution['run']:
@@ -129,7 +130,7 @@ class Rancher(object):
                             "state": None,
                             "steps": tmp_step_message
                         })
-        return output_dict[1:]
+        return output_dict[1:], response
 
     def rc_get_cluster_id(self):
         rancher_output = self.__api_get('/clusters')

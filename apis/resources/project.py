@@ -258,7 +258,7 @@ class Project(object):
 
     def get_ci_last_test_result(self, app, logger, output_dict, project):
         # get rancher pipeline
-        pipeline_output = self.rancher.rc_get_pipeline_executions(
+        pipeline_output, response = self.rancher.rc_get_pipeline_executions(
             project["ci_project_id"], project["ci_pipeline_id"])
         if len(pipeline_output) != 0:
             logger.info(pipeline_output[0]['name'])
