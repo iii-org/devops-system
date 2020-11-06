@@ -101,7 +101,7 @@ class Rancher(object):
                             config.get('RANCHER_IP_PORT'), config.get('RANCHER_API_VERSION'), ci_project_id,
                             ci_pipeline_id, pipelines_exec_run, index, step_index)
                         logger.info("wss url: {0}".format(url))
-                        ws.connect(url, header=[self.__auth_headers({}, True)])
+                        ws.connect(url, header=["Authorization: Bearer {0}".format(self.token)])
                         result = ws.recv()
                         # logger.info("Received :'%s'" % result)
                         step_detail = output_execution['stages'][
