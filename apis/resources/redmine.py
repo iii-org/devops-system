@@ -91,8 +91,11 @@ class Redmine:
         logger.info("get issues by output: {0}".format(output.json()))
         return output.json()
 
-    def rm_get_issues_by_project(self, plan_project_id):
-        params = {'project_id': plan_project_id, 'limit': 1000, 'status_id': '*'}
+    def rm_get_issues_by_project(self, plan_project_id, args=None):
+        if 'fixed_version_id' in args:
+            params = {'project_id': plan_project_id, 'limit': 1000, 'status_id': '*', 'fixed_version_id': args['fixed_version_id']}
+        else:
+            params = {'project_id': plan_project_id, 'limit': 1000, 'status_id': '*'}
         output = self.__api_get('/issues', params=params)
         return output.json()
 
