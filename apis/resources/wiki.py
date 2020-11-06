@@ -1,20 +1,19 @@
 import logging
 
 import config
+from .auth import auth
 from .error import Error
-from .redmine import Redmine
 from .project import Project
 from .util import util
-from .auth import auth
-import logging
 
 logger = logging.getLogger(config.get('LOGGER_NAME'))
 
+
 class Wiki(object):
-    
+
     def __init__(self, redmine):
         self.redmine = redmine
-        
+
     def get_wiki_list_by_project(self, project_id):
         if util.is_dummy_project(project_id):
             return util.success({"wiki_pages": []})

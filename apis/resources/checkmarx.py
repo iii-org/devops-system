@@ -58,8 +58,7 @@ class CheckMarx(object):
             db.engine.execute(
                 "INSERT INTO public.checkmarx "
                 "(cm_project_id, repo_id, scan_id, run_at) "
-                "VALUES ({0}, {1}, {2}, '{3}')"
-                    .format(
+                "VALUES ({0}, {1}, {2}, '{3}')".format(
                     args['cm_project_id'],
                     args['repo_id'],
                     args['scan_id'],
@@ -93,8 +92,8 @@ class CheckMarx(object):
         db.engine.execute(
             "UPDATE public.checkmarx "
             "SET report_id={0}"
-            "WHERE scan_id={1}"
-                .format(report_id, scan_id)
+            "WHERE scan_id={1}".format(
+                report_id, scan_id)
         )
         if r.status_code % 100 == 2:
             return {'message': 'success', 'data':
@@ -211,7 +210,7 @@ class CheckMarx(object):
             return {'message': 'The report is not ready yet.', 'status': 2,
                     'data': {'stats': self.get_scan_statistics(scan_id)}}, 200
         return {'message': 'success', 'status': 3, 'data': {
-                'stats': self.get_scan_statistics(scan_id),
-                'report_id': report_id
-                }
+            'stats': self.get_scan_statistics(scan_id),
+            'report_id': report_id
+        }
                 }, 200

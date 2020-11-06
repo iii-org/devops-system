@@ -1799,7 +1799,7 @@ class ExportToPostman(Resource):
         parser.add_argument('target', type=str, required=True)
         args = parser.parse_args()
         target = args['target']
-        output = ci.export_to_postman(app, project_id, target, jwt_identity)
+        output = ci.export_to_postman(project_id, target, jwt_identity)
         return output
 
 
