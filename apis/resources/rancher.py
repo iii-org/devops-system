@@ -133,7 +133,7 @@ class Rancher(object):
         return output_dict[1:], response
 
     def rc_get_cluster_id(self):
-        rancher_output = self.__api_get('/clusters')
+        rancher_output, status_code = self.__api_get('/clusters')
         output_array = rancher_output.json()['data']
         for output in output_array:
             logger.debug("get_rancher_cluster output: {0}".format(output['name']))
@@ -142,14 +142,14 @@ class Rancher(object):
 
     def rc_get_project_id(self):
         cluster_id = self.rc_get_cluster_id()
-        rancher_output = self.__api_get('/clusters/{0}/projects'.format(cluster_id))
+        rancher_output, status_code = self.__api_get('/clusters/{0}/projects'.format(cluster_id))
         output_array = rancher_output.json()['data']
         for output in output_array:
             if output['name'] == "Default":
                 return output['id']
 
     def rc_get_admin_user_id(self):
-        rancher_output = self.__api_get('/users')
+        rancher_output, status_code = self.__api_get('/users')
         output_array = rancher_output.json()['data']
         for output in output_array:
             if output['username'] == 'admin':
@@ -171,17 +171,18 @@ class Rancher(object):
             "triggerWebhookPush": True,
             "triggerWebhookTag": True
         }
-        output = self.__api_post('/projects/{0}/pipelines'.format(project_id), params=parameter)
+        output, status_code = self.__api_post(
+            '/projects/{0}/pipelines'.format(project_id), data=parameter)
         logger.debug("enable_rancher_project_pipeline output: {0}".format(output.json()))
         return output.json()['id']
 
     def rc_disable_project_pipeline(self, project_id, pipeline_id):
-        rancher_output = self.__api_delete('/projects/{0}/pipelines/{1}'.format(
+        rancher_output, status_code = self.__api_delete('/projects/{0}/pipelines/{1}'.format(
             project_id, pipeline_id
         ))
-        if rancher_output.status_code == 200:
+        if status_code == 200:
             logger.info("disable_rancher_project_pipeline successful !")
-        elif rancher_output.status_code == 404:
+        elif status_code == 404:
             logger.info("project does not exist, don't need to delete.")
         else:
             logger.info("disable_rancher_project_pipeline error, error message: {0}".format(rancher_output.text))
@@ -190,5 +191,5 @@ class Rancher(object):
 
     def rc_get_project_pipeline(self):
         project_id = self.rc_get_project_id()
-        output = self.__api_get('/projects/{0}/pipelines'.format(project_id))
+        output, status_code = self.__api_get('/projects/{0}/pipelines'.format(project_id))
         return output.json()['data']

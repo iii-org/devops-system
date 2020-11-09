@@ -635,8 +635,7 @@ class Project(object):
         else:
             return {"message": output.json()["message"]}, output.status_code
 
-    def create_ranhcer_pipline_yaml(self, logger, app, project_id, args,
-                                    action):
+    def create_ranhcer_pipline_yaml(self, project_id, args, action):
         url = "http://{0}/api/{1}/projects/{2}/repository/files/{3}?private_token={4}&branch={5}&\
 start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&commit_message={11}" \
             .format(config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id, \
@@ -653,9 +652,9 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
             logger.info("put project file output: {0}".format(output.json()))
         return output
 
-    def get_git_project_file_for_pipeline(self, logger, app, project_id, args):
-        url = "http://{0}/api/{1}/projects/{2}/repository/files/{3}?private_token={4}&ref={5}" \
-            .format(config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id, \
+    def get_git_project_file_for_pipeline(self, project_id, args):
+        url = "http://{0}/api/{1}/projects/{2}/repository/files/{3}?private_token={4}&ref={5}".format(
+            config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id,
                     args["file_path"], self.private_token, args["branch"])
         logger.info("get project file url: {0}".format(url))
         output = requests.get(url, headers=self.headers, verify=False)
