@@ -25,7 +25,8 @@ class Redmine:
         self.key_generated = 0.0
         self.last_operator_id = None
 
-    def __api_request(self, method, path, headers=None, params=None, data=None, operator_id=None):
+    def __api_request(self, method, path, headers=None, params=None, data=None,
+                      operator_id=None, resp_format='.json'):
         self.__key_check()
         if headers is None:
             headers = {}
@@ -34,7 +35,7 @@ class Redmine:
         if 'Content-Type' not in headers:
             headers['Content-Type'] = 'application/json'
 
-        url = "http://{0}{1}.json".format(config.get('REDMINE_IP_PORT'), path)
+        url = "http://{0}{1}{2}".format(config.get('REDMINE_IP_PORT'), path, resp_format)
         if operator_id is not None:
             if operator_id != self.last_operator_id:
                 self.last_operator_id = operator_id
@@ -47,22 +48,30 @@ class Redmine:
 
         output = Util.api_request(method, url, headers, params, data)
 
-        logger.info('redmine api {0} {1}, params={2}, body={5}, response={3} {4}'.format(
-            method, url, params.__str__(), output.status_code, output.text, data))
+        if resp_format != '':
+            logger.info('redmine api {0} {1}, params={2}, body={5}, response={3} {4}'.format(
+                method, url, params.__str__(), output.status_code, output.text, data))
 
         return output
 
-    def __api_get(self, path, params=None, headers=None):
-        return self.__api_request('GET', path, params=params, headers=headers)
+    def __api_get(self, path, params=None, headers=None,
+                  resp_format='.json'):
+        return self.__api_request('GET', path, params=params, headers=headers, resp_format=resp_format)
 
-    def __api_post(self, path, params=None, headers=None, data=None, operator_id=None):
-        return self.__api_request('POST', path, headers=headers, data=data, params=params, operator_id=operator_id)
+    def __api_post(self, path, params=None, headers=None, data=None,
+                   operator_id=None, resp_format='.json'):
+        return self.__api_request('POST', path, headers=headers, data=data, params=params,
+                                  operator_id=operator_id, resp_format=resp_format)
 
-    def __api_put(self, path, params=None, headers=None, data=None, operator_id=None):
-        return self.__api_request('PUT', path, headers=headers, data=data, params=params, operator_id=operator_id)
+    def __api_put(self, path, params=None, headers=None, data=None,
+                  operator_id=None, resp_format='.json'):
+        return self.__api_request('PUT', path, headers=headers, data=data, params=params,
+                                  operator_id=operator_id, resp_format=resp_format)
 
-    def __api_delete(self, path, params=None, headers=None, operator_id=None):
-        return self.__api_request('DELETE', path, params=params, headers=headers, operator_id=operator_id)
+    def __api_delete(self, path, params=None, headers=None,
+                     operator_id=None, resp_format='.json'):
+        return self.__api_request('DELETE', path, params=params, headers=headers,
+                                  operator_id=operator_id, resp_format=resp_format)
 
     def __key_check(self):
         # Check if key expires first, seems to expire in 2 hours in default?
@@ -297,7 +306,7 @@ class Redmine:
         try:
             r = self.__api_get('/attachments/download/{0}/{1}'.format(
                 a_id, filename
-            ))
+            ), resp_format='')
             file_obj = BytesIO(r.content)
             return send_file(
                 file_obj,
