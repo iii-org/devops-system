@@ -189,6 +189,7 @@ class Redmine:
         output = self.__api_get('/projects/{0}/wiki/{1}'.format(
             project_id, wiki_name,
         ))
+        return output, output.status_code
 
     def rm_put_wiki(self, project_id, wiki_name, args, operator_id):
         param = {"wiki_page": {"text": args['wiki_text']}}

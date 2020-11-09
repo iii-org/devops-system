@@ -32,9 +32,10 @@ class Wiki(object):
         wiki_list, status_code = self.redmine.rm_get_wiki(
             project_plugin_relation['plan_project_id'], wiki_name)
         if status_code == 200:
-            return {"message": "success", "data": wiki_list.json()}, 200
+            return Util.success(wiki_list.json())
         else:
-            return {"message": "get redmine wiki error"}, 401
+            return Util.respond(status_code, "Error when getting redmine wiki.",
+                                error=Error.redmine_error(wiki_list))
 
     def put_wiki_by_project(self, project_id, wiki_name, args, operator_id):
         project_plugin_relation = Project.get_project_plugin_relation(
