@@ -19,7 +19,7 @@ import config
 from jsonwebtoken import jsonwebtoken
 from werkzeug.routing import IntegerConverter
 
-import resources.util as util
+from resources.util import Util
 import resources.auth as auth
 import resources.issue as issue
 import resources.redmine as redmine
@@ -75,7 +75,6 @@ logger.setLevel(logging.DEBUG)
 logger.addHandler(handler)
 
 k8s = kubernetesClient.KubernetesClient()
-ut = util.Util()
 redmine = redmine.Redmine(app)
 git = gitlab.GitLab(app)
 au = auth.auth(app, redmine, git)
@@ -147,8 +146,8 @@ class CreateProject(Resource):
                     traceback.print_exc()
                     return {"message": str(error)}, 400
             else:
-                return ut.respond(400, 'Error while creating project',
-                                  error=Error.invalid_project_name(args['name']))
+                return Util.respond(400, 'Error while creating project',
+                                    error=Error.invalid_project_name(args['name']))
         else:
             return {"message": "your role art not PM/administrator"}, 401
 
@@ -1143,12 +1142,15 @@ class Issue(Resource):
     def delete(self, issue_id):
         status = iss.verify_issue_user(logger, app, issue_id,
                                        get_jwt_identity()['user_id'])
-        if status and get_jwt_identity()['role_id'] in (3, 5):
+        if status or get_jwt_identity()['role_id'] == 5:
             output = iss.delete_issue(issue_id)
             return output
         else:
-            return {'message': 'Dont have authorization to delete issue for thie user: {0}' \
-                .format(get_jwt_identity()['user_account'])}, 401
+            return Util.respond(401, "Error when deleting issues",
+                                error=Error.not_allowed(
+                                    get_jwt_identity()['user_account'],
+                                    [1, 3, 5]
+                                ))
 
 
 class IssueStatus(Resource):
@@ -1901,8 +1903,8 @@ class ProjectFiles(Resource):
     def post(self, project_id):
         plan_project_id = pjt.get_plan_project_id(project_id)
         if plan_project_id < 0:
-            return ut.respond(400, 'Error while uploading a file to a project.',
-                              error=Error.project_not_found(project_id))
+            return Util.respond(400, 'Error while uploading a file to a project.',
+                                error=Error.project_not_found(project_id))
 
         parser = reqparse.RequestParser()
         parser.add_argument('filename', type=str)

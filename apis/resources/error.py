@@ -55,6 +55,17 @@ class Error:
                            'a lower case alphabet, and a digit, '
                            'and is 8 to 20 characters long.')
 
+    # Permission errors
+    @staticmethod
+    # allowed_role is an array containing allowed role ids.
+    def not_allowed(user_name, allowed_role):
+        return build(3001, "You don't have the permission for this operation, "
+                           "or is a PM or RD but not in this project.",
+                     {
+                         user_name: user_name,
+                         allowed_role: allowed_role
+                     })
+
     # Third party service errors
     @staticmethod
     def redmine_error(response):
