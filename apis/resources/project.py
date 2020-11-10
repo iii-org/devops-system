@@ -9,7 +9,8 @@ from model import db, ProjectUserRole, ProjectPluginRelation, TableProjects
 from .rancher import Rancher
 from .redmine import Redmine
 import resources.util as util
-import resources.error as error
+import resources.apiError as apiError
+import resources.kubernetesClient as kubernetesClient
 
 logger = logging.getLogger(config.get('LOGGER_NAME'))
 
@@ -18,9 +19,8 @@ class Project(object):
     private_token = None
     headers = {'Content-Type': 'application/json'}
 
-    def __init__(self, app, au, k8s, redmine, gitlab):
+    def __init__(self, app, au, redmine, gitlab):
         self.app = app
-        self.k8s = k8s
         self.au = au
         self.rancher = Rancher()
         self.redmine = redmine
@@ -198,7 +198,7 @@ class Project(object):
                         total_issue = issue_output.json()
                     except Exception as e:
                         return util.respond(500, "Error when getting issues for a user",
-                                            error=error.redmine_error(issue_output))
+                                            error=apiError.redmine_error(issue_output))
                     logger.info("issue total count by user: {0}".format(
                         total_issue['total_count']))
                     output_dict['issues'] = total_issue['total_count']
@@ -296,8 +296,8 @@ class Project(object):
             projtct_detail = self.get_one_git_project(logger, app, project_id)
             logger.info("Get git path: {0}".format(projtct_detail.json()['path']))
             # get kubernetes service nodePort url
-            k8s_service_list = self.k8s.list_service_all_namespaces()
-            k8s_node_list = self.k8s.list_work_node()
+            k8s_service_list = kubernetesClient.list_service_all_namespaces()
+            k8s_node_list = kubernetesClient.list_work_node()
             work_node_ip = k8s_node_list[0]['ip']
             logger.info("k8s_node ip: {0}".format(work_node_ip))
 
@@ -889,7 +889,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
             redmine_pj_id = redmine_output.json()["project"]["id"]
         except Exception as e:
             return util.respond(500, "Error while creating redmine project",
-                                error=error.redmine_error(redmine_output))
+                                error=apiError.redmine_error(redmine_output))
 
         if redmine_output.status_code != 201:
             status_code = redmine_output.status_code
@@ -915,7 +915,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                     if gitlab_json['message']['name'][0] == 'has already been taken':
                         return util.respond(
                             status_code, {"gitlab": gitlab_json},
-                            error=error.identifier_has_been_token(args['name'])
+                            error=apiError.identifier_has_been_token(args['name'])
                         )
                 except (KeyError, IndexError):
                     pass

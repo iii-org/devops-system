@@ -4,7 +4,7 @@ import json
 import logging
 
 from model import db, TableTestResult
-import resources.error as error
+import resources.apiError as apiError
 import resources.util as util
 
 logger = logging.getLogger(config.get('LOGGER_NAME'))
@@ -28,7 +28,7 @@ def save(args):
         return util.success()
     except Exception as e:
         return util.respond(500, "Error when saving test results.",
-                            error=error.uncaught_exception(e))
+                            error=apiError.uncaught_exception(e))
 
 
 def get_report(project_id):
@@ -44,4 +44,4 @@ def get_report(project_id):
         return util.success(json.loads(report))
     except Exception as e:
         return util.respond(500, "Error when saving test results.",
-                            error=error.uncaught_exception(e))
+                            error=apiError.uncaught_exception(e))

@@ -5,7 +5,7 @@ import requests
 from flask_restful import reqparse
 
 from model import db
-from resources.error import Error
+import resources.apiError as apiError
 
 
 def call_sqlalchemy(command):
@@ -84,4 +84,4 @@ def api_request(method, url, headers=None, params=None, data=None):
     else:
         return respond_request_style(
             500, 'Error while request {0} {1}'.format(method, url),
-            error=error.unknown_method(method))
+            error=apiError.unknown_method(method))

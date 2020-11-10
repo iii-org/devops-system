@@ -7,7 +7,7 @@ import os
 
 import config
 from model import db
-import resources.error as error
+import resources.apiError as apiError
 from .rancher import Rancher
 import resources.util as util
 
@@ -29,7 +29,7 @@ class Pipeline(object):
             WHERE git_repository_id = {0};".format(repository_id))
         if result.rowcount == 0:
             return util.respond(404, 'No such project',
-                                error=error.repository_id_not_found(repository_id))
+                                error=apiError.repository_id_not_found(repository_id))
         project_relationship = result.fetchone()
         result.close()
         pipeline_outputs, response = self.rancher.rc_get_pipeline_executions(
@@ -76,11 +76,11 @@ class Pipeline(object):
                 args['pipelines_exec_run'])
             if response.status_code / 100 != 2:
                 return util.respond(400, "get pipeline history error",
-                                    error=error.rancher_error(response))
+                                    error=apiError.rancher_error(response))
             return {"message": "success", "data": output_array}, 200
         except Exception as e:
             return util.respond(500, "get pipeline history error",
-                                error=error.uncaught_exception(e))
+                                error=apiError.uncaught_exception(e))
 
     def pipeline_software(self):
         result = db.engine.execute(

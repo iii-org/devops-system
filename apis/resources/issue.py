@@ -5,7 +5,7 @@ from datetime import datetime, date, timedelta
 
 from model import db, ProjectPluginRelation, ProjectUserRole
 from .auth import auth
-import resources.error as error
+import resources.apiError as apiError
 from .redmine import Redmine
 import resources.util as util
 
@@ -430,10 +430,10 @@ class Issue(object):
                 return util.success({"issue_id": output.json()["issue"]["id"]})
             else:
                 return util.respond(status_code, "Error while creating issue",
-                                    error=error.redmine_error(output))
+                                    error=apiError.redmine_error(output))
         except Exception as error:
             return util.respond(500, "Error while creating issue",
-                                error=error.uncaught_exception(error))
+                                error=apiError.uncaught_exception(error))
 
     def update_issue_rd(self, logger, app, issue_id, args, operator_id):
         args = {k: v for k, v in args.items() if v is not None}
@@ -458,7 +458,7 @@ class Issue(object):
         else:
             return util.respond(
                 400, "update issue failed",
-                error=error.redmine_error(output.text)
+                error=apiError.redmine_error(output.text)
             )
 
     def delete_issue(self, issue_id):

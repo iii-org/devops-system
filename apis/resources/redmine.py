@@ -8,7 +8,7 @@ import werkzeug
 from flask import send_file
 from flask_restful import reqparse
 
-import resources.error as error
+import resources.apiError as apiError
 import resources.util as util
 
 logger = logging.getLogger(config.get('LOGGER_NAME'))
@@ -249,7 +249,7 @@ class Redmine:
         res = self.__api_post('/uploads', data=file, headers=headers)
         if res.status_code != 201:
             return util.respond(res.status_code, "Error while uploading to redmine",
-                                error=error.redmine_error(res.text))
+                                error=apiError.redmine_error(res.text))
         token = res.json().get('upload').get('token')
         filename = file.filename
         del args['upload_file']
@@ -276,7 +276,7 @@ class Redmine:
         res = self.__api_post('/uploads', data=file, headers=headers)
         if res.status_code != 201:
             return util.respond(res.status_code, "Error while uploading to redmine",
-                                error=error.redmine_error(res.text))
+                                error=apiError.redmine_error(res.text))
         token = res.json().get('upload').get('token')
         filename = args['filename']
         if filename is None:
@@ -295,7 +295,7 @@ class Redmine:
             return util.respond(201, None)
         else:
             return util.respond(res.status_code, "Error while adding the file to redmine",
-                                error=error.redmine_error(res.text))
+                                error=apiError.redmine_error(res.text))
 
     def rm_list_file(self, plan_project_id):
         res = self.__api_get('/projects/%d/files' % plan_project_id)
@@ -315,7 +315,7 @@ class Redmine:
             )
         except Exception as e:
             return util.respond(500, 'Error when downloading an attachment.',
-                                error=error.redmine_error(r))
+                                error=apiError.redmine_error(r))
 
     def rm_create_project(self, args):
         xml_body = """<?xml version="1.0" encoding="UTF-8"?>

@@ -2,7 +2,7 @@ import logging
 
 import config
 from .auth import auth
-import resources.error as error
+import resources.apiError as apiError
 from .project import Project
 import resources.util as util
 
@@ -35,7 +35,7 @@ class Wiki(object):
             return util.success(wiki_list.json())
         else:
             return util.respond(status_code, "Error when getting redmine wiki.",
-                                error=error.redmine_error(wiki_list))
+                                error=apiError.redmine_error(wiki_list))
 
     def put_wiki_by_project(self, project_id, wiki_name, args, operator_id):
         project_plugin_relation = Project.get_project_plugin_relation(
@@ -63,4 +63,4 @@ class Wiki(object):
             return util.success()
         else:
             return util.respond(401, "delete redmine wiki error",
-                                error=error.redmine_error(resp_wiki_list))
+                                error=apiError.redmine_error(resp_wiki_list))

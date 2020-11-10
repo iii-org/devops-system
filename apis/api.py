@@ -17,11 +17,10 @@ import config
 import resources.auth as auth
 import resources.checkmarx as checkmarx
 import resources.cicd as cicd
-import resources.error as error
+import resources.apiError as apiError
 import resources.flow as flow
 import resources.gitlab as gitlab
 import resources.issue as issue
-import resources.kubernetesClient as kubernetesClient
 import resources.parameter as parameter
 import resources.pipeline as pipeline
 import resources.project as project
@@ -67,11 +66,10 @@ logger = logging.getLogger('devops.api')
 logger.setLevel(logging.DEBUG)
 logger.addHandler(handler)
 
-k8s = kubernetesClient.KubernetesClient()
 redmine = redmine.Redmine(app)
 git = gitlab.GitLab(app)
 au = auth.auth(app, redmine, git)
-pjt = project.Project(app, au, k8s, redmine, git)
+pjt = project.Project(app, au, redmine, git)
 iss = issue.Issue(pjt, redmine)
 pipe = pipeline.Pipeline(app, pjt)
 wk = wiki.Wiki(redmine)
@@ -132,7 +130,7 @@ class CreateProject(Resource):
                     return {"message": str(e)}, 400
             else:
                 return util.respond(400, 'Error while creating project',
-                                    error=error.invalid_project_name(args['name']))
+                                    error=apiError.invalid_project_name(args['name']))
         else:
             return {"message": "your role art not PM/administrator"}, 401
 
@@ -1132,7 +1130,7 @@ class Issue(Resource):
             return output
         else:
             return util.respond(401, "Error when deleting issues",
-                                error=error.not_allowed(
+                                error=apiError.not_allowed(
                                     get_jwt_identity()['user_account'],
                                     [1, 3, 5]
                                 ))
@@ -1784,7 +1782,7 @@ class ProjectFiles(Resource):
         plan_project_id = pjt.get_plan_project_id(project_id)
         if plan_project_id < 0:
             return util.respond(400, 'Error while uploading a file to a project.',
-                                error=error.project_not_found(project_id))
+                                error=apiError.project_not_found(project_id))
 
         parser = reqparse.RequestParser()
         parser.add_argument('filename', type=str)

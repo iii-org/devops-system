@@ -1,4 +1,4 @@
-import resources.error as error
+import resources.apiError as apiError
 from .redmine import Redmine
 from .project import Project
 import resources.util as util
@@ -55,7 +55,7 @@ class Version(object):
             return util.success(version.json())
         else:
             return util.respond(status_code, "Error when getting version info.",
-                                error=error.redmine_error(version))
+                                error=apiError.redmine_error(version))
 
     def put_version_by_version_id(self, logger, app, project_id, version_id,
                                   args):
@@ -76,4 +76,4 @@ class Version(object):
             return util.respond(200, "already deleted")
         else:
             return util.respond(status_code, "delete redmine wiki error",
-                                error=error.redmine_error(output))
+                                error=apiError.redmine_error(output))

@@ -7,7 +7,7 @@ import websocket
 from flask_restful import abort
 
 import config
-import resources.error as error
+import resources.apiError as apiError
 import resources.util as util
 
 logger = logging.getLogger(config.get('LOGGER_NAME'))
@@ -39,7 +39,7 @@ class Rancher(object):
         except Exception as e:
             return util.respond(500, "Error in rancher API request {0} {1}".format(
                 method, url
-            ), error=error.uncaught_exception(e))
+            ), error=apiError.uncaught_exception(e))
 
     def __auth_headers(self, headers, with_token):
         if headers is not None:

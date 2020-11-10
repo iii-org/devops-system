@@ -11,7 +11,7 @@ from flask_jwt_extended import (create_access_token, JWTManager)
 
 from model import db, User, UserPluginRelation, ProjectUserRole, TableProjects, ProjectPluginRelation, \
     TableRolesPluginRelation
-import resources.error as error
+import resources.apiError as apiError
 from .gitlab import GitLab
 from .project import Project
 import resources.util as util
@@ -224,7 +224,7 @@ class auth(object):
         user_relation = auth.get_user_plugin_relation(user_id=user_id)
         logger.debug("user_relation_list: {0}".format(user_relation))
         if user_relation is None:
-            return util.respond(404, 'Error when updating password', error=error.user_not_found(user_id))
+            return util.respond(404, 'Error when updating password', error=apiError.user_not_found(user_id))
         redmine_user_id = user_relation['plan_user_id']
         err = self.redmine.rm_update_password(redmine_user_id, new_pwd)
         if err is not None:
@@ -374,7 +374,7 @@ class auth(object):
                 user_list_output = user_list_output.json()
             except Exception as e:
                 return util.respond(500, str(type(e)) + ': ' + str(e),
-                                    error=error.redmine_error(user_list_output))
+                                    error=apiError.redmine_error(user_list_output))
 
             # logger.debug("user_list_output: {0}".format(user_list_output))
             total_count = user_list_output['total_count']
