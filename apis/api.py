@@ -1259,9 +1259,7 @@ class RequirementByIssue(Resource):
     def get(self, issue_id):
         # temp = get_jwt_identity()
         print(get_jwt_identity())
-        output = rqmt.get_requirements_by_issue_id(
-            logger, issue_id,
-            get_jwt_identity()['user_id'])
+        output = rqmt.get_requirements_by_issue_id(issue_id)
         return jsonify({'message': 'success', 'data': output})
 
     ## 用issues ID 新建立需求清單
@@ -1271,9 +1269,7 @@ class RequirementByIssue(Resource):
         parser.add_argument('project_id', type=int)
         # parser.add_argument('flow_info', type=str)
         args = parser.parse_args()
-        output = rqmt.post_requirement_by_issue_id(
-            logger, issue_id, args,
-            get_jwt_identity()['user_id'])
+        output = rqmt.post_requirement_by_issue_id(issue_id, args)
         return jsonify({'message': 'success', 'data': output})
 
 
@@ -1283,8 +1279,7 @@ class Requirement(Resource):
     @jwt_required
     def get(self, requirement_id):
         # temp = get_jwt_identity()
-        output = rqmt.get_requirement_by_rqmt_id(logger, requirement_id,
-                                                 get_jwt_identity()['user_id'])
+        output = rqmt.get_requirement_by_rqmt_id(requirement_id)
         return jsonify({'message': 'success', 'data': output})
 
     ## 用requirement_id 刪除目前需求流程
@@ -1292,8 +1287,7 @@ class Requirement(Resource):
     def delete(self, requirement_id):
         # temp = get_jwt_identity()
         output = {}
-        output = rqmt.del_requirement_by_rqmt_id(logger, requirement_id,
-                                                 get_jwt_identity()['user_id'])
+        output = rqmt.del_requirement_by_rqmt_id(requirement_id)
         return jsonify({'message': 'success'})
 
     ## 用requirement_id 更新目前需求流程
@@ -1303,9 +1297,7 @@ class Requirement(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('flow_info', type=str)
         args = parser.parse_args()
-        output = rqmt.modify_requirement_by_rqmt_id(
-            logger, requirement_id, args,
-            get_jwt_identity()['user_id'])
+        output = rqmt.modify_requirement_by_rqmt_id(requirement_id, args)
         return jsonify({'message': 'success'})
 
 
@@ -1322,15 +1314,13 @@ class FlowByIssue(Resource):
     @jwt_required
     def get(self, issue_id):
         # requirement_ids = []
-        requirement_ids = rqmt.check_requirement_by_issue_id(logger, issue_id)
+        requirement_ids = rqmt.check_requirement_by_issue_id(issue_id)
         print(requirement_ids)
         if not requirement_ids:
             return jsonify({'message': 'success', 'data': {}})
         output = []
         for requirement_id in requirement_ids:
-            result = flow.get_flow_by_requirement_id(
-                logger, requirement_id,
-                get_jwt_identity()['user_id'])
+            result = flow.get_flow_by_requirement_id(requirement_id)
             if len(result) > 0:
                 output.append({
                     'requirement_id': requirement_id,
@@ -1348,18 +1338,14 @@ class FlowByIssue(Resource):
         parser.add_argument('name', type=str)
         parser.add_argument('description', type=str)
         args = parser.parse_args()
-        check = rqmt.check_requirement_by_issue_id(logger, issue_id)
+        check = rqmt.check_requirement_by_issue_id(issue_id)
         if not check:
-            requirements = rqmt.post_requirement_by_issue_id(
-                logger, issue_id, args,
-                get_jwt_identity()['user_id'])
+            requirements = rqmt.post_requirement_by_issue_id(issue_id, args)
             requirement_id = requirements['requirement_id'][0]
         else:
             requirement_id = check[0]
 
-        output = flow.post_flow_by_requirement_id(
-            logger, int(issue_id), requirement_id, args,
-            get_jwt_identity()['user_id'])
+        output = flow.post_flow_by_requirement_id(int(issue_id), requirement_id, args)
         # print(output)
         return jsonify({'message': 'success', 'data': output})
 
@@ -1392,32 +1378,26 @@ class Flow(Resource):
     ## 用requirement_id 取得目前需求流程
     @jwt_required
     def get(self, flow_id):
-        output = flow.get_flow_by_flow_id(logger, flow_id,
-                                          get_jwt_identity()['user_id'])
+        output = flow.get_flow_by_flow_id(flow_id)
         return jsonify({'message': 'success', 'data': output})
 
     ## 用requirement_id 刪除目前需求流程
     @jwt_required
     def delete(self, flow_id):
-        # temp = get_jwt_identity()
-        output = {}
-        output = flow.disabled_flow_by_flow_id(logger, flow_id,
-                                               get_jwt_identity()['user_id'])
-        return jsonify({'message': 'success', 'data': output})
+        output = flow.disabled_flow_by_flow_id(flow_id)
+        return Util.success(output)
 
     ## 用requirement_id 更新目前需求流程
     @jwt_required
     def put(self, flow_id):
-        output = {}
         parser = reqparse.RequestParser()
         parser.add_argument('serial_id', type=int)
         parser.add_argument('type_id', type=int)
         parser.add_argument('name', type=str)
         parser.add_argument('description', type=str)
         args = parser.parse_args()
-        output = flow.modify_flow_by_flow_id(logger, flow_id, args,
-                                             get_jwt_identity()['user_id'])
-        return jsonify({'message': 'success', 'data': output})
+        output = flow.modify_flow_by_flow_id(flow_id, args)
+        return Util.success(output)
 
 
 class ParameterType(Resource):
@@ -1460,16 +1440,14 @@ class ParameterByIssue(Resource):
 
 class Parameter(Resource):
 
-    ## 用requirement_id 取得目前需求流程
+    # 用requirement_id 取得目前需求流程
     @jwt_required
     def get(self, parameter_id):
         output = {}
-        output = param.get_parameters_by_param_id(
-            logger, parameter_id,
-            get_jwt_identity()['user_id'])
+        output = Parameter.get_parameters_by_param_id(parameter_id)
         return jsonify({'message': 'success', 'data': output})
 
-    ## 用requirement_id 刪除目前需求流程
+    # 用requirement_id 刪除目前需求流程
     @jwt_required
     def delete(self, parameter_id):
         output = {}
@@ -1500,9 +1478,7 @@ class AllTestDataByIssue(Resource):
     def get(self, issue_id):
 
         data = {}
-        data['requirement'] = rqmt.get_requirements_by_issue_id(
-            logger, issue_id,
-            get_jwt_identity()['user_id'])['flow_info']
+        data['requirement'] = rqmt.get_requirements_by_issue_id(issue_id)['flow_info']
         data['testCase'] = tc.get_testCase_by_issue_id(
             logger, issue_id,
             get_jwt_identity()['user_id'])
