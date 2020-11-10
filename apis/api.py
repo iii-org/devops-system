@@ -1327,8 +1327,7 @@ class FlowByIssue(Resource):
             requirement_id = check[0]
 
         output = flow.post_flow_by_requirement_id(int(issue_id), requirement_id, args)
-        # print(output)
-        return jsonify({'message': 'success', 'data': output})
+        return util.success(output, has_date=True)
 
 
 # class FlowByRequirement(Resource):
