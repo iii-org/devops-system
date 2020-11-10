@@ -88,11 +88,11 @@ class TestCase(object):
         if args['issue_id'] is not None:
             command = db.select([TableTestCase.stru_testCase]).where(db.and_(
                 TableTestCase.stru_testCase.c.issue_id == args['issue_id'],
-                TableTestCase.stru_testCase.c.disabled == False)).order_by('project_id')
+                TableTestCase.stru_testCase.c.disabled is False)).order_by('project_id')
         elif args['project_id'] is not None:
             command = db.select([TableTestCase.stru_testCase]).where(db.and_(
                 TableTestCase.stru_testCase.c.project_id == args['project_id'],
-                TableTestCase.stru_testCase.c.disabled == False)).order_by('project_id')
+                TableTestCase.stru_testCase.c.disabled is False)).order_by('project_id')
         else:
             return {}
         result = Util.call_sqlalchemy(command)
@@ -103,7 +103,7 @@ class TestCase(object):
     @staticmethod
     def get_testcase_by_issue_id(issue_id):
         command = db.select([TableTestCase.stru_testCase]).where(db.and_(
-            TableTestCase.stru_testCase.c.issue_id == issue_id, TableTestCase.stru_testCase.c.disabled == False))
+            TableTestCase.stru_testCase.c.issue_id == issue_id, TableTestCase.stru_testCase.c.disabled is False))
         logger.debug("get_testCase_command: {0}".format(command))
         result = Util.call_sqlalchemy(command)
         ret_msgs = result.fetchall()
@@ -112,7 +112,7 @@ class TestCase(object):
     @staticmethod
     def get_testcase_by_project_id(project_id):
         command = db.select([TableTestCase.stru_testCase]).where(db.and_(
-            TableTestCase.stru_testCase.c.project_id == project_id, TableTestCase.stru_testCase.c.disabled == False))
+            TableTestCase.stru_testCase.c.project_id == project_id, TableTestCase.stru_testCase.c.disabled is False))
         logger.debug("get_testCase_command: {0}".format(command))
         result = Util.call_sqlalchemy(command)
         ret_msgs = result.fetchall()

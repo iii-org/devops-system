@@ -34,7 +34,7 @@ import resources.testValue as testValue
 import resources.wiki as wiki
 import resources.version as version
 import resources.flow as flow
-import resources.testResult as testResult
+import resources.testResult as TestResult
 import resources.cicd as cicd
 import resources.checkmarx as checkmarx
 import resources.kubernetesClient as kubernetesClient
@@ -89,7 +89,6 @@ param = parameter.Parameter()
 tc = testCase.TestCase()
 ti = testItem.TestItem()
 tv = testValue.TestValue()
-tr = testResult.TestResult()
 ci = cicd.Cicd(app, pjt, iss, tc, ti, tv)
 cm = checkmarx.CheckMarx(app)
 
@@ -1708,14 +1707,14 @@ class TestResult(Resource):
         parser.add_argument('branch', type=str, required=True)
         parser.add_argument('report', type=str, required=True)
         args = parser.parse_args()
-        output = tr.save(args)
+        output = TestResult.save(args)
         return output
 
 
 class GetPostmanReport(Resource):
     @jwt_required
     def get(self, project_id):
-        return tr.get_report(project_id)
+        return TestResult.get_report(project_id)
 
 
 class ExportToPostman(Resource):
