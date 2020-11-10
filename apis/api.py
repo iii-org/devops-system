@@ -33,7 +33,6 @@ import resources.testItem as testItem
 import resources.testValue as testValue
 import resources.wiki as wiki
 import resources.version as version
-import resources.testData as testData
 import resources.flow as flow
 import resources.testResult as testResult
 import resources.cicd as cicd
@@ -90,7 +89,6 @@ param = parameter.Parameter()
 tc = testCase.TestCase()
 ti = testItem.TestItem()
 tv = testValue.TestValue()
-td = testData.TestData()
 tr = testResult.TestResult()
 ci = cicd.Cicd(app, pjt, iss, tc, ti, tv)
 cm = checkmarx.CheckMarx(app)
@@ -1473,54 +1471,13 @@ class Parameter(Resource):
         return jsonify({'message': 'success', "data": {}})
 
 
-class AllTestDataByIssue(Resource):
-    @jwt_required
-    def get(self, issue_id):
-
-        data = {}
-        data['requirement'] = rqmt.get_requirements_by_issue_id(issue_id)['flow_info']
-        data['testCase'] = tc.get_testCase_by_issue_id(
-            logger, issue_id,
-            get_jwt_identity()['user_id'])
-        data['testItem'] = ti.get_testItem_by_issue_id(
-            logger, issue_id,
-            get_jwt_identity()['user_id'], 'test_case_id')
-        data['testValue'] = tv.get_testValue_by_issue_id(
-            logger, issue_id,
-            get_jwt_identity()['user_id'])
-        output = td.get_AllTestData_by_Issue_Id(logger, data,
-                                                get_jwt_identity()['user_id'])
-        return jsonify({'message': 'success', 'data': output})
-
-
-class AllTestData(Resource):
-    @jwt_required
-    def get(self):
-
-        parser = reqparse.RequestParser()
-        parser.add_argument('project_id', type=int)
-        parser.add_argument('issue_id', type=int)
-        parser.add_argument('order_by', type=str)
-        user_id = get_jwt_identity()['user_id']
-        args = parser.parse_args()
-        data = {}
-        data['testCase'] = tc.get_testCase_by_Column(logger, args, user_id)
-        data['testItem'] = ti.get_testItem_by_Column(logger, args, user_id,
-                                                     'test_case_id')
-        data['testValue'] = tv.get_testValue_by_Column(logger, args, user_id,
-                                                       "test_case_id")
-        output = td.analysis_testData(logger, data, user_id)
-        return jsonify({'message': 'success', 'data': output})
-
-
 class TestCaseByIssue(Resource):
 
     ## 用issues ID 取得目前所有的目前測試案例
     @jwt_required
     def get(self, issue_id):
         output = {}
-        output = tc.get_testCase_by_issue_id(logger, issue_id,
-                                             get_jwt_identity()['user_id'])
+        output = tc.get_testcase_by_issue_id(issue_id)
         return jsonify({'message': 'success', 'data': output})
 
     ## 用issues ID 新建立測試案例
@@ -1534,8 +1491,7 @@ class TestCaseByIssue(Resource):
         parser.add_argument('type_id', type=int)
         parser.add_argument('description', type=str)
         args = parser.parse_args()
-        output = tc.post_testCase_by_issue_id(logger, issue_id, args,
-                                              get_jwt_identity()['user_id'])
+        output = tc.post_testcase_by_issue_id(issue_id, args)
         return jsonify({'message': 'success', 'data': output})
 
 class TestCaseByProject(Resource):
@@ -1544,8 +1500,7 @@ class TestCaseByProject(Resource):
     @jwt_required
     def get(self, project_id):
         output = {}
-        output = tc.get_testCase_by_project_id(logger, project_id,
-                                             get_jwt_identity()['user_id'])
+        output = tc.get_testcase_by_project_id(project_id)
         return jsonify({'message': 'success', 'data': output})
 
     ## 用issues ID 新建立測試案例
@@ -1558,8 +1513,7 @@ class TestCaseByProject(Resource):
         parser.add_argument('type_id', type=int)
         parser.add_argument('description', type=str)
         args = parser.parse_args()
-        output = tc.post_testCase_by_project_id(logger, project_id, args,
-                                              get_jwt_identity()['user_id'])
+        output = tc.post_testcase_by_project_id(project_id, args)
         return jsonify({'message': 'success', 'data': output})
 
 
@@ -1569,16 +1523,14 @@ class TestCase(Resource):
     @jwt_required
     def get(self, testCase_id):
         output = {}
-        output = tc.get_testCase_by_tc_id(logger, testCase_id,
-                                          get_jwt_identity()['user_id'])
+        output = tc.get_test_case_by_tc_id(testCase_id)
         return jsonify({'message': 'success', 'data': output})
 
     ## 用testCase_id 刪除目前測試案例
     @jwt_required
     def delete(self, testCase_id):
         output = {}
-        output = tc.del_testCase_by_tc_id(logger, testCase_id,
-                                          get_jwt_identity()['user_id'])
+        output = tc.del_testcase_by_tc_id(testCase_id)
         return jsonify({'message': 'success', 'data': output})
 
     ## 用testCase_id 更新目前測試案例
@@ -1591,8 +1543,7 @@ class TestCase(Resource):
         parser.add_argument('type_id', type=int)
         parser.add_argument('description', type=str)
         args = parser.parse_args()
-        output = tc.modify_testCase_by_tc_id(logger, testCase_id, args,
-                                             get_jwt_identity()['user_id'])
+        output = tc.modify_testCase_by_tc_id(testCase_id, args)
         return jsonify({'message': 'success', 'data': output})
 
 
@@ -1600,7 +1551,7 @@ class GetTestCaseAPIMethod(Resource):
     @jwt_required
     def get(self):
         output = {}
-        output = tc.get_api_method(logger, get_jwt_identity()['user_id'])
+        output = tc.get_api_method()
         return jsonify({'message': 'success', 'data': output})
 
 
@@ -1608,7 +1559,7 @@ class GetTestCaseType(Resource):
     @jwt_required
     def get(self):
         output = {}
-        output = tc.get_testCase_type(logger, get_jwt_identity()['user_id'])
+        output = tc.get_testcase_type()
         return jsonify({'message': 'get_testCase_typesuccess', 'data': output})
 
 
@@ -2028,10 +1979,6 @@ api.add_resource(Flow, '/flows/<flow_id>')
 api.add_resource(ParameterByIssue, '/parameters_by_issue/<issue_id>')
 api.add_resource(Parameter, '/parameters/<parameter_id>')
 api.add_resource(ParameterType, '/parameter_types')
-
-# TestData
-# api.add_resource(AllTestDataByIssue, '/testData_by_issue')
-# api.add_resource(AllTestData, '/testData')
 
 # testPhase TestCase Support Case Type
 api.add_resource(GetTestCaseType, '/testCases/support_type')

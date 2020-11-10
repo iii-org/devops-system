@@ -32,7 +32,7 @@ class Cicd(object):
             'item': []
         }
 
-        cases = self.tc.get_testCase_by_project_id(logger, project_id, jwt_identity['user_id'])
+        cases = self.tc.get_testcase_by_project_id(project_id)
         for case in cases:
             case_id = case['id']
             method = case['data']['method']
