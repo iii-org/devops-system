@@ -41,92 +41,75 @@ def deal_with_ParametersObject(sql_row, param_type=''):
     return output
 
 
-class Parameter(object):
-    headers = {'Content-Type': 'application/json'}
+def get_parameters_by_param_id(parameters_id):
+    get_param_command = db.select([TableParameter.stru_param]).where(
+        db.and_(TableParameter.stru_param.c.id == parameters_id))
+    logger.debug("get_param_command: {0}".format(get_param_command))
+    result = util.call_sqlalchemy(get_param_command)
+    row = result.fetchone()
+    output = deal_with_ParametersObject(row)
+    return output
 
-    # 取得 parameters  靠 parameters id
-    @staticmethod
-    def get_parameters_by_param_id(parameters_id):
-        get_param_command = db.select([TableParameter.stru_param]).where(
-            db.and_(TableParameter.stru_param.c.id == parameters_id))
-        logger.debug("get_param_command: {0}".format(get_param_command))
-        result = util.call_sqlalchemy(get_param_command)
-        row = result.fetchone()
-        output = deal_with_ParametersObject(row)
-        return output
 
-        # 將 parameters 隱藏
+def del_parameters_by_param_id(parameters_id):
+    update_param_command = db.update(TableParameter.stru_param).where(
+        db.and_(TableParameter.stru_param.c.id == parameters_id)).values(
+        disabled=True,
+        update_at=datetime.datetime.now())
+    logger.debug("insert_user_command: {0}".format(update_param_command))
+    result = util.call_sqlalchemy(update_param_command)
+    return {}
 
-    def del_parameters_by_param_id(self, logger, parameters_id, user_id):
 
-        update_param_command = db.update(TableParameter.stru_param).where(
-            db.and_(TableParameter.stru_param.c.id == parameters_id)).values(
-            disabled=True,
-            update_at=datetime.datetime.now())
-        logger.debug("insert_user_command: {0}".format(update_param_command))
-        result = util.call_sqlalchemy(update_param_command)
-        return {}
-        # reMessage = result.fetchall()
-        # print(reMessage)
-        # return {'123'}
+def modify_parameters_by_param_id(parameters_id, args):
+    update_param_command = db.update(TableParameter.stru_param).where(
+        db.and_(TableParameter.stru_param.c.id == parameters_id)).values(
+        update_at=datetime.datetime.now(),
+        parameter_type_id=args['parameter_type_id'],
+        name=args['name'],
+        description=args['description'],
+        limitation=args['limitation'],
+        length=args['length']
+    ).returning(TableParameter.stru_param.c.update_at)
+    logger.debug("insert_user_command: {0}".format(update_param_command))
+    result = util.call_sqlalchemy(update_param_command)
 
-        # 修改  parameters 內資訊
 
-    def modify_parameters_by_param_id(self, logger, parameters_id, args, user_id):
+def get_parameters_by_issue_id(issue_id):
+    get_param_command = db.select([TableParameter.stru_param]).where(
+        db.and_(TableParameter.stru_param.c.issue_id == issue_id, TableParameter.stru_param.c.disabled == False))
+    logger.debug("get_param_command: {0}".format(get_param_command))
+    result = util.call_sqlalchemy(get_param_command)
+    ret_msg = result.fetchall()
+    i = 0
+    output = []
+    param_type = get_param_type()
+    for row in ret_msg:
+        output.append(deal_with_ParametersObject(row, param_type))
+    return output
 
-        update_param_command = db.update(TableParameter.stru_param).where(
-            db.and_(TableParameter.stru_param.c.id == parameters_id)).values(
-            update_at=datetime.datetime.now(),
-            parameter_type_id=args['parameter_type_id'],
-            name=args['name'],
-            description=args['description'],
-            limitation=args['limitation'],
-            length=args['length']
-        ).returning(TableParameter.stru_param.c.update_at)
-        logger.debug("insert_user_command: {0}".format(update_param_command))
-        result = util.call_sqlalchemy(update_param_command)
-        # reMessage = result.fetchone()
-        # print(reMessage)
 
-        # 取得同Issue Id 內  parameterss 的所有資訊
+def post_parameters_by_issue_id(issue_id, args):
+    insert_param_command = db.insert(TableParameter.stru_param).values(
+        project_id=args['project_id'],
+        issue_id=issue_id,
+        parameter_type_id=args['parameter_type_id'],
+        name=args['name'],
+        description=args['description'],
+        limitation=args['limitation'],
+        length=args['length'],
+        create_at=datetime.datetime.now(),
+        update_at=datetime.datetime.now()
+    )
+    logger.debug("insert_user_command: {0}".format(insert_param_command))
+    ret_msg = util.call_sqlalchemy(insert_param_command)
+    return {'parameters_id': ret_msg.inserted_primary_key}
 
-    def get_parameterss_by_issue_id(self, logger, issue_id, user_id):
 
-        get_param_command = db.select([TableParameter.stru_param]).where(
-            db.and_(TableParameter.stru_param.c.issue_id == issue_id, TableParameter.stru_param.c.disabled == False))
-        logger.debug("get_param_command: {0}".format(get_param_command))
-        result = util.call_sqlalchemy(get_param_command)
-        ret_msg = result.fetchall()
-        i = 0
-        output = []
-        param_type = get_param_type()
-        for row in ret_msg:
-            output.append(deal_with_ParametersObject(row, param_type))
-        return output
-
-        # 新增同Issue Id 內  parameters 的資訊
-
-    def post_parameters_by_issue_id(self, logger, issue_id, args, user_id):
-
-        insert_param_command = db.insert(TableParameter.stru_param).values(
-            project_id=args['project_id'],
-            issue_id=issue_id,
-            parameter_type_id=args['parameter_type_id'],
-            name=args['name'],
-            description=args['description'],
-            limitation=args['limitation'],
-            length=args['length'],
-            create_at=datetime.datetime.now(),
-            update_at=datetime.datetime.now()
-        )
-        logger.debug("insert_user_command: {0}".format(insert_param_command))
-        reMessage = util.call_sqlalchemy(insert_param_command)
-        return {'parameters_id': reMessage.inserted_primary_key}
-
-    def get_parameter_types(self):
-        paraType = get_param_type()
-        output = []
-        for key in paraType:
-            temp = {"parameter_type_id": key, "name": paraType[key]}
-            output.append(temp)
-        return output
+def get_parameter_types():
+    para_type = get_param_type()
+    output = []
+    for key in para_type:
+        temp = {"parameter_type_id": key, "name": para_type[key]}
+        output.append(temp)
+    return output
