@@ -68,6 +68,10 @@ class Issue(object):
                 if redmine_output['journals'][i]['notes'] == "":
                     del redmine_output['journals'][i]
                 else:
+                    if 'user' in redmine_output['journals'][i]:
+                        userInfo = auth.get_useridname_by_planuserid(self, logger, \
+                                                                    redmine_output['journals'][i]['user']['id'])
+                        redmine_output['journals'][i]['user'] = {'id': userInfo['id'], 'name': userInfo['name']}
                     redmine_output['journals'][i].pop('id', None)
                     redmine_output['journals'][i].pop('private_notes', None)
                     i += 1
