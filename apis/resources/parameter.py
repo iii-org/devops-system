@@ -1,7 +1,7 @@
 import logging
 import datetime
 import json
-from .util import Util
+import resources.util as util
 from model import db, TableParameter, TableParameterType
 
 logger = logging.getLogger('devops.api')
@@ -10,7 +10,7 @@ logger = logging.getLogger('devops.api')
 def get_param_type():
     get_param_type_command = db.select([TableParameterType.stru_paramType])
     logger.debug("get_param_type_command: {0}".format(get_param_type_command))
-    result = Util.call_sqlalchemy(get_param_type_command)
+    result = util.call_sqlalchemy(get_param_type_command)
     ret_msg = result.fetchall()
     param_type = {}
     for row in ret_msg:
@@ -50,7 +50,7 @@ class Parameter(object):
         get_param_command = db.select([TableParameter.stru_param]).where(
             db.and_(TableParameter.stru_param.c.id == parameters_id))
         logger.debug("get_param_command: {0}".format(get_param_command))
-        result = Util.call_sqlalchemy(get_param_command)
+        result = util.call_sqlalchemy(get_param_command)
         row = result.fetchone()
         output = deal_with_ParametersObject(row)
         return output
@@ -64,7 +64,7 @@ class Parameter(object):
             disabled=True,
             update_at=datetime.datetime.now())
         logger.debug("insert_user_command: {0}".format(update_param_command))
-        result = Util.call_sqlalchemy(update_param_command)
+        result = util.call_sqlalchemy(update_param_command)
         return {}
         # reMessage = result.fetchall()
         # print(reMessage)
@@ -84,7 +84,7 @@ class Parameter(object):
             length=args['length']
         ).returning(TableParameter.stru_param.c.update_at)
         logger.debug("insert_user_command: {0}".format(update_param_command))
-        result = Util.call_sqlalchemy(update_param_command)
+        result = util.call_sqlalchemy(update_param_command)
         # reMessage = result.fetchone()
         # print(reMessage)
 
@@ -95,7 +95,7 @@ class Parameter(object):
         get_param_command = db.select([TableParameter.stru_param]).where(
             db.and_(TableParameter.stru_param.c.issue_id == issue_id, TableParameter.stru_param.c.disabled == False))
         logger.debug("get_param_command: {0}".format(get_param_command))
-        result = Util.call_sqlalchemy(get_param_command)
+        result = util.call_sqlalchemy(get_param_command)
         ret_msg = result.fetchall()
         i = 0
         output = []
@@ -120,7 +120,7 @@ class Parameter(object):
             update_at=datetime.datetime.now()
         )
         logger.debug("insert_user_command: {0}".format(insert_param_command))
-        reMessage = Util.call_sqlalchemy(insert_param_command)
+        reMessage = util.call_sqlalchemy(insert_param_command)
         return {'parameters_id': reMessage.inserted_primary_key}
 
     def get_parameter_types(self):

@@ -7,8 +7,8 @@ import websocket
 from flask_restful import abort
 
 import config
-from .error import Error
-from .util import Util
+import resources.error as error
+import resources.util as util
 
 logger = logging.getLogger(config.get('LOGGER_NAME'))
 
@@ -28,7 +28,7 @@ class Rancher(object):
         final_headers = self.__auth_headers(headers, with_token)
 
         try:
-            response = Util.api_request(method, url, headers=final_headers, params=params, data=data)
+            response = util.api_request(method, url, headers=final_headers, params=params, data=data)
             if response.status_code == 401 and retried is False:
                 self.token = self.__generate_token()
                 return self.__api_request(method, path, headers=headers, params=params, data=data,
@@ -37,9 +37,9 @@ class Rancher(object):
                 method, url, params.__str__(), response.status_code, response.text, data))
             return response, response.status_code
         except Exception as e:
-            return Util.respond(500, "Error in rancher API request {0} {1}".format(
+            return util.respond(500, "Error in rancher API request {0} {1}".format(
                 method, url
-            ), error=Error.uncaught_exception(e))
+            ), error=error.uncaught_exception(e))
 
     def __auth_headers(self, headers, with_token):
         if headers is not None:

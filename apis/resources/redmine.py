@@ -8,8 +8,8 @@ import werkzeug
 from flask import send_file
 from flask_restful import reqparse
 
-from .error import Error
-from .util import Util
+import resources.error as error
+import resources.util as util
 
 logger = logging.getLogger(config.get('LOGGER_NAME'))
 
@@ -46,7 +46,7 @@ class Redmine:
                 self.rm_refresh_key()
         params['key'] = self.redmine_key
 
-        output = Util.api_request(method, url, headers, params, data)
+        output = util.api_request(method, url, headers, params, data)
 
         if resp_format != '':
             logger.info('redmine api {0} {1}, params={2}, body={5}, response={3} {4}'.format(
@@ -248,8 +248,8 @@ class Redmine:
         headers = {'Content-Type': 'application/octet-stream'}
         res = self.__api_post('/uploads', data=file, headers=headers)
         if res.status_code != 201:
-            return Util.respond(res.status_code, "Error while uploading to redmine",
-                                error=Error.redmine_error(res.text))
+            return util.respond(res.status_code, "Error while uploading to redmine",
+                                error=error.redmine_error(res.text))
         token = res.json().get('upload').get('token')
         filename = file.filename
         del args['upload_file']
@@ -271,12 +271,12 @@ class Redmine:
         f_args = parse.parse_args()
         file = f_args['file']
         if file is None:
-            return Util.respond(400, 'No file is sent.')
+            return util.respond(400, 'No file is sent.')
         headers = {'Content-Type': 'application/octet-stream'}
         res = self.__api_post('/uploads', data=file, headers=headers)
         if res.status_code != 201:
-            return Util.respond(res.status_code, "Error while uploading to redmine",
-                                error=Error.redmine_error(res.text))
+            return util.respond(res.status_code, "Error while uploading to redmine",
+                                error=error.redmine_error(res.text))
         token = res.json().get('upload').get('token')
         filename = args['filename']
         if filename is None:
@@ -292,10 +292,10 @@ class Redmine:
         data = {'file': params}
         res = self.__api_post('/projects/%d/files' % plan_project_id, data=data)
         if res.status_code == 204:
-            return Util.respond(201, None)
+            return util.respond(201, None)
         else:
-            return Util.respond(res.status_code, "Error while adding the file to redmine",
-                                error=Error.redmine_error(res.text))
+            return util.respond(res.status_code, "Error while adding the file to redmine",
+                                error=error.redmine_error(res.text))
 
     def rm_list_file(self, plan_project_id):
         res = self.__api_get('/projects/%d/files' % plan_project_id)
@@ -314,8 +314,8 @@ class Redmine:
                 attachment_filename=filename
             )
         except Exception as e:
-            return Util.respond(500, 'Error when downloading an attachment.',
-                                error=Error.redmine_error(r))
+            return util.respond(500, 'Error when downloading an attachment.',
+                                error=error.redmine_error(r))
 
     def rm_create_project(self, args):
         xml_body = """<?xml version="1.0" encoding="UTF-8"?>

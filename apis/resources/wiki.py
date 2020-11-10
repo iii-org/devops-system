@@ -2,9 +2,9 @@ import logging
 
 import config
 from .auth import auth
-from .error import Error
+import resources.error as error
 from .project import Project
-from .util import Util
+import resources.util as util
 
 logger = logging.getLogger(config.get('LOGGER_NAME'))
 
@@ -15,8 +15,8 @@ class Wiki(object):
         self.redmine = redmine
 
     def get_wiki_list_by_project(self, project_id):
-        if Util.is_dummy_project(project_id):
-            return Util.success({"wiki_pages": []})
+        if util.is_dummy_project(project_id):
+            return util.success({"wiki_pages": []})
         project_plugin_relation = Project.get_project_plugin_relation(
             logger, project_id)
         wiki_list, status_code = self.redmine.rm_get_wiki_list(
@@ -32,10 +32,10 @@ class Wiki(object):
         wiki_list, status_code = self.redmine.rm_get_wiki(
             project_plugin_relation['plan_project_id'], wiki_name)
         if status_code == 200:
-            return Util.success(wiki_list.json())
+            return util.success(wiki_list.json())
         else:
-            return Util.respond(status_code, "Error when getting redmine wiki.",
-                                error=Error.redmine_error(wiki_list))
+            return util.respond(status_code, "Error when getting redmine wiki.",
+                                error=error.redmine_error(wiki_list))
 
     def put_wiki_by_project(self, project_id, wiki_name, args, operator_id):
         project_plugin_relation = Project.get_project_plugin_relation(
@@ -60,7 +60,7 @@ class Wiki(object):
             project_plugin_relation['plan_project_id'],
             wiki_name)
         if status_code == 204:
-            return Util.success()
+            return util.success()
         else:
-            return Util.respond(401, "delete redmine wiki error",
-                                error=Error.redmine_error(resp_wiki_list))
+            return util.respond(401, "delete redmine wiki error",
+                                error=error.redmine_error(resp_wiki_list))

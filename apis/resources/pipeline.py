@@ -7,9 +7,9 @@ import os
 
 import config
 from model import db
-from .error import Error
+import resources.error as error
 from .rancher import Rancher
-from .util import Util
+import resources.util as util
 
 logger = logging.getLogger(config.get('LOGGER_NAME'))
 
@@ -28,8 +28,8 @@ class Pipeline(object):
             "SELECT * FROM public.project_plugin_relation \
             WHERE git_repository_id = {0};".format(repository_id))
         if result.rowcount == 0:
-            return Util.respond(404, 'No such project',
-                                error=Error.repository_id_not_found(repository_id))
+            return util.respond(404, 'No such project',
+                                error=error.repository_id_not_found(repository_id))
         project_relationship = result.fetchone()
         result.close()
         pipeline_outputs, response = self.rancher.rc_get_pipeline_executions(
@@ -75,12 +75,12 @@ class Pipeline(object):
                 project_relationship['ci_pipeline_id'],
                 args['pipelines_exec_run'])
             if response.status_code / 100 != 2:
-                return Util.respond(400, "get pipeline history error",
-                                    error=Error.rancher_error(response))
+                return util.respond(400, "get pipeline history error",
+                                    error=error.rancher_error(response))
             return {"message": "success", "data": output_array}, 200
         except Exception as e:
-            return Util.respond(500, "get pipeline history error",
-                                error=Error.uncaught_exception(e))
+            return util.respond(500, "get pipeline history error",
+                                error=error.uncaught_exception(e))
 
     def pipeline_software(self):
         result = db.engine.execute(

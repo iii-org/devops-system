@@ -1,7 +1,9 @@
 import json
 import logging
 from urllib.parse import urlparse
-from .util import Util
+import resources.util as util
+import resources.testCase as TestCase
+import resources.testItem as TestItem
 
 from flask import jsonify
 
@@ -9,12 +11,10 @@ logger = logging.getLogger('devops.api')
 
 
 class Cicd(object):
-    def __init__(self, app, pjt, iss, tc, ti, tv):
+    def __init__(self, app, pjt, iss, tv):
         self.app = app
         self.pjt = pjt
         self.iss = iss
-        self.tc = tc
-        self.ti = ti
         self.tv = tv
 
     def export_to_postman(self, project_id, target, jwt_identity):
@@ -32,13 +32,13 @@ class Cicd(object):
             'item': []
         }
 
-        cases = self.tc.get_testcase_by_project_id(project_id)
+        cases = TestCase.get_testcase_by_project_id(project_id)
         for case in cases:
             case_id = case['id']
             method = case['data']['method']
             path = case['data']['url']
             url = urlparse(target + path)
-            items = self.ti.get_testItem_by_testCase_id(logger, case_id, jwt_identity['user_id'])
+            items = TestItem.get_testItem_by_testCase_id(case_id)
             for item in items:
                 item_id = item['id']
                 o_item = {'name': '{0}-{1}'.format(case_id, item_id)}
@@ -61,7 +61,7 @@ class Cicd(object):
                         'header': []
                     }
                 except ValueError:
-                    return Util.respond(400, 'url is malformed', {
+                    return util.respond(400, 'url is malformed', {
                         'case_id': case_id,
                         'item_id': item_id,
                         'url': url

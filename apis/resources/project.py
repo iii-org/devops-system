@@ -8,8 +8,8 @@ import config
 from model import db, ProjectUserRole, ProjectPluginRelation, TableProjects
 from .rancher import Rancher
 from .redmine import Redmine
-from .util import Util
-from .error import Error
+import resources.util as util
+import resources.error as error
 
 logger = logging.getLogger(config.get('LOGGER_NAME'))
 
@@ -28,14 +28,14 @@ class Project(object):
         self.private_token = gitlab.private_token
 
     def verify_project_user(self, logger, project_id, user_id):
-        if Util.is_dummy_project(project_id):
+        if util.is_dummy_project(project_id):
             return True
         select_project_user_role_command = db.select([ProjectUserRole.stru_project_user_role]) \
             .where(db.and_(ProjectUserRole.stru_project_user_role.c.project_id == project_id, \
                            ProjectUserRole.stru_project_user_role.c.user_id == user_id))
         logger.debug("select_project_user_role_command: {0}".format(
             select_project_user_role_command))
-        reMessage = Util.call_sqlalchemy(select_project_user_role_command)
+        reMessage = util.call_sqlalchemy(select_project_user_role_command)
         match_list = reMessage.fetchall()
         logger.info("reMessage: {0}".format(match_list))
         logger.info("reMessage len: {0}".format(len(match_list)))
@@ -48,7 +48,7 @@ class Project(object):
     def get_project_plugin_relation(logger, project_id):
         select_project_relation_command = db.select([ProjectPluginRelation.stru_project_plug_relation]) \
             .where(db.and_(ProjectPluginRelation.stru_project_plug_relation.c.project_id == project_id))
-        reMessage = Util.call_sqlalchemy(select_project_relation_command).fetchone()
+        reMessage = util.call_sqlalchemy(select_project_relation_command).fetchone()
         return reMessage
 
     # 查詢所有projects
@@ -197,8 +197,8 @@ class Project(object):
                     try:
                         total_issue = issue_output.json()
                     except Exception as e:
-                        return Util.respond(500, "Error when getting issues for a user",
-                                            error=Error.redmine_error(issue_output))
+                        return util.respond(500, "Error when getting issues for a user",
+                                            error=error.redmine_error(issue_output))
                     logger.info("issue total count by user: {0}".format(
                         total_issue['total_count']))
                     output_dict['issues'] = total_issue['total_count']
@@ -888,8 +888,8 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         try:
             redmine_pj_id = redmine_output.json()["project"]["id"]
         except Exception as e:
-            return Util.respond(500, "Error while creating redmine project",
-                                error=Error.redmine_error(redmine_output))
+            return util.respond(500, "Error while creating redmine project",
+                                error=error.redmine_error(redmine_output))
 
         if redmine_output.status_code != 201:
             status_code = redmine_output.status_code
@@ -898,8 +898,8 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
             if status_code == 422 and 'errors' in resp:
                 if len(resp['errors']) > 0:
                     if resp['errors'][0] == 'Identifier has already been taken':
-                        error = Error.identifier_has_been_token(args['name'])
-            return Util.respond(status_code, {"redmine": resp}, error=error)
+                        error = error.identifier_has_been_token(args['name'])
+            return util.respond(status_code, {"redmine": resp}, error=error)
 
         # 建立gitlab project
         gitlab_output = self.gitlab.gl_create_project(args)
@@ -913,13 +913,13 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                 try:
                     gitlab_json = gitlab_output.json()
                     if gitlab_json['message']['name'][0] == 'has already been taken':
-                        return Util.respond(
+                        return util.respond(
                             status_code, {"gitlab": gitlab_json},
-                            error=Error.identifier_has_been_token(args['name'])
+                            error=error.identifier_has_been_token(args['name'])
                         )
                 except (KeyError, IndexError):
                     pass
-            return Util.respond(status_code, {"gitlab": gitlab_output.json()})
+            return util.respond(status_code, {"gitlab": gitlab_output.json()})
 
         # 寫入db
 
@@ -1235,7 +1235,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
     def get_project_info(self, logger, project_id):
         select_project_cmd = db.select([TableProjects.stru_projects]) \
             .where(db.and_(TableProjects.stru_projects.c.id == project_id))
-        reMessage = Util.call_sqlalchemy(select_project_cmd).fetchone()
+        reMessage = util.call_sqlalchemy(select_project_cmd).fetchone()
         return reMessage
 
     def get_sonar_report(self, logger, app, project_id):
