@@ -36,22 +36,16 @@ class Pipeline(object):
                 output_dict['commit_message'] = None
             output_dict['commit_branch'] = pipeline_output['branch']
             output_dict['commit_id'] = pipeline_output['commit']
+            output_dict['execution_state'] = pipeline_output['executionState']
             stage_status = []
             # logger.info(pipeline_output[0]['stages'])
             for stage in pipeline_output['stages']:
                 logger.info("stage: {0}".format(stage))
                 if 'state' in stage:
                     stage_status.append(stage['state'])
-            logger.info(stage_status)
-            failed_item = -1
-            if 'Failed' in stage_status:
-                failed_item = stage_status.index('Failed')
-                logger.info("failed_item: {0}".format(failed_item))
-                output_dict['status']={'total': len(pipeline_output['stages']),\
-                    'success': failed_item }
-            else:
-                output_dict['status']={'total': len(pipeline_output['stages']),\
-                    'success': len(pipeline_output['stages'])}
+            success_time = stage_status.count('Success')
+            output_dict['status']={'total': len(pipeline_output['stages']),\
+                'success': success_time }
             output_array.append(output_dict)
         logger.info("ci/cd output: {0}".format(output_array))
         return output_array
