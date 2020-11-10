@@ -71,7 +71,7 @@ def get_flow_by_requirement_id(requirement_id):
     get_rqmt_command = db.select(
         [TableFlow.stru_flow]).where(
         db.and_(TableFlow.stru_flow.c.requirement_id == requirement_id,
-                TableFlow.stru_flow.c.disabled is False))
+                TableFlow.stru_flow.c.disabled == False))
     logger.debug("get_rqmt_command: {0}".format(get_rqmt_command))
     result = util.call_sqlalchemy(get_rqmt_command)
     ret_msgs = result.fetchall()

@@ -29,7 +29,7 @@ class Rancher(object):
 
         try:
             response = util.api_request(method, url, headers=final_headers, params=params, data=data)
-            if response.status_code == 401 and retried is False:
+            if response.status_code == 401 and not retried:
                 self.token = self.__generate_token()
                 return self.__api_request(method, path, headers=headers, params=params, data=data,
                                           with_token=True, retried=True)

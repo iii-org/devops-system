@@ -1296,9 +1296,7 @@ class FlowByIssue(Resource):
     # 用issues ID 取得目前所有的需求清單
     @jwt_required
     def get(self, issue_id):
-        # requirement_ids = []
         requirement_ids = requirement.check_requirement_by_issue_id(issue_id)
-        print(requirement_ids)
         if not requirement_ids:
             return jsonify({'message': 'success', 'data': {}})
         output = []

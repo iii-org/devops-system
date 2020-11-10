@@ -18,7 +18,7 @@ def get_testitem_by_ti_id(testitem_id):
     command = db.select([TableTestItem.stru_testItem]).where(
         db.and_(
             TableTestItem.stru_testItem.c.id == testitem_id,
-            TableTestItem.stru_testItem.c.disabled is False)
+            TableTestItem.stru_testItem.c.disabled == False)
     )
     logger.debug("get_testItem_command: {0}".format(command))
     result = util.call_sqlalchemy(command)
@@ -62,7 +62,7 @@ def get_testItem_by_testCase_id(testcase_id):
     command = db.select([TableTestItem.stru_testItem]).where(
         db.and_(
             TableTestItem.stru_testItem.c.test_case_id == testcase_id,
-            TableTestItem.stru_testItem.c.disabled is False))
+            TableTestItem.stru_testItem.c.disabled == False))
     result = util.call_sqlalchemy(command)
     ret_msgs = result.fetchall()
     output = []
@@ -89,7 +89,7 @@ def get_testItem_by_issue_id(issue_id, order_column):
     command = db.select([TableTestItem.stru_testItem]).where(
         db.and_(
             TableTestItem.stru_testItem.c.issue_id == issue_id,
-            TableTestItem.stru_testItem.c.disabled is False)).order_by(order_column)
+            TableTestItem.stru_testItem.c.disabled == False)).order_by(order_column)
     logger.debug("get_testItem_command: {0}".format(command))
     result = util.call_sqlalchemy(command)
     ret_msgs = result.fetchall()
@@ -102,7 +102,7 @@ def get_testItem_by_issue_id(issue_id, order_column):
 def get_testItem_by_project_id(project_id, order_column):
     command = db.select([TableTestItem.stru_testItem]).where(db.and_(
         TableTestItem.stru_testItem.c.project_id == project_id,
-        TableTestItem.stru_testItem.c.disabled is False)).order_by(order_column)
+        TableTestItem.stru_testItem.c.disabled == False)).order_by(order_column)
     logger.debug("get_testItem_command: {0}".format(command))
     result = util.call_sqlalchemy(command)
     ret_msgs = result.fetchall()

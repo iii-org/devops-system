@@ -44,7 +44,7 @@ httpMethod = {"1": "GET", "2": "POST", "3": "PUT", "4": "DELETE"}
 
 def get_test_case_by_tc_id(testcase_id):
     command = db.select([TableTestCase.stru_testCase]).where(db.and_(
-        TableTestCase.stru_testCase.c.id == testcase_id, TableTestCase.stru_testCase.c.disabled is False))
+        TableTestCase.stru_testCase.c.id == testcase_id, TableTestCase.stru_testCase.c.disabled == False))
     logger.debug("get_testCase_command: {0}".format(command))
     result = util.call_sqlalchemy(command)
     row = result.fetchone()
@@ -86,11 +86,11 @@ def get_testcase_by_column(args):
     if args['issue_id'] is not None:
         command = db.select([TableTestCase.stru_testCase]).where(db.and_(
             TableTestCase.stru_testCase.c.issue_id == args['issue_id'],
-            TableTestCase.stru_testCase.c.disabled is False)).order_by('project_id')
+            TableTestCase.stru_testCase.c.disabled == False)).order_by('project_id')
     elif args['project_id'] is not None:
         command = db.select([TableTestCase.stru_testCase]).where(db.and_(
             TableTestCase.stru_testCase.c.project_id == args['project_id'],
-            TableTestCase.stru_testCase.c.disabled is False)).order_by('project_id')
+            TableTestCase.stru_testCase.c.disabled == False)).order_by('project_id')
     else:
         return {}
     result = util.call_sqlalchemy(command)
@@ -100,7 +100,7 @@ def get_testcase_by_column(args):
 
 def get_testcase_by_issue_id(issue_id):
     command = db.select([TableTestCase.stru_testCase]).where(db.and_(
-        TableTestCase.stru_testCase.c.issue_id == issue_id, TableTestCase.stru_testCase.c.disabled is False))
+        TableTestCase.stru_testCase.c.issue_id == issue_id, TableTestCase.stru_testCase.c.disabled == False))
     logger.debug("get_testCase_command: {0}".format(command))
     result = util.call_sqlalchemy(command)
     ret_msgs = result.fetchall()
@@ -109,7 +109,7 @@ def get_testcase_by_issue_id(issue_id):
 
 def get_testcase_by_project_id(project_id):
     command = db.select([TableTestCase.stru_testCase]).where(db.and_(
-        TableTestCase.stru_testCase.c.project_id == project_id, TableTestCase.stru_testCase.c.disabled is False))
+        TableTestCase.stru_testCase.c.project_id == project_id, TableTestCase.stru_testCase.c.disabled == False))
     logger.debug("get_testCase_command: {0}".format(command))
     result = util.call_sqlalchemy(command)
     ret_msgs = result.fetchall()

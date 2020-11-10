@@ -71,7 +71,7 @@ def get_requirements_by_issue_id(issue_id):
     get_rqmt_command = db.select(
         [TableRequirement.stru_rqmt.c.flow_info]).where(
         db.and_(TableRequirement.stru_rqmt.c.issue_id == issue_id,
-                TableRequirement.stru_rqmt.c.disabled is False))
+                TableRequirement.stru_rqmt.c.disabled == False))
     logger.debug("get_rqmt_command: {0}".format(get_rqmt_command))
     result = util.call_sqlalchemy(get_rqmt_command)
     ret_msg = result.fetchall()
@@ -104,7 +104,7 @@ def get_requirements_by_project_id(project_id):
     get_rqmt_command = db.select(
         [TableRequirement.stru_rqmt.c.flow_info]).where(
         db.and_(TableRequirement.stru_rqmt.c.project_id == project_id,
-                TableRequirement.stru_rqmt.c.disabled is False))
+                TableRequirement.stru_rqmt.c.disabled == False))
     logger.debug("get_rqmt_command: {0}".format(get_rqmt_command))
     result = util.call_sqlalchemy(get_rqmt_command)
     ret_msg = result.fetchall()

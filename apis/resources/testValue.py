@@ -36,7 +36,7 @@ def get_testValue_httpLocation():
 
 def get_testValue_by_tv_id(value_id):
     command = db.select([TableTestValue.stru_testValue]).where(db.and_(
-        TableTestValue.stru_testValue.c.id == value_id, TableTestValue.stru_testValue.c.disabled is False))
+        TableTestValue.stru_testValue.c.id == value_id, TableTestValue.stru_testValue.c.disabled == False))
     result = util.call_sqlalchemy(command)
     row = result.fetchone()
     output = deal_with_TestValueObject(row)
@@ -74,11 +74,11 @@ def get_testValue_by_testItem_id(item_id, order_column=''):
     if order_column == '':
         command = db.select([TableTestValue.stru_testValue]).where(db.and_(
             TableTestValue.stru_testValue.c.test_item_id == item_id,
-            TableTestValue.stru_testValue.c.disabled is False))
+            TableTestValue.stru_testValue.c.disabled == False))
     else:
         command = db.select([TableTestValue.stru_testValue]).where(db.and_(
             TableTestValue.stru_testValue.c.test_item_id == item_id,
-            TableTestValue.stru_testValue.c.disabled is False)).order_by(order_column)
+            TableTestValue.stru_testValue.c.disabled == False)).order_by(order_column)
     logger.debug("get_testValue_command: {0}".format(command))
     result = util.call_sqlalchemy(command)
     ret_msgs = result.fetchall()
@@ -109,11 +109,11 @@ def get_testValue_by_issue_id(issue_id, order_column=''):
     if order_column != '':
         command = db.select([TableTestValue.stru_testValue]).where(db.and_(
             TableTestValue.stru_testValue.c.issue_id == issue_id,
-            TableTestValue.stru_testValue.c.disabled is False)).order_by(order_column)
+            TableTestValue.stru_testValue.c.disabled == False)).order_by(order_column)
     else:
         command = db.select([TableTestValue.stru_testValue]).where(db.and_(
             TableTestValue.stru_testValue.c.issue_id == issue_id,
-            TableTestValue.stru_testValue.c.disabled is False))
+            TableTestValue.stru_testValue.c.disabled == False))
     result = util.call_sqlalchemy(command)
     ret_msgs = result.fetchall()
     output = []
@@ -125,7 +125,7 @@ def get_testValue_by_issue_id(issue_id, order_column=''):
 def get_testValue_by_project_id(project_id, order_column=''):
     command = db.select([TableTestValue.stru_testValue]).where(db.and_(
         TableTestValue.stru_testValue.c.project_id == project_id,
-        TableTestValue.stru_testValue.c.disabled is False)).order_by(order_column)
+        TableTestValue.stru_testValue.c.disabled == False)).order_by(order_column)
     result = util.call_sqlalchemy(command)
     ret_msgs = result.fetchall()
     output = []
