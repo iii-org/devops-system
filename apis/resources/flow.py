@@ -47,7 +47,6 @@ def disabled_flow_by_flow_id(flow_id):
         db.and_(TableFlow.stru_flow.c.id == flow_id)).values(
         disabled=True,
         update_at=datetime.datetime.now())
-    logger.debug("update_flow_command: {0}".format(update_flow_command))
     ret_msg = util.call_sqlalchemy(update_flow_command)
     return {'last_modified': ret_msg.last_updated_params()}
 
@@ -63,7 +62,6 @@ def modify_flow_by_flow_id(flow_id, args):
         update_at=datetime.datetime.now()
     ).returning(
         TableFlow.stru_flow.c.update_at)
-    logger.debug("update_flow_command: {0}".format(update_flow_command))
     ret_msg = util.call_sqlalchemy(update_flow_command)
     return {'last_modified': ret_msg.last_updated_params()}
 

@@ -1368,7 +1368,7 @@ class Flow(Resource):
     @jwt_required
     def delete(self, flow_id):
         output = flow.disabled_flow_by_flow_id(flow_id)
-        return util.success(output)
+        return util.success(output, has_date=True)
 
     # 用requirement_id 更新目前需求流程
     @jwt_required
@@ -1380,7 +1380,7 @@ class Flow(Resource):
         parser.add_argument('description', type=str)
         args = parser.parse_args()
         output = flow.modify_flow_by_flow_id(flow_id, args)
-        return util.success(output)
+        return util.success(output, has_date=True)
 
 
 class ParameterType(Resource):

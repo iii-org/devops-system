@@ -1,5 +1,6 @@
 import json
 import time
+from datetime import datetime
 
 import requests
 from flask_restful import reqparse
@@ -28,11 +29,14 @@ def is_dummy_project(project_id):
 
 # Return 200 and success message, can with data.
 # If you need to return 201, 204 or other success, use #respond.
-def success(data=None):
+def success(data=None, has_date=False):
     if data is None:
         return {'message': 'success'}, 200
     else:
-        return {'message': 'success', 'data': data}, 200
+        if has_date:
+            return {'message': 'success', 'data': json.loads(json.dumps(data, cls=DateEncoder))}, 200
+        else:
+            return {'message': 'success', 'data': data}, 200
 
 
 def respond(status_code, message=None, data=None, error=None):
@@ -41,7 +45,7 @@ def respond(status_code, message=None, data=None, error=None):
     message_obj = {'message': message}
     if data is not None:
         if type(data) is dict:
-            message_obj['data'] = data
+            message_obj['data'] = json.loads(json.dumps(data, cls=DateEncoder))
         else:
             try:
                 message_obj['data'] = json.loads(data)
@@ -56,6 +60,14 @@ def respond_request_style(status_code, message=None, data=None, error=None):
     ret = respond(status_code, message, data, error)
     ret[0]['status_code'] = ret[1]
     return ret[0]
+
+
+class DateEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, datetime):
+            return str(obj)
+        else:
+            return json.JSONEncoder.default(self, obj)
 
 
 def tick(last_time):
