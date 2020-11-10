@@ -338,14 +338,14 @@ class auth(object):
         login = args['login']
         if re.fullmatch(r'^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,58}[a-zA-Z0-9]$', login) is None:
             return util.respond(400, "Error when creating new user", error=
-                                error.invalid_user_name(login))
+                                apiError.invalid_user_name(login))
 
         user_source_password = args["password"]
         if re.fullmatch(r'(?=.*\d)(?=.*[a-z])(?=.*[A-Z])'
                         r'^[\w!@#$%^&*()+|{}\[\]`~\-\'\";:/?.\\>,<]{8,20}$',
                         user_source_password) is None:
             return util.respond(400, "Error when creating new user", error=
-                                error.invalid_user_password())
+                                apiError.invalid_user_password())
 
 
 

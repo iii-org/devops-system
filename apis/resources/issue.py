@@ -466,11 +466,11 @@ class Issue(object):
             output, status_code = self.redmine.rm_delete_issue(issue_id)
             if status_code != 204 and status_code != 404:
                 return util.respond(status_code, 'Error when deleting issue',
-                                    error.redmine_error(output.text))
+                                    apiError.redmine_error(output.text))
             return {"message": "success"}, 200
         except Exception as error:
             return util.respond(500, 'Error when deleting issue',
-                                error.redmine_error(str(type(error)) + ':' + error.__str__()))
+                                apiError.redmine_error(str(type(error)) + ':' + error.__str__()))
 
     def get_issue_status(self):
         try:
@@ -478,7 +478,7 @@ class Issue(object):
             return issue_status_output['issue_statuses']
         except Exception as error:
             return util.respond(500, 'Error when deleting issue',
-                                error.redmine_error(str(type(error)) + ':' + error.__str__()))
+                                apiError.redmine_error(str(type(error)) + ':' + error.__str__()))
 
     def get_issue_priority(self):
         try:
