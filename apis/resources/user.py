@@ -6,10 +6,10 @@ import re
 
 import requests
 from Cryptodome.Hash import SHA256
-# from jsonwebtoken import jsonwebtoken
 from flask_jwt_extended import (create_access_token, JWTManager)
 
-from model import db, User, UserPluginRelation, ProjectUserRole, TableProjects, ProjectPluginRelation, \
+from model import User as UserModel
+from model import db, UserPluginRelation, ProjectUserRole, TableProjects, ProjectPluginRelation, \
     TableRolesPluginRelation
 import resources.apiError as apiError
 from .gitlab import GitLab
@@ -21,7 +21,8 @@ logger = logging.getLogger(config.get('LOGGER_NAME'))
 jwt = JWTManager()
 
 
-class auth(object):
+class User(object):
+    # noinspection PyMethodParameters
     @jwt.user_claims_loader
     def jwt_response_data(row):
         return {
@@ -30,7 +31,7 @@ class auth(object):
             'role_id': row['role_id'],
             'role_name': row['role_name']
         }
-
+    
     def __init__(self, app, redmine, git):
         self.app = app
         self.redmine_key = None
@@ -92,7 +93,7 @@ class auth(object):
                 else:
                     expires = datetime.timedelta(days=1)
                 access_token = create_access_token(
-                    identity=auth.jwt_response_data(row),
+                    identity=User.jwt_response_data(row),
                     expires_delta=expires)
                 logger.info("jwt access_token: {0}".format(access_token))
                 return {
@@ -182,8 +183,8 @@ class auth(object):
 
     def update_user_info(self, user_id, args):
         # Check user id disabled or not.
-        select_user_to_disable_command = db.select([User.stru_user])\
-            .where(db.and_(User.stru_user.c.id==user_id))
+        select_user_to_disable_command = db.select([UserModel.stru_user])\
+            .where(db.and_(UserModel.stru_user.c.id==user_id))
         logger.debug("select_user_to_disable_command: {0}".format(
             select_user_to_disable_command))
         user_data = util.call_sqlalchemy(select_user_to_disable_command).fetchone()
@@ -221,7 +222,7 @@ class auth(object):
         return {'message': 'success'}, 200
 
     def update_external_passwords(self, user_id, new_pwd):
-        user_relation = auth.get_user_plugin_relation(user_id=user_id)
+        user_relation = User.get_user_plugin_relation(user_id=user_id)
         logger.debug("user_relation_list: {0}".format(user_relation))
         if user_relation is None:
             return util.respond(404, 'Error when updating password', error=apiError.user_not_found(user_id))
@@ -239,8 +240,8 @@ class auth(object):
 
     def delete_user(self, logger, app, user_id):
         ''' disable user on user table'''
-        # update_user_to_disable_command = db.update(User.stru_user)\
-        #     .where(db.and_(User.stru_user.c.id==user_id)).values(\
+        # update_user_to_disable_command = db.update(UserModel.stru_user)\
+        #     .where(db.and_(UserModel.stru_user.c.id==user_id)).values(\
         #     update_at = datetime.datetime.now(), disabled=True)
         # logger.debug("update_user_to_disable_command: {0}".format(
         #     update_user_to_disable_command))
@@ -319,8 +320,8 @@ class auth(object):
             disabled = False
         elif args["status"] == "disable":
             disabled = True
-        update_user_to_disable_command = db.update(User.stru_user)\
-            .where(db.and_(User.stru_user.c.id==user_id)).values(\
+        update_user_to_disable_command = db.update(UserModel.stru_user)\
+            .where(db.and_(UserModel.stru_user.c.id==user_id)).values(\
             update_at = datetime.datetime.now(), disabled=disabled)
         logger.debug("update_user_to_disable_command: {0}".format(
             update_user_to_disable_command))
@@ -351,9 +352,9 @@ class auth(object):
 
 
         # Check DB has this login, email, if has, return error 400
-        chekc_email_login_command = db.select([User.stru_user]).where(
-            db.or_(User.stru_user.c.login == args['login'],
-                   User.stru_user.c.email == args['email']))
+        chekc_email_login_command = db.select([UserModel.stru_user]).where(
+            db.or_(UserModel.stru_user.c.login == args['login'],
+                   UserModel.stru_user.c.email == args['email']))
         logger.debug(
             "chekc_email_login_command: {0}".format(chekc_email_login_command))
         reMessage = util.call_sqlalchemy(chekc_email_login_command)
@@ -427,7 +428,7 @@ class auth(object):
         disabled = False
         if args['status'] == "disable":
             disabled = True
-        insert_user_command = db.insert(User.stru_user).values(
+        insert_user_command = db.insert(UserModel.stru_user).values(
             name=args['name'],
             email=args['email'],
             phone=args['phone'],
@@ -441,8 +442,8 @@ class auth(object):
         logger.info("reMessage: {0}".format(reMessage))
 
         #get user_id
-        get_user_command = db.select([User.stru_user]).where(
-            db.and_(User.stru_user.c.login == args['login']))
+        get_user_command = db.select([UserModel.stru_user]).where(
+            db.and_(UserModel.stru_user.c.login == args['login']))
         logger.debug("get_user_command: {0}".format(get_user_command))
         reMessage = util.call_sqlalchemy(get_user_command)
         user_id = reMessage.fetchone()['id']
@@ -639,7 +640,7 @@ class auth(object):
 
     def project_add_member(self, project_id, args):
         # get role_id by user
-        role_id = auth.get_roleID_by_userID(self, logger, args['user_id'])
+        role_id = User.get_roleID_by_userID(self, logger, args['user_id'])
 
         # Check ProjectUserRole table has relationship or not
         get_pj_ur_rl_cmd = db.select([ProjectUserRole.stru_project_user_role]).where(db.and_(\
@@ -656,13 +657,13 @@ class auth(object):
         else:
             return {"message": "Projett_user_role table already has data"}, 400
         # get redmine_role_id from role_id
-        redmine_role_id = auth.get_redmineRoleID_by_roleID(
+        redmine_role_id = User.get_redmineRoleID_by_roleID(
             self, logger, role_id)
 
         # get redmine, gitlab user_id
         redmine_user_id = None
         gitlab_user_id = None
-        user_relation = auth.get_user_plugin_relation(user_id=args['user_id'])
+        user_relation = User.get_user_plugin_relation(user_id=args['user_id'])
         logger.debug("user_relation_list: {0}".format(user_relation))
         if user_relation is not None:
             redmine_user_id = user_relation['plan_user_id']
@@ -710,12 +711,12 @@ class auth(object):
 
     def project_delete_member(self, logger, app, project_id, user_id):
         # get role_id
-        role_id = auth.get_roleID_by_userID(self, logger, user_id)
+        role_id = User.get_roleID_by_userID(self, logger, user_id)
 
         # get redmine, gitlab user_id
         redmine_user_id = None
         gitlab_user_id = None
-        user_relation = auth.get_user_plugin_relation(user_id=user_id)
+        user_relation = User.get_user_plugin_relation(user_id=user_id)
         logger.debug("user_relation_list: {0}".format(user_relation))
         if user_relation is not None:
             redmine_user_id = user_relation['plan_user_id']
@@ -803,7 +804,7 @@ class auth(object):
 
     def get_useridname_by_planuserid(self, logger, plan_user_id):
         get_useridname_cmd = db.select([UserPluginRelation.stru_user_plug_relation,
-                                User.stru_user]).where(db.and_(\
+                                UserModel.stru_user]).where(db.and_(\
             UserPluginRelation.stru_user_plug_relation.c.plan_user_id==plan_user_id,
-            UserPluginRelation.stru_user_plug_relation.c.user_id==User.stru_user.c.id))
+            UserPluginRelation.stru_user_plug_relation.c.user_id==UserModel.stru_user.c.id))
         return util.call_sqlalchemy(get_useridname_cmd).fetchone()

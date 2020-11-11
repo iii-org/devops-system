@@ -1,7 +1,7 @@
 import logging
 
 import config
-from .auth import auth
+from .user import User
 import resources.apiError as apiError
 from .project import Project
 import resources.util as util
@@ -42,7 +42,7 @@ class Wiki(object):
             logger, project_id)
         plan_operator_id = None
         if operator_id is not None:
-            operator_plugin_relation = auth.get_user_plugin_relation(user_id=operator_id)
+            operator_plugin_relation = User.get_user_plugin_relation(user_id=operator_id)
             plan_operator_id = operator_plugin_relation['plan_user_id']
         wiki_list, status_code = self.redmine.rm_put_wiki(
             project_plugin_relation['plan_project_id'], wiki_name, args, plan_operator_id)
