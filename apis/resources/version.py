@@ -1,8 +1,13 @@
+import logging
+
+import config
 import resources.apiError as apiError
 from .redmine import Redmine
 from .project import Project
 import resources.util as util
 import json
+
+logger = logging.getLogger(config.get('LOGGER_NAME'))
 
 
 class Version(object):
@@ -12,7 +17,7 @@ class Version(object):
     def __init__(self, redmine):
         self.redmine = redmine
 
-    def get_version_list_by_project(self, logger, app, project_id):
+    def get_version_list_by_project(self, project_id):
         if util.is_dummy_project(project_id):
             return util.success(Version.EMPTY_VERSIONS)
         project_plugin_relation = Project.get_project_plugin_relation(
@@ -21,35 +26,27 @@ class Version(object):
             version_list, status_code = self.redmine.rm_get_version_list(
                 project_plugin_relation['plan_project_id'])
             if status_code == 200:
-                return {"message": "success", "data": version_list.json()}, 200
+                return util.success(version_list.json())
             else:
-                return {"message": "get redmine wiki list error"}, 401
+                return util.respond(status_code, "Error while getting versions.",
+                                    error=apiError.redmine_error(version_list))
         else:
-            return {"message": "No project id %d found" % project_id}, 422
+            return util.respond(404, "Error while getting versions.",
+                                error=apiError.project_not_found(project_id))
 
-    def post_version_by_project(self, logger, app, project_id, message_args):
+    def post_version_by_project(self, project_id, message_args):
         project_plugin_relation = Project.get_project_plugin_relation(
             logger, project_id)
         if project_plugin_relation is not None:
             version, status_code = self.redmine.rm_post_version(project_plugin_relation['plan_project_id'],
                                                                 message_args)
-            if status_code == 204:
-                return {
-                    "message": "update Version success",
-                    "data": version.json()
-                }, 200
-            elif status_code == 201:
-                return {
-                    "message": "create Version success",
-                    "data": version.json()
-                }, 200
+            if status_code == 204 or status_code == 201:
+                return util.success(version.json())
             else:
-                return {
-                    "message": "Create Redmine Version error",
-                    "data": version.json()
-                }, status_code
+                return util.respond(status_code, "Error while creating a new version.",
+                                    error=apiError.redmine_error(version))
 
-    def get_version_by_version_id(self, logger, app, project_id, version_id):
+    def get_version_by_version_id(self, version_id):
         version, status_code = self.redmine.rm_get_version(version_id)
         if status_code == 200:
             return util.success(version.json())
@@ -57,18 +54,15 @@ class Version(object):
             return util.respond(status_code, "Error when getting version info.",
                                 error=apiError.redmine_error(version))
 
-    def put_version_by_version_id(self, logger, app, project_id, version_id,
-                                  args):
+    def put_version_by_version_id(self, version_id, args):
         version, status_code = self.redmine.rm_put_version(version_id, args)
-        if status_code == 204:
-            return {"message": "update version success", "data": {}}, 200
-        elif status_code == 201:
-            return {"message": "create version success", "data": {}}, 200
+        if status_code == 204 or status_code == 201:
+            return util.success()
         else:
-            return {"message": "put redmine version error"}, status_code
+            return util.respond(status_code, "Error when updating version info.",
+                                error=apiError.redmine_error(version))
 
-    def delete_version_by_version_id(self, logger, app, project_id,
-                                     version_id):
+    def delete_version_by_version_id(self, version_id):
         output, status_code = self.redmine.redmine_delete_version(version_id)
         if status_code == 204:
             return util.success()
