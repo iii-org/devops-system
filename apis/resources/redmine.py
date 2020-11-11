@@ -119,7 +119,7 @@ class Redmine:
         return output, output.status_code
 
     def rm_get_issue(self, issue_id):
-        params = {'include': 'journals,attachment'}
+        params = {'include': 'journals,attachments'}
         output = self.__api_get('/issues/{0}'.format(issue_id), params=params)
         logger.info("get issues output: {0}".format(output))
         return output
@@ -300,7 +300,7 @@ class Redmine:
 
     def rm_list_file(self, plan_project_id):
         res = self.__api_get('/projects/%d/files' % plan_project_id)
-        return {"message": "success", "data": res.json()}, 200
+        return util.success(res.json())
 
     def rm_download_attachment(self, args):
         a_id = args['id']
@@ -317,6 +317,17 @@ class Redmine:
         except Exception as e:
             return util.respond(500, 'Error when downloading an attachment.',
                                 error=apiError.redmine_error(r))
+
+    def rm_delete_attachment(self, attachment_id):
+        output = self.__api_delete('/attachments/{0}'.format(attachment_id))
+        status_code = output.status_code
+        if status_code == 204:
+            return util.success()
+        elif status_code == 404:
+            return util.respond(200, 'File is already deleted.')
+        else:
+            return util.respond(status_code, "Error while deleting attachments.",
+                                error=apiError.redmine_error(output))
 
     def rm_create_project(self, args):
         xml_body = """<?xml version="1.0" encoding="UTF-8"?>
