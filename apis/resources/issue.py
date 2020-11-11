@@ -6,7 +6,6 @@ from datetime import datetime, date, timedelta
 from model import db, ProjectPluginRelation, ProjectUserRole
 from .user import User
 import resources.apiError as apiError
-from .redmine import Redmine
 import resources.util as util
 
 logger = logging.getLogger(config.get('LOGGER_NAME'))
@@ -418,7 +417,7 @@ class Issue(object):
             logger, args['project_id'])
         args['project_id'] = project_plugin_relation['plan_project_id']
         if "assigned_to_id" in args:
-            user_plugin_relation = auth.get_user_plugin_relation(user_id=args['assigned_to_id'])
+            user_plugin_relation = User.get_user_plugin_relation(user_id=args['assigned_to_id'])
             args['assigned_to_id'] = user_plugin_relation['plan_user_id']
         logger.info("args: {0}".format(args))
 
