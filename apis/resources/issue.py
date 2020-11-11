@@ -416,9 +416,15 @@ class Issue(object):
             args.pop('parent_id', None)
         project_plugin_relation = self.pjt.get_project_plugin_relation(
             logger, args['project_id'])
+        if project_plugin_relation is None:
+            return util.respond(422, "Error when creating issue.",
+                                error=apiError.project_not_found(args['project_id']))
         args['project_id'] = project_plugin_relation['plan_project_id']
         if "assigned_to_id" in args:
             user_plugin_relation = auth.get_user_plugin_relation(user_id=args['assigned_to_id'])
+            if user_plugin_relation is None:
+                return util.respond(422, "Error when creating issue: assigned_to_id user not found.",
+                                    error=apiError.user_not_found(args['assigned_to_id']))
             args['assigned_to_id'] = user_plugin_relation['plan_user_id']
         logger.info("args: {0}".format(args))
 
