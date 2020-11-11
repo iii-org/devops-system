@@ -251,7 +251,7 @@ class Redmine:
         if res.status_code != 201:
             return util.respond(res.status_code, "Error while uploading to redmine",
                                 error=apiError.redmine_error(res.text))
-        token = res.json().get('upload').get('token')
+        token = res.json().__api_get('upload').__api_get('token')
         filename = file.filename
         del args['upload_file']
         if 'upload_filename' in args:
@@ -278,7 +278,7 @@ class Redmine:
         if res.status_code != 201:
             return util.respond(res.status_code, "Error while uploading to redmine",
                                 error=apiError.redmine_error(res.text))
-        token = res.json().get('upload').get('token')
+        token = res.json().__api_get('upload').__api_get('token')
         filename = args['filename']
         if filename is None:
             filename = file.filename

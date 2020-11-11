@@ -85,7 +85,7 @@ def rancher_error(response):
 # Internal errors
 def uncaught_exception(exception):
     return build(9001, 'An exception occurs',
-                 {'type': type(exception), 'exception': str(exception)})
+                 {'type': str(type(exception)), 'exception': str(exception)})
 
 
 def unknown_method(method):

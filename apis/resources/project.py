@@ -981,7 +981,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
             return util.respond(404, 'Error when getting project info.',
                                 error=apiError.project_not_found(project_id))
         result = db.engine.execute(
-            "SELECT * FROM public.projects as pj, public.project_plugin_relation as ppr"
+            "SELECT * FROM public.projects as pj, public.project_plugin_relation as ppr "
             "WHERE pj.id = '{0}' AND pj.id = ppr.project_id".format(
                 project_id))
         if result.rowcount == 0:
