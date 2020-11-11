@@ -1803,6 +1803,12 @@ class DownloadFile(Resource):
         return redmine.rm_download_attachment(args)
 
 
+class DeleteFile(Resource):
+    @jwt_required
+    def delete(self, file_id):
+        return redmine.rm_delete_attachment(file_id)
+
+
 class SystemGitCommitID(Resource):
     def get(self):
         if os.path.exists("git_commit"):
@@ -1981,6 +1987,7 @@ api.add_resource(GetTestSummary, '/project/<sint:project_id>/test_summary')
 # Files
 api.add_resource(ProjectFiles, '/project/<sint:project_id>/file')
 api.add_resource(DownloadFile, '/download')
+api.add_resource(DeleteFile, '/delete_file/<int:file_id>')
 
 #git commit
 api.add_resource(SystemGitCommitID, '/system_git_commit_id')
