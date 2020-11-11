@@ -486,7 +486,7 @@ class ProjectVersionList(Resource):
         status = pjt.verify_project_user(logger, project_id,
                                          get_jwt_identity()['user_id'])
         if status or get_jwt_identity()['role_id'] == 5:
-            output = vn.get_version_list_by_project(logger, app, project_id)
+            output = vn.get_version_list_by_project(project_id)
             return output
         else:
             return {
@@ -504,8 +504,7 @@ class ProjectVersion(Resource):
             root_parser = reqparse.RequestParser()
             root_parser.add_argument('version', type=dict, required=True)
             root_args = root_parser.parse_args()
-            output, status_code = vn.post_version_by_project(
-                logger, app, project_id, root_args)
+            output, status_code = vn.post_version_by_project(project_id, root_args)
             return output, status_code
         else:
             return {
@@ -520,8 +519,7 @@ class ProjectVersionInfo(Resource):
         status = pjt.verify_project_user(logger, project_id,
                                          get_jwt_identity()['user_id'])
         if status or get_jwt_identity()['role_id'] == 5:
-            output, status_code = vn.get_version_by_version_id(
-                logger, app, project_id, version_id)
+            output, status_code = vn.get_version_by_version_id(version_id)
             return output, status_code
         else:
             return {
@@ -537,8 +535,7 @@ class ProjectVersionInfo(Resource):
             root_parser.add_argument('version', type=dict, required=True)
             root_args = root_parser.parse_args()
             print(root_args)
-            output, status_code = vn.put_version_by_version_id(
-                logger, app, project_id, version_id, root_args)
+            output, status_code = vn.put_version_by_version_id(version_id, root_args)
             return output, status_code
         else:
             return {
@@ -550,8 +547,7 @@ class ProjectVersionInfo(Resource):
         status = pjt.verify_project_user(logger, project_id,
                                          get_jwt_identity()['user_id'])
         if status or get_jwt_identity()['role_id'] == 5:
-            output, status_code = vn.delete_version_by_version_id(
-                logger, app, project_id, version_id)
+            output, status_code = vn.delete_version_by_version_id(version_id)
             return output, status_code
         else:
             return {
