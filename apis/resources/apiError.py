@@ -34,6 +34,10 @@ def repository_id_not_found(repository_id=None):
     return build(1004, 'Gitlab project not found.', {'repository_id': repository_id})
 
 
+def redmine_project_not_found(project_id=None):
+    return build(1005, 'Redmine does not have this project.', {'project_id': project_id})
+
+
 # User errors
 def user_not_found(user_id):
     return build(2001, 'User not found.', {'user_id': user_id})

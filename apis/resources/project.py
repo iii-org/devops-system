@@ -974,13 +974,20 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                }, 200
 
     # 用project_id查詢db的相關table欄位資訊
-    def pm_get_project(self, logger, app, project_id):
+    def pm_get_project(self, project_id):
         plan_project_id = self.get_plan_project_id(project_id)
         # 查詢專案名稱＆專案說明＆＆專案狀態
+        if plan_project_id < 0:
+            return util.respond(404, 'Error when getting project info.',
+                                error=apiError.project_not_found(project_id))
         result = db.engine.execute(
-            "SELECT * FROM public.projects as pj, public.project_plugin_relation as ppr\
-                WHERE pj.id = '{0}' AND pj.id = ppr.project_id".format(
+            "SELECT * FROM public.projects as pj, public.project_plugin_relation as ppr"
+            "WHERE pj.id = '{0}' AND pj.id = ppr.project_id".format(
                 project_id))
+        if result.rowcount == 0:
+            result.close()
+            return util.respond(404, 'Error when getting project info.',
+                                error=apiError.project_not_found(project_id))
         project_info = result.fetchone()
         result.close()
         redmine_url = "http://{0}/projects/{1}".format(config.get("REDMINE_IP_PORT"), plan_project_id)
