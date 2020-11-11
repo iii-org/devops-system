@@ -125,6 +125,8 @@ class Redmine:
         return output
 
     def rm_get_statistics(self, params):
+        if 'status_id' not in params:
+            params['status_id'] = '*'
         output = self.__api_get('/issues', params=params)
         return output.json(), output.status_code
 
