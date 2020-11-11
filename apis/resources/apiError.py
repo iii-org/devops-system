@@ -58,6 +58,10 @@ def invalid_user_password():
                        'and is 8 to 20 characters long.')
 
 
+def wrong_password():
+    return build(2004, 'Wrong password or username.')
+
+
 # Permission errors
 # allowed_role is an array containing allowed role ids.
 def not_allowed(user_name, allowed_role):

@@ -278,7 +278,7 @@ class UserLogin(Resource):
         parser.add_argument('username', type=str, required=True)
         parser.add_argument('password', type=str, required=True)
         args = parser.parse_args()
-        output = user.user_login(logger, args)
+        output = user.login(args)
         return output
 
 
@@ -289,7 +289,7 @@ class UserForgetPassword(Resource):
         parser.add_argument('user_account', type=str, required=True)
         args = parser.parse_args()
         try:
-            status = user.user_forgetpassword(logger, args)
+            status = user.user_forgot_password(args)
             return jsonify({"message": "success"})
         except Exception as err:
             return jsonify({"message": err}), 400
@@ -303,7 +303,7 @@ class UserInfo(Resource):
             get_jwt_identity()['user_id']))
         if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity(
         )['role_id'] in (3, 5):
-            user_info = user.user_info(logger, user_id)
+            user_info = user.get_info(user_id)
             return user_info
         else:
             return {
@@ -322,7 +322,7 @@ class UserInfo(Resource):
             parser.add_argument('status', type=str)
             args = parser.parse_args()
             try:
-                output = user.update_user_info(user_id, args)
+                output = user.update_info(user_id, args)
                 return output
             except Exception as e:
                 return jsonify({"message": str(e)}), 400
@@ -336,7 +336,7 @@ class UserInfo(Resource):
         '''delete user'''
         if get_jwt_identity()["role_id"] == 5:
             try:
-                output = user.delete_user(logger, app, user_id)
+                output = user.delete_user(user_id)
                 return output
             except Exception as e:
                 return {"message": str(e)}, 400
