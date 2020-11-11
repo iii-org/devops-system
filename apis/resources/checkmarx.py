@@ -6,6 +6,8 @@ from flask import send_file
 from io import BytesIO
 import time
 
+from resources import util
+
 logger = logging.getLogger('devops.api')
 
 
@@ -199,6 +201,10 @@ class CheckMarx(object):
         if scan_id < 0:
             return {'message': 'This project does not have any scan.', 'status': -1}, 400
         st_id, st_name = self.get_scan_status(scan_id)
+        if st_id == 8:
+            return {'message': 'The scan is canceled.', 'status': 4}, 200
+        if st_id == 9:
+            return {'message': 'The scan failed.', 'status': 5}, 200
         if st_id != 7:
             return {'message': 'The scan is not completed yet.', 'status': 1}, 200
         report_id = self.get_latest('report_id', project_id)
