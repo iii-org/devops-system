@@ -1,9 +1,9 @@
-import config
 import json
 import logging
 
 import requests
 
+import config
 import resources.util as util
 
 logger = logging.getLogger(config.get('LOGGER_NAME'))
@@ -90,19 +90,19 @@ class GitLab(object):
             return output
 
     def gl_get_user_list(self, args):
-        output = self.__api_get('/users', params=args)
-        return output
+        return self.__api_get('/users', params=args)
 
     def gl_project_add_member(self, project_id, user_id):
         params = {
             "user_id": user_id,
             "access_level": 40,
         }
-        output = self.__api_post('/projects/{0}/members'.format(project_id),
-                                 params=params)
-        return output
+        return self.__api_post('/projects/{0}/members'.format(project_id),
+                               params=params)
 
     def gl_project_delete_member(self, project_id, user_id):
-        output = self.__api_delete('/projects/{0}/members/{1}'.format(
+        return self.__api_delete('/projects/{0}/members/{1}'.format(
             project_id, user_id))
-        return output
+
+    def gl_delete_user(self, gitlab_user_id):
+        return self.__api_delete('/users/{0}'.format(gitlab_user_id))
