@@ -77,7 +77,7 @@ class Rancher(object):
             'sort': 'started',
             'pipelineId': ci_pipeline_id
         }
-        response, status_code = self.__api_get(path, params=params)
+        response = self.__api_get(path, params=params)
         output_array = response.json()['data']
         return output_array, response
 
