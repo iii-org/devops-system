@@ -5,9 +5,9 @@ from datetime import datetime, date, timedelta
 
 from model import db, ProjectPluginRelation, ProjectUserRole
 from .auth import auth
-from .error import Error
+import resources.apiError as apiError
 from .redmine import Redmine
-from .util import Util
+import resources.util as util
 
 logger = logging.getLogger(config.get('LOGGER_NAME'))
 
@@ -68,6 +68,10 @@ class Issue(object):
                 if redmine_output['journals'][i]['notes'] == "":
                     del redmine_output['journals'][i]
                 else:
+                    if 'user' in redmine_output['journals'][i]:
+                        userInfo = auth.get_useridname_by_planuserid(self, logger, \
+                                                                    redmine_output['journals'][i]['user']['id'])
+                        redmine_output['journals'][i]['user'] = {'id': userInfo['id'], 'name': userInfo['name']}
                     redmine_output['journals'][i].pop('id', None)
                     redmine_output['journals'][i].pop('private_notes', None)
                     i += 1
@@ -127,7 +131,7 @@ class Issue(object):
                            ProjectUserRole.stru_project_user_role.c.user_id == user_id))
         logger.debug("select_project_user_role_command: {0}".format(
             select_project_user_role_command))
-        reMessage = Util.call_sqlalchemy(select_project_user_role_command)
+        reMessage = util.call_sqlalchemy(select_project_user_role_command)
         match_list = reMessage.fetchall()
         logger.info("reMessage: {0}".format(match_list))
         logger.info("reMessage len: {0}".format(len(match_list)))
@@ -147,12 +151,12 @@ class Issue(object):
             return {"message": "could not get this redmine issue."}, 400
 
     def get_issue_by_project(self, logger, app, project_id, args):
-        if Util.is_dummy_project(project_id):
-            return Util.success([])
+        if util.is_dummy_project(project_id):
+            return util.success([])
         get_project_command = db.select([ProjectPluginRelation.stru_project_plug_relation]) \
             .where(db.and_(ProjectPluginRelation.stru_project_plug_relation.c.project_id == project_id))
         logger.debug("get_project_command: {0}".format(get_project_command))
-        reMessage = Util.call_sqlalchemy(get_project_command)
+        reMessage = util.call_sqlalchemy(get_project_command)
         project_dict = reMessage.fetchone()
         logger.debug("project_list: {0}".format(project_dict))
         if project_dict is not None:
@@ -193,8 +197,8 @@ class Issue(object):
             return {"message": "could not get issue list"}, 400
 
     def get_issue_by_status_by_project(self, logger, app, project_id):
-        if Util.is_dummy_project(project_id):
-            return Util.success({})
+        if util.is_dummy_project(project_id):
+            return util.success({})
         args = {}
         issue_list_output, status_code = self.get_issue_by_project(
             logger, app, project_id, args)
@@ -215,8 +219,8 @@ class Issue(object):
             return {"message": "could not get issue list"}, 400
 
     def get_issue_by_date_by_project(self, logger, app, project_id):
-        if Util.is_dummy_project(project_id):
-            return Util.success({})
+        if util.is_dummy_project(project_id):
+            return util.success({})
         args = {}
         issue_list_output, status_code = self.get_issue_by_project(
             logger, app, project_id, args)
@@ -391,7 +395,7 @@ class Issue(object):
         user_to_plan, plan_to_user = self.__get_dict_userid(logger)
         output_array = []
         if str(user_id) not in user_to_plan:
-            return Util.respond(400, 'Cannot find user in redmine')
+            return util.respond(400, 'Cannot find user in redmine')
         redmine_output_issue_array = self.redmine.rm_get_issues_by_user(user_to_plan[str(user_id)])
         for redmine_issue in redmine_output_issue_array['issues']:
             output_dict = self.__dealwith_issue_by_user_redmine_output(
@@ -427,13 +431,13 @@ class Issue(object):
                 plan_operator_id = operator_plugin_relation['plan_user_id']
             output, status_code = self.redmine.rm_create_issue(args, plan_operator_id)
             if status_code == 201:
-                return Util.success({"issue_id": output.json()["issue"]["id"]})
+                return util.success({"issue_id": output.json()["issue"]["id"]})
             else:
-                return Util.respond(status_code, "Error while creating issue",
-                                    error=Error.redmine_error(output))
+                return util.respond(status_code, "Error while creating issue",
+                                    error=apiError.redmine_error(output))
         except Exception as error:
-            return Util.respond(500, "Error while creating issue",
-                                error=Error.uncaught_exception(error))
+            return util.respond(500, "Error while creating issue",
+                                error=apiError.uncaught_exception(error))
 
     def update_issue_rd(self, logger, app, issue_id, args, operator_id):
         args = {k: v for k, v in args.items() if v is not None}
@@ -456,29 +460,29 @@ class Issue(object):
         if status_code == 204:
             return {"message": "success"}, 200
         else:
-            return Util.respond(
+            return util.respond(
                 400, "update issue failed",
-                error=Error.redmine_error(output.text)
+                error=apiError.redmine_error(output.text)
             )
 
     def delete_issue(self, issue_id):
         try:
             output, status_code = self.redmine.rm_delete_issue(issue_id)
             if status_code != 204 and status_code != 404:
-                return Util.respond(status_code, 'Error when deleting issue',
-                                    Error.redmine_error(output.text))
+                return util.respond(status_code, 'Error when deleting issue',
+                                    apiError.redmine_error(output.text))
             return {"message": "success"}, 200
         except Exception as error:
-            return Util.respond(500, 'Error when deleting issue',
-                                Error.redmine_error(str(type(error)) + ':' + error.__str__()))
+            return util.respond(500, 'Error when deleting issue',
+                                apiError.redmine_error(str(type(error)) + ':' + error.__str__()))
 
     def get_issue_status(self):
         try:
             issue_status_output = self.redmine.rm_get_issue_status()
             return issue_status_output['issue_statuses']
         except Exception as error:
-            return Util.respond(500, 'Error when deleting issue',
-                                Error.redmine_error(str(type(error)) + ':' + error.__str__()))
+            return util.respond(500, 'Error when deleting issue',
+                                apiError.redmine_error(str(type(error)) + ':' + error.__str__()))
 
     def get_issue_priority(self):
         try:
@@ -601,7 +605,7 @@ class Issue(object):
             priority_count = {}
             data, status_code = self.get_issue_by_user(user_id)
             if status_code / 100 != 2:
-                return Util.respond(status_code, 'Error while getting issues by user', data)
+                return util.respond(status_code, 'Error while getting issues by user', data)
             issues = data['data']
             logger.info("issues: {0}".format(issues))
             for issue in issues:
@@ -623,7 +627,7 @@ class Issue(object):
             project_count = {}
             data, status_code = self.get_issue_by_user(user_id)
             if status_code / 100 != 2:
-                return Util.respond(status_code, 'Error while getting issues by user', data)
+                return util.respond(status_code, 'Error while getting issues by user', data)
             issues = data['data']
             logger.info("issues: {0}".format(issues))
             for issue in issues:
@@ -644,7 +648,7 @@ class Issue(object):
             tracker_count = {}
             data, status_code = self.get_issue_by_user(user_id)
             if status_code / 100 != 2:
-                return Util.respond(status_code, 'Error while getting issues by user', data)
+                return util.respond(status_code, 'Error while getting issues by user', data)
             issues = data['data']
             logger.info("issues: {0}".format(issues))
             for issue in issues:

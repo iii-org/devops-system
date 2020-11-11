@@ -4,7 +4,8 @@ FIXED = {
     # API versions
     'GITLAB_API_VERSION': 'v4',
     'RANCHER_API_VERSION': 'v3',
-    'LOGGER_NAME': 'devops.api'
+    'LOGGER_NAME': 'devops.api',
+    'DEBUG':True
 }
 
 in_file = {}

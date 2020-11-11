@@ -7,9 +7,9 @@ import os
 
 import config
 from model import db
-from .error import Error
+import resources.apiError as apiError
 from .rancher import Rancher
-from .util import Util
+import resources.util as util
 
 logger = logging.getLogger(config.get('LOGGER_NAME'))
 
@@ -28,8 +28,8 @@ class Pipeline(object):
             "SELECT * FROM public.project_plugin_relation \
             WHERE git_repository_id = {0};".format(repository_id))
         if result.rowcount == 0:
-            return Util.respond(404, 'No such project',
-                                error=Error.repository_id_not_found(repository_id))
+            return util.respond(404, 'No such project',
+                                error=apiError.repository_id_not_found(repository_id))
         project_relationship = result.fetchone()
         result.close()
         pipeline_outputs, response = self.rancher.rc_get_pipeline_executions(
@@ -46,19 +46,15 @@ class Pipeline(object):
                 output_dict['commit_message'] = None
             output_dict['commit_branch'] = pipeline_output['branch']
             output_dict['commit_id'] = pipeline_output['commit']
+            output_dict['execution_state'] = pipeline_output['executionState']
             stage_status = []
             for stage in pipeline_output['stages']:
                 logger.info("stage: {0}".format(stage))
                 if 'state' in stage:
                     stage_status.append(stage['state'])
-            if 'Failed' in stage_status:
-                failed_item = stage_status.index('Failed')
-                logger.info("failed_item: {0}".format(failed_item))
-                output_dict['status'] = {'total': len(pipeline_output['stages']),
-                                         'success': failed_item}
-            else:
-                output_dict['status'] = {'total': len(pipeline_output['stages']),
-                                         'success': len(pipeline_output['stages'])}
+            success_time = stage_status.count('Success')
+            output_dict['status']={'total': len(pipeline_output['stages']),\
+                'success': success_time }
             output_array.append(output_dict)
         logger.info("ci/cd output: {0}".format(output_array))
         return output_array
@@ -75,12 +71,12 @@ class Pipeline(object):
                 project_relationship['ci_pipeline_id'],
                 args['pipelines_exec_run'])
             if response.status_code / 100 != 2:
-                return Util.respond(400, "get pipeline history error",
-                                    error=Error.rancher_error(response))
+                return util.respond(400, "get pipeline history error",
+                                    error=apiError.rancher_error(response))
             return {"message": "success", "data": output_array}, 200
         except Exception as e:
-            return Util.respond(500, "get pipeline history error",
-                                error=Error.uncaught_exception(e))
+            return util.respond(500, "get pipeline history error",
+                                error=apiError.uncaught_exception(e))
 
     def pipeline_software(self):
         result = db.engine.execute(

@@ -8,8 +8,8 @@ import werkzeug
 from flask import send_file
 from flask_restful import reqparse
 
-from .error import Error
-from .util import Util
+import resources.apiError as apiError
+import resources.util as util
 
 logger = logging.getLogger(config.get('LOGGER_NAME'))
 
@@ -25,7 +25,8 @@ class Redmine:
         self.key_generated = 0.0
         self.last_operator_id = None
 
-    def __api_request(self, method, path, headers=None, params=None, data=None, operator_id=None):
+    def __api_request(self, method, path, headers=None, params=None, data=None,
+                      operator_id=None, resp_format='.json'):
         self.__key_check()
         if headers is None:
             headers = {}
@@ -34,7 +35,7 @@ class Redmine:
         if 'Content-Type' not in headers:
             headers['Content-Type'] = 'application/json'
 
-        url = "http://{0}{1}.json".format(config.get('REDMINE_IP_PORT'), path)
+        url = "http://{0}{1}{2}".format(config.get('REDMINE_IP_PORT'), path, resp_format)
         if operator_id is not None:
             if operator_id != self.last_operator_id:
                 self.last_operator_id = operator_id
@@ -45,24 +46,32 @@ class Redmine:
                 self.rm_refresh_key()
         params['key'] = self.redmine_key
 
-        output = Util.api_request(method, url, headers, params, data)
+        output = util.api_request(method, url, headers, params, data)
 
-        logger.info('redmine api {0} {1}, params={2}, body={5}, response={3} {4}'.format(
-            method, url, params.__str__(), output.status_code, output.text, data))
+        if resp_format != '':
+            logger.info('redmine api {0} {1}, params={2}, body={5}, response={3} {4}'.format(
+                method, url, params.__str__(), output.status_code, output.text, data))
 
         return output
 
-    def __api_get(self, path, params=None, headers=None):
-        return self.__api_request('GET', path, params=params, headers=headers)
+    def __api_get(self, path, params=None, headers=None,
+                  resp_format='.json'):
+        return self.__api_request('GET', path, params=params, headers=headers, resp_format=resp_format)
 
-    def __api_post(self, path, params=None, headers=None, data=None, operator_id=None):
-        return self.__api_request('POST', path, headers=headers, data=data, params=params, operator_id=operator_id)
+    def __api_post(self, path, params=None, headers=None, data=None,
+                   operator_id=None, resp_format='.json'):
+        return self.__api_request('POST', path, headers=headers, data=data, params=params,
+                                  operator_id=operator_id, resp_format=resp_format)
 
-    def __api_put(self, path, params=None, headers=None, data=None, operator_id=None):
-        return self.__api_request('PUT', path, headers=headers, data=data, params=params, operator_id=operator_id)
+    def __api_put(self, path, params=None, headers=None, data=None,
+                  operator_id=None, resp_format='.json'):
+        return self.__api_request('PUT', path, headers=headers, data=data, params=params,
+                                  operator_id=operator_id, resp_format=resp_format)
 
-    def __api_delete(self, path, params=None, headers=None, operator_id=None):
-        return self.__api_request('DELETE', path, params=params, headers=headers, operator_id=operator_id)
+    def __api_delete(self, path, params=None, headers=None,
+                     operator_id=None, resp_format='.json'):
+        return self.__api_request('DELETE', path, params=params, headers=headers,
+                                  operator_id=operator_id, resp_format=resp_format)
 
     def __key_check(self):
         # Check if key expires first, seems to expire in 2 hours in default?
@@ -180,6 +189,7 @@ class Redmine:
         output = self.__api_get('/projects/{0}/wiki/{1}'.format(
             project_id, wiki_name,
         ))
+        return output, output.status_code
 
     def rm_put_wiki(self, project_id, wiki_name, args, operator_id):
         param = {"wiki_page": {"text": args['wiki_text']}}
@@ -238,8 +248,8 @@ class Redmine:
         headers = {'Content-Type': 'application/octet-stream'}
         res = self.__api_post('/uploads', data=file, headers=headers)
         if res.status_code != 201:
-            return Util.respond(res.status_code, "Error while uploading to redmine",
-                                error=Error.redmine_error(res.text))
+            return util.respond(res.status_code, "Error while uploading to redmine",
+                                error=apiError.redmine_error(res.text))
         token = res.json().get('upload').get('token')
         filename = file.filename
         del args['upload_file']
@@ -261,12 +271,12 @@ class Redmine:
         f_args = parse.parse_args()
         file = f_args['file']
         if file is None:
-            return Util.respond(400, 'No file is sent.')
+            return util.respond(400, 'No file is sent.')
         headers = {'Content-Type': 'application/octet-stream'}
         res = self.__api_post('/uploads', data=file, headers=headers)
         if res.status_code != 201:
-            return Util.respond(res.status_code, "Error while uploading to redmine",
-                                error=Error.redmine_error(res.text))
+            return util.respond(res.status_code, "Error while uploading to redmine",
+                                error=apiError.redmine_error(res.text))
         token = res.json().get('upload').get('token')
         filename = args['filename']
         if filename is None:
@@ -282,10 +292,10 @@ class Redmine:
         data = {'file': params}
         res = self.__api_post('/projects/%d/files' % plan_project_id, data=data)
         if res.status_code == 204:
-            return Util.respond(201, None)
+            return util.respond(201, None)
         else:
-            return Util.respond(res.status_code, "Error while adding the file to redmine",
-                                error=Error.redmine_error(res.text))
+            return util.respond(res.status_code, "Error while adding the file to redmine",
+                                error=apiError.redmine_error(res.text))
 
     def rm_list_file(self, plan_project_id):
         res = self.__api_get('/projects/%d/files' % plan_project_id)
@@ -297,15 +307,15 @@ class Redmine:
         try:
             r = self.__api_get('/attachments/download/{0}/{1}'.format(
                 a_id, filename
-            ))
+            ), resp_format='')
             file_obj = BytesIO(r.content)
             return send_file(
                 file_obj,
                 attachment_filename=filename
             )
         except Exception as e:
-            return Util.respond(500, 'Error when downloading an attachment.',
-                                error=Error.redmine_error(r))
+            return util.respond(500, 'Error when downloading an attachment.',
+                                error=apiError.redmine_error(r))
 
     def rm_create_project(self, args):
         xml_body = """<?xml version="1.0" encoding="UTF-8"?>
