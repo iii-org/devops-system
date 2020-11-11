@@ -142,12 +142,15 @@ class Project(Resource):
 
         if role_id in (3, 5):
             try:
-                output = pjt.pm_get_project(logger, app, project_id)
+                output = pjt.pm_get_project(project_id)
                 return output
             except Exception as e:
-                return {"message": str(e)}, 400
+                return util.respond(500, "Error when getting project info.",
+                                    error=apiError.uncaught_exception(e))
         else:
-            return {"message": "your role art not PM/administrator"}, 401
+            return util.respond(401, "Error when getting project info.",
+                                error=apiError.not_allowed(get_jwt_identity()['user_account']
+                                                           , [3, 5]))
 
     @jwt_required
     def put(self, project_id):
@@ -1774,7 +1777,7 @@ class ProjectFiles(Resource):
     def post(self, project_id):
         plan_project_id = pjt.get_plan_project_id(project_id)
         if plan_project_id < 0:
-            return util.respond(400, 'Error while uploading a file to a project.',
+            return util.respond(404, 'Error while uploading a file to a project.',
                                 error=apiError.project_not_found(project_id))
 
         parser = reqparse.RequestParser()
