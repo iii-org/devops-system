@@ -513,6 +513,7 @@ class Issue(object):
             return str(error), 400
 
     def get_issue_statistics(self, args, user_id):
+        args['status_id'] = '*'
         if args["to_time"] is not None:
             args["due_date"] = "><{0}|{1}".format(args["from_time"],
                                                   args["to_time"])
@@ -533,11 +534,11 @@ class Issue(object):
             return {"message": str(error)}, 400
 
     def get_open_issue_statistics(self, user_id):
-        args = {}
-        args['limit'] = 100
+        args = {'limit': 100}
         user_plugin_relation = auth.get_user_plugin_relation(user_id=user_id)
         if user_plugin_relation is not None:
             args["assigned_to_id"] = user_plugin_relation['plan_user_id']
+        args['status_id'] = '*'
         total_issue_output, status_code = self.redmine.rm_get_statistics(args)
         if status_code != 200:
             return {"message": "could not get redmine total issue"}, 400
