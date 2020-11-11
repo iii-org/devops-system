@@ -15,9 +15,10 @@ logger = logging.getLogger(config.get('LOGGER_NAME'))
 class Issue(object):
     headers = {'Content-Type': 'application/json'}
 
-    def __init__(self, pjt, redmine):
+    def __init__(self, pjt, redmine, au):
         self.pjt = pjt
         self.redmine = redmine
+        self.au = au
 
     def __get_dict_userid(self, logger):
         result = db.engine.execute(
@@ -46,7 +47,7 @@ class Issue(object):
             redmine_output['project']['id'] = None
             redmine_output['project']['name'] = None
         if 'assigned_to' in redmine_output:
-            userInfo = auth.get_useridname_by_planuserid(self, logger, \
+            userInfo = self.au.get_useridname_by_planuserid(logger,
                                                          redmine_output['assigned_to']['id'])
             redmine_output['assigned_to'] = {'id': userInfo['id'], 'name': userInfo['name']}
             redmine_output.pop('author', None)
@@ -69,9 +70,10 @@ class Issue(object):
                     del redmine_output['journals'][i]
                 else:
                     if 'user' in redmine_output['journals'][i]:
-                        userInfo = auth.get_useridname_by_planuserid(self, logger, \
+                        userInfo = self.au.get_useridname_by_planuserid(logger,
                                                                     redmine_output['journals'][i]['user']['id'])
-                        redmine_output['journals'][i]['user'] = {'id': userInfo['id'], 'name': userInfo['name']}
+                        if userInfo is not None:
+                            redmine_output['journals'][i]['user'] = {'id': userInfo['id'], 'name': userInfo['name']}
                     redmine_output['journals'][i].pop('id', None)
                     redmine_output['journals'][i].pop('private_notes', None)
                     i += 1
@@ -102,7 +104,7 @@ class Issue(object):
             output_list['due_date'] = redmine_output['due_date']
         output_list['assigned_to'] = None
         if 'assigned_to' in redmine_output:
-            userInfo = auth.get_useridname_by_planuserid(self, logger, \
+            userInfo = self.au.get_useridname_by_planuserid(logger,
                                                          redmine_output['assigned_to']['id'])
             if userInfo is not None:
                 output_list['assigned_to'] = userInfo['name']
