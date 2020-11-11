@@ -119,7 +119,7 @@ class Redmine:
         return output, output.status_code
 
     def rm_get_issue(self, issue_id):
-        params = {'include': 'journals,attachment'}
+        params = {'include': 'journals,attachments'}
         output = self.__api_get('/issues/{0}'.format(issue_id), params=params)
         logger.info("get issues output: {0}".format(output))
         return output
