@@ -280,12 +280,12 @@ class User(object):
                        }, error_code
 
         else:
-            error_code = gitlab_output.status_code
+            error_code = gitlab_response.status_code
             return {
                        "message": "error",
                        "data": {
                            "from": "gitlab",
-                           "result": gitlab_output.json()
+                           "result": gitlab_response.json()
                        }
                    }, error_code
 
