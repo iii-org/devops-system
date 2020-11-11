@@ -109,7 +109,8 @@ class Redmine(object):
 
     def redmine_get_statistics(self, logger, app, args):
         args['key'] = self.redmine_key
-        args['status_id'] = '*'
+        if 'status_id' not in args:
+            args['status_id'] = '*'
         url = "http://{0}/issues.json".format(config.get('REDMINE_IP_PORT'))
         logger.info("args: {0}".format(args))
         output = requests.get(url,
