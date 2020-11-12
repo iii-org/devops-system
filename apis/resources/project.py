@@ -173,7 +173,6 @@ class Project(object):
                 plan_user_id = userid_list_output[0]
                 result.close()
                 logger.info("get user_ids SQL: {0}".format(plan_user_id))
-                redmine_key = Redmine.__rm_refresh_key(self)
                 for project in project_list:
                     output_dict = {}
                     output_dict['name'] = project['name']

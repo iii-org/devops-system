@@ -353,4 +353,3 @@ class Redmine:
         redmine_output = self.__api_delete('/projects/{0}'.format(plan_project_id))
         logger.info("delete redmine project output: {0}".format(redmine_output))
         return redmine_output
-
