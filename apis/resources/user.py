@@ -28,6 +28,44 @@ def jwt_response_data(row):
     }
 
 
+def get_3pt_user_ids(user_id, message):
+    user_relation = User.get_user_plugin_relation(user_id=user_id)
+    if user_relation is None:
+        return util.respond(400, message,
+                            error=apiError.user_not_found(user_id)), None, None
+    redmine_user_id = user_relation['plan_user_id']
+    gitlab_user_id = user_relation['repository_user_id']
+    if redmine_user_id is None:
+        return util.respond(500, message,
+                            error=apiError.db_error(
+                                "Cannot get redmine id of the user.")), None, None
+    if gitlab_user_id is None:
+        return util.respond(500, message,
+                            error=apiError.db_error(
+                                "Gitlab does not have this user.")), None, None
+    return None, redmine_user_id, gitlab_user_id
+
+
+def get_3pt_project_ids(project_id, message):
+    project_relation = Project.get_project_plugin_relation(project_id)
+    if project_relation is None:
+        return util.respond(400, message,
+                            error=apiError.project_not_found(project_id)), None, None
+    redmine_project_id = project_relation['plan_project_id']
+    gitlab_project_id = project_relation['git_repository_id']
+
+    if redmine_project_id is None:
+        return util.respond(500, message,
+                            error=apiError.db_error(
+                                "Cannot get redmine id of the project.")), None, None
+    if gitlab_project_id is None:
+        return util.respond(500, message,
+                            error=apiError.db_error(
+                                "Gitlab does not have this project.")), None, None
+
+    return None, redmine_project_id, gitlab_project_id
+
+
 class User(object):
     def __init__(self, app, redmine, git):
         self.app = app
@@ -515,30 +553,21 @@ class User(object):
             return util.respond(422, "Error while adding user to project.",
                                 error=apiError.already_in_project(user_id, project_id))
 
-        user_relation = User.get_user_plugin_relation(user_id=user_id)
-        if user_relation is None:
-            return util.respond(400, "Error while adding user to project.",
-                                error=apiError.user_not_found(user_id))
-        redmine_user_id = user_relation['plan_user_id']
-        gitlab_user_id = user_relation['repository_user_id']
+        error, redmine_user_id, gitlab_user_id = get_3pt_user_ids(
+            user_id,
+            "Error while adding user to project.")
+        if error is not None:
+            return error
+        error, redmine_project_id, gitlab_project_id = get_3pt_project_ids(
+            project_id,
+            "Error while adding user to project.")
+        if error is not None:
+            return error
 
-        project_relation = Project.get_project_plugin_relation(project_id)
-        if project_relation is None:
-            return util.respond(400, "Error while adding user to project.",
-                                error=apiError.project_not_found(project_id))
-        redmine_project_id = project_relation['plan_project_id']
-        gitlab_project_id = project_relation['git_repository_id']
         redmine_role_id = User.to_redmine_role_id(role_id)
-
         if redmine_role_id is None:
             return util.respond(500, "Error while adding user to project.",
                                 error=apiError.db_error("Cannot get redmine role of the user."))
-        if redmine_user_id is None:
-            return util.respond(500, "Error while adding user to project.",
-                                error=apiError.db_error("Cannot get redmine id of the user."))
-        if redmine_project_id is None:
-            return util.respond(500, "Error while adding user to project.",
-                                error=apiError.db_error("Cannot get redmine id of the project."))
 
         output, status_code = self.redmine.rm_create_memberships(
             redmine_project_id, redmine_user_id, redmine_role_id)
@@ -552,93 +581,69 @@ class User(object):
                                 error=apiError.redmine_error(output))
 
         # gitlab project add member
-        if gitlab_project_id is None:
-            return util.respond(500, "Error while adding user to project.",
-                                error=apiError.db_error("Gitlab does not have this project."))
-        if gitlab_user_id is None:
-            return util.respond(500, "Error while adding user to project.",
-                                error=apiError.db_error("Gitlab does not have this user."))
         output = self.git.gl_project_add_member(gitlab_project_id, gitlab_user_id)
         status_code = output.status_code
         if status_code == 201:
             return util.success()
         else:
-            return util.respond(status_code, "Error while adding user to project.",
+            return util.respond(status_code, "Error while removing user from project.",
                                 error=apiError.gitlab_error(output))
 
-    def project_delete_member(self, logger, app, project_id, user_id):
-        # get role_id
+    def remove_from_project(self, project_id, user_id):
         role_id = User.get_role_id(user_id)
 
-        # get redmine, gitlab user_id
-        redmine_user_id = None
-        gitlab_user_id = None
-        user_relation = User.get_user_plugin_relation(user_id=user_id)
-        logger.debug("user_relation_list: {0}".format(user_relation))
-        if user_relation is not None:
-            redmine_user_id = user_relation['plan_user_id']
-            gitlab_user_id = user_relation['repository_user_id']
-        else:
-            return {"cloud not get user plug relation data"}, 400
+        error, redmine_user_id, gitlab_user_id = get_3pt_user_ids(
+            user_id, "Error while removing user from project.")
+        if error is not None:
+            return error
+        error, redmine_project_id, gitlab_project_id = get_3pt_project_ids(
+            project_id, "Error while removing user from project.")
+        if error is not None:
+            return error
 
-        project_relat = Project.get_project_plugin_relation(project_id)
-        if project_relat is not None:
-            redmine_project_id = project_relat['plan_project_id']
-            gitlab_project_id = project_relat['git_repository_id']
-        else:
-            return {"message": "Could not get project relationship data"}, 400
-
-        if (redmine_user_id != None and redmine_project_id != None):
-            # get memebership id
-            memeberships, status_code = self.redmine.rm_get_memberships_list(redmine_project_id)
-            redmine_membership_id = None
-            if status_code == 200:
-                for membership in memeberships.json()['memberships']:
-                    if membership['user']['id'] == redmine_user_id:
-                        redmine_membership_id = membership['id']
-            if redmine_membership_id is not None:
-                # delete membership
-                output, status_code = self.redmine.rm_delete_memberships(redmine_membership_id)
-                if status_code == 204:
-                    logger.debug(
-                        "redmine delete membership success, output: {0}".
-                            format(output))
-                elif status_code == 422:
-                    return {
-                               "message": "user alreay in redmine memebersip"
-                           }, 400
-                else:
-                    return {
-                               "message": "redemine project delete member error"
-                           }, 400
+        # get membership id
+        memberships, status_code = self.redmine.rm_get_memberships_list(redmine_project_id)
+        redmine_membership_id = None
+        if status_code == 200:
+            for membership in memberships.json()['memberships']:
+                if membership['user']['id'] == redmine_user_id:
+                    redmine_membership_id = membership['id']
+        if redmine_membership_id is not None:
+            # delete membership
+            output, status_code = self.redmine.rm_delete_memberships(redmine_membership_id)
+            if status_code == 204:
+                pass
+            elif status_code == 404:
+                # Already deleted, let it go
+                pass
             else:
-                return {"message": "could not get redmine membership id"}, 400
+                return util.respond(status_code, "Error while removing user from project.",
+                                    error=apiError.redmine_error(output))
         else:
-            return {
-                       "message": "Could not get redmine user: {0} or project: {1}" \
-                           .format(redmine_project_id, redmine_user_id)}, 400
+            return util.respond(status_code, "Error while removing user from project.",
+                                error=apiError.redmine_error(memberships))
 
         # delete relationship from  ProjectUserRole table.
-        delete_pj_ur_rl_cmd = db.delete(ProjectUserRole.stru_project_user_role).where(db.and_( \
-            ProjectUserRole.stru_project_user_role.c.user_id == user_id, \
+        delete_pj_ur_rl_cmd = db.delete(ProjectUserRole.stru_project_user_role).where(db.and_(
+            ProjectUserRole.stru_project_user_role.c.user_id == user_id,
             ProjectUserRole.stru_project_user_role.c.project_id == project_id,
             ProjectUserRole.stru_project_user_role.c.role_id == role_id))
-        delete_pj_ur_rl = util.call_sqlalchemy(delete_pj_ur_rl_cmd)
+        util.call_sqlalchemy(delete_pj_ur_rl_cmd)
 
         # gitlab project delete member
-        if gitlab_project_id is not None and gitlab_user_id is not None:
-            output = self.git.gl_project_delete_member(gitlab_project_id, gitlab_user_id)
-            status_code = output.status_code
-            if status_code == 204:
-                logger.debug("gitlab delete member success, output")
-            else:
-                return {"message": "gitlab project delete member error"}, 400
+        output = self.git.gl_project_delete_member(gitlab_project_id, gitlab_user_id)
+        status_code = output.status_code
+        if status_code == 204:
+            pass
         else:
-            logger.debug("gitlab do not has this project")
+            return util.respond(status_code, "Error while removing user from project.",
+                                error=apiError.gitlab_error(output))
+
         return {"message": "success"}, 200
 
     # 從db role table取得role list
-    def get_role_list(self, logger, app):
+    @staticmethod
+    def get_role_list():
         result = db.engine.execute(
             "SELECT * FROM public.roles ORDER BY id ASC")
         role_array = result.fetchall()
@@ -650,18 +655,16 @@ class User(object):
                 role_info = {"id": role["id"], "name": role["name"]}
                 output_array.append(role_info)
 
-            return {
-                       "message": "success",
-                       "data": {
-                           "role_list": output_array
-                       }
-                   }, 200
+            return util.success({"role_list": output_array})
         else:
-            return {"message": "Could not get role list"}, 400
+            return util.respond(500, "Could not get role list",
+                                error=apiError.db_error("public.roles SELECT returns False"))
 
-    def get_useridname_by_planuserid(self, logger, plan_user_id):
-        get_useridname_cmd = db.select([UserPluginRelation.stru_user_plug_relation,
-                                        UserModel.stru_user]).where(db.and_( \
-            UserPluginRelation.stru_user_plug_relation.c.plan_user_id == plan_user_id,
-            UserPluginRelation.stru_user_plug_relation.c.user_id == UserModel.stru_user.c.id))
-        return util.call_sqlalchemy(get_useridname_cmd).fetchone()
+    @staticmethod
+    def get_user_id_name_by_plan_user_id(plan_user_id):
+        command = db.select([UserPluginRelation.stru_user_plug_relation,
+                             UserModel.stru_user]).where(
+            db.and_(
+                UserPluginRelation.stru_user_plug_relation.c.plan_user_id == plan_user_id,
+                UserPluginRelation.stru_user_plug_relation.c.user_id == UserModel.stru_user.c.id))
+        return util.call_sqlalchemy(command).fetchone()

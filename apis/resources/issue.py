@@ -46,8 +46,7 @@ class Issue(object):
             redmine_output['project']['id'] = None
             redmine_output['project']['name'] = None
         if 'assigned_to' in redmine_output:
-            userInfo = self.au.get_useridname_by_planuserid(logger,
-                                                         redmine_output['assigned_to']['id'])
+            userInfo = self.au.get_user_id_name_by_plan_user_id(redmine_output['assigned_to']['id'])
             redmine_output['assigned_to'] = {'id': userInfo['id'], 'name': userInfo['name']}
             redmine_output.pop('author', None)
         redmine_output.pop('is_private', None)
@@ -69,8 +68,7 @@ class Issue(object):
                     del redmine_output['journals'][i]
                 else:
                     if 'user' in redmine_output['journals'][i]:
-                        userInfo = self.au.get_useridname_by_planuserid(logger,
-                                                                    redmine_output['journals'][i]['user']['id'])
+                        userInfo = self.au.get_user_id_name_by_plan_user_id(redmine_output['journals'][i]['user']['id'])
                         if userInfo is not None:
                             redmine_output['journals'][i]['user'] = {'id': userInfo['id'], 'name': userInfo['name']}
                     redmine_output['journals'][i].pop('id', None)
@@ -103,8 +101,7 @@ class Issue(object):
             output_list['due_date'] = redmine_output['due_date']
         output_list['assigned_to'] = None
         if 'assigned_to' in redmine_output:
-            userInfo = self.au.get_useridname_by_planuserid(logger,
-                                                         redmine_output['assigned_to']['id'])
+            userInfo = self.au.get_user_id_name_by_plan_user_id(redmine_output['assigned_to']['id'])
             if userInfo is not None:
                 output_list['assigned_to'] = userInfo['name']
         output_list['parent_id'] = None

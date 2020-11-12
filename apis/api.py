@@ -420,7 +420,7 @@ class ProjectDeleteMember(Resource):
     @jwt_required
     def delete(self, project_id, user_id):
         if get_jwt_identity()["role_id"] in (3, 5):
-            output = user.project_delete_member(logger, app, project_id, user_id)
+            output = user.remove_from_project(project_id, user_id)
             return output
         else:
             return {"message": "your role are not PM or administrator"}, 401
@@ -563,7 +563,7 @@ class RoleList(Resource):
         print("role_id is {0}".format(get_jwt_identity()["role_id"]))
         if get_jwt_identity()["role_id"] in (1, 3, 5):
             try:
-                output = user.get_role_list(logger, app)
+                output = user.get_role_list()
                 return output
             except Exception as e:
                 return {"message": str(e)}, 400
