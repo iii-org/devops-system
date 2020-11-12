@@ -303,7 +303,7 @@ class UserInfo(Resource):
             get_jwt_identity()['user_id']))
         if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity(
         )['role_id'] in (3, 5):
-            user_info = user.get_info(user_id)
+            user_info = user.get_user_info(user_id)
             return user_info
         else:
             return {
@@ -352,7 +352,7 @@ class UserStatus(Resource):
             parser = reqparse.RequestParser()
             parser.add_argument('status', type=str, required=True)
             args = parser.parse_args()
-            output = user.put_user_status(logger, user_id, args)
+            output = user.change_user_status(user_id, args)
             return output
         else:
             return {"message": "your role art not administrator"}, 401
@@ -372,7 +372,7 @@ class User(Resource):
             parser.add_argument('role_id', type=int, required=True)
             parser.add_argument('status', type=str)
             args = parser.parse_args()
-            output = user.create_user(logger, args, app)
+            output = user.create_user(args)
             return output
         else:
             return {"message": "your role art not administrator"}, 401
@@ -382,7 +382,7 @@ class UserList(Resource):
     @jwt_required
     def get(self):
         if get_jwt_identity()["role_id"] in (3, 5):
-            output = user.get_user_list(logger)
+            output = user.user_list()
             return output
         else:
             return {"message": "your role art not administrator"}, 401
@@ -395,7 +395,7 @@ class ProjectUserList(Resource):
             parser = reqparse.RequestParser()
             parser.add_argument('exclude', type=int)
             args = parser.parse_args()
-            output = user.get_userlist_by_project(logger, project_id, args)
+            output = user.user_list_by_project(project_id, args)
             return output
         else:
             return {"message": "your role art not administrator"}, 401
