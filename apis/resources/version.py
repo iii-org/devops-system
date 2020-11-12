@@ -2,10 +2,8 @@ import logging
 
 import config
 import resources.apiError as apiError
-from .redmine import Redmine
-from .project import Project
 import resources.util as util
-import json
+from .project import Project
 
 logger = logging.getLogger(config.get('LOGGER_NAME'))
 

@@ -67,7 +67,7 @@ class Rancher(object):
         }
         params = {'action': 'login'}
         output = self.__api_post('-public/localProviders/local', params=params,
-                                              data=body, with_token=False)
+                                 data=body, with_token=False)
         return output.json()['token']
 
     def rc_get_pipeline_executions(self, ci_project_id, ci_pipeline_id):

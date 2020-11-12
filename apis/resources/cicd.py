@@ -12,8 +12,7 @@ logger = logging.getLogger('devops.api')
 
 
 class Cicd(object):
-    def __init__(self, app, pjt, iss):
-        self.app = app
+    def __init__(self, pjt, iss):
         self.pjt = pjt
         self.iss = iss
 

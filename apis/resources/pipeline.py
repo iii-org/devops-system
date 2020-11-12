@@ -1,24 +1,20 @@
+import base64
+import json
 import logging
 
 import yaml
-import json
-import base64
-import os
 
 import config
-from model import db
 import resources.apiError as apiError
-from .rancher import Rancher
 import resources.util as util
+from model import db
+from .rancher import Rancher
 
 logger = logging.getLogger(config.get('LOGGER_NAME'))
 
 
 class Pipeline(object):
-    headers = {'Content-Type': 'application/json'}
-
-    def __init__(self, app, pjt):
-        self.app = app
+    def __init__(self, pjt):
         self.pjt = pjt
         self.rancher = Rancher()
 
@@ -53,8 +49,8 @@ class Pipeline(object):
                 if 'state' in stage:
                     stage_status.append(stage['state'])
             success_time = stage_status.count('Success')
-            output_dict['status']={'total': len(pipeline_output['stages']),\
-                'success': success_time }
+            output_dict['status'] = {'total': len(pipeline_output['stages']),
+                                     'success': success_time}
             output_array.append(output_dict)
         logger.info("ci/cd output: {0}".format(output_array))
         return output_array
@@ -78,31 +74,32 @@ class Pipeline(object):
             return util.respond(500, "get pipeline history error",
                                 error=apiError.uncaught_exception(e))
 
-    def pipeline_software(self):
+    @staticmethod
+    def pipeline_software():
         result = db.engine.execute(
             "SELECT pp.name as phase_name, ps.name as software_name, "
             "psc.detail as detail FROM public.pipeline_phase as pp, "
             "public.pipeline_software as ps, public.pipeline_software_config as psc "
             "WHERE psc.software_id = ps.id AND ps.phase_id = pp.id AND psc.sample = true;"
         )
-        pipe_softs = result.fetchall()
+        pipe_software = result.fetchall()
         result.close()
-        return [dict(row) for row in pipe_softs]
+        return [dict(row) for row in pipe_software]
 
     def generate_ci_yaml(self, args, repository_id, branch_name):
-        '''
+        """
         result = db.engine.execute("SELECT git_repository_id FROM public.project_plugin_relation \
             WHERE project_id = {0};".format(project_id))
         project_relationship = result.fetchone()
         result.close()
         logger.info("project_relationship: {0}".format(project_relationship['ci_project_id']))
-        '''
+        """
         parameter = {}
         logger.debug("generate_ci_yaml detail: {0}".format(args['detail']))
         dict_object = json.loads(args['detail'].replace("'", '"'))
-        docum = yaml.dump(dict_object)
-        logger.info("generate_ci_yaml documents: {0}".format(docum))
-        base_file = base64.b64encode(bytes(docum,
+        doc = yaml.dump(dict_object)
+        logger.info("generate_ci_yaml documents: {0}".format(doc))
+        base_file = base64.b64encode(bytes(doc,
                                            encoding='utf-8')).decode('utf-8')
         logger.info("generate_ci_yaml base_file: {0}".format(base_file))
         parameter['file_path'] = '.rancher-pipeline.yml'

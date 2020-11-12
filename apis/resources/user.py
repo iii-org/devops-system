@@ -67,9 +67,7 @@ def get_3pt_project_ids(project_id, message):
 
 
 class User(object):
-    def __init__(self, app, redmine, git):
-        self.app = app
-        self.headers = {'Content-Type': 'application/json'}
+    def __init__(self, redmine, git):
         self.redmine = redmine
         self.git = git
 

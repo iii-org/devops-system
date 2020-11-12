@@ -60,7 +60,7 @@ handler = handlers.TimedRotatingFileHandler(
     'devops-api.log', when='D'
     , interval=1, backupCount=14)
 handler.setFormatter(logging.Formatter(
-    '%(asctime)s %(filename)s [line:%(lineno)d] %(levelname)s %(message)s' \
+    '%(asctime)s %(filename)s [line:%(lineno)d] %(levelname)s %(message)s'
     , '%Y %b %d, %a %H:%M:%S'))
 logger = logging.getLogger('devops.api')
 logger.setLevel(logging.DEBUG)
@@ -70,18 +70,12 @@ redmine = Redmine(app)
 wk = WikiResource(redmine)
 vn = VersionResource(redmine)
 git = GitLab(app)
-user = UserResource(app, redmine, git)
+user = UserResource(redmine, git)
 pjt = ProjectResource(app, user, redmine, git)
 iss = IssueResource(pjt, redmine, user)
-pipe = Pipeline(app, pjt)
-ci = Cicd(app, pjt, iss)
+pipe = Pipeline(pjt)
+ci = Cicd(pjt, iss)
 cm = CheckMarx(app)
-
-
-class Index(Resource):
-    def get(self):
-        iss.create_data_into_project_relationship(logger)
-        return {"message": "DevOps api is working"}
 
 
 class TotalProjectList(Resource):
@@ -91,7 +85,6 @@ class TotalProjectList(Resource):
 
         if role_id in (3, 5):
             user_id = get_jwt_identity()["user_id"]
-            # print("user_id={0}".format(user_id))
             try:
                 output = pjt.get_pm_project_list(logger, app, user_id)
                 return output
@@ -888,13 +881,6 @@ class GitProjectId(Resource):
     @jwt_required
     def get(self, repository_id):
         return pjt.get_git_project_id(logger, app, repository_id)
-
-
-class PipelineInfo(Resource):
-    @jwt_required
-    def get(self, project_id):
-        output = pipe.pipeline_info(logger, project_id)
-        return jsonify(output)
 
 
 class PipelineExec(Resource):
@@ -1817,7 +1803,6 @@ class SystemGitCommitID(Resource):
         else:
             return {"message": "git_commit file is not exist"}, 400
 
-api.add_resource(Index, '/')
 
 # Project list
 api.add_resource(TotalProjectList, '/project/list')
@@ -1988,7 +1973,7 @@ api.add_resource(ProjectFiles, '/project/<sint:project_id>/file')
 api.add_resource(DownloadFile, '/download')
 api.add_resource(RedmineFile, '/file/<int:file_id>')
 
-#git commit
+# git commit
 api.add_resource(SystemGitCommitID, '/system_git_commit_id')
 
 if __name__ == "__main__":
