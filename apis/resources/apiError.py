@@ -58,6 +58,19 @@ def invalid_user_password():
                        'and is 8 to 20 characters long.')
 
 
+def wrong_password():
+    return build(2004, 'Wrong password or username.')
+
+
+def already_used():
+    return build(2005, 'This username or email is already used.')
+
+
+def already_in_project(user_id, project_id):
+    return build(2006, 'This user is already in the project.',
+                 {'user_id': user_id, 'project_id': project_id})
+
+
 # Permission errors
 # allowed_role is an array containing allowed role ids.
 def not_allowed(user_name, allowed_role):
@@ -85,8 +98,16 @@ def rancher_error(response):
 # Internal errors
 def uncaught_exception(exception):
     return build(9001, 'An exception occurs',
-                 {'type': type(exception), 'exception': str(exception)})
+                 {'type': str(type(exception)), 'exception': str(exception)})
 
 
 def unknown_method(method):
     return build(9002, 'A request with unknown method is made.', {'method': method})
+
+
+def db_error(detail_message):
+    return build(9003, 'An unexpected database error has occurred.', {'message': detail_message})
+
+
+def unknown_error():
+    return build(9999, 'An unknown error has occurred.')

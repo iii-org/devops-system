@@ -39,11 +39,11 @@ class Redmine:
         if operator_id is not None:
             if operator_id != self.last_operator_id:
                 self.last_operator_id = operator_id
-                self.rm_refresh_key(operator_id)
+                self.__refresh_key(operator_id)
         else:
             if self.last_operator_id is not None:
                 self.last_operator_id = None
-                self.rm_refresh_key()
+                self.__refresh_key()
         params['key'] = self.redmine_key
 
         output = util.api_request(method, url, headers, params, data)
@@ -76,9 +76,9 @@ class Redmine:
     def __key_check(self):
         # Check if key expires first, seems to expire in 2 hours in default?
         if time.time() - self.key_generated >= 7200:
-            self.rm_refresh_key()
+            self.__refresh_key()
 
-    def rm_refresh_key(self, operator_id=None):
+    def __refresh_key(self, operator_id=None):
         if operator_id is None:
             # get redmine_key
             url = "http://{0}:{1}@{2}/users/current.json".format(config.get('REDMINE_ADMIN_ACCOUNT'),
@@ -102,7 +102,8 @@ class Redmine:
 
     def rm_get_issues_by_project(self, plan_project_id, args=None):
         if 'fixed_version_id' in args:
-            params = {'project_id': plan_project_id, 'limit': 1000, 'status_id': '*', 'fixed_version_id': args['fixed_version_id']}
+            params = {'project_id': plan_project_id, 'limit': 1000, 'status_id': '*',
+                      'fixed_version_id': args['fixed_version_id']}
         else:
             params = {'project_id': plan_project_id, 'limit': 1000, 'status_id': '*'}
         output = self.__api_get('/issues', params=params)
@@ -221,11 +222,11 @@ class Redmine:
         output = self.__api_put('/versions/{0}'.format(version_id), data=args)
         return output, output.status_code
 
-    def redmine_delete_version(self, version_id):
+    def rm_delete_version(self, version_id):
         output = self.__api_delete('/versions/{0}'.format(version_id))
         return output, output.status_code
 
-    def redmine_create_memberships(self, project_id, user_id, role_id):
+    def rm_create_memberships(self, project_id, user_id, role_id):
         param = {"membership": {"user_id": user_id, "role_ids": [role_id]}}
         output = self.__api_post('/projects/{0}/memberships'.format(project_id),
                                  data=param)
@@ -316,7 +317,7 @@ class Redmine:
             )
         except Exception as e:
             return util.respond(500, 'Error when downloading an attachment.',
-                                error=apiError.redmine_error(r))
+                                error=apiError.uncaught_exception(e))
 
     def rm_delete_attachment(self, attachment_id):
         output = self.__api_delete('/attachments/{0}'.format(attachment_id))
@@ -352,4 +353,3 @@ class Redmine:
         redmine_output = self.__api_delete('/projects/{0}'.format(plan_project_id))
         logger.info("delete redmine project output: {0}".format(redmine_output))
         return redmine_output
-

@@ -14,27 +14,27 @@ from flask_restful import Resource, Api, reqparse
 from werkzeug.routing import IntegerConverter
 
 import config
-import resources.auth as auth
-import resources.checkmarx as checkmarx
-import resources.cicd as cicd
 import resources.apiError as apiError
 import resources.flow as flow
-import resources.gitlab as gitlab
-import resources.issue as issue
 import resources.parameter as parameter
-import resources.pipeline as pipeline
-import resources.project as project
-import resources.redmine as redmine
 import resources.requirement as requirement
 import resources.testCase as testCase
 import resources.testItem as testItem
 import resources.testResult as testResult
 import resources.testValue as testValue
 import resources.util as util
-import resources.version as version
-import resources.wiki as wiki
 from jsonwebtoken import jsonwebtoken
 from model import db
+from resources.checkmarx import CheckMarx
+from resources.cicd import Cicd
+from resources.gitlab import GitLab
+from resources.issue import Issue as IssueResource
+from resources.pipeline import Pipeline
+from resources.project import Project as ProjectResource
+from resources.redmine import Redmine
+from resources.user import User as UserResource
+from resources.version import Version as VersionResource
+from resources.wiki import Wiki as WikiResource
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -66,17 +66,16 @@ logger = logging.getLogger('devops.api')
 logger.setLevel(logging.DEBUG)
 logger.addHandler(handler)
 
-redmine = redmine.Redmine(app)
-git = gitlab.GitLab(app)
-au = auth.auth(app, redmine, git)
-pjt = project.Project(app, au, redmine, git)
-iss = issue.Issue(pjt, redmine, au)
-pipe = pipeline.Pipeline(app, pjt)
-wk = wiki.Wiki(redmine)
-vn = version.Version(redmine)
-
-ci = cicd.Cicd(app, pjt, iss)
-cm = checkmarx.CheckMarx(app)
+redmine = Redmine(app)
+wk = WikiResource(redmine)
+vn = VersionResource(redmine)
+git = GitLab(app)
+user = UserResource(app, redmine, git)
+pjt = ProjectResource(app, user, redmine, git)
+iss = IssueResource(pjt, redmine, user)
+pipe = Pipeline(app, pjt)
+ci = Cicd(app, pjt, iss)
+cm = CheckMarx(app)
 
 
 class Index(Resource):
@@ -279,7 +278,7 @@ class UserLogin(Resource):
         parser.add_argument('username', type=str, required=True)
         parser.add_argument('password', type=str, required=True)
         args = parser.parse_args()
-        output = au.user_login(logger, args)
+        output = user.login(args)
         return output
 
 
@@ -290,7 +289,7 @@ class UserForgetPassword(Resource):
         parser.add_argument('user_account', type=str, required=True)
         args = parser.parse_args()
         try:
-            status = au.user_forgetpassword(logger, args)
+            status = user.user_forgot_password(args)
             return jsonify({"message": "success"})
         except Exception as err:
             return jsonify({"message": err}), 400
@@ -304,7 +303,7 @@ class UserInfo(Resource):
             get_jwt_identity()['user_id']))
         if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity(
         )['role_id'] in (3, 5):
-            user_info = au.user_info(logger, user_id)
+            user_info = user.get_user_info(user_id)
             return user_info
         else:
             return {
@@ -323,7 +322,7 @@ class UserInfo(Resource):
             parser.add_argument('status', type=str)
             args = parser.parse_args()
             try:
-                output = au.update_user_info(user_id, args)
+                output = user.update_info(user_id, args)
                 return output
             except Exception as e:
                 return jsonify({"message": str(e)}), 400
@@ -337,7 +336,7 @@ class UserInfo(Resource):
         '''delete user'''
         if get_jwt_identity()["role_id"] == 5:
             try:
-                output = au.delete_user(logger, app, user_id)
+                output = user.delete_user(user_id)
                 return output
             except Exception as e:
                 return {"message": str(e)}, 400
@@ -353,7 +352,7 @@ class UserStatus(Resource):
             parser = reqparse.RequestParser()
             parser.add_argument('status', type=str, required=True)
             args = parser.parse_args()
-            output = au.put_user_status(logger, user_id, args)
+            output = user.change_user_status(user_id, args)
             return output
         else:
             return {"message": "your role art not administrator"}, 401
@@ -373,7 +372,7 @@ class User(Resource):
             parser.add_argument('role_id', type=int, required=True)
             parser.add_argument('status', type=str)
             args = parser.parse_args()
-            output = au.create_user(logger, args, app)
+            output = user.create_user(args)
             return output
         else:
             return {"message": "your role art not administrator"}, 401
@@ -383,7 +382,7 @@ class UserList(Resource):
     @jwt_required
     def get(self):
         if get_jwt_identity()["role_id"] in (3, 5):
-            output = au.get_user_list(logger)
+            output = user.user_list()
             return output
         else:
             return {"message": "your role art not administrator"}, 401
@@ -396,7 +395,7 @@ class ProjectUserList(Resource):
             parser = reqparse.RequestParser()
             parser.add_argument('exclude', type=int)
             args = parser.parse_args()
-            output = au.get_userlist_by_project(logger, project_id, args)
+            output = user.user_list_by_project(project_id, args)
             return output
         else:
             return {"message": "your role art not administrator"}, 401
@@ -411,7 +410,7 @@ class ProjectAddMember(Resource):
             parser = reqparse.RequestParser()
             parser.add_argument('user_id', type=int, required=True)
             args = parser.parse_args()
-            output = au.project_add_member(project_id, args)
+            output = user.project_add_member(project_id, args)
             return output
         else:
             return {"message": "your role are not PM or administrator"}, 401
@@ -421,7 +420,7 @@ class ProjectDeleteMember(Resource):
     @jwt_required
     def delete(self, project_id, user_id):
         if get_jwt_identity()["role_id"] in (3, 5):
-            output = au.project_delete_member(logger, app, project_id, user_id)
+            output = user.remove_from_project(project_id, user_id)
             return output
         else:
             return {"message": "your role are not PM or administrator"}, 401
@@ -564,7 +563,7 @@ class RoleList(Resource):
         print("role_id is {0}".format(get_jwt_identity()["role_id"]))
         if get_jwt_identity()["role_id"] in (1, 3, 5):
             try:
-                output = au.get_role_list(logger, app)
+                output = user.get_role_list()
                 return output
             except Exception as e:
                 return {"message": str(e)}, 400

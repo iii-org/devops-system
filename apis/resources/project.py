@@ -45,7 +45,7 @@ class Project(object):
             return False
 
     @staticmethod
-    def get_project_plugin_relation(logger, project_id):
+    def get_project_plugin_relation(project_id):
         select_project_relation_command = db.select([ProjectPluginRelation.stru_project_plug_relation]) \
             .where(db.and_(ProjectPluginRelation.stru_project_plug_relation.c.project_id == project_id))
         reMessage = util.call_sqlalchemy(select_project_relation_command).fetchone()
@@ -173,7 +173,6 @@ class Project(object):
                 plan_user_id = userid_list_output[0]
                 result.close()
                 logger.info("get user_ids SQL: {0}".format(plan_user_id))
-                redmine_key = Redmine.rm_refresh_key(self)
                 for project in project_list:
                     output_dict = {}
                     output_dict['name'] = project['name']
@@ -981,7 +980,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
             return util.respond(404, 'Error when getting project info.',
                                 error=apiError.project_not_found(project_id))
         result = db.engine.execute(
-            "SELECT * FROM public.projects as pj, public.project_plugin_relation as ppr"
+            "SELECT * FROM public.projects as pj, public.project_plugin_relation as ppr "
             "WHERE pj.id = '{0}' AND pj.id = ppr.project_id".format(
                 project_id))
         if result.rowcount == 0:

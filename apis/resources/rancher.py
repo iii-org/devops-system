@@ -1,8 +1,6 @@
-import json
 import logging
 import ssl
 
-import requests
 import websocket
 from flask_restful import abort
 
@@ -35,9 +33,9 @@ class Rancher(object):
                                           with_token=True, retried=True)
             logger.info('Rancher api {0} {1}, params={2}, body={5}, response={3} {4}'.format(
                 method, url, params.__str__(), response.status_code, response.text, data))
-            return response, response.status_code
+            return response
         except Exception as e:
-            return util.respond(500, "Error in rancher API request {0} {1}".format(
+            return util.respond_request_style(500, "Error in rancher API request {0} {1}".format(
                 method, url
             ), error=apiError.uncaught_exception(e))
 
@@ -68,7 +66,7 @@ class Rancher(object):
             "password": config.get('RANCHER_ADMIN_PASSWORD')
         }
         params = {'action': 'login'}
-        output, status_code = self.__api_post('-public/localProviders/local', params=params,
+        output = self.__api_post('-public/localProviders/local', params=params,
                                               data=body, with_token=False)
         return output.json()['token']
 
@@ -79,7 +77,7 @@ class Rancher(object):
             'sort': 'started',
             'pipelineId': ci_pipeline_id
         }
-        response, status_code = self.__api_get(path, params=params)
+        response = self.__api_get(path, params=params)
         output_array = response.json()['data']
         return output_array, response
 
@@ -133,7 +131,7 @@ class Rancher(object):
         return output_dict[1:], response
 
     def rc_get_cluster_id(self):
-        rancher_output, status_code = self.__api_get('/clusters')
+        rancher_output = self.__api_get('/clusters')
         output_array = rancher_output.json()['data']
         for output in output_array:
             logger.debug("get_rancher_cluster output: {0}".format(output['name']))
@@ -142,14 +140,14 @@ class Rancher(object):
 
     def rc_get_project_id(self):
         cluster_id = self.rc_get_cluster_id()
-        rancher_output, status_code = self.__api_get('/clusters/{0}/projects'.format(cluster_id))
+        rancher_output = self.__api_get('/clusters/{0}/projects'.format(cluster_id))
         output_array = rancher_output.json()['data']
         for output in output_array:
             if output['name'] == "Default":
                 return output['id']
 
     def rc_get_admin_user_id(self):
-        rancher_output, status_code = self.__api_get('/users')
+        rancher_output = self.__api_get('/users')
         output_array = rancher_output.json()['data']
         for output in output_array:
             if output['username'] == 'admin':
@@ -171,15 +169,16 @@ class Rancher(object):
             "triggerWebhookPush": True,
             "triggerWebhookTag": True
         }
-        output, status_code = self.__api_post(
+        output = self.__api_post(
             '/projects/{0}/pipelines'.format(project_id), data=parameter)
         logger.debug("enable_rancher_project_pipeline output: {0}".format(output.json()))
         return output.json()['id']
 
     def rc_disable_project_pipeline(self, project_id, pipeline_id):
-        rancher_output, status_code = self.__api_delete('/projects/{0}/pipelines/{1}'.format(
+        rancher_output = self.__api_delete('/projects/{0}/pipelines/{1}'.format(
             project_id, pipeline_id
         ))
+        status_code = rancher_output.status_code
         if status_code == 200:
             logger.info("disable_rancher_project_pipeline successful !")
         elif status_code == 404:
@@ -191,5 +190,5 @@ class Rancher(object):
 
     def rc_get_project_pipeline(self):
         project_id = self.rc_get_project_id()
-        output, status_code = self.__api_get('/projects/{0}/pipelines'.format(project_id))
+        output = self.__api_get('/projects/{0}/pipelines'.format(project_id))
         return output.json()['data']

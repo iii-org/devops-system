@@ -4,9 +4,8 @@ import logging
 from datetime import datetime, date, timedelta
 
 from model import db, ProjectPluginRelation, ProjectUserRole
-from .auth import auth
+from .user import User
 import resources.apiError as apiError
-from .redmine import Redmine
 import resources.util as util
 
 logger = logging.getLogger(config.get('LOGGER_NAME'))
@@ -47,8 +46,7 @@ class Issue(object):
             redmine_output['project']['id'] = None
             redmine_output['project']['name'] = None
         if 'assigned_to' in redmine_output:
-            userInfo = self.au.get_useridname_by_planuserid(logger,
-                                                         redmine_output['assigned_to']['id'])
+            userInfo = self.au.get_user_id_name_by_plan_user_id(redmine_output['assigned_to']['id'])
             redmine_output['assigned_to'] = {'id': userInfo['id'], 'name': userInfo['name']}
             redmine_output.pop('author', None)
         redmine_output.pop('is_private', None)
@@ -70,8 +68,7 @@ class Issue(object):
                     del redmine_output['journals'][i]
                 else:
                     if 'user' in redmine_output['journals'][i]:
-                        userInfo = self.au.get_useridname_by_planuserid(logger,
-                                                                    redmine_output['journals'][i]['user']['id'])
+                        userInfo = self.au.get_user_id_name_by_plan_user_id(redmine_output['journals'][i]['user']['id'])
                         if userInfo is not None:
                             redmine_output['journals'][i]['user'] = {'id': userInfo['id'], 'name': userInfo['name']}
                     redmine_output['journals'][i].pop('id', None)
@@ -104,8 +101,7 @@ class Issue(object):
             output_list['due_date'] = redmine_output['due_date']
         output_list['assigned_to'] = None
         if 'assigned_to' in redmine_output:
-            userInfo = self.au.get_useridname_by_planuserid(logger,
-                                                         redmine_output['assigned_to']['id'])
+            userInfo = self.au.get_user_id_name_by_plan_user_id(redmine_output['assigned_to']['id'])
             if userInfo is not None:
                 output_list['assigned_to'] = userInfo['name']
         output_list['parent_id'] = None
@@ -414,11 +410,10 @@ class Issue(object):
         if 'parent_id' in args:
             args['parent_issue_id'] = args['parent_id']
             args.pop('parent_id', None)
-        project_plugin_relation = self.pjt.get_project_plugin_relation(
-            logger, args['project_id'])
+        project_plugin_relation = self.pjt.get_project_plugin_relation(args['project_id'])
         args['project_id'] = project_plugin_relation['plan_project_id']
         if "assigned_to_id" in args:
-            user_plugin_relation = auth.get_user_plugin_relation(user_id=args['assigned_to_id'])
+            user_plugin_relation = User.get_user_plugin_relation(user_id=args['assigned_to_id'])
             args['assigned_to_id'] = user_plugin_relation['plan_user_id']
         logger.info("args: {0}".format(args))
 
@@ -429,7 +424,7 @@ class Issue(object):
         try:
             plan_operator_id = None
             if operator_id is not None:
-                operator_plugin_relation = auth.get_user_plugin_relation(user_id=operator_id)
+                operator_plugin_relation = User.get_user_plugin_relation(user_id=operator_id)
                 plan_operator_id = operator_plugin_relation['plan_user_id']
             output, status_code = self.redmine.rm_create_issue(args, plan_operator_id)
             if status_code == 201:
@@ -447,7 +442,7 @@ class Issue(object):
             args['parent_issue_id'] = args['parent_id']
             args.pop('parent_id', None)
         if "assigned_to_id" in args:
-            user_plugin_relation = auth.get_user_plugin_relation(user_id=args['assigned_to_id'])
+            user_plugin_relation = User.get_user_plugin_relation(user_id=args['assigned_to_id'])
             args['assigned_to_id'] = user_plugin_relation['plan_user_id']
         logger.info("update_issue_rd args: {0}".format(args))
 
@@ -456,7 +451,7 @@ class Issue(object):
             args['uploads'] = [attachment]
         plan_operator_id = None
         if operator_id is not None:
-            operator_plugin_relation = auth.get_user_plugin_relation(user_id=operator_id)
+            operator_plugin_relation = User.get_user_plugin_relation(user_id=operator_id)
             plan_operator_id = operator_plugin_relation['plan_user_id']
         output, status_code = self.redmine.rm_update_issue(issue_id, args, plan_operator_id)
         if status_code == 204:
@@ -521,7 +516,7 @@ class Issue(object):
                                                   args["to_time"])
         else:
             args["due_date"] = ">=".format(args["from_time"])
-        user_plugin_relation = auth.get_user_plugin_relation(user_id=user_id)
+        user_plugin_relation = User.get_user_plugin_relation(user_id=user_id)
         if user_plugin_relation is not None:
             args["assigned_to_id"] = user_plugin_relation['plan_user_id']
         try:
@@ -537,7 +532,7 @@ class Issue(object):
 
     def get_open_issue_statistics(self, user_id):
         args = {'limit': 100}
-        user_plugin_relation = auth.get_user_plugin_relation(user_id=user_id)
+        user_plugin_relation = User.get_user_plugin_relation(user_id=user_id)
         if user_plugin_relation is not None:
             args["assigned_to_id"] = user_plugin_relation['plan_user_id']
         args['status_id'] = '*'
@@ -571,7 +566,7 @@ class Issue(object):
             return {'message': 'Type error, should be week or month'}, 400
 
         args = {"due_date": "><{0}|{1}".format(from_time, to_time)}
-        user_plugin_relation = auth.get_user_plugin_relation(user_id=user_id)
+        user_plugin_relation = User.get_user_plugin_relation(user_id=user_id)
         if user_plugin_relation is not None:
             args["assigned_to_id"] = user_plugin_relation['plan_user_id']
 
