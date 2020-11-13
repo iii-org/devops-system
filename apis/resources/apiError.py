@@ -1,3 +1,6 @@
+from werkzeug.exceptions import HTTPException
+
+
 def build(err_code, message, details=None):
     if details is None:
         return {'code': err_code, 'message': message}
@@ -72,14 +75,12 @@ def already_in_project(user_id, project_id):
 
 
 # Permission errors
-# allowed_role is an array containing allowed role ids.
-def not_allowed(user_name, allowed_role):
-    return build(3001, "You don't have the permission for this operation, "
-                       "or is a PM or RD but not in this project.",
-                 {
-                     user_name: user_name,
-                     allowed_role: allowed_role
-                 })
+class NotAllowedError(HTTPException):
+    pass
+
+
+class NotInProjectError(HTTPException):
+    pass
 
 
 # Third party service errors
@@ -97,7 +98,7 @@ def rancher_error(response):
 
 # Internal errors
 def uncaught_exception(exception):
-    return build(9001, 'An exception occurs',
+    return build(9001, 'An uncaught exception has occurred.',
                  {'type': str(type(exception)), 'exception': str(exception)})
 
 
@@ -111,3 +112,17 @@ def db_error(detail_message):
 
 def unknown_error():
     return build(9999, 'An unknown error has occurred.')
+
+
+# Exception type errors, for errors those need to be aborted instantly rather than returning
+# an error response.
+custom_errors = {
+    'NotAllowedError': {
+        'error': build(3001, "Your role does not have the permission for this operation."),
+        'status': 401
+    },
+    'NotInProjectError': {
+        'error': build(3002, 'You need to be in the project for this operation.'),
+        'status': 401
+    }
+}

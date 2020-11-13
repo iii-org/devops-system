@@ -18,6 +18,7 @@ import resources.apiError as apiError
 import resources.flow as flow
 import resources.parameter as parameter
 import resources.requirement as requirement
+import resources.role as role
 import resources.testCase as testCase
 import resources.testItem as testItem
 import resources.testResult as testResult
@@ -25,16 +26,18 @@ import resources.testValue as testValue
 import resources.util as util
 from jsonwebtoken import jsonwebtoken
 from model import db
-from resources.checkmarx import CheckMarx
+import resources.checkmarx as checkmarx
 from resources.cicd import Cicd
 from resources.gitlab import GitLab
 from resources.issue import Issue as IssueResource
 from resources.pipeline import Pipeline
-from resources.project import Project as ProjectResource
+from resources.project import ProjectResource as ProjectResource
 from resources.redmine import Redmine
 from resources.user import User as UserResource
 from resources.version import Version as VersionResource
 from resources.wiki import Wiki as WikiResource
+
+import resources.project as project
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -46,7 +49,7 @@ for key in ['JWT_SECRET_KEY',
     app.config[key] = config.get(key)
 
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = datetime.timedelta(days=1)
-api = Api(app)
+api = Api(app, errors=apiError.custom_errors)
 CORS(app)
 
 
@@ -56,132 +59,31 @@ class SignedIntConverter(IntegerConverter):
 
 app.url_map.converters['sint'] = SignedIntConverter
 
+
+@app.errorhandler(Exception)
+def internal_error(e):
+    return util.respond(500, "Unexpected internal error",
+                        error=apiError.uncaught_exception(e))
+
+
 handler = handlers.TimedRotatingFileHandler(
-    'devops-api.log', when='D'
-    , interval=1, backupCount=14)
+    'devops-api.log', when='D', interval=1, backupCount=14)
 handler.setFormatter(logging.Formatter(
-    '%(asctime)s %(filename)s [line:%(lineno)d] %(levelname)s %(message)s'
-    , '%Y %b %d, %a %H:%M:%S'))
+    '%(asctime)s %(filename)s [line:%(lineno)d] %(levelname)s %(message)s',
+    '%Y %b %d, %a %H:%M:%S'))
 logger = logging.getLogger('devops.api')
 logger.setLevel(logging.DEBUG)
 logger.addHandler(handler)
 
-redmine = Redmine(app)
+redmine = Redmine()
 wk = WikiResource(redmine)
 vn = VersionResource(redmine)
-git = GitLab(app)
+git = GitLab()
 user = UserResource(redmine, git)
 pjt = ProjectResource(app, user, redmine, git)
 iss = IssueResource(pjt, redmine, user)
 pipe = Pipeline(pjt)
 ci = Cicd(pjt, iss)
-cm = CheckMarx(app)
-
-
-class TotalProjectList(Resource):
-    @jwt_required
-    def get(self):
-        role_id = get_jwt_identity()["role_id"]
-
-        if role_id in (3, 5):
-            user_id = get_jwt_identity()["user_id"]
-            try:
-                output = pjt.get_pm_project_list(logger, app, user_id)
-                return output
-            except Exception as e:
-                return {"message": str(e)}, 400
-        else:
-            return {"message": "your role art not PM/administrator"}, 401
-
-
-class CreateProject(Resource):
-    @jwt_required
-    def post(self):
-        role_id = get_jwt_identity()["role_id"]
-
-        if role_id in (3, 5):
-            user_id = get_jwt_identity()["user_id"]
-            parser = reqparse.RequestParser()
-            parser.add_argument('name', type=str, required=True)
-            parser.add_argument('display', type=str)
-            parser.add_argument('description', type=str)
-            parser.add_argument('disabled', type=bool, required=True)
-            args = parser.parse_args()
-            logger.info("post body: {0}".format(args))
-
-            pattern = "^[a-z0-9][a-z0-9-]{0,253}[a-z0-9]$"
-            result = re.fullmatch(pattern, args["name"])
-            if result is not None:
-                try:
-                    args["identifier"] = args["name"]
-                    output = pjt.pm_create_project(user_id, args)
-                    return output
-                except Exception as e:
-                    import traceback
-                    traceback.print_exc()
-                    return {"message": str(e)}, 400
-            else:
-                return util.respond(400, 'Error while creating project',
-                                    error=apiError.invalid_project_name(args['name']))
-        else:
-            return {"message": "your role art not PM/administrator"}, 401
-
-
-class Project(Resource):
-    @jwt_required
-    def get(self, project_id):
-        role_id = get_jwt_identity()["role_id"]
-
-        if role_id in (3, 5):
-            try:
-                output = pjt.pm_get_project(project_id)
-                return output
-            except Exception as e:
-                return util.respond(500, "Error when getting project info.",
-                                    error=apiError.uncaught_exception(e))
-        else:
-            return util.respond(401, "Error when getting project info.",
-                                error=apiError.not_allowed(get_jwt_identity()['user_account']
-                                                           , [3, 5]))
-
-    @jwt_required
-    def put(self, project_id):
-        role_id = get_jwt_identity()["role_id"]
-
-        if role_id in (3, 5):
-            # user_id = get_jwt_identity()["user_id"]
-            # print("user_id={0}".format(user_id))
-            parser = reqparse.RequestParser()
-            parser.add_argument('name', type=str)
-            parser.add_argument('display', type=str)
-            parser.add_argument('user_id', type=int)
-            parser.add_argument('description', type=str)
-            parser.add_argument('disabled', type=bool)
-            # parser.add_argument('homepage', type=str)
-            args = parser.parse_args()
-            logger.info("put body: {0}".format(args))
-            try:
-                output = pjt.pm_update_project(logger, app, project_id, args)
-                return output
-            except Exception as e:
-                return {"message": str(e)}, 400
-        else:
-            return {"message": "your role art not PM/administrator"}, 401
-
-    @jwt_required
-    def delete(self, project_id):
-        role_id = get_jwt_identity()["role_id"]
-
-        status = pjt.verify_project_user(logger, project_id,
-                                         get_jwt_identity()['user_id'])
-        if (role_id == 3 and status) or (role_id == 5):
-            try:
-                output = pjt.pm_delete_project(logger, app, project_id)
-                return output
-            except Exception as e:
-                return {"message": str(e)}, 400
-        else:
-            return {"message": "you are not an administrator, and you are not a PM in this project."}, 401
 
 
 class GitProjects(Resource):
@@ -203,13 +105,11 @@ class GitOneProject(Resource):
         parser.add_argument('name', type=str)
         parser.add_argument('visibility', type=str)
         args = parser.parse_args()
-        logger.info("put body: {0}".format(args))
-        output = pjt.update_git_project(logger, app, project_id, args)
+        return pjt.update_git_project(logger, app, project_id, args)
 
     @jwt_required
     def delete(self, project_id):
-        output = pjt.delete_git_project(logger, app, project_id)
-        return output.json()
+        return pjt.delete_git_project(logger, app, project_id)
 
 
 class GitProjectWebhooks(Resource):
@@ -250,8 +150,7 @@ class GitProjectWebhooks(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('hook_id', type=int)
         args = parser.parse_args()
-        logger.info("del body: {0}".format(args))
-        output = pjt.delete_git_project_webhook(logger, app, project_id, args)
+        return pjt.delete_git_project_webhook(logger, app, project_id, args)
 
 
 class ProjectsByUser(Resource):
@@ -266,6 +165,7 @@ class ProjectsByUser(Resource):
 
 
 class UserLogin(Resource):
+    # noinspection PyMethodMayBeStatic
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('username', type=str, required=True)
@@ -276,6 +176,7 @@ class UserLogin(Resource):
 
 
 class UserForgetPassword(Resource):
+    # noinspection PyMethodMayBeStatic
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('mail', type=str, required=True)
@@ -283,9 +184,10 @@ class UserForgetPassword(Resource):
         args = parser.parse_args()
         try:
             status = user.user_forgot_password(args)
-            return jsonify({"message": "success"})
+            return util.success(status)
         except Exception as err:
-            return jsonify({"message": err}), 400
+            return util.respond(500, "Error for forgot password process.",
+                                error=apiError.uncaught_exception(err))
 
 
 class UserInfo(Resource):
@@ -300,8 +202,8 @@ class UserInfo(Resource):
             return user_info
         else:
             return {
-                'message': 'you dont have authorize to update user informaion'
-            }, 401
+                       'message': 'you dont have authorize to update user informaion'
+                   }, 401
 
     @jwt_required
     def put(self, user_id):
@@ -318,57 +220,43 @@ class UserInfo(Resource):
                 output = user.update_info(user_id, args)
                 return output
             except Exception as e:
-                return jsonify({"message": str(e)}), 400
+                return util.respond_uncaught_exception(e)
         else:
             return {
-                'message': 'you dont have authorize to update user informaion'
-            }, 401
+                       'message': 'you dont have authorize to update user informaion'
+                   }, 401
 
     @jwt_required
     def delete(self, user_id):
-        '''delete user'''
-        if get_jwt_identity()["role_id"] == 5:
-            try:
-                output = user.delete_user(user_id)
-                return output
-            except Exception as e:
-                return {"message": str(e)}, 400
-        else:
-            return {"message": "your role art not administrator"}, 401
+        role.require_admin("Only admin can delete user.")
+        return user.delete_user(user_id)
 
 
 class UserStatus(Resource):
     @jwt_required
     def put(self, user_id):
-        '''Change user status'''
-        if get_jwt_identity()["role_id"] == 5:
-            parser = reqparse.RequestParser()
-            parser.add_argument('status', type=str, required=True)
-            args = parser.parse_args()
-            output = user.change_user_status(user_id, args)
-            return output
-        else:
-            return {"message": "your role art not administrator"}, 401
+        role.require_admin('Only admins can modify user.')
+        parser = reqparse.RequestParser()
+        parser.add_argument('status', type=str, required=True)
+        args = parser.parse_args()
+        output = user.change_user_status(user_id, args)
+        return output
 
 
 class User(Resource):
     @jwt_required
     def post(self):
-        '''create user'''
-        if get_jwt_identity()["role_id"] == 5:
-            parser = reqparse.RequestParser()
-            parser.add_argument('name', type=str)
-            parser.add_argument('email', type=str, required=True)
-            parser.add_argument('phone', type=str, required=True)
-            parser.add_argument('login', type=str, required=True)
-            parser.add_argument('password', type=str, required=True)
-            parser.add_argument('role_id', type=int, required=True)
-            parser.add_argument('status', type=str)
-            args = parser.parse_args()
-            output = user.create_user(args)
-            return output
-        else:
-            return {"message": "your role art not administrator"}, 401
+        role.require_admin('Only admins can create user.')
+        parser = reqparse.RequestParser()
+        parser.add_argument('name', type=str)
+        parser.add_argument('email', type=str, required=True)
+        parser.add_argument('phone', type=str, required=True)
+        parser.add_argument('login', type=str, required=True)
+        parser.add_argument('password', type=str, required=True)
+        parser.add_argument('role_id', type=int, required=True)
+        parser.add_argument('status', type=str)
+        args = parser.parse_args()
+        return user.create_user(args)
 
 
 class UserList(Resource):
@@ -397,8 +285,7 @@ class ProjectUserList(Resource):
 class ProjectAddMember(Resource):
     @jwt_required
     def post(self, project_id):
-        status = pjt.verify_project_user(logger, project_id,
-                                         get_jwt_identity()['user_id'])
+        status = pjt.verify_project_user(project_id, get_jwt_identity()['user_id'])
         if (get_jwt_identity()["role_id"] == 5) or (get_jwt_identity()["role_id"] == 3 and status):
             parser = reqparse.RequestParser()
             parser.add_argument('user_id', type=int, required=True)
@@ -422,34 +309,31 @@ class ProjectDeleteMember(Resource):
 class ProjectWikiList(Resource):
     @jwt_required
     def get(self, project_id):
-        status = pjt.verify_project_user(logger, project_id,
-                                         get_jwt_identity()['user_id'])
+        status = pjt.verify_project_user(project_id, get_jwt_identity()['user_id'])
         if status or get_jwt_identity()['role_id'] == 5:
             output = wk.get_wiki_list_by_project(project_id)
             return output
         else:
             return {
-                "message": "your are not in this project or not administrator"
-            }, 401
+                       "message": "your are not in this project or not administrator"
+                   }, 401
 
 
 class ProjectWiki(Resource):
     @jwt_required
     def get(self, project_id, wiki_name):
-        status = pjt.verify_project_user(logger,  project_id,
-                                         get_jwt_identity()['user_id'])
+        status = pjt.verify_project_user(project_id, get_jwt_identity()['user_id'])
         if status or get_jwt_identity()['role_id'] == 5:
             output, status_code = wk.get_wiki_by_project(project_id, wiki_name)
             return output, status_code
         else:
             return {
-                "message": "your are not in this project or not administrator"
-            }, 401
+                       "message": "your are not in this project or not administrator"
+                   }, 401
 
     @jwt_required
     def put(self, project_id, wiki_name):
-        status = pjt.verify_project_user(logger, project_id,
-                                         get_jwt_identity()['user_id'])
+        status = pjt.verify_project_user(project_id, get_jwt_identity()['user_id'])
         if status or get_jwt_identity()['role_id'] == 5:
             parser = reqparse.RequestParser()
             parser.add_argument('wiki_text', type=str, required=True)
@@ -458,43 +342,40 @@ class ProjectWiki(Resource):
             return output, status_code
         else:
             return {
-                "message": "your are not in this project or not administrator"
-            }, 401
+                       "message": "your are not in this project or not administrator"
+                   }, 401
 
     @jwt_required
     def delete(self, project_id, wiki_name):
-        status = pjt.verify_project_user(logger, project_id,
-                                         get_jwt_identity()['user_id'])
+        status = pjt.verify_project_user(project_id, get_jwt_identity()['user_id'])
         if status or get_jwt_identity()['role_id'] == 5:
             output, status_code = wk.delete_wiki_by_project(project_id, wiki_name)
             return output, status_code
         else:
             return {
-                "message": "your are not in this project or not administrator"
-            }, 401
+                       "message": "your are not in this project or not administrator"
+                   }, 401
 
 
 # Get Project Version List
 class ProjectVersionList(Resource):
     @jwt_required
     def get(self, project_id):
-        status = pjt.verify_project_user(logger, project_id,
-                                         get_jwt_identity()['user_id'])
+        status = pjt.verify_project_user(project_id, get_jwt_identity()['user_id'])
         if status or get_jwt_identity()['role_id'] == 5:
             output = vn.get_version_list_by_project(project_id)
             return output
         else:
             return {
-                "message": "your are not in this project or not administrator"
-            }, 401
+                       "message": "your are not in this project or not administrator"
+                   }, 401
 
 
 # Create  Project Version
 class ProjectVersion(Resource):
     @jwt_required
     def post(self, project_id):
-        status = pjt.verify_project_user(logger, project_id,
-                                         get_jwt_identity()['user_id'])
+        status = pjt.verify_project_user(project_id, get_jwt_identity()['user_id'])
         if status or get_jwt_identity()['role_id'] == 5:
             root_parser = reqparse.RequestParser()
             root_parser.add_argument('version', type=dict, required=True)
@@ -503,28 +384,26 @@ class ProjectVersion(Resource):
             return output, status_code
         else:
             return {
-                "message": "your are not in this project or not administrator"
-            }, 401
+                       "message": "your are not in this project or not administrator"
+                   }, 401
 
 
 # Get Project Version Information
 class ProjectVersionInfo(Resource):
     @jwt_required
     def get(self, project_id, version_id):
-        status = pjt.verify_project_user(logger, project_id,
-                                         get_jwt_identity()['user_id'])
+        status = pjt.verify_project_user(project_id, get_jwt_identity()['user_id'])
         if status or get_jwt_identity()['role_id'] == 5:
             output, status_code = vn.get_version_by_version_id(version_id)
             return output, status_code
         else:
             return {
-                "message": "your are not in this project or not administrator"
-            }, 401
+                       "message": "your are not in this project or not administrator"
+                   }, 401
 
     @jwt_required
     def put(self, project_id, version_id):
-        status = pjt.verify_project_user(logger, project_id,
-                                         get_jwt_identity()['user_id'])
+        status = pjt.verify_project_user(project_id, get_jwt_identity()['user_id'])
         if status or get_jwt_identity()['role_id'] == 5:
             root_parser = reqparse.RequestParser()
             root_parser.add_argument('version', type=dict, required=True)
@@ -534,20 +413,19 @@ class ProjectVersionInfo(Resource):
             return output, status_code
         else:
             return {
-                "message": "your are not in this project or not administrator"
-            }, 401
+                       "message": "your are not in this project or not administrator"
+                   }, 401
 
     @jwt_required
     def delete(self, project_id, version_id):
-        status = pjt.verify_project_user(logger, project_id,
-                                         get_jwt_identity()['user_id'])
+        status = pjt.verify_project_user(project_id, get_jwt_identity()['user_id'])
         if status or get_jwt_identity()['role_id'] == 5:
             output, status_code = vn.delete_version_by_version_id(version_id)
             return output, status_code
         else:
             return {
-                "message": "your are not in this project or not administrator"
-            }, 401
+                       "message": "your are not in this project or not administrator"
+                   }, 401
 
 
 class RoleList(Resource):
@@ -937,39 +815,28 @@ class PipelinePhaseYaml(Resource):
 class IssueByProject(Resource):
     @jwt_required
     def get(self, project_id):
-        status = pjt.verify_project_user(logger, project_id,
-                                         get_jwt_identity()['user_id'])
-        if status or get_jwt_identity()['role_id'] == 5:
-            parser = reqparse.RequestParser()
-            parser.add_argument('fixed_version_id', type=int)
-            args = parser.parse_args()
-            output, status_code = iss.get_issue_by_project(
-                logger, app, project_id, args)
-            return output, status_code
-        else:
-            return {'message': 'Dont have authorization to access issue list on project: {0}' \
-                .format(project_id)}, 401
+        role.require_in_project(project_id, 'Error to get issue.')
+        parser = reqparse.RequestParser()
+        parser.add_argument('fixed_version_id', type=int)
+        args = parser.parse_args()
+        output, status_code = iss.get_issue_by_project(
+            logger, app, project_id, args)
+        return output, status_code
 
 
 class IssueByTreeByProject(Resource):
     @jwt_required
     def get(self, project_id):
-        status = pjt.verify_project_user(logger, project_id,
-                                         get_jwt_identity()['user_id'])
-        if status or get_jwt_identity()['role_id'] == 5:
-            output, status_code = iss.get_issue_by_tree_by_project(
-                logger, app, project_id)
-            return output, status_code
-        else:
-            return {'message': 'Dont have authorization to access issue by tree on project: {0}' \
-                .format(project_id)}, 401
+        role.require_in_project(project_id, 'Error to get issue.')
+        output, status_code = iss.get_issue_by_tree_by_project(
+            logger, app, project_id)
+        return output, status_code
 
 
 class IssueByStatusByProject(Resource):
     @jwt_required
     def get(self, project_id):
-        status = pjt.verify_project_user(logger, project_id,
-                                         get_jwt_identity()['user_id'])
+        status = pjt.verify_project_user(project_id, get_jwt_identity()['user_id'])
         if status or get_jwt_identity()['role_id'] == 5:
             output, status_code = iss.get_issue_by_status_by_project(
                 logger, app, project_id)
@@ -982,8 +849,7 @@ class IssueByStatusByProject(Resource):
 class IssueByDateByProject(Resource):
     @jwt_required
     def get(self, project_id):
-        status = pjt.verify_project_user(logger, project_id,
-                                         get_jwt_identity()['user_id'])
+        status = pjt.verify_project_user(project_id, get_jwt_identity()['user_id'])
         if status or get_jwt_identity()['role_id'] == 5:
             output, status_code = iss.get_issue_by_date_by_project(
                 logger, app, project_id)
@@ -996,8 +862,7 @@ class IssueByDateByProject(Resource):
 class IssuesProgressByProject(Resource):
     @jwt_required
     def get(self, project_id):
-        status = pjt.verify_project_user(logger, project_id,
-                                         get_jwt_identity()['user_id'])
+        status = pjt.verify_project_user(project_id, get_jwt_identity()['user_id'])
         if status or get_jwt_identity()['role_id'] == 5:
             parser = reqparse.RequestParser()
             parser.add_argument('fixed_version_id', type=int)
@@ -1015,8 +880,7 @@ class IssuesProgressByProject(Resource):
 class IssuesProgressAllVersionByProject(Resource):
     @jwt_required
     def get(self, project_id):
-        status = pjt.verify_project_user(logger, project_id,
-                                         get_jwt_identity()['user_id'])
+        status = pjt.verify_project_user(project_id, get_jwt_identity()['user_id'])
         if status or get_jwt_identity()['role_id'] == 5:
             output_array = iss.get_issueProgress_allVersion_by_project(
                 logger, app, project_id)
@@ -1029,8 +893,7 @@ class IssuesProgressAllVersionByProject(Resource):
 class IssuesStatisticsByProject(Resource):
     @jwt_required
     def get(self, project_id):
-        status = pjt.verify_project_user(logger, project_id,
-                                         get_jwt_identity()['user_id'])
+        status = pjt.verify_project_user(project_id, get_jwt_identity()['user_id'])
         if status or get_jwt_identity()['role_id'] == 5:
             parser = reqparse.RequestParser()
             parser.add_argument('fixed_version_id', type=int)
@@ -1041,7 +904,7 @@ class IssuesStatisticsByProject(Resource):
                 logger, app, project_id, args)
             return output
         else:
-            return {'message': 'Dont have authorization to get issue statistics on project: {0}'\
+            return {'message': 'Dont have authorization to get issue statistics on project: {0}' \
                 .format(project_id)}, 401
 
 
@@ -1107,17 +970,8 @@ class Issue(Resource):
 
     @jwt_required
     def delete(self, issue_id):
-        status = iss.verify_issue_user(logger, app, issue_id,
-                                       get_jwt_identity()['user_id'])
-        if status or get_jwt_identity()['role_id'] == 5:
-            output = iss.delete_issue(issue_id)
-            return output
-        else:
-            return util.respond(401, "Error when deleting issues",
-                                error=apiError.not_allowed(
-                                    get_jwt_identity()['user_account'],
-                                    [1, 3, 5]
-                                ))
+        role.require_in_project("Error when deleting issues")
+        return iss.delete_issue(issue_id)
 
 
 class IssueStatus(Resource):
@@ -1311,7 +1165,7 @@ class FlowByIssue(Resource):
             requirement_id = check[0]
 
         output = flow.post_flow_by_requirement_id(int(issue_id), requirement_id, args)
-        return util.success(output, has_date=True)
+        return util.success(output, has_date_etc=True)
 
 
 # class FlowByRequirement(Resource):
@@ -1349,7 +1203,7 @@ class Flow(Resource):
     @jwt_required
     def delete(self, flow_id):
         output = flow.disabled_flow_by_flow_id(flow_id)
-        return util.success(output, has_date=True)
+        return util.success(output, has_date_etc=True)
 
     # 用requirement_id 更新目前需求流程
     @jwt_required
@@ -1361,7 +1215,7 @@ class Flow(Resource):
         parser.add_argument('description', type=str)
         args = parser.parse_args()
         output = flow.modify_flow_by_flow_id(flow_id, args)
-        return util.success(output, has_date=True)
+        return util.success(output, has_date_etc=True)
 
 
 class ParameterType(Resource):
@@ -1447,6 +1301,7 @@ class TestCaseByIssue(Resource):
         args = parser.parse_args()
         output = testCase.post_testcase_by_issue_id(issue_id, args)
         return jsonify({'message': 'success', 'data': output})
+
 
 class TestCaseByProject(Resource):
 
@@ -1669,65 +1524,6 @@ class DumpByIssue(Resource):
         return output
 
 
-class CreateCheckmarxScan(Resource):
-    @jwt_required
-    def post(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument('cm_project_id', type=int, required=True)
-        parser.add_argument('repo_id', type=int, required=True)
-        parser.add_argument('scan_id', type=int, required=True)
-        args = parser.parse_args()
-        return cm.create_scan(args)
-
-
-class GetCheckmarxLatestScan(Resource):
-    @jwt_required
-    def get(self, project_id):
-        return cm.get_latest_scan_wrapped(project_id)
-
-
-class GetCheckmarxLatestScanStats(Resource):
-    @jwt_required
-    def get(self, project_id):
-        return cm.get_latest_scan_stats_wrapped(project_id)
-
-
-class GetCheckmarxLatestReport(Resource):
-    @jwt_required
-    def get(self, project_id):
-        return cm.get_latest_report_wrapped(project_id)
-
-
-class GetCheckmarxReport(Resource):
-    @jwt_required
-    def get(self, report_id):
-        return cm.get_report(report_id)
-
-
-class GetCheckmarxScanStatus(Resource):
-    @jwt_required
-    def get(self, scan_id):
-        return cm.get_scan_status_wrapped(scan_id)
-
-
-class RegisterCheckmarxReport(Resource):
-    @jwt_required
-    def post(self, scan_id):
-        return cm.register_report(scan_id)
-
-
-class GetCheckmarxReportStatus(Resource):
-    @jwt_required
-    def get(self, report_id):
-        return cm.get_report_status_wrapped(report_id)
-
-
-class GetCheckmarxScanStatistics(Resource):
-    @jwt_required
-    def get(self, scan_id):
-        return cm.get_scan_statistics_wrapped(scan_id)
-
-
 class SonarReport(Resource):
     @jwt_required
     def get(self, project_id):
@@ -1750,7 +1546,7 @@ class GetTestSummary(Resource):
 
         if role_id in (3, 5):
             try:
-                return pjt.get_test_summary(logger, app, project_id, cm)
+                return pjt.get_test_summary(logger, app, project_id, checkmarx.CheckMarx())
             except Exception as e:
                 return {"message": str(e)}, 400
         else:
@@ -1805,11 +1601,11 @@ class SystemGitCommitID(Resource):
 
 
 # Project list
-api.add_resource(TotalProjectList, '/project/list')
+api.add_resource(project.ListMyProjects, '/project/list')
 
 # Project(redmine & gitlab & db)
-api.add_resource(CreateProject, '/project')
-api.add_resource(Project, '/project/<sint:project_id>')
+api.add_resource(project.CreateProject, '/project')
+api.add_resource(project.GetProject, '/project/<sint:project_id>')
 
 # Gitlab project
 api.add_resource(GitProjects, '/git_projects')
@@ -1946,17 +1742,17 @@ api.add_resource(GetPostmanReport, '/postman_report/<sint:project_id>')
 api.add_resource(ExportToPostman, '/export_to_postman/<sint:project_id>')
 
 # Checkmarx report generation
-api.add_resource(CreateCheckmarxScan, '/checkmarx/create_scan')
-api.add_resource(GetCheckmarxLatestScan, '/checkmarx/latest_scan/<sint:project_id>')
-api.add_resource(GetCheckmarxLatestScanStats,
+api.add_resource(checkmarx.CreateCheckmarxScan, '/checkmarx/create_scan')
+api.add_resource(checkmarx.GetCheckmarxLatestScan, '/checkmarx/latest_scan/<sint:project_id>')
+api.add_resource(checkmarx.GetCheckmarxLatestScanStats,
                  '/checkmarx/latest_scan_stats/<sint:project_id>')
-api.add_resource(GetCheckmarxLatestReport,
+api.add_resource(checkmarx.GetCheckmarxLatestReport,
                  '/checkmarx/latest_report/<sint:project_id>')
-api.add_resource(GetCheckmarxReport, '/checkmarx/report/<report_id>')
-api.add_resource(GetCheckmarxScanStatus, '/checkmarx/scan_status/<scan_id>')
-api.add_resource(GetCheckmarxScanStatistics, '/checkmarx/scan_stats/<scan_id>')
-api.add_resource(RegisterCheckmarxReport, '/checkmarx/report/<scan_id>')
-api.add_resource(GetCheckmarxReportStatus,
+api.add_resource(checkmarx.GetCheckmarxReport, '/checkmarx/report/<report_id>')
+api.add_resource(checkmarx.GetCheckmarxScanStatus, '/checkmarx/scan_status/<scan_id>')
+api.add_resource(checkmarx.GetCheckmarxScanStatistics, '/checkmarx/scan_stats/<scan_id>')
+api.add_resource(checkmarx.RegisterCheckmarxReport, '/checkmarx/report/<scan_id>')
+api.add_resource(checkmarx.GetCheckmarxReportStatus,
                  '/checkmarx/report_status/<report_id>')
 
 # Get everything by issue_id

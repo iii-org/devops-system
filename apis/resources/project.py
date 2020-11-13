@@ -3,19 +3,285 @@ import urllib
 from datetime import datetime
 
 import requests
+from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_restful import Resource, reqparse
 
 import config
-from model import db, ProjectUserRole, ProjectPluginRelation, TableProjects
-from .rancher import Rancher
-from .redmine import Redmine
-import resources.util as util
 import resources.apiError as apiError
 import resources.kubernetesClient as kubernetesClient
+import resources.util as util
+from model import db, ProjectUserRole, ProjectPluginRelation, TableProjects
+from . import role
+from .rancher import Rancher
+from .redmine import Redmine
+from .gitlab import GitLab
 
 logger = logging.getLogger(config.get('LOGGER_NAME'))
+redmine = Redmine()
+gitlab = GitLab()
 
 
-class Project(object):
+class ListMyProjects(Resource):
+    @jwt_required
+    def get(self):
+        role.require_pm()
+        user_id = get_jwt_identity()["user_id"]
+        return get_pm_project_list(user_id)
+
+
+class GetProject(Resource):
+    @jwt_required
+    def get(self, project_id):
+        role.require_pm("Error when getting project info.")
+        role.require_in_project(project_id, "Error when getting project info.")
+        return pm_get_project(project_id)
+
+    @jwt_required
+    def put(self, project_id):
+        role_id = get_jwt_identity()["role_id"]
+
+        if role_id in (3, 5):
+            # user_id = get_jwt_identity()["user_id"]
+            # print("user_id={0}".format(user_id))
+            parser = reqparse.RequestParser()
+            parser.add_argument('name', type=str)
+            parser.add_argument('display', type=str)
+            parser.add_argument('user_id', type=int)
+            parser.add_argument('description', type=str)
+            parser.add_argument('disabled', type=bool)
+            # parser.add_argument('homepage', type=str)
+            args = parser.parse_args()
+            logger.info("put body: {0}".format(args))
+            try:
+                output = pjt.pm_update_project(logger, app, project_id, args)
+                return output
+            except Exception as e:
+                return {"message": str(e)}, 400
+        else:
+            return {"message": "your role art not PM/administrator"}, 401
+
+    @jwt_required
+    def delete(self, project_id):
+        role_id = get_jwt_identity()["role_id"]
+
+        status = pjt.verify_project_user(project_id, get_jwt_identity()['user_id'])
+        if (role_id == 3 and status) or (role_id == 5):
+            try:
+                output = pjt.pm_delete_project(logger, app, project_id)
+                return output
+            except Exception as e:
+                return {"message": str(e)}, 400
+        else:
+            return {"message": "you are not an administrator, and you are not a PM in this project."}, 401
+
+
+class CreateProject(Resource):
+    @jwt_required
+    def post(self):
+        role.require_pm()
+        user_id = get_jwt_identity()["user_id"]
+        parser = reqparse.RequestParser()
+        parser.add_argument('name', type=str, required=True)
+        parser.add_argument('display', type=str)
+        parser.add_argument('description', type=str)
+        parser.add_argument('disabled', type=bool, required=True)
+        args = parser.parse_args()
+        logger.info("post body: {0}".format(args))
+
+        pattern = "^[a-z0-9][a-z0-9-]{0,253}[a-z0-9]$"
+        result = re.fullmatch(pattern, args["name"])
+        if result is not None:
+            try:
+                args["identifier"] = args["name"]
+                output = pjt.pm_create_project(user_id, args)
+                return output
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+                return {"message": str(e)}, 400
+        else:
+            return util.respond(400, 'Error while creating project',
+                                error=apiError.invalid_project_name(args['name']))
+
+
+# List all projects of a PM
+def get_pm_project_list(user_id):
+    # 查詢db該pm負責的project_id並存入project_ids array
+    result = db.engine.execute(
+        "SELECT project_id FROM public.project_user_role WHERE user_id = '{0}' "
+        "ORDER BY project_id DESC".format(user_id))
+    project_ids = result.fetchall()
+    result.close()
+    if project_ids:
+        output_array = []
+        # 用project_id依序查詢redmine的project_id
+        for project_id in project_ids:
+            project_id = project_id[0]
+            if project_id is not None and project_id != -1:
+                result = db.engine.execute(
+                    "SELECT plan_project_id FROM public.project_plugin_relation WHERE "
+                    "project_id = '{0}'".format(project_id))
+                fetch = result.fetchone()
+                if fetch is None:
+                    continue
+                plan_project_id = fetch[0]
+                result.close()
+
+                # 用redmine api查詢相關資訊
+                # 抓專案最近更新時間
+                output1 = redmine.rm_get_project(plan_project_id)
+                # 抓專案狀態＆專案工作進度＆進度落後數目
+                output2 = redmine.rm_get_issues_by_project(plan_project_id)
+                closed_count = 0
+                overdue_count = 0
+                for issue in output2["issues"]:
+                    if issue["status"]["name"] == "Closed":
+                        closed_count += 1
+                    if issue["due_date"] != None:
+                        if (datetime.today() > datetime.strptime(
+                                issue["due_date"], "%Y-%m-%d")) == True:
+                            overdue_count += 1
+
+                project_status = "進行中"
+                if output2["total_count"] == 0: project_status = "未開始"
+                if closed_count == output2[
+                    "total_count"] and output2["total_count"] != 0:
+                    project_status = "已結案"
+
+                # 查詢專案名稱＆專案說明＆專案狀態
+                result = db.engine.execute(
+                    "SELECT * FROM public.projects WHERE id = '{0}'".
+                        format(project_id))
+                project_info = result.fetchone()
+                result.close()
+
+                # 查詢專案負責人id & name
+                result = db.engine.execute(
+                    "SELECT user_id FROM public.project_user_role WHERE project_id = '{0}' AND role_id = '{1}'"
+                        .format(project_id, 3))
+                user_id = result.fetchone()[0]
+                result.close()
+
+                result = db.engine.execute(
+                    "SELECT name FROM public.user WHERE id = '{0}'".format(
+                        user_id))
+                user_name = result.fetchone()[0]
+                result.close()
+
+                # # 查詢sonar_quality_score
+                # project_name = project_info["name"]
+                # # print(project_name)
+                # # project_name = "devops-flask"
+                # url = "http://{0}/api/measures/component?component={1}&metricKeys=reliability_rating,security_rating,security_review_rating,sqale_rating".format( \
+                #     config.get("SONAR_IP_PORT"), project_name)
+                # logger.info("get sonar report url: {0}".format(url))
+                # output = requests.get(url,
+                #                       headers=self.headers,
+                #                       verify=False)
+                # logger.info("get sonar report output: {0} / {1}".format(
+                #     output, output.json()))
+                # quality_score = None
+                # if output.status_code == 200:
+                #     quality_score = 0
+                #     data_list = output.json()["component"]["measures"]
+                #     for data in data_list:
+                #         # print(type(data["value"]))
+                #         rating = float(data["value"])
+                #         quality_score += (
+                #                                  6 - rating) * 5  # A-25, B-20, C-15, D-10, E-5
+
+                redmine_url = "http://{0}/projects/{1}".format(config.get("REDMINE_IP_PORT"), plan_project_id)
+                project_output = {
+                    "id": project_id,
+                    "name": project_info["name"],
+                    "display": project_info["display"],
+                    "description": project_info["description"],
+                    "git_url": project_info["http_url"],
+                    "redmine_url": redmine_url,
+                    "disabled": project_info["disabled"],
+                    "pm_user_id": user_id,
+                    "pm_user_name": user_name,
+                    "updated_time": output1["project"]["updated_on"],
+                    "project_status": project_status,
+                    "closed_count": closed_count,
+                    "total_count": output2["total_count"],
+                    "overdue_count": overdue_count,
+                    # "quality_score": quality_score
+                }
+
+                output_array.append(project_output)
+
+        return {
+                   "message": "success",
+                   "data": {
+                       "project_list": output_array
+                   }
+               }, 200
+    else:
+        return {"message": "Could not get data from db"}, 400
+
+
+# 用project_id查詢db的相關table欄位資訊
+def pm_get_project(project_id):
+    plan_project_id = get_plan_project_id(project_id)
+    # 查詢專案名稱＆專案說明＆＆專案狀態
+    if plan_project_id < 0:
+        return util.respond(404, 'Error when getting project info.',
+                            error=apiError.project_not_found(project_id))
+    result = db.engine.execute(
+        "SELECT * FROM public.projects as pj, public.project_plugin_relation as ppr "
+        "WHERE pj.id = '{0}' AND pj.id = ppr.project_id".format(
+            project_id))
+    if result.rowcount == 0:
+        result.close()
+        return util.respond(404, 'Error when getting project info.',
+                            error=apiError.project_not_found(project_id))
+    project_info = result.fetchone()
+    result.close()
+    redmine_url = "http://{0}/projects/{1}".format(config.get("REDMINE_IP_PORT"), plan_project_id)
+    output = {
+        "project_id": project_info["project_id"],
+        "name": project_info["name"],
+        "display": project_info["display"],
+        "description": project_info["description"],
+        "disabled": project_info["disabled"],
+        "git_url": project_info["http_url"],
+        "redmine_url": redmine_url,
+        "ssh_url": project_info["ssh_url"],
+        "repository_id": project_info["git_repository_id"],
+    }
+    # 查詢專案負責人
+    result = db.engine.execute(
+        "SELECT user_id FROM public.project_user_role WHERE project_id = '{0}'"
+        " AND role_id = '{1}'".format(project_id, 3))
+    user_id = result.fetchone()[0]
+    result.close()
+
+    result = db.engine.execute(
+        "SELECT name FROM public.user WHERE id = '{0}'".format(user_id))
+    user_name = result.fetchone()[0]
+    result.close()
+    output["pm_user_id"] = user_id
+    output["pm_user_name"] = user_name
+
+    return util.success(output)
+
+
+def get_plan_project_id(project_id):
+    result = db.engine.execute(
+        "SELECT plan_project_id FROM public.project_plugin_relation"
+        " WHERE project_id = {0}".format(project_id))
+    if result.rowcount > 0:
+        project = result.fetchone()
+        ret = project['plan_project_id']
+    else:
+        ret = -1
+    result.close()
+    return ret
+
+
+
+class ProjectResource(object):
     private_token = None
     headers = {'Content-Type': 'application/json'}
 
@@ -27,7 +293,8 @@ class Project(object):
         self.gitlab = gitlab
         self.private_token = gitlab.private_token
 
-    def verify_project_user(self, logger, project_id, user_id):
+    @staticmethod
+    def verify_project_user(project_id, user_id):
         if util.is_dummy_project(project_id):
             return True
         select_project_user_role_command = db.select([ProjectUserRole.stru_project_user_role]) \
@@ -137,19 +404,6 @@ class Project(object):
         project = result.fetchone()
         result.close()
         return project
-
-    @staticmethod
-    def get_plan_project_id(project_id):
-        result = db.engine.execute(
-            "SELECT plan_project_id FROM public.project_plugin_relation"
-            " WHERE project_id = {0}".format(project_id))
-        if result.rowcount > 0:
-            project = result.fetchone()
-            ret = project['plan_project_id']
-        else:
-            ret = -1
-        result.close()
-        return ret
 
     def get_projects_by_user(self, logger, app, user_id):
         output_array = []
@@ -736,132 +990,6 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
             traceback.print_exc()
             return {"message": repr(error)}, 400
 
-    # 查詢pm的project list
-    def get_pm_project_list(self, logger, app, user_id):
-        # 查詢db該pm負責的project_id並存入project_ids array
-        result = db.engine.execute(
-            "SELECT project_id FROM public.project_user_role WHERE user_id = '{0}' ORDER BY project_id DESC"
-                .format(user_id))
-        project_ids = result.fetchall()
-        result.close()
-        if project_ids:
-            output_array = []
-            # 用project_id依序查詢redmine的project_id
-            for project_id in project_ids:
-                project_id = project_id[0]
-                if project_id is not None and project_id != -1:
-                    result = db.engine.execute(
-                        "SELECT plan_project_id FROM public.project_plugin_relation WHERE project_id = '{0}'"
-                            .format(project_id))
-                    fetch = result.fetchone()
-                    if fetch is None:
-                        continue
-                    plan_project_id = fetch[0]
-                    result.close()
-
-                    ## 用redmine api查詢相關資訊
-                    # 抓專案最近更新時間
-                    url1 = "http://{0}/projects/{1}.json?key={2}&limit=1000".format(
-                        config.get("REDMINE_IP_PORT"), plan_project_id,
-                        config.get("REDMINE_API_KEY"))
-                    output1 = requests.get(url1,
-                                           headers=self.headers,
-                                           verify=False).json()
-                    # 抓專案狀態＆專案工作進度＆進度落後數目
-                    url2 = "http://{0}/issues.json?key={1}&project_id={2}&limit=1000".format(
-                        config.get("REDMINE_IP_PORT"),
-                        config.get("REDMINE_API_KEY"), plan_project_id)
-                    output2 = requests.get(url2,
-                                           headers=self.headers,
-                                           verify=False).json()
-                    closed_count = 0
-                    overdue_count = 0
-                    for issue in output2["issues"]:
-                        if issue["status"]["name"] == "Closed":
-                            closed_count += 1
-                        if issue["due_date"] != None:
-                            if (datetime.today() > datetime.strptime(
-                                    issue["due_date"], "%Y-%m-%d")) == True:
-                                overdue_count += 1
-
-                    project_status = "進行中"
-                    if output2["total_count"] == 0: project_status = "未開始"
-                    if closed_count == output2[
-                        "total_count"] and output2["total_count"] != 0:
-                        project_status = "已結案"
-
-                    # 查詢專案名稱＆專案說明＆專案狀態
-                    result = db.engine.execute(
-                        "SELECT * FROM public.projects WHERE id = '{0}'".
-                            format(project_id))
-                    project_info = result.fetchone()
-                    result.close()
-
-                    # 查詢專案負責人id & name
-                    result = db.engine.execute(
-                        "SELECT user_id FROM public.project_user_role WHERE project_id = '{0}' AND role_id = '{1}'"
-                            .format(project_id, 3))
-                    user_id = result.fetchone()[0]
-                    result.close()
-
-                    result = db.engine.execute(
-                        "SELECT name FROM public.user WHERE id = '{0}'".format(
-                            user_id))
-                    user_name = result.fetchone()[0]
-                    result.close()
-
-                    # 查詢sonar_quality_score
-                    project_name = project_info["name"]
-                    # print(project_name)
-                    # project_name = "devops-flask"
-                    url = "http://{0}/api/measures/component?component={1}&metricKeys=reliability_rating,security_rating,security_review_rating,sqale_rating".format( \
-                        config.get("SONAR_IP_PORT"), project_name)
-                    logger.info("get sonar report url: {0}".format(url))
-                    output = requests.get(url,
-                                          headers=self.headers,
-                                          verify=False)
-                    logger.info("get sonar report output: {0} / {1}".format(
-                        output, output.json()))
-                    quality_score = None
-                    if output.status_code == 200:
-                        quality_score = 0
-                        data_list = output.json()["component"]["measures"]
-                        for data in data_list:
-                            # print(type(data["value"]))
-                            rating = float(data["value"])
-                            quality_score += (
-                                                     6 - rating) * 5  # A-25, B-20, C-15, D-10, E-5
-
-                    redmine_url = "http://{0}/projects/{1}".format(config.get("REDMINE_IP_PORT"), plan_project_id)
-                    project_output = {
-                        "id": project_id,
-                        "name": project_info["name"],
-                        "display": project_info["display"],
-                        "description": project_info["description"],
-                        "git_url": project_info["http_url"],
-                        "redmine_url": redmine_url,
-                        "disabled": project_info["disabled"],
-                        "pm_user_id": user_id,
-                        "pm_user_name": user_name,
-                        "updated_time": output1["project"]["updated_on"],
-                        "project_status": project_status,
-                        "closed_count": closed_count,
-                        "total_count": output2["total_count"],
-                        "overdue_count": overdue_count,
-                        "quality_score": quality_score
-                    }
-
-                    output_array.append(project_output)
-
-            return {
-                       "message": "success",
-                       "data": {
-                           "project_list": output_array
-                       }
-                   }, 200
-        else:
-            return {"message": "Could not get data from db"}, 400
-
     # 用project_id查詢redmine的單一project
     def get_redmine_one_project(self, logger, app, project_id):
         url = "http://{0}/projects/{1}.json?key={2}".format(
@@ -971,51 +1099,6 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                        "git_repository_id": gitlab_pj_id
                    }
                }, 200
-
-    # 用project_id查詢db的相關table欄位資訊
-    def pm_get_project(self, project_id):
-        plan_project_id = self.get_plan_project_id(project_id)
-        # 查詢專案名稱＆專案說明＆＆專案狀態
-        if plan_project_id < 0:
-            return util.respond(404, 'Error when getting project info.',
-                                error=apiError.project_not_found(project_id))
-        result = db.engine.execute(
-            "SELECT * FROM public.projects as pj, public.project_plugin_relation as ppr "
-            "WHERE pj.id = '{0}' AND pj.id = ppr.project_id".format(
-                project_id))
-        if result.rowcount == 0:
-            result.close()
-            return util.respond(404, 'Error when getting project info.',
-                                error=apiError.project_not_found(project_id))
-        project_info = result.fetchone()
-        result.close()
-        redmine_url = "http://{0}/projects/{1}".format(config.get("REDMINE_IP_PORT"), plan_project_id)
-        output = {
-            "project_id": project_info["project_id"],
-            "name": project_info["name"],
-            "display": project_info["display"],
-            "description": project_info["description"],
-            "disabled": project_info["disabled"],
-            "git_url": project_info["http_url"],
-            "redmine_url": redmine_url,
-            "ssh_url": project_info["ssh_url"],
-            "repository_id": project_info["git_repository_id"],
-        }
-        # 查詢專案負責人
-        result = db.engine.execute(
-            "SELECT user_id FROM public.project_user_role WHERE project_id = '{0}' AND role_id = '{1}'"
-                .format(project_id, 3))
-        user_id = result.fetchone()[0]
-        result.close()
-
-        result = db.engine.execute(
-            "SELECT name FROM public.user WHERE id = '{0}'".format(user_id))
-        user_name = result.fetchone()[0]
-        result.close()
-        output["pm_user_id"] = user_id
-        output["pm_user_name"] = user_name
-
-        return {"message": "success", "data": output}, 200
 
     # 修改redmine & gitlab的project資訊
     def pm_update_project(self, logger, app, project_id, args):

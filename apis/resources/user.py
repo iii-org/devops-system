@@ -11,7 +11,7 @@ import resources.util as util
 from model import User as UserModel
 from model import db, UserPluginRelation, ProjectUserRole, TableProjects, ProjectPluginRelation, \
     TableRolesPluginRelation
-from .project import Project
+from .project import ProjectResource
 
 logger = logging.getLogger(config.get('LOGGER_NAME'))
 
@@ -47,7 +47,7 @@ def get_3pt_user_ids(user_id, message):
 
 
 def get_3pt_project_ids(project_id, message):
-    project_relation = Project.get_project_plugin_relation(project_id)
+    project_relation = ProjectResource.get_project_plugin_relation(project_id)
     if project_relation is None:
         return util.respond(400, message,
                             error=apiError.project_not_found(project_id)), None, None

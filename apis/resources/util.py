@@ -3,6 +3,7 @@ import time
 from datetime import datetime
 
 import requests
+from flask import jsonify
 from flask_restful import reqparse
 
 from model import db
@@ -28,12 +29,13 @@ def is_dummy_project(project_id):
 
 
 # Return 200 and success message, can with data.
+# If the data may contain date or other non-JSON-serializable objects, turn has_date_etc True.
 # If you need to return 201, 204 or other success, use #respond.
-def success(data=None, has_date=False):
+def success(data=None, has_date_etc=False):
     if data is None:
         return {'message': 'success'}, 200
     else:
-        if has_date:
+        if has_date_etc:
             return {'message': 'success', 'data': json.loads(json.dumps(data, cls=DateEncoder))}, 200
         else:
             return {'message': 'success', 'data': data}, 200
@@ -60,6 +62,11 @@ def respond_request_style(status_code, message=None, data=None, error=None):
     ret = respond(status_code, message, data, error)
     ret[0]['status_code'] = ret[1]
     return ret[0]
+
+
+def respond_uncaught_exception(exception, message='An uncaught exception occurs:'):
+    return respond(500, message,
+                   error=apiError.uncaught_exception(exception))
 
 
 class DateEncoder(json.JSONEncoder):

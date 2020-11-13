@@ -19,8 +19,7 @@ class Redmine:
     redmine_key = None
     headers = {'Content-Type': 'application/json'}
 
-    def __init__(self, app):
-        self.app = app
+    def __init__(self):
         self.headers = {'Content-Type': 'application/json'}
         self.key_generated = 0.0
         self.last_operator_id = None
@@ -94,20 +93,23 @@ class Redmine:
         self.redmine_key = output.json()['user']['api_key']
         logger.info("redmine_key: {0}".format(self.redmine_key))
 
+    def rm_get_project(self, plan_project_id):
+        return self.__api_get('/projects/{0}'.format(plan_project_id),
+                              params={'limit': 1000})
+
     def rm_get_issues_by_user(self, user_id):
-        params = {'assigned_to_id': user_id, 'limit': 100, 'status_id': '*'}
+        params = {'assigned_to_id': user_id, 'limit': 1000, 'status_id': '*'}
         output = self.__api_get('/issues', params=params)
         logger.info("get issues by output: {0}".format(output.json()))
         return output.json()
 
     def rm_get_issues_by_project(self, plan_project_id, args=None):
-        if 'fixed_version_id' in args:
+        if args is not None and 'fixed_version_id' in args:
             params = {'project_id': plan_project_id, 'limit': 1000, 'status_id': '*',
                       'fixed_version_id': args['fixed_version_id']}
         else:
             params = {'project_id': plan_project_id, 'limit': 1000, 'status_id': '*'}
-        output = self.__api_get('/issues', params=params)
-        return output.json()
+        return self.__api_get('/issues', params=params)
 
     def rm_get_issues_by_project_and_user(self, user_id, plan_project_id):
         params = {

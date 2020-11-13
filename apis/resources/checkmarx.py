@@ -1,12 +1,15 @@
-from model import db
+import config
 import datetime
-import logging, config
+import logging
+import time
+from io import BytesIO
+
 import requests
 from flask import send_file
-from io import BytesIO
-import time
+from flask_jwt_extended import jwt_required
+from flask_restful import Resource, reqparse
 
-from resources import util
+from model import db
 
 logger = logging.getLogger('devops.api')
 
@@ -16,10 +19,7 @@ def build_url(path):
 
 
 class CheckMarx(object):
-    headers = {'Content-Type': 'application/json'}
-
-    def __init__(self, app):
-        self.app = app
+    def __init__(self):
         self.access_token = None
         self.expire_at = 0
 
@@ -100,9 +100,8 @@ class CheckMarx(object):
                 report_id, scan_id)
         )
         if r.status_code % 100 == 2:
-            return {'message': 'success', 'data':
-                {'scanId': scan_id, 'reportId': report_id}
-                    }, r.status_code
+            return {'message': 'success',
+                    'data': {'scanId': scan_id, 'reportId': report_id}}, r.status_code
         else:
             return {'message': 'error'}, r.status_code
 
@@ -112,8 +111,8 @@ class CheckMarx(object):
             db.engine.execute(
                 "UPDATE public.checkmarx "
                 "SET finished_at='{0}', finished=true "
-                "WHERE report_id={1}"
-                    .format(datetime.datetime.now(), report_id)
+                "WHERE report_id={1}".format(
+                    datetime.datetime.now(), report_id)
             )
         return status.get('id'), status.get('value')
 
@@ -160,8 +159,7 @@ class CheckMarx(object):
             'SELECT {0} FROM public.checkmarx '
             ' WHERE repo_id={1}'
             ' ORDER BY run_at DESC'
-            ' LIMIT 1'
-                .format(column, repo_id)
+            ' LIMIT 1'.format(column, repo_id)
         )
         if cursor.rowcount == 0:
             return -1
@@ -222,3 +220,65 @@ class CheckMarx(object):
             'report_id': report_id
         }
                 }, 200
+
+
+cm = CheckMarx()
+
+
+class CreateCheckmarxScan(Resource):
+    @jwt_required
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('cm_project_id', type=int, required=True)
+        parser.add_argument('repo_id', type=int, required=True)
+        parser.add_argument('scan_id', type=int, required=True)
+        args = parser.parse_args()
+        return cm.create_scan(args)
+
+
+class GetCheckmarxLatestScan(Resource):
+    @jwt_required
+    def get(self, project_id):
+        return cm.get_latest_scan_wrapped(project_id)
+
+
+class GetCheckmarxLatestScanStats(Resource):
+    @jwt_required
+    def get(self, project_id):
+        return cm.get_latest_scan_stats_wrapped(project_id)
+
+
+class GetCheckmarxLatestReport(Resource):
+    @jwt_required
+    def get(self, project_id):
+        return cm.get_latest_report_wrapped(project_id)
+
+
+class GetCheckmarxReport(Resource):
+    @jwt_required
+    def get(self, report_id):
+        return cm.get_report(report_id)
+
+
+class GetCheckmarxScanStatus(Resource):
+    @jwt_required
+    def get(self, scan_id):
+        return cm.get_scan_status_wrapped(scan_id)
+
+
+class RegisterCheckmarxReport(Resource):
+    @jwt_required
+    def post(self, scan_id):
+        return cm.register_report(scan_id)
+
+
+class GetCheckmarxReportStatus(Resource):
+    @jwt_required
+    def get(self, report_id):
+        return cm.get_report_status_wrapped(report_id)
+
+
+class GetCheckmarxScanStatistics(Resource):
+    @jwt_required
+    def get(self, scan_id):
+        return cm.get_scan_statistics_wrapped(scan_id)

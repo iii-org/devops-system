@@ -11,10 +11,8 @@ logger = logging.getLogger(config.get('LOGGER_NAME'))
 
 class GitLab(object):
     private_token = None
-    headers = {'Content-Type': 'application/json'}
 
-    def __init__(self, app):
-        self.app = app
+    def __init__(self):
         if config.get("GITLAB_API_VERSION") == "v3":
             # get gitlab admin token
             url = "http://{0}/api/v3/session".format(config.get("GITLAB_IP_PORT"))
@@ -24,7 +22,7 @@ class GitLab(object):
             }
             output = requests.post(url,
                                    data=json.dumps(param),
-                                   headers=self.headers,
+                                   headers={'Content-Type': 'application/json'},
                                    verify=False)
             self.private_token = output.json()['private_token']
         else:

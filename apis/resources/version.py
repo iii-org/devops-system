@@ -3,7 +3,7 @@ import logging
 import config
 import resources.apiError as apiError
 import resources.util as util
-from .project import Project
+from .project import ProjectResource
 
 logger = logging.getLogger(config.get('LOGGER_NAME'))
 
@@ -18,7 +18,7 @@ class Version(object):
     def get_version_list_by_project(self, project_id):
         if util.is_dummy_project(project_id):
             return util.success(Version.EMPTY_VERSIONS)
-        project_plugin_relation = Project.get_project_plugin_relation(project_id)
+        project_plugin_relation = ProjectResource.get_project_plugin_relation(project_id)
         if project_plugin_relation is not None:
             version_list, status_code = self.redmine.rm_get_version_list(
                 project_plugin_relation['plan_project_id'])
@@ -32,7 +32,7 @@ class Version(object):
                                 error=apiError.project_not_found(project_id))
 
     def post_version_by_project(self, project_id, message_args):
-        project_plugin_relation = Project.get_project_plugin_relation(project_id)
+        project_plugin_relation = ProjectResource.get_project_plugin_relation(project_id)
         if project_plugin_relation is not None:
             version, status_code = self.redmine.rm_post_version(project_plugin_relation['plan_project_id'],
                                                                 message_args)
