@@ -123,6 +123,19 @@ class GitLab(object):
     def gl_get_tags(self, repo_id):
         return self.__api_get('/projects/{0}/repository/tags'.format(repo_id))
 
+    def gl_create_rancher_pipeline_yaml(self, repo_id, args, method):
+        path = '/projects/{0}/repository/files/{1}'.format(repo_id, args["file_path"])
+        params = {}
+        for key in ['branch', 'start_branch', 'encoding', 'author_email',
+                    'author_name', 'content', 'commit_message']:
+            params[key] = args[key]
+        return self.__api_request(method, path, params=params)
+
+    def gl_get_project_file_for_pipeline(self, project_id, args):
+        return self.__api_get('/projects/{0}/repository/files/{1}'.format(
+            project_id, args["file_path"]
+        ), params={'ref': args["branch"]})
+
     # Not used now, skipping refactor
     # def gl_get_branches(self, repo_id):
     #     output = self.__api_get('/projects/{0}/repository/branches'.format(repo_id))

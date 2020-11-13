@@ -192,3 +192,5 @@ class Rancher(object):
         project_id = self.rc_get_project_id()
         output = self.__api_get('/projects/{0}/pipelines'.format(project_id))
         return output.json()['data']
+
+

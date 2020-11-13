@@ -31,7 +31,7 @@ import resources.checkmarx as checkmarx
 from resources.cicd import Cicd
 from resources.gitlab import GitLab
 from resources.issue import Issue as IssueResource
-from resources.pipeline import Pipeline
+import resources.pipeline as pipeline
 from resources.project import ProjectResource as ProjectResource
 from resources.redmine import Redmine
 from resources.user import User as UserResource
@@ -76,7 +76,7 @@ git = GitLab()
 user = UserResource(redmine, git)
 pjt = ProjectResource(app, user, redmine, git)
 iss = IssueResource(pjt, redmine, user)
-pipe = Pipeline(pjt)
+pipe = Pipeline()
 ci = Cicd(pjt, iss)
 
 
@@ -723,7 +723,7 @@ class GitProjectId(Resource):
 class PipelineExec(Resource):
     @jwt_required
     def get(self, repository_id):
-        output_array = pipe.pipeline_exec_list(repository_id)
+        output_array = pipeline.pipeline_exec_list(repository_id)
         return jsonify({'message': 'success', 'data': output_array})
 
 
@@ -734,13 +734,13 @@ class PipelineExecLogs(Resource):
         parser.add_argument('repository_id', type=int, required=True)
         parser.add_argument('pipelines_exec_run', type=int, required=True)
         args = parser.parse_args()
-        return pipe.pipeline_exec_logs(args)
+        return pipeline.pipeline_exec_logs(args)
 
 
 class PipelineSoftware(Resource):
     @jwt_required
     def get(self):
-        pipe_out_list = pipe.pipeline_software()
+        pipe_out_list = pipeline.pipeline_software()
         output_list = []
         for pipe_out in pipe_out_list:
             if 'detail' in pipe_out:
@@ -753,7 +753,7 @@ class PipelineSoftware(Resource):
 class PipelineYaml(Resource):
     @jwt_required
     def get(self, repository_id, branch_name):
-        output_array = pipe.get_ci_yaml(repository_id, branch_name)
+        output_array = pipeline.get_ci_yaml(repository_id, branch_name)
         return output_array
 
     @jwt_required
@@ -761,14 +761,14 @@ class PipelineYaml(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('detail')
         args = parser.parse_args()
-        output = pipe.generate_ci_yaml(args, repository_id, branch_name)
+        output = pipeline.generate_ci_yaml(args, repository_id, branch_name)
         return output
 
 
 class PipelinePhaseYaml(Resource):
     @jwt_required
     def get(self, repository_id, branch_name):
-        return pipe.get_phase_yaml(repository_id, branch_name)
+        return pipeline.get_phase_yaml(repository_id, branch_name)
 
 
 class IssueByProject(Resource):

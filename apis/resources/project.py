@@ -600,7 +600,6 @@ def get_projects_by_user(user_id):
             next_d_time = min(
                 issue_due_date_list,
                 key=lambda d: abs(d - datetime.now()))
-        logger.info("next_d_time: {0}".format(next_d_time))
         if next_d_time is not None:
             output_dict['next_d_time'] = next_d_time.isoformat()
 
@@ -1042,32 +1041,6 @@ class ProjectResource(object):
                            }, output_extra.status_code
         else:
             return {"message": output.json()["message"]}, output.status_code
-
-    def create_ranhcer_pipline_yaml(self, project_id, args, action):
-        url = "http://{0}/api/{1}/projects/{2}/repository/files/{3}?private_token={4}&branch={5}&\
-start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&commit_message={11}" \
-            .format(config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id, \
-                    args["file_path"], self.private_token, args["branch"], args["start_branch"], \
-                    args["encoding"], args["author_email"], args["author_name"], args["content"], \
-                    args["commit_message"])
-        if action == 'post':
-            logger.info("post project file url: {0}".format(url))
-            output = requests.post(url, headers=self.headers, verify=False)
-            logger.info("post project file output: {0}".format(output.json()))
-        else:
-            logger.info("put project file url: {0}".format(url))
-            output = requests.put(url, headers=self.headers, verify=False)
-            logger.info("put project file output: {0}".format(output.json()))
-        return output
-
-    def get_git_project_file_for_pipeline(self, project_id, args):
-        url = "http://{0}/api/{1}/projects/{2}/repository/files/{3}?private_token={4}&ref={5}".format(
-            config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id,
-            args["file_path"], self.private_token, args["branch"])
-        logger.info("get project file url: {0}".format(url))
-        output = requests.get(url, headers=self.headers, verify=False)
-        logger.info("get project file output: {0}".format(output.json()))
-        return output
 
     # 用project_id查詢project的commits
     def get_git_project_branch_commits(self, logger, project_id, branch):
