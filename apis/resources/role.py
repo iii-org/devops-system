@@ -1,6 +1,6 @@
 from flask_jwt_extended import get_jwt_identity
 
-from resources import apiError, project
+from resources import apiError, project, issue
 
 RD = 1
 PM = 3
@@ -35,8 +35,22 @@ def require_in_project(project_id,
     user_id = identity['user_id']
     if not even_admin and identity['role_id'] == ADMIN:
         return
-    status = project.verify_project_user(project_id, user_id)
-    if status:
+    check_result = project.verify_project_user(project_id, user_id)
+    if check_result:
+        return
+    else:
+        raise apiError.NotInProjectError(err_message)
+
+
+def require_issue_visible(issue_id,
+                          err_message="You don't have the permission to access this issue.",
+                          even_admin=False):
+    identity = get_jwt_identity()
+    user_id = identity['user_id']
+    if not even_admin and identity['role_id'] == ADMIN:
+        return
+    check_result = issue.verify_issue_user(issue_id, user_id)
+    if check_result:
         return
     else:
         raise apiError.NotInProjectError(err_message)

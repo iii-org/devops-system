@@ -3,11 +3,10 @@ import time
 from datetime import datetime
 
 import requests
-from flask import jsonify
 from flask_restful import reqparse
 
-from model import db
 import resources.apiError as apiError
+from model import db
 
 
 def call_sqlalchemy(command):
@@ -67,6 +66,11 @@ def respond_request_style(status_code, message=None, data=None, error=None):
 def respond_uncaught_exception(exception, message='An uncaught exception occurs:'):
     return respond(500, message,
                    error=apiError.uncaught_exception(exception))
+
+
+def respond_redmine_error(redmine_response, message):
+    return respond(redmine_response.status_code, message,
+                   error=apiError.redmine_error(redmine_response))
 
 
 class DateEncoder(json.JSONEncoder):

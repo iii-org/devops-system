@@ -25,7 +25,7 @@ import resources.testResult as testResult
 import resources.testValue as testValue
 from jsonwebtoken import jsonwebtoken
 from model import db
-from resources import project, gitlab, util
+from resources import project, gitlab, util, issue
 from resources.cicd import Cicd
 from resources.gitlab import GitLab
 from resources.issue import Issue as IssueResource
@@ -702,72 +702,6 @@ class IssuesStatisticsByProject(Resource):
                 .format(project_id)}, 401
 
 
-class IssueCreate(Resource):
-    @jwt_required
-    def post(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument('project_id', type=int, required=True)
-        parser.add_argument('tracker_id', type=int, required=True)
-        parser.add_argument('status_id', type=int, required=True)
-        parser.add_argument('priority_id', type=int, required=True)
-        parser.add_argument('subject', type=str, required=True)
-        parser.add_argument('description', type=str)
-        parser.add_argument('assigned_to_id', type=int, required=True)
-        parser.add_argument('parent_id', type=int)
-        parser.add_argument('fixed_version_id', type=int)
-        parser.add_argument('start_date', type=str, required=True)
-        parser.add_argument('due_date', type=str, required=True)
-        parser.add_argument('done_ratio', type=int, required=True)
-        parser.add_argument('estimated_hours', type=int, required=True)
-
-        # Attachment upload
-        parser.add_argument('upload_file', type=werkzeug.datastructures.FileStorage, location='files')
-        parser.add_argument('upload_filename', type=str)
-        parser.add_argument('upload_description', type=str)
-
-        args = parser.parse_args()
-        output = iss.create_issue(args, get_jwt_identity()['user_id'])
-        return output
-
-
-class Issue(Resource):
-    @jwt_required
-    def get(self, issue_id):
-        output = iss.get_issue_rd(issue_id)
-        return output
-
-    @jwt_required
-    def put(self, issue_id):
-        parser = reqparse.RequestParser()
-        parser.add_argument('assigned_to_id', type=int)
-        parser.add_argument('tracker_id', type=int)
-        parser.add_argument('status_id', type=int)
-        parser.add_argument('priority_id', type=int)
-        parser.add_argument('estimated_hours', type=int)
-        parser.add_argument('description', type=str)
-        parser.add_argument('parent_id', type=int)
-        parser.add_argument('fixed_version_id', type=int)
-        parser.add_argument('subject', type=str)
-        parser.add_argument('start_date', type=str)
-        parser.add_argument('due_date', type=str)
-        parser.add_argument('done_ratio', type=int)
-        parser.add_argument('notes', type=str)
-
-        # Attachment upload
-        parser.add_argument('upload_file', type=werkzeug.datastructures.FileStorage, location='files')
-        parser.add_argument('upload_filename', type=str)
-        parser.add_argument('upload_description', type=str)
-
-        args = parser.parse_args()
-        output = iss.update_issue_rd(logger, app, issue_id, args, get_jwt_identity()['user_id'])
-        return output
-
-    @jwt_required
-    def delete(self, issue_id):
-        role.require_in_project("Error when deleting issues")
-        return iss.delete_issue(issue_id)
-
-
 class IssueStatus(Resource):
     @jwt_required
     def get(self):
@@ -1311,13 +1245,6 @@ class ExportToPostman(Resource):
         return output
 
 
-class DumpByIssue(Resource):
-    @jwt_required
-    def get(self, issue_id):
-        output = iss.dump(logger, issue_id)
-        return output
-
-
 class SonarReport(Resource):
     @jwt_required
     def get(self, project_id):
@@ -1327,20 +1254,6 @@ class SonarReport(Resource):
             try:
                 output = pjt.get_sonar_report(logger, app, project_id)
                 return output
-            except Exception as e:
-                return {"message": str(e)}, 400
-        else:
-            return {"message": "your role art not PM/administrator"}, 401
-
-
-class GetTestSummary(Resource):
-    @jwt_required
-    def get(self, project_id):
-        role_id = get_jwt_identity()["role_id"]
-
-        if role_id in (3, 5):
-            try:
-                return pjt.get_test_summary(logger, app, project_id, checkmarx.CheckMarx())
             except Exception as e:
                 return {"message": str(e)}, 400
         else:
@@ -1407,6 +1320,7 @@ api.add_resource(ProjectVersionList, '/project/<sint:project_id>/version/list')
 api.add_resource(ProjectVersion, '/project/<sint:project_id>/version')
 api.add_resource(ProjectVersionInfo,
                  '/project/<sint:project_id>/version/<int:version_id>')
+api.add_resource(project.TestSummary, '/project/<sint:project_id>/test_summary')
 
 # Gitlab project
 api.add_resource(gitlab.GitProjectBranches, '/repositories/<repository_id>/branches')
@@ -1461,8 +1375,7 @@ api.add_resource(IssuesProgressAllVersionByProject,
                  '/project/<sint:project_id>/issues_progress/all_version')
 api.add_resource(IssuesStatisticsByProject,
                  '/project/<sint:project_id>/issues_statistics')
-api.add_resource(IssueCreate, '/issues')
-api.add_resource(Issue, '/issues/<issue_id>')
+api.add_resource(issue.SingleIssue, '/issues', '/issues/<issue_id>')
 api.add_resource(IssueStatus, '/issues_status')
 api.add_resource(IssuePrioriry, '/issues_priority')
 api.add_resource(IssueTracker, '/issues_tracker')
@@ -1537,13 +1450,10 @@ api.add_resource(checkmarx.GetCheckmarxReportStatus,
                  '/checkmarx/report_status/<report_id>')
 
 # Get everything by issue_id
-api.add_resource(DumpByIssue, '/dump_by_issue/<issue_id>')
+api.add_resource(issue.DumpByIssue, '/dump_by_issue/<issue_id>')
 
 # Get Sonarqube report by project_id
 api.add_resource(SonarReport, '/sonar_report/<sint:project_id>')
-
-# Get three test results
-api.add_resource(GetTestSummary, '/project/<sint:project_id>/test_summary')
 
 # Files
 api.add_resource(ProjectFiles, '/project/<sint:project_id>/file')

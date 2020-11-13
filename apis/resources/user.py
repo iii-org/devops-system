@@ -43,6 +43,15 @@ def get_3pt_user_ids(user_id, message):
     return None, redmine_user_id, gitlab_user_id
 
 
+def get_user_id_name_by_plan_user_id(plan_user_id):
+    command = db.select([UserPluginRelation.stru_user_plug_relation,
+                         UserModel.stru_user]).where(
+        db.and_(
+            UserPluginRelation.stru_user_plug_relation.c.plan_user_id == plan_user_id,
+            UserPluginRelation.stru_user_plug_relation.c.user_id == UserModel.stru_user.c.id))
+    return util.call_sqlalchemy(command).fetchone()
+
+
 class User(object):
     def __init__(self, redmine, git):
         self.redmine = redmine
@@ -527,11 +536,3 @@ class User(object):
             return util.respond(500, "Could not get role list",
                                 error=apiError.db_error("public.roles SELECT returns False"))
 
-    @staticmethod
-    def get_user_id_name_by_plan_user_id(plan_user_id):
-        command = db.select([UserPluginRelation.stru_user_plug_relation,
-                             UserModel.stru_user]).where(
-            db.and_(
-                UserPluginRelation.stru_user_plug_relation.c.plan_user_id == plan_user_id,
-                UserPluginRelation.stru_user_plug_relation.c.user_id == UserModel.stru_user.c.id))
-        return util.call_sqlalchemy(command).fetchone()

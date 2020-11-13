@@ -1,156 +1,229 @@
 import calendar
 from datetime import datetime, date, timedelta
 
+import werkzeug
+from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_restful import Resource, reqparse
+
 import resources.apiError as apiError
 import resources.util as util
-from resources.logger import logger
 from model import db, ProjectPluginRelation, ProjectUserRole
-from .user import User
-from resources.project import get_project_plugin_relation, get_project_by_plan_project_id, get_project_info
+from resources.logger import logger
+from . import project as project_module, role
+from .redmine import Redmine
+from .user import User, get_user_id_name_by_plan_user_id
+
+redmine = Redmine()
+
+
+def get_dict_userid():
+    result = db.engine.execute(
+        "SELECT user_id, plan_user_id FROM public.user_plugin_relation")
+    user_id_output = result.fetchall()
+    result.close()
+    user_to_plan = {}
+    plan_to_user = {}
+    for user in user_id_output:
+        user_to_plan[str(user['user_id'])] = user['plan_user_id']
+        plan_to_user[str(user['plan_user_id'])] = user['user_id']
+    return user_to_plan, plan_to_user
+
+
+def dump_by_issue(issue_id):
+    output = {}
+    tables = [
+        'requirements', 'parameters', 'flows', 'test_cases', 'test_items',
+        'test_values'
+    ]
+    for table in tables:
+        output[table] = []
+        result = db.engine.execute(
+            "SELECT * FROM public.{0} WHERE issue_id={1}".format(
+                table, issue_id))
+        keys = result.keys()
+        rows = result.fetchall()
+        result.close()
+        for row in rows:
+            ele = {}
+            for key in keys:
+                if type(row[key]) is datetime:
+                    ele[key] = str(row[key])
+                else:
+                    ele[key] = row[key]
+            output[table].append(ele)
+    return {'message': 'success', 'data': output}, 200
+
+
+def deal_with_issue_by_user_redmine_output(redmine_output):
+    output_list = {'id': redmine_output['id']}
+    project_list = project_module.get_project_by_plan_project_id(redmine_output['project']['id'])
+    project = project_module.get_project_info(project_list['project_id'])
+    project_name = project['name']
+    project_display = project['display']
+    output_list['project_id'] = project_list['project_id']
+    output_list['project_name'] = project_name
+    output_list['project_display'] = project_display
+    output_list['issue_category'] = redmine_output['tracker']['name']
+    output_list['issue_priority'] = redmine_output['priority']['name']
+    output_list['issue_status'] = redmine_output['status']['name']
+    output_list['issue_name'] = redmine_output['subject']
+    output_list['description'] = redmine_output['description']
+    output_list['updated_on'] = redmine_output['updated_on']
+    output_list['start_date'] = None
+    if 'start_date' in redmine_output:
+        output_list['start_date'] = redmine_output['start_date']
+    output_list['due_date'] = None
+    if 'due_date' in redmine_output:
+        output_list['due_date'] = redmine_output['due_date']
+    output_list['assigned_to'] = None
+    if 'assigned_to' in redmine_output:
+        user_info = get_user_id_name_by_plan_user_id(redmine_output['assigned_to']['id'])
+        if user_info is not None:
+            output_list['assigned_to'] = user_info['name']
+    output_list['parent_id'] = None
+    if 'parent' in redmine_output:
+        output_list['parent_id'] = redmine_output['parent']['id']
+    output_list['fixed_version_id'] = None
+    output_list['fixed_version_name'] = None
+    if 'fixed_version' in redmine_output:
+        output_list['fixed_version_id'] = redmine_output['fixed_version'][
+            'id']
+        output_list['fixed_version_name'] = redmine_output[
+            'fixed_version']['name']
+    logger.info(
+        "get issue by user redmine_output: {0}".format(output_list))
+    return output_list
+
+
+def __deal_with_issue_redmine_output(redmine_output):
+    project_list = project_module.get_project_by_plan_project_id(redmine_output['project']['id'])
+    if project_list is not None:
+        project_name = project_module.get_project_info(project_list['project_id'])['name']
+        redmine_output['project']['id'] = project_list['project_id']
+        redmine_output['project']['name'] = project_name
+    else:
+        redmine_output['project']['id'] = None
+        redmine_output['project']['name'] = None
+    if 'assigned_to' in redmine_output:
+        user_info = get_user_id_name_by_plan_user_id(redmine_output['assigned_to']['id'])
+        redmine_output['assigned_to'] = {'id': user_info['id'], 'name': user_info['name']}
+        redmine_output.pop('author', None)
+    redmine_output.pop('is_private', None)
+    redmine_output.pop('total_estimated_hours', None)
+    redmine_output.pop('spent_hours', None)
+    redmine_output.pop('total_spent_hours', None)
+    if 'created_on' in redmine_output:
+        redmine_output['created_date'] = redmine_output.pop('created_on')
+    if 'updated_on' in redmine_output:
+        redmine_output['updated_date'] = redmine_output.pop('updated_on')
+    redmine_output.pop('closed_on', None)
+    if 'parent' in redmine_output:
+        redmine_output['parent_id'] = redmine_output['parent']['id']
+        redmine_output.pop('parent', None)
+    if 'journals' in redmine_output:
+        i = 0
+        while i < len(redmine_output['journals']):
+            if redmine_output['journals'][i]['notes'] == "":
+                del redmine_output['journals'][i]
+            else:
+                if 'user' in redmine_output['journals'][i]:
+                    user_info = get_user_id_name_by_plan_user_id(redmine_output['journals'][i]['user']['id'])
+                    if user_info is not None:
+                        redmine_output['journals'][i]['user'] = {'id': user_info['id'], 'name': user_info['name']}
+                redmine_output['journals'][i].pop('id', None)
+                redmine_output['journals'][i].pop('private_notes', None)
+                i += 1
+    return redmine_output
+
+
+def verify_issue_user(issue_id, user_id):
+    issue_info, status_code = get_issue(issue_id)
+    project_id = issue_info['data']['project']['id']
+    select_project_user_role_command = db.select([ProjectUserRole.stru_project_user_role]) \
+        .where(db.and_(ProjectUserRole.stru_project_user_role.c.project_id == project_id,
+                       ProjectUserRole.stru_project_user_role.c.user_id == user_id))
+    ret_msg = util.call_sqlalchemy(select_project_user_role_command)
+    match_list = ret_msg.fetchall()
+    if len(match_list) > 0:
+        return True
+    else:
+        return False
+
+
+def get_issue(issue_id):
+    redmine_output_issue = redmine.rm_get_issue(issue_id)
+    if redmine_output_issue.status_code != 200:
+        return util.respond_redmine_error(redmine_output_issue,
+                                          "Error while getting issue details.")
+    output = __deal_with_issue_redmine_output(redmine_output_issue)
+    return util.success(output)
+
+
+def create_issue(args, operator_id):
+    args = {k: v for k, v in args.items() if v is not None}
+    if 'parent_id' in args:
+        args['parent_issue_id'] = args['parent_id']
+        args.pop('parent_id', None)
+    project_plugin_relation = project_module.get_project_plugin_relation(args['project_id'])
+    args['project_id'] = project_plugin_relation['plan_project_id']
+    if "assigned_to_id" in args:
+        user_plugin_relation = User.get_user_plugin_relation(user_id=args['assigned_to_id'])
+        args['assigned_to_id'] = user_plugin_relation['plan_user_id']
+
+    attachment = redmine.rm_upload(args)
+    if attachment is not None:
+        args['uploads'] = [attachment]
+
+    plan_operator_id = None
+    if operator_id is not None:
+        operator_plugin_relation = User.get_user_plugin_relation(user_id=operator_id)
+        plan_operator_id = operator_plugin_relation['plan_user_id']
+    output, status_code = redmine.rm_create_issue(args, plan_operator_id)
+    if status_code == 201:
+        return util.success({"issue_id": output.json()["issue"]["id"]})
+    else:
+        return util.respond_redmine_error(output, "Error while creating issue")
+
+
+def update_issue(issue_id, args, operator_id):
+    args = {k: v for k, v in args.items() if v is not None}
+    if 'parent_id' in args:
+        args['parent_issue_id'] = args['parent_id']
+        args.pop('parent_id', None)
+    if "assigned_to_id" in args:
+        user_plugin_relation = User.get_user_plugin_relation(user_id=args['assigned_to_id'])
+        args['assigned_to_id'] = user_plugin_relation['plan_user_id']
+
+    attachment = redmine.rm_upload(args)
+    if attachment is not None:
+        args['uploads'] = [attachment]
+    plan_operator_id = None
+    if operator_id is not None:
+        operator_plugin_relation = User.get_user_plugin_relation(user_id=operator_id)
+        plan_operator_id = operator_plugin_relation['plan_user_id']
+    output, status_code = redmine.rm_update_issue(issue_id, args, plan_operator_id)
+    if status_code == 204:
+        return util.success()
+    else:
+        return util.respond_redmine_error(output, "update issue failed.")
+
+
+def delete_issue(issue_id):
+    output, status_code = redmine.rm_delete_issue(issue_id)
+    if status_code != 204 and status_code != 404:
+        return util.respond_redmine_error(output, 'Error when deleting issue.')
+    return util.success()
 
 
 class Issue(object):
-    headers = {'Content-Type': 'application/json'}
-
-    def __init__(self, pjt, redmine, au):
-        self.pjt = pjt
-        self.redmine = redmine
-        self.au = au
-
-    def __get_dict_userid(self, logger):
-        result = db.engine.execute(
-            "SELECT user_id, plan_user_id FROM public.user_plugin_relation")
-        user_id_output = result.fetchall()
-        result.close()
-        user_to_plan = {}
-        plan_to_user = {}
-        for user in user_id_output:
-            user_to_plan[str(user['user_id'])] = user['plan_user_id']
-            plan_to_user[str(user['plan_user_id'])] = user['user_id']
-        logger.debug("user_to_plan: {0}".format(user_to_plan))
-        logger.debug("plan_to_user: {0}".format(plan_to_user))
-        return user_to_plan, plan_to_user
-
-    def __dealwith_issue_redmine_output(self, logger, redmine_output):
-        project_list = get_project_by_plan_project_id(redmine_output['project']['id'])
-        if project_list is not None:
-            project_name = self.pjt.get_project_info(project_list['project_id'])['name']
-            redmine_output['project']['id'] = project_list['project_id']
-            redmine_output['project']['name'] = project_name
-        else:
-            redmine_output['project']['id'] = None
-            redmine_output['project']['name'] = None
-        if 'assigned_to' in redmine_output:
-            userInfo = self.au.get_user_id_name_by_plan_user_id(redmine_output['assigned_to']['id'])
-            redmine_output['assigned_to'] = {'id': userInfo['id'], 'name': userInfo['name']}
-            redmine_output.pop('author', None)
-        redmine_output.pop('is_private', None)
-        redmine_output.pop('total_estimated_hours', None)
-        redmine_output.pop('spent_hours', None)
-        redmine_output.pop('total_spent_hours', None)
-        if 'created_on' in redmine_output:
-            redmine_output['created_date'] = redmine_output.pop('created_on')
-        if 'updated_on' in redmine_output:
-            redmine_output['updated_date'] = redmine_output.pop('updated_on')
-        redmine_output.pop('closed_on', None)
-        if 'parent' in redmine_output:
-            redmine_output['parent_id'] = redmine_output['parent']['id']
-            redmine_output.pop('parent', None)
-        if 'journals' in redmine_output:
-            i = 0
-            while i < len(redmine_output['journals']):
-                if redmine_output['journals'][i]['notes'] == "":
-                    del redmine_output['journals'][i]
-                else:
-                    if 'user' in redmine_output['journals'][i]:
-                        userInfo = self.au.get_user_id_name_by_plan_user_id(redmine_output['journals'][i]['user']['id'])
-                        if userInfo is not None:
-                            redmine_output['journals'][i]['user'] = {'id': userInfo['id'], 'name': userInfo['name']}
-                    redmine_output['journals'][i].pop('id', None)
-                    redmine_output['journals'][i].pop('private_notes', None)
-                    i += 1
-        logger.info("redmine issue redmine_output: {0}".format(redmine_output))
-        return redmine_output
-
-    def __dealwith_issue_by_user_redmine_output(self, logger, redmine_output):
-        output_list = {}
-        output_list['id'] = redmine_output['id']
-        project_list = get_project_by_plan_project_id(redmine_output['project']['id'])
-        project = get_project_info(logger, project_list['project_id'])
-        project_name = project['name']
-        project_display = project['display']
-        output_list['project_id'] = project_list['project_id']
-        output_list['project_name'] = project_name
-        output_list['project_display'] = project_display
-        output_list['issue_category'] = redmine_output['tracker']['name']
-        output_list['issue_priority'] = redmine_output['priority']['name']
-        output_list['issue_status'] = redmine_output['status']['name']
-        output_list['issue_name'] = redmine_output['subject']
-        output_list['description'] = redmine_output['description']
-        output_list['updated_on'] = redmine_output['updated_on']
-        output_list['start_date'] = None
-        if 'start_date' in redmine_output:
-            output_list['start_date'] = redmine_output['start_date']
-        output_list['due_date'] = None
-        if 'due_date' in redmine_output:
-            output_list['due_date'] = redmine_output['due_date']
-        output_list['assigned_to'] = None
-        if 'assigned_to' in redmine_output:
-            userInfo = self.au.get_user_id_name_by_plan_user_id(redmine_output['assigned_to']['id'])
-            if userInfo is not None:
-                output_list['assigned_to'] = userInfo['name']
-        output_list['parent_id'] = None
-        if 'parent' in redmine_output:
-            output_list['parent_id'] = redmine_output['parent']['id']
-        output_list['fixed_version_id'] = None
-        output_list['fixed_version_name'] = None
-        if 'fixed_version' in redmine_output:
-            output_list['fixed_version_id'] = redmine_output['fixed_version'][
-                'id']
-            output_list['fixed_version_name'] = redmine_output[
-                'fixed_version']['name']
-        logger.info(
-            "get issue by user redmine_output: {0}".format(output_list))
-        return output_list
-
-    def verify_issue_user(self, logger, app, issue_id, user_id):
-        # base on issus get project
-        issue_info, status_code = Issue.get_issue_rd(self, issue_id)
-        logger.debug("issue_id: {0}, issue_info: {1}".format(issue_id, issue_info))
-        project_id = issue_info['data']['project']['id']
-        logger.info("issue_info: {0}".format(issue_info))
-        select_project_user_role_command = db.select([ProjectUserRole.stru_project_user_role]) \
-            .where(db.and_(ProjectUserRole.stru_project_user_role.c.project_id == project_id, \
-                           ProjectUserRole.stru_project_user_role.c.user_id == user_id))
-        logger.debug("select_project_user_role_command: {0}".format(
-            select_project_user_role_command))
-        reMessage = util.call_sqlalchemy(select_project_user_role_command)
-        match_list = reMessage.fetchall()
-        logger.info("reMessage: {0}".format(match_list))
-        logger.info("reMessage len: {0}".format(len(match_list)))
-        if len(match_list) > 0:
-            return True
-        else:
-            return False
-
-    def get_issue_rd(self, issue_id):
-        redmine_output_issue = self.redmine.rm_get_issue(issue_id)
-        if redmine_output_issue.status_code == 200:
-            output = self.__dealwith_issue_redmine_output(
-                logger,
-                redmine_output_issue.json()['issue'])
-            return {"message": "success", "data": output}, 200
-        else:
-            return {"message": "could not get this redmine issue."}, 400
-
     def get_issue_by_project(self, logger, app, project_id, args):
         if util.is_dummy_project(project_id):
             return util.success([])
         get_project_command = db.select([ProjectPluginRelation.stru_project_plug_relation]) \
             .where(db.and_(ProjectPluginRelation.stru_project_plug_relation.c.project_id == project_id))
         logger.debug("get_project_command: {0}".format(get_project_command))
-        reMessage = util.call_sqlalchemy(get_project_command)
-        project_dict = reMessage.fetchone()
+        ret_msg = util.call_sqlalchemy(get_project_command)
+        project_dict = ret_msg.fetchone()
         logger.debug("project_list: {0}".format(project_dict))
         if project_dict is not None:
             output_array = []
@@ -158,8 +231,7 @@ class Issue(object):
                 project_dict['plan_project_id'], args)
 
             for redmine_issue in redmine_output_issue_array['issues']:
-                output_dict = self.__dealwith_issue_by_user_redmine_output(
-                    logger, redmine_issue)
+                output_dict = deal_with_issue_by_user_redmine_output(redmine_issue)
                 output_array.append(output_dict)
             return {"message": "success", "data": output_array}, 200
         else:
@@ -385,84 +457,15 @@ class Issue(object):
             return {"message": "could not get issue list"}, 400
 
     def get_issue_by_user(self, user_id):
-        user_to_plan, plan_to_user = self.__get_dict_userid(logger)
+        user_to_plan, plan_to_user = get_dict_userid(logger)
         output_array = []
         if str(user_id) not in user_to_plan:
             return util.respond(400, 'Cannot find user in redmine')
         redmine_output_issue_array = self.redmine.rm_get_issues_by_user(user_to_plan[str(user_id)])
         for redmine_issue in redmine_output_issue_array['issues']:
-            output_dict = self.__dealwith_issue_by_user_redmine_output(
-                logger, redmine_issue)
+            output_dict = deal_with_issue_by_user_redmine_output(redmine_issue)
             output_array.append(output_dict)
         return util.success(output_array)
-
-    def create_issue(self, args, operator_id):
-        args = {k: v for k, v in args.items() if v is not None}
-        if 'parent_id' in args:
-            args['parent_issue_id'] = args['parent_id']
-            args.pop('parent_id', None)
-        project_plugin_relation = get_project_plugin_relation(args['project_id'])
-        args['project_id'] = project_plugin_relation['plan_project_id']
-        if "assigned_to_id" in args:
-            user_plugin_relation = User.get_user_plugin_relation(user_id=args['assigned_to_id'])
-            args['assigned_to_id'] = user_plugin_relation['plan_user_id']
-        logger.info("args: {0}".format(args))
-
-        attachment = self.redmine.rm_upload(args)
-        if attachment is not None:
-            args['uploads'] = [attachment]
-
-        try:
-            plan_operator_id = None
-            if operator_id is not None:
-                operator_plugin_relation = User.get_user_plugin_relation(user_id=operator_id)
-                plan_operator_id = operator_plugin_relation['plan_user_id']
-            output, status_code = self.redmine.rm_create_issue(args, plan_operator_id)
-            if status_code == 201:
-                return util.success({"issue_id": output.json()["issue"]["id"]})
-            else:
-                return util.respond(status_code, "Error while creating issue",
-                                    error=apiError.redmine_error(output))
-        except Exception as error:
-            return util.respond(500, "Error while creating issue",
-                                error=apiError.uncaught_exception(error))
-
-    def update_issue_rd(self, logger, app, issue_id, args, operator_id):
-        args = {k: v for k, v in args.items() if v is not None}
-        if 'parent_id' in args:
-            args['parent_issue_id'] = args['parent_id']
-            args.pop('parent_id', None)
-        if "assigned_to_id" in args:
-            user_plugin_relation = User.get_user_plugin_relation(user_id=args['assigned_to_id'])
-            args['assigned_to_id'] = user_plugin_relation['plan_user_id']
-        logger.info("update_issue_rd args: {0}".format(args))
-
-        attachment = self.redmine.rm_upload(args)
-        if attachment is not None:
-            args['uploads'] = [attachment]
-        plan_operator_id = None
-        if operator_id is not None:
-            operator_plugin_relation = User.get_user_plugin_relation(user_id=operator_id)
-            plan_operator_id = operator_plugin_relation['plan_user_id']
-        output, status_code = self.redmine.rm_update_issue(issue_id, args, plan_operator_id)
-        if status_code == 204:
-            return {"message": "success"}, 200
-        else:
-            return util.respond(
-                400, "update issue failed",
-                error=apiError.redmine_error(output.text)
-            )
-
-    def delete_issue(self, issue_id):
-        try:
-            output, status_code = self.redmine.rm_delete_issue(issue_id)
-            if status_code != 204 and status_code != 404:
-                return util.respond(status_code, 'Error when deleting issue',
-                                    apiError.redmine_error(output.text))
-            return {"message": "success"}, 200
-        except Exception as error:
-            return util.respond(500, 'Error when deleting issue',
-                                apiError.redmine_error(str(type(error)) + ':' + error.__str__()))
 
     def get_issue_status(self):
         try:
@@ -563,7 +566,7 @@ class Issue(object):
 
         try:
             args['status_id'] = '*'
-            redmine_output, status_code = self.redmine.rm_get_statistics(args)
+            redmine_output, status_code = redmine.rm_get_statistics(args)
             if status_code != 200:
                 return {
                            'message': 'error when retrieving data from redmine',
@@ -653,26 +656,72 @@ class Issue(object):
         except Exception as error:
             return {"message": str(error)}, 400
 
-    def dump(self, logger, issue_id):
-        output = {}
-        tables = [
-            'requirements', 'parameters', 'flows', 'test_cases', 'test_items',
-            'test_values'
-        ]
-        for table in tables:
-            output[table] = []
-            result = db.engine.execute(
-                "SELECT * FROM public.{0} WHERE issue_id={1}".format(
-                    table, issue_id))
-            keys = result.keys()
-            rows = result.fetchall()
-            result.close()
-            for row in rows:
-                ele = {}
-                for key in keys:
-                    if type(row[key]) is datetime:
-                        ele[key] = str(row[key])
-                    else:
-                        ele[key] = row[key]
-                output[table].append(ele)
-        return {'message': 'success', 'data': output}, 200
+
+class SingleIssue(Resource):
+    @jwt_required
+    def get(self, issue_id):
+        role.require_issue_visible(issue_id)
+        return get_issue(issue_id)
+
+    @jwt_required
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('project_id', type=int, required=True)
+        parser.add_argument('tracker_id', type=int, required=True)
+        parser.add_argument('status_id', type=int, required=True)
+        parser.add_argument('priority_id', type=int, required=True)
+        parser.add_argument('subject', type=str, required=True)
+        parser.add_argument('description', type=str)
+        parser.add_argument('assigned_to_id', type=int, required=True)
+        parser.add_argument('parent_id', type=int)
+        parser.add_argument('fixed_version_id', type=int)
+        parser.add_argument('start_date', type=str, required=True)
+        parser.add_argument('due_date', type=str, required=True)
+        parser.add_argument('done_ratio', type=int, required=True)
+        parser.add_argument('estimated_hours', type=int, required=True)
+
+        # Attachment upload
+        parser.add_argument('upload_file', type=werkzeug.datastructures.FileStorage, location='files')
+        parser.add_argument('upload_filename', type=str)
+        parser.add_argument('upload_description', type=str)
+
+        args = parser.parse_args()
+        return create_issue(args, get_jwt_identity()['user_id'])
+
+    @jwt_required
+    def put(self, issue_id):
+        role.require_issue_visible(issue_id)
+        parser = reqparse.RequestParser()
+        parser.add_argument('assigned_to_id', type=int)
+        parser.add_argument('tracker_id', type=int)
+        parser.add_argument('status_id', type=int)
+        parser.add_argument('priority_id', type=int)
+        parser.add_argument('estimated_hours', type=int)
+        parser.add_argument('description', type=str)
+        parser.add_argument('parent_id', type=int)
+        parser.add_argument('fixed_version_id', type=int)
+        parser.add_argument('subject', type=str)
+        parser.add_argument('start_date', type=str)
+        parser.add_argument('due_date', type=str)
+        parser.add_argument('done_ratio', type=int)
+        parser.add_argument('notes', type=str)
+
+        # Attachment upload
+        parser.add_argument('upload_file', type=werkzeug.datastructures.FileStorage, location='files')
+        parser.add_argument('upload_filename', type=str)
+        parser.add_argument('upload_description', type=str)
+
+        args = parser.parse_args()
+        return update_issue(issue_id, args, get_jwt_identity()['user_id'])
+
+    @jwt_required
+    def delete(self, issue_id):
+        role.require_issue_visible(issue_id)
+        return delete_issue(issue_id)
+
+
+class DumpByIssue(Resource):
+    @jwt_required
+    def get(self, issue_id):
+        role.require_issue_visible(issue_id)
+        return dump_by_issue(issue_id)

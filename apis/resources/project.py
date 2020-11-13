@@ -12,6 +12,7 @@ import resources.util as util
 from model import db, ProjectUserRole, ProjectPluginRelation, TableProjects
 from resources.logger import logger
 from . import role
+from .checkmarx import CheckMarx
 from .gitlab import GitLab
 from .rancher import Rancher
 from .redmine import Redmine
@@ -20,6 +21,7 @@ from .user import User, get_3pt_user_ids
 redmine = Redmine()
 gitlab = GitLab()
 rancher = Rancher()
+checkmarx = CheckMarx()
 
 
 def get_project_plugin_relation(project_id):
@@ -659,6 +661,57 @@ def get_project_info(project_id):
     return util.call_sqlalchemy(select_project_cmd).fetchone()
 
 
+def get_test_summary(project_id):
+    ret = {}
+
+    # newman
+    cursor = db.engine.execute(
+        'SELECT id, total, fail FROM public.test_results '
+        ' WHERE project_id={0}'
+        ' ORDER BY id DESC'
+        ' LIMIT 1'.format(project_id))
+    if cursor.rowcount > 0:
+        row = cursor.fetchone()
+        test_id = row['id']
+        total = row['total']
+        fail = row['fail']
+        passed = total - fail
+        ret['postman'] = {
+            "id": test_id,
+            "passed": passed,
+            "failed": fail,
+            "total": total
+        }
+    else:
+        ret['postman'] = {}
+
+    # checkmarx
+    cm_json, status_code = checkmarx.get_result(project_id)
+    cm_data = {}
+    for key, value in cm_json.items():
+        if key != 'data':
+            cm_data[key] = value
+        else:
+            for k2, v2 in value.items():
+                if k2 != 'stats':
+                    cm_data[k2] = v2
+                else:
+                    for k3, v3 in v2.items():
+                        cm_data[k3] = v3
+    ret['checkmarx'] = cm_data
+
+    # sonarqube
+    # qube = self.get_sonar_report(logger, app, project_id)
+    # ret["sonarqube"] = {
+    #     "bug": 1,
+    #     "security": 1,
+    #     "security_review": 1,
+    #     "maintainability": 1
+    # }
+
+    return util.success({'test_results': ret})
+
+
 class ProjectResource(object):
     def __init__(self, app, au, redmine, gitlab):
         self.app = app
@@ -1105,58 +1158,6 @@ class ProjectResource(object):
                 error_msg_list.append(error["msg"])
             return {"message": {"errors": error_msg_list}}, output.status_code
 
-    def get_test_summary(self, logger, app, project_id, cm):
-        ret = {}
-
-        # newman
-        cursor = db.engine.execute(
-            'SELECT id, total, fail FROM public.test_results '
-            ' WHERE project_id={0}'
-            ' ORDER BY id DESC'
-            ' LIMIT 1'
-                .format(project_id))
-        if cursor.rowcount > 0:
-            row = cursor.fetchone()
-            id = row['id']
-            total = row['total']
-            fail = row['fail']
-            passed = total - fail
-            ret['postman'] = {
-                "id": id,
-                "passed": passed,
-                "failed": fail,
-                "total": total
-            }
-        else:
-            ret['postman'] = {}
-
-        # checkmarx
-        cm_json, status_code = cm.get_result(project_id)
-        cm_data = {}
-        for key, value in cm_json.items():
-            if key != 'data':
-                cm_data[key] = value
-            else:
-                for k2, v2 in value.items():
-                    if k2 != 'stats':
-                        cm_data[k2] = v2
-                    else:
-                        for k3, v3 in v2.items():
-                            cm_data[k3] = v3
-        ret['checkmarx'] = cm_data
-
-        # sonarqube
-        # qube = self.get_sonar_report(logger, app, project_id)
-        # FIXME: Fill qube values after connected
-        # ret["sonarqube"] = {
-        #     "bug": 1,
-        #     "security": 1,
-        #     "security_review": 1,
-        #     "maintainability": 1
-        # }
-
-        return {'message': 'success', 'data': {'test_results': ret}}, 200
-
 
 class ListMyProjects(Resource):
     @jwt_required
@@ -1234,3 +1235,11 @@ class ProjectsByUser(Resource):
     def get(self, user_id):
         role.require_user_himself(user_id, even_pm=False)
         return get_projects_by_user(user_id)
+
+
+class TestSummary(Resource):
+    @jwt_required
+    def get(self, project_id):
+        role.require_pm()
+        role.require_in_project(project_id)
+        return get_test_summary(project_id)
