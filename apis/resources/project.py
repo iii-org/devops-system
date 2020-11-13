@@ -605,7 +605,7 @@ def get_projects_by_user(user_id):
 
         if project['git_repository_id'] is not None:
             # branch number
-            branch_number, err = gitlab.count_branches(project['git_repository_id'])
+            branch_number, err = gitlab.gl_count_branches(project['git_repository_id'])
             if branch_number < 0:
                 return err, err.status_code
             output_dict['branch'] = branch_number
@@ -644,6 +644,21 @@ def get_ci_last_test_result(output_dict, project):
     return output_dict
 
 
+def get_project_by_plan_project_id(plan_project_id):
+    result = db.engine.execute(
+        "SELECT * FROM public.project_plugin_relation"
+        " WHERE plan_project_id = {0}".format(plan_project_id))
+    project = result.fetchone()
+    result.close()
+    return project
+
+
+def get_project_info(project_id):
+    select_project_cmd = db.select([TableProjects.stru_projects]).where(
+        db.and_(TableProjects.stru_projects.c.id == project_id))
+    return util.call_sqlalchemy(select_project_cmd).fetchone()
+
+
 class ProjectResource(object):
     def __init__(self, app, au, redmine, gitlab):
         self.app = app
@@ -671,107 +686,6 @@ class ProjectResource(object):
             return True
         else:
             return False
-
-    # 查詢所有projects
-    def get_all_git_projects(self, logger, app):
-        url = "http://{0}/api/{1}/projects?private_token={2}".format( \
-            config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), self.private_token)
-        logger.info("get all projects url: {0}".format(url))
-        output = requests.get(url, headers=self.headers, verify=False)
-        logger.info("get all projects output: {0}".format(output.json()))
-        return output
-
-    # 用project_id查詢單一project
-    def get_one_git_project(self, logger, app, project_id):
-        url = "http://{0}/api/{1}/projects/{2}?private_token={3}".format( \
-            config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id, self.private_token)
-        logger.info("get one project url: {0}".format(url))
-        output = requests.get(url, headers=self.headers, verify=False)
-        logger.info("get one project output: {0}".format(output.json()))
-        return output
-
-    # 用project_id修改單一project（name/visibility）
-    def update_git_project(self, logger, app, project_id, args):
-        url = "http://{0}/api/{1}/projects/{2}?private_token={3}&name={4}&visibility={5}".format( \
-            config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id, self.private_token,
-            args["name"], args["visibility"])
-        logger.info("update project url: {0}".format(url))
-        output = requests.put(url, headers=self.headers, verify=False)
-        logger.info("update project output: {0}".format(output))
-        return output
-
-    # 用project_id刪除單一project
-    def delete_git_project(self, logger, app, project_id):
-        url = "http://{0}/api/{1}/projects/{2}?private_token={3}".format( \
-            config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id, self.private_token)
-        logger.info("delete project url: {0}".format(url))
-        output = requests.delete(url, headers=self.headers, verify=False)
-        logger.info("delete project output: {0}".format(output.json()))
-        return output
-
-    # 用project_id查詢project的webhooks
-    def get_git_project_webhooks(self, logger, app, project_id):
-        url = "http://{0}/api/{1}/projects/{2}/hooks?private_token={3}".format( \
-            config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id, self.private_token)
-        logger.info("get project webhooks url: {0}".format(url))
-        output = requests.get(url, headers=self.headers, verify=False)
-        logger.info("get project webhooks output: {0}".format(output.json()))
-        return output
-
-    # 用project_id新增project的webhook
-    def create_git_project_webhook(self, logger, app, project_id, args):
-        url = "http://{0}/api/{1}/projects/{2}/hooks?private_token={3}&url={4}&push_events={5}&push_events_branch_filter={6}&enable_ssl_verification={7}&token={8}".format( \
-            config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id, self.private_token, \
-            args["url"], args["push_events"], args["push_events_branch_filter"], args["enable_ssl_verification"], \
-            args["token"])
-        logger.info("create project webhook url: {0}".format(url))
-        output = requests.post(url, headers=self.headers, verify=False)
-        logger.info("create project webhook output: {0}".format(output.json()))
-        return output
-
-    # 用project_id & hook_id修改project的webhook
-    def update_git_project_webhook(self, logger, app, project_id, args):
-        url = "http://{0}/api/{1}/projects/{2}/hooks/{3}?private_token={4}&url={5}&push_events={6}&push_events_branch_filter={7}&enable_ssl_verification={8}&token={9}".format( \
-            config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id, args["hook_id"],
-            self.private_token, \
-            args["url"], args["push_events"], args["push_events_branch_filter"], args["enable_ssl_verification"], \
-            args["token"])
-        logger.info("update project webhook url: {0}".format(url))
-        output = requests.put(url, headers=self.headers, verify=False)
-        logger.info("update project webhook output: {0}".format(output.json()))
-        return output
-
-    # 用project_id & hook_id刪除project的webhook
-    def delete_git_project_webhook(self, logger, app, project_id, args):
-        url = "http://{0}/api/{1}/projects/{2}/hooks/{3}?private_token={4}".format( \
-            config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id, args["hook_id"],
-            self.private_token)
-        logger.info("delete project webhook url: {0}".format(url))
-        output = requests.delete(url, headers=self.headers, verify=False)
-        logger.info("delete project webhook output: {0}".format(output))
-        return output
-
-    def get_project_by_plan_project_id(self, logger, plan_project_id):
-        result = db.engine.execute(
-            "SELECT * FROM public.project_plugin_relation \
-            WHERE plan_project_id = {0}".format(plan_project_id))
-        project = result.fetchone()
-        result.close()
-        return project
-
-    # 用project_id新增project的branch
-    def create_git_project_branch(self, logger, app, project_id, args):
-        url = "http://{0}/api/{1}/projects/{2}/repository/branches?private_token={3}&branch={4}&ref={5}".format( \
-            config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id, self.private_token,
-            args["branch"], args["ref"])
-        logger.info("create project branch url: {0}".format(url))
-        output = requests.post(url, headers=self.headers, verify=False)
-        logger.info("create project branch output: {0} / {1}".format(
-            output, output.json()))
-        if output.status_code == 201:
-            return {"message": "success", "data": output.json()}, 200
-        else:
-            return {"message": output.json()["message"]}, output.status_code
 
     # 用project_id及branch_name查詢project的branch
     def get_git_project_branch(self, logger, app, project_id, branch):
@@ -927,75 +841,6 @@ class ProjectResource(object):
         else:
             return {"message": output.json()["message"]}, output.status_code
 
-    # 用project_id及directory_path新增project的directory
-    def create_git_project_directory(self, logger, app, project_id,
-                                     directory_path, args):
-        url = "http://{0}/api/{1}/projects/{2}/repository/files/{3}?private_token={4}&branch={5}&commit_message={6}&content={7}".format( \
-            config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id, directory_path,
-            self.private_token, args["branch"], args["commit_message"], "")
-        logger.info("create project directory url: {0}".format(url))
-        output = requests.post(url, headers=self.headers, verify=False)
-        logger.info("create project directory output: {0} / {1}".format(
-            output, output.json()))
-        if output.status_code == 201:
-            return {"message": "success", "data": output.json()}, 200
-        else:
-            return {"message": output.json()["message"]}, output.status_code
-
-    # 用project_id及directory_path修改project的directory
-    def update_git_project_directory(self, logger, app, project_id,
-                                     directory_path, args):
-        url = "http://{0}/api/{1}/projects/{2}/repository/files/{3}?private_token={4}&branch={5}&commit_message={6}&author_name={7}&author_email={8}&encoding={9}&content={10}".format( \
-            config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id, directory_path,
-            self.private_token, args["branch"], args["commit_message"], args["author_name"], args["author_email"],
-            args["encoding"], args["content"])
-        logger.info("update project directory url: {0}".format(url))
-        output = requests.put(url, headers=self.headers, verify=False)
-        logger.info("update project directory output: {0} / {1}".format(
-            output, output.json()))
-        if output.status_code == 200:
-            return {"message": "success", "data": output.json()}, 200
-        else:
-            return {"message": output.json()["message"]}, output.status_code
-
-    # 用project_id及directory_path刪除project的directory
-    def delete_git_project_directory(self, logger, app, project_id,
-                                     directory_path, args):
-        # 查詢directory的files
-        url = "http://{0}/api/{1}/projects/{2}/repository/tree?private_token={3}&ref={4}&path={5}".format( \
-            config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id, self.private_token,
-            args["branch"], directory_path)
-        logger.info("get project directoryfiles url: {0}".format(url))
-        output1 = requests.get(url, headers=self.headers, verify=False)
-        logger.info("get project directoryfiles output: {0} / {1}".format(
-            output1, output1.json()))
-        if output1.status_code == 200:
-            # 依序刪除directory的files
-            try:
-                for file in output1.json():
-                    path_encode = urllib.parse.quote(file["path"], safe='')
-                    print(path_encode)
-                    url = "http://{0}/api/{1}/projects/{2}/repository/files/{3}?private_token={4}&branch={5}&commit_message={6}".format( \
-                        config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id, path_encode,
-                        self.private_token, args["branch"], args["commit_message"])
-                    logger.info(
-                        "delete project directory url: {0}".format(url))
-                    output2 = requests.delete(url,
-                                              headers=self.headers,
-                                              verify=False)
-                    logger.info(
-                        "delete project directory output: {0}".format(output2))
-                if output2.status_code == 204:
-                    return {"message": "success"}, 200
-                else:
-                    return {
-                               "message": output2.json()["message"]
-                           }, output2.status_code
-            except Exception as error:
-                return {"message": str(error)}, 400
-        else:
-            return {"message": output1.json()["message"]}, output1.status_code
-
     # 用project_id合併project的任兩個branches
     def create_git_project_mergebranch(self, logger, app, project_id, args):
         # 新增merge request
@@ -1143,12 +988,6 @@ class ProjectResource(object):
                        "message": "error",
                        "data": "No such repository_id found!"
                    }, 404
-
-    def get_project_info(self, logger, project_id):
-        select_project_cmd = db.select([TableProjects.stru_projects]) \
-            .where(db.and_(TableProjects.stru_projects.c.id == project_id))
-        reMessage = util.call_sqlalchemy(select_project_cmd).fetchone()
-        return reMessage
 
     def get_sonar_report(self, logger, app, project_id):
         result = db.engine.execute(

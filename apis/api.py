@@ -1,10 +1,7 @@
 import datetime
 import json
-import logging
 import os
-import re
 import traceback
-from logging import handlers
 
 import werkzeug
 from flask import Flask
@@ -16,30 +13,28 @@ from werkzeug.routing import IntegerConverter
 
 import config
 import resources.apiError as apiError
+import resources.checkmarx as checkmarx
 import resources.flow as flow
 import resources.parameter as parameter
+import resources.pipeline as pipeline
 import resources.requirement as requirement
 import resources.role as role
 import resources.testCase as testCase
 import resources.testItem as testItem
 import resources.testResult as testResult
 import resources.testValue as testValue
-import resources.util as util
 from jsonwebtoken import jsonwebtoken
 from model import db
-import resources.checkmarx as checkmarx
+from resources import project, gitlab, util
 from resources.cicd import Cicd
 from resources.gitlab import GitLab
 from resources.issue import Issue as IssueResource
-import resources.pipeline as pipeline
+from resources.logger import logger
 from resources.project import ProjectResource as ProjectResource
 from resources.redmine import Redmine
 from resources.user import User as UserResource
 from resources.version import Version as VersionResource
 from resources.wiki import Wiki as WikiResource
-
-import resources.project as project
-from resources.logger import logger
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -76,75 +71,7 @@ git = GitLab()
 user = UserResource(redmine, git)
 pjt = ProjectResource(app, user, redmine, git)
 iss = IssueResource(pjt, redmine, user)
-pipe = Pipeline()
 ci = Cicd(pjt, iss)
-
-
-class GitProjects(Resource):
-    @jwt_required
-    def get(self):
-        output = pjt.get_all_git_projects(logger, app)
-        return output.json()
-
-
-class GitOneProject(Resource):
-    @jwt_required
-    def get(self, project_id):
-        output = pjt.get_one_git_project(logger, app, project_id)
-        return output.json()
-
-    @jwt_required
-    def put(self, project_id):
-        parser = reqparse.RequestParser()
-        parser.add_argument('name', type=str)
-        parser.add_argument('visibility', type=str)
-        args = parser.parse_args()
-        return pjt.update_git_project(logger, app, project_id, args)
-
-    @jwt_required
-    def delete(self, project_id):
-        return pjt.delete_git_project(logger, app, project_id)
-
-
-class GitProjectWebhooks(Resource):
-    @jwt_required
-    def get(self, project_id):
-        output = pjt.get_git_project_webhooks(logger, app, project_id)
-        return output.json()
-
-    @jwt_required
-    def post(self, project_id):
-        parser = reqparse.RequestParser()
-        parser.add_argument('url', type=str)
-        parser.add_argument('push_events', type=bool)
-        parser.add_argument('push_events_branch_filter', type=str)
-        parser.add_argument('enable_ssl_verification', type=bool)
-        parser.add_argument('token', type=str)
-        args = parser.parse_args()
-        logger.info("post body: {0}".format(args))
-        output = pjt.create_git_project_webhook(logger, app, project_id, args)
-        return output.json()
-
-    @jwt_required
-    def put(self, project_id):
-        parser = reqparse.RequestParser()
-        parser.add_argument('hook_id', type=int)
-        parser.add_argument('url', type=str)
-        parser.add_argument('push_events', type=bool)
-        parser.add_argument('push_events_branch_filter', type=str)
-        parser.add_argument('enable_ssl_verification', type=bool)
-        parser.add_argument('token', type=str)
-        args = parser.parse_args()
-        logger.info("put body: {0}".format(args))
-        output = pjt.update_git_project_webhook(logger, app, project_id, args)
-        return output.json()
-
-    @jwt_required
-    def delete(self, project_id):
-        parser = reqparse.RequestParser()
-        parser.add_argument('hook_id', type=int)
-        args = parser.parse_args()
-        return pjt.delete_git_project_webhook(logger, app, project_id, args)
 
 
 class UserLogin(Resource):
@@ -401,39 +328,6 @@ class RoleList(Resource):
             return {"message": "your role art not RD/PM/administrator"}, 401
 
 
-class GitProjectBranches(Resource):
-    @jwt_required
-    def get(self, repository_id):
-        role_id = get_jwt_identity()["role_id"]
-
-        if role_id in (1, 3, 5):
-            project_id = repository_id
-            try:
-                output = pjt.get_git_project_branches(logger, app, project_id)
-                return output
-            except Exception as e:
-                return {"message": str(e)}, 400
-        else:
-            return {"message": "your role art not RD/PM/administrator"}, 401
-
-    @jwt_required
-    def post(self, repository_id):
-        role_id = get_jwt_identity()["role_id"]
-
-        if role_id in (1, 3, 5):
-            project_id = repository_id
-            parser = reqparse.RequestParser()
-            parser.add_argument('branch', type=str, required=True)
-            parser.add_argument('ref', type=str, required=True)
-            args = parser.parse_args()
-            logger.info("post body: {0}".format(args))
-            output = pjt.create_git_project_branch(logger, app, project_id,
-                                                   args)
-            return output
-        else:
-            return {"message": "your role art not RD/PM/administrator"}, 401
-
-
 class GitProjectBranch(Resource):
     @jwt_required
     def get(self, repository_id, branch_name):
@@ -604,65 +498,6 @@ class GitProjectTag(Resource):
             return output
         else:
             return {"message": "your role art not RD/PM/administrator"}, 401
-
-
-class GitProjectDirectory(Resource):
-    @jwt_required
-    def post(self, repository_id, directory_path):
-        role_id = get_jwt_identity()["role_id"]
-
-        if role_id in (1, 5):
-            project_id = repository_id
-            directory_path = directory_path + "%2F%2Egitkeep"
-            parser = reqparse.RequestParser()
-            parser.add_argument('branch', type=str, required=True)
-            parser.add_argument('commit_message', type=str, required=True)
-            args = parser.parse_args()
-            logger.info("post body: {0}".format(args))
-            output = pjt.create_git_project_directory(logger, app, project_id,
-                                                      directory_path, args)
-            return output
-        else:
-            return {"message": "your role art not RD/administrator"}, 401
-
-    @jwt_required
-    def put(self, repository_id, directory_path):
-        role_id = get_jwt_identity()["role_id"]
-
-        if role_id in (1, 5):
-            project_id = repository_id
-            directory_path = directory_path + "%2F%2Egitkeep"
-            parser = reqparse.RequestParser()
-            parser.add_argument('branch', type=str, required=True)
-            parser.add_argument('author_name', type=str)
-            parser.add_argument('author_email', type=str)
-            parser.add_argument('encoding', type=str)
-            parser.add_argument('content', type=str, required=True)
-            parser.add_argument('commit_message', type=str, required=True)
-            args = parser.parse_args()
-            logger.info("put body: {0}".format(args))
-            output = pjt.update_git_project_directory(logger, app, project_id,
-                                                      directory_path, args)
-            return output
-        else:
-            return {"message": "your role art not RD/administrator"}, 401
-
-    @jwt_required
-    def delete(self, repository_id, directory_path):
-        role_id = get_jwt_identity()["role_id"]
-
-        if role_id in (1, 5):
-            project_id = repository_id
-            parser = reqparse.RequestParser()
-            parser.add_argument('branch', type=str, required=True)
-            parser.add_argument('commit_message', type=str, required=True)
-            args = parser.parse_args()
-            logger.info("delete body: {0}".format(args))
-            output = pjt.delete_git_project_directory(logger, app, project_id,
-                                                      directory_path, args)
-            return output
-        else:
-            return {"message": "your role art not RD/administrator"}, 401
 
 
 class GitProjectMergeBranch(Resource):
@@ -1574,11 +1409,7 @@ api.add_resource(ProjectVersionInfo,
                  '/project/<sint:project_id>/version/<int:version_id>')
 
 # Gitlab project
-api.add_resource(GitProjects, '/git_projects')
-api.add_resource(GitOneProject, '/git_one_project/<sint:project_id>')
-api.add_resource(GitProjectWebhooks, '/git_project_webhooks/<sint:project_id>')
-
-api.add_resource(GitProjectBranches, '/repositories/<repository_id>/branches')
+api.add_resource(gitlab.GitProjectBranches, '/repositories/<repository_id>/branches')
 api.add_resource(GitProjectBranch,
                  '/repositories/rd/<repository_id>/branch/<branch_name>')
 api.add_resource(GitProjectRepositories,
@@ -1591,9 +1422,6 @@ api.add_resource(
 api.add_resource(GitProjectTags, '/repositories/rd/<repository_id>/tags')
 api.add_resource(GitProjectTag,
                  '/repositories/rd/<repository_id>/tags/<tag_name>')
-api.add_resource(
-    GitProjectDirectory,
-    '/repositories/rd/<repository_id>/directory/<directory_path>')
 api.add_resource(GitProjectMergeBranch,
                  '/repositories/rd/<repository_id>/merge_branches')
 api.add_resource(GitProjectBranchCommmits,

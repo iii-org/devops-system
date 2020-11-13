@@ -6,7 +6,7 @@ import resources.util as util
 from resources.logger import logger
 from model import db, ProjectPluginRelation, ProjectUserRole
 from .user import User
-from resources.project import get_project_plugin_relation
+from resources.project import get_project_plugin_relation, get_project_by_plan_project_id, get_project_info
 
 
 class Issue(object):
@@ -32,13 +32,10 @@ class Issue(object):
         return user_to_plan, plan_to_user
 
     def __dealwith_issue_redmine_output(self, logger, redmine_output):
-        logger.info("redmine get redmine_output: {0}".format(redmine_output))
-        prject_list = self.pjt.get_project_by_plan_project_id \
-            (logger, redmine_output['project']['id'])
-        logger.debug("prject_list: {0}".format(prject_list))
-        if prject_list is not None:
-            project_name = self.pjt.get_project_info(logger, prject_list['project_id'])['name']
-            redmine_output['project']['id'] = prject_list['project_id']
+        project_list = get_project_by_plan_project_id(redmine_output['project']['id'])
+        if project_list is not None:
+            project_name = self.pjt.get_project_info(project_list['project_id'])['name']
+            redmine_output['project']['id'] = project_list['project_id']
             redmine_output['project']['name'] = project_name
         else:
             redmine_output['project']['id'] = None
@@ -78,8 +75,8 @@ class Issue(object):
     def __dealwith_issue_by_user_redmine_output(self, logger, redmine_output):
         output_list = {}
         output_list['id'] = redmine_output['id']
-        project_list = self.pjt.get_project_by_plan_project_id(logger, redmine_output['project']['id'])
-        project = self.pjt.get_project_info(logger, project_list['project_id'])
+        project_list = get_project_by_plan_project_id(redmine_output['project']['id'])
+        project = get_project_info(logger, project_list['project_id'])
         project_name = project['name']
         project_display = project['display']
         output_list['project_id'] = project_list['project_id']
@@ -396,12 +393,8 @@ class Issue(object):
         for redmine_issue in redmine_output_issue_array['issues']:
             output_dict = self.__dealwith_issue_by_user_redmine_output(
                 logger, redmine_issue)
-            project = self.pjt.get_project_by_plan_project_id(
-                logger, redmine_issue['project']['id'])
-            logger.info("project: {0}".format(project))
-            # output_dict = self.pjt.get_ci_last_test_result(app, logger, output_dict, project)
             output_array.append(output_dict)
-        return {'message': 'success', 'data': output_array}, 200
+        return util.success(output_array)
 
     def create_issue(self, args, operator_id):
         args = {k: v for k, v in args.items() if v is not None}

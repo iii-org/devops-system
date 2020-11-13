@@ -1,7 +1,6 @@
-from resources import apiError
-from resources.util import respond
-from resources.project import ProjectResource
 from flask_jwt_extended import get_jwt_identity
+
+from resources import apiError, project
 
 RD = 1
 PM = 3
@@ -36,7 +35,7 @@ def require_in_project(project_id,
     user_id = identity['user_id']
     if not even_admin and identity['role_id'] == ADMIN:
         return
-    status = ProjectResource.verify_project_user(project_id, user_id)
+    status = project.verify_project_user(project_id, user_id)
     if status:
         return
     else:

@@ -1,12 +1,12 @@
 import json
-import logging
 
 import requests
+from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_restful import Resource, reqparse
 
 import config
 import resources.util as util
-from resources import apiError
-
+from resources import apiError, kubernetesClient
 from resources.logger import logger
 
 
@@ -68,6 +68,10 @@ class GitLab(object):
             'description': args["description"]
         })
 
+    # 用project_id查詢單一project
+    def gl_get_project(self, project_id):
+        return self.__getattribute__('/projects/{0}'.format(project_id))
+
     def gl_update_project(self, repo_id, description):
         params = {'description': description}
         return self.__api_put('/projects/{0}'.format(repo_id), params=params)
@@ -112,7 +116,7 @@ class GitLab(object):
     def gl_delete_user(self, gitlab_user_id):
         return self.__api_delete('/users/{0}'.format(gitlab_user_id))
 
-    def count_branches(self, repo_id):
+    def gl_count_branches(self, repo_id):
         output = self.__api_get('/projects/{0}/repository/branches'.format(repo_id))
         if output.status_code != 200:
             return -1, util.respond_request_style(
@@ -136,45 +140,63 @@ class GitLab(object):
             project_id, args["file_path"]
         ), params={'ref': args["branch"]})
 
-    # Not used now, skipping refactor
-    # def gl_get_branches(self, repo_id):
-    #     output = self.__api_get('/projects/{0}/repository/branches'.format(repo_id))
-    #     if output.status_code != 200:
-    #         return util.respond_request_style(output.status_code, "Error while getting git branches",
-    #                                           error=apiError.gitlab_error(output))
-    #     # get gitlab project path
-    #     projtct_detail = self.get_one_git_project(logger, app, repo_id)
-    #     logger.info("Get git path: {0}".format(projtct_detail.json()['path']))
-    #     # get kubernetes service nodePort url
-    #     k8s_service_list = kubernetesClient.list_service_all_namespaces()
-    #     k8s_node_list = kubernetesClient.list_work_node()
-    #     work_node_ip = k8s_node_list[0]['ip']
-    #     logger.info("k8s_node ip: {0}".format(work_node_ip))
-    #
-    #     branch_list = []
-    #     for branch_info in output.json():
-    #         env_url_list = []
-    #         for k8s_service in k8s_service_list:
-    #             if k8s_service['type'] == 'NodePort' and \
-    #                     "{0}-{1}".format(projtct_detail.json()['path'], branch_info["name"]) \
-    #                     in k8s_service['name']:
-    #                 port_list = []
-    #                 for port in k8s_service['ports']:
-    #                     port_list.append(
-    #                         {"port": port['port'], "url": "http://{0}:{1}".format(work_node_ip, port['nodePort'])})
-    #                 env_url_list.append({k8s_service['name']: port_list})
-    #         branch = {
-    #             "name": branch_info["name"],
-    #             "last_commit_message": branch_info["commit"]["message"],
-    #             "last_commit_time":
-    #                 branch_info["commit"]["committed_date"],
-    #             "short_id": branch_info["commit"]["short_id"],
-    #             "env_url": env_url_list
-    #         }
-    #         branch_list.append(branch)
-    #     return {
-    #                "message": "success",
-    #                "data": {
-    #                    "branch_list": branch_list
-    #                }
-    #            }, 200
+    def gl_get_branches(self, repo_id):
+        output = self.__api_get('/projects/{0}/repository/branches'.format(repo_id))
+        if output.status_code != 200:
+            return util.respond_request_style(output.status_code, "Error while getting git branches",
+                                              error=apiError.gitlab_error(output))
+        # get gitlab project path
+        project_detail = self.gl_get_project(repo_id)
+        # get kubernetes service nodePort url
+        k8s_service_list = kubernetesClient.list_service_all_namespaces()
+        k8s_node_list = kubernetesClient.list_work_node()
+        work_node_ip = k8s_node_list[0]['ip']
+
+        branch_list = []
+        for branch_info in output.json():
+            env_url_list = []
+            for k8s_service in k8s_service_list:
+                if k8s_service['type'] == 'NodePort' and \
+                        "{0}-{1}".format(project_detail.json()['path'], branch_info["name"]) \
+                        in k8s_service['name']:
+                    port_list = []
+                    for port in k8s_service['ports']:
+                        port_list.append(
+                            {"port": port['port'], "url": "http://{0}:{1}".format(work_node_ip, port['nodePort'])})
+                    env_url_list.append({k8s_service['name']: port_list})
+            branch = {
+                "name": branch_info["name"],
+                "last_commit_message": branch_info["commit"]["message"],
+                "last_commit_time":
+                    branch_info["commit"]["committed_date"],
+                "short_id": branch_info["commit"]["short_id"],
+                "env_url": env_url_list
+            }
+            branch_list.append(branch)
+        return util.success({"branch_list": branch_list})
+
+    def gl_create_branch(self, repo_id, args):
+        output = self.__api_post('/projects/{0}/repository/branches'.format(repo_id),
+                                 params={'branch': args['branch'], 'ref': args['ref']})
+        if output.status_code == 201:
+            return util.success(output.json())
+        else:
+            return util.respond(output.status_code, "Error while creating branch.",
+                                error=apiError.gitlab_error(output))
+
+
+gitlab = GitLab()
+
+
+class GitProjectBranches(Resource):
+    @jwt_required
+    def get(self, repository_id):
+        return gitlab.gl_get_branches(repository_id)
+
+    @jwt_required
+    def post(self, repository_id):
+        parser = reqparse.RequestParser()
+        parser.add_argument('branch', type=str, required=True)
+        parser.add_argument('ref', type=str, required=True)
+        args = parser.parse_args()
+        return gitlab.gl_create_branch(repository_id, args)
