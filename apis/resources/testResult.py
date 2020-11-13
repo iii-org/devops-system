@@ -7,7 +7,7 @@ from model import db, TableTestResult
 import resources.apiError as apiError
 import resources.util as util
 
-logger = logging.getLogger(config.get('LOGGER_NAME'))
+from api import logger
 
 
 def save(args):

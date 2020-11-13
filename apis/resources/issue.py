@@ -1,14 +1,11 @@
 import calendar
-import config
-import logging
 from datetime import datetime, date, timedelta
 
-from model import db, ProjectPluginRelation, ProjectUserRole
-from .user import User
 import resources.apiError as apiError
 import resources.util as util
-
-logger = logging.getLogger(config.get('LOGGER_NAME'))
+from api import logger
+from model import db, ProjectPluginRelation, ProjectUserRole
+from .user import User
 
 
 class Issue(object):
@@ -410,7 +407,7 @@ class Issue(object):
         if 'parent_id' in args:
             args['parent_issue_id'] = args['parent_id']
             args.pop('parent_id', None)
-        project_plugin_relation = self.pjt.get_project_plugin_relation(args['project_id'])
+        project_plugin_relation = self.pjt.get_project_plugin_relation(args['project_id']) # FIXME
         args['project_id'] = project_plugin_relation['plan_project_id']
         if "assigned_to_id" in args:
             user_plugin_relation = User.get_user_plugin_relation(user_id=args['assigned_to_id'])

@@ -5,7 +5,7 @@ import config
 from model import db, TableFlow
 import resources.util as util
 
-logger = logging.getLogger(config.get('LOGGER_NAME'))
+from api import logger
 flow_type = {"0": "Given", "1": "When", "2": "Then", "3": "But", "4": "And"}
 
 

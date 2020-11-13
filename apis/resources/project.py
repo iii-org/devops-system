@@ -1,4 +1,5 @@
 import logging
+import re
 import urllib
 from datetime import datetime
 
@@ -10,13 +11,14 @@ import config
 import resources.apiError as apiError
 import resources.kubernetesClient as kubernetesClient
 import resources.util as util
+from api import app
 from model import db, ProjectUserRole, ProjectPluginRelation, TableProjects
 from . import role
 from .rancher import Rancher
 from .redmine import Redmine
 from .gitlab import GitLab
 
-logger = logging.getLogger(config.get('LOGGER_NAME'))
+from api import logger
 redmine = Redmine()
 gitlab = GitLab()
 
@@ -38,27 +40,16 @@ class GetProject(Resource):
 
     @jwt_required
     def put(self, project_id):
-        role_id = get_jwt_identity()["role_id"]
-
-        if role_id in (3, 5):
-            # user_id = get_jwt_identity()["user_id"]
-            # print("user_id={0}".format(user_id))
-            parser = reqparse.RequestParser()
-            parser.add_argument('name', type=str)
-            parser.add_argument('display', type=str)
-            parser.add_argument('user_id', type=int)
-            parser.add_argument('description', type=str)
-            parser.add_argument('disabled', type=bool)
-            # parser.add_argument('homepage', type=str)
-            args = parser.parse_args()
-            logger.info("put body: {0}".format(args))
-            try:
-                output = pjt.pm_update_project(logger, app, project_id, args)
-                return output
-            except Exception as e:
-                return {"message": str(e)}, 400
-        else:
-            return {"message": "your role art not PM/administrator"}, 401
+        role.require_pm("Error when modifying project info.")
+        role.require_in_project(project_id, "Error when modifying project info.")
+        parser = reqparse.RequestParser()
+        parser.add_argument('name', type=str)
+        parser.add_argument('display', type=str)
+        parser.add_argument('user_id', type=int)
+        parser.add_argument('description', type=str)
+        parser.add_argument('disabled', type=bool)
+        args = parser.parse_args()
+        return pjt.pm_update_project(logger, app, project_id, args)
 
     @jwt_required
     def delete(self, project_id):
@@ -102,6 +93,12 @@ class CreateProject(Resource):
         else:
             return util.respond(400, 'Error while creating project',
                                 error=apiError.invalid_project_name(args['name']))
+
+
+def get_project_plugin_relation(project_id):
+    select_project_relation_command = db.select([ProjectPluginRelation.stru_project_plug_relation]) \
+        .where(db.and_(ProjectPluginRelation.stru_project_plug_relation.c.project_id == project_id))
+    return util.call_sqlalchemy(select_project_relation_command).fetchone()
 
 
 # List all projects of a PM
@@ -310,13 +307,6 @@ class ProjectResource(object):
             return True
         else:
             return False
-
-    @staticmethod
-    def get_project_plugin_relation(project_id):
-        select_project_relation_command = db.select([ProjectPluginRelation.stru_project_plug_relation]) \
-            .where(db.and_(ProjectPluginRelation.stru_project_plug_relation.c.project_id == project_id))
-        reMessage = util.call_sqlalchemy(select_project_relation_command).fetchone()
-        return reMessage
 
     # 查詢所有projects
     def get_all_git_projects(self, logger, app):
@@ -1494,3 +1484,6 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         # }
 
         return {'message': 'success', 'data': {'test_results': ret}}, 200
+
+
+pjt = ProjectResource(app, None, redmine, gitlab)

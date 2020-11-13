@@ -6,7 +6,7 @@ import config
 import resources.util as util
 from model import db, TableRequirement
 
-logger = logging.getLogger(config.get('LOGGER_NAME'))
+from api import logger
 
 
 def _deal_with_json(json_string):
