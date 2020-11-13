@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import re
+import traceback
 from logging import handlers
 
 import werkzeug
@@ -63,9 +64,9 @@ app.url_map.converters['sint'] = SignedIntConverter
 
 @app.errorhandler(Exception)
 def internal_error(e):
+    traceback.print_exc()
     return util.respond(500, "Unexpected internal error",
                         error=apiError.uncaught_exception(e))
-
 
 
 redmine = Redmine()
@@ -273,30 +274,6 @@ class ProjectUserList(Resource):
             return output
         else:
             return {"message": "your role art not administrator"}, 401
-
-
-class ProjectAddMember(Resource):
-    @jwt_required
-    def post(self, project_id):
-        status = pjt.verify_project_user(project_id, get_jwt_identity()['user_id'])
-        if (get_jwt_identity()["role_id"] == 5) or (get_jwt_identity()["role_id"] == 3 and status):
-            parser = reqparse.RequestParser()
-            parser.add_argument('user_id', type=int, required=True)
-            args = parser.parse_args()
-            output = user.project_add_member(project_id, args)
-            return output
-        else:
-            return {"message": "your role are not PM or administrator"}, 401
-
-
-class ProjectDeleteMember(Resource):
-    @jwt_required
-    def delete(self, project_id, user_id):
-        if get_jwt_identity()["role_id"] in (3, 5):
-            output = user.remove_from_project(project_id, user_id)
-            return output
-        else:
-            return {"message": "your role are not PM or administrator"}, 401
 
 
 class ProjectWikiList(Resource):
@@ -1593,12 +1570,19 @@ class SystemGitCommitID(Resource):
             return {"message": "git_commit file is not exist"}, 400
 
 
-# Project list
+# Projects
 api.add_resource(project.ListMyProjects, '/project/list')
-
-# Project(redmine & gitlab & db)
-api.add_resource(project.CreateProject, '/project')
-api.add_resource(project.GetProject, '/project/<sint:project_id>')
+api.add_resource(project.SingleProject, '/project', '/project/<sint:project_id>')
+api.add_resource(ProjectsByUser, '/projects_by_user/<int:user_id>')
+api.add_resource(ProjectUserList, '/project/<sint:project_id>/user/list')
+api.add_resource(project.ProjectMember, '/project/<sint:project_id>/member',
+                 '/project/<sint:project_id>/member/<int:user_id>')
+api.add_resource(ProjectWikiList, '/project/<sint:project_id>/wiki')
+api.add_resource(ProjectWiki, '/project/<sint:project_id>/wiki/<wiki_name>')
+api.add_resource(ProjectVersionList, '/project/<sint:project_id>/version/list')
+api.add_resource(ProjectVersion, '/project/<sint:project_id>/version')
+api.add_resource(ProjectVersionInfo,
+                 '/project/<sint:project_id>/version/<int:version_id>')
 
 # Gitlab project
 api.add_resource(GitProjects, '/git_projects')
@@ -1627,19 +1611,6 @@ api.add_resource(GitProjectBranchCommmits,
                  '/repositories/rd/<repository_id>/commits')
 api.add_resource(GitProjectNetwork, '/repositories/<repository_id>/overview')
 api.add_resource(GitProjectId, '/repositories/<repository_id>/id')
-
-# Project
-api.add_resource(ProjectsByUser, '/projects_by_user/<int:user_id>')
-api.add_resource(ProjectUserList, '/project/<sint:project_id>/user/list')
-api.add_resource(ProjectAddMember, '/project/<sint:project_id>/member')
-api.add_resource(ProjectDeleteMember,
-                 '/project/<sint:project_id>/member/<int:user_id>')
-api.add_resource(ProjectWikiList, '/project/<sint:project_id>/wiki')
-api.add_resource(ProjectWiki, '/project/<sint:project_id>/wiki/<wiki_name>')
-api.add_resource(ProjectVersionList, '/project/<sint:project_id>/version/list')
-api.add_resource(ProjectVersion, '/project/<sint:project_id>/version')
-api.add_resource(ProjectVersionInfo,
-                 '/project/<sint:project_id>/version/<int:version_id>')
 
 # User
 api.add_resource(UserLogin, '/user/login')

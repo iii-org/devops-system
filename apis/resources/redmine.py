@@ -251,8 +251,7 @@ class Redmine:
         return output, output.status_code
 
     def rm_delete_memberships(self, membership_id):
-        output = self.__api_delete('/memberships/{0}'.format(membership_id))
-        return output, output.status_code
+        return self.__api_delete('/memberships/{0}'.format(membership_id))
 
     def rm_get_memberships_list(self, project_id):
         output = self.__api_get('/projects/{0}/memberships'.format(project_id))

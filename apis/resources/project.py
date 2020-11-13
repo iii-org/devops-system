@@ -16,7 +16,7 @@ from . import role
 from .gitlab import GitLab
 from .rancher import Rancher
 from .redmine import Redmine
-from .user import User
+from .user import User, get_3pt_user_ids
 
 redmine = Redmine()
 gitlab = GitLab()
@@ -29,6 +29,19 @@ def get_project_plugin_relation(project_id):
     return util.call_sqlalchemy(select_project_relation_command).fetchone()
 
 
+def verify_project_user(project_id, user_id):
+    if util.is_dummy_project(project_id):
+        return True
+    select_project_user_role_command = db.select([ProjectUserRole.stru_project_user_role]).where(
+        db.and_(ProjectUserRole.stru_project_user_role.c.project_id == project_id,
+                ProjectUserRole.stru_project_user_role.c.user_id == user_id))
+    match_list = util.call_sqlalchemy(select_project_user_role_command).fetchall()
+    if len(match_list) > 0:
+        return True
+    else:
+        return False
+
+
 # List all projects of a PM
 def get_pm_project_list(user_id):
     # 查詢db該pm負責的project_id並存入project_ids array
@@ -37,113 +50,203 @@ def get_pm_project_list(user_id):
         "ORDER BY project_id DESC".format(user_id))
     project_ids = result.fetchall()
     result.close()
-    if project_ids:
-        output_array = []
-        # 用project_id依序查詢redmine的project_id
-        for project_id in project_ids:
-            project_id = project_id[0]
-            if project_id is not None and project_id != -1:
-                result = db.engine.execute(
-                    "SELECT plan_project_id FROM public.project_plugin_relation WHERE "
-                    "project_id = '{0}'".format(project_id))
-                fetch = result.fetchone()
-                if fetch is None:
-                    continue
-                plan_project_id = fetch[0]
-                result.close()
+    if project_ids is None:
+        return util.respond(500, "Cannot get project list.",
+                            error=apiError.db_error("List projects returns None."))
+    output_array = []
+    # 用project_id依序查詢redmine的project_id
+    for project_id in project_ids:
+        project_id = project_id[0]
+        if project_id is None or project_id == -1:
+            continue
+        result = db.engine.execute(
+            "SELECT plan_project_id FROM public.project_plugin_relation WHERE "
+            "project_id = '{0}'".format(project_id))
+        fetch = result.fetchone()
+        if fetch is None:
+            continue
+        plan_project_id = fetch[0]
+        result.close()
 
-                # 用redmine api查詢相關資訊
-                # 抓專案最近更新時間
-                output1 = redmine.rm_get_project(plan_project_id)
-                # 抓專案狀態＆專案工作進度＆進度落後數目
-                output2 = redmine.rm_get_issues_by_project(plan_project_id)
-                closed_count = 0
-                overdue_count = 0
-                for issue in output2["issues"]:
-                    if issue["status"]["name"] == "Closed":
-                        closed_count += 1
-                    if issue["due_date"] != None:
-                        if (datetime.today() > datetime.strptime(
-                                issue["due_date"], "%Y-%m-%d")) == True:
-                            overdue_count += 1
+        # 用redmine api查詢相關資訊
+        # 抓專案最近更新時間
+        output1 = redmine.rm_get_project(plan_project_id).json()
+        # 抓專案狀態＆專案工作進度＆進度落後數目
+        output2 = redmine.rm_get_issues_by_project(plan_project_id).json()
+        closed_count = 0
+        overdue_count = 0
+        for issue in output2["issues"]:
+            if issue["status"]["name"] == "Closed":
+                closed_count += 1
+            if issue["due_date"] is not None:
+                if (datetime.today() > datetime.strptime(
+                        issue["due_date"], "%Y-%m-%d")):
+                    overdue_count += 1
 
-                project_status = "進行中"
-                if output2["total_count"] == 0: project_status = "未開始"
-                if closed_count == output2[
-                    "total_count"] and output2["total_count"] != 0:
-                    project_status = "已結案"
+        project_status = "進行中"
+        if output2["total_count"] == 0:
+            project_status = "未開始"
+        if closed_count == output2["total_count"] and output2["total_count"] != 0:
+            project_status = "已結案"
 
-                # 查詢專案名稱＆專案說明＆專案狀態
-                result = db.engine.execute(
-                    "SELECT * FROM public.projects WHERE id = '{0}'".
-                        format(project_id))
-                project_info = result.fetchone()
-                result.close()
+        # 查詢專案名稱＆專案說明＆專案狀態
+        result = db.engine.execute(
+            "SELECT * FROM public.projects WHERE id = '{0}'".format(
+                project_id))
+        project_info = result.fetchone()
+        result.close()
 
-                # 查詢專案負責人id & name
-                result = db.engine.execute(
-                    "SELECT user_id FROM public.project_user_role WHERE project_id = '{0}' AND role_id = '{1}'"
-                        .format(project_id, 3))
-                user_id = result.fetchone()[0]
-                result.close()
+        # 查詢專案負責人id & name
+        result = db.engine.execute(
+            "SELECT user_id FROM public.project_user_role"
+            " WHERE project_id = '{0}' AND role_id = '{1}'".format(
+                project_id, role.PM))
+        user_id = result.fetchone()[0]
+        result.close()
 
-                result = db.engine.execute(
-                    "SELECT name FROM public.user WHERE id = '{0}'".format(
-                        user_id))
-                user_name = result.fetchone()[0]
-                result.close()
+        result = db.engine.execute(
+            "SELECT name FROM public.user WHERE id = '{0}'".format(
+                user_id))
+        user_name = result.fetchone()[0]
+        result.close()
 
-                # # 查詢sonar_quality_score
-                # project_name = project_info["name"]
-                # # print(project_name)
-                # # project_name = "devops-flask"
-                # url = "http://{0}/api/measures/component?component={1}&metricKeys=reliability_rating,security_rating,security_review_rating,sqale_rating".format( \
-                #     config.get("SONAR_IP_PORT"), project_name)
-                # logger.info("get sonar report url: {0}".format(url))
-                # output = requests.get(url,
-                #                       headers=self.headers,
-                #                       verify=False)
-                # logger.info("get sonar report output: {0} / {1}".format(
-                #     output, output.json()))
-                # quality_score = None
-                # if output.status_code == 200:
-                #     quality_score = 0
-                #     data_list = output.json()["component"]["measures"]
-                #     for data in data_list:
-                #         # print(type(data["value"]))
-                #         rating = float(data["value"])
-                #         quality_score += (
-                #                                  6 - rating) * 5  # A-25, B-20, C-15, D-10, E-5
+        # # 查詢sonar_quality_score
+        # project_name = project_info["name"]
+        # # print(project_name)
+        # # project_name = "devops-flask"
+        # url = "http://{0}/api/measures/component?component={1}
+        # &metricKeys=reliability_rating,security_rating,security_review_rating,sqale_rating".format( \
+        #     config.get("SONAR_IP_PORT"), project_name)
+        # logger.info("get sonar report url: {0}".format(url))
+        # output = requests.get(url,
+        #                       headers=self.headers,
+        #                       verify=False)
+        # logger.info("get sonar report output: {0} / {1}".format(
+        #     output, output.json()))
+        # quality_score = None
+        # if output.status_code == 200:
+        #     quality_score = 0
+        #     data_list = output.json()["component"]["measures"]
+        #     for data in data_list:
+        #         # print(type(data["value"]))
+        #         rating = float(data["value"])
+        #         quality_score += (
+        #                                  6 - rating) * 5  # A-25, B-20, C-15, D-10, E-5
 
-                redmine_url = "http://{0}/projects/{1}".format(config.get("REDMINE_IP_PORT"), plan_project_id)
-                project_output = {
-                    "id": project_id,
-                    "name": project_info["name"],
-                    "display": project_info["display"],
-                    "description": project_info["description"],
-                    "git_url": project_info["http_url"],
-                    "redmine_url": redmine_url,
-                    "disabled": project_info["disabled"],
-                    "pm_user_id": user_id,
-                    "pm_user_name": user_name,
-                    "updated_time": output1["project"]["updated_on"],
-                    "project_status": project_status,
-                    "closed_count": closed_count,
-                    "total_count": output2["total_count"],
-                    "overdue_count": overdue_count,
-                    # "quality_score": quality_score
-                }
+        redmine_url = "http://{0}/projects/{1}".format(config.get("REDMINE_IP_PORT"), plan_project_id)
+        project_output = {
+            "id": project_id,
+            "name": project_info["name"],
+            "display": project_info["display"],
+            "description": project_info["description"],
+            "git_url": project_info["http_url"],
+            "redmine_url": redmine_url,
+            "disabled": project_info["disabled"],
+            "pm_user_id": user_id,
+            "pm_user_name": user_name,
+            "updated_time": output1["project"]["updated_on"],
+            "project_status": project_status,
+            "closed_count": closed_count,
+            "total_count": output2["total_count"],
+            "overdue_count": overdue_count,
+            # "quality_score": quality_score
+        }
 
-                output_array.append(project_output)
+        output_array.append(project_output)
 
-        return {
-                   "message": "success",
-                   "data": {
-                       "project_list": output_array
-                   }
-               }, 200
-    else:
-        return {"message": "Could not get data from db"}, 400
+    return util.success({"project_list": output_array})
+
+
+# 新增redmine & gitlab的project並將db相關table新增資訊
+def create_project(user_id, args):
+    if args["description"] is None:
+        args["description"] = ""
+    if args['display'] is None:
+        args['display'] = args['name']
+
+    # 建立順序為 redmine, gitlab, rancher, api server，有失敗時 rollback 依此次序處理
+
+    # 建立redmine project
+    redmine_output, output_status = redmine.rm_create_project(args)
+    try:
+        redmine_pj_id = redmine_output.json()["project"]["id"]
+    except Exception:
+        return util.respond(500, "Error while creating redmine project",
+                            error=apiError.redmine_error(redmine_output))
+
+    if redmine_output.status_code != 201:
+        status_code = redmine_output.status_code
+        resp = redmine_output.json()
+        error = None
+        if status_code == 422 and 'errors' in resp:
+            if len(resp['errors']) > 0:
+                if resp['errors'][0] == 'Identifier has already been taken':
+                    error = apiError.identifier_has_been_token(args['name'])
+        return util.respond(status_code, {"redmine": resp}, error=error)
+
+    # 建立gitlab project
+    gitlab_output = gitlab.gl_create_project(args)
+
+    if gitlab_output.status_code != 201:
+        # Rollback
+        redmine.rm_delete_project(redmine_pj_id)
+
+        status_code = gitlab_output.status_code
+        if status_code == 400:
+            try:
+                gitlab_json = gitlab_output.json()
+                if gitlab_json['message']['name'][0] == 'has already been taken':
+                    return util.respond(
+                        status_code, {"gitlab": gitlab_json},
+                        error=apiError.identifier_has_been_token(args['name'])
+                    )
+            except (KeyError, IndexError):
+                pass
+        return util.respond(status_code, {"gitlab": gitlab_output.json()})
+
+    # 寫入db
+    gitlab_json = gitlab_output.json()
+    gitlab_pj_id = gitlab_json["id"]
+    gitlab_pj_name = gitlab_json["name"]
+    gitlab_pj_ssh_url = gitlab_json["ssh_url_to_repo"]
+    gitlab_pj_http_url = gitlab_json["http_url_to_repo"]
+
+    # 寫入projects
+    db.engine.execute(
+        "INSERT INTO public.projects (name, display, description, ssh_url, http_url, disabled)"
+        " VALUES ('{0}', '{1}', '{2}', '{3}', '{4}', '{5}')".format(
+            gitlab_pj_name, args['display'], args["description"],
+            gitlab_pj_ssh_url, gitlab_pj_http_url,
+            args["disabled"]))
+
+    # 查詢寫入projects的project_id
+    result = db.engine.execute(
+        "SELECT id FROM public.projects WHERE name = '{0}'".format(gitlab_pj_name))
+    project_id = result.fetchone()[0]
+    result.close()
+
+    # enable rancher pipeline
+    rancher_project_id = rancher.rc_get_project_id()
+    rancher_pipeline_id = rancher.rc_enable_project_pipeline(gitlab_pj_http_url)
+
+    # 加關聯project_plugin_relation
+    db.engine.execute(
+        "INSERT INTO public.project_plugin_relation"
+        " (project_id, plan_project_id, git_repository_id, ci_project_id, ci_pipeline_id)"
+        " VALUES ('{0}', '{1}', '{2}', '{3}', '{4}')".format(
+            project_id, redmine_pj_id, gitlab_pj_id, rancher_project_id, rancher_pipeline_id))
+
+    # 加關聯project_user_role
+    args["user_id"] = user_id
+    output, status = project_add_member(project_id, args)
+    if status / 100 != 2:
+        return output, status
+
+    return util.success({
+        "project_id": project_id,
+        "plan_project_id": redmine_pj_id,
+        "git_repository_id": gitlab_pj_id
+    })
 
 
 def pm_update_project(project_id, args):
@@ -296,6 +399,137 @@ def pm_get_project(project_id):
     return util.success(output)
 
 
+def project_add_member(project_id, args):
+    user_id = args['user_id']
+    role_id = User.get_role_id(user_id)
+
+    # Check ProjectUserRole table has relationship or not
+    get_pj_ur_rl_cmd = db.select([ProjectUserRole.stru_project_user_role]).where(db.and_(
+        ProjectUserRole.stru_project_user_role.c.user_id == user_id,
+        ProjectUserRole.stru_project_user_role.c.project_id == project_id,
+        ProjectUserRole.stru_project_user_role.c.role_id == role_id))
+    get_pj_ur_rl = util.call_sqlalchemy(get_pj_ur_rl_cmd).fetchone()
+    # if ProjectUserRole table not has relationship
+    if get_pj_ur_rl is None:
+        # insert one relationship
+        get_pj_ur_rl_cmd = db.insert(ProjectUserRole.stru_project_user_role).values(
+            project_id=project_id, user_id=user_id, role_id=role_id)
+        util.call_sqlalchemy(get_pj_ur_rl_cmd)
+    else:
+        return util.respond(422, "Error while adding user to project.",
+                            error=apiError.already_in_project(user_id, project_id))
+
+    error, redmine_user_id, gitlab_user_id = get_3pt_user_ids(
+        user_id, "Error while adding user to project.")
+    if error is not None:
+        return error
+    error, redmine_project_id, gitlab_project_id = get_3pt_project_ids(
+        project_id, "Error while adding user to project.")
+    if error is not None:
+        return error
+
+    redmine_role_id = User.to_redmine_role_id(role_id)
+    if redmine_role_id is None:
+        return util.respond(500, "Error while adding user to project.",
+                            error=apiError.db_error("Cannot get redmine role of the user."))
+
+    output, status_code = redmine.rm_create_memberships(
+        redmine_project_id, redmine_user_id, redmine_role_id)
+    if status_code == 201:
+        pass
+    elif status_code == 422:
+        return util.respond(422, "Error while adding user to project: Already in redmine project.",
+                            error=apiError.already_in_project(user_id, project_id))
+    else:
+        return util.respond(status_code, "Error while adding user to project.",
+                            error=apiError.redmine_error(output))
+
+    # gitlab project add member
+    output = gitlab.gl_project_add_member(gitlab_project_id, gitlab_user_id)
+    status_code = output.status_code
+    if status_code == 201:
+        pass
+    else:
+        return util.respond(status_code, "Error while adding user from project.",
+                            error=apiError.gitlab_error(output))
+
+    return util.success()
+
+
+def project_remove_member(project_id, user_id):
+    role_id = User.get_role_id(user_id)
+
+    error, redmine_user_id, gitlab_user_id = get_3pt_user_ids(
+        user_id, "Error while removing user from project.")
+    if error is not None:
+        return error
+    error, redmine_project_id, gitlab_project_id = get_3pt_project_ids(
+        project_id, "Error while removing user from project.")
+    if error is not None:
+        return error
+
+    # get membership id
+    memberships, status_code = redmine.rm_get_memberships_list(redmine_project_id)
+    redmine_membership_id = None
+    if status_code == 200:
+        for membership in memberships.json()['memberships']:
+            if membership['user']['id'] == redmine_user_id:
+                redmine_membership_id = membership['id']
+    if redmine_membership_id is not None:
+        # delete membership
+        output = redmine.rm_delete_memberships(redmine_membership_id)
+        status_code = output.status_code
+        if status_code == 204:
+            pass
+        elif status_code == 404:
+            # Already deleted, let it go
+            pass
+        else:
+            return util.respond(status_code, "Error while removing user from project.",
+                                error=apiError.redmine_error(output))
+    else:
+        # Redmine does not have this membership, just let it go
+        pass
+
+    # gitlab project delete member
+    output = gitlab.gl_project_delete_member(gitlab_project_id, gitlab_user_id)
+    status_code = output.status_code
+    if status_code == 204:
+        pass
+    else:
+        return util.respond(status_code, "Error while removing user from project.",
+                            error=apiError.gitlab_error(output))
+
+    # delete relationship from  ProjectUserRole table.
+    delete_pj_ur_rl_cmd = db.delete(ProjectUserRole.stru_project_user_role).where(db.and_(
+        ProjectUserRole.stru_project_user_role.c.user_id == user_id,
+        ProjectUserRole.stru_project_user_role.c.project_id == project_id,
+        ProjectUserRole.stru_project_user_role.c.role_id == role_id))
+    util.call_sqlalchemy(delete_pj_ur_rl_cmd)
+
+    return util.success()
+
+
+def get_3pt_project_ids(project_id, message):
+    project_relation = get_project_plugin_relation(project_id)
+    if project_relation is None:
+        return util.respond(400, message,
+                            error=apiError.project_not_found(project_id)), None, None
+    redmine_project_id = project_relation['plan_project_id']
+    gitlab_project_id = project_relation['git_repository_id']
+
+    if redmine_project_id is None:
+        return util.respond(500, message,
+                            error=apiError.db_error(
+                                "Cannot get redmine id of the project.")), None, None
+    if gitlab_project_id is None:
+        return util.respond(500, message,
+                            error=apiError.db_error(
+                                "Gitlab does not have this project.")), None, None
+
+    return None, redmine_project_id, gitlab_project_id
+
+
 def get_plan_project_id(project_id):
     result = db.engine.execute(
         "SELECT plan_project_id FROM public.project_plugin_relation"
@@ -322,6 +556,7 @@ class ProjectResource(object):
         self.private_token = gitlab.private_token
 
     @staticmethod
+    # FIXME: Eventually remove this method (extracted already)
     def verify_project_user(project_id, user_id):
         if util.is_dummy_project(project_id):
             return True
@@ -1022,105 +1257,6 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
             output, output.json()))
         return output
 
-    # 新增redmine & gitlab的project並將db相關table新增資訊
-    def pm_create_project(self, user_id, args):
-        if args["description"] is None:
-            args["description"] = ""
-        if args['display'] is None:
-            args['display'] = args['name']
-
-        # 建立順序為 redmine, gitlab, rancher, api server，有失敗時 rollback 依此次序處理
-
-        # 建立redmine project
-        redmine_output, output_status = self.redmine.rm_create_project(args)
-        try:
-            redmine_pj_id = redmine_output.json()["project"]["id"]
-        except Exception as e:
-            return util.respond(500, "Error while creating redmine project",
-                                error=apiError.redmine_error(redmine_output))
-
-        if redmine_output.status_code != 201:
-            status_code = redmine_output.status_code
-            resp = redmine_output.json()
-            error = None
-            if status_code == 422 and 'errors' in resp:
-                if len(resp['errors']) > 0:
-                    if resp['errors'][0] == 'Identifier has already been taken':
-                        error = error.identifier_has_been_token(args['name'])
-            return util.respond(status_code, {"redmine": resp}, error=error)
-
-        # 建立gitlab project
-        gitlab_output = self.gitlab.gl_create_project(args)
-
-        if gitlab_output.status_code != 201:
-            # Rollback
-            self.redmine.rm_delete_project(redmine_pj_id)
-
-            status_code = gitlab_output.status_code
-            if status_code == 400:
-                try:
-                    gitlab_json = gitlab_output.json()
-                    if gitlab_json['message']['name'][0] == 'has already been taken':
-                        return util.respond(
-                            status_code, {"gitlab": gitlab_json},
-                            error=apiError.identifier_has_been_token(args['name'])
-                        )
-                except (KeyError, IndexError):
-                    pass
-            return util.respond(status_code, {"gitlab": gitlab_output.json()})
-
-        # 寫入db
-
-        gitlab_pj_id = gitlab_output.json()["id"]
-        gitlab_pj_name = gitlab_output.json()["name"]
-        gitlab_pj_ssh_url = gitlab_output.json()["ssh_url_to_repo"]
-        gitlab_pj_http_url = gitlab_output.json()["http_url_to_repo"]
-
-        # 寫入projects
-        db.engine.execute(
-            "INSERT INTO public.projects (name, display, description, ssh_url, http_url, disabled)"
-            " VALUES ('{0}', '{1}', '{2}', '{3}', '{4}', '{5}')"
-                .format(gitlab_pj_name, args['display'], args["description"],
-                        gitlab_pj_ssh_url, gitlab_pj_http_url,
-                        args["disabled"]))
-
-        # 查詢寫入projects的project_id
-        result = db.engine.execute(
-            "SELECT id FROM public.projects WHERE name = '{0}'".format(
-                gitlab_pj_name))
-        project_id = result.fetchone()[0]
-        result.close()
-
-        # enable rancher pipeline
-        rancher_project_id = self.rancher.rc_get_project_id()
-        logger.debug("rancher_project_id: {0}".format(rancher_project_id))
-        logger.debug("gitlab_pj_http_url: {0}".format(gitlab_pj_http_url))
-        rancher_pipeline_id = self.rancher.rc_enable_project_pipeline(gitlab_pj_http_url)
-        logger.debug("rancher_pipeline_id: {0}".format(rancher_pipeline_id))
-
-        # 加關聯project_plugin_relation
-        db.engine.execute(
-            "INSERT INTO public.project_plugin_relation (project_id, plan_project_id, git_repository_id, ci_project_id, ci_pipeline_id) VALUES ('{0}', '{1}', '{2}', '{3}', '{4}')"
-                .format(project_id, redmine_pj_id, gitlab_pj_id, rancher_project_id, rancher_pipeline_id))
-
-        # 加關聯project_user_role
-        # db.engine.execute(
-        #     "INSERT INTO public.project_user_role (project_id, user_id, role_id) VALUES ('{0}', '{1}', '{2}')"
-        #     .format(project_id, user_id, 3))
-
-        args["user_id"] = user_id
-        output = self.au.project_add_member(project_id, args)
-        logger.info("project add member output: {0}".format(output))
-
-        return {
-                   "message": "success",
-                   "data": {
-                       "project_id": project_id,
-                       "plan_project_id": redmine_pj_id,
-                       "git_repository_id": gitlab_pj_id
-                   }
-               }, 200
-
     def get_git_project_id(self, logger, app, repository_id):
         result = db.engine.execute(
             "SELECT project_id FROM public.project_plugin_relation WHERE git_repository_id = '{0}'"
@@ -1319,17 +1455,17 @@ class ListMyProjects(Resource):
         return get_pm_project_list(user_id)
 
 
-class GetProject(Resource):
+class SingleProject(Resource):
     @jwt_required
     def get(self, project_id):
-        role.require_pm("Error when getting project info.")
-        role.require_in_project(project_id, "Error when getting project info.")
+        role.require_pm("Error while getting project info.")
+        role.require_in_project(project_id, "Error while getting project info.")
         return pm_get_project(project_id)
 
     @jwt_required
     def put(self, project_id):
-        role.require_pm("Error when modifying project info.")
-        role.require_in_project(project_id, "Error when modifying project info.")
+        role.require_pm("Error while updating project info.")
+        role.require_in_project(project_id, "Error while updating project info.")
         parser = reqparse.RequestParser()
         parser.add_argument('name', type=str)
         parser.add_argument('display', type=str)
@@ -1343,10 +1479,8 @@ class GetProject(Resource):
     def delete(self, project_id):
         role.require_pm()
         role.require_in_project(project_id)
-        return pjt.delete_project(project_id)
+        return delete_project(project_id)
 
-
-class CreateProject(Resource):
     @jwt_required
     def post(self):
         role.require_pm()
@@ -1357,19 +1491,28 @@ class CreateProject(Resource):
         parser.add_argument('description', type=str)
         parser.add_argument('disabled', type=bool, required=True)
         args = parser.parse_args()
-        logger.info("post body: {0}".format(args))
 
         pattern = "^[a-z0-9][a-z0-9-]{0,253}[a-z0-9]$"
         result = re.fullmatch(pattern, args["name"])
-        if result is not None:
-            try:
-                args["identifier"] = args["name"]
-                output = pjt.pm_create_project(user_id, args)
-                return output
-            except Exception as e:
-                import traceback
-                traceback.print_exc()
-                return {"message": str(e)}, 400
-        else:
+        if result is None:
             return util.respond(400, 'Error while creating project',
                                 error=apiError.invalid_project_name(args['name']))
+
+        return create_project(user_id, args)
+
+
+class ProjectMember(Resource):
+    @jwt_required
+    def post(self, project_id):
+        role.require_pm()
+        role.require_in_project(project_id)
+        parser = reqparse.RequestParser()
+        parser.add_argument('user_id', type=int, required=True)
+        args = parser.parse_args()
+        return project_add_member(project_id, args)
+
+    @jwt_required
+    def delete(self, project_id, user_id):
+        role.require_pm()
+        role.require_in_project(project_id)
+        return project_remove_member(project_id, user_id)
