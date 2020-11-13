@@ -6,7 +6,7 @@ import resources.apiError as apiError
 from .project import ProjectResource
 import resources.util as util
 
-from api import logger
+from resources.logger import logger
 
 
 class Wiki(object):

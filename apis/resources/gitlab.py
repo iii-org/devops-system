@@ -6,7 +6,7 @@ import requests
 import config
 import resources.util as util
 
-from api import logger
+from resources.logger import logger
 
 
 class GitLab(object):

@@ -13,7 +13,7 @@ from model import db, UserPluginRelation, ProjectUserRole, TableProjects, Projec
     TableRolesPluginRelation
 import resources.project as pjt
 
-from api import logger
+from resources.logger import logger
 
 jwt = JWTManager()
 

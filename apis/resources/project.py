@@ -11,14 +11,13 @@ import config
 import resources.apiError as apiError
 import resources.kubernetesClient as kubernetesClient
 import resources.util as util
-from api import app
 from model import db, ProjectUserRole, ProjectPluginRelation, TableProjects
 from . import role
 from .rancher import Rancher
 from .redmine import Redmine
 from .gitlab import GitLab
 
-from api import logger
+from resources.logger import logger
 redmine = Redmine()
 gitlab = GitLab()
 
@@ -1486,4 +1485,4 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         return {'message': 'success', 'data': {'test_results': ret}}, 200
 
 
-pjt = ProjectResource(app, None, redmine, gitlab)
+pjt = ProjectResource(None, None, redmine, gitlab)

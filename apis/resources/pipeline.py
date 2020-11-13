@@ -10,7 +10,7 @@ import resources.util as util
 from model import db
 from .rancher import Rancher
 
-from api import logger
+from resources.logger import logger
 
 
 class Pipeline(object):

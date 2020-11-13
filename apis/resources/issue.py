@@ -3,7 +3,7 @@ from datetime import datetime, date, timedelta
 
 import resources.apiError as apiError
 import resources.util as util
-from api import logger
+from resources.logger import logger
 from model import db, ProjectPluginRelation, ProjectUserRole
 from .user import User
 

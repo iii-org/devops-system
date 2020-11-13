@@ -11,7 +11,7 @@ from flask_restful import reqparse
 import resources.apiError as apiError
 import resources.util as util
 
-from api import logger
+from resources.logger import logger
 
 
 class Redmine:

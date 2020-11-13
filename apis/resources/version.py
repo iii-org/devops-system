@@ -5,7 +5,7 @@ import resources.apiError as apiError
 import resources.util as util
 from .project import ProjectResource
 
-from api import logger
+from resources.logger import logger
 
 
 class Version(object):
