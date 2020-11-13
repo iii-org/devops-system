@@ -8,7 +8,6 @@ from flask_restful import Resource, reqparse
 
 import config
 import resources.apiError as apiError
-import resources.kubernetesClient as kubernetesClient
 import resources.util as util
 from model import db, ProjectUserRole, ProjectPluginRelation, TableProjects
 from resources.logger import logger
@@ -543,10 +542,110 @@ def get_plan_project_id(project_id):
     return ret
 
 
-class ProjectResource(object):
-    private_token = None
-    headers = {'Content-Type': 'application/json'}
+def get_projects_by_user(user_id):
+    output_array = []
+    result = db.engine.execute(
+        "SELECT pj.id, pj.name, pj.display, ppl.plan_project_id,"
+        " ppl.git_repository_id, ppl.ci_project_id, ppl.ci_pipeline_id, pj.http_url"
+        " FROM public.project_user_role as pur, public.projects as pj,"
+        " public.project_plugin_relation as ppl"
+        " WHERE pur.user_id = {0} AND pur.project_id = pj.id AND pj.id = ppl.project_id;".format(
+            user_id))
+    project_list = result.fetchall()
+    result.close()
+    if len(project_list) == 0:
+        return util.success([])
+    # get user ids
+    result = db.engine.execute(
+        "SELECT plan_user_id, repository_user_id"
+        " FROM public.user_plugin_relation WHERE user_id = {0}; ".format(
+            user_id))
+    userid_list_output = result.fetchone()
+    if userid_list_output is None:
+        return util.respond(404, "Error while getting projects of a user.",
+                            error=apiError.user_not_found(user_id))
+    plan_user_id = userid_list_output[0]
+    result.close()
+    for project in project_list:
+        output_dict = {'name': project['name'],
+                       'display': project['display'],
+                       'project_id': project['id'],
+                       'git_url': project['http_url'],
+                       'redmine_url': "http://{0}/projects/{1}".format(
+                           config.get("REDMINE_IP_PORT"),
+                           project['plan_project_id']),
+                       'repository_ids': project['git_repository_id'],
+                       'issues': None,
+                       'branch': None,
+                       'tag': None,
+                       'next_d_time': None,
+                       'last_test_time': "",
+                       'last_test_result': {}
+                       }
 
+        # get issue total cont
+        issue_output, status_code = redmine.rm_get_issues_by_project_and_user(
+            plan_user_id, project['plan_project_id'])
+        total_issue = issue_output.json()
+        output_dict['issues'] = total_issue['total_count']
+
+        # get next_d_time
+        issue_due_date_list = []
+        for issue in total_issue['issues']:
+            if issue['due_date'] is not None:
+                issue_due_date_list.append(
+                    datetime.strptime(issue['due_date'], "%Y-%m-%d"))
+        next_d_time = None
+        if len(issue_due_date_list) != 0:
+            next_d_time = min(
+                issue_due_date_list,
+                key=lambda d: abs(d - datetime.now()))
+        logger.info("next_d_time: {0}".format(next_d_time))
+        if next_d_time is not None:
+            output_dict['next_d_time'] = next_d_time.isoformat()
+
+        if project['git_repository_id'] is not None:
+            # branch number
+            branch_number, err = gitlab.count_branches(project['git_repository_id'])
+            if branch_number < 0:
+                return err, err.status_code
+            output_dict['branch'] = branch_number
+            # tag number
+            tag_number = 0
+            output = gitlab.gl_get_tags(project['git_repository_id'])
+            if output.status_code == 200:
+                tag_number = len(output.json())
+            output_dict['tag'] = tag_number
+
+        if project['ci_project_id'] is not None:
+            output_dict = get_ci_last_test_result(output_dict, project)
+
+        output_array.append(output_dict)
+
+    return util.success(output_array)
+
+
+def get_ci_last_test_result(output_dict, project):
+    # get rancher pipeline
+    pipeline_output, response = rancher.rc_get_pipeline_executions(
+        project["ci_project_id"], project["ci_pipeline_id"])
+    if len(pipeline_output) != 0:
+        output_dict['last_test_time'] = pipeline_output[0]['created']
+        stage_status = []
+        for stage in pipeline_output[0]['stages']:
+            if 'state' in stage:
+                stage_status.append(stage['state'])
+        if 'Failed' in stage_status:
+            failed_item = stage_status.index('Failed')
+            output_dict['last_test_result'] = {'total': len(pipeline_output[0]['stages']),
+                                               'success': failed_item}
+        else:
+            output_dict['last_test_result'] = {'total': len(pipeline_output[0]['stages']),
+                                               'success': len(pipeline_output[0]['stages'])}
+    return output_dict
+
+
+class ProjectResource(object):
     def __init__(self, app, au, redmine, gitlab):
         self.app = app
         self.au = au
@@ -583,7 +682,7 @@ class ProjectResource(object):
         logger.info("get all projects output: {0}".format(output.json()))
         return output
 
-    # 用project_id查詢單一project
+    # 用project_id查詢單一project
     def get_one_git_project(self, logger, app, project_id):
         url = "http://{0}/api/{1}/projects/{2}?private_token={3}".format( \
             config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id, self.private_token)
@@ -592,7 +691,7 @@ class ProjectResource(object):
         logger.info("get one project output: {0}".format(output.json()))
         return output
 
-    # 用project_id修改單一project（name/visibility）
+    # 用project_id修改單一project（name/visibility）
     def update_git_project(self, logger, app, project_id, args):
         url = "http://{0}/api/{1}/projects/{2}?private_token={3}&name={4}&visibility={5}".format( \
             config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id, self.private_token,
@@ -602,7 +701,7 @@ class ProjectResource(object):
         logger.info("update project output: {0}".format(output))
         return output
 
-    # 用project_id刪除單一project
+    # 用project_id刪除單一project
     def delete_git_project(self, logger, app, project_id):
         url = "http://{0}/api/{1}/projects/{2}?private_token={3}".format( \
             config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id, self.private_token)
@@ -611,7 +710,7 @@ class ProjectResource(object):
         logger.info("delete project output: {0}".format(output.json()))
         return output
 
-    # 用project_id查詢project的webhooks
+    # 用project_id查詢project的webhooks
     def get_git_project_webhooks(self, logger, app, project_id):
         url = "http://{0}/api/{1}/projects/{2}/hooks?private_token={3}".format( \
             config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id, self.private_token)
@@ -620,7 +719,7 @@ class ProjectResource(object):
         logger.info("get project webhooks output: {0}".format(output.json()))
         return output
 
-    # 用project_id新增project的webhook
+    # 用project_id新增project的webhook
     def create_git_project_webhook(self, logger, app, project_id, args):
         url = "http://{0}/api/{1}/projects/{2}/hooks?private_token={3}&url={4}&push_events={5}&push_events_branch_filter={6}&enable_ssl_verification={7}&token={8}".format( \
             config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id, self.private_token, \
@@ -631,7 +730,7 @@ class ProjectResource(object):
         logger.info("create project webhook output: {0}".format(output.json()))
         return output
 
-    # 用project_id & hook_id修改project的webhook
+    # 用project_id & hook_id修改project的webhook
     def update_git_project_webhook(self, logger, app, project_id, args):
         url = "http://{0}/api/{1}/projects/{2}/hooks/{3}?private_token={4}&url={5}&push_events={6}&push_events_branch_filter={7}&enable_ssl_verification={8}&token={9}".format( \
             config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id, args["hook_id"],
@@ -643,7 +742,7 @@ class ProjectResource(object):
         logger.info("update project webhook output: {0}".format(output.json()))
         return output
 
-    # 用project_id & hook_id刪除project的webhook
+    # 用project_id & hook_id刪除project的webhook
     def delete_git_project_webhook(self, logger, app, project_id, args):
         url = "http://{0}/api/{1}/projects/{2}/hooks/{3}?private_token={4}".format( \
             config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id, args["hook_id"],
@@ -660,186 +759,6 @@ class ProjectResource(object):
         project = result.fetchone()
         result.close()
         return project
-
-    def get_projects_by_user(self, logger, app, user_id):
-        output_array = []
-        result = db.engine.execute(
-            "SELECT pj.id, pj.name, pj.display, ppl.plan_project_id, \
-            ppl.git_repository_id, ppl.ci_project_id, ppl.ci_pipeline_id, pj.http_url\
-            FROM public.project_user_role as pur, public.projects as pj, public.project_plugin_relation as ppl\
-            WHERE pur.user_id = {0} AND pur.project_id = pj.id AND pj.id = ppl.project_id;"
-                .format(user_id))
-        project_list = result.fetchall()
-        result.close()
-        logger.debug("project list: {0}".format(project_list))
-        if len(project_list) > 0:
-            # get user ids
-            result = db.engine.execute(
-                "SELECT plan_user_id, repository_user_id \
-                FROM public.user_plugin_relation WHERE user_id = {0}; ".format(
-                    user_id))
-            userid_list_output = result.fetchone()
-            if userid_list_output is not None:
-                plan_user_id = userid_list_output[0]
-                result.close()
-                logger.info("get user_ids SQL: {0}".format(plan_user_id))
-                for project in project_list:
-                    output_dict = {}
-                    output_dict['name'] = project['name']
-                    output_dict['display'] = project['display']
-                    output_dict['project_id'] = project['id']
-                    output_dict['git_url'] = project['http_url']
-                    output_dict['redmine_url'] = "http://{0}/projects/{1}".format(
-                        config.get("REDMINE_IP_PORT"), project['plan_project_id'])
-                    output_dict['repository_ids'] = project[
-                        'git_repository_id']
-                    output_dict['issues'] = None
-                    output_dict['branch'] = None
-                    output_dict['tag'] = None
-                    output_dict['next_d_time'] = None
-                    output_dict['last_test_time'] = ""
-                    output_dict['last_test_result'] = {}
-
-                    # get issue total cont
-                    issue_output, status_code = self.redmine.rm_get_issues_by_project_and_user(
-                        plan_user_id, project['plan_project_id'])
-                    try:
-                        total_issue = issue_output.json()
-                    except Exception as e:
-                        return util.respond(500, "Error when getting issues for a user",
-                                            error=apiError.redmine_error(issue_output))
-                    logger.info("issue total count by user: {0}".format(
-                        total_issue['total_count']))
-                    output_dict['issues'] = total_issue['total_count']
-
-                    # get next_d_time
-                    issue_due_date_list = []
-                    for issue in total_issue['issues']:
-                        if issue['due_date'] is not None:
-                            issue_due_date_list.append(
-                                datetime.strptime(issue['due_date'],
-                                                  "%Y-%m-%d"))
-                    logger.info(
-                        "issue_due_date_list: {0}".format(issue_due_date_list))
-                    next_d_time = None
-                    if len(issue_due_date_list) != 0:
-                        next_d_time = min(
-                            issue_due_date_list,
-                            key=lambda d: abs(d - datetime.now()))
-                    logger.info("next_d_time: {0}".format(next_d_time))
-                    if next_d_time is not None:
-                        output_dict['next_d_time'] = next_d_time.isoformat()
-
-                    if project['git_repository_id'] is not None:
-                        # branch bumber
-                        branch_number = 0
-                        output, status_code = self.get_git_project_branches(
-                            logger, app, project['git_repository_id'])
-                        if status_code == 200:
-                            branch_number = len(output['data']['branch_list'])
-                        logger.info(
-                            "get_git_project_branches number: {0}".format(
-                                branch_number))
-                        output_dict['branch'] = branch_number
-                        # tag nubmer
-                        tag_number = 0
-                        output, status_code = self.get_git_project_tags(
-                            logger, app, project['git_repository_id'])
-                        if status_code == 200:
-                            tag_number = len(output['data']['tag_list'])
-                        logger.info("get_git_project_tags number: {0}".format(
-                            tag_number))
-                        output_dict['tag'] = tag_number
-
-                    if project['ci_project_id'] is not None:
-                        output_dict = self.get_ci_last_test_result(
-                            app, logger, output_dict, project)
-                    logger.debug("output_dict: {0}".format(output_dict))
-                    output_array.append(output_dict)
-                logger.debug("output_array: {0}".format(output_array))
-                return {"message": "success", "data": output_array}, 200
-            else:
-                return {
-                           "message": "could not get plan_user_id and repository_id"
-                       }, 400
-        else:
-            return {"message": "success", "data": []}, 200
-
-    def get_ci_last_test_result(self, app, logger, output_dict, project):
-        # get rancher pipeline
-        pipeline_output, response = self.rancher.rc_get_pipeline_executions(
-            project["ci_project_id"], project["ci_pipeline_id"])
-        if len(pipeline_output) != 0:
-            logger.info(pipeline_output[0]['name'])
-            logger.info(pipeline_output[0]['created'])
-            output_dict['last_test_time'] = pipeline_output[0]['created']
-            stage_status = []
-            # logger.info(pipeline_output[0]['stages'])
-            for stage in pipeline_output[0]['stages']:
-                logger.info("stage: {0}".format(stage))
-                if 'state' in stage:
-                    stage_status.append(stage['state'])
-            logger.info(stage_status)
-            failed_item = -1
-            if 'Failed' in stage_status:
-                failed_item = stage_status.index('Failed')
-                logger.info("failed_item: {0}".format(failed_item))
-                output_dict['last_test_result'] = {'total': len(pipeline_output[0]['stages']), \
-                                                   'success': failed_item}
-            else:
-                output_dict['last_test_result'] = {'total': len(pipeline_output[0]['stages']), \
-                                                   'success': len(pipeline_output[0]['stages'])}
-        return output_dict
-
-    # 用project_id查詢project的branches
-    def get_git_project_branches(self, logger, app, project_id):
-        url = "http://{0}/api/{1}/projects/{2}/repository/branches?private_token={3}".format( \
-            config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id, self.private_token)
-        logger.info("get project branches url: {0}".format(url))
-        logger.info("get project branches headers: {0}".format(self.headers))
-        output = requests.get(url, headers=self.headers, verify=False)
-        logger.info("get project branches output: {0} / {1}".format(
-            output, output.json()))
-        if output.status_code == 200:
-            # get gitlab project path
-            projtct_detail = self.get_one_git_project(logger, app, project_id)
-            logger.info("Get git path: {0}".format(projtct_detail.json()['path']))
-            # get kubernetes service nodePort url
-            k8s_service_list = kubernetesClient.list_service_all_namespaces()
-            k8s_node_list = kubernetesClient.list_work_node()
-            work_node_ip = k8s_node_list[0]['ip']
-            logger.info("k8s_node ip: {0}".format(work_node_ip))
-
-            branch_list = []
-            for branch_info in output.json():
-                env_url_list = []
-                for k8s_service in k8s_service_list:
-                    if k8s_service['type'] == 'NodePort' and \
-                            "{0}-{1}".format(projtct_detail.json()['path'], branch_info["name"]) \
-                            in k8s_service['name']:
-                        port_list = []
-                        for port in k8s_service['ports']:
-                            port_list.append(
-                                {"port": port['port'], "url": "http://{0}:{1}".format(work_node_ip, port['nodePort'])})
-                        env_url_list.append({k8s_service['name']: port_list})
-                branch = {
-                    "name": branch_info["name"],
-                    "last_commit_message": branch_info["commit"]["message"],
-                    "last_commit_time":
-                        branch_info["commit"]["committed_date"],
-                    "short_id": branch_info["commit"]["short_id"],
-                    "env_url": env_url_list
-                }
-                branch_list.append(branch)
-            return {
-                       "message": "success",
-                       "data": {
-                           "branch_list": branch_list
-                       }
-                   }, 200
-        else:
-            logger.info("gitlab repository get branch list error: {0}".format(output.json()["message"]))
-            return {"message": "gitlab don't has this repository project id"}, 400
 
     # 用project_id新增project的branch
     def create_git_project_branch(self, logger, app, project_id, args):
@@ -982,26 +901,6 @@ class ProjectResource(object):
         else:
             error_code = output.status_code
             return {"message": output.json()["message"]}, error_code
-
-    # 用project_id查詢project的tags
-    def get_git_project_tags(self, logger, app, project_id):
-        url = "http://{0}/api/{1}/projects/{2}/repository/tags?private_token={3}".format( \
-            config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id, self.private_token)
-        logger.info("get project tags url: {0}".format(url))
-        output = requests.get(url, headers=self.headers, verify=False)
-        logger.info("get project tags output: {0} / {1} ".format(
-            output, output.json()))
-        if output.status_code == 200:
-            return {
-                       "message": "success",
-                       "data": {
-                           "tag_list": output.json()
-                       }
-                   }, 200
-        else:
-            return {
-                       "message": output.json()["message"],
-                   }, output.status_code
 
     # 用project_id新增project的tag
     def create_git_project_tags(self, logger, app, project_id, args):
@@ -1516,3 +1415,10 @@ class ProjectMember(Resource):
         role.require_pm()
         role.require_in_project(project_id)
         return project_remove_member(project_id, user_id)
+
+
+class ProjectsByUser(Resource):
+    @jwt_required
+    def get(self, user_id):
+        role.require_user_himself(user_id, even_pm=False)
+        return get_projects_by_user(user_id)

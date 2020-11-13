@@ -5,6 +5,7 @@ import requests
 
 import config
 import resources.util as util
+from resources import apiError
 
 from resources.logger import logger
 
@@ -110,3 +111,57 @@ class GitLab(object):
 
     def gl_delete_user(self, gitlab_user_id):
         return self.__api_delete('/users/{0}'.format(gitlab_user_id))
+
+    def count_branches(self, repo_id):
+        output = self.__api_get('/projects/{0}/repository/branches'.format(repo_id))
+        if output.status_code != 200:
+            return -1, util.respond_request_style(
+                output.status_code, "Error while getting git branches",
+                error=apiError.gitlab_error(output))
+        return len(output.json()), None
+
+    def gl_get_tags(self, repo_id):
+        return self.__api_get('/projects/{0}/repository/tags'.format(repo_id))
+
+    # Not used now, skipping refactor
+    # def gl_get_branches(self, repo_id):
+    #     output = self.__api_get('/projects/{0}/repository/branches'.format(repo_id))
+    #     if output.status_code != 200:
+    #         return util.respond_request_style(output.status_code, "Error while getting git branches",
+    #                                           error=apiError.gitlab_error(output))
+    #     # get gitlab project path
+    #     projtct_detail = self.get_one_git_project(logger, app, repo_id)
+    #     logger.info("Get git path: {0}".format(projtct_detail.json()['path']))
+    #     # get kubernetes service nodePort url
+    #     k8s_service_list = kubernetesClient.list_service_all_namespaces()
+    #     k8s_node_list = kubernetesClient.list_work_node()
+    #     work_node_ip = k8s_node_list[0]['ip']
+    #     logger.info("k8s_node ip: {0}".format(work_node_ip))
+    #
+    #     branch_list = []
+    #     for branch_info in output.json():
+    #         env_url_list = []
+    #         for k8s_service in k8s_service_list:
+    #             if k8s_service['type'] == 'NodePort' and \
+    #                     "{0}-{1}".format(projtct_detail.json()['path'], branch_info["name"]) \
+    #                     in k8s_service['name']:
+    #                 port_list = []
+    #                 for port in k8s_service['ports']:
+    #                     port_list.append(
+    #                         {"port": port['port'], "url": "http://{0}:{1}".format(work_node_ip, port['nodePort'])})
+    #                 env_url_list.append({k8s_service['name']: port_list})
+    #         branch = {
+    #             "name": branch_info["name"],
+    #             "last_commit_message": branch_info["commit"]["message"],
+    #             "last_commit_time":
+    #                 branch_info["commit"]["committed_date"],
+    #             "short_id": branch_info["commit"]["short_id"],
+    #             "env_url": env_url_list
+    #         }
+    #         branch_list.append(branch)
+    #     return {
+    #                "message": "success",
+    #                "data": {
+    #                    "branch_list": branch_list
+    #                }
+    #            }, 200

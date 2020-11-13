@@ -41,3 +41,17 @@ def require_in_project(project_id,
         return
     else:
         raise apiError.NotInProjectError(err_message)
+
+
+def require_user_himself(user_id,
+                         err_message="You must be admin to access another user's data.",
+                         even_pm=True,
+                         even_admin=False):
+    identity = get_jwt_identity()
+    my_user_id = identity['user_id']
+    role_id = identity['role_id']
+    if my_user_id == int(user_id):
+        return
+    if role_id == RD or (even_pm and role_id == PM) or (even_admin and role_id == ADMIN):
+        raise apiError.NotUserHimselfError(err_message)
+    return

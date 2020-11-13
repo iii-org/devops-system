@@ -83,6 +83,10 @@ class NotInProjectError(HTTPException):
     pass
 
 
+class NotUserHimselfError(HTTPException):
+    pass
+
+
 # Third party service errors
 def redmine_error(response):
     return error_3rd_party_api(8001, 'Redmine', response)
@@ -123,6 +127,10 @@ custom_errors = {
     },
     'NotInProjectError': {
         'error': build(3002, 'You need to be in the project for this operation.'),
+        'status': 401
+    },
+    'NotUserHimselfError': {
+        'error': build(3003, "You must be admin to access another user's data."),
         'status': 401
     }
 }
