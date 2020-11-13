@@ -1,18 +1,15 @@
 import datetime
-import logging
 import re
 
 from Cryptodome.Hash import SHA256
 from flask_jwt_extended import (create_access_token, JWTManager)
 
-import config
 import resources.apiError as apiError
+import resources.project as pjt
 import resources.util as util
 from model import User as UserModel
 from model import db, UserPluginRelation, ProjectUserRole, TableProjects, ProjectPluginRelation, \
     TableRolesPluginRelation
-import resources.project as pjt
-
 from resources.logger import logger
 
 jwt = JWTManager()

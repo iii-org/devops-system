@@ -62,11 +62,17 @@ class GitLab(object):
         return self.__api_request('DELETE', path, params=params, headers=headers)
 
     def gl_create_project(self, args):
-        output = self.__api_post('/projects', params={
+        return self.__api_post('/projects', params={
             'name': args["name"],
             'description': args["description"]
         })
-        return output
+
+    def gl_update_project(self, repo_id, description):
+        params = {'description': description}
+        return self.__api_put('/projects/{0}'.format(repo_id), params=params)
+
+    def gl_delete_project(self, repo_id):
+        return self.__api_delete('/projects/{0}'.format(repo_id))
 
     def gl_create_user(self, args, user_source_password):
         data = {

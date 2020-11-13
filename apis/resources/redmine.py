@@ -97,6 +97,22 @@ class Redmine:
         return self.__api_get('/projects/{0}'.format(plan_project_id),
                               params={'limit': 1000})
 
+    def rm_update_project(self, plan_project_id, args):
+        xml_body = """<?xml version="1.0" encoding="UTF-8"?>
+                <project>
+                <name>{0}</name>
+                <description>{1}</description>
+                </project>""".format(
+            args["display"],
+            args["description"])
+        headers = {'Content-Type': 'application/xml'}
+        return self.__api_put('/projects/{0}'.format(plan_project_id),
+                              headers=headers,
+                              data=xml_body.encode('utf-8'))
+
+    def rm_delete_project(self, plan_project_id):
+        return self.__api_delete('/projects/{0}'.format(plan_project_id))
+
     def rm_get_issues_by_user(self, user_id):
         params = {'assigned_to_id': user_id, 'limit': 1000, 'status_id': '*'}
         output = self.__api_get('/issues', params=params)

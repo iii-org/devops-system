@@ -1,4 +1,3 @@
-import logging
 import re
 import urllib
 from datetime import datetime
@@ -12,86 +11,16 @@ import resources.apiError as apiError
 import resources.kubernetesClient as kubernetesClient
 import resources.util as util
 from model import db, ProjectUserRole, ProjectPluginRelation, TableProjects
+from resources.logger import logger
 from . import role
+from .gitlab import GitLab
 from .rancher import Rancher
 from .redmine import Redmine
-from .gitlab import GitLab
+from .user import User
 
-from resources.logger import logger
 redmine = Redmine()
 gitlab = GitLab()
-
-
-class ListMyProjects(Resource):
-    @jwt_required
-    def get(self):
-        role.require_pm()
-        user_id = get_jwt_identity()["user_id"]
-        return get_pm_project_list(user_id)
-
-
-class GetProject(Resource):
-    @jwt_required
-    def get(self, project_id):
-        role.require_pm("Error when getting project info.")
-        role.require_in_project(project_id, "Error when getting project info.")
-        return pm_get_project(project_id)
-
-    @jwt_required
-    def put(self, project_id):
-        role.require_pm("Error when modifying project info.")
-        role.require_in_project(project_id, "Error when modifying project info.")
-        parser = reqparse.RequestParser()
-        parser.add_argument('name', type=str)
-        parser.add_argument('display', type=str)
-        parser.add_argument('user_id', type=int)
-        parser.add_argument('description', type=str)
-        parser.add_argument('disabled', type=bool)
-        args = parser.parse_args()
-        return pjt.pm_update_project(logger, app, project_id, args)
-
-    @jwt_required
-    def delete(self, project_id):
-        role_id = get_jwt_identity()["role_id"]
-
-        status = pjt.verify_project_user(project_id, get_jwt_identity()['user_id'])
-        if (role_id == 3 and status) or (role_id == 5):
-            try:
-                output = pjt.pm_delete_project(logger, app, project_id)
-                return output
-            except Exception as e:
-                return {"message": str(e)}, 400
-        else:
-            return {"message": "you are not an administrator, and you are not a PM in this project."}, 401
-
-
-class CreateProject(Resource):
-    @jwt_required
-    def post(self):
-        role.require_pm()
-        user_id = get_jwt_identity()["user_id"]
-        parser = reqparse.RequestParser()
-        parser.add_argument('name', type=str, required=True)
-        parser.add_argument('display', type=str)
-        parser.add_argument('description', type=str)
-        parser.add_argument('disabled', type=bool, required=True)
-        args = parser.parse_args()
-        logger.info("post body: {0}".format(args))
-
-        pattern = "^[a-z0-9][a-z0-9-]{0,253}[a-z0-9]$"
-        result = re.fullmatch(pattern, args["name"])
-        if result is not None:
-            try:
-                args["identifier"] = args["name"]
-                output = pjt.pm_create_project(user_id, args)
-                return output
-            except Exception as e:
-                import traceback
-                traceback.print_exc()
-                return {"message": str(e)}, 400
-        else:
-            return util.respond(400, 'Error while creating project',
-                                error=apiError.invalid_project_name(args['name']))
+rancher = Rancher()
 
 
 def get_project_plugin_relation(project_id):
@@ -217,6 +146,110 @@ def get_pm_project_list(user_id):
         return {"message": "Could not get data from db"}, 400
 
 
+def pm_update_project(project_id, args):
+    result = db.engine.execute(
+        "SELECT * FROM public.project_plugin_relation WHERE project_id = '{0}'".format(
+            project_id))
+    project_relation = result.fetchone()
+    result.close()
+
+    redmine_project_id = project_relation["plan_project_id"]
+    gitlab_project_id = project_relation["git_repository_id"]
+
+    if args["name"] is None:
+        result = db.engine.execute(
+            "SELECT name FROM public.projects WHERE id = '{0}'".format(
+                project_id))
+        args["name"] = result.fetchone()[0]
+        result.close()
+    if args["display"] is None:
+        result = db.engine.execute(
+            "SELECT name FROM public.projects WHERE id = '{0}'".format(
+                project_id))
+        args["display"] = result.fetchone()[0]
+        result.close()
+    if args["description"] is None:
+        result = db.engine.execute(
+            "SELECT description FROM public.projects WHERE id = '{0}'".format(
+                project_id))
+        args["description"] = result.fetchone()[0]
+        result.close()
+
+    # 更新gitlab project
+    gitlab_output = gitlab.gl_update_project(gitlab_project_id, args["description"])
+    if gitlab_output.status_code != 200:
+        return util.respond(gitlab_output.status_code, "Error while updating project.",
+                            error=apiError.gitlab_error(gitlab_output))
+
+    # 更新redmine project
+    redmine_output = redmine.rm_update_project(redmine_project_id, args)
+    if redmine_output.status_code != 204:
+        return util.respond(redmine_output.status_code, "Error while updating project.",
+                            error=apiError.redmine_error(redmine_output))
+
+    # 修改db
+    # 修改projects
+    fields = ['name', 'display', 'description', 'disabled']
+    for field in fields:
+        if args[field] is not None:
+            db.engine.execute(
+                "UPDATE public.projects SET {0} = '{1}' WHERE id = '{2}'".format(
+                    field, args[field], project_id))
+
+    # 修改project_user_role
+    if args["user_id"] is not None:
+        user_id = args['user_id']
+        db.engine.execute(
+            "UPDATE public.project_user_role SET user_id = '{0}'"
+            " WHERE project_id = '{1}' AND role_id = '{2}'".format(
+                user_id, project_id, User.get_role_id(user_id)))
+
+    return util.success()
+
+
+# 用project_id刪除redmine & gitlab的project並將db的相關table欄位一併刪除
+def delete_project(project_id):
+    # 取得gitlab & redmine project_id
+    result = db.engine.execute(
+        "SELECT * FROM public.project_plugin_relation WHERE project_id = '{0}'".format(
+            project_id))
+    project_relation = result.fetchone()
+    result.close()
+    if project_relation is None:
+        return util.respond(404, "Error while deleting project.",
+                            error=apiError.project_not_found(project_id))
+    redmine_project_id = project_relation["plan_project_id"]
+    gitlab_project_id = project_relation["git_repository_id"]
+
+    # disabled rancher pipeline
+    rancher.rc_disable_project_pipeline(
+        project_relation["ci_project_id"],
+        project_relation["ci_pipeline_id"])
+
+    gitlab_output = gitlab.gl_delete_project(gitlab_project_id)
+    if gitlab_output.status_code != 202:
+        return util.respond(gitlab_output.status_code, "Error while deleting project.",
+                            error=apiError.gitlab_error(gitlab_output))
+
+    redmine_output = redmine.rm_delete_project(redmine_project_id)
+    if redmine_output.status_code != 204:
+        return util.respond(gitlab_output.status_code, "Error while deleting project.",
+                            error=apiError.redmine_error(redmine_output))
+
+    # 如果gitlab & redmine project都成功被刪除則繼續刪除db內相關tables欄位
+    db.engine.execute(
+        "DELETE FROM public.project_plugin_relation WHERE project_id = '{0}'".format(
+            project_id))
+    db.engine.execute(
+        "DELETE FROM public.project_user_role WHERE project_id = '{0}'".format(
+            project_id))
+    db.engine.execute(
+        "DELETE FROM public.projects WHERE id = '{0}'".format(
+            project_id))
+
+    return util.success()
+
+
 # 用project_id查詢db的相關table欄位資訊
 def pm_get_project(project_id):
     plan_project_id = get_plan_project_id(project_id)
@@ -274,7 +307,6 @@ def get_plan_project_id(project_id):
         ret = -1
     result.close()
     return ret
-
 
 
 class ProjectResource(object):
@@ -897,7 +929,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
     def get_git_project_file_for_pipeline(self, project_id, args):
         url = "http://{0}/api/{1}/projects/{2}/repository/files/{3}?private_token={4}&ref={5}".format(
             config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id,
-                    args["file_path"], self.private_token, args["branch"])
+            args["file_path"], self.private_token, args["branch"])
         logger.info("get project file url: {0}".format(url))
         output = requests.get(url, headers=self.headers, verify=False)
         logger.info("get project file output: {0}".format(output.json()))
@@ -1089,212 +1121,6 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                    }
                }, 200
 
-    # 修改redmine & gitlab的project資訊
-    def pm_update_project(self, logger, app, project_id, args):
-        result = db.engine.execute(
-            "SELECT * FROM public.project_plugin_relation WHERE project_id = '{0}'"
-                .format(project_id))
-        project_relation = result.fetchone()
-        result.close()
-
-        redmine_project_id = project_relation["plan_project_id"]
-        gitlab_project_id = project_relation["git_repository_id"]
-
-        if args["name"] is None:
-            result = db.engine.execute(
-                "SELECT name FROM public.projects WHERE id = '{0}'".format(
-                    project_id))
-            args["name"] = result.fetchone()[0]
-            result.close()
-        if args["display"] is None:
-            result = db.engine.execute(
-                "SELECT name FROM public.projects WHERE id = '{0}'".format(
-                    project_id))
-            args["display"] = result.fetchone()[0]
-            result.close()
-        if args["description"] is None:
-            result = db.engine.execute(
-                "SELECT description FROM public.projects WHERE id = '{0}'".
-                    format(project_id))
-            args["description"] = result.fetchone()[0]
-            result.close()
-
-        # 更新gitlab project
-        gitlab_url = ('http://{0}/api/{1}/projects/{2}?'
-                      'private_token={3}&description={4}').format(
-            config.get("GITLAB_IP_PORT"),
-            config.get("GITLAB_API_VERSION"),
-            gitlab_project_id,
-            self.private_token,
-            args["description"])
-        logger.info("update gitlab project url: {0}".format(gitlab_url))
-        gitlab_output = requests.put(gitlab_url,
-                                     headers=self.headers,
-                                     verify=False)
-        logger.info("update gitlab project output: {0} / {1}".format(
-            gitlab_output, gitlab_output.json()))
-
-        # 更新redmine project
-        if gitlab_output.status_code == 200:
-            redmine_url = "http://{0}/projects/{1}.json?key={2}".format(
-                config.get("REDMINE_IP_PORT"), redmine_project_id, config.get("REDMINE_API_KEY"))
-            logger.info("update redmine project url: {0}".format(redmine_url))
-            xml_body = """<?xml version="1.0" encoding="UTF-8"?>
-                    <project>
-                    <name>{0}</name>
-                    <description>{1}</description>
-                    </project>""".format(
-                args["display"],
-                args["description"])
-            logger.info("update redmine project body: {0}".format(xml_body))
-            headers = {'Content-Type': 'application/xml'}
-            redmine_output = requests.put(redmine_url,
-                                          headers=headers,
-                                          data=xml_body.encode('utf-8'),
-                                          verify=False)
-            logger.info(
-                "update redmine project output: {0}".format(redmine_output))
-
-            # 修改db
-            if redmine_output.status_code == 204:
-                # 修改projects
-                if args["name"] != None:
-                    db.engine.execute(
-                        "UPDATE public.projects SET name = '{0}' WHERE id = '{1}'"
-                            .format(args["name"], project_id))
-                if args["display"] is not None:
-                    r = db.engine.execute(
-                        "UPDATE public.projects SET display = '{0}' WHERE id = '{1}'"
-                            .format(args["display"], project_id))
-                if args["description"] != None:
-                    db.engine.execute(
-                        "UPDATE public.projects SET description = '{0}' WHERE id = '{1}'"
-                            .format(args["description"], project_id))
-                if args["disabled"] != None:
-                    db.engine.execute(
-                        "UPDATE public.projects SET disabled = '{0}' WHERE id = '{1}'"
-                            .format(args["disabled"], project_id))
-
-                # 修改project_user_role
-                if args["user_id"] != None:
-                    db.engine.execute(
-                        "UPDATE public.project_user_role SET user_id = '{0}' WHERE project_id = '{1}' AND role_id = '{2}'"
-                            .format(args["user_id"], project_id, 3))
-
-                return {
-                           "message": "success",
-                           "data": {
-                               "result": "success update"
-                           }
-                       }, 200
-
-            else:
-                error_code = redmine_output.status_code
-                return {
-                           "message": {
-                               "redmine": {
-                                   "errors": redmine_output.json()
-                               }
-                           }
-                       }, error_code
-
-        else:
-            error_code = gitlab_output.status_code
-            return {
-                       "message": {
-                           "gitlab": {
-                               "errors": gitlab_output.json()
-                           }
-                       }
-                   }, error_code
-
-    # 用project_id刪除redmine & gitlab的project並將db的相關table欄位一併刪除
-    def pm_delete_project(self, logger, app, project_id):
-        # 取得gitlab & redmine project_id
-        result = db.engine.execute(
-            "SELECT * FROM public.project_plugin_relation WHERE project_id = '{0}'"
-                .format(project_id))
-        project_relation = result.fetchone()
-        result.close()
-        if project_relation is not None:
-            redmine_project_id = project_relation["plan_project_id"]
-            gitlab_project_id = project_relation["git_repository_id"]
-
-            # disabled rancher pipeline
-            self.rancher.rc_disable_project_pipeline(
-                project_relation["ci_project_id"],
-                project_relation["ci_pipeline_id"])
-
-            # 刪除gitlab project
-            gitlab_url = "http://{0}/api/{1}/projects/{2}?private_token={3}".format(
-                config.get("GITLAB_IP_PORT"),
-                config.get("GITLAB_API_VERSION"),
-                gitlab_project_id,
-                self.private_token)
-            logger.info("delete gitlab project url: {0}".format(gitlab_url))
-            gitlab_output = requests.delete(gitlab_url,
-                                            headers=self.headers,
-                                            verify=False)
-            logger.info("delete gitlab project output: {0} / {1}".format(
-                gitlab_output, gitlab_output.json()))
-            # 如果gitlab project成功被刪除則繼續刪除redmine project
-            if gitlab_output.status_code == 202:
-                redmine_url = "http://{0}/projects/{1}.json?key={2}".format( \
-                    config.get("REDMINE_IP_PORT"), redmine_project_id, config.get("REDMINE_API_KEY"))
-                logger.info(
-                    "delete redmine project url: {0}".format(redmine_url))
-                redmine_output = requests.delete(redmine_url,
-                                                 headers=self.headers,
-                                                 verify=False)
-                logger.info("delete redmine project output: {0}".format(
-                    redmine_output))
-                # 如果gitlab & redmine project都成功被刪除則繼續刪除db內相關tables欄位
-                if redmine_output.status_code == 204:
-                    db.engine.execute(
-                        "DELETE FROM public.project_plugin_relation WHERE project_id = '{0}'"
-                            .format(project_id))
-                    db.engine.execute(
-                        "DELETE FROM public.project_user_role WHERE project_id = '{0}'"
-                            .format(project_id))
-                    db.engine.execute(
-                        "DELETE FROM public.projects WHERE id = '{0}'".format(
-                            project_id))
-
-                    return {
-                               "message": "success",
-                               "data": {
-                                   "result": "success delete"
-                               }
-                           }, 200
-
-                else:
-                    error_code = redmine_output.status_code
-                    return {
-                               "message": {
-                                   "redmine": {
-                                       "errors": redmine_output.json()
-                                   }
-                               }
-                           }, error_code
-
-            else:
-                error_code = gitlab_output.status_code
-                return {
-                           "message": {
-                               "gitlab": {
-                                   "errors": gitlab_output.json()
-                               }
-                           }
-                       }, error_code
-        else:
-            return {"message": "can not find this project."}
-
-        # db.engine.execute(
-        #     "UPDATE public.projects SET disabled = '{0}' WHERE id = '{1}'".
-        #     format(True, project_id))
-
-        # output = {"result": "success delete"}
-
     def get_git_project_id(self, logger, app, repository_id):
         result = db.engine.execute(
             "SELECT project_id FROM public.project_plugin_relation WHERE git_repository_id = '{0}'"
@@ -1485,4 +1311,65 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         return {'message': 'success', 'data': {'test_results': ret}}, 200
 
 
-pjt = ProjectResource(None, None, redmine, gitlab)
+class ListMyProjects(Resource):
+    @jwt_required
+    def get(self):
+        role.require_pm()
+        user_id = get_jwt_identity()["user_id"]
+        return get_pm_project_list(user_id)
+
+
+class GetProject(Resource):
+    @jwt_required
+    def get(self, project_id):
+        role.require_pm("Error when getting project info.")
+        role.require_in_project(project_id, "Error when getting project info.")
+        return pm_get_project(project_id)
+
+    @jwt_required
+    def put(self, project_id):
+        role.require_pm("Error when modifying project info.")
+        role.require_in_project(project_id, "Error when modifying project info.")
+        parser = reqparse.RequestParser()
+        parser.add_argument('name', type=str)
+        parser.add_argument('display', type=str)
+        parser.add_argument('user_id', type=int)
+        parser.add_argument('description', type=str)
+        parser.add_argument('disabled', type=bool)
+        args = parser.parse_args()
+        return pm_update_project(project_id, args)
+
+    @jwt_required
+    def delete(self, project_id):
+        role.require_pm()
+        role.require_in_project(project_id)
+        return pjt.delete_project(project_id)
+
+
+class CreateProject(Resource):
+    @jwt_required
+    def post(self):
+        role.require_pm()
+        user_id = get_jwt_identity()["user_id"]
+        parser = reqparse.RequestParser()
+        parser.add_argument('name', type=str, required=True)
+        parser.add_argument('display', type=str)
+        parser.add_argument('description', type=str)
+        parser.add_argument('disabled', type=bool, required=True)
+        args = parser.parse_args()
+        logger.info("post body: {0}".format(args))
+
+        pattern = "^[a-z0-9][a-z0-9-]{0,253}[a-z0-9]$"
+        result = re.fullmatch(pattern, args["name"])
+        if result is not None:
+            try:
+                args["identifier"] = args["name"]
+                output = pjt.pm_create_project(user_id, args)
+                return output
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+                return {"message": str(e)}, 400
+        else:
+            return util.respond(400, 'Error while creating project',
+                                error=apiError.invalid_project_name(args['name']))

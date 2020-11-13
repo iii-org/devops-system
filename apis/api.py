@@ -160,7 +160,6 @@ class ProjectsByUser(Resource):
 class UserLogin(Resource):
     # noinspection PyMethodMayBeStatic
     def post(self):
-        logger.info("AAA")
         parser = reqparse.RequestParser()
         parser.add_argument('username', type=str, required=True)
         parser.add_argument('password', type=str, required=True)
