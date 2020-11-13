@@ -9,9 +9,10 @@ class DevOpsFilter(logging.Filter):
         record.user_id = None
         record.user_name = None
         jwt = get_jwt_identity()
+        print(jwt)
         if jwt is not None:
             record.user_id = jwt['user_id']
-            record.user_name = jwt['user_name']
+            record.user_name = jwt['user_account']
         return True
 
 
