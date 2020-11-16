@@ -47,8 +47,12 @@ class Issue(object):
             redmine_output['project']['name'] = None
         if 'assigned_to' in redmine_output:
             userInfo = self.au.get_user_id_name_by_plan_user_id(redmine_output['assigned_to']['id'])
-            redmine_output['assigned_to'] = {'id': userInfo['id'], 'name': userInfo['name']}
-            redmine_output.pop('author', None)
+            if userInfo is not None:
+                redmine_output['assigned_to'] = {'id': userInfo['id'], 'name': userInfo['name']}
+        if 'author' in redmine_output:
+            userInfo = self.au.get_user_id_name_by_plan_user_id(redmine_output['author']['id'])
+            if userInfo is not None:
+                redmine_output['author'] = {'id': userInfo['id'], 'name': userInfo['name']}
         redmine_output.pop('is_private', None)
         redmine_output.pop('total_estimated_hours', None)
         redmine_output.pop('spent_hours', None)
