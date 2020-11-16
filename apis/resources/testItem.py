@@ -3,7 +3,7 @@ import resources.util as util
 import datetime
 import logging
 
-logger = logging.getLogger('devops.api')
+from resources.logger import logger
 
 
 def deal_with_TestItemObject(sql_row):

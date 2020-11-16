@@ -24,10 +24,8 @@ import resources.testResult as testResult
 import resources.testValue as testValue
 from jsonwebtoken import jsonwebtoken
 from model import db
-from resources import project, gitlab, util, issue, user
-from resources.cicd import Cicd
+from resources import project, gitlab, util, issue, user, postman
 from resources.gitlab import GitLab
-from resources.issue import Issue as IssueResource
 from resources.logger import logger
 from resources.project import ProjectResource as ProjectResource
 from resources.redmine import Redmine
@@ -67,8 +65,6 @@ wk = WikiResource(redmine)
 vn = VersionResource(redmine)
 git = GitLab()
 pjt = ProjectResource(app, user, redmine, git)
-iss = IssueResource(pjt, redmine, user)
-ci = Cicd(pjt, iss)
 
 
 class ProjectUserList(Resource):
@@ -916,18 +912,6 @@ class GetPostmanReport(Resource):
         return testResult.get_report(project_id)
 
 
-class ExportToPostman(Resource):
-    @jwt_required
-    def get(self, project_id):
-        jwt_identity = get_jwt_identity()
-        parser = reqparse.RequestParser()
-        parser.add_argument('target', type=str, required=True)
-        args = parser.parse_args()
-        target = args['target']
-        output = ci.export_to_postman(project_id, target, jwt_identity)
-        return output
-
-
 class SonarReport(Resource):
     @jwt_required
     def get(self, project_id):
@@ -1116,7 +1100,7 @@ api.add_resource(TestResult, '/testResults')
 api.add_resource(GetPostmanReport, '/postman_report/<sint:project_id>')
 
 # Export tests to postman json format
-api.add_resource(ExportToPostman, '/export_to_postman/<sint:project_id>')
+api.add_resource(postman.ExportToPostman, '/export_to_postman/<sint:project_id>')
 
 # Checkmarx report generation
 api.add_resource(checkmarx.CreateCheckmarxScan, '/checkmarx/create_scan')

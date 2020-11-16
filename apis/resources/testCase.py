@@ -6,7 +6,7 @@ import logging
 import resources.util as util
 from model import db, TableTestCase, TableCaseType
 
-logger = logging.getLogger('devops.api')
+from resources.logger import logger
 
 
 def get_testcase_type():

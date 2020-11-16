@@ -11,8 +11,6 @@ from flask_restful import Resource, reqparse
 
 from model import db
 
-logger = logging.getLogger('devops.api')
-
 
 def build_url(path):
     return config.get('CHECKMARX_ORIGIN') + path

@@ -4,7 +4,7 @@ import logging
 import resources.util as util
 from model import db, TableTestValue
 
-logger = logging.getLogger('devops.api')
+from resources.logger import logger
 
 httpType = {"1": "request", "2": "response"}
 httpMethod = {"1": "GET", "2": "POST", "3": "PUT", "4": "DELETE"}

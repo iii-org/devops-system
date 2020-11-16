@@ -4,7 +4,7 @@ import json
 import resources.util as util
 from model import db, TableParameter, TableParameterType
 
-logger = logging.getLogger('devops.api')
+from resources.logger import logger
 
 
 def get_param_type():
