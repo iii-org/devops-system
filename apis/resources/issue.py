@@ -768,3 +768,34 @@ class MyIssueMonthStatistics(Resource):
     @jwt_required
     def get(self):
         return get_issue_statistics_in_period('month', get_jwt_identity()['user_id'])
+
+
+class DashboardIssuePriority(Resource):
+    @jwt_required
+    def get(self, user_id):
+        if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity(
+        )['role_id'] in (3, 5):
+            return count_priority_number_by_issues(user_id)
+        else:
+            return {'message': 'Access token is missing or invalid'}, 401
+
+
+class DashboardIssueProject(Resource):
+    @jwt_required
+    def get(self, user_id):
+        if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity(
+        )['role_id'] in (3, 5):
+            return count_project_number_by_issues(user_id)
+        else:
+            return {'message': 'Access token is missing or invalid'}, 401
+
+
+class DashboardIssueType(Resource):
+    @jwt_required
+    def get(self, user_id):
+        if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity(
+        )['role_id'] in (3, 5):
+            return count_type_number_by_issues(user_id)
+        else:
+            return {'message': 'Access token is missing or invalid'}, 401
+

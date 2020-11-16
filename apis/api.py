@@ -484,36 +484,6 @@ class PipelinePhaseYaml(Resource):
         return pipeline.get_phase_yaml(repository_id, branch_name)
 
 
-class DashboardIssuePriority(Resource):
-    @jwt_required
-    def get(self, user_id):
-        if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity(
-        )['role_id'] in (3, 5):
-            return count_priority_number_by_issues(user_id)
-        else:
-            return {'message': 'Access token is missing or invalid'}, 401
-
-
-class DashboardIssueProject(Resource):
-    @jwt_required
-    def get(self, user_id):
-        if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity(
-        )['role_id'] in (3, 5):
-            return count_project_number_by_issues(user_id)
-        else:
-            return {'message': 'Access token is missing or invalid'}, 401
-
-
-class DashboardIssueType(Resource):
-    @jwt_required
-    def get(self, user_id):
-        if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity(
-        )['role_id'] in (3, 5):
-            return count_type_number_by_issues(user_id)
-        else:
-            return {'message': 'Access token is missing or invalid'}, 401
-
-
 class RequirementByIssue(Resource):
 
     # 用issues ID 取得目前所有的需求清單
@@ -1099,10 +1069,10 @@ api.add_resource(issue.MyIssueWeekStatistics, '/issues/week_statistics')
 api.add_resource(issue.MyIssueMonthStatistics, '/issues/month_statistics')
 
 # dashboard
-api.add_resource(DashboardIssuePriority,
+api.add_resource(issue.DashboardIssuePriority,
                  '/dashboard_issues_priority/rd/<user_id>')
-api.add_resource(DashboardIssueProject, '/dashboard_issues_project/<user_id>')
-api.add_resource(DashboardIssueType, '/dashboard_issues_type/<user_id>')
+api.add_resource(issue.DashboardIssueProject, '/dashboard_issues_project/<user_id>')
+api.add_resource(issue.DashboardIssueType, '/dashboard_issues_type/<user_id>')
 
 # testPhase Requirement
 api.add_resource(RequirementByIssue, '/requirements_by_issue/<issue_id>')
