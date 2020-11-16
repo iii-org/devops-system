@@ -225,6 +225,7 @@ class CheckMarx(object):
 cm = CheckMarx()
 
 
+# --------------------- Resources ---------------------
 class CreateCheckmarxScan(Resource):
     @jwt_required
     def post(self):

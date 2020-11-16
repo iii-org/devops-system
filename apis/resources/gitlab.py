@@ -185,6 +185,7 @@ class GitLab(object):
                                 error=apiError.gitlab_error(output))
 
 
+# --------------------- Resources ---------------------
 gitlab = GitLab()
 
 

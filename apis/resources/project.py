@@ -1159,6 +1159,7 @@ class ProjectResource(object):
             return {"message": {"errors": error_msg_list}}, output.status_code
 
 
+# --------------------- Resources ---------------------
 class ListMyProjects(Resource):
     @jwt_required
     def get(self):
@@ -1233,7 +1234,8 @@ class ProjectMember(Resource):
 class ProjectsByUser(Resource):
     @jwt_required
     def get(self, user_id):
-        role.require_user_himself(user_id, even_pm=False)
+        role.require_user_himself(user_id, even_pm=False,
+                                  err_message="Only admin and PM can access another user's data.")
         return get_projects_by_user(user_id)
 
 

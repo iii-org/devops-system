@@ -25,14 +25,13 @@ import resources.testResult as testResult
 import resources.testValue as testValue
 from jsonwebtoken import jsonwebtoken
 from model import db
-from resources import project, gitlab, util, issue
+from resources import project, gitlab, util, issue, user
 from resources.cicd import Cicd
 from resources.gitlab import GitLab
 from resources.issue import Issue as IssueResource
 from resources.logger import logger
 from resources.project import ProjectResource as ProjectResource
 from resources.redmine import Redmine
-from resources.user import User as UserResource
 from resources.version import Version as VersionResource
 from resources.wiki import Wiki as WikiResource
 
@@ -68,115 +67,9 @@ redmine = Redmine()
 wk = WikiResource(redmine)
 vn = VersionResource(redmine)
 git = GitLab()
-user = UserResource(redmine, git)
 pjt = ProjectResource(app, user, redmine, git)
 iss = IssueResource(pjt, redmine, user)
 ci = Cicd(pjt, iss)
-
-
-class UserLogin(Resource):
-    # noinspection PyMethodMayBeStatic
-    def post(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument('username', type=str, required=True)
-        parser.add_argument('password', type=str, required=True)
-        args = parser.parse_args()
-        output = user.login(args)
-        return output
-
-
-class UserForgetPassword(Resource):
-    # noinspection PyMethodMayBeStatic
-    def post(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument('mail', type=str, required=True)
-        parser.add_argument('user_account', type=str, required=True)
-        args = parser.parse_args()
-        try:
-            status = user.user_forgot_password(args)
-            return util.success(status)
-        except Exception as err:
-            return util.respond(500, "Error for forgot password process.",
-                                error=apiError.uncaught_exception(err))
-
-
-class UserInfo(Resource):
-    @jwt_required
-    def get(self, user_id):
-        logger.debug("int(user_id): {0}".format(int(user_id)))
-        logger.debug("get_jwt_identity()['user_id']: {0}".format(
-            get_jwt_identity()['user_id']))
-        if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity(
-        )['role_id'] in (3, 5):
-            user_info = user.get_user_info(user_id)
-            return user_info
-        else:
-            return {
-                       'message': 'you dont have authorize to update user informaion'
-                   }, 401
-
-    @jwt_required
-    def put(self, user_id):
-        if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity(
-        )['role_id'] == 5:
-            parser = reqparse.RequestParser()
-            parser.add_argument('name', type=str)
-            parser.add_argument('password', type=str)
-            parser.add_argument('phone', type=str)
-            parser.add_argument('email', type=str)
-            parser.add_argument('status', type=str)
-            args = parser.parse_args()
-            try:
-                output = user.update_info(user_id, args)
-                return output
-            except Exception as e:
-                return util.respond_uncaught_exception(e)
-        else:
-            return {
-                       'message': 'you dont have authorize to update user informaion'
-                   }, 401
-
-    @jwt_required
-    def delete(self, user_id):
-        role.require_admin("Only admin can delete user.")
-        return user.delete_user(user_id)
-
-
-class UserStatus(Resource):
-    @jwt_required
-    def put(self, user_id):
-        role.require_admin('Only admins can modify user.')
-        parser = reqparse.RequestParser()
-        parser.add_argument('status', type=str, required=True)
-        args = parser.parse_args()
-        output = user.change_user_status(user_id, args)
-        return output
-
-
-class User(Resource):
-    @jwt_required
-    def post(self):
-        role.require_admin('Only admins can create user.')
-        parser = reqparse.RequestParser()
-        parser.add_argument('name', type=str)
-        parser.add_argument('email', type=str, required=True)
-        parser.add_argument('phone', type=str, required=True)
-        parser.add_argument('login', type=str, required=True)
-        parser.add_argument('password', type=str, required=True)
-        parser.add_argument('role_id', type=int, required=True)
-        parser.add_argument('status', type=str)
-        args = parser.parse_args()
-        return user.create_user(args)
-
-
-class UserList(Resource):
-    @jwt_required
-    def get(self):
-        if get_jwt_identity()["role_id"] in (3, 5):
-            output = user.user_list()
-            return output
-        else:
-            return {"message": "your role art not administrator"}, 401
 
 
 class ProjectUserList(Resource):
@@ -312,20 +205,6 @@ class ProjectVersionInfo(Resource):
             return {
                        "message": "your are not in this project or not administrator"
                    }, 401
-
-
-class RoleList(Resource):
-    @jwt_required
-    def get(self):
-        print("role_id is {0}".format(get_jwt_identity()["role_id"]))
-        if get_jwt_identity()["role_id"] in (1, 3, 5):
-            try:
-                output = user.get_role_list()
-                return output
-            except Exception as e:
-                return {"message": str(e)}, 400
-        else:
-            return {"message": "your role art not RD/PM/administrator"}, 401
 
 
 class GitProjectBranch(Resource):
@@ -606,24 +485,11 @@ class PipelinePhaseYaml(Resource):
         return pipeline.get_phase_yaml(repository_id, branch_name)
 
 
-class IssueByProject(Resource):
-    @jwt_required
-    def get(self, project_id):
-        role.require_in_project(project_id, 'Error to get issue.')
-        parser = reqparse.RequestParser()
-        parser.add_argument('fixed_version_id', type=int)
-        args = parser.parse_args()
-        output, status_code = iss.get_issue_by_project(
-            logger, app, project_id, args)
-        return output, status_code
-
-
 class IssueByTreeByProject(Resource):
     @jwt_required
     def get(self, project_id):
         role.require_in_project(project_id, 'Error to get issue.')
-        output, status_code = iss.get_issue_by_tree_by_project(
-            logger, app, project_id)
+        output, status_code = iss.get_issue_by_tree_by_project(project_id)
         return output, status_code
 
 
@@ -1344,14 +1210,14 @@ api.add_resource(GitProjectNetwork, '/repositories/<repository_id>/overview')
 api.add_resource(GitProjectId, '/repositories/<repository_id>/id')
 
 # User
-api.add_resource(UserLogin, '/user/login')
-api.add_resource(UserForgetPassword, '/user/forgetPassword')
-api.add_resource(UserInfo, '/user/<int:user_id>')
-api.add_resource(UserStatus, '/user/<int:user_id>/status')
-api.add_resource(User, '/user')
-api.add_resource(UserList, '/user/list')
+api.add_resource(user.Login, '/user/login')
+api.add_resource(user.UserForgetPassword, '/user/forgetPassword')
+api.add_resource(user.UserStatus, '/user/<int:user_id>/status')
+api.add_resource(user.SingleUser, '/user', '/user/<int:user_id>')
+api.add_resource(user.UserList, '/user/list')
+
 # Role
-api.add_resource(RoleList, '/user/role/list')
+api.add_resource(user.RoleList, '/user/role/list')
 
 # pipeline
 api.add_resource(PipelineExec, '/pipelines/rd/<repository_id>/pipelines_exec')
@@ -1364,7 +1230,7 @@ api.add_resource(
     '/pipelines/<repository_id>/branch/<branch_name>/generate_ci_yaml')
 
 # issue
-api.add_resource(IssueByProject, '/project/<sint:project_id>/issues')
+api.add_resource(issue.IssueByProject, '/project/<sint:project_id>/issues')
 api.add_resource(IssueByTreeByProject, '/project/<sint:project_id>/issues_by_tree')
 api.add_resource(IssueByStatusByProject,
                  '/project/<sint:project_id>/issues_by_status')

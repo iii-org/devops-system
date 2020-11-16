@@ -215,33 +215,31 @@ def delete_issue(issue_id):
     return util.success()
 
 
+def get_issue_by_project(project_id, args):
+    if util.is_dummy_project(project_id):
+        return util.success([])
+    get_project_command = db.select([ProjectPluginRelation.stru_project_plug_relation]).where(
+        db.and_(ProjectPluginRelation.stru_project_plug_relation.c.project_id == project_id))
+    ret_msg = util.call_sqlalchemy(get_project_command)
+    project_dict = ret_msg.fetchone()
+    if project_dict is None:
+        return util.respond(404, "Error while getting issues",
+                            error=apiError.project_not_found(project_id))
+    output_array = []
+    redmine_output_issue_array = redmine.rm_get_issues_by_project(
+        project_dict['plan_project_id'], args)
+
+    for redmine_issue in redmine_output_issue_array['issues']:
+        output_dict = deal_with_issue_by_user_redmine_output(redmine_issue)
+        output_array.append(output_dict)
+    return util.success(output_array)
+
+
 class Issue(object):
-    def get_issue_by_project(self, logger, app, project_id, args):
-        if util.is_dummy_project(project_id):
-            return util.success([])
-        get_project_command = db.select([ProjectPluginRelation.stru_project_plug_relation]) \
-            .where(db.and_(ProjectPluginRelation.stru_project_plug_relation.c.project_id == project_id))
-        logger.debug("get_project_command: {0}".format(get_project_command))
-        ret_msg = util.call_sqlalchemy(get_project_command)
-        project_dict = ret_msg.fetchone()
-        logger.debug("project_list: {0}".format(project_dict))
-        if project_dict is not None:
-            output_array = []
-            redmine_output_issue_array = self.redmine.rm_get_issues_by_project(
-                project_dict['plan_project_id'], args)
-
-            for redmine_issue in redmine_output_issue_array['issues']:
-                output_dict = deal_with_issue_by_user_redmine_output(redmine_issue)
-                output_array.append(output_dict)
-            return {"message": "success", "data": output_array}, 200
-        else:
-            return {"message": "could not find this project"}, 400
-
-    def get_issue_by_tree_by_project(self, logger, app, project_id):
+    def get_issue_by_tree_by_project(self, project_id):
         args = {}
 
-        issue_list_output, status_code = self.get_issue_by_project(
-            logger, app, project_id, args)
+        issue_list_output, status_code = self.get_issue_by_project(project_id, args)
         if status_code == 200:
             nodes = {}
             for issue_list in issue_list_output['data']:
@@ -265,8 +263,7 @@ class Issue(object):
         if util.is_dummy_project(project_id):
             return util.success({})
         args = {}
-        issue_list_output, status_code = self.get_issue_by_project(
-            logger, app, project_id, args)
+        issue_list_output, status_code = self.get_issue_by_project(project_id, args)
         if status_code == 200:
             get_issue_by_status_output = {}
             for issue_list in issue_list_output['data']:
@@ -287,8 +284,7 @@ class Issue(object):
         if util.is_dummy_project(project_id):
             return util.success({})
         args = {}
-        issue_list_output, status_code = self.get_issue_by_project(
-            logger, app, project_id, args)
+        issue_list_output, status_code = self.get_issue_by_project(project_id, args)
         if status_code == 200:
             get_issue_by_date_output = {}
             for issue_list in issue_list_output['data']:
@@ -308,8 +304,7 @@ class Issue(object):
             return {"message": "could not get issue list"}, 400
 
     def get_issueProgress_by_project(self, logger, app, project_id, args):
-        issue_list, status_code = self.get_issue_by_project(
-            logger, app, project_id, args)
+        issue_list, status_code = self.get_issue_by_project(project_id, args)
         logger.debug("issue_list: {0}, status_code: {1}".format(
             issue_list, status_code))
         if status_code == 200:
@@ -329,8 +324,7 @@ class Issue(object):
 
     def get_issueProgress_allVersion_by_project(self, logger, app, project_id):
         args = {}
-        issue_list, status_code = self.get_issue_by_project(
-            logger, app, project_id, args)
+        issue_list, status_code = self.get_issue_by_project(project_id, args)
         if status_code == 200:
             get_issue_sortby_version_output = {}
             for issue in issue_list['data']:
@@ -353,8 +347,7 @@ class Issue(object):
             return {"message": "could not get issue list"}, 400
 
     def get_issueStatistics_by_project(self, logger, app, project_id, args):
-        issue_list, status_code = self.get_issue_by_project(
-            logger, app, project_id, args)
+        issue_list, status_code = self.get_issue_by_project(project_id, args)
         logger.debug("issue_list: {0}, status_code: {1}".format(
             issue_list, status_code))
         if status_code == 200:
@@ -657,6 +650,7 @@ class Issue(object):
             return {"message": str(error)}, 400
 
 
+# --------------------- Resources ---------------------
 class SingleIssue(Resource):
     @jwt_required
     def get(self, issue_id):
@@ -725,3 +719,14 @@ class DumpByIssue(Resource):
     def get(self, issue_id):
         role.require_issue_visible(issue_id)
         return dump_by_issue(issue_id)
+
+
+class IssueByProject(Resource):
+    @jwt_required
+    def get(self, project_id):
+        role.require_in_project(project_id, 'Error to get issue.')
+        parser = reqparse.RequestParser()
+        parser.add_argument('fixed_version_id', type=int)
+        args = parser.parse_args()
+        return get_issue_by_project(project_id, args)
+

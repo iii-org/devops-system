@@ -1,5 +1,3 @@
-import config
-import logging
 import time
 from io import BytesIO
 
@@ -8,9 +6,9 @@ import werkzeug
 from flask import send_file
 from flask_restful import reqparse
 
+import config
 import resources.apiError as apiError
 import resources.util as util
-
 from resources.logger import logger
 
 
@@ -365,8 +363,3 @@ class Redmine:
                                          data=xml_body.encode('utf-8'))
         return redmine_output, redmine_output.status_code
 
-    def rm_delete_project(self, plan_project_id):
-        logger.info("delete redmine project plan_id: {0}".format(plan_project_id))
-        redmine_output = self.__api_delete('/projects/{0}'.format(plan_project_id))
-        logger.info("delete redmine project output: {0}".format(redmine_output))
-        return redmine_output
