@@ -1217,7 +1217,7 @@ api.add_resource(user.SingleUser, '/user', '/user/<int:user_id>')
 api.add_resource(user.UserList, '/user/list')
 
 # Role
-api.add_resource(user.RoleList, '/user/role/list')
+api.add_resource(role.RoleList, '/user/role/list')
 
 # pipeline
 api.add_resource(PipelineExec, '/pipelines/rd/<repository_id>/pipelines_exec')

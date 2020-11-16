@@ -524,26 +524,6 @@ def user_list_by_project(project_id, args):
     return util.success({"user_list": arr_ret})
 
 
-# 從db role table取得role list
-
-def get_role_list():
-    result = db.engine.execute(
-        "SELECT * FROM public.roles ORDER BY id ASC")
-    role_array = result.fetchall()
-    result.close()
-
-    if role_array:
-        output_array = []
-        for r in role_array:
-            role_info = {"id": r["id"], "name": r["name"]}
-            output_array.append(role_info)
-
-        return util.success({"role_list": output_array})
-    else:
-        return util.respond(500, "Could not get role list",
-                            error=apiError.db_error("public.roles SELECT returns False"))
-
-
 # --------------------- Resources ---------------------
 class Login(Resource):
     # noinspection PyMethodMayBeStatic
@@ -624,19 +604,4 @@ class UserList(Resource):
     def get(self):
         role.require_pm()
         return user_list()
-
-
-class RoleList(Resource):
-    @jwt_required
-    def get(self):
-        print("role_id is {0}".format(get_jwt_identity()["role_id"]))
-        if get_jwt_identity()["role_id"] in (1, 3, 5):
-            try:
-                output = user.get_role_list()
-                return output
-            except Exception as e:
-                return {"message": str(e)}, 400
-        else:
-            return {"message": "your role art not RD/PM/administrator"}, 401
-
 
