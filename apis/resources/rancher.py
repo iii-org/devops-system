@@ -50,14 +50,19 @@ class Rancher(object):
                         pipelineexecution_output['pipelineConfig']['stages']):
                     tmp_step_message = []
                     for stepindex, step in enumerate(stage['steps']):
-                        ws = websocket.WebSocket(
-                            sslopt={"cert_reqs": ssl.CERT_NONE})
                         url = "wss://{0}/{1}/project/{2}/pipelineExecutions/{3}-{4}/log?stage={5}&step={6}"\
                             .format(config.get('RANCHER_IP_PORT'), config.get('RANCHER_API_VERSION'), \
                                     ci_project_id, ci_pipeline_id, pipelines_exec_run, index, stepindex)
                         logger.info("wss url: {0}".format(url))
-                        ws.connect(url, header=[headersandtoken])
-                        result = ws.recv()
+                        result = None
+                        ws = websocket.create_connection(url, header=[headersandtoken],
+                            sslopt={"cert_reqs": ssl.CERT_NONE})
+                        ws.settimeout(3)
+                        try:
+                            result = ws.recv()
+                            ws.close()
+                        except websocket.WebSocketTimeoutException:
+                            ws.close()
                         # logger.info("Received :'%s'" % result)
                         step_datail = pipelineexecution_output['stages'][
                             index]['steps'][stepindex]
@@ -71,7 +76,6 @@ class Rancher(object):
                                 "state": None,
                                 "message": result
                             })
-                        ws.close()
                     stage_state = pipelineexecution_output['stages'][index]
                     if 'state' in stage_state:
                         output_dict.append({
