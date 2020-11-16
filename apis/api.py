@@ -24,7 +24,7 @@ import resources.testResult as testResult
 import resources.testValue as testValue
 from jsonwebtoken import jsonwebtoken
 from model import db
-from resources import project, gitlab, util, issue, user, postman
+from resources import project, gitlab, util, issue, user, postman, redmine
 from resources.gitlab import GitLab
 from resources.logger import logger
 from resources.project import ProjectResource as ProjectResource
@@ -60,11 +60,11 @@ def internal_error(e):
                         error=apiError.uncaught_exception(e))
 
 
-redmine = Redmine()
-wk = WikiResource(redmine)
-vn = VersionResource(redmine)
+rm = Redmine()
+wk = WikiResource(rm)
+vn = VersionResource(rm)
 git = GitLab()
-pjt = ProjectResource(app, user, redmine, git)
+pjt = ProjectResource(app, user, rm, git)
 
 
 class ProjectUserList(Resource):
@@ -855,7 +855,6 @@ class TestValueByTestItem(Resource):
 class GetTestValueLocation(Resource):
     @jwt_required
     def get(self):
-        output = {}
         output = testValue.get_testValue_httpLocation()
         return jsonify({'message': 'success', 'data': output})
 
@@ -940,28 +939,12 @@ class ProjectFiles(Resource):
         parser.add_argument('version_id', type=str)
         parser.add_argument('description', type=str)
         args = parser.parse_args()
-        return redmine.rm_upload_to_project(plan_project_id, args)
+        return rm.rm_upload_to_project(plan_project_id, args)
 
     @jwt_required
     def get(self, project_id):
         plan_project_id = project.get_plan_project_id(project_id)
-        return redmine.rm_list_file(plan_project_id)
-
-
-class DownloadFile(Resource):
-    @jwt_required
-    def get(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument('id', type=int)
-        parser.add_argument('filename', type=str)
-        args = parser.parse_args()
-        return redmine.rm_download_attachment(args)
-
-
-class RedmineFile(Resource):
-    @jwt_required
-    def delete(self, file_id):
-        return redmine.rm_delete_attachment(file_id)
+        return rm.rm_list_file(plan_project_id)
 
 
 class SystemGitCommitID(Resource):
@@ -1124,8 +1107,7 @@ api.add_resource(SonarReport, '/sonar_report/<sint:project_id>')
 
 # Files
 api.add_resource(ProjectFiles, '/project/<sint:project_id>/file')
-api.add_resource(DownloadFile, '/download')
-api.add_resource(RedmineFile, '/file/<int:file_id>')
+api.add_resource(redmine.RedmineFile, '/download', '/file/<int:file_id>')
 
 # git commit
 api.add_resource(SystemGitCommitID, '/system_git_commit_id')

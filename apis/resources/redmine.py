@@ -4,7 +4,8 @@ from io import BytesIO
 import requests
 import werkzeug
 from flask import send_file
-from flask_restful import reqparse
+from flask_jwt_extended import jwt_required
+from flask_restful import reqparse, Resource
 
 import config
 import resources.apiError as apiError
@@ -13,12 +14,7 @@ from resources.logger import logger
 
 
 class Redmine:
-
-    redmine_key = None
-    headers = {'Content-Type': 'application/json'}
-
     def __init__(self):
-        self.headers = {'Content-Type': 'application/json'}
         self.key_generated = 0.0
         self.last_operator_id = None
 
@@ -87,9 +83,8 @@ class Redmine:
                                                              config.get('REDMINE_ADMIN_PASSWORD'),
                                                              config.get('REDMINE_IP_PORT'),
                                                              operator_id)
-        output = requests.get(url, headers=Redmine.headers, verify=False)
+        output = requests.get(url, headers={'Content-Type': 'application/json'}, verify=False)
         self.redmine_key = output.json()['user']['api_key']
-        logger.info("redmine_key: {0}".format(self.redmine_key))
 
     def rm_get_project(self, plan_project_id):
         return self.__api_get('/projects/{0}'.format(plan_project_id),
@@ -363,3 +358,20 @@ class Redmine:
                                          data=xml_body.encode('utf-8'))
         return redmine_output, redmine_output.status_code
 
+
+# --------------------- Resources ---------------------
+redmine = Redmine()
+
+
+class RedmineFile(Resource):
+    @jwt_required
+    def get(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('id', type=int)
+        parser.add_argument('filename', type=str)
+        args = parser.parse_args()
+        return redmine.rm_download_attachment(args)
+
+    @jwt_required
+    def delete(self, file_id):
+        return redmine.rm_delete_attachment(file_id)
