@@ -115,7 +115,7 @@ def db_error(detail_message):
 
 
 def unknown_error():
-    return build(9999, 'An unknown error has occurred.')
+    return build(9999, 'An unknown internal error has occurred.')
 
 
 # Exception type errors, for errors those need to be aborted instantly rather than returning

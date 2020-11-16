@@ -299,135 +299,125 @@ def get_issueProgress_by_project(project_id, args):
         if issue["issue_status"] != "Closed":
             open_issue += 1
     return util.success({
-            "open": open_issue,
-            "total_issue": len(issue_list['data'])
-        })
+        "open": open_issue,
+        "total_issue": len(issue_list['data'])
+    })
 
 
 def get_issueProgress_allVersion_by_project(project_id):
     args = {}
     issue_list, status_code = get_issue_by_project(project_id, args)
-    if status_code == 200:
-        ret = {}
-        for issue in issue_list['data']:
-            count_dict = {'open': 0, 'closed': 0}
-            if issue['fixed_version_name'] not in ret:
-                ret[issue['fixed_version_name']] = count_dict
-            if issue["issue_status"] != "Closed":
-                ret[issue['fixed_version_name']]['open'] += 1
-            else:
-                ret[issue['fixed_version_name']]['closed'] += 1
-        return util.success(ret)
-    else:
-        return {"message": "could not get issue list"}, 400
+    if status_code != 200:
+        return issue_list, status_code
+    ret = {}
+    for issue in issue_list['data']:
+        count_dict = {'open': 0, 'closed': 0}
+        if issue['fixed_version_name'] not in ret:
+            ret[issue['fixed_version_name']] = count_dict
+        if issue["issue_status"] != "Closed":
+            ret[issue['fixed_version_name']]['open'] += 1
+        else:
+            ret[issue['fixed_version_name']]['closed'] += 1
+    return util.success(ret)
 
 
 def get_issueStatistics_by_project(project_id, args):
     issue_list, status_code = get_issue_by_project(project_id, args)
-    logger.debug("issue_list: {0}, status_code: {1}".format(
-        issue_list, status_code))
-    if status_code == 200:
-        priority_list = {}
-        category_list = {}
-        owner_list = {}
-        for issue in issue_list['data']:
-            # count priority
-            if issue["issue_priority"] not in priority_list:
-                if issue["issue_status"] != "Closed":
-                    priority_list[issue["issue_priority"]] = {
-                        "open": 1,
-                        "closed": 0
-                    }
-                else:
-                    priority_list[issue["issue_priority"]] = {
-                        "open": 0,
-                        "closed": 1
-                    }
+    if status_code != 200:
+        return issue_list, status_code
+    priority_list = {}
+    category_list = {}
+    owner_list = {}
+    for issue in issue_list['data']:
+        # count priority
+        if issue["issue_priority"] not in priority_list:
+            if issue["issue_status"] != "Closed":
+                priority_list[issue["issue_priority"]] = {
+                    "open": 1,
+                    "closed": 0
+                }
             else:
-                open_count = priority_list[
-                    issue["issue_priority"]]["open"]
-                closed_count = priority_list[
-                    issue["issue_priority"]]["closed"]
-                if issue["issue_status"] != "Closed":
-                    priority_list[issue["issue_priority"]] = {
-                        "open": open_count + 1,
-                        "closed": closed_count
-                    }
-                else:
-                    priority_list[issue["issue_priority"]] = {
-                        "open": open_count,
-                        "closed": closed_count + 1
-                    }
-            # count category
-            if issue["issue_category"] not in category_list:
-                if issue["issue_status"] != "Closed":
-                    category_list[issue["issue_category"]] = {
-                        "open": 1,
-                        "closed": 0
-                    }
-                else:
-                    category_list[issue["issue_category"]] = {
-                        "open": 0,
-                        "closed": 1
-                    }
+                priority_list[issue["issue_priority"]] = {
+                    "open": 0,
+                    "closed": 1
+                }
+        else:
+            open_count = priority_list[
+                issue["issue_priority"]]["open"]
+            closed_count = priority_list[
+                issue["issue_priority"]]["closed"]
+            if issue["issue_status"] != "Closed":
+                priority_list[issue["issue_priority"]] = {
+                    "open": open_count + 1,
+                    "closed": closed_count
+                }
             else:
-                open_count = category_list[
-                    issue["issue_category"]]["open"]
-                closed_count = category_list[
-                    issue["issue_category"]]["closed"]
-                if issue["issue_status"] != "Closed":
-                    category_list[issue["issue_category"]] = {
-                        "open": open_count + 1,
-                        "closed": closed_count
-                    }
-                else:
-                    category_list[issue["issue_category"]] = {
-                        "open": open_count,
-                        "closed": closed_count + 1
-                    }
-            # count owner
-            if issue["assigned_to"] not in owner_list:
-                if issue["issue_status"] != "Closed":
-                    owner_list[issue["assigned_to"]] = {
-                        "open": 1,
-                        "closed": 0
-                    }
-                else:
-                    owner_list[issue["assigned_to"]] = {
-                        "open": 0,
-                        "closed": 1
-                    }
+                priority_list[issue["issue_priority"]] = {
+                    "open": open_count,
+                    "closed": closed_count + 1
+                }
+        # count category
+        if issue["issue_category"] not in category_list:
+            if issue["issue_status"] != "Closed":
+                category_list[issue["issue_category"]] = {
+                    "open": 1,
+                    "closed": 0
+                }
             else:
-                open_count = owner_list[
-                    issue["assigned_to"]]["open"]
-                closed_count = owner_list[issue["assigned_to"]]["closed"]
-                if issue["issue_status"] != "Closed":
-                    owner_list[issue["assigned_to"]] = {
-                        "open": open_count + 1,
-                        "closed": closed_count
-                    }
-                else:
-                    owner_list[issue["assigned_to"]] = {
-                        "open": open_count,
-                        "closed": closed_count + 1
-                    }
-        logger.info("issue_list: {0}".format(priority_list))
-        logger.info("category_list: {0}".format(category_list))
-        logger.info("owner_list: {0}".format(owner_list))
-        return {
-                   "message": "success",
-                   "data": {
-                       "priority": priority_list,
-                       "category": category_list,
-                       "owner": owner_list
-                   }
-               }, 200
-    else:
-        return {"message": "could not get issue list"}, 400
+                category_list[issue["issue_category"]] = {
+                    "open": 0,
+                    "closed": 1
+                }
+        else:
+            open_count = category_list[
+                issue["issue_category"]]["open"]
+            closed_count = category_list[
+                issue["issue_category"]]["closed"]
+            if issue["issue_status"] != "Closed":
+                category_list[issue["issue_category"]] = {
+                    "open": open_count + 1,
+                    "closed": closed_count
+                }
+            else:
+                category_list[issue["issue_category"]] = {
+                    "open": open_count,
+                    "closed": closed_count + 1
+                }
+        # count owner
+        if issue["assigned_to"] not in owner_list:
+            if issue["issue_status"] != "Closed":
+                owner_list[issue["assigned_to"]] = {
+                    "open": 1,
+                    "closed": 0
+                }
+            else:
+                owner_list[issue["assigned_to"]] = {
+                    "open": 0,
+                    "closed": 1
+                }
+        else:
+            open_count = owner_list[
+                issue["assigned_to"]]["open"]
+            closed_count = owner_list[issue["assigned_to"]]["closed"]
+            if issue["issue_status"] != "Closed":
+                owner_list[issue["assigned_to"]] = {
+                    "open": open_count + 1,
+                    "closed": closed_count
+                }
+            else:
+                owner_list[issue["assigned_to"]] = {
+                    "open": open_count,
+                    "closed": closed_count + 1
+                }
+    return util.success({
+        "priority": priority_list,
+        "category": category_list,
+        "owner": owner_list
+    })
 
 
 def get_issue_by_user(user_id):
-    user_to_plan, plan_to_user = get_dict_userid(logger)
+    user_to_plan, plan_to_user = get_dict_userid()
     output_array = []
     if str(user_id) not in user_to_plan:
         return util.respond(400, 'Cannot find user in redmine')
@@ -439,12 +429,8 @@ def get_issue_by_user(user_id):
 
 
 def get_issue_status():
-    try:
-        issue_status_output = redmine.rm_get_issue_status()
-        return util.success(issue_status_output['issue_statuses'])
-    except Exception as error:
-        return util.respond(500, 'Error when deleting issue',
-                            apiError.redmine_error(str(type(error)) + ':' + error.__str__()))
+    issue_status_output = redmine.rm_get_issue_status()
+    return util.success(issue_status_output['issue_statuses'])
 
 
 def get_issue_priority():
@@ -481,16 +467,11 @@ def get_issue_statistics(args, user_id):
     user_plugin_relation = user.get_user_plugin_relation(user_id=user_id)
     if user_plugin_relation is not None:
         args["assigned_to_id"] = user_plugin_relation['plan_user_id']
-    try:
-        redmine_output, status_code = redmine.rm_get_statistics(args)
-        return {
-                   "message": "success",
-                   "data": {
-                       "issue_number": redmine_output["total_count"]
-                   }
-               }, status_code
-    except Exception as error:
-        return {"message": str(error)}, 400
+    redmine_output, status_code = redmine.rm_get_statistics(args)
+    if status_code != 200:
+        return util.respond(status_code, "Error when getting issue statistics",
+                            error=apiError.redmine_error(redmine_output))
+    return util.success({"issue_number": redmine_output["total_count"]})
 
 
 def get_open_issue_statistics(user_id):
@@ -501,15 +482,15 @@ def get_open_issue_statistics(user_id):
     args['status_id'] = '*'
     total_issue_output, status_code = redmine.rm_get_statistics(args)
     if status_code != 200:
-        return {"message": "could not get redmine total issue"}, 400
-    logger.debug("user_id {0} total issue number: {1}".format(user_id, total_issue_output["total_count"]))
+        return util.respond(status_code, "Error when getting issue statistics",
+                            error=apiError.redmine_error(total_issue_output))
     args['status_id'] = 'closed'
     closed_issue_output, closed_status_code = redmine.rm_get_statistics(args)
     if closed_status_code != 200:
-        return {"message": "could not get redmine closed issue"}, 400
-    logger.debug("user_id {0} closed issue number: {1}".format(user_id, closed_issue_output["total_count"]))
+        return util.respond(status_code, "Error when getting issue statistics",
+                            error=apiError.redmine_error(closed_status_code))
     active_issue_number = total_issue_output["total_count"] - closed_issue_output["total_count"]
-    return {"message": "success", "data": {"active_issue_number": active_issue_number}}
+    return util.success({"active_issue_number": active_issue_number})
 
 
 def get_issue_statistics_in_period(period, user_id):
@@ -527,107 +508,82 @@ def get_issue_statistics_in_period(period, user_id):
         from_time = first_day.strftime('%Y-%m-%d')
         to_time = last_day.strftime('%Y-%m-%d')
     else:
-        return {'message': 'Type error, should be week or month'}, 400
+        return util.respond(400, 'Type error, should be week or month')
 
     args = {"due_date": "><{0}|{1}".format(from_time, to_time)}
     user_plugin_relation = user.get_user_plugin_relation(user_id=user_id)
     if user_plugin_relation is not None:
         args["assigned_to_id"] = user_plugin_relation['plan_user_id']
 
-    try:
-        args['status_id'] = '*'
-        redmine_output, status_code = redmine.rm_get_statistics(args)
-        if status_code != 200:
-            return {
-                       'message': 'error when retrieving data from redmine',
-                       'data': redmine_output
-                   }, status_code
-        total = redmine_output["total_count"]
+    args['status_id'] = '*'
+    redmine_output, status_code = redmine.rm_get_statistics(args)
+    if status_code != 200:
+        return util.respond(status_code, "Error when getting issue statistics",
+                            error=apiError.redmine_error(redmine_output))
+    total = redmine_output["total_count"]
 
-        args['status_id'] = 'closed'
-        redmine_output_6, status_code = redmine.rm_get_statistics(args)
-        if status_code != 200:
-            return {
-                       'message': 'error when retrieving data from redmine',
-                       'data': redmine_output
-                   }, status_code
-        closed = redmine_output_6["total_count"]
-        return {
-                   "message": "success",
-                   "data": {
-                       "open": total - closed,
-                       "closed": closed
-                   }
-               }, 200
-    except Exception as error:
-        return {"message": str(error)}, 400
+    args['status_id'] = 'closed'
+    redmine_output_6, status_code = redmine.rm_get_statistics(args)
+    if status_code != 200:
+        return util.respond(status_code, "Error when getting issue statistics",
+                            error=apiError.redmine_error(redmine_output_6))
+    closed = redmine_output_6["total_count"]
+    return util.success({
+        "open": total - closed,
+        "closed": closed
+    })
 
 
 def count_project_number_by_issues(user_id):
-    try:
-        project_count = {}
-        data, status_code = get_issue_by_user(user_id)
-        if status_code / 100 != 2:
-            return util.respond(status_code, 'Error while getting issues by user', data)
-        issues = data['data']
-        logger.info("issues: {0}".format(issues))
-        for issue in issues:
-            if issue['project_name'] not in project_count:
-                project_count[issue['project_name']] = 1
-            else:
-                project_count[issue['project_name']] += 1
-        logger.info("project_count: {0}".format(project_count))
-        output = []
-        for key, value in project_count.items():
-            output.append({'name': key, 'number': value})
-        return {"message": "success", "data": output}, 200
-    except Exception as error:
-        return {"message": str(error)}, 400
+    project_count = {}
+    data, status_code = get_issue_by_user(user_id)
+    if status_code / 100 != 2:
+        return util.respond(status_code, 'Error while getting issues by user', data)
+    issues = data['data']
+    for issue in issues:
+        if issue['project_name'] not in project_count:
+            project_count[issue['project_name']] = 1
+        else:
+            project_count[issue['project_name']] += 1
+    output = []
+    for key, value in project_count.items():
+        output.append({'name': key, 'number': value})
+    return util.success(output)
 
 
 def count_priority_number_by_issues(user_id):
-    try:
-        priority_count = {}
-        data, status_code = get_issue_by_user(user_id)
-        if status_code / 100 != 2:
-            return util.respond(status_code, 'Error while getting issues by user', data)
-        issues = data['data']
-        logger.info("issues: {0}".format(issues))
-        for issue in issues:
-            priority = issue['issue_priority']
-            if priority not in priority_count:
-                priority_count[priority] = 1
-            else:
-                priority_count[priority] += 1
-        logger.info("priority_count: {0}".format(priority_count))
-        output = []
-        for key, value in priority_count.items():
-            output.append({'name': key, 'number': value})
-        return {"message": "success", "data": output}, 200
-    except Exception as error:
-        return {"message": str(error)}, 400
+    priority_count = {}
+    data, status_code = get_issue_by_user(user_id)
+    if status_code / 100 != 2:
+        return util.respond(status_code, 'Error while getting issues by user', data)
+    issues = data['data']
+    for issue in issues:
+        priority = issue['issue_priority']
+        if priority not in priority_count:
+            priority_count[priority] = 1
+        else:
+            priority_count[priority] += 1
+    output = []
+    for key, value in priority_count.items():
+        output.append({'name': key, 'number': value})
+    return util.success(output)
 
 
 def count_type_number_by_issues(user_id):
-    try:
-        tracker_count = {}
-        data, status_code = get_issue_by_user(user_id)
-        if status_code / 100 != 2:
-            return util.respond(status_code, 'Error while getting issues by user', data)
-        issues = data['data']
-        logger.info("issues: {0}".format(issues))
-        for issue in issues:
-            if issue['issue_category'] not in tracker_count:
-                tracker_count[issue['issue_category']] = 1
-            else:
-                tracker_count[issue['issue_category']] += 1
-        logger.info("tracker_count: {0}".format(tracker_count))
-        output = []
-        for key, value in tracker_count.items():
-            output.append({'name': key, 'number': value})
-        return {"message": "success", "data": output}, 200
-    except Exception as error:
-        return {"message": str(error)}, 400
+    tracker_count = {}
+    data, status_code = get_issue_by_user(user_id)
+    if status_code / 100 != 2:
+        return util.respond(status_code, 'Error while getting issues by user', data)
+    issues = data['data']
+    for issue in issues:
+        if issue['issue_category'] not in tracker_count:
+            tracker_count[issue['issue_category']] = 1
+        else:
+            tracker_count[issue['issue_category']] += 1
+    output = []
+    for key, value in tracker_count.items():
+        output.append({'name': key, 'number': value})
+    return util.success(output)
 
 
 # --------------------- Resources ---------------------
