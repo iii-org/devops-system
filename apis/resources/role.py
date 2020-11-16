@@ -66,7 +66,7 @@ def require_issue_visible(issue_id,
 
 
 def require_user_himself(user_id,
-                         err_message="You must be admin to access another user's data.",
+                         err_message=None,
                          even_pm=True,
                          even_admin=False):
     identity = get_jwt_identity()
@@ -77,6 +77,13 @@ def require_user_himself(user_id,
     if (role_id == RD.id or
             even_pm and role_id == PM.id or
             even_admin and role_id == ADMIN.id):
+        if err_message is None:
+            if even_admin:
+                err_message = "Only the user himself can access another user's data."
+            elif even_pm:
+                err_message = "Only admin can access another user's data."
+            else:
+                err_message = "Only admin and PM can access another user's data."
         raise apiError.NotUserHimselfError(err_message)
     return
 

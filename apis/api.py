@@ -3,7 +3,6 @@ import json
 import os
 import traceback
 
-import werkzeug
 from flask import Flask
 from flask import jsonify
 from flask_cors import CORS
@@ -485,164 +484,12 @@ class PipelinePhaseYaml(Resource):
         return pipeline.get_phase_yaml(repository_id, branch_name)
 
 
-class IssueByTreeByProject(Resource):
-    @jwt_required
-    def get(self, project_id):
-        role.require_in_project(project_id, 'Error to get issue.')
-        output, status_code = iss.get_issue_by_tree_by_project(project_id)
-        return output, status_code
-
-
-class IssueByStatusByProject(Resource):
-    @jwt_required
-    def get(self, project_id):
-        status = pjt.verify_project_user(project_id, get_jwt_identity()['user_id'])
-        if status or get_jwt_identity()['role_id'] == 5:
-            output, status_code = iss.get_issue_by_status_by_project(
-                logger, app, project_id)
-            return output, status_code
-        else:
-            return {'message': 'Dont have authorization to access issue by status on project: {0}' \
-                .format(project_id)}, 401
-
-
-class IssueByDateByProject(Resource):
-    @jwt_required
-    def get(self, project_id):
-        status = pjt.verify_project_user(project_id, get_jwt_identity()['user_id'])
-        if status or get_jwt_identity()['role_id'] == 5:
-            output, status_code = iss.get_issue_by_date_by_project(
-                logger, app, project_id)
-            return output, status_code
-        else:
-            return {'message': 'Dont have authorization to access issue by date on project: {0}' \
-                .format(project_id)}, 401
-
-
-class IssuesProgressByProject(Resource):
-    @jwt_required
-    def get(self, project_id):
-        status = pjt.verify_project_user(project_id, get_jwt_identity()['user_id'])
-        if status or get_jwt_identity()['role_id'] == 5:
-            parser = reqparse.RequestParser()
-            parser.add_argument('fixed_version_id', type=int)
-            args = parser.parse_args()
-            logger.debug("show fixed_version_id: {0}".format(
-                args['fixed_version_id']))
-            output_array = iss.get_issueProgress_by_project(
-                logger, app, project_id, args)
-            return output_array
-        else:
-            return {'message': 'Dont have authorization to access issue progress on project: {0}' \
-                .format(project_id)}, 401
-
-
-class IssuesProgressAllVersionByProject(Resource):
-    @jwt_required
-    def get(self, project_id):
-        status = pjt.verify_project_user(project_id, get_jwt_identity()['user_id'])
-        if status or get_jwt_identity()['role_id'] == 5:
-            output_array = iss.get_issueProgress_allVersion_by_project(
-                logger, app, project_id)
-            return output_array
-        else:
-            return {'message': 'Dont have authorization to access issue projess all version on project: {0}' \
-                .format(project_id)}, 401
-
-
-class IssuesStatisticsByProject(Resource):
-    @jwt_required
-    def get(self, project_id):
-        status = pjt.verify_project_user(project_id, get_jwt_identity()['user_id'])
-        if status or get_jwt_identity()['role_id'] == 5:
-            parser = reqparse.RequestParser()
-            parser.add_argument('fixed_version_id', type=int)
-            args = parser.parse_args()
-            logger.debug("show fixed_version_id: {0}".format(
-                args['fixed_version_id']))
-            output = iss.get_issueStatistics_by_project(
-                logger, app, project_id, args)
-            return output
-        else:
-            return {'message': 'Dont have authorization to get issue statistics on project: {0}' \
-                .format(project_id)}, 401
-
-
-class IssueStatus(Resource):
-    @jwt_required
-    def get(self):
-        output = iss.get_issue_status()
-        return jsonify({'message': 'success', 'data': output})
-
-
-class IssuePrioriry(Resource):
-    @jwt_required
-    def get(self):
-        output = iss.get_issue_priority()
-        return jsonify({'message': 'success', 'data': output})
-
-
-class IssueTracker(Resource):
-    @jwt_required
-    def get(self):
-        output = iss.get_issue_trackers()
-        return jsonify({'message': 'success', 'data': output})
-
-
-class IssueRDbyUser(Resource):
-    @jwt_required
-    def get(self, user_id):
-        if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity(
-        )['role_id'] in (3, 5):
-            output = iss.get_issue_by_user(user_id)
-            return output
-        else:
-            return {'message': 'Access token is missing or invalid'}, 401
-
-
-class IssueStatistics(Resource):
-    @jwt_required
-    def get(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument('from_time', type=str, required=True)
-        parser.add_argument('to_time', type=str)
-        parser.add_argument('status_id', type=int)
-        args = parser.parse_args()
-        output = iss.get_issue_statistics(args, get_jwt_identity()['user_id'])
-        return output
-
-
-class OpenIssueStatistics(Resource):
-    @jwt_required
-    def get(self):
-        output = iss.get_open_issue_statistics(get_jwt_identity()['user_id'])
-        return output
-
-
-class IssueWeekStatistics(Resource):
-    @jwt_required
-    def get(self):
-        output = iss.get_issue_statistics_in_period(
-            logger, app, 'week',
-            get_jwt_identity()['user_id'])
-        return output
-
-
-class IssueMonthStatistics(Resource):
-    @jwt_required
-    def get(self):
-        output = iss.get_issue_statistics_in_period(
-            logger, app, 'month',
-            get_jwt_identity()['user_id'])
-        return output
-
-
 class DashboardIssuePriority(Resource):
     @jwt_required
     def get(self, user_id):
         if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity(
         )['role_id'] in (3, 5):
-            return iss.count_priority_number_by_issues(user_id)
+            return count_priority_number_by_issues(user_id)
         else:
             return {'message': 'Access token is missing or invalid'}, 401
 
@@ -652,7 +499,7 @@ class DashboardIssueProject(Resource):
     def get(self, user_id):
         if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity(
         )['role_id'] in (3, 5):
-            return iss.count_project_number_by_issues(logger, app, user_id)
+            return count_project_number_by_issues(user_id)
         else:
             return {'message': 'Access token is missing or invalid'}, 401
 
@@ -662,7 +509,7 @@ class DashboardIssueType(Resource):
     def get(self, user_id):
         if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity(
         )['role_id'] in (3, 5):
-            return iss.count_type_number_by_issues(logger, app, user_id)
+            return count_type_number_by_issues(user_id)
         else:
             return {'message': 'Access token is missing or invalid'}, 401
 
@@ -1231,25 +1078,25 @@ api.add_resource(
 
 # issue
 api.add_resource(issue.IssueByProject, '/project/<sint:project_id>/issues')
-api.add_resource(IssueByTreeByProject, '/project/<sint:project_id>/issues_by_tree')
-api.add_resource(IssueByStatusByProject,
+api.add_resource(issue.IssueByTreeByProject, '/project/<sint:project_id>/issues_by_tree')
+api.add_resource(issue.IssueByStatusByProject,
                  '/project/<sint:project_id>/issues_by_status')
-api.add_resource(IssueByDateByProject, '/project/<sint:project_id>/issues_by_date')
-api.add_resource(IssuesProgressByProject,
+api.add_resource(issue.IssueByDateByProject, '/project/<sint:project_id>/issues_by_date')
+api.add_resource(issue.IssuesProgressByProject,
                  '/project/<sint:project_id>/issues_progress')
-api.add_resource(IssuesProgressAllVersionByProject,
+api.add_resource(issue.IssuesProgressAllVersionByProject,
                  '/project/<sint:project_id>/issues_progress/all_version')
-api.add_resource(IssuesStatisticsByProject,
+api.add_resource(issue.IssuesStatisticsByProject,
                  '/project/<sint:project_id>/issues_statistics')
 api.add_resource(issue.SingleIssue, '/issues', '/issues/<issue_id>')
-api.add_resource(IssueStatus, '/issues_status')
-api.add_resource(IssuePrioriry, '/issues_priority')
-api.add_resource(IssueTracker, '/issues_tracker')
-api.add_resource(IssueRDbyUser, '/issues_by_user/rd/<user_id>')
-api.add_resource(IssueStatistics, '/issues/statistics')
-api.add_resource(OpenIssueStatistics, '/issues/open_statistics')
-api.add_resource(IssueWeekStatistics, '/issues/week_statistics')
-api.add_resource(IssueMonthStatistics, '/issues/month_statistics')
+api.add_resource(issue.IssueStatus, '/issues_status')
+api.add_resource(issue.IssuePriority, '/issues_priority')
+api.add_resource(issue.IssueTracker, '/issues_tracker')
+api.add_resource(issue.IssueRDbyUser, '/issues_by_user/rd/<user_id>')
+api.add_resource(issue.MyIssueStatistics, '/issues/statistics')
+api.add_resource(issue.MyOpenIssueStatistics, '/issues/open_statistics')
+api.add_resource(issue.MyIssueWeekStatistics, '/issues/week_statistics')
+api.add_resource(issue.MyIssueMonthStatistics, '/issues/month_statistics')
 
 # dashboard
 api.add_resource(DashboardIssuePriority,

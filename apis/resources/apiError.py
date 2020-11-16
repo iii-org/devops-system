@@ -130,7 +130,7 @@ custom_errors = {
         'status': 401
     },
     'NotUserHimselfError': {
-        'error': build(3003, "You must be admin to access another user's data."),
+        'error': build(3003, "You are not permitted to access another user's data."),
         'status': 401
     }
 }
