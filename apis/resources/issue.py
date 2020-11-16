@@ -239,24 +239,21 @@ def get_issue_by_tree_by_project(project_id):
     args = {}
 
     issue_list_output, status_code = get_issue_by_project(project_id, args)
-    if status_code == 200:
-        nodes = {}
-        for issue_list in issue_list_output['data']:
-            issue_list['children'] = []
-            nodes[issue_list['id']] = issue_list
-        forest = []
-        for issue_list in issue_list_output['data']:
-            node = nodes[issue_list['id']]
-            if issue_list['parent_id'] is None:
-                forest.append(node)
-            else:
-                parent = nodes[issue_list['parent_id']]
-                parent['children'].append(node)
-        # logger.debug("forest: {0}".format(forest))
-
-        return {"message": "success", "data": forest}, 200
-    else:
-        return {"message": "could not get issue list"}, 400
+    if status_code != 200:
+        return issue_list_output, status_code
+    nodes = {}
+    for issue_list in issue_list_output['data']:
+        issue_list['children'] = []
+        nodes[issue_list['id']] = issue_list
+    forest = []
+    for issue_list in issue_list_output['data']:
+        node = nodes[issue_list['id']]
+        if issue_list['parent_id'] is None:
+            forest.append(node)
+        else:
+            parent = nodes[issue_list['parent_id']]
+            parent['children'].append(node)
+    return util.success(forest)
 
 
 def get_issue_by_status_by_project(project_id):
@@ -264,20 +261,15 @@ def get_issue_by_status_by_project(project_id):
         return util.success({})
     args = {}
     issue_list_output, status_code = get_issue_by_project(project_id, args)
-    if status_code == 200:
-        get_issue_by_status_output = {}
-        for issue_list in issue_list_output['data']:
-            if issue_list['issue_status'] not in get_issue_by_status_output:
-                get_issue_by_status_output[issue_list['issue_status']] = []
-            get_issue_by_status_output[issue_list['issue_status']].append(
-                issue_list)
-        # logger.debug("get_issue_by_status_output: {0}".format(get_issue_by_status_output))
-        return {
-                   "message": "success",
-                   "data": get_issue_by_status_output
-               }, 200
-    else:
-        return {"message": "could not get issue list"}, 400
+    if status_code != 200:
+        return issue_list_output, status_code
+    get_issue_by_status_output = {}
+    for issue_list in issue_list_output['data']:
+        if issue_list['issue_status'] not in get_issue_by_status_output:
+            get_issue_by_status_output[issue_list['issue_status']] = []
+        get_issue_by_status_output[issue_list['issue_status']].append(
+            issue_list)
+    return util.success(get_issue_by_status_output)
 
 
 def get_issue_by_date_by_project(project_id):
@@ -285,43 +277,31 @@ def get_issue_by_date_by_project(project_id):
         return util.success({})
     args = {}
     issue_list_output, status_code = get_issue_by_project(project_id, args)
-    if status_code == 200:
-        get_issue_by_date_output = {}
-        for issue_list in issue_list_output['data']:
-            issue_updated_date = datetime.strptime(
-                issue_list['updated_on'],
-                "%Y-%m-%dT%H:%M:%SZ").date().strftime("%Y/%m/%d")
-            # logger.debug("issue_updated_date: {0}".format(issue_updated_date))
-            if issue_updated_date not in get_issue_by_date_output:
-                get_issue_by_date_output[issue_updated_date] = []
-            get_issue_by_date_output[issue_updated_date].append(issue_list)
-        # logger.debug("get_issue_by_date_output: {0}".format(get_issue_by_date_output))
-        return {
-                   "message": "success",
-                   "data": get_issue_by_date_output
-               }, 200
-    else:
-        return {"message": "could not get issue list"}, 400
+    if status_code != 200:
+        return issue_list_output, status_code
+    get_issue_by_date_output = {}
+    for issue_list in issue_list_output['data']:
+        issue_updated_date = datetime.strptime(
+            issue_list['updated_on'],
+            "%Y-%m-%dT%H:%M:%SZ").date().strftime("%Y/%m/%d")
+        if issue_updated_date not in get_issue_by_date_output:
+            get_issue_by_date_output[issue_updated_date] = []
+        get_issue_by_date_output[issue_updated_date].append(issue_list)
+    return util.success(get_issue_by_date_output)
 
 
 def get_issueProgress_by_project(project_id, args):
     issue_list, status_code = get_issue_by_project(project_id, args)
-    logger.debug("issue_list: {0}, status_code: {1}".format(
-        issue_list, status_code))
-    if status_code == 200:
-        open_issue = 0
-        for issue in issue_list['data']:
-            if issue["issue_status"] != "Closed":
-                open_issue += 1
-        return {
-            "message": "success",
-            "data": {
-                "open": open_issue,
-                "total_issue": len(issue_list['data'])
-            }
-        }
-    else:
-        return {"message": "could not get issue list"}, 400
+    if status_code != 200:
+        return issue_list, status_code
+    open_issue = 0
+    for issue in issue_list['data']:
+        if issue["issue_status"] != "Closed":
+            open_issue += 1
+    return util.success({
+            "open": open_issue,
+            "total_issue": len(issue_list['data'])
+        })
 
 
 def get_issueProgress_allVersion_by_project(project_id):
