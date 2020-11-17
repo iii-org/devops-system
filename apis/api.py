@@ -1,46 +1,40 @@
-from flask import Flask
-from flask import Response
-from flask import jsonify
-from flask import request as flask_req
-from flask_restful import Resource, Api, reqparse
-from flask_jwt_extended import jwt_required, get_jwt_identity
-from flask_cors import CORS
-import werkzeug
-
-
-import logging
-from logging import handlers
-import json
-import os
 import datetime
-from model import db
-import config
+import json
+import logging
+import os
+import re
+from logging import handlers
 
-from jsonwebtoken import jsonwebtoken
+import werkzeug
+from flask import Flask
+from flask import jsonify
+from flask_cors import CORS
+from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_restful import Resource, Api, reqparse
 from werkzeug.routing import IntegerConverter
 
-import resources.util as util
-import resources.auth as auth
-import resources.issue as issue
-import resources.redmine as redmine
-import resources.project as project
-import resources.gitlab as gitlab
-import resources.pipeline as pipeline
-import resources.requirement as requirement
+import config
+import resources.apiError as apiError
+import resources.flow as flow
 import resources.parameter as parameter
+import resources.requirement as requirement
 import resources.testCase as testCase
 import resources.testItem as testItem
-import resources.testValue as testValue
-import resources.wiki as wiki
-import resources.version as version
-import resources.testData as testData
-import resources.flow as flow
 import resources.testResult as testResult
-import resources.cicd as cicd
-import resources.checkmarx as checkmarx
-import resources.kubernetesClient as kubernetesClient
-
-import re
+import resources.testValue as testValue
+import resources.util as util
+from jsonwebtoken import jsonwebtoken
+from model import db
+from resources.checkmarx import CheckMarx
+from resources.cicd import Cicd
+from resources.gitlab import GitLab
+from resources.issue import Issue as IssueResource
+from resources.pipeline import Pipeline
+from resources.project import Project as ProjectResource
+from resources.redmine import Redmine
+from resources.user import User as UserResource
+from resources.version import Version as VersionResource
+from resources.wiki import Wiki as WikiResource
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -72,27 +66,16 @@ logger = logging.getLogger('devops.api')
 logger.setLevel(logging.DEBUG)
 logger.addHandler(handler)
 
-k8s = kubernetesClient.KubernetesClient()
-ut = util.util()
-redmine = redmine.Redmine(app)
-git = gitlab.GitLab(app)
-au = auth.auth(logger, app, redmine, git)
-pjt = project.Project(app, au, k8s, redmine, git)
-iss = issue.Issue(pjt, redmine)
-pipe = pipeline.Pipeline(app, pjt)
-wk = wiki.Wiki()
-vn = version.Version(redmine)
-
-rqmt = requirement.Requirement()
-flow = flow.Flow()
-param = parameter.Parameter()
-tc = testCase.TestCase()
-ti = testItem.TestItem()
-tv = testValue.TestValue()
-td = testData.TestData()
-tr = testResult.TestResult()
-ci = cicd.Cicd(app, pjt, iss, tc, ti, tv)
-cm = checkmarx.CheckMarx(app)
+redmine = Redmine(app)
+wk = WikiResource(redmine)
+vn = VersionResource(redmine)
+git = GitLab(app)
+user = UserResource(app, redmine, git)
+pjt = ProjectResource(app, user, redmine, git)
+iss = IssueResource(pjt, redmine, user)
+pipe = Pipeline(app, pjt)
+ci = Cicd(app, pjt, iss)
+cm = CheckMarx(app)
 
 
 class Index(Resource):
@@ -112,8 +95,8 @@ class TotalProjectList(Resource):
             try:
                 output = pjt.get_pm_project_list(logger, app, user_id)
                 return output
-            except Exception as error:
-                return {"message": str(error)}, 400
+            except Exception as e:
+                return {"message": str(e)}, 400
         else:
             return {"message": "your role art not PM/administrator"}, 401
 
@@ -122,33 +105,31 @@ class CreateProject(Resource):
     @jwt_required
     def post(self):
         role_id = get_jwt_identity()["role_id"]
-        # print("role_id={0}".format(role_id))
 
         if role_id in (3, 5):
             user_id = get_jwt_identity()["user_id"]
-            # print("user_id={0}".format(user_id))
             parser = reqparse.RequestParser()
             parser.add_argument('name', type=str, required=True)
-            # parser.add_argument('identifier', type=str, required=True)
             parser.add_argument('display', type=str)
             parser.add_argument('description', type=str)
             parser.add_argument('disabled', type=bool, required=True)
             args = parser.parse_args()
             logger.info("post body: {0}".format(args))
 
-            pattern = "^([a-z])([a-z]|[0-9]|-|_)*"
+            pattern = "^[a-z0-9][a-z0-9-]{0,253}[a-z0-9]$"
             result = re.fullmatch(pattern, args["name"])
-            if result and (len(args["name"]) <= 30):
+            if result is not None:
                 try:
                     args["identifier"] = args["name"]
                     output = pjt.pm_create_project(user_id, args)
                     return output
-                except Exception as error:
+                except Exception as e:
                     import traceback
                     traceback.print_exc()
-                    return {"message": str(error)}, 400
+                    return {"message": str(e)}, 400
             else:
-                return {"message": "name error"}, 400
+                return util.respond(400, 'Error while creating project',
+                                    error=apiError.invalid_project_name(args['name']))
         else:
             return {"message": "your role art not PM/administrator"}, 401
 
@@ -160,12 +141,15 @@ class Project(Resource):
 
         if role_id in (3, 5):
             try:
-                output = pjt.pm_get_project(logger, app, project_id)
+                output = pjt.pm_get_project(project_id)
                 return output
-            except Exception as error:
-                return {"message": str(error)}, 400
+            except Exception as e:
+                return util.respond(500, "Error when getting project info.",
+                                    error=apiError.uncaught_exception(e))
         else:
-            return {"message": "your role art not PM/administrator"}, 401
+            return util.respond(401, "Error when getting project info.",
+                                error=apiError.not_allowed(get_jwt_identity()['user_account']
+                                                           , [3, 5]))
 
     @jwt_required
     def put(self, project_id):
@@ -186,8 +170,8 @@ class Project(Resource):
             try:
                 output = pjt.pm_update_project(logger, app, project_id, args)
                 return output
-            except Exception as error:
-                return {"message": str(error)}, 400
+            except Exception as e:
+                return {"message": str(e)}, 400
         else:
             return {"message": "your role art not PM/administrator"}, 401
 
@@ -201,8 +185,8 @@ class Project(Resource):
             try:
                 output = pjt.pm_delete_project(logger, app, project_id)
                 return output
-            except Exception as error:
-                return {"message": str(error)}, 400
+            except Exception as e:
+                return {"message": str(e)}, 400
         else:
             return {"message": "you are not an administrator, and you are not a PM in this project."}, 401
 
@@ -294,7 +278,7 @@ class UserLogin(Resource):
         parser.add_argument('username', type=str, required=True)
         parser.add_argument('password', type=str, required=True)
         args = parser.parse_args()
-        output = au.user_login(logger, args)
+        output = user.login(args)
         return output
 
 
@@ -305,7 +289,7 @@ class UserForgetPassword(Resource):
         parser.add_argument('user_account', type=str, required=True)
         args = parser.parse_args()
         try:
-            status = au.user_forgetpassword(logger, args)
+            status = user.user_forgot_password(args)
             return jsonify({"message": "success"})
         except Exception as err:
             return jsonify({"message": err}), 400
@@ -319,7 +303,7 @@ class UserInfo(Resource):
             get_jwt_identity()['user_id']))
         if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity(
         )['role_id'] in (3, 5):
-            user_info = au.user_info(logger, user_id)
+            user_info = user.get_user_info(user_id)
             return user_info
         else:
             return {
@@ -338,10 +322,10 @@ class UserInfo(Resource):
             parser.add_argument('status', type=str)
             args = parser.parse_args()
             try:
-                output = au.update_user_info(logger, user_id, args)
+                output = user.update_info(user_id, args)
                 return output
-            except Exception as error:
-                return jsonify({"message": str(error)}), 400
+            except Exception as e:
+                return jsonify({"message": str(e)}), 400
         else:
             return {
                 'message': 'you dont have authorize to update user informaion'
@@ -352,10 +336,10 @@ class UserInfo(Resource):
         '''delete user'''
         if get_jwt_identity()["role_id"] == 5:
             try:
-                output = au.delete_user(logger, app, user_id)
+                output = user.delete_user(user_id)
                 return output
-            except Exception as error:
-                return {"message": str(error)}, 400
+            except Exception as e:
+                return {"message": str(e)}, 400
         else:
             return {"message": "your role art not administrator"}, 401
 
@@ -368,7 +352,7 @@ class UserStatus(Resource):
             parser = reqparse.RequestParser()
             parser.add_argument('status', type=str, required=True)
             args = parser.parse_args()
-            output = au.put_user_status(logger, user_id, args)
+            output = user.change_user_status(user_id, args)
             return output
         else:
             return {"message": "your role art not administrator"}, 401
@@ -388,7 +372,7 @@ class User(Resource):
             parser.add_argument('role_id', type=int, required=True)
             parser.add_argument('status', type=str)
             args = parser.parse_args()
-            output = au.create_user(logger, args, app)
+            output = user.create_user(args)
             return output
         else:
             return {"message": "your role art not administrator"}, 401
@@ -398,7 +382,7 @@ class UserList(Resource):
     @jwt_required
     def get(self):
         if get_jwt_identity()["role_id"] in (3, 5):
-            output = au.get_user_list(logger)
+            output = user.user_list()
             return output
         else:
             return {"message": "your role art not administrator"}, 401
@@ -411,7 +395,7 @@ class ProjectUserList(Resource):
             parser = reqparse.RequestParser()
             parser.add_argument('exclude', type=int)
             args = parser.parse_args()
-            output = au.get_userlist_by_project(logger, project_id, args)
+            output = user.user_list_by_project(project_id, args)
             return output
         else:
             return {"message": "your role art not administrator"}, 401
@@ -426,7 +410,7 @@ class ProjectAddMember(Resource):
             parser = reqparse.RequestParser()
             parser.add_argument('user_id', type=int, required=True)
             args = parser.parse_args()
-            output = au.project_add_member(logger, app, project_id, args)
+            output = user.project_add_member(project_id, args)
             return output
         else:
             return {"message": "your role are not PM or administrator"}, 401
@@ -436,7 +420,7 @@ class ProjectDeleteMember(Resource):
     @jwt_required
     def delete(self, project_id, user_id):
         if get_jwt_identity()["role_id"] in (3, 5):
-            output = au.project_delete_member(logger, app, project_id, user_id)
+            output = user.remove_from_project(project_id, user_id)
             return output
         else:
             return {"message": "your role are not PM or administrator"}, 401
@@ -448,7 +432,7 @@ class ProjectWikiList(Resource):
         status = pjt.verify_project_user(logger, project_id,
                                          get_jwt_identity()['user_id'])
         if status or get_jwt_identity()['role_id'] == 5:
-            output = wk.get_wiki_list_by_project(logger, app, project_id)
+            output = wk.get_wiki_list_by_project(project_id)
             return output
         else:
             return {
@@ -459,11 +443,10 @@ class ProjectWikiList(Resource):
 class ProjectWiki(Resource):
     @jwt_required
     def get(self, project_id, wiki_name):
-        status = pjt.verify_project_user(logger, project_id,
+        status = pjt.verify_project_user(logger,  project_id,
                                          get_jwt_identity()['user_id'])
         if status or get_jwt_identity()['role_id'] == 5:
-            output, status_code = wk.get_wiki_by_project(
-                logger, app, project_id, wiki_name)
+            output, status_code = wk.get_wiki_by_project(project_id, wiki_name)
             return output, status_code
         else:
             return {
@@ -478,8 +461,7 @@ class ProjectWiki(Resource):
             parser = reqparse.RequestParser()
             parser.add_argument('wiki_text', type=str, required=True)
             args = parser.parse_args()
-            output, status_code = wk.put_wiki_by_project(
-                logger, app, project_id, wiki_name, args)
+            output, status_code = wk.put_wiki_by_project(project_id, wiki_name, args, get_jwt_identity()['user_id'])
             return output, status_code
         else:
             return {
@@ -491,8 +473,7 @@ class ProjectWiki(Resource):
         status = pjt.verify_project_user(logger, project_id,
                                          get_jwt_identity()['user_id'])
         if status or get_jwt_identity()['role_id'] == 5:
-            output, status_code = wk.delete_wiki_by_project(
-                logger, app, project_id, wiki_name)
+            output, status_code = wk.delete_wiki_by_project(project_id, wiki_name)
             return output, status_code
         else:
             return {
@@ -507,7 +488,7 @@ class ProjectVersionList(Resource):
         status = pjt.verify_project_user(logger, project_id,
                                          get_jwt_identity()['user_id'])
         if status or get_jwt_identity()['role_id'] == 5:
-            output = vn.get_version_list_by_project(logger, app, project_id)
+            output = vn.get_version_list_by_project(project_id)
             return output
         else:
             return {
@@ -525,8 +506,7 @@ class ProjectVersion(Resource):
             root_parser = reqparse.RequestParser()
             root_parser.add_argument('version', type=dict, required=True)
             root_args = root_parser.parse_args()
-            output, status_code = vn.post_version_by_project(
-                logger, app, project_id, root_args)
+            output, status_code = vn.post_version_by_project(project_id, root_args)
             return output, status_code
         else:
             return {
@@ -541,8 +521,7 @@ class ProjectVersionInfo(Resource):
         status = pjt.verify_project_user(logger, project_id,
                                          get_jwt_identity()['user_id'])
         if status or get_jwt_identity()['role_id'] == 5:
-            output, status_code = vn.get_version_by_version_id(
-                logger, app, project_id, version_id)
+            output, status_code = vn.get_version_by_version_id(version_id)
             return output, status_code
         else:
             return {
@@ -558,8 +537,7 @@ class ProjectVersionInfo(Resource):
             root_parser.add_argument('version', type=dict, required=True)
             root_args = root_parser.parse_args()
             print(root_args)
-            output, status_code = vn.put_version_by_version_id(
-                logger, app, project_id, version_id, root_args)
+            output, status_code = vn.put_version_by_version_id(version_id, root_args)
             return output, status_code
         else:
             return {
@@ -571,8 +549,7 @@ class ProjectVersionInfo(Resource):
         status = pjt.verify_project_user(logger, project_id,
                                          get_jwt_identity()['user_id'])
         if status or get_jwt_identity()['role_id'] == 5:
-            output, status_code = vn.delete_version_by_version_id(
-                logger, app, project_id, version_id)
+            output, status_code = vn.delete_version_by_version_id(version_id)
             return output, status_code
         else:
             return {
@@ -586,10 +563,10 @@ class RoleList(Resource):
         print("role_id is {0}".format(get_jwt_identity()["role_id"]))
         if get_jwt_identity()["role_id"] in (1, 3, 5):
             try:
-                output = au.get_role_list(logger, app)
+                output = user.get_role_list()
                 return output
-            except Exception as error:
-                return {"message": str(error)}, 400
+            except Exception as e:
+                return {"message": str(e)}, 400
         else:
             return {"message": "your role art not RD/PM/administrator"}, 401
 
@@ -604,8 +581,8 @@ class GitProjectBranches(Resource):
             try:
                 output = pjt.get_git_project_branches(logger, app, project_id)
                 return output
-            except Exception as error:
-                return {"message": str(error)}, 400
+            except Exception as e:
+                return {"message": str(e)}, 400
         else:
             return {"message": "your role art not RD/PM/administrator"}, 401
 
@@ -923,7 +900,7 @@ class PipelineInfo(Resource):
 class PipelineExec(Resource):
     @jwt_required
     def get(self, repository_id):
-        output_array = pipe.pipeline_exec_list(logger, app, repository_id)
+        output_array = pipe.pipeline_exec_list(repository_id)
         return jsonify({'message': 'success', 'data': output_array})
 
 
@@ -934,13 +911,13 @@ class PipelineExecLogs(Resource):
         parser.add_argument('repository_id', type=int, required=True)
         parser.add_argument('pipelines_exec_run', type=int, required=True)
         args = parser.parse_args()
-        return pipe.pipeline_exec_logs(logger, app, args)
+        return pipe.pipeline_exec_logs(args)
 
 
 class PipelineSoftware(Resource):
     @jwt_required
     def get(self):
-        pipe_out_list = pipe.pipeline_software(logger)
+        pipe_out_list = pipe.pipeline_software()
         output_list = []
         for pipe_out in pipe_out_list:
             if 'detail' in pipe_out:
@@ -953,8 +930,7 @@ class PipelineSoftware(Resource):
 class PipelineYaml(Resource):
     @jwt_required
     def get(self, repository_id, branch_name):
-        output_array = pipe.get_ci_yaml(logger, app, repository_id,
-                                        branch_name)
+        output_array = pipe.get_ci_yaml(repository_id, branch_name)
         return output_array
 
     @jwt_required
@@ -962,15 +938,14 @@ class PipelineYaml(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('detail')
         args = parser.parse_args()
-        output = pipe.generate_ci_yaml(logger, args, app, repository_id,
-                                       branch_name)
+        output = pipe.generate_ci_yaml(args, repository_id, branch_name)
         return output
 
 
 class PipelinePhaseYaml(Resource):
     @jwt_required
     def get(self, repository_id, branch_name):
-        return pipe.get_phase_yaml(logger, app, repository_id, branch_name)
+        return pipe.get_phase_yaml(repository_id, branch_name)
 
 
 class IssueByProject(Resource):
@@ -1108,7 +1083,7 @@ class IssueCreate(Resource):
         parser.add_argument('upload_description', type=str)
 
         args = parser.parse_args()
-        output = iss.create_issue(args)
+        output = iss.create_issue(args, get_jwt_identity()['user_id'])
         return output
 
 
@@ -1141,39 +1116,42 @@ class Issue(Resource):
         parser.add_argument('upload_description', type=str)
 
         args = parser.parse_args()
-        output = iss.update_issue_rd(logger, app, issue_id, args)
+        output = iss.update_issue_rd(logger, app, issue_id, args, get_jwt_identity()['user_id'])
         return output
 
     @jwt_required
     def delete(self, issue_id):
         status = iss.verify_issue_user(logger, app, issue_id,
                                        get_jwt_identity()['user_id'])
-        if status and get_jwt_identity()['role_id'] in (3, 5):
+        if status or get_jwt_identity()['role_id'] == 5:
             output = iss.delete_issue(issue_id)
             return output
         else:
-            return {'message': 'Dont have authorization to delete issue for thie user: {0}' \
-                .format(get_jwt_identity()['user_account'])}, 401
+            return util.respond(401, "Error when deleting issues",
+                                error=apiError.not_allowed(
+                                    get_jwt_identity()['user_account'],
+                                    [1, 3, 5]
+                                ))
 
 
 class IssueStatus(Resource):
     @jwt_required
     def get(self):
-        output = iss.get_issue_status(logger, app)
+        output = iss.get_issue_status()
         return jsonify({'message': 'success', 'data': output})
 
 
 class IssuePrioriry(Resource):
     @jwt_required
     def get(self):
-        output = iss.get_issue_priority(logger, app)
+        output = iss.get_issue_priority()
         return jsonify({'message': 'success', 'data': output})
 
 
 class IssueTracker(Resource):
     @jwt_required
     def get(self):
-        output = iss.get_issue_trackers(logger, app)
+        output = iss.get_issue_trackers()
         return jsonify({'message': 'success', 'data': output})
 
 
@@ -1257,58 +1235,50 @@ class DashboardIssueType(Resource):
 
 class RequirementByIssue(Resource):
 
-    ## 用issues ID 取得目前所有的需求清單
+    # 用issues ID 取得目前所有的需求清單
     @jwt_required
     def get(self, issue_id):
         # temp = get_jwt_identity()
         print(get_jwt_identity())
-        output = rqmt.get_requirements_by_issue_id(
-            logger, issue_id,
-            get_jwt_identity()['user_id'])
+        output = requirement.get_requirements_by_issue_id(issue_id)
         return jsonify({'message': 'success', 'data': output})
 
-    ## 用issues ID 新建立需求清單
+    # 用issues ID 新建立需求清單
     @jwt_required
     def post(self, issue_id):
         parser = reqparse.RequestParser()
         parser.add_argument('project_id', type=int)
         # parser.add_argument('flow_info', type=str)
         args = parser.parse_args()
-        output = rqmt.post_requirement_by_issue_id(
-            logger, issue_id, args,
-            get_jwt_identity()['user_id'])
+        output = requirement.post_requirement_by_issue_id(issue_id, args)
         return jsonify({'message': 'success', 'data': output})
 
 
 class Requirement(Resource):
 
-    ## 用requirement_id 取得目前需求流程
+    # 用requirement_id 取得目前需求流程
     @jwt_required
     def get(self, requirement_id):
         # temp = get_jwt_identity()
-        output = rqmt.get_requirement_by_rqmt_id(logger, requirement_id,
-                                                 get_jwt_identity()['user_id'])
+        output = requirement.get_requirement_by_rqmt_id(requirement_id)
         return jsonify({'message': 'success', 'data': output})
 
-    ## 用requirement_id 刪除目前需求流程
+    # 用requirement_id 刪除目前需求流程
     @jwt_required
     def delete(self, requirement_id):
         # temp = get_jwt_identity()
         output = {}
-        output = rqmt.del_requirement_by_rqmt_id(logger, requirement_id,
-                                                 get_jwt_identity()['user_id'])
+        output = requirement.del_requirement_by_rqmt_id(requirement_id)
         return jsonify({'message': 'success'})
 
-    ## 用requirement_id 更新目前需求流程
+    # 用requirement_id 更新目前需求流程
     @jwt_required
     def put(self, requirement_id):
         output = {}
         parser = reqparse.RequestParser()
         parser.add_argument('flow_info', type=str)
         args = parser.parse_args()
-        output = rqmt.modify_requirement_by_rqmt_id(
-            logger, requirement_id, args,
-            get_jwt_identity()['user_id'])
+        output = requirement.modify_requirement_by_rqmt_id(requirement_id, args)
         return jsonify({'message': 'success'})
 
 
@@ -1321,19 +1291,15 @@ class GetFlowType(Resource):
 
 class FlowByIssue(Resource):
 
-    ## 用issues ID 取得目前所有的需求清單
+    # 用issues ID 取得目前所有的需求清單
     @jwt_required
     def get(self, issue_id):
-        # requirement_ids = []
-        requirement_ids = rqmt.check_requirement_by_issue_id(logger, issue_id)
-        print(requirement_ids)
+        requirement_ids = requirement.check_requirement_by_issue_id(issue_id)
         if not requirement_ids:
             return jsonify({'message': 'success', 'data': {}})
         output = []
         for requirement_id in requirement_ids:
-            result = flow.get_flow_by_requirement_id(
-                logger, requirement_id,
-                get_jwt_identity()['user_id'])
+            result = flow.get_flow_by_requirement_id(requirement_id)
             if len(result) > 0:
                 output.append({
                     'requirement_id': requirement_id,
@@ -1341,7 +1307,7 @@ class FlowByIssue(Resource):
                 })
         return jsonify({'message': 'success', 'data': output})
 
-    ## 用issues ID 新建立需求清單
+    # 用issues ID 新建立需求清單
     @jwt_required
     def post(self, issue_id):
         output = {}
@@ -1351,20 +1317,15 @@ class FlowByIssue(Resource):
         parser.add_argument('name', type=str)
         parser.add_argument('description', type=str)
         args = parser.parse_args()
-        check = rqmt.check_requirement_by_issue_id(logger, issue_id)
+        check = requirement.check_requirement_by_issue_id(issue_id)
         if not check:
-            requirements = rqmt.post_requirement_by_issue_id(
-                logger, issue_id, args,
-                get_jwt_identity()['user_id'])
+            requirements = requirement.post_requirement_by_issue_id(issue_id, args)
             requirement_id = requirements['requirement_id'][0]
         else:
             requirement_id = check[0]
 
-        output = flow.post_flow_by_requirement_id(
-            logger, int(issue_id), requirement_id, args,
-            get_jwt_identity()['user_id'])
-        # print(output)
-        return jsonify({'message': 'success', 'data': output})
+        output = flow.post_flow_by_requirement_id(int(issue_id), requirement_id, args)
+        return util.success(output, has_date=True)
 
 
 # class FlowByRequirement(Resource):
@@ -1392,58 +1353,48 @@ class FlowByIssue(Resource):
 
 class Flow(Resource):
 
-    ## 用requirement_id 取得目前需求流程
+    # 用requirement_id 取得目前需求流程
     @jwt_required
     def get(self, flow_id):
-        output = flow.get_flow_by_flow_id(logger, flow_id,
-                                          get_jwt_identity()['user_id'])
+        output = flow.get_flow_by_flow_id(flow_id)
         return jsonify({'message': 'success', 'data': output})
 
-    ## 用requirement_id 刪除目前需求流程
+    # 用requirement_id 刪除目前需求流程
     @jwt_required
     def delete(self, flow_id):
-        # temp = get_jwt_identity()
-        output = {}
-        output = flow.disabled_flow_by_flow_id(logger, flow_id,
-                                               get_jwt_identity()['user_id'])
-        return jsonify({'message': 'success', 'data': output})
+        output = flow.disabled_flow_by_flow_id(flow_id)
+        return util.success(output, has_date=True)
 
-    ## 用requirement_id 更新目前需求流程
+    # 用requirement_id 更新目前需求流程
     @jwt_required
     def put(self, flow_id):
-        output = {}
         parser = reqparse.RequestParser()
         parser.add_argument('serial_id', type=int)
         parser.add_argument('type_id', type=int)
         parser.add_argument('name', type=str)
         parser.add_argument('description', type=str)
         args = parser.parse_args()
-        output = flow.modify_flow_by_flow_id(logger, flow_id, args,
-                                             get_jwt_identity()['user_id'])
-        return jsonify({'message': 'success', 'data': output})
+        output = flow.modify_flow_by_flow_id(flow_id, args)
+        return util.success(output, has_date=True)
 
 
 class ParameterType(Resource):
     @jwt_required
     def get(self):
-        output = {}
-        output = param.get_parameter_types()
+        output = parameter.get_parameter_types()
         print(output)
         return jsonify({'message': 'success', 'data': output})
 
 
 class ParameterByIssue(Resource):
 
-    ## 用issues ID 取得目前所有的需求清單
+    # 用issues ID 取得目前所有的需求清單
     @jwt_required
     def get(self, issue_id):
-        output = {}
-        output = param.get_parameterss_by_issue_id(
-            logger, issue_id,
-            get_jwt_identity()['user_id'])
+        output = parameter.get_parameters_by_issue_id(issue_id)
         return jsonify({'message': 'success', 'data': output})
 
-    ## 用issues ID 新建立需求清單
+    # 用issues ID 新建立需求清單
     @jwt_required
     def post(self, issue_id):
         output = {}
@@ -1455,33 +1406,25 @@ class ParameterByIssue(Resource):
         parser.add_argument('limitation', type=str)
         parser.add_argument('length', type=int)
         args = parser.parse_args()
-        output = param.post_parameters_by_issue_id(
-            logger, issue_id, args,
-            get_jwt_identity()['user_id'])
+        output = parameter.post_parameters_by_issue_id(issue_id, args)
         return jsonify({'message': 'success', 'data': output})
 
 
 class Parameter(Resource):
 
-    ## 用requirement_id 取得目前需求流程
+    # 用requirement_id 取得目前需求流程
     @jwt_required
     def get(self, parameter_id):
-        output = {}
-        output = param.get_parameters_by_param_id(
-            logger, parameter_id,
-            get_jwt_identity()['user_id'])
+        output = parameter.get_parameters_by_param_id(parameter_id)
         return jsonify({'message': 'success', 'data': output})
 
-    ## 用requirement_id 刪除目前需求流程
+    # 用requirement_id 刪除目前需求流程
     @jwt_required
     def delete(self, parameter_id):
-        output = {}
-        output = param.del_parameters_by_param_id(
-            logger, parameter_id,
-            get_jwt_identity()['user_id'])
+        output = parameter.del_parameters_by_param_id(parameter_id)
         return jsonify({'message': 'success', 'data': output})
 
-    ## 用requirement_id 更新目前需求流程
+    # 用requirement_id 更新目前需求流程
     @jwt_required
     def put(self, parameter_id):
         output = {}
@@ -1492,65 +1435,20 @@ class Parameter(Resource):
         parser.add_argument('limitation', type=str)
         parser.add_argument('length', type=int)
         args = parser.parse_args()
-        output = param.modify_parameters_by_param_id(
-            logger, parameter_id, args,
-            get_jwt_identity()['user_id'])
-        return jsonify({'message': 'success', "data": {}})
-
-
-class AllTestDataByIssue(Resource):
-    @jwt_required
-    def get(self, issue_id):
-
-        data = {}
-        data['requirement'] = rqmt.get_requirements_by_issue_id(
-            logger, issue_id,
-            get_jwt_identity()['user_id'])['flow_info']
-        data['testCase'] = tc.get_testCase_by_issue_id(
-            logger, issue_id,
-            get_jwt_identity()['user_id'])
-        data['testItem'] = ti.get_testItem_by_issue_id(
-            logger, issue_id,
-            get_jwt_identity()['user_id'], 'test_case_id')
-        data['testValue'] = tv.get_testValue_by_issue_id(
-            logger, issue_id,
-            get_jwt_identity()['user_id'])
-        output = td.get_AllTestData_by_Issue_Id(logger, data,
-                                                get_jwt_identity()['user_id'])
-        return jsonify({'message': 'success', 'data': output})
-
-
-class AllTestData(Resource):
-    @jwt_required
-    def get(self):
-
-        parser = reqparse.RequestParser()
-        parser.add_argument('project_id', type=int)
-        parser.add_argument('issue_id', type=int)
-        parser.add_argument('order_by', type=str)
-        user_id = get_jwt_identity()['user_id']
-        args = parser.parse_args()
-        data = {}
-        data['testCase'] = tc.get_testCase_by_Column(logger, args, user_id)
-        data['testItem'] = ti.get_testItem_by_Column(logger, args, user_id,
-                                                     'test_case_id')
-        data['testValue'] = tv.get_testValue_by_Column(logger, args, user_id,
-                                                       "test_case_id")
-        output = td.analysis_testData(logger, data, user_id)
-        return jsonify({'message': 'success', 'data': output})
+        output = parameter.modify_parameters_by_param_id(parameter_id, args)
+        return jsonify({'message': 'success', "data": output})
 
 
 class TestCaseByIssue(Resource):
 
-    ## 用issues ID 取得目前所有的目前測試案例
+    # 用issues ID 取得目前所有的目前測試案例
     @jwt_required
     def get(self, issue_id):
         output = {}
-        output = tc.get_testCase_by_issue_id(logger, issue_id,
-                                             get_jwt_identity()['user_id'])
+        output = testCase.get_testcase_by_issue_id(issue_id)
         return jsonify({'message': 'success', 'data': output})
 
-    ## 用issues ID 新建立測試案例
+    # 用issues ID 新建立測試案例
     @jwt_required
     def post(self, issue_id):
         output = {}
@@ -1561,21 +1459,18 @@ class TestCaseByIssue(Resource):
         parser.add_argument('type_id', type=int)
         parser.add_argument('description', type=str)
         args = parser.parse_args()
-        output = tc.post_testCase_by_issue_id(logger, issue_id, args,
-                                              get_jwt_identity()['user_id'])
+        output = testCase.post_testcase_by_issue_id(issue_id, args)
         return jsonify({'message': 'success', 'data': output})
 
 class TestCaseByProject(Resource):
 
-    ## 用issues ID 取得目前所有的目前測試案例
+    # 用issues ID 取得目前所有的目前測試案例
     @jwt_required
     def get(self, project_id):
-        output = {}
-        output = tc.get_testCase_by_project_id(logger, project_id,
-                                             get_jwt_identity()['user_id'])
+        output = testCase.get_testcase_by_project_id(project_id)
         return jsonify({'message': 'success', 'data': output})
 
-    ## 用issues ID 新建立測試案例
+    # 用issues ID 新建立測試案例
     @jwt_required
     def post(self, project_id):
         output = {}
@@ -1585,30 +1480,26 @@ class TestCaseByProject(Resource):
         parser.add_argument('type_id', type=int)
         parser.add_argument('description', type=str)
         args = parser.parse_args()
-        output = tc.post_testCase_by_project_id(logger, project_id, args,
-                                              get_jwt_identity()['user_id'])
+        output = testCase.post_testcase_by_project_id(project_id, args)
         return jsonify({'message': 'success', 'data': output})
 
 
 class TestCase(Resource):
 
-    ## 用testCase_id 取得目前測試案例
+    # 用testCase_id 取得目前測試案例
     @jwt_required
     def get(self, testCase_id):
-        output = {}
-        output = tc.get_testCase_by_tc_id(logger, testCase_id,
-                                          get_jwt_identity()['user_id'])
+        output = testCase.get_test_case_by_tc_id(testCase_id)
         return jsonify({'message': 'success', 'data': output})
 
-    ## 用testCase_id 刪除目前測試案例
+    # 用testCase_id 刪除目前測試案例
     @jwt_required
     def delete(self, testCase_id):
         output = {}
-        output = tc.del_testCase_by_tc_id(logger, testCase_id,
-                                          get_jwt_identity()['user_id'])
+        output = testCase.del_testcase_by_tc_id(testCase_id)
         return jsonify({'message': 'success', 'data': output})
 
-    ## 用testCase_id 更新目前測試案例
+    # 用testCase_id 更新目前測試案例
     @jwt_required
     def put(self, testCase_id):
         output = {}
@@ -1618,8 +1509,7 @@ class TestCase(Resource):
         parser.add_argument('type_id', type=int)
         parser.add_argument('description', type=str)
         args = parser.parse_args()
-        output = tc.modify_testCase_by_tc_id(logger, testCase_id, args,
-                                             get_jwt_identity()['user_id'])
+        output = testCase.modify_testCase_by_tc_id(testCase_id, args)
         return jsonify({'message': 'success', 'data': output})
 
 
@@ -1627,7 +1517,7 @@ class GetTestCaseAPIMethod(Resource):
     @jwt_required
     def get(self):
         output = {}
-        output = tc.get_api_method(logger, get_jwt_identity()['user_id'])
+        output = testCase.get_api_method()
         return jsonify({'message': 'success', 'data': output})
 
 
@@ -1635,21 +1525,20 @@ class GetTestCaseType(Resource):
     @jwt_required
     def get(self):
         output = {}
-        output = tc.get_testCase_type(logger, get_jwt_identity()['user_id'])
+        output = testCase.get_testcase_type_wrapped()
         return jsonify({'message': 'get_testCase_typesuccess', 'data': output})
 
 
 class TestItemByTestCase(Resource):
 
-    ## 用issues ID 取得目前所有的目前測試案例
+    # 用issues ID 取得目前所有的目前測試案例
     @jwt_required
     def get(self, testCase_id):
         output = {}
-        output = ti.get_testItem_by_testCase_id(logger, testCase_id,
-                                                get_jwt_identity()['user_id'])
+        output = testItem.get_testItem_by_testCase_id(testCase_id)
         return jsonify({'message': 'success', 'data': output})
 
-    ## 用issues ID 新建立測試案例
+    # 用issues ID 新建立測試案例
     @jwt_required
     def post(self, testCase_id):
         output = {}
@@ -1659,56 +1548,48 @@ class TestItemByTestCase(Resource):
         parser.add_argument('issue_id', type=int)
         parser.add_argument('is_passed', type=bool)
         args = parser.parse_args()
-        output = ti.post_testItem_by_testCase_id(logger, testCase_id, args,
-                                                 get_jwt_identity()['user_id'])
+        output = testItem.post_testitem_by_testcase_id(testCase_id, args)
         return jsonify({'message': 'success', 'data': output})
 
 
 class TestItem(Resource):
 
-    ## testItem_id 取得目前測試項目
+    # item_id 取得目前測試項目
     @jwt_required
-    def get(self, testItem_id):
-        output = {}
-        output = ti.get_testItem_by_ti_id(logger, testItem_id,
-                                          get_jwt_identity()['user_id'])
+    def get(self, item_id):
+        output = testItem.get_testitem_by_ti_id(item_id)
         return jsonify({'message': 'success', 'data': output})
 
-    ## testItem_id 刪除目前測試項目
+    # item_id 刪除目前測試項目
     @jwt_required
-    def delete(self, testItem_id):
-        output = {}
-        output = ti.del_testItem_by_ti_id(logger, testItem_id,
-                                          get_jwt_identity()['user_id'])
+    def delete(self, item_id):
+        output = testItem.del_testItem_by_ti_id(item_id)
         return jsonify({'message': 'success', 'data': output})
 
-    ## testItem_id 更新目前測試項目
+    # item_id 更新目前測試項目
     @jwt_required
-    def put(self, testItem_id):
+    def put(self, item_id):
         output = {}
         parser = reqparse.RequestParser()
         print(parser)
         parser.add_argument('name', type=str)
         parser.add_argument('is_passed', type=bool)
         args = parser.parse_args()
-        output = ti.modify_testItem_by_ti_id(logger, testItem_id, args,
-                                             get_jwt_identity()['user_id'])
+        output = testItem.modify_testItem_by_ti_id(item_id, args)
         return jsonify({'message': 'success', 'data': output})
 
 
 class TestValueByTestItem(Resource):
 
-    ## 用issues ID 取得目前所有的目前測試案例
+    # 用issues ID 取得目前所有的目前測試案例
     @jwt_required
-    def get(self, testItem_id):
-        output = {}
-        output = tv.get_testValue_by_testItem_id(logger, testItem_id,
-                                                 get_jwt_identity()['user_id'])
+    def get(self, item_id):
+        output = testValue.get_testValue_by_testItem_id(item_id)
         return jsonify({'message': 'success', 'data': output})
 
-    ## 用issues ID 新建立測試案例
+    # 用issues ID 新建立測試案例
     @jwt_required
-    def post(self, testItem_id):
+    def post(self, item_id):
         output = {}
         parser = reqparse.RequestParser()
         parser.add_argument('project_id', type=int)
@@ -1719,9 +1600,7 @@ class TestValueByTestItem(Resource):
         parser.add_argument('key', type=str)
         parser.add_argument('value', type=str)
         args = parser.parse_args()
-        output = tv.post_testValue_by_testItem_id(
-            logger, testItem_id, args,
-            get_jwt_identity()['user_id'])
+        output = testValue.post_testValue_by_testItem_id(item_id, args)
         return jsonify({'message': 'success', 'data': output})
 
 
@@ -1729,7 +1608,7 @@ class GetTestValueLocation(Resource):
     @jwt_required
     def get(self):
         output = {}
-        output = tv.get_testValue_httpLocation(logger)
+        output = testValue.get_testValue_httpLocation()
         return jsonify({'message': 'success', 'data': output})
 
 
@@ -1737,40 +1616,31 @@ class GetTestValueType(Resource):
     @jwt_required
     def get(self):
         output = {}
-        output = tv.get_testValue_httpType(logger)
+        output = testValue.get_testValue_httpType()
         return jsonify({'message': 'success', 'data': output})
 
 
 class TestValue(Resource):
 
-    ## testItem_id 取得目前測試項目
     @jwt_required
-    def get(self, testValue_id):
-        output = {}
-        output = tv.get_testValue_by_tv_id(logger, testValue_id,
-                                           get_jwt_identity()['user_id'])
+    def get(self, value_id):
+        output = testValue.get_testValue_by_tv_id(value_id)
         return jsonify({'message': 'success', 'data': output})
 
-    ## testItem_id 刪除目前測試項目
     @jwt_required
-    def delete(self, testValue_id):
-        output = {}
-        output = tv.del_testValue_by_tv_id(logger, testValue_id,
-                                           get_jwt_identity()['user_id'])
+    def delete(self, value_id):
+        output = testValue.del_testValue_by_tv_id(value_id)
         return jsonify({'message': 'success', 'data': output})
 
-    ## testItem_id 更新目前測試項目
     @jwt_required
-    def put(self, testValue_id):
-        output = {}
+    def put(self, value_id):
         parser = reqparse.RequestParser()
         parser.add_argument('key', type=str)
         parser.add_argument('value', type=str)
         parser.add_argument('type_id', type=str)
         parser.add_argument('location_id', type=str)
         args = parser.parse_args()
-        output = tv.modify_testValue_by_ti_id(logger, testValue_id, args,
-                                              get_jwt_identity()['user_id'])
+        output = testValue.modify(value_id, args)
         return jsonify({'message': 'success', 'data': output})
 
 
@@ -1784,14 +1654,14 @@ class TestResult(Resource):
         parser.add_argument('branch', type=str, required=True)
         parser.add_argument('report', type=str, required=True)
         args = parser.parse_args()
-        output = tr.save(args)
+        output = testResult.save(args)
         return output
 
 
 class GetPostmanReport(Resource):
     @jwt_required
     def get(self, project_id):
-        return tr.get_report(project_id)
+        return testResult.get_report(project_id)
 
 
 class ExportToPostman(Resource):
@@ -1802,7 +1672,7 @@ class ExportToPostman(Resource):
         parser.add_argument('target', type=str, required=True)
         args = parser.parse_args()
         target = args['target']
-        output = ci.export_to_postman(app, project_id, target, jwt_identity)
+        output = ci.export_to_postman(project_id, target, jwt_identity)
         return output
 
 
@@ -1881,8 +1751,8 @@ class SonarReport(Resource):
             try:
                 output = pjt.get_sonar_report(logger, app, project_id)
                 return output
-            except Exception as error:
-                return {"message": str(error)}, 400
+            except Exception as e:
+                return {"message": str(e)}, 400
         else:
             return {"message": "your role art not PM/administrator"}, 401
 
@@ -1895,8 +1765,8 @@ class GetTestSummary(Resource):
         if role_id in (3, 5):
             try:
                 return pjt.get_test_summary(logger, app, project_id, cm)
-            except Exception as error:
-                return {"message": str(error)}, 400
+            except Exception as e:
+                return {"message": str(e)}, 400
         else:
             return {"message": "your role art not PM/administrator"}, 401
 
@@ -1905,17 +1775,21 @@ class ProjectFiles(Resource):
     @jwt_required
     def post(self, project_id):
         plan_project_id = pjt.get_plan_project_id(project_id)
+        if plan_project_id < 0:
+            return util.respond(404, 'Error while uploading a file to a project.',
+                                error=apiError.project_not_found(project_id))
+
         parser = reqparse.RequestParser()
         parser.add_argument('filename', type=str)
         parser.add_argument('version_id', type=str)
         parser.add_argument('description', type=str)
         args = parser.parse_args()
-        return redmine.redmine_upload_to_project(plan_project_id, args)
+        return redmine.rm_upload_to_project(plan_project_id, args)
 
     @jwt_required
     def get(self, project_id):
         plan_project_id = pjt.get_plan_project_id(project_id)
-        return redmine.redmine_list_file(plan_project_id)
+        return redmine.rm_list_file(plan_project_id)
 
 
 class DownloadFile(Resource):
@@ -1925,7 +1799,13 @@ class DownloadFile(Resource):
         parser.add_argument('id', type=int)
         parser.add_argument('filename', type=str)
         args = parser.parse_args()
-        return redmine.redmine_download_attachment(args)
+        return redmine.rm_download_attachment(args)
+
+
+class RedmineFile(Resource):
+    @jwt_required
+    def delete(self, file_id):
+        return redmine.rm_delete_attachment(file_id)
 
 
 class SystemGitCommitID(Resource):
@@ -2052,10 +1932,6 @@ api.add_resource(ParameterByIssue, '/parameters_by_issue/<issue_id>')
 api.add_resource(Parameter, '/parameters/<parameter_id>')
 api.add_resource(ParameterType, '/parameter_types')
 
-# TestData
-# api.add_resource(AllTestDataByIssue, '/testData_by_issue')
-# api.add_resource(AllTestData, '/testData')
-
 # testPhase TestCase Support Case Type
 api.add_resource(GetTestCaseType, '/testCases/support_type')
 
@@ -2069,13 +1945,13 @@ api.add_resource(GetTestCaseAPIMethod, '/testCases/support_RestfulAPI_Method')
 
 # testPhase TestItem Support API Method
 api.add_resource(TestItemByTestCase, '/testItems_by_testCase/<testCase_id>')
-api.add_resource(TestItem, '/testItems/<testItem_id>')
+api.add_resource(TestItem, '/testItems/<item_id>')
 
 # testPhase Testitem Value
 api.add_resource(GetTestValueLocation, '/testValues/support_locations')
 api.add_resource(GetTestValueType, '/testValues/support_types')
-api.add_resource(TestValueByTestItem, '/testValues_by_testItem/<testItem_id>')
-api.add_resource(TestValue, '/testValues/<testValue_id>')
+api.add_resource(TestValueByTestItem, '/testValues_by_testItem/<item_id>')
+api.add_resource(TestValue, '/testValues/<value_id>')
 
 # TestResult writing
 api.add_resource(TestResult, '/testResults')
@@ -2110,6 +1986,7 @@ api.add_resource(GetTestSummary, '/project/<sint:project_id>/test_summary')
 # Files
 api.add_resource(ProjectFiles, '/project/<sint:project_id>/file')
 api.add_resource(DownloadFile, '/download')
+api.add_resource(RedmineFile, '/file/<int:file_id>')
 
 #git commit
 api.add_resource(SystemGitCommitID, '/system_git_commit_id')

@@ -8,8 +8,9 @@ import config
 from model import db, ProjectUserRole, ProjectPluginRelation, TableProjects
 from .rancher import Rancher
 from .redmine import Redmine
-from .util import util
-from .error import Error
+import resources.util as util
+import resources.apiError as apiError
+import resources.kubernetesClient as kubernetesClient
 
 logger = logging.getLogger(config.get('LOGGER_NAME'))
 
@@ -18,9 +19,8 @@ class Project(object):
     private_token = None
     headers = {'Content-Type': 'application/json'}
 
-    def __init__(self, app, au, k8s, redmine, gitlab):
+    def __init__(self, app, au, redmine, gitlab):
         self.app = app
-        self.k8s = k8s
         self.au = au
         self.rancher = Rancher()
         self.redmine = redmine
@@ -35,8 +35,7 @@ class Project(object):
                            ProjectUserRole.stru_project_user_role.c.user_id == user_id))
         logger.debug("select_project_user_role_command: {0}".format(
             select_project_user_role_command))
-        reMessage = util.callsqlalchemy(select_project_user_role_command,
-                                        logger)
+        reMessage = util.call_sqlalchemy(select_project_user_role_command)
         match_list = reMessage.fetchall()
         logger.info("reMessage: {0}".format(match_list))
         logger.info("reMessage len: {0}".format(len(match_list)))
@@ -46,11 +45,10 @@ class Project(object):
             return False
 
     @staticmethod
-    def get_project_plugin_relation(logger, project_id):
+    def get_project_plugin_relation(project_id):
         select_project_relation_command = db.select([ProjectPluginRelation.stru_project_plug_relation]) \
             .where(db.and_(ProjectPluginRelation.stru_project_plug_relation.c.project_id == project_id))
-        reMessage = util.callsqlalchemy(select_project_relation_command,
-                                        logger).fetchone()
+        reMessage = util.call_sqlalchemy(select_project_relation_command).fetchone()
         return reMessage
 
     # 查詢所有projects
@@ -175,7 +173,6 @@ class Project(object):
                 plan_user_id = userid_list_output[0]
                 result.close()
                 logger.info("get user_ids SQL: {0}".format(plan_user_id))
-                redmine_key = Redmine.get_redmine_key(self)
                 for project in project_list:
                     output_dict = {}
                     output_dict['name'] = project['name']
@@ -194,8 +191,13 @@ class Project(object):
                     output_dict['last_test_result'] = {}
 
                     # get issue total cont
-                    total_issue = self.redmine.get_issues_by_project_and_user(
+                    issue_output, status_code = self.redmine.rm_get_issues_by_project_and_user(
                         plan_user_id, project['plan_project_id'])
+                    try:
+                        total_issue = issue_output.json()
+                    except Exception as e:
+                        return util.respond(500, "Error when getting issues for a user",
+                                            error=apiError.redmine_error(issue_output))
                     logger.info("issue total count by user: {0}".format(
                         total_issue['total_count']))
                     output_dict['issues'] = total_issue['total_count']
@@ -255,7 +257,7 @@ class Project(object):
 
     def get_ci_last_test_result(self, app, logger, output_dict, project):
         # get rancher pipeline
-        pipeline_output = self.rancher.get_rancher_pipelineexecutions(
+        pipeline_output, response = self.rancher.rc_get_pipeline_executions(
             project["ci_project_id"], project["ci_pipeline_id"])
         if len(pipeline_output) != 0:
             logger.info(pipeline_output[0]['name'])
@@ -293,8 +295,8 @@ class Project(object):
             projtct_detail = self.get_one_git_project(logger, app, project_id)
             logger.info("Get git path: {0}".format(projtct_detail.json()['path']))
             # get kubernetes service nodePort url
-            k8s_service_list = self.k8s.list_service_all_namespaces()
-            k8s_node_list = self.k8s.list_work_node()
+            k8s_service_list = kubernetesClient.list_service_all_namespaces()
+            k8s_node_list = kubernetesClient.list_work_node()
             work_node_ip = k8s_node_list[0]['ip']
             logger.info("k8s_node ip: {0}".format(work_node_ip))
 
@@ -632,8 +634,7 @@ class Project(object):
         else:
             return {"message": output.json()["message"]}, output.status_code
 
-    def create_ranhcer_pipline_yaml(self, logger, app, project_id, args,
-                                    action):
+    def create_ranhcer_pipline_yaml(self, project_id, args, action):
         url = "http://{0}/api/{1}/projects/{2}/repository/files/{3}?private_token={4}&branch={5}&\
 start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&commit_message={11}" \
             .format(config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id, \
@@ -650,9 +651,9 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
             logger.info("put project file output: {0}".format(output.json()))
         return output
 
-    def get_git_project_file_for_pipeline(self, logger, app, project_id, args):
-        url = "http://{0}/api/{1}/projects/{2}/repository/files/{3}?private_token={4}&ref={5}" \
-            .format(config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id, \
+    def get_git_project_file_for_pipeline(self, project_id, args):
+        url = "http://{0}/api/{1}/projects/{2}/repository/files/{3}?private_token={4}&ref={5}".format(
+            config.get("GITLAB_IP_PORT"), config.get("GITLAB_API_VERSION"), project_id,
                     args["file_path"], self.private_token, args["branch"])
         logger.info("get project file url: {0}".format(url))
         output = requests.get(url, headers=self.headers, verify=False)
@@ -743,7 +744,6 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                 .format(user_id))
         project_ids = result.fetchall()
         result.close()
-        print(project_ids)
         if project_ids:
             output_array = []
             # 用project_id依序查詢redmine的project_id
@@ -753,7 +753,10 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                     result = db.engine.execute(
                         "SELECT plan_project_id FROM public.project_plugin_relation WHERE project_id = '{0}'"
                             .format(project_id))
-                    plan_project_id = result.fetchone()[0]
+                    fetch = result.fetchone()
+                    if fetch is None:
+                        continue
+                    plan_project_id = fetch[0]
                     result.close()
                     
                     ## 用redmine api查詢相關資訊
@@ -880,8 +883,12 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         # 建立順序為 redmine, gitlab, rancher, api server，有失敗時 rollback 依此次序處理
 
         # 建立redmine project
-        redmine_output = self.redmine.redmine_create_project(args)
-        redmine_pj_id = redmine_output.json()["project"]["id"]
+        redmine_output, output_status = self.redmine.rm_create_project(args)
+        try:
+            redmine_pj_id = redmine_output.json()["project"]["id"]
+        except Exception as e:
+            return util.respond(500, "Error while creating redmine project",
+                                error=apiError.redmine_error(redmine_output))
 
         if redmine_output.status_code != 201:
             status_code = redmine_output.status_code
@@ -890,23 +897,24 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
             if status_code == 422 and 'errors' in resp:
                 if len(resp['errors']) > 0:
                     if resp['errors'][0] == 'Identifier has already been taken':
-                        error = Error.IDENTIFIER_HAS_BEEN_TAKEN
+                        error = error.identifier_has_been_token(args['name'])
             return util.respond(status_code, {"redmine": resp}, error=error)
 
         # 建立gitlab project
-        gitlab_output = self.gitlab.create_project(args)
+        gitlab_output = self.gitlab.gl_create_project(args)
 
         if gitlab_output.status_code != 201:
             # Rollback
-            self.redmine.redmine_delete_project(redmine_pj_id)
+            self.redmine.rm_delete_project(redmine_pj_id)
 
             status_code = gitlab_output.status_code
             if status_code == 400:
                 try:
-                    if gitlab_output['message']['name'][0] == 'has already been taken':
+                    gitlab_json = gitlab_output.json()
+                    if gitlab_json['message']['name'][0] == 'has already been taken':
                         return util.respond(
-                            status_code, {"gitlab": gitlab_output.json()},
-                            error=Error.IDENTIFIER_HAS_BEEN_TAKEN
+                            status_code, {"gitlab": gitlab_json},
+                            error=apiError.identifier_has_been_token(args['name'])
                         )
                 except (KeyError, IndexError):
                     pass
@@ -935,13 +943,10 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         result.close()
 
         # enable rancher pipeline
-        rancher_token = self.rancher.get_rancher_token(self.app, logger)
-        logger.debug("rancher_token: {0}".format(rancher_token))
-        rancher_project_id = Rancher.get_rancher_project_id(self, self.app, logger, rancher_token)
+        rancher_project_id = self.rancher.rc_get_project_id()
         logger.debug("rancher_project_id: {0}".format(rancher_project_id))
         logger.debug("gitlab_pj_http_url: {0}".format(gitlab_pj_http_url))
-        rancher_pipeline_id = Rancher.enable_rancher_projejct_pipline(self, self.app, logger, gitlab_pj_http_url,
-                                                                      rancher_token)
+        rancher_pipeline_id = self.rancher.rc_enable_project_pipeline(gitlab_pj_http_url)
         logger.debug("rancher_pipeline_id: {0}".format(rancher_pipeline_id))
 
         # 加關聯project_plugin_relation
@@ -955,10 +960,8 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
         #     .format(project_id, user_id, 3))
 
         args["user_id"] = user_id
-        output = self.au.project_add_member(logger, self.app, project_id,
-                                            args)
+        output = self.au.project_add_member(project_id, args)
         logger.info("project add member output: {0}".format(output))
-        print(output)
 
         return {
                    "message": "success",
@@ -970,13 +973,20 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
                }, 200
 
     # 用project_id查詢db的相關table欄位資訊
-    def pm_get_project(self, logger, app, project_id):
+    def pm_get_project(self, project_id):
         plan_project_id = self.get_plan_project_id(project_id)
         # 查詢專案名稱＆專案說明＆＆專案狀態
+        if plan_project_id < 0:
+            return util.respond(404, 'Error when getting project info.',
+                                error=apiError.project_not_found(project_id))
         result = db.engine.execute(
-            "SELECT * FROM public.projects as pj, public.project_plugin_relation as ppr\
-                WHERE pj.id = '{0}' AND pj.id = ppr.project_id".format(
+            "SELECT * FROM public.projects as pj, public.project_plugin_relation as ppr "
+            "WHERE pj.id = '{0}' AND pj.id = ppr.project_id".format(
                 project_id))
+        if result.rowcount == 0:
+            result.close()
+            return util.respond(404, 'Error when getting project info.',
+                                error=apiError.project_not_found(project_id))
         project_info = result.fetchone()
         result.close()
         redmine_url = "http://{0}/projects/{1}".format(config.get("REDMINE_IP_PORT"), plan_project_id)
@@ -1139,12 +1149,9 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
             gitlab_project_id = project_relation["git_repository_id"]
 
             # disabled rancher pipeline
-            rancher_token = Rancher.get_rancher_token(self, app, logger)
-            logger.debug("rancher_token: {0}".format(rancher_token))
-            Rancher.disable_rancher_projejct_pipline(self, app, logger,
-                                                     project_relation["ci_project_id"],
-                                                     project_relation["ci_pipeline_id"],
-                                                     rancher_token)
+            self.rancher.rc_disable_project_pipeline(
+                project_relation["ci_project_id"],
+                project_relation["ci_pipeline_id"])
 
             # 刪除gitlab project
             gitlab_url = "http://{0}/api/{1}/projects/{2}?private_token={3}".format(
@@ -1237,8 +1244,7 @@ start_branch={6}&encoding={7}&author_email={8}&author_name={9}&content={10}&comm
     def get_project_info(self, logger, project_id):
         select_project_cmd = db.select([TableProjects.stru_projects]) \
             .where(db.and_(TableProjects.stru_projects.c.id == project_id))
-        reMessage = util.callsqlalchemy(select_project_cmd,
-                                        logger).fetchone()
+        reMessage = util.call_sqlalchemy(select_project_cmd).fetchone()
         return reMessage
 
     def get_sonar_report(self, logger, app, project_id):

@@ -1,7 +1,10 @@
 import json
 import logging
 from urllib.parse import urlparse
-from .util import util
+import resources.util as util
+import resources.testCase as testCase
+import resources.testItem as testItem
+import resources.testValue as testValue
 
 from flask import jsonify
 
@@ -9,15 +12,12 @@ logger = logging.getLogger('devops.api')
 
 
 class Cicd(object):
-    def __init__(self, app, pjt, iss, tc, ti, tv):
+    def __init__(self, app, pjt, iss):
         self.app = app
         self.pjt = pjt
         self.iss = iss
-        self.tc = tc
-        self.ti = ti
-        self.tv = tv
 
-    def export_to_postman(self, app, project_id, target, jwt_identity):
+    def export_to_postman(self, project_id, target, jwt_identity):
         status = self.pjt.verify_project_user(logger, project_id, jwt_identity['user_id'])
         if not (status or jwt_identity['role_id'] == 5):
             return {'message': 'Don\'t have authorization to access issue list on project: {0}'
@@ -32,19 +32,18 @@ class Cicd(object):
             'item': []
         }
 
-        cases = self.tc.get_testCase_by_project_id(logger, project_id, jwt_identity['user_id'])
+        cases = testCase.get_testcase_by_project_id(project_id)
         for case in cases:
             case_id = case['id']
             method = case['data']['method']
             path = case['data']['url']
             url = urlparse(target + path)
-            items = self.ti.get_testItem_by_testCase_id(logger, case_id, jwt_identity['user_id'])
+            items = testItem.get_testItem_by_testCase_id(case_id)
             for item in items:
                 item_id = item['id']
-                o_item = {'name': '%s #%s' % (case['name'], item_id)}
+                o_item = {'name': '{0}-{1}'.format(case_id, item_id)}
                 values = []
-                part_values = self.tv.get_testValue_by_testItem_id(
-                    logger, item_id, jwt_identity['user_id'])
+                part_values = testValue.get_testValue_by_testItem_id(item_id)
                 for value in part_values:
                     values.append(value)
 

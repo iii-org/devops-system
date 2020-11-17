@@ -4,9 +4,9 @@ import logging
 from datetime import datetime, date, timedelta
 
 from model import db, ProjectPluginRelation, ProjectUserRole
-from .auth import auth
-from .redmine import Redmine
-from .util import util
+from .user import User
+import resources.apiError as apiError
+import resources.util as util
 
 logger = logging.getLogger(config.get('LOGGER_NAME'))
 
@@ -14,9 +14,10 @@ logger = logging.getLogger(config.get('LOGGER_NAME'))
 class Issue(object):
     headers = {'Content-Type': 'application/json'}
 
-    def __init__(self, pjt, redmine):
+    def __init__(self, pjt, redmine, au):
         self.pjt = pjt
         self.redmine = redmine
+        self.au = au
 
     def __get_dict_userid(self, logger):
         result = db.engine.execute(
@@ -45,10 +46,13 @@ class Issue(object):
             redmine_output['project']['id'] = None
             redmine_output['project']['name'] = None
         if 'assigned_to' in redmine_output:
-            userInfo = auth.get_useridname_by_planuserid(self, logger, \
-                                                         redmine_output['assigned_to']['id'])
-            redmine_output['assigned_to'] = {'id': userInfo['id'], 'name': userInfo['name']}
-            redmine_output.pop('author', None)
+            userInfo = self.au.get_user_id_name_by_plan_user_id(redmine_output['assigned_to']['id'])
+            if userInfo is not None:
+                redmine_output['assigned_to'] = {'id': userInfo['id'], 'name': userInfo['name']}
+        if 'author' in redmine_output:
+            userInfo = self.au.get_user_id_name_by_plan_user_id(redmine_output['author']['id'])
+            if userInfo is not None:
+                redmine_output['author'] = {'id': userInfo['id'], 'name': userInfo['name']}
         redmine_output.pop('is_private', None)
         redmine_output.pop('total_estimated_hours', None)
         redmine_output.pop('spent_hours', None)
@@ -67,6 +71,10 @@ class Issue(object):
                 if redmine_output['journals'][i]['notes'] == "":
                     del redmine_output['journals'][i]
                 else:
+                    if 'user' in redmine_output['journals'][i]:
+                        userInfo = self.au.get_user_id_name_by_plan_user_id(redmine_output['journals'][i]['user']['id'])
+                        if userInfo is not None:
+                            redmine_output['journals'][i]['user'] = {'id': userInfo['id'], 'name': userInfo['name']}
                     redmine_output['journals'][i].pop('id', None)
                     redmine_output['journals'][i].pop('private_notes', None)
                     i += 1
@@ -97,8 +105,7 @@ class Issue(object):
             output_list['due_date'] = redmine_output['due_date']
         output_list['assigned_to'] = None
         if 'assigned_to' in redmine_output:
-            userInfo = auth.get_useridname_by_planuserid(self, logger, \
-                                                         redmine_output['assigned_to']['id'])
+            userInfo = self.au.get_user_id_name_by_plan_user_id(redmine_output['assigned_to']['id'])
             if userInfo is not None:
                 output_list['assigned_to'] = userInfo['name']
         output_list['parent_id'] = None
@@ -126,8 +133,7 @@ class Issue(object):
                            ProjectUserRole.stru_project_user_role.c.user_id == user_id))
         logger.debug("select_project_user_role_command: {0}".format(
             select_project_user_role_command))
-        reMessage = util.callsqlalchemy(select_project_user_role_command,
-                                        logger)
+        reMessage = util.call_sqlalchemy(select_project_user_role_command)
         match_list = reMessage.fetchall()
         logger.info("reMessage: {0}".format(match_list))
         logger.info("reMessage len: {0}".format(len(match_list)))
@@ -137,7 +143,7 @@ class Issue(object):
             return False
 
     def get_issue_rd(self, issue_id):
-        redmine_output_issue = self.redmine.get_issue(issue_id)
+        redmine_output_issue = self.redmine.rm_get_issue(issue_id)
         if redmine_output_issue.status_code == 200:
             output = self.__dealwith_issue_redmine_output(
                 logger,
@@ -152,13 +158,13 @@ class Issue(object):
         get_project_command = db.select([ProjectPluginRelation.stru_project_plug_relation]) \
             .where(db.and_(ProjectPluginRelation.stru_project_plug_relation.c.project_id == project_id))
         logger.debug("get_project_command: {0}".format(get_project_command))
-        reMessage = util.callsqlalchemy(get_project_command, logger)
+        reMessage = util.call_sqlalchemy(get_project_command)
         project_dict = reMessage.fetchone()
         logger.debug("project_list: {0}".format(project_dict))
         if project_dict is not None:
             output_array = []
-            redmine_output_issue_array = self.redmine.get_issues_by_project(
-                project_dict['plan_project_id'])
+            redmine_output_issue_array = self.redmine.rm_get_issues_by_project(
+                project_dict['plan_project_id'], args)
 
             for redmine_issue in redmine_output_issue_array['issues']:
                 output_dict = self.__dealwith_issue_by_user_redmine_output(
@@ -392,7 +398,7 @@ class Issue(object):
         output_array = []
         if str(user_id) not in user_to_plan:
             return util.respond(400, 'Cannot find user in redmine')
-        redmine_output_issue_array = self.redmine.get_issues_by_user(user_to_plan[str(user_id)])
+        redmine_output_issue_array = self.redmine.rm_get_issues_by_user(user_to_plan[str(user_id)])
         for redmine_issue in redmine_output_issue_array['issues']:
             output_dict = self.__dealwith_issue_by_user_redmine_output(
                 logger, redmine_issue)
@@ -403,85 +409,87 @@ class Issue(object):
             output_array.append(output_dict)
         return {'message': 'success', 'data': output_array}, 200
 
-    def create_issue(self, args):
+    def create_issue(self, args, operator_id):
         args = {k: v for k, v in args.items() if v is not None}
         if 'parent_id' in args:
             args['parent_issue_id'] = args['parent_id']
             args.pop('parent_id', None)
-        project_plugin_relation = self.pjt.get_project_plugin_relation(
-            logger, args['project_id'])
+        project_plugin_relation = self.pjt.get_project_plugin_relation(args['project_id'])
         args['project_id'] = project_plugin_relation['plan_project_id']
         if "assigned_to_id" in args:
-            user_plugin_relation = auth.get_user_plugin_relation(
-                logger, user_id=args['assigned_to_id'])
+            user_plugin_relation = User.get_user_plugin_relation(user_id=args['assigned_to_id'])
             args['assigned_to_id'] = user_plugin_relation['plan_user_id']
         logger.info("args: {0}".format(args))
 
-        attachment = self.redmine.redmine_upload(args)
+        attachment = self.redmine.rm_upload(args)
         if attachment is not None:
             args['uploads'] = [attachment]
 
         try:
-            output, status_code = self.redmine.create_issue(args)
+            plan_operator_id = None
+            if operator_id is not None:
+                operator_plugin_relation = User.get_user_plugin_relation(user_id=operator_id)
+                plan_operator_id = operator_plugin_relation['plan_user_id']
+            output, status_code = self.redmine.rm_create_issue(args, plan_operator_id)
             if status_code == 201:
-                return {
-                           "message": "success",
-                           "data": {
-                               "issue_id": output.json()["issue"]["id"]
-                           }
-                       }, 200
+                return util.success({"issue_id": output.json()["issue"]["id"]})
             else:
-                return {"message": output.text}, 400
+                return util.respond(status_code, "Error while creating issue",
+                                    error=apiError.redmine_error(output))
         except Exception as error:
-            return {"message": str(error)}, 400
+            return util.respond(500, "Error while creating issue",
+                                error=apiError.uncaught_exception(error))
 
-    def update_issue_rd(self, logger, app, issue_id, args):
+    def update_issue_rd(self, logger, app, issue_id, args, operator_id):
         args = {k: v for k, v in args.items() if v is not None}
         if 'parent_id' in args:
             args['parent_issue_id'] = args['parent_id']
             args.pop('parent_id', None)
         if "assigned_to_id" in args:
-            user_plugin_relation = auth.get_user_plugin_relation(
-                logger, user_id=args['assigned_to_id'])
+            user_plugin_relation = User.get_user_plugin_relation(user_id=args['assigned_to_id'])
             args['assigned_to_id'] = user_plugin_relation['plan_user_id']
         logger.info("update_issue_rd args: {0}".format(args))
-        Redmine.get_redmine_key(self)
 
-        attachment = self.redmine.redmine_upload(args)
+        attachment = self.redmine.rm_upload(args)
         if attachment is not None:
             args['uploads'] = [attachment]
-
-        output, status_code = Redmine.redmine_update_issue(
-            self, logger, app, issue_id, args)
+        plan_operator_id = None
+        if operator_id is not None:
+            operator_plugin_relation = User.get_user_plugin_relation(user_id=operator_id)
+            plan_operator_id = operator_plugin_relation['plan_user_id']
+        output, status_code = self.redmine.rm_update_issue(issue_id, args, plan_operator_id)
         if status_code == 204:
             return {"message": "success"}, 200
         else:
-            return {"message": "update issue failed, {0}".format(output.text)}, 400
+            return util.respond(
+                400, "update issue failed",
+                error=apiError.redmine_error(output.text)
+            )
 
     def delete_issue(self, issue_id):
         try:
-            # go to redmine, delete issue
-            output = self.redmine.redmine_delete_issue(issue_id)
+            output, status_code = self.redmine.rm_delete_issue(issue_id)
+            if status_code != 204 and status_code != 404:
+                return util.respond(status_code, 'Error when deleting issue',
+                                    apiError.redmine_error(output.text))
             return {"message": "success"}, 200
         except Exception as error:
-            return str(error), 400
+            return util.respond(500, 'Error when deleting issue',
+                                apiError.redmine_error(str(type(error)) + ':' + error.__str__()))
 
-    def get_issue_status(self, logger, app):
-        Redmine.get_redmine_key(self)
+    def get_issue_status(self):
         try:
-            issus_status_output = Redmine.redmine_get_issue_status(
-                self, logger, app)
-            return issus_status_output['issue_statuses']
+            issue_status_output = self.redmine.rm_get_issue_status()
+            return issue_status_output['issue_statuses']
         except Exception as error:
-            return str(error), 400
+            return util.respond(500, 'Error when deleting issue',
+                                apiError.redmine_error(str(type(error)) + ':' + error.__str__()))
 
-    def get_issue_priority(self, logger, app):
-        Redmine.get_redmine_key(self)
+    def get_issue_priority(self):
         try:
             output = []
-            issus_status_output = Redmine.redmine_get_priority(
-                self, logger, app)
-            for issus_status in issus_status_output['issue_priorities']:
+            issue_status_output = self.redmine.rm_get_priority()
+            for issus_status in issue_status_output['issue_priorities']:
                 issus_status.pop('is_default', None)
                 if issus_status['active'] is True:
                     issus_status["is_closed"] = False
@@ -493,12 +501,10 @@ class Issue(object):
         except Exception as error:
             return str(error), 400
 
-    def get_issue_trackers(self, logger, app):
-        Redmine.get_redmine_key(self)
+    def get_issue_trackers(self):
         output = []
         try:
-            redmine_trackers_output = Redmine.redmine_get_trackers(
-                self, logger, app)
+            redmine_trackers_output = self.redmine.rm_get_trackers()
             for redmine_tracker in redmine_trackers_output['trackers']:
                 redmine_tracker.pop('default_status', None)
                 redmine_tracker.pop('description', None)
@@ -508,17 +514,17 @@ class Issue(object):
             return str(error), 400
 
     def get_issue_statistics(self, args, user_id):
+        args['status_id'] = '*'
         if args["to_time"] is not None:
             args["due_date"] = "><{0}|{1}".format(args["from_time"],
                                                   args["to_time"])
         else:
             args["due_date"] = ">=".format(args["from_time"])
-        user_plugin_relation = auth.get_user_plugin_relation(logger,
-                                                             user_id=user_id)
+        user_plugin_relation = User.get_user_plugin_relation(user_id=user_id)
         if user_plugin_relation is not None:
             args["assigned_to_id"] = user_plugin_relation['plan_user_id']
         try:
-            redmine_output, status_code = self.redmine.get_statistics(args)
+            redmine_output, status_code = self.redmine.rm_get_statistics(args)
             return {
                        "message": "success",
                        "data": {
@@ -529,18 +535,17 @@ class Issue(object):
             return {"message": str(error)}, 400
 
     def get_open_issue_statistics(self, user_id):
-        args = {}
-        args['limit'] = 100
-        user_plugin_relation = auth.get_user_plugin_relation(logger,
-                                                             user_id=user_id)
+        args = {'limit': 100}
+        user_plugin_relation = User.get_user_plugin_relation(user_id=user_id)
         if user_plugin_relation is not None:
             args["assigned_to_id"] = user_plugin_relation['plan_user_id']
-        total_issue_output, status_code = self.redmine.get_statistics(args)
+        args['status_id'] = '*'
+        total_issue_output, status_code = self.redmine.rm_get_statistics(args)
         if status_code != 200:
             return {"message": "could not get redmine total issue"}, 400
         logger.debug("user_id {0} total issue number: {1}".format(user_id, total_issue_output["total_count"]))
         args['status_id'] = 'closed'
-        closed_issue_output, closed_status_code = self.redmine.get_statistics(args)
+        closed_issue_output, closed_status_code = self.redmine.rm_get_statistics(args)
         if closed_status_code != 200:
             return {"message": "could not get redmine closed issue"}, 400
         logger.debug("user_id {0} closed issue number: {1}".format(user_id, closed_issue_output["total_count"]))
@@ -565,14 +570,13 @@ class Issue(object):
             return {'message': 'Type error, should be week or month'}, 400
 
         args = {"due_date": "><{0}|{1}".format(from_time, to_time)}
-        user_plugin_relation = auth.get_user_plugin_relation(logger,
-                                                             user_id=user_id)
+        user_plugin_relation = User.get_user_plugin_relation(user_id=user_id)
         if user_plugin_relation is not None:
             args["assigned_to_id"] = user_plugin_relation['plan_user_id']
 
         try:
             args['status_id'] = '*'
-            redmine_output, status_code = self.redmine.get_statistics(args)
+            redmine_output, status_code = self.redmine.rm_get_statistics(args)
             if status_code != 200:
                 return {
                            'message': 'error when retrieving data from redmine',
@@ -581,7 +585,7 @@ class Issue(object):
             total = redmine_output["total_count"]
 
             args['status_id'] = 'closed'
-            redmine_output_6, status_code = self.redmine.get_statistics(args)
+            redmine_output_6, status_code = self.redmine.rm_get_statistics(args)
             if status_code != 200:
                 return {
                            'message': 'error when retrieving data from redmine',
