@@ -321,8 +321,6 @@ def create_user(args):
         user_list_output = gitlab.gl_get_user_list(params)
         x_total_pages = int(user_list_output.headers['X-Total-Pages'])
         for user in user_list_output.json():
-            logger.debug("gitlab login: {0}, email: {1}".format(
-                user['name'], user['email']))
             if user['name'] == args['login'] or user['email'] == args['email']:
                 return util.respond(422, "Gitlab already has this account or email.",
                                     error=apiError.already_used())

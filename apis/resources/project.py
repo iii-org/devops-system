@@ -81,7 +81,7 @@ def get_pm_project_list(user_id):
         result = db.engine.execute(
             "SELECT user_id FROM public.project_user_role"
             " WHERE project_id = '{0}' AND role_id = '{1}'".format(
-                project_id, role.PM))
+                project_id, role.PM.id))
         user_id = result.fetchone()[0]
         result.close()
 

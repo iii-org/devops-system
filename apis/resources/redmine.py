@@ -348,9 +348,8 @@ class Redmine:
                     <is_public>false</is_public>
                     </project>""".format(
             args["display"],
-            args["identifier"],
+            args["name"],
             args["description"])
-        logger.info("create redmine project body: {0}".format(xml_body))
         headers = {'Content-Type': 'application/xml'}
         redmine_output = self.__api_post('/projects',
                                          headers=headers,

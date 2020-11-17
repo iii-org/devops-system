@@ -167,7 +167,7 @@ def get_issue(issue_id):
     if redmine_output_issue.status_code != 200:
         return util.respond_redmine_error(redmine_output_issue,
                                           "Error while getting issue details.")
-    output = __deal_with_issue_redmine_output(redmine_output_issue)
+    output = __deal_with_issue_redmine_output(redmine_output_issue.json()['issue'])
     return util.success(output)
 
 
@@ -239,7 +239,7 @@ def get_issue_by_project(project_id, args):
                             error=apiError.project_not_found(project_id))
     output_array = []
     redmine_output_issue_array = redmine.rm_get_issues_by_project(
-        project_dict['plan_project_id'], args)
+        project_dict['plan_project_id'], args).json()
 
     for redmine_issue in redmine_output_issue_array['issues']:
         output_dict = deal_with_issue_by_user_redmine_output(redmine_issue)

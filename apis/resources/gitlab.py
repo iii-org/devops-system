@@ -136,7 +136,7 @@ class GitLab(object):
 
     def gl_delete_user(self, gitlab_user_id):
         return self.__api_delete('/users/{0}'.format(gitlab_user_id))
-
+    
     def gl_count_branches(self, repo_id):
         output = self.__api_get('/projects/{0}/repository/branches'.format(repo_id))
         if output.status_code != 200:
@@ -164,8 +164,8 @@ class GitLab(object):
     def gl_get_branches(self, repo_id):
         output = self.__api_get('/projects/{0}/repository/branches'.format(repo_id))
         if output.status_code != 200:
-            return util.respond_request_style(output.status_code, "Error while getting git branches",
-                                              error=apiError.gitlab_error(output))
+            return util.respond(output.status_code, "Error while getting git branches",
+                                error=apiError.gitlab_error(output))
         # get gitlab project path
         project_detail = self.gl_get_project(repo_id)
         # get kubernetes service nodePort url
@@ -377,10 +377,11 @@ class GitLab(object):
                 branch_commit_list.append(obj)
 
         # 整理tags
-        tags = gitlab.gl_get_tags(repo_id)
-        if tags[1] / 100 != 2:
-            return tags
-        for tag in tags[0]["data"]["tag_list"]:
+        output_tags = gitlab.gl_get_tags(repo_id)
+        if output_tags.status_code / 100 != 2:
+            return output_tags, output_tags.status_code
+        tags = output_tags.json()
+        for tag in tags:
             for commit in branch_commit_list:
                 if commit["id"] == tag["commit"]["id"]:
                     commit["tags"].append(tag["name"])
@@ -486,7 +487,7 @@ class GitProjectTag(Resource):
     def get(self, repository_id):
         project_id = repo_id_to_project_id(repository_id)
         role.require_in_project(project_id)
-        return gitlab.gl_get_tags(repository_id)
+        return util.success({'tag_list': gitlab.gl_get_tags(repository_id)})
 
     @jwt_required
     def post(self, repository_id):
@@ -498,7 +499,7 @@ class GitProjectTag(Resource):
         parser.add_argument('message', type=str)
         parser.add_argument('release_description', type=str)
         args = parser.parse_args()
-        return gitlab.gl_create_tag(project_id, args)
+        return gitlab.gl_create_tag(repository_id, args)
 
     @jwt_required
     def delete(self, repository_id, tag_name):
