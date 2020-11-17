@@ -1,4 +1,5 @@
 import logging
+import os
 from logging import handlers
 
 from flask_jwt_extended import get_jwt_identity
@@ -16,7 +17,7 @@ class DevOpsFilter(logging.Filter):
 
 
 handler = handlers.TimedRotatingFileHandler(
-    'devops-api.log', when='D', interval=1, backupCount=14)
+    'devops-api-rotate.log', when='D', interval=1, backupCount=14)
 handler.setFormatter(logging.Formatter(
     '%(asctime)s %(user_name)s/%(user_id)d %(filename)s'
     ' [line:%(lineno)d] %(levelname)s %(message)s',
