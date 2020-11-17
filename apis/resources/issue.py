@@ -6,14 +6,12 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
 
 import resources.apiError as apiError
+import resources.user as user
 import resources.util as util
 from model import db, ProjectPluginRelation, ProjectUserRole
 from resources.logger import logger
+from resources.redmine import redmine
 from . import project as project_module, role
-from .redmine import Redmine
-import resources.user as user
-
-redmine = Redmine()
 
 
 def get_dict_userid():
@@ -23,9 +21,9 @@ def get_dict_userid():
     result.close()
     user_to_plan = {}
     plan_to_user = {}
-    for user in user_id_output:
-        user_to_plan[str(user['user_id'])] = user['plan_user_id']
-        plan_to_user[str(user['plan_user_id'])] = user['user_id']
+    for u in user_id_output:
+        user_to_plan[str(u['user_id'])] = u['plan_user_id']
+        plan_to_user[str(u['plan_user_id'])] = u['user_id']
     return user_to_plan, plan_to_user
 
 
@@ -798,4 +796,3 @@ class DashboardIssueType(Resource):
             return count_type_number_by_issues(user_id)
         else:
             return {'message': 'Access token is missing or invalid'}, 401
-

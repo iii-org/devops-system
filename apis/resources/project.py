@@ -1,5 +1,4 @@
 import re
-import urllib
 from datetime import datetime
 
 import requests
@@ -12,16 +11,11 @@ import resources.util as util
 from model import db, ProjectUserRole, ProjectPluginRelation, TableProjects
 from resources.logger import logger
 from . import role
-from .checkmarx import CheckMarx
-from .gitlab import GitLab
-from .rancher import Rancher
-from .redmine import Redmine
-from .user import User, get_3pt_user_ids
-
-redmine = Redmine()
-gitlab = GitLab()
-rancher = Rancher()
-checkmarx = CheckMarx()
+from .checkmarx import checkmarx
+from .gitlab import gitlab
+from .rancher import rancher
+from .redmine import redmine
+from .user import get_3pt_user_ids
 
 
 def get_project_plugin_relation(project_id):
@@ -954,3 +948,26 @@ class TestSummary(Resource):
         role.require_pm()
         role.require_in_project(project_id)
         return get_test_summary(project_id)
+
+
+class ProjectFile(Resource):
+    @jwt_required
+    def post(self, project_id):
+        plan_project_id = get_plan_project_id(project_id)
+        if plan_project_id < 0:
+            return util.respond(404, 'Error while uploading a file to a project.',
+                                error=apiError.project_not_found(project_id))
+
+        parser = reqparse.RequestParser()
+        parser.add_argument('filename', type=str)
+        parser.add_argument('version_id', type=str)
+        parser.add_argument('description', type=str)
+        args = parser.parse_args()
+        return redmine.rm_upload_to_project(plan_project_id, args)
+
+    @jwt_required
+    def get(self, project_id):
+        plan_project_id = get_plan_project_id(project_id)
+        return redmine.rm_list_file(plan_project_id)
+
+

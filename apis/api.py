@@ -24,13 +24,12 @@ import resources.testResult as testResult
 import resources.testValue as testValue
 from jsonwebtoken import jsonwebtoken
 from model import db
-from resources import project, gitlab, util, issue, user, postman, redmine
+from resources import project, gitlab, util, issue, user, postman, redmine, wiki, version
 from resources.gitlab import GitLab
 from resources.logger import logger
 from resources.project import ProjectResource as ProjectResource
 from resources.redmine import Redmine
 from resources.version import Version as VersionResource
-from resources.wiki import Wiki as WikiResource
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -60,11 +59,7 @@ def internal_error(e):
                         error=apiError.uncaught_exception(e))
 
 
-rm = Redmine()
-wk = WikiResource(rm)
-vn = VersionResource(rm)
-git = GitLab()
-pjt = ProjectResource(app, user, rm, git)
+pjt = ProjectResource(app, user, None, None)
 
 
 class ProjectUserList(Resource):
@@ -78,128 +73,6 @@ class ProjectUserList(Resource):
             return output
         else:
             return {"message": "your role art not administrator"}, 401
-
-
-class ProjectWikiList(Resource):
-    @jwt_required
-    def get(self, project_id):
-        status = pjt.verify_project_user(project_id, get_jwt_identity()['user_id'])
-        if status or get_jwt_identity()['role_id'] == 5:
-            output = wk.get_wiki_list_by_project(project_id)
-            return output
-        else:
-            return {
-                       "message": "your are not in this project or not administrator"
-                   }, 401
-
-
-class ProjectWiki(Resource):
-    @jwt_required
-    def get(self, project_id, wiki_name):
-        status = pjt.verify_project_user(project_id, get_jwt_identity()['user_id'])
-        if status or get_jwt_identity()['role_id'] == 5:
-            output, status_code = wk.get_wiki_by_project(project_id, wiki_name)
-            return output, status_code
-        else:
-            return {
-                       "message": "your are not in this project or not administrator"
-                   }, 401
-
-    @jwt_required
-    def put(self, project_id, wiki_name):
-        status = pjt.verify_project_user(project_id, get_jwt_identity()['user_id'])
-        if status or get_jwt_identity()['role_id'] == 5:
-            parser = reqparse.RequestParser()
-            parser.add_argument('wiki_text', type=str, required=True)
-            args = parser.parse_args()
-            output, status_code = wk.put_wiki_by_project(project_id, wiki_name, args, get_jwt_identity()['user_id'])
-            return output, status_code
-        else:
-            return {
-                       "message": "your are not in this project or not administrator"
-                   }, 401
-
-    @jwt_required
-    def delete(self, project_id, wiki_name):
-        status = pjt.verify_project_user(project_id, get_jwt_identity()['user_id'])
-        if status or get_jwt_identity()['role_id'] == 5:
-            output, status_code = wk.delete_wiki_by_project(project_id, wiki_name)
-            return output, status_code
-        else:
-            return {
-                       "message": "your are not in this project or not administrator"
-                   }, 401
-
-
-# Get Project Version List
-class ProjectVersionList(Resource):
-    @jwt_required
-    def get(self, project_id):
-        status = pjt.verify_project_user(project_id, get_jwt_identity()['user_id'])
-        if status or get_jwt_identity()['role_id'] == 5:
-            output = vn.get_version_list_by_project(project_id)
-            return output
-        else:
-            return {
-                       "message": "your are not in this project or not administrator"
-                   }, 401
-
-
-# Create  Project Version
-class ProjectVersion(Resource):
-    @jwt_required
-    def post(self, project_id):
-        status = pjt.verify_project_user(project_id, get_jwt_identity()['user_id'])
-        if status or get_jwt_identity()['role_id'] == 5:
-            root_parser = reqparse.RequestParser()
-            root_parser.add_argument('version', type=dict, required=True)
-            root_args = root_parser.parse_args()
-            output, status_code = vn.post_version_by_project(project_id, root_args)
-            return output, status_code
-        else:
-            return {
-                       "message": "your are not in this project or not administrator"
-                   }, 401
-
-
-# Get Project Version Information
-class ProjectVersionInfo(Resource):
-    @jwt_required
-    def get(self, project_id, version_id):
-        status = pjt.verify_project_user(project_id, get_jwt_identity()['user_id'])
-        if status or get_jwt_identity()['role_id'] == 5:
-            output, status_code = vn.get_version_by_version_id(version_id)
-            return output, status_code
-        else:
-            return {
-                       "message": "your are not in this project or not administrator"
-                   }, 401
-
-    @jwt_required
-    def put(self, project_id, version_id):
-        status = pjt.verify_project_user(project_id, get_jwt_identity()['user_id'])
-        if status or get_jwt_identity()['role_id'] == 5:
-            root_parser = reqparse.RequestParser()
-            root_parser.add_argument('version', type=dict, required=True)
-            root_args = root_parser.parse_args()
-            print(root_args)
-            output, status_code = vn.put_version_by_version_id(version_id, root_args)
-            return output, status_code
-        else:
-            return {
-                       "message": "your are not in this project or not administrator"
-                   }, 401
-
-    @jwt_required
-    def delete(self, project_id, version_id):
-        status = pjt.verify_project_user(project_id, get_jwt_identity()['user_id'])
-        if status or get_jwt_identity()['role_id'] == 5:
-            output, status_code = vn.delete_version_by_version_id(version_id)
-            return output, status_code
-        else:
-            return {
-                       "message": "your are not in this project or not administrator"
-                   }, 401
 
 
 class PipelineExec(Resource):
@@ -699,27 +572,6 @@ class SonarReport(Resource):
             return {"message": "your role art not PM/administrator"}, 401
 
 
-class ProjectFiles(Resource):
-    @jwt_required
-    def post(self, project_id):
-        plan_project_id = project.get_plan_project_id(project_id)
-        if plan_project_id < 0:
-            return util.respond(404, 'Error while uploading a file to a project.',
-                                error=apiError.project_not_found(project_id))
-
-        parser = reqparse.RequestParser()
-        parser.add_argument('filename', type=str)
-        parser.add_argument('version_id', type=str)
-        parser.add_argument('description', type=str)
-        args = parser.parse_args()
-        return rm.rm_upload_to_project(plan_project_id, args)
-
-    @jwt_required
-    def get(self, project_id):
-        plan_project_id = project.get_plan_project_id(project_id)
-        return rm.rm_list_file(plan_project_id)
-
-
 class SystemGitCommitID(Resource):
     def get(self):
         if os.path.exists("git_commit"):
@@ -737,11 +589,10 @@ api.add_resource(project.ProjectsByUser, '/projects_by_user/<int:user_id>')
 api.add_resource(ProjectUserList, '/project/<sint:project_id>/user/list')
 api.add_resource(project.ProjectMember, '/project/<sint:project_id>/member',
                  '/project/<sint:project_id>/member/<int:user_id>')
-api.add_resource(ProjectWikiList, '/project/<sint:project_id>/wiki')
-api.add_resource(ProjectWiki, '/project/<sint:project_id>/wiki/<wiki_name>')
-api.add_resource(ProjectVersionList, '/project/<sint:project_id>/version/list')
-api.add_resource(ProjectVersion, '/project/<sint:project_id>/version')
-api.add_resource(ProjectVersionInfo,
+api.add_resource(wiki.ProjectWikiList, '/project/<sint:project_id>/wiki')
+api.add_resource(wiki.ProjectWiki, '/project/<sint:project_id>/wiki/<wiki_name>')
+api.add_resource(version.ProjectVersionList, '/project/<sint:project_id>/version/list')
+api.add_resource(version.ProjectVersion, '/project/<sint:project_id>/version',
                  '/project/<sint:project_id>/version/<int:version_id>')
 api.add_resource(project.TestSummary, '/project/<sint:project_id>/test_summary')
 
@@ -877,7 +728,7 @@ api.add_resource(issue.DumpByIssue, '/dump_by_issue/<issue_id>')
 api.add_resource(SonarReport, '/sonar_report/<sint:project_id>')
 
 # Files
-api.add_resource(ProjectFiles, '/project/<sint:project_id>/file')
+api.add_resource(project.ProjectFile, '/project/<sint:project_id>/file')
 api.add_resource(redmine.RedmineFile, '/download', '/file/<int:file_id>')
 
 # git commit

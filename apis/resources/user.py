@@ -11,14 +11,11 @@ from model import User as UserModel
 from model import db, UserPluginRelation, ProjectUserRole, TableProjects, ProjectPluginRelation, \
     TableRolesPluginRelation
 from resources import role
-from resources.gitlab import GitLab
 from resources.logger import logger
-from resources.redmine import Redmine
+from resources.redmine import redmine
+from resources.gitlab import gitlab
 
 jwt = JWTManager()
-
-redmine = Redmine()
-gitlab = GitLab()
 
 
 @jwt.user_claims_loader
@@ -604,4 +601,3 @@ class UserList(Resource):
     def get(self):
         role.require_pm()
         return user_list()
-

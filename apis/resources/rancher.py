@@ -194,3 +194,4 @@ class Rancher(object):
         return output.json()['data']
 
 
+rancher = Rancher()

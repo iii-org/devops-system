@@ -200,8 +200,7 @@ class Redmine:
 
     def rm_get_wiki(self, project_id, wiki_name):
         output = self.__api_get('/projects/{0}/wiki/{1}'.format(
-            project_id, wiki_name,
-        ))
+            project_id, wiki_name,))
         return output, output.status_code
 
     def rm_put_wiki(self, project_id, wiki_name, args, operator_id):

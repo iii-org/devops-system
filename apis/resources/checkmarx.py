@@ -220,7 +220,7 @@ class CheckMarx(object):
                 }, 200
 
 
-cm = CheckMarx()
+checkmarx = CheckMarx()
 
 
 # --------------------- Resources ---------------------
@@ -232,52 +232,52 @@ class CreateCheckmarxScan(Resource):
         parser.add_argument('repo_id', type=int, required=True)
         parser.add_argument('scan_id', type=int, required=True)
         args = parser.parse_args()
-        return cm.create_scan(args)
+        return checkmarx.create_scan(args)
 
 
 class GetCheckmarxLatestScan(Resource):
     @jwt_required
     def get(self, project_id):
-        return cm.get_latest_scan_wrapped(project_id)
+        return checkmarx.get_latest_scan_wrapped(project_id)
 
 
 class GetCheckmarxLatestScanStats(Resource):
     @jwt_required
     def get(self, project_id):
-        return cm.get_latest_scan_stats_wrapped(project_id)
+        return checkmarx.get_latest_scan_stats_wrapped(project_id)
 
 
 class GetCheckmarxLatestReport(Resource):
     @jwt_required
     def get(self, project_id):
-        return cm.get_latest_report_wrapped(project_id)
+        return checkmarx.get_latest_report_wrapped(project_id)
 
 
 class GetCheckmarxReport(Resource):
     @jwt_required
     def get(self, report_id):
-        return cm.get_report(report_id)
+        return checkmarx.get_report(report_id)
 
 
 class GetCheckmarxScanStatus(Resource):
     @jwt_required
     def get(self, scan_id):
-        return cm.get_scan_status_wrapped(scan_id)
+        return checkmarx.get_scan_status_wrapped(scan_id)
 
 
 class RegisterCheckmarxReport(Resource):
     @jwt_required
     def post(self, scan_id):
-        return cm.register_report(scan_id)
+        return checkmarx.register_report(scan_id)
 
 
 class GetCheckmarxReportStatus(Resource):
     @jwt_required
     def get(self, report_id):
-        return cm.get_report_status_wrapped(report_id)
+        return checkmarx.get_report_status_wrapped(report_id)
 
 
 class GetCheckmarxScanStatistics(Resource):
     @jwt_required
     def get(self, scan_id):
-        return cm.get_scan_statistics_wrapped(scan_id)
+        return checkmarx.get_scan_statistics_wrapped(scan_id)
