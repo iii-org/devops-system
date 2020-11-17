@@ -1,4 +1,3 @@
-import logging
 import ssl
 
 import websocket
@@ -7,7 +6,6 @@ from flask_restful import abort
 import config
 import resources.apiError as apiError
 import resources.util as util
-
 from resources.logger import logger
 
 

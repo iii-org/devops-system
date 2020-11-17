@@ -989,6 +989,7 @@ class TestCaseByProject(Resource):
         return util.success(output)
 
 
+# noinspection PyPep8Naming
 class TestCase(Resource):
 
     # 用testCase_id 取得目前測試案例
@@ -1030,6 +1031,7 @@ class GetTestCaseType(Resource):
         return util.success(output)
 
 
+# noinspection PyPep8Naming
 class TestItemByTestCase(Resource):
 
     # 用issues ID 取得目前所有的目前測試案例

@@ -1,5 +1,4 @@
 import logging
-import os
 from logging import handlers
 
 from flask_jwt_extended import get_jwt_identity

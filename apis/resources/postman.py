@@ -30,7 +30,7 @@ def export_to_postman(project_id, target):
             item_id = item['id']
             o_item = {'name': '{0}-{1}'.format(case_id, item_id)}
             values = []
-            part_values = testValue.get_testValue_by_testItem_id(item_id)
+            part_values = apiTest.get_testValue_by_testItem_id(item_id)
             for value in part_values:
                 values.append(value)
 

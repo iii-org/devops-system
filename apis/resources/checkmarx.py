@@ -1,6 +1,4 @@
-import config
 import datetime
-import logging
 import time
 from io import BytesIO
 
@@ -9,6 +7,7 @@ from flask import send_file
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
 
+import config
 from model import db
 
 

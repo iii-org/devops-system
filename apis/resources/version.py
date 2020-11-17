@@ -1,16 +1,11 @@
-import logging
-
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required
 from flask_restful import reqparse, Resource
 
-import config
 import resources.apiError as apiError
-import resources.util as util
 import resources.project as project
+import resources.util as util
 from resources import role
 from resources.redmine import redmine
-
-from resources.logger import logger
 
 EMPTY_VERSIONS = {"versions": [], "total_count": 0}
 
