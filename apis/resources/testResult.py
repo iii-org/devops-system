@@ -1,13 +1,9 @@
-import config
 import datetime
 import json
-import logging
 
-from model import db, TableTestResult
 import resources.apiError as apiError
 import resources.util as util
-
-from resources.logger import logger
+from model import db, TableTestResult
 
 
 def save(args):

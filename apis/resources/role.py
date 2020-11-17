@@ -1,7 +1,8 @@
 from flask_jwt_extended import get_jwt_identity
 from flask_restful import Resource
 
-from resources import apiError, project, issue, util
+from model import db, ProjectUserRole
+from resources import apiError, util
 
 
 class Role:
@@ -44,21 +45,7 @@ def require_in_project(project_id,
     user_id = identity['user_id']
     if not even_admin and identity['role_id'] == ADMIN.id:
         return
-    check_result = project.verify_project_user(project_id, user_id)
-    if check_result:
-        return
-    else:
-        raise apiError.NotInProjectError(err_message)
-
-
-def require_issue_visible(issue_id,
-                          err_message="You don't have the permission to access this issue.",
-                          even_admin=False):
-    identity = get_jwt_identity()
-    user_id = identity['user_id']
-    if not even_admin and identity['role_id'] == ADMIN.id:
-        return
-    check_result = issue.verify_issue_user(issue_id, user_id)
+    check_result = verify_project_user(project_id, user_id)
     if check_result:
         return
     else:
@@ -86,6 +73,19 @@ def require_user_himself(user_id,
                 err_message = "Only admin and PM can access another user's data."
         raise apiError.NotUserHimselfError(err_message)
     return
+
+
+def verify_project_user(project_id, user_id):
+    if util.is_dummy_project(project_id):
+        return True
+    select_project_user_role_command = db.select([ProjectUserRole.stru_project_user_role]).where(
+        db.and_(ProjectUserRole.stru_project_user_role.c.project_id == project_id,
+                ProjectUserRole.stru_project_user_role.c.user_id == user_id))
+    match_list = util.call_sqlalchemy(select_project_user_role_command).fetchall()
+    if len(match_list) > 0:
+        return True
+    else:
+        return False
 
 
 def get_role_list():

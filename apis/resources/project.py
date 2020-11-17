@@ -9,8 +9,7 @@ import config
 import resources.apiError as apiError
 import resources.util as util
 from model import db, ProjectUserRole, ProjectPluginRelation, TableProjects
-from resources.logger import logger
-from . import role
+from . import role, user
 from .checkmarx import checkmarx
 from .gitlab import gitlab
 from .rancher import rancher
@@ -22,19 +21,6 @@ def get_project_plugin_relation(project_id):
     select_project_relation_command = db.select([ProjectPluginRelation.stru_project_plug_relation]) \
         .where(db.and_(ProjectPluginRelation.stru_project_plug_relation.c.project_id == project_id))
     return util.call_sqlalchemy(select_project_relation_command).fetchone()
-
-
-def verify_project_user(project_id, user_id):
-    if util.is_dummy_project(project_id):
-        return True
-    select_project_user_role_command = db.select([ProjectUserRole.stru_project_user_role]).where(
-        db.and_(ProjectUserRole.stru_project_user_role.c.project_id == project_id,
-                ProjectUserRole.stru_project_user_role.c.user_id == user_id))
-    match_list = util.call_sqlalchemy(select_project_user_role_command).fetchall()
-    if len(match_list) > 0:
-        return True
-    else:
-        return False
 
 
 # List all projects of a PM
@@ -300,7 +286,7 @@ def pm_update_project(project_id, args):
         db.engine.execute(
             "UPDATE public.project_user_role SET user_id = '{0}'"
             " WHERE project_id = '{1}' AND role_id = '{2}'".format(
-                user_id, project_id, User.get_role_id(user_id)))
+                user_id, project_id, user.get_role_id(user_id)))
 
     return util.success()
 
@@ -396,7 +382,7 @@ def pm_get_project(project_id):
 
 def project_add_member(project_id, args):
     user_id = args['user_id']
-    role_id = User.get_role_id(user_id)
+    role_id = user.get_role_id(user_id)
 
     # Check ProjectUserRole table has relationship or not
     get_pj_ur_rl_cmd = db.select([ProjectUserRole.stru_project_user_role]).where(db.and_(
@@ -423,7 +409,7 @@ def project_add_member(project_id, args):
     if error is not None:
         return error
 
-    redmine_role_id = User.to_redmine_role_id(role_id)
+    redmine_role_id = user.to_redmine_role_id(role_id)
     if redmine_role_id is None:
         return util.respond(500, "Error while adding user to project.",
                             error=apiError.db_error("Cannot get redmine role of the user."))
@@ -452,7 +438,7 @@ def project_add_member(project_id, args):
 
 
 def project_remove_member(project_id, user_id):
-    role_id = User.get_role_id(user_id)
+    role_id = user.get_role_id(user_id)
 
     error, redmine_user_id, gitlab_user_id = get_3pt_user_ids(
         user_id, "Error while removing user from project.")
@@ -706,162 +692,6 @@ def get_test_summary(project_id):
     return util.success({'test_results': ret})
 
 
-class ProjectResource(object):
-    def __init__(self, app, au, redmine, gitlab):
-        self.app = app
-        self.au = au
-        self.rancher = Rancher()
-        self.redmine = redmine
-        self.gitlab = gitlab
-        self.private_token = gitlab.private_token
-
-    @staticmethod
-    # FIXME: Eventually remove this method (extracted already)
-    def verify_project_user(project_id, user_id):
-        if util.is_dummy_project(project_id):
-            return True
-        select_project_user_role_command = db.select([ProjectUserRole.stru_project_user_role]) \
-            .where(db.and_(ProjectUserRole.stru_project_user_role.c.project_id == project_id, \
-                           ProjectUserRole.stru_project_user_role.c.user_id == user_id))
-        logger.debug("select_project_user_role_command: {0}".format(
-            select_project_user_role_command))
-        reMessage = util.call_sqlalchemy(select_project_user_role_command)
-        match_list = reMessage.fetchall()
-        logger.info("reMessage: {0}".format(match_list))
-        logger.info("reMessage len: {0}".format(len(match_list)))
-        if len(match_list) > 0:
-            return True
-        else:
-            return False
-
-    # 用project_id查詢redmine的單一project
-    def get_redmine_one_project(self, logger, app, project_id):
-        url = "http://{0}/projects/{1}.json?key={2}".format(
-            config.get("REDMINE_IP_PORT"), project_id,
-            config.get("REDMINE_API_KEY"))
-        logger.info("get redmine one project url: {0}".format(url))
-        output = requests.get(url, headers=self.headers, verify=False)
-        logger.info("get redmine one project output: {0} / {1}".format(
-            output, output.json()))
-        return output
-
-    def get_sonar_report(self, logger, app, project_id):
-        result = db.engine.execute(
-            "SELECT name FROM public.projects WHERE id = '{0}'".format(
-                project_id))
-        project_name = result.fetchone()[0]
-        result.close()
-        # project_name = "devops-flask"
-        url = "http://{0}/api/measures/component?component={1}&metricKeys=bugs,vulnerabilities,security_hotspots,code_smells,coverage,duplicated_blocks,sqale_index,duplicated_lines_density,reliability_rating,security_rating,security_review_rating,sqale_rating,security_hotspots_reviewed,lines_to_cover".format( \
-            config.get("SONAR_IP_PORT"), project_name)
-        logger.info("get sonar report url: {0}".format(url))
-        output = requests.get(url, headers=self.headers, verify=False)
-        logger.info("get sonar report output: {0} / {1}".format(
-            output, output.json()))
-        if output.status_code == 200:
-            data_list = output.json()["component"]["measures"]
-            reliability = []
-            security = []
-            security_review = []
-            maintainability = []
-            coverage = []
-            duplications = []
-
-            for data in data_list:
-                if data["metric"] == "bugs":
-                    reliability.append({
-                        "metric": "Bugs",
-                        "value": data["value"]
-                    })
-                if data["metric"] == "reliability_rating":
-                    reliability.append({
-                        "metric": "Rating",
-                        "value": data["value"]
-                    })
-
-                if data["metric"] == "vulnerabilities":
-                    security.append({
-                        "metric": "Vulnerabilities",
-                        "value": data["value"]
-                    })
-                if data["metric"] == "security_rating":
-                    security.append({
-                        "metric": "Rating",
-                        "value": data["value"]
-                    })
-
-                if data["metric"] == "security_hotspots":
-                    security_review.append({
-                        "metric": "Security Hotspots",
-                        "value": data["value"]
-                    })
-                if data["metric"] == "security_hotspots_reviewed":
-                    security_review.append({
-                        "metric": "Reviewed",
-                        "value": data["value"]
-                    })
-                if data["metric"] == "security_review_rating":
-                    security_review.append({
-                        "metric": "Rating",
-                        "value": data["value"]
-                    })
-
-                if data["metric"] == "sqale_index":
-                    maintainability.append({
-                        "metric": "Debt",
-                        "value": data["value"]
-                    })
-                if data["metric"] == "code_smells":
-                    maintainability.append({
-                        "metric": "Code Smells",
-                        "value": data["value"]
-                    })
-                if data["metric"] == "sqale_rating":
-                    maintainability.append({
-                        "metric": "Rating",
-                        "value": data["value"]
-                    })
-
-                if data["metric"] == "coverage":
-                    coverage.append({
-                        "metric": "Coverage",
-                        "value": data["value"]
-                    })
-                if data["metric"] == "lines_to_cover":
-                    coverage.append({
-                        "metric": "Lines to cover",
-                        "value": data["value"]
-                    })
-
-                if data["metric"] == "duplicated_lines_density":
-                    duplications.append({
-                        "metric": "Duplications",
-                        "value": data["value"]
-                    })
-                if data["metric"] == "duplicated_blocks":
-                    duplications.append({
-                        "metric": "Duplicated Blocks",
-                        "value": data["value"]
-                    })
-
-            return {
-                       "message": "success",
-                       "data": {
-                           "Reliability": reliability,
-                           "Security": security,
-                           "Security Review": security_review,
-                           "Maintainability": maintainability,
-                           "Coverage": coverage,
-                           "Duplications": duplications
-                       }
-                   }, 200
-        else:
-            error_msg_list = []
-            for error in output.json()["errors"]:
-                error_msg_list.append(error["msg"])
-            return {"message": {"errors": error_msg_list}}, output.status_code
-
-
 # --------------------- Resources ---------------------
 class ListMyProjects(Resource):
     @jwt_required
@@ -971,3 +801,10 @@ class ProjectFile(Resource):
         return redmine.rm_list_file(plan_project_id)
 
 
+class ProjectUserList(Resource):
+    @jwt_required
+    def get(self, project_id):
+        parser = reqparse.RequestParser()
+        parser.add_argument('exclude', type=int)
+        args = parser.parse_args()
+        return user.user_list_by_project(project_id, args)

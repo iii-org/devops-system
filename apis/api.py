@@ -1,5 +1,4 @@
 import datetime
-import json
 import os
 import traceback
 
@@ -20,16 +19,10 @@ import resources.requirement as requirement
 import resources.role as role
 import resources.testCase as testCase
 import resources.testItem as testItem
-import resources.testResult as testResult
 import resources.testValue as testValue
 from jsonwebtoken import jsonwebtoken
 from model import db
-from resources import project, gitlab, util, issue, user, postman, redmine, wiki, version
-from resources.gitlab import GitLab
-from resources.logger import logger
-from resources.project import ProjectResource as ProjectResource
-from resources.redmine import Redmine
-from resources.version import Version as VersionResource
+from resources import project, gitlab, util, issue, user, postman, redmine, wiki, version, sonar
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -57,73 +50,6 @@ def internal_error(e):
     traceback.print_exc()
     return util.respond(500, "Unexpected internal error",
                         error=apiError.uncaught_exception(e))
-
-
-pjt = ProjectResource(app, user, None, None)
-
-
-class ProjectUserList(Resource):
-    @jwt_required
-    def get(self, project_id):
-        if get_jwt_identity()["role_id"] in (1, 3, 5):
-            parser = reqparse.RequestParser()
-            parser.add_argument('exclude', type=int)
-            args = parser.parse_args()
-            output = user.user_list_by_project(project_id, args)
-            return output
-        else:
-            return {"message": "your role art not administrator"}, 401
-
-
-class PipelineExec(Resource):
-    @jwt_required
-    def get(self, repository_id):
-        output_array = pipeline.pipeline_exec_list(repository_id)
-        return jsonify({'message': 'success', 'data': output_array})
-
-
-class PipelineExecLogs(Resource):
-    @jwt_required
-    def get(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument('repository_id', type=int, required=True)
-        parser.add_argument('pipelines_exec_run', type=int, required=True)
-        args = parser.parse_args()
-        return pipeline.pipeline_exec_logs(args)
-
-
-class PipelineSoftware(Resource):
-    @jwt_required
-    def get(self):
-        pipe_out_list = pipeline.pipeline_software()
-        output_list = []
-        for pipe_out in pipe_out_list:
-            if 'detail' in pipe_out:
-                pipe_out['detail'] = json.loads(pipe_out['detail'].replace(
-                    "'", '"'))
-            output_list.append(pipe_out)
-        return jsonify({'message': 'success', 'data': output_list})
-
-
-class PipelineYaml(Resource):
-    @jwt_required
-    def get(self, repository_id, branch_name):
-        output_array = pipeline.get_ci_yaml(repository_id, branch_name)
-        return output_array
-
-    @jwt_required
-    def post(self, repository_id, branch_name):
-        parser = reqparse.RequestParser()
-        parser.add_argument('detail')
-        args = parser.parse_args()
-        output = pipeline.generate_ci_yaml(args, repository_id, branch_name)
-        return output
-
-
-class PipelinePhaseYaml(Resource):
-    @jwt_required
-    def get(self, repository_id, branch_name):
-        return pipeline.get_phase_yaml(repository_id, branch_name)
 
 
 class RequirementByIssue(Resource):
@@ -537,56 +463,22 @@ class TestValue(Resource):
         return jsonify({'message': 'success', 'data': output})
 
 
-class TestResult(Resource):
-    @jwt_required
-    def post(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument('project_id', type=int, required=True)
-        parser.add_argument('total', type=int, required=True)
-        parser.add_argument('fail', type=int, required=True)
-        parser.add_argument('branch', type=str, required=True)
-        parser.add_argument('report', type=str, required=True)
-        args = parser.parse_args()
-        output = testResult.save(args)
-        return output
-
-
-class GetPostmanReport(Resource):
-    @jwt_required
-    def get(self, project_id):
-        return testResult.get_report(project_id)
-
-
-class SonarReport(Resource):
-    @jwt_required
-    def get(self, project_id):
-        role_id = get_jwt_identity()["role_id"]
-
-        if role_id in (3, 5):
-            try:
-                output = pjt.get_sonar_report(logger, app, project_id)
-                return output
-            except Exception as e:
-                return {"message": str(e)}, 400
-        else:
-            return {"message": "your role art not PM/administrator"}, 401
-
-
+# noinspection PyMethodMayBeStatic
 class SystemGitCommitID(Resource):
     def get(self):
         if os.path.exists("git_commit"):
             with open("git_commit") as f:
                 git_commit_id = f.read().splitlines()[0]
-                return {"message": "success", "data": {"git_commit_id": "{0}".format(git_commit_id)}}
+                return util.success({"git_commit_id": "{0}".format(git_commit_id)})
         else:
-            return {"message": "git_commit file is not exist"}, 400
+            return util.respond(400, "git_commit file is not exist")
 
 
 # Projects
 api.add_resource(project.ListMyProjects, '/project/list')
 api.add_resource(project.SingleProject, '/project', '/project/<sint:project_id>')
 api.add_resource(project.ProjectsByUser, '/projects_by_user/<int:user_id>')
-api.add_resource(ProjectUserList, '/project/<sint:project_id>/user/list')
+api.add_resource(project.ProjectUserList, '/project/<sint:project_id>/user/list')
 api.add_resource(project.ProjectMember, '/project/<sint:project_id>/member',
                  '/project/<sint:project_id>/member/<int:user_id>')
 api.add_resource(wiki.ProjectWikiList, '/project/<sint:project_id>/wiki')
@@ -626,14 +518,13 @@ api.add_resource(user.UserList, '/user/list')
 api.add_resource(role.RoleList, '/user/role/list')
 
 # pipeline
-api.add_resource(PipelineExec, '/pipelines/rd/<repository_id>/pipelines_exec')
-api.add_resource(PipelineExecLogs, '/pipelines/rd/logs')
-api.add_resource(PipelineSoftware, '/pipelines/software')
-api.add_resource(PipelinePhaseYaml,
+api.add_resource(pipeline.PipelineExec, '/pipelines/rd/<repository_id>/pipelines_exec')
+api.add_resource(pipeline.PipelineExecLogs, '/pipelines/rd/logs')
+api.add_resource(pipeline.PipelineSoftware, '/pipelines/software')
+api.add_resource(pipeline.PipelinePhaseYaml,
                  '/pipelines/<repository_id>/branch/<branch_name>/phase_yaml')
-api.add_resource(
-    PipelineYaml,
-    '/pipelines/<repository_id>/branch/<branch_name>/generate_ci_yaml')
+api.add_resource(pipeline.PipelineYaml,
+                 '/pipelines/<repository_id>/branch/<branch_name>/generate_ci_yaml')
 
 # issue
 api.add_resource(issue.IssueByProject, '/project/<sint:project_id>/issues')
@@ -700,12 +591,9 @@ api.add_resource(GetTestValueType, '/testValues/support_types')
 api.add_resource(TestValueByTestItem, '/testValues_by_testItem/<item_id>')
 api.add_resource(TestValue, '/testValues/<value_id>')
 
-# TestResult writing
-api.add_resource(TestResult, '/testResults')
-api.add_resource(GetPostmanReport, '/postman_report/<sint:project_id>')
-
-# Export tests to postman json format
+# Postman tests
 api.add_resource(postman.ExportToPostman, '/export_to_postman/<sint:project_id>')
+api.add_resource(postman.PostmanReport, '/testResults', '/postman_report/<sint:project_id>')
 
 # Checkmarx report generation
 api.add_resource(checkmarx.CreateCheckmarxScan, '/checkmarx/create_scan')
@@ -725,7 +613,7 @@ api.add_resource(checkmarx.GetCheckmarxReportStatus,
 api.add_resource(issue.DumpByIssue, '/dump_by_issue/<issue_id>')
 
 # Get Sonarqube report by project_id
-api.add_resource(SonarReport, '/sonar_report/<sint:project_id>')
+api.add_resource(sonar.SonarReport, '/sonar_report/<sint:project_id>')
 
 # Files
 api.add_resource(project.ProjectFile, '/project/<sint:project_id>/file')

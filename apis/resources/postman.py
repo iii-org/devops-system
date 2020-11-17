@@ -7,9 +7,10 @@ import resources.testCase as testCase
 import resources.testItem as testItem
 import resources.testValue as testValue
 import resources.util as util
-from resources import role
+from resources import role, testResult
 
 
+# noinspection PyTypeChecker
 def export_to_postman(project_id, target):
     output = {
         'info': {
@@ -127,3 +128,21 @@ class ExportToPostman(Resource):
         args = parser.parse_args()
         target = args['target']
         return export_to_postman(project_id, target)
+
+
+class PostmanReport(Resource):
+    @jwt_required
+    def get(self, project_id):
+        return testResult.get_report(project_id)
+
+    @jwt_required
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('project_id', type=int, required=True)
+        parser.add_argument('total', type=int, required=True)
+        parser.add_argument('fail', type=int, required=True)
+        parser.add_argument('branch', type=str, required=True)
+        parser.add_argument('report', type=str, required=True)
+        args = parser.parse_args()
+        output = testResult.save(args)
+        return output

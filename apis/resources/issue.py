@@ -134,6 +134,20 @@ def __deal_with_issue_redmine_output(redmine_output):
     return redmine_output
 
 
+def require_issue_visible(issue_id,
+                          err_message="You don't have the permission to access this issue.",
+                          even_admin=False):
+    identity = get_jwt_identity()
+    user_id = identity['user_id']
+    if not even_admin and identity['role_id'] == role.ADMIN.id:
+        return
+    check_result = verify_issue_user(issue_id, user_id)
+    if check_result:
+        return
+    else:
+        raise apiError.NotInProjectError(err_message)
+
+
 def verify_issue_user(issue_id, user_id):
     issue_info, status_code = get_issue(issue_id)
     project_id = issue_info['data']['project']['id']
@@ -588,7 +602,7 @@ def count_type_number_by_issues(user_id):
 class SingleIssue(Resource):
     @jwt_required
     def get(self, issue_id):
-        role.require_issue_visible(issue_id)
+        require_issue_visible(issue_id)
         return get_issue(issue_id)
 
     @jwt_required
@@ -618,7 +632,7 @@ class SingleIssue(Resource):
 
     @jwt_required
     def put(self, issue_id):
-        role.require_issue_visible(issue_id)
+        require_issue_visible(issue_id)
         parser = reqparse.RequestParser()
         parser.add_argument('assigned_to_id', type=int)
         parser.add_argument('tracker_id', type=int)
@@ -644,14 +658,14 @@ class SingleIssue(Resource):
 
     @jwt_required
     def delete(self, issue_id):
-        role.require_issue_visible(issue_id)
+        require_issue_visible(issue_id)
         return delete_issue(issue_id)
 
 
 class DumpByIssue(Resource):
     @jwt_required
     def get(self, issue_id):
-        role.require_issue_visible(issue_id)
+        require_issue_visible(issue_id)
         return dump_by_issue(issue_id)
 
 

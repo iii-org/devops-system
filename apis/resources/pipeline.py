@@ -2,6 +2,8 @@ import base64
 import json
 
 import yaml
+from flask_jwt_extended import jwt_required
+from flask_restful import Resource, reqparse
 
 import resources.apiError as apiError
 import resources.util as util
@@ -175,3 +177,52 @@ def get_phase_yaml(repository_id, branch_name):
         })
     return {'message': "success", "data": phase_name_array}, 200
 
+
+# --------------------- Resources ---------------------
+class PipelineExec(Resource):
+    @jwt_required
+    def get(self, repository_id):
+        output_array = pipeline_exec_list(repository_id)
+        return util.success(output_array)
+
+
+class PipelineExecLogs(Resource):
+    @jwt_required
+    def get(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('repository_id', type=int, required=True)
+        parser.add_argument('pipelines_exec_run', type=int, required=True)
+        args = parser.parse_args()
+        return pipeline_exec_logs(args)
+
+
+class PipelineSoftware(Resource):
+    @jwt_required
+    def get(self):
+        pipe_out_list = pipeline_software()
+        output_list = []
+        for pipe_out in pipe_out_list:
+            if 'detail' in pipe_out:
+                pipe_out['detail'] = json.loads(pipe_out['detail'].replace(
+                    "'", '"'))
+            output_list.append(pipe_out)
+        return util.success(output_list)
+
+
+class PipelineYaml(Resource):
+    @jwt_required
+    def get(self, repository_id, branch_name):
+        return get_ci_yaml(repository_id, branch_name)
+
+    @jwt_required
+    def post(self, repository_id, branch_name):
+        parser = reqparse.RequestParser()
+        parser.add_argument('detail')
+        args = parser.parse_args()
+        return generate_ci_yaml(args, repository_id, branch_name)
+
+
+class PipelinePhaseYaml(Resource):
+    @jwt_required
+    def get(self, repository_id, branch_name):
+        return get_phase_yaml(repository_id, branch_name)
