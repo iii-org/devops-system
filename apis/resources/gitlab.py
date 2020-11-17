@@ -136,7 +136,7 @@ class GitLab(object):
 
     def gl_delete_user(self, gitlab_user_id):
         return self.__api_delete('/users/{0}'.format(gitlab_user_id))
-    
+
     def gl_count_branches(self, repo_id):
         output = self.__api_get('/projects/{0}/repository/branches'.format(repo_id))
         if output.status_code != 200:
@@ -487,7 +487,12 @@ class GitProjectTag(Resource):
     def get(self, repository_id):
         project_id = repo_id_to_project_id(repository_id)
         role.require_in_project(project_id)
-        return util.success({'tag_list': gitlab.gl_get_tags(repository_id)})
+        res = gitlab.gl_get_tags(repository_id)
+        if res.status_code == 200:
+            return util.success({'tag_list': res.json()})
+        else:
+            return util.respond(res.status_code, "Error while getting repo tags.",
+                                error=apiError.gitlab_error(res))
 
     @jwt_required
     def post(self, repository_id):
