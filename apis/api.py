@@ -202,233 +202,6 @@ class ProjectVersionInfo(Resource):
                    }, 401
 
 
-class GitProjectBranch(Resource):
-    @jwt_required
-    def get(self, repository_id, branch_name):
-        role_id = get_jwt_identity()["role_id"]
-
-        if role_id in (1, 3, 5):
-            project_id = repository_id
-            branch = branch_name
-            output = pjt.get_git_project_branch(logger, app, project_id,
-                                                branch)
-            return output
-        else:
-            return {"message": "your role art not RD/PM/administrator"}, 401
-
-    @jwt_required
-    def delete(self, repository_id, branch_name):
-        role_id = get_jwt_identity()["role_id"]
-
-        if role_id in (1, 3, 5):
-            project_id = repository_id
-            branch = branch_name
-            output = pjt.delete_git_project_branch(logger, app, project_id,
-                                                   branch)
-            return output
-        else:
-            return {"message": "your role art not RD/PM/administrator"}, 401
-
-
-class GitProjectRepositories(Resource):
-    @jwt_required
-    def get(self, repository_id, branch_name):
-        role_id = get_jwt_identity()["role_id"]
-
-        if role_id in (1, 3, 5):
-            project_id = repository_id
-            branch = branch_name
-            output = pjt.get_git_project_repositories(logger, app, project_id,
-                                                      branch)
-            return output
-        else:
-            return {"message": "your role art not RD/PM/administrator"}, 401
-
-
-class GitProjectFiles(Resource):
-    @jwt_required
-    def post(self, repository_id):
-        role_id = get_jwt_identity()["role_id"]
-
-        if role_id in (1, 3, 5):
-            project_id = repository_id
-            parser = reqparse.RequestParser()
-            parser.add_argument('branch', type=str, required=True)
-            parser.add_argument('file_path', type=str, required=True)
-            parser.add_argument('start_branch', type=str)
-            parser.add_argument('author_email', type=str)
-            parser.add_argument('author_name', type=str)
-            parser.add_argument('encoding', type=str)
-            parser.add_argument('content', type=str, required=True)
-            parser.add_argument('commit_message', type=str, required=True)
-            args = parser.parse_args()
-            logger.info("post body: {0}".format(args))
-            output = pjt.create_git_project_file(logger, app, project_id, args)
-
-            return output
-
-        else:
-            return {"message": "your role art not RD/PM/administrator"}, 401
-
-    @jwt_required
-    def put(self, repository_id):
-        role_id = get_jwt_identity()["role_id"]
-
-        if role_id in (1, 3, 5):
-            project_id = repository_id
-            parser = reqparse.RequestParser()
-            parser.add_argument('branch', type=str, required=True)
-            parser.add_argument('file_path', type=str, required=True)
-            parser.add_argument('start_branch', type=str)
-            parser.add_argument('author_email', type=str)
-            parser.add_argument('author_name', type=str)
-            parser.add_argument('encoding', type=str)
-            parser.add_argument('content', type=str, required=True)
-            parser.add_argument('commit_message', type=str, required=True)
-            args = parser.parse_args()
-            logger.info("put body: {0}".format(args))
-            output = pjt.update_git_project_file(logger, app, project_id, args)
-
-            return output
-
-        else:
-            return {"message": "your role art not RD/PM/administrator"}, 401
-
-
-class GitProjectFile(Resource):
-    @jwt_required
-    def get(self, repository_id, branch_name, file_path):
-        role_id = get_jwt_identity()["role_id"]
-
-        if role_id in (1, 3, 5):
-            project_id = repository_id
-            branch = branch_name
-            output = pjt.get_git_project_file(logger, app, project_id, branch,
-                                              file_path)
-            return output
-
-        else:
-            return {"message": "your role art not RD/PM/administrator"}, 401
-
-    @jwt_required
-    def delete(self, repository_id, branch_name, file_path):
-        role_id = get_jwt_identity()["role_id"]
-
-        if role_id in (1, 3, 5):
-            project_id = repository_id
-            branch = branch_name
-            parser = reqparse.RequestParser()
-            parser.add_argument('commit_message', type=str, required=True)
-            args = parser.parse_args()
-            logger.info("delete body: {0}".format(args))
-            output = pjt.delete_git_project_file(logger, app, project_id,
-                                                 branch, file_path, args)
-            return output
-
-        else:
-            return {"message": "your role art not RD/PM/administrator"}, 401
-
-
-class GitProjectTags(Resource):
-    @jwt_required
-    def get(self, repository_id):
-        role_id = get_jwt_identity()["role_id"]
-
-        if role_id in (1, 3, 5):
-            project_id = repository_id
-            output = pjt.get_git_project_tags(logger, app, project_id)
-            return output
-        else:
-            return {"message": "your role art not RD/PM/administrator"}, 401
-
-    @jwt_required
-    def post(self, repository_id):
-        role_id = get_jwt_identity()["role_id"]
-
-        if role_id in (1, 3, 5):
-            project_id = repository_id
-            parser = reqparse.RequestParser()
-            parser.add_argument('tag_name', type=str, required=True)
-            parser.add_argument('ref', type=str, required=True)
-            parser.add_argument('message', type=str)
-            parser.add_argument('release_description', type=str)
-            args = parser.parse_args()
-            logger.info("post body: {0}".format(args))
-            output = pjt.create_git_project_tags(logger, app, project_id, args)
-            return output
-        else:
-            return {"message": "your role art not RD/PM/administrator"}, 401
-
-
-class GitProjectTag(Resource):
-    @jwt_required
-    def delete(self, repository_id, tag_name):
-        role_id = get_jwt_identity()["role_id"]
-
-        if role_id in (1, 3, 5):
-            project_id = repository_id
-            output = pjt.delete_git_project_tag(logger, app, project_id,
-                                                tag_name)
-            return output
-        else:
-            return {"message": "your role art not RD/PM/administrator"}, 401
-
-
-class GitProjectMergeBranch(Resource):
-    @jwt_required
-    def post(self, repository_id):
-        role_id = get_jwt_identity()["role_id"]
-
-        if role_id in (1, 5):
-            project_id = repository_id
-            parser = reqparse.RequestParser()
-            parser.add_argument('schemas', type=dict, required=True)
-            args = parser.parse_args()["schemas"]
-            logger.info("post body: {0}".format(args))
-            output = pjt.create_git_project_mergebranch(
-                logger, app, project_id, args)
-            return output
-        else:
-            return {"message": "your role art not RD/administrator"}, 401
-
-
-class GitProjectBranchCommmits(Resource):
-    @jwt_required
-    def get(self, repository_id):
-        role_id = get_jwt_identity()["role_id"]
-
-        if role_id in (1, 5):
-            project_id = repository_id
-            parser = reqparse.RequestParser()
-            parser.add_argument('branch', type=str, required=True)
-            args = parser.parse_args()
-            logger.info("get body: {0}".format(args))
-            output = pjt.get_git_project_branch_commits(
-                logger, project_id, args['branch'])
-            return output
-        else:
-            return {"message": "your role art not RD/administrator"}, 401
-
-
-class GitProjectNetwork(Resource):
-    @jwt_required
-    def get(self, repository_id):
-        role_id = get_jwt_identity()["role_id"]
-
-        if role_id in (1, 5):
-            project_id = repository_id
-            output = pjt.get_git_project_network(logger, app, project_id)
-            return output
-        else:
-            return {"message": "your role art not RD/administrator"}, 401
-
-
-class GitProjectId(Resource):
-    @jwt_required
-    def get(self, repository_id):
-        return pjt.get_git_project_id(logger, app, repository_id)
-
-
 class PipelineExec(Resource):
     @jwt_required
     def get(self, repository_id):
@@ -974,24 +747,22 @@ api.add_resource(project.TestSummary, '/project/<sint:project_id>/test_summary')
 
 # Gitlab project
 api.add_resource(gitlab.GitProjectBranches, '/repositories/<repository_id>/branches')
-api.add_resource(GitProjectBranch,
+api.add_resource(gitlab.GitProjectBranch,
                  '/repositories/rd/<repository_id>/branch/<branch_name>')
-api.add_resource(GitProjectRepositories,
+api.add_resource(gitlab.GitProjectRepositories,
                  '/repositories/rd/<repository_id>/branch/<branch_name>/tree')
-api.add_resource(GitProjectFiles,
-                 '/repositories/rd/<repository_id>/branch/files')
-api.add_resource(
-    GitProjectFile,
-    '/repositories/rd/<repository_id>/branch/<branch_name>/files/<file_path>')
-api.add_resource(GitProjectTags, '/repositories/rd/<repository_id>/tags')
-api.add_resource(GitProjectTag,
-                 '/repositories/rd/<repository_id>/tags/<tag_name>')
-api.add_resource(GitProjectMergeBranch,
+api.add_resource(gitlab.GitProjectFile,
+                 '/repositories/rd/<repository_id>/branch/files',
+                 '/repositories/rd/<repository_id>/branch/<branch_name>/files/<file_path>')
+api.add_resource(gitlab.GitProjectTag,
+                 '/repositories/rd/<repository_id>/tags/<tag_name>',
+                 '/repositories/rd/<repository_id>/tags')
+api.add_resource(gitlab.GitProjectMergeBranch,
                  '/repositories/rd/<repository_id>/merge_branches')
-api.add_resource(GitProjectBranchCommmits,
+api.add_resource(gitlab.GitProjectBranchCommits,
                  '/repositories/rd/<repository_id>/commits')
-api.add_resource(GitProjectNetwork, '/repositories/<repository_id>/overview')
-api.add_resource(GitProjectId, '/repositories/<repository_id>/id')
+api.add_resource(gitlab.GitProjectNetwork, '/repositories/<repository_id>/overview')
+api.add_resource(gitlab.GitProjectId, '/repositories/<repository_id>/id')
 
 # User
 api.add_resource(user.Login, '/user/login')

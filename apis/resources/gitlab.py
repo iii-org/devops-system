@@ -1,13 +1,26 @@
 import json
 
 import requests
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
 
 import config
 import resources.util as util
-from resources import apiError, kubernetesClient
+from model import db
+from resources import apiError, kubernetesClient, role
 from resources.logger import logger
+
+
+def repo_id_to_project_id(repo_id):
+    result = db.engine.execute(
+        "SELECT project_id FROM public.project_plugin_relation"
+        " WHERE git_repository_id = '{0}'".format(repo_id))
+    project_relation = result.fetchone()
+    result.close()
+    if project_relation:
+        return project_relation['project_id']
+    else:
+        return -1
 
 
 class GitLab(object):
@@ -28,6 +41,15 @@ class GitLab(object):
             self.private_token = output.json()['private_token']
         else:
             self.private_token = config.get("GITLAB_PRIVATE_TOKEN")
+
+    @staticmethod
+    def gl_get_project_id(repository_id):
+        project_id = repo_id_to_project_id(repository_id)
+        if project_id > 0:
+            return util.success(project_id)
+        else:
+            return util.respond(404, "Error when getting project id.",
+                                error=apiError.repository_id_not_found(repository_id))
 
     def __api_request(self, method, path, headers=None, params=None, data=None):
         if headers is None:
@@ -68,9 +90,8 @@ class GitLab(object):
             'description': args["description"]
         })
 
-    # 用project_id查詢單一project
-    def gl_get_project(self, project_id):
-        return self.__getattribute__('/projects/{0}'.format(project_id))
+    def gl_get_project(self, repo_id):
+        return self.__api_get('/projects/{0}'.format(repo_id))
 
     def gl_update_project(self, repo_id, description):
         params = {'description': description}
@@ -184,6 +205,192 @@ class GitLab(object):
             return util.respond(output.status_code, "Error while creating branch.",
                                 error=apiError.gitlab_error(output))
 
+    def gl_get_branch(self, repo_id, branch):
+        output = self.__api_get('/projects/{0}/repository/branches/{1}'.format(
+            repo_id, branch))
+        if output.status_code == 200:
+            return util.success(output.json())
+        else:
+            return util.respond(output.status_code, "Error when getting gitlab branch.",
+                                error=apiError.gitlab_error(output))
+
+    def gl_delete_branch(self, project_id, branch):
+        output = self.__api_delete('/projects/{0}/repository/branches/{1}'.format(
+            project_id, branch))
+        if output.status_code == 204:
+            return util.success()
+        else:
+            return util.respond(output.status_code, "Error when deleting gitlab branch.",
+                                error=apiError.gitlab_error(output))
+
+    def gl_get_repository_tree(self, repo_id, branch):
+        output = self.__api_get('/projects/{0}/repository/tree'.format(repo_id),
+                                params={'ref': branch})
+        if output.status_code == 200:
+            return util.success({"file_list": output.json()})
+        else:
+            return util.respond(output.status_code, "Error when deleting gitlab branch.",
+                                error=apiError.gitlab_error(output))
+
+    def __edit_file_exec(self, method, repo_id, args):
+        path = '/projects/{0}/repository/files/{1}'.format(repo_id, args['file_path'])
+        params = {}
+        keys = ['branch', 'start_branch', 'encoding', 'author_email', 'author_name',
+                'content', 'commit_message']
+        for k in keys:
+            params[k] = args[k]
+
+        if method.upper() == 'POST':
+            output = self.__api_post(path, params=params)
+        elif method.upper() == 'PUT':
+            output = self.__api_put(path, params=params)
+        else:
+            return util.respond(500, 'Only accept POST and PUT.',
+                                error=apiError.unknown_method(method))
+
+        if output.status_code == 201:
+            return util.success({
+                "file_path": output.json()["file_path"],
+                "branch_name": output.json()["branch"]})
+        else:
+            return util.respond(output.status_code, "Error when adding gitlab file.",
+                                error=apiError.gitlab_error(output))
+
+    def gl_add_file(self, repo_id, args):
+        return self.__edit_file_exec('POST', repo_id, args)
+
+    def gl_update_file(self, repo_id, args):
+        return self.__edit_file_exec('PUT', repo_id, args)
+
+    def gl_get_file(self, repo_id, branch, file_path):
+        output = self.__api_get('/projects/{0}/repository/files/{1}'.format(
+            repo_id, file_path
+        ), params={'ref': branch})
+        if output.status_code == 200:
+            return util.success({
+                "file_name": output.json()["file_name"],
+                "file_path": output.json()["file_path"],
+                "size": output.json()["size"],
+                "encoding": output.json()["encoding"],
+                "content": output.json()["content"],
+                "content_sha256": output.json()["content_sha256"],
+                "ref": output.json()["ref"],
+                "last_commit_id": output.json()["last_commit_id"]
+            })
+        else:
+            return util.respond(output.status_code, "Error when getting gitlab file.",
+                                error=apiError.gitlab_error(output))
+
+    def gl_delete_file(self, repo_id, branch, file_path, args):
+        output = self.__api_delete('/projects/{0}/repository/files/{1}'.format(
+            repo_id, file_path), params={
+            'branch': branch,
+            'commit_message': args['commit_message']
+        })
+        if output.status_code == 204:
+            return util.success()
+        else:
+            return util.respond(output.status_code, "Error when deleting gitlab file.",
+                                error=apiError.gitlab_error(output))
+
+    def gl_create_tag(self, repo_id, args):
+        path = '/projects/{0}/repository/tags'.format(repo_id)
+        params = {}
+        keys = ['tag_name', 'ref', 'message', 'release_description']
+        for k in keys:
+            params[k] = args[k]
+        output = self.__api_post(path, params=params)
+        if output.status_code == 201:
+            return util.success(output.json())
+        else:
+            return util.respond(output.status_code, "Error when deleting gitlab file.",
+                                error=apiError.gitlab_error(output))
+
+    def gl_delete_tag(self, repo_id, tag_name):
+        output = self.__api_delete('/projects/{0}/repository/tags/{1}'.format(
+            repo_id, tag_name))
+        if output.status_code == 204:
+            return util.success()
+        else:
+            return util.respond(output.status_code, "Error when deleting gitlab tag.",
+                                error=apiError.gitlab_error(output))
+
+    def gl_merge(self, repo_id, args):
+        # 新增merge request
+        path = '/projects/{0}/merge_requests'.format(repo_id)
+        params = {}
+        keys = ['source_branch', 'target_branch', 'title']
+        for k in keys:
+            params[k] = args[k]
+        output = self.__api_post(path, params=params)
+        if output.status_code != 201:
+            return util.respond(output.status_code, "Error when deleting gitlab tag.",
+                                error=apiError.gitlab_error(output))
+        merge_request_iid = output.json()["iid"]
+        output = self.__api_put('/projects/{0}/merge_requests/{1}/merge'.format(
+            repo_id, merge_request_iid))
+        if output.status_code == 200:
+            return util.success()
+        else:
+            # 刪除merge request
+            output_del = self.__api_delete('/projects/{0}/merge_requests/{1}'.format(
+                repo_id, merge_request_iid))
+            if output_del.status_code == 204:
+                return util.respond(400, "merge failed and already delete your merge request.",
+                                    error=apiError.gitlab_error(output))
+            else:
+                return util.respond(output.status_code, "Error when deleting pull request.",
+                                    error=apiError.gitlab_error(output_del))
+
+    def gl_get_commits(self, project_id, branch):
+        output = self.__api_get('/projects/{0}/repository/commits'.format(project_id),
+                                params={'ref_name': branch, 'per_page': 100})
+        if output.status_code == 200:
+            return util.success(output.json())
+        else:
+            return util.respond(output.status_code, "Error when getting commits.",
+                                error=apiError.gitlab_error(output))
+
+    # 用project_id查詢project的網路圖
+    def gl_get_network(self, repo_id):
+        branch_commit_list = []
+
+        # 整理各branches的commit_list
+        branches = self.gl_get_branches(repo_id)
+        if branches[1] / 100 != 2:
+            return branches
+        for branch in branches[0]["data"]["branch_list"]:
+            branch_commits = self.gl_get_commits(repo_id, branch["name"])
+            if branch_commits[1] / 100 != 2:
+                return branch_commits
+            for branch_commit in branch_commits[0]["data"]:
+                obj = {
+                    "id": branch_commit["id"],
+                    "title": branch_commit["title"],
+                    "message": branch_commit["message"],
+                    "author_name": branch_commit["author_name"],
+                    "committed_date": branch_commit["committed_date"],
+                    "parent_ids": branch_commit["parent_ids"],
+                    "branch_name": branch["name"],
+                    "tags": []
+                }
+                branch_commit_list.append(obj)
+
+        # 整理tags
+        tags = gitlab.gl_get_tags(repo_id)
+        if tags[1] / 100 != 2:
+            return tags
+        for tag in tags[0]["data"]["tag_list"]:
+            for commit in branch_commit_list:
+                if commit["id"] == tag["commit"]["id"]:
+                    commit["tags"].append(tag["name"])
+
+        data_by_time = sorted(branch_commit_list,
+                              reverse=False,
+                              key=lambda c_list: c_list["committed_date"])
+
+        return util.success(data_by_time)
+
 
 # --------------------- Resources ---------------------
 gitlab = GitLab()
@@ -201,3 +408,134 @@ class GitProjectBranches(Resource):
         parser.add_argument('ref', type=str, required=True)
         args = parser.parse_args()
         return gitlab.gl_create_branch(repository_id, args)
+
+
+class GitProjectBranch(Resource):
+    @jwt_required
+    def get(self, repository_id, branch_name):
+        project_id = repo_id_to_project_id(repository_id)
+        role.require_in_project(project_id)
+        return gitlab.gl_get_branch(repository_id, branch_name)
+
+    @jwt_required
+    def delete(self, repository_id, branch_name):
+        project_id = repo_id_to_project_id(repository_id)
+        role.require_in_project(project_id)
+        return gitlab.gl_delete_branch(repository_id, branch_name)
+
+
+class GitProjectRepositories(Resource):
+    @jwt_required
+    def get(self, repository_id, branch_name):
+        project_id = repo_id_to_project_id(repository_id)
+        role.require_in_project(project_id)
+        return gitlab.gl_get_repository_tree(repository_id, branch_name)
+
+
+class GitProjectFile(Resource):
+    @jwt_required
+    def post(self, repository_id):
+        project_id = repo_id_to_project_id(repository_id)
+        role.require_in_project(project_id)
+        parser = reqparse.RequestParser()
+        parser.add_argument('branch', type=str, required=True)
+        parser.add_argument('file_path', type=str, required=True)
+        parser.add_argument('start_branch', type=str)
+        parser.add_argument('author_email', type=str)
+        parser.add_argument('author_name', type=str)
+        parser.add_argument('encoding', type=str)
+        parser.add_argument('content', type=str, required=True)
+        parser.add_argument('commit_message', type=str, required=True)
+        args = parser.parse_args()
+        return gitlab.gl_add_file(repository_id, args)
+
+    @jwt_required
+    def put(self, repository_id):
+        project_id = repo_id_to_project_id(repository_id)
+        role.require_in_project(project_id)
+        parser = reqparse.RequestParser()
+        parser.add_argument('branch', type=str, required=True)
+        parser.add_argument('file_path', type=str, required=True)
+        parser.add_argument('start_branch', type=str)
+        parser.add_argument('author_email', type=str)
+        parser.add_argument('author_name', type=str)
+        parser.add_argument('encoding', type=str)
+        parser.add_argument('content', type=str, required=True)
+        parser.add_argument('commit_message', type=str, required=True)
+        args = parser.parse_args()
+        return gitlab.gl_update_file(repository_id, args)
+
+    @jwt_required
+    def get(self, repository_id, branch_name, file_path):
+        project_id = repo_id_to_project_id(repository_id)
+        role.require_in_project(project_id)
+        return gitlab.gl_get_file(repository_id, branch_name, file_path)
+
+    @jwt_required
+    def delete(self, repository_id, branch_name, file_path):
+        project_id = repo_id_to_project_id(repository_id)
+        role.require_in_project(project_id)
+        parser = reqparse.RequestParser()
+        parser.add_argument('commit_message', type=str, required=True)
+        args = parser.parse_args()
+        return gitlab.gl_delete_file(repository_id, branch_name, file_path, args)
+
+
+class GitProjectTag(Resource):
+    @jwt_required
+    def get(self, repository_id):
+        project_id = repo_id_to_project_id(repository_id)
+        role.require_in_project(project_id)
+        return gitlab.gl_get_tags(repository_id)
+
+    @jwt_required
+    def post(self, repository_id):
+        project_id = repo_id_to_project_id(repository_id)
+        role.require_in_project(project_id)
+        parser = reqparse.RequestParser()
+        parser.add_argument('tag_name', type=str, required=True)
+        parser.add_argument('ref', type=str, required=True)
+        parser.add_argument('message', type=str)
+        parser.add_argument('release_description', type=str)
+        args = parser.parse_args()
+        return gitlab.gl_create_tag(project_id, args)
+
+    @jwt_required
+    def delete(self, repository_id, tag_name):
+        project_id = repo_id_to_project_id(repository_id)
+        role.require_in_project(project_id)
+        return gitlab.gl_delete_tag(repository_id, tag_name)
+
+
+class GitProjectMergeBranch(Resource):
+    @jwt_required
+    def post(self, repository_id):
+        project_id = repo_id_to_project_id(repository_id)
+        role.require_in_project(project_id)
+        parser = reqparse.RequestParser()
+        parser.add_argument('schemas', type=dict, required=True)
+        args = parser.parse_args()["schemas"]
+        return gitlab.gl_merge(repository_id, args)
+
+
+class GitProjectBranchCommits(Resource):
+    @jwt_required
+    def get(self, repository_id):
+        project_id = repo_id_to_project_id(repository_id)
+        role.require_in_project(project_id)
+        parser = reqparse.RequestParser()
+        parser.add_argument('branch', type=str, required=True)
+        args = parser.parse_args()
+        return gitlab.gl_get_commits(repository_id, args['branch'])
+
+
+class GitProjectNetwork(Resource):
+    @jwt_required
+    def get(self, repository_id):
+        return gitlab.gl_get_network(repository_id)
+
+
+class GitProjectId(Resource):
+    @jwt_required
+    def get(self, repository_id):
+        return GitLab.gl_get_project_id(repository_id)
