@@ -3,11 +3,8 @@ from urllib.parse import urlparse
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
 
-import resources.testCase as testCase
-import resources.testItem as testItem
-import resources.testValue as testValue
 import resources.util as util
-from resources import role, testResult
+from resources import role, apiTest
 
 
 # noinspection PyTypeChecker
@@ -22,13 +19,13 @@ def export_to_postman(project_id, target):
         'item': []
     }
 
-    cases = testCase.get_testcase_by_project_id(project_id)
+    cases = apiTest.get_testcase_by_project_id(project_id)
     for case in cases:
         case_id = case['id']
         method = case['data']['method']
         path = case['data']['url']
         url = urlparse(target + path)
-        items = testItem.get_testItem_by_testCase_id(case_id)
+        items = apiTest.get_testItem_by_testCase_id(case_id)
         for item in items:
             item_id = item['id']
             o_item = {'name': '{0}-{1}'.format(case_id, item_id)}
@@ -133,7 +130,7 @@ class ExportToPostman(Resource):
 class PostmanReport(Resource):
     @jwt_required
     def get(self, project_id):
-        return testResult.get_report(project_id)
+        return apiTest.get_report(project_id)
 
     @jwt_required
     def post(self):
@@ -144,5 +141,5 @@ class PostmanReport(Resource):
         parser.add_argument('branch', type=str, required=True)
         parser.add_argument('report', type=str, required=True)
         args = parser.parse_args()
-        output = testResult.save(args)
+        output = apiTest.save_test_result(args)
         return output
