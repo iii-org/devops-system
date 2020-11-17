@@ -18,6 +18,7 @@ from resources.logger import logger
 httpType = {"1": "request", "2": "response"}
 httpMethod = {"1": "GET", "2": "POST", "3": "PUT", "4": "DELETE"}
 httpLocation = {"1": "header", "2": "body"}
+flow_type = {"0": "Given", "1": "When", "2": "Then", "3": "But", "4": "And"}
 
 
 def get_param_type():
@@ -122,9 +123,6 @@ def get_parameter_types():
         temp = {"parameter_type_id": key, "name": para_type[key]}
         output.append(temp)
     return output
-
-
-flow_type = {"0": "Given", "1": "When", "2": "Then", "3": "But", "4": "And"}
 
 
 def get_flow_support_type():
