@@ -17,6 +17,7 @@ class Redmine:
     def __init__(self):
         self.key_generated = 0.0
         self.last_operator_id = None
+        self.redmine_key = None
 
     def __api_request(self, method, path, headers=None, params=None, data=None,
                       operator_id=None, resp_format='.json'):
