@@ -30,7 +30,12 @@ class Wiki(object):
         wiki_list, status_code = self.redmine.rm_get_wiki(
             project_plugin_relation['plan_project_id'], wiki_name)
         if status_code == 200:
-            return util.success(wiki_list.json())
+            wiki_detail = wiki_list.json()
+            if 'author' in wiki_detail['wiki_page']:
+                userInfo = User.get_user_id_name_by_plan_user_id(wiki_detail['wiki_page']['author']['id'])
+                if userInfo is not None:
+                    wiki_detail['wiki_page']['author'] = {'id': userInfo['id'], 'name': userInfo['name']}
+            return util.success(wiki_detail)
         else:
             return util.respond(status_code, "Error when getting redmine wiki.",
                                 error=apiError.redmine_error(wiki_list))
