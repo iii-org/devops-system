@@ -1,12 +1,12 @@
 stages:
-  - name: build sonarqube runner image
-    steps:
-    - publishImageConfig:
-        dockerfilePath: ./build/sonarqube/sonar-runner/Dockerfile
-        buildContext: .
-        tag: devops-sonarrunner:${CICD_EXECUTION_SEQUENCE}
-    - applyYamlConfig:
-        path: ./build/sonarqube/sonar-runner/k8s-yaml/sonar-runner-deployment.yaml
+#  - name: build sonarqube runner image
+#    steps:
+#    - publishImageConfig:
+#        dockerfilePath: ./build/sonarqube/sonar-runner/Dockerfile
+#        buildContext: .
+#        tag: devops-sonarrunner:${CICD_EXECUTION_SEQUENCE}
+#    - applyYamlConfig:
+#        path: ./build/sonarqube/sonar-runner/k8s-yaml/sonar-runner-deployment.yaml
   - name: Publish flask image
     steps:
     - publishImageConfig:
