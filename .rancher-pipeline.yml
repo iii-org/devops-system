@@ -19,7 +19,7 @@ stages:
         buildContext: .
         tag: iiidevops-api:${CICD_GIT_BRANCH}-${CICD_GIT_COMMIT}
       env:
-        PLUGIN_MTU: 1000
+        PLUGIN_MTU: 1450
 
   - name: deploy iiidevops-api environment
     steps:
