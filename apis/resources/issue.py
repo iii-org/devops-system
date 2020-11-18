@@ -77,7 +77,7 @@ def deal_with_issue_by_user_redmine_output(redmine_output):
     if 'assigned_to' in redmine_output:
         user_info = user.get_user_id_name_by_plan_user_id(redmine_output['assigned_to']['id'])
         if user_info is not None:
-            output_list['assigned_to'] = user_info['name']
+            output_list['assigned_to'] = user_info.name
     output_list['parent_id'] = None
     if 'parent' in redmine_output:
         output_list['parent_id'] = redmine_output['parent']['id']
@@ -105,11 +105,11 @@ def __deal_with_issue_redmine_output(redmine_output):
     if 'assigned_to' in redmine_output:
         user_info = user.get_user_id_name_by_plan_user_id(redmine_output['assigned_to']['id'])
         if user_info is not None:
-            redmine_output['assigned_to'] = {'id': user_info['id'], 'name': user_info['name']}
+            redmine_output['assigned_to'] = {'id': user_info.id, 'name': user_info.name}
     if 'author' in redmine_output:
         user_info = user.get_user_id_name_by_plan_user_id(redmine_output['author']['id'])
         if user_info is not None:
-            redmine_output['author'] = {'id': user_info['id'], 'name': user_info['name']}
+            redmine_output['author'] = {'id': user_info.id, 'name': user_info.name}
     redmine_output.pop('is_private', None)
     redmine_output.pop('total_estimated_hours', None)
     redmine_output.pop('spent_hours', None)
@@ -129,9 +129,11 @@ def __deal_with_issue_redmine_output(redmine_output):
                 del redmine_output['journals'][i]
             else:
                 if 'user' in redmine_output['journals'][i]:
-                    user_info = user.get_user_id_name_by_plan_user_id(redmine_output['journals'][i]['user']['id'])
+                    user_info = user.get_user_id_name_by_plan_user_id(
+                        redmine_output['journals'][i]['user']['id'])
                     if user_info is not None:
-                        redmine_output['journals'][i]['user'] = {'id': user_info['id'], 'name': user_info['name']}
+                        redmine_output['journals'][i]['user'] = {
+                            'id': user_info.id, 'name': user_info.name}
                 redmine_output['journals'][i].pop('id', None)
                 redmine_output['journals'][i].pop('private_notes', None)
                 i += 1
@@ -184,7 +186,7 @@ def create_issue(args, operator_id):
     args['project_id'] = project_plugin_relation['plan_project_id']
     if "assigned_to_id" in args:
         user_plugin_relation = user.get_user_plugin_relation(user_id=args['assigned_to_id'])
-        args['assigned_to_id'] = user_plugin_relation['plan_user_id']
+        args['assigned_to_id'] = user_plugin_relation.plan_user_id
 
     attachment = redmine.rm_upload(args)
     if attachment is not None:
@@ -193,7 +195,7 @@ def create_issue(args, operator_id):
     plan_operator_id = None
     if operator_id is not None:
         operator_plugin_relation = user.get_user_plugin_relation(user_id=operator_id)
-        plan_operator_id = operator_plugin_relation['plan_user_id']
+        plan_operator_id = operator_plugin_relation.plan_user_id
     output, status_code = redmine.rm_create_issue(args, plan_operator_id)
     if status_code == 201:
         return util.success({"issue_id": output.json()["issue"]["id"]})
@@ -208,7 +210,7 @@ def update_issue(issue_id, args, operator_id):
         args.pop('parent_id', None)
     if "assigned_to_id" in args:
         user_plugin_relation = user.get_user_plugin_relation(user_id=args['assigned_to_id'])
-        args['assigned_to_id'] = user_plugin_relation['plan_user_id']
+        args['assigned_to_id'] = user_plugin_relation.plan_user_id
 
     attachment = redmine.rm_upload(args)
     if attachment is not None:
@@ -216,7 +218,7 @@ def update_issue(issue_id, args, operator_id):
     plan_operator_id = None
     if operator_id is not None:
         operator_plugin_relation = user.get_user_plugin_relation(user_id=operator_id)
-        plan_operator_id = operator_plugin_relation['plan_user_id']
+        plan_operator_id = operator_plugin_relation.plan_user_id
     output, status_code = redmine.rm_update_issue(issue_id, args, plan_operator_id)
     if status_code == 204:
         return util.success()
@@ -482,7 +484,7 @@ def get_issue_statistics(args, user_id):
         args["due_date"] = ">=".format(args["from_time"])
     user_plugin_relation = user.get_user_plugin_relation(user_id=user_id)
     if user_plugin_relation is not None:
-        args["assigned_to_id"] = user_plugin_relation['plan_user_id']
+        args["assigned_to_id"] = user_plugin_relation.plan_user_id
     redmine_output, status_code = redmine.rm_get_statistics(args)
     if status_code != 200:
         return util.respond(status_code, "Error when getting issue statistics",
@@ -494,7 +496,7 @@ def get_open_issue_statistics(user_id):
     args = {'limit': 100}
     user_plugin_relation = user.get_user_plugin_relation(user_id=user_id)
     if user_plugin_relation is not None:
-        args["assigned_to_id"] = user_plugin_relation['plan_user_id']
+        args["assigned_to_id"] = user_plugin_relation.plan_user_id
     args['status_id'] = '*'
     total_issue_output, status_code = redmine.rm_get_statistics(args)
     if status_code != 200:
@@ -529,7 +531,7 @@ def get_issue_statistics_in_period(period, user_id):
     args = {"due_date": "><{0}|{1}".format(from_time, to_time)}
     user_plugin_relation = user.get_user_plugin_relation(user_id=user_id)
     if user_plugin_relation is not None:
-        args["assigned_to_id"] = user_plugin_relation['plan_user_id']
+        args["assigned_to_id"] = user_plugin_relation.plan_user_id
 
     args['status_id'] = '*'
     redmine_output, status_code = redmine.rm_get_statistics(args)

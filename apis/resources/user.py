@@ -4,6 +4,7 @@ import re
 from Cryptodome.Hash import SHA256
 from flask_jwt_extended import (create_access_token, JWTManager, jwt_required)
 from flask_restful import Resource, reqparse
+from sqlalchemy.orm.exc import NoResultFound
 
 import resources.apiError as apiError
 import resources.util as util
@@ -32,8 +33,8 @@ def get_3pt_user_ids(user_id, message):
     if user_relation is None:
         return util.respond(400, message,
                             error=apiError.user_not_found(user_id)), None, None
-    redmine_user_id = user_relation['plan_user_id']
-    gitlab_user_id = user_relation['repository_user_id']
+    redmine_user_id = user_relation.plan_user_id
+    gitlab_user_id = user_relation.repository_user_id
     if redmine_user_id is None:
         return util.respond(500, message,
                             error=apiError.db_error(
@@ -46,32 +47,28 @@ def get_3pt_user_ids(user_id, message):
 
 
 def get_user_id_name_by_plan_user_id(plan_user_id):
-
-    command = db.select([UserPluginRelation.stru_user_plug_relation,
-                         UserModel.stru_user]).where(
-        db.and_(
-            UserPluginRelation.stru_user_plug_relation.c.plan_user_id == plan_user_id,
-            UserPluginRelation.stru_user_plug_relation.c.user_id == UserModel.stru_user.c.id))
-    return util.call_sqlalchemy(command).fetchone()
+    return db.session.query(model.User.id, model.User.name).filter(
+        model.UserPluginRelation.plan_user_id == plan_user_id,
+        model.UserPluginRelation.user_id == model.User.id
+    ).first()
 
 
 def get_role_id(user_id):
-    get_rl_cmd = db.select([ProjectUserRole.stru_project_user_role]).where(db.and_(
-        ProjectUserRole.stru_project_user_role.c.user_id == user_id))
-    get_role_out = util.call_sqlalchemy(get_rl_cmd).fetchone()
-    if get_role_out is not None:
-        role_id = get_role_out['role_id']
-        return role_id
+    row = model.ProjectUserRole.query.filter_by(user_id=user_id).first()
+    if row is not None:
+        return row.role_id
     else:
         return util.respond(404, 'Error while getting role id',
                             error=apiError.user_not_found(user_id))
 
 
 def to_redmine_role_id(role_id):
-    command = db.select([TableRolesPluginRelation.stru_rolerelation]).where(
-        db.and_(TableRolesPluginRelation.stru_rolerelation.c.role_id == role_id))
-    ret_msg = util.call_sqlalchemy(command).fetchone()
-    return ret_msg['plan_role_id']
+    if role_id == role.RD.id:
+        return 3
+    elif role_id == role.PM.id:
+        return 4
+    else:
+        return 4
 
 
 def login(args):
@@ -204,16 +201,15 @@ def update_info(user_id, args):
 
 def update_external_passwords(user_id, new_pwd):
     user_relation = get_user_plugin_relation(user_id=user_id)
-    logger.debug("user_relation_list: {0}".format(user_relation))
     if user_relation is None:
         return util.respond(400, 'Error when updating password',
                             error=apiError.user_not_found(user_id))
-    redmine_user_id = user_relation['plan_user_id']
+    redmine_user_id = user_relation.plan_user_id
     err = redmine.rm_update_password(redmine_user_id, new_pwd)
     if err is not None:
         return err
 
-    gitlab_user_id = user_relation['repository_user_id']
+    gitlab_user_id = user_relation.repository_user_id
     err = gitlab.gl_update_password(gitlab_user_id, new_pwd)
     if err is not None:
         return err
@@ -258,13 +254,15 @@ def change_user_status(user_id, args):
         disabled = False
     elif args["status"] == "disable":
         disabled = True
-    update_user_to_disable_command = db.update(UserModel.stru_user).where(
-        db.and_(UserModel.stru_user.c.id == user_id)).values(
-        update_at=datetime.datetime.now(), disabled=disabled)
-    ret_msg = util.call_sqlalchemy(update_user_to_disable_command)
-    logger.info("update_user_to_disable_command: {0}; ret_msg: {1}".format(
-        update_user_to_disable_command, ret_msg))
-    return {'message': 'success'}, 200
+    try:
+        user = model.User.query.filter_by(id=user_id).one()
+        user.update_at = datetime.datetime.now()
+        user.disabled = disabled
+        db.session.commit()
+        return util.success()
+    except NoResultFound:
+        return util.respond(404, 'Error when change user status.',
+                            error=apiError.user_not_found(user_id))
 
 
 def create_user(args):
@@ -282,12 +280,11 @@ def create_user(args):
                             error=apiError.invalid_user_password())
 
     # Check DB has this login, email, if has, return error
-    check_email_login_command = db.select([UserModel.stru_user]).where(
-        db.or_(UserModel.stru_user.c.login == args['login'],
-               UserModel.stru_user.c.email == args['email']))
-    ret_msg = util.call_sqlalchemy(check_email_login_command)
-    user_info = ret_msg.fetchone()
-    if user_info is not None:
+    check_count = model.User.query.filter(db.or_(
+        model.User.login == args['login'],
+        model.User.email == args['email'],
+    )).count()
+    if check_count > 0:
         return util.respond(422, "System already has this account or email.",
                             error=apiError.already_used())
     offset = 0
@@ -345,7 +342,7 @@ def create_user(args):
     disabled = False
     if args['status'] == "disable":
         disabled = True
-    insert_user_command = db.insert(UserModel.stru_user).values(
+    user = model.User(
         name=args['name'],
         email=args['email'],
         phone=args['phone'],
@@ -353,52 +350,48 @@ def create_user(args):
         password=h.hexdigest(),
         create_at=datetime.datetime.now(),
         disabled=disabled)
+    db.session.add(user)
+    db.session.commit()
 
-    util.call_sqlalchemy(insert_user_command)
-
-    # get user_id
-    get_user_command = db.select([UserModel.stru_user]).where(
-        db.and_(UserModel.stru_user.c.login == args['login']))
-    ret_msg = util.call_sqlalchemy(get_user_command)
-    user_id = ret_msg.fetchone()['id']
+    user_id = user.id
 
     # insert user_plugin_relation table
-    insert_user_plugin_relation_command = db.insert(
-        UserPluginRelation.stru_user_plug_relation
-    ).values(
-        user_id=user_id, plan_user_id=redmine_user_id,
-        repository_user_id=gitlab_user_id
-    )
-    util.call_sqlalchemy(insert_user_plugin_relation_command)
+    rel = model.UserPluginRelation(user_id=user_id,
+                                   plan_user_id=redmine_user_id,
+                                   repository_user_id=gitlab_user_id)
+    db.session.add(rel)
+    db.session.commit()
 
     # insert project_user_role
-    insert_project_user_role_command = db.insert(
-        ProjectUserRole.stru_project_user_role).values(
-        project_id=-1, user_id=user_id, role_id=args['role_id'])
-    util.call_sqlalchemy(insert_project_user_role_command)
+    rol = model.ProjectUserRole(project_id=-1, user_id=user_id, role_id=args['role_id'])
+    db.session.add(rol)
+    db.session.commit()
 
     return util.success({"user_id": user_id})
 
 
-def get_user_plugin_relation(user_id=None, plan_user_id=None, repository_user_id=None):
+def get_user_plugin_relation(user_id=None, plan_user_id=None, gitlab_user_id=None):
     if plan_user_id is not None:
-        get_user_plugin_relation_command = db.select(
-            [UserPluginRelation.stru_user_plug_relation]).where(
-            db.and_(
-                UserPluginRelation.stru_user_plug_relation.c.plan_user_id == plan_user_id))
-    elif repository_user_id is not None:
-        get_user_plugin_relation_command = db.select(
-            [UserPluginRelation.stru_user_plug_relation]).where(
-            db.and_(
-                UserPluginRelation.stru_user_plug_relation.c.repository_user_id == repository_user_id))
+        try:
+            return model.UserPluginRelation.query.filter_by(
+                plan_user_id=plan_user_id).one()
+        except NoResultFound:
+            return util.respond(404, 'User with redmine id {0} does not exist in redmine.',
+                                error=apiError.user_not_found(plan_user_id))
+    elif gitlab_user_id is not None:
+        try:
+            return model.UserPluginRelation.query.filter_by(
+                repository_user_id=gitlab_user_id).one()
+        except NoResultFound:
+            return util.respond(404, 'User with gitlab id {0} does not exist in gitlab.',
+                                error=apiError.user_not_found(gitlab_user_id))
     else:
-        get_user_plugin_relation_command = db.select(
-            [UserPluginRelation.stru_user_plug_relation]).where(
-            db.and_(
-                UserPluginRelation.stru_user_plug_relation.c.user_id == user_id))
-    ret_msg = db.engine.execute(get_user_plugin_relation_command)
-    user_plugin_relation = ret_msg.fetchone()
-    return user_plugin_relation
+        try:
+            return model.UserPluginRelation.query.filter_by(
+                user_id=user_id).one()
+        except NoResultFound:
+            return util.respond(404, 'User with id {0} does not exist.',
+                                error=apiError.user_not_found(user_id))
 
 
 def user_list():
@@ -421,6 +414,7 @@ def user_list():
                             error=apiError.db_error('Cannot query user list'))
     output_array = []
     for user_data in user_data_array:
+
         select_project_by_userid = db.select(
             [ProjectUserRole.stru_project_user_role,
              TableProjects.stru_projects]).where(
