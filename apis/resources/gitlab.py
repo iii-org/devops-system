@@ -14,7 +14,7 @@ from resources.logger import logger
 def repo_id_to_project_id(repo_id):
     result = db.engine.execute(
         "SELECT project_id FROM public.project_plugin_relation"
-        " WHERE git_repository_id = '{0}'".format(repo_id))
+        " WHERE git_repository_id='{0}'".format(repo_id))
     project_relation = result.fetchone()
     result.close()
     if project_relation:

@@ -1,95 +1,96 @@
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import Column, Integer, String, Boolean, DateTime
 
 db = SQLAlchemy()
 
 
-class User():
-    meta = db.MetaData()
-    stru_user = db.Table(
-        'user', meta,
-        db.Column('id', db.Integer, primary_key=True, nullable=True),
-        db.Column('name', db.String(255)), db.Column('email', db.String(255)),
-        db.Column('phone', db.String(40)), db.Column('login', db.String(255)),
-        db.Column('password', db.String(255)),
-        db.Column('create_at', db.DATETIME(255)),
-        db.Column('update_at', db.DATETIME(255)),
-        db.Column('disabled', db.Boolean))
+class User(db.Model):
+    id = Column(Integer, primary_key=True)
+    name = Column(String(45))
+    email = Column(String(45))
+    phone = Column(String(40))
+    login = Column(String(45))
+    password = Column(String(100))
+    create_at = Column(DateTime)
+    update_at = Column(DateTime)
+    disabled = Column(Boolean)
+
+    def __repr__(self):
+        return '<User (id={0}, name={1}, login={2})>'.format(self.id, self.name, self.login)
 
 
-class UserPluginRelation():
-    meta = db.MetaData()
-    stru_user_plug_relation = db.Table(
-        'user_plugin_relation', meta, db.Column('user_id', db.Integer),
-        db.Column('plan_user_id', db.Integer),
-        db.Column('repository_user_id', db.Integer))
+class UserPluginRelation(db.Model):
+    user_id = Column(Integer, primary_key=True)
+    plan_user_id = Column(Integer)
+    repository_user_id = Column(Integer)
 
 
 class ProjectPluginRelation():
     meta = db.MetaData()
     stru_project_plug_relation = db.Table(
-        'project_plugin_relation', meta, db.Column('project_id', db.Integer),
-        db.Column('plan_project_id', db.Integer),
-        db.Column('git_repository_id', db.Integer),
-        db.Column('ci_project_id', db.String),
-        db.Column('ci_pipeline_id', db.String))
+        'project_plugin_relation', meta, Column('project_id', db.Integer),
+        Column('plan_project_id', db.Integer),
+        Column('git_repository_id', db.Integer),
+        Column('ci_project_id', db.String),
+        Column('ci_pipeline_id', db.String))
 
 
 class GroupsHasUsers():
     meta = db.MetaData()
     stru_groups_has_users = db.Table(
         'groups_has_users', meta,
-        db.Column('group_id', db.Integer, nullable=True),
-        db.Column('user_id', db.Integer, nullable=True))
+        Column('group_id', db.Integer, nullable=True),
+        Column('user_id', db.Integer, nullable=True))
 
 
 class TableGroup():
     meta = db.MetaData()
     stru_group = db.Table('group', meta,
-                          db.Column('id', db.Integer, nullable=True),
-                          db.Column('name', db.String, nullable=True))
+                          Column('id', db.Integer, nullable=True),
+                          Column('name', db.String, nullable=True))
 
 
 class ProjectUserRole():
     meta = db.MetaData()
     stru_project_user_role = db.Table('project_user_role', meta,
-                                      db.Column('project_id', db.Integer),
-                                      db.Column('user_id', db.Integer),
-                                      db.Column('role_id', db.Integer))
+                                      Column('project_id', db.Integer),
+                                      Column('user_id', db.Integer),
+                                      Column('role_id', db.Integer))
 
 
 class TableProjects():
     meta = db.MetaData()
     stru_projects = db.Table('projects', meta,
-                             db.Column('id', db.Integer),
-                             db.Column('name', db.String),
-                             db.Column('display', db.String))
+                             Column('id', db.Integer),
+                             Column('name', db.String),
+                             Column('display', db.String))
 
 
 class TableRequirement():
     meta = db.MetaData()
     stru_rqmt = db.Table('requirements', meta,
-                         db.Column('id', db.Integer, primary_key=True),
-                         db.Column('project_id', db.Integer),
-                         db.Column('issue_id', db.Integer),
-                         db.Column('flow_info', db.TEXT),
-                         db.Column('create_at', db.DATETIME(255)),
-                         db.Column('update_at', db.DATETIME(255)),
-                         db.Column('disabled', db.Boolean))
+                         Column('id', db.Integer, primary_key=True),
+                         Column('project_id', db.Integer),
+                         Column('issue_id', db.Integer),
+                         Column('flow_info', db.TEXT),
+                         Column('create_at', db.DATETIME(255)),
+                         Column('update_at', db.DATETIME(255)),
+                         Column('disabled', db.Boolean))
 
 class TableFlow():
     meta = db.MetaData()
     stru_flow = db.Table('flows', meta,
-                         db.Column('id', db.Integer, primary_key=True),
-                         db.Column('project_id', db.Integer),
-                         db.Column('issue_id', db.Integer),
-                         db.Column('requirement_id', db.Integer),
-                         db.Column('type_id', db.Integer),
-                         db.Column('name', db.String),
-                         db.Column('description', db.String),
-                         db.Column('serial_id',db.Integer),
-                         db.Column('create_at', db.DATETIME(255)),
-                         db.Column('update_at', db.DATETIME(255)),
-                         db.Column('disabled', db.Boolean))
+                         Column('id', db.Integer, primary_key=True),
+                         Column('project_id', db.Integer),
+                         Column('issue_id', db.Integer),
+                         Column('requirement_id', db.Integer),
+                         Column('type_id', db.Integer),
+                         Column('name', db.String),
+                         Column('description', db.String),
+                         Column('serial_id',db.Integer),
+                         Column('create_at', db.DATETIME(255)),
+                         Column('update_at', db.DATETIME(255)),
+                         Column('disabled', db.Boolean))
 
 
 class TableTestCase():
@@ -97,16 +98,16 @@ class TableTestCase():
     stru_testCase = db.Table(
         'test_cases',
         meta,
-        db.Column('id', db.Integer, primary_key=True),
-        db.Column('name', db.String(255)),
-        db.Column('description', db.String(255)),
-        # db.Column('url', db.String(255)),
-        # db.Column('http_request_method_id', db.Integer),
-        db.Column('issue_id', db.Integer),
-        db.Column('project_id', db.Integer),
-        db.Column('create_at', db.DATETIME(255)),
-        db.Column('update_at', db.DATETIME(255)),
-        db.Column('disabled', db.Boolean),
+        Column('id', db.Integer, primary_key=True),
+        Column('name', db.String(255)),
+        Column('description', db.String(255)),
+        # Column('url', db.String(255)),
+        # Column('http_request_method_id', db.Integer),
+        Column('issue_id', db.Integer),
+        Column('project_id', db.Integer),
+        Column('create_at', db.DATETIME(255)),
+        Column('update_at', db.DATETIME(255)),
+        Column('disabled', db.Boolean),
         # Stringified JSON like
         # {
         #  "type": "API",
@@ -114,15 +115,15 @@ class TableTestCase():
         #  "method": "POST",
         #  "method_id": "2"
         # }
-        db.Column('data', db.TEXT),
-        db.Column('type_id', db.Integer))
+        Column('data', db.TEXT),
+        Column('type_id', db.Integer))
 
 
 class TableCaseType():
     meta = db.MetaData()
     stru_tcType = db.Table('test_cases_type', meta,
-                           db.Column('id', db.Integer, primary_key=True),
-                           db.Column('name', db.String(50)))
+                           Column('id', db.Integer, primary_key=True),
+                           Column('name', db.String(50)))
 
 
 class TableTestItem():
@@ -130,89 +131,89 @@ class TableTestItem():
     stru_testItem = db.Table(
         'test_items',
         meta,
-        db.Column('id', db.Integer, primary_key=True),
-        db.Column('test_case_id', db.Integer),
-        db.Column('project_id', db.Integer),
-        db.Column('issue_id', db.Integer),
-        db.Column('name', db.String(255)),
-        db.Column('is_passed', db.Boolean),
-        # db.Column('value_id', db.Integer),
-        # db.Column('value_info', db.TEXT),
-        db.Column('create_at', db.DATETIME(255)),
-        db.Column('update_at', db.DATETIME(255)),
-        db.Column('disabled', db.Boolean))
+        Column('id', db.Integer, primary_key=True),
+        Column('test_case_id', db.Integer),
+        Column('project_id', db.Integer),
+        Column('issue_id', db.Integer),
+        Column('name', db.String(255)),
+        Column('is_passed', db.Boolean),
+        # Column('value_id', db.Integer),
+        # Column('value_info', db.TEXT),
+        Column('create_at', db.DATETIME(255)),
+        Column('update_at', db.DATETIME(255)),
+        Column('disabled', db.Boolean))
 
 
 class TableTestValue():
     meta = db.MetaData()
     stru_testValue = db.Table('test_values', meta,
-                              db.Column('id', db.Integer, primary_key=True),
-                              db.Column('type_id', db.Integer), # Request = 1, response = 2
-                              db.Column('key', db.String(255)),
-                              db.Column('value', db.Text),
-                              db.Column('location_id', db.Integer), # Header = 1, Body = 2
-                              db.Column('test_item_id', db.Integer),
-                              db.Column('test_case_id', db.Integer),
-                              db.Column('issue_id', db.Integer),
-                              db.Column('project_id', db.Integer),
-                              db.Column('create_at', db.DATETIME(255)),
-                              db.Column('update_at', db.DATETIME(255)),
-                              db.Column('disabled', db.Boolean))
+                              Column('id', db.Integer, primary_key=True),
+                              Column('type_id', db.Integer), # Request = 1, response = 2
+                              Column('key', db.String(255)),
+                              Column('value', db.Text),
+                              Column('location_id', db.Integer), # Header = 1, Body = 2
+                              Column('test_item_id', db.Integer),
+                              Column('test_case_id', db.Integer),
+                              Column('issue_id', db.Integer),
+                              Column('project_id', db.Integer),
+                              Column('create_at', db.DATETIME(255)),
+                              Column('update_at', db.DATETIME(255)),
+                              Column('disabled', db.Boolean))
 
 
 class TableTestResult:
     meta = db.MetaData()
     stru_testResult = db.Table('test_results', meta,
-                              db.Column('id', db.Integer, primary_key=True),
-                              db.Column('project_id', db.Integer),
-                              db.Column('branch', db.String(50)),
-                              db.Column('report', db.String),
-                              db.Column('total', db.Integer),
-                              db.Column('fail', db.Integer),
-                              db.Column('run_at', db.DATETIME(255))
+                              Column('id', db.Integer, primary_key=True),
+                              Column('project_id', db.Integer),
+                              Column('branch', db.String(50)),
+                              Column('report', db.String),
+                              Column('total', db.Integer),
+                              Column('fail', db.Integer),
+                              Column('run_at', db.DATETIME(255))
                                )
 
 
 class TableParameter():
     meta = db.MetaData()
     stru_param = db.Table('parameters', meta,
-                          db.Column('id', db.Integer, primary_key=True),
-                          db.Column('issue_id', db.Integer),
-                          db.Column('project_id', db.Integer),
-                          db.Column('parameter_type_id', db.Integer),
-                          db.Column('name', db.String(50)),
-                          db.Column('description', db.String(100)),
-                          db.Column('limitation', db.String(50)),
-                          db.Column('length', db.Integer),
-                          db.Column('create_at', db.DATETIME(255)),
-                          db.Column('update_at', db.DATETIME(255)),
-                          db.Column('disabled', db.Boolean))
+                          Column('id', db.Integer, primary_key=True),
+                          Column('issue_id', db.Integer),
+                          Column('project_id', db.Integer),
+                          Column('parameter_type_id', db.Integer),
+                          Column('name', db.String(50)),
+                          Column('description', db.String(100)),
+                          Column('limitation', db.String(50)),
+                          Column('length', db.Integer),
+                          Column('create_at', db.DATETIME(255)),
+                          Column('update_at', db.DATETIME(255)),
+                          Column('disabled', db.Boolean))
 
 
 class TableParameterType():
     meta = db.MetaData()
     stru_paramType = db.Table('parameter_types', meta,
-                              db.Column('id', db.Integer, primary_key=True),
-                              db.Column('type', db.String(50)))
+                              Column('id', db.Integer, primary_key=True),
+                              Column('type', db.String(50)))
 
 
 class TableRolesPluginRelation():
     meta = db.MetaData()
     stru_rolerelation = db.Table('roles_plugin_relation', meta,
-                                 db.Column('role_id', db.Integer),
-                                 db.Column('plan_role_id', db.Integer))
+                                 Column('role_id', db.Integer),
+                                 Column('plan_role_id', db.Integer))
 
 
 class TableCheckMarx:
     meta = db.MetaData()
     stru_checkmarx = db.Table('checkmarx', meta,
-                              db.Column('cm_project_id', db.Integer, primary_key=True),
-                              db.Column('repo_id', db.Integer),
-                              db.Column('scan_id', db.Integer),
+                              Column('cm_project_id', db.Integer, primary_key=True),
+                              Column('repo_id', db.Integer),
+                              Column('scan_id', db.Integer),
                               # -1 if report is not registered yet
-                              db.Column('report_id', db.Integer, default=-1),
+                              Column('report_id', db.Integer, default=-1),
                               # The time scan registered
-                              db.Column('run_at', db.DATETIME(255)),
-                              db.Column('finished_at', db.DATETIME(255)),
-                              db.Column('finished', db.DATETIME(255)),
+                              Column('run_at', db.DATETIME(255)),
+                              Column('finished_at', db.DATETIME(255)),
+                              Column('finished', db.DATETIME(255)),
                               )

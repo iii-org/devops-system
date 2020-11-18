@@ -8,6 +8,7 @@ from flask_restful import Resource, Api
 from werkzeug.routing import IntegerConverter
 
 import config
+import model
 import resources.apiError as apiError
 import resources.checkmarx as checkmarx
 import resources.pipeline as pipeline
@@ -203,5 +204,19 @@ api.add_resource(SystemGitCommitID, '/system_git_commit_id')
 
 if __name__ == "__main__":
     db.init_app(app)
+    db.app = app
     jsonwebtoken.init_app(app)
     app.run(host='0.0.0.0', port=10009, debug=(config.get('DEBUG') is True))
+
+
+def init_tables():
+    db.init_app(app)
+    db.app = app
+    # db.create_all()
+    jsonwebtoken.init_app(app)
+
+
+# To run from Python console to create tables
+if __name__ == 'api':
+    init_tables()
+
