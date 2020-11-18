@@ -18,7 +18,7 @@ stages:
         buildContext: .
         tag: iiidevops-api:${CICD_GIT_BRANCH}-${CICD_GIT_COMMIT}
 
-  - name: deploy flask-${CICD_GIT_BRANCH} environment
+  - name: deploy ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH} environment
     steps:
     - applyYamlConfig:
         path: ./k8s-yaml/devopsapi-deployment.yaml
