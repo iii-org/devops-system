@@ -1,19 +1,21 @@
 apiVersion: apps/v1 # for versions before 1.9.0 use apps/v1beta2
 kind: Deployment
 metadata:
-  name: devopsapi
+  name: ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: devopsapi
+      app: ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}
   template:
     metadata:
       labels:
-        app: devopsapi
+        app: ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}
     spec:
+      imagePullSecrets:
+      - name: pipeline-docker-registry
       containers:
       - name: devopsapi
-        image: iiiorg/devops-api:3f642ce-10121446
+        image: iiidevops-api:${CICD_GIT_BRANCH}-${CICD_GIT_COMMIT}
         ports:
         - containerPort: 10009
