@@ -1,214 +1,111 @@
-#!/usr/bin/python
 import json
-import subprocess
+import time
+from datetime import datetime
 
 import requests
-import sqlalchemy
-import time
-
 from flask_restful import reqparse
-from sqlalchemy import orm
 
+import resources.apiError as apiError
 from model import db
-from resources.error import Error
 
 
-class util(object):
-    def __init__(self):
-        pass
+def call_sqlalchemy(command):
+    return db.engine.execute(command)
 
-    def util_subProc(self, cmd):
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True)
-        output = proc.stdout.read()
-        return output
 
-    def util_subProc_noshell(self, cmd):
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=False)
-        output = proc.stdout.read()
-        return output
+def date_to_str(data):
+    if data is not None:
+        return data.isoformat()
+    else:
+        return None
 
-    def read_conf_file(self, file_location):
-        imageDetails = {}
-        with open(file_location) as f:
-            for line in f.readlines():
-                if "#" not in line and "=" in line:
-                    imageDetails[line.split("=")[0].strip(None)] = line.split(
-                        "=")[1].strip(None)
-        return imageDetails
 
-    def read_source_file(self, file_location):
-        imageDetails = {}
-        with open(file_location) as f:
-            for line in f.readlines():
-                if "#" not in line and "=" in line:
-                    imageDetails[line.split("=")[0].replace(
-                        "export", "").replace(
-                        "_",
-                        "").strip(None)] = line.split("=")[1].strip(None)
-        return imageDetails
+def is_dummy_project(project_id):
+    if type(project_id == str):
+        return int(project_id) == -1
+    else:
+        return project_id == -1
 
-    def callSQL(self, command, conf, logger):
-        reMessage = None
-        try:
-            Session = orm.sessionmaker(bind=db.engine)
-            session = Session()
-            commandText = sqlalchemy.text(command)
-            reMessage = session.execute(commandText)
-            session.close()
-        except Exception as e:
-            logger.build_error("Call SQL Fail messages: {0}".format(e))
 
-        return reMessage
-
-    @staticmethod
-    def callsqlalchemy(command, logger):
-        return db.engine.execute(command)
-
-    def callpostapi(self, url, parameter, logger, headers):
-        try:
-            logger.info("post url {0}".format(url))
-            # logger.info("post parameter {0}".format(parameter))
-            if headers is not None:
-                callapi = requests.post(url,
-                                        data=json.dumps(parameter),
-                                        headers=headers,
-                                        verify=False)
-            else:
-                callapi = requests.post(url,
-                                        data=json.dumps(parameter),
-                                        verify=False)
-            # logger.info("Post api parameter is : {0}".format(parameter))
-            logger.info("Post api status code is : {0}".format(
-                callapi.status_code))
-            # logger.debug("Post api waste time: {0}".format(
-            #    callapi.elapsed.total_seconds()))
-            # logger.info("Post api message is : {0}".format(callapi.text))
-            return callapi
-
-        except Exception as e:
-            logger.build_error("callpostapi error : {0}".format(e))
-            return e
-
-    def callputapi(self, url, parameter, logger, headers):
-        try:
-            logger.info("url {0}".format(url))
-            # logger.info("parameter {0}".format(parameter))
-
-            if headers is not None:
-                callapi = requests.put(url,
-                                       data=parameter,
-                                       headers=headers,
-                                       verify=False)
-            else:
-                callapi = requests.put(url, data=parameter, verify=False)
-            logger.info("Put api status code is : {0}".format(
-                callapi.status_code))
-            # logger.debug("Put api message is : {0}".format(callapi.text))
-            return callapi
-
-        except Exception as e:
-            logger.build_error("callpostapi error : {0}".format(e))
-            return e
-
-    def callgetapi(self, url, logger, headers):
-        try:
-            if headers is not None:
-                callapi = requests.get(url, headers=headers, verify=False)
-            else:
-                callapi = requests.get(url, verify=False)
-            logger.info("get api headers is : {0}".format(headers))
-            logger.info("get api status code is : {0}".format(
-                callapi.status_code))
-            # logger.debug("get api message is : {0}".format(callapi.text))
-            return callapi
-
-        except Exception as e:
-            logger.build_error("callgetapi error : {0}".format(e))
-            return e
-
-    def calldeleteapi(self, url, logger, headers):
-        try:
-            if headers is not None:
-                callapi = requests.delete(url, headers=headers, verify=False)
-            else:
-                callapi = requests.delete(url, verify=False)
-            logger.info("delete api headers is : {0}".format(headers))
-            logger.info("delete api status code is : {0}".format(
-                callapi.status_code))
-            # logger.debug("delete api message is : {0}".format(callapi.text))
-            return callapi
-
-        except Exception as e:
-            logger.build_error("calldeleteapi error : {0}".format(e))
-            return e
-
-    def jsonToStr(self, data):
-        return json.dumps(data, ensure_ascii=False, separators=(',', ':'))
-
-    def dateToStr(self, data):
-        if data is not None:
-            return data.isoformat()
-        else:
-            return None
-
-    @staticmethod
-    def is_dummy_project(project_id):
-        if type(project_id == str):
-            return int(project_id) == -1
-        else:
-            return project_id == -1
-
-    @staticmethod
-    # Return 200 and success message, can with data.
-    # If you need to return 201, 204 or other success, use util#respond.
-    def success(data=None):
-        if data is None:
-            return {'message': 'success'}, 200
+# Return 200 and success message, can with data.
+# If the data may contain date or other non-JSON-serializable objects, turn has_date_etc True.
+# If you need to return 201, 204 or other success, use #respond.
+def success(data=None, has_date_etc=False):
+    if data is None:
+        return {'message': 'success'}, 200
+    else:
+        if has_date_etc:
+            return {'message': 'success', 'data': json.loads(json.dumps(data, cls=DateEncoder))}, 200
         else:
             return {'message': 'success', 'data': data}, 200
 
-    @staticmethod
-    def respond(status_code, message=None, data=None, error=None):
-        if message is None:
-            return None, status_code
-        message_obj = {'message': message}
-        if data is not None:
-            if type(data) is dict:
-                message_obj['data'] = data
-            else:
-                try:
-                    message_obj['data'] = json.loads(data)
-                except ValueError or TypeError:
-                    message_obj['data'] = data
-        if error is not None:
-            message_obj['error'] = error
-        return message_obj, status_code
 
-    @staticmethod
-    def tick(last_time):
-        now = time.time()
-        print('%f seconds elapsed.' % (now - last_time))
-        return now
-
-    @staticmethod
-    def api_request(method, url, headers=None, params=None, data=None):
-        if method.upper() == 'GET':
-            return requests.get(url, headers=headers, params=params, verify=False)
-        elif method.upper() == 'POST':
-            if type(data) is dict or type(data) is reqparse.Namespace:
-                if 'Content-Type' not in headers:
-                    headers['Content-Type'] = 'application/json'
-                return requests.post(url, data=json.dumps(data), params=params,
-                                     headers=headers, verify=False)
-            else:
-                return requests.post(url, data=data, params=params,
-                                     headers=headers, verify=False)
-        elif method.upper() == 'PUT':
-            return requests.put(url, data=json.dumps(data), params=params,
-                                headers=headers, verify=False)
-        elif method.upper() == 'DELETE':
-            return requests.delete(url, headers=headers, params=params, verify=False)
+def respond(status_code, message=None, data=None, error=None):
+    if message is None:
+        return None, status_code
+    message_obj = {'message': message}
+    if data is not None:
+        if type(data) is dict:
+            message_obj['data'] = json.loads(json.dumps(data, cls=DateEncoder))
         else:
-            return util.respond(
-                500, 'Error while request {0} {1}'.format(method, url),
-                error=Error.unknown_method(method))
+            try:
+                message_obj['data'] = json.loads(data)
+            except ValueError or TypeError:
+                message_obj['data'] = data
+    if error is not None:
+        message_obj['error'] = error
+    return message_obj, status_code
+
+
+def respond_request_style(status_code, message=None, data=None, error=None):
+    ret = respond(status_code, message, data, error)
+    ret[0]['status_code'] = ret[1]
+    return ret[0]
+
+
+def respond_uncaught_exception(exception, message='An uncaught exception occurs:'):
+    return respond(500, message,
+                   error=apiError.uncaught_exception(exception))
+
+
+def respond_redmine_error(redmine_response, message):
+    return respond(redmine_response.status_code, message,
+                   error=apiError.redmine_error(redmine_response))
+
+
+class DateEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, datetime):
+            return str(obj)
+        else:
+            return json.JSONEncoder.default(self, obj)
+
+
+def tick(last_time):
+    now = time.time()
+    print('%f seconds elapsed.' % (now - last_time))
+    return now
+
+
+def api_request(method, url, headers=None, params=None, data=None):
+    body = data
+    if type(data) is dict or type(data) is reqparse.Namespace:
+        if 'Content-Type' not in headers:
+            headers['Content-Type'] = 'application/json'
+        if headers['Content-Type'] == 'application/json' and body is not None:
+            body = json.dumps(data)
+
+    if method.upper() == 'GET':
+        return requests.get(url, headers=headers, params=params, verify=False)
+    elif method.upper() == 'POST':
+        return requests.post(url, data=body, params=params,
+                             headers=headers, verify=False)
+    elif method.upper() == 'PUT':
+        return requests.put(url, data=body, params=params,
+                            headers=headers, verify=False)
+    elif method.upper() == 'DELETE':
+        return requests.delete(url, headers=headers, params=params, verify=False)
+    else:
+        return respond_request_style(
+            500, 'Error while request {0} {1}'.format(method, url),
+            error=apiError.unknown_method(method))

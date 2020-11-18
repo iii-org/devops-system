@@ -1,19 +1,22 @@
-from model import db
 import datetime
-import logging, config
+import time
+from io import BytesIO
+
 import requests
 from flask import send_file
-from io import BytesIO
-import time
+from flask_jwt_extended import jwt_required
+from flask_restful import Resource, reqparse
 
-logger = logging.getLogger('devops.api')
+import config
+from model import db
+
+
+def build_url(path):
+    return config.get('CHECKMARX_ORIGIN') + path
 
 
 class CheckMarx(object):
-    headers = {'Content-Type': 'application/json'}
-
-    def __init__(self, app):
-        self.app = app
+    def __init__(self):
         self.access_token = None
         self.expire_at = 0
 
@@ -22,11 +25,8 @@ class CheckMarx(object):
             self.login()
         return self.access_token
 
-    def build_url(self, path):
-        return config.get('CHECKMARX_ORIGIN') + path
-
     def login(self):
-        url = self.build_url('/auth/identity/connect/token')
+        url = build_url('/auth/identity/connect/token')
         data = {'userName': config.get('CHECKMARX_USERNAME'),
                 'password': config.get('CHECKMARX_PASSWORD'),
                 'grant_type': 'password',
@@ -37,29 +37,29 @@ class CheckMarx(object):
         self.access_token = requests.post(url, data).json().get('access_token')
         self.expire_at = time.time() + 43700  # 0.5 day
 
-    def get(self, path, headers=None):
+    def __api_get(self, path, headers=None):
         if headers is None:
             headers = {}
-        url = self.build_url(path)
+        url = build_url(path)
         headers['Authorization'] = 'Bearer ' + self.token()
         return requests.get(url, headers=headers, allow_redirects=True)
 
-    def post(self, path, data=None, headers=None):
+    def __api_post(self, path, data=None, headers=None):
         if data is None:
             data = {}
         if headers is None:
             headers = {}
-        url = self.build_url(path)
+        url = build_url(path)
         headers['Authorization'] = 'Bearer ' + self.token()
         return requests.post(url, headers=headers, data=data, allow_redirects=True)
 
-    def create_scan(self, args):
+    @staticmethod
+    def create_scan(args):
         try:
             db.engine.execute(
                 "INSERT INTO public.checkmarx "
                 "(cm_project_id, repo_id, scan_id, run_at) "
-                "VALUES ({0}, {1}, {2}, '{3}')"
-                    .format(
+                "VALUES ({0}, {1}, {2}, '{3}')".format(
                     args['cm_project_id'],
                     args['repo_id'],
                     args['scan_id'],
@@ -70,7 +70,7 @@ class CheckMarx(object):
             return {"message": "error", "data": e.__str__()}, 400
 
     def get_scan_status(self, scan_id):
-        status = self.get('/sast/scans/{0}'.format(scan_id)).json().get('status')
+        status = self.__api_get('/sast/scans/{0}'.format(scan_id)).json().get('status')
         return status.get('id'), status.get('name')
 
     def get_scan_status_wrapped(self, scan_id):
@@ -78,7 +78,7 @@ class CheckMarx(object):
         return CheckMarx.wrap({'id': status_id, 'name': name}, 200)
 
     def get_scan_statistics(self, scan_id):
-        return self.get('/sast/scans/%s/resultsStatistics' % scan_id).json()
+        return self.__api_get('/sast/scans/%s/resultsStatistics' % scan_id).json()
 
     def get_scan_statistics_wrapped(self, scan_id):
         stats = self.get_scan_statistics(scan_id)
@@ -88,29 +88,28 @@ class CheckMarx(object):
             return CheckMarx.wrap(stats, 400)
 
     def register_report(self, scan_id):
-        r = self.post('/reports/sastScan', {'reportType': 'PDF', 'scanId': scan_id})
+        r = self.__api_post('/reports/sastScan', {'reportType': 'PDF', 'scanId': scan_id})
         report_id = r.json().get('reportId')
         db.engine.execute(
             "UPDATE public.checkmarx "
             "SET report_id={0}"
-            "WHERE scan_id={1}"
-                .format(report_id, scan_id)
+            "WHERE scan_id={1}".format(
+                report_id, scan_id)
         )
         if r.status_code % 100 == 2:
-            return {'message': 'success', 'data':
-                {'scanId': scan_id, 'reportId': report_id}
-                    }, r.status_code
+            return {'message': 'success',
+                    'data': {'scanId': scan_id, 'reportId': report_id}}, r.status_code
         else:
             return {'message': 'error'}, r.status_code
 
     def get_report_status(self, report_id):
-        status = self.get('/reports/sastScan/%s/status' % report_id).json().get('status')
+        status = self.__api_get('/reports/sastScan/%s/status' % report_id).json().get('status')
         if status.get('id') == 2:
             db.engine.execute(
                 "UPDATE public.checkmarx "
                 "SET finished_at='{0}', finished=true "
-                "WHERE report_id={1}"
-                    .format(datetime.datetime.now(), report_id)
+                "WHERE report_id={1}".format(
+                    datetime.datetime.now(), report_id)
             )
         return status.get('id'), status.get('value')
 
@@ -131,7 +130,7 @@ class CheckMarx(object):
         except Exception as e:
             return {"message": "error", "data": e.__str__()}, 500
         try:
-            r = self.get('/reports/sastScan/{0}'.format(report_id))
+            r = self.__api_get('/reports/sastScan/{0}'.format(report_id))
             file_obj = BytesIO(r.content)
             return send_file(
                 file_obj,
@@ -141,11 +140,11 @@ class CheckMarx(object):
         except Exception as e:
             return {"message": "error", "data": e.__str__()}, 400
 
-    def get_latest(self, column, project_id):
+    @staticmethod
+    def get_latest(column, project_id):
         cursor = db.engine.execute(
             'SELECT git_repository_id FROM public.project_plugin_relation'
-            ' WHERE project_id={0}'
-                .format(project_id)
+            ' WHERE project_id={0}'.format(project_id)
         )
         if cursor.rowcount == 0:
             return -1
@@ -157,8 +156,7 @@ class CheckMarx(object):
             'SELECT {0} FROM public.checkmarx '
             ' WHERE repo_id={1}'
             ' ORDER BY run_at DESC'
-            ' LIMIT 1'
-                .format(column, repo_id)
+            ' LIMIT 1'.format(column, repo_id)
         )
         if cursor.rowcount == 0:
             return -1
@@ -198,6 +196,10 @@ class CheckMarx(object):
         if scan_id < 0:
             return {'message': 'This project does not have any scan.', 'status': -1}, 400
         st_id, st_name = self.get_scan_status(scan_id)
+        if st_id == 8:
+            return {'message': 'The scan is canceled.', 'status': 4}, 200
+        if st_id == 9:
+            return {'message': 'The scan failed.', 'status': 5}, 200
         if st_id != 7:
             return {'message': 'The scan is not completed yet.', 'status': 1}, 200
         report_id = self.get_latest('report_id', project_id)
@@ -211,7 +213,70 @@ class CheckMarx(object):
             return {'message': 'The report is not ready yet.', 'status': 2,
                     'data': {'stats': self.get_scan_statistics(scan_id)}}, 200
         return {'message': 'success', 'status': 3, 'data': {
-                'stats': self.get_scan_statistics(scan_id),
-                'report_id': report_id
-                }
+            'stats': self.get_scan_statistics(scan_id),
+            'report_id': report_id
+        }
                 }, 200
+
+
+checkmarx = CheckMarx()
+
+
+# --------------------- Resources ---------------------
+class CreateCheckmarxScan(Resource):
+    @jwt_required
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('cm_project_id', type=int, required=True)
+        parser.add_argument('repo_id', type=int, required=True)
+        parser.add_argument('scan_id', type=int, required=True)
+        args = parser.parse_args()
+        return checkmarx.create_scan(args)
+
+
+class GetCheckmarxLatestScan(Resource):
+    @jwt_required
+    def get(self, project_id):
+        return checkmarx.get_latest_scan_wrapped(project_id)
+
+
+class GetCheckmarxLatestScanStats(Resource):
+    @jwt_required
+    def get(self, project_id):
+        return checkmarx.get_latest_scan_stats_wrapped(project_id)
+
+
+class GetCheckmarxLatestReport(Resource):
+    @jwt_required
+    def get(self, project_id):
+        return checkmarx.get_latest_report_wrapped(project_id)
+
+
+class GetCheckmarxReport(Resource):
+    @jwt_required
+    def get(self, report_id):
+        return checkmarx.get_report(report_id)
+
+
+class GetCheckmarxScanStatus(Resource):
+    @jwt_required
+    def get(self, scan_id):
+        return checkmarx.get_scan_status_wrapped(scan_id)
+
+
+class RegisterCheckmarxReport(Resource):
+    @jwt_required
+    def post(self, scan_id):
+        return checkmarx.register_report(scan_id)
+
+
+class GetCheckmarxReportStatus(Resource):
+    @jwt_required
+    def get(self, report_id):
+        return checkmarx.get_report_status_wrapped(report_id)
+
+
+class GetCheckmarxScanStatistics(Resource):
+    @jwt_required
+    def get(self, scan_id):
+        return checkmarx.get_scan_statistics_wrapped(scan_id)
