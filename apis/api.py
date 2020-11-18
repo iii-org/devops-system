@@ -212,11 +212,9 @@ if __name__ == "__main__":
 def init_tables():
     db.init_app(app)
     db.app = app
-    # db.create_all()
-    jsonwebtoken.init_app(app)
+    db.create_all()
 
 
 # To run from Python console to create tables
 if __name__ == 'api':
     init_tables()
-

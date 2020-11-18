@@ -7,9 +7,8 @@ from flask_restful import Resource, reqparse
 
 import resources.apiError as apiError
 import resources.util as util
-from model import User as UserModel
-from model import db, UserPluginRelation, ProjectUserRole, TableProjects, ProjectPluginRelation, \
-    TableRolesPluginRelation
+from model import db
+import model
 from resources import role
 from resources.logger import logger
 from resources.redmine import redmine
@@ -47,6 +46,7 @@ def get_3pt_user_ids(user_id, message):
 
 
 def get_user_id_name_by_plan_user_id(plan_user_id):
+
     command = db.select([UserPluginRelation.stru_user_plug_relation,
                          UserModel.stru_user]).where(
         db.and_(
@@ -268,11 +268,6 @@ def change_user_status(user_id, args):
 
 
 def create_user(args):
-    """
-    Create user in plan phase software(redmine) and repository_user_id(gitlab)
-    Create DB user, user_plugin_relation, project_user_role, groups_has_users 4 table
-    """
-
     # Check if name is valid
     login_name = args['login']
     if re.fullmatch(r'^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,58}[a-zA-Z0-9]$', login_name) is None:
