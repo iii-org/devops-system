@@ -564,7 +564,7 @@ class SingleUser(Resource):
 
     @jwt_required
     def put(self, user_id):
-        role.require_admin("Only admin can update user.")
+        role.require_user_himself(user_id)
         parser = reqparse.RequestParser()
         parser.add_argument('name', type=str)
         parser.add_argument('password', type=str)
