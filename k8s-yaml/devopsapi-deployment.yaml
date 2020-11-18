@@ -16,6 +16,6 @@ spec:
       - name: pipeline-docker-registry
       containers:
       - name: devopsapi
-        image: iiidevops-api:${CICD_GIT_BRANCH}-${CICD_GIT_COMMIT}
+        image: ${CICD_IMAGE}:${CICD_GIT_BRANCH}-${CICD_GIT_COMMIT}
         ports:
         - containerPort: 10009
