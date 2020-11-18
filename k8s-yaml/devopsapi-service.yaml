@@ -12,4 +12,3 @@ spec:
     - name: devopsapi-port
       protocol: TCP
       port: 10009
-      nodePort: 31850
