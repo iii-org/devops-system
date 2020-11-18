@@ -49,13 +49,6 @@ class TableGroup():
                           db.Column('name', db.String, nullable=True))
 
 
-class TableRole():
-    meta = db.MetaData()
-    stru_role = db.Table('roles', meta,
-                         db.Column('id', db.Integer, nullable=True),
-                         db.Column('name', db.String, nullable=True))
-
-
 class ProjectUserRole():
     meta = db.MetaData()
     stru_project_user_role = db.Table('project_user_role', meta,
@@ -123,13 +116,6 @@ class TableTestCase():
         # }
         db.Column('data', db.TEXT),
         db.Column('type_id', db.Integer))
-
-
-class TableHttpMethod():
-    meta = db.MetaData()
-    stru_httpMethod = db.Table('http_method', meta,
-                               db.Column('id', db.Integer, primary_key=True),
-                               db.Column('type', db.String(50)))
 
 
 class TableCaseType():

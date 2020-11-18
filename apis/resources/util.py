@@ -5,8 +5,8 @@ from datetime import datetime
 import requests
 from flask_restful import reqparse
 
-from model import db
 import resources.apiError as apiError
+from model import db
 
 
 def call_sqlalchemy(command):
@@ -28,12 +28,13 @@ def is_dummy_project(project_id):
 
 
 # Return 200 and success message, can with data.
+# If the data may contain date or other non-JSON-serializable objects, turn has_date_etc True.
 # If you need to return 201, 204 or other success, use #respond.
-def success(data=None, has_date=False):
+def success(data=None, has_date_etc=False):
     if data is None:
         return {'message': 'success'}, 200
     else:
-        if has_date:
+        if has_date_etc:
             return {'message': 'success', 'data': json.loads(json.dumps(data, cls=DateEncoder))}, 200
         else:
             return {'message': 'success', 'data': data}, 200
@@ -62,6 +63,16 @@ def respond_request_style(status_code, message=None, data=None, error=None):
     return ret[0]
 
 
+def respond_uncaught_exception(exception, message='An uncaught exception occurs:'):
+    return respond(500, message,
+                   error=apiError.uncaught_exception(exception))
+
+
+def respond_redmine_error(redmine_response, message):
+    return respond(redmine_response.status_code, message,
+                   error=apiError.redmine_error(redmine_response))
+
+
 class DateEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, datetime):
@@ -77,19 +88,20 @@ def tick(last_time):
 
 
 def api_request(method, url, headers=None, params=None, data=None):
+    body = data
+    if type(data) is dict or type(data) is reqparse.Namespace:
+        if 'Content-Type' not in headers:
+            headers['Content-Type'] = 'application/json'
+        if headers['Content-Type'] == 'application/json' and body is not None:
+            body = json.dumps(data)
+
     if method.upper() == 'GET':
         return requests.get(url, headers=headers, params=params, verify=False)
     elif method.upper() == 'POST':
-        if type(data) is dict or type(data) is reqparse.Namespace:
-            if 'Content-Type' not in headers:
-                headers['Content-Type'] = 'application/json'
-            return requests.post(url, data=json.dumps(data), params=params,
-                                 headers=headers, verify=False)
-        else:
-            return requests.post(url, data=data, params=params,
-                                 headers=headers, verify=False)
+        return requests.post(url, data=body, params=params,
+                             headers=headers, verify=False)
     elif method.upper() == 'PUT':
-        return requests.put(url, data=json.dumps(data), params=params,
+        return requests.put(url, data=body, params=params,
                             headers=headers, verify=False)
     elif method.upper() == 'DELETE':
         return requests.delete(url, headers=headers, params=params, verify=False)
