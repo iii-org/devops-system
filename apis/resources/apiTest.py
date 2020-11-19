@@ -5,8 +5,9 @@ import json
 from flask_jwt_extended import jwt_required
 from flask_restful import reqparse, Resource
 
+import model
 import resources.util as util
-from model import db, TableParameter
+from model import db
 from resources import apiError
 from resources.logger import logger
 
@@ -22,49 +23,48 @@ def deal_with_json_string(json_string):
 
 
 def deal_with_ParametersObject(sql_row):
-    output = {'id': sql_row['id'],
-              'name': sql_row['name'],
-              'parameter_type_id': sql_row['parameter_type_id']
+    output = {'id': sql_row.id,
+              'name': sql_row.name,
+              'parameter_type_id': sql_row.parameter_type_id
               }
-    if sql_row['parameter_type_id'] in PARAMETER_TYPES:
-        output['parameter_type'] = PARAMETER_TYPES[sql_row['parameter_type_id']]
+    if sql_row.parameter_type_id in PARAMETER_TYPES:
+        output['parameter_type'] = PARAMETER_TYPES[sql_row.parameter_type_id]
     else:
         output['parameter_type'] = 'None'
-    output['description'] = sql_row['description']
-    output['limitation'] = sql_row['limitation']
-    output['length'] = sql_row['length']
-    output['update_at'] = sql_row['update_at'].isoformat()
-    output['create_at'] = sql_row['create_at'].isoformat()
+    output['description'] = sql_row.description
+    output['limitation'] = sql_row.limitation
+    output['length'] = sql_row.length
+    output['update_at'] = sql_row.update_at.isoformat()
+    output['create_at'] = sql_row.create_at.isoformat()
     return output
 
 
 def get_parameters_by_param_id(parameters_id):
-    get_param_command = db.select([TableParameter.stru_param]).where(
-        db.and_(TableParameter.stru_param.c.id == parameters_id))
-    logger.debug("get_param_command: {0}".format(get_param_command))
-    result = util.call_sqlalchemy(get_param_command)
-    row = result.fetchone()
+    row = model.Parameters.query.filter_by(id=parameters_id).first()
     output = deal_with_ParametersObject(row)
     return output
 
 
 def del_parameters_by_param_id(parameters_id):
-    update_param_command = db.update(TableParameter.stru_param).where(
-        db.and_(TableParameter.stru_param.c.id == parameters_id)).values(
-        disabled=True,
-        update_at=datetime.datetime.now())
-    return util.call_sqlalchemy(update_param_command)
+    row = model.Parameters.query.filter_by(id=parameters_id).first()
+    row.disabled = True
+    row.update_at = datetime.datetime.now()
+    db.session.commit()
+    return util.success()
 
 
 def modify_parameters_by_param_id(parameters_id, args):
+    row = model.Parameters.query.filter_by(id=parameters_id).first()
+    row.update_at = datetime.datetime.now()
+    row.parameter_type_id = args['parameter_type_id']
+    row.name = args['name']
+    row.description = args['description']
+    row.limitation = args['limitation']
+    row.length = args['length']
+    return
+
     update_param_command = db.update(TableParameter.stru_param).where(
         db.and_(TableParameter.stru_param.c.id == parameters_id)).values(
-        update_at=datetime.datetime.now(),
-        parameter_type_id=args['parameter_type_id'],
-        name=args['name'],
-        description=args['description'],
-        limitation=args['limitation'],
-        length=args['length']
     ).returning(TableParameter.stru_param.c.update_at)
     return util.call_sqlalchemy(update_param_command)
 
