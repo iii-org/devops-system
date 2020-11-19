@@ -11,6 +11,8 @@ stages:
       - sourceName: iiidevops
         sourceKey: api-env
         targetKey: api_env
+    when:
+      branch: [develope]
 
   - name: Publish iiidevops-api image
     steps:
@@ -23,6 +25,8 @@ stages:
       env:
         PLUGIN_MTU: 1450
         PLUGIN_INSECURE: true
+    when:
+      branch: [develope] 
 
   - name: deploy iiidevops-api environment
     steps:
@@ -30,6 +34,8 @@ stages:
         path: ./k8s-yaml/devopsapi-deployment.yaml
     - applyYamlConfig:
         path: ./k8s-yaml/devopsapi-service.yaml
+    when:
+      branch: [develope]
 
 #  - name: build sonarqube runner image
 #    steps:
