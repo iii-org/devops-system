@@ -17,9 +17,12 @@ stages:
     - publishImageConfig:
         dockerfilePath: ./Dockerfile
         buildContext: .
-        tag: iiidevops-api:${CICD_GIT_BRANCH}-${CICD_GIT_COMMIT}
+        tag: iiidevops/${CICD_GIT_REPO_NAME}:${CICD_GIT_BRANCH}-${CICD_GIT_COMMIT}
+        pushRemote: true
+        registry: 10.50.1.63:5443
       env:
         PLUGIN_MTU: 1450
+        PLUGIN_INSECURE: true
 
   - name: deploy iiidevops-api environment
     steps:
