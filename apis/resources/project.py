@@ -213,11 +213,15 @@ def create_project(user_id, args):
     rancher_pipeline_id = rancher.rc_enable_project_pipeline(gitlab_pj_http_url)
 
     # 加關聯project_plugin_relation
-    db.engine.execute(
-        "INSERT INTO public.project_plugin_relation"
-        " (project_id, plan_project_id, git_repository_id, ci_project_id, ci_pipeline_id)"
-        " VALUES ('{0}', '{1}', '{2}', '{3}', '{4}')".format(
-            project_id, redmine_pj_id, gitlab_pj_id, rancher_project_id, rancher_pipeline_id))
+    new = model.ProjectPluginRelation(
+        project_id=project_id,
+        plan_project_id=redmine_pj_id,
+        git_repository_id=gitlab_pj_id,
+        ci_project_id=rancher_project_id,
+        ci_pipeline_id=rancher_pipeline_id
+    )
+    db.session.add(new)
+    db.session.commit()
 
     # 加關聯project_user_role
     args["user_id"] = user_id

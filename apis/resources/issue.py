@@ -1,4 +1,5 @@
 import calendar
+import json
 from datetime import datetime, date, timedelta
 
 import werkzeug
@@ -13,6 +14,9 @@ from model import db
 from resources.logger import logger
 from resources.redmine import redmine
 from . import project as project_module, role, project
+
+FLOW_TYPES = {"0": "Given", "1": "When", "2": "Then", "3": "But", "4": "And"}
+PARAMETER_TYPES = {'1': '文字', '2': '英數字', '3': '英文字', '4': '數字'}
 
 
 def get_dict_userid():
@@ -56,9 +60,9 @@ def dump_by_issue(issue_id):
 def deal_with_issue_by_user_redmine_output(redmine_output):
     output_list = {'id': redmine_output['id']}
     project_list = project_module.get_project_by_plan_project_id(redmine_output['project']['id'])
-    project = project_module.get_project_info(project_list['project_id'])
-    project_name = project.name
-    project_display = project.display
+    pjt = project_module.get_project_info(project_list['project_id'])
+    project_name = pjt.name
+    project_display = pjt.display
     output_list['project_id'] = project_list['project_id']
     output_list['project_name'] = project_name
     output_list['project_display'] = project_display
@@ -596,6 +600,241 @@ def count_type_number_by_issues(user_id):
     return util.success(output)
 
 
+def row_to_dict(row):
+    ret = {}
+    for key in type(row).__table__.columns.keys():
+        value = getattr(row, key)
+        if type(value) is datetime or type(value) is date:
+            ret[key] = str(value)
+        else:
+            ret[key] = value
+    return ret
+
+
+def deal_with_json_string(json_string):
+    return json.dumps(json.loads(json_string), ensure_ascii=False, separators=(',', ':'))
+
+
+def deal_with_ParametersObject(sql_row):
+    output = {'id': sql_row.id,
+              'name': sql_row.name,
+              'parameter_type_id': sql_row.parameter_type_id
+              }
+    if sql_row.parameter_type_id in PARAMETER_TYPES:
+        output['parameter_type'] = PARAMETER_TYPES[sql_row.parameter_type_id]
+    else:
+        output['parameter_type'] = 'None'
+    output['description'] = sql_row.description
+    output['limitation'] = sql_row.limitation
+    output['length'] = sql_row.length
+    output['update_at'] = sql_row.update_at.isoformat()
+    output['create_at'] = sql_row.create_at.isoformat()
+    return output
+
+
+def get_parameters_by_param_id(parameters_id):
+    row = model.Parameters.query.filter_by(id=parameters_id).first()
+    output = deal_with_ParametersObject(row)
+    return output
+
+
+def del_parameters_by_param_id(parameters_id):
+    row = model.Parameters.query.filter_by(id=parameters_id).first()
+    row.disabled = True
+    row.update_at = datetime.now()
+    db.session.commit()
+    return row_to_dict(row)
+
+
+def modify_parameters_by_param_id(parameters_id, args):
+    row = model.Parameters.query.filter_by(id=parameters_id).first()
+    row.update_at = datetime.now()
+    row.parameter_type_id = args['parameter_type_id']
+    row.name = args['name']
+    row.description = args['description']
+    row.limitation = args['limitation']
+    row.length = args['length']
+    return row_to_dict(row)
+
+
+def get_parameters_by_issue_id(issue_id):
+    rows = model.Parameters.query.filter_by(issue_id=issue_id, disabled=False)
+    output = []
+    for row in rows:
+        output.append(deal_with_ParametersObject(row))
+    return output
+
+
+def post_parameters_by_issue_id(issue_id, args):
+    new = model.Parameters(
+        project_id=args['project_id'],
+        issue_id=issue_id,
+        parameter_type_id=args['parameter_type_id'],
+        name=args['name'],
+        description=args['description'],
+        limitation=args['limitation'],
+        length=args['length'],
+        create_at=datetime.now(),
+        update_at=datetime.now()
+    )
+    db.session.add(new)
+    db.session.commit()
+    return {'parameters_id': new.id}
+
+
+def get_parameter_types():
+    output = []
+    for key in PARAMETER_TYPES:
+        temp = {"parameter_type_id": key, "name": PARAMETER_TYPES[key]}
+        output.append(temp)
+    return output
+
+
+def get_flow_support_type():
+    output = []
+    for key in FLOW_TYPES:
+        output.append({"flow_type_id": int(key), "name": FLOW_TYPES[key]})
+    return output
+
+
+def deal_with_flow_object(sql_row):
+    return {'id': sql_row.id,
+            'project_id': sql_row.project_id,
+            'issue_id': sql_row.issue_id,
+            'requirement_id': sql_row.requirement_id,
+            'type_id': sql_row.type_id,
+            'name': sql_row.name,
+            'description': sql_row.description,
+            'serial_id': sql_row.serial_id,
+            'update_at': util.date_to_str(sql_row.update_at),
+            'create_at': util.date_to_str(sql_row.create_at)
+            }
+
+
+def get_flow_by_flow_id(flow_id):
+    f = model.Flows.query.filter_by(id=flow_id).first()
+    return deal_with_flow_object(f)
+
+
+def disabled_flow_by_flow_id(flow_id):
+    f = model.Flows.query.filter_by(id=flow_id)
+    f.disabled = True
+    f.update_at = datetime.now()
+    db.session.commit()
+    return {'last_modified': f.update_at}
+
+
+def modify_flow_by_flow_id(flow_id, args):
+    f = model.Flows.query.filter_by(id=flow_id)
+    f.type_id = args['type_id'],
+    f.name = args['name'],
+    f.description = args['description'],
+    f.serial_id = args['serial_id'],
+    f.update_at = datetime.now()
+    db.session.commit()
+    return {'last_modified': f.update_at}
+
+
+def get_flow_by_requirement_id(requirement_id):
+    rows = model.Flows.query.filter_by(requirement_id=requirement_id, disabled=False).all()
+    output = []
+    for row in rows:
+        output.append(deal_with_flow_object(row))
+    return output
+
+
+def post_flow_by_requirement_id(issue_id, requirement_id, args):
+    rows = model.Flows.query.filter_by(requirement_id=requirement_id).\
+        order_by(model.Flows.serial_id).all()
+    flow_serial_ids = []
+    for row in rows:
+        flow_serial_ids.append(row.serial_id)
+
+    if not flow_serial_ids:
+        serial_number = 1
+    else:
+        serial_number = max(flow_serial_ids) + 1
+    new = model.Flows(
+        project_id=args['project_id'],
+        issue_id=issue_id,
+        requirement_id=requirement_id,
+        type_id=args['type_id'],
+        name=args['name'],
+        description=args['description'],
+        serial_id=serial_number,
+        create_at=datetime.now(),
+        update_at=datetime.now())
+    db.session.add(new)
+    db.session.commit()
+    return {'flow_id': new.id}
+
+
+def _deal_with_json(json_string):
+    return json.dumps(json.loads(json_string),
+                      ensure_ascii=False,
+                      separators=(',', ':'))
+
+
+def check_requirement_by_issue_id(issue_id):
+    rows = model.Requirements.query.filter_by(
+        issue_id=issue_id).order_by(model.Requirements.id).all()
+    requirement_ids = []
+    for row in rows:
+        requirement_ids.append(row['id'])
+
+    return requirement_ids
+
+
+def get_requirement_by_rqmt_id(requirement_id):
+    r = model.Requirements.query.filter_by(id=requirement_id).first()
+    return {'flow_info': json.loads(str(r.flow_info))}
+
+
+# 將 requirement 隱藏
+def del_requirement_by_rqmt_id(requirement_id):
+    r = model.Requirements.query.filter_by(id=requirement_id).first()
+    r.disabled = True
+    r.update_at = datetime.now()
+    db.session.commit()
+    return row_to_dict(r)
+
+
+def modify_requirement_by_rqmt_id(requirement_id, args):
+    r = model.Requirements.query.filter_by(id=requirement_id).first()
+    r.update_at = datetime.now()
+    r.flow_info = _deal_with_json(args['flow_info'])
+    db.session.commit()
+    return row_to_dict(r)
+
+
+def get_requirements_by_issue_id(issue_id):
+    rows = model.Requirements.query.filter_by(issue_id=issue_id, disabled=False).all()
+    output = []
+    for row in rows:
+        output.append(json.loads(row.flow_info))
+    return {'flow_info': output}
+
+
+def post_requirement_by_issue_id(issue_id, args):
+    new = model.Requirements(
+        project_id=args['project_id'],
+        issue_id=issue_id,
+        create_at=datetime.now(),
+        update_at=datetime.now())
+    db.session.add(new)
+    db.session.commit()
+    return {'requirement_id': new.id}
+
+
+def get_requirements_by_project_id(project_id):
+    rows = model.Requirements.query.filter_by(
+        project_id=project_id, disabled=False).all()
+    output = []
+    for row in rows:
+        output.append(json.loads(row.flow_info))
+    return {'flow_info': output}
+
+
 # --------------------- Resources ---------------------
 class SingleIssue(Resource):
     @jwt_required
@@ -808,3 +1047,177 @@ class DashboardIssueType(Resource):
             return count_type_number_by_issues(user_id)
         else:
             return {'message': 'Access token is missing or invalid'}, 401
+
+
+class RequirementByIssue(Resource):
+
+    # 用issues ID 取得目前所有的需求清單
+    @jwt_required
+    def get(self, issue_id):
+        output = get_requirements_by_issue_id(issue_id)
+        return util.success(output)
+
+    # 用issues ID 新建立需求清單
+    @jwt_required
+    def post(self, issue_id):
+        parser = reqparse.RequestParser()
+        parser.add_argument('project_id', type=int)
+        # parser.add_argument('flow_info', type=str)
+        args = parser.parse_args()
+        output = post_requirement_by_issue_id(issue_id, args)
+        return util.success(output)
+
+
+class Requirement(Resource):
+
+    # 用requirement_id 取得目前需求流程
+    @jwt_required
+    def get(self, requirement_id):
+        # temp = get_jwt_identity()
+        output = get_requirement_by_rqmt_id(requirement_id)
+        return util.success(output)
+
+    # 用requirement_id 刪除目前需求流程
+    @jwt_required
+    def delete(self, requirement_id):
+        del_requirement_by_rqmt_id(requirement_id)
+        return util.success()
+
+    # 用requirement_id 更新目前需求流程
+    @jwt_required
+    def put(self, requirement_id):
+        parser = reqparse.RequestParser()
+        parser.add_argument('flow_info', type=str)
+        args = parser.parse_args()
+        modify_requirement_by_rqmt_id(requirement_id, args)
+        return util.success()
+
+
+class GetFlowType(Resource):
+    @jwt_required
+    def get(self):
+        output = get_flow_support_type()
+        return util.success(output)
+
+
+class FlowByIssue(Resource):
+
+    # 用issues ID 取得目前所有的需求清單
+    @jwt_required
+    def get(self, issue_id):
+        requirement_ids = check_requirement_by_issue_id(issue_id)
+        if not requirement_ids:
+            return util.success()
+        output = []
+        for requirement_id in requirement_ids:
+            result = get_flow_by_requirement_id(requirement_id)
+            if len(result) > 0:
+                output.append({
+                    'requirement_id': requirement_id,
+                    'flow_data': result
+                })
+        return util.success(output)
+
+    # 用issues ID 新建立需求清單
+    @jwt_required
+    def post(self, issue_id):
+        parser = reqparse.RequestParser()
+        parser.add_argument('project_id', type=int)
+        parser.add_argument('type_id', type=int)
+        parser.add_argument('name', type=str)
+        parser.add_argument('description', type=str)
+        args = parser.parse_args()
+        check = check_requirement_by_issue_id(issue_id)
+        if not check:
+            requirements = post_requirement_by_issue_id(issue_id, args)
+            requirement_id = requirements['requirement_id'][0]
+        else:
+            requirement_id = check[0]
+
+        output = post_flow_by_requirement_id(int(issue_id), requirement_id, args)
+        return util.success(output, has_date_etc=True)
+
+
+class Flow(Resource):
+
+    # 用requirement_id 取得目前需求流程
+    @jwt_required
+    def get(self, flow_id):
+        output = get_flow_by_flow_id(flow_id)
+        return util.success(output)
+
+    # 用requirement_id 刪除目前需求流程
+    @jwt_required
+    def delete(self, flow_id):
+        output = disabled_flow_by_flow_id(flow_id)
+        return util.success(output, has_date_etc=True)
+
+    # 用requirement_id 更新目前需求流程
+    @jwt_required
+    def put(self, flow_id):
+        parser = reqparse.RequestParser()
+        parser.add_argument('serial_id', type=int)
+        parser.add_argument('type_id', type=int)
+        parser.add_argument('name', type=str)
+        parser.add_argument('description', type=str)
+        args = parser.parse_args()
+        output = modify_flow_by_flow_id(flow_id, args)
+        return util.success(output, has_date_etc=True)
+
+
+class ParameterType(Resource):
+    @jwt_required
+    def get(self):
+        output = get_parameter_types()
+        return util.success(output)
+
+
+class ParameterByIssue(Resource):
+
+    # 用issues ID 取得目前所有的需求清單
+    @jwt_required
+    def get(self, issue_id):
+        output = get_parameters_by_issue_id(issue_id)
+        return util.success(output)
+
+    # 用issues ID 新建立需求清單
+    @jwt_required
+    def post(self, issue_id):
+        parser = reqparse.RequestParser()
+        parser.add_argument('project_id', type=int)
+        parser.add_argument('parameter_type_id', type=int)
+        parser.add_argument('name', type=str)
+        parser.add_argument('description', type=str)
+        parser.add_argument('limitation', type=str)
+        parser.add_argument('length', type=int)
+        args = parser.parse_args()
+        output = post_parameters_by_issue_id(issue_id, args)
+        return util.success(output)
+
+
+class Parameter(Resource):
+
+    # 用requirement_id 取得目前需求流程
+    @jwt_required
+    def get(self, parameter_id):
+        output = get_parameters_by_param_id(parameter_id)
+        return util.success(output)
+
+    # 用requirement_id 刪除目前需求流程
+    @jwt_required
+    def delete(self, parameter_id):
+        output = del_parameters_by_param_id(parameter_id)
+        return util.success(output)
+
+    # 用requirement_id 更新目前需求流程
+    @jwt_required
+    def put(self, parameter_id):
+        parser = reqparse.RequestParser()
+        parser.add_argument('parameter_type_id', type=int)
+        parser.add_argument('name', type=str)
+        parser.add_argument('description', type=str)
+        parser.add_argument('limitation', type=str)
+        parser.add_argument('length', type=int)
+        args = parser.parse_args()
+        output = modify_parameters_by_param_id(parameter_id, args)
+        return util.success(output)

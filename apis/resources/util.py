@@ -9,10 +9,6 @@ import resources.apiError as apiError
 from model import db
 
 
-def call_sqlalchemy(command):
-    return db.engine.execute(command)
-
-
 def date_to_str(data):
     if data is not None:
         return data.isoformat()

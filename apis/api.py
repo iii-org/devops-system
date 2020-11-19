@@ -15,7 +15,7 @@ import resources.pipeline as pipeline
 import resources.role as role
 from jsonwebtoken import jsonwebtoken
 from model import db
-from resources import project, gitlab, util, issue, user, redmine, wiki, version, sonar
+from resources import project, gitlab, util, issue, user, redmine, wiki, version, sonar, apiTest, postman
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -136,44 +136,44 @@ api.add_resource(issue.DashboardIssuePriority,
 api.add_resource(issue.DashboardIssueProject, '/dashboard_issues_project/<user_id>')
 api.add_resource(issue.DashboardIssueType, '/dashboard_issues_type/<user_id>')
 
-# # testPhase Requirement
-# api.add_resource(apiTest.RequirementByIssue, '/requirements_by_issue/<issue_id>')
-# api.add_resource(apiTest.Requirement, '/requirements/<requirement_id>')
-#
-# # testPhase Flow
-# api.add_resource(apiTest.FlowByIssue, '/flows_by_issue/<issue_id>')
-# api.add_resource(apiTest.GetFlowType, '/flows/support_type')
-# api.add_resource(apiTest.Flow, '/flows/<flow_id>')
-#
-# # testPhase Parameters FLow
-# api.add_resource(apiTest.ParameterByIssue, '/parameters_by_issue/<issue_id>')
-# api.add_resource(apiTest.Parameter, '/parameters/<parameter_id>')
-# api.add_resource(apiTest.ParameterType, '/parameter_types')
-#
-# # testPhase TestCase Support Case Type
-# api.add_resource(apiTest.GetTestCaseType, '/testCases/support_type')
-#
-# # testPhase TestCase
-# api.add_resource(apiTest.TestCaseByIssue, '/testCases_by_issue/<issue_id>')
-# api.add_resource(apiTest.TestCaseByProject, '/testCases_by_project/<project_id>')
-# api.add_resource(apiTest.TestCase, '/testCases/<testCase_id>')
-#
-# # testPhase TestCase Support API Method
-# api.add_resource(apiTest.GetTestCaseAPIMethod, '/testCases/support_RestfulAPI_Method')
-#
-# # testPhase TestItem Support API Method
-# api.add_resource(apiTest.TestItemByTestCase, '/testItems_by_testCase/<testCase_id>')
-# api.add_resource(apiTest.TestItem, '/testItems/<item_id>')
-#
-# # testPhase Testitem Value
-# api.add_resource(apiTest.GetTestValueLocation, '/testValues/support_locations')
-# api.add_resource(apiTest.GetTestValueType, '/testValues/support_types')
-# api.add_resource(apiTest.TestValueByTestItem, '/testValues_by_testItem/<item_id>')
-# api.add_resource(apiTest.TestValue, '/testValues/<value_id>')
-#
-# # Postman tests
-# api.add_resource(postman.ExportToPostman, '/export_to_postman/<sint:project_id>')
-# api.add_resource(postman.PostmanReport, '/testResults', '/postman_report/<sint:project_id>')
+# testPhase Requirement
+api.add_resource(issue.RequirementByIssue, '/requirements_by_issue/<issue_id>')
+api.add_resource(issue.Requirement, '/requirements/<requirement_id>')
+
+# testPhase Flow
+api.add_resource(issue.FlowByIssue, '/flows_by_issue/<issue_id>')
+api.add_resource(issue.GetFlowType, '/flows/support_type')
+api.add_resource(issue.Flow, '/flows/<flow_id>')
+
+# testPhase Parameters FLow
+api.add_resource(issue.ParameterByIssue, '/parameters_by_issue/<issue_id>')
+api.add_resource(issue.Parameter, '/parameters/<parameter_id>')
+api.add_resource(issue.ParameterType, '/parameter_types')
+
+# testPhase TestCase Support Case Type
+api.add_resource(apiTest.GetTestCaseType, '/testCases/support_type')
+
+# testPhase TestCase
+api.add_resource(apiTest.TestCaseByIssue, '/testCases_by_issue/<issue_id>')
+api.add_resource(apiTest.TestCaseByProject, '/testCases_by_project/<project_id>')
+api.add_resource(apiTest.TestCase, '/testCases/<testCase_id>')
+
+# testPhase TestCase Support API Method
+api.add_resource(apiTest.GetTestCaseAPIMethod, '/testCases/support_RestfulAPI_Method')
+
+# testPhase TestItem Support API Method
+api.add_resource(apiTest.TestItemByTestCase, '/testItems_by_testCase/<testCase_id>')
+api.add_resource(apiTest.TestItem, '/testItems/<item_id>')
+
+# testPhase Testitem Value
+api.add_resource(apiTest.GetTestValueLocation, '/testValues/support_locations')
+api.add_resource(apiTest.GetTestValueType, '/testValues/support_types')
+api.add_resource(apiTest.TestValueByTestItem, '/testValues_by_testItem/<item_id>')
+api.add_resource(apiTest.TestValue, '/testValues/<value_id>')
+
+# Postman tests
+api.add_resource(postman.ExportToPostman, '/export_to_postman/<sint:project_id>')
+api.add_resource(postman.PostmanReport, '/testResults', '/postman_report/<sint:project_id>')
 
 # Checkmarx report generation
 api.add_resource(checkmarx.CreateCheckmarxScan, '/checkmarx/create_scan')
