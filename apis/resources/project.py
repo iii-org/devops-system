@@ -481,9 +481,10 @@ def project_remove_member(project_id, user_id):
                             error=apiError.gitlab_error(output))
 
     # delete relationship from ProjectUserRole table.
-    row = model.ProjectUserRole.query.filter_by(
-        project_id=project_id, user_id=user_id, role_id=role_id)
-    if row is None:
+    try:
+        row = model.ProjectUserRole.query.filter_by(
+            project_id=project_id, user_id=user_id, role_id=role_id).one()
+    except NoResultFound:
         return util.respond(404, 'Relation not found, project_id={0}, role_id={1}.'.format(
             project_id, role_id
         ), error=apiError.user_not_found(user_id))
