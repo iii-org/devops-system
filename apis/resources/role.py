@@ -18,6 +18,13 @@ ADMIN = Role(5, 'Administrator')
 ALL_ROLES = [RD, PM, ADMIN]
 
 
+def get_role_name(role_id):
+    for role in ALL_ROLES:
+        if role.id == role_id:
+            return role.name
+    return 'Unknown Role'
+
+
 def require_role(allowed_roles,
                  err_message='Your role does not have the permission for this operation.'):
     if type(allowed_roles) is int:

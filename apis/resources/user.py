@@ -4,6 +4,7 @@ import re
 from Cryptodome.Hash import SHA256
 from flask_jwt_extended import (create_access_token, JWTManager, jwt_required)
 from flask_restful import Resource, reqparse
+from sqlalchemy import desc
 from sqlalchemy.orm.exc import NoResultFound
 
 import resources.apiError as apiError
@@ -24,7 +25,7 @@ def jwt_response_data(row):
         'user_id': row['id'],
         'user_account': row["login"],
         'role_id': row['role_id'],
-        'role_name': row['role_name']
+        'role_name': role.get_role_name(row['role_id'])
     }
 
 
@@ -75,10 +76,9 @@ def login(args):
     h = SHA256.new()
     h.update(args["password"].encode())
     result = db.engine.execute(
-        "SELECT ur.id, ur.login, ur.password, pur.role_id,"
-        " rl.name as role_name"
-        " FROM public.user as ur, public.project_user_role as pur, public.roles as rl"
-        " WHERE ur.disabled = false AND ur.id = pur.user_id AND pur.role_id = rl.id"
+        "SELECT ur.id, ur.login, ur.password, pur.role_id"
+        " FROM public.user as ur, public.project_user_role as pur"
+        " WHERE ur.disabled = false AND ur.id = pur.user_id"
     )
     for row in result:
         if row['login'] == args["username"] and row['password'] == h.hexdigest():
@@ -109,9 +109,9 @@ def get_user_info(user_id):
     result = db.engine.execute(
         "SELECT ur.id as id, ur.name as name,"
         " ur.email as email, ur.phone as phone, ur.login as login, ur.create_at as create_at,"
-        " ur.update_at as update_at, rl.id as role_id, rl.name as role_name, ur.disabled as disabled"
-        " FROM public.user as ur, public.project_user_role as pur, public.roles as rl"
-        " WHERE ur.id = {0} AND ur.id = pur.user_id AND pur.role_id = rl.id".format(user_id))
+        " ur.update_at as update_at, pur.role_id, ur.disabled as disabled"
+        " FROM public.user as ur, public.project_user_role as pur"
+        " WHERE ur.id = {0} AND ur.id = pur.user_id".format(user_id))
     user_data = result.fetchone()
     result.close()
 
@@ -129,31 +129,25 @@ def get_user_info(user_id):
             "create_at": util.date_to_str(user_data["create_at"]),
             "update_at": util.date_to_str(user_data["update_at"]),
             "role": {
-                "name": user_data["role_name"],
+                "name": role.get_role_name(user_data["role_id"]),
                 "id": user_data["role_id"]
             },
             "status": status
         }
         # get user's involved project list
-        select_project = db.select([ProjectUserRole.stru_project_user_role,
-                                    TableProjects.stru_projects,
-                                    ProjectPluginRelation.stru_project_plug_relation]).where(
-            db.and_(
-                ProjectUserRole.stru_project_user_role.c.user_id == user_id,
-                ProjectUserRole.stru_project_user_role.c.project_id != -1,
-                ProjectUserRole.stru_project_user_role.c.project_id ==
-                TableProjects.stru_projects.c.id,
-                ProjectUserRole.stru_project_user_role.c.project_id ==
-                ProjectPluginRelation.stru_project_plug_relation.c.project_id))
-        result = util.call_sqlalchemy(select_project).fetchall()
-        if len(result) > 0:
+        rows = db.session.query(model.Project).join(model.ProjectPluginRelation).filter(
+            model.ProjectUserRole.user_id == user_id,
+            model.ProjectUserRole.project_id != -1,
+            model.ProjectUserRole.project_id == model.ProjectPluginRelation.project_id
+        ).all()
+        if len(rows) > 0:
             project_list = []
-            for project in result:
+            for row in rows:
                 project_list.append({
-                    "id": project["id"],
-                    "name": project["name"],
-                    "display": project["display"],
-                    "repository_id": project["git_repository_id"]
+                    "id": row.id,
+                    "name": row.name,
+                    "display": row.display,
+                    "repository_id": row.git_repository_id
                 })
             output["project"] = project_list
         else:
@@ -395,59 +389,39 @@ def get_user_plugin_relation(user_id=None, plan_user_id=None, gitlab_user_id=Non
 
 
 def user_list():
-    result = db.engine.execute(
-        "SELECT ur.id as id, ur.name as name, ur.email as email, \
-        ur.phone as phone, ur.login as login, ur.create_at as create_at, \
-        ur.update_at as update_at, rl.id as role_id, rl.name as role_name, \
-        ur.disabled as disabled\
-        FROM public.user as ur \
-        left join public.project_user_role as pur \
-        on ur.id = pur.user_id \
-        left join public.roles as rl \
-        on pur.role_id = rl.id \
-        group by ur.id, rl.id\
-        ORDER BY ur.id DESC")
-    user_data_array = result.fetchall()
-    result.close()
-    if not user_data_array:
-        return util.respond(500, 'Cannot get user list.',
-                            error=apiError.db_error('Cannot query user list'))
+    rows = db.session.query(model.User, model.ProjectUserRole.role_id).\
+        join(model.ProjectUserRole).\
+        order_by(desc(model.User.id)).all()
     output_array = []
-    for user_data in user_data_array:
-
-        select_project_by_userid = db.select(
-            [ProjectUserRole.stru_project_user_role,
-             TableProjects.stru_projects]).where(
-            db.and_(
-                ProjectUserRole.stru_project_user_role.c.user_id == user_data["id"],
-                ProjectUserRole.stru_project_user_role.c.project_id != -1,
-                ProjectUserRole.stru_project_user_role.c.project_id ==
-                TableProjects.stru_projects.c.id))
-        output_project_array = util.call_sqlalchemy(select_project_by_userid).fetchall()
-        project = []
-        if output_project_array:
-            for output_project in output_project_array:
-                project.append({
-                    "id": output_project["id"],
-                    "name": output_project["name"],
-                    "display": output_project["display"]
-                })
+    for row in rows:
+        project_rows = model.Project.query.filter(
+            model.ProjectUserRole.user_id == row.User.id,
+            model.ProjectUserRole.project_id != -1,
+            model.ProjectUserRole.project_id == model.Project.id
+        ).all()
+        projects = []
+        for p in project_rows:
+            projects.append({
+                "id": p.id,
+                "name": p.name,
+                "display": p.display
+            })
         status = "disable"
-        if user_data["disabled"] is False:
+        if row.User.disabled is False:
             status = "enable"
         output = {
-            "id": user_data["id"],
-            "name": user_data["name"],
-            "email": user_data["email"],
-            "phone": user_data["phone"],
-            "login": user_data["login"],
-            "create_at": util.date_to_str(user_data["create_at"]),
-            "update_at": util.date_to_str(user_data["update_at"]),
+            "id": row.User.id,
+            "name": row.User.name,
+            "email": row.User.email,
+            "phone": row.User.phone,
+            "login": row.User.login,
+            "create_at": util.date_to_str(row.User.create_at),
+            "update_at": util.date_to_str(row.User.update_at),
             "role": {
-                "name": user_data["role_name"],
-                "id": user_data["role_id"]
+                "name": role.get_role_name(row.role_id),
+                "id": row.role_id
             },
-            "project": project,
+            "project": projects,
             "status": status
         }
         output_array.append(output)
@@ -459,17 +433,17 @@ def user_list_by_project(project_id, args):
         # list users not in the project
         cmd_legal_users = "select distinct on (ur.id) pur.user_id as user_id, \
             ur.name as user_name, ur.email as email, ur.phone as phone, ur.login as login, \
-            ur.create_at as create_at, ur.update_at as update_at, rl.id as role_id, \
-            rl.name as role_name FROM public.user as ur, \
-            public.project_user_role as pur , public.roles as rl \
-            where ur.disabled is false and ur.id = pur.user_id and pur.role_id!=5 and\
-            pur.role_id=rl.id ORDER BY ur.id DESC"
+            ur.create_at as create_at, ur.update_at as update_at, pur.role_id as role_id \
+             FROM public.user as ur, \
+            public.project_user_role as pur \
+            where ur.disabled is false and ur.id = pur.user_id and pur.role_id!=5\
+             ORDER BY ur.id DESC"
         ret_users = util.call_sqlalchemy(cmd_legal_users).fetchall()
 
         cmd_project_users = "select distinct pur.user_id \
-            from public.project_user_role pur, public.user ur , public.roles rl \
+            from public.project_user_role pur, public.user ur \
             where pur.project_id={0} and pur.role_id!=5 and pur.user_id=ur.id and \
-            ur.disabled is false and pur.role_id=rl.id \
+            ur.disabled is false \
             order by pur.user_id DESC".format(project_id)
         project_users = util.call_sqlalchemy(cmd_project_users).fetchall()
 
@@ -484,11 +458,11 @@ def user_list_by_project(project_id, args):
         # list users in the project
         cmd_project_users = "SELECT distinct on (pur.user_id) pur.user_id as user_id, \
             ur.name as user_name, ur.email as email, ur.phone as phone, ur.login as login, \
-            ur.create_at as create_at, ur.update_at as update_at, rl.id as role_id, \
-            rl.name as role_name FROM\
-            public.project_user_role as pur, public.user as ur, public.roles as rl \
+            ur.create_at as create_at, ur.update_at as update_at, pur.role_id as role_id \
+            FROM\
+            public.project_user_role as pur, public.user as ur \
             WHERE pur.project_id={0} AND pur.role_id!=5 AND pur.user_id=ur.id AND \
-            ur.disabled=False AND pur.role_id=rl.id ORDER BY pur.user_id DESC".format(
+            ur.disabled=False ORDER BY pur.user_id DESC".format(
             project_id)
         ret_users = util.call_sqlalchemy(cmd_project_users).fetchall()
 
@@ -503,7 +477,7 @@ def user_list_by_project(project_id, args):
             "create_at": util.date_to_str(data_userRole_by_project['create_at']),
             "update_at": util.date_to_str(data_userRole_by_project['update_at']),
             "role_id": data_userRole_by_project['role_id'],
-            "role_name": data_userRole_by_project['role_name'],
+            "role_name": role.get_role_name(data_userRole_by_project['role_id']),
         })
     return util.success({"user_list": arr_ret})
 

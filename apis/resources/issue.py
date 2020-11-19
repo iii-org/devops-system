@@ -56,8 +56,8 @@ def deal_with_issue_by_user_redmine_output(redmine_output):
     output_list = {'id': redmine_output['id']}
     project_list = project_module.get_project_by_plan_project_id(redmine_output['project']['id'])
     project = project_module.get_project_info(project_list['project_id'])
-    project_name = project['name']
-    project_display = project['display']
+    project_name = project.name
+    project_display = project.display
     output_list['project_id'] = project_list['project_id']
     output_list['project_name'] = project_name
     output_list['project_display'] = project_display
@@ -96,7 +96,7 @@ def deal_with_issue_by_user_redmine_output(redmine_output):
 def __deal_with_issue_redmine_output(redmine_output):
     project_list = project_module.get_project_by_plan_project_id(redmine_output['project']['id'])
     if project_list is not None:
-        project_name = project_module.get_project_info(project_list['project_id'])['name']
+        project_name = project_module.get_project_info(project_list['project_id']).name
         redmine_output['project']['id'] = project_list['project_id']
         redmine_output['project']['name'] = project_name
     else:
@@ -183,7 +183,7 @@ def create_issue(args, operator_id):
         args['parent_issue_id'] = args['parent_id']
         args.pop('parent_id', None)
     project_plugin_relation = project_module.get_project_plugin_relation(args['project_id'])
-    args['project_id'] = project_plugin_relation['plan_project_id']
+    args['project_id'] = project_plugin_relation.plan_project_id
     if "assigned_to_id" in args:
         user_plugin_relation = user.get_user_plugin_relation(user_id=args['assigned_to_id'])
         args['assigned_to_id'] = user_plugin_relation.plan_user_id
