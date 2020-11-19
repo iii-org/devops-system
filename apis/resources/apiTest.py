@@ -5,83 +5,66 @@ import json
 from flask_jwt_extended import jwt_required
 from flask_restful import reqparse, Resource
 
+import model
 import resources.util as util
-from model import TableFlow, TableTestResult
-from model import TableRequirement
-from model import TableTestCase, TableCaseType
-from model import TableTestItem, TableTestValue
-from model import db, TableParameter, TableParameterType
+from model import db
 from resources import apiError
 from resources.logger import logger
 
-
-httpType = {"1": "request", "2": "response"}
-httpMethod = {"1": "GET", "2": "POST", "3": "PUT", "4": "DELETE"}
-httpLocation = {"1": "header", "2": "body"}
-flow_type = {"0": "Given", "1": "When", "2": "Then", "3": "But", "4": "And"}
-
-
-def get_param_type():
-    get_param_type_command = db.select([TableParameterType.stru_paramType])
-    logger.debug("get_param_type_command: {0}".format(get_param_type_command))
-    result = util.call_sqlalchemy(get_param_type_command)
-    ret_msg = result.fetchall()
-    param_type = {}
-    for row in ret_msg:
-        param_type[row['id']] = row['type']
-    return param_type
+HTTP_TYPES = {"1": "request", "2": "response"}
+HTTP_METHODS = {"1": "GET", "2": "POST", "3": "PUT", "4": "DELETE"}
+HTTP_LOCATIONS = {"1": "header", "2": "body"}
+FLOW_TYPES = {"0": "Given", "1": "When", "2": "Then", "3": "But", "4": "And"}
+PARAMETER_TYPES = {'1': '文字', '2': '英數字', '3': '英文字', '4': '數字'}
 
 
 def deal_with_json_string(json_string):
     return json.dumps(json.loads(json_string), ensure_ascii=False, separators=(',', ':'))
 
 
-def deal_with_ParametersObject(sql_row, param_type=None):
-    if param_type is None:
-        param_type = get_param_type()
-    output = {'id': sql_row['id'],
-              'name': sql_row['name'],
-              'parameter_type_id': sql_row['parameter_type_id']
+def deal_with_ParametersObject(sql_row):
+    output = {'id': sql_row.id,
+              'name': sql_row.name,
+              'parameter_type_id': sql_row.parameter_type_id
               }
-    if sql_row['parameter_type_id'] in param_type:
-        output['parameter_type'] = param_type[sql_row['parameter_type_id']]
+    if sql_row.parameter_type_id in PARAMETER_TYPES:
+        output['parameter_type'] = PARAMETER_TYPES[sql_row.parameter_type_id]
     else:
         output['parameter_type'] = 'None'
-    output['description'] = sql_row['description']
-    output['limitation'] = sql_row['limitation']
-    output['length'] = sql_row['length']
-    output['update_at'] = sql_row['update_at'].isoformat()
-    output['create_at'] = sql_row['create_at'].isoformat()
+    output['description'] = sql_row.description
+    output['limitation'] = sql_row.limitation
+    output['length'] = sql_row.length
+    output['update_at'] = sql_row.update_at.isoformat()
+    output['create_at'] = sql_row.create_at.isoformat()
     return output
 
 
 def get_parameters_by_param_id(parameters_id):
-    get_param_command = db.select([TableParameter.stru_param]).where(
-        db.and_(TableParameter.stru_param.c.id == parameters_id))
-    logger.debug("get_param_command: {0}".format(get_param_command))
-    result = util.call_sqlalchemy(get_param_command)
-    row = result.fetchone()
+    row = model.Parameters.query.filter_by(id=parameters_id).first()
     output = deal_with_ParametersObject(row)
     return output
 
 
 def del_parameters_by_param_id(parameters_id):
-    update_param_command = db.update(TableParameter.stru_param).where(
-        db.and_(TableParameter.stru_param.c.id == parameters_id)).values(
-        disabled=True,
-        update_at=datetime.datetime.now())
-    return util.call_sqlalchemy(update_param_command)
+    row = model.Parameters.query.filter_by(id=parameters_id).first()
+    row.disabled = True
+    row.update_at = datetime.datetime.now()
+    db.session.commit()
+    return util.success()
 
 
 def modify_parameters_by_param_id(parameters_id, args):
+    row = model.Parameters.query.filter_by(id=parameters_id).first()
+    row.update_at = datetime.datetime.now()
+    row.parameter_type_id = args['parameter_type_id']
+    row.name = args['name']
+    row.description = args['description']
+    row.limitation = args['limitation']
+    row.length = args['length']
+    return
+
     update_param_command = db.update(TableParameter.stru_param).where(
         db.and_(TableParameter.stru_param.c.id == parameters_id)).values(
-        update_at=datetime.datetime.now(),
-        parameter_type_id=args['parameter_type_id'],
-        name=args['name'],
-        description=args['description'],
-        limitation=args['limitation'],
-        length=args['length']
     ).returning(TableParameter.stru_param.c.update_at)
     return util.call_sqlalchemy(update_param_command)
 
@@ -93,9 +76,8 @@ def get_parameters_by_issue_id(issue_id):
     result = util.call_sqlalchemy(get_param_command)
     ret_msg = result.fetchall()
     output = []
-    param_type = get_param_type()
     for row in ret_msg:
-        output.append(deal_with_ParametersObject(row, param_type))
+        output.append(deal_with_ParametersObject(row))
     return output
 
 
@@ -117,18 +99,17 @@ def post_parameters_by_issue_id(issue_id, args):
 
 
 def get_parameter_types():
-    para_type = get_param_type()
     output = []
-    for key in para_type:
-        temp = {"parameter_type_id": key, "name": para_type[key]}
+    for key in PARAMETER_TYPES:
+        temp = {"parameter_type_id": key, "name": PARAMETER_TYPES[key]}
         output.append(temp)
     return output
 
 
 def get_flow_support_type():
     output = []
-    for key in flow_type:
-        output.append({"flow_type_id": int(key), "name": flow_type[key]})
+    for key in FLOW_TYPES:
+        output.append({"flow_type_id": int(key), "name": FLOW_TYPES[key]})
     return output
 
 
@@ -313,7 +294,6 @@ def post_requirement_by_issue_id(issue_id, args):
         update_at=datetime.datetime.now())
     logger.debug("insert_user_command: {0}".format(insert_rqmt_command))
     ret_msg = util.call_sqlalchemy(insert_rqmt_command)
-    print(ret_msg)
     return {'requirement_id': ret_msg.inserted_primary_key}
 
 
@@ -472,8 +452,8 @@ def post_testcase_by_project_id(project_id, args):
 
 def get_api_method():
     output = []
-    for key in httpMethod:
-        output.append({"Http_Method_id": int(key), "name": httpMethod[key]})
+    for key in HTTP_METHODS:
+        output.append({"Http_Method_id": int(key), "name": HTTP_METHODS[key]})
     return output
 
 
@@ -611,15 +591,15 @@ def deal_with_TestValueObject(sql_row):
 
 def get_testValue_httpType():
     output = []
-    for key in httpType:
-        output.append({'type_id': int(key), "type_name": httpType[key]})
+    for key in HTTP_TYPES:
+        output.append({'type_id': int(key), "type_name": HTTP_TYPES[key]})
     return output
 
 
 def get_testValue_httpLocation():
     output = []
-    for key in httpLocation:
-        output.append({'location_id': int(key), "type_name": httpLocation[key]})
+    for key in HTTP_LOCATIONS:
+        output.append({'location_id': int(key), "type_name": HTTP_LOCATIONS[key]})
     return output
 
 
@@ -891,7 +871,6 @@ class ParameterType(Resource):
     @jwt_required
     def get(self):
         output = get_parameter_types()
-        print(output)
         return util.success(output)
 
 

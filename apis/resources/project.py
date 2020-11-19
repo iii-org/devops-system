@@ -3,11 +3,13 @@ from datetime import datetime
 
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
+from sqlalchemy.orm.exc import NoResultFound
 
 import config
+import model
 import resources.apiError as apiError
 import resources.util as util
-from model import db, ProjectUserRole, ProjectPluginRelation, TableProjects
+from model import db
 from . import role, user
 from .checkmarx import checkmarx
 from .gitlab import gitlab
@@ -17,9 +19,10 @@ from .user import get_3pt_user_ids
 
 
 def get_project_plugin_relation(project_id):
-    select_project_relation_command = db.select([ProjectPluginRelation.stru_project_plug_relation]) \
-        .where(db.and_(ProjectPluginRelation.stru_project_plug_relation.c.project_id == project_id))
-    return util.call_sqlalchemy(select_project_relation_command).fetchone()
+    try:
+        return model.ProjectPluginRelation.query.filter_by(project_id=project_id).one()
+    except NoResultFound:
+        return None
 
 
 # List all projects of a PM
@@ -384,17 +387,14 @@ def project_add_member(project_id, args):
     role_id = user.get_role_id(user_id)
 
     # Check ProjectUserRole table has relationship or not
-    get_pj_ur_rl_cmd = db.select([ProjectUserRole.stru_project_user_role]).where(db.and_(
-        ProjectUserRole.stru_project_user_role.c.user_id == user_id,
-        ProjectUserRole.stru_project_user_role.c.project_id == project_id,
-        ProjectUserRole.stru_project_user_role.c.role_id == role_id))
-    get_pj_ur_rl = util.call_sqlalchemy(get_pj_ur_rl_cmd).fetchone()
+    row = model.ProjectUserRole.query.filter_by(
+        user_id=user_id, project_id=project_id, role_id=role_id).first()
     # if ProjectUserRole table not has relationship
-    if get_pj_ur_rl is None:
+    if row is None:
         # insert one relationship
-        get_pj_ur_rl_cmd = db.insert(ProjectUserRole.stru_project_user_role).values(
-            project_id=project_id, user_id=user_id, role_id=role_id)
-        util.call_sqlalchemy(get_pj_ur_rl_cmd)
+        new = model.ProjectUserRole(project_id=project_id, user_id=user_id, role_id=role_id)
+        db.session.add(new)
+        db.session.commit()
     else:
         return util.respond(422, "Error while adding user to project.",
                             error=apiError.already_in_project(user_id, project_id))
@@ -480,13 +480,16 @@ def project_remove_member(project_id, user_id):
         return util.respond(status_code, "Error while removing user from project.",
                             error=apiError.gitlab_error(output))
 
-    # delete relationship from  ProjectUserRole table.
-    delete_pj_ur_rl_cmd = db.delete(ProjectUserRole.stru_project_user_role).where(db.and_(
-        ProjectUserRole.stru_project_user_role.c.user_id == user_id,
-        ProjectUserRole.stru_project_user_role.c.project_id == project_id,
-        ProjectUserRole.stru_project_user_role.c.role_id == role_id))
-    util.call_sqlalchemy(delete_pj_ur_rl_cmd)
-
+    # delete relationship from ProjectUserRole table.
+    try:
+        row = model.ProjectUserRole.query.filter_by(
+            project_id=project_id, user_id=user_id, role_id=role_id).one()
+    except NoResultFound:
+        return util.respond(404, 'Relation not found, project_id={0}, role_id={1}.'.format(
+            project_id, role_id
+        ), error=apiError.user_not_found(user_id))
+    db.session.delete(row)
+    db.session.commit()
     return util.success()
 
 
@@ -495,8 +498,8 @@ def get_3pt_project_ids(project_id, message):
     if project_relation is None:
         return util.respond(400, message,
                             error=apiError.project_not_found(project_id)), None, None
-    redmine_project_id = project_relation['plan_project_id']
-    gitlab_project_id = project_relation['git_repository_id']
+    redmine_project_id = project_relation.plan_project_id
+    gitlab_project_id = project_relation.git_repository_id
 
     if redmine_project_id is None:
         return util.respond(500, message,
@@ -635,9 +638,7 @@ def get_project_by_plan_project_id(plan_project_id):
 
 
 def get_project_info(project_id):
-    select_project_cmd = db.select([TableProjects.stru_projects]).where(
-        db.and_(TableProjects.stru_projects.c.id == project_id))
-    return util.call_sqlalchemy(select_project_cmd).fetchone()
+    return model.Project.query.filter_by(id=project_id).first()
 
 
 def get_test_summary(project_id):
