@@ -637,7 +637,7 @@ def get_project_by_plan_project_id(plan_project_id):
 
 
 def get_project_info(project_id):
-    return model.Project.query.filter_by(project_id=project_id).first()
+    return model.Project.query.filter_by(id=project_id).first()
 
 
 def get_test_summary(project_id):

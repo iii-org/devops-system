@@ -294,7 +294,6 @@ def post_requirement_by_issue_id(issue_id, args):
         update_at=datetime.datetime.now())
     logger.debug("insert_user_command: {0}".format(insert_rqmt_command))
     ret_msg = util.call_sqlalchemy(insert_rqmt_command)
-    print(ret_msg)
     return {'requirement_id': ret_msg.inserted_primary_key}
 
 

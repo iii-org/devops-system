@@ -5,13 +5,14 @@ import werkzeug
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
 
+import model
 import resources.apiError as apiError
 import resources.user as user
 import resources.util as util
-from model import db, ProjectPluginRelation, ProjectUserRole
+from model import db
 from resources.logger import logger
 from resources.redmine import redmine
-from . import project as project_module, role
+from . import project as project_module, role, project
 
 
 def get_dict_userid():
@@ -157,15 +158,9 @@ def require_issue_visible(issue_id,
 def verify_issue_user(issue_id, user_id):
     issue_info, status_code = get_issue(issue_id)
     project_id = issue_info['data']['project']['id']
-    select_project_user_role_command = db.select([ProjectUserRole.stru_project_user_role]) \
-        .where(db.and_(ProjectUserRole.stru_project_user_role.c.project_id == project_id,
-                       ProjectUserRole.stru_project_user_role.c.user_id == user_id))
-    ret_msg = util.call_sqlalchemy(select_project_user_role_command)
-    match_list = ret_msg.fetchall()
-    if len(match_list) > 0:
-        return True
-    else:
-        return False
+    count = model.ProjectUserRole.query.filter_by(
+        project_id=project_id, user_id=user_id).count()
+    return count > 0
 
 
 def get_issue(issue_id):
@@ -236,16 +231,13 @@ def delete_issue(issue_id):
 def get_issue_by_project(project_id, args):
     if util.is_dummy_project(project_id):
         return util.success([])
-    get_project_command = db.select([ProjectPluginRelation.stru_project_plug_relation]).where(
-        db.and_(ProjectPluginRelation.stru_project_plug_relation.c.project_id == project_id))
-    ret_msg = util.call_sqlalchemy(get_project_command)
-    project_dict = ret_msg.fetchone()
-    if project_dict is None:
+    plan_id = project.get_plan_project_id(project_id)
+    if plan_id < 0:
         return util.respond(404, "Error while getting issues",
                             error=apiError.project_not_found(project_id))
     output_array = []
     redmine_output_issue_array = redmine.rm_get_issues_by_project(
-        project_dict['plan_project_id'], args).json()
+        plan_id, args).json()
 
     for redmine_issue in redmine_output_issue_array['issues']:
         output_dict = deal_with_issue_by_user_redmine_output(redmine_issue)

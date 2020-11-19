@@ -135,18 +135,21 @@ def get_user_info(user_id):
             "status": status
         }
         # get user's involved project list
-        rows = db.session.query(model.Project).join(model.ProjectPluginRelation).filter(
-            model.ProjectUserRole.user_id == user_id,
-            model.ProjectUserRole.project_id != -1,
-            model.ProjectUserRole.project_id == model.ProjectPluginRelation.project_id
-        ).all()
+        rows = db.session.\
+            query(model.Project, model.ProjectPluginRelation.git_repository_id). \
+            join(model.ProjectPluginRelation). \
+            filter(
+                model.ProjectUserRole.user_id == user_id,
+                model.ProjectUserRole.project_id != -1,
+                model.ProjectUserRole.project_id == model.ProjectPluginRelation.project_id
+            ).all()
         if len(rows) > 0:
             project_list = []
             for row in rows:
                 project_list.append({
-                    "id": row.id,
-                    "name": row.name,
-                    "display": row.display,
+                    "id": row.Project.id,
+                    "name": row.Project.name,
+                    "display": row.Project.display,
                     "repository_id": row.git_repository_id
                 })
             output["project"] = project_list
@@ -389,8 +392,8 @@ def get_user_plugin_relation(user_id=None, plan_user_id=None, gitlab_user_id=Non
 
 
 def user_list():
-    rows = db.session.query(model.User, model.ProjectUserRole.role_id).\
-        join(model.ProjectUserRole).\
+    rows = db.session.query(model.User, model.ProjectUserRole.role_id). \
+        join(model.ProjectUserRole). \
         order_by(desc(model.User.id)).all()
     output_array = []
     for row in rows:
@@ -527,7 +530,7 @@ class SingleUser(Resource):
 
     @jwt_required
     def put(self, user_id):
-        role.require_admin("Only admin can update user.")
+        role.require_user_himself(user_id)
         parser = reqparse.RequestParser()
         parser.add_argument('name', type=str)
         parser.add_argument('password', type=str)
