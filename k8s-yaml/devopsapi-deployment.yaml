@@ -13,7 +13,7 @@ spec:
         app: ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}
     spec:
       imagePullSecrets:
-      - name: pipeline-docker-registry
+      - name: harbor-63
       containers:
       - name: devopsapi
         image: ${CICD_IMAGE}:${CICD_GIT_BRANCH}-${CICD_GIT_COMMIT}
