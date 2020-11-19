@@ -37,7 +37,8 @@ class Project(db.Model):
 
 
 class ProjectPluginRelation(db.Model):
-    project_id = Column(Integer, ForeignKey(Project.id), primary_key=True)
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey(Project.id))
     plan_project_id = Column(Integer, unique=True)
     git_repository_id = Column(Integer, unique=True)
     ci_project_id = Column(String)
