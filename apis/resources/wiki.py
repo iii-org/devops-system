@@ -33,9 +33,11 @@ def get_wiki_by_project(project_id, wiki_name):
     if status_code == 200:
         wiki_detail = wiki_list.json()
         if 'author' in wiki_detail['wiki_page']:
-            user_info = user.get_user_id_name_by_plan_user_id(wiki_detail['wiki_page']['author']['id'])
+            user_info = user.get_user_id_name_by_plan_user_id(
+                wiki_detail['wiki_page']['author']['id'])
             if user_info is not None:
-                wiki_detail['wiki_page']['author'] = {'id': user_info['id'], 'name': user_info['name']}
+                wiki_detail['wiki_page']['author'] = {
+                    'id': user_info.id, 'name': user_info.name}
         return util.success(wiki_detail)
     else:
         return util.respond(status_code, "Error when getting redmine wiki.",
@@ -50,7 +52,7 @@ def put_wiki_by_project(project_id, wiki_name, args, operator_id):
     plan_operator_id = None
     if operator_id is not None:
         operator_plugin_relation = user.get_user_plugin_relation(user_id=operator_id)
-        plan_operator_id = operator_plugin_relation['plan_user_id']
+        plan_operator_id = operator_plugin_relation.plan_user_id
     wiki_list, status_code = redmine.rm_put_wiki(
         plan_id, wiki_name, args, plan_operator_id)
     if status_code == 204 or status_code == 201:
