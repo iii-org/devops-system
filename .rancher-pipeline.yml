@@ -1,21 +1,38 @@
 stages:
-  - name: build sonarqube runner image
+  - name: Create K8s config
+    steps:
+    - runScriptConfig:
+        image: ubuntu:18.04
+        shellScript: echo $kubeconfig > k8s_config;echo $api_env > environments.json
+      envFrom:
+      - sourceName: iiidevops
+        sourceKey: kubeconfig
+        targetKey: kubeconfig
+      - sourceName: iiidevops
+        sourceKey: api-env
+        targetKey: api_env
+
+  - name: Publish iiidevops-api image
     steps:
     - publishImageConfig:
-        dockerfilePath: ./build/sonarqube/sonar-runner/Dockerfile
+        dockerfilePath: ./Dockerfile
         buildContext: .
-        tag: devops-sonarrunner:${CICD_EXECUTION_SEQUENCE}
-    - applyYamlConfig:
-        path: ./build/sonarqube/sonar-runner/k8s-yaml/sonar-runner-deployment.yaml
-  - name: Publish flask image
-    steps:
-    - publishImageConfig:
-        dockerfilePath: ./sample/flask/dockerfile/Dockerfile
-        buildContext: .
-        tag: demoyuw/devops-flask:${CICD_EXECUTION_SEQUENCE}
-  - name: deploy flask-${CICD_GIT_BRANCH} environment
+        tag: iiidevops-api:${CICD_GIT_BRANCH}-${CICD_GIT_COMMIT}
+      env:
+        PLUGIN_MTU: 1450
+
+  - name: deploy iiidevops-api environment
     steps:
     - applyYamlConfig:
-        path: ./sample/flask/k8s-yaml/flask-deployment.yaml
+        path: ./k8s-yaml/devopsapi-deployment.yaml
     - applyYamlConfig:
-        path: ./sample/flask/k8s-yaml/flask-service.yaml
+        path: ./k8s-yaml/devopsapi-service.yaml
+
+#  - name: build sonarqube runner image
+#    steps:
+#    - publishImageConfig:
+#        dockerfilePath: ./build/sonarqube/sonar-runner/Dockerfile
+#        buildContext: .
+#        tag: devops-sonarrunner:${CICD_EXECUTION_SEQUENCE}
+#    - applyYamlConfig:
+#        path: ./build/sonarqube/sonar-runner/k8s-yaml/sonar-runner-deployment.yaml
