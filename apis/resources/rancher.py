@@ -1,4 +1,3 @@
-import logging
 import ssl
 
 import websocket
@@ -7,8 +6,7 @@ from flask_restful import abort
 import config
 import resources.apiError as apiError
 import resources.util as util
-
-logger = logging.getLogger(config.get('LOGGER_NAME'))
+from resources.logger import logger
 
 
 class Rancher(object):
@@ -67,7 +65,7 @@ class Rancher(object):
         }
         params = {'action': 'login'}
         output = self.__api_post('-public/localProviders/local', params=params,
-                                              data=body, with_token=False)
+                                 data=body, with_token=False)
         return output.json()['token']
 
     def rc_get_pipeline_executions(self, ci_project_id, ci_pipeline_id):
@@ -192,3 +190,6 @@ class Rancher(object):
         project_id = self.rc_get_project_id()
         output = self.__api_get('/projects/{0}/pipelines'.format(project_id))
         return output.json()['data']
+
+
+rancher = Rancher()

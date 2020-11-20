@@ -1,29 +1,23 @@
-import config
-import logging
 import time
 from io import BytesIO
 
 import requests
 import werkzeug
 from flask import send_file
-from flask_restful import reqparse
+from flask_jwt_extended import jwt_required
+from flask_restful import reqparse, Resource
 
+import config
 import resources.apiError as apiError
 import resources.util as util
-
-logger = logging.getLogger(config.get('LOGGER_NAME'))
+from resources.logger import logger
 
 
 class Redmine:
-
-    redmine_key = None
-    headers = {'Content-Type': 'application/json'}
-
-    def __init__(self, app):
-        self.app = app
-        self.headers = {'Content-Type': 'application/json'}
+    def __init__(self):
         self.key_generated = 0.0
         self.last_operator_id = None
+        self.redmine_key = None
 
     def __api_request(self, method, path, headers=None, params=None, data=None,
                       operator_id=None, resp_format='.json'):
@@ -90,24 +84,42 @@ class Redmine:
                                                              config.get('REDMINE_ADMIN_PASSWORD'),
                                                              config.get('REDMINE_IP_PORT'),
                                                              operator_id)
-        output = requests.get(url, headers=Redmine.headers, verify=False)
+        output = requests.get(url, headers={'Content-Type': 'application/json'}, verify=False)
         self.redmine_key = output.json()['user']['api_key']
-        logger.info("redmine_key: {0}".format(self.redmine_key))
+
+    def rm_get_project(self, plan_project_id):
+        return self.__api_get('/projects/{0}'.format(plan_project_id),
+                              params={'limit': 1000})
+
+    def rm_update_project(self, plan_project_id, args):
+        xml_body = """<?xml version="1.0" encoding="UTF-8"?>
+                <project>
+                <name>{0}</name>
+                <description>{1}</description>
+                </project>""".format(
+            args["display"],
+            args["description"])
+        headers = {'Content-Type': 'application/xml'}
+        return self.__api_put('/projects/{0}'.format(plan_project_id),
+                              headers=headers,
+                              data=xml_body.encode('utf-8'))
+
+    def rm_delete_project(self, plan_project_id):
+        return self.__api_delete('/projects/{0}'.format(plan_project_id))
 
     def rm_get_issues_by_user(self, user_id):
-        params = {'assigned_to_id': user_id, 'limit': 100, 'status_id': '*'}
+        params = {'assigned_to_id': user_id, 'limit': 1000, 'status_id': '*'}
         output = self.__api_get('/issues', params=params)
         logger.info("get issues by output: {0}".format(output.json()))
         return output.json()
 
     def rm_get_issues_by_project(self, plan_project_id, args=None):
-        if 'fixed_version_id' in args:
+        if args is not None and 'fixed_version_id' in args:
             params = {'project_id': plan_project_id, 'limit': 1000, 'status_id': '*',
                       'fixed_version_id': args['fixed_version_id']}
         else:
             params = {'project_id': plan_project_id, 'limit': 1000, 'status_id': '*'}
-        output = self.__api_get('/issues', params=params)
-        return output.json()
+        return self.__api_get('/issues', params=params)
 
     def rm_get_issues_by_project_and_user(self, user_id, plan_project_id):
         params = {
@@ -189,8 +201,7 @@ class Redmine:
 
     def rm_get_wiki(self, project_id, wiki_name):
         output = self.__api_get('/projects/{0}/wiki/{1}'.format(
-            project_id, wiki_name,
-        ))
+            project_id, wiki_name,))
         return output, output.status_code
 
     def rm_put_wiki(self, project_id, wiki_name, args, operator_id):
@@ -233,8 +244,7 @@ class Redmine:
         return output, output.status_code
 
     def rm_delete_memberships(self, membership_id):
-        output = self.__api_delete('/memberships/{0}'.format(membership_id))
-        return output, output.status_code
+        return self.__api_delete('/memberships/{0}'.format(membership_id))
 
     def rm_get_memberships_list(self, project_id):
         output = self.__api_get('/projects/{0}/memberships'.format(project_id))
@@ -339,17 +349,28 @@ class Redmine:
                     <is_public>false</is_public>
                     </project>""".format(
             args["display"],
-            args["identifier"],
+            args["name"],
             args["description"])
-        logger.info("create redmine project body: {0}".format(xml_body))
         headers = {'Content-Type': 'application/xml'}
         redmine_output = self.__api_post('/projects',
                                          headers=headers,
                                          data=xml_body.encode('utf-8'))
         return redmine_output, redmine_output.status_code
 
-    def rm_delete_project(self, plan_project_id):
-        logger.info("delete redmine project plan_id: {0}".format(plan_project_id))
-        redmine_output = self.__api_delete('/projects/{0}'.format(plan_project_id))
-        logger.info("delete redmine project output: {0}".format(redmine_output))
-        return redmine_output
+
+# --------------------- Resources ---------------------
+redmine = Redmine()
+
+
+class RedmineFile(Resource):
+    @jwt_required
+    def get(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('id', type=int)
+        parser.add_argument('filename', type=str)
+        args = parser.parse_args()
+        return redmine.rm_download_attachment(args)
+
+    @jwt_required
+    def delete(self, file_id):
+        return redmine.rm_delete_attachment(file_id)
