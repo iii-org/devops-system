@@ -31,9 +31,9 @@ stages:
   - name: deploy iiidevops-api environment
     steps:
     - applyYamlConfig:
-        path: ./k8s-yaml/devopsapi-deployment.yaml
+        path: ./k8s-yaml/devopsapi-dev-deployment.yaml
     - applyYamlConfig:
-        path: ./k8s-yaml/devopsapi-service.yaml
+        path: ./k8s-yaml/devopsapi-dev-service.yaml
     when:
       branch: [develope]
 
