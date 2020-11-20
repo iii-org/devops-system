@@ -2,7 +2,7 @@ import datetime
 import re
 
 from Cryptodome.Hash import SHA256
-from flask_jwt_extended import (create_access_token, JWTManager, jwt_required)
+from flask_jwt_extended import (create_access_token, JWTManager, jwt_required, get_jwt_identity)
 from flask_restful import Resource, reqparse
 from sqlalchemy import desc
 from sqlalchemy.orm.exc import NoResultFound
@@ -166,6 +166,17 @@ def update_info(user_id, args):
         set_string += "name = '{0}'".format(args["name"])
         set_string += ","
     if args["password"] is not None:
+        if 5 != get_jwt_identity()['role_id']:
+            if args["old_password"] is None:
+                return util.respond(400, "old_password is empty", error=apiError.wrong_password())
+            h_old_password = SHA256.new()
+            h_old_password.update(args["old_password"].encode())
+            result = db.engine.execute(
+                "SELECT ur.id, ur.password FROM public.user as ur"
+                " WHERE ur.disabled = false AND ur.id = {0}".format(get_jwt_identity()['user_id'])
+            ).fetchone()
+            if result['password'] != h_old_password.hexdigest():
+                return util.respond(400, "Password is incorrect", error=apiError.wrong_password())
         err = update_external_passwords(user_id, args["password"])
         if err is not None:
             logger.exception(err)  # Don't stop change password on API server
@@ -528,6 +539,7 @@ class SingleUser(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('name', type=str)
         parser.add_argument('password', type=str)
+        parser.add_argument('old_password', type=str)
         parser.add_argument('phone', type=str)
         parser.add_argument('email', type=str)
         parser.add_argument('status', type=str)
