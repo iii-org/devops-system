@@ -167,15 +167,17 @@ def update_info(user_id, args):
         set_string += "name = '{0}'".format(args["name"])
         set_string += ","
     if args["password"] is not None:
-        if 1 == get_jwt_identity()['role_id'] and args["old_password"] is not None:
+        if 5 != get_jwt_identity()['role_id']:
+            if args["old_password"] is None:
+                return util.respond(400, "old_password is empty", error=apiError.wrong_password())
             h_old_password = SHA256.new()
             h_old_password.update(args["old_password"].encode())
             result = db.engine.execute(
                 "SELECT ur.id, ur.password FROM public.user as ur"
                 " WHERE ur.disabled = false AND ur.id = {0}".format(get_jwt_identity()['user_id'])
-            )
+            ).fetchone()
             if result['password'] != h_old_password.hexdigest():
-                return util.respond(404, "User not found.", error=apiError.user_not_found(user_id))
+                return util.respond(400, "Password is incorrect", error=apiError.wrong_password())
         err = update_external_passwords(user_id, args["password"])
         if err is not None:
             logger.exception(err)  # Don't stop change password on API server
