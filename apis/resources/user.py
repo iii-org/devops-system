@@ -215,11 +215,10 @@ def update_external_passwords(user_id, new_pwd):
 
 def delete_user(user_id):
     # 取得gitlab & redmine user_id
-    result = db.engine.execute(
-        "SELECT * FROM public.user_plugin_relation WHERE user_id = '{0}'".format(user_id))
-    user_relation = result.fetchone()
-    result.close()
-    gitlab_user_id = user_relation["repository_user_id"]
+    relation = get_user_plugin_relation(user_id=user_id)
+    if type(relation) is not model.UserPluginRelation:
+        return relation
+    gitlab_user_id = relation.repository_user_id
     # 刪除gitlab user
     gitlab_response = gitlab.gl_delete_user(gitlab_user_id)
     if gitlab_response.status_code != 204:
@@ -227,7 +226,7 @@ def delete_user(user_id):
                             error=apiError.gitlab_error(gitlab_response))
 
     # 如果gitlab user成功被刪除則繼續刪除redmine user
-    redmine_user_id = user_relation["plan_user_id"]
+    redmine_user_id = relation.plan_user_id
     redmine_output, redmine_status_code = redmine.rm_delete_user(redmine_user_id)
     if redmine_output.status_code != 204:
         return util.respond(redmine_status_code, "Error when deleting user.",
@@ -372,21 +371,24 @@ def get_user_plugin_relation(user_id=None, plan_user_id=None, gitlab_user_id=Non
             return model.UserPluginRelation.query.filter_by(
                 plan_user_id=plan_user_id).one()
         except NoResultFound:
-            return util.respond(404, 'User with redmine id {0} does not exist in redmine.',
+            return util.respond(404, 'User with redmine id {0} does not exist in redmine.'
+                                .format(plan_user_id),
                                 error=apiError.user_not_found(plan_user_id))
     elif gitlab_user_id is not None:
         try:
             return model.UserPluginRelation.query.filter_by(
                 repository_user_id=gitlab_user_id).one()
         except NoResultFound:
-            return util.respond(404, 'User with gitlab id {0} does not exist in gitlab.',
+            return util.respond(404, 'User with gitlab id {0} does not exist in gitlab.'
+                                .format(gitlab_user_id),
                                 error=apiError.user_not_found(gitlab_user_id))
     else:
         try:
             return model.UserPluginRelation.query.filter_by(
                 user_id=user_id).one()
         except NoResultFound:
-            return util.respond(404, 'User with id {0} does not exist.',
+            return util.respond(404, 'User with id {0} does not exist.'
+                                .format(user_id),
                                 error=apiError.user_not_found(user_id))
 
 

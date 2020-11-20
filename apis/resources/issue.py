@@ -780,7 +780,7 @@ def check_requirement_by_issue_id(issue_id):
         issue_id=issue_id).order_by(model.Requirements.id).all()
     requirement_ids = []
     for row in rows:
-        requirement_ids.append(row['id'])
+        requirement_ids.append(row.id)
 
     return requirement_ids
 

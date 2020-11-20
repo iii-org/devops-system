@@ -12,3 +12,5 @@ Flask-Cors
 Werkzeug
 SQLAlchemy
 kubernetes
+alembic
+alembic init .

@@ -8,7 +8,6 @@ from flask_restful import Resource, Api
 from werkzeug.routing import IntegerConverter
 
 import config
-import model
 import resources.apiError as apiError
 import resources.checkmarx as checkmarx
 import resources.pipeline as pipeline
