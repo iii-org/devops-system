@@ -300,21 +300,23 @@ def pm_update_project(project_id, args):
 # 用project_id刪除redmine & gitlab的project並將db的相關table欄位一併刪除
 def delete_project(project_id):
     # 取得gitlab & redmine project_id
-    result = db.engine.execute(
-        "SELECT * FROM public.project_plugin_relation WHERE project_id = '{0}'".format(
-            project_id))
-    project_relation = result.fetchone()
-    result.close()
-    if project_relation is None:
-        return util.respond(404, "Error while deleting project.",
-                            error=apiError.project_not_found(project_id))
-    redmine_project_id = project_relation["plan_project_id"]
-    gitlab_project_id = project_relation["git_repository_id"]
-
+    relation = get_project_plugin_relation(project_id)
+    if relation is None:
+        # 如果 project table 有髒資料，將其移除
+        corr = model.Project.query.filter_by(id=project_id).first()
+        if corr is not None:
+            db.session.delete(corr)
+            db.session.commit()
+            return util.success()
+        else:
+            return util.respond(404, "Error while deleting project.",
+                                error=apiError.project_not_found(project_id))
+    redmine_project_id = relation.plan_project_id
+    gitlab_project_id = relation.git_repository_id
     # disabled rancher pipeline
     rancher.rc_disable_project_pipeline(
-        project_relation["ci_project_id"],
-        project_relation["ci_pipeline_id"])
+        relation.ci_project_id,
+        relation.ci_pipeline_id)
 
     gitlab_output = gitlab.gl_delete_project(gitlab_project_id)
     if gitlab_output.status_code != 202:
@@ -407,10 +409,10 @@ def project_add_member(project_id, args):
         user_id, "Error while adding user to project.")
     if error is not None:
         return error
-    error, redmine_project_id, gitlab_project_id = get_3pt_project_ids(
-        project_id, "Error while adding user to project.")
-    if error is not None:
-        return error
+    relation = get_project_plugin_relation(project_id)
+    if relation is None:
+        return util.respond(404, "Error while adding member to a project.",
+                            error=apiError.project_not_found(project_id))
 
     redmine_role_id = user.to_redmine_role_id(role_id)
     if redmine_role_id is None:
@@ -418,7 +420,7 @@ def project_add_member(project_id, args):
                             error=apiError.db_error("Cannot get redmine role of the user."))
 
     output, status_code = redmine.rm_create_memberships(
-        redmine_project_id, redmine_user_id, redmine_role_id)
+        relation.plan_project_id, redmine_user_id, redmine_role_id)
     if status_code == 201:
         pass
     elif status_code == 422:
@@ -429,7 +431,7 @@ def project_add_member(project_id, args):
                             error=apiError.redmine_error(output))
 
     # gitlab project add member
-    output = gitlab.gl_project_add_member(gitlab_project_id, gitlab_user_id)
+    output = gitlab.gl_project_add_member(relation.git_repository_id, gitlab_user_id)
     status_code = output.status_code
     if status_code == 201:
         pass
@@ -447,13 +449,13 @@ def project_remove_member(project_id, user_id):
         user_id, "Error while removing user from project.")
     if error is not None:
         return error
-    error, redmine_project_id, gitlab_project_id = get_3pt_project_ids(
-        project_id, "Error while removing user from project.")
-    if error is not None:
-        return error
+    relation = get_project_plugin_relation(project_id)
+    if relation is None:
+        return util.respond(404, "Error while removing a member from the project.",
+                            error=apiError.project_not_found(project_id))
 
     # get membership id
-    memberships, status_code = redmine.rm_get_memberships_list(redmine_project_id)
+    memberships, status_code = redmine.rm_get_memberships_list(relation.plan_project_id)
     redmine_membership_id = None
     if status_code == 200:
         for membership in memberships.json()['memberships']:
@@ -476,7 +478,7 @@ def project_remove_member(project_id, user_id):
         pass
 
     # gitlab project delete member
-    output = gitlab.gl_project_delete_member(gitlab_project_id, gitlab_user_id)
+    output = gitlab.gl_project_delete_member(relation.git_repository_id, gitlab_user_id)
     status_code = output.status_code
     if status_code == 204:
         pass
@@ -495,26 +497,6 @@ def project_remove_member(project_id, user_id):
     db.session.delete(row)
     db.session.commit()
     return util.success()
-
-
-def get_3pt_project_ids(project_id, message):
-    project_relation = get_project_plugin_relation(project_id)
-    if project_relation is None:
-        return util.respond(400, message,
-                            error=apiError.project_not_found(project_id)), None, None
-    redmine_project_id = project_relation.plan_project_id
-    gitlab_project_id = project_relation.git_repository_id
-
-    if redmine_project_id is None:
-        return util.respond(500, message,
-                            error=apiError.db_error(
-                                "Cannot get redmine id of the project.")), None, None
-    if gitlab_project_id is None:
-        return util.respond(500, message,
-                            error=apiError.db_error(
-                                "Gitlab does not have this project.")), None, None
-
-    return None, redmine_project_id, gitlab_project_id
 
 
 def get_plan_project_id(project_id):

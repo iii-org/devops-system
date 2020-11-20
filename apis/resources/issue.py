@@ -161,6 +161,8 @@ def require_issue_visible(issue_id,
 
 def verify_issue_user(issue_id, user_id):
     issue_info, status_code = get_issue(issue_id)
+    if status_code != 200:
+        raise apiError.IssueNotFoundError('issue_id {0} not found.'.format(issue_id))
     project_id = issue_info['data']['project']['id']
     count = model.ProjectUserRole.query.filter_by(
         project_id=project_id, user_id=user_id).count()
@@ -1127,12 +1129,12 @@ class FlowByIssue(Resource):
         parser.add_argument('name', type=str)
         parser.add_argument('description', type=str)
         args = parser.parse_args()
-        check = check_requirement_by_issue_id(issue_id)
-        if not check:
-            requirements = post_requirement_by_issue_id(issue_id, args)
-            requirement_id = requirements['requirement_id'][0]
+        requirements = check_requirement_by_issue_id(issue_id)
+        if len(requirements) == 0:
+            new = post_requirement_by_issue_id(issue_id, args)
+            requirement_id = new['requirement_id']
         else:
-            requirement_id = check[0]
+            requirement_id = requirements[0]
 
         output = post_flow_by_requirement_id(int(issue_id), requirement_id, args)
         return util.success(output, has_date_etc=True)
