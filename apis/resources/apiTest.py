@@ -13,7 +13,7 @@ from resources import apiError
 HTTP_TYPES = {"1": "request", "2": "response"}
 HTTP_METHODS = {"1": "GET", "2": "POST", "3": "PUT", "4": "DELETE"}
 HTTP_LOCATIONS = {"1": "header", "2": "body"}
-TEST_CASE_TYPES = {"1": "API"}
+TEST_CASE_TYPES = {1: "API"}
 
 
 def deal_with_TestCaseObject(orm_row):
@@ -94,7 +94,8 @@ def post_testcase_by_issue_id(issue_id, args):
         description=args['description'],
         type_id=args['type_id'],
         create_at=datetime.datetime.now(),
-        update_at=datetime.datetime.now()
+        update_at=datetime.datetime.now(),
+        disabled=False
     )
     db.session.add(new)
     db.session.commit()
@@ -109,7 +110,8 @@ def post_testcase_by_project_id(project_id, args):
         description=args['description'],
         type_id=args['type_id'],
         create_at=datetime.datetime.now(),
-        update_at=datetime.datetime.now()
+        update_at=datetime.datetime.now(),
+        disabled=False
     )
     db.session.add(new)
     db.session.commit()
@@ -177,7 +179,8 @@ def post_testitem_by_testcase_id(testcase_id, args):
         name=args['name'],
         is_passed=args['is_passed'],
         create_at=datetime.datetime.now(),
-        update_at=datetime.datetime.now()
+        update_at=datetime.datetime.now(),
+        disabled=False
     )
     db.session.add(new)
     db.commit()
@@ -277,8 +280,9 @@ def post_testValue_by_testItem_id(item_id, args):
         test_case_id=args['testCase_id'],
         issue_id=args['issue_id'],
         project_id=args['project_id'],
+        disabled=False,
         create_at=datetime.datetime.now(),
-        update_at=datetime.datetime.now()
+        update_at=datetime.datetime.now(),
     )
     db.session.add(new)
     db.session.commit()
