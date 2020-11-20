@@ -81,8 +81,6 @@ api.add_resource(gitlab.GitProjectFile,
 api.add_resource(gitlab.GitProjectTag,
                  '/repositories/rd/<repository_id>/tags/<tag_name>',
                  '/repositories/rd/<repository_id>/tags')
-api.add_resource(gitlab.GitProjectMergeBranch,
-                 '/repositories/rd/<repository_id>/merge_branches')
 api.add_resource(gitlab.GitProjectBranchCommits,
                  '/repositories/rd/<repository_id>/commits')
 api.add_resource(gitlab.GitProjectNetwork, '/repositories/<repository_id>/overview')

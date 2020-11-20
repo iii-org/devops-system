@@ -315,32 +315,32 @@ class GitLab(object):
             return util.respond(output.status_code, "Error when deleting gitlab tag.",
                                 error=apiError.gitlab_error(output))
 
-    def gl_merge(self, repo_id, args):
-        # 新增merge request
-        path = '/projects/{0}/merge_requests'.format(repo_id)
-        params = {}
-        keys = ['source_branch', 'target_branch', 'title']
-        for k in keys:
-            params[k] = args[k]
-        output = self.__api_post(path, params=params)
-        if output.status_code != 201:
-            return util.respond(output.status_code, "Error when deleting gitlab tag.",
-                                error=apiError.gitlab_error(output))
-        merge_request_iid = output.json()["iid"]
-        output = self.__api_put('/projects/{0}/merge_requests/{1}/merge'.format(
-            repo_id, merge_request_iid))
-        if output.status_code == 200:
-            return util.success()
-        else:
-            # 刪除merge request
-            output_del = self.__api_delete('/projects/{0}/merge_requests/{1}'.format(
-                repo_id, merge_request_iid))
-            if output_del.status_code == 204:
-                return util.respond(400, "merge failed and already delete your merge request.",
-                                    error=apiError.gitlab_error(output))
-            else:
-                return util.respond(output.status_code, "Error when deleting pull request.",
-                                    error=apiError.gitlab_error(output_del))
+    # def gl_merge(self, repo_id, args):
+    #     # 新增merge request
+    #     path = '/projects/{0}/merge_requests'.format(repo_id)
+    #     params = {}
+    #     keys = ['source_branch', 'target_branch', 'title']
+    #     for k in keys:
+    #         params[k] = args[k]
+    #     output = self.__api_post(path, params=params)
+    #     if output.status_code != 201:
+    #         return util.respond(output.status_code, "Error when merging.",
+    #                             error=apiError.gitlab_error(output))
+    #     merge_request_iid = output.json()["iid"]
+    #     output = self.__api_put('/projects/{0}/merge_requests/{1}/merge'.format(
+    #         repo_id, merge_request_iid))
+    #     if output.status_code == 200:
+    #         return util.success()
+    #     else:
+    #         # 刪除merge request
+    #         output_del = self.__api_delete('/projects/{0}/merge_requests/{1}'.format(
+    #             repo_id, merge_request_iid))
+    #         if output_del.status_code == 204:
+    #             return util.respond(400, "merge failed and already delete your merge request.",
+    #                                 error=apiError.gitlab_error(output))
+    #         else:
+    #             return util.respond(output.status_code, "Error when deleting pull request.",
+    #                                 error=apiError.gitlab_error(output_del))
 
     def gl_get_commits(self, project_id, branch):
         output = self.__api_get('/projects/{0}/repository/commits'.format(project_id),
@@ -513,17 +513,17 @@ class GitProjectTag(Resource):
         return gitlab.gl_delete_tag(repository_id, tag_name)
 
 
-class GitProjectMergeBranch(Resource):
-    @jwt_required
-    def post(self, repository_id):
-        project_id = repo_id_to_project_id(repository_id)
-        role.require_in_project(project_id)
-        parser = reqparse.RequestParser()
-        parser.add_argument('schemas', type=dict, required=True)
-        args = parser.parse_args()["schemas"]
-        return gitlab.gl_merge(repository_id, args)
-
-
+# class GitProjectMergeBranch(Resource):
+#     @jwt_required
+#     def post(self, repository_id):
+#         project_id = repo_id_to_project_id(repository_id)
+#         role.require_in_project(project_id)
+#         parser = reqparse.RequestParser()
+#         parser.add_argument('schemas', type=dict, required=True)
+#         args = parser.parse_args()["schemas"]
+#         return gitlab.gl_merge(repository_id, args)
+#
+#
 class GitProjectBranchCommits(Resource):
     @jwt_required
     def get(self, repository_id):
