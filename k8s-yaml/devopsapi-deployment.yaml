@@ -1,21 +1,19 @@
 apiVersion: apps/v1 # for versions before 1.9.0 use apps/v1beta2
 kind: Deployment
 metadata:
-  name: ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}
+  name: devopsapi
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}
+      app: devopsapi
   template:
     metadata:
       labels:
-        app: ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}
+        app: devopsapi
     spec:
-      imagePullSecrets:
-      - name: harbor-63
       containers:
       - name: devopsapi
-        image: ${CICD_IMAGE}:${CICD_GIT_BRANCH}-${CICD_GIT_COMMIT}
+        image: iiiorg/devops-api:3f642ce-10121446
         ports:
         - containerPort: 10009
