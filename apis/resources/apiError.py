@@ -87,6 +87,11 @@ class NotUserHimselfError(HTTPException):
     pass
 
 
+# Redmine Issue/Wiki/... errors
+class IssueNotFoundError(HTTPException):
+    pass
+
+
 # Third party service errors
 def redmine_error(response):
     return error_3rd_party_api(8001, 'Redmine', response)
@@ -132,5 +137,9 @@ custom_errors = {
     'NotUserHimselfError': {
         'error': build(3003, "You are not permitted to access another user's data."),
         'status': 401
+    },
+    'IssueNotFoundError': {
+        'error': build(4001, "Issue not found."),
+        'status': 404
     }
 }

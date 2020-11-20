@@ -1,14 +1,15 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}-service
+  name: devopsapi-service
   labels: 
-    app: ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}
+    app: devopsapi
 spec:
   type: NodePort
   selector:
-    app: ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}
+    app: devopsapi
   ports:
     - name: devopsapi-port
       protocol: TCP
       port: 10009
+      nodePort: 31850

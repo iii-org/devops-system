@@ -12,3 +12,4 @@ Flask-Cors
 Werkzeug
 SQLAlchemy
 kubernetes
+alembic

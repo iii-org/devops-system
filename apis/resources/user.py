@@ -135,14 +135,13 @@ def get_user_info(user_id):
             "status": status
         }
         # get user's involved project list
-        rows = db.session.\
+        rows = db.session. \
             query(model.Project, model.ProjectPluginRelation.git_repository_id). \
             join(model.ProjectPluginRelation). \
-            filter(
-                model.ProjectUserRole.user_id == user_id,
-                model.ProjectUserRole.project_id != -1,
-                model.ProjectUserRole.project_id == model.ProjectPluginRelation.project_id
-            ).all()
+            filter(model.ProjectUserRole.user_id == user_id,
+                   model.ProjectUserRole.project_id != -1,
+                   model.ProjectUserRole.project_id == model.ProjectPluginRelation.project_id
+                   ).all()
         if len(rows) > 0:
             project_list = []
             for row in rows:
@@ -227,11 +226,10 @@ def update_external_passwords(user_id, new_pwd):
 
 def delete_user(user_id):
     # 取得gitlab & redmine user_id
-    result = db.engine.execute(
-        "SELECT * FROM public.user_plugin_relation WHERE user_id = '{0}'".format(user_id))
-    user_relation = result.fetchone()
-    result.close()
-    gitlab_user_id = user_relation["repository_user_id"]
+    relation = get_user_plugin_relation(user_id=user_id)
+    if type(relation) is not model.UserPluginRelation:
+        return relation
+    gitlab_user_id = relation.repository_user_id
     # 刪除gitlab user
     gitlab_response = gitlab.gl_delete_user(gitlab_user_id)
     if gitlab_response.status_code != 204:
@@ -239,7 +237,7 @@ def delete_user(user_id):
                             error=apiError.gitlab_error(gitlab_response))
 
     # 如果gitlab user成功被刪除則繼續刪除redmine user
-    redmine_user_id = user_relation["plan_user_id"]
+    redmine_user_id = relation.plan_user_id
     redmine_output, redmine_status_code = redmine.rm_delete_user(redmine_user_id)
     if redmine_output.status_code != 204:
         return util.respond(redmine_status_code, "Error when deleting user.",
@@ -384,21 +382,24 @@ def get_user_plugin_relation(user_id=None, plan_user_id=None, gitlab_user_id=Non
             return model.UserPluginRelation.query.filter_by(
                 plan_user_id=plan_user_id).one()
         except NoResultFound:
-            return util.respond(404, 'User with redmine id {0} does not exist in redmine.',
+            return util.respond(404, 'User with redmine id {0} does not exist in redmine.'
+                                .format(plan_user_id),
                                 error=apiError.user_not_found(plan_user_id))
     elif gitlab_user_id is not None:
         try:
             return model.UserPluginRelation.query.filter_by(
                 repository_user_id=gitlab_user_id).one()
         except NoResultFound:
-            return util.respond(404, 'User with gitlab id {0} does not exist in gitlab.',
+            return util.respond(404, 'User with gitlab id {0} does not exist in gitlab.'
+                                .format(gitlab_user_id),
                                 error=apiError.user_not_found(gitlab_user_id))
     else:
         try:
             return model.UserPluginRelation.query.filter_by(
                 user_id=user_id).one()
         except NoResultFound:
-            return util.respond(404, 'User with id {0} does not exist.',
+            return util.respond(404, 'User with id {0} does not exist.'
+                                .format(user_id),
                                 error=apiError.user_not_found(user_id))
 
 
@@ -445,53 +446,46 @@ def user_list():
 def user_list_by_project(project_id, args):
     if args["exclude"] is not None and args["exclude"] == 1:
         # list users not in the project
-        cmd_legal_users = "select distinct on (ur.id) pur.user_id as user_id, \
-            ur.name as user_name, ur.email as email, ur.phone as phone, ur.login as login, \
-            ur.create_at as create_at, ur.update_at as update_at, pur.role_id as role_id \
-             FROM public.user as ur, \
-            public.project_user_role as pur \
-            where ur.disabled is false and ur.id = pur.user_id and pur.role_id!=5\
-             ORDER BY ur.id DESC"
-        ret_users = util.call_sqlalchemy(cmd_legal_users).fetchall()
+        ret_users = db.session.query(model.User, model.ProjectUserRole.role_id). \
+            join(model.ProjectUserRole). \
+            filter(model.User.disabled == False,
+                   model.ProjectUserRole.role_id != role.ADMIN.id). \
+            order_by(desc(model.User.id)).all()
 
-        cmd_project_users = "select distinct pur.user_id \
-            from public.project_user_role pur, public.user ur \
-            where pur.project_id={0} and pur.role_id!=5 and pur.user_id=ur.id and \
-            ur.disabled is false \
-            order by pur.user_id DESC".format(project_id)
-        project_users = util.call_sqlalchemy(cmd_project_users).fetchall()
+        project_users = db.session.query(model.User).join(model.ProjectUserRole).filter(
+            model.User.disabled == False,
+            model.ProjectUserRole.project_id == project_id,
+            model.ProjectUserRole.role_id != role.ADMIN.id
+        ).all()
 
         i = 0
         while i < len(ret_users):
             for pu in project_users:
-                if ret_users[i][0] == pu[0]:
+                if ret_users[i].User.id == pu.id:
                     del ret_users[i]
                     break
             i += 1
     else:
         # list users in the project
-        cmd_project_users = "SELECT distinct on (pur.user_id) pur.user_id as user_id, \
-            ur.name as user_name, ur.email as email, ur.phone as phone, ur.login as login, \
-            ur.create_at as create_at, ur.update_at as update_at, pur.role_id as role_id \
-            FROM\
-            public.project_user_role as pur, public.user as ur \
-            WHERE pur.project_id={0} AND pur.role_id!=5 AND pur.user_id=ur.id AND \
-            ur.disabled=False ORDER BY pur.user_id DESC".format(
-            project_id)
-        ret_users = util.call_sqlalchemy(cmd_project_users).fetchall()
+        ret_users = db.session.query(model.User, model.ProjectUserRole.role_id). \
+            join(model.ProjectUserRole). \
+            filter(model.User.disabled == False,
+                   model.ProjectUserRole.project_id == project_id,
+                   model.ProjectUserRole.role_id != role.ADMIN.id). \
+            order_by(desc(model.User.id)).all()
 
     arr_ret = []
     for data_userRole_by_project in ret_users:
         arr_ret.append({
-            "id": data_userRole_by_project['user_id'],
-            "name": data_userRole_by_project['user_name'],
-            "email": data_userRole_by_project['email'],
-            "phone": data_userRole_by_project['phone'],
-            "login": data_userRole_by_project['login'],
-            "create_at": util.date_to_str(data_userRole_by_project['create_at']),
-            "update_at": util.date_to_str(data_userRole_by_project['update_at']),
-            "role_id": data_userRole_by_project['role_id'],
-            "role_name": role.get_role_name(data_userRole_by_project['role_id']),
+            "id": data_userRole_by_project.User.id,
+            "name": data_userRole_by_project.User.name,
+            "email": data_userRole_by_project.User.email,
+            "phone": data_userRole_by_project.User.phone,
+            "login": data_userRole_by_project.User.login,
+            "create_at": util.date_to_str(data_userRole_by_project.User.create_at),
+            "update_at": util.date_to_str(data_userRole_by_project.User.update_at),
+            "role_id": data_userRole_by_project.role_id,
+            "role_name": role.get_role_name(data_userRole_by_project.role_id),
         })
     return util.success({"user_list": arr_ret})
 
