@@ -203,7 +203,7 @@ def create_project(user_id, args):
     # 加關聯project_user_role
     args["user_id"] = user_id
     output, status = project_add_member(project_id, args)
-    if status / 100 != 2:
+    if int(status / 100) != 2:
         return output, status
 
     return util.success({

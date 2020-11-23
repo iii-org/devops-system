@@ -8,12 +8,18 @@ from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
 from sqlalchemy import desc
 from sqlalchemy.orm.exc import NoResultFound
+from werkzeug.exceptions import HTTPException
 
 from model import Checkmarx as Model
 
 import config
 from model import db
 from resources import util, apiError, gitlab
+
+
+class CheckmarxResponseError(Exception):
+    def __init__(self, response):
+        self.error_value = apiError.checkmarx_error(response)
 
 
 def build_url(path):
@@ -89,17 +95,20 @@ class CheckMarx(object):
 
     def register_report(self, scan_id):
         r = self.__api_post('/reports/sastScan', {'reportType': 'PDF', 'scanId': scan_id})
-        if r.status_code % 100 != 2:
-            return util.respond(r.status_code, 'Error when registering checkmarx report.',
-                                error=apiError.checkmarx_error(r))
+        if int(r.status_code / 100) != 2:
+            raise CheckmarxResponseError(r)
         report_id = r.json().get('reportId')
         scan = Model.query.filter_by(scan_id=scan_id).one()
         scan.report_id = report_id
         db.session.commit()
-        return util.respond(r.status_code, data={'scanId': scan_id, 'reportId': report_id})
+        return util.respond(r.status_code, 'Report registered.',
+                            data={'scanId': scan_id, 'reportId': report_id})
 
     def get_report_status(self, report_id):
-        status = self.__api_get('/reports/sastScan/%s/status' % report_id).json().get('status')
+        resp = self.__api_get('/reports/sastScan/%s/status' % report_id)
+        if int(resp.status_code / 100) != 2:
+            raise CheckmarxResponseError(resp)
+        status = resp.json().get('status')
         if status.get('id') == 2:
             row = Model.query.filter_by(report_id=report_id).one()
             row.finished_at = datetime.datetime.now()
@@ -158,7 +167,7 @@ class CheckMarx(object):
 
     @staticmethod
     def wrap(json, status_code, error=None):
-        if status_code / 100 == 2:
+        if int(status_code / 100) == 2:
             return {'message': 'success', 'data': json}, status_code
         else:
             if error is None:
@@ -180,8 +189,6 @@ class CheckMarx(object):
         report_id = self.get_latest('report_id', project_id)
         if report_id < 0:
             json, status_code = self.register_report(scan_id)
-            if status_code % 100 != 2:
-                return json, status_code
             report_id = json['data']['reportId']
         rst_id, rst_name = self.get_report_status(report_id)
         if rst_id != 2:
@@ -190,8 +197,7 @@ class CheckMarx(object):
         return {'message': 'success', 'status': 3, 'data': {
             'stats': self.get_scan_statistics(scan_id),
             'report_id': report_id
-        }
-                }, 200
+        }}, 200
 
 
 checkmarx = CheckMarx()

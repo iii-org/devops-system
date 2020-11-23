@@ -555,7 +555,7 @@ def get_issue_statistics_in_period(period, user_id):
 def count_project_number_by_issues(user_id):
     project_count = {}
     data, status_code = get_issue_by_user(user_id)
-    if status_code / 100 != 2:
+    if int(status_code / 100) != 2:
         return util.respond(status_code, 'Error while getting issues by user', data)
     issues = data['data']
     for issue in issues:
@@ -572,7 +572,7 @@ def count_project_number_by_issues(user_id):
 def count_priority_number_by_issues(user_id):
     priority_count = {}
     data, status_code = get_issue_by_user(user_id)
-    if status_code / 100 != 2:
+    if int(status_code / 100) != 2:
         return util.respond(status_code, 'Error while getting issues by user', data)
     issues = data['data']
     for issue in issues:
@@ -590,7 +590,7 @@ def count_priority_number_by_issues(user_id):
 def count_type_number_by_issues(user_id):
     tracker_count = {}
     data, status_code = get_issue_by_user(user_id)
-    if status_code / 100 != 2:
+    if int(status_code / 100) != 2:
         return util.respond(status_code, 'Error while getting issues by user', data)
     issues = data['data']
     for issue in issues:

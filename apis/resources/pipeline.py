@@ -65,7 +65,7 @@ def pipeline_exec_logs(args):
             project_relationship['ci_project_id'],
             project_relationship['ci_pipeline_id'],
             args['pipelines_exec_run'])
-        if response.status_code / 100 != 2:
+        if int(response.status_code / 100) != 2:
             return util.respond(400, "get pipeline history error",
                                 error=apiError.rancher_error(response))
         return {"message": "success", "data": output_array}, 200

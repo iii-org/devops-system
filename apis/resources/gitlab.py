@@ -354,11 +354,11 @@ class GitLab(object):
 
         # 整理各branches的commit_list
         branches = self.gl_get_branches(repo_id)
-        if branches[1] / 100 != 2:
+        if int(branches[1] / 100) != 2:
             return branches
         for branch in branches[0]["data"]["branch_list"]:
             branch_commits = self.gl_get_commits(repo_id, branch["name"])
-            if branch_commits[1] / 100 != 2:
+            if int(branch_commits[1] / 100) != 2:
                 return branch_commits
             for branch_commit in branch_commits[0]["data"]:
                 obj = {
@@ -375,7 +375,7 @@ class GitLab(object):
 
         # 整理tags
         output_tags = gitlab.gl_get_tags(repo_id)
-        if output_tags.status_code / 100 != 2:
+        if int(output_tags.status_code / 100) != 2:
             return output_tags, output_tags.status_code
         tags = output_tags.json()
         for tag in tags:
