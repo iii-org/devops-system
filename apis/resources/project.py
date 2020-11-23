@@ -47,7 +47,7 @@ def get_joined_project_list(user_id):
         .join(model.ProjectUserRole,
               model.ProjectUserRole.user_id == model.User.id) \
         .filter(model.ProjectUserRole.project_id.in_(project_id_list),
-                model.ProjectUserRole.role_id == role.PM.id) \
+                model.ProjectUserRole.role_id.in_((role.PM.id, role.ADMIN.id))) \
         .all()
     for pm in pms:
         pm_map[pm.id] = pm.User
