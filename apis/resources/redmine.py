@@ -46,7 +46,11 @@ class Redmine:
         if resp_format != '':
             logger.info('redmine api {0} {1}, params={2}, body={5}, response={3} {4}'.format(
                 method, url, params.__str__(), output.status_code, output.text, data))
-
+        if int(output.status_code / 100) != 2:
+            raise apiError.DevOpsError(
+                output.status_code,
+                'Get non-2xx response from Redmine.',
+                apiError.redmine_error(output))
         return output
 
     def __api_get(self, path, params=None, headers=None,
@@ -248,9 +252,8 @@ class Redmine:
 
     def rm_create_memberships(self, project_id, user_id, role_id):
         param = {"membership": {"user_id": user_id, "role_ids": [role_id]}}
-        output = self.__api_post('/projects/{0}/memberships'.format(project_id),
-                                 data=param)
-        return output, output.status_code
+        return self.__api_post('/projects/{0}/memberships'.format(project_id),
+                               data=param)
 
     def rm_delete_memberships(self, membership_id):
         return self.__api_delete('/memberships/{0}'.format(membership_id))
@@ -314,7 +317,7 @@ class Redmine:
         data = {'file': params}
         res = self.__api_post('/projects/%d/files' % plan_project_id, data=data)
         if res.status_code == 204:
-            util.respond(201, None)
+            return util.respond(201, None)
         else:
             raise DevOpsError(res.status_code, "Error while adding the file to redmine",
                               error=apiError.redmine_error(res.text))
@@ -345,7 +348,7 @@ class Redmine:
         if status_code == 204:
             return util.success()
         elif status_code == 404:
-            util.respond(200, 'File is already deleted.')
+            return util.respond(200, 'File is already deleted.')
         else:
             raise DevOpsError(status_code, "Error while deleting attachments.",
                               error=apiError.redmine_error(output))

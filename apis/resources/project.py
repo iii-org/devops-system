@@ -24,7 +24,8 @@ def get_project_plugin_relation(project_id):
     try:
         return model.ProjectPluginRelation.query.filter_by(project_id=project_id).one()
     except NoResultFound:
-        return None
+        raise DevOpsError(404, 'Error when getting project relations.',
+                          error=apiError.project_not_found(project_id))
 
 
 # List all projects of a PM
@@ -129,11 +130,7 @@ def create_project(user_id, args):
 
     # 建立redmine project
     redmine_output, output_status = redmine.rm_create_project(args)
-    try:
-        redmine_pj_id = redmine_output.json()["project"]["id"]
-    except Exception:
-        return util.respond(500, "Error while creating redmine project",
-                            error=apiError.redmine_error(redmine_output))
+    redmine_pj_id = redmine_output.json()["project"]["id"]
 
     if redmine_output.status_code != 201:
         status_code = redmine_output.status_code
@@ -203,9 +200,7 @@ def create_project(user_id, args):
 
     # 加關聯project_user_role
     args["user_id"] = user_id
-    output, status = project_add_member(project_id, args)
-    if int(status / 100) != 2:
-        return output, status
+    project_add_member(project_id, args)
 
     return util.success({
         "project_id": project_id,
@@ -327,7 +322,7 @@ def pm_get_project(project_id):
         plan_project_id = get_plan_project_id(project_id)
     except NoResultFound:
         raise apiError.DevOpsError(404, 'Error when getting project info.',
-                            error=apiError.project_not_found(project_id))
+                                   error=apiError.project_not_found(project_id))
     result = db.engine.execute(
         "SELECT * FROM public.projects as pj, public.project_plugin_relation as ppr "
         "WHERE pj.id = '{0}' AND pj.id = ppr.project_id".format(
@@ -335,7 +330,7 @@ def pm_get_project(project_id):
     if result.rowcount == 0:
         result.close()
         raise apiError.DevOpsError(404, 'Error when getting project info.',
-                            error=apiError.project_not_found(project_id))
+                                   error=apiError.project_not_found(project_id))
     project_info = result.fetchone()
     result.close()
     redmine_url = "http://{0}/projects/{1}".format(config.get("REDMINE_IP_PORT"), plan_project_id)
@@ -375,49 +370,30 @@ def project_add_member(project_id, args):
     row = model.ProjectUserRole.query.filter_by(
         user_id=user_id, project_id=project_id, role_id=role_id).first()
     # if ProjectUserRole table not has relationship
-    if row is None:
-        # insert one relationship
-        new = model.ProjectUserRole(project_id=project_id, user_id=user_id, role_id=role_id)
-        db.session.add(new)
-        db.session.commit()
-    else:
-        return util.respond(422, "Error while adding user to project.",
-                            error=apiError.already_in_project(user_id, project_id))
+    if row is not None:
+        raise DevOpsError(422, "Error while adding user to project.",
+                          error=apiError.already_in_project(user_id, project_id))
+    # insert one relationship
+    new = model.ProjectUserRole(project_id=project_id, user_id=user_id, role_id=role_id)
+    db.session.add(new)
+    db.session.commit()
 
-    error, redmine_user_id, gitlab_user_id = get_3pt_user_ids(
-        user_id, "Error while adding user to project.")
-    if error is not None:
-        return error
+    ids = get_3pt_user_ids(user_id, "Error while adding user to project.")
     relation = get_project_plugin_relation(project_id)
-    if relation is None:
-        raise apiError.DevOpsError(404, "Error while adding member to a project.",
-                            error=apiError.project_not_found(project_id))
-
     redmine_role_id = user.to_redmine_role_id(role_id)
-    if redmine_role_id is None:
-        return util.respond(500, "Error while adding user to project.",
-                            error=apiError.db_error("Cannot get redmine role of the user."))
 
-    output, status_code = redmine.rm_create_memberships(
-        relation.plan_project_id, redmine_user_id, redmine_role_id)
-    if status_code == 201:
-        pass
-    elif status_code == 422:
-        return util.respond(422, "Error while adding user to project: Already in redmine project.",
-                            error=apiError.already_in_project(user_id, project_id))
-    else:
-        return util.respond(status_code, "Error while adding user to project.",
-                            error=apiError.redmine_error(output))
+    try:
+        redmine.rm_create_memberships(
+            relation.plan_project_id, ids['redmine_user_id'], redmine_role_id)
+    except DevOpsError as e:
+        if e.status_code == 422:
+            raise DevOpsError(422, "Error while adding user to project: Already in redmine project.",
+                              error=apiError.already_in_project(user_id, project_id))
+        else:
+            raise e
 
     # gitlab project add member
-    output = gitlab.gl_project_add_member(relation.git_repository_id, gitlab_user_id)
-    status_code = output.status_code
-    if status_code == 201:
-        pass
-    else:
-        return util.respond(status_code, "Error while adding user from project.",
-                            error=apiError.gitlab_error(output))
-
+    gitlab.gl_project_add_member(relation.git_repository_id, ids['gitlab_user_id'])
     return util.success()
 
 
@@ -431,7 +407,7 @@ def project_remove_member(project_id, user_id):
     relation = get_project_plugin_relation(project_id)
     if relation is None:
         raise apiError.DevOpsError(404, "Error while removing a member from the project.",
-                            error=apiError.project_not_found(project_id))
+                                   error=apiError.project_not_found(project_id))
 
     # get membership id
     memberships, status_code = redmine.rm_get_memberships_list(relation.plan_project_id)
@@ -505,7 +481,7 @@ def get_projects_by_user(user_id):
     userid_list_output = result.fetchone()
     if userid_list_output is None:
         raise apiError.DevOpsError(404, "Error while getting projects of a user.",
-                            error=apiError.user_not_found(user_id))
+                                   error=apiError.user_not_found(user_id))
     plan_user_id = userid_list_output[0]
     result.close()
     for project in project_list:
@@ -744,7 +720,7 @@ class ProjectFile(Resource):
             plan_project_id = get_plan_project_id(project_id)
         except NoResultFound:
             raise apiError.DevOpsError(404, 'Error while uploading a file to a project.',
-                                error=apiError.project_not_found(project_id))
+                                       error=apiError.project_not_found(project_id))
 
         parser = reqparse.RequestParser()
         parser.add_argument('filename', type=str)
@@ -759,7 +735,7 @@ class ProjectFile(Resource):
             plan_project_id = get_plan_project_id(project_id)
         except NoResultFound:
             raise apiError.DevOpsError(404, 'Error while getting project files.',
-                                error=apiError.project_not_found(project_id))
+                                       error=apiError.project_not_found(project_id))
         return redmine.rm_list_file(plan_project_id)
 
 

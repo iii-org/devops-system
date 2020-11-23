@@ -60,18 +60,14 @@ def pipeline_exec_logs(args):
         WHERE git_repository_id = {0};".format(args['repository_id']))
     project_relationship = result.fetchone()
     result.close()
-    try:
-        output_array, response = rancher.rc_get_pipeline_executions_logs(
-            project_relationship['ci_project_id'],
-            project_relationship['ci_pipeline_id'],
-            args['pipelines_exec_run'])
-        if int(response.status_code / 100) != 2:
-            return util.respond(400, "get pipeline history error",
-                                error=apiError.rancher_error(response))
-        return {"message": "success", "data": output_array}, 200
-    except Exception as e:
-        return util.respond(500, "get pipeline history error",
-                            error=apiError.uncaught_exception(e))
+    output_array, response = rancher.rc_get_pipeline_executions_logs(
+        project_relationship['ci_project_id'],
+        project_relationship['ci_pipeline_id'],
+        args['pipelines_exec_run'])
+    if int(response.status_code / 100) != 2:
+        return util.respond(400, "get pipeline history error",
+                            error=apiError.rancher_error(response))
+    return {"message": "success", "data": output_array}, 200
 
 
 def pipeline_software():

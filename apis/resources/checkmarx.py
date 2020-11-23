@@ -15,13 +15,7 @@ from model import Checkmarx as Model
 import config
 from model import db
 from resources import util, apiError, gitlab
-
-
-def build_exception(response):
-    return apiError.DevOpsError(
-        400,
-        'System can not handle this request due to checkmarx error.',
-        apiError.checkmarx_error(response))
+from resources.apiError import DevOpsError
 
 
 def build_url(path):
@@ -50,12 +44,28 @@ class CheckMarx(object):
         self.access_token = requests.post(url, data).json().get('access_token')
         self.expire_at = time.time() + 43700  # 0.5 day
 
-    def __api_get(self, path, headers=None):
+    def __api_request(self, method, path, headers=None, data=None):
+        if data is None:
+            data = {}
         if headers is None:
             headers = {}
         url = build_url(path)
         headers['Authorization'] = 'Bearer ' + self.token()
-        return requests.get(url, headers=headers, allow_redirects=True)
+        if method.upper() == 'GET':
+            res = requests.get(url, headers=headers, allow_redirects=True)
+        elif method.upper() == 'POST':
+            res = requests.post(url, headers=headers, data=data, allow_redirects=True)
+        else:
+            raise DevOpsError(500, 'Only GET and POST is allowed.',
+                              error=apiError.unknown_method(method))
+        if int(res.status_code / 100) != 2:
+            raise apiError.DevOpsError(
+                res.status_code, 'Get non-2xx response from Checkmarx.',
+                apiError.checkmarx_error(res))
+        return res
+
+    def __api_get(self, path, headers=None):
+        return self.__api_request('GET', path, headers=headers)
 
     def __api_post(self, path, data=None, headers=None):
         if data is None:
@@ -64,7 +74,8 @@ class CheckMarx(object):
             headers = {}
         url = build_url(path)
         headers['Authorization'] = 'Bearer ' + self.token()
-        return requests.post(url, headers=headers, data=data, allow_redirects=True)
+        res = requests.post(url, headers=headers, data=data, allow_redirects=True)
+        return res
 
     @staticmethod
     def create_scan(args):
@@ -97,8 +108,6 @@ class CheckMarx(object):
 
     def register_report(self, scan_id):
         r = self.__api_post('/reports/sastScan', {'reportType': 'PDF', 'scanId': scan_id})
-        if int(r.status_code / 100) != 2:
-            raise build_exception(r)
         report_id = r.json().get('reportId')
         scan = Model.query.filter_by(scan_id=scan_id).one()
         scan.report_id = report_id
@@ -108,8 +117,6 @@ class CheckMarx(object):
 
     def get_report_status(self, report_id):
         resp = self.__api_get('/reports/sastScan/%s/status' % report_id)
-        if int(resp.status_code / 100) != 2:
-            raise build_exception(resp)
         status = resp.json().get('status')
         if status.get('id') == 2:
             row = Model.query.filter_by(report_id=report_id).one()

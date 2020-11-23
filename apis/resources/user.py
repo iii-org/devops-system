@@ -10,6 +10,7 @@ from sqlalchemy.orm.exc import NoResultFound
 import resources.apiError as apiError
 import resources.util as util
 from model import db
+from resources.apiError import DevOpsError
 import model
 from resources import role
 from resources.logger import logger
@@ -32,19 +33,19 @@ def jwt_response_data(row):
 def get_3pt_user_ids(user_id, message):
     user_relation = get_user_plugin_relation(user_id=user_id)
     if user_relation is None:
-        return util.respond(400, message,
-                            error=apiError.user_not_found(user_id)), None, None
+        raise DevOpsError(400, message,
+                          error=apiError.user_not_found(user_id))
     redmine_user_id = user_relation.plan_user_id
     gitlab_user_id = user_relation.repository_user_id
     if redmine_user_id is None:
-        return util.respond(500, message,
-                            error=apiError.db_error(
-                                "Cannot get redmine id of the user.")), None, None
+        raise DevOpsError(500, message,
+                          error=apiError.db_error(
+                              "Cannot get redmine id of the user."))
     if gitlab_user_id is None:
-        return util.respond(500, message,
-                            error=apiError.db_error(
-                                "Gitlab does not have this user.")), None, None
-    return None, redmine_user_id, gitlab_user_id
+        raise DevOpsError(500, message,
+                          error=apiError.db_error(
+                              "Gitlab does not have this user."))
+    return {'redmine_user_id': redmine_user_id, 'gitlab_user_id': gitlab_user_id}
 
 
 def get_user_id_name_by_plan_user_id(plan_user_id):
@@ -451,14 +452,12 @@ def user_list_by_project(project_id, args):
         # list users not in the project
         ret_users = db.session.query(model.User, model.ProjectUserRole.role_id). \
             join(model.ProjectUserRole). \
-            filter(model.User.disabled == False,
-                   model.ProjectUserRole.role_id != role.ADMIN.id). \
+            filter(model.User.disabled == False). \
             order_by(desc(model.User.id)).all()
 
         project_users = db.session.query(model.User).join(model.ProjectUserRole).filter(
             model.User.disabled == False,
-            model.ProjectUserRole.project_id == project_id,
-            model.ProjectUserRole.role_id != role.ADMIN.id
+            model.ProjectUserRole.project_id == project_id
         ).all()
 
         i = 0
@@ -473,8 +472,7 @@ def user_list_by_project(project_id, args):
         ret_users = db.session.query(model.User, model.ProjectUserRole.role_id). \
             join(model.ProjectUserRole). \
             filter(model.User.disabled == False,
-                   model.ProjectUserRole.project_id == project_id,
-                   model.ProjectUserRole.role_id != role.ADMIN.id). \
+                   model.ProjectUserRole.project_id == project_id). \
             order_by(desc(model.User.id)).all()
 
     arr_ret = []
@@ -511,12 +509,8 @@ class UserForgetPassword(Resource):
         parser.add_argument('mail', type=str, required=True)
         parser.add_argument('user_account', type=str, required=True)
         args = parser.parse_args()
-        try:
-            status = user_forgot_password(args)
-            return util.success(status)
-        except Exception as err:
-            return util.respond(500, "Error for forgot password process.",
-                                error=apiError.uncaught_exception(err))
+        status = user_forgot_password(args)
+        return util.success(status)
 
 
 class UserStatus(Resource):
