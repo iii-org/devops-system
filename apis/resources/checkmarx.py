@@ -8,11 +8,9 @@ from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
 from sqlalchemy import desc
 from sqlalchemy.orm.exc import NoResultFound
-from werkzeug.exceptions import HTTPException
-
-from model import Checkmarx as Model
 
 import config
+from model import Checkmarx as Model
 from model import db
 from resources import util, apiError, gitlab
 from resources.apiError import DevOpsError
@@ -92,19 +90,8 @@ class CheckMarx(object):
         status = self.__api_get('/sast/scans/{0}'.format(scan_id)).json().get('status')
         return status.get('id'), status.get('name')
 
-    def get_scan_status_wrapped(self, scan_id):
-        status_id, name = self.get_scan_status(scan_id)
-        return CheckMarx.wrap({'id': status_id, 'name': name}, 200)
-
     def get_scan_statistics(self, scan_id):
         return self.__api_get('/sast/scans/%s/resultsStatistics' % scan_id).json()
-
-    def get_scan_statistics_wrapped(self, scan_id):
-        stats = self.get_scan_statistics(scan_id)
-        if 'statisticsCalculationDate' in stats:
-            return CheckMarx.wrap(stats, 200)
-        else:
-            return CheckMarx.wrap(stats, 400)
 
     def register_report(self, scan_id):
         r = self.__api_post('/reports/sastScan', {'reportType': 'PDF', 'scanId': scan_id})
@@ -124,10 +111,6 @@ class CheckMarx(object):
             row.finished = True
             db.session.commit()
         return status.get('id'), status.get('value')
-
-    def get_report_status_wrapped(self, report_id):
-        status_id, value = self.get_report_status(report_id)
-        return CheckMarx.wrap({'id': status_id, 'value': value}, 200)
 
     def get_report(self, report_id):
         row = Model.query.filter_by(report_id=report_id).one()
@@ -154,35 +137,6 @@ class CheckMarx(object):
         if row is None:
             return -1
         return getattr(row, column)
-
-    def get_latest_scan_wrapped(self, project_id):
-        scan_id = self.get_latest('scan_id', project_id)
-        if scan_id >= 0:
-            return CheckMarx.wrap({'scan_id': scan_id}, 200)
-        else:
-            return CheckMarx.wrap(None, 400, 'No scan found!')
-
-    def get_latest_scan_stats_wrapped(self, project_id):
-        scan_id = self.get_latest('scan_id', project_id)
-        if scan_id < 0:
-            return CheckMarx.wrap(None, 400, 'No scan in project')
-        return self.get_scan_statistics_wrapped(scan_id)
-
-    def get_latest_report_wrapped(self, project_id):
-        report_id = self.get_latest('report_id', project_id)
-        if report_id < 0:
-            return CheckMarx.wrap(None, 400, 'No report in project')
-        return self.get_report(report_id)
-
-    @staticmethod
-    def wrap(json, status_code, error=None):
-        if int(status_code / 100) == 2:
-            return {'message': 'success', 'data': json}, status_code
-        else:
-            if error is None:
-                return {'message': 'error', 'data': json}, status_code
-            else:
-                return {'message': error}, status_code
 
     def get_result(self, project_id):
         scan_id = self.get_latest('scan_id', project_id)
@@ -227,19 +181,33 @@ class CreateCheckmarxScan(Resource):
 class GetCheckmarxLatestScan(Resource):
     @jwt_required
     def get(self, project_id):
-        return checkmarx.get_latest_scan_wrapped(project_id)
+        scan_id = checkmarx.get_latest('scan_id', project_id)
+        if scan_id >= 0:
+            return util.success({'scan_id': scan_id})
+        else:
+            raise DevOpsError(404, 'No scan found.', error=apiError.no_detail())
 
 
 class GetCheckmarxLatestScanStats(Resource):
     @jwt_required
     def get(self, project_id):
-        return checkmarx.get_latest_scan_stats_wrapped(project_id)
+        scan_id = checkmarx.get_latest('scan_id', project_id)
+        if scan_id < 0:
+            raise DevOpsError(404, 'No scan in project', error=apiError.no_detail())
+        stats = checkmarx.get_scan_statistics(scan_id)
+        if 'statisticsCalculationDate' in stats:
+            return util.success(stats)
+        else:
+            raise DevOpsError(400, stats, error=apiError.no_detail())
 
 
 class GetCheckmarxLatestReport(Resource):
     @jwt_required
     def get(self, project_id):
-        return checkmarx.get_latest_report_wrapped(project_id)
+        report_id = checkmarx.get_latest('report_id', project_id)
+        if report_id < 0:
+            raise DevOpsError(404, 'No report in project.', error=apiError.no_detail())
+        return checkmarx.get_report(report_id)
 
 
 class GetCheckmarxReport(Resource):
@@ -251,7 +219,8 @@ class GetCheckmarxReport(Resource):
 class GetCheckmarxScanStatus(Resource):
     @jwt_required
     def get(self, scan_id):
-        return checkmarx.get_scan_status_wrapped(scan_id)
+        status_id, name = checkmarx.get_scan_status(scan_id)
+        return util.success({'id': status_id, 'name': name})
 
 
 class RegisterCheckmarxReport(Resource):
@@ -263,10 +232,15 @@ class RegisterCheckmarxReport(Resource):
 class GetCheckmarxReportStatus(Resource):
     @jwt_required
     def get(self, report_id):
-        return checkmarx.get_report_status_wrapped(report_id)
+        status_id, value = checkmarx.get_report_status(report_id)
+        return util.success({'id': status_id, 'value': value})
 
 
 class GetCheckmarxScanStatistics(Resource):
     @jwt_required
     def get(self, scan_id):
-        return checkmarx.get_scan_statistics_wrapped(scan_id)
+        stats = checkmarx.get_scan_statistics(scan_id)
+        if 'statisticsCalculationDate' in stats:
+            return util.success(stats)
+        else:
+            raise DevOpsError(400, stats, error=apiError.no_detail())
