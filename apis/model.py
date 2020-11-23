@@ -1,232 +1,185 @@
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Date
 
 db = SQLAlchemy()
 
 
-class User():
-    meta = db.MetaData()
-    stru_user = db.Table(
-        'user', meta,
-        db.Column('id', db.Integer, primary_key=True, nullable=True),
-        db.Column('name', db.String(255)), db.Column('email', db.String(255)),
-        db.Column('phone', db.String(40)), db.Column('login', db.String(255)),
-        db.Column('password', db.String(255)),
-        db.Column('create_at', db.DATETIME(255)),
-        db.Column('update_at', db.DATETIME(255)),
-        db.Column('disabled', db.Boolean))
+class User(db.Model):
+    id = Column(Integer, primary_key=True)
+    name = Column(String(45))
+    email = Column(String(45))
+    phone = Column(String(40))
+    login = Column(String(45))
+    password = Column(String(100))
+    create_at = Column(DateTime)
+    update_at = Column(DateTime)
+    disabled = Column(Boolean)
 
 
-class UserPluginRelation():
-    meta = db.MetaData()
-    stru_user_plug_relation = db.Table(
-        'user_plugin_relation', meta, db.Column('user_id', db.Integer),
-        db.Column('plan_user_id', db.Integer),
-        db.Column('repository_user_id', db.Integer))
+class Project(db.Model):
+    __tablename__ = 'projects'
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String)
+    description = Column(String)
+    ssh_url = Column(String)
+    http_url = Column(String)
+    start_date = Column(Date)
+    due_date = Column(Date)
+    create_at = Column(DateTime)
+    update_at = Column(DateTime)
+    disabled = Column(Boolean)
+    display = Column(String)
 
 
-class ProjectPluginRelation():
-    meta = db.MetaData()
-    stru_project_plug_relation = db.Table(
-        'project_plugin_relation', meta, db.Column('project_id', db.Integer),
-        db.Column('plan_project_id', db.Integer),
-        db.Column('git_repository_id', db.Integer),
-        db.Column('ci_project_id', db.String),
-        db.Column('ci_pipeline_id', db.String))
+class ProjectPluginRelation(db.Model):
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
+    plan_project_id = Column(Integer, unique=True)
+    git_repository_id = Column(Integer, unique=True)
+    ci_project_id = Column(String)
+    ci_pipeline_id = Column(String)
 
 
-class GroupsHasUsers():
-    meta = db.MetaData()
-    stru_groups_has_users = db.Table(
-        'groups_has_users', meta,
-        db.Column('group_id', db.Integer, nullable=True),
-        db.Column('user_id', db.Integer, nullable=True))
+class PipelinePhase(db.Model):
+    id = Column(Integer, primary_key=True)
+    name = Column(String)
+    description = Column(String)
+    parent_phase_Id = Column(Integer)
+    is_closed = Column(Boolean)
 
 
-class TableGroup():
-    meta = db.MetaData()
-    stru_group = db.Table('group', meta,
-                          db.Column('id', db.Integer, nullable=True),
-                          db.Column('name', db.String, nullable=True))
+class PipelineSoftware(db.Model):
+    id = Column(Integer, primary_key=True)
+    name = Column(String)
+    phase_id = Column(Integer)
+    is_closed = Column(Boolean)
+    description = Column(String)
 
 
-class TableRole():
-    meta = db.MetaData()
-    stru_role = db.Table('roles', meta,
-                         db.Column('id', db.Integer, nullable=True),
-                         db.Column('name', db.String, nullable=True))
+class PipelineSoftwareConfig(db.Model):
+    id = Column(Integer, primary_key=True)
+    software_id = Column(Integer, ForeignKey(PipelineSoftware.id, ondelete='CASCADE')
+                         , nullable=False)
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
+    detail = Column(String)
+    sample = Column(Boolean)
 
 
-class ProjectUserRole():
-    meta = db.MetaData()
-    stru_project_user_role = db.Table('project_user_role', meta,
-                                      db.Column('project_id', db.Integer),
-                                      db.Column('user_id', db.Integer),
-                                      db.Column('role_id', db.Integer))
+class ProjectUserRole(db.Model):
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), primary_key=True)
+    user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'), primary_key=True)
+    role_id = Column(Integer, primary_key=True)
 
 
-class TableProjects():
-    meta = db.MetaData()
-    stru_projects = db.Table('projects', meta,
-                             db.Column('id', db.Integer),
-                             db.Column('name', db.String),
-                             db.Column('display', db.String))
+class Requirements(db.Model):
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
+    issue_id = Column(Integer)
+    flow_info = Column(String)
+    create_at = Column(DateTime)
+    update_at = Column(DateTime)
+    disabled = Column(Boolean)
 
 
-class TableRequirement():
-    meta = db.MetaData()
-    stru_rqmt = db.Table('requirements', meta,
-                         db.Column('id', db.Integer, primary_key=True),
-                         db.Column('project_id', db.Integer),
-                         db.Column('issue_id', db.Integer),
-                         db.Column('flow_info', db.TEXT),
-                         db.Column('create_at', db.DATETIME(255)),
-                         db.Column('update_at', db.DATETIME(255)),
-                         db.Column('disabled', db.Boolean))
-
-class TableFlow():
-    meta = db.MetaData()
-    stru_flow = db.Table('flows', meta,
-                         db.Column('id', db.Integer, primary_key=True),
-                         db.Column('project_id', db.Integer),
-                         db.Column('issue_id', db.Integer),
-                         db.Column('requirement_id', db.Integer),
-                         db.Column('type_id', db.Integer),
-                         db.Column('name', db.String),
-                         db.Column('description', db.String),
-                         db.Column('serial_id',db.Integer),
-                         db.Column('create_at', db.DATETIME(255)),
-                         db.Column('update_at', db.DATETIME(255)),
-                         db.Column('disabled', db.Boolean))
+class TestCases(db.Model):
+    id = Column(Integer, primary_key=True)
+    name = Column(String(255))
+    description = Column(String(255))
+    issue_id = Column(Integer)
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
+    create_at = Column(DateTime)
+    update_at = Column(DateTime)
+    disabled = Column(Boolean)
+    # JSON string like
+    # {
+    #  "type": "API",
+    #  "url": "/user/forgot",
+    #  "method": "POST",
+    #  "method_id": "2"
+    # }
+    data = Column(String)
+    type_id = Column(Integer)
 
 
-class TableTestCase():
-    meta = db.MetaData()
-    stru_testCase = db.Table(
-        'test_cases',
-        meta,
-        db.Column('id', db.Integer, primary_key=True),
-        db.Column('name', db.String(255)),
-        db.Column('description', db.String(255)),
-        # db.Column('url', db.String(255)),
-        # db.Column('http_request_method_id', db.Integer),
-        db.Column('issue_id', db.Integer),
-        db.Column('project_id', db.Integer),
-        db.Column('create_at', db.DATETIME(255)),
-        db.Column('update_at', db.DATETIME(255)),
-        db.Column('disabled', db.Boolean),
-        # Stringified JSON like
-        # {
-        #  "type": "API",
-        #  "url": "/user/forgot",
-        #  "method": "POST",
-        #  "method_id": "2"
-        # }
-        db.Column('data', db.TEXT),
-        db.Column('type_id', db.Integer))
+class TestItems(db.Model):
+    id = Column(Integer, primary_key=True)
+    test_case_id = Column(Integer, ForeignKey(TestCases.id, ondelete='CASCADE'))
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
+    issue_id = Column(Integer)
+    name = Column(String(255))
+    is_passed = Column(Boolean)
+    create_at = Column(DateTime)
+    update_at = Column(DateTime)
+    disabled = Column(Boolean)
 
 
-class TableHttpMethod():
-    meta = db.MetaData()
-    stru_httpMethod = db.Table('http_method', meta,
-                               db.Column('id', db.Integer, primary_key=True),
-                               db.Column('type', db.String(50)))
+class TestResults(db.Model):
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
+    branch = Column(String(50))
+    report = Column(String)
+    total = Column(Integer)
+    fail = Column(Integer)
+    run_at = Column(DateTime)
 
 
-class TableCaseType():
-    meta = db.MetaData()
-    stru_tcType = db.Table('test_cases_type', meta,
-                           db.Column('id', db.Integer, primary_key=True),
-                           db.Column('name', db.String(50)))
+class TestValues(db.Model):
+    id = Column(Integer, primary_key=True)
+    type_id = Column(Integer)  # Request = 1, response = 2
+    key = Column(String(255))
+    value = Column(String)
+    location_id = Column(Integer)  # Header = 1, Body = 2
+    test_item_id = Column(Integer, ForeignKey(TestItems.id, ondelete='CASCADE'))
+    test_case_id = Column(Integer, ForeignKey(TestCases.id, ondelete='CASCADE'))
+    issue_id = Column(Integer)
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
+    create_at = Column(DateTime)
+    update_at = Column(DateTime)
+    disabled = Column(Boolean)
 
 
-class TableTestItem():
-    meta = db.MetaData()
-    stru_testItem = db.Table(
-        'test_items',
-        meta,
-        db.Column('id', db.Integer, primary_key=True),
-        db.Column('test_case_id', db.Integer),
-        db.Column('project_id', db.Integer),
-        db.Column('issue_id', db.Integer),
-        db.Column('name', db.String(255)),
-        db.Column('is_passed', db.Boolean),
-        # db.Column('value_id', db.Integer),
-        # db.Column('value_info', db.TEXT),
-        db.Column('create_at', db.DATETIME(255)),
-        db.Column('update_at', db.DATETIME(255)),
-        db.Column('disabled', db.Boolean))
+class UserPluginRelation(db.Model):
+    user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'), primary_key=True)
+    plan_user_id = Column(Integer)
+    repository_user_id = Column(Integer)
 
 
-class TableTestValue():
-    meta = db.MetaData()
-    stru_testValue = db.Table('test_values', meta,
-                              db.Column('id', db.Integer, primary_key=True),
-                              db.Column('type_id', db.Integer), # Request = 1, response = 2
-                              db.Column('key', db.String(255)),
-                              db.Column('value', db.Text),
-                              db.Column('location_id', db.Integer), # Header = 1, Body = 2
-                              db.Column('test_item_id', db.Integer),
-                              db.Column('test_case_id', db.Integer),
-                              db.Column('issue_id', db.Integer),
-                              db.Column('project_id', db.Integer),
-                              db.Column('create_at', db.DATETIME(255)),
-                              db.Column('update_at', db.DATETIME(255)),
-                              db.Column('disabled', db.Boolean))
+class Checkmarx(db.Model):
+    cm_project_id = Column(Integer, primary_key=True)
+    repo_id = Column(Integer, ForeignKey(ProjectPluginRelation.git_repository_id, ondelete='CASCADE'))
+    scan_id = Column(Integer)
+    # -1 if report is not registered yet
+    report_id = Column(Integer, default=-1)
+    # The time scan registered
+    run_at = Column(DateTime)
+    finished_at = Column(DateTime)
+    finished = Column(Boolean)
 
 
-class TableTestResult:
-    meta = db.MetaData()
-    stru_testResult = db.Table('test_results', meta,
-                              db.Column('id', db.Integer, primary_key=True),
-                              db.Column('project_id', db.Integer),
-                              db.Column('branch', db.String(50)),
-                              db.Column('report', db.String),
-                              db.Column('total', db.Integer),
-                              db.Column('fail', db.Integer),
-                              db.Column('run_at', db.DATETIME(255))
-                               )
+class Flows(db.Model):
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
+    issue_id = Column(Integer)
+    requirement_id = Column(Integer, ForeignKey(Requirements.id, ondelete='CASCADE'))
+    type_id = Column(Integer)
+    name = Column(String)
+    description = Column(String)
+    serial_id = Column(Integer)
+    create_at = Column(DateTime)
+    update_at = Column(DateTime)
+    disabled = Column(Boolean)
 
 
-class TableParameter():
-    meta = db.MetaData()
-    stru_param = db.Table('parameters', meta,
-                          db.Column('id', db.Integer, primary_key=True),
-                          db.Column('issue_id', db.Integer),
-                          db.Column('project_id', db.Integer),
-                          db.Column('parameter_type_id', db.Integer),
-                          db.Column('name', db.String(50)),
-                          db.Column('description', db.String(100)),
-                          db.Column('limitation', db.String(50)),
-                          db.Column('length', db.Integer),
-                          db.Column('create_at', db.DATETIME(255)),
-                          db.Column('update_at', db.DATETIME(255)),
-                          db.Column('disabled', db.Boolean))
-
-
-class TableParameterType():
-    meta = db.MetaData()
-    stru_paramType = db.Table('parameter_types', meta,
-                              db.Column('id', db.Integer, primary_key=True),
-                              db.Column('type', db.String(50)))
-
-
-class TableRolesPluginRelation():
-    meta = db.MetaData()
-    stru_rolerelation = db.Table('roles_plugin_relation', meta,
-                                 db.Column('role_id', db.Integer),
-                                 db.Column('plan_role_id', db.Integer))
-
-
-class TableCheckMarx:
-    meta = db.MetaData()
-    stru_checkmarx = db.Table('checkmarx', meta,
-                              db.Column('cm_project_id', db.Integer, primary_key=True),
-                              db.Column('repo_id', db.Integer),
-                              db.Column('scan_id', db.Integer),
-                              # -1 if report is not registered yet
-                              db.Column('report_id', db.Integer, default=-1),
-                              # The time scan registered
-                              db.Column('run_at', db.DATETIME(255)),
-                              db.Column('finished_at', db.DATETIME(255)),
-                              db.Column('finished', db.DATETIME(255)),
-                              )
+class Parameters(db.Model):
+    id = Column(Integer, primary_key=True)
+    issue_id = Column(Integer)
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
+    parameter_type_id = Column(Integer)
+    name = Column(String(50))
+    description = Column(String(100))
+    limitation = Column(String(50))
+    length = Column(Integer)
+    create_at = Column(DateTime)
+    update_at = Column(DateTime)
+    disabled = Column(Boolean)

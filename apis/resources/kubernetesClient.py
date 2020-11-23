@@ -1,8 +1,7 @@
 from kubernetes import client as k8s_client
 from kubernetes import config as k8s_config
-import logging
 
-logger = logging.getLogger('devops.api')
+from resources.logger import logger
 
 
 def list_service_all_namespaces():
