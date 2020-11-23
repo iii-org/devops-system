@@ -63,11 +63,6 @@ def respond_uncaught_exception(exception, message='An uncaught exception occurs:
                    error=apiError.uncaught_exception(exception))
 
 
-def respond_redmine_error(redmine_response, message):
-    return respond(redmine_response.status_code, message,
-                   error=apiError.redmine_error(redmine_response))
-
-
 class DateEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, datetime):

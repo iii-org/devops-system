@@ -118,7 +118,8 @@ class Redmine:
     def rm_get_issues_by_user(self, user_id):
         params = {'assigned_to_id': user_id, 'limit': 1000, 'status_id': '*'}
         output = self.__api_get('/issues', params=params)
-        logger.info("get issues by output: {0}".format(output.json()))
+        if output.status_code != 200:
+            apiError.raise_redmine_error(output)
         return output.json()
 
     def rm_get_issues_by_project(self, plan_project_id, args=None):

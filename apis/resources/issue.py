@@ -11,6 +11,7 @@ import model
 import resources.apiError as apiError
 import resources.user as user
 import resources.util as util
+from resources.apiError import DevOpsError
 from model import db
 from resources.logger import logger
 from resources.redmine import redmine
@@ -174,8 +175,8 @@ def verify_issue_user(issue_id, user_id):
 def get_issue(issue_id):
     redmine_output_issue = redmine.rm_get_issue(issue_id)
     if redmine_output_issue.status_code != 200:
-        return util.respond_redmine_error(redmine_output_issue,
-                                          "Error while getting issue details.")
+        return apiError.raise_redmine_error(redmine_output_issue,
+                                            "Error while getting issue details.")
     output = __deal_with_issue_redmine_output(redmine_output_issue.json()['issue'])
     return util.success(output)
 
@@ -203,7 +204,7 @@ def create_issue(args, operator_id):
     if status_code == 201:
         return util.success({"issue_id": output.json()["issue"]["id"]})
     else:
-        return util.respond_redmine_error(output, "Error while creating issue")
+        return apiError.raise_redmine_error(output, "Error while creating issue")
 
 
 def update_issue(issue_id, args, operator_id):
@@ -226,13 +227,13 @@ def update_issue(issue_id, args, operator_id):
     if status_code == 204:
         return util.success()
     else:
-        return util.respond_redmine_error(output, "update issue failed.")
+        return apiError.raise_redmine_error(output, "update issue failed.")
 
 
 def delete_issue(issue_id):
     output, status_code = redmine.rm_delete_issue(issue_id)
     if status_code != 204 and status_code != 404:
-        return util.respond_redmine_error(output, 'Error when deleting issue.')
+        return apiError.raise_redmine_error(output, 'Error when deleting issue.')
     return util.success()
 
 
@@ -242,8 +243,8 @@ def get_issue_by_project(project_id, args):
     try:
         plan_id = project.get_plan_project_id(project_id)
     except NoResultFound:
-        return util.respond(404, "Error while getting issues",
-                            error=apiError.project_not_found(project_id))
+        raise DevOpsError(404, "Error while getting issues",
+                          error=apiError.project_not_found(project_id))
     output_array = []
     redmine_output_issue_array = redmine.rm_get_issues_by_project(
         plan_id, args).json()
@@ -439,7 +440,8 @@ def get_issue_by_user(user_id):
     user_to_plan, plan_to_user = get_dict_userid()
     output_array = []
     if str(user_id) not in user_to_plan:
-        return util.respond(400, 'Cannot find user in redmine')
+        raise DevOpsError(400, 'Cannot find user in redmine.',
+                          error=apiError.user_not_found(user_id))
     redmine_output_issue_array = redmine.rm_get_issues_by_user(user_to_plan[str(user_id)])
     for redmine_issue in redmine_output_issue_array['issues']:
         output_dict = deal_with_issue_by_user_redmine_output(redmine_issue)
@@ -488,8 +490,8 @@ def get_issue_statistics(args, user_id):
         args["assigned_to_id"] = user_plugin_relation.plan_user_id
     redmine_output, status_code = redmine.rm_get_statistics(args)
     if status_code != 200:
-        return util.respond(status_code, "Error when getting issue statistics",
-                            error=apiError.redmine_error(redmine_output))
+        raise DevOpsError(status_code, "Error when getting issue statistics",
+                          error=apiError.redmine_error(redmine_output))
     return util.success({"issue_number": redmine_output["total_count"]})
 
 
@@ -501,13 +503,13 @@ def get_open_issue_statistics(user_id):
     args['status_id'] = '*'
     total_issue_output, status_code = redmine.rm_get_statistics(args)
     if status_code != 200:
-        return util.respond(status_code, "Error when getting issue statistics",
-                            error=apiError.redmine_error(total_issue_output))
+        raise DevOpsError(status_code, "Error when getting issue statistics",
+                          error=apiError.redmine_error(total_issue_output))
     args['status_id'] = 'closed'
     closed_issue_output, closed_status_code = redmine.rm_get_statistics(args)
     if closed_status_code != 200:
-        return util.respond(status_code, "Error when getting issue statistics",
-                            error=apiError.redmine_error(closed_status_code))
+        raise DevOpsError(status_code, "Error when getting issue statistics",
+                          error=apiError.redmine_error(closed_status_code))
     active_issue_number = total_issue_output["total_count"] - closed_issue_output["total_count"]
     return util.success({"active_issue_number": active_issue_number})
 
@@ -527,7 +529,8 @@ def get_issue_statistics_in_period(period, user_id):
         from_time = first_day.strftime('%Y-%m-%d')
         to_time = last_day.strftime('%Y-%m-%d')
     else:
-        return util.respond(400, 'Type error, should be week or month')
+        raise DevOpsError(400, 'Type error, should be week or month',
+                          error=apiError.no_detail())
 
     args = {"due_date": "><{0}|{1}".format(from_time, to_time)}
     user_plugin_relation = user.get_user_plugin_relation(user_id=user_id)
@@ -537,15 +540,15 @@ def get_issue_statistics_in_period(period, user_id):
     args['status_id'] = '*'
     redmine_output, status_code = redmine.rm_get_statistics(args)
     if status_code != 200:
-        return util.respond(status_code, "Error when getting issue statistics",
-                            error=apiError.redmine_error(redmine_output))
+        raise DevOpsError(status_code, "Error when getting issue statistics",
+                          error=apiError.redmine_error(redmine_output))
     total = redmine_output["total_count"]
 
     args['status_id'] = 'closed'
     redmine_output_6, status_code = redmine.rm_get_statistics(args)
     if status_code != 200:
-        return util.respond(status_code, "Error when getting issue statistics",
-                            error=apiError.redmine_error(redmine_output_6))
+        raise DevOpsError(status_code, "Error when getting issue statistics",
+                          error=apiError.redmine_error(redmine_output_6))
     closed = redmine_output_6["total_count"]
     return util.success({
         "open": total - closed,
@@ -556,8 +559,6 @@ def get_issue_statistics_in_period(period, user_id):
 def count_project_number_by_issues(user_id):
     project_count = {}
     data, status_code = get_issue_by_user(user_id)
-    if int(status_code / 100) != 2:
-        return util.respond(status_code, 'Error while getting issues by user', data)
     issues = data['data']
     for issue in issues:
         if issue['project_name'] not in project_count:
@@ -573,8 +574,6 @@ def count_project_number_by_issues(user_id):
 def count_priority_number_by_issues(user_id):
     priority_count = {}
     data, status_code = get_issue_by_user(user_id)
-    if int(status_code / 100) != 2:
-        return util.respond(status_code, 'Error while getting issues by user', data)
     issues = data['data']
     for issue in issues:
         priority = issue['issue_priority']
@@ -591,8 +590,6 @@ def count_priority_number_by_issues(user_id):
 def count_type_number_by_issues(user_id):
     tracker_count = {}
     data, status_code = get_issue_by_user(user_id)
-    if int(status_code / 100) != 2:
-        return util.respond(status_code, 'Error while getting issues by user', data)
     issues = data['data']
     for issue in issues:
         if issue['issue_category'] not in tracker_count:
@@ -749,7 +746,7 @@ def get_flow_by_requirement_id(requirement_id):
 
 
 def post_flow_by_requirement_id(issue_id, requirement_id, args):
-    rows = model.Flows.query.filter_by(requirement_id=requirement_id).\
+    rows = model.Flows.query.filter_by(requirement_id=requirement_id). \
         order_by(model.Flows.serial_id).all()
     flow_serial_ids = []
     for row in rows:

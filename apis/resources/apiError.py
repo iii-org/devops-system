@@ -8,7 +8,7 @@ def build(err_code, message, details=None):
         return {'code': err_code, 'message': message, 'details': details}
 
 
-def error_3rd_party_api( service_name, response):
+def error_3rd_party_api(service_name, response):
     if type(response) is str:
         resp_value = response
     else:
@@ -119,6 +119,11 @@ def rancher_error(response):
 
 def checkmarx_error(response):
     return error_3rd_party_api('CheckMarx', response)
+
+
+def raise_redmine_error(redmine_response, message='Got non-2xx response from Redmine.'):
+    raise DevOpsError(redmine_response.status_code, message,
+                      error=redmine_error(redmine_response))
 
 
 # Internal errors
