@@ -6,7 +6,6 @@ import requests
 from flask_restful import reqparse
 
 import resources.apiError as apiError
-from model import db
 
 
 def date_to_str(data):
@@ -77,10 +76,19 @@ class DateEncoder(json.JSONEncoder):
             return json.JSONEncoder.default(self, obj)
 
 
-def tick(last_time):
+ticker = 0
+
+
+def reset_ticker():
+    global ticker
+    ticker = time.time()
+
+
+def tick(message=''):
+    global ticker
     now = time.time()
-    print('%f seconds elapsed.' % (now - last_time))
-    return now
+    print('%f seconds elapsed. [%s]' % (now - ticker, message))
+    ticker = now
 
 
 def api_request(method, url, headers=None, params=None, data=None):

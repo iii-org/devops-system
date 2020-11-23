@@ -3,6 +3,7 @@ from datetime import datetime
 
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
+from sqlalchemy import desc
 from sqlalchemy.orm.exc import NoResultFound
 
 import config
@@ -26,116 +27,92 @@ def get_project_plugin_relation(project_id):
 
 
 # List all projects of a PM
-def get_pm_project_list(user_id):
-    # 查詢db該pm負責的project_id並存入project_ids array
-    result = db.engine.execute(
-        "SELECT project_id FROM public.project_user_role WHERE user_id = '{0}' "
-        "ORDER BY project_id DESC".format(user_id))
-    project_ids = result.fetchall()
-    result.close()
-    if project_ids is None:
-        return util.respond(500, "Cannot get project list.",
-                            error=apiError.db_error("List projects returns None."))
-    output_array = []
-    # 用project_id依序查詢redmine的project_id
-    for project_id in project_ids:
-        project_id = project_id[0]
-        if project_id is None or project_id == -1:
-            continue
-        result = db.engine.execute(
-            "SELECT plan_project_id FROM public.project_plugin_relation WHERE "
-            "project_id = '{0}'".format(project_id))
-        fetch = result.fetchone()
-        if fetch is None:
-            continue
-        plan_project_id = fetch[0]
-        result.close()
+def get_joined_project_list(user_id):
+    # 取得 user_id 有參加的 project 列表
+    rows = db.session.query(model.Project, model.ProjectPluginRelation) \
+        .join(model.ProjectPluginRelation) \
+        .join(model.ProjectUserRole,
+              model.ProjectUserRole.project_id == model.Project.id) \
+        .filter(model.ProjectUserRole.user_id == user_id) \
+        .order_by(desc(model.Project.id)) \
+        .all()
 
-        # 用redmine api查詢相關資訊
-        # 抓專案最近更新時間
-        output1 = redmine.rm_get_project(plan_project_id).json()
-        # 抓專案狀態＆專案工作進度＆進度落後數目
-        output2 = redmine.rm_get_issues_by_project(plan_project_id).json()
+    project_id_list = []
+    for row in rows:
+        project_id_list.append(row.Project.id)
+
+    pm_map = {}
+    pms = db.session.query(model.User, model.Project.id) \
+        .join(model.ProjectUserRole,
+              model.ProjectUserRole.user_id == model.User.id) \
+        .filter(model.ProjectUserRole.project_id.in_(project_id_list),
+                model.ProjectUserRole.role_id == role.PM.id) \
+        .all()
+    for pm in pms:
+        pm_map[pm.id] = pm.User
+
+    projects = redmine.rm_list_projects().json().get('projects')
+
+    issues = redmine.rm_list_issues().json().get('issues')
+
+    output_array = []
+    for row in rows:
+        project_id = row.Project.id
+        if project_id == -1:
+            continue
+        plan_project_id = row.ProjectPluginRelation.plan_project_id
+        if plan_project_id is None:
+            continue
+
         closed_count = 0
         overdue_count = 0
-        for issue in output2["issues"]:
+        total_count = 0
+        for issue in issues:
+            if issue['project']['id'] != plan_project_id:
+                continue
             if issue["status"]["name"] == "Closed":
                 closed_count += 1
             if issue["due_date"] is not None:
                 if (datetime.today() > datetime.strptime(
                         issue["due_date"], "%Y-%m-%d")):
                     overdue_count += 1
+            total_count += 1
+            del issue
 
         project_status = "進行中"
-        if output2["total_count"] == 0:
+        if total_count == 0:
             project_status = "未開始"
-        if closed_count == output2["total_count"] and output2["total_count"] != 0:
+        if closed_count == total_count and total_count != 0:
             project_status = "已結案"
 
-        # 查詢專案名稱＆專案說明＆專案狀態
-        result = db.engine.execute(
-            "SELECT * FROM public.projects WHERE id = '{0}'".format(
-                project_id))
-        project_info = result.fetchone()
-        result.close()
+        pm = pm_map[project_id]
+        if pm is None:
+            pm = model.User(id=0, name='No One')
 
-        # 查詢專案負責人id & name
-        result = db.engine.execute(
-            "SELECT user_id FROM public.project_user_role"
-            " WHERE project_id = '{0}' AND role_id = '{1}'".format(
-                project_id, role.PM.id))
-        user_id = result.fetchone()[0]
-        result.close()
-
-        result = db.engine.execute(
-            "SELECT name FROM public.user WHERE id = '{0}'".format(
-                user_id))
-        user_name = result.fetchone()[0]
-        result.close()
-
-        # # 查詢sonar_quality_score
-        # project_name = project_info["name"]
-        # # print(project_name)
-        # # project_name = "devops-flask"
-        # url = "http://{0}/api/measures/component?component={1}
-        # &metricKeys=reliability_rating,security_rating,security_review_rating,sqale_rating".format( \
-        #     config.get("SONAR_IP_PORT"), project_name)
-        # logger.info("get sonar report url: {0}".format(url))
-        # output = requests.get(url,
-        #                       headers=self.headers,
-        #                       verify=False)
-        # logger.info("get sonar report output: {0} / {1}".format(
-        #     output, output.json()))
-        # quality_score = None
-        # if output.status_code == 200:
-        #     quality_score = 0
-        #     data_list = output.json()["component"]["measures"]
-        #     for data in data_list:
-        #         # print(type(data["value"]))
-        #         rating = float(data["value"])
-        #         quality_score += (
-        #                                  6 - rating) * 5  # A-25, B-20, C-15, D-10, E-5
+        updated_on = None
+        for pjt in projects:
+            if pjt['id'] == plan_project_id:
+                updated_on = pjt['updated_on']
+                del pjt
+                break
 
         redmine_url = "http://{0}/projects/{1}".format(config.get("REDMINE_IP_PORT"), plan_project_id)
-        project_output = {
+        output_array.append({
             "id": project_id,
-            "name": project_info["name"],
-            "display": project_info["display"],
-            "description": project_info["description"],
-            "git_url": project_info["http_url"],
+            "name": row.Project.name,
+            "display": row.Project.display,
+            "description": row.Project.description,
+            "git_url": row.Project.http_url,
             "redmine_url": redmine_url,
-            "disabled": project_info["disabled"],
-            "pm_user_id": user_id,
-            "pm_user_name": user_name,
-            "updated_time": output1["project"]["updated_on"],
+            "disabled": row.Project.disabled,
+            "pm_user_id": pm.id,
+            "pm_user_name": pm.name,
+            "updated_time": updated_on,
             "project_status": project_status,
             "closed_count": closed_count,
-            "total_count": output2["total_count"],
-            "overdue_count": overdue_count,
-            # "quality_score": quality_score
-        }
-
-        output_array.append(project_output)
+            "total_count": total_count,
+            "overdue_count": overdue_count
+        })
 
     return util.success({"project_list": output_array})
 
@@ -682,9 +659,8 @@ def get_test_summary(project_id):
 class ListMyProjects(Resource):
     @jwt_required
     def get(self):
-        role.require_pm()
         user_id = get_jwt_identity()["user_id"]
-        return get_pm_project_list(user_id)
+        return get_joined_project_list(user_id)
 
 
 class SingleProject(Resource):
@@ -794,3 +770,27 @@ class ProjectUserList(Resource):
         parser.add_argument('exclude', type=int)
         args = parser.parse_args()
         return user.user_list_by_project(project_id, args)
+
+
+def sonar_cube(project_info, requests, self, logger):
+    # 查詢sonar_quality_score
+    project_name = project_info["name"]
+    # print(project_name)
+    # project_name = "devops-flask"
+    url = "http://{0}/api/measures/component?component={1}" \
+          "&metricKeys=reliability_rating,security_rating," \
+          "security_review_rating,sqale_rating".format(config.get("SONAR_IP_PORT"),
+                                                       project_name)
+    output = requests.get(url,
+                          headers=self.headers,
+                          verify=False)
+    logger.info("get sonar report output: {0} / {1}".format(
+        output, output.json()))
+    quality_score = None
+    if output.status_code == 200:
+        quality_score = 0
+        data_list = output.json()["component"]["measures"]
+        for data in data_list:
+            # print(type(data["value"]))
+            rating = float(data["value"])
+            quality_score += (6 - rating) * 5  # A-25, B-20, C-15, D-10, E-5

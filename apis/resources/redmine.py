@@ -87,6 +87,9 @@ class Redmine:
         output = requests.get(url, headers={'Content-Type': 'application/json'}, verify=False)
         self.redmine_key = output.json()['user']['api_key']
 
+    def rm_list_projects(self):
+        return self.__api_get('/projects')
+
     def rm_get_project(self, plan_project_id):
         return self.__api_get('/projects/{0}'.format(plan_project_id),
                               params={'limit': 1000})
@@ -106,6 +109,10 @@ class Redmine:
 
     def rm_delete_project(self, plan_project_id):
         return self.__api_delete('/projects/{0}'.format(plan_project_id))
+
+    def rm_list_issues(self):
+        params = {'status_id': '*'}
+        return self.__api_get('/issues', params=params)
 
     def rm_get_issues_by_user(self, user_id):
         params = {'assigned_to_id': user_id, 'limit': 1000, 'status_id': '*'}
