@@ -7,7 +7,7 @@ from flask_restful import Resource, reqparse
 import config
 import model
 import resources.util as util
-from model import db
+from resources.apiError import DevOpsError
 from resources import apiError, kubernetesClient, role
 from resources.logger import logger
 
@@ -45,8 +45,8 @@ class GitLab(object):
         if project_id > 0:
             return util.success(project_id)
         else:
-            return util.respond(404, "Error when getting project id.",
-                                error=apiError.repository_id_not_found(repository_id))
+            raise DevOpsError(404, "Error when getting project id.",
+                              error=apiError.repository_id_not_found(repository_id))
 
     def __api_request(self, method, path, headers=None, params=None, data=None):
         if headers is None:
@@ -137,7 +137,7 @@ class GitLab(object):
     def gl_count_branches(self, repo_id):
         output = self.__api_get('/projects/{0}/repository/branches'.format(repo_id))
         if output.status_code != 200:
-            return -1, util.respond_request_style(
+            raise DevOpsError(
                 output.status_code, "Error while getting git branches",
                 error=apiError.gitlab_error(output))
         return len(output.json()), None
@@ -161,8 +161,8 @@ class GitLab(object):
     def gl_get_branches(self, repo_id):
         output = self.__api_get('/projects/{0}/repository/branches'.format(repo_id))
         if output.status_code != 200:
-            return util.respond(output.status_code, "Error while getting git branches",
-                                error=apiError.gitlab_error(output))
+            raise DevOpsError(output.status_code, "Error while getting git branches",
+                              error=apiError.gitlab_error(output))
         # get gitlab project path
         project_detail = self.gl_get_project(repo_id)
         # get kubernetes service nodePort url
@@ -199,8 +199,8 @@ class GitLab(object):
         if output.status_code == 201:
             return util.success(output.json())
         else:
-            return util.respond(output.status_code, "Error while creating branch.",
-                                error=apiError.gitlab_error(output))
+            raise DevOpsError(output.status_code, "Error while creating branch.",
+                              error=apiError.gitlab_error(output))
 
     def gl_get_branch(self, repo_id, branch):
         output = self.__api_get('/projects/{0}/repository/branches/{1}'.format(
@@ -208,8 +208,8 @@ class GitLab(object):
         if output.status_code == 200:
             return util.success(output.json())
         else:
-            return util.respond(output.status_code, "Error when getting gitlab branch.",
-                                error=apiError.gitlab_error(output))
+            raise DevOpsError(output.status_code, "Error when getting gitlab branch.",
+                              error=apiError.gitlab_error(output))
 
     def gl_delete_branch(self, project_id, branch):
         output = self.__api_delete('/projects/{0}/repository/branches/{1}'.format(
@@ -217,8 +217,8 @@ class GitLab(object):
         if output.status_code == 204:
             return util.success()
         else:
-            return util.respond(output.status_code, "Error when deleting gitlab branch.",
-                                error=apiError.gitlab_error(output))
+            raise DevOpsError(output.status_code, "Error when deleting gitlab branch.",
+                              error=apiError.gitlab_error(output))
 
     def gl_get_repository_tree(self, repo_id, branch):
         output = self.__api_get('/projects/{0}/repository/tree'.format(repo_id),
@@ -226,8 +226,8 @@ class GitLab(object):
         if output.status_code == 200:
             return util.success({"file_list": output.json()})
         else:
-            return util.respond(output.status_code, "Error when deleting gitlab branch.",
-                                error=apiError.gitlab_error(output))
+            raise DevOpsError(output.status_code, "Error when deleting gitlab branch.",
+                              error=apiError.gitlab_error(output))
 
     def __edit_file_exec(self, method, repo_id, args):
         path = '/projects/{0}/repository/files/{1}'.format(repo_id, args['file_path'])
@@ -242,16 +242,16 @@ class GitLab(object):
         elif method.upper() == 'PUT':
             output = self.__api_put(path, params=params)
         else:
-            return util.respond(500, 'Only accept POST and PUT.',
-                                error=apiError.unknown_method(method))
+            raise DevOpsError(500, 'Only accept POST and PUT.',
+                              error=apiError.unknown_method(method))
 
         if output.status_code == 201:
             return util.success({
                 "file_path": output.json()["file_path"],
                 "branch_name": output.json()["branch"]})
         else:
-            return util.respond(output.status_code, "Error when adding gitlab file.",
-                                error=apiError.gitlab_error(output))
+            raise DevOpsError(output.status_code, "Error when adding gitlab file.",
+                              error=apiError.gitlab_error(output))
 
     def gl_add_file(self, repo_id, args):
         return self.__edit_file_exec('POST', repo_id, args)
@@ -275,8 +275,8 @@ class GitLab(object):
                 "last_commit_id": output.json()["last_commit_id"]
             })
         else:
-            return util.respond(output.status_code, "Error when getting gitlab file.",
-                                error=apiError.gitlab_error(output))
+            raise DevOpsError(output.status_code, "Error when getting gitlab file.",
+                              error=apiError.gitlab_error(output))
 
     def gl_delete_file(self, repo_id, branch, file_path, args):
         output = self.__api_delete('/projects/{0}/repository/files/{1}'.format(
@@ -287,8 +287,8 @@ class GitLab(object):
         if output.status_code == 204:
             return util.success()
         else:
-            return util.respond(output.status_code, "Error when deleting gitlab file.",
-                                error=apiError.gitlab_error(output))
+            raise DevOpsError(output.status_code, "Error when deleting gitlab file.",
+                              error=apiError.gitlab_error(output))
 
     def gl_create_tag(self, repo_id, args):
         path = '/projects/{0}/repository/tags'.format(repo_id)
@@ -300,8 +300,8 @@ class GitLab(object):
         if output.status_code == 201:
             return util.success(output.json())
         else:
-            return util.respond(output.status_code, "Error when deleting gitlab file.",
-                                error=apiError.gitlab_error(output))
+            raise DevOpsError(output.status_code, "Error when deleting gitlab file.",
+                              error=apiError.gitlab_error(output))
 
     def gl_delete_tag(self, repo_id, tag_name):
         output = self.__api_delete('/projects/{0}/repository/tags/{1}'.format(
@@ -309,8 +309,8 @@ class GitLab(object):
         if output.status_code == 204:
             return util.success()
         else:
-            return util.respond(output.status_code, "Error when deleting gitlab tag.",
-                                error=apiError.gitlab_error(output))
+            raise DevOpsError(output.status_code, "Error when deleting gitlab tag.",
+                              error=apiError.gitlab_error(output))
 
     # def gl_merge(self, repo_id, args):
     #     # 新增merge request
@@ -345,8 +345,8 @@ class GitLab(object):
         if output.status_code == 200:
             return util.success(output.json())
         else:
-            return util.respond(output.status_code, "Error when getting commits.",
-                                error=apiError.gitlab_error(output))
+            raise DevOpsError(output.status_code, "Error when getting commits.",
+                              error=apiError.gitlab_error(output))
 
     # 用project_id查詢project的網路圖
     def gl_get_network(self, repo_id):
@@ -494,8 +494,8 @@ class GitProjectTag(Resource):
         if res.status_code == 200:
             return util.success({'tag_list': res.json()})
         else:
-            return util.respond(res.status_code, "Error while getting repo tags.",
-                                error=apiError.gitlab_error(res))
+            raise DevOpsError(res.status_code, "Error while getting repo tags.",
+                              error=apiError.gitlab_error(res))
 
     @jwt_required
     def post(self, repository_id):

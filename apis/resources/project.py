@@ -10,6 +10,7 @@ import config
 import model
 import resources.apiError as apiError
 import resources.util as util
+from resources.apiError import DevOpsError
 from model import db
 from . import role, user
 from .checkmarx import checkmarx
@@ -286,8 +287,8 @@ def delete_project(project_id):
             db.session.commit()
             return util.success()
         else:
-            return util.respond(404, "Error while deleting project.",
-                                error=apiError.project_not_found(project_id))
+            raise DevOpsError(404, "Error while deleting project.",
+                              error=apiError.project_not_found(project_id))
     redmine_project_id = relation.plan_project_id
     gitlab_project_id = relation.git_repository_id
     # disabled rancher pipeline
@@ -325,7 +326,7 @@ def pm_get_project(project_id):
     try:
         plan_project_id = get_plan_project_id(project_id)
     except NoResultFound:
-        return util.respond(404, 'Error when getting project info.',
+        raise apiError.DevOpsError(404, 'Error when getting project info.',
                             error=apiError.project_not_found(project_id))
     result = db.engine.execute(
         "SELECT * FROM public.projects as pj, public.project_plugin_relation as ppr "
@@ -333,7 +334,7 @@ def pm_get_project(project_id):
             project_id))
     if result.rowcount == 0:
         result.close()
-        return util.respond(404, 'Error when getting project info.',
+        raise apiError.DevOpsError(404, 'Error when getting project info.',
                             error=apiError.project_not_found(project_id))
     project_info = result.fetchone()
     result.close()
@@ -389,7 +390,7 @@ def project_add_member(project_id, args):
         return error
     relation = get_project_plugin_relation(project_id)
     if relation is None:
-        return util.respond(404, "Error while adding member to a project.",
+        raise apiError.DevOpsError(404, "Error while adding member to a project.",
                             error=apiError.project_not_found(project_id))
 
     redmine_role_id = user.to_redmine_role_id(role_id)
@@ -429,7 +430,7 @@ def project_remove_member(project_id, user_id):
         return error
     relation = get_project_plugin_relation(project_id)
     if relation is None:
-        return util.respond(404, "Error while removing a member from the project.",
+        raise apiError.DevOpsError(404, "Error while removing a member from the project.",
                             error=apiError.project_not_found(project_id))
 
     # get membership id
@@ -469,7 +470,7 @@ def project_remove_member(project_id, user_id):
         row = model.ProjectUserRole.query.filter_by(
             project_id=project_id, user_id=user_id, role_id=role_id).one()
     except NoResultFound:
-        return util.respond(404, 'Relation not found, project_id={0}, role_id={1}.'.format(
+        raise apiError.DevOpsError(404, 'Relation not found, project_id={0}, role_id={1}.'.format(
             project_id, role_id
         ), error=apiError.user_not_found(user_id))
     db.session.delete(row)
@@ -503,7 +504,7 @@ def get_projects_by_user(user_id):
             user_id))
     userid_list_output = result.fetchone()
     if userid_list_output is None:
-        return util.respond(404, "Error while getting projects of a user.",
+        raise apiError.DevOpsError(404, "Error while getting projects of a user.",
                             error=apiError.user_not_found(user_id))
     plan_user_id = userid_list_output[0]
     result.close()
@@ -742,7 +743,7 @@ class ProjectFile(Resource):
         try:
             plan_project_id = get_plan_project_id(project_id)
         except NoResultFound:
-            return util.respond(404, 'Error while uploading a file to a project.',
+            raise apiError.DevOpsError(404, 'Error while uploading a file to a project.',
                                 error=apiError.project_not_found(project_id))
 
         parser = reqparse.RequestParser()
@@ -757,7 +758,7 @@ class ProjectFile(Resource):
         try:
             plan_project_id = get_plan_project_id(project_id)
         except NoResultFound:
-            return util.respond(404, 'Error while getting project files.',
+            raise apiError.DevOpsError(404, 'Error while getting project files.',
                                 error=apiError.project_not_found(project_id))
         return redmine.rm_list_file(plan_project_id)
 

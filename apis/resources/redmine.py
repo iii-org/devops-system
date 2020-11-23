@@ -10,6 +10,7 @@ from flask_restful import reqparse, Resource
 import config
 import resources.apiError as apiError
 import resources.util as util
+from resources.apiError import DevOpsError
 from resources.logger import logger
 
 
@@ -208,7 +209,7 @@ class Redmine:
 
     def rm_get_wiki(self, project_id, wiki_name):
         output = self.__api_get('/projects/{0}/wiki/{1}'.format(
-            project_id, wiki_name,))
+            project_id, wiki_name, ))
         return output, output.status_code
 
     def rm_put_wiki(self, project_id, wiki_name, args, operator_id):
@@ -267,8 +268,8 @@ class Redmine:
         headers = {'Content-Type': 'application/octet-stream'}
         res = self.__api_post('/uploads', data=file, headers=headers)
         if res.status_code != 201:
-            return util.respond(res.status_code, "Error while uploading to redmine",
-                                error=apiError.redmine_error(res.text))
+            raise DevOpsError(res.status_code, "Error while uploading to redmine",
+                              error=apiError.redmine_error(res.text))
         token = res.json().get('upload').get('token')
         filename = file.filename
         del args['upload_file']
@@ -290,12 +291,13 @@ class Redmine:
         f_args = parse.parse_args()
         file = f_args['file']
         if file is None:
-            return util.respond(400, 'No file is sent.')
+            raise DevOpsError(400, 'No file is sent.',
+                              error=apiError.argument_error('file'))
         headers = {'Content-Type': 'application/octet-stream'}
         res = self.__api_post('/uploads', data=file, headers=headers)
         if res.status_code != 201:
-            return util.respond(res.status_code, "Error while uploading to redmine",
-                                error=apiError.redmine_error(res.text))
+            raise DevOpsError(res.status_code, "Error while uploading to redmine",
+                              error=apiError.redmine_error(res.text))
         token = res.json().get('upload').get('token')
         filename = args['filename']
         if filename is None:
@@ -311,10 +313,10 @@ class Redmine:
         data = {'file': params}
         res = self.__api_post('/projects/%d/files' % plan_project_id, data=data)
         if res.status_code == 204:
-            return util.respond(201, None)
+            util.respond(201, None)
         else:
-            return util.respond(res.status_code, "Error while adding the file to redmine",
-                                error=apiError.redmine_error(res.text))
+            raise DevOpsError(res.status_code, "Error while adding the file to redmine",
+                              error=apiError.redmine_error(res.text))
 
     def rm_list_file(self, plan_project_id):
         res = self.__api_get('/projects/%d/files' % plan_project_id)
@@ -333,8 +335,8 @@ class Redmine:
                 attachment_filename=filename
             )
         except Exception as e:
-            return util.respond(500, 'Error when downloading an attachment.',
-                                error=apiError.uncaught_exception(e))
+            raise DevOpsError(500, 'Error when downloading an attachment.',
+                              error=apiError.uncaught_exception(e))
 
     def rm_delete_attachment(self, attachment_id):
         output = self.__api_delete('/attachments/{0}'.format(attachment_id))
@@ -342,10 +344,10 @@ class Redmine:
         if status_code == 204:
             return util.success()
         elif status_code == 404:
-            return util.respond(200, 'File is already deleted.')
+            util.respond(200, 'File is already deleted.')
         else:
-            return util.respond(status_code, "Error while deleting attachments.",
-                                error=apiError.redmine_error(output))
+            raise DevOpsError(status_code, "Error while deleting attachments.",
+                              error=apiError.redmine_error(output))
 
     def rm_create_project(self, args):
         xml_body = """<?xml version="1.0" encoding="UTF-8"?>

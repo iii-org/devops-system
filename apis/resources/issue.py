@@ -163,7 +163,8 @@ def require_issue_visible(issue_id,
 def verify_issue_user(issue_id, user_id):
     issue_info, status_code = get_issue(issue_id)
     if status_code != 200:
-        raise apiError.IssueNotFoundError('issue_id {0} not found.'.format(issue_id))
+        raise apiError.DevOpsError(404, 'issue_id {0} not found.'.format(issue_id),
+                                   error=apiError.issue_not_found(issue_id))
     project_id = issue_info['data']['project']['id']
     count = model.ProjectUserRole.query.filter_by(
         project_id=project_id, user_id=user_id).count()

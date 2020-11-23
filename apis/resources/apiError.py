@@ -91,8 +91,17 @@ class NotUserHimselfError(HTTPException):
 
 
 # Redmine Issue/Wiki/... errors
-class IssueNotFoundError(HTTPException):
-    pass
+def issue_not_found(issue_id):
+    return build(4001, 'Issue not found.', {'issue_id': issue_id})
+
+
+# General errors
+def no_detail():
+    return build(7001, 'This error has no detail information.')
+
+
+def argument_error(arg_name):
+    return build(7002, 'Argument {0} is incorrect.'.format(arg_name), {'arg': arg_name})
 
 
 # Third party service errors
@@ -144,17 +153,16 @@ custom_errors = {
     'NotUserHimselfError': {
         'error': build(3003, "You are not permitted to access another user's data."),
         'status': 401
-    },
-    'IssueNotFoundError': {
-        'error': build(4001, "Issue not found."),
-        'status': 404
     }
 }
 
 
 # Exceptions wrapping method_type error information
 class DevOpsError(Exception):
-    def __init__(self, status_code, message, error):
+    def __init__(self, status_code, message, error=None):
         self.status_code = status_code
         self.message = message
-        self.error_value = error
+        if error is not None:
+            self.error_value = error
+        else:
+            self.error_value = no_detail()
