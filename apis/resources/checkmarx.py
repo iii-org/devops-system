@@ -9,11 +9,11 @@ from flask_restful import Resource, reqparse
 from sqlalchemy import desc
 from sqlalchemy.orm.exc import NoResultFound
 
-from model import Checkmarx as Model, ProjectPluginRelation
+from model import Checkmarx as Model
 
 import config
 from model import db
-from resources import util, apiError, project, gitlab
+from resources import util, apiError, gitlab
 
 
 def build_url(path):
@@ -128,7 +128,7 @@ class CheckMarx(object):
     @staticmethod
     def get_latest(column, project_id):
         try:
-            repo_id = project.get_repository_id(project_id)
+            repo_id = gitlab.get_repository_id(project_id)
         except NoResultFound:
             return -1
         row = Model.query.filter_by(repo_id=repo_id).order_by(

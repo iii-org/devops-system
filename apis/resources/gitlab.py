@@ -390,6 +390,12 @@ class GitLab(object):
         return util.success(data_by_time)
 
 
+# May throws NoResultFound
+def get_repository_id(project_id):
+    return model.ProjectPluginRelation.query.filter_by(
+        project_id=project_id).one().git_repository_id
+
+
 # --------------------- Resources ---------------------
 gitlab = GitLab()
 

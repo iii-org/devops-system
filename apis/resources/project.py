@@ -483,12 +483,6 @@ def get_plan_project_id(project_id):
         project_id=project_id).one().plan_project_id
 
 
-# May throws NoResultFound
-def get_repository_id(project_id):
-    return model.ProjectPluginRelation.query.filter_by(
-        project_id=project_id).one().git_repository_id
-
-
 def get_projects_by_user(user_id):
     output_array = []
     result = db.engine.execute(
