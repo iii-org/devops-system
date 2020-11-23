@@ -321,9 +321,10 @@ def delete_project(project_id):
 
 # 用project_id查詢db的相關table欄位資訊
 def pm_get_project(project_id):
-    plan_project_id = get_plan_project_id(project_id)
     # 查詢專案名稱＆專案說明＆＆專案狀態
-    if plan_project_id < 0:
+    try:
+        plan_project_id = get_plan_project_id(project_id)
+    except NoResultFound:
         return util.respond(404, 'Error when getting project info.',
                             error=apiError.project_not_found(project_id))
     result = db.engine.execute(
@@ -476,17 +477,16 @@ def project_remove_member(project_id, user_id):
     return util.success()
 
 
+# May throws NoResultFound
 def get_plan_project_id(project_id):
-    result = db.engine.execute(
-        "SELECT plan_project_id FROM public.project_plugin_relation"
-        " WHERE project_id = {0}".format(project_id))
-    if result.rowcount > 0:
-        project = result.fetchone()
-        ret = project['plan_project_id']
-    else:
-        ret = -1
-    result.close()
-    return ret
+    return model.ProjectPluginRelation.query.filter_by(
+        project_id=project_id).one().plan_project_id
+
+
+# May throws NoResultFound
+def get_repository_id(project_id):
+    return model.ProjectPluginRelation.query.filter_by(
+        project_id=project_id).one().git_repository_id
 
 
 def get_projects_by_user(user_id):
@@ -745,8 +745,9 @@ class TestSummary(Resource):
 class ProjectFile(Resource):
     @jwt_required
     def post(self, project_id):
-        plan_project_id = get_plan_project_id(project_id)
-        if plan_project_id < 0:
+        try:
+            plan_project_id = get_plan_project_id(project_id)
+        except NoResultFound:
             return util.respond(404, 'Error while uploading a file to a project.',
                                 error=apiError.project_not_found(project_id))
 
@@ -759,7 +760,11 @@ class ProjectFile(Resource):
 
     @jwt_required
     def get(self, project_id):
-        plan_project_id = get_plan_project_id(project_id)
+        try:
+            plan_project_id = get_plan_project_id(project_id)
+        except NoResultFound:
+            return util.respond(404, 'Error while getting project files.',
+                                error=apiError.project_not_found(project_id))
         return redmine.rm_list_file(plan_project_id)
 
 

@@ -1,5 +1,6 @@
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
+from sqlalchemy.orm.exc import NoResultFound
 
 import resources.apiError as apiError
 import resources.project as project
@@ -12,8 +13,9 @@ from resources.redmine import redmine
 def get_wiki_list_by_project(project_id):
     if util.is_dummy_project(project_id):
         return util.success({"wiki_pages": []})
-    plan_id = project.get_plan_project_id(project_id)
-    if plan_id < 0:
+    try:
+        plan_id = project.get_plan_project_id(project_id)
+    except NoResultFound:
         return util.respond(404, "Error while getting wiki.",
                             error=apiError.project_not_found(project_id))
     wiki_list, status_code = redmine.rm_get_wiki_list(plan_id)
@@ -25,8 +27,9 @@ def get_wiki_list_by_project(project_id):
 
 
 def get_wiki_by_project(project_id, wiki_name):
-    plan_id = project.get_plan_project_id(project_id)
-    if plan_id < 0:
+    try:
+        plan_id = project.get_plan_project_id(project_id)
+    except NoResultFound:
         return util.respond(404, "Error while getting wiki.",
                             error=apiError.project_not_found(project_id))
     wiki_list, status_code = redmine.rm_get_wiki(plan_id, wiki_name)
@@ -45,8 +48,9 @@ def get_wiki_by_project(project_id, wiki_name):
 
 
 def put_wiki_by_project(project_id, wiki_name, args, operator_id):
-    plan_id = project.get_plan_project_id(project_id)
-    if plan_id < 0:
+    try:
+        plan_id = project.get_plan_project_id(project_id)
+    except NoResultFound:
         return util.respond(404, "Error while updating wiki.",
                             error=apiError.project_not_found(project_id))
     plan_operator_id = None
@@ -63,8 +67,9 @@ def put_wiki_by_project(project_id, wiki_name, args, operator_id):
 
 
 def delete_wiki_by_project(project_id, wiki_name):
-    plan_id = project.get_plan_project_id(project_id)
-    if plan_id < 0:
+    try:
+        plan_id = project.get_plan_project_id(project_id)
+    except NoResultFound:
         return util.respond(404, "Error while deleting wiki.",
                             error=apiError.project_not_found(project_id))
     resp_wiki_list, status_code = redmine.rm_delete_wiki(

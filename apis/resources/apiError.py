@@ -8,13 +8,16 @@ def build(err_code, message, details=None):
         return {'code': err_code, 'message': message, 'details': details}
 
 
-def error_3rd_party_api(err_code, api_name, response):
+def error_3rd_party_api( service_name, response):
     if type(response) is str:
-        return build(err_code, '{0} responds error.'.format(api_name), {'response': response})
-    try:
-        return build(err_code, '{0} responds error.'.format(api_name), {'response': response.json()})
-    except Exception:
-        return build(err_code, '{0} responds error.'.format(api_name), {'response': response.text})
+        resp_value = response
+    else:
+        try:
+            resp_value = response.json()
+        except Exception:
+            resp_value = response.text
+    return build(8001, '{0} responds error.'.format(service_name),
+                 {'service_name': service_name, 'response': resp_value})
 
 
 # Project errors
@@ -94,15 +97,19 @@ class IssueNotFoundError(HTTPException):
 
 # Third party service errors
 def redmine_error(response):
-    return error_3rd_party_api(8001, 'Redmine', response)
+    return error_3rd_party_api('Redmine', response)
 
 
 def gitlab_error(response):
-    return error_3rd_party_api(8002, 'Gitlab', response)
+    return error_3rd_party_api('Gitlab', response)
 
 
 def rancher_error(response):
-    return error_3rd_party_api(8003, 'Rancher', response)
+    return error_3rd_party_api('Rancher', response)
+
+
+def checkmarx_error(response):
+    return error_3rd_party_api('CheckMarx', response)
 
 
 # Internal errors

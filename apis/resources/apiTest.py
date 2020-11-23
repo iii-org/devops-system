@@ -4,6 +4,7 @@ import json
 
 from flask_jwt_extended import jwt_required
 from flask_restful import reqparse, Resource
+from sqlalchemy import desc
 
 import model
 import resources.util as util
@@ -340,19 +341,14 @@ def save_test_result(args):
 
 
 def get_report(project_id):
-    try:
-        result = db.engine.execute(
-            'SELECT report FROM test_results WHERE project_id={0} ORDER BY id DESC LIMIT 1'.format(
-                project_id))
-        if result.rowcount == 0:
-            return util.respond(404, 'No postman report for this project.')
-        report = result.fetchone()['report']
-        if report is None:
-            return util.respond(404, 'No postman report for this project.')
-        return util.success(json.loads(report))
-    except Exception as e:
-        return util.respond(500, "Error when saving test results.",
-                            error=apiError.uncaught_exception(e))
+    row = model.TestResults.query.filter_by(project_id=project_id).order_by(desc(
+        model.TestResults.id)).limit(1).first()
+    if row is None:
+        return util.respond(404, 'No postman report for this project.')
+    report = row.report
+    if report is None:
+        return util.respond(404, 'No postman report for this project.')
+    return util.success(json.loads(report))
 
 
 # --------------------- Resources ---------------------

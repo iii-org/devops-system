@@ -1,10 +1,12 @@
 import datetime
+import json
 import os
 import traceback
 
 from flask import Flask
 from flask_cors import CORS
 from flask_restful import Resource, Api
+from sqlalchemy.orm.exc import NoResultFound
 from werkzeug.routing import IntegerConverter
 
 import config
@@ -39,6 +41,9 @@ app.url_map.converters['sint'] = SignedIntConverter
 
 @app.errorhandler(Exception)
 def internal_error(e):
+    if type(e) is NoResultFound:
+        return util.respond(404, 'Resource not found.',
+                            error=apiError.uncaught_exception(e))
     traceback.print_exc()
     return util.respond(500, "Unexpected internal error",
                         error=apiError.uncaught_exception(e))

@@ -6,9 +6,14 @@ import requests
 from flask import send_file
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
+from sqlalchemy import desc
+from sqlalchemy.orm.exc import NoResultFound
+
+from model import Checkmarx as Model, ProjectPluginRelation
 
 import config
 from model import db
+from resources import util, apiError, project, gitlab
 
 
 def build_url(path):
@@ -55,19 +60,14 @@ class CheckMarx(object):
 
     @staticmethod
     def create_scan(args):
-        try:
-            db.engine.execute(
-                "INSERT INTO public.checkmarx "
-                "(cm_project_id, repo_id, scan_id, run_at) "
-                "VALUES ({0}, {1}, {2}, '{3}')".format(
-                    args['cm_project_id'],
-                    args['repo_id'],
-                    args['scan_id'],
-                    datetime.datetime.now()
-                ))
-            return {"message": "success"}, 200
-        except Exception as e:
-            return {"message": "error", "data": e.__str__()}, 400
+        new = Model(
+            cm_project_id=args['cm_project_id'],
+            repo_id=args['repo_id'],
+            scan_id=args['scan_id'],
+            run_at=datetime.datetime.now())
+        db.session.add(new)
+        db.commit()
+        return util.success()
 
     def get_scan_status(self, scan_id):
         status = self.__api_get('/sast/scans/{0}'.format(scan_id)).json().get('status')
@@ -89,28 +89,22 @@ class CheckMarx(object):
 
     def register_report(self, scan_id):
         r = self.__api_post('/reports/sastScan', {'reportType': 'PDF', 'scanId': scan_id})
+        if r.status_code % 100 != 2:
+            return util.respond(r.status_code, 'Error when registering checkmarx report.',
+                                error=apiError.checkmarx_error(r))
         report_id = r.json().get('reportId')
-        db.engine.execute(
-            "UPDATE public.checkmarx "
-            "SET report_id={0}"
-            "WHERE scan_id={1}".format(
-                report_id, scan_id)
-        )
-        if r.status_code % 100 == 2:
-            return {'message': 'success',
-                    'data': {'scanId': scan_id, 'reportId': report_id}}, r.status_code
-        else:
-            return {'message': 'error'}, r.status_code
+        scan = Model.query.filter_by(scan_id=scan_id).one()
+        scan.report_id = report_id
+        db.session.commit()
+        return util.respond(r.status_code, data={'scanId': scan_id, 'reportId': report_id})
 
     def get_report_status(self, report_id):
         status = self.__api_get('/reports/sastScan/%s/status' % report_id).json().get('status')
         if status.get('id') == 2:
-            db.engine.execute(
-                "UPDATE public.checkmarx "
-                "SET finished_at='{0}', finished=true "
-                "WHERE report_id={1}".format(
-                    datetime.datetime.now(), report_id)
-            )
+            row = Model.query.filter_by(report_id=report_id).one()
+            row.finished_at = datetime.datetime.now()
+            row.finished = True
+            db.session.commit()
         return status.get('id'), status.get('value')
 
     def get_report_status_wrapped(self, report_id):
@@ -118,49 +112,30 @@ class CheckMarx(object):
         return CheckMarx.wrap({'id': status_id, 'value': value}, 200)
 
     def get_report(self, report_id):
-        try:
-            row = db.engine.execute(
-                'SELECT finished FROM public.checkmarx '
-                'WHERE report_id={0}'.format(report_id)
-            ).fetchone()
-            if not row['finished']:
-                status, _ = self.get_report_status(report_id)
-                if status != 2:
-                    return {'message': 'Report is not available yet'}, 400
-        except Exception as e:
-            return {"message": "error", "data": e.__str__()}, 500
-        try:
-            r = self.__api_get('/reports/sastScan/{0}'.format(report_id))
-            file_obj = BytesIO(r.content)
-            return send_file(
-                file_obj,
-                attachment_filename='report.pdf',
-                mimetype="Content-Type: application/pdf; charset={r.encoding}"
-            )
-        except Exception as e:
-            return {"message": "error", "data": e.__str__()}, 400
+        row = Model.query.filter_by(report_id=report_id).one()
+        if not row.finished:
+            status, _ = self.get_report_status(report_id)
+            if status != 2:
+                return {'message': 'Report is not available yet'}, 400
+        r = self.__api_get('/reports/sastScan/{0}'.format(report_id))
+        file_obj = BytesIO(r.content)
+        return send_file(
+            file_obj,
+            attachment_filename='report.pdf',
+            mimetype="Content-Type: application/pdf; charset={r.encoding}"
+        )
 
     @staticmethod
     def get_latest(column, project_id):
-        cursor = db.engine.execute(
-            'SELECT git_repository_id FROM public.project_plugin_relation'
-            ' WHERE project_id={0}'.format(project_id)
-        )
-        if cursor.rowcount == 0:
+        try:
+            repo_id = project.get_repository_id(project_id)
+        except NoResultFound:
             return -1
-        row = cursor.fetchone()
-        repo_id = row['git_repository_id']
-        if repo_id is None:
+        row = Model.query.filter_by(repo_id=repo_id).order_by(
+            desc(Model.run_at)).limit(1).first()
+        if row is None:
             return -1
-        cursor = db.engine.execute(
-            'SELECT {0} FROM public.checkmarx '
-            ' WHERE repo_id={1}'
-            ' ORDER BY run_at DESC'
-            ' LIMIT 1'.format(column, repo_id)
-        )
-        if cursor.rowcount == 0:
-            return -1
-        return cursor.fetchone()[column]
+        return getattr(row, column)
 
     def get_latest_scan_wrapped(self, project_id):
         scan_id = self.get_latest('scan_id', project_id)

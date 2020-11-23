@@ -5,6 +5,7 @@ from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
 
 import config
+import model
 import resources.util as util
 from model import db
 from resources import apiError, kubernetesClient, role
@@ -12,13 +13,9 @@ from resources.logger import logger
 
 
 def repo_id_to_project_id(repo_id):
-    result = db.engine.execute(
-        "SELECT project_id FROM public.project_plugin_relation"
-        " WHERE git_repository_id='{0}'".format(repo_id))
-    project_relation = result.fetchone()
-    result.close()
-    if project_relation:
-        return project_relation['project_id']
+    row = model.ProjectPluginRelation.query.filter_by(git_repository_id=repo_id).first()
+    if row:
+        return row.project_id
     else:
         return -1
 
