@@ -17,9 +17,11 @@ from model import db
 from resources import util, apiError, gitlab
 
 
-class CheckmarxResponseError(Exception):
-    def __init__(self, response):
-        self.error_value = apiError.checkmarx_error(response)
+def build_exception(response):
+    return apiError.DevOpsError(
+        400,
+        'System can not handle this request due to checkmarx error.',
+        apiError.checkmarx_error(response))
 
 
 def build_url(path):
@@ -96,7 +98,7 @@ class CheckMarx(object):
     def register_report(self, scan_id):
         r = self.__api_post('/reports/sastScan', {'reportType': 'PDF', 'scanId': scan_id})
         if int(r.status_code / 100) != 2:
-            raise CheckmarxResponseError(r)
+            raise build_exception(r)
         report_id = r.json().get('reportId')
         scan = Model.query.filter_by(scan_id=scan_id).one()
         scan.report_id = report_id
@@ -107,7 +109,7 @@ class CheckMarx(object):
     def get_report_status(self, report_id):
         resp = self.__api_get('/reports/sastScan/%s/status' % report_id)
         if int(resp.status_code / 100) != 2:
-            raise CheckmarxResponseError(resp)
+            raise build_exception(resp)
         status = resp.json().get('status')
         if status.get('id') == 2:
             row = Model.query.filter_by(report_id=report_id).one()

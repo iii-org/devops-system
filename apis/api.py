@@ -45,9 +45,9 @@ def internal_error(e):
         return util.respond(404, 'Resource not found.',
                             error=apiError.uncaught_exception(e))
     traceback.print_exc()
-    if type(e) is checkmarx.CheckmarxResponseError:
-        return util.respond(400, 'System can not handle this request due to checkmarx error.',
-                            error=e.error_value)
+    if type(e) is apiError.DevOpsError:
+        return util.respond(e.status_code, e.message, error=e.error_value)
+
     return util.respond(500, "Unexpected internal error",
                         error=apiError.uncaught_exception(e))
 

@@ -150,3 +150,11 @@ custom_errors = {
         'status': 404
     }
 }
+
+
+# Exceptions wrapping method_type error information
+class DevOpsError(Exception):
+    def __init__(self, status_code, message, error):
+        self.status_code = status_code
+        self.message = message
+        self.error_value = error

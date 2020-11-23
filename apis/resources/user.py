@@ -59,8 +59,8 @@ def get_role_id(user_id):
     if row is not None:
         return row.role_id
     else:
-        return util.respond(404, 'Error while getting role id',
-                            error=apiError.user_not_found(user_id))
+        raise apiError.DevOpsError(
+            404, 'Error while getting role id', apiError.user_not_found(user_id))
 
 
 def to_redmine_role_id(role_id):
@@ -157,7 +157,8 @@ def get_user_info(user_id):
 
         return util.success(output)
     else:
-        return util.respond(404, "User not found.", error=apiError.user_not_found(user_id))
+        raise apiError.DevOpsError(
+            404, 'User not found.', apiError.user_not_found(user_id))
 
 
 def update_info(user_id, args):
@@ -267,8 +268,9 @@ def change_user_status(user_id, args):
         db.session.commit()
         return util.success()
     except NoResultFound:
-        return util.respond(404, 'Error when change user status.',
-                            error=apiError.user_not_found(user_id))
+        raise apiError.DevOpsError(
+            404, 'Error when change user status.',
+            error=apiError.user_not_found(user_id))
 
 
 def create_user(args):
@@ -382,25 +384,26 @@ def get_user_plugin_relation(user_id=None, plan_user_id=None, gitlab_user_id=Non
             return model.UserPluginRelation.query.filter_by(
                 plan_user_id=plan_user_id).one()
         except NoResultFound:
-            return util.respond(404, 'User with redmine id {0} does not exist in redmine.'
-                                .format(plan_user_id),
-                                error=apiError.user_not_found(plan_user_id))
+            raise apiError.DevOpsError(
+                404, 'User with redmine id {0} does not exist in redmine.'.format(plan_user_id),
+                apiError.user_not_found(plan_user_id))
     elif gitlab_user_id is not None:
         try:
             return model.UserPluginRelation.query.filter_by(
                 repository_user_id=gitlab_user_id).one()
         except NoResultFound:
-            return util.respond(404, 'User with gitlab id {0} does not exist in gitlab.'
-                                .format(gitlab_user_id),
-                                error=apiError.user_not_found(gitlab_user_id))
+            raise apiError.DevOpsError(
+                404,
+                'User with redmine id {0} does not exist in redmine.'.format(plan_user_id),
+                apiError.user_not_found(plan_user_id))
     else:
         try:
             return model.UserPluginRelation.query.filter_by(
                 user_id=user_id).one()
         except NoResultFound:
-            return util.respond(404, 'User with id {0} does not exist.'
-                                .format(user_id),
-                                error=apiError.user_not_found(user_id))
+            raise apiError.DevOpsError(
+                404, 'User with id {0} does not exist.'.format(user_id),
+                apiError.user_not_found(user_id))
 
 
 def user_list():
