@@ -66,7 +66,7 @@ class CheckMarx(object):
             scan_id=args['scan_id'],
             run_at=datetime.datetime.now())
         db.session.add(new)
-        db.commit()
+        db.session.commit()
         return util.success()
 
     def get_scan_status(self, scan_id):
