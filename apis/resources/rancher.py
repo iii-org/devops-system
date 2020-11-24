@@ -99,7 +99,7 @@ class Rancher(object):
                         logger.info("wss url: {0}".format(url))
                         result = None
                         ws = websocket.create_connection(url, header=[headersandtoken],
-                            sslopt={"cert_reqs": ssl.CERT_NONE})
+                                                         sslopt={"cert_reqs": ssl.CERT_NONE})
                         ws.settimeout(3)
                         try:
                             result = ws.recv()

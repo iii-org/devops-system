@@ -16,7 +16,7 @@ import resources.pipeline as pipeline
 import resources.role as role
 from jsonwebtoken import jsonwebtoken
 from model import db
-from resources import project, gitlab, util, issue, user, redmine, wiki, version, sonar, apiTest, postman
+from resources import project, gitlab, util, issue, user, redmine, wiki, version, sonar, apiTest, postman, mock
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -206,6 +206,9 @@ api.add_resource(redmine.RedmineFile, '/download', '/file/<int:file_id>')
 
 # git commit
 api.add_resource(SystemGitCommitID, '/system_git_commit_id')
+
+# Mocks
+api.add_resource(mock.MockTestResult, '/mock/test_summary')
 
 if __name__ == "__main__":
     db.init_app(app)
