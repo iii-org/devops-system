@@ -87,7 +87,7 @@ def tick(message=''):
     ticker = now
 
 
-def api_request(method, url, headers=None, params=None, data=None):
+def api_request(method, url, headers=None, params=None, data=None, auth=None):
     body = data
     if type(data) is dict or type(data) is reqparse.Namespace:
         if 'Content-Type' not in headers:
@@ -96,15 +96,15 @@ def api_request(method, url, headers=None, params=None, data=None):
             body = json.dumps(data)
 
     if method.upper() == 'GET':
-        return requests.get(url, headers=headers, params=params, verify=False)
+        return requests.get(url, headers=headers, params=params, verify=False, auth=auth)
     elif method.upper() == 'POST':
         return requests.post(url, data=body, params=params,
-                             headers=headers, verify=False)
+                             headers=headers, verify=False, auth=auth)
     elif method.upper() == 'PUT':
         return requests.put(url, data=body, params=params,
-                            headers=headers, verify=False)
+                            headers=headers, verify=False, auth=auth)
     elif method.upper() == 'DELETE':
-        return requests.delete(url, headers=headers, params=params, verify=False)
+        return requests.delete(url, headers=headers, params=params, verify=False, auth=auth)
     else:
         return respond_request_style(
             500, 'Error while request {0} {1}'.format(method, url),

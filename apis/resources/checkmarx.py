@@ -59,7 +59,7 @@ class CheckMarx(object):
         if int(res.status_code / 100) != 2:
             raise apiError.DevOpsError(
                 res.status_code, 'Got non-2xx response from Checkmarx.',
-                apiError.checkmarx_error(res))
+                apiError.error_3rd_party_api('Checkmarx', res))
         return res
 
     def __api_get(self, path, headers=None):

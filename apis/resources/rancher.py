@@ -34,7 +34,7 @@ class Rancher(object):
             raise apiError.DevOpsError(
                 response.status_code,
                 'Got non-2xx response from Rancher.',
-                apiError.rancher_error(response))
+                apiError.error_3rd_party_api('Rancher', response))
         return response
 
     def __auth_headers(self, headers, with_token):

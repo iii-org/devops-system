@@ -113,14 +113,6 @@ def gitlab_error(response):
     return error_3rd_party_api('Gitlab', response)
 
 
-def rancher_error(response):
-    return error_3rd_party_api('Rancher', response)
-
-
-def checkmarx_error(response):
-    return error_3rd_party_api('CheckMarx', response)
-
-
 # Internal errors
 def uncaught_exception(exception):
     return build(9001, 'An uncaught exception has occurred.',
