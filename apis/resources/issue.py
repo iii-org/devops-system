@@ -621,7 +621,7 @@ def modify_parameters_by_param_id(parameters_id, args):
 
 
 def get_parameters_by_issue_id(issue_id):
-    rows = model.Parameters.query.filter_by(issue_id=issue_id, disabled=False)
+    rows = model.Parameters.query.filter_by(issue_id=issue_id).filter('disabled' != False)
     output = []
     for row in rows:
         output.append(deal_with_ParametersObject(row))
@@ -699,7 +699,8 @@ def modify_flow_by_flow_id(flow_id, args):
 
 
 def get_flow_by_requirement_id(requirement_id):
-    rows = model.Flows.query.filter_by(requirement_id=requirement_id, disabled=False).all()
+    rows = model.Flows.query.filter_by(requirement_id=requirement_id).filter(
+        'disabled' != False).all()
     output = []
     for row in rows:
         output.append(deal_with_flow_object(row))
@@ -771,7 +772,7 @@ def modify_requirement_by_rqmt_id(requirement_id, args):
 
 
 def get_requirements_by_issue_id(issue_id):
-    rows = model.Requirements.query.filter_by(issue_id=issue_id, disabled=False).all()
+    rows = model.Requirements.query.filter_by(issue_id=issue_id).filter('disabled' != False).all()
     output = []
     for row in rows:
         output.append(json.loads(row.flow_info))
@@ -791,7 +792,7 @@ def post_requirement_by_issue_id(issue_id, args):
 
 def get_requirements_by_project_id(project_id):
     rows = model.Requirements.query.filter_by(
-        project_id=project_id, disabled=False).all()
+        project_id=project_id).filter('disabled' != False).all()
     output = []
     for row in rows:
         output.append(json.loads(row.flow_info))
