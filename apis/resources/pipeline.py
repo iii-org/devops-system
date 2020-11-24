@@ -116,7 +116,7 @@ def generate_ci_yaml(args, repository_id, branch_name):
         method = "put"
         parameter['commit_message'] = "modify .rancher-pipeline.yml"
     gitlab.gl_create_rancher_pipeline_yaml(repository_id, parameter, method)
-    return {"message": "success"}, 200
+    return util.success()
 
 
 def get_ci_yaml(repository_id, branch_name):

@@ -143,7 +143,7 @@ def create_project(user_id, args):
 
     # 建立gitlab project
     try:
-        gitlab_output = gitlab.gl_create_project(args)
+        gitlab_json = gitlab.gl_create_project(args)
     except DevOpsError as e:
         # Rollback
         redmine.rm_delete_project(redmine_pj_id)
@@ -161,7 +161,6 @@ def create_project(user_id, args):
         raise e
 
     # 寫入db
-    gitlab_json = gitlab_output.json()
     gitlab_pj_id = gitlab_json["id"]
     gitlab_pj_name = gitlab_json["name"]
     gitlab_pj_ssh_url = gitlab_json["ssh_url_to_repo"]
@@ -497,9 +496,8 @@ def get_projects_by_user(user_id):
             output_dict['branch'] = branch_number
             # tag number
             tag_number = 0
-            output = gitlab.gl_get_tags(project['git_repository_id'])
-            if output.status_code == 200:
-                tag_number = len(output.json())
+            tags = gitlab.gl_get_tags(project['git_repository_id'])
+            tag_number = len(tags)
             output_dict['tag'] = tag_number
 
         if project['ci_project_id'] is not None:

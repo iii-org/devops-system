@@ -321,7 +321,7 @@ def create_user(args):
     except DevOpsError as e:
         redmine.rm_delete_user(redmine_user_id)
         raise e
-    gitlab_user_id = git_user.json()['id']
+    gitlab_user_id = git_user['id']
     h = SHA256.new()
     h.update(args["password"].encode())
     args["password"] = h.hexdigest()
