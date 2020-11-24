@@ -136,7 +136,7 @@ def create_project(user_id, args):
         if status_code == 422 and 'errors' in resp:
             if len(resp['errors']) > 0:
                 if resp['errors'][0] == 'Identifier has already been taken':
-                    error = apiError.identifier_has_been_token(args['name'])
+                    apiError.identifier_has_been_token(args['name'])
         raise e
 
     redmine_pj_id = redmine_output["project"]["id"]
@@ -160,50 +160,54 @@ def create_project(user_id, args):
                 pass
         raise e
 
-    # 寫入db
     gitlab_pj_id = gitlab_json["id"]
     gitlab_pj_name = gitlab_json["name"]
     gitlab_pj_ssh_url = gitlab_json["ssh_url_to_repo"]
     gitlab_pj_http_url = gitlab_json["http_url_to_repo"]
 
-    # 寫入projects
-    db.engine.execute(
-        "INSERT INTO public.projects (name, display, description, ssh_url, http_url, disabled)"
-        " VALUES ('{0}', '{1}', '{2}', '{3}', '{4}', '{5}')".format(
-            gitlab_pj_name, args['display'], args["description"],
-            gitlab_pj_ssh_url, gitlab_pj_http_url,
-            args["disabled"]))
-
-    # 查詢寫入projects的project_id
-    result = db.engine.execute(
-        "SELECT id FROM public.projects WHERE name = '{0}'".format(gitlab_pj_name))
-    project_id = result.fetchone()[0]
-    result.close()
-
     # enable rancher pipeline
     rancher_project_id = rancher.rc_get_project_id()
     rancher_pipeline_id = rancher.rc_enable_project_pipeline(gitlab_pj_http_url)
 
-    # 加關聯project_plugin_relation
-    new = model.ProjectPluginRelation(
-        project_id=project_id,
-        plan_project_id=redmine_pj_id,
-        git_repository_id=gitlab_pj_id,
-        ci_project_id=rancher_project_id,
-        ci_pipeline_id=rancher_pipeline_id
-    )
-    db.session.add(new)
-    db.session.commit()
+    try:
+        # 寫入 db projects
+        db.engine.execute(
+            "INSERT INTO public.projects (name, display, description, ssh_url, http_url, disabled)"
+            " VALUES ('{0}', '{1}', '{2}', '{3}', '{4}', '{5}')".format(
+                gitlab_pj_name, args['display'], args["description"],
+                gitlab_pj_ssh_url, gitlab_pj_http_url,
+                args["disabled"]))
 
-    # 加關聯project_user_role
-    args["user_id"] = user_id
-    project_add_member(project_id, args)
+        # 查詢寫入projects的project_id
+        result = db.engine.execute(
+            "SELECT id FROM public.projects WHERE name = '{0}'".format(gitlab_pj_name))
+        project_id = result.fetchone()[0]
+        result.close()
 
-    return util.success({
-        "project_id": project_id,
-        "plan_project_id": redmine_pj_id,
-        "git_repository_id": gitlab_pj_id
-    })
+        # 加關聯project_plugin_relation
+        new = model.ProjectPluginRelation(
+            project_id=project_id,
+            plan_project_id=redmine_pj_id,
+            git_repository_id=gitlab_pj_id,
+            ci_project_id=rancher_project_id,
+            ci_pipeline_id=rancher_pipeline_id
+        )
+        db.session.add(new)
+        db.session.commit()
+
+        # 加關聯project_user_role
+        args["user_id"] = user_id
+        project_add_member(project_id, args)
+
+        return util.success({
+            "project_id": project_id,
+            "plan_project_id": redmine_pj_id,
+            "git_repository_id": gitlab_pj_id
+        })
+    except DevOpsError as e:
+        redmine.rm_delete_project(redmine_pj_id)
+        gitlab.gl_delete_project(gitlab_pj_id)
+        raise e
 
 
 def pm_update_project(project_id, args):
