@@ -58,7 +58,7 @@ class CheckMarx(object):
                               error=apiError.unknown_method(method))
         if int(res.status_code / 100) != 2:
             raise apiError.DevOpsError(
-                res.status_code, 'Get non-2xx response from Checkmarx.',
+                res.status_code, 'Got non-2xx response from Checkmarx.',
                 apiError.checkmarx_error(res))
         return res
 
@@ -140,7 +140,8 @@ class CheckMarx(object):
 
     def get_result(self, project_id):
         scan_id = self.get_latest('scan_id', project_id)
-        if scan_id < 0:
+        row = Model.query.filter_by(scan_id=scan_id).first()
+        if scan_id < 0 or row is None:
             return {'message': 'This project does not have any scan.', 'status': -1}, 400
         st_id, st_name = self.get_scan_status(scan_id)
         if st_id == 8:
@@ -149,7 +150,7 @@ class CheckMarx(object):
             return {'message': 'The scan failed.', 'status': 5}, 200
         if st_id != 7:
             return {'message': 'The scan is not completed yet.', 'status': 1}, 200
-        report_id = self.get_latest('report_id', project_id)
+        report_id = row.report_id
         if report_id < 0:
             json, status_code = self.register_report(scan_id)
             report_id = json['data']['reportId']
@@ -159,6 +160,7 @@ class CheckMarx(object):
                     'data': {'stats': self.get_scan_statistics(scan_id)}}, 200
         return {'message': 'success', 'status': 3, 'data': {
             'stats': self.get_scan_statistics(scan_id),
+            'run_at': str(row.run_at),
             'report_id': report_id
         }}, 200
 

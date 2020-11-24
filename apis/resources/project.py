@@ -54,8 +54,7 @@ def get_joined_project_list(user_id):
         pm_map[pm.id] = pm.User
 
     projects = redmine.rm_list_projects().get('projects')
-
-    issues = redmine.rm_list_issues().json().get('issues')
+    issues = redmine.rm_list_issues().get('issues')
 
     output_array = []
     for row in rows:
@@ -549,22 +548,20 @@ def get_test_summary(project_id):
     ret = {}
 
     # newman
-    cursor = db.engine.execute(
-        'SELECT id, total, fail FROM public.test_results '
-        ' WHERE project_id={0}'
-        ' ORDER BY id DESC'
-        ' LIMIT 1'.format(project_id))
-    if cursor.rowcount > 0:
-        row = cursor.fetchone()
-        test_id = row['id']
-        total = row['total']
-        fail = row['fail']
+    row = model.TestResults.query.filter_by(project_id=project_id).order_by(desc(
+        model.TestResults.id)).limit(1).first()
+    if row is not None:
+        test_id = row.id
+        total = row.total
+        fail = row.fail
+        run_at = str(row.run_at)
         passed = total - fail
         ret['postman'] = {
-            "id": test_id,
-            "passed": passed,
-            "failed": fail,
-            "total": total
+            'id': test_id,
+            'passed': passed,
+            'failed': fail,
+            'total': total,
+            'run_at': run_at
         }
     else:
         ret['postman'] = {}
