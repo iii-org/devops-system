@@ -132,7 +132,7 @@ def create_project(user_id, args):
         redmine_output = redmine.rm_create_project(args)
     except DevOpsError as e:
         status_code = e.status_code
-        resp = e.error_value['details']['response']
+        resp = e.unpack_response()
         if status_code == 422 and 'errors' in resp:
             if len(resp['errors']) > 0:
                 if resp['errors'][0] == 'Identifier has already been taken':
@@ -148,7 +148,7 @@ def create_project(user_id, args):
         # Rollback
         redmine.rm_delete_project(redmine_pj_id)
         status_code = e.status_code
-        gitlab_json = e.error_value['details']['response']
+        gitlab_json = e.unpack_response()
         if status_code == 400:
             try:
                 if gitlab_json['message']['name'][0] == 'has already been taken':

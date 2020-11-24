@@ -295,8 +295,8 @@ def create_user(args):
         total_count = user_list_output['total_count']
         for user in user_list_output['users']:
             if user['login'] == args['login'] or user['mail'] == args['email']:
-                return util.respond(422, "Redmine already has this account or email.",
-                                    error=apiError.already_used())
+                raise DevOpsError(422, "Redmine already has this account or email.",
+                                  error=apiError.already_used())
         offset += limit
     # Check Gitlab has this login, email, if has, return error 400
     page = 1
@@ -307,8 +307,8 @@ def create_user(args):
         x_total_pages = int(user_list_output.headers['X-Total-Pages'])
         for user in user_list_output.json():
             if user['name'] == args['login'] or user['email'] == args['email']:
-                return util.respond(422, "Gitlab already has this account or email.",
-                                    error=apiError.already_used())
+                raise DevOpsError(422, "Gitlab already has this account or email.",
+                                  error=apiError.already_used())
         page += 1
 
     # plan software user create

@@ -155,3 +155,6 @@ class DevOpsError(Exception):
         self.status_code = status_code
         self.message = message
         self.error_value = error
+
+    def unpack_response(self):
+        return self.error_value['details']['response']

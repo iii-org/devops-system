@@ -1,5 +1,4 @@
 import datetime
-import json
 import os
 import traceback
 
@@ -16,7 +15,7 @@ import resources.pipeline as pipeline
 import resources.role as role
 from jsonwebtoken import jsonwebtoken
 from model import db
-from resources import project, gitlab, util, issue, user, redmine, wiki, version, sonar, apiTest, postman, mock
+from resources import project, gitlab, util, issue, user, redmine, wiki, version, sonar, apiTest, postman, mock, harbor
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -209,6 +208,10 @@ api.add_resource(SystemGitCommitID, '/system_git_commit_id')
 
 # Mocks
 api.add_resource(mock.MockTestResult, '/mock/test_summary')
+
+# Harbor
+api.add_resource(harbor.HarborProject, '/harbor/projects',
+                 '/harbor/projects/<int:harbor_project_id>')
 
 if __name__ == "__main__":
     db.init_app(app)
