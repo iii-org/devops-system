@@ -121,11 +121,6 @@ def checkmarx_error(response):
     return error_3rd_party_api('CheckMarx', response)
 
 
-def raise_redmine_error(redmine_response, message='Got non-2xx response from Redmine.'):
-    raise DevOpsError(redmine_response.status_code, message,
-                      error=redmine_error(redmine_response))
-
-
 # Internal errors
 def uncaught_exception(exception):
     return build(9001, 'An uncaught exception has occurred.',

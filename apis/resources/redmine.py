@@ -49,7 +49,7 @@ class Redmine:
         if int(output.status_code / 100) != 2:
             raise apiError.DevOpsError(
                 output.status_code,
-                'Get non-2xx response from Redmine.',
+                'Got non-2xx response from Redmine.',
                 apiError.redmine_error(output))
         return output
 
@@ -117,14 +117,11 @@ class Redmine:
 
     def rm_list_issues(self):
         params = {'status_id': '*'}
-        return self.__api_get('/issues', params=params)
+        return self.__api_get('/issues', params=params).json()
 
     def rm_get_issues_by_user(self, user_id):
         params = {'assigned_to_id': user_id, 'limit': 1000, 'status_id': '*'}
-        output = self.__api_get('/issues', params=params)
-        if output.status_code != 200:
-            apiError.raise_redmine_error(output)
-        return output.json()
+        return self.__api_get('/issues', params=params).json()
 
     def rm_get_issues_by_project(self, plan_project_id, args=None):
         if args is not None and 'fixed_version_id' in args:

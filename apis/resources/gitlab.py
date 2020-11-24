@@ -69,7 +69,7 @@ class GitLab(object):
         if int(output.status_code / 100) != 2:
             raise apiError.DevOpsError(
                 output.status_code,
-                'Get non-2xx response from Gitlab.',
+                'Got non-2xx response from Gitlab.',
                 apiError.gitlab_error(output))
         return output
 

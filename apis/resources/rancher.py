@@ -33,7 +33,7 @@ class Rancher(object):
         if int(response.status_code / 100) != 2:
             raise apiError.DevOpsError(
                 response.status_code,
-                'Get non-2xx response from Rancher.',
+                'Got non-2xx response from Rancher.',
                 apiError.rancher_error(response))
         return response
 
