@@ -19,7 +19,7 @@ def get_wiki_list_by_project(project_id):
         return util.respond(404, "Error while getting wiki.",
                             error=apiError.project_not_found(project_id))
     wiki_list = redmine.rm_get_wiki_list(plan_id)
-    return util.success(wiki_list.json())
+    return util.success(wiki_list)
 
 
 def get_wiki_by_project(project_id, wiki_name):
@@ -29,7 +29,7 @@ def get_wiki_by_project(project_id, wiki_name):
         return util.respond(404, "Error while getting wiki.",
                             error=apiError.project_not_found(project_id))
     wiki_list = redmine.rm_get_wiki(plan_id, wiki_name)
-    wiki_detail = wiki_list.json()
+    wiki_detail = wiki_list
     if 'author' in wiki_detail['wiki_page']:
         user_info = user.get_user_id_name_by_plan_user_id(
             wiki_detail['wiki_page']['author']['id'])
@@ -49,8 +49,7 @@ def put_wiki_by_project(project_id, wiki_name, args, operator_id):
     if operator_id is not None:
         operator_plugin_relation = user.get_user_plugin_relation(user_id=operator_id)
         plan_operator_id = operator_plugin_relation.plan_user_id
-    wiki_list = redmine.rm_put_wiki(
-        plan_id, wiki_name, args, plan_operator_id)
+    redmine.rm_put_wiki(plan_id, wiki_name, args, plan_operator_id)
     return util.success()
 
 

@@ -20,7 +20,7 @@ def get_version_list_by_project(project_id):
         return util.respond(404, "Error while getting versions.",
                             error=apiError.project_not_found(project_id))
     version_list = redmine.rm_get_version_list(plan_id)
-    return util.success(version_list.json())
+    return util.success(version_list)
 
 
 def post_version_by_project(project_id, message_args):
@@ -30,12 +30,12 @@ def post_version_by_project(project_id, message_args):
         return util.respond(404, "Error while getting versions.",
                             error=apiError.project_not_found(project_id))
     version = redmine.rm_post_version(plan_id, message_args)
-    return util.success(version.json())
+    return util.success(version)
 
 
 def get_version_by_version_id(version_id):
     version = redmine.rm_get_version(version_id)
-    return util.success(version.json())
+    return util.success(version)
 
 
 def put_version_by_version_id(version_id, args):

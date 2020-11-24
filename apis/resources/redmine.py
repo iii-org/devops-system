@@ -97,7 +97,7 @@ class Redmine:
 
     def rm_get_project(self, plan_project_id):
         return self.__api_get('/projects/{0}'.format(plan_project_id),
-                              params={'limit': 1000})
+                              params={'limit': 1000}).json()
 
     def rm_update_project(self, plan_project_id, args):
         xml_body = """<?xml version="1.0" encoding="UTF-8"?>
@@ -129,7 +129,7 @@ class Redmine:
                       'fixed_version_id': args['fixed_version_id']}
         else:
             params = {'project_id': plan_project_id, 'limit': 1000, 'status_id': '*'}
-        return self.__api_get('/issues', params=params)
+        return self.__api_get('/issues', params=params).json()
 
     def rm_get_issues_by_project_and_user(self, user_id, plan_project_id):
         params = {
@@ -138,7 +138,7 @@ class Redmine:
             'limit': 100,
             'status_id': '*'
         }
-        return self.__api_get('/issues', params=params)
+        return self.__api_get('/issues', params=params).json()
 
     def rm_get_issue(self, issue_id):
         params = {'include': 'journals,attachments'}
@@ -151,7 +151,8 @@ class Redmine:
         return self.__api_get('/issues', params=params).json()
 
     def rm_create_issue(self, args, operator_id):
-        return self.__api_post('/issues', data={"issue": args}, operator_id=operator_id)
+        return self.__api_post('/issues', data={"issue": args},
+                               operator_id=operator_id).json()
 
     def rm_update_issue(self, issue_id, args, operator_id):
         return self.__api_put('/issues/{0}'.format(issue_id),
@@ -180,30 +181,24 @@ class Redmine:
                 "password": user_source_password
             }
         }
-        output = self.__api_post('/users', data=params)
-        return output
+        return self.__api_post('/users', data=params).json()
 
     def rm_update_password(self, plan_user_id, new_pwd):
         param = {"user": {"password": new_pwd}}
-        output = self.__api_put('/users/{0}'.format(plan_user_id), data=param)
-        if output.status_code == 204:
-            return None
-        else:
-            return output
+        return self.__api_put('/users/{0}'.format(plan_user_id), data=param)
 
     def rm_get_user_list(self, args):
-        return self.__api_get('/users', params=args)
+        return self.__api_get('/users', params=args).json()
 
     def rm_delete_user(self, redmine_user_id):
-        redmine_output = self.__api_delete('/users/{0}'.format(redmine_user_id))
-        return redmine_output, redmine_output.status_code
+        return self.__api_delete('/users/{0}'.format(redmine_user_id))
 
     def rm_get_wiki_list(self, project_id):
-        return self.__api_get('/projects/{0}/wiki/index'.format(project_id))
+        return self.__api_get('/projects/{0}/wiki/index'.format(project_id)).json()
 
     def rm_get_wiki(self, project_id, wiki_name):
         return self.__api_get('/projects/{0}/wiki/{1}'.format(
-            project_id, wiki_name, ))
+            project_id, wiki_name)).json()
 
     def rm_put_wiki(self, project_id, wiki_name, args, operator_id):
         param = {"wiki_page": {"text": args['wiki_text']}}
@@ -216,14 +211,15 @@ class Redmine:
 
     # Get Redmine Version List
     def rm_get_version_list(self, project_id):
-        return self.__api_get('/projects/{0}/versions'.format(project_id))
+        return self.__api_get('/projects/{0}/versions'.format(project_id)).json()
 
     # Create Redmine Version
     def rm_post_version(self, project_id, args):
-        return self.__api_post('/projects/{0}/versions'.format(project_id), data=args)
+        return self.__api_post('/projects/{0}/versions'.format(
+            project_id), data=args).json()
 
     def rm_get_version(self, version_id):
-        return self.__api_get('/versions/{0}'.format(version_id))
+        return self.__api_get('/versions/{0}'.format(version_id)).json()
 
     def rm_put_version(self, version_id, args):
         return self.__api_put('/versions/{0}'.format(version_id), data=args)
@@ -240,7 +236,7 @@ class Redmine:
         return self.__api_delete('/memberships/{0}'.format(membership_id))
 
     def rm_get_memberships_list(self, project_id):
-        return self.__api_get('/projects/{0}/memberships'.format(project_id))
+        return self.__api_get('/projects/{0}/memberships'.format(project_id)).json()
 
     def rm_upload(self, args):
         if 'upload_file' in args:
@@ -279,9 +275,6 @@ class Redmine:
                               error=apiError.argument_error('file'))
         headers = {'Content-Type': 'application/octet-stream'}
         res = self.__api_post('/uploads', data=file, headers=headers)
-        if res.status_code != 201:
-            raise DevOpsError(res.status_code, "Error while uploading to redmine",
-                              error=apiError.redmine_error(res.text))
         token = res.json().get('upload').get('token')
         filename = args['filename']
         if filename is None:
@@ -303,8 +296,7 @@ class Redmine:
                               error=apiError.redmine_error(res.text))
 
     def rm_list_file(self, plan_project_id):
-        res = self.__api_get('/projects/%d/files' % plan_project_id)
-        return util.success(res.json())
+        return self.__api_get('/projects/%d/files' % plan_project_id).json()
 
     def rm_download_attachment(self, args):
         a_id = args['id']
@@ -347,7 +339,7 @@ class Redmine:
         headers = {'Content-Type': 'application/xml'}
         return self.__api_post('/projects',
                                headers=headers,
-                               data=xml_body.encode('utf-8'))
+                               data=xml_body.encode('utf-8')).json()
 
 
 # --------------------- Resources ---------------------

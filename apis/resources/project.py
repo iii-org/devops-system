@@ -133,14 +133,13 @@ def create_project(user_id, args):
     except DevOpsError as e:
         status_code = e.status_code
         resp = e.error_value['details']['response']
-        error = None
         if status_code == 422 and 'errors' in resp:
             if len(resp['errors']) > 0:
                 if resp['errors'][0] == 'Identifier has already been taken':
                     error = apiError.identifier_has_been_token(args['name'])
         raise e
 
-    redmine_pj_id = redmine_output.json()["project"]["id"]
+    redmine_pj_id = redmine_output["project"]["id"]
 
     # 建立gitlab project
     try:
@@ -280,8 +279,8 @@ def delete_project(project_id):
         relation.ci_project_id,
         relation.ci_pipeline_id)
 
-    gitlab_output = gitlab.gl_delete_project(gitlab_project_id)
-    redmine_output = redmine.rm_delete_project(redmine_project_id)
+    gitlab.gl_delete_project(gitlab_project_id)
+    redmine.rm_delete_project(redmine_project_id)
 
     # 如果gitlab & redmine project都成功被刪除則繼續刪除db內相關tables欄位
     db.engine.execute(
@@ -393,7 +392,7 @@ def project_remove_member(project_id, user_id):
     # get membership id
     memberships = redmine.rm_get_memberships_list(relation.plan_project_id)
     redmine_membership_id = None
-    for membership in memberships.json()['memberships']:
+    for membership in memberships['memberships']:
         if membership['user']['id'] == redmine_user_id:
             redmine_membership_id = membership['id']
     if redmine_membership_id is not None:
@@ -475,7 +474,7 @@ def get_projects_by_user(user_id):
 
         # get issue total cont
         total_issue = redmine.rm_get_issues_by_project_and_user(
-            plan_user_id, project['plan_project_id']).json()
+            plan_user_id, project['plan_project_id'])
         output_dict['issues'] = total_issue['total_count']
 
         # get next_d_time
@@ -703,7 +702,7 @@ class ProjectFile(Resource):
         except NoResultFound:
             raise apiError.DevOpsError(404, 'Error while getting project files.',
                                        error=apiError.project_not_found(project_id))
-        return redmine.rm_list_file(plan_project_id)
+        return util.success(redmine.rm_list_file(plan_project_id))
 
 
 class ProjectUserList(Resource):

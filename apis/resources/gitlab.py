@@ -113,12 +113,8 @@ class GitLab(object):
         return output
 
     def gl_update_password(self, repository_user_id, new_pwd):
-        output = self.__api_put('/users/{0}'.format(repository_user_id),
-                                params={"password": new_pwd})
-        if output.status_code == 200:
-            return None
-        else:
-            return output
+        return self.__api_put('/users/{0}'.format(repository_user_id),
+                              params={"password": new_pwd})
 
     def gl_get_user_list(self, args):
         return self.__api_get('/users', params=args)

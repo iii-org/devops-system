@@ -194,7 +194,7 @@ def create_issue(args, operator_id):
         operator_plugin_relation = user.get_user_plugin_relation(user_id=operator_id)
         plan_operator_id = operator_plugin_relation.plan_user_id
     output = redmine.rm_create_issue(args, plan_operator_id)
-    return util.success({"issue_id": output.json()["issue"]["id"]})
+    return util.success({"issue_id": output["issue"]["id"]})
 
 
 def update_issue(issue_id, args, operator_id):
@@ -239,7 +239,7 @@ def get_issue_by_project(project_id, args):
                           error=apiError.project_not_found(project_id))
     output_array = []
     redmine_output_issue_array = redmine.rm_get_issues_by_project(
-        plan_id, args).json()
+        plan_id, args)
     for redmine_issue in redmine_output_issue_array['issues']:
         output_dict = deal_with_issue_by_user_redmine_output(redmine_issue)
         output_array.append(output_dict)

@@ -214,14 +214,10 @@ def update_external_passwords(user_id, new_pwd):
         return util.respond(400, 'Error when updating password',
                             error=apiError.user_not_found(user_id))
     redmine_user_id = user_relation.plan_user_id
-    err = redmine.rm_update_password(redmine_user_id, new_pwd)
-    if err is not None:
-        return err
+    redmine.rm_update_password(redmine_user_id, new_pwd)
 
     gitlab_user_id = user_relation.repository_user_id
-    err = gitlab.gl_update_password(gitlab_user_id, new_pwd)
-    if err is not None:
-        return err
+    gitlab.gl_update_password(gitlab_user_id, new_pwd)
 
     return None
 
@@ -237,7 +233,7 @@ def delete_user(user_id):
 
     # 如果gitlab user成功被刪除則繼續刪除redmine user
     redmine_user_id = relation.plan_user_id
-    redmine_output, redmine_status_code = redmine.rm_delete_user(redmine_user_id)
+    redmine.rm_delete_user(redmine_user_id)
 
     # 如果gitlab & redmine user都成功被刪除則繼續刪除db內相關tables欄位
     db.engine.execute(
@@ -295,7 +291,7 @@ def create_user(args):
     total_count = 1
     while offset < total_count:
         params = {'offset': offset, 'limit': limit}
-        user_list_output = redmine.rm_get_user_list(params).json()
+        user_list_output = redmine.rm_get_user_list(params)
         total_count = user_list_output['total_count']
         for user in user_list_output['users']:
             if user['login'] == args['login'] or user['mail'] == args['email']:
@@ -317,11 +313,7 @@ def create_user(args):
 
     # plan software user create
     red_user = redmine.rm_create_user(args, user_source_password)
-    if red_user.status_code == 201:
-        redmine_user_id = red_user.json()['user']['id']
-    else:
-        return util.respond(red_user.status_code, "Error while creating user.",
-                            error=apiError.redmine_error(red_user))
+    redmine_user_id = red_user['user']['id']
 
     # gitlab software user create
     try:
