@@ -10,6 +10,7 @@ import model
 import resources.util as util
 from model import db
 from resources import apiError
+from resources.apiError import DevOpsError
 
 HTTP_TYPES = {"1": "request", "2": "response"}
 HTTP_METHODS = {"1": "GET", "2": "POST", "3": "PUT", "4": "DELETE"}
@@ -344,10 +345,10 @@ def get_report(project_id):
     row = model.TestResults.query.filter_by(project_id=project_id).order_by(desc(
         model.TestResults.id)).limit(1).first()
     if row is None:
-        return util.respond(404, 'No postman report for this project.')
+        raise DevOpsError(404, 'No postman report for this project.')
     report = row.report
     if report is None:
-        return util.respond(404, 'No postman report for this project.')
+        raise DevOpsError(404, 'No postman report for this project.')
     return util.success(json.loads(report))
 
 

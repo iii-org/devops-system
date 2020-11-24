@@ -19,12 +19,8 @@ def get_version_list_by_project(project_id):
     except NoResultFound:
         return util.respond(404, "Error while getting versions.",
                             error=apiError.project_not_found(project_id))
-    version_list, status_code = redmine.rm_get_version_list(plan_id)
-    if status_code == 200:
-        return util.success(version_list.json())
-    else:
-        return util.respond(status_code, "Error while getting versions.",
-                            error=apiError.redmine_error(version_list))
+    version_list = redmine.rm_get_version_list(plan_id)
+    return util.success(version_list.json())
 
 
 def post_version_by_project(project_id, message_args):
@@ -33,41 +29,30 @@ def post_version_by_project(project_id, message_args):
     except NoResultFound:
         return util.respond(404, "Error while getting versions.",
                             error=apiError.project_not_found(project_id))
-    version, status_code = redmine.rm_post_version(plan_id, message_args)
-    if status_code == 204 or status_code == 201:
-        return util.success(version.json())
-    else:
-        return util.respond(status_code, "Error while creating a new version.",
-                            error=apiError.redmine_error(version))
+    version = redmine.rm_post_version(plan_id, message_args)
+    return util.success(version.json())
 
 
 def get_version_by_version_id(version_id):
-    version, status_code = redmine.rm_get_version(version_id)
-    if status_code == 200:
-        return util.success(version.json())
-    else:
-        return util.respond(status_code, "Error when getting version info.",
-                            error=apiError.redmine_error(version))
+    version = redmine.rm_get_version(version_id)
+    return util.success(version.json())
 
 
 def put_version_by_version_id(version_id, args):
-    version, status_code = redmine.rm_put_version(version_id, args)
-    if status_code == 204 or status_code == 201:
-        return util.success()
-    else:
-        return util.respond(status_code, "Error when updating version info.",
-                            error=apiError.redmine_error(version))
+    redmine.rm_put_version(version_id, args)
+    return util.success()
 
 
 def delete_version_by_version_id(version_id):
-    output, status_code = redmine.rm_delete_version(version_id)
-    if status_code == 204:
-        return util.success()
-    elif status_code == 404:
-        return util.respond(200, "already deleted")
-    else:
-        return util.respond(status_code, "delete redmine wiki error",
-                            error=apiError.redmine_error(output))
+    try:
+        output = redmine.rm_delete_version(version_id)
+    except apiError.DevOpsError as e:
+        if e.status_code == 404:
+            # Already deleted, let it go
+            return util.respond(200, "already deleted")
+        else:
+            raise e
+    return util.success()
 
 
 # --------------------- Resources ---------------------

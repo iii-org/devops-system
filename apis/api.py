@@ -60,7 +60,7 @@ class SystemGitCommitID(Resource):
                 git_commit_id = f.read().splitlines()[0]
                 return util.success({"git_commit_id": "{0}".format(git_commit_id)})
         else:
-            return util.respond(400, "git_commit file is not exist")
+            raise apiError.DevOpsError(400, "git_commit file is not exist.")
 
 
 # Projects

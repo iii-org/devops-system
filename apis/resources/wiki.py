@@ -18,12 +18,8 @@ def get_wiki_list_by_project(project_id):
     except NoResultFound:
         return util.respond(404, "Error while getting wiki.",
                             error=apiError.project_not_found(project_id))
-    wiki_list, status_code = redmine.rm_get_wiki_list(plan_id)
-    if status_code == 200:
-        return util.success(wiki_list.json())
-    else:
-        return util.respond(status_code, "Error when getting redmine wiki list.",
-                            error=apiError.redmine_error(wiki_list))
+    wiki_list = redmine.rm_get_wiki_list(plan_id)
+    return util.success(wiki_list.json())
 
 
 def get_wiki_by_project(project_id, wiki_name):
@@ -32,19 +28,15 @@ def get_wiki_by_project(project_id, wiki_name):
     except NoResultFound:
         return util.respond(404, "Error while getting wiki.",
                             error=apiError.project_not_found(project_id))
-    wiki_list, status_code = redmine.rm_get_wiki(plan_id, wiki_name)
-    if status_code == 200:
-        wiki_detail = wiki_list.json()
-        if 'author' in wiki_detail['wiki_page']:
-            user_info = user.get_user_id_name_by_plan_user_id(
-                wiki_detail['wiki_page']['author']['id'])
-            if user_info is not None:
-                wiki_detail['wiki_page']['author'] = {
-                    'id': user_info.id, 'name': user_info.name}
-        return util.success(wiki_detail)
-    else:
-        return util.respond(status_code, "Error when getting redmine wiki.",
-                            error=apiError.redmine_error(wiki_list))
+    wiki_list = redmine.rm_get_wiki(plan_id, wiki_name)
+    wiki_detail = wiki_list.json()
+    if 'author' in wiki_detail['wiki_page']:
+        user_info = user.get_user_id_name_by_plan_user_id(
+            wiki_detail['wiki_page']['author']['id'])
+        if user_info is not None:
+            wiki_detail['wiki_page']['author'] = {
+                'id': user_info.id, 'name': user_info.name}
+    return util.success(wiki_detail)
 
 
 def put_wiki_by_project(project_id, wiki_name, args, operator_id):
@@ -57,13 +49,9 @@ def put_wiki_by_project(project_id, wiki_name, args, operator_id):
     if operator_id is not None:
         operator_plugin_relation = user.get_user_plugin_relation(user_id=operator_id)
         plan_operator_id = operator_plugin_relation.plan_user_id
-    wiki_list, status_code = redmine.rm_put_wiki(
+    wiki_list = redmine.rm_put_wiki(
         plan_id, wiki_name, args, plan_operator_id)
-    if status_code == 204 or status_code == 201:
-        return util.success()
-    else:
-        return util.respond(status_code, "Error when updating redmine wiki.",
-                            error=apiError.redmine_error(wiki_list))
+    return util.success()
 
 
 def delete_wiki_by_project(project_id, wiki_name):
@@ -72,13 +60,8 @@ def delete_wiki_by_project(project_id, wiki_name):
     except NoResultFound:
         return util.respond(404, "Error while deleting wiki.",
                             error=apiError.project_not_found(project_id))
-    resp_wiki_list, status_code = redmine.rm_delete_wiki(
-        plan_id, wiki_name)
-    if status_code == 204:
-        return util.success()
-    else:
-        return util.respond(status_code, "delete redmine wiki error",
-                            error=apiError.redmine_error(resp_wiki_list))
+    redmine.rm_delete_wiki(plan_id, wiki_name)
+    return util.success()
 
 
 # --------------------- Resources ---------------------

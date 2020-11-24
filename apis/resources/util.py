@@ -30,7 +30,8 @@ def success(data=None, has_date_etc=False):
         return {'message': 'success'}, 200
     else:
         if has_date_etc:
-            return {'message': 'success', 'data': json.loads(json.dumps(data, cls=DateEncoder))}, 200
+            return {'message': 'success',
+                    'data': json.loads(json.dumps(data, cls=DateEncoder))}, 200
         else:
             return {'message': 'success', 'data': data}, 200
 

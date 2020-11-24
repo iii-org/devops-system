@@ -140,11 +140,7 @@ class GitLab(object):
 
     def gl_count_branches(self, repo_id):
         output = self.__api_get('/projects/{0}/repository/branches'.format(repo_id))
-        if output.status_code != 200:
-            raise DevOpsError(
-                output.status_code, "Error while getting git branches",
-                error=apiError.gitlab_error(output))
-        return len(output.json()), None
+        return len(output.json())
 
     def gl_get_tags(self, repo_id):
         return self.__api_get('/projects/{0}/repository/tags'.format(repo_id))
@@ -316,33 +312,6 @@ class GitLab(object):
             raise DevOpsError(output.status_code, "Error when deleting gitlab tag.",
                               error=apiError.gitlab_error(output))
 
-    # def gl_merge(self, repo_id, args):
-    #     # 新增merge request
-    #     path = '/projects/{0}/merge_requests'.format(repo_id)
-    #     params = {}
-    #     keys = ['source_branch', 'target_branch', 'title']
-    #     for k in keys:
-    #         params[k] = args[k]
-    #     output = self.__api_post(path, params=params)
-    #     if output.status_code != 201:
-    #         return util.respond(output.status_code, "Error when merging.",
-    #                             error=apiError.gitlab_error(output))
-    #     merge_request_iid = output.json()["iid"]
-    #     output = self.__api_put('/projects/{0}/merge_requests/{1}/merge'.format(
-    #         repo_id, merge_request_iid))
-    #     if output.status_code == 200:
-    #         return util.success()
-    #     else:
-    #         # 刪除merge request
-    #         output_del = self.__api_delete('/projects/{0}/merge_requests/{1}'.format(
-    #             repo_id, merge_request_iid))
-    #         if output_del.status_code == 204:
-    #             return util.respond(400, "merge failed and already delete your merge request.",
-    #                                 error=apiError.gitlab_error(output))
-    #         else:
-    #             return util.respond(output.status_code, "Error when deleting pull request.",
-    #                                 error=apiError.gitlab_error(output_del))
-
     def gl_get_commits(self, project_id, branch):
         output = self.__api_get('/projects/{0}/repository/commits'.format(project_id),
                                 params={'ref_name': branch, 'per_page': 100})
@@ -378,10 +347,7 @@ class GitLab(object):
                 branch_commit_list.append(obj)
 
         # 整理tags
-        output_tags = gitlab.gl_get_tags(repo_id)
-        if int(output_tags.status_code / 100) != 2:
-            return output_tags, output_tags.status_code
-        tags = output_tags.json()
+        tags = gitlab.gl_get_tags(repo_id).json()
         for tag in tags:
             for commit in branch_commit_list:
                 if commit["id"] == tag["commit"]["id"]:

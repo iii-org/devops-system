@@ -234,16 +234,10 @@ def delete_user(user_id):
     gitlab_user_id = relation.repository_user_id
     # 刪除gitlab user
     gitlab_response = gitlab.gl_delete_user(gitlab_user_id)
-    if gitlab_response.status_code != 204:
-        return util.respond(gitlab_response.status_code, "Error when deleting user.",
-                            error=apiError.gitlab_error(gitlab_response))
 
     # 如果gitlab user成功被刪除則繼續刪除redmine user
     redmine_user_id = relation.plan_user_id
     redmine_output, redmine_status_code = redmine.rm_delete_user(redmine_user_id)
-    if redmine_output.status_code != 204:
-        return util.respond(redmine_status_code, "Error when deleting user.",
-                            error=apiError.redmine_error(redmine_output))
 
     # 如果gitlab & redmine user都成功被刪除則繼續刪除db內相關tables欄位
     db.engine.execute(
@@ -301,13 +295,7 @@ def create_user(args):
     total_count = 1
     while offset < total_count:
         params = {'offset': offset, 'limit': limit}
-        user_list_output, status_code = redmine.rm_get_user_list(params)
-        try:
-            user_list_output = user_list_output.json()
-        except Exception:
-            return util.respond(500, "Error while creating user.",
-                                error=apiError.redmine_error(user_list_output))
-
+        user_list_output = redmine.rm_get_user_list(params).json()
         total_count = user_list_output['total_count']
         for user in user_list_output['users']:
             if user['login'] == args['login'] or user['mail'] == args['email']:
@@ -336,15 +324,12 @@ def create_user(args):
                             error=apiError.redmine_error(red_user))
 
     # gitlab software user create
-    git_user = gitlab.gl_create_user(args, user_source_password)
-    if git_user.status_code == 201:
-        gitlab_user_id = git_user.json()['id']
-    else:
-        # delete redmine user
+    try:
+        git_user = gitlab.gl_create_user(args, user_source_password)
+    except DevOpsError as e:
         redmine.rm_delete_user(redmine_user_id)
-        return util.respond(git_user.status_code, "Error while creating user.",
-                            error=apiError.gitlab_error(git_user))
-
+        raise e
+    gitlab_user_id = git_user.json()['id']
     h = SHA256.new()
     h.update(args["password"].encode())
     args["password"] = h.hexdigest()

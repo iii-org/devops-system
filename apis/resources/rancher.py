@@ -126,7 +126,7 @@ class Rancher(object):
                             "state": None,
                             "steps": tmp_step_message
                         })
-        return output_dict[1:], response
+        return output_dict[1:]
 
     def rc_get_cluster_id(self):
         rancher_output = self.__api_get('/clusters')

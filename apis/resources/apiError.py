@@ -97,7 +97,7 @@ def issue_not_found(issue_id):
 
 # General errors
 def no_detail():
-    return build(7001, 'This error has no detail information.')
+    return build(7001, 'This error has no detailed information.')
 
 
 def argument_error(arg_name):
@@ -167,7 +167,4 @@ class DevOpsError(Exception):
     def __init__(self, status_code, message, error=None):
         self.status_code = status_code
         self.message = message
-        if error is not None:
-            self.error_value = error
-        else:
-            self.error_value = no_detail()
+        self.error_value = error

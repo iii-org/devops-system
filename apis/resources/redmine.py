@@ -141,8 +141,7 @@ class Redmine:
             'limit': 100,
             'status_id': '*'
         }
-        output = self.__api_get('/issues', params=params)
-        return output, output.status_code
+        return self.__api_get('/issues', params=params)
 
     def rm_get_issue(self, issue_id):
         params = {'include': 'journals,attachments'}
@@ -153,22 +152,17 @@ class Redmine:
     def rm_get_statistics(self, params):
         if 'status_id' not in params:
             params['status_id'] = '*'
-        output = self.__api_get('/issues', params=params)
-        return output.json(), output.status_code
+        return self.__api_get('/issues', params=params)
 
     def rm_create_issue(self, args, operator_id):
-        data = {"issue": args}
-        output = self.__api_post('/issues', data=data, operator_id=operator_id)
-        return output, output.status_code
+        return self.__api_post('/issues', data={"issue": args}, operator_id=operator_id)
 
     def rm_update_issue(self, issue_id, args, operator_id):
-        output = self.__api_put('/issues/{0}'.format(issue_id), data={"issue": args}, operator_id=operator_id)
-        return output, output.status_code
+        return self.__api_put('/issues/{0}'.format(issue_id), data={"issue": args}, operator_id=operator_id)
 
     def rm_delete_issue(self, issue_id):
         params = {'include': 'journals,attachment'}
-        output = self.__api_delete('/issues/{0}'.format(issue_id), params=params)
-        return output, output.status_code
+        return self.__api_delete('/issues/{0}'.format(issue_id), params=params)
 
     def rm_get_issue_status(self):
         return self.__api_get('/issue_statuses').json()
@@ -201,54 +195,44 @@ class Redmine:
             return output
 
     def rm_get_user_list(self, args):
-        output = self.__api_get('/users', params=args)
-        return output, output.status_code
+        return self.__api_get('/users', params=args)
 
     def rm_delete_user(self, redmine_user_id):
         redmine_output = self.__api_delete('/users/{0}'.format(redmine_user_id))
         return redmine_output, redmine_output.status_code
 
     def rm_get_wiki_list(self, project_id):
-        output = self.__api_get('/projects/{0}/wiki/index'.format(project_id))
-        return output, output.status_code
+        return self.__api_get('/projects/{0}/wiki/index'.format(project_id))
 
     def rm_get_wiki(self, project_id, wiki_name):
-        output = self.__api_get('/projects/{0}/wiki/{1}'.format(
+        return self.__api_get('/projects/{0}/wiki/{1}'.format(
             project_id, wiki_name, ))
-        return output, output.status_code
 
     def rm_put_wiki(self, project_id, wiki_name, args, operator_id):
         param = {"wiki_page": {"text": args['wiki_text']}}
-        output = self.__api_put('/projects/{0}/wiki/{1}'.format(project_id, wiki_name),
-                                data=param, operator_id=operator_id)
-        return output, output.status_code
+        return self.__api_put('/projects/{0}/wiki/{1}'.format(project_id, wiki_name),
+                              data=param, operator_id=operator_id)
 
     def rm_delete_wiki(self, project_id, wiki_name):
-        output = self.__api_delete('/projects/{0}/wiki/{1}'.format(
+        return self.__api_delete('/projects/{0}/wiki/{1}'.format(
             project_id, wiki_name))
-        return output, output.status_code
 
     # Get Redmine Version List
     def rm_get_version_list(self, project_id):
-        output = self.__api_get('/projects/{0}/versions'.format(project_id))
-        return output, output.status_code
+        return self.__api_get('/projects/{0}/versions'.format(project_id))
 
     # Create Redmine Version
     def rm_post_version(self, project_id, args):
-        output = self.__api_post('/projects/{0}/versions'.format(project_id), data=args)
-        return output, output.status_code
+        return self.__api_post('/projects/{0}/versions'.format(project_id), data=args)
 
     def rm_get_version(self, version_id):
-        output = self.__api_get('/versions/{0}'.format(version_id))
-        return output, output.status_code
+        return self.__api_get('/versions/{0}'.format(version_id))
 
     def rm_put_version(self, version_id, args):
-        output = self.__api_put('/versions/{0}'.format(version_id), data=args)
-        return output, output.status_code
+        return self.__api_put('/versions/{0}'.format(version_id), data=args)
 
     def rm_delete_version(self, version_id):
-        output = self.__api_delete('/versions/{0}'.format(version_id))
-        return output, output.status_code
+        return self.__api_delete('/versions/{0}'.format(version_id))
 
     def rm_create_memberships(self, project_id, user_id, role_id):
         param = {"membership": {"user_id": user_id, "role_ids": [role_id]}}
@@ -259,8 +243,7 @@ class Redmine:
         return self.__api_delete('/memberships/{0}'.format(membership_id))
 
     def rm_get_memberships_list(self, project_id):
-        output = self.__api_get('/projects/{0}/memberships'.format(project_id))
-        return output, output.status_code
+        return self.__api_get('/projects/{0}/memberships'.format(project_id))
 
     def rm_upload(self, args):
         if 'upload_file' in args:
@@ -365,10 +348,9 @@ class Redmine:
             args["name"],
             args["description"])
         headers = {'Content-Type': 'application/xml'}
-        redmine_output = self.__api_post('/projects',
-                                         headers=headers,
-                                         data=xml_body.encode('utf-8'))
-        return redmine_output, redmine_output.status_code
+        return self.__api_post('/projects',
+                               headers=headers,
+                               data=xml_body.encode('utf-8'))
 
 
 # --------------------- Resources ---------------------

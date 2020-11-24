@@ -129,30 +129,30 @@ def create_project(user_id, args):
     # 建立順序為 redmine, gitlab, rancher, api server，有失敗時 rollback 依此次序處理
 
     # 建立redmine project
-    redmine_output, output_status = redmine.rm_create_project(args)
-    redmine_pj_id = redmine_output.json()["project"]["id"]
-
-    if redmine_output.status_code != 201:
-        status_code = redmine_output.status_code
-        resp = redmine_output.json()
+    try:
+        redmine_output = redmine.rm_create_project(args)
+    except DevOpsError as e:
+        status_code = e.status_code
+        resp = e.error_value['details']['response']
         error = None
         if status_code == 422 and 'errors' in resp:
             if len(resp['errors']) > 0:
                 if resp['errors'][0] == 'Identifier has already been taken':
                     error = apiError.identifier_has_been_token(args['name'])
-        return util.respond(status_code, {"redmine": resp}, error=error)
+        raise e
+
+    redmine_pj_id = redmine_output.json()["project"]["id"]
 
     # 建立gitlab project
-    gitlab_output = gitlab.gl_create_project(args)
-
-    if gitlab_output.status_code != 201:
+    try:
+        gitlab_output = gitlab.gl_create_project(args)
+    except DevOpsError as e:
         # Rollback
         redmine.rm_delete_project(redmine_pj_id)
-
-        status_code = gitlab_output.status_code
+        status_code = e.status_code
+        gitlab_json = e.error_value['details']['response']
         if status_code == 400:
             try:
-                gitlab_json = gitlab_output.json()
                 if gitlab_json['message']['name'][0] == 'has already been taken':
                     return util.respond(
                         status_code, {"gitlab": gitlab_json},
@@ -160,7 +160,7 @@ def create_project(user_id, args):
                     )
             except (KeyError, IndexError):
                 pass
-        return util.respond(status_code, {"gitlab": gitlab_output.json()})
+        raise e
 
     # 寫入db
     gitlab_json = gitlab_output.json()
@@ -238,18 +238,8 @@ def pm_update_project(project_id, args):
         args["description"] = result.fetchone()[0]
         result.close()
 
-    # 更新gitlab project
-    gitlab_output = gitlab.gl_update_project(gitlab_project_id, args["description"])
-    if gitlab_output.status_code != 200:
-        return util.respond(gitlab_output.status_code, "Error while updating project.",
-                            error=apiError.gitlab_error(gitlab_output))
-
-    # 更新redmine project
-    redmine_output = redmine.rm_update_project(redmine_project_id, args)
-    if redmine_output.status_code != 204:
-        return util.respond(redmine_output.status_code, "Error while updating project.",
-                            error=apiError.redmine_error(redmine_output))
-
+    gitlab.gl_update_project(gitlab_project_id, args["description"])
+    redmine.rm_update_project(redmine_project_id, args)
     # 修改db
     # 修改projects
     fields = ['name', 'display', 'description', 'disabled']
@@ -292,14 +282,7 @@ def delete_project(project_id):
         relation.ci_pipeline_id)
 
     gitlab_output = gitlab.gl_delete_project(gitlab_project_id)
-    if gitlab_output.status_code != 202:
-        return util.respond(gitlab_output.status_code, "Error while deleting project.",
-                            error=apiError.gitlab_error(gitlab_output))
-
     redmine_output = redmine.rm_delete_project(redmine_project_id)
-    if redmine_output.status_code != 204:
-        return util.respond(gitlab_output.status_code, "Error while deleting project.",
-                            error=apiError.redmine_error(redmine_output))
 
     # 如果gitlab & redmine project都成功被刪除則繼續刪除db內相關tables欄位
     db.engine.execute(
@@ -400,46 +383,35 @@ def project_add_member(project_id, args):
 def project_remove_member(project_id, user_id):
     role_id = user.get_role_id(user_id)
 
-    error, redmine_user_id, gitlab_user_id = get_3pt_user_ids(
+    redmine_user_id, gitlab_user_id = get_3pt_user_ids(
         user_id, "Error while removing user from project.")
-    if error is not None:
-        return error
     relation = get_project_plugin_relation(project_id)
     if relation is None:
         raise apiError.DevOpsError(404, "Error while removing a member from the project.",
                                    error=apiError.project_not_found(project_id))
 
     # get membership id
-    memberships, status_code = redmine.rm_get_memberships_list(relation.plan_project_id)
+    memberships = redmine.rm_get_memberships_list(relation.plan_project_id)
     redmine_membership_id = None
-    if status_code == 200:
-        for membership in memberships.json()['memberships']:
-            if membership['user']['id'] == redmine_user_id:
-                redmine_membership_id = membership['id']
+    for membership in memberships.json()['memberships']:
+        if membership['user']['id'] == redmine_user_id:
+            redmine_membership_id = membership['id']
     if redmine_membership_id is not None:
         # delete membership
-        output = redmine.rm_delete_memberships(redmine_membership_id)
-        status_code = output.status_code
-        if status_code == 204:
-            pass
-        elif status_code == 404:
-            # Already deleted, let it go
-            pass
-        else:
-            return util.respond(status_code, "Error while removing user from project.",
-                                error=apiError.redmine_error(output))
+        try:
+            output = redmine.rm_delete_memberships(redmine_membership_id)
+        except DevOpsError as e:
+            if e.status_code == 404:
+                # Already deleted, let it go
+                pass
+            else:
+                raise e
     else:
         # Redmine does not have this membership, just let it go
         pass
 
     # gitlab project delete member
-    output = gitlab.gl_project_delete_member(relation.git_repository_id, gitlab_user_id)
-    status_code = output.status_code
-    if status_code == 204:
-        pass
-    else:
-        return util.respond(status_code, "Error while removing user from project.",
-                            error=apiError.gitlab_error(output))
+    gitlab.gl_project_delete_member(relation.git_repository_id, gitlab_user_id)
 
     # delete relationship from ProjectUserRole table.
     try:
@@ -502,9 +474,8 @@ def get_projects_by_user(user_id):
                        }
 
         # get issue total cont
-        issue_output, status_code = redmine.rm_get_issues_by_project_and_user(
-            plan_user_id, project['plan_project_id'])
-        total_issue = issue_output.json()
+        total_issue = redmine.rm_get_issues_by_project_and_user(
+            plan_user_id, project['plan_project_id']).json()
         output_dict['issues'] = total_issue['total_count']
 
         # get next_d_time
@@ -523,9 +494,7 @@ def get_projects_by_user(user_id):
 
         if project['git_repository_id'] is not None:
             # branch number
-            branch_number, err = gitlab.gl_count_branches(project['git_repository_id'])
-            if branch_number < 0:
-                return err, err.status_code
+            branch_number = gitlab.gl_count_branches(project['git_repository_id'])
             output_dict['branch'] = branch_number
             # tag number
             tag_number = 0
