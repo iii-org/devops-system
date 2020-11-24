@@ -170,33 +170,31 @@ def create_project(user_id, args):
     rancher_pipeline_id = rancher.rc_enable_project_pipeline(gitlab_pj_http_url)
 
     try:
-        # 寫入 db projects
-        db.engine.execute(
-            "INSERT INTO public.projects (name, display, description, ssh_url, http_url, disabled)"
-            " VALUES ('{0}', '{1}', '{2}', '{3}', '{4}', '{5}')".format(
-                gitlab_pj_name, args['display'], args["description"],
-                gitlab_pj_ssh_url, gitlab_pj_http_url,
-                args["disabled"]))
-
-        # 查詢寫入projects的project_id
-        result = db.engine.execute(
-            "SELECT id FROM public.projects WHERE name = '{0}'".format(gitlab_pj_name))
-        project_id = result.fetchone()[0]
-        result.close()
+        new_pjt = model.Project(
+            name=gitlab_pj_name,
+            display=args['display'],
+            description=args['description'],
+            ssh_url=gitlab_pj_ssh_url,
+            http_url=gitlab_pj_http_url,
+            disabled=args['disabled']
+        )
+        db.session.add(new_pjt)
+        db.session.commit()
+        project_id = new_pjt.id
 
         # 加關聯project_plugin_relation
-        new = model.ProjectPluginRelation(
+        new_relation = model.ProjectPluginRelation(
             project_id=project_id,
             plan_project_id=redmine_pj_id,
             git_repository_id=gitlab_pj_id,
             ci_project_id=rancher_project_id,
             ci_pipeline_id=rancher_pipeline_id
         )
-        db.session.add(new)
+        db.session.add(new_relation)
         db.session.commit()
 
         # 加關聯project_user_role
-        args["user_id"] = user_id
+        args['user_id'] = user_id
         project_add_member(project_id, args)
 
         return util.success({
@@ -204,7 +202,7 @@ def create_project(user_id, args):
             "plan_project_id": redmine_pj_id,
             "git_repository_id": gitlab_pj_id
         })
-    except DevOpsError as e:
+    except Exception as e:
         redmine.rm_delete_project(redmine_pj_id)
         gitlab.gl_delete_project(gitlab_pj_id)
         raise e
