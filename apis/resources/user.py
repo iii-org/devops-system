@@ -388,7 +388,7 @@ def get_user_plugin_relation(user_id=None, plan_user_id=None, gitlab_user_id=Non
                 user_id=user_id).one()
         except NoResultFound:
             raise apiError.DevOpsError(
-                404, 'User with id {0} does not exist.'.format(user_id),
+                404, 'User id {0} does not exist.'.format(user_id),
                 apiError.user_not_found(user_id))
 
 

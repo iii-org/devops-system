@@ -93,7 +93,7 @@ class Redmine:
         self.redmine_key = output.json()['user']['api_key']
 
     def rm_list_projects(self):
-        return self.__api_get('/projects')
+        return self.__api_get('/projects').json()
 
     def rm_get_project(self, plan_project_id):
         return self.__api_get('/projects/{0}'.format(plan_project_id),
@@ -146,19 +146,19 @@ class Redmine:
     def rm_get_issue(self, issue_id):
         params = {'include': 'journals,attachments'}
         output = self.__api_get('/issues/{0}'.format(issue_id), params=params)
-        logger.info("get issues output: {0}".format(output))
         return output
 
     def rm_get_statistics(self, params):
         if 'status_id' not in params:
             params['status_id'] = '*'
-        return self.__api_get('/issues', params=params)
+        return self.__api_get('/issues', params=params).json()
 
     def rm_create_issue(self, args, operator_id):
         return self.__api_post('/issues', data={"issue": args}, operator_id=operator_id)
 
     def rm_update_issue(self, issue_id, args, operator_id):
-        return self.__api_put('/issues/{0}'.format(issue_id), data={"issue": args}, operator_id=operator_id)
+        return self.__api_put('/issues/{0}'.format(issue_id),
+                              data={"issue": args}, operator_id=operator_id)
 
     def rm_delete_issue(self, issue_id):
         params = {'include': 'journals,attachment'}

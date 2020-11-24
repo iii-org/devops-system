@@ -53,7 +53,7 @@ def get_joined_project_list(user_id):
     for pm in pms:
         pm_map[pm.id] = pm.User
 
-    projects = redmine.rm_list_projects().json().get('projects')
+    projects = redmine.rm_list_projects().get('projects')
 
     issues = redmine.rm_list_issues().json().get('issues')
 
@@ -383,8 +383,9 @@ def project_add_member(project_id, args):
 def project_remove_member(project_id, user_id):
     role_id = user.get_role_id(user_id)
 
-    redmine_user_id, gitlab_user_id = get_3pt_user_ids(
-        user_id, "Error while removing user from project.")
+    ids = get_3pt_user_ids(user_id, "Error while removing user from project.")
+    redmine_user_id = ids['redmine_user_id']
+    gitlab_user_id = ids['gitlab_user_id']
     relation = get_project_plugin_relation(project_id)
     if relation is None:
         raise apiError.DevOpsError(404, "Error while removing a member from the project.",
