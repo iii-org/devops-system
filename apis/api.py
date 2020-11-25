@@ -15,7 +15,9 @@ import resources.pipeline as pipeline
 import resources.role as role
 from jsonwebtoken import jsonwebtoken
 from model import db
-from resources import project, gitlab, util, issue, user, redmine, wiki, version, sonar, apiTest, postman, mock, harbor
+from resources import project, gitlab, issue, user, redmine, wiki, version, sonar, apiTest, postman, mock, harbor, \
+    migrate
+import util
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -203,8 +205,9 @@ api.add_resource(sonar.SonarReport, '/sonar_report/<sint:project_id>')
 api.add_resource(project.ProjectFile, '/project/<sint:project_id>/file')
 api.add_resource(redmine.RedmineFile, '/download', '/file/<int:file_id>')
 
-# git commit
-api.add_resource(SystemGitCommitID, '/system_git_commit_id')
+# System administrations
+api.add_resource(SystemGitCommitID, '/system_git_commit_id')  # git commit
+api.add_resource(migrate.Migrate, '/migrate')
 
 # Mocks
 api.add_resource(mock.MockTestResult, '/mock/test_summary')

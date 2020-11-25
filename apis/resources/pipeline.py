@@ -8,7 +8,7 @@ from sqlalchemy.orm.exc import NoResultFound
 
 import model
 import resources.apiError as apiError
-import resources.util as util
+import util as util
 from model import db
 from resources.logger import logger
 from .gitlab import GitLab

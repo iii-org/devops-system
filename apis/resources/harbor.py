@@ -5,7 +5,8 @@ from flask_restful import Resource, reqparse
 from requests.auth import HTTPBasicAuth
 
 import config
-from resources import util, apiError
+from resources import apiError
+import util
 from resources.apiError import DevOpsError
 from resources.logger import logger
 
@@ -94,7 +95,7 @@ def hb_delete_project(project_id):
         __api_delete('/projects/{0}'.format(project_id))
     except DevOpsError as e:
         if e.status_code == 404:
-            # Delete not existing project, let it go
+            # Deleting a not existing project, let it go
             pass
         else:
             raise e

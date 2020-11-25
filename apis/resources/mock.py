@@ -1,6 +1,6 @@
 from flask_restful import Resource, reqparse
 
-from resources import util
+import util
 
 
 def mock_cm_status(status):

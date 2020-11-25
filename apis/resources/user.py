@@ -8,7 +8,7 @@ from sqlalchemy import desc
 from sqlalchemy.orm.exc import NoResultFound
 
 import resources.apiError as apiError
-import resources.util as util
+import util as util
 from model import db
 from resources.apiError import DevOpsError
 import model

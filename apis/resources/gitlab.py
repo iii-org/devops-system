@@ -6,7 +6,7 @@ from flask_restful import Resource, reqparse
 
 import config
 import model
-import resources.util as util
+import util as util
 from resources.apiError import DevOpsError
 from resources import apiError, kubernetesClient, role
 from resources.logger import logger

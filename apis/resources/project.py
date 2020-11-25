@@ -9,7 +9,7 @@ from sqlalchemy.orm.exc import NoResultFound
 import config
 import model
 import resources.apiError as apiError
-import resources.util as util
+import util as util
 from resources.apiError import DevOpsError
 from model import db
 from . import role, user

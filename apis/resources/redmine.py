@@ -9,7 +9,7 @@ from flask_restful import reqparse, Resource
 
 import config
 import resources.apiError as apiError
-import resources.util as util
+import util as util
 from resources.apiError import DevOpsError
 from resources.logger import logger
 
