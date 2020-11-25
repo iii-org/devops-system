@@ -10,6 +10,7 @@ from flask_restful import reqparse, Resource
 import config
 import resources.apiError as apiError
 import resources.util as util
+from resources.apiError import DevOpsError
 from resources.logger import logger
 
 
@@ -45,7 +46,11 @@ class Redmine:
         if resp_format != '':
             logger.info('redmine api {0} {1}, params={2}, body={5}, response={3} {4}'.format(
                 method, url, params.__str__(), output.status_code, output.text, data))
-
+        if int(output.status_code / 100) != 2:
+            raise apiError.DevOpsError(
+                output.status_code,
+                'Got non-2xx response from Redmine.',
+                apiError.redmine_error(output))
         return output
 
     def __api_get(self, path, params=None, headers=None,
@@ -87,9 +92,12 @@ class Redmine:
         output = requests.get(url, headers={'Content-Type': 'application/json'}, verify=False)
         self.redmine_key = output.json()['user']['api_key']
 
+    def rm_list_projects(self):
+        return self.__api_get('/projects').json()
+
     def rm_get_project(self, plan_project_id):
         return self.__api_get('/projects/{0}'.format(plan_project_id),
-                              params={'limit': 1000})
+                              params={'limit': 1000}).json()
 
     def rm_update_project(self, plan_project_id, args):
         xml_body = """<?xml version="1.0" encoding="UTF-8"?>
@@ -107,11 +115,13 @@ class Redmine:
     def rm_delete_project(self, plan_project_id):
         return self.__api_delete('/projects/{0}'.format(plan_project_id))
 
+    def rm_list_issues(self):
+        params = {'status_id': '*'}
+        return self.__api_get('/issues', params=params).json()
+
     def rm_get_issues_by_user(self, user_id):
         params = {'assigned_to_id': user_id, 'limit': 1000, 'status_id': '*'}
-        output = self.__api_get('/issues', params=params)
-        logger.info("get issues by output: {0}".format(output.json()))
-        return output.json()
+        return self.__api_get('/issues', params=params).json()
 
     def rm_get_issues_by_project(self, plan_project_id, args=None):
         if args is not None and 'fixed_version_id' in args:
@@ -119,7 +129,7 @@ class Redmine:
                       'fixed_version_id': args['fixed_version_id']}
         else:
             params = {'project_id': plan_project_id, 'limit': 1000, 'status_id': '*'}
-        return self.__api_get('/issues', params=params)
+        return self.__api_get('/issues', params=params).json()
 
     def rm_get_issues_by_project_and_user(self, user_id, plan_project_id):
         params = {
@@ -128,34 +138,29 @@ class Redmine:
             'limit': 100,
             'status_id': '*'
         }
-        output = self.__api_get('/issues', params=params)
-        return output, output.status_code
+        return self.__api_get('/issues', params=params).json()
 
     def rm_get_issue(self, issue_id):
         params = {'include': 'journals,attachments'}
         output = self.__api_get('/issues/{0}'.format(issue_id), params=params)
-        logger.info("get issues output: {0}".format(output))
         return output
 
     def rm_get_statistics(self, params):
         if 'status_id' not in params:
             params['status_id'] = '*'
-        output = self.__api_get('/issues', params=params)
-        return output.json(), output.status_code
+        return self.__api_get('/issues', params=params).json()
 
     def rm_create_issue(self, args, operator_id):
-        data = {"issue": args}
-        output = self.__api_post('/issues', data=data, operator_id=operator_id)
-        return output, output.status_code
+        return self.__api_post('/issues', data={"issue": args},
+                               operator_id=operator_id).json()
 
     def rm_update_issue(self, issue_id, args, operator_id):
-        output = self.__api_put('/issues/{0}'.format(issue_id), data={"issue": args}, operator_id=operator_id)
-        return output, output.status_code
+        return self.__api_put('/issues/{0}'.format(issue_id),
+                              data={"issue": args}, operator_id=operator_id)
 
     def rm_delete_issue(self, issue_id):
         params = {'include': 'journals,attachment'}
-        output = self.__api_delete('/issues/{0}'.format(issue_id), params=params)
-        return output, output.status_code
+        return self.__api_delete('/issues/{0}'.format(issue_id), params=params)
 
     def rm_get_issue_status(self):
         return self.__api_get('/issue_statuses').json()
@@ -176,79 +181,62 @@ class Redmine:
                 "password": user_source_password
             }
         }
-        output = self.__api_post('/users', data=params)
-        return output
+        return self.__api_post('/users', data=params).json()
 
     def rm_update_password(self, plan_user_id, new_pwd):
         param = {"user": {"password": new_pwd}}
-        output = self.__api_put('/users/{0}'.format(plan_user_id), data=param)
-        if output.status_code == 204:
-            return None
-        else:
-            return output
+        return self.__api_put('/users/{0}'.format(plan_user_id), data=param)
 
     def rm_get_user_list(self, args):
-        output = self.__api_get('/users', params=args)
-        return output, output.status_code
+        return self.__api_get('/users', params=args).json()
 
     def rm_delete_user(self, redmine_user_id):
-        redmine_output = self.__api_delete('/users/{0}'.format(redmine_user_id))
-        return redmine_output, redmine_output.status_code
+        return self.__api_delete('/users/{0}'.format(redmine_user_id))
 
     def rm_get_wiki_list(self, project_id):
-        output = self.__api_get('/projects/{0}/wiki/index'.format(project_id))
-        return output, output.status_code
+        return self.__api_get('/projects/{0}/wiki/index'.format(project_id)).json()
 
     def rm_get_wiki(self, project_id, wiki_name):
-        output = self.__api_get('/projects/{0}/wiki/{1}'.format(
-            project_id, wiki_name,))
-        return output, output.status_code
+        return self.__api_get('/projects/{0}/wiki/{1}'.format(
+            project_id, wiki_name)).json()
 
     def rm_put_wiki(self, project_id, wiki_name, args, operator_id):
         param = {"wiki_page": {"text": args['wiki_text']}}
-        output = self.__api_put('/projects/{0}/wiki/{1}'.format(project_id, wiki_name),
-                                data=param, operator_id=operator_id)
-        return output, output.status_code
+        return self.__api_put('/projects/{0}/wiki/{1}'.format(project_id, wiki_name),
+                              data=param, operator_id=operator_id)
 
     def rm_delete_wiki(self, project_id, wiki_name):
-        output = self.__api_delete('/projects/{0}/wiki/{1}'.format(
+        return self.__api_delete('/projects/{0}/wiki/{1}'.format(
             project_id, wiki_name))
-        return output, output.status_code
 
     # Get Redmine Version List
     def rm_get_version_list(self, project_id):
-        output = self.__api_get('/projects/{0}/versions'.format(project_id))
-        return output, output.status_code
+        return self.__api_get('/projects/{0}/versions'.format(project_id)).json()
 
     # Create Redmine Version
     def rm_post_version(self, project_id, args):
-        output = self.__api_post('/projects/{0}/versions'.format(project_id), data=args)
-        return output, output.status_code
+        return self.__api_post('/projects/{0}/versions'.format(
+            project_id), data=args).json()
 
     def rm_get_version(self, version_id):
-        output = self.__api_get('/versions/{0}'.format(version_id))
-        return output, output.status_code
+        return self.__api_get('/versions/{0}'.format(version_id)).json()
 
     def rm_put_version(self, version_id, args):
-        output = self.__api_put('/versions/{0}'.format(version_id), data=args)
-        return output, output.status_code
+        return self.__api_put('/versions/{0}'.format(version_id), data=args)
 
     def rm_delete_version(self, version_id):
-        output = self.__api_delete('/versions/{0}'.format(version_id))
-        return output, output.status_code
+        return self.__api_delete('/versions/{0}'.format(version_id))
 
     def rm_create_memberships(self, project_id, user_id, role_id):
         param = {"membership": {"user_id": user_id, "role_ids": [role_id]}}
-        output = self.__api_post('/projects/{0}/memberships'.format(project_id),
-                                 data=param)
-        return output, output.status_code
+        return self.__api_post('/projects/{0}/memberships'.format(project_id),
+                               data=param)
 
     def rm_delete_memberships(self, membership_id):
         return self.__api_delete('/memberships/{0}'.format(membership_id))
 
     def rm_get_memberships_list(self, project_id):
-        output = self.__api_get('/projects/{0}/memberships'.format(project_id))
-        return output, output.status_code
+        return self.__api_get('/projects/{0}/memberships'.format(project_id)).json()
 
     def rm_upload(self, args):
         if 'upload_file' in args:
@@ -260,8 +248,8 @@ class Redmine:
         headers = {'Content-Type': 'application/octet-stream'}
         res = self.__api_post('/uploads', data=file, headers=headers)
         if res.status_code != 201:
-            return util.respond(res.status_code, "Error while uploading to redmine",
-                                error=apiError.redmine_error(res.text))
+            raise DevOpsError(res.status_code, "Error while uploading to redmine",
+                              error=apiError.redmine_error(res.text))
         token = res.json().get('upload').get('token')
         filename = file.filename
         del args['upload_file']
@@ -283,12 +271,10 @@ class Redmine:
         f_args = parse.parse_args()
         file = f_args['file']
         if file is None:
-            return util.respond(400, 'No file is sent.')
+            raise DevOpsError(400, 'No file is sent.',
+                              error=apiError.argument_error('file'))
         headers = {'Content-Type': 'application/octet-stream'}
         res = self.__api_post('/uploads', data=file, headers=headers)
-        if res.status_code != 201:
-            return util.respond(res.status_code, "Error while uploading to redmine",
-                                error=apiError.redmine_error(res.text))
         token = res.json().get('upload').get('token')
         filename = args['filename']
         if filename is None:
@@ -306,12 +292,11 @@ class Redmine:
         if res.status_code == 204:
             return util.respond(201, None)
         else:
-            return util.respond(res.status_code, "Error while adding the file to redmine",
-                                error=apiError.redmine_error(res.text))
+            raise DevOpsError(res.status_code, "Error while adding the file to redmine",
+                              error=apiError.redmine_error(res.text))
 
     def rm_list_file(self, plan_project_id):
-        res = self.__api_get('/projects/%d/files' % plan_project_id)
-        return util.success(res.json())
+        return self.__api_get('/projects/%d/files' % plan_project_id).json()
 
     def rm_download_attachment(self, args):
         a_id = args['id']
@@ -326,8 +311,8 @@ class Redmine:
                 attachment_filename=filename
             )
         except Exception as e:
-            return util.respond(500, 'Error when downloading an attachment.',
-                                error=apiError.uncaught_exception(e))
+            raise DevOpsError(500, 'Error when downloading an attachment.',
+                              error=apiError.uncaught_exception(e))
 
     def rm_delete_attachment(self, attachment_id):
         output = self.__api_delete('/attachments/{0}'.format(attachment_id))
@@ -337,8 +322,8 @@ class Redmine:
         elif status_code == 404:
             return util.respond(200, 'File is already deleted.')
         else:
-            return util.respond(status_code, "Error while deleting attachments.",
-                                error=apiError.redmine_error(output))
+            raise DevOpsError(status_code, "Error while deleting attachments.",
+                              error=apiError.redmine_error(output))
 
     def rm_create_project(self, args):
         xml_body = """<?xml version="1.0" encoding="UTF-8"?>
@@ -352,10 +337,9 @@ class Redmine:
             args["name"],
             args["description"])
         headers = {'Content-Type': 'application/xml'}
-        redmine_output = self.__api_post('/projects',
-                                         headers=headers,
-                                         data=xml_body.encode('utf-8'))
-        return redmine_output, redmine_output.status_code
+        return self.__api_post('/projects',
+                               headers=headers,
+                               data=xml_body.encode('utf-8')).json()
 
 
 # --------------------- Resources ---------------------

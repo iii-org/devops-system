@@ -1,10 +1,12 @@
 import datetime
+import json
 import os
 import traceback
 
 from flask import Flask
 from flask_cors import CORS
 from flask_restful import Resource, Api
+from sqlalchemy.orm.exc import NoResultFound
 from werkzeug.routing import IntegerConverter
 
 import config
@@ -14,7 +16,7 @@ import resources.pipeline as pipeline
 import resources.role as role
 from jsonwebtoken import jsonwebtoken
 from model import db
-from resources import project, gitlab, util, issue, user, redmine, wiki, version, sonar, apiTest, postman
+from resources import project, gitlab, util, issue, user, redmine, wiki, version, sonar, apiTest, postman, mock
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -39,7 +41,13 @@ app.url_map.converters['sint'] = SignedIntConverter
 
 @app.errorhandler(Exception)
 def internal_error(e):
+    if type(e) is NoResultFound:
+        return util.respond(404, 'Resource not found.',
+                            error=apiError.uncaught_exception(e))
     traceback.print_exc()
+    if type(e) is apiError.DevOpsError:
+        return util.respond(e.status_code, e.message, error=e.error_value)
+
     return util.respond(500, "Unexpected internal error",
                         error=apiError.uncaught_exception(e))
 
@@ -52,7 +60,7 @@ class SystemGitCommitID(Resource):
                 git_commit_id = f.read().splitlines()[0]
                 return util.success({"git_commit_id": "{0}".format(git_commit_id)})
         else:
-            return util.respond(400, "git_commit file is not exist")
+            raise apiError.DevOpsError(400, "git_commit file is not exist.")
 
 
 # Projects
@@ -198,6 +206,9 @@ api.add_resource(redmine.RedmineFile, '/download', '/file/<int:file_id>')
 
 # git commit
 api.add_resource(SystemGitCommitID, '/system_git_commit_id')
+
+# Mocks
+api.add_resource(mock.MockTestResult, '/mock/test_summary')
 
 if __name__ == "__main__":
     db.init_app(app)

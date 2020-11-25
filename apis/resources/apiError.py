@@ -8,13 +8,16 @@ def build(err_code, message, details=None):
         return {'code': err_code, 'message': message, 'details': details}
 
 
-def error_3rd_party_api(err_code, api_name, response):
+def error_3rd_party_api(service_name, response):
     if type(response) is str:
-        return build(err_code, '{0} responds error.'.format(api_name), {'response': response})
-    try:
-        return build(err_code, '{0} responds error.'.format(api_name), {'response': response.json()})
-    except Exception:
-        return build(err_code, '{0} responds error.'.format(api_name), {'response': response.text})
+        resp_value = response
+    else:
+        try:
+            resp_value = response.json()
+        except Exception:
+            resp_value = response.text
+    return build(8001, '{0} responds error.'.format(service_name),
+                 {'service_name': service_name, 'response': resp_value})
 
 
 # Project errors
@@ -88,21 +91,26 @@ class NotUserHimselfError(HTTPException):
 
 
 # Redmine Issue/Wiki/... errors
-class IssueNotFoundError(HTTPException):
-    pass
+def issue_not_found(issue_id):
+    return build(4001, 'Issue not found.', {'issue_id': issue_id})
+
+
+# General errors
+def no_detail():
+    return build(7001, 'This error has no detailed information.')
+
+
+def argument_error(arg_name):
+    return build(7002, 'Argument {0} is incorrect.'.format(arg_name), {'arg': arg_name})
 
 
 # Third party service errors
 def redmine_error(response):
-    return error_3rd_party_api(8001, 'Redmine', response)
+    return error_3rd_party_api('Redmine', response)
 
 
 def gitlab_error(response):
-    return error_3rd_party_api(8002, 'Gitlab', response)
-
-
-def rancher_error(response):
-    return error_3rd_party_api(8003, 'Rancher', response)
+    return error_3rd_party_api('Gitlab', response)
 
 
 # Internal errors
@@ -137,9 +145,13 @@ custom_errors = {
     'NotUserHimselfError': {
         'error': build(3003, "You are not permitted to access another user's data."),
         'status': 401
-    },
-    'IssueNotFoundError': {
-        'error': build(4001, "Issue not found."),
-        'status': 404
     }
 }
+
+
+# Exceptions wrapping method_type error information
+class DevOpsError(Exception):
+    def __init__(self, status_code, message, error=None):
+        self.status_code = status_code
+        self.message = message
+        self.error_value = error

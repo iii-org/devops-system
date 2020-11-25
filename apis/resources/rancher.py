@@ -23,19 +23,19 @@ class Rancher(object):
             headers = {'Content-Type': 'application/json'}
         final_headers = self.__auth_headers(headers, with_token)
 
-        try:
-            response = util.api_request(method, url, headers=final_headers, params=params, data=data)
-            if response.status_code == 401 and not retried:
-                self.token = self.__generate_token()
-                return self.__api_request(method, path, headers=headers, params=params, data=data,
-                                          with_token=True, retried=True)
-            logger.info('Rancher api {0} {1}, params={2}, body={5}, response={3} {4}'.format(
-                method, url, params.__str__(), response.status_code, response.text, data))
-            return response
-        except Exception as e:
-            return util.respond_request_style(500, "Error in rancher API request {0} {1}".format(
-                method, url
-            ), error=apiError.uncaught_exception(e))
+        response = util.api_request(method, url, headers=final_headers, params=params, data=data)
+        if response.status_code == 401 and not retried:
+            self.token = self.__generate_token()
+            return self.__api_request(method, path, headers=headers, params=params, data=data,
+                                      with_token=True, retried=True)
+        logger.info('Rancher api {0} {1}, params={2}, body={5}, response={3} {4}'.format(
+            method, url, params.__str__(), response.status_code, response.text, data))
+        if int(response.status_code / 100) != 2:
+            raise apiError.DevOpsError(
+                response.status_code,
+                'Got non-2xx response from Rancher.',
+                apiError.error_3rd_party_api('Rancher', response))
+        return response
 
     def __auth_headers(self, headers, with_token):
         if headers is not None:
@@ -82,6 +82,8 @@ class Rancher(object):
     def rc_get_pipeline_executions_logs(self, ci_project_id, ci_pipeline_id,
                                         pipelines_exec_run):
         output_dict = []
+        self.token = self.__generate_token()
+        headersandtoken = "Authorization: Bearer {0}".format(self.token)
         output_executions, response = self.rc_get_pipeline_executions(
             ci_project_id, ci_pipeline_id)
         for output_execution in output_executions:
@@ -90,15 +92,20 @@ class Rancher(object):
                         output_execution['pipelineConfig']['stages']):
                     tmp_step_message = []
                     for step_index, step in enumerate(stage['steps']):
-                        ws = websocket.WebSocket(
-                            sslopt={"cert_reqs": ssl.CERT_NONE})
                         url = ("wss://{0}/{1}/project/{2}/pipelineExecutions/"
                                "{3}-{4}/log?stage={5}&step={6}").format(
                             config.get('RANCHER_IP_PORT'), config.get('RANCHER_API_VERSION'), ci_project_id,
                             ci_pipeline_id, pipelines_exec_run, index, step_index)
                         logger.info("wss url: {0}".format(url))
-                        ws.connect(url, header=["Authorization: Bearer {0}".format(self.token)])
-                        result = ws.recv()
+                        result = None
+                        ws = websocket.create_connection(url, header=[headersandtoken],
+                                                         sslopt={"cert_reqs": ssl.CERT_NONE})
+                        ws.settimeout(3)
+                        try:
+                            result = ws.recv()
+                            ws.close()
+                        except websocket.WebSocketTimeoutException:
+                            ws.close()
                         # logger.info("Received :'%s'" % result)
                         step_detail = output_execution['stages'][
                             index]['steps'][step_index]
@@ -112,7 +119,6 @@ class Rancher(object):
                                 "state": None,
                                 "message": result
                             })
-                        ws.close()
                     stage_state = output_execution['stages'][index]
                     if 'state' in stage_state:
                         output_dict.append({
@@ -126,7 +132,7 @@ class Rancher(object):
                             "state": None,
                             "steps": tmp_step_message
                         })
-        return output_dict[1:], response
+        return output_dict[1:]
 
     def rc_get_cluster_id(self):
         rancher_output = self.__api_get('/clusters')

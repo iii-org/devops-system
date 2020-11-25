@@ -4,7 +4,9 @@ import json
 import yaml
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
+from sqlalchemy.orm.exc import NoResultFound
 
+import model
 import resources.apiError as apiError
 import resources.util as util
 from model import db
@@ -18,17 +20,15 @@ rancher = Rancher()
 
 def pipeline_exec_list(repository_id):
     output_array = []
-    result = db.engine.execute(
-        "SELECT * FROM public.project_plugin_relation \
-        WHERE git_repository_id = {0};".format(repository_id))
-    if result.rowcount == 0:
-        return util.respond(404, 'No such project',
-                            error=apiError.repository_id_not_found(repository_id))
-    project_relationship = result.fetchone()
-    result.close()
+    try:
+        relation = model.ProjectPluginRelation.query.filter_by(
+            git_repository_id=repository_id).one()
+    except NoResultFound:
+        raise apiError.DevOpsError(404, 'No such project',
+                                   error=apiError.repository_id_not_found(repository_id))
     pipeline_outputs, response = rancher.rc_get_pipeline_executions(
-        project_relationship['ci_project_id'],
-        project_relationship['ci_pipeline_id'])
+        relation.ci_project_id,
+        relation.ci_pipeline_id)
     for pipeline_output in pipeline_outputs:
         output_dict = {
             'id': pipeline_output['run'],
@@ -55,23 +55,19 @@ def pipeline_exec_list(repository_id):
 
 
 def pipeline_exec_logs(args):
-    result = db.engine.execute(
-        "SELECT * FROM public.project_plugin_relation \
-        WHERE git_repository_id = {0};".format(args['repository_id']))
-    project_relationship = result.fetchone()
-    result.close()
     try:
-        output_array, response = rancher.rc_get_pipeline_executions_logs(
-            project_relationship['ci_project_id'],
-            project_relationship['ci_pipeline_id'],
-            args['pipelines_exec_run'])
-        if response.status_code / 100 != 2:
-            return util.respond(400, "get pipeline history error",
-                                error=apiError.rancher_error(response))
-        return {"message": "success", "data": output_array}, 200
-    except Exception as e:
-        return util.respond(500, "get pipeline history error",
-                            error=apiError.uncaught_exception(e))
+        relation = model.ProjectPluginRelation.query.filter_by(
+            git_repository_id=args['repository_id']).one()
+    except NoResultFound:
+        raise apiError.DevOpsError(
+            404, 'No such project.',
+            error=apiError.repository_id_not_found(args['repository_id']))
+
+    output_array, response = rancher.rc_get_pipeline_executions_logs(
+        relation.ci_project_id,
+        relation.ci_pipeline_id,
+        args['pipelines_exec_run'])
+    return util.success(output_array)
 
 
 def pipeline_software():
@@ -120,7 +116,7 @@ def generate_ci_yaml(args, repository_id, branch_name):
         method = "put"
         parameter['commit_message'] = "modify .rancher-pipeline.yml"
     gitlab.gl_create_rancher_pipeline_yaml(repository_id, parameter, method)
-    return {"message": "success"}, 200
+    return util.success()
 
 
 def get_ci_yaml(repository_id, branch_name):

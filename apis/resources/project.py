@@ -3,12 +3,14 @@ from datetime import datetime
 
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
+from sqlalchemy import desc
 from sqlalchemy.orm.exc import NoResultFound
 
 import config
 import model
 import resources.apiError as apiError
 import resources.util as util
+from resources.apiError import DevOpsError
 from model import db
 from . import role, user
 from .checkmarx import checkmarx
@@ -22,120 +24,96 @@ def get_project_plugin_relation(project_id):
     try:
         return model.ProjectPluginRelation.query.filter_by(project_id=project_id).one()
     except NoResultFound:
-        return None
+        raise DevOpsError(404, 'Error when getting project relations.',
+                          error=apiError.project_not_found(project_id))
 
 
 # List all projects of a PM
-def get_pm_project_list(user_id):
-    # 查詢db該pm負責的project_id並存入project_ids array
-    result = db.engine.execute(
-        "SELECT project_id FROM public.project_user_role WHERE user_id = '{0}' "
-        "ORDER BY project_id DESC".format(user_id))
-    project_ids = result.fetchall()
-    result.close()
-    if project_ids is None:
-        return util.respond(500, "Cannot get project list.",
-                            error=apiError.db_error("List projects returns None."))
-    output_array = []
-    # 用project_id依序查詢redmine的project_id
-    for project_id in project_ids:
-        project_id = project_id[0]
-        if project_id is None or project_id == -1:
-            continue
-        result = db.engine.execute(
-            "SELECT plan_project_id FROM public.project_plugin_relation WHERE "
-            "project_id = '{0}'".format(project_id))
-        fetch = result.fetchone()
-        if fetch is None:
-            continue
-        plan_project_id = fetch[0]
-        result.close()
+def get_joined_project_list(user_id):
+    # 取得 user_id 有參加的 project 列表
+    rows = db.session.query(model.Project, model.ProjectPluginRelation) \
+        .join(model.ProjectPluginRelation) \
+        .join(model.ProjectUserRole,
+              model.ProjectUserRole.project_id == model.Project.id) \
+        .filter(model.ProjectUserRole.user_id == user_id) \
+        .order_by(desc(model.Project.id)) \
+        .all()
 
-        # 用redmine api查詢相關資訊
-        # 抓專案最近更新時間
-        output1 = redmine.rm_get_project(plan_project_id).json()
-        # 抓專案狀態＆專案工作進度＆進度落後數目
-        output2 = redmine.rm_get_issues_by_project(plan_project_id).json()
+    project_id_list = []
+    for row in rows:
+        project_id_list.append(row.Project.id)
+
+    pm_map = {}
+    pms = db.session.query(model.User, model.Project.id) \
+        .join(model.ProjectUserRole,
+              model.ProjectUserRole.user_id == model.User.id) \
+        .filter(model.ProjectUserRole.project_id.in_(project_id_list),
+                model.ProjectUserRole.role_id.in_((role.PM.id, role.ADMIN.id))) \
+        .all()
+    for pm in pms:
+        pm_map[pm.id] = pm.User
+
+    projects = redmine.rm_list_projects().get('projects')
+    issues = redmine.rm_list_issues().get('issues')
+
+    output_array = []
+    for row in rows:
+        project_id = row.Project.id
+        if project_id == -1:
+            continue
+        plan_project_id = row.ProjectPluginRelation.plan_project_id
+        if plan_project_id is None:
+            continue
+
         closed_count = 0
         overdue_count = 0
-        for issue in output2["issues"]:
+        total_count = 0
+        for issue in issues:
+            if issue['project']['id'] != plan_project_id:
+                continue
             if issue["status"]["name"] == "Closed":
                 closed_count += 1
             if issue["due_date"] is not None:
                 if (datetime.today() > datetime.strptime(
                         issue["due_date"], "%Y-%m-%d")):
                     overdue_count += 1
+            total_count += 1
+            del issue
 
         project_status = "進行中"
-        if output2["total_count"] == 0:
+        if total_count == 0:
             project_status = "未開始"
-        if closed_count == output2["total_count"] and output2["total_count"] != 0:
+        if closed_count == total_count and total_count != 0:
             project_status = "已結案"
 
-        # 查詢專案名稱＆專案說明＆專案狀態
-        result = db.engine.execute(
-            "SELECT * FROM public.projects WHERE id = '{0}'".format(
-                project_id))
-        project_info = result.fetchone()
-        result.close()
+        pm = pm_map[project_id]
+        if pm is None:
+            pm = model.User(id=0, name='No One')
 
-        # 查詢專案負責人id & name
-        result = db.engine.execute(
-            "SELECT user_id FROM public.project_user_role"
-            " WHERE project_id = '{0}' AND role_id = '{1}'".format(
-                project_id, role.PM.id))
-        user_id = result.fetchone()[0]
-        result.close()
-
-        result = db.engine.execute(
-            "SELECT name FROM public.user WHERE id = '{0}'".format(
-                user_id))
-        user_name = result.fetchone()[0]
-        result.close()
-
-        # # 查詢sonar_quality_score
-        # project_name = project_info["name"]
-        # # print(project_name)
-        # # project_name = "devops-flask"
-        # url = "http://{0}/api/measures/component?component={1}
-        # &metricKeys=reliability_rating,security_rating,security_review_rating,sqale_rating".format( \
-        #     config.get("SONAR_IP_PORT"), project_name)
-        # logger.info("get sonar report url: {0}".format(url))
-        # output = requests.get(url,
-        #                       headers=self.headers,
-        #                       verify=False)
-        # logger.info("get sonar report output: {0} / {1}".format(
-        #     output, output.json()))
-        # quality_score = None
-        # if output.status_code == 200:
-        #     quality_score = 0
-        #     data_list = output.json()["component"]["measures"]
-        #     for data in data_list:
-        #         # print(type(data["value"]))
-        #         rating = float(data["value"])
-        #         quality_score += (
-        #                                  6 - rating) * 5  # A-25, B-20, C-15, D-10, E-5
+        updated_on = None
+        for pjt in projects:
+            if pjt['id'] == plan_project_id:
+                updated_on = pjt['updated_on']
+                del pjt
+                break
 
         redmine_url = "http://{0}/projects/{1}".format(config.get("REDMINE_IP_PORT"), plan_project_id)
-        project_output = {
+        output_array.append({
             "id": project_id,
-            "name": project_info["name"],
-            "display": project_info["display"],
-            "description": project_info["description"],
-            "git_url": project_info["http_url"],
+            "name": row.Project.name,
+            "display": row.Project.display,
+            "description": row.Project.description,
+            "git_url": row.Project.http_url,
             "redmine_url": redmine_url,
-            "disabled": project_info["disabled"],
-            "pm_user_id": user_id,
-            "pm_user_name": user_name,
-            "updated_time": output1["project"]["updated_on"],
+            "disabled": row.Project.disabled,
+            "pm_user_id": pm.id,
+            "pm_user_name": pm.name,
+            "updated_time": updated_on,
             "project_status": project_status,
             "closed_count": closed_count,
-            "total_count": output2["total_count"],
-            "overdue_count": overdue_count,
-            # "quality_score": quality_score
-        }
-
-        output_array.append(project_output)
+            "total_count": total_count,
+            "overdue_count": overdue_count
+        })
 
     return util.success({"project_list": output_array})
 
@@ -150,34 +128,29 @@ def create_project(user_id, args):
     # 建立順序為 redmine, gitlab, rancher, api server，有失敗時 rollback 依此次序處理
 
     # 建立redmine project
-    redmine_output, output_status = redmine.rm_create_project(args)
     try:
-        redmine_pj_id = redmine_output.json()["project"]["id"]
-    except Exception:
-        return util.respond(500, "Error while creating redmine project",
-                            error=apiError.redmine_error(redmine_output))
-
-    if redmine_output.status_code != 201:
-        status_code = redmine_output.status_code
-        resp = redmine_output.json()
-        error = None
+        redmine_output = redmine.rm_create_project(args)
+    except DevOpsError as e:
+        status_code = e.status_code
+        resp = e.error_value['details']['response']
         if status_code == 422 and 'errors' in resp:
             if len(resp['errors']) > 0:
                 if resp['errors'][0] == 'Identifier has already been taken':
-                    error = apiError.identifier_has_been_token(args['name'])
-        return util.respond(status_code, {"redmine": resp}, error=error)
+                    apiError.identifier_has_been_token(args['name'])
+        raise e
+
+    redmine_pj_id = redmine_output["project"]["id"]
 
     # 建立gitlab project
-    gitlab_output = gitlab.gl_create_project(args)
-
-    if gitlab_output.status_code != 201:
+    try:
+        gitlab_json = gitlab.gl_create_project(args)
+    except DevOpsError as e:
         # Rollback
         redmine.rm_delete_project(redmine_pj_id)
-
-        status_code = gitlab_output.status_code
+        status_code = e.status_code
+        gitlab_json = e.error_value['details']['response']
         if status_code == 400:
             try:
-                gitlab_json = gitlab_output.json()
                 if gitlab_json['message']['name'][0] == 'has already been taken':
                     return util.respond(
                         status_code, {"gitlab": gitlab_json},
@@ -185,55 +158,54 @@ def create_project(user_id, args):
                     )
             except (KeyError, IndexError):
                 pass
-        return util.respond(status_code, {"gitlab": gitlab_output.json()})
+        raise e
 
-    # 寫入db
-    gitlab_json = gitlab_output.json()
     gitlab_pj_id = gitlab_json["id"]
     gitlab_pj_name = gitlab_json["name"]
     gitlab_pj_ssh_url = gitlab_json["ssh_url_to_repo"]
     gitlab_pj_http_url = gitlab_json["http_url_to_repo"]
 
-    # 寫入projects
-    db.engine.execute(
-        "INSERT INTO public.projects (name, display, description, ssh_url, http_url, disabled)"
-        " VALUES ('{0}', '{1}', '{2}', '{3}', '{4}', '{5}')".format(
-            gitlab_pj_name, args['display'], args["description"],
-            gitlab_pj_ssh_url, gitlab_pj_http_url,
-            args["disabled"]))
-
-    # 查詢寫入projects的project_id
-    result = db.engine.execute(
-        "SELECT id FROM public.projects WHERE name = '{0}'".format(gitlab_pj_name))
-    project_id = result.fetchone()[0]
-    result.close()
-
     # enable rancher pipeline
     rancher_project_id = rancher.rc_get_project_id()
     rancher_pipeline_id = rancher.rc_enable_project_pipeline(gitlab_pj_http_url)
 
-    # 加關聯project_plugin_relation
-    new = model.ProjectPluginRelation(
-        project_id=project_id,
-        plan_project_id=redmine_pj_id,
-        git_repository_id=gitlab_pj_id,
-        ci_project_id=rancher_project_id,
-        ci_pipeline_id=rancher_pipeline_id
-    )
-    db.session.add(new)
-    db.session.commit()
+    try:
+        new_pjt = model.Project(
+            name=gitlab_pj_name,
+            display=args['display'],
+            description=args['description'],
+            ssh_url=gitlab_pj_ssh_url,
+            http_url=gitlab_pj_http_url,
+            disabled=args['disabled']
+        )
+        db.session.add(new_pjt)
+        db.session.commit()
+        project_id = new_pjt.id
 
-    # 加關聯project_user_role
-    args["user_id"] = user_id
-    output, status = project_add_member(project_id, args)
-    if status / 100 != 2:
-        return output, status
+        # 加關聯project_plugin_relation
+        new_relation = model.ProjectPluginRelation(
+            project_id=project_id,
+            plan_project_id=redmine_pj_id,
+            git_repository_id=gitlab_pj_id,
+            ci_project_id=rancher_project_id,
+            ci_pipeline_id=rancher_pipeline_id
+        )
+        db.session.add(new_relation)
+        db.session.commit()
 
-    return util.success({
-        "project_id": project_id,
-        "plan_project_id": redmine_pj_id,
-        "git_repository_id": gitlab_pj_id
-    })
+        # 加關聯project_user_role
+        args['user_id'] = user_id
+        project_add_member(project_id, args)
+
+        return util.success({
+            "project_id": project_id,
+            "plan_project_id": redmine_pj_id,
+            "git_repository_id": gitlab_pj_id
+        })
+    except Exception as e:
+        redmine.rm_delete_project(redmine_pj_id)
+        gitlab.gl_delete_project(gitlab_pj_id)
+        raise e
 
 
 def pm_update_project(project_id, args):
@@ -265,18 +237,8 @@ def pm_update_project(project_id, args):
         args["description"] = result.fetchone()[0]
         result.close()
 
-    # 更新gitlab project
-    gitlab_output = gitlab.gl_update_project(gitlab_project_id, args["description"])
-    if gitlab_output.status_code != 200:
-        return util.respond(gitlab_output.status_code, "Error while updating project.",
-                            error=apiError.gitlab_error(gitlab_output))
-
-    # 更新redmine project
-    redmine_output = redmine.rm_update_project(redmine_project_id, args)
-    if redmine_output.status_code != 204:
-        return util.respond(redmine_output.status_code, "Error while updating project.",
-                            error=apiError.redmine_error(redmine_output))
-
+    gitlab.gl_update_project(gitlab_project_id, args["description"])
+    redmine.rm_update_project(redmine_project_id, args)
     # 修改db
     # 修改projects
     fields = ['name', 'display', 'description', 'disabled']
@@ -309,8 +271,8 @@ def delete_project(project_id):
             db.session.commit()
             return util.success()
         else:
-            return util.respond(404, "Error while deleting project.",
-                                error=apiError.project_not_found(project_id))
+            raise DevOpsError(404, "Error while deleting project.",
+                              error=apiError.project_not_found(project_id))
     redmine_project_id = relation.plan_project_id
     gitlab_project_id = relation.git_repository_id
     # disabled rancher pipeline
@@ -318,15 +280,8 @@ def delete_project(project_id):
         relation.ci_project_id,
         relation.ci_pipeline_id)
 
-    gitlab_output = gitlab.gl_delete_project(gitlab_project_id)
-    if gitlab_output.status_code != 202:
-        return util.respond(gitlab_output.status_code, "Error while deleting project.",
-                            error=apiError.gitlab_error(gitlab_output))
-
-    redmine_output = redmine.rm_delete_project(redmine_project_id)
-    if redmine_output.status_code != 204:
-        return util.respond(gitlab_output.status_code, "Error while deleting project.",
-                            error=apiError.redmine_error(redmine_output))
+    gitlab.gl_delete_project(gitlab_project_id)
+    redmine.rm_delete_project(redmine_project_id)
 
     # 如果gitlab & redmine project都成功被刪除則繼續刪除db內相關tables欄位
     db.engine.execute(
@@ -344,19 +299,20 @@ def delete_project(project_id):
 
 # 用project_id查詢db的相關table欄位資訊
 def pm_get_project(project_id):
-    plan_project_id = get_plan_project_id(project_id)
     # 查詢專案名稱＆專案說明＆＆專案狀態
-    if plan_project_id < 0:
-        return util.respond(404, 'Error when getting project info.',
-                            error=apiError.project_not_found(project_id))
+    try:
+        plan_project_id = get_plan_project_id(project_id)
+    except NoResultFound:
+        raise apiError.DevOpsError(404, 'Error when getting project info.',
+                                   error=apiError.project_not_found(project_id))
     result = db.engine.execute(
         "SELECT * FROM public.projects as pj, public.project_plugin_relation as ppr "
         "WHERE pj.id = '{0}' AND pj.id = ppr.project_id".format(
             project_id))
     if result.rowcount == 0:
         result.close()
-        return util.respond(404, 'Error when getting project info.',
-                            error=apiError.project_not_found(project_id))
+        raise apiError.DevOpsError(404, 'Error when getting project info.',
+                                   error=apiError.project_not_found(project_id))
     project_info = result.fetchone()
     result.close()
     redmine_url = "http://{0}/projects/{1}".format(config.get("REDMINE_IP_PORT"), plan_project_id)
@@ -396,102 +352,73 @@ def project_add_member(project_id, args):
     row = model.ProjectUserRole.query.filter_by(
         user_id=user_id, project_id=project_id, role_id=role_id).first()
     # if ProjectUserRole table not has relationship
-    if row is None:
-        # insert one relationship
-        new = model.ProjectUserRole(project_id=project_id, user_id=user_id, role_id=role_id)
-        db.session.add(new)
-        db.session.commit()
-    else:
-        return util.respond(422, "Error while adding user to project.",
-                            error=apiError.already_in_project(user_id, project_id))
+    if row is not None:
+        raise DevOpsError(422, "Error while adding user to project.",
+                          error=apiError.already_in_project(user_id, project_id))
+    # insert one relationship
+    new = model.ProjectUserRole(project_id=project_id, user_id=user_id, role_id=role_id)
+    db.session.add(new)
+    db.session.commit()
 
-    error, redmine_user_id, gitlab_user_id = get_3pt_user_ids(
-        user_id, "Error while adding user to project.")
-    if error is not None:
-        return error
+    ids = get_3pt_user_ids(user_id, "Error while adding user to project.")
     relation = get_project_plugin_relation(project_id)
-    if relation is None:
-        return util.respond(404, "Error while adding member to a project.",
-                            error=apiError.project_not_found(project_id))
-
     redmine_role_id = user.to_redmine_role_id(role_id)
-    if redmine_role_id is None:
-        return util.respond(500, "Error while adding user to project.",
-                            error=apiError.db_error("Cannot get redmine role of the user."))
 
-    output, status_code = redmine.rm_create_memberships(
-        relation.plan_project_id, redmine_user_id, redmine_role_id)
-    if status_code == 201:
-        pass
-    elif status_code == 422:
-        return util.respond(422, "Error while adding user to project: Already in redmine project.",
-                            error=apiError.already_in_project(user_id, project_id))
-    else:
-        return util.respond(status_code, "Error while adding user to project.",
-                            error=apiError.redmine_error(output))
+    try:
+        redmine.rm_create_memberships(
+            relation.plan_project_id, ids['redmine_user_id'], redmine_role_id)
+    except DevOpsError as e:
+        if e.status_code == 422:
+            raise DevOpsError(422, "Error while adding user to project: Already in redmine project.",
+                              error=apiError.already_in_project(user_id, project_id))
+        else:
+            raise e
 
     # gitlab project add member
-    output = gitlab.gl_project_add_member(relation.git_repository_id, gitlab_user_id)
-    status_code = output.status_code
-    if status_code == 201:
-        pass
-    else:
-        return util.respond(status_code, "Error while adding user from project.",
-                            error=apiError.gitlab_error(output))
-
+    gitlab.gl_project_add_member(relation.git_repository_id, ids['gitlab_user_id'])
     return util.success()
 
 
 def project_remove_member(project_id, user_id):
     role_id = user.get_role_id(user_id)
 
-    error, redmine_user_id, gitlab_user_id = get_3pt_user_ids(
-        user_id, "Error while removing user from project.")
-    if error is not None:
-        return error
+    ids = get_3pt_user_ids(user_id, "Error while removing user from project.")
+    redmine_user_id = ids['redmine_user_id']
+    gitlab_user_id = ids['gitlab_user_id']
     relation = get_project_plugin_relation(project_id)
     if relation is None:
-        return util.respond(404, "Error while removing a member from the project.",
-                            error=apiError.project_not_found(project_id))
+        raise apiError.DevOpsError(404, "Error while removing a member from the project.",
+                                   error=apiError.project_not_found(project_id))
 
     # get membership id
-    memberships, status_code = redmine.rm_get_memberships_list(relation.plan_project_id)
+    memberships = redmine.rm_get_memberships_list(relation.plan_project_id)
     redmine_membership_id = None
-    if status_code == 200:
-        for membership in memberships.json()['memberships']:
-            if membership['user']['id'] == redmine_user_id:
-                redmine_membership_id = membership['id']
+    for membership in memberships['memberships']:
+        if membership['user']['id'] == redmine_user_id:
+            redmine_membership_id = membership['id']
     if redmine_membership_id is not None:
         # delete membership
-        output = redmine.rm_delete_memberships(redmine_membership_id)
-        status_code = output.status_code
-        if status_code == 204:
-            pass
-        elif status_code == 404:
-            # Already deleted, let it go
-            pass
-        else:
-            return util.respond(status_code, "Error while removing user from project.",
-                                error=apiError.redmine_error(output))
+        try:
+            output = redmine.rm_delete_memberships(redmine_membership_id)
+        except DevOpsError as e:
+            if e.status_code == 404:
+                # Already deleted, let it go
+                pass
+            else:
+                raise e
     else:
         # Redmine does not have this membership, just let it go
         pass
 
     # gitlab project delete member
-    output = gitlab.gl_project_delete_member(relation.git_repository_id, gitlab_user_id)
-    status_code = output.status_code
-    if status_code == 204:
-        pass
-    else:
-        return util.respond(status_code, "Error while removing user from project.",
-                            error=apiError.gitlab_error(output))
+    gitlab.gl_project_delete_member(relation.git_repository_id, gitlab_user_id)
 
     # delete relationship from ProjectUserRole table.
     try:
         row = model.ProjectUserRole.query.filter_by(
             project_id=project_id, user_id=user_id, role_id=role_id).one()
     except NoResultFound:
-        return util.respond(404, 'Relation not found, project_id={0}, role_id={1}.'.format(
+        raise apiError.DevOpsError(404, 'Relation not found, project_id={0}, role_id={1}.'.format(
             project_id, role_id
         ), error=apiError.user_not_found(user_id))
     db.session.delete(row)
@@ -499,17 +426,10 @@ def project_remove_member(project_id, user_id):
     return util.success()
 
 
+# May throws NoResultFound
 def get_plan_project_id(project_id):
-    result = db.engine.execute(
-        "SELECT plan_project_id FROM public.project_plugin_relation"
-        " WHERE project_id = {0}".format(project_id))
-    if result.rowcount > 0:
-        project = result.fetchone()
-        ret = project['plan_project_id']
-    else:
-        ret = -1
-    result.close()
-    return ret
+    return model.ProjectPluginRelation.query.filter_by(
+        project_id=project_id).one().plan_project_id
 
 
 def get_projects_by_user(user_id):
@@ -532,8 +452,8 @@ def get_projects_by_user(user_id):
             user_id))
     userid_list_output = result.fetchone()
     if userid_list_output is None:
-        return util.respond(404, "Error while getting projects of a user.",
-                            error=apiError.user_not_found(user_id))
+        raise apiError.DevOpsError(404, "Error while getting projects of a user.",
+                                   error=apiError.user_not_found(user_id))
     plan_user_id = userid_list_output[0]
     result.close()
     for project in project_list:
@@ -554,9 +474,8 @@ def get_projects_by_user(user_id):
                        }
 
         # get issue total cont
-        issue_output, status_code = redmine.rm_get_issues_by_project_and_user(
+        total_issue = redmine.rm_get_issues_by_project_and_user(
             plan_user_id, project['plan_project_id'])
-        total_issue = issue_output.json()
         output_dict['issues'] = total_issue['total_count']
 
         # get next_d_time
@@ -575,15 +494,12 @@ def get_projects_by_user(user_id):
 
         if project['git_repository_id'] is not None:
             # branch number
-            branch_number, err = gitlab.gl_count_branches(project['git_repository_id'])
-            if branch_number < 0:
-                return err, err.status_code
+            branch_number = gitlab.gl_count_branches(project['git_repository_id'])
             output_dict['branch'] = branch_number
             # tag number
             tag_number = 0
-            output = gitlab.gl_get_tags(project['git_repository_id'])
-            if output.status_code == 200:
-                tag_number = len(output.json())
+            tags = gitlab.gl_get_tags(project['git_repository_id'])
+            tag_number = len(tags)
             output_dict['tag'] = tag_number
 
         if project['ci_project_id'] is not None:
@@ -631,22 +547,20 @@ def get_test_summary(project_id):
     ret = {}
 
     # newman
-    cursor = db.engine.execute(
-        'SELECT id, total, fail FROM public.test_results '
-        ' WHERE project_id={0}'
-        ' ORDER BY id DESC'
-        ' LIMIT 1'.format(project_id))
-    if cursor.rowcount > 0:
-        row = cursor.fetchone()
-        test_id = row['id']
-        total = row['total']
-        fail = row['fail']
+    row = model.TestResults.query.filter_by(project_id=project_id).order_by(desc(
+        model.TestResults.id)).limit(1).first()
+    if row is not None:
+        test_id = row.id
+        total = row.total
+        fail = row.fail
+        run_at = str(row.run_at)
         passed = total - fail
         ret['postman'] = {
-            "id": test_id,
-            "passed": passed,
-            "failed": fail,
-            "total": total
+            'id': test_id,
+            'passed': passed,
+            'failed': fail,
+            'total': total,
+            'run_at': run_at
         }
     else:
         ret['postman'] = {}
@@ -682,9 +596,8 @@ def get_test_summary(project_id):
 class ListMyProjects(Resource):
     @jwt_required
     def get(self):
-        role.require_pm()
         user_id = get_jwt_identity()["user_id"]
-        return get_pm_project_list(user_id)
+        return get_joined_project_list(user_id)
 
 
 class SingleProject(Resource):
@@ -769,10 +682,11 @@ class TestSummary(Resource):
 class ProjectFile(Resource):
     @jwt_required
     def post(self, project_id):
-        plan_project_id = get_plan_project_id(project_id)
-        if plan_project_id < 0:
-            return util.respond(404, 'Error while uploading a file to a project.',
-                                error=apiError.project_not_found(project_id))
+        try:
+            plan_project_id = get_plan_project_id(project_id)
+        except NoResultFound:
+            raise apiError.DevOpsError(404, 'Error while uploading a file to a project.',
+                                       error=apiError.project_not_found(project_id))
 
         parser = reqparse.RequestParser()
         parser.add_argument('filename', type=str)
@@ -783,8 +697,12 @@ class ProjectFile(Resource):
 
     @jwt_required
     def get(self, project_id):
-        plan_project_id = get_plan_project_id(project_id)
-        return redmine.rm_list_file(plan_project_id)
+        try:
+            plan_project_id = get_plan_project_id(project_id)
+        except NoResultFound:
+            raise apiError.DevOpsError(404, 'Error while getting project files.',
+                                       error=apiError.project_not_found(project_id))
+        return util.success(redmine.rm_list_file(plan_project_id))
 
 
 class ProjectUserList(Resource):
@@ -794,3 +712,27 @@ class ProjectUserList(Resource):
         parser.add_argument('exclude', type=int)
         args = parser.parse_args()
         return user.user_list_by_project(project_id, args)
+
+
+def sonar_cube(project_info, requests, self, logger):
+    # 查詢sonar_quality_score
+    project_name = project_info["name"]
+    # print(project_name)
+    # project_name = "devops-flask"
+    url = "http://{0}/api/measures/component?component={1}" \
+          "&metricKeys=reliability_rating,security_rating," \
+          "security_review_rating,sqale_rating".format(config.get("SONAR_IP_PORT"),
+                                                       project_name)
+    output = requests.get(url,
+                          headers=self.headers,
+                          verify=False)
+    logger.info("get sonar report output: {0} / {1}".format(
+        output, output.json()))
+    quality_score = None
+    if output.status_code == 200:
+        quality_score = 0
+        data_list = output.json()["component"]["measures"]
+        for data in data_list:
+            # print(type(data["value"]))
+            rating = float(data["value"])
+            quality_score += (6 - rating) * 5  # A-25, B-20, C-15, D-10, E-5

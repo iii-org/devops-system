@@ -10,6 +10,7 @@ from sqlalchemy.orm.exc import NoResultFound
 import resources.apiError as apiError
 import resources.util as util
 from model import db
+from resources.apiError import DevOpsError
 import model
 from resources import role
 from resources.logger import logger
@@ -32,19 +33,19 @@ def jwt_response_data(row):
 def get_3pt_user_ids(user_id, message):
     user_relation = get_user_plugin_relation(user_id=user_id)
     if user_relation is None:
-        return util.respond(400, message,
-                            error=apiError.user_not_found(user_id)), None, None
+        raise DevOpsError(400, message,
+                          error=apiError.user_not_found(user_id))
     redmine_user_id = user_relation.plan_user_id
     gitlab_user_id = user_relation.repository_user_id
     if redmine_user_id is None:
-        return util.respond(500, message,
-                            error=apiError.db_error(
-                                "Cannot get redmine id of the user.")), None, None
+        raise DevOpsError(500, message,
+                          error=apiError.db_error(
+                              "Cannot get redmine id of the user."))
     if gitlab_user_id is None:
-        return util.respond(500, message,
-                            error=apiError.db_error(
-                                "Gitlab does not have this user.")), None, None
-    return None, redmine_user_id, gitlab_user_id
+        raise DevOpsError(500, message,
+                          error=apiError.db_error(
+                              "Gitlab does not have this user."))
+    return {'redmine_user_id': redmine_user_id, 'gitlab_user_id': gitlab_user_id}
 
 
 def get_user_id_name_by_plan_user_id(plan_user_id):
@@ -59,8 +60,8 @@ def get_role_id(user_id):
     if row is not None:
         return row.role_id
     else:
-        return util.respond(404, 'Error while getting role id',
-                            error=apiError.user_not_found(user_id))
+        raise apiError.DevOpsError(
+            404, 'Error while getting role id', apiError.user_not_found(user_id))
 
 
 def to_redmine_role_id(role_id):
@@ -157,7 +158,8 @@ def get_user_info(user_id):
 
         return util.success(output)
     else:
-        return util.respond(404, "User not found.", error=apiError.user_not_found(user_id))
+        raise apiError.DevOpsError(
+            404, 'User not found.', apiError.user_not_found(user_id))
 
 
 def update_info(user_id, args):
@@ -212,14 +214,10 @@ def update_external_passwords(user_id, new_pwd):
         return util.respond(400, 'Error when updating password',
                             error=apiError.user_not_found(user_id))
     redmine_user_id = user_relation.plan_user_id
-    err = redmine.rm_update_password(redmine_user_id, new_pwd)
-    if err is not None:
-        return err
+    redmine.rm_update_password(redmine_user_id, new_pwd)
 
     gitlab_user_id = user_relation.repository_user_id
-    err = gitlab.gl_update_password(gitlab_user_id, new_pwd)
-    if err is not None:
-        return err
+    gitlab.gl_update_password(gitlab_user_id, new_pwd)
 
     return None
 
@@ -232,16 +230,10 @@ def delete_user(user_id):
     gitlab_user_id = relation.repository_user_id
     # 刪除gitlab user
     gitlab_response = gitlab.gl_delete_user(gitlab_user_id)
-    if gitlab_response.status_code != 204:
-        return util.respond(gitlab_response.status_code, "Error when deleting user.",
-                            error=apiError.gitlab_error(gitlab_response))
 
     # 如果gitlab user成功被刪除則繼續刪除redmine user
     redmine_user_id = relation.plan_user_id
-    redmine_output, redmine_status_code = redmine.rm_delete_user(redmine_user_id)
-    if redmine_output.status_code != 204:
-        return util.respond(redmine_status_code, "Error when deleting user.",
-                            error=apiError.redmine_error(redmine_output))
+    redmine.rm_delete_user(redmine_user_id)
 
     # 如果gitlab & redmine user都成功被刪除則繼續刪除db內相關tables欄位
     db.engine.execute(
@@ -267,8 +259,9 @@ def change_user_status(user_id, args):
         db.session.commit()
         return util.success()
     except NoResultFound:
-        return util.respond(404, 'Error when change user status.',
-                            error=apiError.user_not_found(user_id))
+        raise apiError.DevOpsError(
+            404, 'Error when change user status.',
+            error=apiError.user_not_found(user_id))
 
 
 def create_user(args):
@@ -298,13 +291,7 @@ def create_user(args):
     total_count = 1
     while offset < total_count:
         params = {'offset': offset, 'limit': limit}
-        user_list_output, status_code = redmine.rm_get_user_list(params)
-        try:
-            user_list_output = user_list_output.json()
-        except Exception:
-            return util.respond(500, "Error while creating user.",
-                                error=apiError.redmine_error(user_list_output))
-
+        user_list_output = redmine.rm_get_user_list(params)
         total_count = user_list_output['total_count']
         for user in user_list_output['users']:
             if user['login'] == args['login'] or user['mail'] == args['email']:
@@ -326,22 +313,15 @@ def create_user(args):
 
     # plan software user create
     red_user = redmine.rm_create_user(args, user_source_password)
-    if red_user.status_code == 201:
-        redmine_user_id = red_user.json()['user']['id']
-    else:
-        return util.respond(red_user.status_code, "Error while creating user.",
-                            error=apiError.redmine_error(red_user))
+    redmine_user_id = red_user['user']['id']
 
     # gitlab software user create
-    git_user = gitlab.gl_create_user(args, user_source_password)
-    if git_user.status_code == 201:
-        gitlab_user_id = git_user.json()['id']
-    else:
-        # delete redmine user
+    try:
+        git_user = gitlab.gl_create_user(args, user_source_password)
+    except DevOpsError as e:
         redmine.rm_delete_user(redmine_user_id)
-        return util.respond(git_user.status_code, "Error while creating user.",
-                            error=apiError.gitlab_error(git_user))
-
+        raise e
+    gitlab_user_id = git_user['id']
     h = SHA256.new()
     h.update(args["password"].encode())
     args["password"] = h.hexdigest()
@@ -382,25 +362,26 @@ def get_user_plugin_relation(user_id=None, plan_user_id=None, gitlab_user_id=Non
             return model.UserPluginRelation.query.filter_by(
                 plan_user_id=plan_user_id).one()
         except NoResultFound:
-            return util.respond(404, 'User with redmine id {0} does not exist in redmine.'
-                                .format(plan_user_id),
-                                error=apiError.user_not_found(plan_user_id))
+            raise apiError.DevOpsError(
+                404, 'User with redmine id {0} does not exist in redmine.'.format(plan_user_id),
+                apiError.user_not_found(plan_user_id))
     elif gitlab_user_id is not None:
         try:
             return model.UserPluginRelation.query.filter_by(
                 repository_user_id=gitlab_user_id).one()
         except NoResultFound:
-            return util.respond(404, 'User with gitlab id {0} does not exist in gitlab.'
-                                .format(gitlab_user_id),
-                                error=apiError.user_not_found(gitlab_user_id))
+            raise apiError.DevOpsError(
+                404,
+                'User with redmine id {0} does not exist in redmine.'.format(plan_user_id),
+                apiError.user_not_found(plan_user_id))
     else:
         try:
             return model.UserPluginRelation.query.filter_by(
                 user_id=user_id).one()
         except NoResultFound:
-            return util.respond(404, 'User with id {0} does not exist.'
-                                .format(user_id),
-                                error=apiError.user_not_found(user_id))
+            raise apiError.DevOpsError(
+                404, 'User id {0} does not exist.'.format(user_id),
+                apiError.user_not_found(user_id))
 
 
 def user_list():
@@ -448,14 +429,12 @@ def user_list_by_project(project_id, args):
         # list users not in the project
         ret_users = db.session.query(model.User, model.ProjectUserRole.role_id). \
             join(model.ProjectUserRole). \
-            filter(model.User.disabled == False,
-                   model.ProjectUserRole.role_id != role.ADMIN.id). \
+            filter(model.User.disabled == False). \
             order_by(desc(model.User.id)).all()
 
         project_users = db.session.query(model.User).join(model.ProjectUserRole).filter(
             model.User.disabled == False,
-            model.ProjectUserRole.project_id == project_id,
-            model.ProjectUserRole.role_id != role.ADMIN.id
+            model.ProjectUserRole.project_id == project_id
         ).all()
 
         i = 0
@@ -470,8 +449,7 @@ def user_list_by_project(project_id, args):
         ret_users = db.session.query(model.User, model.ProjectUserRole.role_id). \
             join(model.ProjectUserRole). \
             filter(model.User.disabled == False,
-                   model.ProjectUserRole.project_id == project_id,
-                   model.ProjectUserRole.role_id != role.ADMIN.id). \
+                   model.ProjectUserRole.project_id == project_id). \
             order_by(desc(model.User.id)).all()
 
     arr_ret = []
@@ -508,12 +486,8 @@ class UserForgetPassword(Resource):
         parser.add_argument('mail', type=str, required=True)
         parser.add_argument('user_account', type=str, required=True)
         args = parser.parse_args()
-        try:
-            status = user_forgot_password(args)
-            return util.success(status)
-        except Exception as err:
-            return util.respond(500, "Error for forgot password process.",
-                                error=apiError.uncaught_exception(err))
+        status = user_forgot_password(args)
+        return util.success(status)
 
 
 class UserStatus(Resource):

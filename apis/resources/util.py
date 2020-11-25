@@ -6,7 +6,6 @@ import requests
 from flask_restful import reqparse
 
 import resources.apiError as apiError
-from model import db
 
 
 def date_to_str(data):
@@ -31,7 +30,8 @@ def success(data=None, has_date_etc=False):
         return {'message': 'success'}, 200
     else:
         if has_date_etc:
-            return {'message': 'success', 'data': json.loads(json.dumps(data, cls=DateEncoder))}, 200
+            return {'message': 'success',
+                    'data': json.loads(json.dumps(data, cls=DateEncoder))}, 200
         else:
             return {'message': 'success', 'data': data}, 200
 
@@ -64,11 +64,6 @@ def respond_uncaught_exception(exception, message='An uncaught exception occurs:
                    error=apiError.uncaught_exception(exception))
 
 
-def respond_redmine_error(redmine_response, message):
-    return respond(redmine_response.status_code, message,
-                   error=apiError.redmine_error(redmine_response))
-
-
 class DateEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, datetime):
@@ -77,13 +72,22 @@ class DateEncoder(json.JSONEncoder):
             return json.JSONEncoder.default(self, obj)
 
 
-def tick(last_time):
+ticker = 0
+
+
+def reset_ticker():
+    global ticker
+    ticker = time.time()
+
+
+def tick(message=''):
+    global ticker
     now = time.time()
-    print('%f seconds elapsed.' % (now - last_time))
-    return now
+    print('%f seconds elapsed. [%s]' % (now - ticker, message))
+    ticker = now
 
 
-def api_request(method, url, headers=None, params=None, data=None):
+def api_request(method, url, headers=None, params=None, data=None, auth=None):
     body = data
     if type(data) is dict or type(data) is reqparse.Namespace:
         if 'Content-Type' not in headers:
@@ -92,15 +96,15 @@ def api_request(method, url, headers=None, params=None, data=None):
             body = json.dumps(data)
 
     if method.upper() == 'GET':
-        return requests.get(url, headers=headers, params=params, verify=False)
+        return requests.get(url, headers=headers, params=params, verify=False, auth=auth)
     elif method.upper() == 'POST':
         return requests.post(url, data=body, params=params,
-                             headers=headers, verify=False)
+                             headers=headers, verify=False, auth=auth)
     elif method.upper() == 'PUT':
         return requests.put(url, data=body, params=params,
-                            headers=headers, verify=False)
+                            headers=headers, verify=False, auth=auth)
     elif method.upper() == 'DELETE':
-        return requests.delete(url, headers=headers, params=params, verify=False)
+        return requests.delete(url, headers=headers, params=params, verify=False, auth=auth)
     else:
         return respond_request_style(
             500, 'Error while request {0} {1}'.format(method, url),
