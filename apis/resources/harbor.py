@@ -5,7 +5,8 @@ from flask_restful import Resource, reqparse
 from requests.auth import HTTPBasicAuth
 
 import config
-from resources import apiError
+import model
+from resources import apiError, role
 import util
 from resources.apiError import DevOpsError
 from resources.logger import logger
@@ -101,9 +102,14 @@ def hb_delete_project(project_id):
             raise e
 
 
+def hb_list_repositories(project_name):
+    return __api_get('/projects/{0}/repositories'.format(project_name)).json()
+
+
 class HarborProject(Resource):
     @jwt_required
     def post(self):
+        role.require_pm()
         parser = reqparse.RequestParser()
         parser.add_argument('name', type=str)
         args = parser.parse_args()
@@ -118,5 +124,20 @@ class HarborProject(Resource):
 
     @jwt_required
     def delete(self, harbor_project_id):
+        role.require_pm()
         hb_delete_project(harbor_project_id)
         return util.success()
+
+
+class BoundProject(Resource):
+    @jwt_required
+    def get(self, project_id):
+        role.require_pm()
+        role.require_in_project(project_id)
+        try:
+            pjt = model.Project.query.filter_by(id=project_id).one()
+        except DevOpsError:
+            return util.respond(404, 'Project not found.',
+                                error=apiError.project_not_found(project_id))
+        project_name = pjt.name
+        return util.success(hb_list_repositories(project_name))

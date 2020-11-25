@@ -213,8 +213,11 @@ api.add_resource(migrate.Migrate, '/migrate')
 api.add_resource(mock.MockTestResult, '/mock/test_summary')
 
 # Harbor
-api.add_resource(harbor.HarborProject, '/harbor/projects',
+api.add_resource(harbor.HarborProject,
+                 '/harbor/projects',
                  '/harbor/projects/<int:harbor_project_id>')
+api.add_resource(harbor.BoundProject,
+                 '/harbor/projects/<int:project_id>',)
 
 if __name__ == "__main__":
     db.init_app(app)
