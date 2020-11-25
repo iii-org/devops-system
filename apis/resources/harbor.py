@@ -106,6 +106,31 @@ def hb_list_repositories(project_name):
     return __api_get('/projects/{0}/repositories'.format(project_name)).json()
 
 
+def hb_list_artifacts(project_name, repository_name):
+    artifacts = __api_get('/projects/{0}/repositories/{1}/artifacts'.format(
+        project_name, repository_name), params={'with_scan_overview': True}).json()
+    ret = []
+    for art in artifacts:
+        scan = next(iter(art['scan_overview'].values()))
+        if scan is None:
+            vul = ''
+        else:
+            vul = '{0} ({1})'.format(scan['severity'], scan['summary']['total'])
+        for tag in art['tags']:
+            ret.append({
+                'artifact_id': art['id'],
+                'tag_id': tag['id'],
+                'name': tag['name'],
+                'size': art['size'],
+                'vulnerabilities': vul,
+                'digest': art['digest'][7:15],
+                'labels': art['labels'],
+                'push_time': art['push_time']
+            })
+    return ret
+
+
+# ----------------- Resources -----------------
 class HarborProject(Resource):
     @jwt_required
     def post(self):
@@ -129,7 +154,13 @@ class HarborProject(Resource):
         return util.success()
 
 
-class BoundProject(Resource):
+class HarborArtifact(Resource):
+    @jwt_required
+    def get(self, project_name, repository_name):
+        return util.success(hb_list_artifacts(project_name, repository_name))
+
+
+class HarborRepository(Resource):
     @jwt_required
     def get(self, project_id):
         role.require_pm()

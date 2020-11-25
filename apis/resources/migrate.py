@@ -27,3 +27,5 @@ class Migrate(Resource):
         if args['command'] == 'create_harbor_projects':
             create_harbor_projects()
             return util.success()
+
+        return util.respond(400, 'Command not recognized.')
