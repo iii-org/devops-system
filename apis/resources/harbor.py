@@ -139,7 +139,7 @@ def hb_remove_member(project_id, user_id):
     if member_id is None:
         raise DevOpsError(404, 'User is not in the project.',
                           error=apiError.user_not_found(user_id))
-    __api_post('/projects/{0}/members/{1}'.format(project_id, member_id))
+    __api_delete('/projects/{0}/members/{1}'.format(project_id, member_id))
 
 
 def hb_list_repositories(project_name):
