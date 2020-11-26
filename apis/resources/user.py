@@ -207,25 +207,16 @@ def update_external_passwords(user_id, new_pwd):
 def delete_user(user_id):
     # 取得gitlab & redmine user_id
     relation = get_user_plugin_relation(user_id=user_id)
-    if type(relation) is not model.UserPluginRelation:
-        return relation
-    gitlab_user_id = relation.repository_user_id
-    # 刪除gitlab user
-    gitlab_response = gitlab.gl_delete_user(gitlab_user_id)
 
-    # 如果gitlab user成功被刪除則繼續刪除redmine user
-    redmine_user_id = relation.plan_user_id
-    redmine.rm_delete_user(redmine_user_id)
-
-    # Delete Harbor user
-    harbor_user_id = relation.harbor_user_id
-    harbor.hb_delete_user(harbor_user_id)
+    gitlab.gl_delete_user(relation.repository_user_id)
+    redmine.rm_delete_user(relation.plan_user_id)
+    harbor.hb_delete_user(relation.harbor_user_id)
 
     # 如果gitlab & redmine user都成功被刪除則繼續刪除db內相關tables欄位
     db.session.delete(relation)
-    del_role = model.ProjectUserRole.query_filter_by(user_id=user_id).one()
+    del_role = model.ProjectUserRole.query.filter_by(user_id=user_id).one()
     db.session.delete(del_role)
-    del_user = model.User.query_filter_by(id=user_id).one()
+    del_user = model.User.query.filter_by(id=user_id).one()
     db.session.delete(del_user)
     db.session.commit()
 

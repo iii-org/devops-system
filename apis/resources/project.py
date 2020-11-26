@@ -10,8 +10,8 @@ import config
 import model
 import resources.apiError as apiError
 import util as util
-from resources.apiError import DevOpsError
 from model import db
+from resources.apiError import DevOpsError
 from . import role, user, harbor
 from .checkmarx import checkmarx
 from .gitlab import gitlab
@@ -284,14 +284,31 @@ def delete_project(project_id):
     redmine_project_id = relation.plan_project_id
     gitlab_project_id = relation.git_repository_id
     harbor_project_id = relation.harbor_project_id
-    # disabled rancher pipeline
-    rancher.rc_disable_project_pipeline(
-        relation.ci_project_id,
-        relation.ci_pipeline_id)
 
-    gitlab.gl_delete_project(gitlab_project_id)
-    redmine.rm_delete_project(redmine_project_id)
-    harbor.hb_delete_project(harbor_project_id)
+    # disabled rancher pipeline
+    try:
+        rancher.rc_disable_project_pipeline(
+            relation.ci_project_id,
+            relation.ci_pipeline_id)
+    except DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+    try:
+        gitlab.gl_delete_project(gitlab_project_id)
+    except DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+    try:
+        redmine.rm_delete_project(redmine_project_id)
+    except DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+    try:
+        if harbor_project_id is not None:
+            harbor.hb_delete_project(harbor_project_id)
+    except DevOpsError as e:
+        if e.status_code != 404:
+            raise e
 
     # 如果gitlab & redmine project都成功被刪除則繼續刪除db內相關tables欄位
     db.engine.execute(
@@ -370,7 +387,7 @@ def project_add_member(project_id, args):
     db.session.add(new)
     db.session.commit()
 
-    user_relation = user.get_user_plugin_relation(user_id)
+    user_relation = user.get_user_plugin_relation(user_id=user_id)
     project_relation = get_project_plugin_relation(project_id)
     redmine_role_id = user.to_redmine_role_id(role_id)
 
@@ -387,7 +404,7 @@ def project_add_member(project_id, args):
 def project_remove_member(project_id, user_id):
     role_id = user.get_role_id(user_id)
 
-    user_relation = user.get_user_plugin_relation(user_id)
+    user_relation = user.get_user_plugin_relation(user_id=user_id)
     project_relation = get_project_plugin_relation(project_id)
     if project_relation is None:
         raise apiError.DevOpsError(404, "Error while removing a member from the project.",
@@ -448,37 +465,24 @@ def get_plan_project_id(project_id):
 
 def get_projects_by_user(user_id):
     output_array = []
-    result = db.engine.execute(
-        "SELECT pj.id, pj.name, pj.display, ppl.plan_project_id,"
-        " ppl.git_repository_id, ppl.ci_project_id, ppl.ci_pipeline_id, pj.http_url"
-        " FROM public.project_user_role as pur, public.projects as pj,"
-        " public.project_plugin_relation as ppl"
-        " WHERE pur.user_id = {0} AND pur.project_id = pj.id AND pj.id = ppl.project_id;".format(
-            user_id))
-    project_list = result.fetchall()
-    result.close()
-    if len(project_list) == 0:
+    rows = db.session.query(model.ProjectPluginRelation, model.Project, model.ProjectUserRole
+                            ).join(model.ProjectUserRole). \
+        filter(model.ProjectUserRole.user_id == user_id,
+               model.ProjectUserRole.project_id == model.Project.id,
+               model.ProjectPluginRelation.project_id == model.Project.id).all()
+    if len(rows) == 0:
         return util.success([])
-    # get user ids
-    result = db.engine.execute(
-        "SELECT plan_user_id, repository_user_id"
-        " FROM public.user_plugin_relation WHERE user_id = {0}; ".format(
-            user_id))
-    userid_list_output = result.fetchone()
-    if userid_list_output is None:
-        raise apiError.DevOpsError(404, "Error while getting projects of a user.",
-                                   error=apiError.user_not_found(user_id))
-    plan_user_id = userid_list_output[0]
-    result.close()
-    for project in project_list:
-        output_dict = {'name': project['name'],
-                       'display': project['display'],
-                       'project_id': project['id'],
-                       'git_url': project['http_url'],
+    relation = user.get_user_plugin_relation(user_id=user_id)
+    plan_user_id = relation.plan_user_id
+    for row in rows:
+        output_dict = {'name': row.Project.name,
+                       'display': row.Project.display,
+                       'project_id': row.Project.id,
+                       'git_url': row.Project.http_url,
                        'redmine_url': "http://{0}/projects/{1}".format(
                            config.get("REDMINE_IP_PORT"),
-                           project['plan_project_id']),
-                       'repository_ids': project['git_repository_id'],
+                           row.ProjectPluginRelation.plan_project_id),
+                       'repository_ids': row.ProjectPluginRelation.git_repository_id,
                        'issues': None,
                        'branch': None,
                        'tag': None,
@@ -488,8 +492,15 @@ def get_projects_by_user(user_id):
                        }
 
         # get issue total cont
-        total_issue = redmine.rm_get_issues_by_project_and_user(
-            plan_user_id, project['plan_project_id'])
+        try:
+            total_issue = redmine.rm_get_issues_by_project_and_user(
+                plan_user_id, row.ProjectPluginRelation.plan_project_id)
+        except DevOpsError as e:
+            if e.status_code == 404:
+                # No record, not error
+                total_issue = {'issues': [], 'total_count': 0}
+            else:
+                raise e
         output_dict['issues'] = total_issue['total_count']
 
         # get next_d_time
@@ -506,28 +517,30 @@ def get_projects_by_user(user_id):
         if next_d_time is not None:
             output_dict['next_d_time'] = next_d_time.isoformat()
 
-        if project['git_repository_id'] is not None:
-            # branch number
-            branch_number = gitlab.gl_count_branches(project['git_repository_id'])
-            output_dict['branch'] = branch_number
-            # tag number
-            tag_number = 0
-            tags = gitlab.gl_get_tags(project['git_repository_id'])
-            tag_number = len(tags)
-            output_dict['tag'] = tag_number
+        git_repository_id = row.ProjectPluginRelation.git_repository_id
+        # branch number
+        try:
+            branch_number = gitlab.gl_count_branches(git_repository_id)
+        except:
+            print(row.Project.id)
+        output_dict['branch'] = branch_number
+        # tag number
+        tag_number = 0
+        tags = gitlab.gl_get_tags(git_repository_id)
+        tag_number = len(tags)
+        output_dict['tag'] = tag_number
 
-        if project['ci_project_id'] is not None:
-            output_dict = get_ci_last_test_result(output_dict, project)
+        output_dict = get_ci_last_test_result(output_dict, row.ProjectPluginRelation)
 
         output_array.append(output_dict)
 
     return util.success(output_array)
 
 
-def get_ci_last_test_result(output_dict, project):
+def get_ci_last_test_result(output_dict, relation):
     # get rancher pipeline
     pipeline_output, response = rancher.rc_get_pipeline_executions(
-        project["ci_project_id"], project["ci_pipeline_id"])
+        relation.ci_project_id, relation.ci_pipeline_id)
     if len(pipeline_output) != 0:
         output_dict['last_test_time'] = pipeline_output[0]['created']
         stage_status = []
