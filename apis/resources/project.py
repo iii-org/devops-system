@@ -12,12 +12,11 @@ import resources.apiError as apiError
 import util as util
 from resources.apiError import DevOpsError
 from model import db
-from . import role, user
+from . import role, user, harbor
 from .checkmarx import checkmarx
 from .gitlab import gitlab
 from .rancher import rancher
 from .redmine import redmine
-from .user import get_3pt_user_ids
 
 
 def get_project_plugin_relation(project_id):
@@ -360,41 +359,34 @@ def project_add_member(project_id, args):
     db.session.add(new)
     db.session.commit()
 
-    ids = get_3pt_user_ids(user_id, "Error while adding user to project.")
-    relation = get_project_plugin_relation(project_id)
+    user_relation = user.get_user_plugin_relation(user_id)
+    project_relation = get_project_plugin_relation(project_id)
     redmine_role_id = user.to_redmine_role_id(role_id)
 
-    try:
-        redmine.rm_create_memberships(
-            relation.plan_project_id, ids['redmine_user_id'], redmine_role_id)
-    except DevOpsError as e:
-        if e.status_code == 422:
-            raise DevOpsError(422, "Error while adding user to project: Already in redmine project.",
-                              error=apiError.already_in_project(user_id, project_id))
-        else:
-            raise e
+    redmine.rm_create_memberships(project_relation.plan_project_id,
+                                  user_relation.plan_user_id, redmine_role_id)
+    gitlab.gl_project_add_member(project_relation.git_repository_id,
+                                 user_relation.repository_user_id)
+    harbor.hb_add_member(project_relation.harbor_project_id,
+                         user_relation.harbor_user_id)
 
-    # gitlab project add member
-    gitlab.gl_project_add_member(relation.git_repository_id, ids['gitlab_user_id'])
     return util.success()
 
 
 def project_remove_member(project_id, user_id):
     role_id = user.get_role_id(user_id)
 
-    ids = get_3pt_user_ids(user_id, "Error while removing user from project.")
-    redmine_user_id = ids['redmine_user_id']
-    gitlab_user_id = ids['gitlab_user_id']
-    relation = get_project_plugin_relation(project_id)
-    if relation is None:
+    user_relation = user.get_user_plugin_relation(user_id)
+    project_relation = get_project_plugin_relation(project_id)
+    if project_relation is None:
         raise apiError.DevOpsError(404, "Error while removing a member from the project.",
                                    error=apiError.project_not_found(project_id))
 
     # get membership id
-    memberships = redmine.rm_get_memberships_list(relation.plan_project_id)
+    memberships = redmine.rm_get_memberships_list(project_relation.plan_project_id)
     redmine_membership_id = None
     for membership in memberships['memberships']:
-        if membership['user']['id'] == redmine_user_id:
+        if membership['user']['id'] == user_relation.plan_user_id:
             redmine_membership_id = membership['id']
     if redmine_membership_id is not None:
         # delete membership
@@ -410,8 +402,19 @@ def project_remove_member(project_id, user_id):
         # Redmine does not have this membership, just let it go
         pass
 
-    # gitlab project delete member
-    gitlab.gl_project_delete_member(relation.git_repository_id, gitlab_user_id)
+    try:
+        gitlab.gl_project_delete_member(project_relation.git_repository_id,
+                                        user_relation.repository_user_id)
+    except DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+
+    try:
+        harbor.hb_remove_member(project_relation.harbor_project_id,
+                                user_relation.harbor_user_id)
+    except DevOpsError as e:
+        if e.status_code != 404:
+            raise e
 
     # delete relationship from ProjectUserRole table.
     try:

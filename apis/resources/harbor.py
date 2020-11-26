@@ -102,20 +102,44 @@ def hb_delete_project(project_id):
             raise e
 
 
-def hb_create_user():
-    pass
+def hb_create_user(args):
+    login = args['login']
+    data = {
+        "username": login,
+        "password": args['password'],
+        "realname": args['name'],
+        "email": args['email']
+    }
+    __api_post('/users', data=data)
+    res = __api_get('/users/search', params={'username': login}).json()
+    return res[0]['user_id']
 
 
-def hb_delete_user():
-    pass
+def hb_delete_user(user_id):
+    __api_delete('/users/{0}'.format(user_id))
 
 
-def hb_add_member():
-    pass
+def hb_add_member(project_id, user_id):
+    data = {
+        "role_id": 1,
+        "member_user": {
+            "user_id": user_id
+        }
+    }
+    __api_post('/projects/{0}/members'.format(project_id), data=data)
 
 
-def hb_remove_member():
-    pass
+def hb_remove_member(project_id, user_id):
+    members = __api_get('/projects/{0}/members'.format(project_id)).json()
+    member_id = None
+    for member in members:
+        if member['entity_id'] == user_id:
+            member_id = member['id']
+            break
+    if member_id is None:
+        raise DevOpsError(404, 'User is not in the project.',
+                          error=apiError.user_not_found(user_id))
+    __api_post('/projects/{0}/members/{1}'.format(project_id, member_id))
 
 
 def hb_list_repositories(project_name):
