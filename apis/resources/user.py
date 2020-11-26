@@ -16,6 +16,7 @@ from resources import role, harbor
 from resources.logger import logger
 from resources.redmine import redmine
 from resources.gitlab import gitlab
+from resources import kubernetesClient
 
 jwt = JWTManager()
 
@@ -288,6 +289,13 @@ def create_user(args):
                 raise DevOpsError(422, "Gitlab already has this account or email.",
                                   error=apiError.already_used())
         page += 1
+    
+    # Check Kubernetes has this Service Account (login), if has, return error 400
+    sa_list = kubernetesClient.list_service_account()
+    login_sa_name = util.encode_k8s_sa(login_name)
+    if login_sa_name in sa_list:
+        return util.respond(422, "Kubernetes already has this service account.",
+                            error=apiError.already_used())
 
     # plan software user create
     red_user = redmine.rm_create_user(args, user_source_password)
@@ -300,6 +308,15 @@ def create_user(args):
         redmine.rm_delete_user(redmine_user_id)
         raise e
     gitlab_user_id = git_user['id']
+
+    # kubernetes service account create
+    try:
+        kubernetes_sa = kubernetesClient.create_service_account(login_sa_name)
+    except DevOpsError as e:
+        redmine.rm_delete_user(redmine_user_id)
+        gitlab.gl_delete_user(gitlab_user_id)
+        raise e
+    kubernetes_sa_name = kubernetes_sa.metadata.name
 
     # Harbor user create
     try:
@@ -334,7 +351,8 @@ def create_user(args):
         rel = model.UserPluginRelation(user_id=user_id,
                                        plan_user_id=redmine_user_id,
                                        repository_user_id=gitlab_user_id,
-                                       harbor_user_id=harbor_user_id)
+                                       harbor_user_id=harbor_user_id,
+                                       kubernetes_sa_name=kubernetes_sa_name)
         db.session.add(rel)
         db.session.commit()
 
