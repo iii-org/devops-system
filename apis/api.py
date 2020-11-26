@@ -218,9 +218,10 @@ api.add_resource(harbor.HarborProject,
                  '/harbor/projects/<int:harbor_project_id>')
 api.add_resource(harbor.HarborRepository,
                  '/harbor/projects/<int:project_id>',
-                 '/harbor/repositories')
+                 '/harbor/repositories',
+                 '/harbor/repositories/<project_name>/<repository_name>')
 api.add_resource(harbor.HarborArtifact,
-                 '/harbor/artifacts/<project_name>/<repository_name>', )
+                 '/harbor/artifacts/<project_name>/<repository_name>')
 
 if __name__ == "__main__":
     db.init_app(app)

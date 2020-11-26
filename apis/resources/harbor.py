@@ -139,11 +139,16 @@ def hb_list_artifacts(project_name, repository_name):
                 'name': tag['name'],
                 'size': art['size'],
                 'vulnerabilities': vul,
-                'digest': art['digest'][7:15],
+                'digest': art['digest'],
                 'labels': art['labels'],
                 'push_time': art['push_time']
             })
     return ret
+
+
+def hb_get_repository_info(project_name, repository_name):
+    return __api_get('/projects/{0}/repositories/{1}'.format(
+        project_name, repository_name)).json()
 
 
 def hb_update_repository(project_name, repository_name, args):
@@ -157,12 +162,34 @@ def hb_delete_repository(project_name, repository_name):
         project_name, repository_name))
 
 
+def hb_delete_artifact(project_name, repository_name, reference):
+    return __api_delete('/projects/{0}/repositories/{1}/artifacts/{2}'.format(
+        project_name, repository_name, reference))
+
+
+def hb_list_tags(project_name, repository_name, reference):
+    return __api_get('/projects/{0}/repositories/{1}/artifacts/{2}/tags'.format(
+        project_name, repository_name, reference)).json()
+
+
 def hb_delete_artifact_tag(project_name, repository_name, reference, tag_name):
-    return __api_delete('/projects/{0}/repositories/{1}/artifacts/{2}/tags/{3}'.format(
+    __api_delete('/projects/{0}/repositories/{1}/artifacts/{2}/tags/{3}'.format(
         project_name, repository_name, reference, tag_name))
+    if len(hb_list_tags(project_name, repository_name, reference)) == 0:
+        hb_delete_artifact(project_name, repository_name, reference)
 
 
 # ----------------- Resources -----------------
+def check_permission(project_name):
+    try:
+        pjt = model.Project.query.filter_by(name=project_name).one()
+    except DevOpsError:
+        return util.respond(404, 'Project not found.',
+                            error=apiError.project_not_found(project_name))
+    project_id = pjt.id
+    role.require_in_project(project_id)
+
+
 class HarborProject(Resource):
     @jwt_required
     def post(self):
@@ -187,24 +214,6 @@ class HarborProject(Resource):
 
 
 class HarborRepository(Resource):
-    @staticmethod
-    def preprocess():
-        parser = reqparse.RequestParser()
-        parser.add_argument('name', type=str)
-        args = parser.parse_args()
-
-        names = args['name'].split('/')
-        project_name = names[0]
-        repository_name = names[1]
-        try:
-            pjt = model.Project.query.filter_by(name=project_name).one()
-        except DevOpsError:
-            return util.respond(404, 'Project not found.',
-                                error=apiError.project_not_found(project_name))
-        project_id = pjt.id
-        role.require_in_project(project_id)
-        return project_name, repository_name
-
     @jwt_required
     def get(self, project_id):
         role.require_in_project(project_id)
@@ -217,17 +226,17 @@ class HarborRepository(Resource):
         return util.success(hb_list_repositories(project_name))
 
     @jwt_required
-    def put(self):
+    def put(self, project_name, repository_name):
+        check_permission(project_name)
         parser = reqparse.RequestParser()
         parser.add_argument('description', type=str)
         args = parser.parse_args()
-        project_name, repository_name = self.preprocess()
         hb_update_repository(project_name, repository_name, args)
         return util.success()
 
     @jwt_required
-    def delete(self):
-        project_name, repository_name = self.preprocess()
+    def delete(self, project_name, repository_name):
+        check_permission(project_name)
         hb_delete_repository(project_name, repository_name)
         return util.success()
 
@@ -238,11 +247,12 @@ class HarborArtifact(Resource):
         return util.success(hb_list_artifacts(project_name, repository_name))
 
     @jwt_required
-    def delete(self):
+    def delete(self, project_name, repository_name):
+        check_permission(project_name)
         parser = reqparse.RequestParser()
         parser.add_argument('digest', type=str)
         parser.add_argument('tag_name', type=str)
         args = parser.parse_args()
-        project_name, repository_name = self.preprocess()
+
         hb_delete_artifact_tag(project_name, repository_name, args['digest'], args['tag_name'])
         return util.success()
