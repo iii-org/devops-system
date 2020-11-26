@@ -6,3 +6,4 @@ environments.json
 devops-api.log*
 __pycache__
 /devops-api-rotate
+alembic.ini

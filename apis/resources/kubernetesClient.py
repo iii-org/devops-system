@@ -3,6 +3,8 @@ from kubernetes import config as k8s_config
 
 from resources.logger import logger
 
+k8s_config.load_kube_config()
+v1 = k8s_client.CoreV1Api()
 
 def list_service_all_namespaces():
     k8s_config.load_kube_config()
@@ -50,4 +52,12 @@ def list_work_node():
     logger.info("list_worknode node_list: {0}".format(node_list))
     return node_list
 
+def create_service_account(login_sa_name):
+    sa = v1.create_namespaced_service_account("account",k8s_client.V1ServiceAccount(metadata=k8s_client.V1ObjectMeta(name=login_sa_name)))
+    return sa
 
+def list_service_account():
+    sa_list = []
+    for sa in v1.list_namespaced_service_account("account").items:
+        sa_list.append(sa.metadata.name)
+    return sa_list
