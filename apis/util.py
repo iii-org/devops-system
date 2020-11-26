@@ -114,20 +114,20 @@ def api_request(method, url, headers=None, params=None, data=None, auth=None):
 def encode_k8s_sa(name):
     ret = ''
     for c in name:
-        if 'a' <= c <= 'z' or '0' <= c <= '9' or c == '-':
+        if 'a' <= c <= 'z' or '1' <= c <= '9' or c == '-' or c == '.':
             ret += c
         elif 'A' <= c <= 'Z':
-            ret += c.lower() + '.'
-        elif c == '.':
-            ret += '..'
+            ret += c.lower() + '0'
+        elif c == '0':
+            ret += '00'
         elif c == '_':
-            ret += '-.'
+            ret += '-0'
     return ret
 
 
-def merge_dot(c):
-    if c == '.':
-        return '.'
+def merge_zero(c):
+    if c == '0':
+        return '0'
     elif c == '-':
         return '_'
     else:
@@ -144,24 +144,24 @@ def decode_k8s_sa(string):
             i += 1
             continue
         n = string[i + 1]
-        if n == '.':
+        if n == '0':
             nn = i + 2
-            dot_count = 1
+            zero_count = 1
             while nn < len(string):
-                if string[nn] == '.':
+                if string[nn] == '0':
                     nn += 1
-                    dot_count += 1
+                    zero_count += 1
                 else:
                     break
-            if dot_count % 2 == 1:
-                ret += merge_dot(c)
+            if zero_count % 2 == 1:
+                ret += merge_zero(c)
                 i += 2
-                dot_count -= 1
+                zero_count -= 1
             else:
                 ret += c
                 i += 1
-            for _ in range(0, int(dot_count / 2)):
-                ret += '.'
+            for _ in range(0, int(zero_count / 2)):
+                ret += '0'
                 i += 2
         else:
             ret += c
