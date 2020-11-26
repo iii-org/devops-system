@@ -109,3 +109,55 @@ def api_request(method, url, headers=None, params=None, data=None, auth=None):
         return respond_request_style(
             500, 'Error while request {0} {1}'.format(method, url),
             error=apiError.unknown_method(method))
+
+
+def encode_k8s_sa(name):
+    ret = ''
+    for c in name:
+        if 'a' <= c <= 'z' or '0' <= c <= '9' or c == '-':
+            ret += c
+        elif 'A' <= c <= 'Z':
+            ret += c.lower() + '.'
+        elif c == '.':
+            ret += '..'
+        elif c == '_':
+            ret += '-.'
+    return ret
+
+
+def decode_k8s_sa(encoded_name):
+    ret = ''
+    i = 0
+    while i < len(encoded_name):
+        c = encoded_name[i]
+        if i == len(encoded_name) - 1:
+            ret += c
+            i += 1
+            continue
+        n = encoded_name[i + 1]
+        if n == '.':
+            if i == len(encoded_name) - 2:
+                if c == '.':
+                    ret += '.'
+                elif c == '-':
+                    ret += '_'
+                else:
+                    ret += c.upper()
+                i += 2
+            else:
+                n2 = encoded_name[i + 2]
+                if n2 == '.':
+                    ret += c + '.'
+                    i += 3
+                else:
+                    if c == '.':
+                        ret += '.'
+                    elif c == '-':
+                        ret += '_'
+                    else:
+                        ret += c.upper()
+                    i += 2
+        else:
+            ret += c
+            i += 1
+    return ret
