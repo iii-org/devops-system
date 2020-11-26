@@ -169,6 +169,12 @@ def create_project(user_id, args):
     rancher_pipeline_id = rancher.rc_enable_project_pipeline(gitlab_pj_http_url)
 
     try:
+        harbor_pj_id = harbor.hb_create_project(args['name'])
+    except DevOpsError as e:
+        redmine.rm_delete_project(redmine_pj_id)
+        gitlab.gl_delete_project(gitlab_pj_id)
+
+    try:
         new_pjt = model.Project(
             name=gitlab_pj_name,
             display=args['display'],
@@ -186,6 +192,7 @@ def create_project(user_id, args):
             project_id=project_id,
             plan_project_id=redmine_pj_id,
             git_repository_id=gitlab_pj_id,
+            harbor_project_id=harbor_pj_id,
             ci_project_id=rancher_project_id,
             ci_pipeline_id=rancher_pipeline_id
         )
@@ -199,11 +206,13 @@ def create_project(user_id, args):
         return util.success({
             "project_id": project_id,
             "plan_project_id": redmine_pj_id,
-            "git_repository_id": gitlab_pj_id
+            "git_repository_id": gitlab_pj_id,
+            "harbor_project_id": harbor_pj_id
         })
     except Exception as e:
         redmine.rm_delete_project(redmine_pj_id)
         gitlab.gl_delete_project(gitlab_pj_id)
+        harbor.hb_delete_project(harbor_pj_id)
         raise e
 
 
@@ -274,6 +283,7 @@ def delete_project(project_id):
                               error=apiError.project_not_found(project_id))
     redmine_project_id = relation.plan_project_id
     gitlab_project_id = relation.git_repository_id
+    harbor_project_id = relation.harbor_project_id
     # disabled rancher pipeline
     rancher.rc_disable_project_pipeline(
         relation.ci_project_id,
@@ -281,6 +291,7 @@ def delete_project(project_id):
 
     gitlab.gl_delete_project(gitlab_project_id)
     redmine.rm_delete_project(redmine_project_id)
+    harbor.hb_delete_project(harbor_project_id)
 
     # 如果gitlab & redmine project都成功被刪除則繼續刪除db內相關tables欄位
     db.engine.execute(
