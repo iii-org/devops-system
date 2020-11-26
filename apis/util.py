@@ -125,38 +125,44 @@ def encode_k8s_sa(name):
     return ret
 
 
-def decode_k8s_sa(encoded_name):
+def merge_dot(c):
+    if c == '.':
+        return '.'
+    elif c == '-':
+        return '_'
+    else:
+        return c.upper()
+
+
+def decode_k8s_sa(string):
     ret = ''
     i = 0
-    while i < len(encoded_name):
-        c = encoded_name[i]
-        if i == len(encoded_name) - 1:
+    while i < len(string):
+        c = string[i]
+        if i == len(string) - 1:
             ret += c
             i += 1
             continue
-        n = encoded_name[i + 1]
+        n = string[i + 1]
         if n == '.':
-            if i == len(encoded_name) - 2:
-                if c == '.':
-                    ret += '.'
-                elif c == '-':
-                    ret += '_'
+            nn = i + 2
+            dot_count = 1
+            while nn < len(string):
+                if string[nn] == '.':
+                    nn += 1
+                    dot_count += 1
                 else:
-                    ret += c.upper()
+                    break
+            if dot_count % 2 == 1:
+                ret += merge_dot(c)
                 i += 2
+                dot_count -= 1
             else:
-                n2 = encoded_name[i + 2]
-                if n2 == '.':
-                    ret += c + '.'
-                    i += 3
-                else:
-                    if c == '.':
-                        ret += '.'
-                    elif c == '-':
-                        ret += '_'
-                    else:
-                        ret += c.upper()
-                    i += 2
+                ret += c
+                i += 1
+            for _ in range(0, int(dot_count / 2)):
+                ret += '.'
+                i += 2
         else:
             ret += c
             i += 1

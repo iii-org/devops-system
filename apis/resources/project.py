@@ -268,6 +268,14 @@ def pm_update_project(project_id, args):
     return util.success()
 
 
+def try_to_delete(delete_method, argument):
+    try:
+        delete_method(argument)
+    except DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+
+
 # 用project_id刪除redmine & gitlab的project並將db的相關table欄位一併刪除
 def delete_project(project_id):
     # 取得gitlab & redmine project_id
@@ -294,22 +302,11 @@ def delete_project(project_id):
     except DevOpsError as e:
         if e.status_code != 404:
             raise e
-    try:
-        gitlab.gl_delete_project(gitlab_project_id)
-    except DevOpsError as e:
-        if e.status_code != 404:
-            raise e
-    try:
-        redmine.rm_delete_project(redmine_project_id)
-    except DevOpsError as e:
-        if e.status_code != 404:
-            raise e
-    try:
-        if harbor_project_id is not None:
-            harbor.hb_delete_project(harbor_project_id)
-    except DevOpsError as e:
-        if e.status_code != 404:
-            raise e
+
+    try_to_delete(gitlab.gl_delete_project, gitlab_project_id)
+    try_to_delete(redmine.rm_delete_project, redmine_project_id)
+    if harbor_project_id is not None:
+        try_to_delete(harbor.hb_delete_project, harbor_project_id)
 
     # 如果gitlab & redmine project都成功被刪除則繼續刪除db內相關tables欄位
     db.engine.execute(
