@@ -173,6 +173,7 @@ def create_project(user_id, args):
     except DevOpsError as e:
         redmine.rm_delete_project(redmine_pj_id)
         gitlab.gl_delete_project(gitlab_pj_id)
+        raise e
 
     try:
         new_pjt = model.Project(
@@ -664,7 +665,7 @@ class SingleProject(Resource):
         parser.add_argument('disabled', type=bool, required=True)
         args = parser.parse_args()
 
-        pattern = "^[a-z0-9][a-z0-9-]{0,253}[a-z0-9]$"
+        pattern = "^[a-z][a-z0-9-]{0,253}[a-z0-9]$"
         result = re.fullmatch(pattern, args["name"])
         if result is None:
             return util.respond(400, 'Error while creating project',
