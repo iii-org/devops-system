@@ -27,16 +27,16 @@ def get_project_plugin_relation(project_id):
                           error=apiError.project_not_found(project_id))
 
 
-# List all projects of a PM
-def get_joined_project_list(user_id):
-    # 取得 user_id 有參加的 project 列表
-    rows = db.session.query(model.Project, model.ProjectPluginRelation) \
+def list_projects(user_id):
+    query = db.session.query(model.Project, model.ProjectPluginRelation) \
         .join(model.ProjectPluginRelation) \
         .join(model.ProjectUserRole,
-              model.ProjectUserRole.project_id == model.Project.id) \
-        .filter(model.ProjectUserRole.user_id == user_id) \
-        .order_by(desc(model.Project.id)) \
-        .all()
+              model.ProjectUserRole.project_id == model.Project.id)
+    # 如果是 admin，列出所有 project
+    # 如果不是 admin，取得 user_id 有參加的 project 列表
+    if user.get_role_id(user_id) != role.ADMIN.id:
+        query = query.filter(model.ProjectUserRole.user_id == user_id)
+    rows = query.order_by(desc(model.Project.id)).all()
 
     project_id_list = []
     for row in rows:
@@ -622,7 +622,7 @@ class ListMyProjects(Resource):
     @jwt_required
     def get(self):
         user_id = get_jwt_identity()["user_id"]
-        return get_joined_project_list(user_id)
+        return list_projects(user_id)
 
 
 class SingleProject(Resource):
