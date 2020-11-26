@@ -1,14 +1,17 @@
 import datetime
 import os
+import random
+import string
 import traceback
 
 from flask import Flask
 from flask_cors import CORS
-from flask_restful import Resource, Api
+from flask_restful import Resource, Api, reqparse
 from sqlalchemy.orm.exc import NoResultFound
 from werkzeug.routing import IntegerConverter
 
 import config
+import model
 import resources.apiError as apiError
 import resources.checkmarx as checkmarx
 import resources.pipeline as pipeline
@@ -62,6 +65,54 @@ class SystemGitCommitID(Resource):
                 return util.success({"git_commit_id": "{0}".format(git_commit_id)})
         else:
             raise apiError.DevOpsError(400, "git_commit file is not exist.")
+
+
+def get_random_password():
+    random_source = string.ascii_letters + string.digits
+    password = random.choice(string.ascii_lowercase)
+    password += random.choice(string.ascii_uppercase)
+    password += random.choice(string.digits)
+
+    for i in range(8):
+        password += random.choice(random_source)
+
+    password_list = list(password)
+    random.SystemRandom().shuffle(password_list)
+    password = ''.join(password_list)
+    return password
+
+
+# noinspection PyMethodMayBeStatic
+class Init(Resource):
+    def post(self):
+        # Create dummy project
+        try:
+            new = model.Project(id=-1, name='__dummy_project')
+            db.session.add(new)
+            db.session.commit()
+        except apiError.DevOpsError:
+            # Already have, just pass
+            pass
+
+        # Init admin
+        parser = reqparse.RequestParser()
+        parser.add_argument('name', type=str)
+        args = parser.parse_args()
+        rows = model.User.query.all()
+        if len(rows) > 0:
+            return 'Only empty server can be inited.', 403
+        admin_password = get_random_password()
+        args = {
+            'phone': '00000000000',
+            'name': '初始管理者',
+            'email': 'admin@no.where',
+            'login': args['name'],
+            'password': admin_password,
+            'role_id': 5,
+            'status': 'enable'
+        }
+        user.create_user(args)
+        return admin_password, 200
 
 
 # Projects
@@ -208,6 +259,7 @@ api.add_resource(redmine.RedmineFile, '/download', '/file/<int:file_id>')
 # System administrations
 api.add_resource(SystemGitCommitID, '/system_git_commit_id')  # git commit
 api.add_resource(migrate.Migrate, '/migrate')
+api.add_resource(Init, '/init')
 
 # Mocks
 api.add_resource(mock.MockTestResult, '/mock/test_summary')
@@ -233,6 +285,6 @@ def init_tables():
     db.create_all()
 
 
-# To run from Python console to create tables
+# Run from Python console to create tables
 if __name__ == 'api':
     init_tables()
