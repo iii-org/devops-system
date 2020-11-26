@@ -3,7 +3,7 @@ from pprint import pprint
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
 
-from model import db, ProjectPluginRelation, Project, UserPluginRelation, User
+from model import db, ProjectPluginRelation, Project, UserPluginRelation, User, ProjectUserRole
 from resources import role, harbor
 import util
 
@@ -13,8 +13,15 @@ def create_harbor_projects():
         join(Project).all()
     for row in rows:
         if row.ProjectPluginRelation.harbor_project_id is None:
-            hid = harbor.hb_create_project(row.name)
-            row.ProjectPluginRelation.harbor_project_id = hid
+            harbor_project_id = harbor.hb_create_project(row.name)
+            row.ProjectPluginRelation.harbor_project_id = harbor_project_id
+            members = db.session.query(ProjectUserRole, UserPluginRelation). \
+                join(UserPluginRelation, ProjectUserRole.user_id == UserPluginRelation.user_id). \
+                filter(ProjectUserRole.project_id == row.ProjectPluginRelation.project_id
+                       ).all()
+            for m in members:
+                harbor.hb_add_member(harbor_project_id,
+                                     m.UserPluginRelation.harbor_user_id)
             db.session.commit()
 
 
