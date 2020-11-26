@@ -214,29 +214,6 @@ def check_permission(project_name):
     role.require_in_project(project_id)
 
 
-class HarborProject(Resource):
-    @jwt_required
-    def post(self):
-        role.require_pm()
-        parser = reqparse.RequestParser()
-        parser.add_argument('name', type=str)
-        args = parser.parse_args()
-
-        pattern = "^[a-z0-9][a-z0-9-]{0,253}[a-z0-9]$"
-        result = re.fullmatch(pattern, args['name'])
-        if result is None:
-            return util.respond(400, 'Error while creating project',
-                                error=apiError.invalid_project_name(args['name']))
-        pid = hb_create_project(args['name'])
-        return util.success({'harbor_project_id': pid})
-
-    @jwt_required
-    def delete(self, harbor_project_id):
-        role.require_pm()
-        hb_delete_project(harbor_project_id)
-        return util.success()
-
-
 class HarborRepository(Resource):
     @jwt_required
     def get(self, project_id):

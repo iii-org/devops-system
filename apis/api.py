@@ -213,9 +213,6 @@ api.add_resource(migrate.Migrate, '/migrate')
 api.add_resource(mock.MockTestResult, '/mock/test_summary')
 
 # Harbor
-api.add_resource(harbor.HarborProject,
-                 '/harbor/projects',
-                 '/harbor/projects/<int:harbor_project_id>')
 api.add_resource(harbor.HarborRepository,
                  '/harbor/projects/<int:project_id>',
                  '/harbor/repositories',
