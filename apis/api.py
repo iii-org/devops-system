@@ -217,7 +217,8 @@ api.add_resource(harbor.HarborProject,
                  '/harbor/projects',
                  '/harbor/projects/<int:harbor_project_id>')
 api.add_resource(harbor.HarborRepository,
-                 '/harbor/projects/<int:project_id>', )
+                 '/harbor/projects/<int:project_id>',
+                 '/harbor/repositories')
 api.add_resource(harbor.HarborArtifact,
                  '/harbor/artifacts/<project_name>/<repository_name>', )
 

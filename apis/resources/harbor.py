@@ -102,6 +102,22 @@ def hb_delete_project(project_id):
             raise e
 
 
+def hb_create_user():
+    pass
+
+
+def hb_delete_user():
+    pass
+
+
+def hb_add_member():
+    pass
+
+
+def hb_remove_member():
+    pass
+
+
 def hb_list_repositories(project_name):
     return __api_get('/projects/{0}/repositories'.format(project_name)).json()
 
@@ -130,6 +146,22 @@ def hb_list_artifacts(project_name, repository_name):
     return ret
 
 
+def hb_update_repository(project_name, repository_name, args):
+    return __api_put('/projects/{0}/repositories/{1}'.format(
+        project_name, repository_name),
+        data={'description': args['description']})
+
+
+def hb_delete_repository(project_name, repository_name):
+    return __api_delete('/projects/{0}/repositories/{1}'.format(
+        project_name, repository_name))
+
+
+def hb_delete_artifact_tag(project_name, repository_name, reference, tag_name):
+    return __api_delete('/projects/{0}/repositories/{1}/artifacts/{2}/tags/{3}'.format(
+        project_name, repository_name, reference, tag_name))
+
+
 # ----------------- Resources -----------------
 class HarborProject(Resource):
     @jwt_required
@@ -154,16 +186,27 @@ class HarborProject(Resource):
         return util.success()
 
 
-class HarborArtifact(Resource):
-    @jwt_required
-    def get(self, project_name, repository_name):
-        return util.success(hb_list_artifacts(project_name, repository_name))
-
-
 class HarborRepository(Resource):
+    @staticmethod
+    def preprocess():
+        parser = reqparse.RequestParser()
+        parser.add_argument('name', type=str)
+        args = parser.parse_args()
+
+        names = args['name'].split('/')
+        project_name = names[0]
+        repository_name = names[1]
+        try:
+            pjt = model.Project.query.filter_by(name=project_name).one()
+        except DevOpsError:
+            return util.respond(404, 'Project not found.',
+                                error=apiError.project_not_found(project_name))
+        project_id = pjt.id
+        role.require_in_project(project_id)
+        return project_name, repository_name
+
     @jwt_required
     def get(self, project_id):
-        role.require_pm()
         role.require_in_project(project_id)
         try:
             pjt = model.Project.query.filter_by(id=project_id).one()
@@ -172,3 +215,34 @@ class HarborRepository(Resource):
                                 error=apiError.project_not_found(project_id))
         project_name = pjt.name
         return util.success(hb_list_repositories(project_name))
+
+    @jwt_required
+    def put(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('description', type=str)
+        args = parser.parse_args()
+        project_name, repository_name = self.preprocess()
+        hb_update_repository(project_name, repository_name, args)
+        return util.success()
+
+    @jwt_required
+    def delete(self):
+        project_name, repository_name = self.preprocess()
+        hb_delete_repository(project_name, repository_name)
+        return util.success()
+
+
+class HarborArtifact(Resource):
+    @jwt_required
+    def get(self, project_name, repository_name):
+        return util.success(hb_list_artifacts(project_name, repository_name))
+
+    @jwt_required
+    def delete(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('digest', type=str)
+        parser.add_argument('tag_name', type=str)
+        args = parser.parse_args()
+        project_name, repository_name = self.preprocess()
+        hb_delete_artifact_tag(project_name, repository_name, args['digest'], args['tag_name'])
+        return util.success()

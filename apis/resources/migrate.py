@@ -16,6 +16,10 @@ def create_harbor_projects():
             db.session.commit()
 
 
+def create_harbor_users():
+    pass
+
+
 class Migrate(Resource):
     @jwt_required
     def patch(self):
