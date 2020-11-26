@@ -145,6 +145,7 @@ class UserPluginRelation(db.Model):
     plan_user_id = Column(Integer)
     repository_user_id = Column(Integer)
     harbor_user_id = Column(Integer)
+    kubernetes_sa_name = Column(String)
 
 
 class Checkmarx(db.Model):
