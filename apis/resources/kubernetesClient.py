@@ -52,8 +52,8 @@ def list_work_node():
     logger.info("list_worknode node_list: {0}".format(node_list))
     return node_list
 
-def create_service_account(self,login_name):
-    sa = v1.create_namespaced_service_account("account",k8s_client.V1ServiceAccount(metadata=k8s_client.V1ObjectMeta(name=login_name)))
+def create_service_account(login_sa_name):
+    sa = v1.create_namespaced_service_account("account",k8s_client.V1ServiceAccount(metadata=k8s_client.V1ObjectMeta(name=login_sa_name)))
     return sa
 
 def list_service_account():
