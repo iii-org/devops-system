@@ -304,7 +304,7 @@ def create_user(args):
     # gitlab software user create
     try:
         git_user = gitlab.gl_create_user(args, user_source_password)
-    except DevOpsError as e:
+    except Exception as e:
         redmine.rm_delete_user(redmine_user_id)
         raise e
     gitlab_user_id = git_user['id']
@@ -312,7 +312,7 @@ def create_user(args):
     # kubernetes service account create
     try:
         kubernetes_sa = kubernetesClient.create_service_account(login_sa_name)
-    except DevOpsError as e:
+    except Exception as e:
         redmine.rm_delete_user(redmine_user_id)
         gitlab.gl_delete_user(gitlab_user_id)
         raise e
@@ -321,7 +321,7 @@ def create_user(args):
     # Harbor user create
     try:
         harbor_user_id = harbor.hb_create_user(args)
-    except DevOpsError as e:
+    except Exception as e:
         gitlab.gl_delete_user(gitlab_user_id)
         redmine.rm_delete_user(redmine_user_id)
         raise e
