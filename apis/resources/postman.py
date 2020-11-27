@@ -3,7 +3,7 @@ from urllib.parse import urlparse
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
 
-import resources.util as util
+import util as util
 from resources import role, apiTest
 
 

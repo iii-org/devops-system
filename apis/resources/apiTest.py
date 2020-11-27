@@ -7,9 +7,8 @@ from flask_restful import reqparse, Resource
 from sqlalchemy import desc
 
 import model
-import resources.util as util
+import util as util
 from model import db
-from resources import apiError
 from resources.apiError import DevOpsError
 
 HTTP_TYPES = {"1": "request", "2": "response"}

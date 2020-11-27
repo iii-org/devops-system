@@ -39,6 +39,7 @@ class ProjectPluginRelation(db.Model):
     git_repository_id = Column(Integer, unique=True)
     ci_project_id = Column(String)
     ci_pipeline_id = Column(String)
+    harbor_project_id = Column(Integer)
 
 
 class PipelinePhase(db.Model):
@@ -143,6 +144,8 @@ class UserPluginRelation(db.Model):
     user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'), primary_key=True)
     plan_user_id = Column(Integer)
     repository_user_id = Column(Integer)
+    harbor_user_id = Column(Integer)
+    kubernetes_sa_name = Column(String)
 
 
 class Checkmarx(db.Model):

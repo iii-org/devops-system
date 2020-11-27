@@ -4,7 +4,7 @@ from sqlalchemy.orm.exc import NoResultFound
 
 import resources.apiError as apiError
 import resources.project as project
-import resources.util as util
+import util as util
 from resources import role
 from resources.redmine import redmine
 
