@@ -621,7 +621,8 @@ def modify_parameters_by_param_id(parameters_id, args):
 
 
 def get_parameters_by_issue_id(issue_id):
-    rows = model.Parameters.query.filter_by(issue_id=issue_id).filter('disabled' != False)
+    rows = model.Parameters.query.filter_by(issue_id=issue_id).filter(
+        model.Parameters.disabled.isnot(True))
     output = []
     for row in rows:
         output.append(deal_with_ParametersObject(row))
@@ -675,12 +676,12 @@ def deal_with_flow_object(sql_row):
 
 
 def get_flow_by_flow_id(flow_id):
-    f = model.Flows.query.filter_by(id=flow_id).first()
+    f = model.Flows.query.filter_by(id=flow_id).one()
     return deal_with_flow_object(f)
 
 
 def disabled_flow_by_flow_id(flow_id):
-    f = model.Flows.query.filter_by(id=flow_id)
+    f = model.Flows.query.filter_by(id=flow_id).one()
     f.disabled = True
     f.update_at = datetime.now()
     db.session.commit()
@@ -700,7 +701,7 @@ def modify_flow_by_flow_id(flow_id, args):
 
 def get_flow_by_requirement_id(requirement_id):
     rows = model.Flows.query.filter_by(requirement_id=requirement_id).filter(
-        'disabled' != False).all()
+        model.Flows.disabled.isnot(True)).all()
     output = []
     for row in rows:
         output.append(deal_with_flow_object(row))
@@ -772,7 +773,8 @@ def modify_requirement_by_rqmt_id(requirement_id, args):
 
 
 def get_requirements_by_issue_id(issue_id):
-    rows = model.Requirements.query.filter_by(issue_id=issue_id).filter('disabled' != False).all()
+    rows = model.Requirements.query.filter_by(issue_id=issue_id).filter(
+        model.Requirements.disabled.isnot(True)).all()
     output = []
     for row in rows:
         output.append(json.loads(row.flow_info))
@@ -792,7 +794,7 @@ def post_requirement_by_issue_id(issue_id, args):
 
 def get_requirements_by_project_id(project_id):
     rows = model.Requirements.query.filter_by(
-        project_id=project_id).filter('disabled' != False).all()
+        project_id=project_id).filter(model.Requirements.disabled.isnot(True)).all()
     output = []
     for row in rows:
         output.append(json.loads(row.flow_info))
