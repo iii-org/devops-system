@@ -96,7 +96,6 @@ class Redmine:
         offset = 0
         ret = []
         while True:
-            print('loop')
             res = self.__api_get(
                 '/projects', params={'limit': 100, 'offset': offset}
             ).json().get('projects')
