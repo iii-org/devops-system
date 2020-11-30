@@ -212,6 +212,7 @@ def delete_user(user_id):
     gitlab.gl_delete_user(relation.repository_user_id)
     redmine.rm_delete_user(relation.plan_user_id)
     harbor.hb_delete_user(relation.harbor_user_id)
+    kubernetesClient.delete_service_account(relation.kubernetes_sa_name)
 
     # 如果gitlab & redmine user都成功被刪除則繼續刪除db內相關tables欄位
     db.session.delete(relation)
@@ -364,6 +365,7 @@ def create_user(args):
         harbor.hb_delete_user(harbor_user_id)
         gitlab.gl_delete_user(gitlab_user_id)
         redmine.rm_delete_user(redmine_user_id)
+        kubernetesClient.delete_service_account(kubernetes_sa_name)
         raise e
 
     return util.success({"user_id": user_id})
