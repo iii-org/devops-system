@@ -53,7 +53,7 @@ def list_projects(user_id):
         pm_map[pm.id] = pm.User
 
     projects = redmine.rm_list_projects()
-    issues = redmine.rm_list_issues().get('issues')
+    issues = redmine.rm_list_issues()
 
     output_array = []
     for row in rows:
