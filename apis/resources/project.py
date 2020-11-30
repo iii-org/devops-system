@@ -52,7 +52,7 @@ def list_projects(user_id):
     for pm in pms:
         pm_map[pm.id] = pm.User
 
-    projects = redmine.rm_list_projects().get('projects')
+    projects = redmine.rm_list_projects()
     issues = redmine.rm_list_issues().get('issues')
 
     output_array = []
@@ -93,8 +93,6 @@ def list_projects(user_id):
         for pjt in projects:
             if pjt['id'] == plan_project_id:
                 updated_on = pjt['updated_on']
-                if updated_on is None:
-                    updated_on = pjt['created_on']
                 del pjt
                 break
 

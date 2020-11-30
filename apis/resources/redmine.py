@@ -93,7 +93,19 @@ class Redmine:
         self.redmine_key = output.json()['user']['api_key']
 
     def rm_list_projects(self):
-        return self.__api_get('/projects').json()
+        offset = 0
+        ret = []
+        while True:
+            print('loop')
+            res = self.__api_get(
+                '/projects', params={'limit': 100, 'offset': offset}
+            ).json().get('projects')
+            ret.extend(res)
+            if len(res) == 100:
+                offset += 100
+            else:
+                break
+        return ret
 
     def rm_get_project(self, plan_project_id):
         return self.__api_get('/projects/{0}'.format(plan_project_id),
