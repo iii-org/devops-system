@@ -77,9 +77,9 @@
 							}
 						},
 						"url": {
-							"raw": "{{server_origin}}/user/login",
+							"raw": "{{test_origin}}/user/login",
 							"host": [
-								"{{server_origin}}"
+								"{{test_origin}}"
 							],
 							"path": [
 								"user",
@@ -103,9 +103,9 @@
 									}
 								},
 								"url": {
-									"raw": "{{server_origin}}/user/login",
+									"raw": "{{test_origin}}/user/login",
 									"host": [
-										"{{server_origin}}"
+										"{{test_origin}}"
 									],
 									"path": [
 										"user",
@@ -212,9 +212,9 @@
 							}
 						},
 						"url": {
-							"raw": "{{server_origin}}/user/login",
+							"raw": "{{test_origin}}/user/login",
 							"host": [
-								"{{server_origin}}"
+								"{{test_origin}}"
 							],
 							"path": [
 								"user",
@@ -238,9 +238,9 @@
 									}
 								},
 								"url": {
-									"raw": "{{server_origin}}/user/login",
+									"raw": "{{test_origin}}/user/login",
 									"host": [
-										"{{server_origin}}"
+										"{{test_origin}}"
 									],
 									"path": [
 										"user",
@@ -347,9 +347,9 @@
 							}
 						},
 						"url": {
-							"raw": "{{server_origin}}/user/login",
+							"raw": "{{test_origin}}/user/login",
 							"host": [
-								"{{server_origin}}"
+								"{{test_origin}}"
 							],
 							"path": [
 								"user",
@@ -373,9 +373,9 @@
 									}
 								},
 								"url": {
-									"raw": "{{server_origin}}/user/login",
+									"raw": "{{test_origin}}/user/login",
 									"host": [
-										"{{server_origin}}"
+										"{{test_origin}}"
 									],
 									"path": [
 										"user",
@@ -476,9 +476,9 @@
 							}
 						},
 						"url": {
-							"raw": "{{server_origin}}/project",
+							"raw": "{{test_origin}}/project",
 							"host": [
-								"{{server_origin}}"
+								"{{test_origin}}"
 							],
 							"path": [
 								"project"
@@ -501,9 +501,9 @@
 									}
 								},
 								"url": {
-									"raw": "{{server_origin}}/project",
+									"raw": "{{test_origin}}/project",
 									"host": [
-										"{{server_origin}}"
+										"{{test_origin}}"
 									],
 									"path": [
 										"project"
@@ -582,9 +582,9 @@
 							}
 						},
 						"url": {
-							"raw": "{{server_origin}}/project/{{project_id}}/member",
+							"raw": "{{test_origin}}/project/{{project_id}}/member",
 							"host": [
-								"{{server_origin}}"
+								"{{test_origin}}"
 							],
 							"path": [
 								"project",
@@ -610,9 +610,9 @@
 									}
 								},
 								"url": {
-									"raw": "{{server_origin}}/project/{{project_id}}/member",
+									"raw": "{{test_origin}}/project/{{project_id}}/member",
 									"host": [
-										"{{server_origin}}"
+										"{{test_origin}}"
 									],
 									"path": [
 										"project",
@@ -694,9 +694,9 @@
 							}
 						},
 						"url": {
-							"raw": "{{server_origin}}/project/{{project_id}}/version",
+							"raw": "{{test_origin}}/project/{{project_id}}/version",
 							"host": [
-								"{{server_origin}}"
+								"{{test_origin}}"
 							],
 							"path": [
 								"project",
@@ -721,9 +721,9 @@
 									}
 								},
 								"url": {
-									"raw": "{{server_origin}}/project/{{project_id}}/version",
+									"raw": "{{test_origin}}/project/{{project_id}}/version",
 									"host": [
-										"{{server_origin}}"
+										"{{test_origin}}"
 									],
 									"path": [
 										"project",
@@ -873,9 +873,9 @@
 							}
 						},
 						"url": {
-							"raw": "{{server_origin}}/issues",
+							"raw": "{{test_origin}}/issues",
 							"host": [
-								"{{server_origin}}"
+								"{{test_origin}}"
 							],
 							"path": [
 								"issues"
@@ -899,9 +899,9 @@
 									}
 								},
 								"url": {
-									"raw": "{{server_origin}}/issues",
+									"raw": "{{test_origin}}/issues",
 									"host": [
-										"{{server_origin}}"
+										"{{test_origin}}"
 									],
 									"path": [
 										"issues"
@@ -1001,9 +1001,9 @@
 								"method": "GET",
 								"header": [],
 								"url": {
-									"raw": "{{server_origin}}/project/list",
+									"raw": "{{test_origin}}/project/list",
 									"host": [
-										"{{server_origin}}"
+										"{{test_origin}}"
 									],
 									"path": [
 										"project",
@@ -1067,9 +1067,9 @@
 									}
 								},
 								"url": {
-									"raw": "{{server_origin}}/project/{{project_id}}",
+									"raw": "{{test_origin}}/project/{{project_id}}",
 									"host": [
-										"{{server_origin}}"
+										"{{test_origin}}"
 									],
 									"path": [
 										"project",
@@ -1110,9 +1110,9 @@
 								"method": "GET",
 								"header": [],
 								"url": {
-									"raw": "{{server_origin}}/project/{{project_id}}",
+									"raw": "{{test_origin}}/project/{{project_id}}",
 									"host": [
-										"{{server_origin}}"
+										"{{test_origin}}"
 									],
 									"path": [
 										"project",
@@ -1127,9 +1127,9 @@
 										"method": "GET",
 										"header": [],
 										"url": {
-											"raw": "{{server_origin}}/project/{{project_id}}",
+											"raw": "{{test_origin}}/project/{{project_id}}",
 											"host": [
-												"{{server_origin}}"
+												"{{test_origin}}"
 											],
 											"path": [
 												"project",
@@ -1197,9 +1197,9 @@
 								"method": "GET",
 								"header": [],
 								"url": {
-									"raw": "{{server_origin}}/projects_by_user/{{user_id}}",
+									"raw": "{{test_origin}}/projects_by_user/{{user_id}}",
 									"host": [
-										"{{server_origin}}"
+										"{{test_origin}}"
 									],
 									"path": [
 										"projects_by_user",
@@ -1214,9 +1214,9 @@
 										"method": "GET",
 										"header": [],
 										"url": {
-											"raw": "{{server_origin}}/projects_by_user/{{user_id}}",
+											"raw": "{{test_origin}}/projects_by_user/{{user_id}}",
 											"host": [
-												"{{server_origin}}"
+												"{{test_origin}}"
 											],
 											"path": [
 												"projects_by_user",
@@ -1287,9 +1287,9 @@
 								"method": "GET",
 								"header": [],
 								"url": {
-									"raw": "{{server_origin}}/project/{{project_id}}/user/list",
+									"raw": "{{test_origin}}/project/{{project_id}}/user/list",
 									"host": [
-										"{{server_origin}}"
+										"{{test_origin}}"
 									],
 									"path": [
 										"project",
@@ -1306,9 +1306,9 @@
 										"method": "GET",
 										"header": [],
 										"url": {
-											"raw": "{{server_origin}}/project/{{project_id}}/user/list",
+											"raw": "{{test_origin}}/project/{{project_id}}/user/list",
 											"host": [
-												"{{server_origin}}"
+												"{{test_origin}}"
 											],
 											"path": [
 												"project",
@@ -1472,9 +1472,9 @@
 								"method": "GET",
 								"header": [],
 								"url": {
-									"raw": "{{server_origin}}/projects_by_user/{{user_id}}",
+									"raw": "{{test_origin}}/projects_by_user/{{user_id}}",
 									"host": [
-										"{{server_origin}}"
+										"{{test_origin}}"
 									],
 									"path": [
 										"projects_by_user",
@@ -1489,9 +1489,9 @@
 										"method": "GET",
 										"header": [],
 										"url": {
-											"raw": "{{server_origin}}/projects_by_user/{{user_id}}",
+											"raw": "{{test_origin}}/projects_by_user/{{user_id}}",
 											"host": [
-												"{{server_origin}}"
+												"{{test_origin}}"
 											],
 											"path": [
 												"projects_by_user",
@@ -1559,9 +1559,9 @@
 								"method": "GET",
 								"header": [],
 								"url": {
-									"raw": "{{server_origin}}/project/{{project_id}}/test_summary",
+									"raw": "{{test_origin}}/project/{{project_id}}/test_summary",
 									"host": [
-										"{{server_origin}}"
+										"{{test_origin}}"
 									],
 									"path": [
 										"project",
@@ -1577,9 +1577,9 @@
 										"method": "GET",
 										"header": [],
 										"url": {
-											"raw": "{{server_origin}}/project/{{project_id}}/test_summary",
+											"raw": "{{test_origin}}/project/{{project_id}}/test_summary",
 											"host": [
-												"{{server_origin}}"
+												"{{test_origin}}"
 											],
 											"path": [
 												"project",
@@ -1638,9 +1638,9 @@
 								"method": "GET",
 								"header": [],
 								"url": {
-									"raw": "{{server_origin}}/project/{{project_id}}/user/list",
+									"raw": "{{test_origin}}/project/{{project_id}}/user/list",
 									"host": [
-										"{{server_origin}}"
+										"{{test_origin}}"
 									],
 									"path": [
 										"project",
@@ -1657,9 +1657,9 @@
 										"method": "GET",
 										"header": [],
 										"url": {
-											"raw": "{{server_origin}}/project/{{project_id}}/user/list",
+											"raw": "{{test_origin}}/project/{{project_id}}/user/list",
 											"host": [
-												"{{server_origin}}"
+												"{{test_origin}}"
 											],
 											"path": [
 												"project",
@@ -1730,9 +1730,9 @@
 								"method": "GET",
 								"header": [],
 								"url": {
-									"raw": "{{server_origin}}/project/{{project_id}}/user/list?exclude=1",
+									"raw": "{{test_origin}}/project/{{project_id}}/user/list?exclude=1",
 									"host": [
-										"{{server_origin}}"
+										"{{test_origin}}"
 									],
 									"path": [
 										"project",
@@ -1755,9 +1755,9 @@
 										"method": "GET",
 										"header": [],
 										"url": {
-											"raw": "{{server_origin}}/project/{{project_id}}/user/list?exclude=1",
+											"raw": "{{test_origin}}/project/{{project_id}}/user/list?exclude=1",
 											"host": [
-												"{{server_origin}}"
+												"{{test_origin}}"
 											],
 											"path": [
 												"project",
@@ -1833,9 +1833,9 @@
 								"method": "GET",
 								"header": [],
 								"url": {
-									"raw": "{{server_origin}}/project/{{project_id}}/version/list",
+									"raw": "{{test_origin}}/project/{{project_id}}/version/list",
 									"host": [
-										"{{server_origin}}"
+										"{{test_origin}}"
 									],
 									"path": [
 										"project",
@@ -1852,9 +1852,9 @@
 										"method": "GET",
 										"header": [],
 										"url": {
-											"raw": "{{server_origin}}/project/{{project_id}}/version/list",
+											"raw": "{{test_origin}}/project/{{project_id}}/version/list",
 											"host": [
-												"{{server_origin}}"
+												"{{test_origin}}"
 											],
 											"path": [
 												"project",
@@ -1924,9 +1924,9 @@
 								"method": "GET",
 								"header": [],
 								"url": {
-									"raw": "{{server_origin}}/project/{{project_id}}/version/{{version_id}}",
+									"raw": "{{test_origin}}/project/{{project_id}}/version/{{version_id}}",
 									"host": [
-										"{{server_origin}}"
+										"{{test_origin}}"
 									],
 									"path": [
 										"project",
@@ -1943,9 +1943,9 @@
 										"method": "GET",
 										"header": [],
 										"url": {
-											"raw": "{{server_origin}}/project/{{project_id}}/version/{{version_id}}",
+											"raw": "{{test_origin}}/project/{{project_id}}/version/{{version_id}}",
 											"host": [
-												"{{server_origin}}"
+												"{{test_origin}}"
 											],
 											"path": [
 												"project",
@@ -2072,9 +2072,9 @@
 									}
 								},
 								"url": {
-									"raw": "{{server_origin}}/project/{{project_id}}/version/{{version_id}}",
+									"raw": "{{test_origin}}/project/{{project_id}}/version/{{version_id}}",
 									"host": [
-										"{{server_origin}}"
+										"{{test_origin}}"
 									],
 									"path": [
 										"project",
@@ -2100,9 +2100,9 @@
 											}
 										},
 										"url": {
-											"raw": "{{server_origin}}/project/{{project_id}}/version/{{version_id}}",
+											"raw": "{{test_origin}}/project/{{project_id}}/version/{{version_id}}",
 											"host": [
-												"{{server_origin}}"
+												"{{test_origin}}"
 											],
 											"path": [
 												"project",
@@ -2204,9 +2204,9 @@
 											}
 										},
 										"url": {
-											"raw": "{{server_origin}}/project/{{project_id}}/issues_by_tree",
+											"raw": "{{test_origin}}/project/{{project_id}}/issues_by_tree",
 											"host": [
-												"{{server_origin}}"
+												"{{test_origin}}"
 											],
 											"path": [
 												"project",
@@ -2229,9 +2229,9 @@
 													}
 												},
 												"url": {
-													"raw": "{{server_origin}}/project/{{project_id}}/issues_by_tree",
+													"raw": "{{test_origin}}/project/{{project_id}}/issues_by_tree",
 													"host": [
-														"{{server_origin}}"
+														"{{test_origin}}"
 													],
 													"path": [
 														"project",
@@ -2310,9 +2310,9 @@
 											}
 										},
 										"url": {
-											"raw": "{{server_origin}}/project/{{project_id}}/issues_by_date",
+											"raw": "{{test_origin}}/project/{{project_id}}/issues_by_date",
 											"host": [
-												"{{server_origin}}"
+												"{{test_origin}}"
 											],
 											"path": [
 												"project",
@@ -2335,9 +2335,9 @@
 													}
 												},
 												"url": {
-													"raw": "{{server_origin}}/project/{{project_id}}/issues_by_date",
+													"raw": "{{test_origin}}/project/{{project_id}}/issues_by_date",
 													"host": [
-														"{{server_origin}}"
+														"{{test_origin}}"
 													],
 													"path": [
 														"project",
@@ -2416,9 +2416,9 @@
 											}
 										},
 										"url": {
-											"raw": "{{server_origin}}/project/{{project_id}}/issues_by_status",
+											"raw": "{{test_origin}}/project/{{project_id}}/issues_by_status",
 											"host": [
-												"{{server_origin}}"
+												"{{test_origin}}"
 											],
 											"path": [
 												"project",
@@ -2449,9 +2449,9 @@
 													}
 												},
 												"url": {
-													"raw": "{{server_origin}}/project/{{project_id}}/issues_by_status",
+													"raw": "{{test_origin}}/project/{{project_id}}/issues_by_status",
 													"host": [
-														"{{server_origin}}"
+														"{{test_origin}}"
 													],
 													"path": [
 														"project",
@@ -2520,9 +2520,9 @@
 											}
 										},
 										"url": {
-											"raw": "{{server_origin}}/project/{{project_id}}/issues?fixed_version_id={{version_id}}",
+											"raw": "{{test_origin}}/project/{{project_id}}/issues?fixed_version_id={{version_id}}",
 											"host": [
-												"{{server_origin}}"
+												"{{test_origin}}"
 											],
 											"path": [
 												"project",
@@ -2551,9 +2551,9 @@
 													}
 												},
 												"url": {
-													"raw": "{{server_origin}}/project/{{project_id}}/issues?fixed_version_id={{version_id}}",
+													"raw": "{{test_origin}}/project/{{project_id}}/issues?fixed_version_id={{version_id}}",
 													"host": [
-														"{{server_origin}}"
+														"{{test_origin}}"
 													],
 													"path": [
 														"project",
@@ -2619,9 +2619,9 @@
 										"method": "GET",
 										"header": [],
 										"url": {
-											"raw": "{{server_origin}}/issues_by_user/rd/{{user_id}}",
+											"raw": "{{test_origin}}/issues_by_user/rd/{{user_id}}",
 											"host": [
-												"{{server_origin}}"
+												"{{test_origin}}"
 											],
 											"path": [
 												"issues_by_user",
@@ -2638,9 +2638,9 @@
 												"method": "GET",
 												"header": [],
 												"url": {
-													"raw": "{{server_origin}}/issues_by_user/rd/{{user_id}}",
+													"raw": "{{test_origin}}/issues_by_user/rd/{{user_id}}",
 													"host": [
-														"{{server_origin}}"
+														"{{test_origin}}"
 													],
 													"path": [
 														"issues_by_user",
@@ -2709,9 +2709,9 @@
 											}
 										},
 										"url": {
-											"raw": "{{server_origin}}/project/{{project_id}}/issues?fixed_version_id={{version_id}}",
+											"raw": "{{test_origin}}/project/{{project_id}}/issues?fixed_version_id={{version_id}}",
 											"host": [
-												"{{server_origin}}"
+												"{{test_origin}}"
 											],
 											"path": [
 												"project",
@@ -2764,9 +2764,9 @@
 										"method": "GET",
 										"header": [],
 										"url": {
-											"raw": "{{server_origin}}/project/{{project_id}}/issues_statistics",
+											"raw": "{{test_origin}}/project/{{project_id}}/issues_statistics",
 											"host": [
-												"{{server_origin}}"
+												"{{test_origin}}"
 											],
 											"path": [
 												"project",
@@ -2782,9 +2782,9 @@
 												"method": "GET",
 												"header": [],
 												"url": {
-													"raw": "{{server_origin}}/project/{{project_id}}/issues_statistics",
+													"raw": "{{test_origin}}/project/{{project_id}}/issues_statistics",
 													"host": [
-														"{{server_origin}}"
+														"{{test_origin}}"
 													],
 													"path": [
 														"project",
@@ -2843,9 +2843,9 @@
 										"method": "GET",
 										"header": [],
 										"url": {
-											"raw": "{{server_origin}}/project/{{project_id}}/issues_progress",
+											"raw": "{{test_origin}}/project/{{project_id}}/issues_progress",
 											"host": [
-												"{{server_origin}}"
+												"{{test_origin}}"
 											],
 											"path": [
 												"project",
@@ -2861,9 +2861,9 @@
 												"method": "GET",
 												"header": [],
 												"url": {
-													"raw": "{{server_origin}}/project/{{project_id}}/issues_progress",
+													"raw": "{{test_origin}}/project/{{project_id}}/issues_progress",
 													"host": [
-														"{{server_origin}}"
+														"{{test_origin}}"
 													],
 													"path": [
 														"project",
@@ -2923,9 +2923,9 @@
 										"method": "GET",
 										"header": [],
 										"url": {
-											"raw": "{{server_origin}}/dashboard_issues_priority/rd/{{user_id}}",
+											"raw": "{{test_origin}}/dashboard_issues_priority/rd/{{user_id}}",
 											"host": [
-												"{{server_origin}}"
+												"{{test_origin}}"
 											],
 											"path": [
 												"dashboard_issues_priority",
@@ -2941,9 +2941,9 @@
 												"method": "GET",
 												"header": [],
 												"url": {
-													"raw": "{{server_origin}}/dashboard_issues_priority/rd/{{user_id}}",
+													"raw": "{{test_origin}}/dashboard_issues_priority/rd/{{user_id}}",
 													"host": [
-														"{{server_origin}}"
+														"{{test_origin}}"
 													],
 													"path": [
 														"dashboard_issues_priority",
@@ -3003,9 +3003,9 @@
 										"method": "GET",
 										"header": [],
 										"url": {
-											"raw": "{{server_origin}}/dashboard_issues_type/{{user_id}}",
+											"raw": "{{test_origin}}/dashboard_issues_type/{{user_id}}",
 											"host": [
-												"{{server_origin}}"
+												"{{test_origin}}"
 											],
 											"path": [
 												"dashboard_issues_type",
@@ -3025,9 +3025,9 @@
 													}
 												],
 												"url": {
-													"raw": "{{server_origin}}/dashboard_issues_type/{{user_id}}",
+													"raw": "{{test_origin}}/dashboard_issues_type/{{user_id}}",
 													"host": [
-														"{{server_origin}}"
+														"{{test_origin}}"
 													],
 													"path": [
 														"dashboard_issues_type",
@@ -3086,9 +3086,9 @@
 										"method": "GET",
 										"header": [],
 										"url": {
-											"raw": "{{server_origin}}/dashboard_issues_project/{{user_id}}",
+											"raw": "{{test_origin}}/dashboard_issues_project/{{user_id}}",
 											"host": [
-												"{{server_origin}}"
+												"{{test_origin}}"
 											],
 											"path": [
 												"dashboard_issues_project",
@@ -3174,9 +3174,9 @@
 										"method": "GET",
 										"header": [],
 										"url": {
-											"raw": "{{server_origin}}/issues/open_statistics",
+											"raw": "{{test_origin}}/issues/open_statistics",
 											"host": [
-												"{{server_origin}}"
+												"{{test_origin}}"
 											],
 											"path": [
 												"issues",
@@ -3191,9 +3191,9 @@
 												"method": "GET",
 												"header": [],
 												"url": {
-													"raw": "{{server_origin}}/issues/open_statistics",
+													"raw": "{{test_origin}}/issues/open_statistics",
 													"host": [
-														"{{server_origin}}"
+														"{{test_origin}}"
 													],
 													"path": [
 														"issues",
@@ -3260,9 +3260,9 @@
 										"method": "GET",
 										"header": [],
 										"url": {
-											"raw": "{{server_origin}}/issues/week_statistics",
+											"raw": "{{test_origin}}/issues/week_statistics",
 											"host": [
-												"{{server_origin}}"
+												"{{test_origin}}"
 											],
 											"path": [
 												"issues",
@@ -3277,9 +3277,9 @@
 												"method": "GET",
 												"header": [],
 												"url": {
-													"raw": "{{server_origin}}/issues/week_statistics",
+													"raw": "{{test_origin}}/issues/week_statistics",
 													"host": [
-														"{{server_origin}}"
+														"{{test_origin}}"
 													],
 													"path": [
 														"issues",
@@ -3346,9 +3346,9 @@
 										"method": "GET",
 										"header": [],
 										"url": {
-											"raw": "{{server_origin}}/issues/month_statistics",
+											"raw": "{{test_origin}}/issues/month_statistics",
 											"host": [
-												"{{server_origin}}"
+												"{{test_origin}}"
 											],
 											"path": [
 												"issues",
@@ -3363,9 +3363,9 @@
 												"method": "GET",
 												"header": [],
 												"url": {
-													"raw": "{{server_origin}}/issues/month_statistics",
+													"raw": "{{test_origin}}/issues/month_statistics",
 													"host": [
-														"{{server_origin}}"
+														"{{test_origin}}"
 													],
 													"path": [
 														"issues",
@@ -3423,9 +3423,9 @@
 										"method": "GET",
 										"header": [],
 										"url": {
-											"raw": "{{server_origin}}/dashboard_issues_priority/rd/{{user_id}}",
+											"raw": "{{test_origin}}/dashboard_issues_priority/rd/{{user_id}}",
 											"host": [
-												"{{server_origin}}"
+												"{{test_origin}}"
 											],
 											"path": [
 												"dashboard_issues_priority",
@@ -3441,9 +3441,9 @@
 												"method": "GET",
 												"header": [],
 												"url": {
-													"raw": "{{server_origin}}/dashboard_issues_priority/rd/{{user_id}}",
+													"raw": "{{test_origin}}/dashboard_issues_priority/rd/{{user_id}}",
 													"host": [
-														"{{server_origin}}"
+														"{{test_origin}}"
 													],
 													"path": [
 														"dashboard_issues_priority",
@@ -3502,9 +3502,9 @@
 										"method": "GET",
 										"header": [],
 										"url": {
-											"raw": "{{server_origin}}/project/{{project_id}}/issues_progress/all_version",
+											"raw": "{{test_origin}}/project/{{project_id}}/issues_progress/all_version",
 											"host": [
-												"{{server_origin}}"
+												"{{test_origin}}"
 											],
 											"path": [
 												"project",
@@ -3521,9 +3521,9 @@
 												"method": "GET",
 												"header": [],
 												"url": {
-													"raw": "{{server_origin}}/project/{{project_id}}/issues_progress/all_version",
+													"raw": "{{test_origin}}/project/{{project_id}}/issues_progress/all_version",
 													"host": [
-														"{{server_origin}}"
+														"{{test_origin}}"
 													],
 													"path": [
 														"project",
@@ -3583,9 +3583,9 @@
 										"method": "GET",
 										"header": [],
 										"url": {
-											"raw": "{{server_origin}}/project/{{project_id}}/issues_progress?fixed_version_id={{version_id}}",
+											"raw": "{{test_origin}}/project/{{project_id}}/issues_progress?fixed_version_id={{version_id}}",
 											"host": [
-												"{{server_origin}}"
+												"{{test_origin}}"
 											],
 											"path": [
 												"project",
@@ -3608,9 +3608,9 @@
 												"method": "GET",
 												"header": [],
 												"url": {
-													"raw": "{{server_origin}}/project/{{project_id}}/issues_progress?fixed_version_id={{version_id}}",
+													"raw": "{{test_origin}}/project/{{project_id}}/issues_progress?fixed_version_id={{version_id}}",
 													"host": [
-														"{{server_origin}}"
+														"{{test_origin}}"
 													],
 													"path": [
 														"project",
@@ -3684,9 +3684,9 @@
 										"method": "GET",
 										"header": [],
 										"url": {
-											"raw": "{{server_origin}}/project/{{project_id}}/issues_statistics?fixed_version_id={{version_id}}",
+											"raw": "{{test_origin}}/project/{{project_id}}/issues_statistics?fixed_version_id={{version_id}}",
 											"host": [
-												"{{server_origin}}"
+												"{{test_origin}}"
 											],
 											"path": [
 												"project",
@@ -3708,9 +3708,9 @@
 												"method": "GET",
 												"header": [],
 												"url": {
-													"raw": "{{server_origin}}/project/{{project_id}}/issues_statistics?fixed_version_id={{version_id}}",
+													"raw": "{{test_origin}}/project/{{project_id}}/issues_statistics?fixed_version_id={{version_id}}",
 													"host": [
-														"{{server_origin}}"
+														"{{test_origin}}"
 													],
 													"path": [
 														"project",
@@ -3782,9 +3782,9 @@
 										"method": "GET",
 										"header": [],
 										"url": {
-											"raw": "{{server_origin}}/issues_tracker",
+											"raw": "{{test_origin}}/issues_tracker",
 											"host": [
-												"{{server_origin}}"
+												"{{test_origin}}"
 											],
 											"path": [
 												"issues_tracker"
@@ -3798,9 +3798,9 @@
 												"method": "GET",
 												"header": [],
 												"url": {
-													"raw": "{{server_origin}}/issues_tracker",
+													"raw": "{{test_origin}}/issues_tracker",
 													"host": [
-														"{{server_origin}}"
+														"{{test_origin}}"
 													],
 													"path": [
 														"issues_tracker"
@@ -3857,9 +3857,9 @@
 										"method": "GET",
 										"header": [],
 										"url": {
-											"raw": "{{server_origin}}/issues_status",
+											"raw": "{{test_origin}}/issues_status",
 											"host": [
-												"{{server_origin}}"
+												"{{test_origin}}"
 											],
 											"path": [
 												"issues_status"
@@ -3873,9 +3873,9 @@
 												"method": "GET",
 												"header": [],
 												"url": {
-													"raw": "{{server_origin}}/issues_status",
+													"raw": "{{test_origin}}/issues_status",
 													"host": [
-														"{{server_origin}}"
+														"{{test_origin}}"
 													],
 													"path": [
 														"issues_status"
@@ -3932,9 +3932,9 @@
 										"method": "GET",
 										"header": [],
 										"url": {
-											"raw": "{{server_origin}}/issues_priority",
+											"raw": "{{test_origin}}/issues_priority",
 											"host": [
-												"{{server_origin}}"
+												"{{test_origin}}"
 											],
 											"path": [
 												"issues_priority"
@@ -3948,9 +3948,9 @@
 												"method": "GET",
 												"header": [],
 												"url": {
-													"raw": "{{server_origin}}/issues_priority",
+													"raw": "{{test_origin}}/issues_priority",
 													"host": [
-														"{{server_origin}}"
+														"{{test_origin}}"
 													],
 													"path": [
 														"issues_priority"
@@ -4023,9 +4023,9 @@
 									}
 								},
 								"url": {
-									"raw": "{{server_origin}}/issues/{{issue_id}}",
+									"raw": "{{test_origin}}/issues/{{issue_id}}",
 									"host": [
-										"{{server_origin}}"
+										"{{test_origin}}"
 									],
 									"path": [
 										"issues",
@@ -4049,9 +4049,9 @@
 											}
 										},
 										"url": {
-											"raw": "{{server_origin}}/issues/{{issue_id}}",
+											"raw": "{{test_origin}}/issues/{{issue_id}}",
 											"host": [
-												"{{server_origin}}"
+												"{{test_origin}}"
 											],
 											"path": [
 												"issues",
@@ -4119,9 +4119,9 @@
 									}
 								},
 								"url": {
-									"raw": "{{server_origin}}/dump_by_issue/{{issue_id}}",
+									"raw": "{{test_origin}}/dump_by_issue/{{issue_id}}",
 									"host": [
-										"{{server_origin}}"
+										"{{test_origin}}"
 									],
 									"path": [
 										"dump_by_issue",
@@ -4137,9 +4137,9 @@
 										"method": "GET",
 										"header": [],
 										"url": {
-											"raw": "{{server_origin}}/dump_by_issue/{{issue_id_to_dump}}",
+											"raw": "{{test_origin}}/dump_by_issue/{{issue_id_to_dump}}",
 											"host": [
-												"{{server_origin}}"
+												"{{test_origin}}"
 											],
 											"path": [
 												"dump_by_issue",
@@ -4206,9 +4206,9 @@
 									}
 								},
 								"url": {
-									"raw": "{{server_origin}}/issues/{{issue_id}}",
+									"raw": "{{test_origin}}/issues/{{issue_id}}",
 									"host": [
-										"{{server_origin}}"
+										"{{test_origin}}"
 									],
 									"path": [
 										"issues",
@@ -4232,9 +4232,9 @@
 											}
 										},
 										"url": {
-											"raw": "{{server_origin}}/issues/{{issue_id}}",
+											"raw": "{{test_origin}}/issues/{{issue_id}}",
 											"host": [
-												"{{server_origin}}"
+												"{{test_origin}}"
 											],
 											"path": [
 												"issues",
@@ -4320,9 +4320,9 @@
 									}
 								},
 								"url": {
-									"raw": "{{server_origin}}/flows_by_issue/{{issue_id}}",
+									"raw": "{{test_origin}}/flows_by_issue/{{issue_id}}",
 									"host": [
-										"{{server_origin}}"
+										"{{test_origin}}"
 									],
 									"path": [
 										"flows_by_issue",
@@ -4347,9 +4347,9 @@
 											}
 										},
 										"url": {
-											"raw": "{{server_origin}}/flows_by_issue/{{issue_id}}",
+											"raw": "{{test_origin}}/flows_by_issue/{{issue_id}}",
 											"host": [
-												"{{server_origin}}"
+												"{{test_origin}}"
 											],
 											"path": [
 												"flows_by_issue",
@@ -4428,9 +4428,9 @@
 									}
 								},
 								"url": {
-									"raw": "{{server_origin}}/flows_by_issue/{{issue_id}}",
+									"raw": "{{test_origin}}/flows_by_issue/{{issue_id}}",
 									"host": [
-										"{{server_origin}}"
+										"{{test_origin}}"
 									],
 									"path": [
 										"flows_by_issue",
@@ -4455,9 +4455,9 @@
 											}
 										},
 										"url": {
-											"raw": "{{server_origin}}/flows_by_issue/{{issue_id}}",
+											"raw": "{{test_origin}}/flows_by_issue/{{issue_id}}",
 											"host": [
-												"{{server_origin}}"
+												"{{test_origin}}"
 											],
 											"path": [
 												"flows_by_issue",
@@ -4524,9 +4524,9 @@
 									}
 								},
 								"url": {
-									"raw": "{{server_origin}}/flows/{{flow_id}}",
+									"raw": "{{test_origin}}/flows/{{flow_id}}",
 									"host": [
-										"{{server_origin}}"
+										"{{test_origin}}"
 									],
 									"path": [
 										"flows",
@@ -4551,9 +4551,9 @@
 											}
 										},
 										"url": {
-											"raw": "{{server_origin}}/flows/{{flow_id}}",
+											"raw": "{{test_origin}}/flows/{{flow_id}}",
 											"host": [
-												"{{server_origin}}"
+												"{{test_origin}}"
 											],
 											"path": [
 												"flows",
@@ -4618,9 +4618,9 @@
 									}
 								},
 								"url": {
-									"raw": "{{server_origin}}/flows/{{flow_id}}",
+									"raw": "{{test_origin}}/flows/{{flow_id}}",
 									"host": [
-										"{{server_origin}}"
+										"{{test_origin}}"
 									],
 									"path": [
 										"flows",
@@ -4643,9 +4643,9 @@
 											}
 										},
 										"url": {
-											"raw": "{{server_origin}}/flows/{{flow_id}}",
+											"raw": "{{test_origin}}/flows/{{flow_id}}",
 											"host": [
-												"{{server_origin}}"
+												"{{test_origin}}"
 											],
 											"path": [
 												"flows",
@@ -4740,9 +4740,9 @@
 									}
 								},
 								"url": {
-									"raw": "{{server_origin}}/testCases_by_project/{{project_id}}",
+									"raw": "{{test_origin}}/testCases_by_project/{{project_id}}",
 									"host": [
-										"{{server_origin}}"
+										"{{test_origin}}"
 									],
 									"path": [
 										"testCases_by_project",
@@ -4789,9 +4789,9 @@
 									}
 								},
 								"url": {
-									"raw": "{{server_origin}}/testCases_by_project/{{project_id}}",
+									"raw": "{{test_origin}}/testCases_by_project/{{project_id}}",
 									"host": [
-										"{{server_origin}}"
+										"{{test_origin}}"
 									],
 									"path": [
 										"testCases_by_project",
@@ -4829,9 +4829,9 @@
 									}
 								},
 								"url": {
-									"raw": "{{server_origin}}/testCases_by_issue/{{issue_id}}",
+									"raw": "{{test_origin}}/testCases_by_issue/{{issue_id}}",
 									"host": [
-										"{{server_origin}}"
+										"{{test_origin}}"
 									],
 									"path": [
 										"testCases_by_issue",
@@ -4878,9 +4878,9 @@
 									}
 								},
 								"url": {
-									"raw": "{{server_origin}}/testCases_by_issue/{{issue_id}}",
+									"raw": "{{test_origin}}/testCases_by_issue/{{issue_id}}",
 									"host": [
-										"{{server_origin}}"
+										"{{test_origin}}"
 									],
 									"path": [
 										"testCases_by_issue",
@@ -4965,9 +4965,9 @@
 								"method": "GET",
 								"header": [],
 								"url": {
-									"raw": "{{server_origin}}/project/{{project_id}}/wiki",
+									"raw": "{{test_origin}}/project/{{project_id}}/wiki",
 									"host": [
-										"{{server_origin}}"
+										"{{test_origin}}"
 									],
 									"path": [
 										"project",
@@ -4983,9 +4983,9 @@
 										"method": "GET",
 										"header": [],
 										"url": {
-											"raw": "{{server_origin}}/project/{{project_id}}/wiki",
+											"raw": "{{test_origin}}/project/{{project_id}}/wiki",
 											"host": [
-												"{{server_origin}}"
+												"{{test_origin}}"
 											],
 											"path": [
 												"project",
@@ -5057,9 +5057,9 @@
 									}
 								},
 								"url": {
-									"raw": "{{server_origin}}/project/{{project_id}}/wiki/auto_test_wiki",
+									"raw": "{{test_origin}}/project/{{project_id}}/wiki/auto_test_wiki",
 									"host": [
-										"{{server_origin}}"
+										"{{test_origin}}"
 									],
 									"path": [
 										"project",
@@ -5085,9 +5085,9 @@
 											}
 										},
 										"url": {
-											"raw": "{{server_origin}}/project/{{project_id}}/wiki/{{wiki.title}}",
+											"raw": "{{test_origin}}/project/{{project_id}}/wiki/{{wiki.title}}",
 											"host": [
-												"{{server_origin}}"
+												"{{test_origin}}"
 											],
 											"path": [
 												"project",
@@ -5156,9 +5156,9 @@
 								"method": "DELETE",
 								"header": [],
 								"url": {
-									"raw": "{{server_origin}}/project/{{project_id}}/wiki/auto_test_wiki",
+									"raw": "{{test_origin}}/project/{{project_id}}/wiki/auto_test_wiki",
 									"host": [
-										"{{server_origin}}"
+										"{{test_origin}}"
 									],
 									"path": [
 										"project",
@@ -5176,9 +5176,9 @@
 										"method": "DELETE",
 										"header": [],
 										"url": {
-											"raw": "{{server_origin}}/project/{{project_id}}/wiki/{{wiki.title}}",
+											"raw": "{{test_origin}}/project/{{project_id}}/wiki/{{wiki.title}}",
 											"host": [
-												"{{server_origin}}"
+												"{{test_origin}}"
 											],
 											"path": [
 												"project",
@@ -5327,9 +5327,9 @@
 											}
 										},
 										"url": {
-											"raw": "{{server_origin}}/repositories/{{repository_id}}/branches",
+											"raw": "{{test_origin}}/repositories/{{repository_id}}/branches",
 											"host": [
-												"{{server_origin}}"
+												"{{test_origin}}"
 											],
 											"path": [
 												"repositories",
@@ -5365,9 +5365,9 @@
 													}
 												},
 												"url": {
-													"raw": "{{server_origin}}/repositories/{{repository_id}}/branches",
+													"raw": "{{test_origin}}/repositories/{{repository_id}}/branches",
 													"host": [
-														"{{server_origin}}"
+														"{{test_origin}}"
 													],
 													"path": [
 														"repositories",
@@ -5426,9 +5426,9 @@
 										"method": "GET",
 										"header": [],
 										"url": {
-											"raw": "{{server_origin}}/repositories/{{repository_id}}/branches",
+											"raw": "{{test_origin}}/repositories/{{repository_id}}/branches",
 											"host": [
-												"{{server_origin}}"
+												"{{test_origin}}"
 											],
 											"path": [
 												"repositories",
@@ -5444,9 +5444,9 @@
 												"method": "GET",
 												"header": [],
 												"url": {
-													"raw": "{{server_origin}}/repositories/{{repository_id}}/branches",
+													"raw": "{{test_origin}}/repositories/{{repository_id}}/branches",
 													"host": [
-														"{{server_origin}}"
+														"{{test_origin}}"
 													],
 													"path": [
 														"repositories",
@@ -5505,9 +5505,9 @@
 										"method": "GET",
 										"header": [],
 										"url": {
-											"raw": "{{server_origin}}/repositories/rd/{{repository_id}}/branch/new-branch",
+											"raw": "{{test_origin}}/repositories/rd/{{repository_id}}/branch/new-branch",
 											"host": [
-												"{{server_origin}}"
+												"{{test_origin}}"
 											],
 											"path": [
 												"repositories",
@@ -5525,9 +5525,9 @@
 												"method": "GET",
 												"header": [],
 												"url": {
-													"raw": "{{server_origin}}/repositories/rd/{{repository_id}}/branch/{{branch_name}}",
+													"raw": "{{test_origin}}/repositories/rd/{{repository_id}}/branch/{{branch_name}}",
 													"host": [
-														"{{server_origin}}"
+														"{{test_origin}}"
 													],
 													"path": [
 														"repositories",
@@ -5588,9 +5588,9 @@
 										"method": "DELETE",
 										"header": [],
 										"url": {
-											"raw": "{{server_origin}}/repositories/rd/{{repository_id}}/branch/new-branch",
+											"raw": "{{test_origin}}/repositories/rd/{{repository_id}}/branch/new-branch",
 											"host": [
-												"{{server_origin}}"
+												"{{test_origin}}"
 											],
 											"path": [
 												"repositories",
@@ -5608,9 +5608,9 @@
 												"method": "DELETE",
 												"header": [],
 												"url": {
-													"raw": "{{server_origin}}/repositories/rd/{{repository_id}}/branch/{{new_branch_name}}",
+													"raw": "{{test_origin}}/repositories/rd/{{repository_id}}/branch/{{new_branch_name}}",
 													"host": [
-														"{{server_origin}}"
+														"{{test_origin}}"
 													],
 													"path": [
 														"repositories",
@@ -5655,9 +5655,9 @@
 												"method": "DELETE",
 												"header": [],
 												"url": {
-													"raw": "{{server_origin}}/repositories/rd/{{repository_id}}/branch/{{{{new_branch_name}}",
+													"raw": "{{test_origin}}/repositories/rd/{{repository_id}}/branch/{{{{new_branch_name}}",
 													"host": [
-														"{{server_origin}}"
+														"{{test_origin}}"
 													],
 													"path": [
 														"repositories",
@@ -5725,9 +5725,9 @@
 										"method": "GET",
 										"header": [],
 										"url": {
-											"raw": "{{server_origin}}/repositories/rd/{{repository_id}}/branch/{{branch_name}}/tree",
+											"raw": "{{test_origin}}/repositories/rd/{{repository_id}}/branch/{{branch_name}}/tree",
 											"host": [
-												"{{server_origin}}"
+												"{{test_origin}}"
 											],
 											"path": [
 												"repositories",
@@ -5746,9 +5746,9 @@
 												"method": "GET",
 												"header": [],
 												"url": {
-													"raw": "{{server_origin}}/repositories/rd/{{repository_id}}/branch/{{branch_name}}/tree",
+													"raw": "{{test_origin}}/repositories/rd/{{repository_id}}/branch/{{branch_name}}/tree",
 													"host": [
-														"{{server_origin}}"
+														"{{test_origin}}"
 													],
 													"path": [
 														"repositories",
@@ -5845,9 +5845,9 @@
 											}
 										},
 										"url": {
-											"raw": "{{server_origin}}/repositories/rd/{{repository_id}}/tags",
+											"raw": "{{test_origin}}/repositories/rd/{{repository_id}}/tags",
 											"host": [
-												"{{server_origin}}"
+												"{{test_origin}}"
 											],
 											"path": [
 												"repositories",
@@ -5873,9 +5873,9 @@
 													}
 												},
 												"url": {
-													"raw": "{{server_origin}}/repositories/rd/{{repository_id}}/tags",
+													"raw": "{{test_origin}}/repositories/rd/{{repository_id}}/tags",
 													"host": [
-														"{{server_origin}}"
+														"{{test_origin}}"
 													],
 													"path": [
 														"repositories",
@@ -5928,9 +5928,9 @@
 													}
 												},
 												"url": {
-													"raw": "{{server_origin}}/repositories/rd/{{repository_id}}/tags",
+													"raw": "{{test_origin}}/repositories/rd/{{repository_id}}/tags",
 													"host": [
-														"{{server_origin}}"
+														"{{test_origin}}"
 													],
 													"path": [
 														"repositories",
@@ -5990,9 +5990,9 @@
 										"method": "GET",
 										"header": [],
 										"url": {
-											"raw": "{{server_origin}}/repositories/rd/{{repository_id}}/tags",
+											"raw": "{{test_origin}}/repositories/rd/{{repository_id}}/tags",
 											"host": [
-												"{{server_origin}}"
+												"{{test_origin}}"
 											],
 											"path": [
 												"repositories",
@@ -6009,9 +6009,9 @@
 												"method": "GET",
 												"header": [],
 												"url": {
-													"raw": "{{server_origin}}/repositories/rd/{{repository_id}}/tags",
+													"raw": "{{test_origin}}/repositories/rd/{{repository_id}}/tags",
 													"host": [
-														"{{server_origin}}"
+														"{{test_origin}}"
 													],
 													"path": [
 														"repositories",
@@ -6071,9 +6071,9 @@
 										"method": "DELETE",
 										"header": [],
 										"url": {
-											"raw": "{{server_origin}}/repositories/rd/{{repository_id}}/tags/test-tag",
+											"raw": "{{test_origin}}/repositories/rd/{{repository_id}}/tags/test-tag",
 											"host": [
-												"{{server_origin}}"
+												"{{test_origin}}"
 											],
 											"path": [
 												"repositories",
@@ -6091,9 +6091,9 @@
 												"method": "DELETE",
 												"header": [],
 												"url": {
-													"raw": "{{server_origin}}/repositories/rd/{{repository_id}}/tags/{{tag_name}}",
+													"raw": "{{test_origin}}/repositories/rd/{{repository_id}}/tags/{{tag_name}}",
 													"host": [
-														"{{server_origin}}"
+														"{{test_origin}}"
 													],
 													"path": [
 														"repositories",
@@ -6138,9 +6138,9 @@
 												"method": "DELETE",
 												"header": [],
 												"url": {
-													"raw": "{{server_origin}}/repositories/rd/{{repository_id}}/tags/{{tag_name}}",
+													"raw": "{{test_origin}}/repositories/rd/{{repository_id}}/tags/{{tag_name}}",
 													"host": [
-														"{{server_origin}}"
+														"{{test_origin}}"
 													],
 													"path": [
 														"repositories",
@@ -6218,9 +6218,9 @@
 										"method": "GET",
 										"header": [],
 										"url": {
-											"raw": "{{server_origin}}/repositories/{{repository_id}}/overview",
+											"raw": "{{test_origin}}/repositories/{{repository_id}}/overview",
 											"host": [
-												"{{server_origin}}"
+												"{{test_origin}}"
 											],
 											"path": [
 												"repositories",
@@ -6236,9 +6236,9 @@
 												"method": "GET",
 												"header": [],
 												"url": {
-													"raw": "{{server_origin}}/repositories/{{repository_id}}/overview",
+													"raw": "{{test_origin}}/repositories/{{repository_id}}/overview",
 													"host": [
-														"{{server_origin}}"
+														"{{test_origin}}"
 													],
 													"path": [
 														"repositories",
@@ -6283,9 +6283,9 @@
 										"method": "GET",
 										"header": [],
 										"url": {
-											"raw": "{{server_origin}}/repositories/rd/{{repository_id}}/commits?branch={{branch_name}}",
+											"raw": "{{test_origin}}/repositories/rd/{{repository_id}}/commits?branch={{branch_name}}",
 											"host": [
-												"{{server_origin}}"
+												"{{test_origin}}"
 											],
 											"path": [
 												"repositories",
@@ -6308,9 +6308,9 @@
 												"method": "GET",
 												"header": [],
 												"url": {
-													"raw": "{{server_origin}}/repositories/rd/{{repository_id}}/commits?branch={{branch_name}}",
+													"raw": "{{test_origin}}/repositories/rd/{{repository_id}}/commits?branch={{branch_name}}",
 													"host": [
-														"{{server_origin}}"
+														"{{test_origin}}"
 													],
 													"path": [
 														"repositories",
@@ -6428,9 +6428,9 @@
 									}
 								},
 								"url": {
-									"raw": "{{server_origin}}/project/{{project_id}}/file",
+									"raw": "{{test_origin}}/project/{{project_id}}/file",
 									"host": [
-										"{{server_origin}}"
+										"{{test_origin}}"
 									],
 									"path": [
 										"project",
@@ -6447,9 +6447,9 @@
 										"method": "GET",
 										"header": [],
 										"url": {
-											"raw": "{{server_origin}}/project/{{project_id}}/file",
+											"raw": "{{test_origin}}/project/{{project_id}}/file",
 											"host": [
-												"{{server_origin}}"
+												"{{test_origin}}"
 											],
 											"path": [
 												"project",
@@ -6581,9 +6581,9 @@
 							}
 						},
 						"url": {
-							"raw": "{{server_origin}}/issues/{{issue_id}}",
+							"raw": "{{test_origin}}/issues/{{issue_id}}",
 							"host": [
-								"{{server_origin}}"
+								"{{test_origin}}"
 							],
 							"path": [
 								"issues",
@@ -6608,9 +6608,9 @@
 									}
 								},
 								"url": {
-									"raw": "{{server_origin}}/issues/{{issue_id}}",
+									"raw": "{{test_origin}}/issues/{{issue_id}}",
 									"host": [
-										"{{server_origin}}"
+										"{{test_origin}}"
 									],
 									"path": [
 										"issues",
@@ -6678,9 +6678,9 @@
 						"method": "DELETE",
 						"header": [],
 						"url": {
-							"raw": "{{server_origin}}/project/{{project_id}}/version/{{version_id}}",
+							"raw": "{{test_origin}}/project/{{project_id}}/version/{{version_id}}",
 							"host": [
-								"{{server_origin}}"
+								"{{test_origin}}"
 							],
 							"path": [
 								"project",
@@ -6745,9 +6745,9 @@
 								"method": "DELETE",
 								"header": [],
 								"url": {
-									"raw": "{{server_origin}}/project/{{project_id}}/version/{{version_id}}",
+									"raw": "{{test_origin}}/project/{{project_id}}/version/{{version_id}}",
 									"host": [
-										"{{server_origin}}"
+										"{{test_origin}}"
 									],
 									"path": [
 										"project",
@@ -6832,9 +6832,9 @@
 							}
 						},
 						"url": {
-							"raw": "{{server_origin}}/project/{{project_id}}/member/{{issue.assign_to}}",
+							"raw": "{{test_origin}}/project/{{project_id}}/member/{{issue.assign_to}}",
 							"host": [
-								"{{server_origin}}"
+								"{{test_origin}}"
 							],
 							"path": [
 								"project",
@@ -6915,10 +6915,10 @@
 									}
 								},
 								"url": {
-									"raw": "http://{{server_origin}}/project/1/member/183",
+									"raw": "http://{{test_origin}}/project/1/member/183",
 									"protocol": "http",
 									"host": [
-										"{{server_origin}}"
+										"{{test_origin}}"
 									],
 									"path": [
 										"project",
@@ -6993,9 +6993,9 @@
 							}
 						},
 						"url": {
-							"raw": "{{server_origin}}/project/{{project_id}}",
+							"raw": "{{test_origin}}/project/{{project_id}}",
 							"host": [
-								"{{server_origin}}"
+								"{{test_origin}}"
 							],
 							"path": [
 								"project",
@@ -7089,9 +7089,9 @@
 							}
 						},
 						"url": {
-							"raw": "{{server_origin}}/user",
+							"raw": "{{test_origin}}/user",
 							"host": [
-								"{{server_origin}}"
+								"{{test_origin}}"
 							],
 							"path": [
 								"user"
@@ -7114,9 +7114,9 @@
 									}
 								},
 								"url": {
-									"raw": "{{server_origin}}/user",
+									"raw": "{{test_origin}}/user",
 									"host": [
-										"{{server_origin}}"
+										"{{test_origin}}"
 									],
 									"path": [
 										"user"
@@ -7198,9 +7198,9 @@
 							}
 						},
 						"url": {
-							"raw": "{{server_origin}}/user",
+							"raw": "{{test_origin}}/user",
 							"host": [
-								"{{server_origin}}"
+								"{{test_origin}}"
 							],
 							"path": [
 								"user"
@@ -7223,9 +7223,9 @@
 									}
 								},
 								"url": {
-									"raw": "{{server_origin}}/user",
+									"raw": "{{test_origin}}/user",
 									"host": [
-										"{{server_origin}}"
+										"{{test_origin}}"
 									],
 									"path": [
 										"user"
@@ -7307,9 +7307,9 @@
 							}
 						},
 						"url": {
-							"raw": "{{server_origin}}/user",
+							"raw": "{{test_origin}}/user",
 							"host": [
-								"{{server_origin}}"
+								"{{test_origin}}"
 							],
 							"path": [
 								"user"
@@ -7332,9 +7332,9 @@
 									}
 								},
 								"url": {
-									"raw": "{{server_origin}}/user",
+									"raw": "{{test_origin}}/user",
 									"host": [
-										"{{server_origin}}"
+										"{{test_origin}}"
 									],
 									"path": [
 										"user"
@@ -7392,9 +7392,9 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{server_origin}}/user/role/list",
+							"raw": "{{test_origin}}/user/role/list",
 							"host": [
-								"{{server_origin}}"
+								"{{test_origin}}"
 							],
 							"path": [
 								"user",
@@ -7416,9 +7416,9 @@
 									}
 								],
 								"url": {
-									"raw": "{{server_origin}}/user/role/list",
+									"raw": "{{test_origin}}/user/role/list",
 									"host": [
-										"{{server_origin}}"
+										"{{test_origin}}"
 									],
 									"path": [
 										"user",
@@ -7478,9 +7478,9 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{server_origin}}/user/role/list",
+							"raw": "{{test_origin}}/user/role/list",
 							"host": [
-								"{{server_origin}}"
+								"{{test_origin}}"
 							],
 							"path": [
 								"user",
@@ -7496,9 +7496,9 @@
 								"method": "GET",
 								"header": [],
 								"url": {
-									"raw": "{{server_origin}}/user/role/list",
+									"raw": "{{test_origin}}/user/role/list",
 									"host": [
-										"{{server_origin}}"
+										"{{test_origin}}"
 									],
 									"path": [
 										"user",
@@ -7568,9 +7568,9 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{server_origin}}/user/list",
+							"raw": "{{test_origin}}/user/list",
 							"host": [
-								"{{server_origin}}"
+								"{{test_origin}}"
 							],
 							"path": [
 								"user",
@@ -7585,9 +7585,9 @@
 								"method": "GET",
 								"header": [],
 								"url": {
-									"raw": "{{server_origin}}/user/list",
+									"raw": "{{test_origin}}/user/list",
 									"host": [
-										"{{server_origin}}"
+										"{{test_origin}}"
 									],
 									"path": [
 										"user",
@@ -7646,9 +7646,9 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{server_origin}}/user/{{new.user_id_rd}}",
+							"raw": "{{test_origin}}/user/{{new.user_id_rd}}",
 							"host": [
-								"{{server_origin}}"
+								"{{test_origin}}"
 							],
 							"path": [
 								"user",
@@ -7663,9 +7663,9 @@
 								"method": "GET",
 								"header": [],
 								"url": {
-									"raw": "{{server_origin}}/user/{{user_id}}",
+									"raw": "{{test_origin}}/user/{{user_id}}",
 									"host": [
-										"{{server_origin}}"
+										"{{test_origin}}"
 									],
 									"path": [
 										"user",
@@ -7733,9 +7733,9 @@
 							}
 						},
 						"url": {
-							"raw": "{{server_origin}}/user/{{new.user_id_rd}}",
+							"raw": "{{test_origin}}/user/{{new.user_id_rd}}",
 							"host": [
-								"{{server_origin}}"
+								"{{test_origin}}"
 							],
 							"path": [
 								"user",
@@ -7759,9 +7759,9 @@
 									}
 								},
 								"url": {
-									"raw": "{{server_origin}}/user/{{user_id}}",
+									"raw": "{{test_origin}}/user/{{user_id}}",
 									"host": [
-										"{{server_origin}}"
+										"{{test_origin}}"
 									],
 									"path": [
 										"user",
@@ -7829,9 +7829,9 @@
 							}
 						},
 						"url": {
-							"raw": "{{server_origin}}/user/{{new.user_id_rd}}",
+							"raw": "{{test_origin}}/user/{{new.user_id_rd}}",
 							"host": [
-								"{{server_origin}}"
+								"{{test_origin}}"
 							],
 							"path": [
 								"user",
@@ -7855,9 +7855,9 @@
 									}
 								},
 								"url": {
-									"raw": "{{server_origin}}/user/{{user_id}}",
+									"raw": "{{test_origin}}/user/{{user_id}}",
 									"host": [
-										"{{server_origin}}"
+										"{{test_origin}}"
 									],
 									"path": [
 										"user",
@@ -7925,9 +7925,9 @@
 							}
 						},
 						"url": {
-							"raw": "{{server_origin}}/user/{{new.user_id_pm}}",
+							"raw": "{{test_origin}}/user/{{new.user_id_pm}}",
 							"host": [
-								"{{server_origin}}"
+								"{{test_origin}}"
 							],
 							"path": [
 								"user",
@@ -7951,9 +7951,9 @@
 									}
 								},
 								"url": {
-									"raw": "{{server_origin}}/user/{{user_id}}",
+									"raw": "{{test_origin}}/user/{{user_id}}",
 									"host": [
-										"{{server_origin}}"
+										"{{test_origin}}"
 									],
 									"path": [
 										"user",
@@ -8021,9 +8021,9 @@
 							}
 						},
 						"url": {
-							"raw": "{{server_origin}}/user/{{new.user_id_am}}",
+							"raw": "{{test_origin}}/user/{{new.user_id_am}}",
 							"host": [
-								"{{server_origin}}"
+								"{{test_origin}}"
 							],
 							"path": [
 								"user",
@@ -8047,9 +8047,9 @@
 									}
 								},
 								"url": {
-									"raw": "{{server_origin}}/user/{{user_id}}",
+									"raw": "{{test_origin}}/user/{{user_id}}",
 									"host": [
-										"{{server_origin}}"
+										"{{test_origin}}"
 									],
 									"path": [
 										"user",
