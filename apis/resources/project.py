@@ -132,10 +132,12 @@ def create_project(user_id, args):
     except DevOpsError as e:
         status_code = e.status_code
         resp = e.unpack_response()
+        print(resp)
         if status_code == 422 and 'errors' in resp:
             if len(resp['errors']) > 0:
                 if resp['errors'][0] == 'Identifier has already been taken':
-                    apiError.identifier_has_been_token(args['name'])
+                    raise DevOpsError(status_code, 'Redmine already used this identifier.',
+                                      error=apiError.identifier_has_been_token(args['name']))
         raise e
 
     redmine_pj_id = redmine_output["project"]["id"]
@@ -151,7 +153,7 @@ def create_project(user_id, args):
         if status_code == 400:
             try:
                 if gitlab_json['message']['name'][0] == 'has already been taken':
-                    return util.respond(
+                    raise DevOpsError(
                         status_code, {"gitlab": gitlab_json},
                         error=apiError.identifier_has_been_token(args['name'])
                     )
