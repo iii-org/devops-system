@@ -47,7 +47,7 @@ app.url_map.converters['sint'] = SignedIntConverter
 def internal_error(e):
     if type(e) is NoResultFound:
         return util.respond(404, 'Resource not found.',
-                            error=apiError.uncaught_exception(e))
+                            error=apiError.resource_not_found())
     traceback.print_exc()
     if type(e) is apiError.DevOpsError:
         return util.respond(e.status_code, e.message, error=e.error_value)

@@ -602,7 +602,7 @@ def get_parameters_by_param_id(parameters_id):
 
 
 def del_parameters_by_param_id(parameters_id):
-    row = model.Parameters.query.filter_by(id=parameters_id).first()
+    row = model.Parameters.query.filter_by(id=parameters_id).one()
     row.disabled = True
     row.update_at = datetime.now()
     db.session.commit()
@@ -610,7 +610,7 @@ def del_parameters_by_param_id(parameters_id):
 
 
 def modify_parameters_by_param_id(parameters_id, args):
-    row = model.Parameters.query.filter_by(id=parameters_id).first()
+    row = model.Parameters.query.filter_by(id=parameters_id).one()
     row.update_at = datetime.now()
     row.parameter_type_id = args['parameter_type_id']
     row.name = args['name']

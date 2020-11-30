@@ -104,6 +104,10 @@ def argument_error(arg_name):
     return build(7002, 'Argument {0} is incorrect.'.format(arg_name), {'arg': arg_name})
 
 
+def resource_not_found():
+    return build(7003, 'The indicated resource is not found.')
+
+
 # Third party service errors
 def redmine_error(response):
     return error_3rd_party_api('Redmine', response)
