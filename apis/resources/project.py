@@ -93,6 +93,8 @@ def list_projects(user_id):
         for pjt in projects:
             if pjt['id'] == plan_project_id:
                 updated_on = pjt['updated_on']
+                if updated_on is None:
+                    updated_on = pjt['created_on']
                 del pjt
                 break
 
