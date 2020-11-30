@@ -493,19 +493,19 @@ def get_projects_by_user(user_id):
 
         # get issue total cont
         try:
-            total_issue = redmine.rm_get_issues_by_project_and_user(
+            all_issues = redmine.rm_get_issues_by_project_and_user(
                 plan_user_id, row.ProjectPluginRelation.plan_project_id)
         except DevOpsError as e:
             if e.status_code == 404:
                 # No record, not error
-                total_issue = {'issues': [], 'total_count': 0}
+                all_issues = []
             else:
                 raise e
-        output_dict['issues'] = total_issue['total_count']
+        output_dict['issues'] = len(all_issues)
 
         # get next_d_time
         issue_due_date_list = []
-        for issue in total_issue['issues']:
+        for issue in all_issues:
             if issue['due_date'] is not None:
                 issue_due_date_list.append(
                     datetime.strptime(issue['due_date'], "%Y-%m-%d"))

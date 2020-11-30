@@ -50,6 +50,7 @@ def del_testcase_by_tc_id(testcase_id):
         model.TestCases.disabled.isnot(True)).one()
     t.disabled = True
     t.update_at = datetime.datetime.now()
+    db.session.commit()
     output = {'id': t.id, 'update_at': util.date_to_str(t.update_at)}
     return output
 
