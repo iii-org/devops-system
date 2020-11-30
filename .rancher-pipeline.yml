@@ -56,6 +56,9 @@ stages:
         test_origin: 'http://${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}:10009'
         verbose: true
       envFrom:
+      - sourceName: git-token
+        sourceKey: git-token
+        targetKey: git_token
       - sourceName: api-origin
         sourceKey: api-origin
         targetKey: api_origin
