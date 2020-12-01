@@ -3,6 +3,7 @@ from pprint import pprint
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
 
+import model
 from model import db, ProjectPluginRelation, Project, UserPluginRelation, User, ProjectUserRole
 from resources import role, harbor
 import util
@@ -41,6 +42,28 @@ def create_harbor_users():
             db.session.commit()
 
 
+def cleanup_project_gone(rows):
+    for row in rows:
+        p_count = model.Project.query.filter_by(id=row.project_id).count()
+        if p_count == 0:
+            db.session.delete(row)
+    db.session.commit()
+
+
+def cleanup_change_to_orm():
+    # Cleanup corrupted data violating foreign key constraints
+    cleanup_project_gone(model.Flows.query.all())
+    cleanup_project_gone(model.Parameters.query.all())
+    cleanup_project_gone(model.Requirements.query.all())
+    cleanup_project_gone(model.TestCases.query.all())
+    # Insert dummy project
+    p = model.Project.query.filter_by(id=-1).first()
+    if p is None:
+        new = model.Project(id=-1, name='dummy-project', disabled=False)
+        db.session.add(new)
+        db.session.commit()
+
+
 class Migrate(Resource):
     @jwt_required
     def patch(self):
@@ -48,12 +71,16 @@ class Migrate(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('command', type=str)
         args = parser.parse_args()
+        command = args['command']
 
-        if args['command'] == 'create_harbor_projects':
+        if command == 'create_harbor_projects':
             create_harbor_projects()
             return util.success()
-        if args['command'] == 'create_harbor_users':
+        if command == 'create_harbor_users':
             create_harbor_users()
+            return util.success()
+        if command == 'cleanup_change_to_orm':
+            cleanup_change_to_orm()
             return util.success()
 
         return util.respond(400, 'Command not recognized.')
