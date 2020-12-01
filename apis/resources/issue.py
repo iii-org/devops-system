@@ -240,7 +240,7 @@ def get_issue_by_project(project_id, args):
     output_array = []
     redmine_output_issue_array = redmine.rm_get_issues_by_project(
         plan_id, args)
-    for redmine_issue in redmine_output_issue_array['issues']:
+    for redmine_issue in redmine_output_issue_array:
         output_dict = deal_with_issue_by_user_redmine_output(redmine_issue)
         output_array.append(output_dict)
     return output_array
@@ -422,7 +422,7 @@ def get_issue_by_user(user_id):
         raise DevOpsError(400, 'Cannot find user in redmine.',
                           error=apiError.user_not_found(user_id))
     redmine_output_issue_array = redmine.rm_get_issues_by_user(user_to_plan[str(user_id)])
-    for redmine_issue in redmine_output_issue_array['issues']:
+    for redmine_issue in redmine_output_issue_array:
         output_dict = deal_with_issue_by_user_redmine_output(redmine_issue)
         output_array.append(output_dict)
     return output_array
@@ -602,7 +602,7 @@ def get_parameters_by_param_id(parameters_id):
 
 
 def del_parameters_by_param_id(parameters_id):
-    row = model.Parameters.query.filter_by(id=parameters_id).first()
+    row = model.Parameters.query.filter_by(id=parameters_id).one()
     row.disabled = True
     row.update_at = datetime.now()
     db.session.commit()
@@ -610,7 +610,7 @@ def del_parameters_by_param_id(parameters_id):
 
 
 def modify_parameters_by_param_id(parameters_id, args):
-    row = model.Parameters.query.filter_by(id=parameters_id).first()
+    row = model.Parameters.query.filter_by(id=parameters_id).one()
     row.update_at = datetime.now()
     row.parameter_type_id = args['parameter_type_id']
     row.name = args['name']

@@ -59,6 +59,9 @@ def create_service_account(login_sa_name):
         metadata=k8s_client.V1ObjectMeta(name=login_sa_name)))
     return sa
 
+def delete_service_account(login_sa_name):
+    sa = v1.delete_namespaced_service_account(login_sa_name,"account")
+    return sa
 
 def list_service_account():
     sa_list = []

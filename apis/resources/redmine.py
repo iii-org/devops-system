@@ -14,6 +14,21 @@ from resources.apiError import DevOpsError
 from resources.logger import logger
 
 
+def paging(key, func, params, *args):
+    offset = 0
+    ret = []
+    params['limit'] = 100
+    params['offset'] = offset
+    while True:
+        res = func(*args, params=params).json().get(key)
+        ret.extend(res)
+        if len(res) == 100:
+            offset += 100
+        else:
+            break
+    return ret
+
+
 class Redmine:
     def __init__(self):
         self.key_generated = 0.0
@@ -92,12 +107,13 @@ class Redmine:
         output = requests.get(url, headers={'Content-Type': 'application/json'}, verify=False)
         self.redmine_key = output.json()['user']['api_key']
 
+    # --------------- Normal methods ---------------
+
     def rm_list_projects(self):
-        return self.__api_get('/projects').json()
+        return paging('projects', self.__api_get, {}, '/projects')
 
     def rm_get_project(self, plan_project_id):
-        return self.__api_get('/projects/{0}'.format(plan_project_id),
-                              params={'limit': 1000}).json()
+        return self.__api_get('/projects/{0}'.format(plan_project_id)).json()
 
     def rm_update_project(self, plan_project_id, args):
         xml_body = """<?xml version="1.0" encoding="UTF-8"?>
@@ -116,29 +132,27 @@ class Redmine:
         return self.__api_delete('/projects/{0}'.format(plan_project_id))
 
     def rm_list_issues(self):
-        params = {'status_id': '*'}
-        return self.__api_get('/issues', params=params).json()
+        return paging('issues', self.__api_get, {}, '/issues')
 
     def rm_get_issues_by_user(self, user_id):
-        params = {'assigned_to_id': user_id, 'limit': 1000, 'status_id': '*'}
-        return self.__api_get('/issues', params=params).json()
+        params = {'assigned_to_id': user_id, 'status_id': '*'}
+        return paging('issues', self.__api_get, params, '/issues')
 
     def rm_get_issues_by_project(self, plan_project_id, args=None):
         if args is not None and 'fixed_version_id' in args:
-            params = {'project_id': plan_project_id, 'limit': 1000, 'status_id': '*',
+            params = {'project_id': plan_project_id, 'status_id': '*',
                       'fixed_version_id': args['fixed_version_id']}
         else:
-            params = {'project_id': plan_project_id, 'limit': 1000, 'status_id': '*'}
-        return self.__api_get('/issues', params=params).json()
+            params = {'project_id': plan_project_id, 'status_id': '*'}
+        return paging('issues', self.__api_get, params, '/issues')
 
     def rm_get_issues_by_project_and_user(self, user_id, plan_project_id):
         params = {
             'assigned_to_id': user_id,
             'project_id': plan_project_id,
-            'limit': 100,
             'status_id': '*'
         }
-        return self.__api_get('/issues', params=params).json()
+        return paging('issues', self.__api_get, params, '/issues')
 
     def rm_get_issue(self, issue_id):
         params = {'include': 'journals,attachments'}
