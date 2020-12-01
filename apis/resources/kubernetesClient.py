@@ -1,5 +1,10 @@
+import os
+import json
+
 from kubernetes import client as k8s_client
 from kubernetes import config as k8s_config
+
+from flask_restful import Resource, reqparse
 
 from resources.logger import logger
 
@@ -50,4 +55,33 @@ def list_work_node():
     logger.info("list_worknode node_list: {0}".format(node_list))
     return node_list
 
+def create_namespace(project_name):
+    k8s_config.load_kube_config()
+    v1 = k8s_client.CoreV1Api()
+    ret = v1.create_namespace(k8s_client.V1Namespace(metadata=k8s_client.V1ObjectMeta(name=project_name)))
+    print ("create_name_space: {0}".format(ret))
+    
+def delete_namespace(project_name):
+    k8s_config.load_kube_config()
+    v1 = k8s_client.CoreV1Api()
+    os.system("kubectl get ns {0} -o json > {0}-ns.json".format(project_name))
+    # os.system("cat {0}-ns.json".format(project_name))
+    ns_json = json.load(open("{0}-ns.json".format(project_name)))
+    ns_json['spec']['finalizers']=[]
+    print(ns_json)
+    #ret = v1.create_namespace(k8s_client.V1Namespace(metadata=k8s_client.V1ObjectMeta(name=project_name, finalizers=[])))
+    #ret = v1.delete_namespace(project_name)
+    #print("delete K8s namespace {0}".format(ret))
 
+class tmp_api(Resource):
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('project_name', type=str)
+        args = parser.parse_args()
+        create_namespace(args['project_name'])
+    
+    def delete(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('project_name', type=str)
+        args = parser.parse_args()
+        delete_namespace(args['project_name'])

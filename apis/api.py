@@ -16,7 +16,7 @@ import resources.role as role
 from jsonwebtoken import jsonwebtoken
 from model import db
 from resources import project, gitlab, issue, user, redmine, wiki, version, sonar, apiTest, postman, mock, harbor, \
-    migrate
+    migrate, kubernetesClient
 import util
 
 app = Flask(__name__)
@@ -215,6 +215,11 @@ api.add_resource(mock.MockTestResult, '/mock/test_summary')
 # Harbor
 api.add_resource(harbor.HarborProject, '/harbor/projects',
                  '/harbor/projects/<int:harbor_project_id>')
+
+
+# Test api
+api.add_resource(kubernetesClient.tmp_api,
+                 '/test_create_k8s_namespace')
 
 if __name__ == "__main__":
     db.init_app(app)
