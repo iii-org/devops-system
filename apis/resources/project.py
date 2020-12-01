@@ -175,6 +175,7 @@ def create_project(user_id, args):
     except DevOpsError as e:
         redmine.rm_delete_project(redmine_pj_id)
         gitlab.gl_delete_project(gitlab_pj_id)
+        rancher.rc_disable_project_pipeline(gitlab_pj_http_url)
         raise e
 
     try:

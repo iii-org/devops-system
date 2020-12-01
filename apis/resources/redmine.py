@@ -102,9 +102,7 @@ class Redmine:
         path = '/{0}'.format(key)
         params['limit'] = 100
         while True:
-            util.tick('start redmine req')
             res = self.__api_get(path=path, params=params).json().get(key)
-            util.tick('end redmine req')
             ret.extend(res)
             if len(res) == 100:
                 offset += 100

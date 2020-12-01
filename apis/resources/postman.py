@@ -141,5 +141,6 @@ class PostmanReport(Resource):
         parser.add_argument('branch', type=str, required=True)
         parser.add_argument('report', type=str, required=True)
         args = parser.parse_args()
+        role.require_in_project(project_id=args['project_id'])
         output = apiTest.save_test_result(args)
         return output
