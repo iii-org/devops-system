@@ -14,21 +14,6 @@ from resources.apiError import DevOpsError
 from resources.logger import logger
 
 
-def paging(key, func, params, *args):
-    offset = 0
-    ret = []
-    params['limit'] = 100
-    params['offset'] = offset
-    while True:
-        res = func(*args, params=params).json().get(key)
-        ret.extend(res)
-        if len(res) == 100:
-            offset += 100
-        else:
-            break
-    return ret
-
-
 class Redmine:
     def __init__(self):
         self.key_generated = 0.0
@@ -109,8 +94,27 @@ class Redmine:
 
     # --------------- Normal methods ---------------
 
+    def paging(self, key, params=None):
+        if params is None:
+            params = {}
+        offset = 0
+        ret = []
+        path = '/{0}'.format(key)
+        params['limit'] = 100
+        while True:
+            util.tick('start redmine req')
+            res = self.__api_get(path=path, params=params).json().get(key)
+            util.tick('end redmine req')
+            ret.extend(res)
+            if len(res) == 100:
+                offset += 100
+                params['offset'] = offset
+            else:
+                break
+        return ret
+
     def rm_list_projects(self):
-        return paging('projects', self.__api_get, {}, '/projects')
+        return self.paging('projects')
 
     def rm_get_project(self, plan_project_id):
         return self.__api_get('/projects/{0}'.format(plan_project_id)).json()
@@ -132,11 +136,11 @@ class Redmine:
         return self.__api_delete('/projects/{0}'.format(plan_project_id))
 
     def rm_list_issues(self):
-        return paging('issues', self.__api_get, {}, '/issues')
+        return self.paging('issues')
 
     def rm_get_issues_by_user(self, user_id):
         params = {'assigned_to_id': user_id, 'status_id': '*'}
-        return paging('issues', self.__api_get, params, '/issues')
+        return self.paging('issues', params)
 
     def rm_get_issues_by_project(self, plan_project_id, args=None):
         if args is not None and 'fixed_version_id' in args:
@@ -144,7 +148,7 @@ class Redmine:
                       'fixed_version_id': args['fixed_version_id']}
         else:
             params = {'project_id': plan_project_id, 'status_id': '*'}
-        return paging('issues', self.__api_get, params, '/issues')
+        return self.paging('issues', params)
 
     def rm_get_issues_by_project_and_user(self, user_id, plan_project_id):
         params = {
@@ -152,7 +156,7 @@ class Redmine:
             'project_id': plan_project_id,
             'status_id': '*'
         }
-        return paging('issues', self.__api_get, params, '/issues')
+        return self.paging('issues', params)
 
     def rm_get_issue(self, issue_id):
         params = {'include': 'journals,attachments'}
