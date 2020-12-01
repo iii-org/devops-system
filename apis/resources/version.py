@@ -1,86 +1,92 @@
-from .redmine import Redmine
-from .project import Project
-from .util import util
-import json
+from flask_jwt_extended import jwt_required
+from flask_restful import reqparse, Resource
+from sqlalchemy.orm.exc import NoResultFound
+
+import resources.apiError as apiError
+import resources.project as project
+import util as util
+from resources import role
+from resources.redmine import redmine
+
+EMPTY_VERSIONS = {"versions": [], "total_count": 0}
 
 
-class Version(object):
+def get_version_list_by_project(project_id):
+    if util.is_dummy_project(project_id):
+        return util.success(EMPTY_VERSIONS)
+    try:
+        plan_id = project.get_plan_project_id(project_id)
+    except NoResultFound:
+        return util.respond(404, "Error while getting versions.",
+                            error=apiError.project_not_found(project_id))
+    version_list = redmine.rm_get_version_list(plan_id)
+    return util.success(version_list)
 
-    EMPTY_VERSIONS = {"versions": [], "total_count": 0}
 
-    def __init__(self, redmine):
-        self.redmine = redmine
+def post_version_by_project(project_id, message_args):
+    try:
+        plan_id = project.get_plan_project_id(project_id)
+    except NoResultFound:
+        return util.respond(404, "Error while getting versions.",
+                            error=apiError.project_not_found(project_id))
+    version = redmine.rm_post_version(plan_id, message_args)
+    return util.success(version)
 
-    def get_version_list_by_project(self, logger, app, project_id):
-        if util.is_dummy_project(project_id):
-            return util.success(Version.EMPTY_VERSIONS)
-        project_plugin_relation = Project.get_project_plugin_relation(
-            logger, project_id)
-        if project_plugin_relation is not None:
-            redmine_key = self.redmine.get_redmine_key(logger, app)
-            version_list, status_code = self.redmine.redmine_get_version_list(
-                logger, app, project_plugin_relation['plan_project_id'])
-            if status_code == 200:
-                return {"message": "success", "data": version_list.json()}, 200
-            else:
-                return {"message": "get redmine wiki list error"}, 401
+
+def get_version_by_version_id(version_id):
+    version = redmine.rm_get_version(version_id)
+    return util.success(version)
+
+
+def put_version_by_version_id(version_id, args):
+    redmine.rm_put_version(version_id, args)
+    return util.success()
+
+
+def delete_version_by_version_id(version_id):
+    try:
+        output = redmine.rm_delete_version(version_id)
+    except apiError.DevOpsError as e:
+        if e.status_code == 404:
+            # Already deleted, let it go
+            return util.respond(200, "already deleted")
         else:
-            return {"message": "No project id %d found" % project_id}, 422
+            raise e
+    return util.success()
 
-    def post_version_by_project(self, logger, app, project_id, message_args):
-        project_plugin_relation = Project.get_project_plugin_relation(
-            logger, project_id)
-        if project_plugin_relation is not None:
-            redmine_key = self.redmine.get_redmine_key(logger, app)
-            version, status_code = self.redmine.redmine_post_version(
-                logger, app, project_plugin_relation['plan_project_id'],
-                message_args)
-            if status_code == 204:
-                return {
-                    "message": "update Version success",
-                    "data": version.json()
-                }, 200
-            elif status_code == 201:
-                return {
-                    "message": "create Version success",
-                    "data": version.json()
-                }, 200
-            else:
-                return {
-                    "message": "Create Rredmine Version error",
-                    "data": {}
-                }, status_code
 
-    def get_version_by_version_id(self, logger, app, project_id, version_id):
-        redmine_key = self.redmine.get_redmine_key(logger, app)
-        version, status_code = self.redmine.redmine_get_version(
-            logger, app, version_id)
-        if status_code == 200:
-            return {"message": "success", "data": version.json()}, 200
-        else:
-            return {"message": "get redmine version  error", "data": {}}, status_code
+# --------------------- Resources ---------------------
+# Get Project Version List
+class ProjectVersionList(Resource):
+    @jwt_required
+    def get(self, project_id):
+        role.require_in_project(project_id)
+        return get_version_list_by_project(project_id)
 
-    def put_version_by_version_id(self, logger, app, project_id, version_id,
-                                  args):
-        redmine_key = self.redmine.get_redmine_key(logger, app)
-        version, status_code = self.redmine.redmine_put_version(
-            logger, app, version_id, args)
-        if status_code == 204:
-            return {"message": "update version success", "data": {}}, 200
-        elif status_code == 201:
-            return {"message": "create version success", "data": {}}, 200
-        else:
-            return {"message": "put redmine version error"}, status_code
 
-    def delete_version_by_version_id(self, logger, app, project_id,
-                                     version_id):
-        redmine_key = self.redmine.get_redmine_key(logger, app)
-        output, status_code = self.redmine.redmine_delete_version(
-            logger, app, version_id)
-        logger.debug("Delete Redmine Version : {0}".format(output))
-        if status_code == 204:
-            return {"message": "success", "data": {}}, 200
-        elif status_code == 404:
-            return {"message": "already deleted", "data": {}}, 200
-        else:
-            return {"message": "delete redmine wiki error", "data": {}}, status_code
+class ProjectVersion(Resource):
+    @jwt_required
+    def post(self, project_id):
+        role.require_in_project(project_id)
+        root_parser = reqparse.RequestParser()
+        root_parser.add_argument('version', type=dict, required=True)
+        root_args = root_parser.parse_args()
+        return post_version_by_project(project_id, root_args)
+
+    @jwt_required
+    def get(self, project_id, version_id):
+        role.require_in_project(project_id)
+        return get_version_by_version_id(version_id)
+
+    @jwt_required
+    def put(self, project_id, version_id):
+        role.require_in_project(project_id)
+        root_parser = reqparse.RequestParser()
+        root_parser.add_argument('version', type=dict, required=True)
+        root_args = root_parser.parse_args()
+        return put_version_by_version_id(version_id, root_args)
+
+    @jwt_required
+    def delete(self, project_id, version_id):
+        role.require_in_project(project_id)
+        return delete_version_by_version_id(version_id)

@@ -1,21 +1,78 @@
 stages:
-  - name: build sonarqube runner image
+  - name: Create K8s config
+    steps:
+    - runScriptConfig:
+        image: ubuntu:18.04
+        shellScript: echo $kubeconfig > k8s_config;echo $api_env > environments.json
+      envFrom:
+      - sourceName: iiidevops
+        sourceKey: kubeconfig
+        targetKey: kubeconfig
+      - sourceName: iiidevops
+        sourceKey: api-env
+        targetKey: api_env
+    when:
+      branch: [develope]
+
+  - name: Publish iiidevops-api image
     steps:
     - publishImageConfig:
-        dockerfilePath: ./build/sonarqube/sonar-runner/Dockerfile
+        dockerfilePath: ./Dockerfile
         buildContext: .
-        tag: devops-sonarrunner:${CICD_EXECUTION_SEQUENCE}
-    - applyYamlConfig:
-        path: ./build/sonarqube/sonar-runner/k8s-yaml/sonar-runner-deployment.yaml
-  - name: Publish flask image
+        tag: iiidevops/${CICD_GIT_REPO_NAME}:${CICD_GIT_BRANCH}-${CICD_GIT_COMMIT}
+        pushRemote: true
+        registry: 10.50.1.63:5443
+      env:
+        PLUGIN_MTU: 1450
+        PLUGIN_INSECURE: true
+    when:
+      branch: [develope] 
+
+  - name: deploy iiidevops-api environment
     steps:
-    - publishImageConfig:
-        dockerfilePath: ./sample/flask/dockerfile/Dockerfile
-        buildContext: .
-        tag: demoyuw/devops-flask:${CICD_EXECUTION_SEQUENCE}
-  - name: deploy flask-${CICD_GIT_BRANCH} environment
-    steps:
     - applyYamlConfig:
-        path: ./sample/flask/k8s-yaml/flask-deployment.yaml
+        path: ./k8s-yaml/devopsapi-dev-deployment.yaml
     - applyYamlConfig:
-        path: ./sample/flask/k8s-yaml/flask-service.yaml
+        path: ./k8s-yaml/devopsapi-dev-service.yaml
+    when:
+      branch: [develope]
+
+  - name: Test--API Server
+    steps: 
+    - runScriptConfig:
+        image: 10.50.1.63:5443/iii-org/ubuntu:18.04
+        shellScript: sleep 60
+    when:
+      branch: [develope]
+      
+  - name: Test--Newman
+    steps: 
+    - runScriptConfig:
+        image: 10.50.1.63:5443/iii-org/newman-runner:latest
+        shellScript: cd /usr/src/app; node /usr/src/app/app.js
+      env:
+        git_url: ${CICD_GIT_URL}
+        git_branch: ${CICD_GIT_BRANCH}
+        test_origin: 'http://${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}:10009'
+        verbose: true
+      envFrom:
+      - sourceName: git-token
+        sourceKey: git-token
+        targetKey: git_token
+      - sourceName: api-origin
+        sourceKey: api-origin
+        targetKey: api_origin
+      - sourceName: jwt-token
+        sourceKey: jwt-token
+        targetKey: jwt_token
+    when:
+      branch: [develope]
+
+#  - name: build sonarqube runner image
+#    steps:
+#    - publishImageConfig:
+#        dockerfilePath: ./build/sonarqube/sonar-runner/Dockerfile
+#        buildContext: .
+#        tag: devops-sonarrunner:${CICD_EXECUTION_SEQUENCE}
+#    - applyYamlConfig:
+#        path: ./build/sonarqube/sonar-runner/k8s-yaml/sonar-runner-deployment.yaml

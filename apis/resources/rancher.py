@@ -1,62 +1,105 @@
-import websocket
 import ssl
-from flask_restful import abort
-import config
 
-from .util import util
+import websocket
+from flask_restful import abort
+
+import config
+import resources.apiError as apiError
+import util as util
+from resources.logger import logger
 
 
 class Rancher(object):
-
-    headers = {'Content-Type': 'application/json'}
-
     def __init__(self):
-        pass
+        self.token = 'dummy string to make API returns 401'
 
-    def get_rancher_token(self, app, logger):
-        url="https://{0}/{1}-public/localProviders/local?action=login"\
-            .format(config.get('RANCHER_IP_PORT'), config.get('RANCHER_API_VERSION'))
-        parameter = {
-            "username": "{0}".format(config.get('RANCHER_ADMIN_ACCOUNT')),
-            "password": "{0}".format(config.get('RANCHER_ADMIN_PASSWORD'))
+    def __api_request(self, method, path, headers, params=None, data=None,
+                      with_token=True, retried=False):
+        url = 'https://{0}/{1}{2}'.format(
+            config.get('RANCHER_IP_PORT'),
+            config.get('RANCHER_API_VERSION'),
+            path)
+        if headers is None:
+            headers = {'Content-Type': 'application/json'}
+        final_headers = self.__auth_headers(headers, with_token)
+
+        response = util.api_request(method, url, headers=final_headers, params=params, data=data)
+        if response.status_code == 401 and not retried:
+            self.token = self.__generate_token()
+            return self.__api_request(method, path, headers=headers, params=params, data=data,
+                                      with_token=True, retried=True)
+        logger.info('Rancher api {0} {1}, params={2}, body={5}, response={3} {4}'.format(
+            method, url, params.__str__(), response.status_code, response.text, data))
+        if int(response.status_code / 100) != 2:
+            raise apiError.DevOpsError(
+                response.status_code,
+                'Got non-2xx response from Rancher.',
+                apiError.error_3rd_party_api('Rancher', response))
+        return response
+
+    def __auth_headers(self, headers, with_token):
+        if headers is not None:
+            ret = headers.copy()
+        else:
+            ret = {}
+        if with_token:
+            ret['Authorization'] = "Bearer {0}".format(self.token)
+        return ret
+
+    def __api_get(self, path, params=None, headers=None, with_token=True):
+        return self.__api_request('GET', path=path, params=params,
+                                  headers=headers, with_token=with_token)
+
+    def __api_post(self, path, params=None, headers=None, data=None, with_token=True):
+        return self.__api_request('POST', path=path, params=params, data=data,
+                                  headers=headers, with_token=with_token)
+
+    def __api_delete(self, path, params=None, headers=None, with_token=True):
+        return self.__api_request('DELETE', path=path, params=params,
+                                  headers=headers, with_token=with_token)
+
+    def __generate_token(self):
+        body = {
+            "username": config.get('RANCHER_ADMIN_ACCOUNT'),
+            "password": config.get('RANCHER_ADMIN_PASSWORD')
         }
-        output = util.callpostapi(self, url, parameter, logger,
-                                  Rancher.headers)
+        params = {'action': 'login'}
+        output = self.__api_post('-public/localProviders/local', params=params,
+                                 data=body, with_token=False)
         return output.json()['token']
 
-    def get_rancher_pipelineexecutions(self, app, logger, ci_project_id, ci_pipeline_id,\
-        rancher_token):
-        url= "https://{0}/{1}/projects/{2}/pipelineexecutions?order=desc&sort=started&pipelineId={3}".format(\
-            config.get('RANCHER_IP_PORT'), config.get('RANCHER_API_VERSION'), ci_project_id,\
-            ci_pipeline_id)
-        logger.info("rancher_pipelineexecutions url: {0}".format(url))
-        headersandtoken = Rancher.headers
-        headersandtoken['Authorization'] = "Bearer {0}".format(rancher_token)
-        pipelineexecutions_output = util.callgetapi(self, url, logger,
-                                                    headersandtoken)
-        output_array = pipelineexecutions_output.json()['data']
-        # logger.info ("get_rancher_pipelineexecutions output: {0}".format(output_array))
-        return output_array
+    def rc_get_pipeline_executions(self, ci_project_id, ci_pipeline_id):
+        path = '/projects/{0}/pipelineexecutions'.format(ci_project_id)
+        params = {
+            'order': 'desc',
+            'sort': 'started',
+            'pipelineId': ci_pipeline_id
+        }
+        response = self.__api_get(path, params=params)
+        output_array = response.json()['data']
+        return output_array, response
 
-    def get_rancher_pipelineexecutions_logs(self, app, logger, ci_project_id, ci_pipeline_id,\
-        pipelines_exec_run, rancher_token):
+    def rc_get_pipeline_executions_logs(self, ci_project_id, ci_pipeline_id,
+                                        pipelines_exec_run):
         output_dict = []
-        headersandtoken = "Authorization: Bearer {0}".format(rancher_token)
-        pipelineexecutions_output = Rancher.get_rancher_pipelineexecutions(self, app, logger, ci_project_id, ci_pipeline_id,\
-        rancher_token)
-        for pipelineexecution_output in pipelineexecutions_output:
-            if pipelines_exec_run == pipelineexecution_output['run']:
+        self.token = self.__generate_token()
+        headersandtoken = "Authorization: Bearer {0}".format(self.token)
+        output_executions, response = self.rc_get_pipeline_executions(
+            ci_project_id, ci_pipeline_id)
+        for output_execution in output_executions:
+            if pipelines_exec_run == output_execution['run']:
                 for index, stage in enumerate(
-                        pipelineexecution_output['pipelineConfig']['stages']):
+                        output_execution['pipelineConfig']['stages']):
                     tmp_step_message = []
-                    for stepindex, step in enumerate(stage['steps']):
-                        url = "wss://{0}/{1}/project/{2}/pipelineExecutions/{3}-{4}/log?stage={5}&step={6}"\
-                            .format(config.get('RANCHER_IP_PORT'), config.get('RANCHER_API_VERSION'), \
-                                    ci_project_id, ci_pipeline_id, pipelines_exec_run, index, stepindex)
+                    for step_index, step in enumerate(stage['steps']):
+                        url = ("wss://{0}/{1}/project/{2}/pipelineExecutions/"
+                               "{3}-{4}/log?stage={5}&step={6}").format(
+                            config.get('RANCHER_IP_PORT'), config.get('RANCHER_API_VERSION'), ci_project_id,
+                            ci_pipeline_id, pipelines_exec_run, index, step_index)
                         logger.info("wss url: {0}".format(url))
                         result = None
                         ws = websocket.create_connection(url, header=[headersandtoken],
-                            sslopt={"cert_reqs": ssl.CERT_NONE})
+                                                         sslopt={"cert_reqs": ssl.CERT_NONE})
                         ws.settimeout(3)
                         try:
                             result = ws.recv()
@@ -64,11 +107,11 @@ class Rancher(object):
                         except websocket.WebSocketTimeoutException:
                             ws.close()
                         # logger.info("Received :'%s'" % result)
-                        step_datail = pipelineexecution_output['stages'][
-                            index]['steps'][stepindex]
-                        if 'state' in step_datail:
+                        step_detail = output_execution['stages'][
+                            index]['steps'][step_index]
+                        if 'state' in step_detail:
                             tmp_step_message.append({
-                                "state": step_datail['state'],
+                                "state": step_detail['state'],
                                 "message": result
                             })
                         else:
@@ -76,7 +119,7 @@ class Rancher(object):
                                 "state": None,
                                 "message": result
                             })
-                    stage_state = pipelineexecution_output['stages'][index]
+                    stage_state = output_execution['stages'][index]
                     if 'state' in stage_state:
                         output_dict.append({
                             "name": stage['name'],
@@ -90,61 +133,38 @@ class Rancher(object):
                             "steps": tmp_step_message
                         })
         return output_dict[1:]
-    
-    def get_rancher_cluster_id(self, app, logger, rancher_token):
-        url= "https://{0}/{1}/clusters".format(\
-            config.get('RANCHER_IP_PORT'), config.get('RANCHER_API_VERSION'))
-        logger.info("get_rancher_cluster_id url: {0}".format(url))
-        headersandtoken = Rancher.headers
-        headersandtoken['Authorization'] = "Bearer {0}".format(rancher_token)
-        rancher_output = util.callgetapi(self, url, logger,
-                                                    headersandtoken)
+
+    def rc_get_cluster_id(self):
+        rancher_output = self.__api_get('/clusters')
         output_array = rancher_output.json()['data']
         for output in output_array:
             logger.debug("get_rancher_cluster output: {0}".format(output['name']))
             if output['name'] == config.get('RANCHER_CLUSTER_NAME'):
                 return output['id']
-    
-    def get_rancher_project_id(self, app, logger, rancher_token):
-        cluster_id = Rancher.get_rancher_cluster_id(self, app, logger, rancher_token)
-        logger.debug("get rancher cluster_id: {0}".format(cluster_id))
-        url= "https://{0}/{1}/clusters/{2}/projects".format(\
-            config.get('RANCHER_IP_PORT'), config.get('RANCHER_API_VERSION'), cluster_id)
-        logger.info("get_rancher_project_id url: {0}".format(url))
-        headersandtoken = Rancher.headers
-        headersandtoken['Authorization'] = "Bearer {0}".format(rancher_token)
-        rancher_output = util.callgetapi(self, url, logger,
-                                                    headersandtoken)
+
+    def rc_get_project_id(self):
+        cluster_id = self.rc_get_cluster_id()
+        rancher_output = self.__api_get('/clusters/{0}/projects'.format(cluster_id))
         output_array = rancher_output.json()['data']
         for output in output_array:
             if output['name'] == "Default":
                 return output['id']
-    
-    def get_rancher_admin_user_id(self, app, logger, rancher_token):
-        url= "https://{0}/{1}/users".format(\
-            config.get('RANCHER_IP_PORT'), config.get('RANCHER_API_VERSION'))
-        logger.info("get_rancher_admin_user_id url: {0}".format(url))
-        headersandtoken = Rancher.headers
-        headersandtoken['Authorization'] = "Bearer {0}".format(rancher_token)
-        rancher_output = util.callgetapi(self, url, logger,
-                                                    headersandtoken)
+
+    def rc_get_admin_user_id(self):
+        rancher_output = self.__api_get('/users')
         output_array = rancher_output.json()['data']
         for output in output_array:
             if output['username'] == 'admin':
                 return output['id']
-    
-    def enable_rancher_projejct_pipline(self, app, logger, repository_url, rancher_token):
-        project_id = Rancher.get_rancher_project_id(self, app, logger, rancher_token)
-        pipeline_list = Rancher.get_rancher_projejct_pipline(self, app, logger, repository_url, rancher_token)
-        for pipline in pipeline_list:
-            if pipline['repositoryUrl'] == repository_url:
+
+    def rc_enable_project_pipeline(self, repository_url):
+        project_id = self.rc_get_project_id()
+        pipeline_list = self.rc_get_project_pipeline()
+        for pipeline in pipeline_list:
+            if pipeline['repositoryUrl'] == repository_url:
                 logger.info("repository_url {0} rancher pipeline already enable".format(repository_url))
-                abort(400, message='rancher pipline already enable this repository {0}'.format(repository_url))
-        user_id = Rancher.get_rancher_admin_user_id(self, app, logger, rancher_token)
-        url="https://{0}/{1}/projects/{2}/pipelines"\
-            .format(config.get('RANCHER_IP_PORT'), config.get('RANCHER_API_VERSION'), project_id)
-        headersandtoken = Rancher.headers
-        headersandtoken['Authorization'] = "Bearer {0}".format(rancher_token)
+                abort(400, message='rancher pipeline already enable this repository {0}'.format(repository_url))
+        user_id = self.rc_get_admin_user_id()
         parameter = {
             "type": "pipeline",
             "sourceCodeCredentialId": "{0}:{1}-gitlab-root".format(user_id, project_id.split(':')[1]),
@@ -153,33 +173,29 @@ class Rancher(object):
             "triggerWebhookPush": True,
             "triggerWebhookTag": True
         }
-        output = util.callpostapi(self, url, parameter, logger,
-                                headersandtoken)
-        logger.debug("enable_rancher_projejct_pipline output: {0}".format(output.json()))
+        output = self.__api_post(
+            '/projects/{0}/pipelines'.format(project_id), data=parameter)
+        logger.debug("enable_rancher_project_pipeline output: {0}".format(output.json()))
         return output.json()['id']
-    
-    def disable_rancher_projejct_pipline(self, app, logger, project_id, pipeline_id, rancher_token):
-        url="https://{0}/{1}/projects/{2}/pipelines/{3}"\
-            .format(config.get('RANCHER_IP_PORT'), config.get('RANCHER_API_VERSION'), project_id,
-                    pipeline_id)
-        headersandtoken = Rancher.headers
-        headersandtoken['Authorization'] = "Bearer {0}".format(rancher_token)
-        rancher_output = util.calldeleteapi(self, url, logger,
-                                                    headersandtoken)
-        if rancher_output.status_code == 200:
-            logger.info("disable_rancher_projejct_pipline successful !")
-        elif rancher_output.status_code == 404:
+
+    def rc_disable_project_pipeline(self, project_id, pipeline_id):
+        rancher_output = self.__api_delete('/projects/{0}/pipelines/{1}'.format(
+            project_id, pipeline_id
+        ))
+        status_code = rancher_output.status_code
+        if status_code == 200:
+            logger.info("disable_rancher_project_pipeline successful !")
+        elif status_code == 404:
             logger.info("project does not exist, don't need to delete.")
         else:
-            logger.info("disable_rancher_projejct_pipline error, error message: {0}".format(rancher_output.text))
-            abort(400, message='"disable_rancher_projejct_pipline error, error message: {0}'.format(rancher_output.text))
-        
-    def get_rancher_projejct_pipline(self, app, logger, repository_url, rancher_token):
-        project_id = Rancher.get_rancher_project_id(self, app, logger, rancher_token)
-        url="https://{0}/{1}/projects/{2}/pipelines"\
-            .format(config.get('RANCHER_IP_PORT'), config.get('RANCHER_API_VERSION'), project_id)
-        headersandtoken = Rancher.headers
-        headersandtoken['Authorization'] = "Bearer {0}".format(rancher_token)
-        output = util.callgetapi(self, url, logger, headersandtoken)
-        logger.debug("enable_rancher_projejct_pipline output: {0}".format(output.json()))
+            logger.info("disable_rancher_project_pipeline error, error message: {0}".format(rancher_output.text))
+            abort(400,
+                  message='"disable_rancher_project_pipeline error, error message: {0}'.format(rancher_output.text))
+
+    def rc_get_project_pipeline(self):
+        project_id = self.rc_get_project_id()
+        output = self.__api_get('/projects/{0}/pipelines'.format(project_id))
         return output.json()['data']
+
+
+rancher = Rancher()

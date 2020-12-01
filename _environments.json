@@ -27,5 +27,9 @@
     "CHECKMARX_PASSWORD": "",
     "CHECKMARX_SECRET": "",
 
-    "SONAR_IP_PORT": ""
+    "SONAR_IP_PORT": "",
+
+    "HARBOR_BASE_URL": "",
+    "HARBOR_ACCOUNT": "",
+    "HARBOR_PASSWORD": ""
 }
