@@ -83,7 +83,11 @@ def init():
 def needs_upgrade(current, target):
     r = current.split('.')
     c = target.split('.')
-    for i in range(len(c)):
+    if len(r) == 3:
+        r.extend([0])
+    if len(c) == 3:
+        c.extend([0])
+    for i in range(4):
         if int(c[i]) > int(r[i]):
             return True
     return False
@@ -99,7 +103,9 @@ def alembic_upgrade():
                         config.get('SQLALCHEMY_DATABASE_URI')))
                 else:
                     ini.write(line)
-    os.system('alembic upgrade head')
+    os_ret = os.system('alembic upgrade head')
+    if os_ret != 0:
+        raise RuntimeError('Alembic has error, process stop.')
 
 
 def run():

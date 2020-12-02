@@ -1,3 +1,10 @@
+"""
+Each time you change the ORM model, run 'alembic revision --autogenerate -m "<message>"' in
+the root folder of this project!
+If you don't have the alembic.ini yet, copy _alembic.ini and replace the postgres uri by yourself.
+This can't be full automatic since the auto-generated upgrade script may need to be modified.
+"""
+
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Date
 
