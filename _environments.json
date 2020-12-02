@@ -31,5 +31,9 @@
 
     "HARBOR_BASE_URL": "",
     "HARBOR_ACCOUNT": "",
-    "HARBOR_PASSWORD": ""
+    "HARBOR_PASSWORD": "",
+
+    "ADMIN_INIT_LOGIN": "",
+	"ADMIN_INIT_EMAIL": "",
+	"ADMIN_INIT_PASSWORD": ""
 }

@@ -175,6 +175,7 @@ def create_project(user_id, args):
     except DevOpsError as e:
         redmine.rm_delete_project(redmine_pj_id)
         gitlab.gl_delete_project(gitlab_pj_id)
+        rancher.rc_disable_project_pipeline(gitlab_pj_http_url)
         raise e
 
     try:
@@ -519,10 +520,7 @@ def get_projects_by_user(user_id):
 
         git_repository_id = row.ProjectPluginRelation.git_repository_id
         # branch number
-        try:
-            branch_number = gitlab.gl_count_branches(git_repository_id)
-        except:
-            print(row.Project.id)
+        branch_number = gitlab.gl_count_branches(git_repository_id)
         output_dict['branch'] = branch_number
         # tag number
         tag_number = 0

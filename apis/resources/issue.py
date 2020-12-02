@@ -7,6 +7,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
 from sqlalchemy.orm.exc import NoResultFound
 
+import config
 import model
 import resources.apiError as apiError
 import resources.user as user
@@ -95,6 +96,7 @@ def deal_with_issue_by_user_redmine_output(redmine_output):
             'id']
         output_list['fixed_version_name'] = redmine_output[
             'fixed_version']['name']
+    output_list['issue_link'] = redmine.build_link('/issues/{0}'.format(redmine_output['id']))
     logger.info(
         "get issue by user redmine_output: {0}".format(output_list))
     return output_list

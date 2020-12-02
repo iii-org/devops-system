@@ -1,13 +1,13 @@
 import datetime
 import os
-import random
-import string
 import traceback
+from os.path import isfile
 
 from flask import Flask
 from flask_cors import CORS
-from flask_restful import Resource, Api, reqparse
+from flask_restful import Resource, Api
 from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy_utils import database_exists, create_database, drop_database
 from werkzeug.routing import IntegerConverter
 
 import config
@@ -16,11 +16,12 @@ import resources.apiError as apiError
 import resources.checkmarx as checkmarx
 import resources.pipeline as pipeline
 import resources.role as role
+import util
 from jsonwebtoken import jsonwebtoken
 from model import db
-from resources import project, gitlab, issue, user, redmine, wiki, version, sonar, apiTest, postman, mock, harbor, \
-    migrate
-import util
+from resources import project, gitlab, issue, user, redmine, wiki, version, sonar, apiTest, postman, mock, harbor
+import migrate
+from resources.logger import logger
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -44,16 +45,16 @@ app.url_map.converters['sint'] = SignedIntConverter
 
 
 @app.errorhandler(Exception)
-def internal_error(e):
-    if type(e) is NoResultFound:
+def internal_error(exception):
+    if type(exception) is NoResultFound:
         return util.respond(404, 'Resource not found.',
                             error=apiError.resource_not_found())
     traceback.print_exc()
-    if type(e) is apiError.DevOpsError:
-        return util.respond(e.status_code, e.message, error=e.error_value)
+    if type(exception) is apiError.DevOpsError:
+        return util.respond(exception.status_code, exception.message, error=exception.error_value)
 
     return util.respond(500, "Unexpected internal error",
-                        error=apiError.uncaught_exception(e))
+                        error=apiError.uncaught_exception(exception))
 
 
 # noinspection PyMethodMayBeStatic
@@ -67,52 +68,61 @@ class SystemGitCommitID(Resource):
             raise apiError.DevOpsError(400, "git_commit file is not exist.")
 
 
-def get_random_password():
-    random_source = string.ascii_letters + string.digits
-    password = random.choice(string.ascii_lowercase)
-    password += random.choice(string.ascii_uppercase)
-    password += random.choice(string.digits)
+def initialize(db_uri):
+    if database_exists(db_uri):
+        return
+    logger.info('Initializing...')
+    if config.get('DEBUG'):
+        print('Initializing...')
+    # Create database
+    create_database(db_uri)
+    db.create_all()
+    # Fill alembic revision with latest
+    head = None
+    revs = []
+    downs = []
+    for fn in os.listdir('apis/alembic/versions'):
+        fp = 'apis/alembic/versions/%s' % fn
+        if not isfile(fp):
+            continue
+        with open(fp, "r") as f:
+            o = {}
+            for line in f:
+                rev = 'None'
+                if line.startswith('revision'):
+                    revs.append(line.split('=')[1].strip()[1:-1])
+                elif line.startswith('down_revision'):
+                    downs.append(line.split('=')[1].strip()[1:-1])
 
-    for i in range(8):
-        password += random.choice(random_source)
-
-    password_list = list(password)
-    random.SystemRandom().shuffle(password_list)
-    password = ''.join(password_list)
-    return password
-
-
-# noinspection PyMethodMayBeStatic
-class Init(Resource):
-    def post(self):
-        # Create dummy project
-        try:
-            new = model.Project(id=-1, name='__dummy_project')
-            db.session.add(new)
-            db.session.commit()
-        except apiError.DevOpsError:
-            # Already have, just pass
-            pass
-
-        # Init admin
-        parser = reqparse.RequestParser()
-        parser.add_argument('name', type=str)
-        args = parser.parse_args()
-        rows = model.User.query.all()
-        if len(rows) > 0:
-            return 'Only empty server can be inited.', 403
-        admin_password = get_random_password()
-        args = {
-            'phone': '00000000000',
-            'name': '初始管理者',
-            'email': 'admin@no.where',
-            'login': args['name'],
-            'password': admin_password,
-            'role_id': 5,
-            'status': 'enable'
-        }
-        user.create_user(args)
-        return admin_password, 200
+    for rev in revs:
+        is_head = True
+        for down in downs:
+            if down == rev:
+                is_head = False
+                break
+        if is_head:
+            head = rev
+            break
+    if head is not None:
+        v = model.AlembicVersion(version_num=head)
+        db.session.add(v)
+        db.session.commit()
+    # Create dummy project
+    new = model.Project(id=-1, name='__dummy_project')
+    db.session.add(new)
+    db.session.commit()
+    # Init admin
+    args = {
+        'login': config.get('ADMIN_INIT_LOGIN'),
+        'email': config.get('ADMIN_INIT_EMAIL'),
+        'password': config.get('ADMIN_INIT_PASSWORD'),
+        'phone': '00000000000',
+        'name': '初始管理者',
+        'role_id': 5,
+        'status': 'enable'
+    }
+    user.create_user(args)
+    migrate.init()
 
 
 # Projects
@@ -152,6 +162,7 @@ api.add_resource(user.UserForgetPassword, '/user/forgetPassword')
 api.add_resource(user.UserStatus, '/user/<int:user_id>/status')
 api.add_resource(user.SingleUser, '/user', '/user/<int:user_id>')
 api.add_resource(user.UserList, '/user/list')
+api.add_resource(user.UserSaConfig, '/user/<int:user_id>/config')
 
 # Role
 api.add_resource(role.RoleList, '/user/role/list')
@@ -258,8 +269,6 @@ api.add_resource(redmine.RedmineFile, '/download', '/file/<int:file_id>')
 
 # System administrations
 api.add_resource(SystemGitCommitID, '/system_git_commit_id')  # git commit
-api.add_resource(migrate.Migrate, '/migrate')
-api.add_resource(Init, '/init')
 
 # Mocks
 api.add_resource(mock.MockTestResult, '/mock/test_summary')
@@ -271,20 +280,19 @@ api.add_resource(harbor.HarborRepository,
                  '/harbor/repositories/<project_name>/<repository_name>')
 api.add_resource(harbor.HarborArtifact,
                  '/harbor/artifacts/<project_name>/<repository_name>')
+api.add_resource(harbor.HarborProject, '/harbor/projects/<int:project_id>/summary')
 
 if __name__ == "__main__":
     db.init_app(app)
     db.app = app
     jsonwebtoken.init_app(app)
+    app.app_context().push()
+
+    u = config.get('SQLALCHEMY_DATABASE_URI')
+    try:
+        initialize(u)
+    except Exception as e:
+        drop_database(u)
+        raise e
+    migrate.run()
     app.run(host='0.0.0.0', port=10009, debug=(config.get('DEBUG') is True))
-
-
-def init_tables():
-    db.init_app(app)
-    db.app = app
-    db.create_all()
-
-
-# Run from Python console to create tables
-if __name__ == 'api':
-    init_tables()

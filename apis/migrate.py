@@ -1,12 +1,22 @@
-from pprint import pprint
+import os
 
-from flask_jwt_extended import jwt_required
-from flask_restful import Resource, reqparse
-
+import config
 import model
 from model import db, ProjectPluginRelation, Project, UserPluginRelation, User, ProjectUserRole
-from resources import role, harbor
-import util
+from resources import harbor, role
+from resources.logger import logger
+
+VERSION_FILE_NAME = '.api_version'
+# Each time you add a migration, add a version code here.
+VERSIONS = ['0.9.2']
+
+
+def upgrade(version):
+    if version == '0.9.2':
+        cleanup_change_to_orm()
+        alembic_upgrade()
+        create_harbor_users()
+        create_harbor_projects()
 
 
 def create_harbor_projects():
@@ -37,7 +47,8 @@ def create_harbor_users():
                 'name': row.User.name,
                 'email': row.User.email
             }
-            hid = harbor.hb_create_user(args)
+            u = model.ProjectUserRole.query.filter_by(user_id=row.user_id, project_id=-1).one()
+            hid = harbor.hb_create_user(args, is_admin=u.role_id == role.ADMIN.id)
             row.UserPluginRelation.harbor_user_id = hid
             db.session.commit()
 
@@ -64,23 +75,53 @@ def cleanup_change_to_orm():
         db.session.commit()
 
 
-class Migrate(Resource):
-    @jwt_required
-    def patch(self):
-        role.require_admin('Only admins can do migration.')
-        parser = reqparse.RequestParser()
-        parser.add_argument('command', type=str)
-        args = parser.parse_args()
-        command = args['command']
+def init():
+    with (open(VERSION_FILE_NAME, 'w')) as f:
+        f.write(VERSIONS[-1])
+        f.close()
 
-        if command == 'create_harbor_projects':
-            create_harbor_projects()
-            return util.success()
-        if command == 'create_harbor_users':
-            create_harbor_users()
-            return util.success()
-        if command == 'cleanup_change_to_orm':
-            cleanup_change_to_orm()
-            return util.success()
 
-        return util.respond(400, 'Command not recognized.')
+def needs_upgrade(current, target):
+    r = current.split('.')
+    c = target.split('.')
+    if len(r) == 3:
+        r.extend([0])
+    if len(c) == 3:
+        c.extend([0])
+    for i in range(4):
+        if int(c[i]) > int(r[i]):
+            return True
+    return False
+
+
+def alembic_upgrade():
+    # Rewrite ini file
+    with open('alembic.ini', 'w') as ini:
+        with open('_alembic.ini', 'r') as template:
+            for line in template:
+                if line.startswith('sqlalchemy.url'):
+                    ini.write('sqlalchemy.url = {0}\n'.format(
+                        config.get('SQLALCHEMY_DATABASE_URI')))
+                else:
+                    ini.write(line)
+    os_ret = os.system('alembic upgrade head')
+    if os_ret != 0:
+        raise RuntimeError('Alembic has error, process stop.')
+
+
+def run():
+    current = '0.0.0'
+    if os.path.exists(VERSION_FILE_NAME):
+        with open(VERSION_FILE_NAME, 'r') as f:
+            current = f.read()
+    try:
+        for version in VERSIONS:
+            if needs_upgrade(current, version):
+                logger.info('Upgrade to {0}'.format(version))
+                upgrade(version)
+                current = version
+    except Exception as e:
+        raise e
+    finally:
+        with (open(VERSION_FILE_NAME, 'w')) as f:
+            f.write(current)

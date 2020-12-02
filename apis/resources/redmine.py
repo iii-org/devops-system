@@ -102,9 +102,7 @@ class Redmine:
         path = '/{0}'.format(key)
         params['limit'] = 100
         while True:
-            util.tick('start redmine req')
             res = self.__api_get(path=path, params=params).json().get(key)
-            util.tick('end redmine req')
             ret.extend(res)
             if len(res) == 100:
                 offset += 100
@@ -189,7 +187,7 @@ class Redmine:
     def rm_get_trackers(self):
         return self.__api_get('/trackers').json()
 
-    def rm_create_user(self, args, user_source_password):
+    def rm_create_user(self, args, user_source_password, is_admin=False):
         params = {
             "user": {
                 "login": args["login"],
@@ -199,6 +197,8 @@ class Redmine:
                 "password": user_source_password
             }
         }
+        if is_admin:
+            params['user']['admin'] = True
         return self.__api_post('/users', data=params).json()
 
     def rm_update_password(self, plan_user_id, new_pwd):
@@ -358,6 +358,10 @@ class Redmine:
         return self.__api_post('/projects',
                                headers=headers,
                                data=xml_body.encode('utf-8')).json()
+
+    @staticmethod
+    def build_link(path):
+        return "http://{0}{1}".format(config.get('REDMINE_IP_PORT'), path)
 
 
 # --------------------- Resources ---------------------

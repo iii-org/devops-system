@@ -102,7 +102,7 @@ def hb_delete_project(project_id):
             raise e
 
 
-def hb_create_user(args):
+def hb_create_user(args, is_admin=False):
     login = args['login']
     data = {
         "username": login,
@@ -110,6 +110,8 @@ def hb_create_user(args):
         "realname": args['name'],
         "email": args['email']
     }
+    if is_admin:
+        data['sysadmin_flag'] = True
     __api_post('/users', data=data)
     res = __api_get('/users/search', params={'username': login}).json()
     return res[0]['user_id']
@@ -203,6 +205,10 @@ def hb_delete_artifact_tag(project_name, repository_name, reference, tag_name):
         hb_delete_artifact(project_name, repository_name, reference)
 
 
+def hb_get_project_summary(project_id):
+    return __api_get('/projects/{0}/summary'.format(project_id)).json()
+
+
 # ----------------- Resources -----------------
 def check_permission(project_name):
     try:
@@ -257,3 +263,10 @@ class HarborArtifact(Resource):
 
         hb_delete_artifact_tag(project_name, repository_name, args['digest'], args['tag_name'])
         return util.success()
+
+
+class HarborProject(Resource):
+    @jwt_required
+    def get(self, project_id):
+        role.require_in_project(project_id)
+        return util.success(hb_get_project_summary(project_id))

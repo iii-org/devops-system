@@ -1,7 +1,27 @@
+"""
+Steps to modify the ORM model:
+1. Change python codes in this file.
+2. In command line: $ alembic revision --autogenerate -m <message>
+3. A file named <some hash>_<message>.py will appear at apis/alembic/versions
+4. Check if the migration can work: $ alembic upgrade head
+5. If no error, rollback: $ alembic downgrade -1
+6. If with error, modify the file generated in step 3 then repeat step 4.
+7. Add an API server version in migrate.py's VERSION array.
+8. Add an alembic_upgrade() statement for that version.
+9. Commit all files includes the file generated in step 3 to git.
+10. Restart the API server, then you're done.
+
+If you don't have the alembic.ini, copy _alembic.ini and replace the postgres uri by yourself.
+"""
+
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Date
 
 db = SQLAlchemy()
+
+
+class AlembicVersion(db.Model):
+    version_num = Column(String(32), primary_key=True)
 
 
 class User(db.Model):
@@ -60,8 +80,8 @@ class PipelineSoftware(db.Model):
 
 class PipelineSoftwareConfig(db.Model):
     id = Column(Integer, primary_key=True)
-    software_id = Column(Integer, ForeignKey(PipelineSoftware.id, ondelete='CASCADE')
-                         , nullable=False)
+    software_id = Column(Integer, ForeignKey(PipelineSoftware.id, ondelete='CASCADE'),
+                         nullable=False)
     project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
     detail = Column(String)
     sample = Column(Boolean)

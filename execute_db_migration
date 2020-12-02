@@ -1,3 +1,0 @@
-alembic revision --autogenerate -m "<message>"
-// If you need to change DB address, change it in alembic.ini
-alembic upgrade head
