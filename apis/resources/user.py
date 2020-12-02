@@ -484,8 +484,7 @@ def user_list_by_project(project_id, args):
         })
     return util.success({"user_list": arr_ret})
 
-def user_sa_config():
-    user_id = get_jwt_identity()['user_id']
+def user_sa_config(user_id):
     ret_users = db.session.query(model.User, model.UserPluginRelation.kubernetes_sa_name). \
             join(model.UserPluginRelation). \
             filter(model.User.id == user_id). \
@@ -574,5 +573,5 @@ class UserList(Resource):
 
 class UserSaConfig(Resource):
     @jwt_required
-    def get(self):
-        return user_sa_config()
+    def get(self, user_id):
+        return user_sa_config(user_id)
