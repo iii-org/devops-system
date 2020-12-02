@@ -1,6 +1,7 @@
 import datetime
 import os
 import traceback
+from os.path import isfile
 
 from flask import Flask
 from flask_cors import CORS
@@ -76,6 +77,36 @@ def initialize(db_uri):
     # Create database
     create_database(db_uri)
     db.create_all()
+    # Fill alembic revision with latest
+    head = None
+    revs = []
+    downs = []
+    for fn in os.listdir('apis/alembic/versions'):
+        fp = 'apis/alembic/versions/%s' % fn
+        if not isfile(fp):
+            continue
+        with open(fp, "r") as f:
+            o = {}
+            for line in f:
+                rev = 'None'
+                if line.startswith('revision'):
+                    revs.append(line.split('=')[1].strip()[1:-1])
+                elif line.startswith('down_revision'):
+                    downs.append(line.split('=')[1].strip()[1:-1])
+
+    for rev in revs:
+        is_head = True
+        for down in downs:
+            if down == rev:
+                is_head = False
+                break
+        if is_head:
+            head = rev
+            break
+    if head is not None:
+        v = model.AlembicVersion(version_num=head)
+        db.session.add(v)
+        db.session.commit()
     # Create dummy project
     new = model.Project(id=-1, name='__dummy_project')
     db.session.add(new)
@@ -256,6 +287,7 @@ if __name__ == "__main__":
     db.app = app
     jsonwebtoken.init_app(app)
     app.app_context().push()
+
     u = config.get('SQLALCHEMY_DATABASE_URI')
     try:
         initialize(u)

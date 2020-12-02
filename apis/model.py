@@ -1,6 +1,7 @@
 """
-Each time you change the ORM model, run 'alembic revision --autogenerate -m "<message>"' in
-the root folder of this project!
+Each time you change the ORM model, run
+alembic revision --autogenerate -m <message>
+in the root folder of this project!
 If you don't have the alembic.ini yet, copy _alembic.ini and replace the postgres uri by yourself.
 This can't be full automatic since the auto-generated upgrade script may need to be modified.
 """
@@ -9,6 +10,10 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Date
 
 db = SQLAlchemy()
+
+
+class AlembicVersion(db.Model):
+    version_num = Column(String(32), primary_key=True)
 
 
 class User(db.Model):
@@ -67,8 +72,8 @@ class PipelineSoftware(db.Model):
 
 class PipelineSoftwareConfig(db.Model):
     id = Column(Integer, primary_key=True)
-    software_id = Column(Integer, ForeignKey(PipelineSoftware.id, ondelete='CASCADE')
-                         , nullable=False)
+    software_id = Column(Integer, ForeignKey(PipelineSoftware.id, ondelete='CASCADE'),
+                         nullable=False)
     project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
     detail = Column(String)
     sample = Column(Boolean)
