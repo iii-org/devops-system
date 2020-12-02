@@ -520,10 +520,7 @@ def get_projects_by_user(user_id):
 
         git_repository_id = row.ProjectPluginRelation.git_repository_id
         # branch number
-        try:
-            branch_number = gitlab.gl_count_branches(git_repository_id)
-        except:
-            print(row.Project.id)
+        branch_number = gitlab.gl_count_branches(git_repository_id)
         output_dict['branch'] = branch_number
         # tag number
         tag_number = 0
