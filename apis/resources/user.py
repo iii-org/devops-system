@@ -269,6 +269,8 @@ def create_user(args):
         raise DevOpsError(422, "System already has this account or email.",
                           error=apiError.already_used())
 
+    is_admin = args['role_id'] == role.ADMIN.id
+
     offset = 0
     limit = 25
     total_count = 1
@@ -302,12 +304,12 @@ def create_user(args):
                             error=apiError.already_used())
 
     # plan software user create
-    red_user = redmine.rm_create_user(args, user_source_password)
+    red_user = redmine.rm_create_user(args, user_source_password, is_admin=is_admin)
     redmine_user_id = red_user['user']['id']
 
     # gitlab software user create
     try:
-        git_user = gitlab.gl_create_user(args, user_source_password)
+        git_user = gitlab.gl_create_user(args, user_source_password, is_admin=is_admin)
     except Exception as e:
         redmine.rm_delete_user(redmine_user_id)
         raise e
@@ -324,7 +326,7 @@ def create_user(args):
 
     # Harbor user create
     try:
-        harbor_user_id = harbor.hb_create_user(args)
+        harbor_user_id = harbor.hb_create_user(args, is_admin=is_admin)
     except Exception as e:
         gitlab.gl_delete_user(gitlab_user_id)
         redmine.rm_delete_user(redmine_user_id)

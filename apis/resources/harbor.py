@@ -102,7 +102,7 @@ def hb_delete_project(project_id):
             raise e
 
 
-def hb_create_user(args):
+def hb_create_user(args, is_admin=False):
     login = args['login']
     data = {
         "username": login,
@@ -110,6 +110,8 @@ def hb_create_user(args):
         "realname": args['name'],
         "email": args['email']
     }
+    if is_admin:
+        data['sysadmin_flag'] = True
     __api_post('/users', data=data)
     res = __api_get('/users/search', params={'username': login}).json()
     return res[0]['user_id']

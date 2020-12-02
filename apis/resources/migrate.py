@@ -3,7 +3,7 @@ import os
 import config
 import model
 from model import db, ProjectPluginRelation, Project, UserPluginRelation, User, ProjectUserRole
-from resources import harbor
+from resources import harbor, role
 from resources.logger import logger
 
 VERSION_FILE_NAME = '.api_version'
@@ -15,8 +15,8 @@ def upgrade(version):
     if version == '0.9.2':
         cleanup_change_to_orm()
         alembic_upgrade()
-        create_harbor_projects()
         create_harbor_users()
+        create_harbor_projects()
 
 
 def create_harbor_projects():
@@ -47,7 +47,8 @@ def create_harbor_users():
                 'name': row.User.name,
                 'email': row.User.email
             }
-            hid = harbor.hb_create_user(args)
+            u = model.ProjectUserRole.query.filter_by(user_id=row.user_id, project_id=-1).one()
+            hid = harbor.hb_create_user(args, is_admin=u.role_id == role.ADMIN.id)
             row.UserPluginRelation.harbor_user_id = hid
             db.session.commit()
 
