@@ -8,10 +8,11 @@ from flask_restful import Resource, reqparse
 
 from resources.logger import logger
 
+k8s_config.load_kube_config()
+v1 = k8s_client.CoreV1Api()
+v1_namespace = k8s_client.model.v1_namespace()
 
 def list_service_all_namespaces():
-    k8s_config.load_kube_config()
-    v1 = k8s_client.CoreV1Api()
     service_list = []
     for service in v1.list_service_for_all_namespaces().items:
         logger.info("{0}, {1}, {2}, {3}".format(service.metadata.name,
@@ -32,8 +33,6 @@ def list_service_all_namespaces():
 
 
 def list_work_node():
-    k8s_config.load_kube_config()
-    v1 = k8s_client.CoreV1Api()
     node_list = []
     for node in v1.list_node().items:
         logger.info("{0}, {1}".format(node.status.addresses,
@@ -56,22 +55,39 @@ def list_work_node():
     return node_list
 
 def create_namespace(project_name):
-    k8s_config.load_kube_config()
-    v1 = k8s_client.CoreV1Api()
     ret = v1.create_namespace(k8s_client.V1Namespace(metadata=k8s_client.V1ObjectMeta(name=project_name)))
     print ("create_name_space: {0}".format(ret))
     
 def delete_namespace(project_name):
-    k8s_config.load_kube_config()
-    v1 = k8s_client.CoreV1Api()
     os.system("kubectl get ns {0} -o json > {0}-ns.json".format(project_name))
     # os.system("cat {0}-ns.json".format(project_name))
     ns_json = json.load(open("{0}-ns.json".format(project_name)))
+    print(ns_json)
     ns_json['spec']['finalizers']=[]
     print(ns_json)
+    #k8s_client.models.v1_namespace(namespace=project_name)
+    print(v1_namespace)
+    #v1_namespace.remove(finalizers=[])
+    #v1_namespace.remove()()
+
     #ret = v1.create_namespace(k8s_client.V1Namespace(metadata=k8s_client.V1ObjectMeta(name=project_name, finalizers=[])))
     #ret = v1.delete_namespace(project_name)
     #print("delete K8s namespace {0}".format(ret))
+
+def create_service_account(login_sa_name):
+    sa = v1.create_namespaced_service_account("account", k8s_client.V1ServiceAccount(
+        metadata=k8s_client.V1ObjectMeta(name=login_sa_name)))
+    return sa
+
+def delete_service_account(login_sa_name):
+    sa = v1.delete_namespaced_service_account(login_sa_name,"account")
+    return sa
+
+def list_service_account():
+    sa_list = []
+    for sa in v1.list_namespaced_service_account("account").items:
+        sa_list.append(sa.metadata.name)
+    return sa_list
 
 class tmp_api(Resource):
     def post(self):
