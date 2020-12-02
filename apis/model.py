@@ -1,9 +1,17 @@
 """
-Each time you change the ORM model, run
-alembic revision --autogenerate -m <message>
-in the root folder of this project!
-If you don't have the alembic.ini yet, copy _alembic.ini and replace the postgres uri by yourself.
-This can't be full automatic since the auto-generated upgrade script may need to be modified.
+Steps to modify the ORM model:
+1. Change python codes in this file.
+2. In command line: $ alembic revision --autogenerate -m <message>
+3. A file named <some hash>_<message>.py will appear at apis/alembic/versions
+4. Check if the migration can work: $ alembic upgrade head
+5. If no error, rollback: $ alembic downgrade -1
+6. If with error, modify the file generated in step 3 then repeat step 4.
+7. Add an API server version in migrate.py's VERSION array.
+8. Add an alembic_upgrade() statement for that version.
+9. Commit all files includes the file generated in step 3 to git.
+10. Done.
+
+If you don't have the alembic.ini, copy _alembic.ini and replace the postgres uri by yourself.
 """
 
 from flask_sqlalchemy import SQLAlchemy

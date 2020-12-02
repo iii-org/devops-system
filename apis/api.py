@@ -19,8 +19,8 @@ import resources.role as role
 import util
 from jsonwebtoken import jsonwebtoken
 from model import db
-from resources import project, gitlab, issue, user, redmine, wiki, version, sonar, apiTest, postman, mock, harbor, \
-    migrate
+from resources import project, gitlab, issue, user, redmine, wiki, version, sonar, apiTest, postman, mock, harbor
+import migrate
 from resources.logger import logger
 
 app = Flask(__name__)
