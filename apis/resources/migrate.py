@@ -1,12 +1,9 @@
-from pprint import pprint
-
-from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
 
 import model
-from model import db, ProjectPluginRelation, Project, UserPluginRelation, User, ProjectUserRole
-from resources import role, harbor
 import util
+from model import db, ProjectPluginRelation, Project, UserPluginRelation, User, ProjectUserRole
+from resources import harbor
 
 
 def create_harbor_projects():
@@ -64,23 +61,20 @@ def cleanup_change_to_orm():
         db.session.commit()
 
 
+# noinspection PyMethodMayBeStatic
 class Migrate(Resource):
-    @jwt_required
     def patch(self):
-        role.require_admin('Only admins can do migration.')
         parser = reqparse.RequestParser()
-        parser.add_argument('command', type=str)
+        parser.add_argument('to', type=str)
         args = parser.parse_args()
-        command = args['command']
+        to = args['to']
 
-        if command == 'create_harbor_projects':
-            create_harbor_projects()
-            return util.success()
-        if command == 'create_harbor_users':
-            create_harbor_users()
-            return util.success()
-        if command == 'cleanup_change_to_orm':
+        if to == 'orm':
             cleanup_change_to_orm()
             return util.success()
+        if to == '0.9.2':
+            create_harbor_projects()
+            create_harbor_users()
+            return util.success()
 
-        return util.respond(400, 'Command not recognized.')
+        return util.respond(400, 'Target version not recognized.')
