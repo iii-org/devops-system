@@ -20,6 +20,9 @@ from resources import kubernetesClient
 
 jwt = JWTManager()
 
+REDMINE_ROLE_ID_RD = 3
+REDMINE_ROLE_ID_PM = 4
+
 
 @jwt.user_claims_loader
 def jwt_response_data(row):
@@ -49,11 +52,11 @@ def get_role_id(user_id):
 
 def to_redmine_role_id(role_id):
     if role_id == role.RD.id:
-        return 3
+        return REDMINE_ROLE_ID_RD
     elif role_id == role.PM.id:
-        return 4
+        return REDMINE_ROLE_ID_PM
     else:
-        return 4
+        return REDMINE_ROLE_ID_PM
 
 
 def login(args):

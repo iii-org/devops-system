@@ -1,9 +1,22 @@
-from flask_restful import Resource, reqparse
+import os
 
+import config
 import model
-import util
 from model import db, ProjectPluginRelation, Project, UserPluginRelation, User, ProjectUserRole
 from resources import harbor
+from resources.logger import logger
+
+VERSION_FILE_NAME = '.api_version'
+# Each time you add a migration, add a version code here.
+VERSIONS = ['0.9.2']
+
+
+def upgrade(version):
+    if version == '0.9.2':
+        cleanup_change_to_orm()
+        alembic_upgrade()
+        create_harbor_projects()
+        create_harbor_users()
 
 
 def create_harbor_projects():
@@ -61,20 +74,43 @@ def cleanup_change_to_orm():
         db.session.commit()
 
 
-# noinspection PyMethodMayBeStatic
-class Migrate(Resource):
-    def patch(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument('to', type=str)
-        args = parser.parse_args()
-        to = args['to']
+def init():
+    with (open(VERSION_FILE_NAME, 'w')) as f:
+        f.write(VERSIONS[-1])
+        f.close()
 
-        if to == 'orm':
-            cleanup_change_to_orm()
-            return util.success()
-        if to == '0.9.2':
-            create_harbor_projects()
-            create_harbor_users()
-            return util.success()
 
-        return util.respond(400, 'Target version not recognized.')
+def needs_upgrade(current, target):
+    r = current.split('.')
+    c = target.split('.')
+    for i in range(len(c)):
+        if int(c[i]) > int(r[i]):
+            return True
+    return False
+
+
+def alembic_upgrade():
+    # Rewrite ini file
+    with open('alembic.ini', 'w') as ini:
+        with open('_alembic.ini', 'r') as template:
+            for line in template:
+                if line.startswith('sqlalchemy.url'):
+                    ini.write('sqlalchemy.url = {0}\n'.format(
+                        config.get('SQLALCHEMY_DATABASE_URI')))
+                else:
+                    ini.write(line)
+    os.system('alembic upgrade head')
+
+
+def run():
+    current = '0.0.0'
+    if os.path.exists(VERSION_FILE_NAME):
+        with open(VERSION_FILE_NAME, 'r') as f:
+            current = f.read()
+    for version in VERSIONS:
+        if needs_upgrade(current, version):
+            logger.info('Upgrade to {0}'.format(version))
+            upgrade(version)
+            current = version
+    with (open(VERSION_FILE_NAME, 'w')) as f:
+        f.write(current)

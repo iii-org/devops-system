@@ -70,7 +70,6 @@ class SystemGitCommitID(Resource):
 def initialize(db_uri):
     if database_exists(db_uri):
         return
-    app.app_context().push()
     logger.info('Initializing...')
     if config.get('DEBUG'):
         print('Initializing...')
@@ -92,6 +91,7 @@ def initialize(db_uri):
         'status': 'enable'
     }
     user.create_user(args)
+    migrate.init()
 
 
 # Projects
@@ -238,7 +238,6 @@ api.add_resource(redmine.RedmineFile, '/download', '/file/<int:file_id>')
 
 # System administrations
 api.add_resource(SystemGitCommitID, '/system_git_commit_id')  # git commit
-api.add_resource(migrate.Migrate, '/migrate')
 
 # Mocks
 api.add_resource(mock.MockTestResult, '/mock/test_summary')
@@ -255,10 +254,12 @@ if __name__ == "__main__":
     db.init_app(app)
     db.app = app
     jsonwebtoken.init_app(app)
+    app.app_context().push()
     u = config.get('SQLALCHEMY_DATABASE_URI')
     try:
         initialize(u)
     except Exception as e:
         drop_database(u)
         raise e
+    migrate.run()
     app.run(host='0.0.0.0', port=10009, debug=(config.get('DEBUG') is True))
