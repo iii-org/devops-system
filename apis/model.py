@@ -9,7 +9,7 @@ Steps to modify the ORM model:
 7. Add an API server version in migrate.py's VERSION array.
 8. Add an alembic_upgrade() statement for that version.
 9. Commit all files includes the file generated in step 3 to git.
-10. Done.
+10. Restart the API server, then you're done.
 
 If you don't have the alembic.ini, copy _alembic.ini and replace the postgres uri by yourself.
 """
