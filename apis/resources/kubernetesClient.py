@@ -1,3 +1,4 @@
+import base64
 from kubernetes import client as k8s_client
 from kubernetes import config as k8s_config
 
@@ -68,3 +69,33 @@ def list_service_account():
     for sa in v1.list_namespaced_service_account("account").items:
         sa_list.append(sa.metadata.name)
     return sa_list
+
+def get_service_account_config(sa_name):
+    node_list = []
+    for node in v1.list_node().items:
+        ip = None
+        hostname = None
+        if "node-role.kubernetes.io/controlplane" in node.metadata.labels:
+            for address in node.status.addresses:
+                if address.type == 'InternalIP':
+                    ip = address.address
+                elif address.type == 'Hostname':
+                    hostname = address.address
+            node_list.append({
+                "controlplane": node.metadata.labels['node-role.kubernetes.io/controlplane'],
+                "ip": ip,
+                "hostname": hostname
+            })
+    sa_secrets_name = v1.read_namespaced_service_account(sa_name,"account").secrets[0].name
+    server_ip = str(node_list[0]['ip'])
+    sa_secret = v1.read_namespaced_secret(sa_secrets_name,"account")
+    sa_ca =  sa_secret.data['ca.crt']
+    sa_token = str(base64.b64decode(str(sa_secret.data['token'])).decode('utf-8'))
+    sa_config = "apiVersion: v1\nclusters:\n- cluster:\n    certificate-authority-data: "+sa_ca+"\n    server: https://"+server_ip+":6443"+\
+                "\n  name: cluster\ncontexts:\n- context:\n    cluster: cluster\n    user: "+sa_name+"\n  name: default\ncurrent-context: default\nkind: Config\npreferences: {}\nusers:\n- name: "+sa_name+\
+                "\n  user:\n    token: "+sa_token
+    config = {
+            'name' : sa_name,
+            'config' : sa_config
+        }
+    return config

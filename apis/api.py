@@ -152,6 +152,7 @@ api.add_resource(user.UserForgetPassword, '/user/forgetPassword')
 api.add_resource(user.UserStatus, '/user/<int:user_id>/status')
 api.add_resource(user.SingleUser, '/user', '/user/<int:user_id>')
 api.add_resource(user.UserList, '/user/list')
+api.add_resource(user.UserSaConfig, '/user/config')
 
 # Role
 api.add_resource(role.RoleList, '/user/role/list')
