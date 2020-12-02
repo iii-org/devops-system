@@ -114,10 +114,14 @@ def run():
     if os.path.exists(VERSION_FILE_NAME):
         with open(VERSION_FILE_NAME, 'r') as f:
             current = f.read()
-    for version in VERSIONS:
-        if needs_upgrade(current, version):
-            logger.info('Upgrade to {0}'.format(version))
-            upgrade(version)
-            current = version
-    with (open(VERSION_FILE_NAME, 'w')) as f:
-        f.write(current)
+    try:
+        for version in VERSIONS:
+            if needs_upgrade(current, version):
+                logger.info('Upgrade to {0}'.format(version))
+                upgrade(version)
+                current = version
+    except Exception as e:
+        raise e
+    finally:
+        with (open(VERSION_FILE_NAME, 'w')) as f:
+            f.write(current)
