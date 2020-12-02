@@ -205,6 +205,10 @@ def hb_delete_artifact_tag(project_name, repository_name, reference, tag_name):
         hb_delete_artifact(project_name, repository_name, reference)
 
 
+def hb_get_project_summary(project_id):
+    return __api_get('/projects/{0}/summary'.format(project_id)).json()
+
+
 # ----------------- Resources -----------------
 def check_permission(project_name):
     try:
@@ -259,3 +263,10 @@ class HarborArtifact(Resource):
 
         hb_delete_artifact_tag(project_name, repository_name, args['digest'], args['tag_name'])
         return util.success()
+
+
+class HarborProject(Resource):
+    @jwt_required
+    def get(self, project_id):
+        role.require_in_project(project_id)
+        return util.success(hb_get_project_summary(project_id))
