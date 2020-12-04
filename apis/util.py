@@ -116,3 +116,60 @@ def enable_k8s_proxy():
         os.system("kubectl proxy &")
     except:
         pass
+
+def encode_k8s_sa(name):
+    ret = ''
+    for c in name:
+        if 'a' <= c <= 'z' or '1' <= c <= '9' or c == '-' or c == '.':
+            ret += c
+        elif 'A' <= c <= 'Z':
+            ret += c.lower() + '0'
+        elif c == '0':
+            ret += '00'
+        elif c == '_':
+            ret += '-0'
+    return ret
+
+
+def merge_zero(c):
+    if c == '0':
+        return '0'
+    elif c == '-':
+        return '_'
+    else:
+        return c.upper()
+
+
+def decode_k8s_sa(string):
+    ret = ''
+    i = 0
+    while i < len(string):
+        c = string[i]
+        if i == len(string) - 1:
+            ret += c
+            i += 1
+            continue
+        n = string[i + 1]
+        if n == '0':
+            nn = i + 2
+            zero_count = 1
+            while nn < len(string):
+                if string[nn] == '0':
+                    nn += 1
+                    zero_count += 1
+                else:
+                    break
+            if zero_count % 2 == 1:
+                ret += merge_zero(c)
+                i += 2
+                zero_count -= 1
+            else:
+                ret += c
+                i += 1
+            for _ in range(0, int(zero_count / 2)):
+                ret += '0'
+                i += 2
+        else:
+            ret += c
+            i += 1
+    return ret

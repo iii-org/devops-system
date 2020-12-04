@@ -11,5 +11,6 @@ Flask-Cors
 
 Werkzeug
 SQLAlchemy
+sqlalchemy-utils
 kubernetes
 alembic

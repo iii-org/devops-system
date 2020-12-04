@@ -12,10 +12,11 @@ import util as util
 from model import db
 from resources.apiError import DevOpsError
 import model
-from resources import role
+from resources import role, harbor
 from resources.logger import logger
 from resources.redmine import redmine
 from resources.gitlab import gitlab
+from resources import kubernetesClient
 
 jwt = JWTManager()
 
@@ -28,24 +29,6 @@ def jwt_response_data(row):
         'role_id': row['role_id'],
         'role_name': role.get_role_name(row['role_id'])
     }
-
-
-def get_3pt_user_ids(user_id, message):
-    user_relation = get_user_plugin_relation(user_id=user_id)
-    if user_relation is None:
-        raise DevOpsError(400, message,
-                          error=apiError.user_not_found(user_id))
-    redmine_user_id = user_relation.plan_user_id
-    gitlab_user_id = user_relation.repository_user_id
-    if redmine_user_id is None:
-        raise DevOpsError(500, message,
-                          error=apiError.db_error(
-                              "Cannot get redmine id of the user."))
-    if gitlab_user_id is None:
-        raise DevOpsError(500, message,
-                          error=apiError.db_error(
-                              "Gitlab does not have this user."))
-    return {'redmine_user_id': redmine_user_id, 'gitlab_user_id': gitlab_user_id}
 
 
 def get_user_id_name_by_plan_user_id(plan_user_id):
@@ -225,23 +208,19 @@ def update_external_passwords(user_id, new_pwd):
 def delete_user(user_id):
     # 取得gitlab & redmine user_id
     relation = get_user_plugin_relation(user_id=user_id)
-    if type(relation) is not model.UserPluginRelation:
-        return relation
-    gitlab_user_id = relation.repository_user_id
-    # 刪除gitlab user
-    gitlab_response = gitlab.gl_delete_user(gitlab_user_id)
 
-    # 如果gitlab user成功被刪除則繼續刪除redmine user
-    redmine_user_id = relation.plan_user_id
-    redmine.rm_delete_user(redmine_user_id)
+    gitlab.gl_delete_user(relation.repository_user_id)
+    redmine.rm_delete_user(relation.plan_user_id)
+    harbor.hb_delete_user(relation.harbor_user_id)
+    kubernetesClient.delete_service_account(relation.kubernetes_sa_name)
 
     # 如果gitlab & redmine user都成功被刪除則繼續刪除db內相關tables欄位
-    db.engine.execute(
-        "DELETE FROM public.user_plugin_relation WHERE user_id = '{0}'".format(user_id))
-    db.engine.execute(
-        "DELETE FROM public.project_user_role WHERE user_id = '{0}'".format(user_id))
-    db.engine.execute(
-        "DELETE FROM public.user WHERE id = '{0}'".format(user_id))
+    db.session.delete(relation)
+    del_role = model.ProjectUserRole.query.filter_by(user_id=user_id).one()
+    db.session.delete(del_role)
+    del_user = model.User.query.filter_by(id=user_id).one()
+    db.session.delete(del_user)
+    db.session.commit()
 
     return util.success()
 
@@ -278,14 +257,17 @@ def create_user(args):
         return util.respond(400, "Error when creating new user",
                             error=apiError.invalid_user_password())
 
-    # Check DB has this login, email, if has, return error
+    # Check DB has this login, email, if has, raise error
     check_count = model.User.query.filter(db.or_(
         model.User.login == args['login'],
         model.User.email == args['email'],
     )).count()
     if check_count > 0:
-        return util.respond(422, "System already has this account or email.",
-                            error=apiError.already_used())
+        raise DevOpsError(422, "System already has this account or email.",
+                          error=apiError.already_used())
+
+    is_admin = args['role_id'] == role.ADMIN.id
+
     offset = 0
     limit = 25
     total_count = 1
@@ -298,7 +280,7 @@ def create_user(args):
                 raise DevOpsError(422, "Redmine already has this account or email.",
                                   error=apiError.already_used())
         offset += limit
-    # Check Gitlab has this login, email, if has, return error 400
+    # Check Gitlab has this login, email, if has, raise error
     page = 1
     x_total_pages = 10
     while page <= x_total_pages:
@@ -310,48 +292,83 @@ def create_user(args):
                 raise DevOpsError(422, "Gitlab already has this account or email.",
                                   error=apiError.already_used())
         page += 1
+    
+    # Check Kubernetes has this Service Account (login), if has, return error 400
+    sa_list = kubernetesClient.list_service_account()
+    login_sa_name = util.encode_k8s_sa(login_name)
+    if login_sa_name in sa_list:
+        return util.respond(422, "Kubernetes already has this service account.",
+                            error=apiError.already_used())
 
     # plan software user create
-    red_user = redmine.rm_create_user(args, user_source_password)
+    red_user = redmine.rm_create_user(args, user_source_password, is_admin=is_admin)
     redmine_user_id = red_user['user']['id']
 
     # gitlab software user create
     try:
-        git_user = gitlab.gl_create_user(args, user_source_password)
-    except DevOpsError as e:
+        git_user = gitlab.gl_create_user(args, user_source_password, is_admin=is_admin)
+    except Exception as e:
         redmine.rm_delete_user(redmine_user_id)
         raise e
     gitlab_user_id = git_user['id']
-    h = SHA256.new()
-    h.update(args["password"].encode())
-    args["password"] = h.hexdigest()
-    disabled = False
-    if args['status'] == "disable":
-        disabled = True
-    user = model.User(
-        name=args['name'],
-        email=args['email'],
-        phone=args['phone'],
-        login=args['login'],
-        password=h.hexdigest(),
-        create_at=datetime.datetime.now(),
-        disabled=disabled)
-    db.session.add(user)
-    db.session.commit()
 
-    user_id = user.id
+    # kubernetes service account create
+    try:
+        kubernetes_sa = kubernetesClient.create_service_account(login_sa_name)
+    except Exception as e:
+        redmine.rm_delete_user(redmine_user_id)
+        gitlab.gl_delete_user(gitlab_user_id)
+        raise e
+    kubernetes_sa_name = kubernetes_sa.metadata.name
 
-    # insert user_plugin_relation table
-    rel = model.UserPluginRelation(user_id=user_id,
-                                   plan_user_id=redmine_user_id,
-                                   repository_user_id=gitlab_user_id)
-    db.session.add(rel)
-    db.session.commit()
+    # Harbor user create
+    try:
+        harbor_user_id = harbor.hb_create_user(args, is_admin=is_admin)
+    except Exception as e:
+        gitlab.gl_delete_user(gitlab_user_id)
+        redmine.rm_delete_user(redmine_user_id)
+        raise e
 
-    # insert project_user_role
-    rol = model.ProjectUserRole(project_id=-1, user_id=user_id, role_id=args['role_id'])
-    db.session.add(rol)
-    db.session.commit()
+    try:
+        # DB
+        h = SHA256.new()
+        h.update(args["password"].encode())
+        args["password"] = h.hexdigest()
+        disabled = False
+        if args['status'] == "disable":
+            disabled = True
+        user = model.User(
+            name=args['name'],
+            email=args['email'],
+            phone=args['phone'],
+            login=args['login'],
+            password=h.hexdigest(),
+            create_at=datetime.datetime.now(),
+            disabled=disabled)
+        db.session.add(user)
+        db.session.commit()
+
+        user_id = user.id
+
+        # insert user_plugin_relation table
+        rel = model.UserPluginRelation(user_id=user_id,
+                                       plan_user_id=redmine_user_id,
+                                       repository_user_id=gitlab_user_id,
+                                       harbor_user_id=harbor_user_id,
+                                       kubernetes_sa_name=kubernetes_sa_name)
+        db.session.add(rel)
+        db.session.commit()
+
+        # insert project_user_role
+        rol = model.ProjectUserRole(project_id=-1, user_id=user_id, role_id=args['role_id'])
+        db.session.add(rol)
+        db.session.commit()
+    except Exception as e:
+        harbor.hb_delete_user(harbor_user_id)
+        gitlab.gl_delete_user(gitlab_user_id)
+        redmine.rm_delete_user(redmine_user_id)
+        kubernetesClient.delete_service_account(kubernetes_sa_name)
+        raise e
 
     return util.success({"user_id": user_id})
 
@@ -467,6 +484,14 @@ def user_list_by_project(project_id, args):
         })
     return util.success({"user_list": arr_ret})
 
+def user_sa_config(user_id):
+    ret_users = db.session.query(model.User, model.UserPluginRelation.kubernetes_sa_name). \
+            join(model.UserPluginRelation). \
+            filter(model.User.id == user_id). \
+            filter(model.User.disabled == False).first()
+    sa_name = str(ret_users.kubernetes_sa_name)
+    sa_config = kubernetesClient.get_service_account_config(sa_name)
+    return util.success(sa_config)
 
 # --------------------- Resources ---------------------
 class Login(Resource):
@@ -545,3 +570,8 @@ class UserList(Resource):
     def get(self):
         role.require_pm()
         return user_list()
+
+class UserSaConfig(Resource):
+    @jwt_required
+    def get(self, user_id):
+        return user_sa_config(user_id)

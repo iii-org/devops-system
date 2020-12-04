@@ -2,6 +2,7 @@ import os
 import json
 import util as util
 
+import base64
 from kubernetes import client as k8s_client
 from kubernetes import config as k8s_config
 
@@ -12,6 +13,7 @@ from resources.logger import logger
 
 k8s_config.load_kube_config()
 v1 = k8s_client.CoreV1Api()
+
 
 def list_service_all_namespaces():
     service_list = []
@@ -57,7 +59,7 @@ def list_work_node():
 
 def create_namespace(project_name):
     ret = v1.create_namespace(k8s_client.V1Namespace(metadata=k8s_client.V1ObjectMeta(name=project_name)))
-    print ("create_name_space: {0}".format(ret))
+    # print ("create_name_space: {0}".format(ret))
     
 def delete_namespace(project_name):
     ret = v1.delete_namespace(project_name)
@@ -87,6 +89,7 @@ def list_service_account():
         sa_list.append(sa.metadata.name)
     return sa_list
 
+'''
 class tmp_api(Resource):
     def post(self):
         parser = reqparse.RequestParser()
@@ -99,4 +102,49 @@ class tmp_api(Resource):
         parser.add_argument('project_name', type=str)
         args = parser.parse_args()
         delete_namespace(args['project_name'])
+'''
 
+def create_service_account(login_sa_name):
+    sa = v1.create_namespaced_service_account("account", k8s_client.V1ServiceAccount(
+        metadata=k8s_client.V1ObjectMeta(name=login_sa_name)))
+    return sa
+
+def delete_service_account(login_sa_name):
+    sa = v1.delete_namespaced_service_account(login_sa_name,"account")
+    return sa
+
+def list_service_account():
+    sa_list = []
+    for sa in v1.list_namespaced_service_account("account").items:
+        sa_list.append(sa.metadata.name)
+    return sa_list
+
+def get_service_account_config(sa_name):
+    node_list = []
+    for node in v1.list_node().items:
+        ip = None
+        hostname = None
+        if "node-role.kubernetes.io/controlplane" in node.metadata.labels:
+            for address in node.status.addresses:
+                if address.type == 'InternalIP':
+                    ip = address.address
+                elif address.type == 'Hostname':
+                    hostname = address.address
+            node_list.append({
+                "controlplane": node.metadata.labels['node-role.kubernetes.io/controlplane'],
+                "ip": ip,
+                "hostname": hostname
+            })
+    sa_secrets_name = v1.read_namespaced_service_account(sa_name,"account").secrets[0].name
+    server_ip = str(node_list[0]['ip'])
+    sa_secret = v1.read_namespaced_secret(sa_secrets_name,"account")
+    sa_ca =  sa_secret.data['ca.crt']
+    sa_token = str(base64.b64decode(str(sa_secret.data['token'])).decode('utf-8'))
+    sa_config = "apiVersion: v1\nclusters:\n- cluster:\n    certificate-authority-data: "+sa_ca+"\n    server: https://"+server_ip+":6443"+\
+                "\n  name: cluster\ncontexts:\n- context:\n    cluster: cluster\n    user: "+sa_name+"\n  name: default\ncurrent-context: default\nkind: Config\npreferences: {}\nusers:\n- name: "+sa_name+\
+                "\n  user:\n    token: "+sa_token
+    config = {
+            'name' : sa_name,
+            'config' : sa_config
+        }
+    return config

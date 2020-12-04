@@ -92,12 +92,30 @@ class Redmine:
         output = requests.get(url, headers={'Content-Type': 'application/json'}, verify=False)
         self.redmine_key = output.json()['user']['api_key']
 
+    # --------------- Normal methods ---------------
+
+    def paging(self, key, params=None):
+        if params is None:
+            params = {}
+        offset = 0
+        ret = []
+        path = '/{0}'.format(key)
+        params['limit'] = 100
+        while True:
+            res = self.__api_get(path=path, params=params).json().get(key)
+            ret.extend(res)
+            if len(res) == 100:
+                offset += 100
+                params['offset'] = offset
+            else:
+                break
+        return ret
+
     def rm_list_projects(self):
-        return self.__api_get('/projects').json()
+        return self.paging('projects')
 
     def rm_get_project(self, plan_project_id):
-        return self.__api_get('/projects/{0}'.format(plan_project_id),
-                              params={'limit': 1000}).json()
+        return self.__api_get('/projects/{0}'.format(plan_project_id)).json()
 
     def rm_update_project(self, plan_project_id, args):
         xml_body = """<?xml version="1.0" encoding="UTF-8"?>
@@ -116,29 +134,27 @@ class Redmine:
         return self.__api_delete('/projects/{0}'.format(plan_project_id))
 
     def rm_list_issues(self):
-        params = {'status_id': '*'}
-        return self.__api_get('/issues', params=params).json()
+        return self.paging('issues')
 
     def rm_get_issues_by_user(self, user_id):
-        params = {'assigned_to_id': user_id, 'limit': 1000, 'status_id': '*'}
-        return self.__api_get('/issues', params=params).json()
+        params = {'assigned_to_id': user_id, 'status_id': '*'}
+        return self.paging('issues', params)
 
     def rm_get_issues_by_project(self, plan_project_id, args=None):
         if args is not None and 'fixed_version_id' in args:
-            params = {'project_id': plan_project_id, 'limit': 1000, 'status_id': '*',
+            params = {'project_id': plan_project_id, 'status_id': '*',
                       'fixed_version_id': args['fixed_version_id']}
         else:
-            params = {'project_id': plan_project_id, 'limit': 1000, 'status_id': '*'}
-        return self.__api_get('/issues', params=params).json()
+            params = {'project_id': plan_project_id, 'status_id': '*'}
+        return self.paging('issues', params)
 
     def rm_get_issues_by_project_and_user(self, user_id, plan_project_id):
         params = {
             'assigned_to_id': user_id,
             'project_id': plan_project_id,
-            'limit': 100,
             'status_id': '*'
         }
-        return self.__api_get('/issues', params=params).json()
+        return self.paging('issues', params)
 
     def rm_get_issue(self, issue_id):
         params = {'include': 'journals,attachments'}
@@ -171,7 +187,7 @@ class Redmine:
     def rm_get_trackers(self):
         return self.__api_get('/trackers').json()
 
-    def rm_create_user(self, args, user_source_password):
+    def rm_create_user(self, args, user_source_password, is_admin=False):
         params = {
             "user": {
                 "login": args["login"],
@@ -181,6 +197,8 @@ class Redmine:
                 "password": user_source_password
             }
         }
+        if is_admin:
+            params['user']['admin'] = True
         return self.__api_post('/users', data=params).json()
 
     def rm_update_password(self, plan_user_id, new_pwd):
@@ -340,6 +358,10 @@ class Redmine:
         return self.__api_post('/projects',
                                headers=headers,
                                data=xml_body.encode('utf-8')).json()
+
+    @staticmethod
+    def build_link(path):
+        return "http://{0}{1}".format(config.get('REDMINE_IP_PORT'), path)
 
 
 # --------------------- Resources ---------------------

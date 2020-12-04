@@ -5,7 +5,8 @@ from flask_restful import Resource, reqparse
 from requests.auth import HTTPBasicAuth
 
 import config
-from resources import apiError
+import model
+from resources import apiError, role
 import util
 from resources.apiError import DevOpsError
 from resources.logger import logger
@@ -101,22 +102,171 @@ def hb_delete_project(project_id):
             raise e
 
 
-class HarborProject(Resource):
+def hb_create_user(args, is_admin=False):
+    login = args['login']
+    data = {
+        "username": login,
+        "password": args['password'],
+        "realname": args['name'],
+        "email": args['email']
+    }
+    if is_admin:
+        data['sysadmin_flag'] = True
+    __api_post('/users', data=data)
+    res = __api_get('/users/search', params={'username': login}).json()
+    return res[0]['user_id']
+
+
+def hb_delete_user(user_id):
+    __api_delete('/users/{0}'.format(user_id))
+
+
+def hb_add_member(project_id, user_id):
+    data = {
+        "role_id": 1,
+        "member_user": {
+            "user_id": user_id
+        }
+    }
+    __api_post('/projects/{0}/members'.format(project_id), data=data)
+
+
+def hb_remove_member(project_id, user_id):
+    members = __api_get('/projects/{0}/members'.format(project_id)).json()
+    member_id = None
+    for member in members:
+        if member['entity_id'] == user_id:
+            member_id = member['id']
+            break
+    if member_id is None:
+        raise DevOpsError(404, 'User is not in the project.',
+                          error=apiError.user_not_found(user_id))
+    __api_delete('/projects/{0}/members/{1}'.format(project_id, member_id))
+
+
+def hb_list_repositories(project_name):
+    return __api_get('/projects/{0}/repositories'.format(project_name)).json()
+
+
+def hb_list_artifacts(project_name, repository_name):
+    artifacts = __api_get('/projects/{0}/repositories/{1}/artifacts'.format(
+        project_name, repository_name), params={'with_scan_overview': True}).json()
+    ret = []
+    for art in artifacts:
+        scan = next(iter(art['scan_overview'].values()))
+        if scan is None:
+            vul = ''
+        else:
+            vul = '{0} ({1})'.format(scan['severity'], scan['summary']['total'])
+        for tag in art['tags']:
+            ret.append({
+                'artifact_id': art['id'],
+                'tag_id': tag['id'],
+                'name': tag['name'],
+                'size': art['size'],
+                'vulnerabilities': vul,
+                'digest': art['digest'],
+                'labels': art['labels'],
+                'push_time': art['push_time']
+            })
+    return ret
+
+
+def hb_get_repository_info(project_name, repository_name):
+    return __api_get('/projects/{0}/repositories/{1}'.format(
+        project_name, repository_name)).json()
+
+
+def hb_update_repository(project_name, repository_name, args):
+    return __api_put('/projects/{0}/repositories/{1}'.format(
+        project_name, repository_name),
+        data={'description': args['description']})
+
+
+def hb_delete_repository(project_name, repository_name):
+    return __api_delete('/projects/{0}/repositories/{1}'.format(
+        project_name, repository_name))
+
+
+def hb_delete_artifact(project_name, repository_name, reference):
+    return __api_delete('/projects/{0}/repositories/{1}/artifacts/{2}'.format(
+        project_name, repository_name, reference))
+
+
+def hb_list_tags(project_name, repository_name, reference):
+    return __api_get('/projects/{0}/repositories/{1}/artifacts/{2}/tags'.format(
+        project_name, repository_name, reference)).json()
+
+
+def hb_delete_artifact_tag(project_name, repository_name, reference, tag_name):
+    __api_delete('/projects/{0}/repositories/{1}/artifacts/{2}/tags/{3}'.format(
+        project_name, repository_name, reference, tag_name))
+    if len(hb_list_tags(project_name, repository_name, reference)) == 0:
+        hb_delete_artifact(project_name, repository_name, reference)
+
+
+def hb_get_project_summary(project_id):
+    return __api_get('/projects/{0}/summary'.format(project_id)).json()
+
+
+# ----------------- Resources -----------------
+def check_permission(project_name):
+    try:
+        pjt = model.Project.query.filter_by(name=project_name).one()
+    except DevOpsError:
+        return util.respond(404, 'Project not found.',
+                            error=apiError.project_not_found(project_name))
+    project_id = pjt.id
+    role.require_in_project(project_id)
+
+
+class HarborRepository(Resource):
     @jwt_required
-    def post(self):
+    def get(self, project_id):
+        role.require_in_project(project_id)
+        try:
+            pjt = model.Project.query.filter_by(id=project_id).one()
+        except DevOpsError:
+            return util.respond(404, 'Project not found.',
+                                error=apiError.project_not_found(project_id))
+        project_name = pjt.name
+        return util.success(hb_list_repositories(project_name))
+
+    @jwt_required
+    def put(self, project_name, repository_name):
+        check_permission(project_name)
         parser = reqparse.RequestParser()
-        parser.add_argument('name', type=str)
+        parser.add_argument('description', type=str)
+        args = parser.parse_args()
+        hb_update_repository(project_name, repository_name, args)
+        return util.success()
+
+    @jwt_required
+    def delete(self, project_name, repository_name):
+        check_permission(project_name)
+        hb_delete_repository(project_name, repository_name)
+        return util.success()
+
+
+class HarborArtifact(Resource):
+    @jwt_required
+    def get(self, project_name, repository_name):
+        return util.success(hb_list_artifacts(project_name, repository_name))
+
+    @jwt_required
+    def delete(self, project_name, repository_name):
+        check_permission(project_name)
+        parser = reqparse.RequestParser()
+        parser.add_argument('digest', type=str)
+        parser.add_argument('tag_name', type=str)
         args = parser.parse_args()
 
-        pattern = "^[a-z0-9][a-z0-9-]{0,253}[a-z0-9]$"
-        result = re.fullmatch(pattern, args['name'])
-        if result is None:
-            return util.respond(400, 'Error while creating project',
-                                error=apiError.invalid_project_name(args['name']))
-        pid = hb_create_project(args['name'])
-        return util.success({'harbor_project_id': pid})
-
-    @jwt_required
-    def delete(self, harbor_project_id):
-        hb_delete_project(harbor_project_id)
+        hb_delete_artifact_tag(project_name, repository_name, args['digest'], args['tag_name'])
         return util.success()
+
+
+class HarborProject(Resource):
+    @jwt_required
+    def get(self, project_id):
+        role.require_in_project(project_id)
+        return util.success(hb_get_project_summary(project_id))

@@ -7,6 +7,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
 from sqlalchemy.orm.exc import NoResultFound
 
+import config
 import model
 import resources.apiError as apiError
 import resources.user as user
@@ -95,6 +96,7 @@ def deal_with_issue_by_user_redmine_output(redmine_output):
             'id']
         output_list['fixed_version_name'] = redmine_output[
             'fixed_version']['name']
+    output_list['issue_link'] = redmine.build_link('/issues/{0}'.format(redmine_output['id']))
     logger.info(
         "get issue by user redmine_output: {0}".format(output_list))
     return output_list
@@ -240,7 +242,7 @@ def get_issue_by_project(project_id, args):
     output_array = []
     redmine_output_issue_array = redmine.rm_get_issues_by_project(
         plan_id, args)
-    for redmine_issue in redmine_output_issue_array['issues']:
+    for redmine_issue in redmine_output_issue_array:
         output_dict = deal_with_issue_by_user_redmine_output(redmine_issue)
         output_array.append(output_dict)
     return output_array
@@ -422,7 +424,7 @@ def get_issue_by_user(user_id):
         raise DevOpsError(400, 'Cannot find user in redmine.',
                           error=apiError.user_not_found(user_id))
     redmine_output_issue_array = redmine.rm_get_issues_by_user(user_to_plan[str(user_id)])
-    for redmine_issue in redmine_output_issue_array['issues']:
+    for redmine_issue in redmine_output_issue_array:
         output_dict = deal_with_issue_by_user_redmine_output(redmine_issue)
         output_array.append(output_dict)
     return output_array
@@ -602,7 +604,7 @@ def get_parameters_by_param_id(parameters_id):
 
 
 def del_parameters_by_param_id(parameters_id):
-    row = model.Parameters.query.filter_by(id=parameters_id).first()
+    row = model.Parameters.query.filter_by(id=parameters_id).one()
     row.disabled = True
     row.update_at = datetime.now()
     db.session.commit()
@@ -610,7 +612,7 @@ def del_parameters_by_param_id(parameters_id):
 
 
 def modify_parameters_by_param_id(parameters_id, args):
-    row = model.Parameters.query.filter_by(id=parameters_id).first()
+    row = model.Parameters.query.filter_by(id=parameters_id).one()
     row.update_at = datetime.now()
     row.parameter_type_id = args['parameter_type_id']
     row.name = args['name']
@@ -621,7 +623,8 @@ def modify_parameters_by_param_id(parameters_id, args):
 
 
 def get_parameters_by_issue_id(issue_id):
-    rows = model.Parameters.query.filter_by(issue_id=issue_id).filter('disabled' != False)
+    rows = model.Parameters.query.filter_by(issue_id=issue_id).filter(
+        model.Parameters.disabled.isnot(True))
     output = []
     for row in rows:
         output.append(deal_with_ParametersObject(row))
@@ -675,12 +678,12 @@ def deal_with_flow_object(sql_row):
 
 
 def get_flow_by_flow_id(flow_id):
-    f = model.Flows.query.filter_by(id=flow_id).first()
+    f = model.Flows.query.filter_by(id=flow_id).one()
     return deal_with_flow_object(f)
 
 
 def disabled_flow_by_flow_id(flow_id):
-    f = model.Flows.query.filter_by(id=flow_id)
+    f = model.Flows.query.filter_by(id=flow_id).one()
     f.disabled = True
     f.update_at = datetime.now()
     db.session.commit()
@@ -700,7 +703,7 @@ def modify_flow_by_flow_id(flow_id, args):
 
 def get_flow_by_requirement_id(requirement_id):
     rows = model.Flows.query.filter_by(requirement_id=requirement_id).filter(
-        'disabled' != False).all()
+        model.Flows.disabled.isnot(True)).all()
     output = []
     for row in rows:
         output.append(deal_with_flow_object(row))
@@ -772,7 +775,8 @@ def modify_requirement_by_rqmt_id(requirement_id, args):
 
 
 def get_requirements_by_issue_id(issue_id):
-    rows = model.Requirements.query.filter_by(issue_id=issue_id).filter('disabled' != False).all()
+    rows = model.Requirements.query.filter_by(issue_id=issue_id).filter(
+        model.Requirements.disabled.isnot(True)).all()
     output = []
     for row in rows:
         output.append(json.loads(row.flow_info))
@@ -792,7 +796,7 @@ def post_requirement_by_issue_id(issue_id, args):
 
 def get_requirements_by_project_id(project_id):
     rows = model.Requirements.query.filter_by(
-        project_id=project_id).filter('disabled' != False).all()
+        project_id=project_id).filter(model.Requirements.disabled.isnot(True)).all()
     output = []
     for row in rows:
         output.append(json.loads(row.flow_info))
@@ -812,16 +816,16 @@ class SingleIssue(Resource):
         parser.add_argument('project_id', type=int, required=True)
         parser.add_argument('tracker_id', type=int, required=True)
         parser.add_argument('status_id', type=int, required=True)
-        parser.add_argument('priority_id', type=int, required=True)
+        parser.add_argument('priority_id', type=int)
         parser.add_argument('subject', type=str, required=True)
         parser.add_argument('description', type=str)
-        parser.add_argument('assigned_to_id', type=int, required=True)
+        parser.add_argument('assigned_to_id', type=int)
         parser.add_argument('parent_id', type=int)
         parser.add_argument('fixed_version_id', type=int)
-        parser.add_argument('start_date', type=str, required=True)
-        parser.add_argument('due_date', type=str, required=True)
-        parser.add_argument('done_ratio', type=int, required=True)
-        parser.add_argument('estimated_hours', type=int, required=True)
+        parser.add_argument('start_date', type=str)
+        parser.add_argument('due_date', type=str)
+        parser.add_argument('done_ratio', type=int)
+        parser.add_argument('estimated_hours', type=int)
 
         # Attachment upload
         parser.add_argument('upload_file', type=werkzeug.datastructures.FileStorage, location='files')

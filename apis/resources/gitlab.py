@@ -101,7 +101,7 @@ class GitLab(object):
     def gl_delete_project(self, repo_id):
         return self.__api_delete('/projects/{0}'.format(repo_id))
 
-    def gl_create_user(self, args, user_source_password):
+    def gl_create_user(self, args, user_source_password, is_admin=False):
         data = {
             "name": args['name'],
             "email": args['email'],
@@ -109,6 +109,8 @@ class GitLab(object):
             "password": user_source_password,
             "skip_confirmation": True
         }
+        if is_admin:
+            data['admin'] = True
         return self.__api_post('/users', data=data).json()
 
     def gl_update_password(self, repository_user_id, new_pwd):
