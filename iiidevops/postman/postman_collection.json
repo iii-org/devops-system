@@ -1,7 +1,7 @@
 {
 	"info": {
-		"_postman_id": "1181fc8c-d724-4dde-96e8-de7a8f24225e",
-		"name": "III DevOps API 關連測試 Test Team",
+		"_postman_id": "6956fc57-3f93-41a7-b57a-86c9fc1eb5c8",
+		"name": "III DevOps API 關連測試 Test Team New",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"item": [
@@ -14,16 +14,12 @@
 						{
 							"listen": "test",
 							"script": {
-								"id": "ecdd1499-8759-453c-aaf6-b019c91fb483",
+								"id": "024ace57-acc8-420f-b748-6940a4c0999f",
 								"exec": [
 									"function jwt_decode(jwt) {",
 									"    var parts = jwt.split('.'); // header, payload, signature",
 									"    return JSON.parse(atob(parts[1]));",
 									"}",
-									"",
-									"pm.test(\"Status code 檢查\", () => {",
-									"    pm.response.to.have.status(200);",
-									"});",
 									"",
 									"pm.test(\"JWT Token 檢查\", function () {",
 									"    const jsonData = pm.response.json();",
@@ -33,8 +29,8 @@
 									"    pm.expect(jsonData).to.have.all.keys(['message', 'data']);",
 									"    pm.expect(decode_jwt.identity).to.have.all.keys(jwt_key);",
 									"",
-									"    pm.environment.set(\"user_id_pm\", decode_jwt.identity.user_id)",
-									"    pm.environment.set(\"token_pm\", pm.response.json().data.token)",
+									"    pm.variables.set(\"user_id_pm\", decode_jwt.identity.user_id)",
+									"    pm.variables.set(\"token_pm\", pm.response.json().data.token)",
 									"});",
 									""
 								],
@@ -44,7 +40,7 @@
 						{
 							"listen": "prerequest",
 							"script": {
-								"id": "d96f7125-33a4-4aec-81c2-f1088c220162",
+								"id": "3401c26a-3bd7-4636-8df2-bc73629db96f",
 								"exec": [
 									""
 								],
@@ -149,16 +145,12 @@
 						{
 							"listen": "test",
 							"script": {
-								"id": "396415fd-86c1-4c3e-8f1b-2ddfca7d77d3",
+								"id": "64d972b5-d501-4569-91a9-1b0d8be879a5",
 								"exec": [
 									"function jwt_decode(jwt) {",
 									"    var parts = jwt.split('.'); // header, payload, signature",
 									"    return JSON.parse(atob(parts[1]));",
 									"}",
-									"",
-									"pm.test(\"Status code 檢查\", () => {",
-									"    pm.response.to.have.status(200);",
-									"});",
 									"",
 									"pm.test(\"JWT Token 檢查\", function () {",
 									"    const jsonData = pm.response.json();",
@@ -168,8 +160,8 @@
 									"    pm.expect(jsonData).to.have.all.keys(['message', 'data']);",
 									"    pm.expect(decode_jwt.identity).to.have.all.keys(jwt_key);",
 									"",
-									"    pm.environment.set(\"user_id_rd\", decode_jwt.identity.user_id)",
-									"    pm.environment.set(\"token_rd\", pm.response.json().data.token)",
+									"    pm.variables.set(\"user_id_rd\", decode_jwt.identity.user_id)",
+									"    pm.variables.set(\"token_rd\", pm.response.json().data.token)",
 									"});",
 									""
 								],
@@ -179,7 +171,7 @@
 						{
 							"listen": "prerequest",
 							"script": {
-								"id": "8ab666dd-8883-425d-a270-284fbcf5e8a5",
+								"id": "c2630623-c20e-4a66-8594-b7d83d83bd52",
 								"exec": [
 									""
 								],
@@ -284,16 +276,12 @@
 						{
 							"listen": "test",
 							"script": {
-								"id": "846641ed-db08-4e30-a52d-a33503cfa441",
+								"id": "ba16b840-9969-4def-8d8d-18491fef5244",
 								"exec": [
 									"function jwt_decode(jwt) {",
 									"    var parts = jwt.split('.'); // header, payload, signature",
 									"    return JSON.parse(atob(parts[1]));",
 									"}",
-									"",
-									"pm.test(\"Status code 檢查\", () => {",
-									"    pm.response.to.have.status(200);",
-									"});",
 									"",
 									"pm.test(\"JWT Token 檢查\", function () {",
 									"    const jsonData = pm.response.json();",
@@ -303,8 +291,8 @@
 									"    pm.expect(jsonData).to.have.all.keys(['message', 'data']);",
 									"    pm.expect(decode_jwt.identity).to.have.all.keys(jwt_key);",
 									"",
-									"    pm.environment.set(\"user_id_am\", decode_jwt.identity.user_id)",
-									"    pm.environment.set(\"token_am\", pm.response.json().data.token)",
+									"    pm.variables.set(\"user_id_am\", decode_jwt.identity.user_id)",
+									"    pm.variables.set(\"token_am\", pm.response.json().data.token)",
 									"});",
 									""
 								],
@@ -314,7 +302,7 @@
 						{
 							"listen": "prerequest",
 							"script": {
-								"id": "b91e9dfc-5ffe-4edd-b26d-f6b380a45f86",
+								"id": "626c743a-16d5-4cfd-bad9-0bc78b869342",
 								"exec": [
 									""
 								],
@@ -425,20 +413,13 @@
 						{
 							"listen": "test",
 							"script": {
-								"id": "5beefe93-3599-4108-8e88-a4ead40154dc",
+								"id": "f8c3d2ac-0690-4a4c-88fc-40af904b3376",
 								"exec": [
-									"pm.test(\"Status code 檢查\", () => {\r",
-									"    pm.response.to.have.status(200);\r",
-									"});\r",
-									"\r",
-									"pm.test(\"儲存專案四項id\", function () {\r",
-									"    const dataKeys  = ['project_id', 'plan_project_id', 'git_repository_id', 'harbor_project_id']\r",
+									"pm.test(\"儲存專案三項id\", function () {\r",
 									"    const data = pm.response.json().data;\r",
-									"    pm.expect(data).to.have.all.keys(dataKeys);\r",
-									"    pm.environment.set(\"project_id\", data.project_id)\r",
-									"    pm.environment.set(\"plan_project_id\", data.plan_project_id)\r",
-									"    pm.environment.set(\"repository_id\", data.git_repository_id)\r",
-									"    pm.environment.set(\"harbor_project_id\", data.harbor_project_id)\r",
+									"    pm.variables.set(\"project_id\", data.project_id)\r",
+									"    pm.variables.set(\"plan_project_id\", data.plan_project_id)\r",
+									"    pm.variables.set(\"repository_id\", data.git_repository_id)\r",
 									"});\r",
 									""
 								],
@@ -448,7 +429,7 @@
 						{
 							"listen": "prerequest",
 							"script": {
-								"id": "8d59429c-18fe-46a3-9ebc-7e3f24103d02",
+								"id": "34c58965-b87e-4b73-9818-77616751337d",
 								"exec": [
 									"const now = new Date()\r",
 									"now.setTime(now.getTime() + (8 * 60 * 60 * 1000)); // Shift to GMT+8\r",
@@ -457,9 +438,9 @@
 									"const date = now.toISOString()\r",
 									"const display = \"PMSC \" + date.slice(date.indexOf('-') + 1, date.indexOf('.') - 3).replace('T', ' ')\r",
 									"\r",
-									"pm.environment.set('new.project_name', project_name)\r",
-									"pm.environment.set('new.project_descripiton', desc)\r",
-									"pm.environment.set('new.project_display', display)\r",
+									"pm.variables.set('new.project_name', project_name)\r",
+									"pm.variables.set('new.project_descripiton', desc)\r",
+									"pm.variables.set('new.project_display', display)\r",
 									""
 								],
 								"type": "text/javascript"
@@ -549,11 +530,9 @@
 						{
 							"listen": "test",
 							"script": {
-								"id": "2000b122-b37c-45c3-ba17-a9d1b9a1b6c4",
+								"id": "1e86dc05-159c-4230-8598-d3b9741d7412",
 								"exec": [
-									"pm.test(\"Status code 檢查\", () => {\r",
-									"    pm.response.to.have.status(200);\r",
-									"});"
+									""
 								],
 								"type": "text/javascript"
 							}
@@ -660,14 +639,10 @@
 						{
 							"listen": "test",
 							"script": {
-								"id": "acc63de2-16a8-4b19-b910-83aa6e54a5d1",
+								"id": "b90039ab-9602-429b-b74b-745e2b575af0",
 								"exec": [
-									"pm.test(\"Status code 檢查\", () => {\r",
-									"    pm.response.to.have.status(200);\r",
-									"});\r",
-									"\r",
 									"var fixed_version_id = pm.response.json().data.version.id\r",
-									"pm.environment.set('version_id', fixed_version_id) \r",
+									"pm.variables.set('version_id', fixed_version_id) \r",
 									""
 								],
 								"type": "text/javascript"
@@ -676,9 +651,9 @@
 						{
 							"listen": "prerequest",
 							"script": {
-								"id": "b2e97cc9-1523-4c49-8292-020d109e12ee",
+								"id": "b94c4c00-7acb-4b23-a495-4ff120dcf821",
 								"exec": [
-									"pm.environment.set('version.name', 'V' + Date.now())"
+									"pm.variables.set('version.name', 'V' + Date.now())"
 								],
 								"type": "text/javascript"
 							}
@@ -771,17 +746,13 @@
 						{
 							"listen": "test",
 							"script": {
-								"id": "2999c9f8-f1d7-423b-80ad-01e366754f6a",
+								"id": "b9ed73f0-213e-4733-b7ac-cc832a47d614",
 								"exec": [
-									"pm.test(\"Status code 檢查\", () => {\r",
-									"    pm.response.to.have.status(200);\r",
-									"});\r",
-									"\r",
 									"pm.test(\"儲存議題 ID\", function () {\r",
 									"    var jsonData = pm.response.json();\r",
 									"    var dataKeys  = ['issue_id']\r",
 									"    pm.expect(jsonData.data).to.have.all.keys(dataKeys);\r",
-									"    pm.environment.set('issue_id',pm.response.json().data.issue_id)\r",
+									"    pm.variables.set('issue_id',pm.response.json().data.issue_id)\r",
 									"});\r",
 									"\r",
 									""
@@ -792,13 +763,13 @@
 						{
 							"listen": "prerequest",
 							"script": {
-								"id": "2d0b2b63-899b-41e3-aa1d-d8f7e00b6717",
+								"id": "a3cacce0-5650-4766-8257-e8521334fc13",
 								"exec": [
 									"const now = new Date();\r",
 									"const start_date = now.toISOString().split('T')[0];\r",
 									"const due_date = start_date;\r",
-									"pm.environment.set('issue.start_date', start_date);\r",
-									"pm.environment.set('issue.due_date', due_date);"
+									"pm.variables.set('issue.start_date', start_date);\r",
+									"pm.variables.set('issue.due_date', due_date);"
 								],
 								"type": "text/javascript"
 							}
@@ -956,17 +927,17 @@
 				{
 					"listen": "prerequest",
 					"script": {
-						"id": "16336fc2-c1f2-4a74-b50b-7e6d51f87fef",
+						"id": "e35074e1-aa96-4826-9401-1b2a416baabb",
 						"type": "text/javascript",
 						"exec": [
-							"pm.environment.set('issue.assign_to', pm.environment.get('user_id_rd'))"
+							"pm.variables.set('issue.assign_to', pm.variables.get('user_id_rd'))"
 						]
 					}
 				},
 				{
 					"listen": "test",
 					"script": {
-						"id": "a6323f48-328d-4143-bd47-ff53c2a8eede",
+						"id": "42aa0b3a-fd27-4ce1-88e3-192d9fbd0f28",
 						"type": "text/javascript",
 						"exec": [
 							""
@@ -988,12 +959,8 @@
 								{
 									"listen": "test",
 									"script": {
-										"id": "911d7e05-e9ce-4f1b-b6c6-a76f76916e46",
+										"id": "fead069c-c32c-47ec-bba2-9372caa5506f",
 										"exec": [
-											"pm.test(\"Status code 檢查\", () => {\r",
-											"    pm.response.to.have.status(200);\r",
-											"});\r",
-											"\r",
 											""
 										],
 										"type": "text/javascript"
@@ -1022,7 +989,7 @@
 								{
 									"listen": "prerequest",
 									"script": {
-										"id": "08f47304-0041-47aa-968d-b6581f663c6a",
+										"id": "5cfabc1b-f80d-4547-a2f7-f0a1903fbc4b",
 										"exec": [
 											""
 										],
@@ -1032,11 +999,8 @@
 								{
 									"listen": "test",
 									"script": {
-										"id": "677a3b1d-c8c0-4083-9d0a-d9b794a5f7e8",
+										"id": "a8d1c595-0b62-4ae5-a0ea-d381f991f218",
 										"exec": [
-											"pm.test(\"Status code 檢查\", () => {\r",
-											"    pm.response.to.have.status(200);\r",
-											"});\r",
 											""
 										],
 										"type": "text/javascript"
@@ -1088,11 +1052,8 @@
 								{
 									"listen": "test",
 									"script": {
-										"id": "2fadf2c2-06be-4b07-813e-17b706e37907",
+										"id": "35a079c5-3580-412d-9164-34ee968a042b",
 										"exec": [
-											"pm.test(\"Status code 檢查\", () => {\r",
-											"    pm.response.to.have.status(200);\r",
-											"});\r",
 											""
 										],
 										"type": "text/javascript"
@@ -1101,7 +1062,7 @@
 								{
 									"listen": "prerequest",
 									"script": {
-										"id": "6badca28-0813-4a18-be8a-48ab64b4ef73",
+										"id": "664e3f0c-f29d-402c-acb4-817d04206ce4",
 										"exec": [
 											""
 										],
@@ -1176,11 +1137,9 @@
 								{
 									"listen": "test",
 									"script": {
-										"id": "adaf3042-7c70-4e8c-8caa-3bc39f8181b0",
+										"id": "e13eb6c1-752f-4862-8988-7437c1ead063",
 										"exec": [
-											"pm.test(\"Status code 檢查\", () => {\r",
-											"    pm.response.to.have.status(200);\r",
-											"});"
+											""
 										],
 										"type": "text/javascript"
 									}
@@ -1188,7 +1147,7 @@
 								{
 									"listen": "prerequest",
 									"script": {
-										"id": "5f076fe0-b59d-4d69-9d7b-e16410af0416",
+										"id": "fa1680ce-815e-4fc5-bfa1-522c0bed66fb",
 										"exec": [
 											""
 										],
@@ -1263,14 +1222,8 @@
 								{
 									"listen": "test",
 									"script": {
-										"id": "ffaa1e02-6012-4472-904e-183c5caef03f",
+										"id": "f76759f5-ceb6-4a93-b245-ea3fcf25d3dd",
 										"exec": [
-											"pm.test(\"Status code 檢查\", () => {\r",
-											"    pm.response.to.have.status(200);\r",
-											"});\r",
-											"\r",
-											"\r",
-											"\r",
 											"pm.test(\"儲存最菜的專案內成員作為議題被指派者\", function () {\r",
 											"    var userList = pm.response.json().data.user_list\r",
 											"    var user_id = 0 ;\r",
@@ -1278,7 +1231,7 @@
 											"        if( user_id < parseInt(userList[index].id))\r",
 											"            user_id = parseInt(userList[index].id)\r",
 											"    }\r",
-											"    pm.environment.set('issue.assigned_user_id',user_id)\r",
+											"    pm.variables.set('issue.assigned_user_id',user_id)\r",
 											"});\r",
 											""
 										],
@@ -1460,11 +1413,8 @@
 								{
 									"listen": "test",
 									"script": {
-										"id": "ce6c26ba-0b51-4f69-9e11-1d5d53e3e31e",
+										"id": "5eb557ee-64ba-45c9-924d-68ef9065f163",
 										"exec": [
-											"pm.test(\"Status code 檢查\", () => {\r",
-											"    pm.response.to.have.status(200);\r",
-											"});\r",
 											""
 										],
 										"type": "text/javascript"
@@ -1538,11 +1488,8 @@
 								{
 									"listen": "test",
 									"script": {
-										"id": "21efac82-bf00-425d-9f1d-e8dde3f9fca6",
+										"id": "3fc3ddb6-f6cf-4df7-8525-29bb4aa58f24",
 										"exec": [
-											"pm.test(\"Status code 檢查\", () => {\r",
-											"    pm.response.to.have.status(200);\r",
-											"});\r",
 											""
 										],
 										"type": "text/javascript"
@@ -1627,11 +1574,9 @@
 								{
 									"listen": "test",
 									"script": {
-										"id": "d397f4fa-d9f2-4a64-a89d-ea98b46d8f9e",
+										"id": "ace013cb-a931-4bdf-98c9-f7ebfe67b5a7",
 										"exec": [
-											"pm.test(\"Status code 檢查\", () => {\r",
-											"    pm.response.to.have.status(200);\r",
-											"});"
+											""
 										],
 										"type": "text/javascript"
 									}
@@ -1708,12 +1653,8 @@
 								{
 									"listen": "test",
 									"script": {
-										"id": "6c9a04c8-ca6f-412d-bc36-dc15ad01dd4f",
+										"id": "7dd0e9a9-a0af-4cd0-8020-42fd60017981",
 										"exec": [
-											"pm.test(\"Status code 檢查\", () => {\r",
-											"    pm.response.to.have.status(200);\r",
-											"});\r",
-											"\r",
 											"pm.test(\"取得一名可指派給專案的成員\", function () {\r",
 											"    var userList = pm.response.json().data.user_list\r",
 											"    var user_id = 0 ;\r",
@@ -1721,7 +1662,7 @@
 											"        if( user_id < parseInt(userList[index].id))\r",
 											"            user_id = parseInt(userList[index].id)\r",
 											"    }\r",
-											"    pm.environment.set('pre_assigned_user_id', user_id)\r",
+											"    pm.variables.set('pre_assigned_user_id', user_id)\r",
 											"});\r",
 											""
 										],
@@ -1812,11 +1753,9 @@
 								{
 									"listen": "test",
 									"script": {
-										"id": "406242fe-f979-441f-8bcb-6996db567f83",
+										"id": "b84f13c6-d0b6-4cee-997b-46a3dcc3439a",
 										"exec": [
-											"pm.test(\"Status code 檢查\", () => {\r",
-											"    pm.response.to.have.status(200);\r",
-											"});"
+											""
 										],
 										"type": "text/javascript"
 									}
@@ -1824,7 +1763,7 @@
 								{
 									"listen": "prerequest",
 									"script": {
-										"id": "c3ba1390-e427-44ea-9de8-64029f60becf",
+										"id": "824fff82-33d2-4a3a-8b57-f958696379c8",
 										"exec": [
 											""
 										],
@@ -1903,11 +1842,9 @@
 								{
 									"listen": "test",
 									"script": {
-										"id": "5060b51a-7dc0-4fa3-8eab-4cc25d87c1e7",
+										"id": "c8bf5b65-7685-4e8e-af08-279e7664b7fd",
 										"exec": [
-											"pm.test(\"Status code 檢查\", () => {\r",
-											"    pm.response.to.have.status(200);\r",
-											"});"
+											""
 										],
 										"type": "text/javascript"
 									}
@@ -1915,7 +1852,7 @@
 								{
 									"listen": "prerequest",
 									"script": {
-										"id": "8de4f0c4-f92b-46ab-9650-fad8cb5701c2",
+										"id": "aa540537-d39d-4fc6-b1a1-09ebb566caca",
 										"exec": [
 											""
 										],
@@ -1940,6 +1877,52 @@
 								}
 							},
 							"response": [
+								{
+									"name": "取得專案版本 [3.5 修改專案版次]",
+									"originalRequest": {
+										"method": "GET",
+										"header": [],
+										"url": {
+											"raw": "{{server_origin}}/project/{{project_id}}/version/{{version_id}}",
+											"host": [
+												"{{server_origin}}"
+											],
+											"path": [
+												"project",
+												"{{project_id}}",
+												"version",
+												"{{version_id}}"
+											]
+										}
+									},
+									"status": "OK",
+									"code": 200,
+									"_postman_previewlanguage": "json",
+									"header": [
+										{
+											"key": "Content-Type",
+											"value": "application/json"
+										},
+										{
+											"key": "Content-Length",
+											"value": "590"
+										},
+										{
+											"key": "Access-Control-Allow-Origin",
+											"value": "*"
+										},
+										{
+											"key": "Server",
+											"value": "Werkzeug/1.0.1 Python/3.8.6"
+										},
+										{
+											"key": "Date",
+											"value": "Mon, 26 Oct 2020 09:09:15 GMT"
+										}
+									],
+									"cookie": [],
+									"body": "{\n    \"message\": \"success\",\n    \"data\": {\n        \"version\": {\n            \"id\": 102,\n            \"project\": {\n                \"id\": 236,\n                \"name\": \"Romulus 的測試專案\"\n            },\n            \"name\": \"12\",\n            \"description\": \"13\",\n            \"status\": \"open\",\n            \"due_date\": null,\n            \"sharing\": \"none\",\n            \"wiki_page_title\": null,\n            \"estimated_hours\": 0,\n            \"spent_hours\": 0,\n            \"created_on\": \"2020-10-08T02:50:06Z\",\n            \"updated_on\": \"2020-10-08T02:50:06Z\"\n        }\n    }\n}"
+								},
 								{
 									"name": "/project/<project_id>/issues",
 									"originalRequest": {
@@ -1987,52 +1970,6 @@
 									],
 									"cookie": [],
 									"body": "[\n    {\n        \"assigned_to\": \"backy wu\",\n        \"id\": 45,\n        \"issue_category\": \"Feature\",\n        \"issue_name\": \"敏捷工具issue功能API開發8\",\n        \"issue_priority\": \"特急\",\n        \"issue_status\": \"Active\",\n        \"last_test_result\": {\n            \"success\": 4,\n            \"total\": 4\n        },\n        \"last_test_time\": \"2020-07-17T07:32:28Z\",\n        \"name\": \"環境建構計畫API開發\"\n    },\n    {\n        \"assigned_to\": \"backy wu\",\n        \"id\": 44,\n        \"issue_category\": \"Feature\",\n        \"issue_name\": \"敏捷工具issue功能API開發8\",\n        \"issue_priority\": \"特急\",\n        \"issue_status\": \"Active\",\n        \"last_test_result\": {\n            \"success\": 4,\n            \"total\": 4\n        },\n        \"last_test_time\": \"2020-07-17T07:32:28Z\",\n        \"name\": \"環境建構計畫API開發\"\n    },\n    {\n        \"assigned_to\": \"backy wu\",\n        \"id\": 43,\n        \"issue_category\": \"Feature\",\n        \"issue_name\": \"敏捷工具issue功能API開發8\",\n        \"issue_priority\": \"特急\",\n        \"issue_status\": \"Active\",\n        \"last_test_result\": {\n            \"success\": 4,\n            \"total\": 4\n        },\n        \"last_test_time\": \"2020-07-17T07:32:28Z\",\n        \"name\": \"環境建構計畫API開發\"\n    },\n    {\n        \"assigned_to\": \"backy wu\",\n        \"id\": 42,\n        \"issue_category\": \"Feature\",\n        \"issue_name\": \"敏捷工具issue功能API開發8\",\n        \"issue_priority\": \"特急\",\n        \"issue_status\": \"Active\",\n        \"last_test_result\": {\n            \"success\": 4,\n            \"total\": 4\n        },\n        \"last_test_time\": \"2020-07-17T07:32:28Z\",\n        \"name\": \"環境建構計畫API開發\"\n    },\n    {\n        \"assigned_to\": \"backy wu\",\n        \"id\": 41,\n        \"issue_category\": \"Feature\",\n        \"issue_name\": \"敏捷工具issue功能API開發8\",\n        \"issue_priority\": \"特急\",\n        \"issue_status\": \"Active\",\n        \"last_test_result\": {\n            \"success\": 4,\n            \"total\": 4\n        },\n        \"last_test_time\": \"2020-07-17T07:32:28Z\",\n        \"name\": \"環境建構計畫API開發\"\n    },\n    {\n        \"assigned_to\": \"backy wu\",\n        \"id\": 40,\n        \"issue_category\": \"Feature\",\n        \"issue_name\": \"敏捷工具issue功能API開發8\",\n        \"issue_priority\": \"特急\",\n        \"issue_status\": \"Active\",\n        \"last_test_result\": {\n            \"success\": 4,\n            \"total\": 4\n        },\n        \"last_test_time\": \"2020-07-17T07:32:28Z\",\n        \"name\": \"環境建構計畫API開發\"\n    },\n    {\n        \"assigned_to\": \"backy wu\",\n        \"id\": 39,\n        \"issue_category\": \"Feature\",\n        \"issue_name\": \"敏捷工具issue功能API開發8\",\n        \"issue_priority\": \"特急\",\n        \"issue_status\": \"Active\",\n        \"last_test_result\": {\n            \"success\": 4,\n            \"total\": 4\n        },\n        \"last_test_time\": \"2020-07-17T07:32:28Z\",\n        \"name\": \"環境建構計畫API開發\"\n    },\n    {\n        \"assigned_to\": \"backy wu\",\n        \"id\": 38,\n        \"issue_category\": \"Feature\",\n        \"issue_name\": \"敏捷工具issue功能API開發8\",\n        \"issue_priority\": \"特急\",\n        \"issue_status\": \"Active\",\n        \"last_test_result\": {\n            \"success\": 4,\n            \"total\": 4\n        },\n        \"last_test_time\": \"2020-07-17T07:32:28Z\",\n        \"name\": \"環境建構計畫API開發\"\n    },\n    {\n        \"assigned_to\": \"backy wu\",\n        \"id\": 37,\n        \"issue_category\": \"Feature\",\n        \"issue_name\": \"敏捷工具issue功能API開發8\",\n        \"issue_priority\": \"特急\",\n        \"issue_status\": \"Active\",\n        \"last_test_result\": {\n            \"success\": 4,\n            \"total\": 4\n        },\n        \"last_test_time\": \"2020-07-17T07:32:28Z\",\n        \"name\": \"環境建構計畫API開發\"\n    },\n    {\n        \"assigned_to\": \"backy wu\",\n        \"id\": 36,\n        \"issue_category\": \"Feature\",\n        \"issue_name\": \"敏捷工具issue功能API開發8\",\n        \"issue_priority\": \"特急\",\n        \"issue_status\": \"Active\",\n        \"last_test_result\": {\n            \"success\": 4,\n            \"total\": 4\n        },\n        \"last_test_time\": \"2020-07-17T07:32:28Z\",\n        \"name\": \"環境建構計畫API開發\"\n    },\n    {\n        \"assigned_to\": \"backy wu\",\n        \"id\": 35,\n        \"issue_category\": \"Feature\",\n        \"issue_name\": \"敏捷工具issue功能API開發8\",\n        \"issue_priority\": \"特急\",\n        \"issue_status\": \"Active\",\n        \"last_test_result\": {\n            \"success\": 4,\n            \"total\": 4\n        },\n        \"last_test_time\": \"2020-07-17T07:32:28Z\",\n        \"name\": \"環境建構計畫API開發\"\n    },\n    {\n        \"assigned_to\": \"backy wu\",\n        \"id\": 34,\n        \"issue_category\": \"Feature\",\n        \"issue_name\": \"敏捷工具issue功能API開發8\",\n        \"issue_priority\": \"特急\",\n        \"issue_status\": \"Active\",\n        \"last_test_result\": {\n            \"success\": 4,\n            \"total\": 4\n        },\n        \"last_test_time\": \"2020-07-17T07:32:28Z\",\n        \"name\": \"環境建構計畫API開發\"\n    },\n    {\n        \"assigned_to\": \"backy wu\",\n        \"id\": 33,\n        \"issue_category\": \"Feature\",\n        \"issue_name\": \"敏捷工具issue功能API開發8\",\n        \"issue_priority\": \"特急\",\n        \"issue_status\": \"Active\",\n        \"last_test_result\": {\n            \"success\": 4,\n            \"total\": 4\n        },\n        \"last_test_time\": \"2020-07-17T07:32:28Z\",\n        \"name\": \"環境建構計畫API開發\"\n    },\n    {\n        \"assigned_to\": \"backy wu\",\n        \"id\": 32,\n        \"issue_category\": \"Feature\",\n        \"issue_name\": \"敏捷工具issue功能API開發8\",\n        \"issue_priority\": \"特急\",\n        \"issue_status\": \"Active\",\n        \"last_test_result\": {\n            \"success\": 4,\n            \"total\": 4\n        },\n        \"last_test_time\": \"2020-07-17T07:32:28Z\",\n        \"name\": \"環境建構計畫API開發\"\n    },\n    {\n        \"assigned_to\": \"backy wu\",\n        \"id\": 31,\n        \"issue_category\": \"Feature\",\n        \"issue_name\": \"敏捷工具issue功能API開發8\",\n        \"issue_priority\": \"特急\",\n        \"issue_status\": \"Active\",\n        \"last_test_result\": {\n            \"success\": 4,\n            \"total\": 4\n        },\n        \"last_test_time\": \"2020-07-17T07:32:28Z\",\n        \"name\": \"環境建構計畫API開發\"\n    },\n    {\n        \"assigned_to\": \"backy wu\",\n        \"id\": 30,\n        \"issue_category\": \"Feature\",\n        \"issue_name\": \"敏捷工具issue功能API開發8\",\n        \"issue_priority\": \"特急\",\n        \"issue_status\": \"Active\",\n        \"last_test_result\": {\n            \"success\": 4,\n            \"total\": 4\n        },\n        \"last_test_time\": \"2020-07-17T07:32:28Z\",\n        \"name\": \"環境建構計畫API開發\"\n    },\n    {\n        \"assigned_to\": \"backy wu\",\n        \"id\": 29,\n        \"issue_category\": \"Feature\",\n        \"issue_name\": \"敏捷工具issue功能API開發8\",\n        \"issue_priority\": \"特急\",\n        \"issue_status\": \"Active\",\n        \"last_test_result\": {\n            \"success\": 4,\n            \"total\": 4\n        },\n        \"last_test_time\": \"2020-07-17T07:32:28Z\",\n        \"name\": \"環境建構計畫API開發\"\n    },\n    {\n        \"assigned_to\": \"backy wu\",\n        \"id\": 28,\n        \"issue_category\": \"Feature\",\n        \"issue_name\": \"敏捷工具issue功能API開發7\",\n        \"issue_priority\": \"特急\",\n        \"issue_status\": \"Active\",\n        \"last_test_result\": {\n            \"success\": 4,\n            \"total\": 4\n        },\n        \"last_test_time\": \"2020-07-17T07:32:28Z\",\n        \"name\": \"環境建構計畫API開發\"\n    },\n    {\n        \"assigned_to\": \"backy wu\",\n        \"id\": 27,\n        \"issue_category\": \"Feature\",\n        \"issue_name\": \"敏捷工具issue功能API開發6\",\n        \"issue_priority\": \"特急\",\n        \"issue_status\": \"Active\",\n        \"last_test_result\": {\n            \"success\": 4,\n            \"total\": 4\n        },\n        \"last_test_time\": \"2020-07-17T07:32:28Z\",\n        \"name\": \"環境建構計畫API開發\"\n    },\n    {\n        \"assigned_to\": \"backy wu\",\n        \"id\": 26,\n        \"issue_category\": \"Feature\",\n        \"issue_name\": \"敏捷工具issue功能API開發5\",\n        \"issue_priority\": \"特急\",\n        \"issue_status\": \"Active\",\n        \"last_test_result\": {\n            \"success\": 4,\n            \"total\": 4\n        },\n        \"last_test_time\": \"2020-07-17T07:32:28Z\",\n        \"name\": \"環境建構計畫API開發\"\n    },\n    {\n        \"assigned_to\": \"backy wu\",\n        \"id\": 25,\n        \"issue_category\": \"Feature\",\n        \"issue_name\": \"敏捷工具issue功能API開發5\",\n        \"issue_priority\": \"特急\",\n        \"issue_status\": \"Active\",\n        \"last_test_result\": {\n            \"success\": 4,\n            \"total\": 4\n        },\n        \"last_test_time\": \"2020-07-17T07:32:28Z\",\n        \"name\": \"環境建構計畫API開發\"\n    },\n    {\n        \"assigned_to\": \"backy wu\",\n        \"id\": 24,\n        \"issue_category\": \"Feature\",\n        \"issue_name\": \"敏捷工具issue功能API開發5\",\n        \"issue_priority\": \"特急\",\n        \"issue_status\": \"Active\",\n        \"last_test_result\": {\n            \"success\": 4,\n            \"total\": 4\n        },\n        \"last_test_time\": \"2020-07-17T07:32:28Z\",\n        \"name\": \"環境建構計畫API開發\"\n    },\n    {\n        \"assigned_to\": \"backy wu\",\n        \"id\": 23,\n        \"issue_category\": \"Feature\",\n        \"issue_name\": \"敏捷工具issue功能API開發4\",\n        \"issue_priority\": \"特急\",\n        \"issue_status\": \"Active\",\n        \"last_test_result\": {\n            \"success\": 4,\n            \"total\": 4\n        },\n        \"last_test_time\": \"2020-07-17T07:32:28Z\",\n        \"name\": \"環境建構計畫API開發\"\n    },\n    {\n        \"assigned_to\": \"backy wu\",\n        \"id\": 22,\n        \"issue_category\": \"Feature\",\n        \"issue_name\": \"敏捷工具issue功能API開發3\",\n        \"issue_priority\": \"特急\",\n        \"issue_status\": \"Active\",\n        \"last_test_result\": {\n            \"success\": 4,\n            \"total\": 4\n        },\n        \"last_test_time\": \"2020-07-17T07:32:28Z\",\n        \"name\": \"環境建構計畫API開發\"\n    },\n    {\n        \"assigned_to\": \"backy wu\",\n        \"id\": 21,\n        \"issue_category\": \"Feature\",\n        \"issue_name\": \"敏捷工具issue功能API開發2\",\n        \"issue_priority\": \"特急\",\n        \"issue_status\": \"Active\",\n        \"last_test_result\": {\n            \"success\": 4,\n            \"total\": 4\n        },\n        \"last_test_time\": \"2020-07-17T07:32:28Z\",\n        \"name\": \"環境建構計畫API開發\"\n    }\n]"
-								},
-								{
-									"name": "取得專案版本 [3.5 修改專案版次]",
-									"originalRequest": {
-										"method": "GET",
-										"header": [],
-										"url": {
-											"raw": "{{server_origin}}/project/{{project_id}}/version/{{version_id}}",
-											"host": [
-												"{{server_origin}}"
-											],
-											"path": [
-												"project",
-												"{{project_id}}",
-												"version",
-												"{{version_id}}"
-											]
-										}
-									},
-									"status": "OK",
-									"code": 200,
-									"_postman_previewlanguage": "json",
-									"header": [
-										{
-											"key": "Content-Type",
-											"value": "application/json"
-										},
-										{
-											"key": "Content-Length",
-											"value": "590"
-										},
-										{
-											"key": "Access-Control-Allow-Origin",
-											"value": "*"
-										},
-										{
-											"key": "Server",
-											"value": "Werkzeug/1.0.1 Python/3.8.6"
-										},
-										{
-											"key": "Date",
-											"value": "Mon, 26 Oct 2020 09:09:15 GMT"
-										}
-									],
-									"cookie": [],
-									"body": "{\n    \"message\": \"success\",\n    \"data\": {\n        \"version\": {\n            \"id\": 102,\n            \"project\": {\n                \"id\": 236,\n                \"name\": \"Romulus 的測試專案\"\n            },\n            \"name\": \"12\",\n            \"description\": \"13\",\n            \"status\": \"open\",\n            \"due_date\": null,\n            \"sharing\": \"none\",\n            \"wiki_page_title\": null,\n            \"estimated_hours\": 0,\n            \"spent_hours\": 0,\n            \"created_on\": \"2020-10-08T02:50:06Z\",\n            \"updated_on\": \"2020-10-08T02:50:06Z\"\n        }\n    }\n}"
 								}
 							]
 						},
@@ -2042,11 +1979,9 @@
 								{
 									"listen": "test",
 									"script": {
-										"id": "637cb9fd-dbc0-4dc9-b833-d9d8bc3486d8",
+										"id": "525995b9-aea6-4671-a222-2e5fe6fb6473",
 										"exec": [
-											"pm.test(\"Status code 檢查\", () => {\r",
-											"    pm.response.to.have.status(200);\r",
-											"});"
+											""
 										],
 										"type": "text/javascript"
 									}
@@ -2054,7 +1989,7 @@
 								{
 									"listen": "prerequest",
 									"script": {
-										"id": "b0a595a6-55fb-4eb3-ba8f-2262a68941a5",
+										"id": "e10528fb-fa5c-42be-a2bc-8be376f3395e",
 										"exec": [
 											""
 										],
@@ -2150,7 +2085,7 @@
 						{
 							"listen": "prerequest",
 							"script": {
-								"id": "638ad79d-7f79-46a2-918b-be83f07f5fe1",
+								"id": "ddcd6ece-1cef-44ee-9735-e1f42b47f670",
 								"type": "text/javascript",
 								"exec": [
 									""
@@ -2160,7 +2095,7 @@
 						{
 							"listen": "test",
 							"script": {
-								"id": "fa0559f2-629b-4775-86ca-d73514203dde",
+								"id": "758bac3e-1d32-4701-b43d-04a902a95d88",
 								"type": "text/javascript",
 								"exec": [
 									""
@@ -2172,7 +2107,7 @@
 					"_postman_isSubFolder": true
 				},
 				{
-					"name": "議題＆流程測試",
+					"name": "議題測試",
 					"item": [
 						{
 							"name": "取得議題列表",
@@ -2183,11 +2118,9 @@
 										{
 											"listen": "test",
 											"script": {
-												"id": "1bcacaf9-230b-4a3a-9697-1d649c89942e",
+												"id": "49853903-3ec4-4266-b44d-ee83ec9c45c3",
 												"exec": [
-													"pm.test(\"Status code 檢查\", () => {\r",
-													"    pm.response.to.have.status(200);\r",
-													"});"
+													""
 												],
 												"type": "text/javascript"
 											}
@@ -2279,7 +2212,7 @@
 										{
 											"listen": "prerequest",
 											"script": {
-												"id": "5b6983a1-8179-4837-b514-1384f38ce416",
+												"id": "98bc0bbf-c938-45a1-9240-d454c383a731",
 												"exec": [
 													""
 												],
@@ -2289,11 +2222,9 @@
 										{
 											"listen": "test",
 											"script": {
-												"id": "2f7b919c-000e-418b-89e4-321cd0f6c435",
+												"id": "795e62ec-e68b-4c69-b95b-c96df88428cd",
 												"exec": [
-													"pm.test(\"Status code 檢查\", () => {\r",
-													"    pm.response.to.have.status(200);\r",
-													"});"
+													""
 												],
 												"type": "text/javascript"
 											}
@@ -2385,7 +2316,7 @@
 										{
 											"listen": "prerequest",
 											"script": {
-												"id": "ec438733-5751-469f-9399-5b6fe98d1a85",
+												"id": "b366892e-2e35-4e15-b7c6-f5b45c5c3c9c",
 												"exec": [
 													""
 												],
@@ -2395,11 +2326,9 @@
 										{
 											"listen": "test",
 											"script": {
-												"id": "4f66aab6-5bc2-4f6c-b038-1d3d1d2399a7",
+												"id": "96b8adc9-a9cc-492e-b5c1-6b5629470b9a",
 												"exec": [
-													"pm.test(\"Status code 檢查\", () => {\r",
-													"    pm.response.to.have.status(200);\r",
-													"});"
+													""
 												],
 												"type": "text/javascript"
 											}
@@ -2499,11 +2428,9 @@
 										{
 											"listen": "test",
 											"script": {
-												"id": "31b187c0-2add-4646-abc1-41cbdd1120de",
+												"id": "23aa2b67-c85f-45b6-8ab6-1e6034a871ee",
 												"exec": [
-													"pm.test(\"Status code 檢查\", () => {\r",
-													"    pm.response.to.have.status(200);\r",
-													"});"
+													""
 												],
 												"type": "text/javascript"
 											}
@@ -2607,11 +2534,8 @@
 										{
 											"listen": "test",
 											"script": {
-												"id": "24847cb7-3ba9-4153-a297-012c6ff0ba19",
+												"id": "6a9e4be8-94c0-4556-b216-42408fbd8bb4",
 												"exec": [
-													"pm.test(\"Status code 檢查\", () => {\r",
-													"    pm.response.to.have.status(200);\r",
-													"});\r",
 													""
 												],
 												"type": "text/javascript"
@@ -2688,11 +2612,9 @@
 										{
 											"listen": "test",
 											"script": {
-												"id": "9c84809b-a4e8-4707-b929-a70e3527d7d4",
+												"id": "40e51a6f-5532-49ea-9956-bd53c3e7f0b3",
 												"exec": [
-													"pm.test(\"Status code 檢查\", () => {\r",
-													"    pm.response.to.have.status(200);\r",
-													"});"
+													""
 												],
 												"type": "text/javascript"
 											}
@@ -2744,11 +2666,9 @@
 										{
 											"listen": "test",
 											"script": {
-												"id": "282651af-857c-4138-b90d-7ec841528820",
+												"id": "c8d0969f-9901-4cc9-b4a6-fe9672ae4cbd",
 												"exec": [
-													"pm.test(\"Status code 檢查\", () => {\r",
-													"    pm.response.to.have.status(200);\r",
-													"});"
+													""
 												],
 												"type": "text/javascript"
 											}
@@ -2832,11 +2752,9 @@
 										{
 											"listen": "test",
 											"script": {
-												"id": "c7a48763-925b-4938-bebc-889d730790b2",
+												"id": "ca7748f7-a917-4816-89eb-ba9fde5fed4f",
 												"exec": [
-													"pm.test(\"Status code 檢查\", () => {\r",
-													"    pm.response.to.have.status(200);\r",
-													"});"
+													""
 												],
 												"type": "text/javascript"
 											}
@@ -2911,11 +2829,8 @@
 										{
 											"listen": "test",
 											"script": {
-												"id": "e6e7973f-c730-4a27-96c9-e0b1e8a67b4d",
+												"id": "35c5a4e2-2f27-4862-a761-1bb4d5aaf70c",
 												"exec": [
-													"pm.test(\"Status code 檢查\", () => {\r",
-													"    pm.response.to.have.status(200);\r",
-													"});\r",
 													""
 												],
 												"type": "text/javascript"
@@ -2926,13 +2841,12 @@
 										"method": "GET",
 										"header": [],
 										"url": {
-											"raw": "{{server_origin}}/dashboard_issues_priority/rd/{{user_id}}",
+											"raw": "{{server_origin}}/dashboard_issues_priority/{{user_id}}",
 											"host": [
 												"{{server_origin}}"
 											],
 											"path": [
 												"dashboard_issues_priority",
-												"rd",
 												"{{user_id}}"
 											]
 										}
@@ -2991,11 +2905,8 @@
 										{
 											"listen": "test",
 											"script": {
-												"id": "32dca94d-6985-4cd3-ae48-e6f732491e5d",
+												"id": "68425c06-d9fe-4287-9508-64f5cf8a1607",
 												"exec": [
-													"pm.test(\"Status code 檢查\", () => {\r",
-													"    pm.response.to.have.status(200);\r",
-													"});\r",
 													""
 												],
 												"type": "text/javascript"
@@ -3074,11 +2985,8 @@
 										{
 											"listen": "test",
 											"script": {
-												"id": "9916fc37-91e4-4c29-a463-92f125f5035f",
+												"id": "c18f1270-5448-459e-b618-4bfee22453e8",
 												"exec": [
-													"pm.test(\"Status code 檢查\", () => {\r",
-													"    pm.response.to.have.status(200);\r",
-													"});\r",
 													""
 												],
 												"type": "text/javascript"
@@ -3154,11 +3062,9 @@
 										{
 											"listen": "test",
 											"script": {
-												"id": "34861f26-d086-4b1d-84d0-1f256b41035d",
+												"id": "341a0e42-b50c-4b8a-956f-d1c95352669e",
 												"exec": [
-													"pm.test(\"Status code 檢查\", () => {\r",
-													"    pm.response.to.have.status(200);\r",
-													"});"
+													""
 												],
 												"type": "text/javascript"
 											}
@@ -3240,11 +3146,9 @@
 										{
 											"listen": "test",
 											"script": {
-												"id": "2bdbe41b-2922-45cc-989b-c13b09818923",
+												"id": "ef547158-9ba3-4d6f-9d69-acb403018565",
 												"exec": [
-													"pm.test(\"Status code 檢查\", () => {\r",
-													"    pm.response.to.have.status(200);\r",
-													"});"
+													""
 												],
 												"type": "text/javascript"
 											}
@@ -3326,11 +3230,9 @@
 										{
 											"listen": "test",
 											"script": {
-												"id": "28531d12-0628-42f7-9046-58d66edc52e1",
+												"id": "ce05763a-4026-4aa7-b6cb-e592903d672b",
 												"exec": [
-													"pm.test(\"Status code 檢查\", () => {\r",
-													"    pm.response.to.have.status(200);\r",
-													"});"
+													""
 												],
 												"type": "text/javascript"
 											}
@@ -3412,11 +3314,9 @@
 										{
 											"listen": "test",
 											"script": {
-												"id": "cc4403e3-29c4-4077-92e3-79d3f91ccc52",
+												"id": "7dd5e185-1854-4615-b7ff-979c157752e8",
 												"exec": [
-													"pm.test(\"Status code 檢查\", () => {\r",
-													"    pm.response.to.have.status(200);\r",
-													"});"
+													""
 												],
 												"type": "text/javascript"
 											}
@@ -3426,13 +3326,12 @@
 										"method": "GET",
 										"header": [],
 										"url": {
-											"raw": "{{server_origin}}/dashboard_issues_priority/rd/{{user_id}}",
+											"raw": "{{server_origin}}/dashboard_issues_priority/{{user_id}}",
 											"host": [
 												"{{server_origin}}"
 											],
 											"path": [
 												"dashboard_issues_priority",
-												"rd",
 												"{{user_id}}"
 											]
 										}
@@ -3491,11 +3390,9 @@
 										{
 											"listen": "test",
 											"script": {
-												"id": "0b605191-626c-4aa9-a023-ce8ec0d1eec9",
+												"id": "f9e7bdc9-3389-4aa0-8517-58f012eb482f",
 												"exec": [
-													"pm.test(\"Status code 檢查\", () => {\r",
-													"    pm.response.to.have.status(200);\r",
-													"});"
+													""
 												],
 												"type": "text/javascript"
 											}
@@ -3572,11 +3469,9 @@
 										{
 											"listen": "test",
 											"script": {
-												"id": "8e00e957-0f0d-4e98-99a4-36ad9c9fa572",
+												"id": "14bab6f7-bb65-445f-b0aa-200eb21d42d2",
 												"exec": [
-													"pm.test(\"Status code 檢查\", () => {\r",
-													"    pm.response.to.have.status(200);\r",
-													"});"
+													""
 												],
 												"type": "text/javascript"
 											}
@@ -3664,11 +3559,9 @@
 										{
 											"listen": "test",
 											"script": {
-												"id": "bcc6eb02-9601-4a27-8ea8-045833740922",
+												"id": "4a4ace67-32e7-418d-b770-1da878babad0",
 												"exec": [
-													"pm.test(\"Status code 檢查\", () => {\r",
-													"    pm.response.to.have.status(200);\r",
-													"});"
+													""
 												],
 												"type": "text/javascript"
 											}
@@ -3771,11 +3664,9 @@
 										{
 											"listen": "test",
 											"script": {
-												"id": "2a5fee3a-3a86-4f09-aedc-4669457a10a0",
+												"id": "863fe668-26b6-4a87-aeaf-947cd14448c3",
 												"exec": [
-													"pm.test(\"Status code 檢查\", () => {\r",
-													"    pm.response.to.have.status(200);\r",
-													"});"
+													""
 												],
 												"type": "text/javascript"
 											}
@@ -3846,11 +3737,9 @@
 										{
 											"listen": "test",
 											"script": {
-												"id": "83659332-fdee-4429-a971-f4006b416446",
+												"id": "41608802-b598-461a-8cb3-af1a7491e284",
 												"exec": [
-													"pm.test(\"Status code 檢查\", () => {\r",
-													"    pm.response.to.have.status(200);\r",
-													"});"
+													""
 												],
 												"type": "text/javascript"
 											}
@@ -3921,11 +3810,9 @@
 										{
 											"listen": "test",
 											"script": {
-												"id": "9fceb4bf-0e45-4ea1-910e-c969c28f1852",
+												"id": "197522a6-9d2b-4c85-9ae3-a936c0da1bac",
 												"exec": [
-													"pm.test(\"Status code 檢查\", () => {\r",
-													"    pm.response.to.have.status(200);\r",
-													"});"
+													""
 												],
 												"type": "text/javascript"
 											}
@@ -4000,11 +3887,9 @@
 								{
 									"listen": "test",
 									"script": {
-										"id": "c28c8255-b84a-4aa1-bb6e-df998dd6c6ee",
+										"id": "c46cb338-2f69-4cb3-824e-7dc4da26984b",
 										"exec": [
-											"pm.test(\"Status code 檢查\", () => {\r",
-											"    pm.response.to.have.status(200);\r",
-											"});"
+											""
 										],
 										"type": "text/javascript"
 									}
@@ -4098,11 +3983,9 @@
 								{
 									"listen": "test",
 									"script": {
-										"id": "dfe537a5-28a0-48f9-8b38-28516835131a",
+										"id": "0bdf3863-de5b-4e0f-89c7-d1612c999a96",
 										"exec": [
-											"pm.test(\"Status code 檢查\", () => {\r",
-											"    pm.response.to.have.status(200);\r",
-											"});"
+											""
 										],
 										"type": "text/javascript"
 									}
@@ -4186,11 +4069,9 @@
 								{
 									"listen": "test",
 									"script": {
-										"id": "22ccbe0a-69e4-4a7d-90a2-d17a7291cb0e",
+										"id": "699ddcb7-c420-4829-ac38-40dbe412202c",
 										"exec": [
-											"pm.test(\"Status code 檢查\", () => {\r",
-											"    pm.response.to.have.status(200);\r",
-											"});"
+											""
 										],
 										"type": "text/javascript"
 									}
@@ -4201,7 +4082,7 @@
 								"header": [],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"project_id\": {{project_id}},\n    \"tracker_id\": 1,\n    \"status_id\": 3,\n    \"priority_id\": 2,\n    \"category_id\": 1,\n    \"estimated_hours\": 40,\n    \"start_date\": \"2020-05-12\",\n    \"due_date\": \"2020-07-10\",\n    \"subject\": \"被更改過的Issue\",\n    \"description\": \"被更改過的Issue\",\n    \"done_ratio\": 100,\n    \"notes\": \"654832158adf3d\"\n}",
+									"raw": "{\n    \"project_id\": {{project_id}},\n    \"tracker_id\": 1,\n    \"status_id\": 3,\n    \"priority_id\": 3,\n    \"category_id\": 1,\n    \"estimated_hours\": 40,\n    \"start_date\": \"2020-05-12\",\n    \"due_date\": \"2020-07-10\",\n    \"subject\": \"被更改過的Issue\",\n    \"description\": \"被更改過的Issue\",\n    \"done_ratio\": 100,\n    \"notes\": \"654832158adf3d\"\n}",
 									"options": {
 										"raw": {
 											"language": "json"
@@ -4274,424 +4155,13 @@
 									"body": "{\n    \"message\": \"success\"\n}"
 								}
 							]
-						},
-						{
-							"name": "建立流程_By_Issue( 自動建requirement) [2.3.3 編輯議題流程]",
-							"event": [
-								{
-									"listen": "test",
-									"script": {
-										"id": "54699f61-fc14-4ecf-8530-64645ff3641c",
-										"exec": [
-											"pm.test(\"Status code 檢查\", () => {\r",
-											"    pm.response.to.have.status(200);\r",
-											"});\r",
-											"\r",
-											"pm.test(\"儲存流程id\", () => {\r",
-											"var data = pm.response.json().data\r",
-											"  for (var key in data) {\r",
-											"    pm.environment.set('flow_id', data[key][0])\r",
-											"    break\r",
-											"  }\r",
-											"})\r",
-											""
-										],
-										"type": "text/javascript"
-									}
-								},
-								{
-									"listen": "prerequest",
-									"script": {
-										"id": "26462468-3a95-4024-b3a6-c67101592424",
-										"exec": [
-											""
-										],
-										"type": "text/javascript"
-									}
-								}
-							],
-							"request": {
-								"method": "POST",
-								"header": [],
-								"body": {
-									"mode": "raw",
-									"raw": "{\r\n    \"project_id\": {{project_id}},\r\n    \"type\": 0,\r\n    \"name\":\"設定帳號\",\r\n    \"description\":\"設定帳號參數\"\r\n}",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": {
-									"raw": "{{server_origin}}/flows_by_issue/{{issue_id}}",
-									"host": [
-										"{{server_origin}}"
-									],
-									"path": [
-										"flows_by_issue",
-										"{{issue_id}}"
-									]
-								},
-								"description": "建立Flow By Issue _id"
-							},
-							"response": [
-								{
-									"name": "建立流程_By_Issue",
-									"originalRequest": {
-										"method": "POST",
-										"header": [],
-										"body": {
-											"mode": "raw",
-											"raw": "{\r\n    \"project_id\": {{project_id}},\r\n    \"type\": 0,\r\n    \"name\":\"設定帳號\",\r\n    \"description\":\"設定帳號參數\"\r\n}",
-											"options": {
-												"raw": {
-													"language": "json"
-												}
-											}
-										},
-										"url": {
-											"raw": "{{server_origin}}/flows_by_issue/{{issue_id}}",
-											"host": [
-												"{{server_origin}}"
-											],
-											"path": [
-												"flows_by_issue",
-												"{{issue_id}}"
-											]
-										}
-									},
-									"status": "OK",
-									"code": 200,
-									"_postman_previewlanguage": "json",
-									"header": [
-										{
-											"key": "Content-Type",
-											"value": "application/json"
-										},
-										{
-											"key": "Content-Length",
-											"value": "77"
-										},
-										{
-											"key": "Access-Control-Allow-Origin",
-											"value": "*"
-										},
-										{
-											"key": "Server",
-											"value": "Werkzeug/1.0.1 Python/3.8.6"
-										},
-										{
-											"key": "Date",
-											"value": "Mon, 26 Oct 2020 09:13:40 GMT"
-										}
-									],
-									"cookie": [],
-									"body": "{\n    \"data\": {\n        \"flow_id\": [\n            69\n        ]\n    },\n    \"message\": \"success\"\n}"
-								}
-							]
-						},
-						{
-							"name": "取得流程  [2.3.3 編輯議題流程]",
-							"event": [
-								{
-									"listen": "test",
-									"script": {
-										"id": "30b3cbef-11dc-4e9e-b524-f7b5988af529",
-										"exec": [
-											"pm.test(\"Status code 檢查\", () => {\r",
-											"    pm.response.to.have.status(200);\r",
-											"});\r",
-											"\r",
-											"pm.test(\"儲存流程id\", () => {\r",
-											"var data = pm.response.json().data\r",
-											"  for (var key in data) {\r",
-											"    pm.environment.set('flow_id', data[key]['flow_data'][0]['id'])\r",
-											"    break\r",
-											"  }\r",
-											"})\r",
-											""
-										],
-										"type": "text/javascript"
-									}
-								}
-							],
-							"protocolProfileBehavior": {
-								"disableBodyPruning": true
-							},
-							"request": {
-								"method": "GET",
-								"header": [],
-								"body": {
-									"mode": "raw",
-									"raw": "",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": {
-									"raw": "{{server_origin}}/flows_by_issue/{{issue_id}}",
-									"host": [
-										"{{server_origin}}"
-									],
-									"path": [
-										"flows_by_issue",
-										"{{issue_id}}"
-									]
-								},
-								"description": "取得Flow List By Issue ID"
-							},
-							"response": [
-								{
-									"name": "取得流程",
-									"originalRequest": {
-										"method": "GET",
-										"header": [],
-										"body": {
-											"mode": "raw",
-											"raw": "",
-											"options": {
-												"raw": {
-													"language": "json"
-												}
-											}
-										},
-										"url": {
-											"raw": "{{server_origin}}/flows_by_issue/{{issue_id}}",
-											"host": [
-												"{{server_origin}}"
-											],
-											"path": [
-												"flows_by_issue",
-												"{{issue_id}}"
-											]
-										}
-									},
-									"status": "OK",
-									"code": 200,
-									"_postman_previewlanguage": "json",
-									"header": [
-										{
-											"key": "Content-Type",
-											"value": "application/json"
-										},
-										{
-											"key": "Content-Length",
-											"value": "866"
-										},
-										{
-											"key": "Access-Control-Allow-Origin",
-											"value": "*"
-										},
-										{
-											"key": "Server",
-											"value": "Werkzeug/1.0.1 Python/3.8.6"
-										},
-										{
-											"key": "Date",
-											"value": "Mon, 26 Oct 2020 09:14:17 GMT"
-										}
-									],
-									"cookie": [],
-									"body": "{\n    \"data\": [\n        {\n            \"flow_data\": [\n                {\n                    \"create_at\": \"2020-10-26T17:13:03.294727\",\n                    \"description\": \"設定帳號參數\",\n                    \"id\": 68,\n                    \"issue_id\": 232,\n                    \"name\": \"設定帳號\",\n                    \"project_id\": 516,\n                    \"requirement_id\": 35,\n                    \"serial_id\": 1,\n                    \"type_id\": null,\n                    \"update_at\": \"2020-10-26T17:13:03.294727\"\n                },\n                {\n                    \"create_at\": \"2020-10-26T17:13:40.576060\",\n                    \"description\": \"設定帳號參數\",\n                    \"id\": 69,\n                    \"issue_id\": 232,\n                    \"name\": \"設定帳號\",\n                    \"project_id\": 516,\n                    \"requirement_id\": 35,\n                    \"serial_id\": 1,\n                    \"type_id\": 0,\n                    \"update_at\": \"2020-10-26T17:13:57.036241\"\n                }\n            ],\n            \"requirement_id\": 35\n        }\n    ],\n    \"message\": \"success\"\n}"
-								}
-							]
-						},
-						{
-							"name": "編輯流程  [2.3.3 編輯議題流程]",
-							"event": [
-								{
-									"listen": "test",
-									"script": {
-										"id": "a0b6b24f-d9be-424c-8054-e18200d87e3c",
-										"exec": [
-											"pm.test(\"Status code 檢查\", () => {\r",
-											"    pm.response.to.have.status(200);\r",
-											"});"
-										],
-										"type": "text/javascript"
-									}
-								}
-							],
-							"request": {
-								"method": "PUT",
-								"header": [],
-								"body": {
-									"mode": "raw",
-									"raw": "{\r\n    \"serial_id\": 1,\r\n    \"type_id\": 0,\r\n    \"name\":\"設定帳號\",\r\n    \"description\":\"設定帳號參數\"\r\n}",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": {
-									"raw": "{{server_origin}}/flows/{{flow_id}}",
-									"host": [
-										"{{server_origin}}"
-									],
-									"path": [
-										"flows",
-										"{{flow_id}}"
-									]
-								},
-								"description": "Modify Flow by Flow ID"
-							},
-							"response": [
-								{
-									"name": "編輯流程",
-									"originalRequest": {
-										"method": "PUT",
-										"header": [],
-										"body": {
-											"mode": "raw",
-											"raw": "{\r\n    \"serial_id\": 1,\r\n    \"type_id\": 0,\r\n    \"name\":\"設定帳號\",\r\n    \"description\":\"設定帳號參數\"\r\n}",
-											"options": {
-												"raw": {
-													"language": "json"
-												}
-											}
-										},
-										"url": {
-											"raw": "{{server_origin}}/flows/{{flow_id}}",
-											"host": [
-												"{{server_origin}}"
-											],
-											"path": [
-												"flows",
-												"{{flow_id}}"
-											]
-										}
-									},
-									"status": "OK",
-									"code": 200,
-									"_postman_previewlanguage": "json",
-									"header": [
-										{
-											"key": "Content-Type",
-											"value": "application/json"
-										},
-										{
-											"key": "Content-Length",
-											"value": "265"
-										},
-										{
-											"key": "Access-Control-Allow-Origin",
-											"value": "*"
-										},
-										{
-											"key": "Server",
-											"value": "Werkzeug/1.0.1 Python/3.8.6"
-										},
-										{
-											"key": "Date",
-											"value": "Mon, 26 Oct 2020 09:13:57 GMT"
-										}
-									],
-									"cookie": [],
-									"body": "{\n    \"data\": {\n        \"last_modified\": {\n            \"description\": \"設定帳號參數\",\n            \"id_1\": \"69\",\n            \"name\": \"設定帳號\",\n            \"serial_id\": 1,\n            \"type_id\": 0,\n            \"update_at\": \"Mon, 26 Oct 2020 17:13:57 GMT\"\n        }\n    },\n    \"message\": \"success\"\n}"
-								}
-							]
-						},
-						{
-							"name": "將流程Disable(非真刪除)  [2.3.3 編輯議題流程]",
-							"event": [
-								{
-									"listen": "test",
-									"script": {
-										"id": "d1ff35bd-d460-4a4e-84f5-6f9716957a7e",
-										"exec": [
-											"pm.test(\"Status code 檢查\", () => {\r",
-											"    pm.response.to.have.status(200);\r",
-											"});"
-										],
-										"type": "text/javascript"
-									}
-								}
-							],
-							"request": {
-								"method": "DELETE",
-								"header": [],
-								"body": {
-									"mode": "formdata",
-									"formdata": [],
-									"options": {
-										"formdata": {}
-									}
-								},
-								"url": {
-									"raw": "{{server_origin}}/flows/{{flow_id}}",
-									"host": [
-										"{{server_origin}}"
-									],
-									"path": [
-										"flows",
-										"{{flow_id}}"
-									]
-								},
-								"description": "Disabled Flow by Flow Id"
-							},
-							"response": [
-								{
-									"name": "將流程Disable(非真刪除)",
-									"originalRequest": {
-										"method": "DELETE",
-										"header": [],
-										"body": {
-											"mode": "formdata",
-											"formdata": [],
-											"options": {
-												"formdata": {}
-											}
-										},
-										"url": {
-											"raw": "{{server_origin}}/flows/{{flow_id}}",
-											"host": [
-												"{{server_origin}}"
-											],
-											"path": [
-												"flows",
-												"{{flow_id}}"
-											]
-										}
-									},
-									"status": "OK",
-									"code": 200,
-									"_postman_previewlanguage": "json",
-									"header": [
-										{
-											"key": "Content-Type",
-											"value": "application/json"
-										},
-										{
-											"key": "Content-Length",
-											"value": "171"
-										},
-										{
-											"key": "Access-Control-Allow-Origin",
-											"value": "*"
-										},
-										{
-											"key": "Server",
-											"value": "Werkzeug/1.0.1 Python/3.8.6"
-										},
-										{
-											"key": "Date",
-											"value": "Mon, 26 Oct 2020 09:15:12 GMT"
-										}
-									],
-									"cookie": [],
-									"body": "{\n    \"data\": {\n        \"last_modified\": {\n            \"disabled\": true,\n            \"id_1\": \"69\",\n            \"update_at\": \"Mon, 26 Oct 2020 17:15:12 GMT\"\n        }\n    },\n    \"message\": \"success\"\n}"
-								}
-							]
 						}
 					],
 					"event": [
 						{
 							"listen": "prerequest",
 							"script": {
-								"id": "f15e3d77-ca4d-4172-8e6c-eadb97642cf6",
+								"id": "efba8026-5282-46e2-b4b8-f00dcf8b18aa",
 								"type": "text/javascript",
 								"exec": [
 									""
@@ -4701,125 +4171,7 @@
 						{
 							"listen": "test",
 							"script": {
-								"id": "60fc5bdb-bdf7-4394-a714-6a1ac5ca8f25",
-								"type": "text/javascript",
-								"exec": [
-									""
-								]
-							}
-						}
-					],
-					"protocolProfileBehavior": {},
-					"_postman_isSubFolder": true
-				},
-				{
-					"name": "測試案例",
-					"item": [
-						{
-							"name": "產生測試案例[by Project]",
-							"event": [
-								{
-									"listen": "test",
-									"script": {
-										"id": "5446354b-ca8a-4bb4-ac80-f5fdcb070510",
-										"exec": [
-											"\r",
-											"pm.environment.set('testCase_id', pm.response.json().data.testCase_id)"
-										],
-										"type": "text/javascript"
-									}
-								}
-							],
-							"request": {
-								"method": "POST",
-								"header": [],
-								"body": {
-									"mode": "raw",
-									"raw": "{\r\n    \"name\":\"忘記密碼\",\r\n    \"data\":{\"type\":\"API\",\"url\":\"/user/forgot\",\"method_id\":\"2\",\"method\": \"POST\"},\r\n    \"type_id\": 1,\r\n    \"description\": \"測試33333\"\r\n\r\n}",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": {
-									"raw": "{{server_origin}}/testCases_by_project/{{project_id}}",
-									"host": [
-										"{{server_origin}}"
-									],
-									"path": [
-										"testCases_by_project",
-										"{{project_id}}"
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "取得測試個案 [by Project]",
-							"event": [
-								{
-									"listen": "test",
-									"script": {
-										"id": "dc4c593f-c06c-42b3-9101-4e47586d7ad0",
-										"exec": [
-											""
-										],
-										"type": "text/javascript"
-									}
-								}
-							],
-							"protocolProfileBehavior": {
-								"disableBodyPruning": true
-							},
-							"request": {
-								"method": "GET",
-								"header": [
-									{
-										"key": "key",
-										"type": "text",
-										"value": "7bac3fdae16c636665451da0f23248fbf1397393",
-										"disabled": true
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": {
-									"raw": "{{server_origin}}/testCases_by_project/{{project_id}}",
-									"host": [
-										"{{server_origin}}"
-									],
-									"path": [
-										"testCases_by_project",
-										"{{project_id}}"
-									]
-								}
-							},
-							"response": []
-						}
-					],
-					"event": [
-						{
-							"listen": "prerequest",
-							"script": {
-								"id": "3f9fbddf-55cb-4850-88e4-e285aee9b1f6",
-								"type": "text/javascript",
-								"exec": [
-									""
-								]
-							}
-						},
-						{
-							"listen": "test",
-							"script": {
-								"id": "de6b3c9a-1e69-4ed6-a845-33c23667957c",
+								"id": "64eaf72d-d8dd-4c98-bf17-df4ee1346b6c",
 								"type": "text/javascript",
 								"exec": [
 									""
@@ -4839,7 +4191,7 @@
 								{
 									"listen": "prerequest",
 									"script": {
-										"id": "f00cd11d-2d74-43bd-9b32-34212475beb3",
+										"id": "48ca6761-a09b-41f2-b47c-23af68d6981f",
 										"exec": [
 											""
 										],
@@ -4849,16 +4201,12 @@
 								{
 									"listen": "test",
 									"script": {
-										"id": "c297235b-4bc7-45c6-b7fe-69da958fd345",
+										"id": "8c23e80e-19b0-41b4-87bc-7b3997428477",
 										"exec": [
-											"pm.test(\"Status code 檢查\", () => {\r",
-											"    pm.response.to.have.status(200);\r",
-											"});\r",
-											"\r",
 											"pm.test(\"取得第一個wiki的標題\", () => {\r",
 											"    const pages = pm.response.json().data.wiki_pages;\r",
 											"    if (pages.length > 0) {\r",
-											"        pm.environment.set('wiki.title', pages[0].title);\r",
+											"        pm.variables.set('wiki.title', pages[0].title);\r",
 											"    }\r",
 											"});"
 										],
@@ -4944,11 +4292,9 @@
 								{
 									"listen": "test",
 									"script": {
-										"id": "73e71367-d087-4325-8cc0-ca6c05c9ab2d",
+										"id": "31d42f23-0c0f-4dd5-a7aa-8baca67020ed",
 										"exec": [
-											"pm.test(\"Status code 檢查\", () => {\r",
-											"    pm.response.to.have.status(200);\r",
-											"});"
+											""
 										],
 										"type": "text/javascript"
 									}
@@ -5047,11 +4393,9 @@
 								{
 									"listen": "test",
 									"script": {
-										"id": "1274bcd7-45bf-46e3-8bf4-8d9428ff124f",
+										"id": "143abeb6-163b-4a41-9173-f61bfcabf878",
 										"exec": [
-											"pm.test(\"Status code 檢查\", () => {\r",
-											"    pm.response.to.have.status(200);\r",
-											"});"
+											""
 										],
 										"type": "text/javascript"
 									}
@@ -5137,7 +4481,7 @@
 						{
 							"listen": "prerequest",
 							"script": {
-								"id": "c91660d0-2202-43ec-b23e-19b6dd13f7fc",
+								"id": "a4a4b722-d546-4c6b-bebd-9308409bd087",
 								"type": "text/javascript",
 								"exec": [
 									""
@@ -5147,12 +4491,1355 @@
 						{
 							"listen": "test",
 							"script": {
-								"id": "f00f99f7-2b82-42ff-96d1-6aad18c9153a",
+								"id": "a81fbaf5-acb6-48ef-be96-87d3045595d1",
 								"type": "text/javascript",
 								"exec": [
 									""
 								]
 							}
+						}
+					],
+					"protocolProfileBehavior": {},
+					"_postman_isSubFolder": true
+				},
+				{
+					"name": "Flow-Parameter-Tests Copy",
+					"item": [
+						{
+							"name": "Get Parameter Types",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "3f7e0e11-cace-4dbe-a6f1-eed5f94fd090",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "GET",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{server_origin}}/parameter_types",
+									"host": [
+										"{{server_origin}}"
+									],
+									"path": [
+										"parameter_types"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "取得flow可以支援的Type",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "3c58aec0-dd03-4340-a88d-2bc9a974039d",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "GET",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{server_origin}}/flows/support_type",
+									"host": [
+										"{{server_origin}}"
+									],
+									"path": [
+										"flows",
+										"support_type"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "建立Flow By Issue _id",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "03f954c0-732e-43c3-8ef9-54b0d03c7772",
+										"exec": [
+											"pm.variables.set('flow_id', pm.response.json().data.flow_id)"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"id": "b7e34e7b-b481-4294-85f9-b33ba1768f9b",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n    \"project_id\": {{project_id}},\r\n    \"type\": 0,\r\n    \"name\":\"設定帳號\",\r\n    \"description\":\"設定帳號參數\"\r\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{server_origin}}/flows_by_issue/{{issue_id}}",
+									"host": [
+										"{{server_origin}}"
+									],
+									"path": [
+										"flows_by_issue",
+										"{{issue_id}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "取得Flow List By Issue ID",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "b0083b70-9177-49fd-b5cb-d64355322d19",
+										"exec": [
+											"\r",
+											"\r",
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "GET",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{server_origin}}/flows_by_issue/{{issue_id}}",
+									"host": [
+										"{{server_origin}}"
+									],
+									"path": [
+										"flows_by_issue",
+										"{{issue_id}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "取得Flow info by flow id",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "7de03e5b-e1fc-411c-8f82-95e21c341456",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "GET",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{server_origin}}/flows/{{flow_id}}",
+									"host": [
+										"{{server_origin}}"
+									],
+									"path": [
+										"flows",
+										"{{flow_id}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Modify Flow by Flow ID",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "0e7486ce-106e-4555-942e-f29cd5aa6b37",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "PUT",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n    \"serial_id\": 1,\r\n    \"type_id\": 0,\r\n    \"name\":\"設定帳號\",\r\n    \"description\":\"設定帳號參數\"\r\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{server_origin}}/flows/{{flow_id}}",
+									"host": [
+										"{{server_origin}}"
+									],
+									"path": [
+										"flows",
+										"{{flow_id}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Disabled Flow by Flow Id",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "9e360e9d-cae2-4a6c-b42a-381bacf98168",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [],
+									"options": {
+										"formdata": {}
+									}
+								},
+								"url": {
+									"raw": "{{server_origin}}/flows/{{flow_id}}",
+									"host": [
+										"{{server_origin}}"
+									],
+									"path": [
+										"flows",
+										"{{flow_id}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Generate Parameters by Issue_ID",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "52c7f371-3f6f-483a-b4ab-52c75dbfa988",
+										"exec": [
+											"pm.variables.set('parameter_id', pm.response.json().data.parameters_id)"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n    \"project_id\": {{project_id}},\r\n    \"parameter_type_id\":1,\r\n    \"description\": \"test\",\r\n    \"name\": \"測試123\",\r\n    \"length\": 10,\r\n    \"limitation\": \"[A-Z]{1}[1-2]{1}[0-9]{8}\"\r\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{server_origin}}/parameters_by_issue/{{issue_id}}",
+									"host": [
+										"{{server_origin}}"
+									],
+									"path": [
+										"parameters_by_issue",
+										"{{issue_id}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Parameters Issue_ID",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "799ca178-6b76-474b-ada2-d4e687ae1e86",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "key",
+										"type": "text",
+										"value": "7bac3fdae16c636665451da0f23248fbf1397393",
+										"disabled": true
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{server_origin}}/parameters_by_issue/{{issue_id}}",
+									"host": [
+										"{{server_origin}}"
+									],
+									"path": [
+										"parameters_by_issue",
+										"{{issue_id}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Parameters By Parameters_id",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "db5afb28-a95e-440e-812a-33429b173f8c",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "GET",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{server_origin}}/parameters/{{parameter_id}}",
+									"host": [
+										"{{server_origin}}"
+									],
+									"path": [
+										"parameters",
+										"{{parameter_id}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Modify  Parameters by parameters_id",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "d92a4c75-983d-4480-8900-0fb8ddc2f7c5",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "PUT",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n    \"parameter_type_id\":1,\r\n    \"name\": \"測試123\",\r\n    \"description\":\"Program_Test\",\r\n    \"length\": 10,\r\n    \"limitation\": \"[A-Z]{1}[1-2]{1}[0-9]{8}\"\r\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{server_origin}}/parameters/{{parameter_id}}",
+									"host": [
+										"{{server_origin}}"
+									],
+									"path": [
+										"parameters",
+										"{{parameter_id}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Modify  Parameters by parameters_id",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "d260add8-cf18-4c15-9f66-dea7e58d01ef",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [],
+									"options": {
+										"formdata": {}
+									}
+								},
+								"url": {
+									"raw": "{{server_origin}}/parameters/{{parameter_id}}",
+									"host": [
+										"{{server_origin}}"
+									],
+									"path": [
+										"parameters",
+										"{{parameter_id}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "取得TestCase 支持的Type",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "4d1cfe02-4529-4654-911c-770c50b769ea",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "GET",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{server_origin}}/testCases/support_type",
+									"host": [
+										"{{server_origin}}"
+									],
+									"path": [
+										"testCases",
+										"support_type"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "取得測試支持的 Http Method",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "aad88267-3940-472f-94c1-0ba839bf33e1",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "GET",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{server_origin}}/testCases/support_RestfulAPI_Method",
+									"host": [
+										"{{server_origin}}"
+									],
+									"path": [
+										"testCases",
+										"support_RestfulAPI_Method"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Generate TestCase  by Issue_ID",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "b3a97827-d24f-456d-a78e-92684a303530",
+										"exec": [
+											"pm.variables.set('testCase_id', pm.response.json().data.testCase_id)"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n    \"name\":\"忘記密碼\",\r\n    \"data\":{\"type\":\"API\",\"url\":\"/user/forgot\",\"method_id\":\"2\"},\r\n    \"project_id\": {{project_id}},\r\n    \"type_id\": 1,\r\n    \"description\": \"測試33333\"\r\n\r\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{server_origin}}/testCases_by_issue/{{issue_id}}",
+									"host": [
+										"{{server_origin}}"
+									],
+									"path": [
+										"testCases_by_issue",
+										"{{issue_id}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get TestCase By Issue_ID",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "c7ef61bc-1a62-4133-b9c0-0692c39e799c",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "GET",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{server_origin}}/testCases_by_issue/{{issue_id}}",
+									"host": [
+										"{{server_origin}}"
+									],
+									"path": [
+										"testCases_by_issue",
+										"{{issue_id}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Generate Test Item  by TestCase_ID",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "4c2ee424-568a-47af-87aa-1d78f48b9e65",
+										"exec": [
+											"pm.variables.set('testItem_id', pm.response.json().data.testItem_id)"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "project_id",
+											"value": "{{project_id}}",
+											"type": "text"
+										},
+										{
+											"key": "name",
+											"value": "忘記密碼",
+											"type": "text"
+										},
+										{
+											"key": "is_passed",
+											"value": "true",
+											"type": "text"
+										},
+										{
+											"key": "issue_id",
+											"value": "{{issue_id}}",
+											"type": "text"
+										}
+									],
+									"options": {
+										"formdata": {}
+									}
+								},
+								"url": {
+									"raw": "{{server_origin}}/testItems_by_testCase/{{testCase_id}}",
+									"host": [
+										"{{server_origin}}"
+									],
+									"path": [
+										"testItems_by_testCase",
+										"{{testCase_id}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get TestCase By TestCase_id",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "06ea4275-b74d-4731-8bc1-cd2d1983c5c8",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "GET",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{server_origin}}/testCases/{{testCase_id}}",
+									"host": [
+										"{{server_origin}}"
+									],
+									"path": [
+										"testCases",
+										"{{testCase_id}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Modify TestCase  by TestCase_id",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "50ecd5de-5978-400b-baad-c4ab1625693c",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "PUT",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n    \"name\":\"忘記密碼hash\",\r\n    \"type_id\": 1,\r\n    \"data\" :{\r\n        \"type\":\"API\",\r\n        \"url\":\"/user/forgetPassword\",\r\n        \"method\":\"POST\",\r\n        \"method_id\":\"2\"\r\n        },\r\n    \"description\": \"申請一組亂數隨機密碼\"\r\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{server_origin}}/testCases/{{testCase_id}}",
+									"host": [
+										"{{server_origin}}"
+									],
+									"path": [
+										"testCases",
+										"{{testCase_id}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get TestItem By test_Case_ID",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "05285aec-b717-4f1d-ad8d-83ed6ae81286",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "GET",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{server_origin}}/testItems_by_testCase/{{testCase_id}}",
+									"host": [
+										"{{server_origin}}"
+									],
+									"path": [
+										"testItems_by_testCase",
+										"{{testCase_id}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Delete TestCase  by TestCase_id",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "151994d9-0939-492a-b668-55a0fd4fb54b",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{server_origin}}/testCases/{{testCase_id}}",
+									"host": [
+										"{{server_origin}}"
+									],
+									"path": [
+										"testCases",
+										"{{testCase_id}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get TestItem  By TestItem Id",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "386ec266-b346-4f79-a37f-d4e2ce18a26b",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "GET",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{server_origin}}/testItems/{{testItem_id}}",
+									"host": [
+										"{{server_origin}}"
+									],
+									"path": [
+										"testItems",
+										"{{testItem_id}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Modify TestItem  By TestItem Id",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "67a02f3f-a833-481f-8b73-478e13c6ed27",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "PUT",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n    \"name\": \"456\",\r\n    \"is_passed\": \"True\"\r\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{server_origin}}/testItems/{{testItem_id}}",
+									"host": [
+										"{{server_origin}}"
+									],
+									"path": [
+										"testItems",
+										"{{testItem_id}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Delete TestItem  By TestItem Id",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "fccf9282-4f37-4544-b1d2-1ecacecc652e",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{server_origin}}/testItems/{{testItem_id}}",
+									"host": [
+										"{{server_origin}}"
+									],
+									"path": [
+										"testItems",
+										"{{testItem_id}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "取得測試值可用型態",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "76795e00-54d3-4438-9aa7-3e50d3174518",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "GET",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{server_origin}}/testValues/support_types",
+									"host": [
+										"{{server_origin}}"
+									],
+									"path": [
+										"testValues",
+										"support_types"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "取得測試值可用方式",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "eb2c21a5-e304-4b4b-8cf5-757a77683f11",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "GET",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{server_origin}}/testValues/support_locations",
+									"host": [
+										"{{server_origin}}"
+									],
+									"path": [
+										"testValues",
+										"support_locations"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Generate  TestValue  by testItem_id",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "2c6956c5-dadc-4fa5-96e0-5f623cc74739",
+										"exec": [
+											"pm.variables.set('testValue_id', pm.response.json().data.testValue_id)"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "project_id",
+											"value": "{{project_id}}",
+											"type": "text"
+										},
+										{
+											"key": "issue_id",
+											"value": "{{issue_id}}",
+											"type": "text"
+										},
+										{
+											"key": "testCase_id",
+											"value": "{{testCase_id}}",
+											"type": "text"
+										},
+										{
+											"key": "type_id",
+											"value": "2",
+											"description": "{\"1\": \"Request\",\"2\",\"Response\"}",
+											"type": "text"
+										},
+										{
+											"key": "location_id",
+											"value": "2",
+											"description": "{\"1\": \"Header\",\"2\",\"Body\"}",
+											"type": "text"
+										},
+										{
+											"key": "key",
+											"value": "message",
+											"type": "text"
+										},
+										{
+											"key": "value",
+											"value": "success",
+											"type": "text"
+										}
+									],
+									"options": {
+										"formdata": {}
+									}
+								},
+								"url": {
+									"raw": "{{server_origin}}/testValues_by_testItem/{{testItem_id}}",
+									"host": [
+										"{{server_origin}}"
+									],
+									"path": [
+										"testValues_by_testItem",
+										"{{testItem_id}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get TestValue  By TestItem_Id",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "99fd88de-13cd-4de1-b53e-8024401a0a00",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "GET",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{server_origin}}/testValues_by_testItem/{{testItem_id}}",
+									"host": [
+										"{{server_origin}}"
+									],
+									"path": [
+										"testValues_by_testItem",
+										"{{testItem_id}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get testValue By TestValue Id ",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "65ed92f7-739e-4e56-9ef2-cec619f832a4",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "GET",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{server_origin}}/testValues/{{testValue_id}}",
+									"host": [
+										"{{server_origin}}"
+									],
+									"path": [
+										"testValues",
+										"{{testValue_id}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Modify testValue By testValue_id",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "b5e760f2-c4fe-4aec-ba98-2c7447b43790",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "PUT",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "key",
+											"value": "account",
+											"type": "text"
+										},
+										{
+											"key": "value",
+											"value": "becky",
+											"type": "text"
+										},
+										{
+											"key": "type_id",
+											"value": "1",
+											"type": "text"
+										},
+										{
+											"key": "location_id",
+											"value": "2",
+											"type": "text"
+										}
+									],
+									"options": {
+										"formdata": {}
+									}
+								},
+								"url": {
+									"raw": "{{server_origin}}/testValues/{{testValue_id}}",
+									"host": [
+										"{{server_origin}}"
+									],
+									"path": [
+										"testValues",
+										"{{testValue_id}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Delete TestValue By TestValue Id",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "4dfba48f-a4e1-4598-9e55-68249025639f",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{server_origin}}/testValues/{{testValue_id}}",
+									"host": [
+										"{{server_origin}}"
+									],
+									"path": [
+										"testValues",
+										"{{testValue_id}}"
+									]
+								}
+							},
+							"response": []
 						}
 					],
 					"protocolProfileBehavior": {},
@@ -5173,18 +5860,18 @@
 				{
 					"listen": "prerequest",
 					"script": {
-						"id": "1d94d793-b820-43c9-80b9-6b19fad12f49",
+						"id": "78be1d4c-d448-4ce0-9af8-ca1291b9830d",
 						"type": "text/javascript",
 						"exec": [
-							"pm.environment.set('user_id', pm.environment.get('user_id_pm'))",
-							"pm.environment.set('issue.assign_to', pm.environment.get('user_id_rd'))"
+							"pm.variables.set('user_id', pm.variables.get('user_id_pm'))",
+							"pm.variables.set('issue.assign_to', pm.variables.get('user_id_rd'))"
 						]
 					}
 				},
 				{
 					"listen": "test",
 					"script": {
-						"id": "aa533f7b-face-41d4-b284-b73b45d5653d",
+						"id": "2b45f9d8-19a1-4f7d-b898-6f80da39cdde",
 						"type": "text/javascript",
 						"exec": [
 							""
@@ -5198,133 +5885,6 @@
 			"name": "RD測試",
 			"item": [
 				{
-					"name": "附加檔案(無法測試上傳下載)",
-					"item": [
-						{
-							"name": "列出某專案內的所有附加檔案",
-							"event": [
-								{
-									"listen": "test",
-									"script": {
-										"id": "95d9242a-0ded-4463-81f9-af4e36853fd3",
-										"exec": [
-											"pm.test(\"Status code 檢查\", () => {\r",
-											"    pm.response.to.have.status(200);\r",
-											"});\r",
-											"\r",
-											"pm.test(\"取得第一個檔案\", () => {\r",
-											"    const files = pm.response.json().data.files;\r",
-											"    if (files.length > 0) {\r",
-											"        pm.environment.set('file_id', files[0].id);\r",
-											"        pm.environment.set('file_name', files[0].filename);\r",
-											"    }\r",
-											"});"
-										],
-										"type": "text/javascript"
-									}
-								}
-							],
-							"protocolProfileBehavior": {
-								"disableBodyPruning": true
-							},
-							"request": {
-								"method": "GET",
-								"header": [],
-								"body": {
-									"mode": "formdata",
-									"formdata": [],
-									"options": {
-										"formdata": {}
-									}
-								},
-								"url": {
-									"raw": "{{server_origin}}/project/{{project_id}}/file",
-									"host": [
-										"{{server_origin}}"
-									],
-									"path": [
-										"project",
-										"{{project_id}}",
-										"file"
-									]
-								},
-								"description": "Use form-data to upload a file, the name is \"file\"."
-							},
-							"response": [
-								{
-									"name": "列出某專案內的所有附加檔案",
-									"originalRequest": {
-										"method": "GET",
-										"header": [],
-										"url": {
-											"raw": "{{server_origin}}/project/{{project_id}}/file",
-											"host": [
-												"{{server_origin}}"
-											],
-											"path": [
-												"project",
-												"{{project_id}}",
-												"file"
-											]
-										}
-									},
-									"status": "OK",
-									"code": 200,
-									"_postman_previewlanguage": "json",
-									"header": [
-										{
-											"key": "Content-Type",
-											"value": "application/json"
-										},
-										{
-											"key": "Content-Length",
-											"value": "11214"
-										},
-										{
-											"key": "Access-Control-Allow-Origin",
-											"value": "*"
-										},
-										{
-											"key": "Server",
-											"value": "Werkzeug/1.0.1 Python/3.8.6"
-										},
-										{
-											"key": "Date",
-											"value": "Wed, 21 Oct 2020 06:09:48 GMT"
-										}
-									],
-									"cookie": [],
-									"body": "{\n    \"message\": \"success\",\n    \"data\": {\n        \"files\": [\n            {\n                \"id\": 53,\n                \"filename\": \"10.50.1.67_9528_ (11).png\",\n                \"filesize\": 53840,\n                \"content_type\": \"image/png\",\n                \"description\": \"\",\n                \"content_url\": \"http://10.50.1.56:32748/attachments/download/53/10.50.1.67_9528_%20(11).png\",\n                \"thumbnail_url\": \"http://10.50.1.56:32748/attachments/thumbnail/53\",\n                \"author\": {\n                    \"id\": 1,\n                    \"name\": \"Redmine Admin\"\n                },\n                \"created_on\": \"2020-10-08T02:13:12Z\",\n                \"digest\": \"0dfc11607df3ff702def5a9ca76b5a3e26634ec668397f98a7571cc348a6b5e3\",\n                \"downloads\": 3\n            },\n            {\n                \"id\": 83,\n                \"filename\": \"1111\",\n                \"filesize\": 3999,\n                \"content_type\": null,\n                \"description\": \"\",\n                \"content_url\": \"http://10.50.1.56:32748/attachments/download/83/1111\",\n                \"author\": {\n                    \"id\": 1,\n                    \"name\": \"Redmine Admin\"\n                },\n                \"created_on\": \"2020-10-14T09:12:21Z\",\n                \"digest\": \"a256b0c96474eb4bdaee02aa42ad7f06008a170c67eb1a58f6697f8c49c63636\",\n                \"downloads\": 0\n            },\n            {\n                \"id\": 86,\n                \"filename\": \"圖片2.jpg\",\n                \"filesize\": 3999,\n                \"content_type\": null,\n                \"description\": \"\",\n                \"content_url\": \"http://10.50.1.56:32748/attachments/download/86/%E5%9C%96%E7%89%872.jpg\",\n                \"thumbnail_url\": \"http://10.50.1.56:32748/attachments/thumbnail/86\",\n                \"author\": {\n                    \"id\": 1,\n                    \"name\": \"Redmine Admin\"\n                },\n                \"created_on\": \"2020-10-14T09:12:54Z\",\n                \"digest\": \"a256b0c96474eb4bdaee02aa42ad7f06008a170c67eb1a58f6697f8c49c63636\",\n                \"downloads\": 1\n            },\n            {\n                \"id\": 151,\n                \"filename\": \"圖片2.jpg\",\n                \"filesize\": 3999,\n                \"content_type\": null,\n                \"description\": \"\",\n                \"content_url\": \"http://10.50.1.56:32748/attachments/download/151/%E5%9C%96%E7%89%872.jpg\",\n                \"thumbnail_url\": \"http://10.50.1.56:32748/attachments/thumbnail/151\",\n                \"author\": {\n                    \"id\": 1,\n                    \"name\": \"Redmine Admin\"\n                },\n                \"created_on\": \"2020-10-21T02:17:16Z\",\n                \"digest\": \"a256b0c96474eb4bdaee02aa42ad7f06008a170c67eb1a58f6697f8c49c63636\",\n                \"downloads\": 0\n            },\n            {\n                \"id\": 160,\n                \"filename\": \"測試檔案\",\n                \"filesize\": 4914,\n                \"content_type\": null,\n                \"description\": \"\",\n                \"content_url\": \"http://10.50.1.56:32748/attachments/download/160/%E6%B8%AC%E8%A9%A6%E6%AA%94%E6%A1%88\",\n                \"author\": {\n                    \"id\": 1,\n                    \"name\": \"Redmine Admin\"\n                },\n                \"created_on\": \"2020-10-21T06:08:42Z\",\n                \"digest\": \"3199d4aa187b843bad8727fdc30ba16d5dc39d3a79994e20358e09374a0995a2\",\n                \"downloads\": 0\n            },\n            {\n                \"id\": 84,\n                \"filename\": \"1111\",\n                \"filesize\": 3999,\n                \"content_type\": null,\n                \"description\": \"Test Info\",\n                \"content_url\": \"http://10.50.1.56:32748/attachments/download/84/1111\",\n                \"author\": {\n                    \"id\": 1,\n                    \"name\": \"Redmine Admin\"\n                },\n                \"created_on\": \"2020-10-14T09:12:25Z\",\n                \"version\": {\n                    \"id\": 84,\n                    \"name\": \"testv1\"\n                },\n                \"digest\": \"a256b0c96474eb4bdaee02aa42ad7f06008a170c67eb1a58f6697f8c49c63636\",\n                \"downloads\": 0\n            },\n            {\n                \"id\": 81,\n                \"filename\": \"PictureAPI2\",\n                \"filesize\": 3999,\n                \"content_type\": null,\n                \"description\": \"Test Info\",\n                \"content_url\": \"http://10.50.1.56:32748/attachments/download/81/PictureAPI2\",\n                \"author\": {\n                    \"id\": 1,\n                    \"name\": \"Redmine Admin\"\n                },\n                \"created_on\": \"2020-10-14T09:11:02Z\",\n                \"version\": {\n                    \"id\": 84,\n                    \"name\": \"testv1\"\n                },\n                \"digest\": \"a256b0c96474eb4bdaee02aa42ad7f06008a170c67eb1a58f6697f8c49c63636\",\n                \"downloads\": 0\n            },\n            {\n                \"id\": 87,\n                \"filename\": \"圖片2.jpg\",\n                \"filesize\": 3999,\n                \"content_type\": null,\n                \"description\": \"\",\n                \"content_url\": \"http://10.50.1.56:32748/attachments/download/87/%E5%9C%96%E7%89%872.jpg\",\n                \"thumbnail_url\": \"http://10.50.1.56:32748/attachments/thumbnail/87\",\n                \"author\": {\n                    \"id\": 1,\n                    \"name\": \"Redmine Admin\"\n                },\n                \"created_on\": \"2020-10-14T09:13:40Z\",\n                \"version\": {\n                    \"id\": 84,\n                    \"name\": \"testv1\"\n                },\n                \"digest\": \"a256b0c96474eb4bdaee02aa42ad7f06008a170c67eb1a58f6697f8c49c63636\",\n                \"downloads\": 0\n            },\n            {\n                \"id\": 54,\n                \"filename\": \"10.50.1.67_9528_ (10).png\",\n                \"filesize\": 52335,\n                \"content_type\": \"image/png\",\n                \"description\": \"\",\n                \"content_url\": \"http://10.50.1.56:32748/attachments/download/54/10.50.1.67_9528_%20(10).png\",\n                \"thumbnail_url\": \"http://10.50.1.56:32748/attachments/thumbnail/54\",\n                \"author\": {\n                    \"id\": 1,\n                    \"name\": \"Redmine Admin\"\n                },\n                \"created_on\": \"2020-10-08T02:13:31Z\",\n                \"version\": {\n                    \"id\": 72,\n                    \"name\": \"Flask_V1.0\"\n                },\n                \"digest\": \"8f436b65b17fe2bcb3e9c78b10185fcb2f33419e6ec59c9cbb8a344187709cb0\",\n                \"downloads\": 0\n            },\n            {\n                \"id\": 153,\n                \"filename\": \"1111\",\n                \"filesize\": 3999,\n                \"content_type\": null,\n                \"description\": \"Test Info\",\n                \"content_url\": \"http://10.50.1.56:32748/attachments/download/153/1111\",\n                \"author\": {\n                    \"id\": 1,\n                    \"name\": \"Redmine Admin\"\n                },\n                \"created_on\": \"2020-10-21T02:24:02Z\",\n                \"version\": {\n                    \"id\": 72,\n                    \"name\": \"Flask_V1.0\"\n                },\n                \"digest\": \"a256b0c96474eb4bdaee02aa42ad7f06008a170c67eb1a58f6697f8c49c63636\",\n                \"downloads\": 0\n            },\n            {\n                \"id\": 154,\n                \"filename\": \"1111\",\n                \"filesize\": 3999,\n                \"content_type\": null,\n                \"description\": \"Test Info\",\n                \"content_url\": \"http://10.50.1.56:32748/attachments/download/154/1111\",\n                \"author\": {\n                    \"id\": 1,\n                    \"name\": \"Redmine Admin\"\n                },\n                \"created_on\": \"2020-10-21T02:25:06Z\",\n                \"version\": {\n                    \"id\": 72,\n                    \"name\": \"Flask_V1.0\"\n                },\n                \"digest\": \"a256b0c96474eb4bdaee02aa42ad7f06008a170c67eb1a58f6697f8c49c63636\",\n                \"downloads\": 0\n            },\n            {\n                \"id\": 152,\n                \"filename\": \"1111\",\n                \"filesize\": 3999,\n                \"content_type\": null,\n                \"description\": \"Test Info\",\n                \"content_url\": \"http://10.50.1.56:32748/attachments/download/152/1111\",\n                \"author\": {\n                    \"id\": 1,\n                    \"name\": \"Redmine Admin\"\n                },\n                \"created_on\": \"2020-10-21T02:22:01Z\",\n                \"version\": {\n                    \"id\": 72,\n                    \"name\": \"Flask_V1.0\"\n                },\n                \"digest\": \"a256b0c96474eb4bdaee02aa42ad7f06008a170c67eb1a58f6697f8c49c63636\",\n                \"downloads\": 0\n            },\n            {\n                \"id\": 56,\n                \"filename\": \"456.png\",\n                \"filesize\": 3999,\n                \"content_type\": \"image/png\",\n                \"description\": \"Test Upload 566\",\n                \"content_url\": \"http://10.50.1.56:32748/attachments/download/56/456.png\",\n                \"thumbnail_url\": \"http://10.50.1.56:32748/attachments/thumbnail/56\",\n                \"author\": {\n                    \"id\": 1,\n                    \"name\": \"Redmine Admin\"\n                },\n                \"created_on\": \"2020-10-08T03:13:17Z\",\n                \"version\": {\n                    \"id\": 72,\n                    \"name\": \"Flask_V1.0\"\n                },\n                \"digest\": \"a256b0c96474eb4bdaee02aa42ad7f06008a170c67eb1a58f6697f8c49c63636\",\n                \"downloads\": 0\n            },\n            {\n                \"id\": 55,\n                \"filename\": \"456.png\",\n                \"filesize\": 3999,\n                \"content_type\": \"image/png\",\n                \"description\": \"Test Upload 566\",\n                \"content_url\": \"http://10.50.1.56:32748/attachments/download/55/456.png\",\n                \"thumbnail_url\": \"http://10.50.1.56:32748/attachments/thumbnail/55\",\n                \"author\": {\n                    \"id\": 1,\n                    \"name\": \"Redmine Admin\"\n                },\n                \"created_on\": \"2020-10-08T02:35:51Z\",\n                \"version\": {\n                    \"id\": 72,\n                    \"name\": \"Flask_V1.0\"\n                },\n                \"digest\": \"a256b0c96474eb4bdaee02aa42ad7f06008a170c67eb1a58f6697f8c49c63636\",\n                \"downloads\": 1\n            },\n            {\n                \"id\": 57,\n                \"filename\": \"螢幕擷取畫面 2020-10-08 105922.jpg\",\n                \"filesize\": 112417,\n                \"content_type\": \"image/jpeg\",\n                \"description\": \"\",\n                \"content_url\": \"http://10.50.1.56:32748/attachments/download/57/%E8%9E%A2%E5%B9%95%E6%93%B7%E5%8F%96%E7%95%AB%E9%9D%A2%202020-10-08%20105922.jpg\",\n                \"thumbnail_url\": \"http://10.50.1.56:32748/attachments/thumbnail/57\",\n                \"author\": {\n                    \"id\": 1,\n                    \"name\": \"Redmine Admin\"\n                },\n                \"created_on\": \"2020-10-08T03:14:08Z\",\n                \"version\": {\n                    \"id\": 72,\n                    \"name\": \"Flask_V1.0\"\n                },\n                \"digest\": \"bd1145379dd5402248f5f9951a1186cb22e2fe3ca3db3d26f2721fa9f7e14ad7\",\n                \"downloads\": 0\n            }\n        ]\n    }\n}"
-								}
-							]
-						}
-					],
-					"event": [
-						{
-							"listen": "prerequest",
-							"script": {
-								"id": "38a0e855-ff46-4e8b-8814-788999b3a7e9",
-								"type": "text/javascript",
-								"exec": [
-									""
-								]
-							}
-						},
-						{
-							"listen": "test",
-							"script": {
-								"id": "b90451b0-9766-43f5-a75b-724cb7190391",
-								"type": "text/javascript",
-								"exec": [
-									""
-								]
-							}
-						}
-					],
-					"protocolProfileBehavior": {},
-					"_postman_isSubFolder": true
-				},
-				{
 					"name": "Gitlab repository",
 					"item": [
 						{
@@ -5336,11 +5896,9 @@
 										{
 											"listen": "test",
 											"script": {
-												"id": "273fc111-55de-47b0-aafd-463c6cc6742a",
+												"id": "3931c249-8f08-4655-8317-7f7633bbde63",
 												"exec": [
-													"pm.test(\"Status code 檢查\", () => {\r",
-													"    pm.response.to.have.status(200);\r",
-													"});"
+													""
 												],
 												"type": "text/javascript"
 											}
@@ -5453,11 +6011,9 @@
 										{
 											"listen": "test",
 											"script": {
-												"id": "4174a55e-4581-4f4f-8ede-087f43e70106",
+												"id": "7e39a1f7-289f-4fae-8787-f88590f79639",
 												"exec": [
-													"pm.test(\"Status code 檢查\", () => {\r",
-													"    pm.response.to.have.status(200);\r",
-													"});"
+													""
 												],
 												"type": "text/javascript"
 											}
@@ -5532,11 +6088,9 @@
 										{
 											"listen": "test",
 											"script": {
-												"id": "f65495ff-3390-43fe-9000-1b2bee8a9878",
+												"id": "bf98d6b9-ead5-496a-9e87-5a39abeef698",
 												"exec": [
-													"pm.test(\"Status code 檢查\", () => {\r",
-													"    pm.response.to.have.status(200);\r",
-													"});"
+													""
 												],
 												"type": "text/javascript"
 											}
@@ -5615,11 +6169,9 @@
 										{
 											"listen": "test",
 											"script": {
-												"id": "f27c45b8-8637-498d-ad91-841a03ef3ace",
+												"id": "4b070ef4-fbe5-4f91-9ef7-6a6c313166ce",
 												"exec": [
-													"pm.test(\"Status code 檢查\", () => {\r",
-													"    pm.response.to.have.status(200);\r",
-													"});"
+													""
 												],
 												"type": "text/javascript"
 											}
@@ -5643,53 +6195,6 @@
 										}
 									},
 									"response": [
-										{
-											"name": "branch 不存在",
-											"originalRequest": {
-												"method": "DELETE",
-												"header": [],
-												"url": {
-													"raw": "{{server_origin}}/repositories/rd/{{repository_id}}/branch/{{{{new_branch_name}}",
-													"host": [
-														"{{server_origin}}"
-													],
-													"path": [
-														"repositories",
-														"rd",
-														"{{repository_id}}",
-														"branch",
-														"{{{{new_branch_name}}"
-													]
-												}
-											},
-											"status": "NOT FOUND",
-											"code": 404,
-											"_postman_previewlanguage": "json",
-											"header": [
-												{
-													"key": "Content-Type",
-													"value": "application/json"
-												},
-												{
-													"key": "Content-Length",
-													"value": "42"
-												},
-												{
-													"key": "Access-Control-Allow-Origin",
-													"value": "*"
-												},
-												{
-													"key": "Server",
-													"value": "Werkzeug/1.0.1 Python/3.8.6"
-												},
-												{
-													"key": "Date",
-													"value": "Wed, 21 Oct 2020 08:08:59 GMT"
-												}
-											],
-											"cookie": [],
-											"body": "{\n    \"message\": \"404 Branch Not Found\"\n}"
-										},
 										{
 											"name": "刪除專案內的branch",
 											"originalRequest": {
@@ -5736,6 +6241,53 @@
 											],
 											"cookie": [],
 											"body": "{\n    \"message\": \"success\"\n}"
+										},
+										{
+											"name": "branch 不存在",
+											"originalRequest": {
+												"method": "DELETE",
+												"header": [],
+												"url": {
+													"raw": "{{server_origin}}/repositories/rd/{{repository_id}}/branch/{{{{new_branch_name}}",
+													"host": [
+														"{{server_origin}}"
+													],
+													"path": [
+														"repositories",
+														"rd",
+														"{{repository_id}}",
+														"branch",
+														"{{{{new_branch_name}}"
+													]
+												}
+											},
+											"status": "NOT FOUND",
+											"code": 404,
+											"_postman_previewlanguage": "json",
+											"header": [
+												{
+													"key": "Content-Type",
+													"value": "application/json"
+												},
+												{
+													"key": "Content-Length",
+													"value": "42"
+												},
+												{
+													"key": "Access-Control-Allow-Origin",
+													"value": "*"
+												},
+												{
+													"key": "Server",
+													"value": "Werkzeug/1.0.1 Python/3.8.6"
+												},
+												{
+													"key": "Date",
+													"value": "Wed, 21 Oct 2020 08:08:59 GMT"
+												}
+											],
+											"cookie": [],
+											"body": "{\n    \"message\": \"404 Branch Not Found\"\n}"
 										}
 									]
 								}
@@ -5752,11 +6304,9 @@
 										{
 											"listen": "test",
 											"script": {
-												"id": "9243ae35-dc3b-4b66-baf0-e39b8a07cdd9",
+												"id": "e7978828-809e-4cf2-b16c-30f596a2c343",
 												"exec": [
-													"pm.test(\"Status code 檢查\", () => {\r",
-													"    pm.response.to.have.status(200);\r",
-													"});"
+													""
 												],
 												"type": "text/javascript"
 											}
@@ -5844,11 +6394,9 @@
 										{
 											"listen": "test",
 											"script": {
-												"id": "b14a70b6-b611-4174-a758-9a530628b17e",
+												"id": "01e66106-b6b2-4694-a732-aef16516ea40",
 												"exec": [
-													"pm.test(\"Status code 檢查\", () => {\r",
-													"    pm.response.to.have.status(200);\r",
-													"});"
+													""
 												],
 												"type": "text/javascript"
 											}
@@ -6017,11 +6565,9 @@
 										{
 											"listen": "test",
 											"script": {
-												"id": "75e6d64d-58bf-4399-8843-8dda88e46baf",
+												"id": "a80c8759-b4eb-4963-8f2c-4093823a3ed4",
 												"exec": [
-													"pm.test(\"Status code 檢查\", () => {\r",
-													"    pm.response.to.have.status(200);\r",
-													"});"
+													""
 												],
 												"type": "text/javascript"
 											}
@@ -6098,11 +6644,9 @@
 										{
 											"listen": "test",
 											"script": {
-												"id": "35f0e438-83bc-422c-8664-17f6de6a34a9",
+												"id": "8d75d1ab-ef64-4c4e-84e2-41b85effd505",
 												"exec": [
-													"pm.test(\"Status code 檢查\", () => {\r",
-													"    pm.response.to.have.status(200);\r",
-													"});"
+													""
 												],
 												"type": "text/javascript"
 											}
@@ -6126,53 +6670,6 @@
 										}
 									},
 									"response": [
-										{
-											"name": "刪除專案內的tag",
-											"originalRequest": {
-												"method": "DELETE",
-												"header": [],
-												"url": {
-													"raw": "{{server_origin}}/repositories/rd/{{repository_id}}/tags/{{tag_name}}",
-													"host": [
-														"{{server_origin}}"
-													],
-													"path": [
-														"repositories",
-														"rd",
-														"{{repository_id}}",
-														"tags",
-														"{{tag_name}}"
-													]
-												}
-											},
-											"status": "OK",
-											"code": 200,
-											"_postman_previewlanguage": "json",
-											"header": [
-												{
-													"key": "Content-Type",
-													"value": "application/json"
-												},
-												{
-													"key": "Content-Length",
-													"value": "29"
-												},
-												{
-													"key": "Access-Control-Allow-Origin",
-													"value": "*"
-												},
-												{
-													"key": "Server",
-													"value": "Werkzeug/1.0.1 Python/3.8.6"
-												},
-												{
-													"key": "Date",
-													"value": "Wed, 21 Oct 2020 08:05:31 GMT"
-												}
-											],
-											"cookie": [],
-											"body": "{\n    \"message\": \"success\"\n}"
-										},
 										{
 											"name": "查無該tag",
 											"originalRequest": {
@@ -6219,6 +6716,53 @@
 											],
 											"cookie": [],
 											"body": "{\n    \"message\": \"404 Tag Not Found\"\n}"
+										},
+										{
+											"name": "刪除專案內的tag",
+											"originalRequest": {
+												"method": "DELETE",
+												"header": [],
+												"url": {
+													"raw": "{{server_origin}}/repositories/rd/{{repository_id}}/tags/{{tag_name}}",
+													"host": [
+														"{{server_origin}}"
+													],
+													"path": [
+														"repositories",
+														"rd",
+														"{{repository_id}}",
+														"tags",
+														"{{tag_name}}"
+													]
+												}
+											},
+											"status": "OK",
+											"code": 200,
+											"_postman_previewlanguage": "json",
+											"header": [
+												{
+													"key": "Content-Type",
+													"value": "application/json"
+												},
+												{
+													"key": "Content-Length",
+													"value": "29"
+												},
+												{
+													"key": "Access-Control-Allow-Origin",
+													"value": "*"
+												},
+												{
+													"key": "Server",
+													"value": "Werkzeug/1.0.1 Python/3.8.6"
+												},
+												{
+													"key": "Date",
+													"value": "Wed, 21 Oct 2020 08:05:31 GMT"
+												}
+											],
+											"cookie": [],
+											"body": "{\n    \"message\": \"success\"\n}"
 										}
 									]
 								}
@@ -6235,7 +6779,7 @@
 										{
 											"listen": "prerequest",
 											"script": {
-												"id": "2381ec21-07af-4396-835f-399cd6a4599e",
+												"id": "46fcd8c2-9739-4631-844e-2c1d534f67e1",
 												"exec": [
 													""
 												],
@@ -6245,11 +6789,9 @@
 										{
 											"listen": "test",
 											"script": {
-												"id": "d91e9439-e7b5-40e7-b755-242942199ae3",
+												"id": "bcbdba87-e926-49a6-8b41-6df39117622b",
 												"exec": [
-													"pm.test(\"Status code 檢查\", () => {\r",
-													"    pm.response.to.have.status(200);\r",
-													"});"
+													""
 												],
 												"type": "text/javascript"
 											}
@@ -6407,17 +6949,141 @@
 						{
 							"listen": "prerequest",
 							"script": {
-								"id": "6de8828d-138e-493c-ac23-41bf8b54baa2",
+								"id": "e90350be-97e1-416a-a419-558bc1b9520d",
 								"type": "text/javascript",
 								"exec": [
-									"pm.environment.set('branch_name', 'master')"
+									"pm.variables.set('branch_name', 'master')"
 								]
 							}
 						},
 						{
 							"listen": "test",
 							"script": {
-								"id": "e33008be-59bb-4b92-a2d2-bc129e59a315",
+								"id": "9ea3b797-c9e4-424f-b8c7-e00b2483071e",
+								"type": "text/javascript",
+								"exec": [
+									""
+								]
+							}
+						}
+					],
+					"protocolProfileBehavior": {},
+					"_postman_isSubFolder": true
+				},
+				{
+					"name": "附加檔案(無法測試上傳下載)",
+					"item": [
+						{
+							"name": "列出某專案內的所有附加檔案",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "c9865ada-3cb8-41be-ba69-d43effa9f5f0",
+										"exec": [
+											"\r",
+											"pm.test(\"取得第一個檔案\", () => {\r",
+											"    const files = pm.response.json().data.files;\r",
+											"    if (files.length > 0) {\r",
+											"        pm.environment.set('file_id', files[0].id);\r",
+											"        pm.environment.set('file_name', files[0].filename);\r",
+											"    }\r",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "GET",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [],
+									"options": {
+										"formdata": {}
+									}
+								},
+								"url": {
+									"raw": "{{server_origin}}/project/{{project_id}}/file",
+									"host": [
+										"{{server_origin}}"
+									],
+									"path": [
+										"project",
+										"{{project_id}}",
+										"file"
+									]
+								},
+								"description": "Use form-data to upload a file, the name is \"file\"."
+							},
+							"response": [
+								{
+									"name": "列出某專案內的所有附加檔案",
+									"originalRequest": {
+										"method": "GET",
+										"header": [],
+										"url": {
+											"raw": "{{server_origin}}/project/{{project_id}}/file",
+											"host": [
+												"{{server_origin}}"
+											],
+											"path": [
+												"project",
+												"{{project_id}}",
+												"file"
+											]
+										}
+									},
+									"status": "OK",
+									"code": 200,
+									"_postman_previewlanguage": "json",
+									"header": [
+										{
+											"key": "Content-Type",
+											"value": "application/json"
+										},
+										{
+											"key": "Content-Length",
+											"value": "11214"
+										},
+										{
+											"key": "Access-Control-Allow-Origin",
+											"value": "*"
+										},
+										{
+											"key": "Server",
+											"value": "Werkzeug/1.0.1 Python/3.8.6"
+										},
+										{
+											"key": "Date",
+											"value": "Wed, 21 Oct 2020 06:09:48 GMT"
+										}
+									],
+									"cookie": [],
+									"body": "{\n    \"message\": \"success\",\n    \"data\": {\n        \"files\": [\n            {\n                \"id\": 53,\n                \"filename\": \"10.50.1.67_9528_ (11).png\",\n                \"filesize\": 53840,\n                \"content_type\": \"image/png\",\n                \"description\": \"\",\n                \"content_url\": \"http://10.50.1.56:32748/attachments/download/53/10.50.1.67_9528_%20(11).png\",\n                \"thumbnail_url\": \"http://10.50.1.56:32748/attachments/thumbnail/53\",\n                \"author\": {\n                    \"id\": 1,\n                    \"name\": \"Redmine Admin\"\n                },\n                \"created_on\": \"2020-10-08T02:13:12Z\",\n                \"digest\": \"0dfc11607df3ff702def5a9ca76b5a3e26634ec668397f98a7571cc348a6b5e3\",\n                \"downloads\": 3\n            },\n            {\n                \"id\": 83,\n                \"filename\": \"1111\",\n                \"filesize\": 3999,\n                \"content_type\": null,\n                \"description\": \"\",\n                \"content_url\": \"http://10.50.1.56:32748/attachments/download/83/1111\",\n                \"author\": {\n                    \"id\": 1,\n                    \"name\": \"Redmine Admin\"\n                },\n                \"created_on\": \"2020-10-14T09:12:21Z\",\n                \"digest\": \"a256b0c96474eb4bdaee02aa42ad7f06008a170c67eb1a58f6697f8c49c63636\",\n                \"downloads\": 0\n            },\n            {\n                \"id\": 86,\n                \"filename\": \"圖片2.jpg\",\n                \"filesize\": 3999,\n                \"content_type\": null,\n                \"description\": \"\",\n                \"content_url\": \"http://10.50.1.56:32748/attachments/download/86/%E5%9C%96%E7%89%872.jpg\",\n                \"thumbnail_url\": \"http://10.50.1.56:32748/attachments/thumbnail/86\",\n                \"author\": {\n                    \"id\": 1,\n                    \"name\": \"Redmine Admin\"\n                },\n                \"created_on\": \"2020-10-14T09:12:54Z\",\n                \"digest\": \"a256b0c96474eb4bdaee02aa42ad7f06008a170c67eb1a58f6697f8c49c63636\",\n                \"downloads\": 1\n            },\n            {\n                \"id\": 151,\n                \"filename\": \"圖片2.jpg\",\n                \"filesize\": 3999,\n                \"content_type\": null,\n                \"description\": \"\",\n                \"content_url\": \"http://10.50.1.56:32748/attachments/download/151/%E5%9C%96%E7%89%872.jpg\",\n                \"thumbnail_url\": \"http://10.50.1.56:32748/attachments/thumbnail/151\",\n                \"author\": {\n                    \"id\": 1,\n                    \"name\": \"Redmine Admin\"\n                },\n                \"created_on\": \"2020-10-21T02:17:16Z\",\n                \"digest\": \"a256b0c96474eb4bdaee02aa42ad7f06008a170c67eb1a58f6697f8c49c63636\",\n                \"downloads\": 0\n            },\n            {\n                \"id\": 160,\n                \"filename\": \"測試檔案\",\n                \"filesize\": 4914,\n                \"content_type\": null,\n                \"description\": \"\",\n                \"content_url\": \"http://10.50.1.56:32748/attachments/download/160/%E6%B8%AC%E8%A9%A6%E6%AA%94%E6%A1%88\",\n                \"author\": {\n                    \"id\": 1,\n                    \"name\": \"Redmine Admin\"\n                },\n                \"created_on\": \"2020-10-21T06:08:42Z\",\n                \"digest\": \"3199d4aa187b843bad8727fdc30ba16d5dc39d3a79994e20358e09374a0995a2\",\n                \"downloads\": 0\n            },\n            {\n                \"id\": 84,\n                \"filename\": \"1111\",\n                \"filesize\": 3999,\n                \"content_type\": null,\n                \"description\": \"Test Info\",\n                \"content_url\": \"http://10.50.1.56:32748/attachments/download/84/1111\",\n                \"author\": {\n                    \"id\": 1,\n                    \"name\": \"Redmine Admin\"\n                },\n                \"created_on\": \"2020-10-14T09:12:25Z\",\n                \"version\": {\n                    \"id\": 84,\n                    \"name\": \"testv1\"\n                },\n                \"digest\": \"a256b0c96474eb4bdaee02aa42ad7f06008a170c67eb1a58f6697f8c49c63636\",\n                \"downloads\": 0\n            },\n            {\n                \"id\": 81,\n                \"filename\": \"PictureAPI2\",\n                \"filesize\": 3999,\n                \"content_type\": null,\n                \"description\": \"Test Info\",\n                \"content_url\": \"http://10.50.1.56:32748/attachments/download/81/PictureAPI2\",\n                \"author\": {\n                    \"id\": 1,\n                    \"name\": \"Redmine Admin\"\n                },\n                \"created_on\": \"2020-10-14T09:11:02Z\",\n                \"version\": {\n                    \"id\": 84,\n                    \"name\": \"testv1\"\n                },\n                \"digest\": \"a256b0c96474eb4bdaee02aa42ad7f06008a170c67eb1a58f6697f8c49c63636\",\n                \"downloads\": 0\n            },\n            {\n                \"id\": 87,\n                \"filename\": \"圖片2.jpg\",\n                \"filesize\": 3999,\n                \"content_type\": null,\n                \"description\": \"\",\n                \"content_url\": \"http://10.50.1.56:32748/attachments/download/87/%E5%9C%96%E7%89%872.jpg\",\n                \"thumbnail_url\": \"http://10.50.1.56:32748/attachments/thumbnail/87\",\n                \"author\": {\n                    \"id\": 1,\n                    \"name\": \"Redmine Admin\"\n                },\n                \"created_on\": \"2020-10-14T09:13:40Z\",\n                \"version\": {\n                    \"id\": 84,\n                    \"name\": \"testv1\"\n                },\n                \"digest\": \"a256b0c96474eb4bdaee02aa42ad7f06008a170c67eb1a58f6697f8c49c63636\",\n                \"downloads\": 0\n            },\n            {\n                \"id\": 54,\n                \"filename\": \"10.50.1.67_9528_ (10).png\",\n                \"filesize\": 52335,\n                \"content_type\": \"image/png\",\n                \"description\": \"\",\n                \"content_url\": \"http://10.50.1.56:32748/attachments/download/54/10.50.1.67_9528_%20(10).png\",\n                \"thumbnail_url\": \"http://10.50.1.56:32748/attachments/thumbnail/54\",\n                \"author\": {\n                    \"id\": 1,\n                    \"name\": \"Redmine Admin\"\n                },\n                \"created_on\": \"2020-10-08T02:13:31Z\",\n                \"version\": {\n                    \"id\": 72,\n                    \"name\": \"Flask_V1.0\"\n                },\n                \"digest\": \"8f436b65b17fe2bcb3e9c78b10185fcb2f33419e6ec59c9cbb8a344187709cb0\",\n                \"downloads\": 0\n            },\n            {\n                \"id\": 153,\n                \"filename\": \"1111\",\n                \"filesize\": 3999,\n                \"content_type\": null,\n                \"description\": \"Test Info\",\n                \"content_url\": \"http://10.50.1.56:32748/attachments/download/153/1111\",\n                \"author\": {\n                    \"id\": 1,\n                    \"name\": \"Redmine Admin\"\n                },\n                \"created_on\": \"2020-10-21T02:24:02Z\",\n                \"version\": {\n                    \"id\": 72,\n                    \"name\": \"Flask_V1.0\"\n                },\n                \"digest\": \"a256b0c96474eb4bdaee02aa42ad7f06008a170c67eb1a58f6697f8c49c63636\",\n                \"downloads\": 0\n            },\n            {\n                \"id\": 154,\n                \"filename\": \"1111\",\n                \"filesize\": 3999,\n                \"content_type\": null,\n                \"description\": \"Test Info\",\n                \"content_url\": \"http://10.50.1.56:32748/attachments/download/154/1111\",\n                \"author\": {\n                    \"id\": 1,\n                    \"name\": \"Redmine Admin\"\n                },\n                \"created_on\": \"2020-10-21T02:25:06Z\",\n                \"version\": {\n                    \"id\": 72,\n                    \"name\": \"Flask_V1.0\"\n                },\n                \"digest\": \"a256b0c96474eb4bdaee02aa42ad7f06008a170c67eb1a58f6697f8c49c63636\",\n                \"downloads\": 0\n            },\n            {\n                \"id\": 152,\n                \"filename\": \"1111\",\n                \"filesize\": 3999,\n                \"content_type\": null,\n                \"description\": \"Test Info\",\n                \"content_url\": \"http://10.50.1.56:32748/attachments/download/152/1111\",\n                \"author\": {\n                    \"id\": 1,\n                    \"name\": \"Redmine Admin\"\n                },\n                \"created_on\": \"2020-10-21T02:22:01Z\",\n                \"version\": {\n                    \"id\": 72,\n                    \"name\": \"Flask_V1.0\"\n                },\n                \"digest\": \"a256b0c96474eb4bdaee02aa42ad7f06008a170c67eb1a58f6697f8c49c63636\",\n                \"downloads\": 0\n            },\n            {\n                \"id\": 56,\n                \"filename\": \"456.png\",\n                \"filesize\": 3999,\n                \"content_type\": \"image/png\",\n                \"description\": \"Test Upload 566\",\n                \"content_url\": \"http://10.50.1.56:32748/attachments/download/56/456.png\",\n                \"thumbnail_url\": \"http://10.50.1.56:32748/attachments/thumbnail/56\",\n                \"author\": {\n                    \"id\": 1,\n                    \"name\": \"Redmine Admin\"\n                },\n                \"created_on\": \"2020-10-08T03:13:17Z\",\n                \"version\": {\n                    \"id\": 72,\n                    \"name\": \"Flask_V1.0\"\n                },\n                \"digest\": \"a256b0c96474eb4bdaee02aa42ad7f06008a170c67eb1a58f6697f8c49c63636\",\n                \"downloads\": 0\n            },\n            {\n                \"id\": 55,\n                \"filename\": \"456.png\",\n                \"filesize\": 3999,\n                \"content_type\": \"image/png\",\n                \"description\": \"Test Upload 566\",\n                \"content_url\": \"http://10.50.1.56:32748/attachments/download/55/456.png\",\n                \"thumbnail_url\": \"http://10.50.1.56:32748/attachments/thumbnail/55\",\n                \"author\": {\n                    \"id\": 1,\n                    \"name\": \"Redmine Admin\"\n                },\n                \"created_on\": \"2020-10-08T02:35:51Z\",\n                \"version\": {\n                    \"id\": 72,\n                    \"name\": \"Flask_V1.0\"\n                },\n                \"digest\": \"a256b0c96474eb4bdaee02aa42ad7f06008a170c67eb1a58f6697f8c49c63636\",\n                \"downloads\": 1\n            },\n            {\n                \"id\": 57,\n                \"filename\": \"螢幕擷取畫面 2020-10-08 105922.jpg\",\n                \"filesize\": 112417,\n                \"content_type\": \"image/jpeg\",\n                \"description\": \"\",\n                \"content_url\": \"http://10.50.1.56:32748/attachments/download/57/%E8%9E%A2%E5%B9%95%E6%93%B7%E5%8F%96%E7%95%AB%E9%9D%A2%202020-10-08%20105922.jpg\",\n                \"thumbnail_url\": \"http://10.50.1.56:32748/attachments/thumbnail/57\",\n                \"author\": {\n                    \"id\": 1,\n                    \"name\": \"Redmine Admin\"\n                },\n                \"created_on\": \"2020-10-08T03:14:08Z\",\n                \"version\": {\n                    \"id\": 72,\n                    \"name\": \"Flask_V1.0\"\n                },\n                \"digest\": \"bd1145379dd5402248f5f9951a1186cb22e2fe3ca3db3d26f2721fa9f7e14ad7\",\n                \"downloads\": 0\n            }\n        ]\n    }\n}"
+								}
+							]
+						}
+					],
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "6abe6d91-78de-4374-b68c-6958df63942f",
+								"type": "text/javascript",
+								"exec": [
+									""
+								]
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"id": "c6702e17-562c-48db-b05a-2d7a90fd3858",
 								"type": "text/javascript",
 								"exec": [
 									""
@@ -6443,17 +7109,17 @@
 				{
 					"listen": "prerequest",
 					"script": {
-						"id": "8e225b15-1b4d-4093-8109-e5f27ec2311f",
+						"id": "698db913-da6b-4a47-9a2c-0dd15da2b2bd",
 						"type": "text/javascript",
 						"exec": [
-							"pm.environment.set('user_id', pm.environment.get('user_id_rd'))"
+							"pm.variables.set('user_id', pm.environment.get('user_id_rd'))"
 						]
 					}
 				},
 				{
 					"listen": "test",
 					"script": {
-						"id": "43a5b1b4-bf6b-4c41-88b9-b12dc9cad2b7",
+						"id": "cc7ad853-1188-4192-8a12-2922784e481e",
 						"type": "text/javascript",
 						"exec": [
 							""
@@ -6472,11 +7138,9 @@
 						{
 							"listen": "test",
 							"script": {
-								"id": "2b035ad5-063c-4f6b-8403-ad5e0f10b3b8",
+								"id": "4039b021-2936-40fb-a334-08b8ffaa3a35",
 								"exec": [
-									"pm.test(\"Status code 檢查\", () => {\r",
-									"    pm.response.to.have.status(200);\r",
-									"});"
+									""
 								],
 								"type": "text/javascript"
 							}
@@ -6568,11 +7232,9 @@
 						{
 							"listen": "test",
 							"script": {
-								"id": "49ed7ad4-efa4-4585-afdf-ca3836980cbb",
+								"id": "76a2ba18-d49e-4567-885c-27075c8d2c7c",
 								"exec": [
-									"pm.test(\"Status code 檢查\", () => {\r",
-									"    pm.response.to.have.status(200);\r",
-									"});"
+									""
 								],
 								"type": "text/javascript"
 							}
@@ -6580,7 +7242,7 @@
 						{
 							"listen": "prerequest",
 							"script": {
-								"id": "8173aaa8-6d93-47a0-b67a-63e5cf76f81a",
+								"id": "57cafcdc-8d5a-4827-89b9-2c2200c8fee5",
 								"exec": [
 									""
 								],
@@ -6707,11 +7369,9 @@
 						{
 							"listen": "test",
 							"script": {
-								"id": "efb9ec11-e9a3-4b4d-89cd-c38409a15522",
+								"id": "fd07a3b9-ea23-4988-8a95-3ff12261c4a0",
 								"exec": [
-									"pm.test(\"Status code 檢查\", () => {\r",
-									"    pm.response.to.have.status(200);\r",
-									"});"
+									""
 								],
 								"type": "text/javascript"
 							}
@@ -6874,7 +7534,7 @@
 						{
 							"listen": "prerequest",
 							"script": {
-								"id": "9f9c6c11-971f-4e7a-945b-00dfb697c29d",
+								"id": "6885a3c9-d75d-43d4-9415-66fe84bc8fa1",
 								"exec": [
 									""
 								],
@@ -6884,11 +7544,9 @@
 						{
 							"listen": "test",
 							"script": {
-								"id": "d5ffc7a8-48e6-4fd7-9249-4c65b235bf3e",
+								"id": "aa021ce6-2b0b-4170-8436-cc390d09b94b",
 								"exec": [
-									"pm.test(\"Status code 檢查\", () => {\r",
-									"    pm.response.to.have.status(200);\r",
-									"});"
+									""
 								],
 								"type": "text/javascript"
 							}
@@ -6935,17 +7593,17 @@
 				{
 					"listen": "prerequest",
 					"script": {
-						"id": "34bde739-8c5d-4f25-8782-0055867d89c8",
+						"id": "247abb13-c10a-42d9-bd42-f83f9537190e",
 						"type": "text/javascript",
 						"exec": [
-							"pm.environment.set('user_id', pm.environment.get('user_id_pm'))"
+							"pm.variables.set('user_id', pm.variables.get('user_id_pm'))"
 						]
 					}
 				},
 				{
 					"listen": "test",
 					"script": {
-						"id": "afb0f67d-39cf-4744-ba94-ae2d508ea86f",
+						"id": "ce112cc7-94a2-4ea7-8690-67f55941b450",
 						"type": "text/javascript",
 						"exec": [
 							""
@@ -6964,16 +7622,12 @@
 						{
 							"listen": "test",
 							"script": {
-								"id": "0d6bc0f2-3dcc-429c-92ea-9dfb62846fd3",
+								"id": "92bbf090-e577-4c6a-87fc-13f1a5dbebff",
 								"exec": [
-									"pm.test(\"Status code 檢查\", () => {\r",
-									"    pm.response.to.have.status(200);\r",
-									"});\r",
-									"\r",
 									"pm.test(\"儲存新 user ID\", function () {\r",
 									"    var jsonData = pm.response.json();\r",
 									"    pm.expect(jsonData.data.user_id).to.be.a(\"number\");\r",
-									"    pm.environment.set(\"new.user_id_pm\", pm.response.json().data.user_id)\r",
+									"    pm.variables.set(\"new.user_id_pm\", pm.response.json().data.user_id)\r",
 									"});"
 								],
 								"type": "text/javascript"
@@ -6982,7 +7636,7 @@
 						{
 							"listen": "prerequest",
 							"script": {
-								"id": "303a3906-c99a-430c-80c9-7f836f0341fa",
+								"id": "c68657c2-be32-4bb7-b553-10c962e2034e",
 								"exec": [
 									""
 								],
@@ -6995,7 +7649,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"phone\": \"0999999999#123\", \r\n    \"name\": \"測試用蒸發PM\",\r\n    \"email\": \"rrrrrtest_pm@vapor.nowhere\",\r\n    \"login\": \"rrrrrtest_postman_test_pm\",    \r\n    \"password\": \"OpenStack0\",\r\n    \"role_id\": 3,\r\n    \"status\": \"enable\"\r\n}\r\n\r\n",
+							"raw": "{\r\n    \"phone\": \"0999999999#123\", \r\n    \"name\": \"測試用蒸發PM\",\r\n    \"email\": \"pm@vapor.nowhere\",\r\n    \"login\": \"postman_test_pm\",    \r\n    \"password\": \"OpenStack0\",\r\n    \"role_id\": 3,\r\n    \"status\": \"enable\"\r\n}\r\n\r\n",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -7073,16 +7727,12 @@
 						{
 							"listen": "test",
 							"script": {
-								"id": "4f1d385d-d819-4cb4-a187-a81b87e3b836",
+								"id": "cafde3c2-3d34-4ac1-8eaf-ea4bf1f1a30f",
 								"exec": [
-									"pm.test(\"Status code 檢查\", () => {\r",
-									"    pm.response.to.have.status(200);\r",
-									"});\r",
-									"\r",
 									"pm.test(\"儲存新 user ID\", function () {\r",
 									"    var jsonData = pm.response.json();\r",
 									"    pm.expect(jsonData.data.user_id).to.be.a(\"number\");\r",
-									"    pm.environment.set(\"new.user_id_rd\", pm.response.json().data.user_id)\r",
+									"    pm.variables.set(\"new.user_id_rd\", pm.response.json().data.user_id)\r",
 									"});"
 								],
 								"type": "text/javascript"
@@ -7091,7 +7741,7 @@
 						{
 							"listen": "prerequest",
 							"script": {
-								"id": "77022f42-8b7f-4c79-afe0-12fd1f2c2daa",
+								"id": "61d79a26-5d03-4164-ad54-b29d24a833c3",
 								"exec": [
 									""
 								],
@@ -7104,7 +7754,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"phone\": \"0999999999#123\", \r\n    \"name\": \"測試用蒸發RD\",\r\n    \"email\": \"rrrrrrd@vapor.nowhere\",\r\n    \"login\": \"rrrrrpostman_test_rd\",\r\n    \"password\": \"OpenStack0\",\r\n    \"role_id\": 1,\r\n    \"status\": \"enable\"\r\n}\r\n\r\n",
+							"raw": "{\r\n    \"phone\": \"0999999999#123\", \r\n    \"name\": \"測試用蒸發RD\",\r\n    \"email\": \"rd@vapor.nowhere\",\r\n    \"login\": \"postman_test_rd\",\r\n    \"password\": \"OpenStack0\",\r\n    \"role_id\": 1,\r\n    \"status\": \"enable\"\r\n}\r\n\r\n",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -7182,16 +7832,12 @@
 						{
 							"listen": "test",
 							"script": {
-								"id": "2f327949-2a6b-4200-8a9a-3ec0d79d796f",
+								"id": "d8003614-497e-4eb6-aa7d-d06019506cd6",
 								"exec": [
-									"pm.test(\"Status code 檢查\", () => {\r",
-									"    pm.response.to.have.status(200);\r",
-									"});\r",
-									"\r",
 									"pm.test(\"儲存新 user ID\", function () {\r",
 									"    var jsonData = pm.response.json();\r",
 									"    pm.expect(jsonData.data.user_id).to.be.a(\"number\");\r",
-									"    pm.environment.set(\"new.user_id_am\", pm.response.json().data.user_id)\r",
+									"    pm.variables.set(\"new.user_id_am\", pm.response.json().data.user_id)\r",
 									"});"
 								],
 								"type": "text/javascript"
@@ -7200,7 +7846,7 @@
 						{
 							"listen": "prerequest",
 							"script": {
-								"id": "ac253474-0cbf-448f-a942-6ffcb30b469c",
+								"id": "7837234a-7d38-4592-b041-f9e735d6e381",
 								"exec": [
 									""
 								],
@@ -7213,7 +7859,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"phone\": \"0999999999#123\", \r\n    \"name\": \"測試用蒸發AM\",\r\n    \"email\": \"rrrrram@vapor.nowhere\",\r\n    \"login\": \"rrrrrpostman_test_am\",\r\n    \"password\": \"OpenStack0\",\r\n    \"role_id\": 5,\r\n    \"status\": \"enable\"\r\n}",
+							"raw": "{\r\n    \"phone\": \"0999999999#123\", \r\n    \"name\": \"測試用蒸發AM\",\r\n    \"email\": \"am@vapor.nowhere\",\r\n    \"login\": \"postman_test_am\",\r\n    \"password\": \"OpenStack0\",\r\n    \"role_id\": 5,\r\n    \"status\": \"enable\"\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -7291,11 +7937,8 @@
 						{
 							"listen": "test",
 							"script": {
-								"id": "f570b20f-e6e5-409d-9cb2-4e5f80c786b3",
+								"id": "05a845f2-206c-4a23-895e-ebc52ba23646",
 								"exec": [
-									"pm.test(\"Status code 檢查\", () => {\r",
-									"    pm.response.to.have.status(200);\r",
-									"});\r",
 									""
 								],
 								"type": "text/javascript"
@@ -7377,11 +8020,8 @@
 						{
 							"listen": "test",
 							"script": {
-								"id": "aca42945-83f9-47da-b80c-9f78cb2a66cf",
+								"id": "cf9c1926-35e7-4aea-b90e-c482152c75ca",
 								"exec": [
-									"pm.test(\"Status code 檢查\", () => {\r",
-									"    pm.response.to.have.status(200);\r",
-									"});\r",
 									""
 								],
 								"type": "text/javascript"
@@ -7457,11 +8097,8 @@
 						{
 							"listen": "test",
 							"script": {
-								"id": "acf3d049-7937-4bcc-9445-f6f9f45855f6",
+								"id": "009745f3-82a5-4984-8386-56f097d86a0a",
 								"exec": [
-									"pm.test(\"Status code 檢查\", () => {\r",
-									"    pm.response.to.have.status(200);\r",
-									"});\r",
 									""
 								],
 								"type": "text/javascript"
@@ -7470,7 +8107,7 @@
 						{
 							"listen": "prerequest",
 							"script": {
-								"id": "8cda81d7-6e83-44bb-b8f7-91bf370f0c93",
+								"id": "1127cd63-e18c-4019-8d76-e7b5c790a36c",
 								"exec": [
 									""
 								],
@@ -7545,11 +8182,8 @@
 						{
 							"listen": "test",
 							"script": {
-								"id": "64000e95-37bd-4054-b5b6-97594c08db94",
+								"id": "5d6360b7-fe93-4638-8f27-a7330fdd8c2f",
 								"exec": [
-									"pm.test(\"Status code 檢查\", () => {\r",
-									"    pm.response.to.have.status(200);\r",
-									"});\r",
 									""
 								],
 								"type": "text/javascript"
@@ -7623,11 +8257,8 @@
 						{
 							"listen": "test",
 							"script": {
-								"id": "de371084-3ed3-494d-b9af-13b667b88b1c",
+								"id": "43efe643-041f-44e8-b8aa-868cfe95cd7b",
 								"exec": [
-									"pm.test(\"Status code 檢查\", () => {\r",
-									"    pm.response.to.have.status(200);\r",
-									"});\r",
 									""
 								],
 								"type": "text/javascript"
@@ -7714,16 +8345,13 @@
 					]
 				},
 				{
-					"name": "刪除用戶 RD",
+					"name": "刪除 RD 用戶",
 					"event": [
 						{
 							"listen": "test",
 							"script": {
-								"id": "2bf2e97f-7d76-4537-84bc-75e081521dec",
+								"id": "75d821a7-8c68-4c55-8f4e-f8584f0dbb42",
 								"exec": [
-									"pm.test(\"Status code 檢查\", () => {\r",
-									"    pm.response.to.have.status(200);\r",
-									"});\r",
 									""
 								],
 								"type": "text/javascript"
@@ -7810,16 +8438,13 @@
 					]
 				},
 				{
-					"name": "刪除用戶 PM",
+					"name": "刪除 PM 用戶",
 					"event": [
 						{
 							"listen": "test",
 							"script": {
-								"id": "582cd1e9-4f73-48fe-91c3-5e1c0de46f1d",
+								"id": "4cc0684b-3e22-4534-a431-a5639baa8691",
 								"exec": [
-									"pm.test(\"Status code 檢查\", () => {\r",
-									"    pm.response.to.have.status(200);\r",
-									"});\r",
 									""
 								],
 								"type": "text/javascript"
@@ -7906,16 +8531,13 @@
 					]
 				},
 				{
-					"name": "刪除用戶 AM",
+					"name": "刪除 AM 用戶",
 					"event": [
 						{
 							"listen": "test",
 							"script": {
-								"id": "70dc2c38-4b11-44e9-b165-852ef2fa819b",
+								"id": "aee6a820-b3db-4072-adad-55ac13afc507",
 								"exec": [
-									"pm.test(\"Status code 檢查\", () => {\r",
-									"    pm.response.to.have.status(200);\r",
-									"});\r",
 									""
 								],
 								"type": "text/javascript"
@@ -8017,7 +8639,7 @@
 				{
 					"listen": "prerequest",
 					"script": {
-						"id": "28ac6e49-f456-49f0-9b6d-a7405de34a5e",
+						"id": "48d1e0ad-2f41-4ae1-8fe9-065bed5663e6",
 						"type": "text/javascript",
 						"exec": [
 							""
@@ -8027,7 +8649,7 @@
 				{
 					"listen": "test",
 					"script": {
-						"id": "43cbb88c-842e-4f9b-9868-9212861b05ce",
+						"id": "b6f73d0d-58cf-47da-9ebe-a280cf43442c",
 						"type": "text/javascript",
 						"exec": [
 							""
@@ -8038,34 +8660,28 @@
 			"protocolProfileBehavior": {}
 		}
 	],
-	"auth": {
-		"type": "bearer",
-		"bearer": [
-			{
-				"key": "token",
-				"value": "{{token}}",
-				"type": "string"
-			}
-		]
-	},
 	"event": [
 		{
 			"listen": "prerequest",
 			"script": {
-				"id": "cbcd2114-887b-4332-81b0-d0aeac41840f",
+				"id": "dc3329f9-923f-41da-bd4b-ad2939edd71e",
 				"type": "text/javascript",
 				"exec": [
-					""
+					"pm.environment.unset('project_id')",
+					"pm.environment.unset('issue_id')"
 				]
 			}
 		},
 		{
 			"listen": "test",
 			"script": {
-				"id": "23831eac-09ae-4874-a9a5-2c95c5e7d2e9",
+				"id": "a7ba678f-d7c4-4cf4-95fd-2f0d654d74be",
 				"type": "text/javascript",
 				"exec": [
-					""
+					"correctCode = pm.variables.get('correctCode') || 200",
+					"pm.test(\"Status code 檢查\", () => {",
+					"    pm.response.to.have.status(correctCode);",
+					"});"
 				]
 			}
 		}
