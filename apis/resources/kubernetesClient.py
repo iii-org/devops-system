@@ -1,8 +1,10 @@
 import os
 import json
+import util as util
 
 from kubernetes import client as k8s_client
 from kubernetes import config as k8s_config
+
 
 from flask_restful import Resource, reqparse
 
@@ -10,7 +12,6 @@ from resources.logger import logger
 
 k8s_config.load_kube_config()
 v1 = k8s_client.CoreV1Api()
-v1_namespace = k8s_client.model.v1_namespace()
 
 def list_service_all_namespaces():
     service_list = []
@@ -59,21 +60,18 @@ def create_namespace(project_name):
     print ("create_name_space: {0}".format(ret))
     
 def delete_namespace(project_name):
-    os.system("kubectl get ns {0} -o json > {0}-ns.json".format(project_name))
-    # os.system("cat {0}-ns.json".format(project_name))
-    ns_json = json.load(open("{0}-ns.json".format(project_name)))
-    print(ns_json)
+    ret = v1.delete_namespace(project_name)
+    os.system("kubectl get ns {0} -o json > {0}.json".format(project_name))
+    ns_json = json.load(open("{0}.json".format(project_name)))
+    os.remove("{0}.json".format(project_name))
     ns_json['spec']['finalizers']=[]
-    print(ns_json)
-    #k8s_client.models.v1_namespace(namespace=project_name)
-    print(v1_namespace)
-    #v1_namespace.remove(finalizers=[])
-    #v1_namespace.remove()()
-
-    #ret = v1.create_namespace(k8s_client.V1Namespace(metadata=k8s_client.V1ObjectMeta(name=project_name, finalizers=[])))
-    #ret = v1.delete_namespace(project_name)
-    #print("delete K8s namespace {0}".format(ret))
-
+    url = "http://127.0.0.1:8001/api/v1/namespaces/{0}/finalize".format(project_name)
+    headers={}
+    headers['Content-Type'] = 'application/json'
+    util.enable_k8s_proxy()
+    util.api_request('PUT', url, headers=headers, data=ns_json)
+    
+    
 def create_service_account(login_sa_name):
     sa = v1.create_namespaced_service_account("account", k8s_client.V1ServiceAccount(
         metadata=k8s_client.V1ObjectMeta(name=login_sa_name)))
@@ -101,3 +99,4 @@ class tmp_api(Resource):
         parser.add_argument('project_name', type=str)
         args = parser.parse_args()
         delete_namespace(args['project_name'])
+
