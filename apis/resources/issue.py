@@ -819,13 +819,13 @@ class SingleIssue(Resource):
         parser.add_argument('priority_id', type=int, required=True)
         parser.add_argument('subject', type=str, required=True)
         parser.add_argument('description', type=str)
-        parser.add_argument('assigned_to_id', type=int, required=True)
+        parser.add_argument('assigned_to_id', type=int)
         parser.add_argument('parent_id', type=int)
         parser.add_argument('fixed_version_id', type=int)
-        parser.add_argument('start_date', type=str, required=True)
-        parser.add_argument('due_date', type=str, required=True)
-        parser.add_argument('done_ratio', type=int, required=True)
-        parser.add_argument('estimated_hours', type=int, required=True)
+        parser.add_argument('start_date', type=str)
+        parser.add_argument('due_date', type=str)
+        parser.add_argument('done_ratio', type=int)
+        parser.add_argument('estimated_hours', type=int)
 
         # Attachment upload
         parser.add_argument('upload_file', type=werkzeug.datastructures.FileStorage, location='files')

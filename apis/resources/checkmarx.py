@@ -82,14 +82,24 @@ class CheckMarx(object):
             cm_project_id=args['cm_project_id'],
             repo_id=args['repo_id'],
             scan_id=args['scan_id'],
+            branch=args['branch'],
+            commit_id=args['commit_id'],
+            scan_final_status=None,
             run_at=datetime.datetime.now())
         db.session.add(new)
         db.session.commit()
         return util.success()
 
+    # Need to write into db if see a final scan status
     def get_scan_status(self, scan_id):
         status = self.__api_get('/sast/scans/{0}'.format(scan_id)).json().get('status')
-        return status.get('id'), status.get('name')
+        status_id = status.get('id')
+        status_name = status.get('name')
+        if status_id in {7, 8, 9}:
+            scan = Model.query.filter_by(scan_id=scan_id).one()
+            scan.scan_final_status = status_name
+            db.session.commit()
+        return status_id, status_name
 
     def get_scan_statistics(self, scan_id):
         return self.__api_get('/sast/scans/%s/resultsStatistics' % scan_id).json()
@@ -170,6 +180,13 @@ checkmarx = CheckMarx()
 
 
 # --------------------- Resources ---------------------
+class GetCheckmarxProject(Resource):
+    @jwt_required
+    def get(self, project_id):
+        cm_project_id = checkmarx.get_latest('cm_project_id', project_id)
+        return util.success({'cm_project_id': cm_project_id})
+
+
 class CreateCheckmarxScan(Resource):
     @jwt_required
     def post(self):
@@ -177,6 +194,8 @@ class CreateCheckmarxScan(Resource):
         parser.add_argument('cm_project_id', type=int, required=True)
         parser.add_argument('repo_id', type=int, required=True)
         parser.add_argument('scan_id', type=int, required=True)
+        parser.add_argument('branch', type=str, required=True)
+        parser.add_argument('commit_id', type=str, required=True)
         args = parser.parse_args()
         return checkmarx.create_scan(args)
 
