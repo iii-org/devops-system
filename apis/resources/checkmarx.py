@@ -187,7 +187,7 @@ class CheckMarx(object):
                 'branch': row.branch,
                 'commit_id': row.commit_id,
                 'status': row.scan_final_status,
-                'stats': json.loads(json.dumps(row.stats)),
+                'stats': json.loads(row.stats),
                 'run_at': str(row.run_at)
             })
         return ret
