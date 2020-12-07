@@ -352,6 +352,7 @@ def save_test_result(args):
         total=args['total'],
         fail=args['fail'],
         branch=branch,
+        commit_id=args['commit_id'],
         report=args['report'],
         run_at=datetime.datetime.now()
     )
@@ -366,9 +367,25 @@ def get_report(project_id):
     if row is None:
         raise DevOpsError(404, 'No postman report for this project.')
     report = row.report
-    if report is None:
+    if report is None or report == 'undefined':  # Corrupted data by old runners
         raise DevOpsError(404, 'No postman report for this project.')
     return util.success(json.loads(report))
+
+
+def list_results(project_id):
+    rows = model.TestResults.query.filter_by(project_id=project_id).order_by(desc(
+        model.TestResults.id)).all()
+    ret = []
+    for row in rows:
+        ret.append({
+            'id': row.id,
+            'branch': row.branch,
+            'commit_id': row.commit_id,
+            'success': row.total - row.fail,
+            'failure': row.fail,
+            'run_at': str(row.run_at)
+        })
+    return ret
 
 
 # --------------------- Resources ---------------------

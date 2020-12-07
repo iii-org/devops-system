@@ -816,7 +816,7 @@ class SingleIssue(Resource):
         parser.add_argument('project_id', type=int, required=True)
         parser.add_argument('tracker_id', type=int, required=True)
         parser.add_argument('status_id', type=int, required=True)
-        parser.add_argument('priority_id', type=int)
+        parser.add_argument('priority_id', type=int, required=True)
         parser.add_argument('subject', type=str, required=True)
         parser.add_argument('description', type=str)
         parser.add_argument('assigned_to_id', type=int)

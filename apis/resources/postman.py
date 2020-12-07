@@ -127,6 +127,12 @@ class ExportToPostman(Resource):
         return export_to_postman(project_id, target)
 
 
+class PostmanResults(Resource):
+    @jwt_required
+    def get(self, project_id):
+        return util.success(apiTest.list_results(project_id))
+
+
 class PostmanReport(Resource):
     @jwt_required
     def get(self, project_id):
@@ -139,6 +145,7 @@ class PostmanReport(Resource):
         parser.add_argument('total', type=int, required=True)
         parser.add_argument('fail', type=int, required=True)
         parser.add_argument('branch', type=str, required=True)
+        parser.add_argument('commit_id', type=str, required=True)
         parser.add_argument('report', type=str, required=True)
         args = parser.parse_args()
         role.require_in_project(project_id=args['project_id'])

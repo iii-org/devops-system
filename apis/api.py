@@ -155,6 +155,7 @@ api.add_resource(gitlab.GitProjectBranchCommits,
                  '/repositories/rd/<repository_id>/commits')
 api.add_resource(gitlab.GitProjectNetwork, '/repositories/<repository_id>/overview')
 api.add_resource(gitlab.GitProjectId, '/repositories/<repository_id>/id')
+api.add_resource(gitlab.GitProjectIdFromURL, '/repositories/id')
 
 # User
 api.add_resource(user.Login, '/user/login')
@@ -240,10 +241,12 @@ api.add_resource(apiTest.TestValue, '/testValues/<value_id>')
 
 # Postman tests
 api.add_resource(postman.ExportToPostman, '/export_to_postman/<sint:project_id>')
+api.add_resource(postman.PostmanResults, '/postman_results/<sint:project_id>')
 api.add_resource(postman.PostmanReport, '/testResults', '/postman_report/<sint:project_id>')
 
 # Checkmarx report generation
 api.add_resource(checkmarx.CreateCheckmarxScan, '/checkmarx/create_scan')
+api.add_resource(checkmarx.GetCheckmarxScans, '/checkmarx/scans/<sint:project_id>')
 api.add_resource(checkmarx.GetCheckmarxLatestScan, '/checkmarx/latest_scan/<sint:project_id>')
 api.add_resource(checkmarx.GetCheckmarxLatestScanStats,
                  '/checkmarx/latest_scan_stats/<sint:project_id>')
@@ -255,6 +258,8 @@ api.add_resource(checkmarx.GetCheckmarxScanStatistics, '/checkmarx/scan_stats/<s
 api.add_resource(checkmarx.RegisterCheckmarxReport, '/checkmarx/report/<scan_id>')
 api.add_resource(checkmarx.GetCheckmarxReportStatus,
                  '/checkmarx/report_status/<report_id>')
+api.add_resource(checkmarx.GetCheckmarxProject,
+                 '/checkmarx/get_cm_project_id/<sint:project_id>')
 
 # Get everything by issue_id
 api.add_resource(issue.DumpByIssue, '/dump_by_issue/<issue_id>')

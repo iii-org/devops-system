@@ -3,6 +3,7 @@ import json
 import requests
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
+from sqlalchemy.orm.exc import NoResultFound
 
 import config
 import model
@@ -47,6 +48,16 @@ class GitLab(object):
         else:
             raise DevOpsError(404, "Error when getting project id.",
                               error=apiError.repository_id_not_found(repository_id))
+
+    @staticmethod
+    def gl_get_project_id_from_url(repository_url):
+        row = model.Project.query.filter_by(http_url=repository_url).one()
+        project_id = row.id
+        repository_id = get_repository_id(project_id)
+        return {
+            'project_id': project_id,
+            'repository_id': repository_id
+        }
 
     def __api_request(self, method, path, headers=None, params=None, data=None):
         if headers is None:
@@ -471,3 +482,16 @@ class GitProjectId(Resource):
     @jwt_required
     def get(self, repository_id):
         return GitLab.gl_get_project_id(repository_id)
+
+
+class GitProjectIdFromURL(Resource):
+    @jwt_required
+    def get(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('repository_url', type=str, required=True)
+        args = parser.parse_args()
+        try:
+            return util.success(GitLab.gl_get_project_id_from_url(args['repository_url']))
+        except NoResultFound:
+            return util.respond(404, 'No such repository found in database.',
+                                error=apiError.repository_id_not_found(args['repository_url']))

@@ -1,4 +1,5 @@
 import datetime
+import json
 import time
 from io import BytesIO
 
@@ -82,14 +83,25 @@ class CheckMarx(object):
             cm_project_id=args['cm_project_id'],
             repo_id=args['repo_id'],
             scan_id=args['scan_id'],
+            branch=args['branch'],
+            commit_id=args['commit_id'],
+            scan_final_status=None,
             run_at=datetime.datetime.now())
         db.session.add(new)
         db.session.commit()
         return util.success()
 
+    # Need to write into db if see a final scan status
     def get_scan_status(self, scan_id):
         status = self.__api_get('/sast/scans/{0}'.format(scan_id)).json().get('status')
-        return status.get('id'), status.get('name')
+        status_id = status.get('id')
+        status_name = status.get('name')
+        if status_id in {7, 8, 9}:
+            scan = Model.query.filter_by(scan_id=scan_id).one()
+            scan.stats = json.dumps(self.get_scan_statistics(scan_id))
+            scan.scan_final_status = status_name
+            db.session.commit()
+        return status_id, status_name
 
     def get_scan_statistics(self, scan_id):
         return self.__api_get('/sast/scans/%s/resultsStatistics' % scan_id).json()
@@ -165,11 +177,38 @@ class CheckMarx(object):
             'report_id': report_id
         }}, 200
 
+    @staticmethod
+    def list_scans(project_id):
+        rows = Model.query.filter_by(repo_id=gitlab.get_repository_id(project_id)).order_by(
+            desc(Model.scan_id)).all()
+        ret = []
+        for row in rows:
+            if row.stats is None:
+                stats = None
+            else:
+                stats = json.loads(row.stats)
+            ret.append({
+                'scan_id': row.scan_id,
+                'branch': row.branch,
+                'commit_id': row.commit_id,
+                'status': row.scan_final_status,
+                'stats': stats,
+                'run_at': str(row.run_at)
+            })
+        return ret
+
 
 checkmarx = CheckMarx()
 
 
 # --------------------- Resources ---------------------
+class GetCheckmarxProject(Resource):
+    @jwt_required
+    def get(self, project_id):
+        cm_project_id = checkmarx.get_latest('cm_project_id', project_id)
+        return util.success({'cm_project_id': cm_project_id})
+
+
 class CreateCheckmarxScan(Resource):
     @jwt_required
     def post(self):
@@ -177,8 +216,16 @@ class CreateCheckmarxScan(Resource):
         parser.add_argument('cm_project_id', type=int, required=True)
         parser.add_argument('repo_id', type=int, required=True)
         parser.add_argument('scan_id', type=int, required=True)
+        parser.add_argument('branch', type=str, required=True)
+        parser.add_argument('commit_id', type=str, required=True)
         args = parser.parse_args()
         return checkmarx.create_scan(args)
+
+
+class GetCheckmarxScans(Resource):
+    @jwt_required
+    def get(self, project_id):
+        return util.success(checkmarx.list_scans(project_id))
 
 
 class GetCheckmarxLatestScan(Resource):
