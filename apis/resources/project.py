@@ -172,7 +172,8 @@ def create_project(user_id, args):
     
     # create namespace in kubernetes
     kubernetesClient.create_namespace(args['name'])
-
+    rancher.rc_add_namespace_into_rc_project(args['name'])
+    
     try:
         harbor_pj_id = harbor.hb_create_project(args['name'])
     except DevOpsError as e:
