@@ -48,7 +48,7 @@ stages:
   - name: Test--Newman
     steps: 
     - runScriptConfig:
-        image: 10.50.1.63:5443/iii-org/newman-runner:latest
+        image: 10.50.1.63:5443/iii-org/newman-runner:devops-system
         shellScript: cd /usr/src/app; node /usr/src/app/app.js
       env:
         git_url: ${CICD_GIT_URL}
@@ -56,15 +56,18 @@ stages:
         test_origin: 'http://${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}:10009'
         verbose: true
       envFrom:
-      - sourceName: git-token
+      - sourceName: newman
         sourceKey: git-token
         targetKey: git_token
-      - sourceName: api-origin
+      - sourceName: newman
         sourceKey: api-origin
         targetKey: api_origin
-      - sourceName: jwt-token
-        sourceKey: jwt-token
-        targetKey: jwt_token
+      - sourceName: newman
+        sourceKey: username 
+        targetKey: username
+      - sourceName: newman
+        sourceKey: password
+        targetKey: password
     when:
       branch: [develope]
 
