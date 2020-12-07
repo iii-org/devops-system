@@ -182,12 +182,16 @@ class CheckMarx(object):
         rows = Model.query.filter_by(repo_id=gitlab.get_repository_id(project_id)).all()
         ret = []
         for row in rows:
+            if row.stats is None:
+                stats = None
+            else:
+                stats = json.loads(row.stats)
             ret.append({
                 'scan_id': row.scan_id,
                 'branch': row.branch,
                 'commit_id': row.commit_id,
                 'status': row.scan_final_status,
-                'stats': json.loads(row.stats),
+                'stats': stats,
                 'run_at': str(row.run_at)
             })
         return ret
