@@ -1,4 +1,5 @@
 import datetime
+import json
 import time
 from io import BytesIO
 
@@ -97,6 +98,7 @@ class CheckMarx(object):
         status_name = status.get('name')
         if status_id in {7, 8, 9}:
             scan = Model.query.filter_by(scan_id=scan_id).one()
+            scan.stats = self.get_scan_statistics(scan_id)
             scan.scan_final_status = status_name
             db.session.commit()
         return status_id, status_name
@@ -175,6 +177,21 @@ class CheckMarx(object):
             'report_id': report_id
         }}, 200
 
+    @staticmethod
+    def list_scans(project_id):
+        rows = Model.query.filter_by(repo_id=gitlab.get_repository_id(project_id)).all()
+        ret = []
+        for row in rows:
+            ret.append({
+                'scan_id': row.scan_id,
+                'branch': row.branch,
+                'commit_id': row.commit_id,
+                'status': row.scan_final_status,
+                'stats': json.loads(json.dumps(row.stats)),
+                'run_at': str(row.run_at)
+            })
+        return ret
+
 
 checkmarx = CheckMarx()
 
@@ -198,6 +215,12 @@ class CreateCheckmarxScan(Resource):
         parser.add_argument('commit_id', type=str, required=True)
         args = parser.parse_args()
         return checkmarx.create_scan(args)
+
+
+class GetCheckmarxScans(Resource):
+    @jwt_required
+    def get(self, project_id):
+        return util.success(checkmarx.list_scans(project_id))
 
 
 class GetCheckmarxLatestScan(Resource):

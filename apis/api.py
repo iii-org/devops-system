@@ -245,6 +245,7 @@ api.add_resource(postman.PostmanReport, '/testResults', '/postman_report/<sint:p
 
 # Checkmarx report generation
 api.add_resource(checkmarx.CreateCheckmarxScan, '/checkmarx/create_scan')
+api.add_resource(checkmarx.GetCheckmarxScans, '/checkmarx/scans/<sint:project_id>')
 api.add_resource(checkmarx.GetCheckmarxLatestScan, '/checkmarx/latest_scan/<sint:project_id>')
 api.add_resource(checkmarx.GetCheckmarxLatestScanStats,
                  '/checkmarx/latest_scan_stats/<sint:project_id>')
