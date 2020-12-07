@@ -283,8 +283,8 @@ api.add_resource(harbor.HarborProject, '/harbor/projects/<int:project_id>/summar
 
 
 # Test api
-api.add_resource(kubernetesClient.tmp_api,
-                 '/test_create_k8s_namespace')
+#api.add_resource(kubernetesClient.tmp_api,
+#                 '/test_create_k8s_namespace')
 
 if __name__ == "__main__":
     db.init_app(app)

@@ -180,7 +180,7 @@ def create_project(user_id, args):
         gitlab.gl_delete_project(gitlab_pj_id)
         rancher.rc_disable_project_pipeline(gitlab_pj_http_url)
         raise e
-
+    
     try:
         new_pjt = model.Project(
             name=gitlab_pj_name,
@@ -313,6 +313,9 @@ def delete_project(project_id):
     try_to_delete(redmine.rm_delete_project, redmine_project_id)
     if harbor_project_id is not None:
         try_to_delete(harbor.hb_delete_project, harbor_project_id)
+
+    corr = model.Project.query.filter_by(id=project_id).first()
+    try_to_delete(kubernetesClient.delete_namespace, corr.name)
 
     # 如果gitlab & redmine project都成功被刪除則繼續刪除db內相關tables欄位
     db.engine.execute(

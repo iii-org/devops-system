@@ -9,11 +9,12 @@ from kubernetes import config as k8s_config
 
 from flask_restful import Resource, reqparse
 
+import resources.apiError as apiError
 from resources.logger import logger
 
 k8s_config.load_kube_config()
 v1 = k8s_client.CoreV1Api()
-
+util.enable_k8s_proxy()
 
 def list_service_all_namespaces():
     service_list = []
@@ -58,20 +59,26 @@ def list_work_node():
     return node_list
 
 def create_namespace(project_name):
-    ret = v1.create_namespace(k8s_client.V1Namespace(metadata=k8s_client.V1ObjectMeta(name=project_name)))
-    # print ("create_name_space: {0}".format(ret))
-    
+    try:
+        ret = v1.create_namespace(k8s_client.V1Namespace(metadata=k8s_client.V1ObjectMeta(name=project_name)))
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+
 def delete_namespace(project_name):
-    ret = v1.delete_namespace(project_name)
-    os.system("kubectl get ns {0} -o json > {0}.json".format(project_name))
-    ns_json = json.load(open("{0}.json".format(project_name)))
-    os.remove("{0}.json".format(project_name))
-    ns_json['spec']['finalizers']=[]
-    url = "http://127.0.0.1:8001/api/v1/namespaces/{0}/finalize".format(project_name)
-    headers={}
-    headers['Content-Type'] = 'application/json'
-    util.enable_k8s_proxy()
-    util.api_request('PUT', url, headers=headers, data=ns_json)
+    try:
+        ret = v1.delete_namespace(project_name)
+        os.system("kubectl get ns {0} -o json > {0}.json".format(project_name))
+        ns_json = json.load(open("{0}.json".format(project_name)))
+        os.remove("{0}.json".format(project_name))
+        ns_json['spec']['finalizers']=[]
+        url = "http://127.0.0.1:8001/api/v1/namespaces/{0}/finalize".format(project_name)
+        headers={}
+        headers['Content-Type'] = 'application/json'
+        util.api_request('PUT', url, headers=headers, data=ns_json)
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
     
     
 def create_service_account(login_sa_name):
