@@ -8,7 +8,7 @@ from resources.logger import logger
 
 VERSION_FILE_NAME = '.api_version'
 # Each time you add a migration, add a version code here.
-VERSIONS = ['0.9.2', '0.9.2.1']
+VERSIONS = ['0.9.2', '0.9.2.1', '0.9.2.2']
 
 
 def upgrade(version):
@@ -18,6 +18,8 @@ def upgrade(version):
         create_harbor_users()
         create_harbor_projects()
     elif version == '0.9.2.1':
+        alembic_upgrade()
+    elif version == '0.9.2.2':
         alembic_upgrade()
 
 

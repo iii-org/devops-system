@@ -170,11 +170,11 @@ class UserPluginRelation(db.Model):
 
 
 class Checkmarx(db.Model):
-    cm_project_id = Column(Integer, primary_key=True)
+    scan_id = Column(Integer, primary_key=True)
+    cm_project_id = Column(Integer)
     repo_id = Column(Integer, ForeignKey(ProjectPluginRelation.git_repository_id, ondelete='CASCADE'))
     branch = Column(String)
     commit_id = Column(String)
-    scan_id = Column(Integer)
     # -1 if report is not registered yet
     report_id = Column(Integer, default=-1)
     # The time scan registered
