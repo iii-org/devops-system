@@ -352,6 +352,7 @@ def save_test_result(args):
         total=args['total'],
         fail=args['fail'],
         branch=branch,
+        commit_id=args['commit_id'],
         report=args['report'],
         run_at=datetime.datetime.now()
     )
