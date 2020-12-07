@@ -372,6 +372,22 @@ def get_report(project_id):
     return util.success(json.loads(report))
 
 
+def list_results(project_id):
+    rows = model.TestResults.query.filter_by(project_id=project_id).order_by(desc(
+        model.TestResults.id)).all()
+    ret = []
+    for row in rows:
+        ret.append({
+            'id': row.id,
+            'branch': row.branch,
+            'commit_id': row.commit_id,
+            'success': row.total - row.fail,
+            'failure': row.fail,
+            'run_at': str(row.run_at)
+        })
+    return ret
+
+
 # --------------------- Resources ---------------------
 class TestCaseByIssue(Resource):
 

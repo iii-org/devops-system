@@ -127,6 +127,12 @@ class ExportToPostman(Resource):
         return export_to_postman(project_id, target)
 
 
+class PostmanResults(Resource):
+    @jwt_required
+    def get(self, project_id):
+        return util.success(apiTest.list_results(project_id))
+
+
 class PostmanReport(Resource):
     @jwt_required
     def get(self, project_id):

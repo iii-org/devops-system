@@ -179,7 +179,8 @@ class CheckMarx(object):
 
     @staticmethod
     def list_scans(project_id):
-        rows = Model.query.filter_by(repo_id=gitlab.get_repository_id(project_id)).all()
+        rows = Model.query.filter_by(repo_id=gitlab.get_repository_id(project_id)).order_by(
+            desc(Model.scan_id)).all()
         ret = []
         for row in rows:
             if row.stats is None:
