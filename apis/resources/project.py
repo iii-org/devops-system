@@ -12,11 +12,10 @@ import resources.apiError as apiError
 import util as util
 from model import db
 from resources.apiError import DevOpsError
-from . import role, user, harbor
+from . import role, user, harbor, kubernetesClient
 from .checkmarx import checkmarx
 from .gitlab import gitlab
 from .rancher import rancher
-from .kubernetesClient import kubernetesClient
 from .redmine import redmine
 
 
@@ -125,7 +124,7 @@ def create_project(user_id, args):
     if args['display'] is None:
         args['display'] = args['name']
 
-    # 建立順序為 redmine, gitlab, rancher, api server，有失敗時 rollback 依此次序處理
+    # 建立順序為 redmine, gitlab, rancher, k8s-namespace, api server，有失敗時 rollback 依此次序處理
 
     # 建立redmine project
     try:
@@ -170,6 +169,9 @@ def create_project(user_id, args):
     # enable rancher pipeline
     rancher_project_id = rancher.rc_get_project_id()
     rancher_pipeline_id = rancher.rc_enable_project_pipeline(gitlab_pj_http_url)
+    
+    # create namespace in kubernetes
+    kubernetesClient.create_namespace(args['name'])
 
     try:
         harbor_pj_id = harbor.hb_create_project(args['name'])

@@ -89,36 +89,6 @@ def list_service_account():
         sa_list.append(sa.metadata.name)
     return sa_list
 
-'''
-class tmp_api(Resource):
-    def post(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument('project_name', type=str)
-        args = parser.parse_args()
-        create_namespace(args['project_name'])
-    
-    def delete(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument('project_name', type=str)
-        args = parser.parse_args()
-        delete_namespace(args['project_name'])
-'''
-
-def create_service_account(login_sa_name):
-    sa = v1.create_namespaced_service_account("account", k8s_client.V1ServiceAccount(
-        metadata=k8s_client.V1ObjectMeta(name=login_sa_name)))
-    return sa
-
-def delete_service_account(login_sa_name):
-    sa = v1.delete_namespaced_service_account(login_sa_name,"account")
-    return sa
-
-def list_service_account():
-    sa_list = []
-    for sa in v1.list_namespaced_service_account("account").items:
-        sa_list.append(sa.metadata.name)
-    return sa_list
-
 def get_service_account_config(sa_name):
     node_list = []
     for node in v1.list_node().items:
@@ -148,3 +118,18 @@ def get_service_account_config(sa_name):
             'config' : sa_config
         }
     return config
+
+'''
+class tmp_api(Resource):
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('project_name', type=str)
+        args = parser.parse_args()
+        create_namespace(args['project_name'])
+    
+    def delete(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('project_name', type=str)
+        args = parser.parse_args()
+        delete_namespace(args['project_name'])
+'''
