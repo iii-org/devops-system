@@ -139,6 +139,7 @@ class TestResults(db.Model):
     id = Column(Integer, primary_key=True)
     project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
     branch = Column(String(50))
+    commit_id = Column(String)
     report = Column(String)
     total = Column(Integer)
     fail = Column(Integer)
@@ -171,12 +172,19 @@ class UserPluginRelation(db.Model):
 class Checkmarx(db.Model):
     cm_project_id = Column(Integer, primary_key=True)
     repo_id = Column(Integer, ForeignKey(ProjectPluginRelation.git_repository_id, ondelete='CASCADE'))
+    branch = Column(String)
+    commit_id = Column(String)
     scan_id = Column(Integer)
     # -1 if report is not registered yet
     report_id = Column(Integer, default=-1)
     # The time scan registered
     run_at = Column(DateTime)
+    # Store if a final status (Finished, Failed, Cancelled) is checked
+    # Null if scan is in non-final status
+    scan_final_status = Column(String, nullable=True)
+    # The time report is generated
     finished_at = Column(DateTime)
+    # True only if report is available
     finished = Column(Boolean)
 
 
