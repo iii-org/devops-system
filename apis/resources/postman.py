@@ -139,6 +139,7 @@ class PostmanReport(Resource):
         parser.add_argument('total', type=int, required=True)
         parser.add_argument('fail', type=int, required=True)
         parser.add_argument('branch', type=str, required=True)
+        parser.add_argument('commit_id', type=str, required=True)
         parser.add_argument('report', type=str, required=True)
         args = parser.parse_args()
         role.require_in_project(project_id=args['project_id'])

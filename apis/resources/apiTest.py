@@ -366,7 +366,7 @@ def get_report(project_id):
     if row is None:
         raise DevOpsError(404, 'No postman report for this project.')
     report = row.report
-    if report is None:
+    if report is None or report == 'undefined':  # Corrupted data by old runners
         raise DevOpsError(404, 'No postman report for this project.')
     return util.success(json.loads(report))
 
