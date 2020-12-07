@@ -155,6 +155,7 @@ api.add_resource(gitlab.GitProjectBranchCommits,
                  '/repositories/rd/<repository_id>/commits')
 api.add_resource(gitlab.GitProjectNetwork, '/repositories/<repository_id>/overview')
 api.add_resource(gitlab.GitProjectId, '/repositories/<repository_id>/id')
+api.add_resource(gitlab.GitProjectIdFromURL, '/repositories/id')
 
 # User
 api.add_resource(user.Login, '/user/login')
@@ -255,6 +256,8 @@ api.add_resource(checkmarx.GetCheckmarxScanStatistics, '/checkmarx/scan_stats/<s
 api.add_resource(checkmarx.RegisterCheckmarxReport, '/checkmarx/report/<scan_id>')
 api.add_resource(checkmarx.GetCheckmarxReportStatus,
                  '/checkmarx/report_status/<report_id>')
+api.add_resource(checkmarx.GetCheckmarxProject,
+                 '/checkmarx/get_cm_project_id/<sint:project_id>')
 
 # Get everything by issue_id
 api.add_resource(issue.DumpByIssue, '/dump_by_issue/<issue_id>')

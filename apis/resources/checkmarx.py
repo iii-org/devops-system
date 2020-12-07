@@ -180,6 +180,13 @@ checkmarx = CheckMarx()
 
 
 # --------------------- Resources ---------------------
+class GetCheckmarxProject(Resource):
+    @jwt_required
+    def get(self, project_id):
+        cm_project_id = checkmarx.get_latest('cm_project_id', project_id)
+        return util.success({'cm_project_id': cm_project_id})
+
+
 class CreateCheckmarxScan(Resource):
     @jwt_required
     def post(self):
