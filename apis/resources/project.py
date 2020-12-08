@@ -126,6 +126,9 @@ def create_project(user_id, args):
 
     # 建立順序為 redmine, gitlab, rancher, k8s-namespace, api server，有失敗時 rollback 依此次序處理
 
+    # create namespace in kubernetes
+    kubernetesClient.create_namespace(args['name'])
+    
     # 建立redmine project
     try:
         redmine_output = redmine.rm_create_project(args)
@@ -169,9 +172,7 @@ def create_project(user_id, args):
     # enable rancher pipeline
     rancher_project_id = rancher.rc_get_project_id()
     rancher_pipeline_id = rancher.rc_enable_project_pipeline(gitlab_pj_http_url)
-    
-    # create namespace in kubernetes
-    kubernetesClient.create_namespace(args['name'])
+    # add kubernetes namespace into racnher default project
     rancher.rc_add_namespace_into_rc_project(args['name'])
     
     try:
@@ -301,11 +302,13 @@ def delete_project(project_id):
     gitlab_project_id = relation.git_repository_id
     harbor_project_id = relation.harbor_project_id
 
-    # disabled rancher pipeline
     try:
+        # disabled rancher pipeline
         rancher.rc_disable_project_pipeline(
             relation.ci_project_id,
             relation.ci_pipeline_id)
+        # remove kubernetes namespace out to rancher project
+        rancher.rc_add_namespace_into_rc_project(None)
     except DevOpsError as e:
         if e.status_code != 404:
             raise e
@@ -316,6 +319,7 @@ def delete_project(project_id):
         try_to_delete(harbor.hb_delete_project, harbor_project_id)
 
     corr = model.Project.query.filter_by(id=project_id).first()
+    # delete kubernetes namespace
     try_to_delete(kubernetesClient.delete_namespace, corr.name)
 
     # 如果gitlab & redmine project都成功被刪除則繼續刪除db內相關tables欄位
