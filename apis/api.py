@@ -198,7 +198,7 @@ api.add_resource(issue.MyIssueWeekStatistics, '/issues/week_statistics')
 api.add_resource(issue.MyIssueMonthStatistics, '/issues/month_statistics')
 
 # dashboard
-api.add_resource(issue.DashboardIssuePriority, '/dashboard_issues_priority/<user_id>')
+api.add_resource(issue.DashboardIssuePriority, '/dashboard_issues_priority/rd/<user_id>')
 api.add_resource(issue.DashboardIssueProject, '/dashboard_issues_project/<user_id>')
 api.add_resource(issue.DashboardIssueType, '/dashboard_issues_type/<user_id>')
 
