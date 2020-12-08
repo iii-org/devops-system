@@ -45,7 +45,7 @@ stages:
     when:
       branch: [develope]
       
-- name: Test--Newman
+  - name: Test--Newman
     steps: 
     - runScriptConfig:
         image: 10.50.1.63:5443/iii-org/newman-runner:devops-system
