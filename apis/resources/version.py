@@ -45,7 +45,7 @@ def put_version_by_version_id(version_id, args):
 
 def delete_version_by_version_id(version_id):
     try:
-        output = redmine.rm_delete_version(version_id)
+        redmine.rm_delete_version(version_id)
     except apiError.DevOpsError as e:
         if e.status_code == 404:
             # Already deleted, let it go

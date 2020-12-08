@@ -165,8 +165,8 @@ class CheckMarx(object):
             return {'message': 'The scan is not completed yet.', 'status': 1}, 200
         report_id = row.report_id
         if report_id < 0:
-            json, status_code = self.register_report(scan_id)
-            report_id = json['data']['reportId']
+            data_json, status_code = self.register_report(scan_id)
+            report_id = data_json['data']['reportId']
         rst_id, rst_name = self.get_report_status(report_id)
         if rst_id != 2:
             return {'message': 'The report is not ready yet.', 'status': 2,

@@ -1,5 +1,3 @@
-import re
-
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
 from requests.auth import HTTPBasicAuth

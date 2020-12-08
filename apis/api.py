@@ -76,53 +76,55 @@ def initialize(db_uri):
         print('Initializing...')
     # Create database
     create_database(db_uri)
-    db.create_all()
-    # Fill alembic revision with latest
-    head = None
-    revs = []
-    downs = []
-    for fn in os.listdir('apis/alembic/versions'):
-        fp = 'apis/alembic/versions/%s' % fn
-        if not isfile(fp):
-            continue
-        with open(fp, "r") as f:
-            o = {}
-            for line in f:
-                rev = 'None'
-                if line.startswith('revision'):
-                    revs.append(line.split('=')[1].strip()[1:-1])
-                elif line.startswith('down_revision'):
-                    downs.append(line.split('=')[1].strip()[1:-1])
+    try:
+        db.create_all()
+        # Fill alembic revision with latest
+        head = None
+        revs = []
+        downs = []
+        for fn in os.listdir('apis/alembic/versions'):
+            fp = 'apis/alembic/versions/%s' % fn
+            if not isfile(fp):
+                continue
+            with open(fp, "r") as f:
+                for line in f:
+                    if line.startswith('revision'):
+                        revs.append(line.split('=')[1].strip()[1:-1])
+                    elif line.startswith('down_revision'):
+                        downs.append(line.split('=')[1].strip()[1:-1])
 
-    for rev in revs:
-        is_head = True
-        for down in downs:
-            if down == rev:
-                is_head = False
+        for rev in revs:
+            is_head = True
+            for down in downs:
+                if down == rev:
+                    is_head = False
+                    break
+            if is_head:
+                head = rev
                 break
-        if is_head:
-            head = rev
-            break
-    if head is not None:
-        v = model.AlembicVersion(version_num=head)
-        db.session.add(v)
+        if head is not None:
+            v = model.AlembicVersion(version_num=head)
+            db.session.add(v)
+            db.session.commit()
+        # Create dummy project
+        new = model.Project(id=-1, name='__dummy_project')
+        db.session.add(new)
         db.session.commit()
-    # Create dummy project
-    new = model.Project(id=-1, name='__dummy_project')
-    db.session.add(new)
-    db.session.commit()
-    # Init admin
-    args = {
-        'login': config.get('ADMIN_INIT_LOGIN'),
-        'email': config.get('ADMIN_INIT_EMAIL'),
-        'password': config.get('ADMIN_INIT_PASSWORD'),
-        'phone': '00000000000',
-        'name': '初始管理者',
-        'role_id': 5,
-        'status': 'enable'
-    }
-    user.create_user(args)
-    migrate.init()
+        # Init admin
+        args = {
+            'login': config.get('ADMIN_INIT_LOGIN'),
+            'email': config.get('ADMIN_INIT_EMAIL'),
+            'password': config.get('ADMIN_INIT_PASSWORD'),
+            'phone': '00000000000',
+            'name': '初始管理者',
+            'role_id': 5,
+            'status': 'enable'
+        }
+        user.create_user(args)
+        migrate.init()
+    except Exception as e:
+        drop_database(u)
+        raise e
 
 
 # Projects
@@ -293,10 +295,6 @@ if __name__ == "__main__":
     app.app_context().push()
 
     u = config.get('SQLALCHEMY_DATABASE_URI')
-    try:
-        initialize(u)
-    except Exception as e:
-        drop_database(u)
-        raise e
+    initialize(u)
     migrate.run()
     app.run(host='0.0.0.0', port=10009, debug=(config.get('DEBUG') is True))
