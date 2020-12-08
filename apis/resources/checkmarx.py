@@ -194,7 +194,8 @@ class CheckMarx(object):
                 'status': row.scan_final_status,
                 'stats': stats,
                 'run_at': str(row.run_at),
-                'report_id': row.report_id
+                'report_id': row.report_id,
+                'report_ready': row.finished == True
             })
         return ret
 
