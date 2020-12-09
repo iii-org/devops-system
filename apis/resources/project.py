@@ -129,6 +129,8 @@ def create_project(user_id, args):
     # create namespace in kubernetes
     kubernetesClient.create_namespace(args['name'])
     kubernetesClient.create_role_in_namespace(args['name'])
+    user_info = model.User.query.filter_by(id=user_id).first()
+    kubernetesClient.create_role_binding(args['name'], util.encode_k8s_sa(user_info.name))
     
     # 建立redmine project
     try:

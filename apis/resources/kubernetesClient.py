@@ -14,6 +14,7 @@ from resources.logger import logger
 
 k8s_config.load_kube_config()
 v1 = k8s_client.CoreV1Api()
+rbac = k8s_client.RbacAuthorizationV1Api()
 util.enable_k8s_proxy()
 
 def list_service_all_namespaces():
@@ -129,6 +130,21 @@ def get_service_account_config(sa_name):
 def create_role_in_namespace(namespace):
     rules = [k8s_client.V1PolicyRule(["*"], resources=["*"], verbs=["*"], )]
     role = k8s_client.V1Role(rules=rules)
-    role.metadata = k8s_client.V1ObjectMeta(namespace = namespace, name = "user-role")
-    rbac = k8s_client.RbacAuthorizationV1Api()
-    rbac.create_namespaced_role(namespace,role)
+    role.metadata = k8s_client.V1ObjectMeta(namespace = namespace, name = "{0}-user-role".format(namespace))
+    try:
+        rbac.create_namespaced_role(namespace,role)
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+
+def create_role_binding(namespace, sa_name):
+    # create ns RoleBinding
+    role_binding = k8s_client.V1RoleBinding(
+            metadata=k8s_client.V1ObjectMeta(namespace=namespace, name="{0}-rb".format(sa_name)),
+            subjects=[k8s_client.V1Subject(namespace="account", name=sa_name, kind="ServiceAccount")],
+            role_ref=k8s_client.V1RoleRef(kind="Role", api_group="rbac.authorization.k8s.io", name="user-role",))
+    try:
+        rbac.create_namespaced_role_binding(namespace=namespace,body=role_binding)
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
