@@ -432,7 +432,7 @@ def project_remove_member(project_id, user_id):
     if redmine_membership_id is not None:
         # delete membership
         try:
-            output = redmine.rm_delete_memberships(redmine_membership_id)
+            redmine.rm_delete_memberships(redmine_membership_id)
         except DevOpsError as e:
             if e.status_code == 404:
                 # Already deleted, let it go
@@ -535,7 +535,6 @@ def get_projects_by_user(user_id):
         branch_number = gitlab.gl_count_branches(git_repository_id)
         output_dict['branch'] = branch_number
         # tag number
-        tag_number = 0
         tags = gitlab.gl_get_tags(git_repository_id)
         tag_number = len(tags)
         output_dict['tag'] = tag_number
@@ -765,7 +764,6 @@ def sonar_cube(project_info, requests, self, logger):
                           verify=False)
     logger.info("get sonar report output: {0} / {1}".format(
         output, output.json()))
-    quality_score = None
     if output.status_code == 200:
         quality_score = 0
         data_list = output.json()["component"]["measures"]
