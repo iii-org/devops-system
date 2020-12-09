@@ -789,7 +789,7 @@ class ProjectUserList(Resource):
         return user.user_list_by_project(project_id, args)
 
 
-class ProjectUserResouce(Resource):
+class ProjectUserResource(Resource):
     @jwt_required
     def get(self, project_id):
         role.require_in_project(project_id, "Error while getting project info.")
