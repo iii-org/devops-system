@@ -1,6 +1,7 @@
 import json
 import time
 from datetime import datetime
+from threading import Thread
 
 import requests
 from flask_restful import reqparse
@@ -80,11 +81,18 @@ def reset_ticker():
     ticker = time.time()
 
 
-def tick(message=''):
+def tick(message='', init=False):
     global ticker
     now = time.time()
-    print('%f seconds elapsed. [%s]' % (now - ticker, message))
+    if init:
+        if message:
+            print(message)
+        ticker = now
+        return
+    elapsed = now - ticker
+    print('%f seconds elapsed. [%s]' % (elapsed, message))
     ticker = now
+    return elapsed
 
 
 def api_request(method, url, headers=None, params=None, data=None, auth=None):
@@ -167,3 +175,48 @@ def decode_k8s_sa(string):
             ret += c
             i += 1
     return ret
+
+
+class DevOpsThread(Thread):
+    def __init__(self, group=None, target=None, name=None, args=(), kwargs=None):
+        if kwargs is None:
+            kwargs = {}
+        Thread.__init__(self, group, target, name, args, kwargs)
+        self._return = None
+        self.error = None
+
+    def run(self):
+        if self._target is not None:
+            try:
+                self._return = self._target(*self._args, **self._kwargs)
+            except Exception as e:
+                self.error = e
+
+    def join_(self, *args):
+        Thread.join(self, *args)
+        if self.error:
+            raise self.error
+        return self._return
+
+
+class ServiceBatchOpHelper:
+    def __init__(self, services, targets, service_args):
+        self.services = services
+        self.targets = targets
+        self.service_args = service_args
+        self.errors = {}
+        self.outputs = {}
+
+    def run(self):
+        threads = {}
+        for service in self.services:
+            self.errors[service] = None
+            threads[service] = DevOpsThread(target=self.targets[service],
+                                            args=self.service_args[service])
+            threads[service].start()
+
+        for service in self.services:
+            try:
+                self.outputs[service] = threads[service].join_()
+            except Exception as e:
+                self.errors[service] = e

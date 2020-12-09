@@ -12,6 +12,7 @@ import resources.apiError as apiError
 import util as util
 from model import db
 from resources.apiError import DevOpsError
+from util import DevOpsThread
 from . import role, user, harbor
 from .checkmarx import checkmarx
 from .gitlab import gitlab
@@ -124,59 +125,92 @@ def create_project(user_id, args):
     if args['display'] is None:
         args['display'] = args['name']
 
-    # 建立順序為 redmine, gitlab, rancher, api server，有失敗時 rollback 依此次序處理
+    util.tick(init=True)
+    # 使用 multi-thread 建立各專案
+    services = ['redmine', 'gitlab', 'harbor']
+    targets = {
+        'redmine': redmine.rm_create_project,
+        'gitlab': gitlab.gl_create_project,
+        'harbor': harbor.hb_create_project
+    }
+    service_args = {
+        'redmine': (args,),
+        'gitlab': (args,),
+        'harbor': (args['name'],)
+    }
+    helper = util.ServiceBatchOpHelper(services, targets, service_args)
+    helper.run()
 
-    # 建立redmine project
-    try:
-        redmine_output = redmine.rm_create_project(args)
-    except DevOpsError as e:
-        status_code = e.status_code
-        resp = e.unpack_response()
-        print(resp)
-        if status_code == 422 and 'errors' in resp:
-            if len(resp['errors']) > 0:
-                if resp['errors'][0] == 'Identifier has already been taken':
-                    raise DevOpsError(status_code, 'Redmine already used this identifier.',
-                                      error=apiError.identifier_has_been_token(args['name']))
-        raise e
+    # 先取出已成功的專案建立 id，以便之後可能的回溯需求
+    redmine_pj_id = None
+    gitlab_pj_id = None
+    gitlab_pj_name = None
+    gitlab_pj_ssh_url = None
+    gitlab_pj_http_url = None
+    harbor_pj_id = None
 
-    redmine_pj_id = redmine_output["project"]["id"]
+    for service in services:
+        if helper.errors[service] is None:
+            output = helper.outputs[service]
+            if service == 'redmine':
+                redmine_pj_id = output["project"]["id"]
+            elif service == 'gitlab':
+                gitlab_pj_id = output["id"]
+                gitlab_pj_name = output["name"]
+                gitlab_pj_ssh_url = output["ssh_url_to_repo"]
+                gitlab_pj_http_url = output["http_url_to_repo"]
+            elif service == 'harbor':
+                harbor_pj_id = output
 
-    # 建立gitlab project
-    try:
-        gitlab_json = gitlab.gl_create_project(args)
-    except DevOpsError as e:
-        # Rollback
-        redmine.rm_delete_project(redmine_pj_id)
-        status_code = e.status_code
-        gitlab_json = e.unpack_response()
-        if status_code == 400:
-            try:
-                if gitlab_json['message']['name'][0] == 'has already been taken':
-                    raise DevOpsError(
-                        status_code, {"gitlab": gitlab_json},
-                        error=apiError.identifier_has_been_token(args['name'])
-                    )
-            except (KeyError, IndexError):
-                pass
-        raise e
+    # 如果不是全部都成功，rollback
+    if any(helper.errors.values()):
+        print('rolls back')
+        for service in services:
+            if helper.errors[service] is None:
+                if service == 'redmine':
+                    redmine.rm_delete_project(redmine_pj_id)
+                elif service == 'gitlab':
+                    gitlab.gl_delete_project(gitlab_pj_id)
+                elif service == 'harbor':
+                    harbor.hb_delete_project(harbor_pj_id)
 
-    gitlab_pj_id = gitlab_json["id"]
-    gitlab_pj_name = gitlab_json["name"]
-    gitlab_pj_ssh_url = gitlab_json["ssh_url_to_repo"]
-    gitlab_pj_http_url = gitlab_json["http_url_to_repo"]
+        # 丟出服務序列在最前的錯誤
+        for service in services:
+            e = helper.errors[service]
+            if e is not None:
+                if service == 'redmine':
+                    status_code = e.status_code
+                    resp = e.unpack_response()
+                    if status_code == 422 and 'errors' in resp:
+                        if len(resp['errors']) > 0:
+                            if resp['errors'][0] == 'Identifier has already been taken':
+                                raise DevOpsError(status_code, 'Redmine already used this identifier.',
+                                                  error=apiError.identifier_has_been_token(args['name']))
+                    raise e
+                elif service == 'gitlab':
+                    status_code = e.status_code
+                    gitlab_json = e.unpack_response()
+                    if status_code == 400:
+                        try:
+                            if gitlab_json['message']['name'][0] == 'has already been taken':
+                                raise DevOpsError(
+                                    status_code, {"gitlab": gitlab_json},
+                                    error=apiError.identifier_has_been_token(args['name'])
+                                )
+                        except (KeyError, IndexError):
+                            pass
+                    raise e
+                elif service == 'harbor':
+                    raise e
 
+    util.tick('end rollback if any')
     # enable rancher pipeline
     rancher_project_id = rancher.rc_get_project_id()
-    rancher_pipeline_id = rancher.rc_enable_project_pipeline(gitlab_pj_http_url)
-
-    try:
-        harbor_pj_id = harbor.hb_create_project(args['name'])
-    except DevOpsError as e:
-        redmine.rm_delete_project(redmine_pj_id)
-        gitlab.gl_delete_project(gitlab_pj_id)
-        rancher.rc_disable_project_pipeline(gitlab_pj_http_url)
-        raise e
+    t_rancher = DevOpsThread(target=rancher.rc_enable_project_pipeline,
+                             args=(gitlab_pj_http_url,))
+    t_rancher.start()
+    rancher_pipeline_id = t_rancher.join_()
+    util.tick('end rancher')
 
     try:
         new_pjt = model.Project(
@@ -206,6 +240,7 @@ def create_project(user_id, args):
         # 加關聯project_user_role
         args['user_id'] = user_id
         project_add_member(project_id, args)
+        util.tick('all done')
 
         return util.success({
             "project_id": project_id,
@@ -214,9 +249,11 @@ def create_project(user_id, args):
             "harbor_project_id": harbor_pj_id
         })
     except Exception as e:
+        print(e)
         redmine.rm_delete_project(redmine_pj_id)
         gitlab.gl_delete_project(gitlab_pj_id)
         harbor.hb_delete_project(harbor_pj_id)
+        # rancher.rc_disable_project_pipeline(rancher_project_id, gitlab_pj_http_url)
         raise e
 
 
@@ -392,12 +429,26 @@ def project_add_member(project_id, args):
     project_relation = get_project_plugin_relation(project_id)
     redmine_role_id = user.to_redmine_role_id(role_id)
 
-    redmine.rm_create_memberships(project_relation.plan_project_id,
-                                  user_relation.plan_user_id, redmine_role_id)
-    gitlab.gl_project_add_member(project_relation.git_repository_id,
-                                 user_relation.repository_user_id)
-    harbor.hb_add_member(project_relation.harbor_project_id,
-                         user_relation.harbor_user_id)
+    services = ['redmine', 'gitlab', 'harbor']
+    targets = {
+        'redmine': redmine.rm_create_memberships,
+        'gitlab': gitlab.gl_project_add_member,
+        'harbor': harbor.hb_add_member
+    }
+    service_args = {
+        'redmine': (project_relation.plan_project_id,
+                    user_relation.plan_user_id, redmine_role_id),
+        'gitlab': (project_relation.git_repository_id,
+                   user_relation.repository_user_id),
+        'harbor': (project_relation.harbor_project_id,
+                   user_relation.harbor_user_id)
+    }
+    helper = util.ServiceBatchOpHelper(services, targets, service_args)
+    helper.run()
+    for e in helper.errors.values():
+        if e is not None:
+            print(e)
+            raise e
 
     return util.success()
 

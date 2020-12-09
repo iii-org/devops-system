@@ -21,7 +21,7 @@ from jsonwebtoken import jsonwebtoken
 from model import db
 from resources import project, gitlab, issue, user, redmine, wiki, version, sonar, apiTest, postman, mock, harbor
 import migrate
-from resources.logger import logger
+from resources import logger
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -33,6 +33,7 @@ for key in ['JWT_SECRET_KEY',
     app.config[key] = config.get(key)
 
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = datetime.timedelta(days=1)
+logger.set_app(app)
 api = Api(app, errors=apiError.custom_errors)
 CORS(app)
 
@@ -71,7 +72,7 @@ class SystemGitCommitID(Resource):
 def initialize(db_uri):
     if database_exists(db_uri):
         return
-    logger.info('Initializing...')
+    logger.logger.info('Initializing...')
     if config.get('DEBUG'):
         print('Initializing...')
     # Create database
@@ -285,6 +286,7 @@ api.add_resource(SystemGitCommitID, '/system_git_commit_id')  # git commit
 
 # Mocks
 api.add_resource(mock.MockTestResult, '/mock/test_summary')
+api.add_resource(mock.MockSesame, '/mock/sesame')
 
 # Harbor
 api.add_resource(harbor.HarborRepository,
@@ -295,12 +297,11 @@ api.add_resource(harbor.HarborArtifact,
                  '/harbor/artifacts/<project_name>/<repository_name>')
 api.add_resource(harbor.HarborProject, '/harbor/projects/<int:project_id>/summary')
 
+
 if __name__ == "__main__":
     db.init_app(app)
     db.app = app
     jsonwebtoken.init_app(app)
-    app.app_context().push()
-
     u = config.get('SQLALCHEMY_DATABASE_URI')
     initialize(u)
     migrate.run()
