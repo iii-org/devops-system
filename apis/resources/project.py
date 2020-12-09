@@ -13,7 +13,7 @@ import util as util
 from model import db
 from resources.apiError import DevOpsError
 from util import DevOpsThread
-from . import role, user, harbor
+from . import role, user, harbor, kubernetesClient
 from .checkmarx import checkmarx
 from .gitlab import gitlab
 from .rancher import rancher
@@ -660,10 +660,12 @@ def get_test_summary(project_id):
 
     return util.success({'test_results': ret})
 
+
 def get_kubernetes_namespace_Quota(project_id):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
     project_quota = kubernetesClient.get_namespace_quota(project_name)
     return util.success(project_quota)
+
 
 # --------------------- Resources ---------------------
 class ListMyProjects(Resource):
@@ -786,11 +788,13 @@ class ProjectUserList(Resource):
         args = parser.parse_args()
         return user.user_list_by_project(project_id, args)
 
+
 class ProjectUserResouce(Resource):
     @jwt_required
     def get(self, project_id):
         role.require_in_project(project_id, "Error while getting project info.")
         return get_kubernetes_namespace_Quota(project_id)
+
 
 def sonar_cube(project_info, requests, self, logger):
     # 查詢sonar_quality_score
