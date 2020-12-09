@@ -19,4 +19,3 @@ spec:
         image: ${CICD_IMAGE}:${CICD_GIT_BRANCH}-${CICD_GIT_COMMIT}
         ports:
         - containerPort: 10009
-        nodePort: 31851

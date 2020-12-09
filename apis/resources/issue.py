@@ -5,11 +5,13 @@ from datetime import datetime, date, timedelta
 import werkzeug
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
+from sqlalchemy.orm.exc import NoResultFound
 
 import model
 import resources.apiError as apiError
 import resources.user as user
-import resources.util as util
+import util as util
+from resources.apiError import DevOpsError
 from model import db
 from resources.logger import logger
 from resources.redmine import redmine
@@ -93,6 +95,7 @@ def deal_with_issue_by_user_redmine_output(redmine_output):
             'id']
         output_list['fixed_version_name'] = redmine_output[
             'fixed_version']['name']
+    output_list['issue_link'] = redmine.build_link('/issues/{0}'.format(redmine_output['id']))
     logger.info(
         "get issue by user redmine_output: {0}".format(output_list))
     return output_list
@@ -160,8 +163,8 @@ def require_issue_visible(issue_id,
 
 
 def verify_issue_user(issue_id, user_id):
-    issue_info, status_code = get_issue(issue_id)
-    project_id = issue_info['data']['project']['id']
+    issue_info = get_issue(issue_id)
+    project_id = issue_info['project']['id']
     count = model.ProjectUserRole.query.filter_by(
         project_id=project_id, user_id=user_id).count()
     return count > 0
@@ -169,11 +172,7 @@ def verify_issue_user(issue_id, user_id):
 
 def get_issue(issue_id):
     redmine_output_issue = redmine.rm_get_issue(issue_id)
-    if redmine_output_issue.status_code != 200:
-        return util.respond_redmine_error(redmine_output_issue,
-                                          "Error while getting issue details.")
-    output = __deal_with_issue_redmine_output(redmine_output_issue.json()['issue'])
-    return util.success(output)
+    return __deal_with_issue_redmine_output(redmine_output_issue.json()['issue'])
 
 
 def create_issue(args, operator_id):
@@ -195,11 +194,8 @@ def create_issue(args, operator_id):
     if operator_id is not None:
         operator_plugin_relation = user.get_user_plugin_relation(user_id=operator_id)
         plan_operator_id = operator_plugin_relation.plan_user_id
-    output, status_code = redmine.rm_create_issue(args, plan_operator_id)
-    if status_code == 201:
-        return util.success({"issue_id": output.json()["issue"]["id"]})
-    else:
-        return util.respond_redmine_error(output, "Error while creating issue")
+    output = redmine.rm_create_issue(args, plan_operator_id)
+    return util.success({"issue_id": output["issue"]["id"]})
 
 
 def update_issue(issue_id, args, operator_id):
@@ -218,49 +214,49 @@ def update_issue(issue_id, args, operator_id):
     if operator_id is not None:
         operator_plugin_relation = user.get_user_plugin_relation(user_id=operator_id)
         plan_operator_id = operator_plugin_relation.plan_user_id
-    output, status_code = redmine.rm_update_issue(issue_id, args, plan_operator_id)
-    if status_code == 204:
-        return util.success()
-    else:
-        return util.respond_redmine_error(output, "update issue failed.")
+    redmine.rm_update_issue(issue_id, args, plan_operator_id)
+    return util.success()
 
 
 def delete_issue(issue_id):
-    output, status_code = redmine.rm_delete_issue(issue_id)
-    if status_code != 204 and status_code != 404:
-        return util.respond_redmine_error(output, 'Error when deleting issue.')
+    try:
+        redmine.rm_delete_issue(issue_id)
+    except DevOpsError as e:
+        if e.status_code == 404:
+            # Already deleted, let it go
+            pass
+        else:
+            raise e
     return util.success()
 
 
 def get_issue_by_project(project_id, args):
     if util.is_dummy_project(project_id):
-        return util.success([])
-    plan_id = project.get_plan_project_id(project_id)
-    if plan_id < 0:
-        return util.respond(404, "Error while getting issues",
-                            error=apiError.project_not_found(project_id))
+        return []
+    try:
+        plan_id = project.get_plan_project_id(project_id)
+    except NoResultFound:
+        raise DevOpsError(404, "Error while getting issues",
+                          error=apiError.project_not_found(project_id))
     output_array = []
     redmine_output_issue_array = redmine.rm_get_issues_by_project(
-        plan_id, args).json()
-
-    for redmine_issue in redmine_output_issue_array['issues']:
+        plan_id, args)
+    for redmine_issue in redmine_output_issue_array:
         output_dict = deal_with_issue_by_user_redmine_output(redmine_issue)
         output_array.append(output_dict)
-    return util.success(output_array)
+    return output_array
 
 
 def get_issue_by_tree_by_project(project_id):
     args = {}
 
-    issue_list_output, status_code = get_issue_by_project(project_id, args)
-    if status_code != 200:
-        return issue_list_output, status_code
+    issue_list_output = get_issue_by_project(project_id, args)
     nodes = {}
-    for issue_list in issue_list_output['data']:
+    for issue_list in issue_list_output:
         issue_list['children'] = []
         nodes[issue_list['id']] = issue_list
     forest = []
-    for issue_list in issue_list_output['data']:
+    for issue_list in issue_list_output:
         node = nodes[issue_list['id']]
         if issue_list['parent_id'] is None:
             forest.append(node)
@@ -274,11 +270,9 @@ def get_issue_by_status_by_project(project_id):
     if util.is_dummy_project(project_id):
         return util.success({})
     args = {}
-    issue_list_output, status_code = get_issue_by_project(project_id, args)
-    if status_code != 200:
-        return issue_list_output, status_code
+    issue_list_output = get_issue_by_project(project_id, args)
     get_issue_by_status_output = {}
-    for issue_list in issue_list_output['data']:
+    for issue_list in issue_list_output:
         if issue_list['issue_status'] not in get_issue_by_status_output:
             get_issue_by_status_output[issue_list['issue_status']] = []
         get_issue_by_status_output[issue_list['issue_status']].append(
@@ -290,11 +284,9 @@ def get_issue_by_date_by_project(project_id):
     if util.is_dummy_project(project_id):
         return util.success({})
     args = {}
-    issue_list_output, status_code = get_issue_by_project(project_id, args)
-    if status_code != 200:
-        return issue_list_output, status_code
+    issue_list_output = get_issue_by_project(project_id, args)
     get_issue_by_date_output = {}
-    for issue_list in issue_list_output['data']:
+    for issue_list in issue_list_output:
         issue_updated_date = datetime.strptime(
             issue_list['updated_on'],
             "%Y-%m-%dT%H:%M:%SZ").date().strftime("%Y/%m/%d")
@@ -305,26 +297,22 @@ def get_issue_by_date_by_project(project_id):
 
 
 def get_issueProgress_by_project(project_id, args):
-    issue_list, status_code = get_issue_by_project(project_id, args)
-    if status_code != 200:
-        return issue_list, status_code
+    issue_list = get_issue_by_project(project_id, args)
     open_issue = 0
-    for issue in issue_list['data']:
+    for issue in issue_list:
         if issue["issue_status"] != "Closed":
             open_issue += 1
     return util.success({
         "open": open_issue,
-        "total_issue": len(issue_list['data'])
+        "total_issue": len(issue_list)
     })
 
 
 def get_issueProgress_allVersion_by_project(project_id):
     args = {}
-    issue_list, status_code = get_issue_by_project(project_id, args)
-    if status_code != 200:
-        return issue_list, status_code
+    issue_list = get_issue_by_project(project_id, args)
     ret = {}
-    for issue in issue_list['data']:
+    for issue in issue_list:
         count_dict = {'open': 0, 'closed': 0}
         if issue['fixed_version_name'] not in ret:
             ret[issue['fixed_version_name']] = count_dict
@@ -336,13 +324,11 @@ def get_issueProgress_allVersion_by_project(project_id):
 
 
 def get_issueStatistics_by_project(project_id, args):
-    issue_list, status_code = get_issue_by_project(project_id, args)
-    if status_code != 200:
-        return issue_list, status_code
+    issue_list = get_issue_by_project(project_id, args)
     priority_list = {}
     category_list = {}
     owner_list = {}
-    for issue in issue_list['data']:
+    for issue in issue_list:
         # count priority
         if issue["issue_priority"] not in priority_list:
             if issue["issue_status"] != "Closed":
@@ -434,12 +420,13 @@ def get_issue_by_user(user_id):
     user_to_plan, plan_to_user = get_dict_userid()
     output_array = []
     if str(user_id) not in user_to_plan:
-        return util.respond(400, 'Cannot find user in redmine')
+        raise DevOpsError(400, 'Cannot find user in redmine.',
+                          error=apiError.user_not_found(user_id))
     redmine_output_issue_array = redmine.rm_get_issues_by_user(user_to_plan[str(user_id)])
-    for redmine_issue in redmine_output_issue_array['issues']:
+    for redmine_issue in redmine_output_issue_array:
         output_dict = deal_with_issue_by_user_redmine_output(redmine_issue)
         output_array.append(output_dict)
-    return util.success(output_array)
+    return output_array
 
 
 def get_issue_status():
@@ -481,10 +468,7 @@ def get_issue_statistics(args, user_id):
     user_plugin_relation = user.get_user_plugin_relation(user_id=user_id)
     if user_plugin_relation is not None:
         args["assigned_to_id"] = user_plugin_relation.plan_user_id
-    redmine_output, status_code = redmine.rm_get_statistics(args)
-    if status_code != 200:
-        return util.respond(status_code, "Error when getting issue statistics",
-                            error=apiError.redmine_error(redmine_output))
+    redmine_output = redmine.rm_get_statistics(args)
     return util.success({"issue_number": redmine_output["total_count"]})
 
 
@@ -494,15 +478,9 @@ def get_open_issue_statistics(user_id):
     if user_plugin_relation is not None:
         args["assigned_to_id"] = user_plugin_relation.plan_user_id
     args['status_id'] = '*'
-    total_issue_output, status_code = redmine.rm_get_statistics(args)
-    if status_code != 200:
-        return util.respond(status_code, "Error when getting issue statistics",
-                            error=apiError.redmine_error(total_issue_output))
+    total_issue_output = redmine.rm_get_statistics(args)
     args['status_id'] = 'closed'
-    closed_issue_output, closed_status_code = redmine.rm_get_statistics(args)
-    if closed_status_code != 200:
-        return util.respond(status_code, "Error when getting issue statistics",
-                            error=apiError.redmine_error(closed_status_code))
+    closed_issue_output = redmine.rm_get_statistics(args)
     active_issue_number = total_issue_output["total_count"] - closed_issue_output["total_count"]
     return util.success({"active_issue_number": active_issue_number})
 
@@ -522,7 +500,8 @@ def get_issue_statistics_in_period(period, user_id):
         from_time = first_day.strftime('%Y-%m-%d')
         to_time = last_day.strftime('%Y-%m-%d')
     else:
-        return util.respond(400, 'Type error, should be week or month')
+        raise DevOpsError(400, 'Type error, should be week or month',
+                          error=apiError.no_detail())
 
     args = {"due_date": "><{0}|{1}".format(from_time, to_time)}
     user_plugin_relation = user.get_user_plugin_relation(user_id=user_id)
@@ -530,17 +509,11 @@ def get_issue_statistics_in_period(period, user_id):
         args["assigned_to_id"] = user_plugin_relation.plan_user_id
 
     args['status_id'] = '*'
-    redmine_output, status_code = redmine.rm_get_statistics(args)
-    if status_code != 200:
-        return util.respond(status_code, "Error when getting issue statistics",
-                            error=apiError.redmine_error(redmine_output))
+    redmine_output = redmine.rm_get_statistics(args)
     total = redmine_output["total_count"]
 
     args['status_id'] = 'closed'
-    redmine_output_6, status_code = redmine.rm_get_statistics(args)
-    if status_code != 200:
-        return util.respond(status_code, "Error when getting issue statistics",
-                            error=apiError.redmine_error(redmine_output_6))
+    redmine_output_6 = redmine.rm_get_statistics(args)
     closed = redmine_output_6["total_count"]
     return util.success({
         "open": total - closed,
@@ -550,10 +523,7 @@ def get_issue_statistics_in_period(period, user_id):
 
 def count_project_number_by_issues(user_id):
     project_count = {}
-    data, status_code = get_issue_by_user(user_id)
-    if status_code / 100 != 2:
-        return util.respond(status_code, 'Error while getting issues by user', data)
-    issues = data['data']
+    issues = get_issue_by_user(user_id)
     for issue in issues:
         if issue['project_name'] not in project_count:
             project_count[issue['project_name']] = 1
@@ -567,10 +537,7 @@ def count_project_number_by_issues(user_id):
 
 def count_priority_number_by_issues(user_id):
     priority_count = {}
-    data, status_code = get_issue_by_user(user_id)
-    if status_code / 100 != 2:
-        return util.respond(status_code, 'Error while getting issues by user', data)
-    issues = data['data']
+    issues = get_issue_by_user(user_id)
     for issue in issues:
         priority = issue['issue_priority']
         if priority not in priority_count:
@@ -585,10 +552,7 @@ def count_priority_number_by_issues(user_id):
 
 def count_type_number_by_issues(user_id):
     tracker_count = {}
-    data, status_code = get_issue_by_user(user_id)
-    if status_code / 100 != 2:
-        return util.respond(status_code, 'Error while getting issues by user', data)
-    issues = data['data']
+    issues = get_issue_by_user(user_id)
     for issue in issues:
         if issue['issue_category'] not in tracker_count:
             tracker_count[issue['issue_category']] = 1
@@ -639,7 +603,7 @@ def get_parameters_by_param_id(parameters_id):
 
 
 def del_parameters_by_param_id(parameters_id):
-    row = model.Parameters.query.filter_by(id=parameters_id).first()
+    row = model.Parameters.query.filter_by(id=parameters_id).one()
     row.disabled = True
     row.update_at = datetime.now()
     db.session.commit()
@@ -647,7 +611,7 @@ def del_parameters_by_param_id(parameters_id):
 
 
 def modify_parameters_by_param_id(parameters_id, args):
-    row = model.Parameters.query.filter_by(id=parameters_id).first()
+    row = model.Parameters.query.filter_by(id=parameters_id).one()
     row.update_at = datetime.now()
     row.parameter_type_id = args['parameter_type_id']
     row.name = args['name']
@@ -658,7 +622,8 @@ def modify_parameters_by_param_id(parameters_id, args):
 
 
 def get_parameters_by_issue_id(issue_id):
-    rows = model.Parameters.query.filter_by(issue_id=issue_id, disabled=False)
+    rows = model.Parameters.query.filter_by(issue_id=issue_id).filter(
+        model.Parameters.disabled.isnot(True))
     output = []
     for row in rows:
         output.append(deal_with_ParametersObject(row))
@@ -712,12 +677,12 @@ def deal_with_flow_object(sql_row):
 
 
 def get_flow_by_flow_id(flow_id):
-    f = model.Flows.query.filter_by(id=flow_id).first()
+    f = model.Flows.query.filter_by(id=flow_id).one()
     return deal_with_flow_object(f)
 
 
 def disabled_flow_by_flow_id(flow_id):
-    f = model.Flows.query.filter_by(id=flow_id)
+    f = model.Flows.query.filter_by(id=flow_id).one()
     f.disabled = True
     f.update_at = datetime.now()
     db.session.commit()
@@ -736,7 +701,8 @@ def modify_flow_by_flow_id(flow_id, args):
 
 
 def get_flow_by_requirement_id(requirement_id):
-    rows = model.Flows.query.filter_by(requirement_id=requirement_id, disabled=False).all()
+    rows = model.Flows.query.filter_by(requirement_id=requirement_id).filter(
+        model.Flows.disabled.isnot(True)).all()
     output = []
     for row in rows:
         output.append(deal_with_flow_object(row))
@@ -744,7 +710,7 @@ def get_flow_by_requirement_id(requirement_id):
 
 
 def post_flow_by_requirement_id(issue_id, requirement_id, args):
-    rows = model.Flows.query.filter_by(requirement_id=requirement_id).\
+    rows = model.Flows.query.filter_by(requirement_id=requirement_id). \
         order_by(model.Flows.serial_id).all()
     flow_serial_ids = []
     for row in rows:
@@ -780,7 +746,7 @@ def check_requirement_by_issue_id(issue_id):
         issue_id=issue_id).order_by(model.Requirements.id).all()
     requirement_ids = []
     for row in rows:
-        requirement_ids.append(row['id'])
+        requirement_ids.append(row.id)
 
     return requirement_ids
 
@@ -808,7 +774,8 @@ def modify_requirement_by_rqmt_id(requirement_id, args):
 
 
 def get_requirements_by_issue_id(issue_id):
-    rows = model.Requirements.query.filter_by(issue_id=issue_id, disabled=False).all()
+    rows = model.Requirements.query.filter_by(issue_id=issue_id).filter(
+        model.Requirements.disabled.isnot(True)).all()
     output = []
     for row in rows:
         output.append(json.loads(row.flow_info))
@@ -828,7 +795,7 @@ def post_requirement_by_issue_id(issue_id, args):
 
 def get_requirements_by_project_id(project_id):
     rows = model.Requirements.query.filter_by(
-        project_id=project_id, disabled=False).all()
+        project_id=project_id).filter(model.Requirements.disabled.isnot(True)).all()
     output = []
     for row in rows:
         output.append(json.loads(row.flow_info))
@@ -840,7 +807,7 @@ class SingleIssue(Resource):
     @jwt_required
     def get(self, issue_id):
         require_issue_visible(issue_id)
-        return get_issue(issue_id)
+        return util.success(get_issue(issue_id))
 
     @jwt_required
     def post(self):
@@ -851,13 +818,13 @@ class SingleIssue(Resource):
         parser.add_argument('priority_id', type=int, required=True)
         parser.add_argument('subject', type=str, required=True)
         parser.add_argument('description', type=str)
-        parser.add_argument('assigned_to_id', type=int, required=True)
+        parser.add_argument('assigned_to_id', type=int)
         parser.add_argument('parent_id', type=int)
         parser.add_argument('fixed_version_id', type=int)
-        parser.add_argument('start_date', type=str, required=True)
-        parser.add_argument('due_date', type=str, required=True)
-        parser.add_argument('done_ratio', type=int, required=True)
-        parser.add_argument('estimated_hours', type=int, required=True)
+        parser.add_argument('start_date', type=str)
+        parser.add_argument('due_date', type=str)
+        parser.add_argument('done_ratio', type=int)
+        parser.add_argument('estimated_hours', type=int)
 
         # Attachment upload
         parser.add_argument('upload_file', type=werkzeug.datastructures.FileStorage, location='files')
@@ -913,7 +880,7 @@ class IssueByProject(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('fixed_version_id', type=int)
         args = parser.parse_args()
-        return get_issue_by_project(project_id, args)
+        return util.success(get_issue_by_project(project_id, args))
 
 
 class IssueByTreeByProject(Resource):
@@ -986,7 +953,7 @@ class IssueRDbyUser(Resource):
     @jwt_required
     def get(self, user_id):
         role.require_user_himself(user_id, even_pm=False)
-        return get_issue_by_user(user_id)
+        return util.success(get_issue_by_user(user_id))
 
 
 class MyIssueStatistics(Resource):
@@ -1127,12 +1094,12 @@ class FlowByIssue(Resource):
         parser.add_argument('name', type=str)
         parser.add_argument('description', type=str)
         args = parser.parse_args()
-        check = check_requirement_by_issue_id(issue_id)
-        if not check:
-            requirements = post_requirement_by_issue_id(issue_id, args)
-            requirement_id = requirements['requirement_id'][0]
+        requirements = check_requirement_by_issue_id(issue_id)
+        if len(requirements) == 0:
+            new = post_requirement_by_issue_id(issue_id, args)
+            requirement_id = new['requirement_id']
         else:
-            requirement_id = check[0]
+            requirement_id = requirements[0]
 
         output = post_flow_by_requirement_id(int(issue_id), requirement_id, args)
         return util.success(output, has_date_etc=True)

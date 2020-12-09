@@ -2,19 +2,21 @@ import datetime
 import re
 
 from Cryptodome.Hash import SHA256
-from flask_jwt_extended import (create_access_token, JWTManager, jwt_required)
+from flask_jwt_extended import (create_access_token, JWTManager, jwt_required, get_jwt_identity)
 from flask_restful import Resource, reqparse
 from sqlalchemy import desc
 from sqlalchemy.orm.exc import NoResultFound
 
 import resources.apiError as apiError
-import resources.util as util
+import util as util
 from model import db
+from resources.apiError import DevOpsError
 import model
-from resources import role
+from resources import role, harbor
 from resources.logger import logger
 from resources.redmine import redmine
 from resources.gitlab import gitlab
+from resources import kubernetesClient
 
 jwt = JWTManager()
 
@@ -29,24 +31,6 @@ def jwt_response_data(row):
     }
 
 
-def get_3pt_user_ids(user_id, message):
-    user_relation = get_user_plugin_relation(user_id=user_id)
-    if user_relation is None:
-        return util.respond(400, message,
-                            error=apiError.user_not_found(user_id)), None, None
-    redmine_user_id = user_relation.plan_user_id
-    gitlab_user_id = user_relation.repository_user_id
-    if redmine_user_id is None:
-        return util.respond(500, message,
-                            error=apiError.db_error(
-                                "Cannot get redmine id of the user.")), None, None
-    if gitlab_user_id is None:
-        return util.respond(500, message,
-                            error=apiError.db_error(
-                                "Gitlab does not have this user.")), None, None
-    return None, redmine_user_id, gitlab_user_id
-
-
 def get_user_id_name_by_plan_user_id(plan_user_id):
     return db.session.query(model.User.id, model.User.name).filter(
         model.UserPluginRelation.plan_user_id == plan_user_id,
@@ -59,8 +43,8 @@ def get_role_id(user_id):
     if row is not None:
         return row.role_id
     else:
-        return util.respond(404, 'Error while getting role id',
-                            error=apiError.user_not_found(user_id))
+        raise apiError.DevOpsError(
+            404, 'Error while getting role id', apiError.user_not_found(user_id))
 
 
 def to_redmine_role_id(role_id):
@@ -157,7 +141,8 @@ def get_user_info(user_id):
 
         return util.success(output)
     else:
-        return util.respond(404, "User not found.", error=apiError.user_not_found(user_id))
+        raise apiError.DevOpsError(
+            404, 'User not found.', apiError.user_not_found(user_id))
 
 
 def update_info(user_id, args):
@@ -166,6 +151,17 @@ def update_info(user_id, args):
         set_string += "name = '{0}'".format(args["name"])
         set_string += ","
     if args["password"] is not None:
+        if 5 != get_jwt_identity()['role_id']:
+            if args["old_password"] is None:
+                return util.respond(400, "old_password is empty", error=apiError.wrong_password())
+            h_old_password = SHA256.new()
+            h_old_password.update(args["old_password"].encode())
+            result = db.engine.execute(
+                "SELECT ur.id, ur.password FROM public.user as ur"
+                " WHERE ur.disabled = false AND ur.id = {0}".format(get_jwt_identity()['user_id'])
+            ).fetchone()
+            if result['password'] != h_old_password.hexdigest():
+                return util.respond(400, "Password is incorrect", error=apiError.wrong_password())
         err = update_external_passwords(user_id, args["password"])
         if err is not None:
             logger.exception(err)  # Don't stop change password on API server
@@ -201,45 +197,30 @@ def update_external_passwords(user_id, new_pwd):
         return util.respond(400, 'Error when updating password',
                             error=apiError.user_not_found(user_id))
     redmine_user_id = user_relation.plan_user_id
-    err = redmine.rm_update_password(redmine_user_id, new_pwd)
-    if err is not None:
-        return err
+    redmine.rm_update_password(redmine_user_id, new_pwd)
 
     gitlab_user_id = user_relation.repository_user_id
-    err = gitlab.gl_update_password(gitlab_user_id, new_pwd)
-    if err is not None:
-        return err
+    gitlab.gl_update_password(gitlab_user_id, new_pwd)
 
     return None
 
 
 def delete_user(user_id):
     # 取得gitlab & redmine user_id
-    result = db.engine.execute(
-        "SELECT * FROM public.user_plugin_relation WHERE user_id = '{0}'".format(user_id))
-    user_relation = result.fetchone()
-    result.close()
-    gitlab_user_id = user_relation["repository_user_id"]
-    # 刪除gitlab user
-    gitlab_response = gitlab.gl_delete_user(gitlab_user_id)
-    if gitlab_response.status_code != 204:
-        return util.respond(gitlab_response.status_code, "Error when deleting user.",
-                            error=apiError.gitlab_error(gitlab_response))
+    relation = get_user_plugin_relation(user_id=user_id)
 
-    # 如果gitlab user成功被刪除則繼續刪除redmine user
-    redmine_user_id = user_relation["plan_user_id"]
-    redmine_output, redmine_status_code = redmine.rm_delete_user(redmine_user_id)
-    if redmine_output.status_code != 204:
-        return util.respond(redmine_status_code, "Error when deleting user.",
-                            error=apiError.redmine_error(redmine_output))
+    gitlab.gl_delete_user(relation.repository_user_id)
+    redmine.rm_delete_user(relation.plan_user_id)
+    harbor.hb_delete_user(relation.harbor_user_id)
+    kubernetesClient.delete_service_account(relation.kubernetes_sa_name)
 
     # 如果gitlab & redmine user都成功被刪除則繼續刪除db內相關tables欄位
-    db.engine.execute(
-        "DELETE FROM public.user_plugin_relation WHERE user_id = '{0}'".format(user_id))
-    db.engine.execute(
-        "DELETE FROM public.project_user_role WHERE user_id = '{0}'".format(user_id))
-    db.engine.execute(
-        "DELETE FROM public.user WHERE id = '{0}'".format(user_id))
+    db.session.delete(relation)
+    del_role = model.ProjectUserRole.query.filter_by(user_id=user_id).one()
+    db.session.delete(del_role)
+    del_user = model.User.query.filter_by(id=user_id).one()
+    db.session.delete(del_user)
+    db.session.commit()
 
     return util.success()
 
@@ -257,8 +238,9 @@ def change_user_status(user_id, args):
         db.session.commit()
         return util.success()
     except NoResultFound:
-        return util.respond(404, 'Error when change user status.',
-                            error=apiError.user_not_found(user_id))
+        raise apiError.DevOpsError(
+            404, 'Error when change user status.',
+            error=apiError.user_not_found(user_id))
 
 
 def create_user(args):
@@ -275,33 +257,30 @@ def create_user(args):
         return util.respond(400, "Error when creating new user",
                             error=apiError.invalid_user_password())
 
-    # Check DB has this login, email, if has, return error
+    # Check DB has this login, email, if has, raise error
     check_count = model.User.query.filter(db.or_(
         model.User.login == args['login'],
         model.User.email == args['email'],
     )).count()
     if check_count > 0:
-        return util.respond(422, "System already has this account or email.",
-                            error=apiError.already_used())
+        raise DevOpsError(422, "System already has this account or email.",
+                          error=apiError.already_used())
+
+    is_admin = args['role_id'] == role.ADMIN.id
+
     offset = 0
     limit = 25
     total_count = 1
     while offset < total_count:
         params = {'offset': offset, 'limit': limit}
-        user_list_output, status_code = redmine.rm_get_user_list(params)
-        try:
-            user_list_output = user_list_output.json()
-        except Exception:
-            return util.respond(500, "Error while creating user.",
-                                error=apiError.redmine_error(user_list_output))
-
+        user_list_output = redmine.rm_get_user_list(params)
         total_count = user_list_output['total_count']
         for user in user_list_output['users']:
             if user['login'] == args['login'] or user['mail'] == args['email']:
-                return util.respond(422, "Redmine already has this account or email.",
-                                    error=apiError.already_used())
+                raise DevOpsError(422, "Redmine already has this account or email.",
+                                  error=apiError.already_used())
         offset += limit
-    # Check Gitlab has this login, email, if has, return error 400
+    # Check Gitlab has this login, email, if has, raise error
     page = 1
     x_total_pages = 10
     while page <= x_total_pages:
@@ -310,58 +289,86 @@ def create_user(args):
         x_total_pages = int(user_list_output.headers['X-Total-Pages'])
         for user in user_list_output.json():
             if user['name'] == args['login'] or user['email'] == args['email']:
-                return util.respond(422, "Gitlab already has this account or email.",
-                                    error=apiError.already_used())
+                raise DevOpsError(422, "Gitlab already has this account or email.",
+                                  error=apiError.already_used())
         page += 1
+    
+    # Check Kubernetes has this Service Account (login), if has, return error 400
+    sa_list = kubernetesClient.list_service_account()
+    login_sa_name = util.encode_k8s_sa(login_name)
+    if login_sa_name in sa_list:
+        return util.respond(422, "Kubernetes already has this service account.",
+                            error=apiError.already_used())
 
     # plan software user create
-    red_user = redmine.rm_create_user(args, user_source_password)
-    if red_user.status_code == 201:
-        redmine_user_id = red_user.json()['user']['id']
-    else:
-        return util.respond(red_user.status_code, "Error while creating user.",
-                            error=apiError.redmine_error(red_user))
+    red_user = redmine.rm_create_user(args, user_source_password, is_admin=is_admin)
+    redmine_user_id = red_user['user']['id']
 
     # gitlab software user create
-    git_user = gitlab.gl_create_user(args, user_source_password)
-    if git_user.status_code == 201:
-        gitlab_user_id = git_user.json()['id']
-    else:
-        # delete redmine user
+    try:
+        git_user = gitlab.gl_create_user(args, user_source_password, is_admin=is_admin)
+    except Exception as e:
         redmine.rm_delete_user(redmine_user_id)
-        return util.respond(git_user.status_code, "Error while creating user.",
-                            error=apiError.gitlab_error(git_user))
+        raise e
+    gitlab_user_id = git_user['id']
 
-    h = SHA256.new()
-    h.update(args["password"].encode())
-    args["password"] = h.hexdigest()
-    disabled = False
-    if args['status'] == "disable":
-        disabled = True
-    user = model.User(
-        name=args['name'],
-        email=args['email'],
-        phone=args['phone'],
-        login=args['login'],
-        password=h.hexdigest(),
-        create_at=datetime.datetime.now(),
-        disabled=disabled)
-    db.session.add(user)
-    db.session.commit()
+    # kubernetes service account create
+    try:
+        kubernetes_sa = kubernetesClient.create_service_account(login_sa_name)
+    except Exception as e:
+        redmine.rm_delete_user(redmine_user_id)
+        gitlab.gl_delete_user(gitlab_user_id)
+        raise e
+    kubernetes_sa_name = kubernetes_sa.metadata.name
 
-    user_id = user.id
+    # Harbor user create
+    try:
+        harbor_user_id = harbor.hb_create_user(args, is_admin=is_admin)
+    except Exception as e:
+        gitlab.gl_delete_user(gitlab_user_id)
+        redmine.rm_delete_user(redmine_user_id)
+        raise e
 
-    # insert user_plugin_relation table
-    rel = model.UserPluginRelation(user_id=user_id,
-                                   plan_user_id=redmine_user_id,
-                                   repository_user_id=gitlab_user_id)
-    db.session.add(rel)
-    db.session.commit()
+    try:
+        # DB
+        h = SHA256.new()
+        h.update(args["password"].encode())
+        args["password"] = h.hexdigest()
+        disabled = False
+        if args['status'] == "disable":
+            disabled = True
+        user = model.User(
+            name=args['name'],
+            email=args['email'],
+            phone=args['phone'],
+            login=args['login'],
+            password=h.hexdigest(),
+            create_at=datetime.datetime.now(),
+            disabled=disabled)
+        db.session.add(user)
+        db.session.commit()
 
-    # insert project_user_role
-    rol = model.ProjectUserRole(project_id=-1, user_id=user_id, role_id=args['role_id'])
-    db.session.add(rol)
-    db.session.commit()
+        user_id = user.id
+
+        # insert user_plugin_relation table
+        rel = model.UserPluginRelation(user_id=user_id,
+                                       plan_user_id=redmine_user_id,
+                                       repository_user_id=gitlab_user_id,
+                                       harbor_user_id=harbor_user_id,
+                                       kubernetes_sa_name=kubernetes_sa_name)
+        db.session.add(rel)
+        db.session.commit()
+
+        # insert project_user_role
+        rol = model.ProjectUserRole(project_id=-1, user_id=user_id, role_id=args['role_id'])
+        db.session.add(rol)
+        db.session.commit()
+    except Exception as e:
+        harbor.hb_delete_user(harbor_user_id)
+        gitlab.gl_delete_user(gitlab_user_id)
+        redmine.rm_delete_user(redmine_user_id)
+        kubernetesClient.delete_service_account(kubernetes_sa_name)
+        raise e
 
     return util.success({"user_id": user_id})
 
@@ -372,22 +379,26 @@ def get_user_plugin_relation(user_id=None, plan_user_id=None, gitlab_user_id=Non
             return model.UserPluginRelation.query.filter_by(
                 plan_user_id=plan_user_id).one()
         except NoResultFound:
-            return util.respond(404, 'User with redmine id {0} does not exist in redmine.',
-                                error=apiError.user_not_found(plan_user_id))
+            raise apiError.DevOpsError(
+                404, 'User with redmine id {0} does not exist in redmine.'.format(plan_user_id),
+                apiError.user_not_found(plan_user_id))
     elif gitlab_user_id is not None:
         try:
             return model.UserPluginRelation.query.filter_by(
                 repository_user_id=gitlab_user_id).one()
         except NoResultFound:
-            return util.respond(404, 'User with gitlab id {0} does not exist in gitlab.',
-                                error=apiError.user_not_found(gitlab_user_id))
+            raise apiError.DevOpsError(
+                404,
+                'User with redmine id {0} does not exist in redmine.'.format(plan_user_id),
+                apiError.user_not_found(plan_user_id))
     else:
         try:
             return model.UserPluginRelation.query.filter_by(
                 user_id=user_id).one()
         except NoResultFound:
-            return util.respond(404, 'User with id {0} does not exist.',
-                                error=apiError.user_not_found(user_id))
+            raise apiError.DevOpsError(
+                404, 'User id {0} does not exist.'.format(user_id),
+                apiError.user_not_found(user_id))
 
 
 def user_list():
@@ -435,14 +446,12 @@ def user_list_by_project(project_id, args):
         # list users not in the project
         ret_users = db.session.query(model.User, model.ProjectUserRole.role_id). \
             join(model.ProjectUserRole). \
-            filter(model.User.disabled == False,
-                   model.ProjectUserRole.role_id != role.ADMIN.id). \
+            filter(model.User.disabled == False). \
             order_by(desc(model.User.id)).all()
 
         project_users = db.session.query(model.User).join(model.ProjectUserRole).filter(
             model.User.disabled == False,
-            model.ProjectUserRole.project_id == project_id,
-            model.ProjectUserRole.role_id != role.ADMIN.id
+            model.ProjectUserRole.project_id == project_id
         ).all()
 
         i = 0
@@ -457,8 +466,7 @@ def user_list_by_project(project_id, args):
         ret_users = db.session.query(model.User, model.ProjectUserRole.role_id). \
             join(model.ProjectUserRole). \
             filter(model.User.disabled == False,
-                   model.ProjectUserRole.project_id == project_id,
-                   model.ProjectUserRole.role_id != role.ADMIN.id). \
+                   model.ProjectUserRole.project_id == project_id). \
             order_by(desc(model.User.id)).all()
 
     arr_ret = []
@@ -476,6 +484,14 @@ def user_list_by_project(project_id, args):
         })
     return util.success({"user_list": arr_ret})
 
+def user_sa_config(user_id):
+    ret_users = db.session.query(model.User, model.UserPluginRelation.kubernetes_sa_name). \
+            join(model.UserPluginRelation). \
+            filter(model.User.id == user_id). \
+            filter(model.User.disabled == False).first()
+    sa_name = str(ret_users.kubernetes_sa_name)
+    sa_config = kubernetesClient.get_service_account_config(sa_name)
+    return util.success(sa_config)
 
 # --------------------- Resources ---------------------
 class Login(Resource):
@@ -495,12 +511,8 @@ class UserForgetPassword(Resource):
         parser.add_argument('mail', type=str, required=True)
         parser.add_argument('user_account', type=str, required=True)
         args = parser.parse_args()
-        try:
-            status = user_forgot_password(args)
-            return util.success(status)
-        except Exception as err:
-            return util.respond(500, "Error for forgot password process.",
-                                error=apiError.uncaught_exception(err))
+        status = user_forgot_password(args)
+        return util.success(status)
 
 
 class UserStatus(Resource):
@@ -526,6 +538,7 @@ class SingleUser(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('name', type=str)
         parser.add_argument('password', type=str)
+        parser.add_argument('old_password', type=str)
         parser.add_argument('phone', type=str)
         parser.add_argument('email', type=str)
         parser.add_argument('status', type=str)
@@ -557,3 +570,8 @@ class UserList(Resource):
     def get(self):
         role.require_pm()
         return user_list()
+
+class UserSaConfig(Resource):
+    @jwt_required
+    def get(self, user_id):
+        return user_sa_config(user_id)

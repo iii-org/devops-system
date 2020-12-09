@@ -6,7 +6,6 @@ import requests
 from flask_restful import reqparse
 
 import resources.apiError as apiError
-from model import db
 
 
 def date_to_str(data):
@@ -31,7 +30,8 @@ def success(data=None, has_date_etc=False):
         return {'message': 'success'}, 200
     else:
         if has_date_etc:
-            return {'message': 'success', 'data': json.loads(json.dumps(data, cls=DateEncoder))}, 200
+            return {'message': 'success',
+                    'data': json.loads(json.dumps(data, cls=DateEncoder))}, 200
         else:
             return {'message': 'success', 'data': data}, 200
 
@@ -64,11 +64,6 @@ def respond_uncaught_exception(exception, message='An uncaught exception occurs:
                    error=apiError.uncaught_exception(exception))
 
 
-def respond_redmine_error(redmine_response, message):
-    return respond(redmine_response.status_code, message,
-                   error=apiError.redmine_error(redmine_response))
-
-
 class DateEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, datetime):
@@ -77,13 +72,22 @@ class DateEncoder(json.JSONEncoder):
             return json.JSONEncoder.default(self, obj)
 
 
-def tick(last_time):
+ticker = 0
+
+
+def reset_ticker():
+    global ticker
+    ticker = time.time()
+
+
+def tick(message=''):
+    global ticker
     now = time.time()
-    print('%f seconds elapsed.' % (now - last_time))
-    return now
+    print('%f seconds elapsed. [%s]' % (now - ticker, message))
+    ticker = now
 
 
-def api_request(method, url, headers=None, params=None, data=None):
+def api_request(method, url, headers=None, params=None, data=None, auth=None):
     body = data
     if type(data) is dict or type(data) is reqparse.Namespace:
         if 'Content-Type' not in headers:
@@ -92,16 +96,74 @@ def api_request(method, url, headers=None, params=None, data=None):
             body = json.dumps(data)
 
     if method.upper() == 'GET':
-        return requests.get(url, headers=headers, params=params, verify=False)
+        return requests.get(url, headers=headers, params=params, verify=False, auth=auth)
     elif method.upper() == 'POST':
         return requests.post(url, data=body, params=params,
-                             headers=headers, verify=False)
+                             headers=headers, verify=False, auth=auth)
     elif method.upper() == 'PUT':
         return requests.put(url, data=body, params=params,
-                            headers=headers, verify=False)
+                            headers=headers, verify=False, auth=auth)
     elif method.upper() == 'DELETE':
-        return requests.delete(url, headers=headers, params=params, verify=False)
+        return requests.delete(url, headers=headers, params=params, verify=False, auth=auth)
     else:
         return respond_request_style(
             500, 'Error while request {0} {1}'.format(method, url),
             error=apiError.unknown_method(method))
+
+
+def encode_k8s_sa(name):
+    ret = ''
+    for c in name:
+        if 'a' <= c <= 'z' or '1' <= c <= '9' or c == '-' or c == '.':
+            ret += c
+        elif 'A' <= c <= 'Z':
+            ret += c.lower() + '0'
+        elif c == '0':
+            ret += '00'
+        elif c == '_':
+            ret += '-0'
+    return ret
+
+
+def merge_zero(c):
+    if c == '0':
+        return '0'
+    elif c == '-':
+        return '_'
+    else:
+        return c.upper()
+
+
+def decode_k8s_sa(string):
+    ret = ''
+    i = 0
+    while i < len(string):
+        c = string[i]
+        if i == len(string) - 1:
+            ret += c
+            i += 1
+            continue
+        n = string[i + 1]
+        if n == '0':
+            nn = i + 2
+            zero_count = 1
+            while nn < len(string):
+                if string[nn] == '0':
+                    nn += 1
+                    zero_count += 1
+                else:
+                    break
+            if zero_count % 2 == 1:
+                ret += merge_zero(c)
+                i += 2
+                zero_count -= 1
+            else:
+                ret += c
+                i += 1
+            for _ in range(0, int(zero_count / 2)):
+                ret += '0'
+                i += 2
+        else:
+            ret += c
+            i += 1
+    return ret

@@ -1,8 +1,8 @@
 from flask_jwt_extended import get_jwt_identity
 from flask_restful import Resource
 
-from model import db, ProjectUserRole
-from resources import apiError, util
+from resources import apiError
+import util
 import model
 
 

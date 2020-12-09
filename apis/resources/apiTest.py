@@ -4,16 +4,17 @@ import json
 
 from flask_jwt_extended import jwt_required
 from flask_restful import reqparse, Resource
+from sqlalchemy import desc
 
 import model
-import resources.util as util
+import util as util
 from model import db
-from resources import apiError
+from resources.apiError import DevOpsError
 
 HTTP_TYPES = {"1": "request", "2": "response"}
 HTTP_METHODS = {"1": "GET", "2": "POST", "3": "PUT", "4": "DELETE"}
 HTTP_LOCATIONS = {"1": "header", "2": "body"}
-TEST_CASE_TYPES = {"1": "API"}
+TEST_CASE_TYPES = {1: "API"}
 
 
 def deal_with_TestCaseObject(orm_row):
@@ -38,15 +39,18 @@ def deal_with_fetchall(data):
 
 
 def get_test_case_by_tc_id(testcase_id):
-    row = model.TestCases.query.filter_by(id=testcase_id, disabled=False).one()
+    row = model.TestCases.query.filter_by(id=testcase_id).filter(
+        model.TestCases.disabled.isnot(True)).one()
     return deal_with_TestCaseObject(row)
 
 
 # 將 TestCase 隱藏
 def del_testcase_by_tc_id(testcase_id):
-    t = model.TestCases.query.filter_by(id=testcase_id, disabled=False).one()
+    t = model.TestCases.query.filter_by(id=testcase_id).filter(
+        model.TestCases.disabled.isnot(True)).one()
     t.disabled = True
     t.update_at = datetime.datetime.now()
+    db.session.commit()
     output = {'id': t.id, 'update_at': util.date_to_str(t.update_at)}
     return output
 
@@ -66,22 +70,28 @@ def modify_testCase_by_tc_id(testcase_id, args):
 def get_testcase_by_column(args):
     if args['issue_id'] is not None:
         rows = model.TestCases.query.filter_by(
-            issue_id=args['issue_id'], disabled=False).order_by(model.Project.id).all()
+            issue_id=args['issue_id']).filter(
+            model.TestCases.disabled.isnot(True)).order_by(model.Project.id).all()
     elif args['project_id'] is not None:
         rows = model.TestCases.query.filter_by(
-            project_id=args['project_id'], disabled=False).order_by(model.Project.id).all()
+            project_id=args['project_id']).filter(
+            model.TestCases.disabled.isnot(True)).order_by(model.Project.id).all()
     else:
         return {}
     return deal_with_fetchall(rows)
 
 
 def get_testcase_by_issue_id(issue_id):
-    rows = model.TestCases.query.filter_by(issue_id=issue_id, disabled=False).all()
+    rows = model.TestCases.query.filter_by(issue_id=issue_id).filter(
+        model.TestCases.disabled.isnot(True)
+    ).all()
     return deal_with_fetchall(rows)
 
 
 def get_testcase_by_project_id(project_id):
-    rows = model.TestCases.query.filter_by(project_id=project_id, disabled=False).all()
+    rows = model.TestCases.query.filter_by(project_id=project_id).filter(
+        model.TestCases.disabled.isnot(True)
+    ).all()
     return deal_with_fetchall(rows)
 
 
@@ -94,7 +104,8 @@ def post_testcase_by_issue_id(issue_id, args):
         description=args['description'],
         type_id=args['type_id'],
         create_at=datetime.datetime.now(),
-        update_at=datetime.datetime.now()
+        update_at=datetime.datetime.now(),
+        disabled=False
     )
     db.session.add(new)
     db.session.commit()
@@ -109,7 +120,8 @@ def post_testcase_by_project_id(project_id, args):
         description=args['description'],
         type_id=args['type_id'],
         create_at=datetime.datetime.now(),
-        update_at=datetime.datetime.now()
+        update_at=datetime.datetime.now(),
+        disabled=False
     )
     db.session.add(new)
     db.session.commit()
@@ -139,7 +151,9 @@ def deal_with_TestItemObject(sql_row):
 
 
 def get_testitem_by_ti_id(testitem_id):
-    row = model.TestItems.query.filter_by(id=testitem_id, disabled=False).one()
+    row = model.TestItems.query.filter_by(id=testitem_id).filter(
+        model.TestItems.disabled.isnot(True)
+    ).one()
     return deal_with_TestItemObject(row)
 
 
@@ -153,16 +167,18 @@ def del_testItem_by_ti_id(testitem_id):
 
 
 def modify_testItem_by_ti_id(testitem_id, args):
-    t = model.TestItems.query.filter_by(id=testitem_id)
-    t.name = args['name'],
-    t.is_passed = args['is_passed'],
+    t = model.TestItems.query.filter_by(id=testitem_id).one()
+    t.name = args['name']
+    t.is_passed = args['is_passed']
     t.update_at = datetime.datetime.now()
     db.session.commit()
     return {'id': t.id, 'update_at': util.date_to_str(t.update_at)}
 
 
 def get_testItem_by_testCase_id(testcase_id):
-    rows = model.TestItems.query.filter_by(test_case_id=testcase_id, disabled=False).all()
+    rows = model.TestItems.query.filter_by(test_case_id=testcase_id).filter(
+        model.TestItems.disabled.isnot(True)
+    ).all()
     output = []
     for row in rows:
         output.append(deal_with_TestItemObject(row))
@@ -177,16 +193,17 @@ def post_testitem_by_testcase_id(testcase_id, args):
         name=args['name'],
         is_passed=args['is_passed'],
         create_at=datetime.datetime.now(),
-        update_at=datetime.datetime.now()
+        update_at=datetime.datetime.now(),
+        disabled=False
     )
     db.session.add(new)
-    db.commit()
-    return {'testItem_id': db.id}
+    db.session.commit()
+    return {'testItem_id': new.id}
 
 
 def get_testItem_by_issue_id(issue_id, order_column):
     rows = model.TestItems.query.filter_by(
-        issue_id=issue_id, disabled=False).order_by(order_column)
+        issue_id=issue_id).filter(model.TestItems.disabled.isnot(True)).order_by(order_column)
     output = []
     for row in rows:
         output.append(deal_with_TestItemObject(row))
@@ -195,7 +212,8 @@ def get_testItem_by_issue_id(issue_id, order_column):
 
 def get_testItem_by_project_id(project_id, order_column):
     rows = model.TestItems.query.filter_by(
-        project_id=project_id, disabled=False).order_by(order_column)
+        project_id=project_id).filter(
+        model.TestItems.disabled.isnot(True)).order_by(order_column)
     output = []
     for row in rows:
         output.append(deal_with_TestItemObject(row))
@@ -235,12 +253,15 @@ def get_testValue_httpLocation():
 
 
 def get_testValue_by_tv_id(value_id):
-    row = model.TestValues.query.filter_by(id=value_id, disabled=False).one()
+    row = model.TestValues.query.filter_by(id=value_id).filter(
+        model.TestValues.disabled.isnot(True)
+    ).one()
     return deal_with_TestValueObject(row)
 
 
 def del_testValue_by_tv_id(value_id):
-    row = model.TestValues.query.filter_by(id=value_id, disabled=False).one()
+    row = model.TestValues.query.filter_by(id=value_id).filter(
+        model.TestValues.disabled.isnot(True)).one()
     row.disabled = True
     row.update_at = datetime.datetime.now()
     db.session.commit()
@@ -259,7 +280,8 @@ def modify_test_value(value_id, args):
 
 
 def get_testValue_by_testItem_id(item_id, order_column='id'):
-    rows = model.TestValues.query.filter_by(test_item_id=item_id, disabled=False). \
+    rows = model.TestValues.query.filter_by(test_item_id=item_id).filter(
+        model.TestValues.disabled.isnot(True)). \
         order_by(order_column).all()
     output = []
     for row in rows:
@@ -277,8 +299,9 @@ def post_testValue_by_testItem_id(item_id, args):
         test_case_id=args['testCase_id'],
         issue_id=args['issue_id'],
         project_id=args['project_id'],
+        disabled=False,
         create_at=datetime.datetime.now(),
-        update_at=datetime.datetime.now()
+        update_at=datetime.datetime.now(),
     )
     db.session.add(new)
     db.session.commit()
@@ -286,7 +309,8 @@ def post_testValue_by_testItem_id(item_id, args):
 
 
 def get_testValue_by_issue_id(issue_id, order_column=''):
-    query = model.TestValues.query.filter_by(issue_id=issue_id, disabled=False)
+    query = model.TestValues.query.filter_by(issue_id=issue_id).filter(
+        model.TestValues.disabled.isnot(True))
     if order_column != '':
         query = query.order_by(order_column)
     rows = query.all()
@@ -297,7 +321,8 @@ def get_testValue_by_issue_id(issue_id, order_column=''):
 
 
 def get_testValue_by_project_id(project_id, order_column=''):
-    query = model.TestValues.query.filter_by(project_id=project_id, disabled=False)
+    query = model.TestValues.query.filter_by(project_id=project_id).filter(
+        model.TestValues.disabled.isnot(True))
     if order_column != '':
         query = query.order_by(order_column)
     rows = query.all()
@@ -327,6 +352,7 @@ def save_test_result(args):
         total=args['total'],
         fail=args['fail'],
         branch=branch,
+        commit_id=args['commit_id'],
         report=args['report'],
         run_at=datetime.datetime.now()
     )
@@ -336,19 +362,30 @@ def save_test_result(args):
 
 
 def get_report(project_id):
-    try:
-        result = db.engine.execute(
-            'SELECT report FROM test_results WHERE project_id={0} ORDER BY id DESC LIMIT 1'.format(
-                project_id))
-        if result.rowcount == 0:
-            return util.respond(404, 'No postman report for this project.')
-        report = result.fetchone()['report']
-        if report is None:
-            return util.respond(404, 'No postman report for this project.')
-        return util.success(json.loads(report))
-    except Exception as e:
-        return util.respond(500, "Error when saving test results.",
-                            error=apiError.uncaught_exception(e))
+    row = model.TestResults.query.filter_by(project_id=project_id).order_by(desc(
+        model.TestResults.id)).limit(1).first()
+    if row is None:
+        raise DevOpsError(404, 'No postman report for this project.')
+    report = row.report
+    if report is None or report == 'undefined':  # Corrupted data by old runners
+        raise DevOpsError(404, 'No postman report for this project.')
+    return util.success(json.loads(report))
+
+
+def list_results(project_id):
+    rows = model.TestResults.query.filter_by(project_id=project_id).order_by(desc(
+        model.TestResults.id)).all()
+    ret = []
+    for row in rows:
+        ret.append({
+            'id': row.id,
+            'branch': row.branch,
+            'commit_id': row.commit_id,
+            'success': row.total - row.fail,
+            'failure': row.fail,
+            'run_at': str(row.run_at)
+        })
+    return ret
 
 
 # --------------------- Resources ---------------------

@@ -15,3 +15,9 @@ You need a `config.py` file containing API keys or other sensitive information.
 
 ## Software components
 ![framework of the platform](docs/devops-components.png)
+
+# Migrate from pre-Harbor version to V0.9.2
+1. API/migrate?to=orm
+2. Update database with `alembic upgrade head`
+3. API/migrate?to=0.9.2
+
