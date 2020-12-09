@@ -99,3 +99,11 @@ def get_service_account_config(sa_name):
             'config' : sa_config
         }
     return config
+
+def get_namespace_quota(namespace):
+    namespace_quota = v1.read_namespaced_resource_quota("project-quota",namespace)
+    resource = {
+        'quota' : namespace_quota.status.hard,
+        'used' : namespace_quota.status.used
+    }
+    return resource
