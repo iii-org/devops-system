@@ -1,5 +1,6 @@
 import json
 import time
+import os
 from datetime import datetime
 from threading import Thread
 
@@ -118,6 +119,11 @@ def api_request(method, url, headers=None, params=None, data=None, auth=None):
             500, 'Error while request {0} {1}'.format(method, url),
             error=apiError.unknown_method(method))
 
+def enable_k8s_proxy():
+    try:
+        os.system("kubectl proxy &")
+    except:
+        pass
 
 def encode_k8s_sa(name):
     ret = ''
