@@ -125,7 +125,15 @@ def get_service_account_config(sa_name):
             'config' : sa_config
         }
     return config
-
+    
+def create_role_in_namespace(namespace):
+    rules = [k8s_client.V1PolicyRule(["*"], resources=["*"], verbs=["*"], )]
+    role = k8s_client.V1Role(rules=rules)
+    role.metadata = k8s_client.V1ObjectMeta(namespace = namespace, name = "user-role")
+    rbac = k8s_client.RbacAuthorizationV1Api()
+    rbac.create_namespaced_role(namespace,role)
+    print("Create Role : " + namespace + "/user-role")
+    
 '''
 class tmp_api(Resource):
     def post(self):
