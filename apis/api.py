@@ -86,9 +86,7 @@ def initialize(db_uri):
         if not isfile(fp):
             continue
         with open(fp, "r") as f:
-            o = {}
             for line in f:
-                rev = 'None'
                 if line.startswith('revision'):
                     revs.append(line.split('=')[1].strip()[1:-1])
                 elif line.startswith('down_revision'):
@@ -200,7 +198,7 @@ api.add_resource(issue.MyIssueWeekStatistics, '/issues/week_statistics')
 api.add_resource(issue.MyIssueMonthStatistics, '/issues/month_statistics')
 
 # dashboard
-api.add_resource(issue.DashboardIssuePriority, '/dashboard_issues_priority/<user_id>')
+api.add_resource(issue.DashboardIssuePriority, '/dashboard_issues_priority/rd/<user_id>')
 api.add_resource(issue.DashboardIssueProject, '/dashboard_issues_project/<user_id>')
 api.add_resource(issue.DashboardIssueType, '/dashboard_issues_type/<user_id>')
 
@@ -241,10 +239,12 @@ api.add_resource(apiTest.TestValue, '/testValues/<value_id>')
 
 # Postman tests
 api.add_resource(postman.ExportToPostman, '/export_to_postman/<sint:project_id>')
+api.add_resource(postman.PostmanResults, '/postman_results/<sint:project_id>')
 api.add_resource(postman.PostmanReport, '/testResults', '/postman_report/<sint:project_id>')
 
 # Checkmarx report generation
 api.add_resource(checkmarx.CreateCheckmarxScan, '/checkmarx/create_scan')
+api.add_resource(checkmarx.GetCheckmarxScans, '/checkmarx/scans/<sint:project_id>')
 api.add_resource(checkmarx.GetCheckmarxLatestScan, '/checkmarx/latest_scan/<sint:project_id>')
 api.add_resource(checkmarx.GetCheckmarxLatestScanStats,
                  '/checkmarx/latest_scan_stats/<sint:project_id>')
@@ -291,10 +291,6 @@ if __name__ == "__main__":
     app.app_context().push()
 
     u = config.get('SQLALCHEMY_DATABASE_URI')
-    try:
-        initialize(u)
-    except Exception as e:
-        drop_database(u)
-        raise e
+    initialize(u)
     migrate.run()
     app.run(host='0.0.0.0', port=10009, debug=(config.get('DEBUG') is True))

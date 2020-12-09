@@ -35,7 +35,6 @@ class User(db.Model):
     update_at = Column(DateTime)
     disabled = Column(Boolean)
 
-
 class Project(db.Model):
     __tablename__ = 'projects'
 
@@ -182,6 +181,7 @@ class Checkmarx(db.Model):
     # Store if a final status (Finished, Failed, Cancelled) is checked
     # Null if scan is in non-final status
     scan_final_status = Column(String, nullable=True)
+    stats = Column(String)
     # The time report is generated
     finished_at = Column(DateTime)
     # True only if report is available
