@@ -125,7 +125,6 @@ def create_project(user_id, args):
     if args['display'] is None:
         args['display'] = args['name']
 
-    util.tick(init=True)
     # 使用 multi-thread 建立各專案
     services = ['redmine', 'gitlab', 'harbor']
     targets = {
@@ -164,7 +163,6 @@ def create_project(user_id, args):
 
     # 如果不是全部都成功，rollback
     if any(helper.errors.values()):
-        print('rolls back')
         for service in services:
             if helper.errors[service] is None:
                 if service == 'redmine':
@@ -203,14 +201,12 @@ def create_project(user_id, args):
                 elif service == 'harbor':
                     raise e
 
-    util.tick('end rollback if any')
     # enable rancher pipeline
     rancher_project_id = rancher.rc_get_project_id()
     t_rancher = DevOpsThread(target=rancher.rc_enable_project_pipeline,
                              args=(gitlab_pj_http_url,))
     t_rancher.start()
     rancher_pipeline_id = t_rancher.join_()
-    util.tick('end rancher')
 
     try:
         new_pjt = model.Project(
@@ -240,7 +236,6 @@ def create_project(user_id, args):
         # 加關聯project_user_role
         args['user_id'] = user_id
         project_add_member(project_id, args)
-        util.tick('all done')
 
         return util.success({
             "project_id": project_id,
