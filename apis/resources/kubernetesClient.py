@@ -132,19 +132,3 @@ def create_role_in_namespace(namespace):
     role.metadata = k8s_client.V1ObjectMeta(namespace = namespace, name = "user-role")
     rbac = k8s_client.RbacAuthorizationV1Api()
     rbac.create_namespaced_role(namespace,role)
-    print("Create Role : " + namespace + "/user-role")
-    
-'''
-class tmp_api(Resource):
-    def post(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument('project_name', type=str)
-        args = parser.parse_args()
-        create_namespace(args['project_name'])
-    
-    def delete(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument('project_name', type=str)
-        args = parser.parse_args()
-        delete_namespace(args['project_name'])
-'''
