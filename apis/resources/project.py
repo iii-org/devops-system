@@ -244,11 +244,10 @@ def create_project(user_id, args):
             "harbor_project_id": harbor_pj_id
         })
     except Exception as e:
-        print(e)
         redmine.rm_delete_project(redmine_pj_id)
         gitlab.gl_delete_project(gitlab_pj_id)
         harbor.hb_delete_project(harbor_pj_id)
-        # rancher.rc_disable_project_pipeline(rancher_project_id, gitlab_pj_http_url)
+        rancher.rc_disable_project_pipeline(rancher_project_id, gitlab_pj_http_url)
         raise e
 
 
