@@ -15,7 +15,7 @@ from resources.logger import logger
 k8s_config.load_kube_config()
 v1 = k8s_client.CoreV1Api()
 rbac = k8s_client.RbacAuthorizationV1Api()
-util.enable_k8s_proxy()
+# enable_k8s_proxy()
 
 def list_service_all_namespaces():
     service_list = []
@@ -73,10 +73,13 @@ def delete_namespace(project_name):
         ns_json = json.load(open("{0}.json".format(project_name)))
         os.remove("{0}.json".format(project_name))
         ns_json['spec']['finalizers']=[]
-        url = "http://127.0.0.1:8001/api/v1/namespaces/{0}/finalize".format(project_name)
-        headers={}
-        headers['Content-Type'] = 'application/json'
-        util.api_request('PUT', url, headers=headers, data=ns_json)
+        body = k8s_client.V1Namespace() 
+        message = v1.replace_namespace_finalize(name=project_name, body=body, dry_run='All')
+        # print (message)
+        #url = "http://127.0.0.1:8001/api/v1/namespaces/{0}/finalize".format(project_name)
+        #headers={}
+        #headers['Content-Type'] = 'application/json'
+        #util.api_request('PUT', url, headers=headers, data=ns_json)
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
@@ -156,3 +159,11 @@ def create_role_binding(namespace, sa_name):
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
+
+'''
+def enable_k8s_proxy():
+    try:
+        os.system("kubectl proxy &")
+    except:
+        pass
+'''
