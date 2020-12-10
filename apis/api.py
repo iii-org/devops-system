@@ -163,6 +163,7 @@ api.add_resource(gitlab.GitProjectBranchCommits,
 api.add_resource(gitlab.GitProjectNetwork, '/repositories/<repository_id>/overview')
 api.add_resource(gitlab.GitProjectId, '/repositories/<repository_id>/id')
 api.add_resource(gitlab.GitProjectIdFromURL, '/repositories/id')
+api.add_resource(gitlab.GitProjectURLFromId, '/repositories/url')
 
 # User
 api.add_resource(user.Login, '/user/login')

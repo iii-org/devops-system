@@ -21,6 +21,11 @@ def repo_id_to_project_id(repo_id):
         return -1
 
 
+def get_repo_url(project_id):
+    row = model.Project.query.filter_by(id=project_id).one()
+    return row.http_url
+
+
 class GitLab(object):
     private_token = None
 
@@ -495,3 +500,20 @@ class GitProjectIdFromURL(Resource):
         except NoResultFound:
             return util.respond(404, 'No such repository found in database.',
                                 error=apiError.repository_id_not_found(args['repository_url']))
+
+
+class GitProjectURLFromId(Resource):
+    @jwt_required
+    def get(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('project_id', type=int)
+        parser.add_argument('repository_id', type=int)
+        args = parser.parse_args()
+        project_id = args['project_id']
+        if project_id is None:
+            repo_id = args['repository_id']
+            if repo_id is None:
+                return util.respond(400, 'You must provide project_id or repository_id.',
+                                    error=apiError.argument_error('project_id|repository_id'))
+            project_id = repo_id_to_project_id(repo_id)
+        return util.success({'http_url': get_repo_url(project_id)})
