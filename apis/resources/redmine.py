@@ -74,7 +74,7 @@ class Redmine:
 
     def __key_check(self):
         # Check if key expires first, seems to expire in 2 hours in default?
-        if time.time() - self.key_generated >= 7200:
+        if self.redmine_key is None or time.time() - self.key_generated >= 7200:
             self.__refresh_key()
 
     def __refresh_key(self, operator_id=None):

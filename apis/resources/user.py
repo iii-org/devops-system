@@ -574,4 +574,5 @@ class UserList(Resource):
 class UserSaConfig(Resource):
     @jwt_required
     def get(self, user_id):
+        role.require_in_project(project_id, "Error while getting project info.")
         return user_sa_config(user_id)
