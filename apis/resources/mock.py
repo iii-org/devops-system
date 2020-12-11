@@ -1,6 +1,13 @@
+from concurrent import futures
+from threading import Thread
+
+from flask import current_app
 from flask_restful import Resource, reqparse
 
 import util
+from resources.gitlab import gitlab
+from resources.redmine import redmine
+from util import DevOpsThread
 
 
 def mock_cm_status(status):
@@ -63,6 +70,12 @@ def mock_cm_status(status):
                 }}, 200
 
 
+def mock_sesame_get():
+    return None
+
+
+# ----------- Resources -----------
+
 # noinspection PyMethodMayBeStatic
 class MockTestResult(Resource):
     def get(self):
@@ -74,3 +87,8 @@ class MockTestResult(Resource):
             return mock_cm_status(args['cm_status'])
 
         return util.respond(404, 'No suck muck.')
+
+
+class MockSesame(Resource):
+    def get(self):
+        return mock_sesame_get()

@@ -19,9 +19,9 @@ import resources.role as role
 import util
 from jsonwebtoken import jsonwebtoken
 from model import db
-from resources import project, gitlab, issue, user, redmine, wiki, version, sonar, apiTest, postman, mock, harbor
-import migrate
-from resources.logger import logger
+from resources import project, gitlab, issue, user, redmine, wiki, version, sonar, apiTest, postman, mock, harbor, kubernetesClient
+import migrate 
+from resources import logger
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -33,6 +33,7 @@ for key in ['JWT_SECRET_KEY',
     app.config[key] = config.get(key)
 
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = datetime.timedelta(days=1)
+logger.set_app(app)
 api = Api(app, errors=apiError.custom_errors)
 CORS(app)
 
@@ -71,7 +72,7 @@ class SystemGitCommitID(Resource):
 def initialize(db_uri):
     if database_exists(db_uri):
         return
-    logger.info('Initializing...')
+    logger.logger.info('Initializing...')
     if config.get('DEBUG'):
         print('Initializing...')
     # Create database
@@ -128,6 +129,7 @@ api.add_resource(project.ListMyProjects, '/project/list')
 api.add_resource(project.SingleProject, '/project', '/project/<sint:project_id>')
 api.add_resource(project.ProjectsByUser, '/projects_by_user/<int:user_id>')
 api.add_resource(project.ProjectUserList, '/project/<sint:project_id>/user/list')
+api.add_resource(project.ProjectUserResource, '/project/<sint:project_id>/resource')
 api.add_resource(project.ProjectMember, '/project/<sint:project_id>/member',
                  '/project/<sint:project_id>/member/<int:user_id>')
 api.add_resource(wiki.ProjectWikiList, '/project/<sint:project_id>/wiki')
@@ -140,20 +142,28 @@ api.add_resource(project.TestSummary, '/project/<sint:project_id>/test_summary')
 # Gitlab project
 api.add_resource(gitlab.GitProjectBranches, '/repositories/<repository_id>/branches')
 api.add_resource(gitlab.GitProjectBranch,
-                 '/repositories/rd/<repository_id>/branch/<branch_name>')
+                 '/repositories/rd/<repository_id>/branch/<branch_name>',
+                 '/repositories/<repository_id>/branch/<branch_name>')
 api.add_resource(gitlab.GitProjectRepositories,
-                 '/repositories/rd/<repository_id>/branch/<branch_name>/tree')
+                 '/repositories/rd/<repository_id>/branch/<branch_name>/tree',
+                 '/repositories/<repository_id>/branch/<branch_name>/tree')
 api.add_resource(gitlab.GitProjectFile,
                  '/repositories/rd/<repository_id>/branch/files',
-                 '/repositories/rd/<repository_id>/branch/<branch_name>/files/<file_path>')
+                 '/repositories/<repository_id>/branch/files',
+                 '/repositories/rd/<repository_id>/branch/<branch_name>/files/<file_path>',
+                 '/repositories<repository_id>/branch/<branch_name>/files/<file_path>')
 api.add_resource(gitlab.GitProjectTag,
                  '/repositories/rd/<repository_id>/tags/<tag_name>',
-                 '/repositories/rd/<repository_id>/tags')
+                 '/repositories/<repository_id>/tags/<tag_name>',
+                 '/repositories/rd/<repository_id>/tags',
+                 '/repositories/<repository_id>/tags')
 api.add_resource(gitlab.GitProjectBranchCommits,
-                 '/repositories/rd/<repository_id>/commits')
+                 '/repositories/rd/<repository_id>/commits',
+                 '/repositories/<repository_id>/commits')
 api.add_resource(gitlab.GitProjectNetwork, '/repositories/<repository_id>/overview')
 api.add_resource(gitlab.GitProjectId, '/repositories/<repository_id>/id')
 api.add_resource(gitlab.GitProjectIdFromURL, '/repositories/id')
+api.add_resource(gitlab.GitProjectURLFromId, '/repositories/url')
 
 # User
 api.add_resource(user.Login, '/user/login')
@@ -167,8 +177,10 @@ api.add_resource(user.UserSaConfig, '/user/<int:user_id>/config')
 api.add_resource(role.RoleList, '/user/role/list')
 
 # pipeline
-api.add_resource(pipeline.PipelineExec, '/pipelines/rd/<repository_id>/pipelines_exec')
-api.add_resource(pipeline.PipelineExecLogs, '/pipelines/rd/logs')
+api.add_resource(pipeline.PipelineExec, '/pipelines/rd/<repository_id>/pipelines_exec',
+                 '/pipelines/<repository_id>/pipelines_exec')
+api.add_resource(pipeline.PipelineExecLogs, '/pipelines/rd/logs',
+                 '/pipelines/logs')
 api.add_resource(pipeline.PipelineSoftware, '/pipelines/software')
 api.add_resource(pipeline.PipelinePhaseYaml,
                  '/pipelines/<repository_id>/branch/<branch_name>/phase_yaml')
@@ -191,14 +203,16 @@ api.add_resource(issue.SingleIssue, '/issues', '/issues/<issue_id>')
 api.add_resource(issue.IssueStatus, '/issues_status')
 api.add_resource(issue.IssuePriority, '/issues_priority')
 api.add_resource(issue.IssueTracker, '/issues_tracker')
-api.add_resource(issue.IssueRDbyUser, '/issues_by_user/rd/<user_id>')
+api.add_resource(issue.IssueRDbyUser, '/issues_by_user/rd/<user_id>',
+                 '/issues_by_user/<user_id>')
 api.add_resource(issue.MyIssueStatistics, '/issues/statistics')
 api.add_resource(issue.MyOpenIssueStatistics, '/issues/open_statistics')
 api.add_resource(issue.MyIssueWeekStatistics, '/issues/week_statistics')
 api.add_resource(issue.MyIssueMonthStatistics, '/issues/month_statistics')
 
 # dashboard
-api.add_resource(issue.DashboardIssuePriority, '/dashboard_issues_priority/rd/<user_id>')
+api.add_resource(issue.DashboardIssuePriority, '/dashboard_issues_priority/rd/<user_id>',
+                 '/dashboard_issues_priority/<user_id>')
 api.add_resource(issue.DashboardIssueProject, '/dashboard_issues_project/<user_id>')
 api.add_resource(issue.DashboardIssueType, '/dashboard_issues_type/<user_id>')
 
@@ -274,6 +288,7 @@ api.add_resource(SystemGitCommitID, '/system_git_commit_id')  # git commit
 
 # Mocks
 api.add_resource(mock.MockTestResult, '/mock/test_summary')
+api.add_resource(mock.MockSesame, '/mock/sesame')
 
 # Harbor
 api.add_resource(harbor.HarborRepository,
@@ -284,12 +299,11 @@ api.add_resource(harbor.HarborArtifact,
                  '/harbor/artifacts/<project_name>/<repository_name>')
 api.add_resource(harbor.HarborProject, '/harbor/projects/<int:project_id>/summary')
 
+
 if __name__ == "__main__":
     db.init_app(app)
     db.app = app
     jsonwebtoken.init_app(app)
-    app.app_context().push()
-
     u = config.get('SQLALCHEMY_DATABASE_URI')
     initialize(u)
     migrate.run()

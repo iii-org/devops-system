@@ -74,7 +74,7 @@ class Redmine:
 
     def __key_check(self):
         # Check if key expires first, seems to expire in 2 hours in default?
-        if time.time() - self.key_generated >= 7200:
+        if self.redmine_key is None or time.time() - self.key_generated >= 7200:
             self.__refresh_key()
 
     def __refresh_key(self, operator_id=None):
@@ -134,7 +134,8 @@ class Redmine:
         return self.__api_delete('/projects/{0}'.format(plan_project_id))
 
     def rm_list_issues(self):
-        return self.paging('issues')
+        params = {'status_id': '*'}
+        return self.paging('issues', params)
 
     def rm_get_issues_by_user(self, user_id):
         params = {'assigned_to_id': user_id, 'status_id': '*'}

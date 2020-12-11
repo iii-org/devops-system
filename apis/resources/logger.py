@@ -1,14 +1,23 @@
 import logging
 from logging import handlers
 
+from flask import current_app
 from flask_jwt_extended import get_jwt_identity
+
+app = None
+
+
+def set_app(app_):
+    global app
+    app = app_
 
 
 class DevOpsFilter(logging.Filter):
     def filter(self, record):
         record.user_id = -1
         record.user_name = ''
-        jwt = get_jwt_identity()
+        with app.app_context():
+            jwt = get_jwt_identity()
         if jwt is not None:
             record.user_id = jwt['user_id']
             record.user_name = jwt['user_account']

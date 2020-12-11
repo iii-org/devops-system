@@ -197,5 +197,14 @@ class Rancher(object):
         output = self.__api_get('/projects/{0}/pipelines'.format(project_id))
         return output.json()['data']
 
+    def rc_add_namespace_into_rc_project(self, project_name):
+        rc_cluster_id = self.rc_get_cluster_id()
+        rc_project_id =self.rc_get_project_id()
+        body = {
+            "projectId": rc_project_id
+        }
+        params = {'action': 'move'}
+        url = '/clusters/{0}/namespaces/{1}'.format(rc_cluster_id, project_name)
+        output = self.__api_post(url, params=params, data=body)
 
 rancher = Rancher()
