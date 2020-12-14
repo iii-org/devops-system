@@ -1,9 +1,11 @@
 import datetime
 import re
 
+import kubernetes
 from Cryptodome.Hash import SHA256
 from flask_jwt_extended import (create_access_token, JWTManager, jwt_required, get_jwt_identity)
 from flask_restful import Resource, reqparse
+from kubernetes.client import ApiException
 from sqlalchemy import desc
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -205,19 +207,32 @@ def update_external_passwords(user_id, new_pwd):
     return None
 
 
+def try_to_delete(delete_method, obj):
+    try:
+        delete_method(obj)
+    except DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+
+
 def delete_user(user_id):
     # 取得gitlab & redmine user_id
     relation = get_user_plugin_relation(user_id=user_id)
 
-    gitlab.gl_delete_user(relation.repository_user_id)
-    redmine.rm_delete_user(relation.plan_user_id)
-    harbor.hb_delete_user(relation.harbor_user_id)
-    kubernetesClient.delete_service_account(relation.kubernetes_sa_name)
+    try_to_delete(gitlab.gl_delete_user, relation.repository_user_id)
+    try_to_delete(redmine.rm_delete_user, relation.plan_user_id)
+    try_to_delete(harbor.hb_delete_user, relation.harbor_user_id)
+    try:
+        try_to_delete(kubernetesClient.delete_service_account, relation.kubernetes_sa_name)
+    except kubernetes.client.exceptions.ApiException as e:
+        if e.status != 404:
+            raise e
 
     # 如果gitlab & redmine user都成功被刪除則繼續刪除db內相關tables欄位
     db.session.delete(relation)
-    del_role = model.ProjectUserRole.query.filter_by(user_id=user_id).one()
-    db.session.delete(del_role)
+    del_roles = model.ProjectUserRole.query.filter_by(user_id=user_id).all()
+    for row in del_roles:
+        db.session.delete(row)
     del_user = model.User.query.filter_by(id=user_id).one()
     db.session.delete(del_user)
     db.session.commit()
