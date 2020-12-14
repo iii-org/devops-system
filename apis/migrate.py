@@ -1,15 +1,20 @@
 import os
 
+import util
 import config
 import model
 from model import db, ProjectPluginRelation, Project, UserPluginRelation, User, ProjectUserRole
-from resources import harbor, role
+from resources import harbor, role, kubernetesClient
+import resources.rancher as rancher
 from resources.logger import logger
+
+from flask_restful import Resource
 
 VERSION_FILE_NAME = '.api_version'
 # Each time you add a migration, add a version code here.
-VERSIONS = ['0.9.2', '0.9.2.1', '0.9.2.2', '0.9.2.3']
+VERSIONS = ['0.9.2', '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.4']
 
+ran = rancher.Rancher()
 
 def upgrade(version):
     if version == '0.9.2':
@@ -19,7 +24,43 @@ def upgrade(version):
         create_harbor_projects()
     elif version in {'0.9.2.1', '0.9.2.2', '0.9.2.3'}:
         alembic_upgrade()
+    elif version == '0.9.2.4':
+        create_k8s_user()
+        create_k8s_namespsace()
+        
 
+def create_k8s_user():
+    # get db user list
+    rows = db.session.query(User, UserPluginRelation)\
+        .join(User).all()
+    k8s_sa_list = kubernetesClient.list_service_account()
+    for row in rows:
+        user_sa_name = util.encode_k8s_sa(row.User.login)
+        if user_sa_name not in k8s_sa_list:
+            print("still not create sa user: {0}".format(row.UserPluginRelation.kubernetes_sa_name))
+            kubernetesClient.create_service_account(user_sa_name)
+            row.UserPluginRelation.kubernetes_sa_name = user_sa_name
+        db.session.commit()
+
+
+def create_k8s_namespsace():
+    rows = db.session.query(ProjectPluginRelation, Project). \
+        join(Project).all()
+    namespace_list = kubernetesClient.list_namespace()
+    for row in rows:
+        if row.Project.name not in namespace_list:
+            print("need create k8s namespace project: {0}".format(row.Project.name))
+            kubernetesClient.create_namespace(row.Project.name)
+            kubernetesClient.create_role_in_namespace(row.Project.name)
+            members = db.session.query(ProjectUserRole, UserPluginRelation). \
+                join(UserPluginRelation, ProjectUserRole.user_id == UserPluginRelation.user_id). \
+                filter(ProjectUserRole.project_id == row.ProjectPluginRelation.project_id).all()
+            for member in members:
+                print("attach member {0} into k8snamespace {1}".format(member, row.Project.name))
+                kubernetesClient.create_role_binding(row.Project.name,
+                    member.UserPluginRelation.kubernetes_sa_name)
+            ran.rc_add_namespace_into_rc_project(row.Project.name)
+            
 
 def create_harbor_projects():
     rows = db.session.query(ProjectPluginRelation, Project.name). \

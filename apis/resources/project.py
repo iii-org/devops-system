@@ -129,7 +129,7 @@ def create_project(user_id, args):
     kubernetesClient.create_namespace(args['name'])
     kubernetesClient.create_role_in_namespace(args['name'])
     user_info = model.User.query.filter_by(id=user_id).first()
-    kubernetesClient.create_role_binding(args['name'], util.encode_k8s_sa(user_info.name))
+    kubernetesClient.create_role_binding(args['name'], util.encode_k8s_sa(user_info.login))
 
     # 使用 multi-thread 建立各專案
     services = ['redmine', 'gitlab', 'harbor']
@@ -502,7 +502,7 @@ def project_remove_member(project_id, user_id):
         harbor.hb_remove_member(project_relation.harbor_project_id,
                                 user_relation.harbor_user_id)
     except DevOpsError as e:
-        if e.status_code != 400:
+        if e.status_code != 404:
             raise e
 
     # delete relationship from ProjectUserRole table.
