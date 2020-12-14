@@ -502,7 +502,7 @@ def project_remove_member(project_id, user_id):
         harbor.hb_remove_member(project_relation.harbor_project_id,
                                 user_relation.harbor_user_id)
     except DevOpsError as e:
-        if e.status_code != 400:
+        if e.status_code != 404:
             raise e
 
     # delete relationship from ProjectUserRole table.
