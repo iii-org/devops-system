@@ -134,7 +134,8 @@ class Redmine:
         return self.__api_delete('/projects/{0}'.format(plan_project_id))
 
     def rm_list_issues(self):
-        return self.paging('issues')
+        params = {'status_id': '*'}
+        return self.paging('issues', params)
 
     def rm_get_issues_by_user(self, user_id):
         params = {'assigned_to_id': user_id, 'status_id': '*'}
