@@ -299,6 +299,7 @@ api.add_resource(harbor.HarborArtifact,
                  '/harbor/artifacts/<project_name>/<repository_name>')
 api.add_resource(harbor.HarborProject, '/harbor/projects/<int:project_id>/summary')
 
+# api.add_resource(migrate.TestAPI, '/testapi')
 
 if __name__ == "__main__":
     db.init_app(app)

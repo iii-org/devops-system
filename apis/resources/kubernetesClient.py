@@ -66,6 +66,22 @@ def create_namespace(project_name):
         if e.status_code != 404:
             raise e
 
+
+def list_namespace():
+    try:
+        '''
+        response = v1.list_namespace()
+        return response
+        '''
+        namespace_list = []
+        for namespace in v1.list_namespace().items:
+            namespace_list.append(namespace.metadata.name)
+        return namespace_list
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+
+
 def delete_namespace(project_name):
     try:
         ret = v1.delete_namespace(project_name)
