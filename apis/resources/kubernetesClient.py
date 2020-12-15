@@ -151,6 +151,26 @@ def get_namespace_quota(namespace):
     }
     return resource
     
+def create_namespace_quota(namespace):
+    try:
+        resource_quota = k8s_client.V1ResourceQuota(
+            spec= k8s_client.V1ResourceQuotaSpec(
+                hard={"cpu": "10", "memory": "10G", "pods":"20", "persistentvolumeclaims": "0", "configmaps": "10", "secrets": "10", "services.nodeports": "10"}))
+        resource_quota.metadata = k8s_client.V1ObjectMeta(namespace=namespace,name="project-quota")
+        ret = v1.create_namespaced_resource_quota(namespace, resource_quota)
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+
+def update_namespace_quota(namespace,resource):
+    try:
+        namespace_quota = v1.read_namespaced_resource_quota("project-quota",namespace)
+        namespace_quota.spec.hard = resource
+        ret = v1.replace_namespaced_resource_quota("project-quota", namespace, namespace_quota)
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+
 def create_role_in_namespace(namespace):
     rules = [k8s_client.V1PolicyRule(["*"], resources=["*"], verbs=["*"], )]
     role = k8s_client.V1Role(rules=rules)
