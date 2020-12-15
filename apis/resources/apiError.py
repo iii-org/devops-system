@@ -108,6 +108,10 @@ def resource_not_found():
     return build(7003, 'The indicated resource is not found.')
 
 
+def path_not_found():
+    return build(7004, 'The requested URL is not found on this server. Please check if the path is correct.')
+
+
 # Third party service errors
 def redmine_error(response):
     return error_3rd_party_api('Redmine', response)

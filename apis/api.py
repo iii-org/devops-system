@@ -3,6 +3,7 @@ import os
 import traceback
 from os.path import isfile
 
+import werkzeug
 from flask import Flask
 from flask_cors import CORS
 from flask_restful import Resource, Api
@@ -19,7 +20,8 @@ import resources.role as role
 import util
 from jsonwebtoken import jsonwebtoken
 from model import db
-from resources import project, gitlab, issue, user, redmine, wiki, version, sonar, apiTest, postman, mock, harbor, kubernetesClient
+from resources import project, gitlab, issue, user, redmine, wiki, version, sonar, apiTest, postman, mock, harbor, \
+    kubernetesClient, webInspect
 import migrate 
 from resources import logger
 
@@ -50,6 +52,9 @@ def internal_error(exception):
     if type(exception) is NoResultFound:
         return util.respond(404, 'Resource not found.',
                             error=apiError.resource_not_found())
+    if type(exception) is werkzeug.exceptions.NotFound:
+        return util.respond(404, 'Path not found.',
+                            error=apiError.path_not_found())
     traceback.print_exc()
     if type(exception) is apiError.DevOpsError:
         return util.respond(exception.status_code, exception.message, error=exception.error_value)
@@ -298,6 +303,9 @@ api.add_resource(harbor.HarborRepository,
 api.add_resource(harbor.HarborArtifact,
                  '/harbor/artifacts/<project_name>/<repository_name>')
 api.add_resource(harbor.HarborProject, '/harbor/projects/<int:project_id>/summary')
+
+# WebInspect
+api.add_resource(webInspect.WebInspectScan, '/webinspect/create_scan')
 
 
 if __name__ == "__main__":

@@ -35,11 +35,12 @@ class User(db.Model):
     update_at = Column(DateTime)
     disabled = Column(Boolean)
 
+
 class Project(db.Model):
     __tablename__ = 'projects'
 
     id = Column(Integer, primary_key=True)
-    name = Column(String)
+    name = Column(String, unique=True)
     description = Column(String)
     ssh_url = Column(String)
     http_url = Column(String)
@@ -217,11 +218,11 @@ class Parameters(db.Model):
 
 
 class WebInspect(db.Model):
-    scan_id = Column(Integer, primary_key=True)
-    project_name = Column(String)
+    scan_id = Column(String, primary_key=True)
+    project_name = Column(String, ForeignKey(Project.name, ondelete='CASCADE'))
     branch = Column(String)
     commit_id = Column(String)
     stats = Column(String)
     # The time scan registered
     run_at = Column(DateTime)
-    finished = Column(Boolean)
+    finished = Column(Boolean, default=False)
