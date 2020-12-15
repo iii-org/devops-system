@@ -305,7 +305,10 @@ api.add_resource(harbor.HarborArtifact,
 api.add_resource(harbor.HarborProject, '/harbor/projects/<int:project_id>/summary')
 
 # WebInspect
-api.add_resource(webInspect.WebInspectScan, '/webinspect/create_scan')
+api.add_resource(webInspect.WebInspectScan, '/webinspect/create_scan',
+                 '/webinspect/list_scan/<project_name>')
+api.add_resource(webInspect.WebInspectScanStatus, '/webinspect/status/<scan_id>')
+api.add_resource(webInspect.WebInspectScanStats, '/webinspect/stats/<scan_id>')
 
 
 if __name__ == "__main__":

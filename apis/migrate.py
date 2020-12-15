@@ -1,14 +1,12 @@
 import os
 
-import util
 import config
 import model
+import resources.rancher as rancher
+import util
 from model import db, ProjectPluginRelation, Project, UserPluginRelation, User, ProjectUserRole
 from resources import harbor, role, kubernetesClient
-import resources.rancher as rancher
 from resources.logger import logger
-
-from flask_restful import Resource
 
 VERSION_FILE_NAME = '.api_version'
 # Each time you add a migration, add a version code here.
