@@ -214,3 +214,14 @@ class Parameters(db.Model):
     create_at = Column(DateTime)
     update_at = Column(DateTime)
     disabled = Column(Boolean)
+
+
+class WebInspect(db.Model):
+    scan_id = Column(Integer, primary_key=True)
+    project_name = Column(String)
+    branch = Column(String)
+    commit_id = Column(String)
+    stats = Column(String)
+    # The time scan registered
+    run_at = Column(DateTime)
+    finished = Column(Boolean)

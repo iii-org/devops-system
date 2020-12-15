@@ -12,18 +12,20 @@ from flask_restful import Resource
 
 VERSION_FILE_NAME = '.api_version'
 # Each time you add a migration, add a version code here.
-VERSIONS = ['0.9.2', '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.4']
+VERSIONS = ['0.9.2', '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.4', '0.9.2.5']
+ONLY_UPDATE_DB_MODELS = {'0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.5'}
 
 ran = rancher.Rancher()
 
+
 def upgrade(version):
-    if version == '0.9.2':
+    if version in ONLY_UPDATE_DB_MODELS:
+        alembic_upgrade()
+    elif version == '0.9.2':
         cleanup_change_to_orm()
         alembic_upgrade()
         create_harbor_users()
         create_harbor_projects()
-    elif version in {'0.9.2.1', '0.9.2.2', '0.9.2.3'}:
-        alembic_upgrade()
     elif version == '0.9.2.4':
         create_k8s_user()
         create_k8s_namespsace()
