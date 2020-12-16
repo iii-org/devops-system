@@ -5,8 +5,7 @@ import model
 import resources.rancher as rancher
 import util
 from model import db, ProjectPluginRelation, Project, UserPluginRelation, User, ProjectUserRole
-from resources import harbor, kubernetesClient
-import role
+from resources import harbor, kubernetesClient, role
 from resources.logger import logger
 
 VERSION_FILE_NAME = '.api_version'

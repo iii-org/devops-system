@@ -127,8 +127,8 @@ def uncaught_exception(exception):
                  {'type': str(type(exception)), 'exception': str(exception)})
 
 
-def unknown_method(method):
-    return build(9002, 'A request with unknown method is made.', {'method': method})
+def invalid_code_path(detail_message):
+    return build(9002, 'An invalid code path happens.', {'message': detail_message})
 
 
 def db_error(detail_message):

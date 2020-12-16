@@ -14,8 +14,7 @@ from model import db
 from nexus import get_user_plugin_relation
 from resources.apiError import DevOpsError
 import model
-from resources import harbor
-import role
+from resources import harbor, role
 from resources.logger import logger
 from resources.redmine import redmine
 from resources.gitlab import gitlab

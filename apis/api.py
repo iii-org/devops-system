@@ -17,11 +17,10 @@ import model
 import resources.apiError as apiError
 import resources.checkmarx as checkmarx
 import resources.pipeline as pipeline
-import role as role
 import util
 from jsonwebtoken import jsonwebtoken
 from model import db
-from resources import logger
+from resources import logger, role as role
 from resources import project, gitlab, issue, user, redmine, wiki, version, sonar, apiTest, postman, mock, harbor, \
     webInspect
 

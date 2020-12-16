@@ -4,7 +4,7 @@ from flask_restful import Resource
 
 import config
 from model import db
-import role
+from resources import role
 
 
 def get_sonar_report(project_id):

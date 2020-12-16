@@ -117,13 +117,16 @@ def api_request(method, url, headers=None, params=None, data=None, auth=None):
     else:
         return respond_request_style(
             500, 'Error while request {0} {1}'.format(method, url),
-            error=apiError.unknown_method(method))
+            error=apiError.invalid_code_path('Only GET/PUT/POST/DELETE is allowed, but'
+                                             '{0} provided.'.format(method)))
+
 
 def enable_k8s_proxy():
     try:
         os.system("kubectl proxy &")
     except:
         pass
+
 
 def encode_k8s_sa(name):
     ret = ''

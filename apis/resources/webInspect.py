@@ -1,6 +1,7 @@
 import json
 from datetime import datetime
 
+from flask import make_response
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
 
@@ -9,8 +10,7 @@ import model
 import util
 from model import db
 # -------- API methods --------
-from resources import apiError
-import role
+from resources import apiError, role
 from resources.apiError import DevOpsError
 from resources.logger import logger
 
@@ -82,20 +82,17 @@ def wi_get_scan_stats(scan_id):
 
 
 def wi_download_report(scan_id):
-    return __api_get('/scanner/scans/{0}.xml?detailType=Full'.format(scan_id)).text
+    xml = __api_get('/scanner/scans/{0}.xml?detailType=Full'.format(
+        scan_id)).content
+    response = make_response(xml)
+    response.headers.set('Content-Type', 'application/xml')
+    response.headers.set('charset', 'utf-8')
+    response.headers.set(
+        'Content-Disposition', 'attachment', filename='report-{0}.xml'.format(scan_id))
+    return response
 
 
 # --------------------- Resources ---------------------
-def check_permission(project_name):
-    try:
-        pjt = model.Project.query.filter_by(name=project_name).one()
-    except DevOpsError:
-        return util.respond(404, 'Project not found.',
-                            error=apiError.project_not_found(project_name))
-    project_id = pjt.id
-    role.require_in_project(project_id)
-
-
 class WebInspectScan(Resource):
     @jwt_required
     def post(self):
@@ -105,12 +102,12 @@ class WebInspectScan(Resource):
         parser.add_argument('branch', type=str)
         parser.add_argument('commit_id', type=str)
         args = parser.parse_args()
-        check_permission(args['project_name'])
+        role.require_in_project(project_name=args['project_name'])
         return util.success(wi_create_scan(args))
 
     @jwt_required
     def get(self, project_name):
-        check_permission(project_name)
+        role.require_in_project(project_name=project_name)
         return util.success(wi_list_scans(project_name))
 
 
