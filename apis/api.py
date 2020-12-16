@@ -54,8 +54,9 @@ def internal_error(exception):
     if type(exception) is werkzeug.exceptions.NotFound:
         return util.respond(404, 'Path not found.',
                             error=apiError.path_not_found())
-    traceback.print_exc()
     if type(exception) is apiError.DevOpsError:
+        if exception.status_code != 404:
+            traceback.print_exc()
         return util.respond(exception.status_code, exception.message, error=exception.error_value)
 
     return util.respond(500, "Unexpected internal error",
