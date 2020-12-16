@@ -297,12 +297,12 @@ api.add_resource(mock.MockSesame, '/mock/sesame')
 
 # Harbor
 api.add_resource(harbor.HarborRepository,
-                 '/harbor/projects/<int:project_id>',
+                 '/harbor/projects/<int:nexus_project_id>',
                  '/harbor/repositories',
                  '/harbor/repositories/<project_name>/<repository_name>')
 api.add_resource(harbor.HarborArtifact,
                  '/harbor/artifacts/<project_name>/<repository_name>')
-api.add_resource(harbor.HarborProject, '/harbor/projects/<int:project_id>/summary')
+api.add_resource(harbor.HarborProject, '/harbor/projects/<int:nexus_project_id>/summary')
 
 # WebInspect
 api.add_resource(webInspect.WebInspectScan, '/webinspect/create_scan',

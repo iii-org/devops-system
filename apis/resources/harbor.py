@@ -4,14 +4,14 @@ from requests.auth import HTTPBasicAuth
 
 import config
 import model
-from resources import apiError, role
+import nexus
 import util
+from resources import apiError, role
 from resources.apiError import DevOpsError
 from resources.logger import logger
 
 
 # API bridge methods
-
 def __api_request(method, path, headers=None, params=None, data=None):
     if headers is None:
         headers = {}
@@ -152,7 +152,7 @@ def hb_list_artifacts(project_name, repository_name):
     ret = []
     for art in artifacts:
         scan = next(iter(art['scan_overview'].values()))
-        if scan is None:
+        if scan is None or 'total' not in scan['summary']:
             vul = ''
         else:
             vul = '{0} ({1})'.format(scan['severity'], scan['summary']['total'])
@@ -220,14 +220,9 @@ def check_permission(project_name):
 
 class HarborRepository(Resource):
     @jwt_required
-    def get(self, project_id):
-        role.require_in_project(project_id)
-        try:
-            pjt = model.Project.query.filter_by(id=project_id).one()
-        except DevOpsError:
-            return util.respond(404, 'Project not found.',
-                                error=apiError.project_not_found(project_id))
-        project_name = pjt.name
+    def get(self, nexus_project_id):
+        role.require_in_project(nexus_project_id)
+        project_name = nexus.nx_get_project_name(nexus_project_id)
         return util.success(hb_list_repositories(project_name))
 
     @jwt_required
@@ -265,6 +260,7 @@ class HarborArtifact(Resource):
 
 class HarborProject(Resource):
     @jwt_required
-    def get(self, project_id):
-        role.require_in_project(project_id)
+    def get(self, nexus_project_id):
+        role.require_in_project(nexus_project_id)
+        project_id = nexus.get_project_plugin_relation(nexus_project_id).harbor_project_id
         return util.success(hb_get_project_summary(project_id))

@@ -12,6 +12,7 @@ from sqlalchemy.orm.exc import NoResultFound
 import resources.apiError as apiError
 import util as util
 from model import db
+from nexus import get_user_plugin_relation
 from resources.apiError import DevOpsError
 import model
 from resources import role, harbor
@@ -387,33 +388,6 @@ def create_user(args):
 
     return util.success({"user_id": user_id})
 
-
-def get_user_plugin_relation(user_id=None, plan_user_id=None, gitlab_user_id=None):
-    if plan_user_id is not None:
-        try:
-            return model.UserPluginRelation.query.filter_by(
-                plan_user_id=plan_user_id).one()
-        except NoResultFound:
-            raise apiError.DevOpsError(
-                404, 'User with redmine id {0} does not exist in redmine.'.format(plan_user_id),
-                apiError.user_not_found(plan_user_id))
-    elif gitlab_user_id is not None:
-        try:
-            return model.UserPluginRelation.query.filter_by(
-                repository_user_id=gitlab_user_id).one()
-        except NoResultFound:
-            raise apiError.DevOpsError(
-                404,
-                'User with redmine id {0} does not exist in redmine.'.format(plan_user_id),
-                apiError.user_not_found(plan_user_id))
-    else:
-        try:
-            return model.UserPluginRelation.query.filter_by(
-                user_id=user_id).one()
-        except NoResultFound:
-            raise apiError.DevOpsError(
-                404, 'User id {0} does not exist.'.format(user_id),
-                apiError.user_not_found(user_id))
 
 
 def user_list():
