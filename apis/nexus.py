@@ -14,13 +14,22 @@ def get_project_plugin_relation(nexus_project_id):
                           error=apiError.project_not_found(nexus_project_id))
 
 
-def nx_get_project_name(nexus_project_id):
+def nx_get_project(id=None, name=None):
+    if id is not None:
+        query = model.Project.query.filter_by(id=id)
+    elif name is not None:
+        query = model.Project.query.filter_by(name=name)
+    else:
+        raise apiError.DevOpsError(
+            500, 'Either id or name needs to be indicated for nx_get_project.',
+            error=apiError.invalid_code_path(
+                'Either id or name needs to be indicated for nx_get_project.'))
     try:
-        pjt = model.Project.query.filter_by(id=nexus_project_id).one()
+        row = query.one()
     except NoResultFound:
         raise apiError.DevOpsError(404, 'Project not found.',
-                                   error=apiError.project_not_found(nexus_project_id))
-    return pjt.name
+                                   error=apiError.project_not_found(id))
+    return row
 
 
 def get_user_plugin_relation(user_id=None, plan_user_id=None, gitlab_user_id=None):

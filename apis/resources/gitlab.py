@@ -240,7 +240,8 @@ class GitLab(object):
             output = self.__api_put(path, params=params)
         else:
             raise DevOpsError(500, 'Only accept POST and PUT.',
-                              error=apiError.unknown_method(method))
+                              error=apiError.invalid_code_path('Only PUT and POST is allowed, but'
+                                                               '{0} provided.'.format(method)))
 
         if output.status_code == 201:
             return util.success({

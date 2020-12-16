@@ -57,7 +57,8 @@ class CheckMarx(object):
             res = requests.post(url, headers=headers, data=data, allow_redirects=True)
         else:
             raise DevOpsError(500, 'Only GET and POST is allowed.',
-                              error=apiError.unknown_method(method))
+                              error=apiError.invalid_code_path('Only GET and POST is allowed, but'
+                                                               '{0} provided.'.format(method)))
         if int(res.status_code / 100) != 2:
             raise apiError.DevOpsError(
                 res.status_code, 'Got non-2xx response from Checkmarx.',

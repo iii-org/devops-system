@@ -93,16 +93,6 @@ def wi_download_report(scan_id):
 
 
 # --------------------- Resources ---------------------
-def check_permission(project_name):
-    try:
-        pjt = model.Project.query.filter_by(name=project_name).one()
-    except DevOpsError:
-        return util.respond(404, 'Project not found.',
-                            error=apiError.project_not_found(project_name))
-    project_id = pjt.id
-    role.require_in_project(project_id)
-
-
 class WebInspectScan(Resource):
     @jwt_required
     def post(self):
@@ -112,12 +102,12 @@ class WebInspectScan(Resource):
         parser.add_argument('branch', type=str)
         parser.add_argument('commit_id', type=str)
         args = parser.parse_args()
-        check_permission(args['project_name'])
+        role.require_in_project(project_name=args['project_name'])
         return util.success(wi_create_scan(args))
 
     @jwt_required
     def get(self, project_name):
-        check_permission(project_name)
+        role.require_in_project(project_name=project_name)
         return util.success(wi_list_scans(project_name))
 
 
