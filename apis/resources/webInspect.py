@@ -1,6 +1,7 @@
 import json
 from datetime import datetime
 
+from flask import send_file, make_response
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
 
@@ -82,7 +83,14 @@ def wi_get_scan_stats(scan_id):
 
 
 def wi_download_report(scan_id):
-    return __api_get('/scanner/scans/{0}.xml?detailType=Full'.format(scan_id)).text
+    xml = __api_get('/scanner/scans/{0}.xml?detailType=Full'.format(
+        scan_id)).content
+    response = make_response(xml)
+    response.headers.set('Content-Type', 'application/xml')
+    response.headers.set('charset', 'utf-8')
+    response.headers.set(
+        'Content-Disposition', 'attachment', filename='report-{0}.xml'.format(scan_id))
+    return response
 
 
 # --------------------- Resources ---------------------
