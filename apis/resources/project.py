@@ -15,7 +15,8 @@ from model import db
 from nexus import get_project_plugin_relation
 from resources.apiError import DevOpsError
 from util import DevOpsThread
-from . import role, user, harbor, kubernetesClient
+from . import user, harbor, kubernetesClient
+import role
 from .checkmarx import checkmarx
 from .gitlab import gitlab
 from .rancher import rancher

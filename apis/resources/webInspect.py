@@ -9,7 +9,8 @@ import model
 import util
 from model import db
 # -------- API methods --------
-from resources import apiError, role, project
+from resources import apiError
+import role
 from resources.apiError import DevOpsError
 from resources.logger import logger
 

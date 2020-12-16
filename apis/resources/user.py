@@ -5,7 +5,6 @@ import kubernetes
 from Cryptodome.Hash import SHA256
 from flask_jwt_extended import (create_access_token, JWTManager, jwt_required, get_jwt_identity)
 from flask_restful import Resource, reqparse
-from kubernetes.client import ApiException
 from sqlalchemy import desc
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -15,7 +14,8 @@ from model import db
 from nexus import get_user_plugin_relation
 from resources.apiError import DevOpsError
 import model
-from resources import role, harbor
+from resources import harbor
+import role
 from resources.logger import logger
 from resources.redmine import redmine
 from resources.gitlab import gitlab

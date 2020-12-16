@@ -8,22 +8,22 @@ from flask import Flask
 from flask_cors import CORS
 from flask_restful import Resource, Api
 from sqlalchemy.orm.exc import NoResultFound
-from sqlalchemy_utils import database_exists, create_database, drop_database
+from sqlalchemy_utils import database_exists, create_database
 from werkzeug.routing import IntegerConverter
 
 import config
+import migrate
 import model
 import resources.apiError as apiError
 import resources.checkmarx as checkmarx
 import resources.pipeline as pipeline
-import resources.role as role
+import role as role
 import util
 from jsonwebtoken import jsonwebtoken
 from model import db
-from resources import project, gitlab, issue, user, redmine, wiki, version, sonar, apiTest, postman, mock, harbor, \
-    kubernetesClient, webInspect
-import migrate 
 from resources import logger
+from resources import project, gitlab, issue, user, redmine, wiki, version, sonar, apiTest, postman, mock, harbor, \
+    webInspect
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',

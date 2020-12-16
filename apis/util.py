@@ -120,6 +120,7 @@ def api_request(method, url, headers=None, params=None, data=None, auth=None):
             error=apiError.unknown_method(method))
 
 def enable_k8s_proxy():
+    return
     try:
         os.system("kubectl proxy &")
     except:
