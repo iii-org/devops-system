@@ -13,6 +13,7 @@ Steps to modify the ORM model:
 
 If you don't have the alembic.ini, copy _alembic.ini and replace the postgres uri by yourself.
 """
+import json
 
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Date
@@ -35,11 +36,12 @@ class User(db.Model):
     update_at = Column(DateTime)
     disabled = Column(Boolean)
 
+
 class Project(db.Model):
     __tablename__ = 'projects'
 
     id = Column(Integer, primary_key=True)
-    name = Column(String)
+    name = Column(String, unique=True)
     description = Column(String)
     ssh_url = Column(String)
     http_url = Column(String)
@@ -214,3 +216,26 @@ class Parameters(db.Model):
     create_at = Column(DateTime)
     update_at = Column(DateTime)
     disabled = Column(Boolean)
+
+
+class WebInspect(db.Model):
+    scan_id = Column(String, primary_key=True)
+    project_name = Column(String, ForeignKey(Project.name, ondelete='CASCADE'))
+    branch = Column(String)
+    commit_id = Column(String)
+    stats = Column(String)
+    # The time scan registered
+    run_at = Column(DateTime)
+    finished = Column(Boolean, default=False)
+
+    def __repr__(self):
+        fields = {}
+        for field in [x for x in dir(self) if
+                      not x.startswith('query') and not x.startswith('_') and x != 'metadata']:
+            data = self.__getattribute__(field)
+            try:
+                json.dumps(data)  # this will fail on unencodable values, like other classes
+                fields[field] = data
+            except TypeError:
+                fields[field] = str(data)
+        return json.dumps(fields)

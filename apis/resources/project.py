@@ -130,6 +130,7 @@ def create_project(user_id, args):
     kubernetesClient.create_role_in_namespace(args['name'])
     user_info = model.User.query.filter_by(id=user_id).first()
     kubernetesClient.create_role_binding(args['name'], util.encode_k8s_sa(user_info.login))
+    kubernetesClient.create_namespace_quota(args['name'])
 
     # 使用 multi-thread 建立各專案
     services = ['redmine', 'gitlab', 'harbor']
@@ -681,6 +682,10 @@ def get_kubernetes_namespace_Quota(project_id):
     project_quota = kubernetesClient.get_namespace_quota(project_name)
     return util.success(project_quota)
 
+def update_kubernetes_namespace_Quota(project_id,resource):
+    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
+    project_quota = kubernetesClient.update_namespace_quota(project_name,resource)
+    return util.success(project_quota)
 
 # --------------------- Resources ---------------------
 class ListMyProjects(Resource):
@@ -809,6 +814,19 @@ class ProjectUserResource(Resource):
     def get(self, project_id):
         role.require_in_project(project_id, "Error while getting project info.")
         return get_kubernetes_namespace_Quota(project_id)
+    
+    @jwt_required
+    def put(self, project_id):
+        role.require_admin("Error while updating project resource.")
+        parser = reqparse.RequestParser()
+        parser.add_argument('memory', type=str,  required=True)
+        parser.add_argument('pods', type=int,  required=True)
+        parser.add_argument('secrets', type=int,  required=True)
+        parser.add_argument('configmaps', type=int,  required=True)
+        parser.add_argument('services.nodeports', type=int,  required=True)
+        parser.add_argument('persistentvolumeclaims', type=int,  required=True)
+        args = parser.parse_args()
+        return update_kubernetes_namespace_Quota(project_id, args)
 
 
 def sonar_cube(project_info, requests, self, logger):
