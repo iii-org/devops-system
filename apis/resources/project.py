@@ -120,12 +120,16 @@ def create_project(user_id, args):
         args['display'] = args['name']
 
     # create namespace in kubernetes
-    kubernetesClient.create_namespace(args['name'])
-    kubernetesClient.create_role_in_namespace(args['name'])
     user_info = model.User.query.filter_by(id=user_id).first()
-    kubernetesClient.create_role_binding(args['name'], util.encode_k8s_sa(user_info.login))
-    kubernetesClient.create_namespace_quota(args['name'])
-
+    try:
+        kubernetesClient.create_namespace(args['name'])
+        kubernetesClient.create_role_in_namespace(args['name'])
+        kubernetesClient.create_role_binding(args['name'], util.encode_k8s_sa(user_info.login))
+        kubernetesClient.create_namespace_quota(args['name'])
+    except Exception as e:
+        kubernetesClient.delete_namespace(args['name'])
+        raise e
+    
     # 使用 multi-thread 建立各專案
     services = ['redmine', 'gitlab', 'harbor']
     targets = {
@@ -252,6 +256,7 @@ def create_project(user_id, args):
         gitlab.gl_delete_project(gitlab_pj_id)
         harbor.hb_delete_project(harbor_pj_id)
         rancher.rc_disable_project_pipeline(rancher_project_id, gitlab_pj_http_url)
+        kubernetesClient.delete_namespace(args['name'])
         raise e
 
 
