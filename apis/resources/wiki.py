@@ -7,7 +7,7 @@ import resources.apiError as apiError
 import resources.project as project
 import resources.user as user
 import util as util
-import role
+from resources import role
 from resources.redmine import redmine
 
 

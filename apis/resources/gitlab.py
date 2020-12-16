@@ -7,9 +7,8 @@ from sqlalchemy.orm.exc import NoResultFound
 
 import config
 import model
-import role
 import util as util
-from resources import apiError, kubernetesClient
+from resources import apiError, kubernetesClient, role
 from resources.apiError import DevOpsError
 from resources.logger import logger
 

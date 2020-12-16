@@ -4,8 +4,7 @@ from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
 
 import util as util
-from resources import apiTest
-import role
+from resources import apiTest, role
 
 
 # noinspection PyTypeChecker

@@ -1,7 +1,7 @@
 import json
 from datetime import datetime
 
-from flask import send_file, make_response
+from flask import make_response
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
 
@@ -10,8 +10,7 @@ import model
 import util
 from model import db
 # -------- API methods --------
-from resources import apiError
-import role
+from resources import apiError, role
 from resources.apiError import DevOpsError
 from resources.logger import logger
 

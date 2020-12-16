@@ -5,7 +5,7 @@ from sqlalchemy.orm.exc import NoResultFound
 import resources.apiError as apiError
 import resources.project as project
 import util as util
-import role
+from resources import role
 from resources.redmine import redmine
 
 EMPTY_VERSIONS = {"versions": [], "total_count": 0}

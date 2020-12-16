@@ -6,8 +6,7 @@ import config
 import model
 import nexus
 import util
-from resources import apiError
-import role
+from resources import apiError, role
 from resources.apiError import DevOpsError
 from resources.logger import logger
 
