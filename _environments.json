@@ -33,6 +33,8 @@
     "HARBOR_ACCOUNT": "",
     "HARBOR_PASSWORD": "",
 
+    "WEBINSPECT_BASE_URL": "",
+
     "ADMIN_INIT_LOGIN": "",
 	"ADMIN_INIT_EMAIL": "",
 	"ADMIN_INIT_PASSWORD": ""
