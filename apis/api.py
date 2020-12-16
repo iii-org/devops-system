@@ -309,6 +309,7 @@ api.add_resource(webInspect.WebInspectScan, '/webinspect/create_scan',
                  '/webinspect/list_scan/<project_name>')
 api.add_resource(webInspect.WebInspectScanStatus, '/webinspect/status/<scan_id>')
 api.add_resource(webInspect.WebInspectScanStats, '/webinspect/stats/<scan_id>')
+api.add_resource(webInspect.WebInspectReport, '/webinspect/report/<scan_id>')
 
 
 if __name__ == "__main__":

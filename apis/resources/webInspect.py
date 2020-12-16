@@ -80,6 +80,10 @@ def wi_get_scan_stats(scan_id):
     return ret
 
 
+def wi_download_report(scan_id):
+    return __api_get('/scanner/scans/{0}.xml?detailType=Full'.format(scan_id)).text
+
+
 # --------------------- Resources ---------------------
 def check_permission(project_name):
     try:
@@ -118,4 +122,10 @@ class WebInspectScanStatus(Resource):
 class WebInspectScanStats(Resource):
     @jwt_required
     def get(self, scan_id):
-        return util.success({'stats': wi_get_scan_stats(scan_id)})
+        return util.success({'severity_count': wi_get_scan_stats(scan_id)})
+
+
+class WebInspectReport(Resource):
+    @jwt_required
+    def get(self, scan_id):
+        return wi_download_report(scan_id)
