@@ -15,7 +15,6 @@ from resources.logger import logger
 k8s_config.load_kube_config()
 v1 = k8s_client.CoreV1Api()
 rbac = k8s_client.RbacAuthorizationV1Api()
-util.enable_k8s_proxy()
 
 def list_service_all_namespaces():
     service_list = []
@@ -69,10 +68,6 @@ def create_namespace(project_name):
 
 def list_namespace():
     try:
-        '''
-        response = v1.list_namespace()
-        return response
-        '''
         namespace_list = []
         for namespace in v1.list_namespace().items:
             namespace_list.append(namespace.metadata.name)
@@ -85,14 +80,6 @@ def list_namespace():
 def delete_namespace(project_name):
     try:
         ret = v1.delete_namespace(project_name)
-        os.system("kubectl get ns {0} -o json > {0}.json".format(project_name))
-        ns_json = json.load(open("{0}.json".format(project_name)))
-        os.remove("{0}.json".format(project_name))
-        ns_json['spec']['finalizers']=[]
-        url = "http://127.0.0.1:8001/api/v1/namespaces/{0}/finalize".format(project_name)
-        headers={}
-        headers['Content-Type'] = 'application/json'
-        util.api_request('PUT', url, headers=headers, data=ns_json)
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
