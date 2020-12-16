@@ -51,6 +51,7 @@ def create_k8s_namespsace():
         if row.Project.name not in namespace_list:
             print("need create k8s namespace project: {0}".format(row.Project.name))
             kubernetesClient.create_namespace(row.Project.name)
+            kubernetesClient.create_namespace_quota(row.Project.name)
             kubernetesClient.create_role_in_namespace(row.Project.name)
             members = db.session.query(ProjectUserRole, UserPluginRelation). \
                 join(UserPluginRelation, ProjectUserRole.user_id == UserPluginRelation.user_id). \
