@@ -18,6 +18,7 @@ import resources.apiError as apiError
 import resources.checkmarx as checkmarx
 import resources.pipeline as pipeline
 import util
+import maintenance
 from jsonwebtoken import jsonwebtoken
 from model import db
 from resources import logger, role as role
@@ -310,6 +311,8 @@ api.add_resource(webInspect.WebInspectScan, '/webinspect/create_scan',
 api.add_resource(webInspect.WebInspectScanStatus, '/webinspect/status/<scan_id>')
 api.add_resource(webInspect.WebInspectScanStats, '/webinspect/stats/<scan_id>')
 api.add_resource(webInspect.WebInspectReport, '/webinspect/report/<scan_id>')
+
+api.add_resource(maintenance.update_db_rc_project_pipeline_id, '/maintenance/update_rc_pj_pipe_id')
 
 
 if __name__ == "__main__":
