@@ -70,6 +70,23 @@ def pipeline_exec_logs(args):
     return util.success(output_array)
 
 
+def pipeline_exec_action(args):
+    try:
+        relation = model.ProjectPluginRelation.query.filter_by(
+            git_repository_id=args['repository_id']).one()
+    except NoResultFound:
+        raise apiError.DevOpsError(
+            404, 'No such project.',
+            error=apiError.repository_id_not_found(args['repository_id']))
+    
+    response = rancher.rc_get_pipeline_executions_action(
+        relation.ci_project_id,
+        relation.ci_pipeline_id,
+        args['pipelines_exec_run'],
+        args['action'])
+    return util.success()
+
+
 def pipeline_software():
     result = db.engine.execute(
         "SELECT pp.name as phase_name, ps.name as software_name, "
@@ -188,6 +205,16 @@ class PipelineExecLogs(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('repository_id', type=int, required=True)
         parser.add_argument('pipelines_exec_run', type=int, required=True)
+        args = parser.parse_args()
+        return pipeline_exec_logs(args)
+
+class PipelineExecAction(Resource):
+    @jwt_required
+    def get(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('repository_id', type=int, required=True)
+        parser.add_argument('pipelines_exec_run', type=int, required=True)
+        parser.add_argument('action', type=str, required=True)
         args = parser.parse_args()
         return pipeline_exec_logs(args)
 
