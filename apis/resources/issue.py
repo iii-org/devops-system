@@ -385,28 +385,31 @@ def get_issueStatistics_by_project(project_id, args):
                     "closed": closed_count + 1
                 }
         # count owner
-        if issue["assigned_to"] not in owner_list:
+        assigned_to = issue["assigned_to"]
+        if assigned_to is None:
+            assigned_to = '_unassigned'
+        if assigned_to not in owner_list:
             if issue["issue_status"] != "Closed":
-                owner_list[issue["assigned_to"]] = {
+                owner_list[assigned_to] = {
                     "open": 1,
                     "closed": 0
                 }
             else:
-                owner_list[issue["assigned_to"]] = {
+                owner_list[assigned_to] = {
                     "open": 0,
                     "closed": 1
                 }
         else:
             open_count = owner_list[
-                issue["assigned_to"]]["open"]
-            closed_count = owner_list[issue["assigned_to"]]["closed"]
+                assigned_to]["open"]
+            closed_count = owner_list[assigned_to]["closed"]
             if issue["issue_status"] != "Closed":
-                owner_list[issue["assigned_to"]] = {
+                owner_list[assigned_to] = {
                     "open": open_count + 1,
                     "closed": closed_count
                 }
             else:
-                owner_list[issue["assigned_to"]] = {
+                owner_list[assigned_to] = {
                     "open": open_count,
                     "closed": closed_count + 1
                 }
