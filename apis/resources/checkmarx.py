@@ -238,7 +238,7 @@ class GetCheckmarxLatestScan(Resource):
         if scan_id >= 0:
             return util.success({'scan_id': scan_id})
         else:
-            raise DevOpsError(404, 'No scan found.')
+            return util.respond(204)
 
 
 class GetCheckmarxLatestScanStats(Resource):
@@ -246,7 +246,7 @@ class GetCheckmarxLatestScanStats(Resource):
     def get(self, project_id):
         scan_id = checkmarx.get_latest('scan_id', project_id)
         if scan_id < 0:
-            raise DevOpsError(404, 'No scan in project')
+            return util.respond(204)
         stats = checkmarx.get_scan_statistics(scan_id)
         if 'statisticsCalculationDate' in stats:
             return util.success(stats)
@@ -259,7 +259,7 @@ class GetCheckmarxLatestReport(Resource):
     def get(self, project_id):
         report_id = checkmarx.get_latest('report_id', project_id)
         if report_id < 0:
-            raise DevOpsError(404, 'No report in project.')
+            return util.respond(204)
         return checkmarx.get_report(report_id)
 
 
