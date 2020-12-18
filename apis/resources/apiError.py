@@ -44,6 +44,10 @@ def redmine_project_not_found(project_id=None):
     return build(1005, 'Redmine does not have this project.', {'project_id': project_id})
 
 
+def redmine_unable_to_delete_version(version_id=None):
+    return build(1006, 'Unable to delete the version.', {'version_id': version_id})
+
+
 # User errors
 def user_not_found(user_id):
     return build(2001, 'User not found.', {'user_id': user_id})
