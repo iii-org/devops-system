@@ -216,7 +216,7 @@ class PipelineExecAction(Resource):
         parser.add_argument('pipelines_exec_run', type=int, required=True)
         parser.add_argument('action', type=str, required=True)
         args = parser.parse_args()
-        return pipeline_exec_logs(args)
+        return pipeline_exec_action(args)
 
 
 class PipelineSoftware(Resource):
