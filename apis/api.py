@@ -185,6 +185,7 @@ api.add_resource(role.RoleList, '/user/role/list')
 # pipeline
 api.add_resource(pipeline.PipelineExec, '/pipelines/rd/<repository_id>/pipelines_exec',
                  '/pipelines/<repository_id>/pipelines_exec')
+api.add_resource(pipeline.PipelineExecAction, '/pipelines/<repository_id>/pipelines_exec/action')
 api.add_resource(pipeline.PipelineExecLogs, '/pipelines/rd/logs',
                  '/pipelines/logs')
 api.add_resource(pipeline.PipelineSoftware, '/pipelines/software')
