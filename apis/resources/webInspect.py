@@ -68,16 +68,29 @@ def wi_list_scans(project_name):
 
 
 def wi_get_scan_status(scan_id):
-    return __api_get('/scanner/scans/{0}?action=GetCurrentStatus'.format(
+    status = __api_get('/scanner/scans/{0}?action=GetCurrentStatus'.format(
         scan_id)).json().get('ScanStatus')
+    if status == 'Complete':
+        scan = model.WebInspect.query.filter_by(scan_id=scan_id).one()
+        if not scan.finished:
+            # This line will fill the data in db
+            wi_get_scan_statistics(scan_id)
+    return status
 
 
-def wi_get_scan_stats(scan_id):
+def wi_get_scan_statistics(scan_id):
+    row = model.WebInspect.query.filter_by(scan_id=scan_id).one()
+    if row.stats is not None:
+        return json.loads(row)
     ret = {0: 0, 1: 0, 2: 0, 3: 0, 4: 0}
     results = __api_get('/scanner/scans/{0}.issue'.format(scan_id)).json()
     for r in results:
         for issue in r['issues']:
             ret[issue['severity']] += 1
+    row = model.WebInspect.query.filter_by(scan_id=scan_id).one()
+    row.stats = json.dumps(ret)
+    row.finished = True
+    db.session.commit()
     return ret
 
 
@@ -117,10 +130,10 @@ class WebInspectScanStatus(Resource):
         return util.success({'status': wi_get_scan_status(scan_id)})
 
 
-class WebInspectScanStats(Resource):
+class WebInspectScanStatistics(Resource):
     @jwt_required
     def get(self, scan_id):
-        return util.success({'severity_count': wi_get_scan_stats(scan_id)})
+        return util.success({'severity_count': wi_get_scan_statistics(scan_id)})
 
 
 class WebInspectReport(Resource):

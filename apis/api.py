@@ -309,7 +309,7 @@ api.add_resource(harbor.HarborProject, '/harbor/projects/<int:nexus_project_id>/
 api.add_resource(webInspect.WebInspectScan, '/webinspect/create_scan',
                  '/webinspect/list_scan/<project_name>')
 api.add_resource(webInspect.WebInspectScanStatus, '/webinspect/status/<scan_id>')
-api.add_resource(webInspect.WebInspectScanStats, '/webinspect/stats/<scan_id>')
+api.add_resource(webInspect.WebInspectScanStatistics, '/webinspect/stats/<scan_id>')
 api.add_resource(webInspect.WebInspectReport, '/webinspect/report/<scan_id>')
 
 api.add_resource(maintenance.update_db_rc_project_pipeline_id, '/maintenance/update_rc_pj_pipe_id')
