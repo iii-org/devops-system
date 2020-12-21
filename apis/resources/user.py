@@ -562,5 +562,6 @@ class UserList(Resource):
 class UserSaConfig(Resource):
     @jwt_required
     def get(self, user_id):
-        role.require_in_project(project_id, "Error while getting project info.")
+        role.require_user_himself(user_id, even_pm=False,
+                                  err_message="Only admin and PM can access another user's data.")
         return user_sa_config(user_id)
