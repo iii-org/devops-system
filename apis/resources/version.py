@@ -51,7 +51,8 @@ def delete_version_by_version_id(version_id):
             # Already deleted, let it go
             return util.respond(200, "already deleted")
         else:
-            raise e
+            return util.respond(422, 'Unable to delete the version.',
+                                error=apiError.redmine_unable_to_delete_version(version_id))
     return util.success()
 
 

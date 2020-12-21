@@ -63,7 +63,7 @@ def pipeline_exec_logs(args):
             404, 'No such project.',
             error=apiError.repository_id_not_found(args['repository_id']))
 
-    output_array, response = rancher.rc_get_pipeline_executions_logs(
+    output_array = rancher.rc_get_pipeline_executions_logs(
         relation.ci_project_id,
         relation.ci_pipeline_id,
         args['pipelines_exec_run'])
@@ -146,7 +146,7 @@ def get_phase_yaml(repository_id, branch_name):
     except Exception:
         return {
                    "message": "read yaml to get phase and software name error"
-               }, 400
+               }, 204
     get_yaml_data = None
     if yaml_info.status_code != 404:
         get_yaml_data = yaml_info.json()

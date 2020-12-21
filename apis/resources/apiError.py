@@ -44,6 +44,10 @@ def redmine_project_not_found(project_id=None):
     return build(1005, 'Redmine does not have this project.', {'project_id': project_id})
 
 
+def redmine_unable_to_delete_version(version_id=None):
+    return build(1006, 'Unable to delete the version.', {'version_id': version_id})
+
+
 # User errors
 def user_not_found(user_id):
     return build(2001, 'User not found.', {'user_id': user_id})
@@ -127,8 +131,8 @@ def uncaught_exception(exception):
                  {'type': str(type(exception)), 'exception': str(exception)})
 
 
-def unknown_method(method):
-    return build(9002, 'A request with unknown method is made.', {'method': method})
+def invalid_code_path(detail_message):
+    return build(9002, 'An invalid code path happens.', {'message': detail_message})
 
 
 def db_error(detail_message):

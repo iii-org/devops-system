@@ -57,18 +57,18 @@ stages:
         test_origin: 'http://${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}:10009'
         verbose: true
       envFrom:
-      - sourceName: newman
+      - sourceName: iiidevops
         sourceKey: api-origin
         targetKey: api_origin
-      - sourceName: newman
-        sourceKey: username
+      - sourceName: iiidevops
+        sourceKey: api-username
         targetKey: username
-      - sourceName: newman
-        sourceKey: password
+      - sourceName: iiidevops
+        sourceKey: api-password
         targetKey: password
     when:
       branch: [develope]
-  - name: Code Review--run Checkmarx test
+  - name: Code Checkmarx test
     steps:
     - runScriptConfig:
         image: 10.50.1.63:5443/iii-org/checkmarx-runner:devops-system
@@ -79,14 +79,14 @@ stages:
         git_commit_id: ${CICD_GIT_COMMIT}
         verbose: true
       envFrom:
-      - sourceName: newman
+      - sourceName: iiidevops
         sourceKey: api-origin
         targetKey: api_origin
-      - sourceName: newman
-        sourceKey: username
+      - sourceName: iiidevops
+        sourceKey: api-username
         targetKey: api_username
-      - sourceName: newman
-        sourceKey: password
+      - sourceName: iiidevops
+        sourceKey: api-password
         targetKey: api_password
       - sourceName: checkmarx-secret
         sourceKey: username
@@ -103,6 +103,35 @@ stages:
       - sourceName: checkmarx-secret
         sourceKey: cm-url
         targetKey: cm_url
+    when: 
+      branch: [develope] 
+
+  - name: Code webinspect test
+    steps:
+    - runScriptConfig:
+        image: iiiorg/webinspect-runner
+        shellScript: ln -s "$(pwd)" /usr/src/app/repo; cd /usr/src/app; node /usr/src/app/app.js
+      env:
+        project_name: ${CICD_GIT_REPO_NAME}
+        git_branch: ${CICD_GIT_BRANCH}
+        git_commit_id: ${CICD_GIT_COMMIT}
+        verbose: true
+      envFrom:
+      - sourceName: iiidevops
+        sourceKey: api-origin
+        targetKey: api_origin
+      - sourceName: iiidevops
+        sourceKey: api-username
+        targetKey: api_username
+      - sourceName: iiidevops
+        sourceKey: api-password
+        targetKey: api_password
+      - sourceName: webinspect
+        sourceKey: webinspect-url
+        targetKey: wi_base_url
+      - sourceName: webinspect
+        sourceKey: inspect-url
+        targetKey: inspect_url
     when: 
       branch: [develope] 
 

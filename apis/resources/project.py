@@ -8,24 +8,18 @@ from sqlalchemy.orm.exc import NoResultFound
 
 import config
 import model
+import nexus
 import resources.apiError as apiError
 import util as util
 from model import db
+from nexus import get_project_plugin_relation
 from resources.apiError import DevOpsError
 from util import DevOpsThread
-from . import role, user, harbor, kubernetesClient
+from . import user, harbor, kubernetesClient, role
 from .checkmarx import checkmarx
 from .gitlab import gitlab
 from .rancher import rancher
 from .redmine import redmine
-
-
-def get_project_plugin_relation(project_id):
-    try:
-        return model.ProjectPluginRelation.query.filter_by(project_id=project_id).one()
-    except NoResultFound:
-        raise DevOpsError(404, 'Error when getting project relations.',
-                          error=apiError.project_not_found(project_id))
 
 
 def list_projects(user_id):
@@ -126,12 +120,16 @@ def create_project(user_id, args):
         args['display'] = args['name']
 
     # create namespace in kubernetes
-    kubernetesClient.create_namespace(args['name'])
-    kubernetesClient.create_role_in_namespace(args['name'])
     user_info = model.User.query.filter_by(id=user_id).first()
-    kubernetesClient.create_role_binding(args['name'], util.encode_k8s_sa(user_info.login))
-    kubernetesClient.create_namespace_quota(args['name'])
-
+    try:
+        kubernetesClient.create_namespace(args['name'])
+        kubernetesClient.create_role_in_namespace(args['name'])
+        kubernetesClient.create_role_binding(args['name'], util.encode_k8s_sa(user_info.login))
+        kubernetesClient.create_namespace_quota(args['name'])
+    except Exception as e:
+        kubernetesClient.delete_namespace(args['name'])
+        raise e
+    
     # 使用 multi-thread 建立各專案
     services = ['redmine', 'gitlab', 'harbor']
     targets = {
@@ -214,7 +212,7 @@ def create_project(user_id, args):
                              args=(gitlab_pj_http_url,))
     t_rancher.start()
     rancher_pipeline_id = t_rancher.join_()
-    
+
     # add kubernetes namespace into racnher default project
     rancher.rc_add_namespace_into_rc_project(args['name'])
 
@@ -258,6 +256,7 @@ def create_project(user_id, args):
         gitlab.gl_delete_project(gitlab_pj_id)
         harbor.hb_delete_project(harbor_pj_id)
         rancher.rc_disable_project_pipeline(rancher_project_id, gitlab_pj_http_url)
+        kubernetesClient.delete_namespace(args['name'])
         raise e
 
 
@@ -435,7 +434,7 @@ def project_add_member(project_id, args):
     db.session.add(new)
     db.session.commit()
 
-    user_relation = user.get_user_plugin_relation(user_id=user_id)
+    user_relation = nexus.get_user_plugin_relation(user_id=user_id)
     project_relation = get_project_plugin_relation(project_id)
     redmine_role_id = user.to_redmine_role_id(role_id)
 
@@ -466,7 +465,7 @@ def project_add_member(project_id, args):
 def project_remove_member(project_id, user_id):
     role_id = user.get_role_id(user_id)
 
-    user_relation = user.get_user_plugin_relation(user_id=user_id)
+    user_relation = nexus.get_user_plugin_relation(user_id=user_id)
     project_relation = get_project_plugin_relation(project_id)
     if project_relation is None:
         raise apiError.DevOpsError(404, "Error while removing a member from the project.",
@@ -534,7 +533,7 @@ def get_projects_by_user(user_id):
                model.ProjectPluginRelation.project_id == model.Project.id).all()
     if len(rows) == 0:
         return util.success([])
-    relation = user.get_user_plugin_relation(user_id=user_id)
+    relation = nexus.get_user_plugin_relation(user_id=user_id)
     plan_user_id = relation.plan_user_id
     for row in rows:
         output_dict = {'name': row.Project.name,
@@ -682,10 +681,12 @@ def get_kubernetes_namespace_Quota(project_id):
     project_quota = kubernetesClient.get_namespace_quota(project_name)
     return util.success(project_quota)
 
-def update_kubernetes_namespace_Quota(project_id,resource):
+
+def update_kubernetes_namespace_Quota(project_id, resource):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
-    project_quota = kubernetesClient.update_namespace_quota(project_name,resource)
+    project_quota = kubernetesClient.update_namespace_quota(project_name, resource)
     return util.success(project_quota)
+
 
 # --------------------- Resources ---------------------
 class ListMyProjects(Resource):
@@ -732,7 +733,7 @@ class SingleProject(Resource):
         parser.add_argument('disabled', type=bool, required=True)
         args = parser.parse_args()
 
-        pattern = "^[a-z][a-z0-9-]{0,253}[a-z0-9]$"
+        pattern = "^[a-z][a-z0-9-]{0,28}[a-z0-9]$"
         result = re.fullmatch(pattern, args["name"])
         if result is None:
             return util.respond(400, 'Error while creating project',
@@ -814,17 +815,17 @@ class ProjectUserResource(Resource):
     def get(self, project_id):
         role.require_in_project(project_id, "Error while getting project info.")
         return get_kubernetes_namespace_Quota(project_id)
-    
+
     @jwt_required
     def put(self, project_id):
         role.require_admin("Error while updating project resource.")
         parser = reqparse.RequestParser()
-        parser.add_argument('memory', type=str,  required=True)
-        parser.add_argument('pods', type=int,  required=True)
-        parser.add_argument('secrets', type=int,  required=True)
-        parser.add_argument('configmaps', type=int,  required=True)
-        parser.add_argument('services.nodeports', type=int,  required=True)
-        parser.add_argument('persistentvolumeclaims', type=int,  required=True)
+        parser.add_argument('memory', type=str, required=True)
+        parser.add_argument('pods', type=int, required=True)
+        parser.add_argument('secrets', type=int, required=True)
+        parser.add_argument('configmaps', type=int, required=True)
+        parser.add_argument('services.nodeports', type=int, required=True)
+        parser.add_argument('persistentvolumeclaims', type=int, required=True)
         args = parser.parse_args()
         return update_kubernetes_namespace_Quota(project_id, args)
 

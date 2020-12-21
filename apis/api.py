@@ -8,22 +8,22 @@ from flask import Flask
 from flask_cors import CORS
 from flask_restful import Resource, Api
 from sqlalchemy.orm.exc import NoResultFound
-from sqlalchemy_utils import database_exists, create_database, drop_database
+from sqlalchemy_utils import database_exists, create_database
 from werkzeug.routing import IntegerConverter
 
 import config
+import migrate
 import model
 import resources.apiError as apiError
 import resources.checkmarx as checkmarx
 import resources.pipeline as pipeline
-import resources.role as role
 import util
+import maintenance
 from jsonwebtoken import jsonwebtoken
 from model import db
+from resources import logger, role as role
 from resources import project, gitlab, issue, user, redmine, wiki, version, sonar, apiTest, postman, mock, harbor, \
-    kubernetesClient, webInspect
-import migrate 
-from resources import logger
+    webInspect
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -55,10 +55,11 @@ def internal_error(exception):
     if type(exception) is werkzeug.exceptions.NotFound:
         return util.respond(404, 'Path not found.',
                             error=apiError.path_not_found())
-    traceback.print_exc()
     if type(exception) is apiError.DevOpsError:
+        if exception.status_code != 404:
+            traceback.print_exc()
         return util.respond(exception.status_code, exception.message, error=exception.error_value)
-
+    traceback.print_exc()
     return util.respond(500, "Unexpected internal error",
                         error=apiError.uncaught_exception(exception))
 
@@ -297,18 +298,21 @@ api.add_resource(mock.MockSesame, '/mock/sesame')
 
 # Harbor
 api.add_resource(harbor.HarborRepository,
-                 '/harbor/projects/<int:project_id>',
+                 '/harbor/projects/<int:nexus_project_id>',
                  '/harbor/repositories',
                  '/harbor/repositories/<project_name>/<repository_name>')
 api.add_resource(harbor.HarborArtifact,
                  '/harbor/artifacts/<project_name>/<repository_name>')
-api.add_resource(harbor.HarborProject, '/harbor/projects/<int:project_id>/summary')
+api.add_resource(harbor.HarborProject, '/harbor/projects/<int:nexus_project_id>/summary')
 
 # WebInspect
 api.add_resource(webInspect.WebInspectScan, '/webinspect/create_scan',
                  '/webinspect/list_scan/<project_name>')
 api.add_resource(webInspect.WebInspectScanStatus, '/webinspect/status/<scan_id>')
 api.add_resource(webInspect.WebInspectScanStats, '/webinspect/stats/<scan_id>')
+api.add_resource(webInspect.WebInspectReport, '/webinspect/report/<scan_id>')
+
+api.add_resource(maintenance.update_db_rc_project_pipeline_id, '/maintenance/update_rc_pj_pipe_id')
 
 
 if __name__ == "__main__":

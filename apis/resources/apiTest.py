@@ -365,10 +365,10 @@ def get_report(project_id):
     row = model.TestResults.query.filter_by(project_id=project_id).order_by(desc(
         model.TestResults.id)).limit(1).first()
     if row is None:
-        raise DevOpsError(404, 'No postman report for this project.')
+        return util.respond(204)
     report = row.report
     if report is None or report == 'undefined':  # Corrupted data by old runners
-        raise DevOpsError(404, 'No postman report for this project.')
+        return util.respond(204)
     return util.success(json.loads(report))
 
 
