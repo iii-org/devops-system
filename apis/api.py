@@ -59,7 +59,7 @@ def internal_error(exception):
         if exception.status_code != 404:
             traceback.print_exc()
         return util.respond(exception.status_code, exception.message, error=exception.error_value)
-
+    traceback.print_exc()
     return util.respond(500, "Unexpected internal error",
                         error=apiError.uncaught_exception(exception))
 
