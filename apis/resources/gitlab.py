@@ -13,7 +13,7 @@ from resources.apiError import DevOpsError
 from resources.logger import logger
 
 
-def repo_id_to_project_id(repo_id):
+def get_nexus_project_id(repo_id):
     row = model.ProjectPluginRelation.query.filter_by(git_repository_id=repo_id).first()
     if row:
         return row.project_id
@@ -46,8 +46,8 @@ class GitLab(object):
             self.private_token = config.get("GITLAB_PRIVATE_TOKEN")
 
     @staticmethod
-    def gl_get_project_id(repository_id):
-        project_id = repo_id_to_project_id(repository_id)
+    def gl_get_nexus_project_id(repository_id):
+        project_id = get_nexus_project_id(repository_id)
         if project_id > 0:
             return util.success(project_id)
         else:
@@ -357,13 +357,13 @@ class GitProjectBranches(Resource):
 class GitProjectBranch(Resource):
     @jwt_required
     def get(self, repository_id, branch_name):
-        project_id = repo_id_to_project_id(repository_id)
+        project_id = get_nexus_project_id(repository_id)
         role.require_in_project(project_id)
         return util.success(gitlab.gl_get_branch(repository_id, branch_name))
 
     @jwt_required
     def delete(self, repository_id, branch_name):
-        project_id = repo_id_to_project_id(repository_id)
+        project_id = get_nexus_project_id(repository_id)
         role.require_in_project(project_id)
         gitlab.gl_delete_branch(repository_id, branch_name)
         return util.success()
@@ -372,7 +372,7 @@ class GitProjectBranch(Resource):
 class GitProjectRepositories(Resource):
     @jwt_required
     def get(self, repository_id, branch_name):
-        project_id = repo_id_to_project_id(repository_id)
+        project_id = get_nexus_project_id(repository_id)
         role.require_in_project(project_id)
         return util.success(
             gitlab.gl_get_repository_tree(repository_id, branch_name))
@@ -381,7 +381,7 @@ class GitProjectRepositories(Resource):
 class GitProjectFile(Resource):
     @jwt_required
     def post(self, repository_id):
-        project_id = repo_id_to_project_id(repository_id)
+        project_id = get_nexus_project_id(repository_id)
         role.require_in_project(project_id)
         parser = reqparse.RequestParser()
         parser.add_argument('branch', type=str, required=True)
@@ -397,7 +397,7 @@ class GitProjectFile(Resource):
 
     @jwt_required
     def put(self, repository_id):
-        project_id = repo_id_to_project_id(repository_id)
+        project_id = get_nexus_project_id(repository_id)
         role.require_in_project(project_id)
         parser = reqparse.RequestParser()
         parser.add_argument('branch', type=str, required=True)
@@ -413,13 +413,13 @@ class GitProjectFile(Resource):
 
     @jwt_required
     def get(self, repository_id, branch_name, file_path):
-        project_id = repo_id_to_project_id(repository_id)
+        project_id = get_nexus_project_id(repository_id)
         role.require_in_project(project_id)
         return gitlab.gl_get_file(repository_id, branch_name, file_path)
 
     @jwt_required
     def delete(self, repository_id, branch_name, file_path):
-        project_id = repo_id_to_project_id(repository_id)
+        project_id = get_nexus_project_id(repository_id)
         role.require_in_project(project_id)
         parser = reqparse.RequestParser()
         parser.add_argument('commit_message', type=str, required=True)
@@ -431,14 +431,14 @@ class GitProjectFile(Resource):
 class GitProjectTag(Resource):
     @jwt_required
     def get(self, repository_id):
-        project_id = repo_id_to_project_id(repository_id)
+        project_id = get_nexus_project_id(repository_id)
         role.require_in_project(project_id)
         res = gitlab.gl_get_tags(repository_id)
         return util.success({'tag_list': res})
 
     @jwt_required
     def post(self, repository_id):
-        project_id = repo_id_to_project_id(repository_id)
+        project_id = get_nexus_project_id(repository_id)
         role.require_in_project(project_id)
         parser = reqparse.RequestParser()
         parser.add_argument('tag_name', type=str, required=True)
@@ -450,7 +450,7 @@ class GitProjectTag(Resource):
 
     @jwt_required
     def delete(self, repository_id, tag_name):
-        project_id = repo_id_to_project_id(repository_id)
+        project_id = get_nexus_project_id(repository_id)
         role.require_in_project(project_id)
         gitlab.gl_delete_tag(repository_id, tag_name)
         return util.success()
@@ -470,7 +470,7 @@ class GitProjectTag(Resource):
 class GitProjectBranchCommits(Resource):
     @jwt_required
     def get(self, repository_id):
-        project_id = repo_id_to_project_id(repository_id)
+        project_id = get_nexus_project_id(repository_id)
         role.require_in_project(project_id)
         parser = reqparse.RequestParser()
         parser.add_argument('branch', type=str, required=True)
@@ -487,7 +487,7 @@ class GitProjectNetwork(Resource):
 class GitProjectId(Resource):
     @jwt_required
     def get(self, repository_id):
-        return GitLab.gl_get_project_id(repository_id)
+        return GitLab.gl_get_nexus_project_id(repository_id)
 
 
 class GitProjectIdFromURL(Resource):
@@ -516,5 +516,5 @@ class GitProjectURLFromId(Resource):
             if repo_id is None:
                 return util.respond(400, 'You must provide project_id or repository_id.',
                                     error=apiError.argument_error('project_id|repository_id'))
-            project_id = repo_id_to_project_id(repo_id)
+            project_id = get_nexus_project_id(repo_id)
         return util.success({'http_url': get_repo_url(project_id)})

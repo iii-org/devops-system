@@ -235,7 +235,10 @@ class WebInspect(db.Model):
             data = self.__getattribute__(field)
             try:
                 json.dumps(data)  # this will fail on unencodable values, like other classes
-                fields[field] = data
+                if field == 'stats':
+                    fields[field] = json.loads(data)
+                else:
+                    fields[field] = data
             except TypeError:
                 fields[field] = str(data)
         return json.dumps(fields)

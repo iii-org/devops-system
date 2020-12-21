@@ -18,6 +18,7 @@ from util import DevOpsThread
 from . import user, harbor, kubernetesClient, role
 from .checkmarx import checkmarx
 from .gitlab import gitlab
+from .logger import logger
 from .rancher import rancher
 from .redmine import redmine
 
@@ -579,13 +580,18 @@ def get_projects_by_user(user_id):
             output_dict['next_d_time'] = next_d_time.isoformat()
 
         git_repository_id = row.ProjectPluginRelation.git_repository_id
-        # branch number
-        branch_number = gitlab.gl_count_branches(git_repository_id)
-        output_dict['branch'] = branch_number
-        # tag number
-        tags = gitlab.gl_get_tags(git_repository_id)
-        tag_number = len(tags)
-        output_dict['tag'] = tag_number
+        try:
+            # branch number
+            branch_number = gitlab.gl_count_branches(git_repository_id)
+            output_dict['branch'] = branch_number
+            # tag number
+            tags = gitlab.gl_get_tags(git_repository_id)
+            tag_number = len(tags)
+            output_dict['tag'] = tag_number
+        except DevOpsError as e:
+            if e.status_code == 404:
+                logger.error('project not found. repository_id={0}'.format(git_repository_id))
+                continue
 
         output_dict = get_ci_last_test_result(output_dict, row.ProjectPluginRelation)
 

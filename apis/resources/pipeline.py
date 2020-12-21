@@ -63,7 +63,7 @@ def pipeline_exec_logs(args):
             404, 'No such project.',
             error=apiError.repository_id_not_found(args['repository_id']))
 
-    output_array, response = rancher.rc_get_pipeline_executions_logs(
+    output_array = rancher.rc_get_pipeline_executions_logs(
         relation.ci_project_id,
         relation.ci_pipeline_id,
         args['pipelines_exec_run'])
@@ -156,21 +156,23 @@ def get_ci_yaml(repository_id, branch_name):
 
 def get_phase_yaml(repository_id, branch_name):
     parameter = {'branch': branch_name, 'file_path': '.rancher-pipeline.yaml'}
-    try:
-        yaml_info = gitlab.gl_get_project_file_for_pipeline(repository_id, parameter)
-        parameter['file_path'] = '.rancher-pipeline.yml'
-        yml_info = gitlab.gl_get_project_file_for_pipeline(repository_id, parameter)
-    except Exception:
-        return {
-                   "message": "read yaml to get phase and software name error"
-               }, 400
+    yaml_file_can_not_find = None
+    yml_file_can_not_find = None
     get_yaml_data = None
-    if yaml_info.status_code != 404:
-        get_yaml_data = yaml_info.json()
-    elif yml_info.status_code != 404:
-        get_yaml_data = yml_info.json()
-    if get_yaml_data is None:
-        return {'message': "success", "data": []}, 200
+    try:
+        get_yaml_data = gitlab.gl_get_project_file_for_pipeline(repository_id, parameter).json()
+    except apiError.DevOpsError as e:
+        if e.status_code == 404:
+            yaml_file_can_not_find = True
+    try:
+        parameter['file_path'] = '.rancher-pipeline.yml'
+        get_yaml_data = gitlab.gl_get_project_file_for_pipeline(repository_id, parameter).json()
+    except apiError.DevOpsError as e:
+        if e.status_code == 404:
+            yml_file_can_not_find = True
+    if yaml_file_can_not_find and yml_file_can_not_find:
+        return {}, 204
+    
     rancher_ci_yaml = base64.b64decode(
         get_yaml_data['content']).decode("utf-8")
     rancher_ci_json = yaml.safe_load(rancher_ci_yaml)
