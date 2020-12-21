@@ -146,7 +146,7 @@ def get_phase_yaml(repository_id, branch_name):
     except Exception:
         return {
                    "message": "read yaml to get phase and software name error"
-               }, 400
+               }, 204
     get_yaml_data = None
     if yaml_info.status_code != 404:
         get_yaml_data = yaml_info.json()
