@@ -79,6 +79,18 @@ class Rancher(object):
         output_array = response.json()['data']
         return output_array, response
 
+
+    def rc_get_pipeline_executions_action(self, ci_project_id, ci_pipeline_id, pipelines_exec_run,
+        action):
+        path = '/project/{0}/pipelineExecutions/{1}-{2}'.format(ci_project_id, ci_pipeline_id,
+            pipelines_exec_run)
+        params = {'action': 'rerun'}
+        if action == 'stop':
+            params = {'action': 'stop'}
+        response = self.__api_post(path, params=params, data='')
+        return response
+
+
     def rc_get_pipeline_executions_logs(self, ci_project_id, ci_pipeline_id,
                                         pipelines_exec_run):
         output_dict = []
@@ -134,16 +146,7 @@ class Rancher(object):
                         })
         return output_dict[1:]
 
-    def rc_get_pipeline_executions_action(self, ci_project_id, ci_pipeline_id, pipelines_exec_run,
-        action):
-        path = '/projects/{0}/pipelineExecutions/{1}-{2}'.format(ci_project_id, ci_pipeline_id,
-            pipelines_exec_run)
-        params = {'action': 'rerun'}
-        if action == 'stop':
-            params = {'action': 'stop'}
-        response = self.__api_get(path, params=params)
-        return response
-    
+
     def rc_get_cluster_id(self):
         rancher_output = self.__api_get('/clusters')
         output_array = rancher_output.json()['data']

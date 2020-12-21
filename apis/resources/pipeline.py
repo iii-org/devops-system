@@ -70,14 +70,14 @@ def pipeline_exec_logs(args):
     return util.success(output_array)
 
 
-def pipeline_exec_action(args):
+def pipeline_exec_action(git_repository_id, args):
     try:
         relation = model.ProjectPluginRelation.query.filter_by(
-            git_repository_id=args['repository_id']).one()
+            git_repository_id = git_repository_id).one()
     except NoResultFound:
         raise apiError.DevOpsError(
             404, 'No such project.',
-            error=apiError.repository_id_not_found(args['repository_id']))
+            error=apiError.repository_id_not_found(git_repository_id))
     
     response = rancher.rc_get_pipeline_executions_action(
         relation.ci_project_id,
@@ -199,6 +199,16 @@ class PipelineExec(Resource):
         return util.success(output_array)
 
 
+class PipelineExecAction(Resource):
+    @jwt_required
+    def post(self, repository_id):
+        parser = reqparse.RequestParser()
+        parser.add_argument('pipelines_exec_run', type=int, required=True)
+        parser.add_argument('action', type=str, required=True)
+        args = parser.parse_args()
+        return pipeline_exec_action(repository_id, args)
+
+
 class PipelineExecLogs(Resource):
     @jwt_required
     def get(self):
@@ -207,16 +217,6 @@ class PipelineExecLogs(Resource):
         parser.add_argument('pipelines_exec_run', type=int, required=True)
         args = parser.parse_args()
         return pipeline_exec_logs(args)
-
-class PipelineExecAction(Resource):
-    @jwt_required
-    def get(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument('repository_id', type=int, required=True)
-        parser.add_argument('pipelines_exec_run', type=int, required=True)
-        parser.add_argument('action', type=str, required=True)
-        args = parser.parse_args()
-        return pipeline_exec_action(args)
 
 
 class PipelineSoftware(Resource):
