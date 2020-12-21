@@ -144,13 +144,13 @@ def get_phase_yaml(repository_id, branch_name):
     get_yaml_data = None
     try:
         get_yaml_data = gitlab.gl_get_project_file_for_pipeline(repository_id, parameter).json()
-    except Exception as e:
+    except apiError.DevOpsError as e:
         if e.status_code == 404:
             yaml_file_can_not_find = True
     try:
         parameter['file_path'] = '.rancher-pipeline.yml'
         get_yaml_data = gitlab.gl_get_project_file_for_pipeline(repository_id, parameter).json()
-    except Exception as e:
+    except apiError.DevOpsError as e:
         if e.status_code == 404:
             yml_file_can_not_find = True
     if yaml_file_can_not_find and yml_file_can_not_find:
