@@ -137,17 +137,11 @@ def generate_ci_yaml(args, repository_id, branch_name):
 
 
 def get_ci_yaml(repository_id, branch_name):
-    parameter = {'branch': branch_name, 'file_path': '.rancher-pipeline.yaml'}
-    yaml_info = gitlab.gl_get_project_file_for_pipeline(repository_id, parameter)
-    parameter['file_path'] = '.rancher-pipeline.yml'
-    yml_info = gitlab.gl_get_project_file_for_pipeline(repository_id, parameter)
-    get_yaml_data = None
-    if yaml_info.status_code != 404:
-        get_yaml_data = yaml_info.json()
-    elif yml_info.status_code != 404:
-        get_yaml_data = yml_info.json()
-    if get_yaml_data is None:
-        return {'message': "success", "data": {}}, 200
+    parameter = {'branch': branch_name}
+    yaml_file_can_not_find, yml_file_can_not_find, get_yaml_data = \
+        _get_rancher_pipeline_yaml(repository_id, parameter)
+    if yaml_file_can_not_find and yml_file_can_not_find:
+        return util.respond(204)
     rancher_ci_yaml = base64.b64decode(
         get_yaml_data['content']).decode("utf-8")
     rancher_ci_json = yaml.safe_load(rancher_ci_yaml)
@@ -155,23 +149,11 @@ def get_ci_yaml(repository_id, branch_name):
 
 
 def get_phase_yaml(repository_id, branch_name):
-    parameter = {'branch': branch_name, 'file_path': '.rancher-pipeline.yaml'}
-    yaml_file_can_not_find = None
-    yml_file_can_not_find = None
-    get_yaml_data = None
-    try:
-        get_yaml_data = gitlab.gl_get_project_file_for_pipeline(repository_id, parameter).json()
-    except apiError.DevOpsError as e:
-        if e.status_code == 404:
-            yaml_file_can_not_find = True
-    try:
-        parameter['file_path'] = '.rancher-pipeline.yml'
-        get_yaml_data = gitlab.gl_get_project_file_for_pipeline(repository_id, parameter).json()
-    except apiError.DevOpsError as e:
-        if e.status_code == 404:
-            yml_file_can_not_find = True
+    parameter = {'branch': branch_name}
+    yaml_file_can_not_find, yml_file_can_not_find, get_yaml_data = \
+        _get_rancher_pipeline_yaml(repository_id, parameter)
     if yaml_file_can_not_find and yml_file_can_not_find:
-        return {}, 204
+        return util.respond(204)
     
     rancher_ci_yaml = base64.b64decode(
         get_yaml_data['content']).decode("utf-8")
@@ -192,6 +174,24 @@ def get_phase_yaml(repository_id, branch_name):
         })
     return {'message': "success", "data": phase_name_array}, 200
 
+
+def _get_rancher_pipeline_yaml(repository_id, parameter):
+    yaml_file_can_not_find = None
+    yml_file_can_not_find = None
+    get_yaml_data = None
+    try:
+        parameter['file_path'] = '.rancher-pipeline.yaml'
+        get_yaml_data = gitlab.gl_get_project_file_for_pipeline(repository_id, parameter).json()
+    except apiError.DevOpsError as e:
+        if e.status_code == 404:
+            yaml_file_can_not_find = True
+    try:
+        parameter['file_path'] = '.rancher-pipeline.yml'
+        get_yaml_data = gitlab.gl_get_project_file_for_pipeline(repository_id, parameter).json()
+    except apiError.DevOpsError as e:
+        if e.status_code == 404:
+            yml_file_can_not_find = True
+    return yaml_file_can_not_find, yml_file_can_not_find, get_yaml_data
 
 # --------------------- Resources ---------------------
 class PipelineExec(Resource):
