@@ -185,6 +185,7 @@ api.add_resource(role.RoleList, '/user/role/list')
 # pipeline
 api.add_resource(pipeline.PipelineExec, '/pipelines/rd/<repository_id>/pipelines_exec',
                  '/pipelines/<repository_id>/pipelines_exec')
+api.add_resource(pipeline.PipelineExecAction, '/pipelines/<repository_id>/pipelines_exec/action')
 api.add_resource(pipeline.PipelineExecLogs, '/pipelines/rd/logs',
                  '/pipelines/logs')
 api.add_resource(pipeline.PipelineSoftware, '/pipelines/software')
@@ -309,7 +310,7 @@ api.add_resource(harbor.HarborProject, '/harbor/projects/<int:nexus_project_id>/
 api.add_resource(webInspect.WebInspectScan, '/webinspect/create_scan',
                  '/webinspect/list_scan/<project_name>')
 api.add_resource(webInspect.WebInspectScanStatus, '/webinspect/status/<scan_id>')
-api.add_resource(webInspect.WebInspectScanStats, '/webinspect/stats/<scan_id>')
+api.add_resource(webInspect.WebInspectScanStatistics, '/webinspect/stats/<scan_id>')
 api.add_resource(webInspect.WebInspectReport, '/webinspect/report/<scan_id>')
 
 api.add_resource(maintenance.update_db_rc_project_pipeline_id, '/maintenance/update_rc_pj_pipe_id')

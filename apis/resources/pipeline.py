@@ -70,6 +70,23 @@ def pipeline_exec_logs(args):
     return util.success(output_array)
 
 
+def pipeline_exec_action(git_repository_id, args):
+    try:
+        relation = model.ProjectPluginRelation.query.filter_by(
+            git_repository_id = git_repository_id).one()
+    except NoResultFound:
+        raise apiError.DevOpsError(
+            404, 'No such project.',
+            error=apiError.repository_id_not_found(git_repository_id))
+    
+    response = rancher.rc_get_pipeline_executions_action(
+        relation.ci_project_id,
+        relation.ci_pipeline_id,
+        args['pipelines_exec_run'],
+        args['action'])
+    return util.success()
+
+
 def pipeline_software():
     result = db.engine.execute(
         "SELECT pp.name as phase_name, ps.name as software_name, "
@@ -139,21 +156,23 @@ def get_ci_yaml(repository_id, branch_name):
 
 def get_phase_yaml(repository_id, branch_name):
     parameter = {'branch': branch_name, 'file_path': '.rancher-pipeline.yaml'}
-    try:
-        yaml_info = gitlab.gl_get_project_file_for_pipeline(repository_id, parameter)
-        parameter['file_path'] = '.rancher-pipeline.yml'
-        yml_info = gitlab.gl_get_project_file_for_pipeline(repository_id, parameter)
-    except Exception:
-        return {
-                   "message": "read yaml to get phase and software name error"
-               }, 204
+    yaml_file_can_not_find = None
+    yml_file_can_not_find = None
     get_yaml_data = None
-    if yaml_info.status_code != 404:
-        get_yaml_data = yaml_info.json()
-    elif yml_info.status_code != 404:
-        get_yaml_data = yml_info.json()
-    if get_yaml_data is None:
-        return {'message': "success", "data": []}, 200
+    try:
+        get_yaml_data = gitlab.gl_get_project_file_for_pipeline(repository_id, parameter).json()
+    except apiError.DevOpsError as e:
+        if e.status_code == 404:
+            yaml_file_can_not_find = True
+    try:
+        parameter['file_path'] = '.rancher-pipeline.yml'
+        get_yaml_data = gitlab.gl_get_project_file_for_pipeline(repository_id, parameter).json()
+    except apiError.DevOpsError as e:
+        if e.status_code == 404:
+            yml_file_can_not_find = True
+    if yaml_file_can_not_find and yml_file_can_not_find:
+        return {}, 204
+    
     rancher_ci_yaml = base64.b64decode(
         get_yaml_data['content']).decode("utf-8")
     rancher_ci_json = yaml.safe_load(rancher_ci_yaml)
@@ -180,6 +199,16 @@ class PipelineExec(Resource):
     def get(self, repository_id):
         output_array = pipeline_exec_list(repository_id)
         return util.success(output_array)
+
+
+class PipelineExecAction(Resource):
+    @jwt_required
+    def post(self, repository_id):
+        parser = reqparse.RequestParser()
+        parser.add_argument('pipelines_exec_run', type=int, required=True)
+        parser.add_argument('action', type=str, required=True)
+        args = parser.parse_args()
+        return pipeline_exec_action(repository_id, args)
 
 
 class PipelineExecLogs(Resource):
