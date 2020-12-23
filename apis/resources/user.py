@@ -312,7 +312,7 @@ def create_user(args):
     sa_list = kubernetesClient.list_service_account()
     login_sa_name = util.encode_k8s_sa(login_name)
     if login_sa_name in sa_list:
-        return util.respond(422, "Kubernetes already has this service account.",
+        raise DevOpsError(422, "Kubernetes already has this service account.",
                             error=apiError.already_used())
 
     # plan software user create
@@ -342,6 +342,7 @@ def create_user(args):
     except Exception as e:
         gitlab.gl_delete_user(gitlab_user_id)
         redmine.rm_delete_user(redmine_user_id)
+        kubernetesClient.delete_service_account(login_sa_name)
         raise e
 
     try:
