@@ -216,7 +216,6 @@ def update_issue(issue_id, args, operator_id):
     if operator_id is not None:
         operator_plugin_relation = nexus.get_user_plugin_relation(user_id=operator_id)
         plan_operator_id = operator_plugin_relation.plan_user_id
-    print(args)
     redmine.rm_update_issue(issue_id, args, plan_operator_id)
     return util.success()
 
