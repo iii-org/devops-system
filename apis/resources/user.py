@@ -473,6 +473,7 @@ def user_list_by_project(project_id, args):
         })
     return util.success({"user_list": arr_ret})
 
+
 def user_sa_config(user_id):
     ret_users = db.session.query(model.User, model.UserPluginRelation.kubernetes_sa_name). \
             join(model.UserPluginRelation). \
@@ -481,6 +482,7 @@ def user_sa_config(user_id):
     sa_name = str(ret_users.kubernetes_sa_name)
     sa_config = kubernetesClient.get_service_account_config(sa_name)
     return util.success(sa_config)
+
 
 # --------------------- Resources ---------------------
 class Login(Resource):

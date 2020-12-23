@@ -16,6 +16,7 @@ from nexus import get_project_plugin_relation
 from resources.apiError import DevOpsError
 from util import DevOpsThread
 from . import user, harbor, kubernetesClient, role
+from .activity import record_activity, ActionType
 from .checkmarx import checkmarx
 from .gitlab import gitlab
 from .logger import logger
@@ -704,6 +705,7 @@ class ListMyProjects(Resource):
 
 class SingleProject(Resource):
     @jwt_required
+    @record_activity(ActionType.DELETE_PROJECT)
     def get(self, project_id):
         role.require_pm("Error while getting project info.")
         role.require_in_project(project_id, "Error while getting project info.")
