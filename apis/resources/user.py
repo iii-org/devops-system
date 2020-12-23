@@ -262,15 +262,15 @@ def create_user(args):
     # Check if name is valid
     login_name = args['login']
     if re.fullmatch(r'^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,58}[a-zA-Z0-9]$', login_name) is None:
-        return util.respond(400, "Error when creating new user",
-                            error=apiError.invalid_user_name(login_name))
+        raise apiError.DevOpsError(400, "Error when creating new user",
+                                   error=apiError.invalid_user_name(login_name))
 
     user_source_password = args["password"]
     if re.fullmatch(r'(?=.*\d)(?=.*[a-z])(?=.*[A-Z])'
                     r'^[\w!@#$%^&*()+|{}\[\]`~\-\'\";:/?.\\>,<]{8,20}$',
                     user_source_password) is None:
-        return util.respond(400, "Error when creating new user",
-                            error=apiError.invalid_user_password())
+        raise apiError.DevOpsError(400, "Error when creating new user",
+                                   error=apiError.invalid_user_password())
 
     # Check DB has this login, email, if has, raise error
     check_count = model.User.query.filter(db.or_(
@@ -307,13 +307,13 @@ def create_user(args):
                 raise DevOpsError(422, "Gitlab already has this account or email.",
                                   error=apiError.already_used())
         page += 1
-    
+
     # Check Kubernetes has this Service Account (login), if has, return error 400
     sa_list = kubernetesClient.list_service_account()
     login_sa_name = util.encode_k8s_sa(login_name)
     if login_sa_name in sa_list:
         raise DevOpsError(422, "Kubernetes already has this service account.",
-                            error=apiError.already_used())
+                          error=apiError.already_used())
 
     # plan software user create
     red_user = redmine.rm_create_user(args, user_source_password, is_admin=is_admin)
@@ -387,7 +387,6 @@ def create_user(args):
         raise e
 
     return util.success({"user_id": user_id})
-
 
 
 def user_list():
@@ -476,9 +475,9 @@ def user_list_by_project(project_id, args):
 
 def user_sa_config(user_id):
     ret_users = db.session.query(model.User, model.UserPluginRelation.kubernetes_sa_name). \
-            join(model.UserPluginRelation). \
-            filter(model.User.id == user_id). \
-            filter(model.User.disabled == False).first()
+        join(model.UserPluginRelation). \
+        filter(model.User.id == user_id). \
+        filter(model.User.disabled == False).first()
     sa_name = str(ret_users.kubernetes_sa_name)
     sa_config = kubernetesClient.get_service_account_config(sa_name)
     return util.success(sa_config)
@@ -561,6 +560,7 @@ class UserList(Resource):
     def get(self):
         role.require_pm()
         return user_list()
+
 
 class UserSaConfig(Resource):
     @jwt_required
