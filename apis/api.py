@@ -300,10 +300,9 @@ api.add_resource(mock.MockSesame, '/mock/sesame')
 # Harbor
 api.add_resource(harbor.HarborRepository,
                  '/harbor/projects/<int:nexus_project_id>',
-                 '/harbor/repositories',
-                 '/harbor/repositories/<project_name>/<repository_name>')
+                 '/harbor/repositories')
 api.add_resource(harbor.HarborArtifact,
-                 '/harbor/artifacts/<project_name>/<repository_name>')
+                 '/harbor/artifacts')
 api.add_resource(harbor.HarborProject, '/harbor/projects/<int:nexus_project_id>/summary')
 
 # WebInspect
