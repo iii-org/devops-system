@@ -123,7 +123,7 @@ def initialize(db_uri):
         'password': config.get('ADMIN_INIT_PASSWORD'),
         'phone': '00000000000',
         'name': '初始管理者',
-        'role_id': 5,
+        'role_id': role.ADMIN.id,
         'status': 'enable'
     }
     user.create_user(args)
