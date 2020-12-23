@@ -200,12 +200,13 @@ def create_issue(args, operator_id):
 
 
 def update_issue(issue_id, args, operator_id):
+    args = args.copy()
     args = {k: v for k, v in args.items() if v is not None}
     if 'parent_id' in args:
         args['parent_issue_id'] = args['parent_id']
         args.pop('parent_id', None)
-    if "assigned_to_id" in args:
-        user_plugin_relation = nexus.get_user_plugin_relation(user_id=args['assigned_to_id'])
+    if "assigned_to_id" in args and len(args['assigned_to_id']) > 0:
+        user_plugin_relation = nexus.get_user_plugin_relation(user_id=int(args['assigned_to_id']))
         args['assigned_to_id'] = user_plugin_relation.plan_user_id
 
     attachment = redmine.rm_upload(args)
@@ -215,6 +216,7 @@ def update_issue(issue_id, args, operator_id):
     if operator_id is not None:
         operator_plugin_relation = nexus.get_user_plugin_relation(user_id=operator_id)
         plan_operator_id = operator_plugin_relation.plan_user_id
+    print(args)
     redmine.rm_update_issue(issue_id, args, plan_operator_id)
     return util.success()
 
@@ -842,14 +844,14 @@ class SingleIssue(Resource):
     def put(self, issue_id):
         require_issue_visible(issue_id)
         parser = reqparse.RequestParser()
-        parser.add_argument('assigned_to_id', type=int)
+        parser.add_argument('assigned_to_id', type=str)
         parser.add_argument('tracker_id', type=int)
         parser.add_argument('status_id', type=int)
         parser.add_argument('priority_id', type=int)
         parser.add_argument('estimated_hours', type=int)
         parser.add_argument('description', type=str)
         parser.add_argument('parent_id', type=int)
-        parser.add_argument('fixed_version_id', type=int)
+        parser.add_argument('fixed_version_id', type=str)
         parser.add_argument('subject', type=str)
         parser.add_argument('start_date', type=str)
         parser.add_argument('due_date', type=str)
@@ -862,6 +864,12 @@ class SingleIssue(Resource):
         parser.add_argument('upload_description', type=str)
 
         args = parser.parse_args()
+        # Handle removable int parameters
+        keys_int_or_null = ['assigned_to_id', 'fixed_version_id']
+        for k in keys_int_or_null:
+            if args[k] == 'null':
+                args[k] = ''
+
         return update_issue(issue_id, args, get_jwt_identity()['user_id'])
 
     @jwt_required
