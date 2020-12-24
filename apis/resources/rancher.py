@@ -220,4 +220,5 @@ class Rancher(object):
         url = '/clusters/{0}/namespaces/{1}'.format(rc_cluster_id, project_name)
         output = self.__api_post(url, params=params, data=body)
 
+
 rancher = Rancher()

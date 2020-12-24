@@ -19,9 +19,3 @@ class ActionType(Enum):
 
     def is_member_action(self):
         return self in [self.ADD_MEMBER, self.REMOVE_MEMBER]
-
-    @staticmethod
-    def repr(act):
-        return f'<{act.id}:{str(act.action_type).split(".")[1]}>' \
-               f' {act.operator_name}({act.operator_id})' \
-               f' on {act.action_parts} at {str(act.act_at)}.'
