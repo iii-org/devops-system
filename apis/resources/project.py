@@ -208,18 +208,17 @@ def create_project(user_id, args):
                     raise e
                 elif service == 'harbor':
                     raise e
-
-    # enable rancher pipeline
-    rancher_project_id = rancher.rc_get_project_id()
-    t_rancher = DevOpsThread(target=rancher.rc_enable_project_pipeline,
-                             args=(gitlab_pj_http_url,))
-    t_rancher.start()
-    rancher_pipeline_id = t_rancher.join_()
-
-    # add kubernetes namespace into racnher default project
-    rancher.rc_add_namespace_into_rc_project(args['name'])
-
     try:
+        # enable rancher pipeline
+        rancher.rc_get_project_id()
+        t_rancher = DevOpsThread(target=rancher.rc_enable_project_pipeline,
+                                args=(gitlab_pj_http_url,))
+        t_rancher.start()
+        rancher_pipeline_id = t_rancher.join_()
+
+        # add kubernetes namespace into racnher default project
+        rancher.rc_add_namespace_into_rc_project(args['name'])
+
         new_pjt = model.Project(
             name=gitlab_pj_name,
             display=args['display'],
@@ -238,7 +237,7 @@ def create_project(user_id, args):
             plan_project_id=redmine_pj_id,
             git_repository_id=gitlab_pj_id,
             harbor_project_id=harbor_pj_id,
-            ci_project_id=rancher_project_id,
+            ci_project_id=rancher.project_id,
             ci_pipeline_id=rancher_pipeline_id
         )
         db.session.add(new_relation)
@@ -257,7 +256,7 @@ def create_project(user_id, args):
         redmine.rm_delete_project(redmine_pj_id)
         gitlab.gl_delete_project(gitlab_pj_id)
         harbor.hb_delete_project(harbor_pj_id)
-        rancher.rc_disable_project_pipeline(rancher_project_id, gitlab_pj_http_url)
+        rancher.rc_disable_project_pipeline(rancher.project_id, gitlab_pj_http_url)
         kubernetesClient.delete_namespace(args['name'])
         raise e
 

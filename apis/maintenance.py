@@ -10,8 +10,9 @@ def update_db_rancher_projectid_and_pipelineid():
     rows = db.session.query(ProjectPluginRelation, Project). \
         join(Project).all()
     # print(rows)
-    rancher_project_id = rancher.rc_get_project_id()
-    print("ci_project_id: {0}".format(rancher_project_id))
+    rancher.rc_get_project_id()
+    print("ci_project_id: {0}".format(rancher.project_id))
+
     for row in rows:
         try:
             rancher.rc_disable_project_pipeline( row.ProjectPluginRelation.ci_project_id, \
