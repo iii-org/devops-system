@@ -49,7 +49,7 @@ class Activity(model.Activity):
         if self.action_type in [ActionType.UPDATE_PROJECT, ActionType.DELETE_PROJECT]:
             self.fill_project(args['project_id'])
         if self.action_type == ActionType.UPDATE_PROJECT:
-            self.action_parts += f'@{args["args"]}'
+            self.action_parts += f'@{str(args["args"])}'
         if self.action_type in [ActionType.ADD_MEMBER, ActionType.REMOVE_MEMBER]:
             self.object_id = f'{args["user_id"]}@{args["project_id"]}'
             project = nexus.nx_get_project(id=args['project_id'])
@@ -58,7 +58,11 @@ class Activity(model.Activity):
         if self.action_type in [ActionType.UPDATE_USER, ActionType.DELETE_USER]:
             self.fill_user(args['user_id'])
         if self.action_type == ActionType.UPDATE_USER:
-            self.action_parts += f'@{args["args"]}'
+            content = args["args"].copy()
+            for sensitive_key in ['password', 'old_password']:
+                if sensitive_key in content:
+                    content[sensitive_key] = '********'
+            self.action_parts += f'@{str(content)}'
 
     def fill_by_return_value(self, ret):
         if self.action_type == ActionType.CREATE_PROJECT:
