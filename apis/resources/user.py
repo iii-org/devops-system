@@ -10,8 +10,10 @@ from sqlalchemy.orm.exc import NoResultFound
 
 import resources.apiError as apiError
 import util as util
+from enums.action_type import ActionType
 from model import db
 from nexus import nx_get_user_plugin_relation
+from resources.activity import record_activity
 from resources.apiError import DevOpsError
 import model
 from resources import harbor, role
@@ -147,7 +149,8 @@ def get_user_info(user_id):
             404, 'User not found.', apiError.user_not_found(user_id))
 
 
-def update_info(user_id, args):
+@record_activity(ActionType.UPDATE_USER)
+def update_user(user_id, args):
     set_string = ""
     if args["name"] is not None:
         set_string += "name = '{0}'".format(args["name"])
@@ -215,6 +218,7 @@ def try_to_delete(delete_method, obj):
             raise e
 
 
+@record_activity(ActionType.DELETE_USER)
 def delete_user(user_id):
     # 取得gitlab & redmine user_id
     relation = nx_get_user_plugin_relation(user_id=user_id)
@@ -236,8 +240,7 @@ def delete_user(user_id):
     del_user = model.User.query.filter_by(id=user_id).one()
     db.session.delete(del_user)
     db.session.commit()
-
-    return util.success()
+    return None
 
 
 def change_user_status(user_id, args):
@@ -258,6 +261,7 @@ def change_user_status(user_id, args):
             error=apiError.user_not_found(user_id))
 
 
+@record_activity(ActionType.CREATE_USER)
 def create_user(args):
     # Check if name is valid
     login_name = args['login']
@@ -386,7 +390,7 @@ def create_user(args):
         kubernetesClient.delete_service_account(kubernetes_sa_name)
         raise e
 
-    return util.success({"user_id": user_id})
+    return {"user_id": user_id}
 
 
 def user_list():
@@ -533,12 +537,12 @@ class SingleUser(Resource):
         parser.add_argument('email', type=str)
         parser.add_argument('status', type=str)
         args = parser.parse_args()
-        return update_info(user_id, args)
+        return update_user(user_id, args)
 
     @jwt_required
     def delete(self, user_id):
         role.require_admin("Only admin can delete user.")
-        return delete_user(user_id)
+        return util.success(delete_user(user_id))
 
     @jwt_required
     def post(self):
@@ -552,7 +556,7 @@ class SingleUser(Resource):
         parser.add_argument('role_id', type=int, required=True)
         parser.add_argument('status', type=str)
         args = parser.parse_args()
-        return create_user(args)
+        return util.success(create_user(args))
 
 
 class UserList(Resource):
