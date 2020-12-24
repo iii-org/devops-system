@@ -136,6 +136,16 @@ api.add_resource(project.SingleProject, '/project', '/project/<sint:project_id>'
 api.add_resource(project.ProjectsByUser, '/projects_by_user/<int:user_id>')
 api.add_resource(project.ProjectUserList, '/project/<sint:project_id>/user/list')
 api.add_resource(project.ProjectUserResource, '/project/<sint:project_id>/resource')
+api.add_resource(project.ProjectUserResourcePod, '/project/<sint:project_id>/resource/list/pod', 
+                 '/project/<sint:project_id>/resource/list/pod/<pod_name>')
+api.add_resource(project.ProjectUserResourceDeployment, '/project/<sint:project_id>/resource/list/deployment',
+                 '/project/<sint:project_id>/resource/list/deployment/<deployment_name>')
+api.add_resource(project.ProjectUserResourceService, '/project/<sint:project_id>/resource/list/service',
+                 '/project/<sint:project_id>/resource/list/service/<service_name>')
+api.add_resource(project.ProjectUserResourceSecret, '/project/<sint:project_id>/resource/list/secret',
+                 '/project/<sint:project_id>/resource/list/secret/<secret_name>')
+api.add_resource(project.ProjectUserResourceConfigMap, '/project/<sint:project_id>/resource/list/configmap',
+                 '/project/<sint:project_id>/resource/list/configmap/<configmap_name>')
 api.add_resource(project.ProjectMember, '/project/<sint:project_id>/member',
                  '/project/<sint:project_id>/member/<int:user_id>')
 api.add_resource(wiki.ProjectWikiList, '/project/<sint:project_id>/wiki')
