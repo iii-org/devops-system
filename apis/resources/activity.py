@@ -35,7 +35,6 @@ def record_activity(action_type):
             new.fill_by_arguments(itargs)
             ret = fn(*args, **kwargs)
             new.fill_by_return_value(ret)
-            pprint(new)
             db.session.add(new)
             db.session.commit()
             return ret
