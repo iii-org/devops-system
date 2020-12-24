@@ -460,7 +460,6 @@ def project_add_member(project_id, user_id):
     helper.run()
     for e in helper.errors.values():
         if e is not None:
-            print(e)
             raise e
 
     return util.success()

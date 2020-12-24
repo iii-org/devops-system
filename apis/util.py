@@ -96,6 +96,17 @@ def tick(message='', init=False):
     return elapsed
 
 
+def timeit(method):
+    def timed(*args, **kw):
+        ts = time.time()
+        ret = method(*args, **kw)
+        te = time.time()
+        print(f'{method.__name__} %2.2f ms' % ((te - ts) * 1000))
+        return ret
+
+    return timed
+
+
 def api_request(method, url, headers=None, params=None, data=None, auth=None):
     body = data
     if type(data) is dict or type(data) is reqparse.Namespace:

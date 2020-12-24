@@ -157,7 +157,6 @@ def hb_list_artifacts(project_name, repository_name):
     ret = []
     for art in artifacts:
         scan = next(iter(art['scan_overview'].values()))
-        print(scan)
         if (scan is None) or ('summary' not in scan) or ('total' not in scan['summary']):
             vul = ''
         else:
