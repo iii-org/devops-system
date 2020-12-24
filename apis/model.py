@@ -18,7 +18,7 @@ import json
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Date, Enum
 
-from resources.activity import ActionType
+from enums.action_type import ActionType
 
 db = SQLAlchemy()
 

@@ -12,7 +12,7 @@ import nexus
 import resources.apiError as apiError
 import util as util
 from model import db
-from nexus import get_project_plugin_relation
+from nexus import nx_get_project_plugin_relation
 from resources.apiError import DevOpsError
 from util import DevOpsThread
 from . import user, harbor, kubernetesClient, role
@@ -115,6 +115,7 @@ def list_projects(user_id):
 
 
 # 新增redmine & gitlab的project並將db相關table新增資訊
+@record_activity(ActionType.CREATE_PROJECT)
 def create_project(user_id, args):
     if args["description"] is None:
         args["description"] = ""
@@ -131,7 +132,7 @@ def create_project(user_id, args):
     except Exception as e:
         kubernetesClient.delete_namespace(args['name'])
         raise e
-    
+
     # 使用 multi-thread 建立各專案
     services = ['redmine', 'gitlab', 'harbor']
     targets = {
@@ -244,15 +245,14 @@ def create_project(user_id, args):
         db.session.commit()
 
         # 加關聯project_user_role
-        args['user_id'] = user_id
-        project_add_member(project_id, args)
+        project_add_member(project_id, user_id)
 
-        return util.success({
+        return {
             "project_id": project_id,
             "plan_project_id": redmine_pj_id,
             "git_repository_id": gitlab_pj_id,
             "harbor_project_id": harbor_pj_id
-        })
+        }
     except Exception as e:
         redmine.rm_delete_project(redmine_pj_id)
         gitlab.gl_delete_project(gitlab_pj_id)
@@ -262,6 +262,7 @@ def create_project(user_id, args):
         raise e
 
 
+@record_activity(ActionType.UPDATE_PROJECT)
 def pm_update_project(project_id, args):
     result = db.engine.execute(
         "SELECT * FROM public.project_plugin_relation WHERE project_id = '{0}'".format(
@@ -322,9 +323,10 @@ def try_to_delete(delete_method, argument):
 
 
 # 用project_id刪除redmine & gitlab的project並將db的相關table欄位一併刪除
+@record_activity(ActionType.DELETE_PROJECT)
 def delete_project(project_id):
     # 取得gitlab & redmine project_id
-    relation = get_project_plugin_relation(project_id)
+    relation = nx_get_project_plugin_relation(project_id)
     if relation is None:
         # 如果 project table 有髒資料，將其移除
         corr = model.Project.query.filter_by(id=project_id).first()
@@ -420,8 +422,8 @@ def pm_get_project(project_id):
     return util.success(output)
 
 
-def project_add_member(project_id, args):
-    user_id = args['user_id']
+@record_activity(ActionType.ADD_MEMBER)
+def project_add_member(project_id, user_id):
     role_id = user.get_role_id(user_id)
 
     # Check ProjectUserRole table has relationship or not
@@ -436,8 +438,8 @@ def project_add_member(project_id, args):
     db.session.add(new)
     db.session.commit()
 
-    user_relation = nexus.get_user_plugin_relation(user_id=user_id)
-    project_relation = get_project_plugin_relation(project_id)
+    user_relation = nexus.nx_get_user_plugin_relation(user_id=user_id)
+    project_relation = nx_get_project_plugin_relation(project_id)
     redmine_role_id = user.to_redmine_role_id(role_id)
 
     services = ['redmine', 'gitlab', 'harbor']
@@ -464,11 +466,12 @@ def project_add_member(project_id, args):
     return util.success()
 
 
+@record_activity(ActionType.REMOVE_MEMBER)
 def project_remove_member(project_id, user_id):
     role_id = user.get_role_id(user_id)
 
-    user_relation = nexus.get_user_plugin_relation(user_id=user_id)
-    project_relation = get_project_plugin_relation(project_id)
+    user_relation = nexus.nx_get_user_plugin_relation(user_id=user_id)
+    project_relation = nx_get_project_plugin_relation(project_id)
     if project_relation is None:
         raise apiError.DevOpsError(404, "Error while removing a member from the project.",
                                    error=apiError.project_not_found(project_id))
@@ -535,7 +538,7 @@ def get_projects_by_user(user_id):
                model.ProjectPluginRelation.project_id == model.Project.id).all()
     if len(rows) == 0:
         return util.success([])
-    relation = nexus.get_user_plugin_relation(user_id=user_id)
+    relation = nexus.nx_get_user_plugin_relation(user_id=user_id)
     plan_user_id = relation.plan_user_id
     for row in rows:
         output_dict = {'name': row.Project.name,
@@ -705,7 +708,6 @@ class ListMyProjects(Resource):
 
 class SingleProject(Resource):
     @jwt_required
-    @record_activity(ActionType.DELETE_PROJECT)
     def get(self, project_id):
         role.require_pm("Error while getting project info.")
         role.require_in_project(project_id, "Error while getting project info.")
@@ -747,7 +749,7 @@ class SingleProject(Resource):
             return util.respond(400, 'Error while creating project',
                                 error=apiError.invalid_project_name(args['name']))
 
-        return create_project(user_id, args)
+        return util.success(create_project(user_id, args))
 
 
 class ProjectMember(Resource):
@@ -758,7 +760,7 @@ class ProjectMember(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('user_id', type=int, required=True)
         args = parser.parse_args()
-        return project_add_member(project_id, args)
+        return project_add_member(project_id, args['user_id'])
 
     @jwt_required
     def delete(self, project_id, user_id):

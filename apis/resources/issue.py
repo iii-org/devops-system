@@ -181,10 +181,10 @@ def create_issue(args, operator_id):
     if 'parent_id' in args:
         args['parent_issue_id'] = args['parent_id']
         args.pop('parent_id', None)
-    project_plugin_relation = nexus.get_project_plugin_relation(args['project_id'])
+    project_plugin_relation = nexus.nx_get_project_plugin_relation(args['project_id'])
     args['project_id'] = project_plugin_relation.plan_project_id
     if "assigned_to_id" in args:
-        user_plugin_relation = nexus.get_user_plugin_relation(user_id=args['assigned_to_id'])
+        user_plugin_relation = nexus.nx_get_user_plugin_relation(user_id=args['assigned_to_id'])
         args['assigned_to_id'] = user_plugin_relation.plan_user_id
 
     attachment = redmine.rm_upload(args)
@@ -193,7 +193,7 @@ def create_issue(args, operator_id):
 
     plan_operator_id = None
     if operator_id is not None:
-        operator_plugin_relation = nexus.get_user_plugin_relation(user_id=operator_id)
+        operator_plugin_relation = nexus.nx_get_user_plugin_relation(user_id=operator_id)
         plan_operator_id = operator_plugin_relation.plan_user_id
     output = redmine.rm_create_issue(args, plan_operator_id)
     return util.success({"issue_id": output["issue"]["id"]})
@@ -206,7 +206,7 @@ def update_issue(issue_id, args, operator_id):
         args['parent_issue_id'] = args['parent_id']
         args.pop('parent_id', None)
     if "assigned_to_id" in args and len(args['assigned_to_id']) > 0:
-        user_plugin_relation = nexus.get_user_plugin_relation(user_id=int(args['assigned_to_id']))
+        user_plugin_relation = nexus.nx_get_user_plugin_relation(user_id=int(args['assigned_to_id']))
         args['assigned_to_id'] = user_plugin_relation.plan_user_id
 
     attachment = redmine.rm_upload(args)
@@ -214,7 +214,7 @@ def update_issue(issue_id, args, operator_id):
         args['uploads'] = [attachment]
     plan_operator_id = None
     if operator_id is not None:
-        operator_plugin_relation = nexus.get_user_plugin_relation(user_id=operator_id)
+        operator_plugin_relation = nexus.nx_get_user_plugin_relation(user_id=operator_id)
         plan_operator_id = operator_plugin_relation.plan_user_id
     redmine.rm_update_issue(issue_id, args, plan_operator_id)
     return util.success()
@@ -470,7 +470,7 @@ def get_issue_statistics(args, user_id):
                                               args["to_time"])
     else:
         args["due_date"] = ">=".format(args["from_time"])
-    user_plugin_relation = nexus.get_user_plugin_relation(user_id=user_id)
+    user_plugin_relation = nexus.nx_get_user_plugin_relation(user_id=user_id)
     if user_plugin_relation is not None:
         args["assigned_to_id"] = user_plugin_relation.plan_user_id
     redmine_output = redmine.rm_get_statistics(args)
@@ -479,7 +479,7 @@ def get_issue_statistics(args, user_id):
 
 def get_open_issue_statistics(user_id):
     args = {'limit': 100}
-    user_plugin_relation = nexus.get_user_plugin_relation(user_id=user_id)
+    user_plugin_relation = nexus.nx_get_user_plugin_relation(user_id=user_id)
     if user_plugin_relation is not None:
         args["assigned_to_id"] = user_plugin_relation.plan_user_id
     args['status_id'] = '*'
@@ -509,7 +509,7 @@ def get_issue_statistics_in_period(period, user_id):
                           error=apiError.no_detail())
 
     args = {"due_date": "><{0}|{1}".format(from_time, to_time)}
-    user_plugin_relation = nexus.get_user_plugin_relation(user_id=user_id)
+    user_plugin_relation = nexus.nx_get_user_plugin_relation(user_id=user_id)
     if user_plugin_relation is not None:
         args["assigned_to_id"] = user_plugin_relation.plan_user_id
 

@@ -11,7 +11,7 @@ from sqlalchemy.orm.exc import NoResultFound
 import resources.apiError as apiError
 import util as util
 from model import db
-from nexus import get_user_plugin_relation
+from nexus import nx_get_user_plugin_relation
 from resources.apiError import DevOpsError
 import model
 from resources import harbor, role
@@ -194,7 +194,7 @@ def update_info(user_id, args):
 
 
 def update_external_passwords(user_id, new_pwd):
-    user_relation = get_user_plugin_relation(user_id=user_id)
+    user_relation = nx_get_user_plugin_relation(user_id=user_id)
     if user_relation is None:
         return util.respond(400, 'Error when updating password',
                             error=apiError.user_not_found(user_id))
@@ -217,7 +217,7 @@ def try_to_delete(delete_method, obj):
 
 def delete_user(user_id):
     # 取得gitlab & redmine user_id
-    relation = get_user_plugin_relation(user_id=user_id)
+    relation = nx_get_user_plugin_relation(user_id=user_id)
 
     try_to_delete(gitlab.gl_delete_user, relation.repository_user_id)
     try_to_delete(redmine.rm_delete_user, relation.plan_user_id)
