@@ -21,7 +21,7 @@ import util
 import maintenance
 from jsonwebtoken import jsonwebtoken
 from model import db
-from resources import logger, role as role
+from resources import logger, role as role, activity
 from resources import project, gitlab, issue, user, redmine, wiki, version, sonar, apiTest, postman, mock, harbor, \
     webInspect
 
@@ -312,7 +312,12 @@ api.add_resource(webInspect.WebInspectScanStatus, '/webinspect/status/<scan_id>'
 api.add_resource(webInspect.WebInspectScanStatistics, '/webinspect/stats/<scan_id>')
 api.add_resource(webInspect.WebInspectReport, '/webinspect/report/<scan_id>')
 
+# Maintenance
 api.add_resource(maintenance.update_db_rc_project_pipeline_id, '/maintenance/update_rc_pj_pipe_id')
+
+# Activity
+api.add_resource(activity.AllActivities, '/all_activities')
+api.add_resource(activity.ProjectActivities, '/project/<sint:project_id>/activities')
 
 
 if __name__ == "__main__":

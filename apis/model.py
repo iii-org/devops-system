@@ -256,6 +256,6 @@ class Activity(db.Model):
     act_at = Column(DateTime)
 
     def __repr__(self):
-        return f'<{self.id}:{str(self.action_type).split(".")[1]}>' \
+        return f'<{self.id}:{self.action_type.name}>' \
                f' {self.operator_name}({self.operator_id})' \
                f' on {self.action_parts} at {str(self.act_at)}.'

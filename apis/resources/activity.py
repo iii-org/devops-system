@@ -1,14 +1,19 @@
 import inspect
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import wraps
-from pprint import pprint
+from time import strptime, mktime
 
-from flask_jwt_extended import get_jwt_identity
+from flask_jwt_extended import get_jwt_identity, jwt_required
+from flask_restful import Resource, reqparse
+from sqlalchemy import desc, or_
 
 import model
 import nexus
+import util
 from enums.action_type import ActionType
 from model import db
+from resources import role, apiError
+from resources.apiError import DevOpsError
 
 
 def record_activity(action_type):
@@ -42,6 +47,84 @@ def record_activity(action_type):
         return wrapper
 
     return decorator
+
+
+def get_activities(query):
+    ret = []
+    rows = query.all()
+    for row in rows:
+        ret.append({
+            'id': row.id,
+            'action_type': row.action_type.name,
+            'action_parts': row.action_parts,
+            'operator_id': row.operator_id,
+            'operator_name': row.operator_name,
+            'object_id': row.object_id,
+            'act_at': str(row.act_at)
+        })
+    return ret
+
+
+def build_query(args, base_query=None):
+    if base_query is not None:
+        query = base_query
+    else:
+        query = model.Activity.query
+    query = query.order_by(desc(model.Activity.act_at))
+
+    a_actions = args['actions']
+    if a_actions is not None:
+        ors = []
+        for s_action in [x.strip() for x in a_actions.split(',')]:
+            try:
+                action = ActionType[s_action.upper()]
+            except KeyError:
+                raise DevOpsError(400, 'unknown action',
+                                  error=apiError.invalid_code_path(
+                                      f'unknown action type:{s_action}'))
+            ors.append(model.Activity.action_type == action)
+        query = query.filter(or_(*ors))
+
+    object_id = args['object_id']
+    if object_id is not None:
+        if object_id[0] == '@':
+            query = query.filter(model.Activity.object_id.like(f'%{object_id}'))
+        elif object_id[-1] == '@':
+            query = query.filter(model.Activity.object_id.like(f'{object_id}%'))
+        else:
+            query = query.filter(model.Activity.object_id == str(object_id))
+
+    parts_search = args['parts_search']
+    if parts_search is not None:
+        query = query.filter(model.Activity.action_parts.like(f'%{parts_search}%'))
+
+    a_from_date = args['from_date']
+    a_to_date = args['to_date']
+    if a_from_date is not None:
+        from_date = datetime.fromtimestamp(mktime(strptime(a_from_date, '%Y-%m-%d')))
+        query = query.filter(model.Activity.act_at >= from_date)
+    if a_to_date is not None:
+        to_date = datetime.fromtimestamp(mktime(strptime(a_to_date, '%Y-%m-%d')))
+        to_date += timedelta(days=1)
+        query = query.filter(model.Activity.act_at < to_date)
+
+    limit = args['limit']
+    page = args['page']
+    query = query.offset(limit * page).limit(limit)
+
+    return query
+
+
+def limit_to_project(project_id):
+    query = model.Activity.query.filter(model.Activity.action_type.in_([
+        ActionType.CREATE_PROJECT, ActionType.UPDATE_PROJECT, ActionType.DELETE_PROJECT,
+        ActionType.ADD_MEMBER, ActionType.REMOVE_MEMBER]
+    ))
+    query = query.filter(or_(
+        model.Activity.object_id.like(f'%@{project_id}'),
+        model.Activity.object_id == str(project_id)
+    ))
+    return query
 
 
 class Activity(model.Activity):
@@ -79,3 +162,39 @@ class Activity(model.Activity):
         user = nexus.nx_get_user(id=user_id)
         self.object_id = user_id
         self.action_parts = f'{user.name}({user.login}/{user.id})'
+
+
+# --------------------- Resources ---------------------
+class AllActivities(Resource):
+    @jwt_required
+    def get(self):
+        role.require_admin()
+        parser = reqparse.RequestParser()
+        parser.add_argument('limit', type=int, default=100)
+        parser.add_argument('page', type=int, default=0)
+        parser.add_argument('from_date', type=str)
+        parser.add_argument('to_date', type=str)
+        parser.add_argument('actions', type=str)
+        parser.add_argument('object_id', type=str)
+        parser.add_argument('parts_search', type=str)
+        args = parser.parse_args()
+        query = build_query(args)
+        return util.success(get_activities(query))
+
+
+class ProjectActivities(Resource):
+    @jwt_required
+    def get(self, project_id):
+        role.require_pm()
+        role.require_in_project(project_id)
+        parser = reqparse.RequestParser()
+        parser.add_argument('limit', type=int, default=100)
+        parser.add_argument('page', type=int, default=0)
+        parser.add_argument('from_date', type=str)
+        parser.add_argument('to_date', type=str)
+        parser.add_argument('actions', type=str)
+        parser.add_argument('object_id', type=str)
+        parser.add_argument('parts_search', type=str)
+        args = parser.parse_args()
+        query = build_query(args, base_query=limit_to_project(project_id))
+        return util.success(get_activities(query))
