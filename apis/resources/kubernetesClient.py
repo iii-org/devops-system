@@ -142,7 +142,7 @@ def create_namespace_quota(namespace):
     try:
         resource_quota = k8s_client.V1ResourceQuota(
             spec= k8s_client.V1ResourceQuotaSpec(
-                hard={"cpu": "10", "memory": "10G", "pods":"20", "persistentvolumeclaims": "0", "configmaps": "10", "secrets": "10", "services.nodeports": "10"}))
+                hard={"cpu": "10", "memory": "10G", "pods":"20", "persistentvolumeclaims": "0", "configmaps": "60", "secrets": "60", "services.nodeports": "10"}))
         resource_quota.metadata = k8s_client.V1ObjectMeta(namespace=namespace,name="project-quota")
         ret = v1.create_namespaced_resource_quota(namespace, resource_quota)
     except apiError.DevOpsError as e:
