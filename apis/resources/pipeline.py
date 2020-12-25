@@ -12,10 +12,9 @@ import util as util
 from model import db
 from resources.logger import logger
 from .gitlab import GitLab
-from .rancher import Rancher
+from .rancher import rancher
 
 gitlab = GitLab()
-rancher = Rancher()
 
 
 def pipeline_exec_list(repository_id):
