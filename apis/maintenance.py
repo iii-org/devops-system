@@ -20,7 +20,7 @@ def update_db_rancher_projectid_and_pipelineid():
             rancher_pipeline_id= rancher.rc_enable_project_pipeline(row.Project.http_url)
             print(row.ProjectPluginRelation.ci_pipeline_id)
             ppro =ProjectPluginRelation.query.filter_by(id=row.ProjectPluginRelation.id).first()
-            ppro.ci_project_id= rancher_project_id
+            ppro.ci_project_id= rancher.project_id
             ppro.ci_pipeline_id= rancher_pipeline_id
             print("ci_pipeline_id: {0}".format(rancher_pipeline_id))
             db.session.commit()

@@ -212,11 +212,11 @@ def create_project(user_id, args):
         # enable rancher pipeline
         rancher.rc_get_project_id()
         t_rancher = DevOpsThread(target=rancher.rc_enable_project_pipeline,
-                                args=(gitlab_pj_http_url,))
+                                 args=(gitlab_pj_http_url,))
         t_rancher.start()
         rancher_pipeline_id = t_rancher.join_()
 
-        # add kubernetes namespace into racnher default project
+        # add kubernetes namespace into rancher default project
         rancher.rc_add_namespace_into_rc_project(args['name'])
 
         new_pjt = model.Project(
@@ -695,55 +695,66 @@ def update_kubernetes_namespace_Quota(project_id, resource):
     project_quota = kubernetesClient.update_namespace_quota(project_name, resource)
     return util.success(project_quota)
 
+
 def get_kubernetes_namespace_Pod(project_id):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
     project_pod = kubernetesClient.list_pod(project_name)
     return util.success(project_pod)
 
-def delete_kubernetes_namespace_Pod(project_id,name):
+
+def delete_kubernetes_namespace_Pod(project_id, name):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
-    project_pod = kubernetesClient.delete_pod(project_name,name)
+    project_pod = kubernetesClient.delete_pod(project_name, name)
     return util.success(project_pod)
+
 
 def get_kubernetes_namespace_deployment(project_id):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
     project_deployment = kubernetesClient.list_deployment(project_name)
     return util.success(project_deployment)
 
-def delete_kubernetes_namespace_deployment(project_id,name):
+
+def delete_kubernetes_namespace_deployment(project_id, name):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
-    project_deployment = kubernetesClient.delete_deployment(project_name,name)
+    project_deployment = kubernetesClient.delete_deployment(project_name, name)
     return util.success(project_deployment)
+
 
 def get_kubernetes_namespace_service(project_id):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
     project_service = kubernetesClient.list_service(project_name)
     return util.success(project_service)
 
-def delete_kubernetes_namespace_service(project_id,name):
+
+def delete_kubernetes_namespace_service(project_id, name):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
-    project_service = kubernetesClient.delete_service(project_name,name)
+    project_service = kubernetesClient.delete_service(project_name, name)
     return util.success(project_service)
+
 
 def get_kubernetes_namespace_secret(project_id):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
     project_secret = kubernetesClient.list_secret(project_name)
     return util.success(project_secret)
 
-def delete_kubernetes_namespace_secret(project_id,name):
+
+def delete_kubernetes_namespace_secret(project_id, name):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
-    project_secret = kubernetesClient.delete_secret(project_name,name)
+    project_secret = kubernetesClient.delete_secret(project_name, name)
     return util.success(project_secret)
+
 
 def get_kubernetes_namespace_configmap(project_id):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
     project_configmap = kubernetesClient.list_configmap(project_name)
     return util.success(project_configmap)
 
-def delete_kubernetes_namespace_configmap(project_id,name):
+
+def delete_kubernetes_namespace_configmap(project_id, name):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
-    project_configmap = kubernetesClient.delete_configmap(project_name,name)
+    project_configmap = kubernetesClient.delete_configmap(project_name, name)
     return util.success(project_configmap)
+
 
 # --------------------- Resources ---------------------
 class ListMyProjects(Resource):
@@ -885,16 +896,18 @@ class ProjectUserResource(Resource):
         args = parser.parse_args()
         return update_kubernetes_namespace_Quota(project_id, args)
 
+
 class ProjectUserResourcePod(Resource):
     @jwt_required
     def get(self, project_id):
         role.require_in_project(project_id, "Error while getting project info.")
         return get_kubernetes_namespace_Pod(project_id)
-    
+
     @jwt_required
     def delete(self, project_id, pod_name):
         role.require_in_project(project_id, "Error while getting project info.")
         return delete_kubernetes_namespace_Pod(project_id, pod_name)
+
 
 class ProjectUserResourceDeployment(Resource):
     @jwt_required
@@ -907,6 +920,7 @@ class ProjectUserResourceDeployment(Resource):
         role.require_in_project(project_id, "Error while getting project info.")
         return delete_kubernetes_namespace_deployment(project_id, deployment_name)
 
+
 class ProjectUserResourceService(Resource):
     @jwt_required
     def get(self, project_id):
@@ -917,6 +931,7 @@ class ProjectUserResourceService(Resource):
     def delete(self, project_id, service_name):
         role.require_in_project(project_id, "Error while getting project info.")
         return delete_kubernetes_namespace_service(project_id, service_name)
+
 
 class ProjectUserResourceSecret(Resource):
     @jwt_required
@@ -929,6 +944,7 @@ class ProjectUserResourceSecret(Resource):
         role.require_in_project(project_id, "Error while getting project info.")
         return delete_kubernetes_namespace_secret(project_id, secret_name)
 
+
 class ProjectUserResourceConfigMap(Resource):
     @jwt_required
     def get(self, project_id):
@@ -939,6 +955,7 @@ class ProjectUserResourceConfigMap(Resource):
     def delete(self, project_id, configmap_name):
         role.require_in_project(project_id, "Error while getting project info.")
         return delete_kubernetes_namespace_configmap(project_id, configmap_name)
+
 
 def sonar_cube(project_info, requests, self, logger):
     # 查詢sonar_quality_score
