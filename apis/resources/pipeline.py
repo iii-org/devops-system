@@ -12,10 +12,9 @@ import util as util
 from model import db
 from resources.logger import logger
 from .gitlab import GitLab
-from .rancher import Rancher
+from .rancher import rancher
 
 gitlab = GitLab()
-rancher = Rancher()
 
 
 def pipeline_exec_list(repository_id):
@@ -100,13 +99,6 @@ def pipeline_software():
 
 
 def generate_ci_yaml(args, repository_id, branch_name):
-    """
-    result = db.engine.execute("SELECT git_repository_id FROM public.project_plugin_relation \
-        WHERE project_id = {0};".format(project_id))
-    project_relationship = result.fetchone()
-    result.close()
-    logger.info("project_relationship: {0}".format(project_relationship['ci_project_id']))
-    """
     parameter = {}
     logger.debug("generate_ci_yaml detail: {0}".format(args['detail']))
     dict_object = json.loads(args['detail'].replace("'", '"'))
@@ -115,23 +107,22 @@ def generate_ci_yaml(args, repository_id, branch_name):
     base_file = base64.b64encode(bytes(doc,
                                        encoding='utf-8')).decode('utf-8')
     logger.info("generate_ci_yaml base_file: {0}".format(base_file))
-    parameter['file_path'] = '.rancher-pipeline.yml'
     parameter['branch'] = branch_name
     parameter['start_branch'] = branch_name
     parameter['encoding'] = 'base64'
     parameter['content'] = base_file
     parameter['author_email'] = "admin@example.com"
     parameter['author_name'] = "admin"
-    parameter['file_path'] = '.rancher-pipeline.yaml'
-    yaml_info = gitlab.gl_get_project_file_for_pipeline(repository_id, parameter)
-    parameter['file_path'] = '.rancher-pipeline.yml'
-    yml_info = gitlab.gl_get_project_file_for_pipeline(repository_id, parameter)
-    if yaml_info.status_code == 404 and yml_info.status_code == 404:
+    yaml_file_can_not_find, yml_file_can_not_find, get_yaml_data = \
+        _get_rancher_pipeline_yaml(repository_id, parameter)
+    if yaml_file_can_not_find and yml_file_can_not_find:
         method = "post"
-        parameter['commit_message'] = "add .rancher-pipeline.yml"
-    else:
+        parameter['commit_message'] = "add .rancher-pipeline"
+    elif yaml_file_can_not_find or yml_file_can_not_find:
         method = "put"
-        parameter['commit_message'] = "modify .rancher-pipeline.yml"
+        parameter['commit_message'] = "modify .rancher-pipeline"
+    else:
+        raise apiError.DevOpsError(400, 'Has both .yaml and .yml files')
     gitlab.gl_create_rancher_pipeline_yaml(repository_id, parameter, method)
     return util.success()
 
@@ -179,15 +170,18 @@ def _get_rancher_pipeline_yaml(repository_id, parameter):
     yaml_file_can_not_find = None
     yml_file_can_not_find = None
     get_yaml_data = None
+    get_file_param = dict(parameter)
     try:
+        get_file_param['file_path'] = '.rancher-pipeline.yaml'
+        get_yaml_data = gitlab.gl_get_project_file_for_pipeline(repository_id, get_file_param).json()
         parameter['file_path'] = '.rancher-pipeline.yaml'
-        get_yaml_data = gitlab.gl_get_project_file_for_pipeline(repository_id, parameter).json()
     except apiError.DevOpsError as e:
         if e.status_code == 404:
             yaml_file_can_not_find = True
     try:
+        get_file_param['file_path'] = '.rancher-pipeline.yml'
+        get_yaml_data = gitlab.gl_get_project_file_for_pipeline(repository_id, get_file_param).json()
         parameter['file_path'] = '.rancher-pipeline.yml'
-        get_yaml_data = gitlab.gl_get_project_file_for_pipeline(repository_id, parameter).json()
     except apiError.DevOpsError as e:
         if e.status_code == 404:
             yml_file_can_not_find = True

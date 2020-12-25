@@ -1,9 +1,10 @@
+from urllib.parse import quote
+
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
 from requests.auth import HTTPBasicAuth
 
 import config
-import model
 import nexus
 import util
 from resources import apiError, role
@@ -51,8 +52,11 @@ def __api_delete(path, params=None, headers=None):
     return __api_request('DELETE', path, params=params, headers=headers)
 
 
-# Regular methods
+def __encode(repository_name):
+    return quote(quote(repository_name, safe=""))
 
+
+# Regular methods
 def hb_get_id_by_name(project_name):
     projects = __api_get('/projects', params={'name': project_name}).json()
     if len(projects) == 0:
@@ -147,12 +151,13 @@ def hb_list_repositories(project_name):
 
 
 def hb_list_artifacts(project_name, repository_name):
-    artifacts = __api_get('/projects/{0}/repositories/{1}/artifacts'.format(
-        project_name, repository_name), params={'with_scan_overview': True}).json()
+    artifacts = __api_get(f'/projects/{project_name}/repositories'
+                          f'/{__encode(repository_name)}/artifacts',
+                          params={'with_scan_overview': True}).json()
     ret = []
     for art in artifacts:
         scan = next(iter(art['scan_overview'].values()))
-        if scan is None or 'total' not in scan['summary']:
+        if (scan is None) or ('summary' not in scan) or ('total' not in scan['summary']):
             vul = ''
         else:
             vul = '{0} ({1})'.format(scan['severity'], scan['summary']['total'])
@@ -171,34 +176,31 @@ def hb_list_artifacts(project_name, repository_name):
 
 
 def hb_get_repository_info(project_name, repository_name):
-    return __api_get('/projects/{0}/repositories/{1}'.format(
-        project_name, repository_name)).json()
+    return __api_get(f'/projects/{project_name}/repositories/{__encode(repository_name)}').json()
 
 
 def hb_update_repository(project_name, repository_name, args):
-    return __api_put('/projects/{0}/repositories/{1}'.format(
-        project_name, repository_name),
-        data={'description': args['description']})
+    return __api_put(f'/projects/{project_name}/repositories/{__encode(repository_name)}',
+                     data={'description': args['description']})
 
 
 def hb_delete_repository(project_name, repository_name):
-    return __api_delete('/projects/{0}/repositories/{1}'.format(
-        project_name, repository_name))
+    return __api_delete(f'/projects/{project_name}/repositories/{__encode(repository_name)}')
 
 
 def hb_delete_artifact(project_name, repository_name, reference):
-    return __api_delete('/projects/{0}/repositories/{1}/artifacts/{2}'.format(
-        project_name, repository_name, reference))
+    return __api_delete(f'/projects/{project_name}/repositories/{__encode(repository_name)}'
+                        f'/artifacts/{reference}')
 
 
 def hb_list_tags(project_name, repository_name, reference):
-    return __api_get('/projects/{0}/repositories/{1}/artifacts/{2}/tags'.format(
-        project_name, repository_name, reference)).json()
+    return __api_get(f'/projects/{project_name}/repositories/{__encode(repository_name)}'
+                     f'/artifacts/{reference}/tags').json()
 
 
 def hb_delete_artifact_tag(project_name, repository_name, reference, tag_name):
-    __api_delete('/projects/{0}/repositories/{1}/artifacts/{2}/tags/{3}'.format(
-        project_name, repository_name, reference, tag_name))
+    __api_delete(f'/projects/{project_name}/repositories/{__encode(repository_name)}'
+                 f'/artifacts/{reference}/tags/{tag_name}')
     if len(hb_list_tags(project_name, repository_name, reference)) == 0:
         hb_delete_artifact(project_name, repository_name, reference)
 
@@ -208,6 +210,15 @@ def hb_get_project_summary(project_id):
 
 
 # ----------------- Resources -----------------
+def extract_names():
+    parser = reqparse.RequestParser()
+    parser.add_argument('repository_fullname', type=str)
+    args = parser.parse_args()
+    name = args['repository_fullname']
+    names = name.split('/')
+    return names[0], '/'.join(names[1:])
+
+
 class HarborRepository(Resource):
     @jwt_required
     def get(self, nexus_project_id):
@@ -216,7 +227,8 @@ class HarborRepository(Resource):
         return util.success(hb_list_repositories(project_name))
 
     @jwt_required
-    def put(self, project_name, repository_name):
+    def put(self):
+        project_name, repository_name = extract_names()
         role.require_in_project(project_name=project_name)
         parser = reqparse.RequestParser()
         parser.add_argument('description', type=str)
@@ -225,7 +237,8 @@ class HarborRepository(Resource):
         return util.success()
 
     @jwt_required
-    def delete(self, project_name, repository_name):
+    def delete(self):
+        project_name, repository_name = extract_names()
         role.require_in_project(project_name=project_name)
         hb_delete_repository(project_name, repository_name)
         return util.success()
@@ -233,11 +246,13 @@ class HarborRepository(Resource):
 
 class HarborArtifact(Resource):
     @jwt_required
-    def get(self, project_name, repository_name):
+    def get(self):
+        project_name, repository_name = extract_names()
         return util.success(hb_list_artifacts(project_name, repository_name))
 
     @jwt_required
-    def delete(self, project_name, repository_name):
+    def delete(self):
+        project_name, repository_name = extract_names()
         role.require_in_project(project_name=project_name)
         parser = reqparse.RequestParser()
         parser.add_argument('digest', type=str)
@@ -252,5 +267,5 @@ class HarborProject(Resource):
     @jwt_required
     def get(self, nexus_project_id):
         role.require_in_project(nexus_project_id)
-        project_id = nexus.get_project_plugin_relation(nexus_project_id).harbor_project_id
+        project_id = nexus.nx_get_project_plugin_relation(nexus_project_id).harbor_project_id
         return util.success(hb_get_project_summary(project_id))

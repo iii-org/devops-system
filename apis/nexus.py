@@ -6,7 +6,7 @@ from resources import apiError
 from resources.apiError import DevOpsError
 
 
-def get_project_plugin_relation(nexus_project_id):
+def nx_get_project_plugin_relation(nexus_project_id):
     try:
         return model.ProjectPluginRelation.query.filter_by(project_id=nexus_project_id).one()
     except NoResultFound:
@@ -16,8 +16,10 @@ def get_project_plugin_relation(nexus_project_id):
 
 def nx_get_project(id=None, name=None):
     if id is not None:
+        it = id
         query = model.Project.query.filter_by(id=id)
     elif name is not None:
+        it = name
         query = model.Project.query.filter_by(name=name)
     else:
         raise apiError.DevOpsError(
@@ -28,11 +30,11 @@ def nx_get_project(id=None, name=None):
         row = query.one()
     except NoResultFound:
         raise apiError.DevOpsError(404, 'Project not found.',
-                                   error=apiError.project_not_found(id))
+                                   error=apiError.project_not_found(it))
     return row
 
 
-def get_user_plugin_relation(user_id=None, plan_user_id=None, gitlab_user_id=None):
+def nx_get_user_plugin_relation(user_id=None, plan_user_id=None, gitlab_user_id=None):
     if plan_user_id is not None:
         try:
             return model.UserPluginRelation.query.filter_by(
@@ -58,3 +60,23 @@ def get_user_plugin_relation(user_id=None, plan_user_id=None, gitlab_user_id=Non
             raise apiError.DevOpsError(
                 404, 'User id {0} does not exist.'.format(user_id),
                 apiError.user_not_found(user_id))
+
+
+def nx_get_user(id=None, login=None):
+    if id is not None:
+        it = id
+        query = model.User.query.filter_by(id=id)
+    elif login is not None:
+        it = login
+        query = model.User.query.filter_by(login=login)
+    else:
+        raise apiError.DevOpsError(
+            500, 'Either id or login needs to be indicated for nx_get_user.',
+            error=apiError.invalid_code_path(
+                'Either id or login needs to be indicated for nx_get_user.'))
+    try:
+        row = query.one()
+    except NoResultFound:
+        raise apiError.DevOpsError(404, 'User not found.',
+                                   error=apiError.user_not_found(it))
+    return row

@@ -12,10 +12,11 @@ import nexus
 import resources.apiError as apiError
 import util as util
 from model import db
-from nexus import get_project_plugin_relation
+from nexus import nx_get_project_plugin_relation
 from resources.apiError import DevOpsError
 from util import DevOpsThread
 from . import user, harbor, kubernetesClient, role
+from .activity import record_activity, ActionType
 from .checkmarx import checkmarx
 from .gitlab import gitlab
 from .logger import logger
@@ -114,6 +115,7 @@ def list_projects(user_id):
 
 
 # 新增redmine & gitlab的project並將db相關table新增資訊
+@record_activity(ActionType.CREATE_PROJECT)
 def create_project(user_id, args):
     if args["description"] is None:
         args["description"] = ""
@@ -130,7 +132,7 @@ def create_project(user_id, args):
     except Exception as e:
         kubernetesClient.delete_namespace(args['name'])
         raise e
-    
+
     # 使用 multi-thread 建立各專案
     services = ['redmine', 'gitlab', 'harbor']
     targets = {
@@ -206,18 +208,17 @@ def create_project(user_id, args):
                     raise e
                 elif service == 'harbor':
                     raise e
-
-    # enable rancher pipeline
-    rancher_project_id = rancher.rc_get_project_id()
-    t_rancher = DevOpsThread(target=rancher.rc_enable_project_pipeline,
-                             args=(gitlab_pj_http_url,))
-    t_rancher.start()
-    rancher_pipeline_id = t_rancher.join_()
-
-    # add kubernetes namespace into racnher default project
-    rancher.rc_add_namespace_into_rc_project(args['name'])
-
     try:
+        # enable rancher pipeline
+        rancher.rc_get_project_id()
+        t_rancher = DevOpsThread(target=rancher.rc_enable_project_pipeline,
+                                args=(gitlab_pj_http_url,))
+        t_rancher.start()
+        rancher_pipeline_id = t_rancher.join_()
+
+        # add kubernetes namespace into racnher default project
+        rancher.rc_add_namespace_into_rc_project(args['name'])
+
         new_pjt = model.Project(
             name=gitlab_pj_name,
             display=args['display'],
@@ -236,31 +237,31 @@ def create_project(user_id, args):
             plan_project_id=redmine_pj_id,
             git_repository_id=gitlab_pj_id,
             harbor_project_id=harbor_pj_id,
-            ci_project_id=rancher_project_id,
+            ci_project_id=rancher.project_id,
             ci_pipeline_id=rancher_pipeline_id
         )
         db.session.add(new_relation)
         db.session.commit()
 
         # 加關聯project_user_role
-        args['user_id'] = user_id
-        project_add_member(project_id, args)
+        project_add_member(project_id, user_id)
 
-        return util.success({
+        return {
             "project_id": project_id,
             "plan_project_id": redmine_pj_id,
             "git_repository_id": gitlab_pj_id,
             "harbor_project_id": harbor_pj_id
-        })
+        }
     except Exception as e:
         redmine.rm_delete_project(redmine_pj_id)
         gitlab.gl_delete_project(gitlab_pj_id)
         harbor.hb_delete_project(harbor_pj_id)
-        rancher.rc_disable_project_pipeline(rancher_project_id, gitlab_pj_http_url)
+        rancher.rc_disable_project_pipeline(rancher.project_id, gitlab_pj_http_url)
         kubernetesClient.delete_namespace(args['name'])
         raise e
 
 
+@record_activity(ActionType.UPDATE_PROJECT)
 def pm_update_project(project_id, args):
     result = db.engine.execute(
         "SELECT * FROM public.project_plugin_relation WHERE project_id = '{0}'".format(
@@ -321,9 +322,10 @@ def try_to_delete(delete_method, argument):
 
 
 # 用project_id刪除redmine & gitlab的project並將db的相關table欄位一併刪除
+@record_activity(ActionType.DELETE_PROJECT)
 def delete_project(project_id):
     # 取得gitlab & redmine project_id
-    relation = get_project_plugin_relation(project_id)
+    relation = nx_get_project_plugin_relation(project_id)
     if relation is None:
         # 如果 project table 有髒資料，將其移除
         corr = model.Project.query.filter_by(id=project_id).first()
@@ -419,8 +421,8 @@ def pm_get_project(project_id):
     return util.success(output)
 
 
-def project_add_member(project_id, args):
-    user_id = args['user_id']
+@record_activity(ActionType.ADD_MEMBER)
+def project_add_member(project_id, user_id):
     role_id = user.get_role_id(user_id)
 
     # Check ProjectUserRole table has relationship or not
@@ -435,8 +437,8 @@ def project_add_member(project_id, args):
     db.session.add(new)
     db.session.commit()
 
-    user_relation = nexus.get_user_plugin_relation(user_id=user_id)
-    project_relation = get_project_plugin_relation(project_id)
+    user_relation = nexus.nx_get_user_plugin_relation(user_id=user_id)
+    project_relation = nx_get_project_plugin_relation(project_id)
     redmine_role_id = user.to_redmine_role_id(role_id)
 
     services = ['redmine', 'gitlab', 'harbor']
@@ -457,17 +459,17 @@ def project_add_member(project_id, args):
     helper.run()
     for e in helper.errors.values():
         if e is not None:
-            print(e)
             raise e
 
     return util.success()
 
 
+@record_activity(ActionType.REMOVE_MEMBER)
 def project_remove_member(project_id, user_id):
     role_id = user.get_role_id(user_id)
 
-    user_relation = nexus.get_user_plugin_relation(user_id=user_id)
-    project_relation = get_project_plugin_relation(project_id)
+    user_relation = nexus.nx_get_user_plugin_relation(user_id=user_id)
+    project_relation = nx_get_project_plugin_relation(project_id)
     if project_relation is None:
         raise apiError.DevOpsError(404, "Error while removing a member from the project.",
                                    error=apiError.project_not_found(project_id))
@@ -534,7 +536,7 @@ def get_projects_by_user(user_id):
                model.ProjectPluginRelation.project_id == model.Project.id).all()
     if len(rows) == 0:
         return util.success([])
-    relation = nexus.get_user_plugin_relation(user_id=user_id)
+    relation = nexus.nx_get_user_plugin_relation(user_id=user_id)
     plan_user_id = relation.plan_user_id
     for row in rows:
         output_dict = {'name': row.Project.name,
@@ -693,6 +695,55 @@ def update_kubernetes_namespace_Quota(project_id, resource):
     project_quota = kubernetesClient.update_namespace_quota(project_name, resource)
     return util.success(project_quota)
 
+def get_kubernetes_namespace_Pod(project_id):
+    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
+    project_pod = kubernetesClient.list_pod(project_name)
+    return util.success(project_pod)
+
+def delete_kubernetes_namespace_Pod(project_id,name):
+    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
+    project_pod = kubernetesClient.delete_pod(project_name,name)
+    return util.success(project_pod)
+
+def get_kubernetes_namespace_deployment(project_id):
+    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
+    project_deployment = kubernetesClient.list_deployment(project_name)
+    return util.success(project_deployment)
+
+def delete_kubernetes_namespace_deployment(project_id,name):
+    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
+    project_deployment = kubernetesClient.delete_deployment(project_name,name)
+    return util.success(project_deployment)
+
+def get_kubernetes_namespace_service(project_id):
+    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
+    project_service = kubernetesClient.list_service(project_name)
+    return util.success(project_service)
+
+def delete_kubernetes_namespace_service(project_id,name):
+    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
+    project_service = kubernetesClient.delete_service(project_name,name)
+    return util.success(project_service)
+
+def get_kubernetes_namespace_secret(project_id):
+    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
+    project_secret = kubernetesClient.list_secret(project_name)
+    return util.success(project_secret)
+
+def delete_kubernetes_namespace_secret(project_id,name):
+    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
+    project_secret = kubernetesClient.delete_secret(project_name,name)
+    return util.success(project_secret)
+
+def get_kubernetes_namespace_configmap(project_id):
+    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
+    project_configmap = kubernetesClient.list_configmap(project_name)
+    return util.success(project_configmap)
+
+def delete_kubernetes_namespace_configmap(project_id,name):
+    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
+    project_configmap = kubernetesClient.delete_configmap(project_name,name)
+    return util.success(project_configmap)
 
 # --------------------- Resources ---------------------
 class ListMyProjects(Resource):
@@ -744,8 +795,7 @@ class SingleProject(Resource):
         if result is None:
             return util.respond(400, 'Error while creating project',
                                 error=apiError.invalid_project_name(args['name']))
-
-        return create_project(user_id, args)
+        return util.success(create_project(user_id, args))
 
 
 class ProjectMember(Resource):
@@ -756,7 +806,7 @@ class ProjectMember(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('user_id', type=int, required=True)
         args = parser.parse_args()
-        return project_add_member(project_id, args)
+        return project_add_member(project_id, args['user_id'])
 
     @jwt_required
     def delete(self, project_id, user_id):
@@ -835,6 +885,60 @@ class ProjectUserResource(Resource):
         args = parser.parse_args()
         return update_kubernetes_namespace_Quota(project_id, args)
 
+class ProjectUserResourcePod(Resource):
+    @jwt_required
+    def get(self, project_id):
+        role.require_in_project(project_id, "Error while getting project info.")
+        return get_kubernetes_namespace_Pod(project_id)
+    
+    @jwt_required
+    def delete(self, project_id, pod_name):
+        role.require_in_project(project_id, "Error while getting project info.")
+        return delete_kubernetes_namespace_Pod(project_id, pod_name)
+
+class ProjectUserResourceDeployment(Resource):
+    @jwt_required
+    def get(self, project_id):
+        role.require_in_project(project_id, "Error while getting project info.")
+        return get_kubernetes_namespace_deployment(project_id)
+
+    @jwt_required
+    def delete(self, project_id, deployment_name):
+        role.require_in_project(project_id, "Error while getting project info.")
+        return delete_kubernetes_namespace_deployment(project_id, deployment_name)
+
+class ProjectUserResourceService(Resource):
+    @jwt_required
+    def get(self, project_id):
+        role.require_in_project(project_id, "Error while getting project info.")
+        return get_kubernetes_namespace_service(project_id)
+
+    @jwt_required
+    def delete(self, project_id, service_name):
+        role.require_in_project(project_id, "Error while getting project info.")
+        return delete_kubernetes_namespace_service(project_id, service_name)
+
+class ProjectUserResourceSecret(Resource):
+    @jwt_required
+    def get(self, project_id):
+        role.require_in_project(project_id, "Error while getting project info.")
+        return get_kubernetes_namespace_secret(project_id)
+
+    @jwt_required
+    def delete(self, project_id, secret_name):
+        role.require_in_project(project_id, "Error while getting project info.")
+        return delete_kubernetes_namespace_secret(project_id, secret_name)
+
+class ProjectUserResourceConfigMap(Resource):
+    @jwt_required
+    def get(self, project_id):
+        role.require_in_project(project_id, "Error while getting project info.")
+        return get_kubernetes_namespace_configmap(project_id)
+
+    @jwt_required
+    def delete(self, project_id, configmap_name):
+        role.require_in_project(project_id, "Error while getting project info.")
+        return delete_kubernetes_namespace_configmap(project_id, configmap_name)
 
 def sonar_cube(project_info, requests, self, logger):
     # 查詢sonar_quality_score

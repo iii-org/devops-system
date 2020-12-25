@@ -514,7 +514,6 @@ class TestItem(Resource):
     @jwt_required
     def put(self, item_id):
         parser = reqparse.RequestParser()
-        print(parser)
         parser.add_argument('name', type=str)
         parser.add_argument('is_passed', type=bool)
         args = parser.parse_args()

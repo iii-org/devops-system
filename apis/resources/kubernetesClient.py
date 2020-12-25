@@ -179,3 +179,93 @@ def create_role_binding(namespace, sa_name):
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
+
+def list_pod(namespace):
+    try:
+        pod_list = []
+        for pods in v1.list_namespaced_pod(namespace).items:
+            pod_list.append({'name':pods.metadata.name,'status':pods.status.phase})
+        return pod_list
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+
+def delete_pod(namespace,name):
+    try:
+        pod = v1.delete_namespaced_pod(name,namespace)
+        return pod.metadata.self_link
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+
+def list_deployment(namespace):
+    try:
+        deployment_list = []
+        for deployments in k8s_client.AppsV1Api().list_namespaced_deployment(namespace).items:
+            deployment_list.append(deployments.metadata.name)
+        return deployment_list
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+
+def delete_deployment(namespace,name):
+    try:
+        deployment = k8s_client.AppsV1Api().delete_namespaced_deployment(name,namespace)
+        return deployment.details.name
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+
+def list_service(namespace):
+    try:
+        service_list = []
+        for services in v1.list_namespaced_service(namespace).items:
+            service_list.append(services.metadata.name)
+        return service_list
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+
+def delete_service(namespace,name):
+    try:
+        service = v1.delete_namespaced_service(name,namespace)
+        return service.details.name
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+
+def list_secret(namespace):
+    try:
+        secret_list = []
+        for secrets in v1.list_namespaced_secret(namespace).items:
+            secret_list.append(secrets.metadata.name)
+        return secret_list
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+
+def delete_secret(namespace,name):
+    try:
+        secret = v1.delete_namespaced_secret(name,namespace)
+        return secret.details.name
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+
+def list_configmap(namespace):
+    try:
+        configmap_list = []
+        for configmaps in v1.list_namespaced_config_map(namespace).items:
+            configmap_list.append(configmaps.metadata.name)
+        return configmap_list
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+
+def delete_configmap(namespace,name):
+    try:
+        configmap = v1.delete_namespaced_config_map(name,namespace)
+        return configmap.details.name
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
