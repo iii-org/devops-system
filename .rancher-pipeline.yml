@@ -104,7 +104,7 @@ stages:
         sourceKey: cm-url
         targetKey: cm_url
     when: 
-      branch: [develope] 
+      branch: [checkmarx] 
 
   - name: Code webinspect test
     steps:
@@ -133,7 +133,7 @@ stages:
         sourceKey: inspect-url
         targetKey: inspect_url
     when: 
-      branch: [develope] 
+      branch: [webinspect] 
 
 #  - name: build sonarqube runner image
 #    steps:
