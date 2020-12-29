@@ -16,6 +16,9 @@ class DevOpsFilter(logging.Filter):
             if jwt is not None:
                 record.user_id = jwt['user_id']
                 record.user_name = jwt['user_account']
+        else:
+            record.user_id = 0
+            record.user_name = 'system'
         return True
 
 
