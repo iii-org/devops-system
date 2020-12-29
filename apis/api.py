@@ -21,7 +21,7 @@ import util
 import maintenance
 from jsonwebtoken import jsonwebtoken
 from model import db
-from resources import logger, role as role
+from resources import logger, role as role, activity
 from resources import project, gitlab, issue, user, redmine, wiki, version, sonar, apiTest, postman, mock, harbor, \
     webInspect
 
@@ -123,7 +123,7 @@ def initialize(db_uri):
         'password': config.get('ADMIN_INIT_PASSWORD'),
         'phone': '00000000000',
         'name': '初始管理者',
-        'role_id': 5,
+        'role_id': role.ADMIN.id,
         'status': 'enable'
     }
     user.create_user(args)
@@ -136,6 +136,16 @@ api.add_resource(project.SingleProject, '/project', '/project/<sint:project_id>'
 api.add_resource(project.ProjectsByUser, '/projects_by_user/<int:user_id>')
 api.add_resource(project.ProjectUserList, '/project/<sint:project_id>/user/list')
 api.add_resource(project.ProjectUserResource, '/project/<sint:project_id>/resource')
+api.add_resource(project.ProjectUserResourcePod, '/project/<sint:project_id>/resource/list/pod', 
+                 '/project/<sint:project_id>/resource/list/pod/<pod_name>')
+api.add_resource(project.ProjectUserResourceDeployment, '/project/<sint:project_id>/resource/list/deployment',
+                 '/project/<sint:project_id>/resource/list/deployment/<deployment_name>')
+api.add_resource(project.ProjectUserResourceService, '/project/<sint:project_id>/resource/list/service',
+                 '/project/<sint:project_id>/resource/list/service/<service_name>')
+api.add_resource(project.ProjectUserResourceSecret, '/project/<sint:project_id>/resource/list/secret',
+                 '/project/<sint:project_id>/resource/list/secret/<secret_name>')
+api.add_resource(project.ProjectUserResourceConfigMap, '/project/<sint:project_id>/resource/list/configmap',
+                 '/project/<sint:project_id>/resource/list/configmap/<configmap_name>')
 api.add_resource(project.ProjectMember, '/project/<sint:project_id>/member',
                  '/project/<sint:project_id>/member/<int:user_id>')
 api.add_resource(wiki.ProjectWikiList, '/project/<sint:project_id>/wiki')
@@ -300,10 +310,9 @@ api.add_resource(mock.MockSesame, '/mock/sesame')
 # Harbor
 api.add_resource(harbor.HarborRepository,
                  '/harbor/projects/<int:nexus_project_id>',
-                 '/harbor/repositories',
-                 '/harbor/repositories/<project_name>/<repository_name>')
+                 '/harbor/repositories')
 api.add_resource(harbor.HarborArtifact,
-                 '/harbor/artifacts/<project_name>/<repository_name>')
+                 '/harbor/artifacts')
 api.add_resource(harbor.HarborProject, '/harbor/projects/<int:nexus_project_id>/summary')
 
 # WebInspect
@@ -313,7 +322,12 @@ api.add_resource(webInspect.WebInspectScanStatus, '/webinspect/status/<scan_id>'
 api.add_resource(webInspect.WebInspectScanStatistics, '/webinspect/stats/<scan_id>')
 api.add_resource(webInspect.WebInspectReport, '/webinspect/report/<scan_id>')
 
+# Maintenance
 api.add_resource(maintenance.update_db_rc_project_pipeline_id, '/maintenance/update_rc_pj_pipe_id')
+
+# Activity
+api.add_resource(activity.AllActivities, '/all_activities')
+api.add_resource(activity.ProjectActivities, '/project/<sint:project_id>/activities')
 
 
 if __name__ == "__main__":

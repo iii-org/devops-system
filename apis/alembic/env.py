@@ -6,7 +6,7 @@ from sqlalchemy import pool
 from alembic import context
 import sys
 from os.path import abspath, dirname
-sys.path.insert(0, dirname(dirname(dirname(abspath(__file__)))))
+sys.path.insert(0, dirname(dirname(dirname(abspath(__file__ + '/apis')))))
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -19,7 +19,7 @@ fileConfig(config.config_file_name)
 # add your model's MetaData object here
 # for 'autogenerate' support
 # from myapp import mymodel
-from apis.model import db
+from model import db
 target_metadata = db.metadata
 # target_metadata = None
 

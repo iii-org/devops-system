@@ -19,6 +19,18 @@ ADMIN = Role(5, 'Administrator')
 ALL_ROLES = [RD, PM, ADMIN]
 
 
+def is_admin():
+    return get_jwt_identity()['role_id'] == ADMIN.id
+
+
+def is_pm():
+    return get_jwt_identity()['role_id'] == PM.id
+
+
+def is_rd():
+    return get_jwt_identity()['role_id'] == RD.id
+
+
 def get_role_name(role_id):
     for role in ALL_ROLES:
         if role.id == role_id:

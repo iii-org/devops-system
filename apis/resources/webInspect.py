@@ -23,12 +23,11 @@ def __api_request(method, path, headers=None, params=None, data=None):
     if 'Content-Type' not in headers:
         headers['Content-Type'] = 'application/json'
 
-    url = "{0}{1}".format(config.get('WEBINSPECT_BASE_URL'), path)
-    print(url)
+    url = f"{config.get('WEBINSPECT_BASE_URL')}{path}"
     output = util.api_request(method, url, headers, params, data)
 
-    logger.info('WebInspect api {0} {1}, params={2}, body={5}, response={3} {4}'.format(
-        method, url, params.__str__(), output.status_code, output.text, data))
+    logger.info(f"WebInspect api {method} {url}, params={params.__str__()}, body={data},"
+                f" response={output.status_code} {output.text}")
     if int(output.status_code / 100) != 2:
         raise apiError.DevOpsError(
             output.status_code,

@@ -2,18 +2,17 @@ import os
 
 import config
 import model
-import resources.rancher as rancher
 import util
 from model import db, ProjectPluginRelation, Project, UserPluginRelation, User, ProjectUserRole
 from resources import harbor, kubernetesClient, role
 from resources.logger import logger
+from resources.rancher import rancher
 
-VERSION_FILE_NAME = '.api_version'
 # Each time you add a migration, add a version code here.
-VERSIONS = ['0.9.2', '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.4', '0.9.2.5']
-ONLY_UPDATE_DB_MODELS = {'0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.5'}
-
-ran = rancher.Rancher()
+VERSIONS = ['0.9.2', '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.4', '0.9.2.5',
+            '0.9.2.6']
+ONLY_UPDATE_DB_MODELS = {'0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.5', '0.9.2.6'}
+VERSION_FILE_NAME = '.api_version'
 
 
 def upgrade(version):
@@ -26,12 +25,12 @@ def upgrade(version):
         create_harbor_projects()
     elif version == '0.9.2.4':
         create_k8s_user()
-        create_k8s_namespsace()
-        
+        create_k8s_namespace()
+
 
 def create_k8s_user():
     # get db user list
-    rows = db.session.query(User, UserPluginRelation)\
+    rows = db.session.query(User, UserPluginRelation) \
         .join(User).all()
     k8s_sa_list = kubernetesClient.list_service_account()
     for row in rows:
@@ -43,7 +42,7 @@ def create_k8s_user():
         db.session.commit()
 
 
-def create_k8s_namespsace():
+def create_k8s_namespace():
     rows = db.session.query(ProjectPluginRelation, Project). \
         join(Project).all()
     namespace_list = kubernetesClient.list_namespace()
@@ -57,11 +56,11 @@ def create_k8s_namespsace():
                 join(UserPluginRelation, ProjectUserRole.user_id == UserPluginRelation.user_id). \
                 filter(ProjectUserRole.project_id == row.ProjectPluginRelation.project_id).all()
             for member in members:
-                print("attach member {0} into k8snamespace {1}".format(member, row.Project.name))
+                print("attach member {0} into k8s namespace {1}".format(member, row.Project.name))
                 kubernetesClient.create_role_binding(row.Project.name,
-                    member.UserPluginRelation.kubernetes_sa_name)
-            ran.rc_add_namespace_into_rc_project(row.Project.name)
-            
+                                                     member.UserPluginRelation.kubernetes_sa_name)
+            rancher.rc_add_namespace_into_rc_project(row.Project.name)
+
 
 def create_harbor_projects():
     rows = db.session.query(ProjectPluginRelation, Project.name). \

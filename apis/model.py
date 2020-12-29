@@ -16,7 +16,9 @@ If you don't have the alembic.ini, copy _alembic.ini and replace the postgres ur
 import json
 
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Date
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Date, Enum
+
+from enums.action_type import ActionType
 
 db = SQLAlchemy()
 
@@ -242,3 +244,18 @@ class WebInspect(db.Model):
             except TypeError:
                 fields[field] = str(data)
         return json.dumps(fields)
+
+
+class Activity(db.Model):
+    id = Column(Integer, primary_key=True)
+    action_type = Column(Enum(ActionType), nullable=False)
+    action_parts = Column(String)
+    operator_id = Column(Integer, ForeignKey(User.id, ondelete='SET NULL'), nullable=True)
+    operator_name = Column(String)
+    object_id = Column(String)
+    act_at = Column(DateTime)
+
+    def __repr__(self):
+        return f'<{self.id}:{self.action_type.name}>' \
+               f' {self.operator_name}({self.operator_id})' \
+               f' on {self.action_parts} at {str(self.act_at)}.'

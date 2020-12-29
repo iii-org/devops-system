@@ -12,6 +12,8 @@ from resources.logger import logger
 class Rancher(object):
     def __init__(self):
         self.token = 'dummy string to make API returns 401'
+        self.cluster_id = None
+        self.project_id = None
 
     def __api_request(self, method, path, headers, params=None, data=None,
                       with_token=True, retried=False):
@@ -148,20 +150,22 @@ class Rancher(object):
 
 
     def rc_get_cluster_id(self):
-        rancher_output = self.__api_get('/clusters')
-        output_array = rancher_output.json()['data']
-        for output in output_array:
-            logger.debug("get_rancher_cluster output: {0}".format(output['name']))
-            if output['name'] == config.get('RANCHER_CLUSTER_NAME'):
-                return output['id']
+        if self.cluster_id is None:
+            rancher_output = self.__api_get('/clusters')
+            output_array = rancher_output.json()['data']
+            for output in output_array:
+                logger.debug("get_rancher_cluster output: {0}".format(output['name']))
+                if output['name'] == config.get('RANCHER_CLUSTER_NAME'):
+                    self.cluster_id = output['id']
 
     def rc_get_project_id(self):
-        cluster_id = self.rc_get_cluster_id()
-        rancher_output = self.__api_get('/clusters/{0}/projects'.format(cluster_id))
-        output_array = rancher_output.json()['data']
-        for output in output_array:
-            if output['name'] == "Default":
-                return output['id']
+        self.rc_get_cluster_id()
+        if self.project_id is None:
+            rancher_output = self.__api_get('/clusters/{0}/projects'.format(self.cluster_id))
+            output_array = rancher_output.json()['data']
+            for output in output_array:
+                if output['name'] == "Default":
+                    self.project_id = output['id']
 
     def rc_get_admin_user_id(self):
         rancher_output = self.__api_get('/users')
@@ -171,7 +175,7 @@ class Rancher(object):
                 return output['id']
 
     def rc_enable_project_pipeline(self, repository_url):
-        project_id = self.rc_get_project_id()
+        self.rc_get_project_id()
         pipeline_list = self.rc_get_project_pipeline()
         for pipeline in pipeline_list:
             if pipeline['repositoryUrl'] == repository_url:
@@ -180,14 +184,14 @@ class Rancher(object):
         user_id = self.rc_get_admin_user_id()
         parameter = {
             "type": "pipeline",
-            "sourceCodeCredentialId": "{0}:{1}-gitlab-root".format(user_id, project_id.split(':')[1]),
+            "sourceCodeCredentialId": "{0}:{1}-gitlab-root".format(user_id, self.project_id.split(':')[1]),
             "repositoryUrl": repository_url,
             "triggerWebhookPr": True,
             "triggerWebhookPush": True,
             "triggerWebhookTag": True
         }
         output = self.__api_post(
-            '/projects/{0}/pipelines'.format(project_id), data=parameter)
+            '/projects/{0}/pipelines'.format(self.project_id), data=parameter)
         logger.debug("enable_rancher_project_pipeline output: {0}".format(output.json()))
         return output.json()['id']
 
@@ -206,18 +210,19 @@ class Rancher(object):
                   message='"disable_rancher_project_pipeline error, error message: {0}'.format(rancher_output.text))
 
     def rc_get_project_pipeline(self):
-        project_id = self.rc_get_project_id()
-        output = self.__api_get('/projects/{0}/pipelines'.format(project_id))
+        self.rc_get_project_id()
+        output = self.__api_get('/projects/{0}/pipelines'.format(self.project_id))
         return output.json()['data']
 
     def rc_add_namespace_into_rc_project(self, project_name):
-        rc_cluster_id = self.rc_get_cluster_id()
-        rc_project_id =self.rc_get_project_id()
+        self.rc_get_cluster_id()
+        self.rc_get_project_id()
         body = {
-            "projectId": rc_project_id
+            "projectId": self.project_id
         }
         params = {'action': 'move'}
-        url = '/clusters/{0}/namespaces/{1}'.format(rc_cluster_id, project_name)
+        url = '/clusters/{0}/namespaces/{1}'.format(self.cluster_id, project_name)
         output = self.__api_post(url, params=params, data=body)
+
 
 rancher = Rancher()

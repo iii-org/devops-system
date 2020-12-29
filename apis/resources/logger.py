@@ -1,3 +1,4 @@
+import os
 import logging
 from logging import handlers
 
@@ -23,9 +24,12 @@ class DevOpsFilter(logging.Filter):
             record.user_name = jwt['user_account']
         return True
 
-
+import os
+if not os.path.exists('logs'):
+    os.makedirs('logs')
+    
 handler = handlers.TimedRotatingFileHandler(
-    'devops-api-rotate.log', when='D', interval=999, backupCount=14, encoding='utf-8')
+    'logs/devops-api-rotate.log', when='D', interval=999, backupCount=14, encoding='utf-8')
 handler.setFormatter(logging.Formatter(
     '%(asctime)s %(user_name)s/%(user_id)d %(filename)s'
     ' [line:%(lineno)d] %(levelname)s %(message)s',

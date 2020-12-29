@@ -10,8 +10,10 @@ from sqlalchemy.orm.exc import NoResultFound
 
 import resources.apiError as apiError
 import util as util
+from enums.action_type import ActionType
 from model import db
-from nexus import get_user_plugin_relation
+from nexus import nx_get_user_plugin_relation
+from resources.activity import record_activity
 from resources.apiError import DevOpsError
 import model
 from resources import harbor, role
@@ -147,13 +149,14 @@ def get_user_info(user_id):
             404, 'User not found.', apiError.user_not_found(user_id))
 
 
-def update_info(user_id, args):
+@record_activity(ActionType.UPDATE_USER)
+def update_user(user_id, args):
     set_string = ""
     if args["name"] is not None:
         set_string += "name = '{0}'".format(args["name"])
         set_string += ","
     if args["password"] is not None:
-        if 5 != get_jwt_identity()['role_id']:
+        if role.ADMIN.id != get_jwt_identity()['role_id']:
             if args["old_password"] is None:
                 return util.respond(400, "old_password is empty", error=apiError.wrong_password())
             h_old_password = SHA256.new()
@@ -194,7 +197,7 @@ def update_info(user_id, args):
 
 
 def update_external_passwords(user_id, new_pwd):
-    user_relation = get_user_plugin_relation(user_id=user_id)
+    user_relation = nx_get_user_plugin_relation(user_id=user_id)
     if user_relation is None:
         return util.respond(400, 'Error when updating password',
                             error=apiError.user_not_found(user_id))
@@ -215,9 +218,10 @@ def try_to_delete(delete_method, obj):
             raise e
 
 
+@record_activity(ActionType.DELETE_USER)
 def delete_user(user_id):
     # 取得gitlab & redmine user_id
-    relation = get_user_plugin_relation(user_id=user_id)
+    relation = nx_get_user_plugin_relation(user_id=user_id)
 
     try_to_delete(gitlab.gl_delete_user, relation.repository_user_id)
     try_to_delete(redmine.rm_delete_user, relation.plan_user_id)
@@ -236,8 +240,7 @@ def delete_user(user_id):
     del_user = model.User.query.filter_by(id=user_id).one()
     db.session.delete(del_user)
     db.session.commit()
-
-    return util.success()
+    return None
 
 
 def change_user_status(user_id, args):
@@ -258,19 +261,20 @@ def change_user_status(user_id, args):
             error=apiError.user_not_found(user_id))
 
 
+@record_activity(ActionType.CREATE_USER)
 def create_user(args):
     # Check if name is valid
     login_name = args['login']
     if re.fullmatch(r'^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,58}[a-zA-Z0-9]$', login_name) is None:
-        return util.respond(400, "Error when creating new user",
-                            error=apiError.invalid_user_name(login_name))
+        raise apiError.DevOpsError(400, "Error when creating new user",
+                                   error=apiError.invalid_user_name(login_name))
 
     user_source_password = args["password"]
     if re.fullmatch(r'(?=.*\d)(?=.*[a-z])(?=.*[A-Z])'
                     r'^[\w!@#$%^&*()+|{}\[\]`~\-\'\";:/?.\\>,<]{8,20}$',
                     user_source_password) is None:
-        return util.respond(400, "Error when creating new user",
-                            error=apiError.invalid_user_password())
+        raise apiError.DevOpsError(400, "Error when creating new user",
+                                   error=apiError.invalid_user_password())
 
     # Check DB has this login, email, if has, raise error
     check_count = model.User.query.filter(db.or_(
@@ -307,13 +311,13 @@ def create_user(args):
                 raise DevOpsError(422, "Gitlab already has this account or email.",
                                   error=apiError.already_used())
         page += 1
-    
+
     # Check Kubernetes has this Service Account (login), if has, return error 400
     sa_list = kubernetesClient.list_service_account()
     login_sa_name = util.encode_k8s_sa(login_name)
     if login_sa_name in sa_list:
-        return util.respond(422, "Kubernetes already has this service account.",
-                            error=apiError.already_used())
+        raise DevOpsError(422, "Kubernetes already has this service account.",
+                          error=apiError.already_used())
 
     # plan software user create
     red_user = redmine.rm_create_user(args, user_source_password, is_admin=is_admin)
@@ -342,6 +346,7 @@ def create_user(args):
     except Exception as e:
         gitlab.gl_delete_user(gitlab_user_id)
         redmine.rm_delete_user(redmine_user_id)
+        kubernetesClient.delete_service_account(login_sa_name)
         raise e
 
     try:
@@ -385,8 +390,7 @@ def create_user(args):
         kubernetesClient.delete_service_account(kubernetes_sa_name)
         raise e
 
-    return util.success({"user_id": user_id})
-
+    return {"user_id": user_id}
 
 
 def user_list():
@@ -472,14 +476,16 @@ def user_list_by_project(project_id, args):
         })
     return util.success({"user_list": arr_ret})
 
+
 def user_sa_config(user_id):
     ret_users = db.session.query(model.User, model.UserPluginRelation.kubernetes_sa_name). \
-            join(model.UserPluginRelation). \
-            filter(model.User.id == user_id). \
-            filter(model.User.disabled == False).first()
+        join(model.UserPluginRelation). \
+        filter(model.User.id == user_id). \
+        filter(model.User.disabled == False).first()
     sa_name = str(ret_users.kubernetes_sa_name)
     sa_config = kubernetesClient.get_service_account_config(sa_name)
     return util.success(sa_config)
+
 
 # --------------------- Resources ---------------------
 class Login(Resource):
@@ -531,12 +537,12 @@ class SingleUser(Resource):
         parser.add_argument('email', type=str)
         parser.add_argument('status', type=str)
         args = parser.parse_args()
-        return update_info(user_id, args)
+        return update_user(user_id, args)
 
     @jwt_required
     def delete(self, user_id):
         role.require_admin("Only admin can delete user.")
-        return delete_user(user_id)
+        return util.success(delete_user(user_id))
 
     @jwt_required
     def post(self):
@@ -550,7 +556,7 @@ class SingleUser(Resource):
         parser.add_argument('role_id', type=int, required=True)
         parser.add_argument('status', type=str)
         args = parser.parse_args()
-        return create_user(args)
+        return util.success(create_user(args))
 
 
 class UserList(Resource):
@@ -559,8 +565,10 @@ class UserList(Resource):
         role.require_pm()
         return user_list()
 
+
 class UserSaConfig(Resource):
     @jwt_required
     def get(self, user_id):
-        role.require_in_project(project_id, "Error while getting project info.")
+        role.require_user_himself(user_id, even_pm=False,
+                                  err_message="Only admin and PM can access another user's data.")
         return user_sa_config(user_id)
