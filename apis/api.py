@@ -338,9 +338,15 @@ api.add_resource(activity.ProjectActivities, '/project/<sint:project_id>/activit
 
 
 if __name__ == "__main__":
-    db.init_app(app)
-    db.app = app
-    jsonwebtoken.init_app(app)
-    initialize(config.get('SQLALCHEMY_DATABASE_URI'))
-    migrate.run()
-    app.run(host='0.0.0.0', port=10009, debug=(config.get('DEBUG') is True))
+    try:
+        db.init_app(app)
+        db.app = app
+        jsonwebtoken.init_app(app)
+        initialize(config.get('SQLALCHEMY_DATABASE_URI'))
+        migrate.run()
+        app.run(host='0.0.0.0', port=10009, debug=(config.get('DEBUG') is True))
+    except Exception as e:
+        ret = internal_error(e)
+        if ret[1] == 404:
+            logger.logger.exception(e)
+            raise e
