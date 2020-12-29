@@ -12,8 +12,8 @@ from resources.rancher import rancher
 
 # Each time you add a migration, add a version code here.
 VERSIONS = ['0.9.2', '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.4', '0.9.2.5',
-            '0.9.2.6', '0.9.2.a7']
-ONLY_UPDATE_DB_MODELS = {'0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.5', '0.9.2.6'}
+            '0.9.2.6', '0.9.2.a7', '0.9.2.a8']
+ONLY_UPDATE_DB_MODELS = {'0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.5', '0.9.2.6', '0.9.2.a8'}
 
 
 def upgrade(version):
