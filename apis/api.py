@@ -35,6 +35,7 @@ for key in ['JWT_SECRET_KEY',
     app.config[key] = config.get(key)
 
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = datetime.timedelta(days=1)
+logger.set_app(app)
 api = Api(app, errors=apiError.custom_errors)
 CORS(app)
 
