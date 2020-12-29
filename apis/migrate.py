@@ -1,5 +1,7 @@
 import os
 
+from sqlalchemy import engine, inspect
+
 import config
 import model
 import util
@@ -10,9 +12,8 @@ from resources.rancher import rancher
 
 # Each time you add a migration, add a version code here.
 VERSIONS = ['0.9.2', '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.4', '0.9.2.5',
-            '0.9.2.6']
+            '0.9.2.6', '0.9.2.a7']
 ONLY_UPDATE_DB_MODELS = {'0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.5', '0.9.2.6'}
-VERSION_FILE_NAME = '.api_version'
 
 
 def upgrade(version):
@@ -26,6 +27,22 @@ def upgrade(version):
     elif version == '0.9.2.4':
         create_k8s_user()
         create_k8s_namespace()
+    elif version == '0.9.2.a7':
+        alembic_upgrade()
+        move_version_to_db(version)
+
+
+def move_version_to_db(version):
+    row = model.NexusVersion.query.first()
+    if row is None:
+        new = model.NexusVersion(api_version=version)
+        db.session.add(new)
+        db.session.commit()
+    else:
+        row.api_version = version
+        db.session.commit()
+    if os.path.exists('.api_version'):
+        os.remove('.api_version')
 
 
 def create_k8s_user():
@@ -119,19 +136,23 @@ def cleanup_change_to_orm():
 
 
 def init():
-    with (open(VERSION_FILE_NAME, 'w')) as f:
-        f.write(VERSIONS[-1])
-        f.close()
+    new = model.NexusVersion(api_version=VERSIONS[-1])
+    db.session.add(new)
+    db.session.commit()
 
 
 def needs_upgrade(current, target):
     r = current.split('.')
     c = target.split('.')
     if len(r) == 3:
-        r.extend([0])
+        r.extend(['a0'])
     if len(c) == 3:
-        c.extend([0])
+        c.extend(['a0'])
     for i in range(4):
+        if c[3][0] == 'a':
+            c[3] = c[3][1:]
+        if r[3][0] == 'a':
+            r[3] = r[3][1:]
         if int(c[i]) > int(r[i]):
             return True
     return False
@@ -152,19 +173,36 @@ def alembic_upgrade():
         raise RuntimeError('Alembic has error, process stop.')
 
 
+def current_version():
+    if db.engine.has_table(model.NexusVersion.__table__.name):
+        row = model.NexusVersion.query.first()
+        if row is not None:
+            current = row.api_version
+        else:
+            current = '0.0.0'
+            new = model.NexusVersion(api_version='0.0.0')
+            db.session.add(new)
+            db.session.commit()
+    else:
+        # Backward compatibility
+        if os.path.exists('.api_version'):
+            with (open('.api_version', 'r')) as f:
+                current = f.read()
+        else:
+            current = '0.0.0'
+    return current
+
+
 def run():
-    current = '0.0.0'
-    if os.path.exists(VERSION_FILE_NAME):
-        with open(VERSION_FILE_NAME, 'r') as f:
-            current = f.read()
+    current = current_version()
     try:
         for version in VERSIONS:
             if needs_upgrade(current, version):
                 logger.info('Upgrade to {0}'.format(version))
                 upgrade(version)
                 current = version
+                row = model.NexusVersion.query.first()
+                row.api_version = current
+                db.session.commit()
     except Exception as e:
         raise e
-    finally:
-        with (open(VERSION_FILE_NAME, 'w')) as f:
-            f.write(current)

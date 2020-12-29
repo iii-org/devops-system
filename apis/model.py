@@ -259,3 +259,9 @@ class Activity(db.Model):
         return f'<{self.id}:{self.action_type.name}>' \
                f' {self.operator_name}({self.operator_id})' \
                f' on {self.action_parts} at {str(self.act_at)}.'
+
+
+class NexusVersion(db.Model):
+    id = Column(Integer, primary_key=True)
+    api_version = Column(String)
+    deploy_version = Column(String)
