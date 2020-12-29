@@ -263,11 +263,13 @@ def change_user_status(user_id, args):
 
 @record_activity(ActionType.CREATE_USER)
 def create_user(args):
+    logger.info('Creating user...')
     # Check if name is valid
     login_name = args['login']
     if re.fullmatch(r'^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,58}[a-zA-Z0-9]$', login_name) is None:
         raise apiError.DevOpsError(400, "Error when creating new user",
                                    error=apiError.invalid_user_name(login_name))
+    logger.info('Name is valid.')
 
     user_source_password = args["password"]
     if re.fullmatch(r'(?=.*\d)(?=.*[a-z])(?=.*[A-Z])'
@@ -275,6 +277,7 @@ def create_user(args):
                     user_source_password) is None:
         raise apiError.DevOpsError(400, "Error when creating new user",
                                    error=apiError.invalid_user_password())
+    logger.info('Password is valid.')
 
     # Check DB has this login, email, if has, raise error
     check_count = model.User.query.filter(db.or_(
@@ -284,8 +287,10 @@ def create_user(args):
     if check_count > 0:
         raise DevOpsError(422, "System already has this account or email.",
                           error=apiError.already_used())
+    logger.info('Account is unique.')
 
     is_admin = args['role_id'] == role.ADMIN.id
+    logger.info(f'is_admin is {is_admin}')
 
     offset = 0
     limit = 25
@@ -299,6 +304,8 @@ def create_user(args):
                 raise DevOpsError(422, "Redmine already has this account or email.",
                                   error=apiError.already_used())
         offset += limit
+    logger.info('Account name not used in Redmine.')
+
     # Check Gitlab has this login, email, if has, raise error
     page = 1
     x_total_pages = 10
@@ -311,6 +318,7 @@ def create_user(args):
                 raise DevOpsError(422, "Gitlab already has this account or email.",
                                   error=apiError.already_used())
         page += 1
+    logger.info('Account name not used in Gitlab.')
 
     # Check Kubernetes has this Service Account (login), if has, return error 400
     sa_list = kubernetesClient.list_service_account()
@@ -318,10 +326,12 @@ def create_user(args):
     if login_sa_name in sa_list:
         raise DevOpsError(422, "Kubernetes already has this service account.",
                           error=apiError.already_used())
+    logger.info('Account name not used in kubernetes.')
 
     # plan software user create
     red_user = redmine.rm_create_user(args, user_source_password, is_admin=is_admin)
     redmine_user_id = red_user['user']['id']
+    logger.info(f'Redmine user created, id={redmine_user_id}')
 
     # gitlab software user create
     try:
@@ -330,6 +340,7 @@ def create_user(args):
         redmine.rm_delete_user(redmine_user_id)
         raise e
     gitlab_user_id = git_user['id']
+    logger.info(f'Gitlab user created, id={gitlab_user_id}')
 
     # kubernetes service account create
     try:
@@ -339,6 +350,7 @@ def create_user(args):
         gitlab.gl_delete_user(gitlab_user_id)
         raise e
     kubernetes_sa_name = kubernetes_sa.metadata.name
+    logger.info(f'Kubernetes user created, sa_name={kubernetes_sa_name}')
 
     # Harbor user create
     try:
@@ -348,6 +360,7 @@ def create_user(args):
         redmine.rm_delete_user(redmine_user_id)
         kubernetesClient.delete_service_account(login_sa_name)
         raise e
+    logger.info(f'Harbor user created, id={harbor_user_id}')
 
     try:
         # DB
@@ -369,6 +382,7 @@ def create_user(args):
         db.session.commit()
 
         user_id = user.id
+        logger.info(f'Nexus user created, id={user_id}')
 
         # insert user_plugin_relation table
         rel = model.UserPluginRelation(user_id=user_id,
@@ -378,11 +392,13 @@ def create_user(args):
                                        kubernetes_sa_name=kubernetes_sa_name)
         db.session.add(rel)
         db.session.commit()
+        logger.info(f'Nexus user_plugin built.')
 
         # insert project_user_role
         rol = model.ProjectUserRole(project_id=-1, user_id=user_id, role_id=args['role_id'])
         db.session.add(rol)
         db.session.commit()
+        logger.info(f'Nexus user project_user_role created.')
     except Exception as e:
         harbor.hb_delete_user(harbor_user_id)
         gitlab.gl_delete_user(gitlab_user_id)
@@ -390,6 +406,7 @@ def create_user(args):
         kubernetesClient.delete_service_account(kubernetes_sa_name)
         raise e
 
+    logger.info('User created.')
     return {"user_id": user_id}
 
 

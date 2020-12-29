@@ -35,7 +35,6 @@ for key in ['JWT_SECRET_KEY',
     app.config[key] = config.get(key)
 
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = datetime.timedelta(days=1)
-logger.set_app(app)
 api = Api(app, errors=apiError.custom_errors)
 CORS(app)
 
@@ -58,8 +57,10 @@ def internal_error(exception):
     if type(exception) is apiError.DevOpsError:
         if exception.status_code != 404:
             traceback.print_exc()
+            logger.logger.exception(str(exception))
         return util.respond(exception.status_code, exception.message, error=exception.error_value)
     traceback.print_exc()
+    logger.logger.exception(str(exception))
     return util.respond(500, "Unexpected internal error",
                         error=apiError.uncaught_exception(exception))
 
@@ -79,11 +80,13 @@ def initialize(db_uri):
     if database_exists(db_uri):
         return
     logger.logger.info('Initializing...')
+    logger.logger.info(f'db_url is {db_uri}')
     if config.get('DEBUG'):
         print('Initializing...')
     # Create database
     create_database(db_uri)
     db.create_all()
+    logger.logger.info('Database created.')
     # Fill alembic revision with latest
     head = None
     revs = []
@@ -112,10 +115,12 @@ def initialize(db_uri):
         v = model.AlembicVersion(version_num=head)
         db.session.add(v)
         db.session.commit()
+    logger.logger.info(f'Alembic revision set to ${head}')
     # Create dummy project
     new = model.Project(id=-1, name='__dummy_project')
     db.session.add(new)
     db.session.commit()
+    logger.logger.info('Project -1 created.')
     # Init admin
     args = {
         'login': config.get('ADMIN_INIT_LOGIN'),
@@ -127,7 +132,9 @@ def initialize(db_uri):
         'status': 'enable'
     }
     user.create_user(args)
+    logger.logger.info('Initial admin created.')
     migrate.init()
+    logger.logger.info('Server initialized.')
 
 
 # Projects
@@ -334,7 +341,6 @@ if __name__ == "__main__":
     db.init_app(app)
     db.app = app
     jsonwebtoken.init_app(app)
-    u = config.get('SQLALCHEMY_DATABASE_URI')
-    initialize(u)
+    initialize(config.get('SQLALCHEMY_DATABASE_URI'))
     migrate.run()
     app.run(host='0.0.0.0', port=10009, debug=(config.get('DEBUG') is True))
