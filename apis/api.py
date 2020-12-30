@@ -378,4 +378,4 @@ if __name__ == "__main__":
         ret = internal_error(e)
         if ret[1] == 404:
             logger.logger.exception(e)
-            raise e
+        raise e

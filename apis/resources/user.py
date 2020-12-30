@@ -73,7 +73,7 @@ def login(args):
             if args["username"] == "admin":
                 expires = datetime.timedelta(days=36500)
             else:
-                expires = datetime.timedelta(days=1)
+                expires = datetime.timedelta(days=30)
             access_token = create_access_token(
                 identity=jwt_response_data(row),
                 expires_delta=expires)
