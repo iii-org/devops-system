@@ -79,10 +79,8 @@ class Rancher(object):
         }
         if run is not None:
             params['run'] = run
-        print(f"params: {params}")
         response = self.__api_get(path, params=params)
         output_array = response.json()['data']
-        print(f"output_array: {output_array}")
         return output_array, response
 
     def rc_get_pipeline_executions_action(self, ci_project_id, ci_pipeline_id, pipelines_exec_run,
@@ -149,7 +147,7 @@ class Rancher(object):
                     "state": None,
                     "steps": tmp_step_message
                 })
-        return output_dict[1:]
+        return output_dict[1:], output_execution['executionState']
 
 
     def rc_get_cluster_id(self):
