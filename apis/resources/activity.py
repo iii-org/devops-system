@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from functools import wraps
 from time import strptime, mktime
 
+from flask import has_request_context
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from flask_restful import Resource, reqparse
 from sqlalchemy import desc, or_
@@ -21,6 +22,10 @@ def record_activity(action_type):
     def decorator(fn):
         @wraps(fn)
         def wrapper(*args, **kwargs):
+            if not has_request_context():
+                # Not in request context, do not record activity
+                return fn(*args, **kwargs)
+
             identity = get_jwt_identity()
             if identity is None:
                 identity = {'user_id': -1, 'user_account': 'anonymous'}

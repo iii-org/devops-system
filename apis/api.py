@@ -6,7 +6,8 @@ from os.path import isfile
 import werkzeug
 from flask import Flask
 from flask_cors import CORS
-from flask_restful import Resource, Api
+from flask_jwt_extended import jwt_required
+from flask_restful import Resource, Api, reqparse
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy_utils import database_exists, create_database
 from werkzeug.routing import IntegerConverter
@@ -35,7 +36,6 @@ for key in ['JWT_SECRET_KEY',
     app.config[key] = config.get(key)
 
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = datetime.timedelta(days=1)
-logger.set_app(app)
 api = Api(app, errors=apiError.custom_errors)
 CORS(app)
 
@@ -75,6 +75,31 @@ class SystemGitCommitID(Resource):
                 return util.success({"git_commit_id": "{0}".format(git_commit_id)})
         else:
             raise apiError.DevOpsError(400, "git_commit file is not exist.")
+
+
+class NexusVersion(Resource):
+    @jwt_required
+    def get(self):
+        row = model.NexusVersion.query.one()
+        return util.success({
+            'api_version': row.api_version,
+            'deploy_version': row.deploy_version
+        })
+
+    @jwt_required
+    def post(self):
+        role.require_admin()
+        keys = ['api_version', 'deploy_version']
+        parser = reqparse.RequestParser()
+        for k in keys:
+            parser.add_argument(k, type=str)
+        args = parser.parse_args()
+        row = model.NexusVersion.query.one()
+        for k in keys:
+            if args[k] is not None:
+                setattr(row, k, args[k])
+        db.session.commit()
+        return util.success()
 
 
 def initialize(db_uri):
@@ -337,11 +362,20 @@ api.add_resource(maintenance.update_db_rc_project_pipeline_id, '/maintenance/upd
 api.add_resource(activity.AllActivities, '/all_activities')
 api.add_resource(activity.ProjectActivities, '/project/<sint:project_id>/activities')
 
+# System versions
+api.add_resource(NexusVersion, '/system_versions')
+
 
 if __name__ == "__main__":
-    db.init_app(app)
-    db.app = app
-    jsonwebtoken.init_app(app)
-    initialize(config.get('SQLALCHEMY_DATABASE_URI'))
-    migrate.run()
-    app.run(host='0.0.0.0', port=10009, debug=(config.get('DEBUG') is True))
+    try:
+        db.init_app(app)
+        db.app = app
+        jsonwebtoken.init_app(app)
+        initialize(config.get('SQLALCHEMY_DATABASE_URI'))
+        migrate.run()
+        app.run(host='0.0.0.0', port=10009, debug=(config.get('DEBUG') is True))
+    except Exception as e:
+        ret = internal_error(e)
+        if ret[1] == 404:
+            logger.logger.exception(e)
+        raise e

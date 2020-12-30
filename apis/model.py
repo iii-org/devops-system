@@ -16,7 +16,7 @@ If you don't have the alembic.ini, copy _alembic.ini and replace the postgres ur
 import json
 
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Date, Enum
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Date, Enum, JSON
 
 from enums.action_type import ActionType
 
@@ -89,6 +89,13 @@ class PipelineSoftwareConfig(db.Model):
     detail = Column(String)
     sample = Column(Boolean)
 
+
+class PipelineLogsCache(db.Model):
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
+    ci_pipeline_id = Column(String)
+    run = Column(Integer)
+    logs = Column(JSON)
 
 class ProjectUserRole(db.Model):
     project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), primary_key=True)
@@ -259,3 +266,9 @@ class Activity(db.Model):
         return f'<{self.id}:{self.action_type.name}>' \
                f' {self.operator_name}({self.operator_id})' \
                f' on {self.action_parts} at {str(self.act_at)}.'
+
+
+class NexusVersion(db.Model):
+    id = Column(Integer, primary_key=True)
+    api_version = Column(String)
+    deploy_version = Column(String)
