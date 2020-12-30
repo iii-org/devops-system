@@ -70,17 +70,18 @@ class Rancher(object):
                                  data=body, with_token=False)
         return output.json()['token']
 
-    def rc_get_pipeline_executions(self, ci_project_id, ci_pipeline_id):
+    def rc_get_pipeline_executions(self, ci_project_id, ci_pipeline_id, run=None):
         path = '/projects/{0}/pipelineexecutions'.format(ci_project_id)
         params = {
             'order': 'desc',
             'sort': 'started',
             'pipelineId': ci_pipeline_id
         }
+        if run is not None:
+            params['run'] = run
         response = self.__api_get(path, params=params)
         output_array = response.json()['data']
         return output_array, response
-
 
     def rc_get_pipeline_executions_action(self, ci_project_id, ci_pipeline_id, pipelines_exec_run,
         action):
@@ -99,54 +100,54 @@ class Rancher(object):
         self.token = self.__generate_token()
         headersandtoken = "Authorization: Bearer {0}".format(self.token)
         output_executions, response = self.rc_get_pipeline_executions(
-            ci_project_id, ci_pipeline_id)
-        for output_execution in output_executions:
-            if pipelines_exec_run == output_execution['run']:
-                for index, stage in enumerate(
-                        output_execution['pipelineConfig']['stages']):
-                    tmp_step_message = []
-                    for step_index, step in enumerate(stage['steps']):
-                        url = ("wss://{0}/{1}/project/{2}/pipelineExecutions/"
-                               "{3}-{4}/log?stage={5}&step={6}").format(
-                            config.get('RANCHER_IP_PORT'), config.get('RANCHER_API_VERSION'), ci_project_id,
-                            ci_pipeline_id, pipelines_exec_run, index, step_index)
-                        logger.info("wss url: {0}".format(url))
-                        result = None
-                        ws = websocket.create_connection(url, header=[headersandtoken],
-                                                         sslopt={"cert_reqs": ssl.CERT_NONE})
-                        ws.settimeout(3)
-                        try:
-                            result = ws.recv()
-                            ws.close()
-                        except websocket.WebSocketTimeoutException:
-                            ws.close()
-                        # logger.info("Received :'%s'" % result)
-                        step_detail = output_execution['stages'][
-                            index]['steps'][step_index]
-                        if 'state' in step_detail:
-                            tmp_step_message.append({
-                                "state": step_detail['state'],
-                                "message": result
-                            })
-                        else:
-                            tmp_step_message.append({
-                                "state": None,
-                                "message": result
-                            })
-                    stage_state = output_execution['stages'][index]
-                    if 'state' in stage_state:
-                        output_dict.append({
-                            "name": stage['name'],
-                            "state": stage_state['state'],
-                            "steps": tmp_step_message
-                        })
-                    else:
-                        output_dict.append({
-                            "name": stage['name'],
-                            "state": None,
-                            "steps": tmp_step_message
-                        })
-        return output_dict[1:]
+            ci_project_id, ci_pipeline_id, run=pipelines_exec_run       
+            )
+        output_execution = output_executions[0]
+        for index, stage in enumerate(
+                output_execution['pipelineConfig']['stages']):
+            tmp_step_message = []
+            for step_index, step in enumerate(stage['steps']):
+                url = ("wss://{0}/{1}/project/{2}/pipelineExecutions/"
+                        "{3}-{4}/log?stage={5}&step={6}").format(
+                    config.get('RANCHER_IP_PORT'), config.get('RANCHER_API_VERSION'), ci_project_id,
+                    ci_pipeline_id, pipelines_exec_run, index, step_index)
+                logger.info("wss url: {0}".format(url))
+                result = None
+                ws = websocket.create_connection(url, header=[headersandtoken],
+                                                    sslopt={"cert_reqs": ssl.CERT_NONE})
+                ws.settimeout(3)
+                try:
+                    result = ws.recv()
+                    ws.close()
+                except websocket.WebSocketTimeoutException:
+                    ws.close()
+                # logger.info("Received :'%s'" % result)
+                step_detail = output_execution['stages'][
+                    index]['steps'][step_index]
+                if 'state' in step_detail:
+                    tmp_step_message.append({
+                        "state": step_detail['state'],
+                        "message": result
+                    })
+                else:
+                    tmp_step_message.append({
+                        "state": None,
+                        "message": result
+                    })
+            stage_state = output_execution['stages'][index]
+            if 'state' in stage_state:
+                output_dict.append({
+                    "name": stage['name'],
+                    "state": stage_state['state'],
+                    "steps": tmp_step_message
+                })
+            else:
+                output_dict.append({
+                    "name": stage['name'],
+                    "state": None,
+                    "steps": tmp_step_message
+                })
+        return output_dict[1:], output_execution['executionState']
 
 
     def rc_get_cluster_id(self):

@@ -9,7 +9,7 @@ from sqlalchemy.orm.exc import NoResultFound
 import model
 import resources.apiError as apiError
 import util as util
-from model import db
+from model import db, PipelineLogsCache
 from resources.logger import logger
 from .gitlab import GitLab
 from .rancher import rancher
@@ -61,12 +61,28 @@ def pipeline_exec_logs(args):
         raise apiError.DevOpsError(
             404, 'No such project.',
             error=apiError.repository_id_not_found(args['repository_id']))
+    
+    # search PipelineLogsCache table log
+    log_cache = PipelineLogsCache.query.filter(PipelineLogsCache.project_id == relation.project_id, 
+                                   PipelineLogsCache.ci_pipeline_id == relation.ci_pipeline_id,
+                                   PipelineLogsCache.run == args['pipelines_exec_run']).first()
+    if log_cache is None:
+        output_array, execution_state = rancher.rc_get_pipeline_executions_logs(
+            relation.ci_project_id,
+            relation.ci_pipeline_id,
+            args['pipelines_exec_run'])
 
-    output_array = rancher.rc_get_pipeline_executions_logs(
-        relation.ci_project_id,
-        relation.ci_pipeline_id,
-        args['pipelines_exec_run'])
-    return util.success(output_array)
+        # if execution status is Failed, Success, Aborted, log will insert into ipelineLogsCache table 
+        if execution_state in ['Failed', 'Success', 'Aborted']:
+            log = PipelineLogsCache(project_id = relation.project_id, 
+                                ci_pipeline_id = relation.ci_pipeline_id,
+                                run = args['pipelines_exec_run'],
+                                logs = output_array)
+            db.session.add(log)
+            db.session.commit()
+        return util.success(output_array)
+    else:
+        return util.success(log_cache.logs)
 
 
 def pipeline_exec_action(git_repository_id, args):
