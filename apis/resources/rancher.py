@@ -244,5 +244,24 @@ class Rancher(object):
         }
         url = '/projects/{0}/secrets'.format(self.project_id)
         output = self.__api_post(url, data=body)
+
+    def get_registry_into_rc_all(self):
+        self.rc_get_project_id()
+        url = '/projects/{0}/dockercredential'.format(self.project_id)
+        output = self.__api_get(url)
+        return output.json()['data']
+
+    def add_registry_into_rc_all(self, args):
+        self.rc_get_project_id()
+        registry={args['url']: {'username': args['username'], 'password': args['password']}}
+        body = {
+            "type": "dockerCredential",
+            "registries": registry,
+            "namespaceId": "__TEMP__",
+            "name": args['name']
+        }
+        print(f"body: {body}")
+        url = '/projects/{0}/dockercredential'.format(self.project_id)
+        output = self.__api_post(url, data=body)
         
 rancher = Rancher()
