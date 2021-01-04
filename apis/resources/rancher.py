@@ -227,7 +227,7 @@ class Rancher(object):
 
     def rc_get_secrets_all_list(self):
         self.rc_get_project_id()
-        url = '/projects/{0}/secrets'.format(self.project_id)
+        url = f'/projects/{self.project_id}/secrets'
         output = self.__api_get(url)
         return output.json()['data']
 
@@ -242,16 +242,23 @@ class Rancher(object):
             "labels": {},
             "name": args['name']
         }
-        url = '/projects/{0}/secrets'.format(self.project_id)
+        url = f'/projects/{self.project_id}/secrets'
         output = self.__api_post(url, data=body)
-
-    def get_registry_into_rc_all(self):
+        
+    def rc_delete_secrets_into_rc_all(self, secret_name):
         self.rc_get_project_id()
-        url = '/projects/{0}/dockercredential'.format(self.project_id)
+        url = f'/projects/{self.project_id}/secrets/{self.project_id.split(":")[1]}:{secret_name}'
+        print(f"url: {url}")
+        output = self.__api_delete(url)
+        return output.json()
+
+    def rc_get_registry_into_rc_all(self):
+        self.rc_get_project_id()
+        url = f'/projects/{self.project_id}/dockercredential'
         output = self.__api_get(url)
         return output.json()['data']
 
-    def add_registry_into_rc_all(self, args):
+    def rc_add_registry_into_rc_all(self, args):
         self.rc_get_project_id()
         registry={args['url']: {'username': args['username'], 'password': args['password']}}
         body = {
@@ -260,8 +267,14 @@ class Rancher(object):
             "namespaceId": "__TEMP__",
             "name": args['name']
         }
-        print(f"body: {body}")
-        url = '/projects/{0}/dockercredential'.format(self.project_id)
+        url = f'/projects/{self.project_id}/dockercredential'
         output = self.__api_post(url, data=body)
-        
+
+    def rc_delete_registry_into_rc_all(self, registry_name):
+        self.rc_get_project_id()
+        url = f'/projects/{self.project_id}/dockercredential/{self.project_id.split(":")[1]}:{registry_name}'
+        output = self.__api_delete(url)
+        return output.json()
+
+
 rancher = Rancher()

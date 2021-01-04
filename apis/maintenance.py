@@ -51,13 +51,16 @@ class secretes_into_rc_all(Resource):
         args = parser.parse_args()
         rancher.rc_add_secrets_into_rc_all(args)
         return util.success()
-    
+
+    @jwt_required
+    def delete(self, secret_name):
+        return util.success(rancher.rc_delete_secrets_into_rc_all(secret_name))
 
 class registry_into_rc_all(Resource):
 
     @jwt_required
     def get(self):
-        return util.success(rancher.get_registry_into_rc_all())
+        return util.success(rancher.rc_get_registry_into_rc_all())
         
     @jwt_required
     def post(self):
@@ -67,5 +70,9 @@ class registry_into_rc_all(Resource):
         parser.add_argument('username')
         parser.add_argument('password')
         args = parser.parse_args()
-        rancher.add_registry_into_rc_all(args)
+        rancher.rc_add_registry_into_rc_all(args)
         return util.success()
+
+    @jwt_required
+    def delete(self, registry_name):
+        return util.success(rancher.rc_delete_registry_into_rc_all(registry_name))
