@@ -1,6 +1,7 @@
 import ssl
-
+import json
 import websocket
+import base64
 from flask_restful import abort
 
 import config
@@ -216,7 +217,6 @@ class Rancher(object):
         return output.json()['data']
 
     def rc_add_namespace_into_rc_project(self, project_name):
-        self.rc_get_cluster_id()
         self.rc_get_project_id()
         body = {
             "projectId": self.project_id
@@ -225,5 +225,24 @@ class Rancher(object):
         url = '/clusters/{0}/namespaces/{1}'.format(self.cluster_id, project_name)
         output = self.__api_post(url, params=params, data=body)
 
+    def rc_get_secrets_all_list(self):
+        self.rc_get_project_id()
+        url = '/projects/{0}/secrets'.format(self.project_id)
+        output = self.__api_get(url)
+        return output.json()['data']
 
+    def rc_add_secrets_into_rc_all(self, args):
+        self.rc_get_project_id()
+        data = json.loads(args['data'].replace("'", '"'))
+        for key, value in data.items():
+                data[key] = base64.b64encode(bytes(value, encoding='utf-8')).decode('utf-8')
+        body = {
+            "type": args['type'],
+            "data": data,
+            "labels": {},
+            "name": args['name']
+        }
+        url = '/projects/{0}/secrets'.format(self.project_id)
+        output = self.__api_post(url, data=body)
+        
 rancher = Rancher()
