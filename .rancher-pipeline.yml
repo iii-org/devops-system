@@ -4,7 +4,7 @@ stages:
     - publishImageConfig:
         dockerfilePath: ./Dockerfile
         buildContext: .
-        tag: ${CICD_GIT_REPO_NAME}:${CICD_GIT_BRANCH}-${CICD_EXECUTION_SEQUENCE}
+        tag: ${CICD_GIT_REPO_NAME}/${CICD_GIT_BRANCH}-${CICD_EXECUTION_SEQUENCE}
         pushRemote: true
         registry: 10.20.0.71:5443
       env:

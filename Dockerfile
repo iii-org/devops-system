@@ -4,9 +4,10 @@ COPY . .
 ARG environments_json
 ARG k8s_config
 RUN mkdir ~/.kube
+RUN echo $environments_json
 RUN echo $environments_json > ./environments.json
 RUN echo $k8s_config > ~/.kube/config
 RUN cat ./environments.json
 RUN git rev-parse HEAD > git_commit
-RUN pip install -i https://pypi.douban.com/simple --no-cache-dir -r requirements.txt 
+#RUN pip install -i https://pypi.douban.com/simple --no-cache-dir -r requirements.txt
 CMD [ "python", "apis/api.py"]
