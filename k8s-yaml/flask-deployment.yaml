@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}
+  template:
+    metadata:
+      labels:
+        app: ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}
+    spec:
+      imagePullSecrets:
+      - name: pipeline-docker-registry
+      containers:
+      - name: ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}
+        image: ${CICD_IMAGE}:${CICD_GIT_BRANCH}-${CICD_EXECUTION_SEQUENCE}
+        ports:
+        - containerPort: 5000
