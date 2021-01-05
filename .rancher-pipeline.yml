@@ -28,3 +28,61 @@ stages:
         path: ./k8s-yaml/flask-deployment.yaml
     - applyYamlConfig:
         path: ./k8s-yaml/flask-service.yaml
+
+  - name: Code Review--run Checkmarx test
+    steps:
+      - runScriptConfig:
+          image: iiiorg/checkmarx-runner
+          shellScript: cd /usr/src/app; ls; echo ${api_orign}; node app.js;
+        env:
+          git_url: ${CICD_GIT_URL}
+          git_branch: ${CICD_GIT_BRANCH}
+          git_commit_id: ${CICD_GIT_COMMIT}
+          verbose: true
+        envFrom:
+          - sourceName: nexus
+            sourceKey: api_origin
+            targetKey: api_origin
+          - sourceName: nexus
+            sourceKey: username
+            targetKey: api_username
+          - sourceName: nexus
+            sourceKey: password
+            targetKey: api_password
+          - sourceName: checkmarx
+            sourceKey: username
+            targetKey: username
+          - sourceName: checkmarx
+            sourceKey: password
+            targetKey: password
+          - sourceName: checkmarx
+            sourceKey: client_secret
+            targetKey: client_secret
+          - sourceName: checkmarx
+            sourceKey: cm_url
+            targetKey: cm_url
+
+  - name: Run webinspect-runner
+    steps:
+      - runScriptConfig:
+          image: iiiorg/webinspect-runner
+          shellScript: cd /usr/src/app; node /usr/src/app/app.js
+        env:
+          inspect_url: http://10.20.0.72:30185/
+          project_name: ${CICD_GIT_REPO_NAME}
+          git_branch: ${CICD_GIT_BRANCH}
+          git_commit_id: ${CICD_GIT_COMMIT}
+          verbose: true
+        envFrom:
+          - sourceName: webinspect
+            sourceKey: wi_base_url
+            targetKey: wi_base_url
+          - sourceName: nexus
+            sourceKey: username
+            targetKey: api_username
+          - sourceName: nexus
+            sourceKey: password
+            targetKey: api_password
+          - sourceName: nexus
+            sourceKey: api_origin
+            targetKey: api_origin
