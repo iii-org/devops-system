@@ -1,4 +1,16 @@
 stages:
+  - name: Flatten secrets to files
+    steps:
+    - runScriptConfig:
+        image: alpine
+        shellScript: mkdir ~/.kube; echo $k8s_config > ~/.kube/config; echo $environments_json > environments.json;
+      envFrom:
+      - sourceName: devops-api
+        sourceKey: environments_json
+        targetKey: environments_json
+      - sourceName: devops-api
+        sourceKey: k8s_config
+        targetKey: k8s_config
   - name: Publish flask image
     steps:
     - publishImageConfig:
@@ -10,13 +22,6 @@ stages:
       env:
         PLUGIN_INSECURE: "true"
         PLUGIN_MTU: "1000"
-      envFrom:
-        - sourceName: devops-api
-          sourceKey: environments_json
-          targetKey: environments_json
-        - sourceName: devops-api
-          sourceKey: k8s_config
-          targetKey: k8s_config
   - name: deploy ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH} environment
     steps:
     - applyYamlConfig:
