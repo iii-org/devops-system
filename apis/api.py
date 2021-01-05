@@ -78,7 +78,6 @@ class SystemGitCommitID(Resource):
 
 
 class NexusVersion(Resource):
-    @jwt_required
     def get(self):
         row = model.NexusVersion.query.one()
         return util.success({

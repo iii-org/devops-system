@@ -11,5 +11,5 @@ spec:
   ports:
     - name: webport
       protocol: TCP
-      port: 5000
-
+      port: 14444
+      nodePort: 40000
