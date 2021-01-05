@@ -12,8 +12,8 @@ stages:
         PLUGIN_MTU: "1000"
       envFrom:
         - sourceName: devops-api
-          sourceKey: environment
-          targetKey: environment_json
+          sourceKey: environments_json
+          targetKey: environments_json
         - sourceName: devops-api
           sourceKey: k8s_config
           targetKey: k8s_config
