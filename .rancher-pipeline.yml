@@ -10,10 +10,16 @@ stages:
       env:
         PLUGIN_INSECURE: "true"
         PLUGIN_MTU: "1000"
+      envFrom:
+        - sourceName: devops-api
+          sourceKey: environment
+          targetKey: environment_json
+        - sourceName: devops-api
+          sourceKey: k8s_config
+          targetKey: k8s_config
   - name: deploy ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH} environment
     steps:
     - applyYamlConfig:
         path: ./k8s-yaml/flask-deployment.yaml
     - applyYamlConfig:
         path: ./k8s-yaml/flask-service.yaml
-
