@@ -357,6 +357,10 @@ api.add_resource(webInspect.WebInspectReport, '/webinspect/report/<scan_id>')
 
 # Maintenance
 api.add_resource(maintenance.update_db_rc_project_pipeline_id, '/maintenance/update_rc_pj_pipe_id')
+api.add_resource(maintenance.secretes_into_rc_all, '/maintenance/secretes_into_rc_all', 
+                 '/maintenance/secretes_into_rc_all/<secret_name>')
+api.add_resource(maintenance.registry_into_rc_all, '/maintenance/registry_into_rc_all',
+                 '/maintenance/registry_into_rc_all/<registry_name>')
 
 # Activity
 api.add_resource(activity.AllActivities, '/all_activities')
