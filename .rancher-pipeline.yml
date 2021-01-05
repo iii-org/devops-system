@@ -3,7 +3,7 @@ stages:
     steps:
     - runScriptConfig:
         image: alpine
-        shellScript: mkdir ~/.kube; echo $k8s_config > ~/.kube/config; echo $environments_json > environments.json;
+        shellScript: echo $k8s_config > k8s_config; echo $environments_json > environments.json;
       envFrom:
       - sourceName: devops-api
         sourceKey: environments_json
