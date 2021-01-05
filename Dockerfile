@@ -1,4 +1,4 @@
-FROM 10.50.1.63:5443/dockerhub/library/python:3.6
+FROM 10.20.0.71:5443/dockerhub/library/python:3.6
 WORKDIR /usr/src/app
 COPY . .
 RUN mkdir /root/.kube
