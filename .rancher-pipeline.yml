@@ -41,7 +41,7 @@ stages:
           verbose: true
         envFrom:
           - sourceName: nexus
-            sourceKey: api_origin
+            sourceKey: api-origin
             targetKey: api_origin
           - sourceName: nexus
             sourceKey: username
@@ -56,10 +56,10 @@ stages:
             sourceKey: password
             targetKey: password
           - sourceName: checkmarx
-            sourceKey: client_secret
+            sourceKey: client-secret
             targetKey: client_secret
           - sourceName: checkmarx
-            sourceKey: cm_url
+            sourceKey: cm-url
             targetKey: cm_url
 
   - name: Run webinspect-runner
@@ -75,7 +75,7 @@ stages:
           verbose: true
         envFrom:
           - sourceName: webinspect
-            sourceKey: wi_base_url
+            sourceKey: wi-base-url
             targetKey: wi_base_url
           - sourceName: nexus
             sourceKey: username
@@ -84,5 +84,5 @@ stages:
             sourceKey: password
             targetKey: api_password
           - sourceName: nexus
-            sourceKey: api_origin
+            sourceKey: api-origin
             targetKey: api_origin
