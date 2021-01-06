@@ -11,5 +11,5 @@ spec:
   ports:
     - name: webport
       protocol: TCP
-      port: 14444
+      port: 10009
       nodePort: 32400

@@ -29,7 +29,7 @@ stages:
     - applyYamlConfig:
         path: ./k8s-yaml/flask-service.yaml
 
-  - name: Code Review--run Checkmarx test
+  - name: Checkmarx test
     steps:
       - runScriptConfig:
           image: 10.20.0.71:5443/dockerhub/iiiorg/checkmarx-runner
