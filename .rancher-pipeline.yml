@@ -2,7 +2,7 @@ stages:
   - name: Flatten secrets to files
     steps:
     - runScriptConfig:
-        image: alpine
+        image: 10.20.0.71:5443/dockerhub/library/alpine
         shellScript: echo $k8s_config > k8s_config; echo $environments_json > environments.json;
       envFrom:
       - sourceName: devops-api
@@ -32,7 +32,7 @@ stages:
   - name: Code Review--run Checkmarx test
     steps:
       - runScriptConfig:
-          image: iiiorg/checkmarx-runner
+          image: 10.20.0.71:5443/dockerhub/iiiorg/checkmarx-runner
           shellScript: cd /usr/src/app; ls; echo ${api_orign}; node app.js;
         env:
           git_url: ${CICD_GIT_URL}
@@ -65,7 +65,7 @@ stages:
   - name: Run webinspect-runner
     steps:
       - runScriptConfig:
-          image: iiiorg/webinspect-runner
+          image: 10.20.0.71:5443/dockerhub/iiiorg/webinspect-runner
           shellScript: cd /usr/src/app; node /usr/src/app/app.js
         env:
           inspect_url: http://10.20.0.72:30185/
