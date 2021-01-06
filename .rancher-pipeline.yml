@@ -33,7 +33,7 @@ stages:
     steps:
       - runScriptConfig:
           image: 10.20.0.71:5443/dockerhub/iiiorg/checkmarx-runner
-          shellScript: cd /usr/src/app; ls; echo ${api_orign}; node app.js;
+          shellScript: ln -s "$(pwd)" /usr/src/app/repo; cd /usr/src/app; ls; node app.js;
         env:
           git_url: ${CICD_GIT_URL}
           git_branch: ${CICD_GIT_BRANCH}
