@@ -16,6 +16,6 @@ spec:
       - name: pipeline-docker-registry
       containers:
       - name: ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}
-        image: ${CICD_IMAGE}
+        image: ${CICD_IMAGE}:latest
         ports:
         - containerPort: 10009
