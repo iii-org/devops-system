@@ -83,7 +83,10 @@ def create_k8s_namespace():
 def create_limitrange_in_namespace():
     namespace_list = kubernetesClient.list_namespace()
     for namespace_name in namespace_list:
-        kubernetesClient.create_namespace_limitrange(namespace_name)
+        limitrange_list = kubernetesClient.list_limitrange_in_namespace(namespace_name)
+        print (f"limitrange_list: {limitrange_list}")
+        if "project-limitrange" not in limitrange_list:
+            kubernetesClient.create_namespace_limitrange(namespace_name)
 
 
 def create_harbor_projects():
