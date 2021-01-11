@@ -160,6 +160,18 @@ def create_namespace_limitrange(namespace):
         if e.status_code != 404:
             raise e
 
+
+def list_limitrange_in_namespace(namespace):
+    try:
+        limitrange_list = []
+        for limitrange in v1.list_namespaced_limit_range(namespace).items:
+            limitrange_list.append(limitrange.metadata.name)
+        return limitrange_list
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+
+
 def update_namespace_quota(namespace,resource):
     try:
         namespace_quota = v1.read_namespaced_resource_quota("project-quota",namespace)
