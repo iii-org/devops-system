@@ -83,11 +83,13 @@ def create_k8s_namespace():
 def create_limitrange_in_namespace():
     rows = db.session.query(ProjectPluginRelation, Project). \
         join(Project).all()
+    namespace_list = kubernetesClient.list_namespace()
     for row in rows:
-        limitrange_list = kubernetesClient.list_limitrange_in_namespace(row.Project.name)
-        print (f"limitrange_list: {limitrange_list}")
-        if "project-limitrange" not in limitrange_list:
-            kubernetesClient.create_namespace_limitrange(row.Project.name)
+        if row.Project.name in namespace_list:
+            limitrange_list = kubernetesClient.list_limitrange_in_namespace(row.Project.name)
+            if "project-limitrange" not in limitrange_list:
+                print (f"project {row.Project.name} don't have limitrange, create one")
+                kubernetesClient.create_namespace_limitrange(row.Project.name)
 
 
 def create_harbor_projects():
