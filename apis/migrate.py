@@ -81,12 +81,13 @@ def create_k8s_namespace():
             rancher.rc_add_namespace_into_rc_project(row.Project.name)
 
 def create_limitrange_in_namespace():
-    namespace_list = kubernetesClient.list_namespace()
-    for namespace_name in namespace_list:
-        limitrange_list = kubernetesClient.list_limitrange_in_namespace(namespace_name)
+    rows = db.session.query(ProjectPluginRelation, Project). \
+        join(Project).all()
+    for row in rows:
+        limitrange_list = kubernetesClient.list_limitrange_in_namespace(row.Project.name)
         print (f"limitrange_list: {limitrange_list}")
         if "project-limitrange" not in limitrange_list:
-            kubernetesClient.create_namespace_limitrange(namespace_name)
+            kubernetesClient.create_namespace_limitrange(row.Project.name)
 
 
 def create_harbor_projects():
