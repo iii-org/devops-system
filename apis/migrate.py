@@ -12,7 +12,7 @@ from resources.rancher import rancher
 
 # Each time you add a migration, add a version code here.
 VERSIONS = ['0.9.2', '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.4', '0.9.2.5',
-            '0.9.2.6', '0.9.2.a7', '0.9.2.a8']
+            '0.9.2.6', '0.9.2.a7', '0.9.2.a8', '0.9.2.a9']
 ONLY_UPDATE_DB_MODELS = {'0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.5', '0.9.2.6', '0.9.2.a8'}
 
 
@@ -30,6 +30,8 @@ def upgrade(version):
     elif version == '0.9.2.a7':
         alembic_upgrade()
         move_version_to_db(version)
+    elif version == '0.9.2.a9':
+        create_limitrange_in_namespace()
 
 
 def move_version_to_db(version):
@@ -77,6 +79,11 @@ def create_k8s_namespace():
                 kubernetesClient.create_role_binding(row.Project.name,
                                                      member.UserPluginRelation.kubernetes_sa_name)
             rancher.rc_add_namespace_into_rc_project(row.Project.name)
+
+def create_limitrange_in_namespace():
+    namespace_list = kubernetesClient.list_namespace()
+    for namespace_name in namespace_list:
+        kubernetesClient.create_namespace_limitrange(namespace_name)
 
 
 def create_harbor_projects():
