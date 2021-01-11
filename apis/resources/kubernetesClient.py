@@ -149,6 +149,17 @@ def create_namespace_quota(namespace):
         if e.status_code != 404:
             raise e
 
+def create_namespace_limitrange(namespace):
+    try:
+        resource_quota = k8s_client.V1LimitRange(spec=k8s_client.V1LimitRangeSpec(
+            limits=[{"default":{"memory":"10Gi","cpu":10},
+                    "defaultRequest":{"memory":"512Mi","cpu":1},"type":"Container"}]), 
+            metadata=k8s_client.V1ObjectMeta(namespace=namespace,name="project-limitrange"))
+        ret = v1.create_namespaced_limit_range(namespace, resource_quota)
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+
 def update_namespace_quota(namespace,resource):
     try:
         namespace_quota = v1.read_namespaced_resource_quota("project-quota",namespace)

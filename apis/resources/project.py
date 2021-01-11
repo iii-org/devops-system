@@ -129,6 +129,7 @@ def create_project(user_id, args):
         kubernetesClient.create_role_in_namespace(args['name'])
         kubernetesClient.create_role_binding(args['name'], util.encode_k8s_sa(user_info.login))
         kubernetesClient.create_namespace_quota(args['name'])
+        kubernetesClient.create_namespace_limitrange(args['name'])
     except Exception as e:
         kubernetesClient.delete_namespace(args['name'])
         raise e
