@@ -20,9 +20,8 @@ def __api_request(method, path, headers=None, params=None, data=None):
         params = {}
     if 'Content-Type' not in headers:
         headers['Content-Type'] = 'application/json'
-    auth = HTTPBasicAuth(config.get('HARBOR_ACCOUNT'), config.get('HARBOR_PASSWORD'))
-    url  = "https://{0}/api/v2.0/{1}".format(config.get('HARBOR_IP_PORT'), path)
-    #url = "{0}{1}".format(config.get('HARBOR_BASE_URL'), path)
+    auth = HTTPBasicAuth(config.get('HARBOR_ACCOUNT'), config.get('HARBOR_PASSWORD'))    
+    url = "{0}{1}".format(config.get('HARBOR_BASE_URL'), path)
 
     output = util.api_request(method, url, headers=headers,
                               params=params, data=data, auth=auth)
