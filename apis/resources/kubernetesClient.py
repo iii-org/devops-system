@@ -149,6 +149,29 @@ def create_namespace_quota(namespace):
         if e.status_code != 404:
             raise e
 
+def create_namespace_limitrange(namespace):
+    try:
+        resource_quota = k8s_client.V1LimitRange(spec=k8s_client.V1LimitRangeSpec(
+            limits=[{"default":{"memory":"10Gi","cpu":10},
+                    "defaultRequest":{"memory":"512Mi","cpu":1},"type":"Container"}]), 
+            metadata=k8s_client.V1ObjectMeta(namespace=namespace,name="project-limitrange"))
+        ret = v1.create_namespaced_limit_range(namespace, resource_quota)
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+
+
+def list_limitrange_in_namespace(namespace):
+    try:
+        limitrange_list = []
+        for limitrange in v1.list_namespaced_limit_range(namespace).items:
+            limitrange_list.append(limitrange.metadata.name)
+        return limitrange_list
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+
+
 def update_namespace_quota(namespace,resource):
     try:
         namespace_quota = v1.read_namespaced_resource_quota("project-quota",namespace)
@@ -161,9 +184,27 @@ def update_namespace_quota(namespace,resource):
 def create_role_in_namespace(namespace):
     rules = [k8s_client.V1PolicyRule(["*"], resources=["*"], verbs=["*"], )]
     role = k8s_client.V1Role(rules=rules)
-    role.metadata = k8s_client.V1ObjectMeta(namespace = namespace, name = "{0}-user-role".format(namespace))
+    role.metadata = k8s_client.V1ObjectMeta(namespace = namespace, name = "user-role".format(namespace))
     try:
         rbac.create_namespaced_role(namespace,role)
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+
+
+def list_role_in_namespace(namespace):
+    try:
+        role_list = []
+        for roles in rbac.list_namespaced_role(namespace).items:
+            role_list.append(roles.metadata.name)
+        return role_list
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+
+def delete_role_in_namespace(namespace, name):
+    try:
+        rbac.delete_namespaced_role(name, namespace)
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e

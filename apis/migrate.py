@@ -12,7 +12,7 @@ from resources.rancher import rancher
 
 # Each time you add a migration, add a version code here.
 VERSIONS = ['0.9.2', '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.4', '0.9.2.5',
-            '0.9.2.6', '0.9.2.a7', '0.9.2.a8']
+            '0.9.2.6', '0.9.2.a7', '0.9.2.a8', '0.9.2.a9', '0.9.2.a10']
 ONLY_UPDATE_DB_MODELS = {'0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.5', '0.9.2.6', '0.9.2.a8'}
 
 
@@ -30,6 +30,10 @@ def upgrade(version):
     elif version == '0.9.2.a7':
         alembic_upgrade()
         move_version_to_db(version)
+    elif version == '0.9.2.a9':
+        create_limitrange_in_namespace()
+    elif version == '0.9.2.a10':
+        delete_and_recreate_role_in_namespace()
 
 
 def move_version_to_db(version):
@@ -77,6 +81,36 @@ def create_k8s_namespace():
                 kubernetesClient.create_role_binding(row.Project.name,
                                                      member.UserPluginRelation.kubernetes_sa_name)
             rancher.rc_add_namespace_into_rc_project(row.Project.name)
+
+def create_limitrange_in_namespace():
+    rows = db.session.query(ProjectPluginRelation, Project). \
+        join(Project).all()
+    namespace_list = kubernetesClient.list_namespace()
+    for row in rows:
+        if row.Project.name in namespace_list:
+            limitrange_list = kubernetesClient.list_limitrange_in_namespace(row.Project.name)
+            if "project-limitrange" not in limitrange_list:
+                print (f"project {row.Project.name} don't have limitrange, create one")
+                kubernetesClient.create_namespace_limitrange(row.Project.name)
+
+
+def delete_and_recreate_role_in_namespace():
+    rows = db.session.query(ProjectPluginRelation, Project). \
+        join(Project).all()
+    namespace_list = kubernetesClient.list_namespace()
+    for row in rows:
+        if row.Project.name in namespace_list:
+            role_list = kubernetesClient.list_role_in_namespace(row.Project.name)
+            if f"{row.Project.name}-user-role" in role_list:
+                print(f"namepsace {row.Project.name} has old {row.Project.name}-user-role, delete it")
+                kubernetesClient.delete_role_in_namespace(row.Project.name, 
+                                                          f"{row.Project.name}-user-role")
+                new_role_list = kubernetesClient.list_role_in_namespace(row.Project.name)
+                print(f"After delete, namepsace {row.Project.name} hrs user-role-list: {new_role_list}")
+                kubernetesClient.create_role_in_namespace(row.Project.name)
+                finish_role_list = kubernetesClient.list_role_in_namespace(row.Project.name)
+                print(f"namepsace {row.Project.name} user role list: {finish_role_list}")
+                
 
 
 def create_harbor_projects():
