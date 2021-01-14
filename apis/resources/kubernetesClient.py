@@ -184,7 +184,7 @@ def update_namespace_quota(namespace,resource):
 def create_role_in_namespace(namespace):
     rules = [k8s_client.V1PolicyRule(["*"], resources=["*"], verbs=["*"], )]
     role = k8s_client.V1Role(rules=rules)
-    role.metadata = k8s_client.V1ObjectMeta(namespace = namespace, name = "user-role".format(namespace))
+    role.metadata = k8s_client.V1ObjectMeta(namespace = namespace, name = "user-role")
     try:
         rbac.create_namespaced_role(namespace,role)
     except apiError.DevOpsError as e:
@@ -220,6 +220,14 @@ def create_role_binding(namespace, sa_name):
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
+
+def delete_role_in_namespace(namespace, role_binding_name):
+    try:
+        rbac.delete_namespaced_role_binding(role_binding_name, namespace)
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+
 
 def list_pod(namespace):
     try:
