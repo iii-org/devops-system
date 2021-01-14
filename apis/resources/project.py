@@ -127,7 +127,6 @@ def create_project(user_id, args):
     try:
         kubernetesClient.create_namespace(args['name'])
         kubernetesClient.create_role_in_namespace(args['name'])
-        kubernetesClient.create_role_binding(args['name'], util.encode_k8s_sa(user_info.login))
         kubernetesClient.create_namespace_quota(args['name'])
         kubernetesClient.create_namespace_limitrange(args['name'])
     except Exception as e:
@@ -257,7 +256,6 @@ def create_project(user_id, args):
         redmine.rm_delete_project(redmine_pj_id)
         gitlab.gl_delete_project(gitlab_pj_id)
         harbor.hb_delete_project(harbor_pj_id)
-        rancher.rc_disable_project_pipeline(rancher.project_id, gitlab_pj_http_url)
         kubernetesClient.delete_namespace(args['name'])
         raise e
 
@@ -442,11 +440,17 @@ def project_add_member(project_id, user_id):
     project_relation = nx_get_project_plugin_relation(project_id)
     redmine_role_id = user.to_redmine_role_id(role_id)
 
-    services = ['redmine', 'gitlab', 'harbor']
+    # get project name
+    pj_row = model.Project.query.filter_by(id=project_id).one()
+    # get user name
+    ur_row = model.User.query.filter_by(id=user_id).one()
+
+    services = ['redmine', 'gitlab', 'harbor', 'kubernetes_role_binding']
     targets = {
         'redmine': redmine.rm_create_memberships,
         'gitlab': gitlab.gl_project_add_member,
-        'harbor': harbor.hb_add_member
+        'harbor': harbor.hb_add_member,
+        'kubernetes_role_binding': kubernetesClient.create_role_binding
     }
     service_args = {
         'redmine': (project_relation.plan_project_id,
@@ -454,7 +458,8 @@ def project_add_member(project_id, user_id):
         'gitlab': (project_relation.git_repository_id,
                    user_relation.repository_user_id),
         'harbor': (project_relation.harbor_project_id,
-                   user_relation.harbor_user_id)
+                   user_relation.harbor_user_id),
+        'kubernetes_role_binding': (pj_row.name, util.encode_k8s_sa(ur_row.login))
     }
     helper = util.ServiceBatchOpHelper(services, targets, service_args)
     helper.run()
@@ -508,6 +513,18 @@ def project_remove_member(project_id, user_id):
     except DevOpsError as e:
         if e.status_code != 404:
             raise e
+
+    # get project name
+    pj_row = model.Project.query.filter_by(id=project_id).one()
+    # get user name
+    ur_row = model.User.query.filter_by(id=user_id).one()
+    try:
+        kubernetesClient.delete_role_in_namespace(pj_row.name, 
+                                                  f"{util.encode_k8s_sa(ur_row.login)}-rb")
+    except DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+
 
     # delete relationship from ProjectUserRole table.
     try:
