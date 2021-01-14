@@ -519,7 +519,7 @@ def project_remove_member(project_id, user_id):
     # get user name
     ur_row = model.User.query.filter_by(id=user_id).one()
     try:
-        kubernetesClient.delete_role_in_namespace(pj_row.name, 
+        kubernetesClient.delete_role_binding(pj_row.name, 
                                                   f"{util.encode_k8s_sa(ur_row.login)}-rb")
     except DevOpsError as e:
         if e.status_code != 404:
