@@ -221,7 +221,7 @@ def create_role_binding(namespace, sa_name):
         if e.status_code != 404:
             raise e
 
-def delete_role_in_namespace(namespace, role_binding_name):
+def delete_role_binding(namespace, role_binding_name):
     try:
         rbac.delete_namespaced_role_binding(role_binding_name, namespace)
     except apiError.DevOpsError as e:
