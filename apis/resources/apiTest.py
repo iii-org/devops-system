@@ -9,6 +9,7 @@ from sqlalchemy import desc
 import model
 import util as util
 from model import db
+from resources import gitlab
 from resources.apiError import DevOpsError
 
 HTTP_TYPES = {"1": "request", "2": "response"}
@@ -380,7 +381,8 @@ def list_results(project_id):
         ret.append({
             'id': row.id,
             'branch': row.branch,
-            'commit_id': row.commit_id,
+            'commit_id': row.commit_id[0:7],
+            'commit_url': gitlab.commit_id_to_url(project_id, row.commit_id),
             'success': row.total - row.fail,
             'failure': row.fail,
             'run_at': str(row.run_at)

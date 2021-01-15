@@ -7,6 +7,7 @@ from sqlalchemy.orm.exc import NoResultFound
 
 import config
 import model
+import nexus
 import util as util
 from resources import apiError, kubernetesClient, role
 from resources.apiError import DevOpsError
@@ -24,6 +25,10 @@ def get_nexus_project_id(repo_id):
 def get_repo_url(project_id):
     row = model.Project.query.filter_by(id=project_id).one()
     return row.http_url
+
+
+def commit_id_to_url(project_id, commit_id):
+    return f'{get_repo_url(project_id)[0:-4]}/-/commit/{commit_id}'
 
 
 class GitLab(object):
@@ -200,7 +205,10 @@ class GitLab(object):
                 "last_commit_message": branch_info["commit"]["message"],
                 "last_commit_time":
                     branch_info["commit"]["committed_date"],
-                "short_id": branch_info["commit"]["short_id"],
+                "short_id": branch_info["commit"]["short_id"][0:7],
+                'commit_url': commit_id_to_url(
+                    get_nexus_project_id(repo_id),
+                    branch_info['commit']['short_id']),
                 "env_url": env_url_list
             }
             branch_list.append(branch)

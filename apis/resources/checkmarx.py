@@ -191,7 +191,8 @@ class CheckMarx(object):
             ret.append({
                 'scan_id': row.scan_id,
                 'branch': row.branch,
-                'commit_id': row.commit_id,
+                'commit_id': row.commit_id[0:7],
+                'commit_url': gitlab.commit_id_to_url(project_id, row.commit_id),
                 'status': row.scan_final_status,
                 'stats': stats,
                 'run_at': str(row.run_at),
