@@ -211,6 +211,10 @@ class Rancher(object):
             abort(400,
                   message='"disable_rancher_project_pipeline error, error message: {0}'.format(rancher_output.text))
 
+    def rc_get_pipeline_info(self, project_id, pipeline_id):
+        rancher_output = self.__api_get(f"/project/{project_id}/pipelines/{pipeline_id}")
+        return rancher_output.json()
+
     def rc_get_project_pipeline(self):
         self.rc_get_project_id()
         output = self.__api_get('/projects/{0}/pipelines'.format(self.project_id))
