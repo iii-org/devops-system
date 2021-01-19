@@ -135,11 +135,8 @@ class PostmanResults(Resource):
 
 class PostmanReport(Resource):
     @jwt_required
-    def get(self, project_id):
-        parser = reqparse.RequestParser()
-        parser.add_argument('commit_id', type=str, required=False)
-        args = parser.parse_args()
-        return apiTest.get_report(project_id, args['commit_id'])
+    def get(self, id):
+        return apiTest.get_report(id)
 
     @jwt_required
     def post(self):

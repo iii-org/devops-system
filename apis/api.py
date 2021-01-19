@@ -304,7 +304,7 @@ api.add_resource(apiTest.TestValue, '/testValues/<value_id>')
 # Postman tests
 api.add_resource(postman.ExportToPostman, '/export_to_postman/<sint:project_id>')
 api.add_resource(postman.PostmanResults, '/postman_results/<sint:project_id>')
-api.add_resource(postman.PostmanReport, '/testResults', '/postman_report/<sint:project_id>')
+api.add_resource(postman.PostmanReport, '/testResults', '/postman_report/<int:id>')
 
 # Checkmarx report generation
 api.add_resource(checkmarx.CreateCheckmarxScan, '/checkmarx/create_scan')

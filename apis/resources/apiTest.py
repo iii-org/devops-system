@@ -362,14 +362,8 @@ def save_test_result(args):
     return util.success()
 
 
-def get_report(project_id, commit_id):
-    query = model.TestResults.query.filter_by(project_id=project_id)
-    if commit_id is not None:
-        query = query.filter_by(commit_id=commit_id)
-    row = query.order_by(desc(model.TestResults.id)).limit(1).first()
-    if row is None:
-        return util.respond(204)
-    print(row.commit_id)
+def get_report(id):
+    row = model.TestResults.query.filter_by(id=id).one()
     report = row.report
     if report is None or report == 'undefined':  # Corrupted data by old runners
         return util.respond(204)
