@@ -254,7 +254,9 @@ def list_deployment(namespace):
     try:
         deployment_list = []
         for deployments in k8s_client.AppsV1Api().list_namespaced_deployment(namespace).items:
-            deployment_list.append(deployments.metadata.name)
+            deployment_list.append({"deployment_name": deployments.metadata.name, 
+                                    "available_pod_number": deployments.status.available_replicas,
+                                    "total_pod_number": deployments.status.replicas})
         return deployment_list
     except apiError.DevOpsError as e:
         if e.status_code != 404:
