@@ -135,8 +135,8 @@ class PostmanResults(Resource):
 
 class PostmanReport(Resource):
     @jwt_required
-    def get(self, project_id):
-        return apiTest.get_report(project_id)
+    def get(self, id):
+        return apiTest.get_report(id)
 
     @jwt_required
     def post(self):

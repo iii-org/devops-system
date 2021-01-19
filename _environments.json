@@ -27,7 +27,8 @@
     "CHECKMARX_PASSWORD": "***********",
     "CHECKMARX_SECRET": "********-****-****-****-************",
 
-    "SONAR_IP_PORT": "127.0.0.1:9942",
+    "SONARQUBE_BASE_URL": "http://sonarqube.yours/api",
+    "SONARQUBE_ADMIN_TOKEN": "*********************************",
 
     "HARBOR_BASE_URL": "https://your.harbor.net:5443/api/v2.0",
     "HARBOR_ACCOUNT": "admin",

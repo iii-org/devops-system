@@ -97,6 +97,7 @@ class PipelineLogsCache(db.Model):
     run = Column(Integer)
     logs = Column(JSON)
 
+
 class ProjectUserRole(db.Model):
     project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), primary_key=True)
     user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'), primary_key=True)

@@ -1,5 +1,8 @@
 import os
 import json
+
+from kubernetes.client import ApiException
+
 import util as util
 
 import base64
@@ -80,8 +83,8 @@ def list_namespace():
 def delete_namespace(project_name):
     try:
         ret = v1.delete_namespace(project_name)
-    except apiError.DevOpsError as e:
-        if e.status_code != 404:
+    except ApiException as e:
+        if e.status != 404:
             raise e
     
     
@@ -251,8 +254,24 @@ def list_deployment(namespace):
     try:
         deployment_list = []
         for deployments in k8s_client.AppsV1Api().list_namespaced_deployment(namespace).items:
-            deployment_list.append(deployments.metadata.name)
+            deployment_list.append({"deployment_name": deployments.metadata.name, 
+                                    "available_pod_number": deployments.status.available_replicas,
+                                    "total_pod_number": deployments.status.replicas})
         return deployment_list
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+
+def get_deployment(namespace, name):
+    try:
+        return k8s_client.AppsV1Api().read_namespaced_deployment(name, namespace)
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+
+def update_deployment(namespace, name, body):
+    try:
+        return k8s_client.AppsV1Api().patch_namespaced_deployment(name, namespace, body)
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
