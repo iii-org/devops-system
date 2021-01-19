@@ -257,6 +257,20 @@ def list_deployment(namespace):
         if e.status_code != 404:
             raise e
 
+def get_deployment(namespace, name):
+    try:
+        return k8s_client.AppsV1Api().read_namespaced_deployment(name, namespace)
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+
+def update_deployment(namespace, name, body):
+    try:
+        return k8s_client.AppsV1Api().patch_namespaced_deployment(name, namespace, body)
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+
 def delete_deployment(namespace,name):
     try:
         deployment = k8s_client.AppsV1Api().delete_namespaced_deployment(name,namespace)

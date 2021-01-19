@@ -731,6 +731,13 @@ def get_kubernetes_namespace_deployment(project_id):
     project_deployment = kubernetesClient.list_deployment(project_name)
     return util.success(project_deployment)
 
+def put_kubernetes_namespace_deployment(project_id, name):
+    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
+    deployment_info = kubernetesClient.get_deployment(project_name, name)
+    deployment_info.spec.template.metadata.annotations["iiidevops_redeploy_at"] \
+    = str(datetime.utcnow())
+    project_deployment = kubernetesClient.update_deployment(project_name, name, deployment_info)
+    return util.success()
 
 def delete_kubernetes_namespace_deployment(project_id, name):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
@@ -932,6 +939,11 @@ class ProjectUserResourceDeployment(Resource):
     def get(self, project_id):
         role.require_in_project(project_id, "Error while getting project info.")
         return get_kubernetes_namespace_deployment(project_id)
+
+    @jwt_required
+    def put(self, project_id, deployment_name):
+        role.require_in_project(project_id, "Error while getting project info.")
+        return put_kubernetes_namespace_deployment(project_id, deployment_name)
 
     @jwt_required
     def delete(self, project_id, deployment_name):
