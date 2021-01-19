@@ -15,7 +15,7 @@ from model import db
 from nexus import nx_get_project_plugin_relation
 from resources.apiError import DevOpsError
 from util import DevOpsThread
-from . import user, harbor, kubernetesClient, role
+from . import user, harbor, kubernetesClient, role, sonarqube
 from .activity import record_activity, ActionType
 from .checkmarx import checkmarx
 from .gitlab import gitlab
@@ -123,7 +123,6 @@ def create_project(user_id, args):
         args['display'] = args['name']
 
     # create namespace in kubernetes
-    user_info = model.User.query.filter_by(id=user_id).first()
     try:
         kubernetesClient.create_namespace(args['name'])
         kubernetesClient.create_role_in_namespace(args['name'])
@@ -134,16 +133,18 @@ def create_project(user_id, args):
         raise e
 
     # 使用 multi-thread 建立各專案
-    services = ['redmine', 'gitlab', 'harbor']
+    services = ['redmine', 'gitlab', 'harbor', 'sonarqube']
     targets = {
         'redmine': redmine.rm_create_project,
         'gitlab': gitlab.gl_create_project,
-        'harbor': harbor.hb_create_project
+        'harbor': harbor.hb_create_project,
+        'sonarqube': sonarqube.sq_create_project
     }
     service_args = {
         'redmine': (args,),
         'gitlab': (args,),
-        'harbor': (args['name'],)
+        'harbor': (args['name'],),
+        'sonarqube': (args,)
     }
     helper = util.ServiceBatchOpHelper(services, targets, service_args)
     helper.run()
@@ -155,6 +156,7 @@ def create_project(user_id, args):
     gitlab_pj_ssh_url = None
     gitlab_pj_http_url = None
     harbor_pj_id = None
+    project_name = args['name']
 
     for service in services:
         if helper.errors[service] is None:
@@ -179,6 +181,8 @@ def create_project(user_id, args):
                     gitlab.gl_delete_project(gitlab_pj_id)
                 elif service == 'harbor':
                     harbor.hb_delete_project(harbor_pj_id)
+                elif service == 'sonarqube':
+                    sonarqube.sq_delete_project(project_name)
 
         # 丟出服務序列在最前的錯誤
         for service in services:
@@ -206,7 +210,7 @@ def create_project(user_id, args):
                         except (KeyError, IndexError):
                             pass
                     raise e
-                elif service == 'harbor':
+                else:
                     raise e
     try:
         # enable rancher pipeline
@@ -338,6 +342,7 @@ def delete_project(project_id):
     redmine_project_id = relation.plan_project_id
     gitlab_project_id = relation.git_repository_id
     harbor_project_id = relation.harbor_project_id
+    project_name = nexus.nx_get_project(id=project_id).name
 
     try:
         # disabled rancher pipeline
@@ -354,6 +359,7 @@ def delete_project(project_id):
     try_to_delete(redmine.rm_delete_project, redmine_project_id)
     if harbor_project_id is not None:
         try_to_delete(harbor.hb_delete_project, harbor_project_id)
+    try_to_delete(sonarqube.sq_delete_project, project_name)
 
     corr = model.Project.query.filter_by(id=project_id).first()
     # delete kubernetes namespace
@@ -445,12 +451,13 @@ def project_add_member(project_id, user_id):
     # get user name
     ur_row = model.User.query.filter_by(id=user_id).one()
 
-    services = ['redmine', 'gitlab', 'harbor', 'kubernetes_role_binding']
+    services = ['redmine', 'gitlab', 'harbor', 'kubernetes_role_binding', 'sonarqube']
     targets = {
         'redmine': redmine.rm_create_memberships,
         'gitlab': gitlab.gl_project_add_member,
         'harbor': harbor.hb_add_member,
-        'kubernetes_role_binding': kubernetesClient.create_role_binding
+        'kubernetes_role_binding': kubernetesClient.create_role_binding,
+        'sonarqube': sonarqube.sq_add_member
     }
     service_args = {
         'redmine': (project_relation.plan_project_id,
@@ -459,7 +466,8 @@ def project_add_member(project_id, user_id):
                    user_relation.repository_user_id),
         'harbor': (project_relation.harbor_project_id,
                    user_relation.harbor_user_id),
-        'kubernetes_role_binding': (pj_row.name, util.encode_k8s_sa(ur_row.login))
+        'kubernetes_role_binding': (pj_row.name, util.encode_k8s_sa(ur_row.login)),
+        'sonarqube': (pj_row.name, ur_row.login)
     }
     helper = util.ServiceBatchOpHelper(services, targets, service_args)
     helper.run()
@@ -519,12 +527,17 @@ def project_remove_member(project_id, user_id):
     # get user name
     ur_row = model.User.query.filter_by(id=user_id).one()
     try:
-        kubernetesClient.delete_role_binding(pj_row.name, 
-                                                  f"{util.encode_k8s_sa(ur_row.login)}-rb")
+        kubernetesClient.delete_role_binding(pj_row.name,
+                                             f"{util.encode_k8s_sa(ur_row.login)}-rb")
     except DevOpsError as e:
         if e.status_code != 404:
             raise e
 
+    try:
+        sonarqube.sq_remove_member(pj_row.name, ur_row.login)
+    except DevOpsError as e:
+        if e.status_code != 404:
+            raise e
 
     # delete relationship from ProjectUserRole table.
     try:
@@ -812,6 +825,7 @@ class SingleProject(Resource):
     def post(self):
         role.require_pm()
         user_id = get_jwt_identity()["user_id"]
+        print(user_id)
         parser = reqparse.RequestParser()
         parser.add_argument('name', type=str, required=True)
         parser.add_argument('display', type=str)

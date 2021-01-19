@@ -43,14 +43,31 @@ def __api_post(path, params=None, headers=None, data=None, ):
 
 # ------------- Regular methods -------------
 def sq_create_user(args):
-    res = __api_post(f'/users/create?login={args["login"]}&name={args["name"]}'
-                     f'&password={args["password"]}')
-    return res
+    return __api_post(f'/users/create?login={args["login"]}&name={args["name"]}'
+                      f'&password={args["password"]}')
 
 
 def sq_deactivate_user(user_login):
-    res = __api_post(f'/users/deactivate?login={user_login}')
-    return res
+    return __api_post(f'/users/deactivate?login={user_login}')
+
+
+def sq_create_project(args):
+    return __api_post(f'/projects/create?name={args["display"]}&project={args["name"]}'
+                      f'&visibility=private')
+
+
+def sq_delete_project(project_name):
+    return __api_post(f'/projects/delete?project={project_name}')
+
+
+def sq_add_member(project_name, user_login):
+    return __api_post(f'/permissions/add_user?login={user_login}'
+                      f'&projectKey={project_name}&permission=codeviewer')
+
+
+def sq_remove_member(project_name, user_login):
+    return __api_post(f'/permissions/remove_user?login={user_login}'
+                      f'&projectKey={project_name}&permission=user')
 
 
 def get_sonar_report(project_id):
