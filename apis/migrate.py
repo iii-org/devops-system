@@ -1,19 +1,19 @@
 import os
 
+from sqlalchemy import engine, inspect
+
 import config
 import model
-import resources.rancher as rancher
 import util
 from model import db, ProjectPluginRelation, Project, UserPluginRelation, User, ProjectUserRole
-from resources import harbor, role, kubernetesClient
+from resources import harbor, kubernetesClient, role
 from resources.logger import logger
+from resources.rancher import rancher
 
-VERSION_FILE_NAME = '.api_version'
 # Each time you add a migration, add a version code here.
-VERSIONS = ['0.9.2', '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.4', '0.9.2.5']
-ONLY_UPDATE_DB_MODELS = {'0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.5'}
-
-ran = rancher.Rancher()
+VERSIONS = ['0.9.2', '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.4', '0.9.2.5',
+            '0.9.2.6', '0.9.2.a7', '0.9.2.a8', '0.9.2.a9', '0.9.2.a10']
+ONLY_UPDATE_DB_MODELS = {'0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.5', '0.9.2.6', '0.9.2.a8'}
 
 
 def upgrade(version):
@@ -26,12 +26,32 @@ def upgrade(version):
         create_harbor_projects()
     elif version == '0.9.2.4':
         create_k8s_user()
-        create_k8s_namespsace()
-        
+        create_k8s_namespace()
+    elif version == '0.9.2.a7':
+        alembic_upgrade()
+        move_version_to_db(version)
+    elif version == '0.9.2.a9':
+        create_limitrange_in_namespace()
+    elif version == '0.9.2.a10':
+        delete_and_recreate_role_in_namespace()
+
+
+def move_version_to_db(version):
+    row = model.NexusVersion.query.first()
+    if row is None:
+        new = model.NexusVersion(api_version=version)
+        db.session.add(new)
+        db.session.commit()
+    else:
+        row.api_version = version
+        db.session.commit()
+    if os.path.exists('.api_version'):
+        os.remove('.api_version')
+
 
 def create_k8s_user():
     # get db user list
-    rows = db.session.query(User, UserPluginRelation)\
+    rows = db.session.query(User, UserPluginRelation) \
         .join(User).all()
     k8s_sa_list = kubernetesClient.list_service_account()
     for row in rows:
@@ -43,7 +63,7 @@ def create_k8s_user():
         db.session.commit()
 
 
-def create_k8s_namespsace():
+def create_k8s_namespace():
     rows = db.session.query(ProjectPluginRelation, Project). \
         join(Project).all()
     namespace_list = kubernetesClient.list_namespace()
@@ -57,11 +77,41 @@ def create_k8s_namespsace():
                 join(UserPluginRelation, ProjectUserRole.user_id == UserPluginRelation.user_id). \
                 filter(ProjectUserRole.project_id == row.ProjectPluginRelation.project_id).all()
             for member in members:
-                print("attach member {0} into k8snamespace {1}".format(member, row.Project.name))
+                print("attach member {0} into k8s namespace {1}".format(member, row.Project.name))
                 kubernetesClient.create_role_binding(row.Project.name,
-                    member.UserPluginRelation.kubernetes_sa_name)
-            ran.rc_add_namespace_into_rc_project(row.Project.name)
-            
+                                                     member.UserPluginRelation.kubernetes_sa_name)
+            rancher.rc_add_namespace_into_rc_project(row.Project.name)
+
+def create_limitrange_in_namespace():
+    rows = db.session.query(ProjectPluginRelation, Project). \
+        join(Project).all()
+    namespace_list = kubernetesClient.list_namespace()
+    for row in rows:
+        if row.Project.name in namespace_list:
+            limitrange_list = kubernetesClient.list_limitrange_in_namespace(row.Project.name)
+            if "project-limitrange" not in limitrange_list:
+                print (f"project {row.Project.name} don't have limitrange, create one")
+                kubernetesClient.create_namespace_limitrange(row.Project.name)
+
+
+def delete_and_recreate_role_in_namespace():
+    rows = db.session.query(ProjectPluginRelation, Project). \
+        join(Project).all()
+    namespace_list = kubernetesClient.list_namespace()
+    for row in rows:
+        if row.Project.name in namespace_list:
+            role_list = kubernetesClient.list_role_in_namespace(row.Project.name)
+            if f"{row.Project.name}-user-role" in role_list:
+                print(f"namepsace {row.Project.name} has old {row.Project.name}-user-role, delete it")
+                kubernetesClient.delete_role_in_namespace(row.Project.name, 
+                                                          f"{row.Project.name}-user-role")
+                new_role_list = kubernetesClient.list_role_in_namespace(row.Project.name)
+                print(f"After delete, namepsace {row.Project.name} hrs user-role-list: {new_role_list}")
+                kubernetesClient.create_role_in_namespace(row.Project.name)
+                finish_role_list = kubernetesClient.list_role_in_namespace(row.Project.name)
+                print(f"namepsace {row.Project.name} user role list: {finish_role_list}")
+                
+
 
 def create_harbor_projects():
     rows = db.session.query(ProjectPluginRelation, Project.name). \
@@ -120,19 +170,23 @@ def cleanup_change_to_orm():
 
 
 def init():
-    with (open(VERSION_FILE_NAME, 'w')) as f:
-        f.write(VERSIONS[-1])
-        f.close()
+    new = model.NexusVersion(api_version=VERSIONS[-1])
+    db.session.add(new)
+    db.session.commit()
 
 
 def needs_upgrade(current, target):
     r = current.split('.')
     c = target.split('.')
     if len(r) == 3:
-        r.extend([0])
+        r.extend(['a0'])
     if len(c) == 3:
-        c.extend([0])
+        c.extend(['a0'])
     for i in range(4):
+        if c[3][0] == 'a':
+            c[3] = c[3][1:]
+        if r[3][0] == 'a':
+            r[3] = r[3][1:]
         if int(c[i]) > int(r[i]):
             return True
     return False
@@ -153,19 +207,36 @@ def alembic_upgrade():
         raise RuntimeError('Alembic has error, process stop.')
 
 
+def current_version():
+    if db.engine.has_table(model.NexusVersion.__table__.name):
+        row = model.NexusVersion.query.first()
+        if row is not None:
+            current = row.api_version
+        else:
+            current = '0.0.0'
+            new = model.NexusVersion(api_version='0.0.0')
+            db.session.add(new)
+            db.session.commit()
+    else:
+        # Backward compatibility
+        if os.path.exists('.api_version'):
+            with (open('.api_version', 'r')) as f:
+                current = f.read()
+        else:
+            current = '0.0.0'
+    return current
+
+
 def run():
-    current = '0.0.0'
-    if os.path.exists(VERSION_FILE_NAME):
-        with open(VERSION_FILE_NAME, 'r') as f:
-            current = f.read()
+    current = current_version()
     try:
         for version in VERSIONS:
             if needs_upgrade(current, version):
                 logger.info('Upgrade to {0}'.format(version))
                 upgrade(version)
                 current = version
+                row = model.NexusVersion.query.first()
+                row.api_version = current
+                db.session.commit()
     except Exception as e:
         raise e
-    finally:
-        with (open(VERSION_FILE_NAME, 'w')) as f:
-            f.write(current)

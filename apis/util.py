@@ -96,6 +96,17 @@ def tick(message='', init=False):
     return elapsed
 
 
+def timeit(method):
+    def timed(*args, **kw):
+        ts = time.time()
+        ret = method(*args, **kw)
+        te = time.time()
+        print(f'{method.__name__} %2.2f ms' % ((te - ts) * 1000))
+        return ret
+
+    return timed
+
+
 def api_request(method, url, headers=None, params=None, data=None, auth=None):
     body = data
     if type(data) is dict or type(data) is reqparse.Namespace:
@@ -117,7 +128,15 @@ def api_request(method, url, headers=None, params=None, data=None, auth=None):
     else:
         return respond_request_style(
             500, 'Error while request {0} {1}'.format(method, url),
-            error=apiError.unknown_method(method))
+            error=apiError.invalid_code_path('Only GET/PUT/POST/DELETE is allowed, but'
+                                             '{0} provided.'.format(method)))
+
+
+def enable_k8s_proxy():
+    try:
+        os.system("kubectl proxy &")
+    except:
+        pass
 
 
 def encode_k8s_sa(name):

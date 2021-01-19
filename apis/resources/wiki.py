@@ -2,6 +2,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
 from sqlalchemy.orm.exc import NoResultFound
 
+import nexus
 import resources.apiError as apiError
 import resources.project as project
 import resources.user as user
@@ -47,7 +48,7 @@ def put_wiki_by_project(project_id, wiki_name, args, operator_id):
                             error=apiError.project_not_found(project_id))
     plan_operator_id = None
     if operator_id is not None:
-        operator_plugin_relation = user.get_user_plugin_relation(user_id=operator_id)
+        operator_plugin_relation = nexus.nx_get_user_plugin_relation(user_id=operator_id)
         plan_operator_id = operator_plugin_relation.plan_user_id
     redmine.rm_put_wiki(plan_id, wiki_name, args, plan_operator_id)
     return util.success()

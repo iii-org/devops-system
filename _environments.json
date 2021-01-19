@@ -1,41 +1,43 @@
 {
-    "SQLALCHEMY_DATABASE_URI": "",
+    "SQLALCHEMY_DATABASE_URI": "postgresql://postgres:******@postgres.db.net/iii-devops",
     "SQLALCHEMY_TRACK_MODIFICATIONS": false,
 
-    "JWT_SECRET_KEY": "",
+    "JWT_SECRET_KEY": "<your secret key>",
     "WTF_CSRF_CHECK_DEFAULT": false,
 
     "JSON_AS_ASCII": false,
 
-    "REDMINE_IP_PORT": "",
-    "REDMINE_ADMIN_ACCOUNT": "",
-    "REDMINE_ADMIN_PASSWORD": "",
-    "REDMINE_API_KEY": "",
+    "REDMINE_IP_PORT": "127.0.0.1:2781",
+    "REDMINE_ADMIN_ACCOUNT": "admin",
+    "REDMINE_ADMIN_PASSWORD": "********",
+    "REDMINE_API_KEY": "***********",
 
-    "GITLAB_IP_PORT": "",
-    "GITLAB_ADMIN_ACCOUNT": "",
-    "GITLAB_ADMIN_PASSWORD": "",
-    "GITLAB_PRIVATE_TOKEN": "",
+    "GITLAB_IP_PORT": "127.0.0.1:7087",
+    "GITLAB_ADMIN_ACCOUNT": "root",
+    "GITLAB_ADMIN_PASSWORD": "**********",
+    "GITLAB_PRIVATE_TOKEN": "**************",
 
-    "RANCHER_IP_PORT": "",
-    "RANCHER_ADMIN_ACCOUNT": "",
-    "RANCHER_ADMIN_PASSWORD": "",
-    "RANCHER_CLUSTER_NAME": "",
+    "RANCHER_IP_PORT": "127.0.0.1:6771",
+    "RANCHER_ADMIN_ACCOUNT": "admin",
+    "RANCHER_ADMIN_PASSWORD": "*********",
+    "RANCHER_CLUSTER_NAME": "**-**-*-**-*****",
 
-    "CHECKMARX_ORIGIN": "",
-    "CHECKMARX_USERNAME": "",
-    "CHECKMARX_PASSWORD": "",
-    "CHECKMARX_SECRET": "",
+    "CHECKMARX_ORIGIN": "https://checkmarx.somewhere.net/cxrestapi",
+    "CHECKMARX_USERNAME": "*****",
+    "CHECKMARX_PASSWORD": "***********",
+    "CHECKMARX_SECRET": "********-****-****-****-************",
 
-    "SONAR_IP_PORT": "",
+    "SONAR_IP_PORT": "127.0.0.1:9942",
 
-    "HARBOR_BASE_URL": "",
-    "HARBOR_ACCOUNT": "",
-    "HARBOR_PASSWORD": "",
+    "HARBOR_BASE_URL": "https://your.harbor.net:5443/api/v2.0",
+    "HARBOR_ACCOUNT": "admin",
+    "HARBOR_PASSWORD": "***********",
 
-    "WEBINSPECT_BASE_URL": "",
+    "WEBINSPECT_BASE_URL": "http://127.0.0.1:5814/webinspect",
 
-    "ADMIN_INIT_LOGIN": "",
-	"ADMIN_INIT_EMAIL": "",
-	"ADMIN_INIT_PASSWORD": ""
+    "ADMIN_INIT_LOGIN": "devops_admin",
+    "ADMIN_INIT_EMAIL": "admin@devops.iii.org",
+    "ADMIN_INIT_PASSWORD": "********",
+
+    "DEBUG": false
 }

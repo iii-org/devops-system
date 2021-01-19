@@ -9,6 +9,7 @@ from sqlalchemy import desc
 import model
 import util as util
 from model import db
+from resources import gitlab
 from resources.apiError import DevOpsError
 
 HTTP_TYPES = {"1": "request", "2": "response"}
@@ -365,10 +366,10 @@ def get_report(project_id):
     row = model.TestResults.query.filter_by(project_id=project_id).order_by(desc(
         model.TestResults.id)).limit(1).first()
     if row is None:
-        raise DevOpsError(404, 'No postman report for this project.')
+        return util.respond(204)
     report = row.report
     if report is None or report == 'undefined':  # Corrupted data by old runners
-        raise DevOpsError(404, 'No postman report for this project.')
+        return util.respond(204)
     return util.success(json.loads(report))
 
 
@@ -380,7 +381,8 @@ def list_results(project_id):
         ret.append({
             'id': row.id,
             'branch': row.branch,
-            'commit_id': row.commit_id,
+            'commit_id': row.commit_id[0:7],
+            'commit_url': gitlab.commit_id_to_url(project_id, row.commit_id),
             'success': row.total - row.fail,
             'failure': row.fail,
             'run_at': str(row.run_at)
@@ -514,7 +516,6 @@ class TestItem(Resource):
     @jwt_required
     def put(self, item_id):
         parser = reqparse.RequestParser()
-        print(parser)
         parser.add_argument('name', type=str)
         parser.add_argument('is_passed', type=bool)
         args = parser.parse_args()

@@ -1,6 +1,7 @@
 from flask_jwt_extended import get_jwt_identity
 from flask_restful import Resource
 
+import nexus
 from resources import apiError
 import util
 import model
@@ -16,6 +17,18 @@ RD = Role(1, 'Engineer')
 PM = Role(3, 'Project Manager')
 ADMIN = Role(5, 'Administrator')
 ALL_ROLES = [RD, PM, ADMIN]
+
+
+def is_admin():
+    return get_jwt_identity()['role_id'] == ADMIN.id
+
+
+def is_pm():
+    return get_jwt_identity()['role_id'] == PM.id
+
+
+def is_rd():
+    return get_jwt_identity()['role_id'] == RD.id
 
 
 def get_role_name(role_id):
@@ -46,9 +59,13 @@ def require_pm(err_message='You must be a PM for this operation.', exclude_admin
         require_role([PM.id, ADMIN.id], err_message)
 
 
-def require_in_project(project_id,
+def require_in_project(project_id=None,
                        err_message='You need to be in the project for this operation.',
-                       even_admin=False):
+                       even_admin=False,
+                       project_name=None):
+    if project_id is None:
+        if project_name is not None:
+            project_id = nexus.nx_get_project(name=project_name).id
     identity = get_jwt_identity()
     user_id = identity['user_id']
     if not even_admin and identity['role_id'] == ADMIN.id:

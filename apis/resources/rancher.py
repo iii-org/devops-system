@@ -1,6 +1,7 @@
 import ssl
-
+import json
 import websocket
+import base64
 from flask_restful import abort
 
 import config
@@ -12,6 +13,8 @@ from resources.logger import logger
 class Rancher(object):
     def __init__(self):
         self.token = 'dummy string to make API returns 401'
+        self.cluster_id = None
+        self.project_id = None
 
     def __api_request(self, method, path, headers, params=None, data=None,
                       with_token=True, retried=False):
@@ -68,16 +71,29 @@ class Rancher(object):
                                  data=body, with_token=False)
         return output.json()['token']
 
-    def rc_get_pipeline_executions(self, ci_project_id, ci_pipeline_id):
+    def rc_get_pipeline_executions(self, ci_project_id, ci_pipeline_id, run=None):
         path = '/projects/{0}/pipelineexecutions'.format(ci_project_id)
         params = {
             'order': 'desc',
             'sort': 'started',
             'pipelineId': ci_pipeline_id
         }
+        if run is not None:
+            params['run'] = run
         response = self.__api_get(path, params=params)
         output_array = response.json()['data']
         return output_array, response
+
+    def rc_get_pipeline_executions_action(self, ci_project_id, ci_pipeline_id, pipelines_exec_run,
+        action):
+        path = '/project/{0}/pipelineExecutions/{1}-{2}'.format(ci_project_id, ci_pipeline_id,
+            pipelines_exec_run)
+        params = {'action': 'rerun'}
+        if action == 'stop':
+            params = {'action': 'stop'}
+        response = self.__api_post(path, params=params, data='')
+        return response
+
 
     def rc_get_pipeline_executions_logs(self, ci_project_id, ci_pipeline_id,
                                         pipelines_exec_run):
@@ -85,70 +101,73 @@ class Rancher(object):
         self.token = self.__generate_token()
         headersandtoken = "Authorization: Bearer {0}".format(self.token)
         output_executions, response = self.rc_get_pipeline_executions(
-            ci_project_id, ci_pipeline_id)
-        for output_execution in output_executions:
-            if pipelines_exec_run == output_execution['run']:
-                for index, stage in enumerate(
-                        output_execution['pipelineConfig']['stages']):
-                    tmp_step_message = []
-                    for step_index, step in enumerate(stage['steps']):
-                        url = ("wss://{0}/{1}/project/{2}/pipelineExecutions/"
-                               "{3}-{4}/log?stage={5}&step={6}").format(
-                            config.get('RANCHER_IP_PORT'), config.get('RANCHER_API_VERSION'), ci_project_id,
-                            ci_pipeline_id, pipelines_exec_run, index, step_index)
-                        logger.info("wss url: {0}".format(url))
-                        result = None
-                        ws = websocket.create_connection(url, header=[headersandtoken],
-                                                         sslopt={"cert_reqs": ssl.CERT_NONE})
-                        ws.settimeout(3)
-                        try:
-                            result = ws.recv()
-                            ws.close()
-                        except websocket.WebSocketTimeoutException:
-                            ws.close()
-                        # logger.info("Received :'%s'" % result)
-                        step_detail = output_execution['stages'][
-                            index]['steps'][step_index]
-                        if 'state' in step_detail:
-                            tmp_step_message.append({
-                                "state": step_detail['state'],
-                                "message": result
-                            })
-                        else:
-                            tmp_step_message.append({
-                                "state": None,
-                                "message": result
-                            })
-                    stage_state = output_execution['stages'][index]
-                    if 'state' in stage_state:
-                        output_dict.append({
-                            "name": stage['name'],
-                            "state": stage_state['state'],
-                            "steps": tmp_step_message
-                        })
-                    else:
-                        output_dict.append({
-                            "name": stage['name'],
-                            "state": None,
-                            "steps": tmp_step_message
-                        })
-        return output_dict[1:]
+            ci_project_id, ci_pipeline_id, run=pipelines_exec_run       
+            )
+        output_execution = output_executions[0]
+        for index, stage in enumerate(
+                output_execution['pipelineConfig']['stages']):
+            tmp_step_message = []
+            for step_index, step in enumerate(stage['steps']):
+                url = ("wss://{0}/{1}/project/{2}/pipelineExecutions/"
+                        "{3}-{4}/log?stage={5}&step={6}").format(
+                    config.get('RANCHER_IP_PORT'), config.get('RANCHER_API_VERSION'), ci_project_id,
+                    ci_pipeline_id, pipelines_exec_run, index, step_index)
+                logger.info("wss url: {0}".format(url))
+                result = None
+                ws = websocket.create_connection(url, header=[headersandtoken],
+                                                    sslopt={"cert_reqs": ssl.CERT_NONE})
+                ws.settimeout(3)
+                try:
+                    result = ws.recv()
+                    ws.close()
+                except websocket.WebSocketTimeoutException:
+                    ws.close()
+                # logger.info("Received :'%s'" % result)
+                step_detail = output_execution['stages'][
+                    index]['steps'][step_index]
+                if 'state' in step_detail:
+                    tmp_step_message.append({
+                        "state": step_detail['state'],
+                        "message": result
+                    })
+                else:
+                    tmp_step_message.append({
+                        "state": None,
+                        "message": result
+                    })
+            stage_state = output_execution['stages'][index]
+            if 'state' in stage_state:
+                output_dict.append({
+                    "name": stage['name'],
+                    "state": stage_state['state'],
+                    "steps": tmp_step_message
+                })
+            else:
+                output_dict.append({
+                    "name": stage['name'],
+                    "state": None,
+                    "steps": tmp_step_message
+                })
+        return output_dict[1:], output_execution['executionState']
+
 
     def rc_get_cluster_id(self):
-        rancher_output = self.__api_get('/clusters')
-        output_array = rancher_output.json()['data']
-        for output in output_array:
-            logger.debug("get_rancher_cluster output: {0}".format(output['name']))
-            if output['name'] == config.get('RANCHER_CLUSTER_NAME'):
-                return output['id']
+        if self.cluster_id is None:
+            rancher_output = self.__api_get('/clusters')
+            output_array = rancher_output.json()['data']
+            for output in output_array:
+                logger.debug("get_rancher_cluster output: {0}".format(output['name']))
+                if output['name'] == config.get('RANCHER_CLUSTER_NAME'):
+                    self.cluster_id = output['id']
 
     def rc_get_project_id(self):
-        cluster_id = self.rc_get_cluster_id()
-        rancher_output = self.__api_get('/clusters/{0}/projects'.format(cluster_id))
-        output_array = rancher_output.json()['data']
-        for output in output_array:
-            if output['name'] == "Default":
-                return output['id']
+        self.rc_get_cluster_id()
+        if self.project_id is None:
+            rancher_output = self.__api_get('/clusters/{0}/projects'.format(self.cluster_id))
+            output_array = rancher_output.json()['data']
+            for output in output_array:
+                if output['name'] == "Default":
+                    self.project_id = output['id']
 
     def rc_get_admin_user_id(self):
         rancher_output = self.__api_get('/users')
@@ -158,7 +177,7 @@ class Rancher(object):
                 return output['id']
 
     def rc_enable_project_pipeline(self, repository_url):
-        project_id = self.rc_get_project_id()
+        self.rc_get_project_id()
         pipeline_list = self.rc_get_project_pipeline()
         for pipeline in pipeline_list:
             if pipeline['repositoryUrl'] == repository_url:
@@ -167,14 +186,14 @@ class Rancher(object):
         user_id = self.rc_get_admin_user_id()
         parameter = {
             "type": "pipeline",
-            "sourceCodeCredentialId": "{0}:{1}-gitlab-root".format(user_id, project_id.split(':')[1]),
+            "sourceCodeCredentialId": "{0}:{1}-gitlab-root".format(user_id, self.project_id.split(':')[1]),
             "repositoryUrl": repository_url,
             "triggerWebhookPr": True,
             "triggerWebhookPush": True,
             "triggerWebhookTag": True
         }
         output = self.__api_post(
-            '/projects/{0}/pipelines'.format(project_id), data=parameter)
+            '/projects/{0}/pipelines'.format(self.project_id), data=parameter)
         logger.debug("enable_rancher_project_pipeline output: {0}".format(output.json()))
         return output.json()['id']
 
@@ -193,18 +212,69 @@ class Rancher(object):
                   message='"disable_rancher_project_pipeline error, error message: {0}'.format(rancher_output.text))
 
     def rc_get_project_pipeline(self):
-        project_id = self.rc_get_project_id()
-        output = self.__api_get('/projects/{0}/pipelines'.format(project_id))
+        self.rc_get_project_id()
+        output = self.__api_get('/projects/{0}/pipelines'.format(self.project_id))
         return output.json()['data']
 
     def rc_add_namespace_into_rc_project(self, project_name):
-        rc_cluster_id = self.rc_get_cluster_id()
-        rc_project_id =self.rc_get_project_id()
+        self.rc_get_project_id()
         body = {
-            "projectId": rc_project_id
+            "projectId": self.project_id
         }
         params = {'action': 'move'}
-        url = '/clusters/{0}/namespaces/{1}'.format(rc_cluster_id, project_name)
+        url = '/clusters/{0}/namespaces/{1}'.format(self.cluster_id, project_name)
         output = self.__api_post(url, params=params, data=body)
+
+    def rc_get_secrets_all_list(self):
+        self.rc_get_project_id()
+        url = f'/projects/{self.project_id}/secrets'
+        output = self.__api_get(url)
+        return output.json()['data']
+
+    def rc_add_secrets_into_rc_all(self, args):
+        self.rc_get_project_id()
+        data = json.loads(args['data'].replace("'", '"'))
+        for key, value in data.items():
+                data[key] = base64.b64encode(bytes(value, encoding='utf-8')).decode('utf-8')
+        body = {
+            "type": args['type'],
+            "data": data,
+            "labels": {},
+            "name": args['name']
+        }
+        url = f'/projects/{self.project_id}/secrets'
+        output = self.__api_post(url, data=body)
+        
+    def rc_delete_secrets_into_rc_all(self, secret_name):
+        self.rc_get_project_id()
+        url = f'/projects/{self.project_id}/secrets/{self.project_id.split(":")[1]}:{secret_name}'
+        print(f"url: {url}")
+        output = self.__api_delete(url)
+        return output.json()
+
+    def rc_get_registry_into_rc_all(self):
+        self.rc_get_project_id()
+        url = f'/projects/{self.project_id}/dockercredential'
+        output = self.__api_get(url)
+        return output.json()['data']
+
+    def rc_add_registry_into_rc_all(self, args):
+        self.rc_get_project_id()
+        registry={args['url']: {'username': args['username'], 'password': args['password']}}
+        body = {
+            "type": "dockerCredential",
+            "registries": registry,
+            "namespaceId": "__TEMP__",
+            "name": args['name']
+        }
+        url = f'/projects/{self.project_id}/dockercredential'
+        output = self.__api_post(url, data=body)
+
+    def rc_delete_registry_into_rc_all(self, registry_name):
+        self.rc_get_project_id()
+        url = f'/projects/{self.project_id}/dockercredential/{self.project_id.split(":")[1]}:{registry_name}'
+        output = self.__api_delete(url)
+        return output.json()
+
 
 rancher = Rancher()

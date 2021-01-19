@@ -6,24 +6,25 @@ from os.path import isfile
 import werkzeug
 from flask import Flask
 from flask_cors import CORS
-from flask_restful import Resource, Api
+from flask_jwt_extended import jwt_required
+from flask_restful import Resource, Api, reqparse
 from sqlalchemy.orm.exc import NoResultFound
-from sqlalchemy_utils import database_exists, create_database, drop_database
+from sqlalchemy_utils import database_exists, create_database
 from werkzeug.routing import IntegerConverter
 
 import config
+import migrate
 import model
 import resources.apiError as apiError
 import resources.checkmarx as checkmarx
 import resources.pipeline as pipeline
-import resources.role as role
 import util
+import maintenance
 from jsonwebtoken import jsonwebtoken
 from model import db
+from resources import logger, role as role, activity
 from resources import project, gitlab, issue, user, redmine, wiki, version, sonar, apiTest, postman, mock, harbor, \
-    kubernetesClient, webInspect
-import migrate 
-from resources import logger
+    webInspect
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -35,7 +36,6 @@ for key in ['JWT_SECRET_KEY',
     app.config[key] = config.get(key)
 
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = datetime.timedelta(days=1)
-logger.set_app(app)
 api = Api(app, errors=apiError.custom_errors)
 CORS(app)
 
@@ -55,10 +55,13 @@ def internal_error(exception):
     if type(exception) is werkzeug.exceptions.NotFound:
         return util.respond(404, 'Path not found.',
                             error=apiError.path_not_found())
-    traceback.print_exc()
     if type(exception) is apiError.DevOpsError:
+        if exception.status_code != 404:
+            traceback.print_exc()
+            logger.logger.exception(str(exception))
         return util.respond(exception.status_code, exception.message, error=exception.error_value)
-
+    traceback.print_exc()
+    logger.logger.exception(str(exception))
     return util.respond(500, "Unexpected internal error",
                         error=apiError.uncaught_exception(exception))
 
@@ -74,15 +77,42 @@ class SystemGitCommitID(Resource):
             raise apiError.DevOpsError(400, "git_commit file is not exist.")
 
 
+class NexusVersion(Resource):
+    @jwt_required
+    def get(self):
+        row = model.NexusVersion.query.one()
+        return util.success({
+            'api_version': row.api_version,
+            'deploy_version': row.deploy_version
+        })
+
+    @jwt_required
+    def post(self):
+        role.require_admin()
+        keys = ['api_version', 'deploy_version']
+        parser = reqparse.RequestParser()
+        for k in keys:
+            parser.add_argument(k, type=str)
+        args = parser.parse_args()
+        row = model.NexusVersion.query.one()
+        for k in keys:
+            if args[k] is not None:
+                setattr(row, k, args[k])
+        db.session.commit()
+        return util.success()
+
+
 def initialize(db_uri):
     if database_exists(db_uri):
         return
     logger.logger.info('Initializing...')
+    logger.logger.info(f'db_url is {db_uri}')
     if config.get('DEBUG'):
         print('Initializing...')
     # Create database
     create_database(db_uri)
     db.create_all()
+    logger.logger.info('Database created.')
     # Fill alembic revision with latest
     head = None
     revs = []
@@ -111,10 +141,12 @@ def initialize(db_uri):
         v = model.AlembicVersion(version_num=head)
         db.session.add(v)
         db.session.commit()
+    logger.logger.info(f'Alembic revision set to ${head}')
     # Create dummy project
     new = model.Project(id=-1, name='__dummy_project')
     db.session.add(new)
     db.session.commit()
+    logger.logger.info('Project -1 created.')
     # Init admin
     args = {
         'login': config.get('ADMIN_INIT_LOGIN'),
@@ -122,11 +154,13 @@ def initialize(db_uri):
         'password': config.get('ADMIN_INIT_PASSWORD'),
         'phone': '00000000000',
         'name': '初始管理者',
-        'role_id': 5,
+        'role_id': role.ADMIN.id,
         'status': 'enable'
     }
     user.create_user(args)
+    logger.logger.info('Initial admin created.')
     migrate.init()
+    logger.logger.info('Server initialized.')
 
 
 # Projects
@@ -135,6 +169,16 @@ api.add_resource(project.SingleProject, '/project', '/project/<sint:project_id>'
 api.add_resource(project.ProjectsByUser, '/projects_by_user/<int:user_id>')
 api.add_resource(project.ProjectUserList, '/project/<sint:project_id>/user/list')
 api.add_resource(project.ProjectUserResource, '/project/<sint:project_id>/resource')
+api.add_resource(project.ProjectUserResourcePod, '/project/<sint:project_id>/resource/list/pod', 
+                 '/project/<sint:project_id>/resource/list/pod/<pod_name>')
+api.add_resource(project.ProjectUserResourceDeployment, '/project/<sint:project_id>/resource/list/deployment',
+                 '/project/<sint:project_id>/resource/list/deployment/<deployment_name>')
+api.add_resource(project.ProjectUserResourceService, '/project/<sint:project_id>/resource/list/service',
+                 '/project/<sint:project_id>/resource/list/service/<service_name>')
+api.add_resource(project.ProjectUserResourceSecret, '/project/<sint:project_id>/resource/list/secret',
+                 '/project/<sint:project_id>/resource/list/secret/<secret_name>')
+api.add_resource(project.ProjectUserResourceConfigMap, '/project/<sint:project_id>/resource/list/configmap',
+                 '/project/<sint:project_id>/resource/list/configmap/<configmap_name>')
 api.add_resource(project.ProjectMember, '/project/<sint:project_id>/member',
                  '/project/<sint:project_id>/member/<int:user_id>')
 api.add_resource(wiki.ProjectWikiList, '/project/<sint:project_id>/wiki')
@@ -184,6 +228,7 @@ api.add_resource(role.RoleList, '/user/role/list')
 # pipeline
 api.add_resource(pipeline.PipelineExec, '/pipelines/rd/<repository_id>/pipelines_exec',
                  '/pipelines/<repository_id>/pipelines_exec')
+api.add_resource(pipeline.PipelineExecAction, '/pipelines/<repository_id>/pipelines_exec/action')
 api.add_resource(pipeline.PipelineExecLogs, '/pipelines/rd/logs',
                  '/pipelines/logs')
 api.add_resource(pipeline.PipelineSoftware, '/pipelines/software')
@@ -297,25 +342,44 @@ api.add_resource(mock.MockSesame, '/mock/sesame')
 
 # Harbor
 api.add_resource(harbor.HarborRepository,
-                 '/harbor/projects/<int:project_id>',
-                 '/harbor/repositories',
-                 '/harbor/repositories/<project_name>/<repository_name>')
+                 '/harbor/projects/<int:nexus_project_id>',
+                 '/harbor/repositories')
 api.add_resource(harbor.HarborArtifact,
-                 '/harbor/artifacts/<project_name>/<repository_name>')
-api.add_resource(harbor.HarborProject, '/harbor/projects/<int:project_id>/summary')
+                 '/harbor/artifacts')
+api.add_resource(harbor.HarborProject, '/harbor/projects/<int:nexus_project_id>/summary')
 
 # WebInspect
 api.add_resource(webInspect.WebInspectScan, '/webinspect/create_scan',
                  '/webinspect/list_scan/<project_name>')
 api.add_resource(webInspect.WebInspectScanStatus, '/webinspect/status/<scan_id>')
-api.add_resource(webInspect.WebInspectScanStats, '/webinspect/stats/<scan_id>')
+api.add_resource(webInspect.WebInspectScanStatistics, '/webinspect/stats/<scan_id>')
+api.add_resource(webInspect.WebInspectReport, '/webinspect/report/<scan_id>')
+
+# Maintenance
+api.add_resource(maintenance.update_db_rc_project_pipeline_id, '/maintenance/update_rc_pj_pipe_id')
+api.add_resource(maintenance.secretes_into_rc_all, '/maintenance/secretes_into_rc_all', 
+                 '/maintenance/secretes_into_rc_all/<secret_name>')
+api.add_resource(maintenance.registry_into_rc_all, '/maintenance/registry_into_rc_all',
+                 '/maintenance/registry_into_rc_all/<registry_name>')
+
+# Activity
+api.add_resource(activity.AllActivities, '/all_activities')
+api.add_resource(activity.ProjectActivities, '/project/<sint:project_id>/activities')
+
+# System versions
+api.add_resource(NexusVersion, '/system_versions')
 
 
 if __name__ == "__main__":
-    db.init_app(app)
-    db.app = app
-    jsonwebtoken.init_app(app)
-    u = config.get('SQLALCHEMY_DATABASE_URI')
-    initialize(u)
-    migrate.run()
-    app.run(host='0.0.0.0', port=10009, debug=(config.get('DEBUG') is True))
+    try:
+        db.init_app(app)
+        db.app = app
+        jsonwebtoken.init_app(app)
+        initialize(config.get('SQLALCHEMY_DATABASE_URI'))
+        migrate.run()
+        app.run(host='0.0.0.0', port=10009, debug=(config.get('DEBUG') is True))
+    except Exception as e:
+        ret = internal_error(e)
+        if ret[1] == 404:
+            logger.logger.exception(e)
+        raise e

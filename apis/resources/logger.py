@@ -1,31 +1,34 @@
 import logging
 from logging import handlers
 
-from flask import current_app
-from flask_jwt_extended import get_jwt_identity
-
-app = None
-
-
-def set_app(app_):
-    global app
-    app = app_
+from flask import current_app, has_request_context
+from flask_jwt_extended import get_jwt_identity, verify_jwt_in_request
 
 
 class DevOpsFilter(logging.Filter):
     def filter(self, record):
         record.user_id = -1
         record.user_name = ''
-        with app.app_context():
-            jwt = get_jwt_identity()
-        if jwt is not None:
-            record.user_id = jwt['user_id']
-            record.user_name = jwt['user_account']
+        if has_request_context():
+            with current_app.app_context():
+                verify_jwt_in_request()
+                jwt = get_jwt_identity()
+            if jwt is not None:
+                record.user_id = jwt['user_id']
+                record.user_name = jwt['user_account']
+        else:
+            record.user_id = 0
+            record.user_name = 'system'
         return True
 
 
+import os
+
+if not os.path.exists('logs'):
+    os.makedirs('logs')
+
 handler = handlers.TimedRotatingFileHandler(
-    'devops-api-rotate.log', when='D', interval=999, backupCount=14)
+    'logs/devops-api.log', when='D', interval=999, backupCount=14, encoding='utf-8')
 handler.setFormatter(logging.Formatter(
     '%(asctime)s %(user_name)s/%(user_id)d %(filename)s'
     ' [line:%(lineno)d] %(levelname)s %(message)s',

@@ -9,13 +9,12 @@ from sqlalchemy.orm.exc import NoResultFound
 import model
 import resources.apiError as apiError
 import util as util
-from model import db
+from model import db, PipelineLogsCache
 from resources.logger import logger
-from .gitlab import GitLab
-from .rancher import Rancher
+from .gitlab import GitLab, commit_id_to_url
+from .rancher import rancher
 
 gitlab = GitLab()
-rancher = Rancher()
 
 
 def pipeline_exec_list(repository_id):
@@ -39,7 +38,9 @@ def pipeline_exec_list(repository_id):
         else:
             output_dict['commit_message'] = None
         output_dict['commit_branch'] = pipeline_output['branch']
-        output_dict['commit_id'] = pipeline_output['commit']
+        output_dict['commit_id'] = pipeline_output['commit'][0:7]
+        output_dict['commit_url'] = commit_id_to_url(relation.project_id,
+                                                     pipeline_output['commit']),
         output_dict['execution_state'] = pipeline_output['executionState']
         stage_status = []
         for stage in pipeline_output['stages']:
@@ -63,11 +64,44 @@ def pipeline_exec_logs(args):
             404, 'No such project.',
             error=apiError.repository_id_not_found(args['repository_id']))
 
-    output_array, response = rancher.rc_get_pipeline_executions_logs(
+    # search PipelineLogsCache table log
+    log_cache = PipelineLogsCache.query.filter(PipelineLogsCache.project_id == relation.project_id,
+                                               PipelineLogsCache.ci_pipeline_id == relation.ci_pipeline_id,
+                                               PipelineLogsCache.run == args['pipelines_exec_run']).first()
+    if log_cache is None:
+        output_array, execution_state = rancher.rc_get_pipeline_executions_logs(
+            relation.ci_project_id,
+            relation.ci_pipeline_id,
+            args['pipelines_exec_run'])
+
+        # if execution status is Failed, Success, Aborted, log will insert into ipelineLogsCache table 
+        if execution_state in ['Failed', 'Success', 'Aborted']:
+            log = PipelineLogsCache(project_id=relation.project_id,
+                                    ci_pipeline_id=relation.ci_pipeline_id,
+                                    run=args['pipelines_exec_run'],
+                                    logs=output_array)
+            db.session.add(log)
+            db.session.commit()
+        return util.success(output_array)
+    else:
+        return util.success(log_cache.logs)
+
+
+def pipeline_exec_action(git_repository_id, args):
+    try:
+        relation = model.ProjectPluginRelation.query.filter_by(
+            git_repository_id=git_repository_id).one()
+    except NoResultFound:
+        raise apiError.DevOpsError(
+            404, 'No such project.',
+            error=apiError.repository_id_not_found(git_repository_id))
+
+    response = rancher.rc_get_pipeline_executions_action(
         relation.ci_project_id,
         relation.ci_pipeline_id,
-        args['pipelines_exec_run'])
-    return util.success(output_array)
+        args['pipelines_exec_run'],
+        args['action'])
+    return util.success()
 
 
 def pipeline_software():
@@ -83,13 +117,6 @@ def pipeline_software():
 
 
 def generate_ci_yaml(args, repository_id, branch_name):
-    """
-    result = db.engine.execute("SELECT git_repository_id FROM public.project_plugin_relation \
-        WHERE project_id = {0};".format(project_id))
-    project_relationship = result.fetchone()
-    result.close()
-    logger.info("project_relationship: {0}".format(project_relationship['ci_project_id']))
-    """
     parameter = {}
     logger.debug("generate_ci_yaml detail: {0}".format(args['detail']))
     dict_object = json.loads(args['detail'].replace("'", '"'))
@@ -98,39 +125,32 @@ def generate_ci_yaml(args, repository_id, branch_name):
     base_file = base64.b64encode(bytes(doc,
                                        encoding='utf-8')).decode('utf-8')
     logger.info("generate_ci_yaml base_file: {0}".format(base_file))
-    parameter['file_path'] = '.rancher-pipeline.yml'
     parameter['branch'] = branch_name
     parameter['start_branch'] = branch_name
     parameter['encoding'] = 'base64'
     parameter['content'] = base_file
     parameter['author_email'] = "admin@example.com"
     parameter['author_name'] = "admin"
-    parameter['file_path'] = '.rancher-pipeline.yaml'
-    yaml_info = gitlab.gl_get_project_file_for_pipeline(repository_id, parameter)
-    parameter['file_path'] = '.rancher-pipeline.yml'
-    yml_info = gitlab.gl_get_project_file_for_pipeline(repository_id, parameter)
-    if yaml_info.status_code == 404 and yml_info.status_code == 404:
+    yaml_file_can_not_find, yml_file_can_not_find, get_yaml_data = \
+        _get_rancher_pipeline_yaml(repository_id, parameter)
+    if yaml_file_can_not_find and yml_file_can_not_find:
         method = "post"
-        parameter['commit_message'] = "add .rancher-pipeline.yml"
-    else:
+        parameter['commit_message'] = "add .rancher-pipeline"
+    elif yaml_file_can_not_find or yml_file_can_not_find:
         method = "put"
-        parameter['commit_message'] = "modify .rancher-pipeline.yml"
+        parameter['commit_message'] = "modify .rancher-pipeline"
+    else:
+        raise apiError.DevOpsError(400, 'Has both .yaml and .yml files')
     gitlab.gl_create_rancher_pipeline_yaml(repository_id, parameter, method)
     return util.success()
 
 
 def get_ci_yaml(repository_id, branch_name):
-    parameter = {'branch': branch_name, 'file_path': '.rancher-pipeline.yaml'}
-    yaml_info = gitlab.gl_get_project_file_for_pipeline(repository_id, parameter)
-    parameter['file_path'] = '.rancher-pipeline.yml'
-    yml_info = gitlab.gl_get_project_file_for_pipeline(repository_id, parameter)
-    get_yaml_data = None
-    if yaml_info.status_code != 404:
-        get_yaml_data = yaml_info.json()
-    elif yml_info.status_code != 404:
-        get_yaml_data = yml_info.json()
-    if get_yaml_data is None:
-        return {'message': "success", "data": {}}, 200
+    parameter = {'branch': branch_name}
+    yaml_file_can_not_find, yml_file_can_not_find, get_yaml_data = \
+        _get_rancher_pipeline_yaml(repository_id, parameter)
+    if yaml_file_can_not_find and yml_file_can_not_find:
+        return util.respond(204)
     rancher_ci_yaml = base64.b64decode(
         get_yaml_data['content']).decode("utf-8")
     rancher_ci_json = yaml.safe_load(rancher_ci_yaml)
@@ -138,22 +158,12 @@ def get_ci_yaml(repository_id, branch_name):
 
 
 def get_phase_yaml(repository_id, branch_name):
-    parameter = {'branch': branch_name, 'file_path': '.rancher-pipeline.yaml'}
-    try:
-        yaml_info = gitlab.gl_get_project_file_for_pipeline(repository_id, parameter)
-        parameter['file_path'] = '.rancher-pipeline.yml'
-        yml_info = gitlab.gl_get_project_file_for_pipeline(repository_id, parameter)
-    except Exception:
-        return {
-                   "message": "read yaml to get phase and software name error"
-               }, 400
-    get_yaml_data = None
-    if yaml_info.status_code != 404:
-        get_yaml_data = yaml_info.json()
-    elif yml_info.status_code != 404:
-        get_yaml_data = yml_info.json()
-    if get_yaml_data is None:
-        return {'message': "success", "data": []}, 200
+    parameter = {'branch': branch_name}
+    yaml_file_can_not_find, yml_file_can_not_find, get_yaml_data = \
+        _get_rancher_pipeline_yaml(repository_id, parameter)
+    if yaml_file_can_not_find and yml_file_can_not_find:
+        return util.respond(204)
+
     rancher_ci_yaml = base64.b64decode(
         get_yaml_data['content']).decode("utf-8")
     rancher_ci_json = yaml.safe_load(rancher_ci_yaml)
@@ -174,12 +184,44 @@ def get_phase_yaml(repository_id, branch_name):
     return {'message': "success", "data": phase_name_array}, 200
 
 
+def _get_rancher_pipeline_yaml(repository_id, parameter):
+    yaml_file_can_not_find = None
+    yml_file_can_not_find = None
+    get_yaml_data = None
+    get_file_param = dict(parameter)
+    try:
+        get_file_param['file_path'] = '.rancher-pipeline.yaml'
+        get_yaml_data = gitlab.gl_get_project_file_for_pipeline(repository_id, get_file_param).json()
+        parameter['file_path'] = '.rancher-pipeline.yaml'
+    except apiError.DevOpsError as e:
+        if e.status_code == 404:
+            yaml_file_can_not_find = True
+    try:
+        get_file_param['file_path'] = '.rancher-pipeline.yml'
+        get_yaml_data = gitlab.gl_get_project_file_for_pipeline(repository_id, get_file_param).json()
+        parameter['file_path'] = '.rancher-pipeline.yml'
+    except apiError.DevOpsError as e:
+        if e.status_code == 404:
+            yml_file_can_not_find = True
+    return yaml_file_can_not_find, yml_file_can_not_find, get_yaml_data
+
+
 # --------------------- Resources ---------------------
 class PipelineExec(Resource):
     @jwt_required
     def get(self, repository_id):
         output_array = pipeline_exec_list(repository_id)
         return util.success(output_array)
+
+
+class PipelineExecAction(Resource):
+    @jwt_required
+    def post(self, repository_id):
+        parser = reqparse.RequestParser()
+        parser.add_argument('pipelines_exec_run', type=int, required=True)
+        parser.add_argument('action', type=str, required=True)
+        args = parser.parse_args()
+        return pipeline_exec_action(repository_id, args)
 
 
 class PipelineExecLogs(Resource):

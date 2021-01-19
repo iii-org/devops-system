@@ -8,6 +8,7 @@ from flask_restful import Resource, reqparse
 from sqlalchemy.orm.exc import NoResultFound
 
 import model
+import nexus
 import resources.apiError as apiError
 import resources.user as user
 import util as util
@@ -15,7 +16,7 @@ from resources.apiError import DevOpsError
 from model import db
 from resources.logger import logger
 from resources.redmine import redmine
-from . import project as project_module, role, project
+from . import project as project_module, project, role
 
 FLOW_TYPES = {"0": "Given", "1": "When", "2": "Then", "3": "But", "4": "And"}
 PARAMETER_TYPES = {'1': '文字', '2': '英數字', '3': '英文字', '4': '數字'}
@@ -180,10 +181,10 @@ def create_issue(args, operator_id):
     if 'parent_id' in args:
         args['parent_issue_id'] = args['parent_id']
         args.pop('parent_id', None)
-    project_plugin_relation = project_module.get_project_plugin_relation(args['project_id'])
+    project_plugin_relation = nexus.nx_get_project_plugin_relation(args['project_id'])
     args['project_id'] = project_plugin_relation.plan_project_id
     if "assigned_to_id" in args:
-        user_plugin_relation = user.get_user_plugin_relation(user_id=args['assigned_to_id'])
+        user_plugin_relation = nexus.nx_get_user_plugin_relation(user_id=args['assigned_to_id'])
         args['assigned_to_id'] = user_plugin_relation.plan_user_id
 
     attachment = redmine.rm_upload(args)
@@ -192,19 +193,20 @@ def create_issue(args, operator_id):
 
     plan_operator_id = None
     if operator_id is not None:
-        operator_plugin_relation = user.get_user_plugin_relation(user_id=operator_id)
+        operator_plugin_relation = nexus.nx_get_user_plugin_relation(user_id=operator_id)
         plan_operator_id = operator_plugin_relation.plan_user_id
     output = redmine.rm_create_issue(args, plan_operator_id)
     return util.success({"issue_id": output["issue"]["id"]})
 
 
 def update_issue(issue_id, args, operator_id):
+    args = args.copy()
     args = {k: v for k, v in args.items() if v is not None}
     if 'parent_id' in args:
         args['parent_issue_id'] = args['parent_id']
         args.pop('parent_id', None)
-    if "assigned_to_id" in args:
-        user_plugin_relation = user.get_user_plugin_relation(user_id=args['assigned_to_id'])
+    if "assigned_to_id" in args and len(args['assigned_to_id']) > 0:
+        user_plugin_relation = nexus.nx_get_user_plugin_relation(user_id=int(args['assigned_to_id']))
         args['assigned_to_id'] = user_plugin_relation.plan_user_id
 
     attachment = redmine.rm_upload(args)
@@ -212,7 +214,7 @@ def update_issue(issue_id, args, operator_id):
         args['uploads'] = [attachment]
     plan_operator_id = None
     if operator_id is not None:
-        operator_plugin_relation = user.get_user_plugin_relation(user_id=operator_id)
+        operator_plugin_relation = nexus.nx_get_user_plugin_relation(user_id=operator_id)
         plan_operator_id = operator_plugin_relation.plan_user_id
     redmine.rm_update_issue(issue_id, args, plan_operator_id)
     return util.success()
@@ -384,28 +386,31 @@ def get_issueStatistics_by_project(project_id, args):
                     "closed": closed_count + 1
                 }
         # count owner
-        if issue["assigned_to"] not in owner_list:
+        assigned_to = issue["assigned_to"]
+        if assigned_to is None:
+            assigned_to = '_unassigned'
+        if assigned_to not in owner_list:
             if issue["issue_status"] != "Closed":
-                owner_list[issue["assigned_to"]] = {
+                owner_list[assigned_to] = {
                     "open": 1,
                     "closed": 0
                 }
             else:
-                owner_list[issue["assigned_to"]] = {
+                owner_list[assigned_to] = {
                     "open": 0,
                     "closed": 1
                 }
         else:
             open_count = owner_list[
-                issue["assigned_to"]]["open"]
-            closed_count = owner_list[issue["assigned_to"]]["closed"]
+                assigned_to]["open"]
+            closed_count = owner_list[assigned_to]["closed"]
             if issue["issue_status"] != "Closed":
-                owner_list[issue["assigned_to"]] = {
+                owner_list[assigned_to] = {
                     "open": open_count + 1,
                     "closed": closed_count
                 }
             else:
-                owner_list[issue["assigned_to"]] = {
+                owner_list[assigned_to] = {
                     "open": open_count,
                     "closed": closed_count + 1
                 }
@@ -465,7 +470,7 @@ def get_issue_statistics(args, user_id):
                                               args["to_time"])
     else:
         args["due_date"] = ">=".format(args["from_time"])
-    user_plugin_relation = user.get_user_plugin_relation(user_id=user_id)
+    user_plugin_relation = nexus.nx_get_user_plugin_relation(user_id=user_id)
     if user_plugin_relation is not None:
         args["assigned_to_id"] = user_plugin_relation.plan_user_id
     redmine_output = redmine.rm_get_statistics(args)
@@ -474,7 +479,7 @@ def get_issue_statistics(args, user_id):
 
 def get_open_issue_statistics(user_id):
     args = {'limit': 100}
-    user_plugin_relation = user.get_user_plugin_relation(user_id=user_id)
+    user_plugin_relation = nexus.nx_get_user_plugin_relation(user_id=user_id)
     if user_plugin_relation is not None:
         args["assigned_to_id"] = user_plugin_relation.plan_user_id
     args['status_id'] = '*'
@@ -504,7 +509,7 @@ def get_issue_statistics_in_period(period, user_id):
                           error=apiError.no_detail())
 
     args = {"due_date": "><{0}|{1}".format(from_time, to_time)}
-    user_plugin_relation = user.get_user_plugin_relation(user_id=user_id)
+    user_plugin_relation = nexus.nx_get_user_plugin_relation(user_id=user_id)
     if user_plugin_relation is not None:
         args["assigned_to_id"] = user_plugin_relation.plan_user_id
 
@@ -838,14 +843,14 @@ class SingleIssue(Resource):
     def put(self, issue_id):
         require_issue_visible(issue_id)
         parser = reqparse.RequestParser()
-        parser.add_argument('assigned_to_id', type=int)
+        parser.add_argument('assigned_to_id', type=str)
         parser.add_argument('tracker_id', type=int)
         parser.add_argument('status_id', type=int)
         parser.add_argument('priority_id', type=int)
         parser.add_argument('estimated_hours', type=int)
         parser.add_argument('description', type=str)
         parser.add_argument('parent_id', type=int)
-        parser.add_argument('fixed_version_id', type=int)
+        parser.add_argument('fixed_version_id', type=str)
         parser.add_argument('subject', type=str)
         parser.add_argument('start_date', type=str)
         parser.add_argument('due_date', type=str)
@@ -858,6 +863,12 @@ class SingleIssue(Resource):
         parser.add_argument('upload_description', type=str)
 
         args = parser.parse_args()
+        # Handle removable int parameters
+        keys_int_or_null = ['assigned_to_id', 'fixed_version_id']
+        for k in keys_int_or_null:
+            if args[k] == 'null':
+                args[k] = ''
+
         return update_issue(issue_id, args, get_jwt_identity()['user_id'])
 
     @jwt_required
