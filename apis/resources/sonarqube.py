@@ -1,10 +1,56 @@
 import requests
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource
+from requests.auth import HTTPBasicAuth
 
 import config
+import util
 from model import db
-from resources import role
+from resources import role, apiError
+# ------------- Internal API methods -------------
+from resources.logger import logger
+
+
+def __api_request(method, path, headers=None, params=None, data=None):
+    if headers is None:
+        headers = {}
+    if params is None:
+        params = {}
+    if 'Content-Type' not in headers:
+        headers['Content-Type'] = 'application/json'
+
+    url = f"{config.get('SONARQUBE_BASE_URL')}{path}"
+    output = util.api_request(method, url, headers, params, data,
+                              auth=HTTPBasicAuth(config.get('SONARQUBE_ADMIN_TOKEN'), ''))
+
+    logger.info(f"SonarQube api {method} {url}, params={params.__str__()}, body={data},"
+                f" response={output.status_code} {output.text}")
+    if int(output.status_code / 100) != 2:
+        raise apiError.DevOpsError(
+            output.status_code,
+            'Got non-2xx response from SonarQube.',
+            apiError.error_3rd_party_api('SonarQube', output))
+    return output
+
+
+def __api_get(path, params=None, headers=None):
+    return __api_request('GET', path, params=params, headers=headers)
+
+
+def __api_post(path, params=None, headers=None, data=None, ):
+    return __api_request('POST', path, headers=headers, data=data, params=params)
+
+
+# ------------- Regular methods -------------
+def sq_create_user(args):
+    res = __api_post(f'/users/create?login={args["login"]}&name={args["name"]}'
+                     f'&password={args["password"]}')
+    return res
+
+
+def sq_deactivate_user(user_login):
+    res = __api_post(f'/users/deactivate?login={user_login}')
+    return res
 
 
 def get_sonar_report(project_id):
