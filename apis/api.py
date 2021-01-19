@@ -23,7 +23,7 @@ import maintenance
 from jsonwebtoken import jsonwebtoken
 from model import db
 from resources import logger, role as role, activity
-from resources import project, gitlab, issue, user, redmine, wiki, version, sonar, apiTest, postman, mock, harbor, \
+from resources import project, gitlab, issue, user, redmine, wiki, version, sonarqube, apiTest, postman, mock, harbor, \
     webInspect
 
 app = Flask(__name__)
@@ -304,7 +304,7 @@ api.add_resource(apiTest.TestValue, '/testValues/<value_id>')
 # Postman tests
 api.add_resource(postman.ExportToPostman, '/export_to_postman/<sint:project_id>')
 api.add_resource(postman.PostmanResults, '/postman_results/<sint:project_id>')
-api.add_resource(postman.PostmanReport, '/testResults', '/postman_report/<sint:project_id>')
+api.add_resource(postman.PostmanReport, '/testResults', '/postman_report/<int:id>')
 
 # Checkmarx report generation
 api.add_resource(checkmarx.CreateCheckmarxScan, '/checkmarx/create_scan')
@@ -327,7 +327,7 @@ api.add_resource(checkmarx.GetCheckmarxProject,
 api.add_resource(issue.DumpByIssue, '/dump_by_issue/<issue_id>')
 
 # Get Sonarqube report by project_id
-api.add_resource(sonar.SonarReport, '/sonar_report/<sint:project_id>')
+api.add_resource(sonarqube.SonarReport, '/sonar_report/<sint:project_id>')
 
 # Files
 api.add_resource(project.ProjectFile, '/project/<sint:project_id>/file')

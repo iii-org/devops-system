@@ -1,5 +1,8 @@
 import os
 import json
+
+from kubernetes.client import ApiException
+
 import util as util
 
 import base64
@@ -80,8 +83,8 @@ def list_namespace():
 def delete_namespace(project_name):
     try:
         ret = v1.delete_namespace(project_name)
-    except apiError.DevOpsError as e:
-        if e.status_code != 404:
+    except ApiException as e:
+        if e.status != 404:
             raise e
     
     

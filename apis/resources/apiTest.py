@@ -362,11 +362,8 @@ def save_test_result(args):
     return util.success()
 
 
-def get_report(project_id):
-    row = model.TestResults.query.filter_by(project_id=project_id).order_by(desc(
-        model.TestResults.id)).limit(1).first()
-    if row is None:
-        return util.respond(204)
+def get_report(id):
+    row = model.TestResults.query.filter_by(id=id).one()
     report = row.report
     if report is None or report == 'undefined':  # Corrupted data by old runners
         return util.respond(204)
