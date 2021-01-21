@@ -93,7 +93,7 @@ def list_projects(user_id):
                 del pjt
                 break
 
-        redmine_url = "http://{0}/projects/{1}".format(config.get("REDMINE_IP_PORT"), plan_project_id)
+        redmine_url = f'{config.get("REDMINE_EXTERNAL_BASE_URL")}/projects/{plan_project_id}'
         output_array.append({
             "id": project_id,
             "name": row.Project.name,
@@ -397,7 +397,7 @@ def pm_get_project(project_id):
                                    error=apiError.project_not_found(project_id))
     project_info = result.fetchone()
     result.close()
-    redmine_url = "http://{0}/projects/{1}".format(config.get("REDMINE_IP_PORT"), plan_project_id)
+    redmine_url = f'{config.get("REDMINE_EXTERNAL_BASE_URL")}/projects/{plan_project_id}'
     output = {
         "project_id": project_info["project_id"],
         "name": project_info["name"],
@@ -574,9 +574,8 @@ def get_projects_by_user(user_id):
                        'display': row.Project.display,
                        'project_id': row.Project.id,
                        'git_url': row.Project.http_url,
-                       'redmine_url': "http://{0}/projects/{1}".format(
-                           config.get("REDMINE_IP_PORT"),
-                           row.ProjectPluginRelation.plan_project_id),
+                       'redmine_url': f'{config.get("REDMINE_EXTERNAL_BASE_URL")}/projects/'
+                                      f'{row.ProjectPluginRelation.plan_project_id}',
                        'repository_ids': row.ProjectPluginRelation.git_repository_id,
                        'issues': None,
                        'branch': None,
@@ -999,26 +998,3 @@ class ProjectUserResourceConfigMap(Resource):
     def delete(self, project_id, configmap_name):
         role.require_in_project(project_id, "Error while getting project info.")
         return delete_kubernetes_namespace_configmap(project_id, configmap_name)
-
-
-def sonar_cube(project_info, requests, self, logger):
-    # 查詢sonar_quality_score
-    project_name = project_info["name"]
-    # print(project_name)
-    # project_name = "devops-flask"
-    url = "http://{0}/api/measures/component?component={1}" \
-          "&metricKeys=reliability_rating,security_rating," \
-          "security_review_rating,sqale_rating".format(config.get("SONAR_IP_PORT"),
-                                                       project_name)
-    output = requests.get(url,
-                          headers=self.headers,
-                          verify=False)
-    logger.info("get sonar report output: {0} / {1}".format(
-        output, output.json()))
-    if output.status_code == 200:
-        quality_score = 0
-        data_list = output.json()["component"]["measures"]
-        for data in data_list:
-            # print(type(data["value"]))
-            rating = float(data["value"])
-            quality_score += (6 - rating) * 5  # A-25, B-20, C-15, D-10, E-5

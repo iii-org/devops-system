@@ -96,7 +96,7 @@ def deal_with_issue_by_user_redmine_output(redmine_output):
             'id']
         output_list['fixed_version_name'] = redmine_output[
             'fixed_version']['name']
-    output_list['issue_link'] = redmine.build_link('/issues/{0}'.format(redmine_output['id']))
+    output_list['issue_link'] = redmine.rm_build_external_link('/issues/{0}'.format(redmine_output['id']))
     logger.info(
         "get issue by user redmine_output: {0}".format(output_list))
     return output_list

@@ -19,7 +19,7 @@ def __api_request(method, path, headers=None, params=None, data=None):
     if 'Content-Type' not in headers:
         headers['Content-Type'] = 'application/json'
 
-    url = f"{config.get('SONARQUBE_BASE_URL')}{path}"
+    url = f"{config.get('SONARQUBE_INTERNAL_BASE_URL')}{path}"
     output = util.api_request(method, url, headers, params, data,
                               auth=HTTPBasicAuth(config.get('SONARQUBE_ADMIN_TOKEN'), ''))
 
@@ -75,12 +75,12 @@ def get_sonar_report(project_id):
         "SELECT name FROM public.projects WHERE id = '{0}'".format(project_id))
     project_name = result.fetchone()[0]
     result.close()
-    url = ("http://{0}/api/measures/component?"
+    url = ("{0}/measures/component?"
            "component={1}&metricKeys=bugs,vulnerabilities,security_hotspots,code_smells,"
            "coverage,duplicated_blocks,sqale_index,duplicated_lines_density,reliability_rating,"
            "security_rating,security_review_rating,sqale_rating,security_hotspots_reviewed,"
            "lines_to_cover").format(
-        config.get("SONAR_IP_PORT"), project_name)
+        config.get("SONARQUBE_INTERNAL_BASE_URL"), project_name)
     output = requests.get(url, headers={'Content-Type': 'application/json'}, verify=False)
     if output.status_code == 200:
         data_list = output.json()["component"]["measures"]

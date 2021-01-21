@@ -37,7 +37,7 @@ class GitLab(object):
     def __init__(self):
         if config.get("GITLAB_API_VERSION") == "v3":
             # get gitlab admin token
-            url = "http://{0}/api/v3/session".format(config.get("GITLAB_IP_PORT"))
+            url = f'{config.get("GITLAB_BASE_URL")}/api/v3/session'
             param = {
                 "login": config.get("GITLAB_ADMIN_ACCOUNT"),
                 "password": config.get("GITLAB_ADMIN_PASSWORD")
@@ -77,11 +77,9 @@ class GitLab(object):
         if 'Content-Type' not in headers:
             headers['Content-Type'] = 'application/json'
 
-        url = "http://{0}/api/{1}{2}?private_token={3}".format(
-            config.get("GITLAB_IP_PORT"),
-            config.get("GITLAB_API_VERSION"),
-            path,
-            self.private_token)
+        url = f'{config.get("GITLAB_BASE_URL")}/api/' \
+              f'{config.get("GITLAB_API_VERSION")}{path}' \
+              f'?private_token={self.private_token}'
 
         output = util.api_request(method, url, headers, params, data)
 
