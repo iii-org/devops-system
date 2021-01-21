@@ -144,7 +144,7 @@ def create_project(user_id, args):
         'redmine': (args,),
         'gitlab': (args,),
         'harbor': (args['name'],),
-        'sonarqube': (args,)
+        'sonarqube': (args['name'], args['display'])
     }
     helper = util.ServiceBatchOpHelper(services, targets, service_args)
     helper.run()
