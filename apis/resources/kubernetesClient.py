@@ -156,7 +156,7 @@ def create_namespace_limitrange(namespace):
     try:
         resource_quota = k8s_client.V1LimitRange(spec=k8s_client.V1LimitRangeSpec(
             limits=[{"default":{"memory":"10Gi","cpu":10},
-                    "defaultRequest":{"memory":"512Mi","cpu":1},"type":"Container"}]), 
+                    "defaultRequest":{"memory":"64Mi","cpu":0.1},"type":"Container"}]), 
             metadata=k8s_client.V1ObjectMeta(namespace=namespace,name="project-limitrange"))
         ret = v1.create_namespaced_limit_range(namespace, resource_quota)
     except apiError.DevOpsError as e:
