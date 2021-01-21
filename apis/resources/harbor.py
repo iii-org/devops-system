@@ -150,7 +150,7 @@ def hb_list_repositories(project_name):
     repositories = __api_get('/projects/{0}/repositories'.format(project_name)).json()
     ret = []
     for repo in repositories:
-        repo['harbor_link'] = build_external_link('/harbor/projects/{0}/repositories/{1}'.format(
+        repo['harbor_link'] = hb_build_external_link('/harbor/projects/{0}/repositories/{1}'.format(
             repo['project_id'],
             repo['name'].replace((project_name + "/"), "")))
         ret.append(repo)
@@ -216,8 +216,8 @@ def hb_get_project_summary(project_id):
     return __api_get('/projects/{0}/summary'.format(project_id)).json()
 
 
-def build_external_link(path):
-    return f"{config.get('HARBOR_HARBOR_EXTERNAL_BASE_URL')}{path}"
+def hb_build_external_link(path):
+    return f"{config.get('HARBOR_EXTERNAL_BASE_URL')}{path}"
 
 
 # ----------------- Resources -----------------
