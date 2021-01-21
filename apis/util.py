@@ -199,9 +199,10 @@ def decode_k8s_sa(string):
     return ret
 
 
-def get_random_alphanumeric_string(letters_count, digits_count):
-    sample_str = ''.join((random.choice(string.ascii_letters) for i in range(letters_count)))
-    sample_str += ''.join((random.choice(string.digits) for i in range(digits_count)))
+def get_random_alphanumeric_string(letters_count_each, digits_count):
+    sample_str = ''.join((random.choice(string.ascii_lowercase) for _ in range(letters_count_each)))
+    sample_str += ''.join((random.choice(string.ascii_uppercase) for _ in range(letters_count_each)))
+    sample_str += ''.join((random.choice(string.digits) for _ in range(digits_count)))
 
     # Convert string to list and shuffle it to mix letters and digits
     sample_list = list(sample_str)

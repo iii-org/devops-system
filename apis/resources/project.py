@@ -155,7 +155,6 @@ def create_project(user_id, args):
     gitlab_pj_name = None
     gitlab_pj_ssh_url = None
     gitlab_pj_http_url = None
-    gitlab_pj_token = None
     harbor_pj_id = None
     project_name = args['name']
 
@@ -169,7 +168,6 @@ def create_project(user_id, args):
                 gitlab_pj_name = output["name"]
                 gitlab_pj_ssh_url = output["ssh_url_to_repo"]
                 gitlab_pj_http_url = output["http_url_to_repo"]
-                gitlab_pj_token = output["token"]
             elif service == 'harbor':
                 harbor_pj_id = output
 
@@ -225,10 +223,6 @@ def create_project(user_id, args):
         # add kubernetes namespace into rancher default project
         rancher.rc_add_namespace_into_rc_project(args['name'])
 
-        # Add gitlab token to rancher
-        rancher.rc_add_secrets_into_rc_namespace(
-            args['name'], 'gitlab', 'git-token', gitlab_pj_token)
-
         # Insert into nexus database
         new_pjt = model.Project(
             name=gitlab_pj_name,
@@ -256,6 +250,7 @@ def create_project(user_id, args):
 
         # 加關聯project_user_role
         project_add_member(project_id, user_id)
+        create_bot(project_id, project_name)
 
         return {
             "project_id": project_id,
@@ -267,8 +262,40 @@ def create_project(user_id, args):
         redmine.rm_delete_project(redmine_pj_id)
         gitlab.gl_delete_project(gitlab_pj_id)
         harbor.hb_delete_project(harbor_pj_id)
-        kubernetesClient.delete_namespace(args['name'])
+        kubernetesClient.delete_namespace(project_name)
+        sonarqube.sq_delete_project(project_name)
         raise e
+
+
+def create_bot(project_id, project_name):
+    # Create project BOT
+    login = f'project_bot_{project_id}'
+    password = util.get_random_alphanumeric_string(6, 3)
+    args = {
+        'name': f'專案管理機器人{project_id}號',
+        'email': f'project_bot_{project_id}@nowhere.net',
+        'phone': 'BOTRingRing',
+        'login': login,
+        'password': password,
+        'role_id': role.BOT.id,
+        'status': 'enable'
+    }
+    u = user.create_user(args)
+    user_id = u['user_id']
+    project_add_member(project_id, user_id)
+    git_user_id = u['repository_user_id']
+    git_access_token = gitlab.gl_create_access_token(git_user_id)
+
+    # Add bot secrets to rancher
+    print(git_access_token)
+    print(login)
+    print(password)
+    # rancher.rc_add_secrets_into_rc_namespace(
+    #     project_name, 'gitlab', 'git-token', git_access_token)
+    # rancher.rc_add_secrets_into_rc_namespace(
+    #     project_name, 'nexus', 'username', login)
+    # rancher.rc_add_secrets_into_rc_namespace(
+    #     project_name, 'nexus', 'password', password)
 
 
 @record_activity(ActionType.UPDATE_PROJECT)
@@ -351,6 +378,8 @@ def delete_project(project_id):
     harbor_project_id = relation.harbor_project_id
     project_name = nexus.nx_get_project(id=project_id).name
 
+    delete_bot(project_id)
+
     try:
         # disabled rancher pipeline
         rancher.rc_disable_project_pipeline(
@@ -384,6 +413,14 @@ def delete_project(project_id):
             project_id))
 
     return util.success()
+
+
+def delete_bot(project_id):
+    row = model.ProjectUserRole.query.filter_by(
+        project_id=project_id, role_id=role.BOT.id).first()
+    if row is None:
+        return
+    user.delete_user(row.user_id)
 
 
 # 用project_id查詢db的相關table欄位資訊

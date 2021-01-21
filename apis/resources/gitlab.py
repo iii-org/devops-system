@@ -104,25 +104,10 @@ class GitLab(object):
         return self.__api_request('DELETE', path, params=params, headers=headers)
 
     def gl_create_project(self, args):
-        ret = self.__api_post('/projects', params={
+        return self.__api_post('/projects', params={
             'name': args["name"],
             'description': args["description"]
         }).json()
-
-        project_id = ret['id']
-        # Create token holder
-        args = {
-            "name": f'Token Holder {project_id}',
-            "email": f'tokenholder_{project_id}@nowhere.net',
-            "login": f'tokenholder_{project_id}',
-        }
-        # We never use password to login a token holder
-        random_vapor_password = util.get_random_alphanumeric_string(10, 5)
-        user_id = self.gl_create_user(args, random_vapor_password)['id']
-        self.gl_project_add_member(project_id, user_id)
-        access_token = self.gl_create_access_token(user_id)
-        ret['token'] = access_token
-        return ret
 
     def gl_get_project(self, repo_id):
         return self.__api_get('/projects/{0}'.format(repo_id)).json()
