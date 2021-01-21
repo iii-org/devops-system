@@ -718,6 +718,9 @@ def get_test_summary(project_id):
 def get_kubernetes_namespace_Quota(project_id):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
     project_quota = kubernetesClient.get_namespace_quota(project_name)
+    deployments = kubernetesClient.list_deployment(project_name)
+    project_quota["quota"]["deployments"]=None
+    project_quota["used"]["deployments"]=str(len(deployments))
     return util.success(project_quota)
 
 
