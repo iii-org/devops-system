@@ -18,10 +18,8 @@ class Rancher(object):
 
     def __api_request(self, method, path, headers, params=None, data=None,
                       with_token=True, retried=False):
-        url = 'https://{0}/{1}{2}'.format(
-            config.get('RANCHER_IP_PORT'),
-            config.get('RANCHER_API_VERSION'),
-            path)
+        url = f'https://{config.get("RANCHER_IP_PORT")}' \
+              f'/{config.get("RANCHER_API_VERSION")}{path}'
         if headers is None:
             headers = {'Content-Type': 'application/json'}
         final_headers = self.__auth_headers(headers, with_token)
@@ -111,7 +109,8 @@ class Rancher(object):
             for step_index, step in enumerate(stage['steps']):
                 url = ("wss://{0}/{1}/project/{2}/pipelineExecutions/"
                        "{3}-{4}/log?stage={5}&step={6}").format(
-                    config.get('RANCHER_IP_PORT'), config.get('RANCHER_API_VERSION'), ci_project_id,
+                    config.get('RANCHER_IP_PORT'), config.get('RANCHER_API_VERSION'),
+                    ci_project_id,
                     ci_pipeline_id, pipelines_exec_run, index, step_index)
                 logger.info("wss url: {0}".format(url))
                 result = None

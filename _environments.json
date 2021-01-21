@@ -7,17 +7,18 @@
 
     "JSON_AS_ASCII": false,
 
-    "REDMINE_IP_PORT": "127.0.0.1:2781",
+    "REDMINE_INTERNAL_BASE_URL": "http://redmine.ingress.k8s:2781",
+    "REDMINE_EXTERNAL_BASE_URL": "http://redmine.external.domain",
     "REDMINE_ADMIN_ACCOUNT": "admin",
     "REDMINE_ADMIN_PASSWORD": "********",
     "REDMINE_API_KEY": "***********",
 
-    "GITLAB_IP_PORT": "127.0.0.1:7087",
+    "GITLAB_BASE_URL": "http://gitlab.ingress.k8s:7087",
     "GITLAB_ADMIN_ACCOUNT": "root",
     "GITLAB_ADMIN_PASSWORD": "**********",
     "GITLAB_PRIVATE_TOKEN": "**************",
 
-    "RANCHER_IP_PORT": "127.0.0.1:6771",
+    "RANCHER_IP_PORT": "rancher.ingress.k8s:6771",
     "RANCHER_ADMIN_ACCOUNT": "admin",
     "RANCHER_ADMIN_PASSWORD": "*********",
     "RANCHER_CLUSTER_NAME": "**-**-*-**-*****",
@@ -27,10 +28,12 @@
     "CHECKMARX_PASSWORD": "***********",
     "CHECKMARX_SECRET": "********-****-****-****-************",
 
-    "SONARQUBE_BASE_URL": "http://sonarqube.yours/api",
+    "SONARQUBE_INTERNAL_BASE_URL": "http://sonarqube.ingress.k8s/api",
+    "SONARQUBE_EXTERNAL_BASE_URL": "http://sonarqube.external.domain/api",
     "SONARQUBE_ADMIN_TOKEN": "*********************************",
 
-    "HARBOR_BASE_URL": "https://your.harbor.net:5443/api/v2.0",
+    "HARBOR_INTERNAL_BASE_URL": "https://harbor.ingress.k8s:5443/api/v2.0",
+    "HARBOR_EXTERNAL_BASE_URL": "https://harbor.external.domain",
     "HARBOR_ACCOUNT": "admin",
     "HARBOR_PASSWORD": "***********",
 
