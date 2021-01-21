@@ -155,6 +155,7 @@ def create_project(user_id, args):
     gitlab_pj_name = None
     gitlab_pj_ssh_url = None
     gitlab_pj_http_url = None
+    gitlab_pj_token = None
     harbor_pj_id = None
     project_name = args['name']
 
@@ -168,6 +169,7 @@ def create_project(user_id, args):
                 gitlab_pj_name = output["name"]
                 gitlab_pj_ssh_url = output["ssh_url_to_repo"]
                 gitlab_pj_http_url = output["http_url_to_repo"]
+                gitlab_pj_token = output["token"]
             elif service == 'harbor':
                 harbor_pj_id = output
 
@@ -223,6 +225,11 @@ def create_project(user_id, args):
         # add kubernetes namespace into rancher default project
         rancher.rc_add_namespace_into_rc_project(args['name'])
 
+        # Add gitlab token to rancher
+        rancher.rc_add_secrets_into_rc_namespace(
+            args['name'], 'gitlab', 'git-token', gitlab_pj_token)
+
+        # Insert into nexus database
         new_pjt = model.Project(
             name=gitlab_pj_name,
             display=args['display'],
