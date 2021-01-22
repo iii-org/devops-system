@@ -822,10 +822,16 @@ def get_kubernetes_namespace_secret(project_id):
     return util.success(project_secret)
 
 
-def create_kubernetes_namespace_secret(project_id, name, secrets):
+def create_kubernetes_namespace_secret(project_id, secret_name, secrets):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
-    project_secret = kubernetesClient.create_secret(project_name, name, secrets)
-    return util.success(project_secret)
+    kubernetesClient.create_secret(project_name, secret_name, secrets)
+    return util.success()
+
+
+def put_kubernetes_namespace_secret(project_id, secret_name, secrets):
+    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
+    kubernetesClient.patch_secret(project_name, secret_name, secrets)
+    return util.success()
 
 
 def delete_kubernetes_namespace_secret(project_id, name):
@@ -1042,6 +1048,14 @@ class ProjectUserResourceSecret(Resource):
         parser.add_argument('secrets', type=dict, required=True)
         args = parser.parse_args()
         return create_kubernetes_namespace_secret(project_id, secret_name, args["secrets"])
+
+    @jwt_required
+    def put(self, project_id, secret_name):
+        role.require_in_project(project_id, "Error while getting project info.")
+        parser = reqparse.RequestParser()
+        parser.add_argument('secrets', type=dict, required=True)
+        args = parser.parse_args()
+        return put_kubernetes_namespace_secret(project_id, secret_name, args["secrets"])
 
     @jwt_required
     def delete(self, project_id, secret_name):
