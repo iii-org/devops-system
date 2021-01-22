@@ -289,11 +289,9 @@ def create_bot(project_id):
 
     # Add bot secrets to rancher
     create_kubernetes_namespace_secret(
-        project_id, 'gitlab', {'git-token': git_access_token})
+        project_id, 'gitlab-bot', {'git-token': git_access_token})
     create_kubernetes_namespace_secret(
-        project_id, 'nexus', {'username': login})
-    create_kubernetes_namespace_secret(
-        project_id, 'nexus', {'password': password})
+        project_id, 'nexus-bot', {'username': login, 'password': password})
 
 
 @record_activity(ActionType.UPDATE_PROJECT)
