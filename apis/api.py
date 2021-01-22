@@ -56,9 +56,8 @@ def internal_error(exception):
         return util.respond(404, 'Path not found.',
                             error=apiError.path_not_found())
     if type(exception) is apiError.DevOpsError:
-        if exception.status_code != 404:
-            traceback.print_exc()
-            logger.logger.exception(str(exception))
+        traceback.print_exc()
+        logger.logger.exception(str(exception))
         return util.respond(exception.status_code, exception.message, error=exception.error_value)
     traceback.print_exc()
     logger.logger.exception(str(exception))

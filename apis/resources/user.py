@@ -56,6 +56,10 @@ def to_redmine_role_id(role_id):
         return 3
     elif role_id == role.PM.id:
         return 4
+    elif role_id == role.ADMIN.id:
+        return 4
+    elif role_id == role.BOT.id:
+        return 4
     else:
         return 4
 
@@ -420,7 +424,13 @@ def create_user(args):
         raise e
 
     logger.info('User created.')
-    return {"user_id": user_id}
+    return {
+        "user_id": user_id,
+        'plan_user_id': redmine_user_id,
+        'repository_user_id': gitlab_user_id,
+        'harbor_user_id': harbor_user_id,
+        'kubernetes_sa_name': kubernetes_sa_name
+    }
 
 
 def user_list():
@@ -469,12 +479,15 @@ def user_list_by_project(project_id, args):
         ret_users = db.session.query(model.User, model.ProjectUserRole.role_id). \
             join(model.ProjectUserRole). \
             filter(model.User.disabled == False). \
+            filter(model.ProjectUserRole.role_id != role.BOT.id). \
             order_by(desc(model.User.id)).all()
 
         project_users = db.session.query(model.User).join(model.ProjectUserRole).filter(
             model.User.disabled == False,
             model.ProjectUserRole.project_id == project_id
-        ).all()
+        ) \
+            .filter(model.ProjectUserRole.role_id != role.BOT.id) \
+            .all()
 
         i = 0
         while i < len(ret_users):
@@ -488,7 +501,8 @@ def user_list_by_project(project_id, args):
         ret_users = db.session.query(model.User, model.ProjectUserRole.role_id). \
             join(model.ProjectUserRole). \
             filter(model.User.disabled == False,
-                   model.ProjectUserRole.project_id == project_id). \
+                   model.ProjectUserRole.project_id == project_id,
+                   model.ProjectUserRole.role_id != role.BOT.id). \
             order_by(desc(model.User.id)).all()
 
     arr_ret = []

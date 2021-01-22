@@ -1,5 +1,6 @@
 import re
 from datetime import datetime
+import base64
 
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
@@ -93,7 +94,7 @@ def list_projects(user_id):
                 del pjt
                 break
 
-        redmine_url = "http://{0}/projects/{1}".format(config.get("REDMINE_IP_PORT"), plan_project_id)
+        redmine_url = f'{config.get("REDMINE_EXTERNAL_BASE_URL")}/projects/{plan_project_id}'
         output_array.append({
             "id": project_id,
             "name": row.Project.name,
@@ -121,15 +122,16 @@ def create_project(user_id, args):
         args["description"] = ""
     if args['display'] is None:
         args['display'] = args['name']
-
+    project_name = args['name']
+        
     # create namespace in kubernetes
     try:
-        kubernetesClient.create_namespace(args['name'])
-        kubernetesClient.create_role_in_namespace(args['name'])
-        kubernetesClient.create_namespace_quota(args['name'])
-        kubernetesClient.create_namespace_limitrange(args['name'])
+        kubernetesClient.create_namespace(project_name)
+        kubernetesClient.create_role_in_namespace(project_name)
+        kubernetesClient.create_namespace_quota(project_name)
+        kubernetesClient.create_namespace_limitrange(project_name)
     except Exception as e:
-        kubernetesClient.delete_namespace(args['name'])
+        kubernetesClient.delete_namespace(project_name)
         raise e
 
     # 使用 multi-thread 建立各專案
@@ -173,6 +175,7 @@ def create_project(user_id, args):
 
     # 如果不是全部都成功，rollback
     if any(helper.errors.values()):
+        kubernetesClient.delete_namespace(project_name)
         for service in services:
             if helper.errors[service] is None:
                 if service == 'redmine':
@@ -223,6 +226,7 @@ def create_project(user_id, args):
         # add kubernetes namespace into rancher default project
         rancher.rc_add_namespace_into_rc_project(args['name'])
 
+        # Insert into nexus database
         new_pjt = model.Project(
             name=gitlab_pj_name,
             display=args['display'],
@@ -249,6 +253,7 @@ def create_project(user_id, args):
 
         # 加關聯project_user_role
         project_add_member(project_id, user_id)
+        create_bot(project_id)
 
         return {
             "project_id": project_id,
@@ -260,8 +265,35 @@ def create_project(user_id, args):
         redmine.rm_delete_project(redmine_pj_id)
         gitlab.gl_delete_project(gitlab_pj_id)
         harbor.hb_delete_project(harbor_pj_id)
-        kubernetesClient.delete_namespace(args['name'])
+        kubernetesClient.delete_namespace(project_name)
+        sonarqube.sq_delete_project(project_name)
         raise e
+
+
+def create_bot(project_id):
+    # Create project BOT
+    login = f'project_bot_{project_id}'
+    password = util.get_random_alphanumeric_string(6, 3)
+    args = {
+        'name': f'專案管理機器人{project_id}號',
+        'email': f'project_bot_{project_id}@nowhere.net',
+        'phone': 'BOTRingRing',
+        'login': login,
+        'password': password,
+        'role_id': role.BOT.id,
+        'status': 'enable'
+    }
+    u = user.create_user(args)
+    user_id = u['user_id']
+    project_add_member(project_id, user_id)
+    git_user_id = u['repository_user_id']
+    git_access_token = gitlab.gl_create_access_token(git_user_id)
+
+    # Add bot secrets to rancher
+    create_kubernetes_namespace_secret(
+        project_id, 'gitlab-bot', {'git-token': git_access_token})
+    create_kubernetes_namespace_secret(
+        project_id, 'nexus-bot', {'username': login, 'password': password})
 
 
 @record_activity(ActionType.UPDATE_PROJECT)
@@ -344,6 +376,8 @@ def delete_project(project_id):
     harbor_project_id = relation.harbor_project_id
     project_name = nexus.nx_get_project(id=project_id).name
 
+    delete_bot(project_id)
+
     try:
         # disabled rancher pipeline
         rancher.rc_disable_project_pipeline(
@@ -379,6 +413,14 @@ def delete_project(project_id):
     return util.success()
 
 
+def delete_bot(project_id):
+    row = model.ProjectUserRole.query.filter_by(
+        project_id=project_id, role_id=role.BOT.id).first()
+    if row is None:
+        return
+    user.delete_user(row.user_id)
+
+
 # 用project_id查詢db的相關table欄位資訊
 def pm_get_project(project_id):
     # 查詢專案名稱＆專案說明＆＆專案狀態
@@ -397,7 +439,7 @@ def pm_get_project(project_id):
                                    error=apiError.project_not_found(project_id))
     project_info = result.fetchone()
     result.close()
-    redmine_url = "http://{0}/projects/{1}".format(config.get("REDMINE_IP_PORT"), plan_project_id)
+    redmine_url = f'{config.get("REDMINE_EXTERNAL_BASE_URL")}/projects/{plan_project_id}'
     output = {
         "project_id": project_info["project_id"],
         "name": project_info["name"],
@@ -574,9 +616,8 @@ def get_projects_by_user(user_id):
                        'display': row.Project.display,
                        'project_id': row.Project.id,
                        'git_url': row.Project.http_url,
-                       'redmine_url': "http://{0}/projects/{1}".format(
-                           config.get("REDMINE_IP_PORT"),
-                           row.ProjectPluginRelation.plan_project_id),
+                       'redmine_url': f'{config.get("REDMINE_EXTERNAL_BASE_URL")}/projects/'
+                                      f'{row.ProjectPluginRelation.plan_project_id}',
                        'repository_ids': row.ProjectPluginRelation.git_repository_id,
                        'issues': None,
                        'branch': None,
@@ -719,8 +760,8 @@ def get_kubernetes_namespace_Quota(project_id):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
     project_quota = kubernetesClient.get_namespace_quota(project_name)
     deployments = kubernetesClient.list_deployment(project_name)
-    project_quota["quota"]["deployments"]=None
-    project_quota["used"]["deployments"]=str(len(deployments))
+    project_quota["quota"]["deployments"] = None
+    project_quota["used"]["deployments"] = str(len(deployments))
     return util.success(project_quota)
 
 
@@ -747,13 +788,15 @@ def get_kubernetes_namespace_deployment(project_id):
     project_deployment = kubernetesClient.list_deployment(project_name)
     return util.success(project_deployment)
 
+
 def put_kubernetes_namespace_deployment(project_id, name):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
     deployment_info = kubernetesClient.get_deployment(project_name, name)
     deployment_info.spec.template.metadata.annotations["iiidevops_redeploy_at"] \
-    = str(datetime.utcnow())
+        = str(datetime.utcnow())
     project_deployment = kubernetesClient.update_deployment(project_name, name, deployment_info)
     return util.success()
+
 
 def delete_kubernetes_namespace_deployment(project_id, name):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
@@ -776,6 +819,12 @@ def delete_kubernetes_namespace_service(project_id, name):
 def get_kubernetes_namespace_secret(project_id):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
     project_secret = kubernetesClient.list_secret(project_name)
+    return util.success(project_secret)
+
+
+def create_kubernetes_namespace_secret(project_id, name, secrets):
+    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
+    project_secret = kubernetesClient.create_secret(project_name, name, secrets)
     return util.success(project_secret)
 
 
@@ -987,6 +1036,14 @@ class ProjectUserResourceSecret(Resource):
         return get_kubernetes_namespace_secret(project_id)
 
     @jwt_required
+    def post(self, project_id, secret_name):
+        role.require_in_project(project_id, "Error while getting project info.")
+        parser = reqparse.RequestParser()
+        parser.add_argument('secrets', type=dict, required=True)
+        args = parser.parse_args()
+        return create_kubernetes_namespace_secret(project_id, secret_name, args["secrets"])
+
+    @jwt_required
     def delete(self, project_id, secret_name):
         role.require_in_project(project_id, "Error while getting project info.")
         return delete_kubernetes_namespace_secret(project_id, secret_name)
@@ -1002,26 +1059,3 @@ class ProjectUserResourceConfigMap(Resource):
     def delete(self, project_id, configmap_name):
         role.require_in_project(project_id, "Error while getting project info.")
         return delete_kubernetes_namespace_configmap(project_id, configmap_name)
-
-
-def sonar_cube(project_info, requests, self, logger):
-    # 查詢sonar_quality_score
-    project_name = project_info["name"]
-    # print(project_name)
-    # project_name = "devops-flask"
-    url = "http://{0}/api/measures/component?component={1}" \
-          "&metricKeys=reliability_rating,security_rating," \
-          "security_review_rating,sqale_rating".format(config.get("SONAR_IP_PORT"),
-                                                       project_name)
-    output = requests.get(url,
-                          headers=self.headers,
-                          verify=False)
-    logger.info("get sonar report output: {0} / {1}".format(
-        output, output.json()))
-    if output.status_code == 200:
-        quality_score = 0
-        data_list = output.json()["component"]["measures"]
-        for data in data_list:
-            # print(type(data["value"]))
-            rating = float(data["value"])
-            quality_score += (6 - rating) * 5  # A-25, B-20, C-15, D-10, E-5
