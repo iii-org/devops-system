@@ -62,8 +62,7 @@ def pipeline_exec_logs(args):
         raise apiError.DevOpsError(
             404, 'No such project.',
             error=apiError.repository_id_not_found(args['repository_id']))
-
-    output_array, response = rancher.rc_get_pipeline_executions_logs(
+    output_array = rancher.rc_get_pipeline_executions_logs(
         relation.ci_project_id,
         relation.ci_pipeline_id,
         args['pipelines_exec_run'])
