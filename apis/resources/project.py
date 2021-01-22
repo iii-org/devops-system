@@ -268,7 +268,7 @@ def create_project(user_id, args):
         raise e
 
 
-def create_bot(project_id, project_name):
+def create_bot(project_id):
     # Create project BOT
     login = f'project_bot_{project_id}'
     password = util.get_random_alphanumeric_string(6, 3)
@@ -288,15 +288,12 @@ def create_bot(project_id, project_name):
     git_access_token = gitlab.gl_create_access_token(git_user_id)
 
     # Add bot secrets to rancher
-    print(git_access_token)
-    print(login)
-    print(password)
-    # rancher.rc_add_secrets_into_rc_namespace(
-    #     project_name, 'gitlab', 'git-token', git_access_token)
-    # rancher.rc_add_secrets_into_rc_namespace(
-    #     project_name, 'nexus', 'username', login)
-    # rancher.rc_add_secrets_into_rc_namespace(
-    #     project_name, 'nexus', 'password', password)
+    create_kubernetes_namespace_secret(
+        project_id, 'gitlab', {'git-token': git_access_token})
+    create_kubernetes_namespace_secret(
+        project_id, 'nexus', {'username': login})
+    create_kubernetes_namespace_secret(
+        project_id, 'nexus', {'password': password})
 
 
 @record_activity(ActionType.UPDATE_PROJECT)
@@ -763,8 +760,8 @@ def get_kubernetes_namespace_Quota(project_id):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
     project_quota = kubernetesClient.get_namespace_quota(project_name)
     deployments = kubernetesClient.list_deployment(project_name)
-    project_quota["quota"]["deployments"]=None
-    project_quota["used"]["deployments"]=str(len(deployments))
+    project_quota["quota"]["deployments"] = None
+    project_quota["used"]["deployments"] = str(len(deployments))
     return util.success(project_quota)
 
 
@@ -791,13 +788,15 @@ def get_kubernetes_namespace_deployment(project_id):
     project_deployment = kubernetesClient.list_deployment(project_name)
     return util.success(project_deployment)
 
+
 def put_kubernetes_namespace_deployment(project_id, name):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
     deployment_info = kubernetesClient.get_deployment(project_name, name)
     deployment_info.spec.template.metadata.annotations["iiidevops_redeploy_at"] \
-    = str(datetime.utcnow())
+        = str(datetime.utcnow())
     project_deployment = kubernetesClient.update_deployment(project_name, name, deployment_info)
     return util.success()
+
 
 def delete_kubernetes_namespace_deployment(project_id, name):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
@@ -822,12 +821,12 @@ def get_kubernetes_namespace_secret(project_id):
     project_secret = kubernetesClient.list_secret(project_name)
     return util.success(project_secret)
 
+
 def create_kubernetes_namespace_secret(project_id, name, secrets):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
-    for key, value in secrets.items():
-        secrets[key] = base64.b64encode(bytes(value, encoding='utf-8')).decode('utf-8')
     project_secret = kubernetesClient.create_secret(project_name, name, secrets)
     return util.success(project_secret)
+
 
 def delete_kubernetes_namespace_secret(project_id, name):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)

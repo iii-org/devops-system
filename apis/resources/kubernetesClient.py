@@ -323,6 +323,8 @@ def delete_service(namespace, name):
 
 
 def create_secret(namespace, name, secrets):
+    for key, value in secrets.items():
+        secrets[key] = base64.b64encode(bytes(value, encoding='utf-8')).decode('utf-8')
     try:
         body = k8s_client.V1Secret(
             metadata=k8s_client.V1ObjectMeta(namespace=namespace, name=name),
