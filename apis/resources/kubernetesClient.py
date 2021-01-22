@@ -302,6 +302,17 @@ def delete_service(namespace,name):
         if e.status_code != 404:
             raise e
 
+def create_secret(namespace, name, secrets):
+    try:
+        body = k8s_client.V1Secret(
+            metadata=k8s_client.V1ObjectMeta(namespace=namespace, name=name),
+            data=secrets)
+        secret = v1.create_namespaced_secret(namespace, body)
+        print(f"create secret info: {secret}")
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+
 def list_secret(namespace):
     try:
         secret_list = []

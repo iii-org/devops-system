@@ -1,5 +1,6 @@
 import re
 from datetime import datetime
+import base64
 
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
@@ -761,6 +762,9 @@ def get_test_summary(project_id):
 def get_kubernetes_namespace_Quota(project_id):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
     project_quota = kubernetesClient.get_namespace_quota(project_name)
+    deployments = kubernetesClient.list_deployment(project_name)
+    project_quota["quota"]["deployments"]=None
+    project_quota["used"]["deployments"]=str(len(deployments))
     return util.success(project_quota)
 
 
@@ -818,6 +822,12 @@ def get_kubernetes_namespace_secret(project_id):
     project_secret = kubernetesClient.list_secret(project_name)
     return util.success(project_secret)
 
+def create_kubernetes_namespace_secret(project_id, name, secrets):
+    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
+    for key, value in secrets.items():
+        secrets[key] = base64.b64encode(bytes(value, encoding='utf-8')).decode('utf-8')
+    project_secret = kubernetesClient.create_secret(project_name, name, secrets)
+    return util.success(project_secret)
 
 def delete_kubernetes_namespace_secret(project_id, name):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
@@ -1025,6 +1035,14 @@ class ProjectUserResourceSecret(Resource):
     def get(self, project_id):
         role.require_in_project(project_id, "Error while getting project info.")
         return get_kubernetes_namespace_secret(project_id)
+
+    @jwt_required
+    def post(self, project_id, secret_name):
+        role.require_in_project(project_id, "Error while getting project info.")
+        parser = reqparse.RequestParser()
+        parser.add_argument('secrets', type=dict, required=True)
+        args = parser.parse_args()
+        return create_kubernetes_namespace_secret(project_id, secret_name, args["secrets"])
 
     @jwt_required
     def delete(self, project_id, secret_name):
