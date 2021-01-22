@@ -322,15 +322,26 @@ def delete_service(namespace, name):
             raise e
 
 
-def create_secret(namespace, name, secrets):
+def create_secret(namespace, secret_name, secrets):
     for key, value in secrets.items():
         secrets[key] = base64.b64encode(bytes(value, encoding='utf-8')).decode('utf-8')
     try:
         body = k8s_client.V1Secret(
-            metadata=k8s_client.V1ObjectMeta(namespace=namespace, name=name),
+            metadata=k8s_client.V1ObjectMeta(namespace=namespace, name=secret_name),
             data=secrets)
         secret = v1.create_namespaced_secret(namespace, body)
-        print(f"create secret info: {secret}")
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+
+def patch_secret(namespace, secret_name, secrets):
+    for key, value in secrets.items():
+        secrets[key] = base64.b64encode(bytes(value, encoding='utf-8')).decode('utf-8')
+    try:
+        body = k8s_client.V1Secret(
+            metadata=k8s_client.V1ObjectMeta(namespace=namespace, name=secret_name),
+            data=secrets)
+        secret = v1.patch_namespaced_secret(secret_name, namespace, body)
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
