@@ -342,7 +342,6 @@ def patch_secret(namespace, secret_name, secrets):
             metadata=k8s_client.V1ObjectMeta(namespace=namespace, name=secret_name),
             data=secrets)
         secret = v1.patch_namespaced_secret(secret_name, namespace, body)
-        print(f"secret: {secret}")
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
