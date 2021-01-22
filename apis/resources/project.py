@@ -122,15 +122,16 @@ def create_project(user_id, args):
         args["description"] = ""
     if args['display'] is None:
         args['display'] = args['name']
-
+    project_name = args['name']
+        
     # create namespace in kubernetes
     try:
-        kubernetesClient.create_namespace(args['name'])
-        kubernetesClient.create_role_in_namespace(args['name'])
-        kubernetesClient.create_namespace_quota(args['name'])
-        kubernetesClient.create_namespace_limitrange(args['name'])
+        kubernetesClient.create_namespace(project_name)
+        kubernetesClient.create_role_in_namespace(project_name)
+        kubernetesClient.create_namespace_quota(project_name)
+        kubernetesClient.create_namespace_limitrange(project_name)
     except Exception as e:
-        kubernetesClient.delete_namespace(args['name'])
+        kubernetesClient.delete_namespace(project_name)
         raise e
 
     # 使用 multi-thread 建立各專案
@@ -174,6 +175,7 @@ def create_project(user_id, args):
 
     # 如果不是全部都成功，rollback
     if any(helper.errors.values()):
+        kubernetesClient.delete_namespace(project_name)
         for service in services:
             if helper.errors[service] is None:
                 if service == 'redmine':
