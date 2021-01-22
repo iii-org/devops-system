@@ -251,7 +251,7 @@ def create_project(user_id, args):
 
         # 加關聯project_user_role
         project_add_member(project_id, user_id)
-        create_bot(project_id, project_name)
+        create_bot(project_id)
 
         return {
             "project_id": project_id,
