@@ -851,6 +851,10 @@ def delete_kubernetes_namespace_configmap(project_id, name):
     project_configmap = kubernetesClient.delete_configmap(project_name, name)
     return util.success(project_configmap)
 
+def get_kubernetes_namespace_ingress(project_id):
+    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
+    ingress_list = kubernetesClient.list_ingress(project_name)
+    return util.success(ingress_list)
 
 # --------------------- Resources ---------------------
 class ListMyProjects(Resource):
@@ -1073,3 +1077,10 @@ class ProjectUserResourceConfigMap(Resource):
     def delete(self, project_id, configmap_name):
         role.require_in_project(project_id, "Error while getting project info.")
         return delete_kubernetes_namespace_configmap(project_id, configmap_name)
+
+
+class ProjectUserResourceIngress(Resource):
+    @jwt_required
+    def get(self, project_id):
+        role.require_in_project(project_id, "Error while getting project info.")
+        return get_kubernetes_namespace_ingress(project_id)
