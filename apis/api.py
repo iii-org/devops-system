@@ -178,6 +178,8 @@ api.add_resource(project.ProjectUserResourceSecret, '/project/<sint:project_id>/
                  '/project/<sint:project_id>/resource/list/secret/<secret_name>')
 api.add_resource(project.ProjectUserResourceConfigMap, '/project/<sint:project_id>/resource/list/configmap',
                  '/project/<sint:project_id>/resource/list/configmap/<configmap_name>')
+api.add_resource(project.ProjectUserResourceIngress, '/project/<sint:project_id>/resource/list/ingress',
+                 '/project/<sint:project_id>/resource/list/ingress/<ingress_name>')
 api.add_resource(project.ProjectMember, '/project/<sint:project_id>/member',
                  '/project/<sint:project_id>/member/<int:user_id>')
 api.add_resource(wiki.ProjectWikiList, '/project/<sint:project_id>/wiki')
