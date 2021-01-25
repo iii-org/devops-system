@@ -17,7 +17,7 @@ from resources.logger import logger
 k8s_config.load_kube_config()
 v1 = k8s_client.CoreV1Api()
 rbac = k8s_client.RbacAuthorizationV1Api()
-
+extensions_v1beta1 =k8s_client.ExtensionsV1beta1Api()
 
 def list_service_all_namespaces():
     service_list = []
@@ -382,6 +382,35 @@ def delete_configmap(namespace, name):
     try:
         configmap = v1.delete_namespaced_config_map(name, namespace)
         return configmap.details.name
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+
+
+def list_ingress(namespace):
+    try:
+        ingress_list = []
+        for ingress in extensions_v1beta1.list_namespaced_ingress(namespace).items:
+            ingress_info ={}
+            ingress_info['name'] = ingress.metadata.name
+            ingress_info['created_time'] = str(ingress.metadata.creation_timestamp)
+            ip = None
+            if ingress.status.load_balancer.ingress is not None:
+                ip = ingress.status.load_balancer.ingress[0].ip
+            ingress_info["ingress_list"] = []
+            for rule in ingress.spec.rules:
+                hostname = ip
+                if rule.host != None:
+                    hostname = rule.host
+                for path in rule.http.paths:
+                    if hostname is not None:
+                        ingress_info["ingress_list"].append({"hostname_path": hostname+path.path,
+                                                             "service": path.backend.service_name})
+                    else:
+                        ingress_info["ingress_list"].append({"hostname_path": path.path,
+                                                             "service": path.backend.service_name})
+            ingress_list.append(ingress_info)
+        return ingress_list
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
