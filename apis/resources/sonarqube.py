@@ -1,6 +1,6 @@
 import requests
 from flask_jwt_extended import jwt_required
-from flask_restful import Resource
+from flask_restful import Resource, reqparse
 from requests.auth import HTTPBasicAuth
 
 import config
@@ -195,6 +195,16 @@ def get_sonar_report(project_id):
 
 
 # --------------------- Resources ---------------------
+class SonarScan(Resource):
+    @jwt_required
+    def post(self, project_name):
+        parser = reqparse.RequestParser()
+        parser.add_argument('branch', type=str, required=True)
+        parser.add_argument('commit_id', type=str, required=True)
+        args = parser.parse_args()
+        return checkmarx.create_scan(args)
+
+
 class SonarReport(Resource):
     @jwt_required
     def get(self, project_id):

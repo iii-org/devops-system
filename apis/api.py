@@ -327,7 +327,8 @@ api.add_resource(checkmarx.GetCheckmarxProject,
 # Get everything by issue_id
 api.add_resource(issue.DumpByIssue, '/dump_by_issue/<issue_id>')
 
-# Get Sonarqube report by project_id
+# Sonarqube
+api.add_resource(sonarqube.SonarScan, '/sonar_scan/<project_name>')
 api.add_resource(sonarqube.SonarReport, '/sonar_report/<sint:project_id>')
 
 # Files
