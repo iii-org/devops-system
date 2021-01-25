@@ -70,6 +70,14 @@ def sq_remove_member(project_name, user_login):
                       f'&projectKey={project_name}&permission=user')
 
 
+def sq_create_access_token(login):
+    params = {
+        'login': login,
+        'name': 'iiidevops-bot'
+    }
+    return __api_post('/user_tokens/generate', params=params).json()['token']
+
+
 def get_sonar_report(project_id):
     result = db.engine.execute(
         "SELECT name FROM public.projects WHERE id = '{0}'".format(project_id))

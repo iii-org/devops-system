@@ -288,10 +288,13 @@ def create_bot(project_id):
     project_add_member(project_id, user_id)
     git_user_id = u['repository_user_id']
     git_access_token = gitlab.gl_create_access_token(git_user_id)
+    sonar_access_token = sonarqube.sq_create_access_token(login)
 
     # Add bot secrets to rancher
     create_kubernetes_namespace_secret(
         project_id, 'gitlab-bot', {'git-token': git_access_token})
+    create_kubernetes_namespace_secret(
+        project_id, 'sonar-bot', {'sonar-token': sonar_access_token})
     create_kubernetes_namespace_secret(
         project_id, 'nexus-bot', {'username': login, 'password': password})
 
