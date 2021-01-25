@@ -7,10 +7,11 @@ from flask_restful import Resource, reqparse
 
 import config
 import model
+import nexus
 import util
 from model import db
 # -------- API methods --------
-from resources import apiError, role
+from resources import apiError, role, gitlab
 from resources.apiError import DevOpsError
 from resources.logger import logger
 
@@ -60,9 +61,12 @@ def wi_create_scan(args):
 
 def wi_list_scans(project_name):
     ret = []
+    project_id = nexus.nx_get_project(name=project_name).id
     rows = model.WebInspect.query.filter_by(project_name=project_name).all()
     for row in rows:
-        ret.append(json.loads(str(row)))
+        d = json.loads(str(row))
+        d['issue_link'] = gitlab.commit_id_to_url(project_id, d['commit_id'])
+        ret.append(d)
     return ret
 
 
