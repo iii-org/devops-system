@@ -61,6 +61,7 @@ def list_projects(user_id):
         plan_project_id = row.ProjectPluginRelation.plan_project_id
         if plan_project_id is None:
             continue
+        harbor_project_id = row.ProjectPluginRelation.harbor_project_id
 
         closed_count = 0
         overdue_count = 0
@@ -95,6 +96,7 @@ def list_projects(user_id):
                 break
 
         redmine_url = f'{config.get("REDMINE_EXTERNAL_BASE_URL")}/projects/{plan_project_id}'
+        harbor_url = f'{config.get("HARBOR_EXTERNAL_BASE_URL")}/harbor/projects/{harbor_project_id}/repositories'
         output_array.append({
             "id": project_id,
             "name": row.Project.name,
@@ -102,6 +104,7 @@ def list_projects(user_id):
             "description": row.Project.description,
             "git_url": row.Project.http_url,
             "redmine_url": redmine_url,
+            "harbor_url": harbor_url,
             "disabled": row.Project.disabled,
             "pm_user_id": pm.id,
             "pm_user_name": pm.name,
