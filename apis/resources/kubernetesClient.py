@@ -395,8 +395,8 @@ def list_ingress(namespace):
         ingress_list = []
         for ingress in extensions_v1beta1.list_namespaced_ingress(namespace).items:
             ingress_info ={}
-            ingress_info['name'] = ingress.metadata.name
-            ingress_info['created_time'] = str(ingress.metadata.creation_timestamp)
+            ingress_info["name"] = ingress.metadata.name
+            ingress_info["created_time"] = str(ingress.metadata.creation_timestamp)
             ip = None
             if ingress.status.load_balancer.ingress is not None:
                 ip = ingress.status.load_balancer.ingress[0].ip
@@ -408,10 +408,11 @@ def list_ingress(namespace):
                 for path in rule.http.paths:
                     if hostname is not None:
                         ingress_info["ingress_list"].append({"hostname_path": hostname+path.path,
-                                                             "service": path.backend.service_name})
+                            "service": f"{path.backend.service_name}:{path.backend.service_port}"})
                     else:
                         ingress_info["ingress_list"].append({"hostname_path": path.path,
-                                                             "service": path.backend.service_name})
+                            "service": f"{path.backend.service_name}:{path.backend.service_port}"})
+            ingress_info["tls"] = ingress.spec.tls
             ingress_list.append(ingress_info)
         return ingress_list
     except apiError.DevOpsError as e:
