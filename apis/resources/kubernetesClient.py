@@ -14,6 +14,9 @@ from flask_restful import Resource, reqparse
 import resources.apiError as apiError
 from resources.logger import logger
 
+con = k8s_client.Configuration()
+con.verify_ssl = False
+k8s_client.Configuration.set_default(con)
 k8s_config.load_kube_config()
 v1 = k8s_client.CoreV1Api()
 rbac = k8s_client.RbacAuthorizationV1Api()

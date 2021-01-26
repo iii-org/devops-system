@@ -1,6 +1,6 @@
 import requests
 from flask_jwt_extended import jwt_required
-from flask_restful import Resource
+from flask_restful import Resource, reqparse
 from requests.auth import HTTPBasicAuth
 
 import config
@@ -68,6 +68,14 @@ def sq_add_member(project_name, user_login):
 def sq_remove_member(project_name, user_login):
     return __api_post(f'/permissions/remove_user?login={user_login}'
                       f'&projectKey={project_name}&permission=user')
+
+
+def sq_create_access_token(login):
+    params = {
+        'login': login,
+        'name': 'iiidevops-bot'
+    }
+    return __api_post('/user_tokens/generate', params=params).json()['token']
 
 
 def get_sonar_report(project_id):
@@ -187,6 +195,16 @@ def get_sonar_report(project_id):
 
 
 # --------------------- Resources ---------------------
+class SonarScan(Resource):
+    @jwt_required
+    def post(self, project_name):
+        parser = reqparse.RequestParser()
+        parser.add_argument('branch', type=str, required=True)
+        parser.add_argument('commit_id', type=str, required=True)
+        args = parser.parse_args()
+        return checkmarx.create_scan(args)
+
+
 class SonarReport(Resource):
     @jwt_required
     def get(self, project_id):
