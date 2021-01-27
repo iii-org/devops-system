@@ -624,6 +624,8 @@ def get_projects_by_user(user_id):
                        'git_url': row.Project.http_url,
                        'redmine_url': f'{config.get("REDMINE_EXTERNAL_BASE_URL")}/projects/'
                                       f'{row.ProjectPluginRelation.plan_project_id}',
+                       'harbor_url': f'{config.get("HARBOR_EXTERNAL_BASE_URL")}/harbor/projects/'+
+                           f'{row.ProjectPluginRelation.harbor_project_id}/repositories',
                        'repository_ids': row.ProjectPluginRelation.git_repository_id,
                        'issues': None,
                        'branch': None,
