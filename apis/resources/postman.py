@@ -168,12 +168,12 @@ class PostmanReport(Resource):
     @jwt_required
     def put(self):
         parser = reqparse.RequestParser()
-        args = parser.parse_args()
         parser.add_argument('scan_id', type=int, required=True)
         parser.add_argument('project_id', type=int, required=True)
         parser.add_argument('total', type=int, required=True)
         parser.add_argument('fail', type=int, required=True)
         parser.add_argument('report', type=str, required=True)
+        args = parser.parse_args()
         role.require_in_project(project_id=args['project_id'])
         pm_save_result(args)
         return util.success()
@@ -186,4 +186,4 @@ class PostmanReport(Resource):
         parser.add_argument('commit_id', type=str, required=True)
         args = parser.parse_args()
         role.require_in_project(project_id=args['project_id'])
-        return util.success({'scan_id': pm_save_result(args)})
+        return util.success({'scan_id': pm_create_scan(args)})
