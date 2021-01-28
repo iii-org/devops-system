@@ -7,6 +7,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
 from sqlalchemy.orm.exc import NoResultFound
 
+import config
 import model
 import nexus
 import resources.apiError as apiError
@@ -146,6 +147,7 @@ def __deal_with_issue_redmine_output(redmine_output):
                 redmine_output['journals'][i].pop('id', None)
                 redmine_output['journals'][i].pop('private_notes', None)
                 i += 1
+    redmine_output['issue_link'] = f'{config.get("REDMINE_EXTERNAL_BASE_URL")}/issues/{redmine_output["id"]}'
     return redmine_output
 
 
