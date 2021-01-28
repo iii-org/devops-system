@@ -251,7 +251,11 @@ def list_pod(namespace):
     try:
         pod_list = []
         for pods in v1.list_namespaced_pod(namespace).items:
-            pod_list.append({'name': pods.metadata.name, 'status': pods.status.phase})
+            containers = []
+            for container in pods.spec.containers:
+                containers.append({"name": container.name})
+            pod_list.append({'name':pods.metadata.name,'status':pods.status.phase, 
+                            'containers': containers})
         return pod_list
     except apiError.DevOpsError as e:
         if e.status_code != 404:
@@ -267,9 +271,9 @@ def delete_pod(namespace, name):
             raise e
 
 
-def get_pod_logs(namespace, name):
+def get_pod_logs(namespace, name, container_name=None):
     try:
-        pod_log = v1.read_namespaced_pod_log(name, namespace)
+        pod_log = v1.read_namespaced_pod_log(name, namespace, container=container_name)
         return pod_log
     except apiError.DevOpsError as e:
         if e.status_code != 404:
