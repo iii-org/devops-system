@@ -267,6 +267,15 @@ def delete_pod(namespace, name):
             raise e
 
 
+def get_pod_logs(namespace, name):
+    try:
+        pod_log = v1.read_namespaced_pod_log(name, namespace)
+        return pod_log
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+
+
 def list_deployment(namespace):
     try:
         deployment_list = []

@@ -790,6 +790,10 @@ def delete_kubernetes_namespace_Pod(project_id, name):
     project_pod = kubernetesClient.delete_pod(project_name, name)
     return util.success(project_pod)
 
+def get_kubernetes_namespace_Pod_Log(project_id, name):
+    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
+    pod_log = kubernetesClient.get_pod_logs(project_name, name)
+    return util.success(pod_log)
 
 def get_kubernetes_namespace_deployment(project_id):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
@@ -1017,6 +1021,12 @@ class ProjectUserResourcePod(Resource):
         role.require_in_project(project_id, "Error while getting project info.")
         return delete_kubernetes_namespace_Pod(project_id, pod_name)
 
+
+class ProjectUserResourcePodLog(Resource): 
+    @jwt_required
+    def get(self, project_id, pod_name):
+        role.require_in_project(project_id, "Error while getting project info.")
+        return get_kubernetes_namespace_Pod_Log(project_id, pod_name)
 
 class ProjectUserResourceDeployment(Resource):
     @jwt_required
