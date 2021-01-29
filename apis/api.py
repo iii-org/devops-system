@@ -18,6 +18,7 @@ import model
 import resources.apiError as apiError
 import resources.checkmarx as checkmarx
 import resources.pipeline as pipeline
+import resources.rancher as rancher
 import util
 import maintenance
 from jsonwebtoken import jsonwebtoken
@@ -365,6 +366,9 @@ api.add_resource(maintenance.secretes_into_rc_all, '/maintenance/secretes_into_r
                  '/maintenance/secretes_into_rc_all/<secret_name>')
 api.add_resource(maintenance.registry_into_rc_all, '/maintenance/registry_into_rc_all',
                  '/maintenance/registry_into_rc_all/<registry_name>')
+
+# Raccher
+api.add_resource(rancher.Catalogs, '/rancher/catalogs')
 
 # Activity
 api.add_resource(activity.AllActivities, '/all_activities')
