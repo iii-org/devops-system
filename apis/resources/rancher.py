@@ -296,7 +296,6 @@ class Catalogs(Resource):
         catalgos_list = rancher.rc_get_catalogs_all()
         return util.success(catalgos_list)
 
-    # 用issues ID 新建立需求清單
     @jwt_required
     def post(self):
         parser = reqparse.RequestParser()
