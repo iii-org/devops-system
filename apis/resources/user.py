@@ -16,7 +16,7 @@ from nexus import nx_get_user_plugin_relation
 from resources.activity import record_activity
 from resources.apiError import DevOpsError
 import model
-from resources import harbor, role
+from resources import harbor, role, sonarqube
 from resources.logger import logger
 from resources.redmine import redmine
 from resources.gitlab import gitlab
@@ -55,6 +55,10 @@ def to_redmine_role_id(role_id):
     if role_id == role.RD.id:
         return 3
     elif role_id == role.PM.id:
+        return 4
+    elif role_id == role.ADMIN.id:
+        return 4
+    elif role_id == role.BOT.id:
         return 4
     else:
         return 4
@@ -220,12 +224,13 @@ def try_to_delete(delete_method, obj):
 
 @record_activity(ActionType.DELETE_USER)
 def delete_user(user_id):
-    # 取得gitlab & redmine user_id
     relation = nx_get_user_plugin_relation(user_id=user_id)
+    user_login = model.User.query.filter_by(id=user_id).one().login
 
     try_to_delete(gitlab.gl_delete_user, relation.repository_user_id)
     try_to_delete(redmine.rm_delete_user, relation.plan_user_id)
     try_to_delete(harbor.hb_delete_user, relation.harbor_user_id)
+    try_to_delete(sonarqube.sq_deactivate_user, user_login)
     try:
         try_to_delete(kubernetesClient.delete_service_account, relation.kubernetes_sa_name)
     except kubernetes.client.exceptions.ApiException as e:
@@ -362,6 +367,18 @@ def create_user(args):
         raise e
     logger.info(f'Harbor user created, id={harbor_user_id}')
 
+    # Sonarqube user create
+    # Caution!! Sonarqube cannot delete a user, can only deactivate
+    try:
+        sonarqube.sq_create_user(args)
+    except Exception as e:
+        gitlab.gl_delete_user(gitlab_user_id)
+        redmine.rm_delete_user(redmine_user_id)
+        kubernetesClient.delete_service_account(login_sa_name)
+        harbor.hb_delete_user(harbor_user_id)
+        raise e
+    logger.info(f'Sonarqube user created.')
+
     try:
         # DB
         h = SHA256.new()
@@ -407,7 +424,13 @@ def create_user(args):
         raise e
 
     logger.info('User created.')
-    return {"user_id": user_id}
+    return {
+        "user_id": user_id,
+        'plan_user_id': redmine_user_id,
+        'repository_user_id': gitlab_user_id,
+        'harbor_user_id': harbor_user_id,
+        'kubernetes_sa_name': kubernetes_sa_name
+    }
 
 
 def user_list():
@@ -456,12 +479,15 @@ def user_list_by_project(project_id, args):
         ret_users = db.session.query(model.User, model.ProjectUserRole.role_id). \
             join(model.ProjectUserRole). \
             filter(model.User.disabled == False). \
+            filter(model.ProjectUserRole.role_id != role.BOT.id). \
             order_by(desc(model.User.id)).all()
 
         project_users = db.session.query(model.User).join(model.ProjectUserRole).filter(
             model.User.disabled == False,
             model.ProjectUserRole.project_id == project_id
-        ).all()
+        ) \
+            .filter(model.ProjectUserRole.role_id != role.BOT.id) \
+            .all()
 
         i = 0
         while i < len(ret_users):
@@ -475,7 +501,8 @@ def user_list_by_project(project_id, args):
         ret_users = db.session.query(model.User, model.ProjectUserRole.role_id). \
             join(model.ProjectUserRole). \
             filter(model.User.disabled == False,
-                   model.ProjectUserRole.project_id == project_id). \
+                   model.ProjectUserRole.project_id == project_id,
+                   model.ProjectUserRole.role_id != role.BOT.id). \
             order_by(desc(model.User.id)).all()
 
     arr_ret = []

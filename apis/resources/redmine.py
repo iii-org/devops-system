@@ -30,7 +30,7 @@ class Redmine:
         if 'Content-Type' not in headers:
             headers['Content-Type'] = 'application/json'
 
-        url = "http://{0}{1}{2}".format(config.get('REDMINE_IP_PORT'), path, resp_format)
+        url = f"{config.get('REDMINE_INTERNAL_BASE_URL')}{path}{resp_format}"
         if operator_id is not None:
             if operator_id != self.last_operator_id:
                 self.last_operator_id = operator_id
@@ -78,17 +78,18 @@ class Redmine:
             self.__refresh_key()
 
     def __refresh_key(self, operator_id=None):
+        protocol = 'http'
+        host = config.get('REDMINE_INTERNAL_BASE_URL')[len(protocol + '://'):]
         if operator_id is None:
             # get redmine_key
-            url = "http://{0}:{1}@{2}/users/current.json".format(config.get('REDMINE_ADMIN_ACCOUNT'),
-                                                                 config.get('REDMINE_ADMIN_PASSWORD'),
-                                                                 config.get('REDMINE_IP_PORT'))
+            url = f"{protocol}://{config.get('REDMINE_ADMIN_ACCOUNT')}" \
+                  f":{config.get('REDMINE_ADMIN_PASSWORD')}" \
+                  f"@{host}/users/current.json"
             self.key_generated = time.time()
         else:
-            url = "http://{0}:{1}@{2}/users/{3}.json".format(config.get('REDMINE_ADMIN_ACCOUNT'),
-                                                             config.get('REDMINE_ADMIN_PASSWORD'),
-                                                             config.get('REDMINE_IP_PORT'),
-                                                             operator_id)
+            url = f"{protocol}://{config.get('REDMINE_ADMIN_ACCOUNT')}" \
+                  f":{config.get('REDMINE_ADMIN_PASSWORD')}" \
+                  f"@{host}/users/{operator_id}.json"
         output = requests.get(url, headers={'Content-Type': 'application/json'}, verify=False)
         self.redmine_key = output.json()['user']['api_key']
 
@@ -361,8 +362,8 @@ class Redmine:
                                data=xml_body.encode('utf-8')).json()
 
     @staticmethod
-    def build_link(path):
-        return "http://{0}{1}".format(config.get('REDMINE_IP_PORT'), path)
+    def rm_build_external_link(path):
+        return f"{config.get('REDMINE_EXTERNAL_BASE_URL')}{path}"
 
 
 # --------------------- Resources ---------------------

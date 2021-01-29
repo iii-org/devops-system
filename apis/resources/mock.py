@@ -91,4 +91,9 @@ class MockTestResult(Resource):
 
 class MockSesame(Resource):
     def get(self):
-        return mock_sesame_get()
+        args = {
+            'name': 'ro-test-token',
+            'description': ''
+        }
+        ret = gitlab.gl_create_access_token(759)
+        return ret

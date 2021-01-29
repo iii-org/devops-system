@@ -9,6 +9,7 @@ from sqlalchemy import desc
 import model
 import util as util
 from model import db
+from resources import gitlab
 from resources.apiError import DevOpsError
 
 HTTP_TYPES = {"1": "request", "2": "response"}
@@ -342,32 +343,10 @@ def get_testValue_by_Column(args, order_column=''):
         return {}
 
 
-def save_test_result(args):
-    if 'branch' in args:
-        branch = args['branch']
-    else:
-        branch = None
-    new = model.TestResults(
-        project_id=args['project_id'],
-        total=args['total'],
-        fail=args['fail'],
-        branch=branch,
-        commit_id=args['commit_id'],
-        report=args['report'],
-        run_at=datetime.datetime.now()
-    )
-    db.session.add(new)
-    db.session.commit()
-    return util.success()
-
-
-def get_report(project_id):
-    row = model.TestResults.query.filter_by(project_id=project_id).order_by(desc(
-        model.TestResults.id)).limit(1).first()
-    if row is None:
-        return util.respond(204)
+def get_report(id):
+    row = model.TestResults.query.filter_by(id=id).one()
     report = row.report
-    if report is None or report == 'undefined':  # Corrupted data by old runners
+    if report is None or report == 'undefined':  # Yet runner complete or corrupted data by old runners
         return util.respond(204)
     return util.success(json.loads(report))
 
@@ -377,14 +356,20 @@ def list_results(project_id):
         model.TestResults.id)).all()
     ret = []
     for row in rows:
-        ret.append({
+        scan = {
             'id': row.id,
             'branch': row.branch,
-            'commit_id': row.commit_id,
-            'success': row.total - row.fail,
-            'failure': row.fail,
+            'commit_id': row.commit_id[0:7],
+            'commit_url': gitlab.commit_id_to_url(project_id, row.commit_id),
             'run_at': str(row.run_at)
-        })
+        }
+        if row.total is None:
+            scan['success'] = None
+            scan['failure'] = None
+        else:
+            scan['success'] = row.total - row.fail
+            scan['failure'] = row.fail
+        ret.append(scan)
     return ret
 
 

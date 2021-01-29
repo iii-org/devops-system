@@ -18,10 +18,8 @@ class Rancher(object):
 
     def __api_request(self, method, path, headers, params=None, data=None,
                       with_token=True, retried=False):
-        url = 'https://{0}/{1}{2}'.format(
-            config.get('RANCHER_IP_PORT'),
-            config.get('RANCHER_API_VERSION'),
-            path)
+        url = f'https://{config.get("RANCHER_IP_PORT")}' \
+              f'/{config.get("RANCHER_API_VERSION")}{path}'
         if headers is None:
             headers = {'Content-Type': 'application/json'}
         final_headers = self.__auth_headers(headers, with_token)
@@ -53,9 +51,11 @@ class Rancher(object):
         return self.__api_request('GET', path=path, params=params,
                                   headers=headers, with_token=with_token)
 
-    def __api_post(self, path, params=None, headers=None, data=None, with_token=True):
+    def __api_post(self, path, params=None, headers=None, data=None, with_token=True,
+                   retried=False):
         return self.__api_request('POST', path=path, params=params, data=data,
-                                  headers=headers, with_token=with_token)
+                                  headers=headers, with_token=with_token,
+                                  retried=retried)
 
     def __api_delete(self, path, params=None, headers=None, with_token=True):
         return self.__api_request('DELETE', path=path, params=params,
@@ -68,7 +68,7 @@ class Rancher(object):
         }
         params = {'action': 'login'}
         output = self.__api_post('-public/localProviders/local', params=params,
-                                 data=body, with_token=False)
+                                 data=body, with_token=False, retried=True)
         return output.json()['token']
 
     def rc_get_pipeline_executions(self, ci_project_id, ci_pipeline_id, run=None):
@@ -85,15 +85,14 @@ class Rancher(object):
         return output_array, response
 
     def rc_get_pipeline_executions_action(self, ci_project_id, ci_pipeline_id, pipelines_exec_run,
-        action):
+                                          action):
         path = '/project/{0}/pipelineExecutions/{1}-{2}'.format(ci_project_id, ci_pipeline_id,
-            pipelines_exec_run)
+                                                                pipelines_exec_run)
         params = {'action': 'rerun'}
         if action == 'stop':
             params = {'action': 'stop'}
         response = self.__api_post(path, params=params, data='')
         return response
-
 
     def rc_get_pipeline_executions_logs(self, ci_project_id, ci_pipeline_id,
                                         pipelines_exec_run):
@@ -101,21 +100,22 @@ class Rancher(object):
         self.token = self.__generate_token()
         headersandtoken = "Authorization: Bearer {0}".format(self.token)
         output_executions, response = self.rc_get_pipeline_executions(
-            ci_project_id, ci_pipeline_id, run=pipelines_exec_run       
-            )
+            ci_project_id, ci_pipeline_id, run=pipelines_exec_run
+        )
         output_execution = output_executions[0]
         for index, stage in enumerate(
                 output_execution['pipelineConfig']['stages']):
             tmp_step_message = []
             for step_index, step in enumerate(stage['steps']):
                 url = ("wss://{0}/{1}/project/{2}/pipelineExecutions/"
-                        "{3}-{4}/log?stage={5}&step={6}").format(
-                    config.get('RANCHER_IP_PORT'), config.get('RANCHER_API_VERSION'), ci_project_id,
+                       "{3}-{4}/log?stage={5}&step={6}").format(
+                    config.get('RANCHER_IP_PORT'), config.get('RANCHER_API_VERSION'),
+                    ci_project_id,
                     ci_pipeline_id, pipelines_exec_run, index, step_index)
                 logger.info("wss url: {0}".format(url))
                 result = None
                 ws = websocket.create_connection(url, header=[headersandtoken],
-                                                    sslopt={"cert_reqs": ssl.CERT_NONE})
+                                                 sslopt={"cert_reqs": ssl.CERT_NONE})
                 ws.settimeout(3)
                 try:
                     result = ws.recv()
@@ -149,7 +149,6 @@ class Rancher(object):
                     "steps": tmp_step_message
                 })
         return output_dict[1:], output_execution['executionState']
-
 
     def rc_get_cluster_id(self):
         if self.cluster_id is None:
@@ -227,7 +226,7 @@ class Rancher(object):
 
     def rc_get_secrets_all_list(self):
         self.rc_get_project_id()
-        url = '/projects/{0}/secrets'.format(self.project_id)
+        url = f'/projects/{self.project_id}/secrets'
         output = self.__api_get(url)
         return output.json()['data']
 
@@ -235,14 +234,46 @@ class Rancher(object):
         self.rc_get_project_id()
         data = json.loads(args['data'].replace("'", '"'))
         for key, value in data.items():
-                data[key] = base64.b64encode(bytes(value, encoding='utf-8')).decode('utf-8')
+            data[key] = base64.b64encode(bytes(value, encoding='utf-8')).decode('utf-8')
         body = {
             "type": args['type'],
             "data": data,
             "labels": {},
             "name": args['name']
         }
-        url = '/projects/{0}/secrets'.format(self.project_id)
+        url = f'/projects/{self.project_id}/secrets'
         output = self.__api_post(url, data=body)
-        
+
+    def rc_delete_secrets_into_rc_all(self, secret_name):
+        self.rc_get_project_id()
+        url = f'/projects/{self.project_id}/secrets/{self.project_id.split(":")[1]}:{secret_name}'
+        print(f"url: {url}")
+        output = self.__api_delete(url)
+        return output.json()
+
+    def rc_get_registry_into_rc_all(self):
+        self.rc_get_project_id()
+        url = f'/projects/{self.project_id}/dockercredential'
+        output = self.__api_get(url)
+        return output.json()['data']
+
+    def rc_add_registry_into_rc_all(self, args):
+        self.rc_get_project_id()
+        registry = {args['url']: {'username': args['username'], 'password': args['password']}}
+        body = {
+            "type": "dockerCredential",
+            "registries": registry,
+            "namespaceId": "__TEMP__",
+            "name": args['name']
+        }
+        url = f'/projects/{self.project_id}/dockercredential'
+        output = self.__api_post(url, data=body)
+
+    def rc_delete_registry_into_rc_all(self, registry_name):
+        self.rc_get_project_id()
+        url = f'/projects/{self.project_id}/dockercredential/{self.project_id.split(":")[1]}:{registry_name}'
+        output = self.__api_delete(url)
+        return output.json()
+
+
 rancher = Rancher()

@@ -21,7 +21,7 @@ def __api_request(method, path, headers=None, params=None, data=None):
     if 'Content-Type' not in headers:
         headers['Content-Type'] = 'application/json'
     auth = HTTPBasicAuth(config.get('HARBOR_ACCOUNT'), config.get('HARBOR_PASSWORD'))
-    url = "{0}{1}".format(config.get('HARBOR_BASE_URL'), path)
+    url = "{0}{1}".format(config.get('HARBOR_INTERNAL_BASE_URL'), path)
 
     output = util.api_request(method, url, headers=headers,
                               params=params, data=data, auth=auth)
@@ -147,7 +147,14 @@ def hb_remove_member(project_id, user_id):
 
 
 def hb_list_repositories(project_name):
-    return __api_get('/projects/{0}/repositories'.format(project_name)).json()
+    repositories = __api_get('/projects/{0}/repositories'.format(project_name)).json()
+    ret = []
+    for repo in repositories:
+        repo['harbor_link'] = hb_build_external_link('/harbor/projects/{0}/repositories/{1}'.format(
+            repo['project_id'],
+            repo['name'].replace((project_name + "/"), "")))
+        ret.append(repo)
+    return ret
 
 
 def hb_list_artifacts(project_name, repository_name):
@@ -207,6 +214,10 @@ def hb_delete_artifact_tag(project_name, repository_name, reference, tag_name):
 
 def hb_get_project_summary(project_id):
     return __api_get('/projects/{0}/summary'.format(project_id)).json()
+
+
+def hb_build_external_link(path):
+    return f"{config.get('HARBOR_EXTERNAL_BASE_URL')}{path}"
 
 
 # ----------------- Resources -----------------

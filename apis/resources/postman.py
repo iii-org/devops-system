@@ -1,10 +1,13 @@
+from datetime import datetime
 from urllib.parse import urlparse
 
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
 
+import model
 import util as util
-from resources import apiTest, role
+from model import db
+from resources import apiTest, role, apiError
 
 
 # noinspection PyTypeChecker
@@ -115,6 +118,30 @@ def export_to_postman(project_id, target):
     return util.success(output)
 
 
+def pm_create_scan(args):
+    new = model.TestResults(
+        project_id=args['project_id'],
+        branch=args['branch'],
+        commit_id=args['commit_id'],
+        run_at=datetime.now()
+    )
+    db.session.add(new)
+    db.session.commit()
+    return new.id
+
+
+def pm_save_result(args):
+    scan_id = args['scan_id']
+    row = model.TestResults.query.filter_by(id=scan_id).first()
+    if row is None:
+        raise apiError.DevOpsError(404, f'Scan id {scan_id} not found.',
+                                   apiError.resource_not_found())
+    row.total = args['total']
+    row.fail = args['fail']
+    row.report = args['report']
+    db.session.commit()
+
+
 # --------------------- Resources ---------------------
 class ExportToPostman(Resource):
     @jwt_required
@@ -135,19 +162,28 @@ class PostmanResults(Resource):
 
 class PostmanReport(Resource):
     @jwt_required
-    def get(self, project_id):
-        return apiTest.get_report(project_id)
+    def get(self, id):
+        return apiTest.get_report(id)
+
+    @jwt_required
+    def put(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('scan_id', type=int, required=True)
+        parser.add_argument('project_id', type=int, required=True)
+        parser.add_argument('total', type=int, required=True)
+        parser.add_argument('fail', type=int, required=True)
+        parser.add_argument('report', type=str, required=True)
+        args = parser.parse_args()
+        role.require_in_project(project_id=args['project_id'])
+        pm_save_result(args)
+        return util.success()
 
     @jwt_required
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('project_id', type=int, required=True)
-        parser.add_argument('total', type=int, required=True)
-        parser.add_argument('fail', type=int, required=True)
         parser.add_argument('branch', type=str, required=True)
         parser.add_argument('commit_id', type=str, required=True)
-        parser.add_argument('report', type=str, required=True)
         args = parser.parse_args()
         role.require_in_project(project_id=args['project_id'])
-        output = apiTest.save_test_result(args)
-        return output
+        return util.success({'scan_id': pm_create_scan(args)})

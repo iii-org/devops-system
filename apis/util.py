@@ -1,6 +1,8 @@
 import json
-import time
 import os
+import random
+import string
+import time
 from datetime import datetime
 from threading import Thread
 
@@ -195,6 +197,18 @@ def decode_k8s_sa(string):
             ret += c
             i += 1
     return ret
+
+
+def get_random_alphanumeric_string(letters_count_each, digits_count):
+    sample_str = ''.join((random.choice(string.ascii_lowercase) for _ in range(letters_count_each)))
+    sample_str += ''.join((random.choice(string.ascii_uppercase) for _ in range(letters_count_each)))
+    sample_str += ''.join((random.choice(string.digits) for _ in range(digits_count)))
+
+    # Convert string to list and shuffle it to mix letters and digits
+    sample_list = list(sample_str)
+    random.shuffle(sample_list)
+    final_string = ''.join(sample_list)
+    return final_string
 
 
 class DevOpsThread(Thread):

@@ -1,10 +1,81 @@
 import requests
 from flask_jwt_extended import jwt_required
-from flask_restful import Resource
+from flask_restful import Resource, reqparse
+from requests.auth import HTTPBasicAuth
 
 import config
+import util
 from model import db
-from resources import role
+from resources import role, apiError
+# ------------- Internal API methods -------------
+from resources.logger import logger
+
+
+def __api_request(method, path, headers=None, params=None, data=None):
+    if headers is None:
+        headers = {}
+    if params is None:
+        params = {}
+    if 'Content-Type' not in headers:
+        headers['Content-Type'] = 'application/json'
+
+    url = f"{config.get('SONARQUBE_INTERNAL_BASE_URL')}{path}"
+    output = util.api_request(method, url, headers, params, data,
+                              auth=HTTPBasicAuth(config.get('SONARQUBE_ADMIN_TOKEN'), ''))
+
+    logger.info(f"SonarQube api {method} {url}, params={params.__str__()}, body={data},"
+                f" response={output.status_code} {output.text}")
+    if int(output.status_code / 100) != 2:
+        raise apiError.DevOpsError(
+            output.status_code,
+            'Got non-2xx response from SonarQube.',
+            apiError.error_3rd_party_api('SonarQube', output))
+    return output
+
+
+def __api_get(path, params=None, headers=None):
+    return __api_request('GET', path, params=params, headers=headers)
+
+
+def __api_post(path, params=None, headers=None, data=None, ):
+    return __api_request('POST', path, headers=headers, data=data, params=params)
+
+
+# ------------- Regular methods -------------
+def sq_create_user(args):
+    return __api_post(f'/users/create?login={args["login"]}&name={args["name"]}'
+                      f'&password={args["password"]}')
+
+
+def sq_deactivate_user(user_login):
+    return __api_post(f'/users/deactivate?login={user_login}')
+
+
+def sq_create_project(project_name, display):
+    return __api_post(f'/projects/create?name={display}&project={project_name}'
+                      f'&visibility=private')
+
+
+def sq_delete_project(project_name):
+    return __api_post(f'/projects/delete?project={project_name}')
+
+
+def sq_add_member(project_name, user_login):
+    return __api_post(f'/permissions/add_user?login={user_login}'
+                      f'&projectKey={project_name}&permission=codeviewer')
+
+
+def sq_remove_member(project_name, user_login):
+    return __api_post(f'/permissions/remove_user?login={user_login}'
+                      f'&projectKey={project_name}&permission=user')
+
+
+def sq_create_access_token(login):
+    params = {
+        'login': login,
+        'name': 'iiidevops-bot'
+    }
+    return __api_post('/user_tokens/generate', params=params).json()['token']
 
 
 def get_sonar_report(project_id):
@@ -12,12 +83,12 @@ def get_sonar_report(project_id):
         "SELECT name FROM public.projects WHERE id = '{0}'".format(project_id))
     project_name = result.fetchone()[0]
     result.close()
-    url = ("http://{0}/api/measures/component?"
+    url = ("{0}/measures/component?"
            "component={1}&metricKeys=bugs,vulnerabilities,security_hotspots,code_smells,"
            "coverage,duplicated_blocks,sqale_index,duplicated_lines_density,reliability_rating,"
            "security_rating,security_review_rating,sqale_rating,security_hotspots_reviewed,"
            "lines_to_cover").format(
-        config.get("SONAR_IP_PORT"), project_name)
+        config.get("SONARQUBE_INTERNAL_BASE_URL"), project_name)
     output = requests.get(url, headers={'Content-Type': 'application/json'}, verify=False)
     if output.status_code == 200:
         data_list = output.json()["component"]["measures"]
@@ -124,6 +195,16 @@ def get_sonar_report(project_id):
 
 
 # --------------------- Resources ---------------------
+class SonarScan(Resource):
+    @jwt_required
+    def post(self, project_name):
+        parser = reqparse.RequestParser()
+        parser.add_argument('branch', type=str, required=True)
+        parser.add_argument('commit_id', type=str, required=True)
+        args = parser.parse_args()
+        return checkmarx.create_scan(args)
+
+
 class SonarReport(Resource):
     @jwt_required
     def get(self, project_id):

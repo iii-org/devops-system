@@ -7,12 +7,16 @@ import model
 import util
 from model import db, ProjectPluginRelation, Project, UserPluginRelation, User, ProjectUserRole
 from resources import harbor, kubernetesClient, role
+from resources.apiError import DevOpsError
 from resources.logger import logger
 from resources.rancher import rancher
 
 # Each time you add a migration, add a version code here.
+from resources.sonarqube import sq_create_project, sq_create_user
+
 VERSIONS = ['0.9.2', '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.4', '0.9.2.5',
-            '0.9.2.6', '0.9.2.a7', '0.9.2.a8']
+            '0.9.2.6', '0.9.2.a7', '0.9.2.a8', '0.9.2.a9', '0.9.2.a10',
+            '1.0.0.1']
 ONLY_UPDATE_DB_MODELS = {'0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.5', '0.9.2.6', '0.9.2.a8'}
 
 
@@ -30,6 +34,12 @@ def upgrade(version):
     elif version == '0.9.2.a7':
         alembic_upgrade()
         move_version_to_db(version)
+    elif version == '0.9.2.a9':
+        create_limitrange_in_namespace()
+    elif version == '0.9.2.a10':
+        delete_and_recreate_role_in_namespace()
+    elif version == '1.0.0.1':
+        fill_sonarqube_resources()
 
 
 def move_version_to_db(version):
@@ -77,6 +87,63 @@ def create_k8s_namespace():
                 kubernetesClient.create_role_binding(row.Project.name,
                                                      member.UserPluginRelation.kubernetes_sa_name)
             rancher.rc_add_namespace_into_rc_project(row.Project.name)
+
+
+def create_limitrange_in_namespace():
+    rows = db.session.query(ProjectPluginRelation, Project). \
+        join(Project).all()
+    namespace_list = kubernetesClient.list_namespace()
+    for row in rows:
+        if row.Project.name in namespace_list:
+            limitrange_list = kubernetesClient.list_limitrange_in_namespace(row.Project.name)
+            if "project-limitrange" not in limitrange_list:
+                print(f"project {row.Project.name} don't have limitrange, create one")
+                kubernetesClient.create_namespace_limitrange(row.Project.name)
+
+
+def delete_and_recreate_role_in_namespace():
+    rows = db.session.query(ProjectPluginRelation, Project). \
+        join(Project).all()
+    namespace_list = kubernetesClient.list_namespace()
+    for row in rows:
+        if row.Project.name in namespace_list:
+            role_list = kubernetesClient.list_role_in_namespace(row.Project.name)
+            if f"{row.Project.name}-user-role" in role_list:
+                print(f"namepsace {row.Project.name} has old {row.Project.name}-user-role, delete it")
+                kubernetesClient.delete_role_in_namespace(row.Project.name,
+                                                          f"{row.Project.name}-user-role")
+                new_role_list = kubernetesClient.list_role_in_namespace(row.Project.name)
+                print(f"After delete, namepsace {row.Project.name} hrs user-role-list: {new_role_list}")
+                kubernetesClient.create_role_in_namespace(row.Project.name)
+                finish_role_list = kubernetesClient.list_role_in_namespace(row.Project.name)
+                print(f"namespace {row.Project.name} user role list: {finish_role_list}")
+
+
+def fill_sonarqube_resources():
+    projects = model.Project.query.all()
+    for c, project in enumerate(projects):
+        if project.id < 0:
+            continue
+        logger.info(f'Filling sonarqube project {c + 1}/{len(projects)}...')
+        try:
+            sq_create_project(project.name, project.display)
+        except DevOpsError as e:
+            if 'key already exists' in e.unpack_response()['errors'][0]['msg']:
+                continue
+
+    users = model.User.query.all()
+    for c, user in enumerate(users):
+        args = {
+            'login': user.login,
+            'name': user.name,
+            'password': 'SQDevOps2021',
+        }
+        logger.info(f'Filling sonarqube user {c + 1}/{len(users)}...')
+        try:
+            sq_create_user(args)
+        except DevOpsError as e:
+            if 'already exists' in e.unpack_response()['errors'][0]['msg']:
+                continue
 
 
 def create_harbor_projects():
@@ -148,13 +215,15 @@ def needs_upgrade(current, target):
         r.extend(['a0'])
     if len(c) == 3:
         c.extend(['a0'])
+    if c[3][0] == 'a':
+        c[3] = c[3][1:]
+    if r[3][0] == 'a':
+        r[3] = r[3][1:]
     for i in range(4):
-        if c[3][0] == 'a':
-            c[3] = c[3][1:]
-        if r[3][0] == 'a':
-            r[3] = r[3][1:]
         if int(c[i]) > int(r[i]):
             return True
+        elif int(c[i]) < int(r[i]):
+            return False
     return False
 
 
