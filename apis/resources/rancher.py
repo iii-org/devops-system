@@ -2,7 +2,8 @@ import ssl
 import json
 import websocket
 import base64
-from flask_restful import abort
+from flask_restful import abort, Resource, reqparse
+from flask_jwt_extended import jwt_required
 
 import config
 import resources.apiError as apiError
@@ -275,5 +276,34 @@ class Rancher(object):
         output = self.__api_delete(url)
         return output.json()
 
+    def rc_get_catalogs_all(self):
+        url = f'/catalogs'
+        output = self.__api_get(url)
+        return output.json()['data']
+
+    def rc_add_catalogs(self, args):
+        body = args
+        url = f'/catalogs'
+        output = self.__api_post(url, data=body)
+        return output.json()
 
 rancher = Rancher()
+
+
+class Catalogs(Resource):
+    @jwt_required
+    def get(self):
+        catalgos_list = rancher.rc_get_catalogs_all()
+        return util.success(catalgos_list)
+
+    # 用issues ID 新建立需求清單
+    @jwt_required
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('name', type=str, required=True)
+        parser.add_argument('branch', type=str, required=True)
+        parser.add_argument('helmVersion', type=str, required=True)
+        parser.add_argument('url', type=str, required=True)
+        args = parser.parse_args()
+        output = rancher.rc_add_catalogs(args)
+        return util.success(output)
