@@ -171,7 +171,7 @@ def update_user(user_id, args):
             ).fetchone()
             if result['password'] != h_old_password.hexdigest():
                 return util.respond(400, "Password is incorrect", error=apiError.wrong_password())
-        err = update_external_passwords(user_id, args["password"])
+        err = update_external_passwords(user_id, args["password"], args["old_password"])
         if err is not None:
             logger.exception(err)  # Don't stop change password on API server
         h = SHA256.new()
@@ -200,7 +200,7 @@ def update_user(user_id, args):
     return util.success()
 
 
-def update_external_passwords(user_id, new_pwd):
+def update_external_passwords(user_id, new_pwd, old_pwd):
     user_relation = nx_get_user_plugin_relation(user_id=user_id)
     if user_relation is None:
         return util.respond(400, 'Error when updating password',
@@ -210,6 +210,9 @@ def update_external_passwords(user_id, new_pwd):
 
     gitlab_user_id = user_relation.repository_user_id
     gitlab.gl_update_password(gitlab_user_id, new_pwd)
+    
+    harbor_user_id = user_relation.harbor_user_id
+    harbor.hb_update_user_password(harbor_user_id, new_pwd, old_pwd)
 
     return None
 

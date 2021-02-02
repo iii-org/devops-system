@@ -123,6 +123,14 @@ def hb_delete_user(user_id):
     __api_delete('/users/{0}'.format(user_id))
 
 
+def hb_update_user_password(user_id, new_pwd, old_pwd):
+    data = {
+        "new_password": new_pwd,
+        "old_password": old_pwd
+    }
+    __api_put(f'/users/{user_id}/password', data=data)
+
+
 def hb_add_member(project_id, user_id):
     data = {
         "role_id": 1,
