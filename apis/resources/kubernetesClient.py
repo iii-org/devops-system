@@ -252,20 +252,21 @@ def list_pod(namespace):
         pod_list = []
         for pods in v1.list_namespaced_pod(namespace).items:
             containers = []
-            for container_status in pods.status.container_statuses:
-                status=None
-                status_time=None
-                if container_status.state.running is not None:
-                    status = "running"
-                    status_time = str(container_status.state.running.started_at)
-                elif container_status.state.terminated is not None:
-                    status = "terminated"
-                    status_time = str(container_status.state.running.finished_at)
-                else:
-                    status = "waiting"
-                containers.append({"name": container_status.name, "image": container_status.image,
-                                   "restart": container_status.restart_count, "state": status, 
-                                   "time": status_time})
+            if pods.status.container_statuses is not None:
+                for container_status in pods.status.container_statuses:
+                    status=None
+                    status_time=None
+                    if container_status.state.running is not None:
+                        status = "running"
+                        status_time = str(container_status.state.running.started_at)
+                    elif container_status.state.terminated is not None:
+                        status = "terminated"
+                        status_time = str(container_status.state.running.finished_at)
+                    else:
+                        status = "waiting"
+                    containers.append({"name": container_status.name, "image": container_status.image,
+                                    "restart": container_status.restart_count, "state": status, 
+                                    "time": status_time})
             pod_list.append({'name':pods.metadata.name, 
                              "created_time": str(pods.metadata.creation_timestamp),
                              'containers': containers})
