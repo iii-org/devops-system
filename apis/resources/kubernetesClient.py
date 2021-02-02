@@ -258,10 +258,12 @@ def list_pod(namespace):
                     status_time=None
                     if container_status.state.running is not None:
                         status = "running"
-                        status_time = str(container_status.state.running.started_at)
+                        if container_status.state.running.started_at is not None:
+                            status_time = str(container_status.state.running.started_at)
                     elif container_status.state.terminated is not None:
                         status = "terminated"
-                        status_time = str(container_status.state.running.finished_at)
+                        if container_status.state.terminated.finished_at is not None:
+                            status_time = str(container_status.state.terminated.finished_at)
                     else:
                         status = "waiting"
                     containers.append({"name": container_status.name, "image": container_status.image,
