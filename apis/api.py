@@ -191,6 +191,7 @@ api.add_resource(version.ProjectVersionList, '/project/<sint:project_id>/version
 api.add_resource(version.ProjectVersion, '/project/<sint:project_id>/version',
                  '/project/<sint:project_id>/version/<int:version_id>')
 api.add_resource(project.TestSummary, '/project/<sint:project_id>/test_summary')
+# api.add_resource(project.ProjectDeployEnvironment, '/project/<sint:project_id>/deployment/list')
 
 # Gitlab project
 api.add_resource(gitlab.GitProjectBranches, '/repositories/<repository_id>/branches')
