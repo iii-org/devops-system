@@ -50,11 +50,12 @@ def list_work_node():
         ip = None
         hostname = None
         if node.metadata.labels['node-role.kubernetes.io/worker']:
+            ip = node.metadata.annotations['projectcalico.org/IPv4Address'].split('/')[0]
             for address in node.status.addresses:
                 # logger.info('address: {0}'.format(address))
-                if address.type == 'InternalIP':
-                    ip = address.address
-                elif address.type == 'Hostname':
+                #if address.type == 'InternalIP':
+                #    ip = address.address
+                if address.type == 'Hostname':
                     hostname = address.address
             node_list.append({
                 "worker": node.metadata.labels['node-role.kubernetes.io/worker'],
