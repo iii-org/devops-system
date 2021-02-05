@@ -61,6 +61,7 @@ def list_projects(user_id):
         plan_project_id = row.ProjectPluginRelation.plan_project_id
         if plan_project_id is None:
             continue
+        git_repository_id = row.ProjectPluginRelation.git_repository_id
         harbor_project_id = row.ProjectPluginRelation.harbor_project_id
 
         closed_count = 0
@@ -105,6 +106,7 @@ def list_projects(user_id):
             "git_url": row.Project.http_url,
             "redmine_url": redmine_url,
             "harbor_url": harbor_url,
+            "repository_ids": git_repository_id,
             "disabled": row.Project.disabled,
             "pm_user_id": pm.id,
             "pm_user_name": pm.name,
