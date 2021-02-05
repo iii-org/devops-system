@@ -345,14 +345,6 @@ def pm_update_project(project_id, args):
                 "UPDATE public.projects SET {0} = '{1}' WHERE id = '{2}'".format(
                     field, args[field], project_id))
 
-    # 修改project_user_role
-    if args["user_id"] is not None:
-        user_id = args['user_id']
-        db.engine.execute(
-            "UPDATE public.project_user_role SET user_id = '{0}'"
-            " WHERE project_id = '{1}' AND role_id = '{2}'".format(
-                user_id, project_id, user.get_role_id(user_id)))
-
     return util.success()
 
 
