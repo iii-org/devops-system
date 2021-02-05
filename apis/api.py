@@ -25,7 +25,7 @@ from jsonwebtoken import jsonwebtoken
 from model import db
 from resources import logger, role as role, activity
 from resources import project, gitlab, issue, user, redmine, wiki, version, sonarqube, apiTest, postman, mock, harbor, \
-    webInspect
+    webInspect, template
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -191,6 +191,8 @@ api.add_resource(version.ProjectVersionList, '/project/<sint:project_id>/version
 api.add_resource(version.ProjectVersion, '/project/<sint:project_id>/version',
                  '/project/<sint:project_id>/version/<int:version_id>')
 api.add_resource(project.TestSummary, '/project/<sint:project_id>/test_summary')
+api.add_resource(template.SingleTemplate, '/template')
+
 
 # Gitlab project
 api.add_resource(gitlab.GitProjectBranches, '/repositories/<repository_id>/branches')
