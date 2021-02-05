@@ -892,7 +892,6 @@ class SingleProject(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('name', type=str)
         parser.add_argument('display', type=str)
-        parser.add_argument('user_id', type=int)
         parser.add_argument('description', type=str)
         parser.add_argument('disabled', type=bool)
         args = parser.parse_args()
