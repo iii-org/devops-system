@@ -301,9 +301,13 @@ def list_deployment(namespace):
     try:
         deployment_list = []
         for deployments in k8s_client.AppsV1Api().list_namespaced_deployment(namespace).items:
+            temp = deployments
             deployment_list.append({"deployment_name": deployments.metadata.name,
                                     "available_pod_number": deployments.status.available_replicas,
-                                    "total_pod_number": deployments.status.replicas})
+                                    "total_pod_number": deployments.status.replicas,
+                                    "createion_timestamp" : str(deployments.metadata.creation_timestamp),
+                                    "container": deployment_analysis_containers(deployments.spec.template.spec.containers)
+                                    })
         return deployment_list
     except apiError.DevOpsError as e:
         if e.status_code != 404:
@@ -445,6 +449,29 @@ def list_ingress(namespace):
             ingress_info["tls"] = ingress.spec.tls
             ingress_list.append(ingress_info)
         return ingress_list
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+
+# def list_deployment_environement(namespace):
+#     try:
+#         service_list = []
+#         for services in v1.list_namespaced_service(namespace).items:
+#             service_list.append(services.metadata.name)
+#         return service_list
+#     except apiError.DevOpsError as e:
+#         if e.status_code != 404:
+#             raise e
+
+def deployment_analysis_containers(containers):
+    try:
+        container_list = []
+        for container in containers:
+            container_info = {}
+            container_info['image'] = container.image
+            container_info['name'] = container.name
+            container_list.append(container_info)        
+        return container_list
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
