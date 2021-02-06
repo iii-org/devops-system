@@ -14,3 +14,4 @@ SQLAlchemy
 sqlalchemy-utils
 kubernetes
 alembic
+python-gitlab
