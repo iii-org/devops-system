@@ -61,6 +61,7 @@ def list_projects(user_id):
         plan_project_id = row.ProjectPluginRelation.plan_project_id
         if plan_project_id is None:
             continue
+        git_repository_id = row.ProjectPluginRelation.git_repository_id
         harbor_project_id = row.ProjectPluginRelation.harbor_project_id
 
         closed_count = 0
@@ -105,6 +106,7 @@ def list_projects(user_id):
             "git_url": row.Project.http_url,
             "redmine_url": redmine_url,
             "harbor_url": harbor_url,
+            "repository_ids": git_repository_id,
             "disabled": row.Project.disabled,
             "pm_user_id": pm.id,
             "pm_user_name": pm.name,
@@ -342,14 +344,6 @@ def pm_update_project(project_id, args):
             db.engine.execute(
                 "UPDATE public.projects SET {0} = '{1}' WHERE id = '{2}'".format(
                     field, args[field], project_id))
-
-    # 修改project_user_role
-    if args["user_id"] is not None:
-        user_id = args['user_id']
-        db.engine.execute(
-            "UPDATE public.project_user_role SET user_id = '{0}'"
-            " WHERE project_id = '{1}' AND role_id = '{2}'".format(
-                user_id, project_id, user.get_role_id(user_id)))
 
     return util.success()
 
@@ -803,6 +797,11 @@ def get_kubernetes_namespace_deployment(project_id):
     project_deployment = kubernetesClient.list_deployment(project_name)
     return util.success(project_deployment)
 
+# def get_kubernetes_namespace_deployment_environment(project_id):
+#     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
+#     project_deployment = kubernetesClient.list_deployment_environement(project_name)
+#     return util.success(project_deployment)
+
 
 def put_kubernetes_namespace_deployment(project_id, name):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
@@ -893,7 +892,6 @@ class SingleProject(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('name', type=str)
         parser.add_argument('display', type=str)
-        parser.add_argument('user_id', type=int)
         parser.add_argument('description', type=str)
         parser.add_argument('disabled', type=bool)
         args = parser.parse_args()
@@ -1033,6 +1031,12 @@ class ProjectUserResourcePodLog(Resource):
         parser.add_argument('container_name', type=str)
         args = parser.parse_args()
         return get_kubernetes_namespace_Pod_Log(project_id, pod_name, args['container_name'])
+
+class ProjectDeployEnvironment(Resource):
+    @jwt_required
+    def get(self, project_id):
+        role.require_in_project(project_id, "Error while getting project info.")
+        return get_kubernetes_namespace_deployment_environment(project_id)
 
 class ProjectUserResourceDeployment(Resource):
     @jwt_required

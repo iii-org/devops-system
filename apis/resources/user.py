@@ -160,6 +160,8 @@ def update_user(user_id, args):
         set_string += "name = '{0}'".format(args["name"])
         set_string += ","
     if args["password"] is not None:
+        if args["old_password"] == args["password"]:
+            return util.respond(400, "Password is not changed.", error=apiError.wrong_password())
         if role.ADMIN.id != get_jwt_identity()['role_id']:
             if args["old_password"] is None:
                 return util.respond(400, "old_password is empty", error=apiError.wrong_password())
