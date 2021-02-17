@@ -25,7 +25,7 @@ from resources import kubernetesClient
 jwt = JWTManager()
 
 
-@jwt.user_claims_loader
+@jwt.additional_claims_loader
 def jwt_response_data(row):
     return {
         'user_id': row['id'],
