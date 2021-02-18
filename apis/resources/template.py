@@ -73,7 +73,7 @@ def tm_get_template(repository_id, args):
                 the_last_tag["commit_id"] = tag.commit["id"]
     f_raw = pj.files.raw(file_path = pipeline_yaml, ref = the_last_tag["commit_id"])
     pipe_json = yaml.safe_load(f_raw.decode())
-    output_list =[]
+    output = {"template_id": int(repository_id), "template_param": []}
     for stage in pipe_json["stages"]:
         output_dict = {}
         output_dict["branchs"] = None
@@ -93,8 +93,8 @@ def tm_get_template(repository_id, args):
                         for key, value in fun_value.items():
                             if key in template_user_option:
                                 output_dict[key] = value
-        output_list.append(output_dict)
-    return output_list
+        output["template_param"].append(output_dict)
+    return output
 
 
 class TemplateList(Resource):
@@ -112,12 +112,13 @@ class SingleTemplate(Resource):
         parser.add_argument('tag_name', type=str)
         args = parser.parse_args()
         return tm_get_template(repository_id, args)
-    '''
+    
+    # temporary api, only for develop
     @jwt_required
     def post(self, repository_id):
         role.require_pm("Error while getting template list.")
         parser = reqparse.RequestParser()
-        parser.add_argument('body', type=str)
+        parser.add_argument('', type=str)
         args = parser.parse_args()
         return tm_get_template(repository_id, args)
-    '''
+    
