@@ -22,13 +22,17 @@ def tm_get_template_list():
         for tag in pj.tags.list():
             tag_list.append({"name": tag.name, "commit_id": tag.commit["id"], 
                              "commit_time":tag.commit["committed_date"]})
-        f_raw = pj.files.raw(file_path="README.md", ref = pj.default_branch)
         summary = {"h1": [], "h2": []}
-        for line in f_raw.decode().split('\n'):
-            if line.count("#", 0, 5) == 2:
-                summary["h2"].append(line[2:])
-            elif line.count("#", 0, 5) == 1:
-                summary["h1"].append(line[1:])
+        files = pj.repository_tree()
+        for file in files:
+            if file["name"] == "README.md":
+                f_raw = pj.files.raw(file_path="README.md", ref = pj.default_branch)
+                
+                for line in f_raw.decode().split('\n'):
+                    if line.count("#", 0, 5) == 2:
+                        summary["h2"].append(line[2:])
+                    elif line.count("#", 0, 5) == 1:
+                        summary["h1"].append(line[1:])
         output.append({"id": pj.id,
                        "name": pj.name, 
                        "path": pj.path, 
