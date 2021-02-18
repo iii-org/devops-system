@@ -11,6 +11,14 @@ from .logger import logger
 
 from gitlab import Gitlab
 
+template_replace_dict = {"registry": "harbor-demo.iiidevops.org", 
+                         "PLUGIN_MIRROR": "https://harbor-demo.iiidevops.org",
+                         "harbor.host": "harbor-demo.iiidevops.org",
+                         "git.host": "gitlab-demo.iiidevops.org"
+                        }
+template_user_option = ["checkmarx.enabled", "sonarqube.enabled", "db.username", "db.password",
+                        "db.name", "newman.enabled", "webinspect.enabled"]
+
 def tm_get_template_list():
     output = []
     gl = Gitlab(config.get("GITLAB_BASE_URL"), private_token=config.get("GITLAB_PRIVATE_TOKEN"))
@@ -64,7 +72,29 @@ def tm_get_template(repository_id, args):
                 the_last_tag["tag_name"] = tag.name
                 the_last_tag["commit_id"] = tag.commit["id"]
     f_raw = pj.files.raw(file_path = pipeline_yaml, ref = the_last_tag["commit_id"])
-    print(yaml.safe_load(f_raw.decode()))
+    pipe_json = yaml.safe_load(f_raw.decode())
+    output_list =[]
+    for stage in pipe_json["stages"]:
+        output_dict = {}
+        output_dict["branchs"] = None
+        output_dict["name"] = stage["name"]
+        if "when" in stage:
+            output_dict["branchs"] = stage["when"]["branch"]["include"]
+        if "steps" in stage:
+            for step in stage["steps"]:
+                for fun_key, fun_value in step.items():
+                    if "when" == fun_key:
+                        output_dict["branchs"] = fun_value["branch"]["include"]
+                    elif "applyAppConfig" == fun_key:
+                        for ans_key, ans_value in fun_value["answers"].items():
+                            if ans_key in template_user_option:
+                                output_dict[ans_key] = ans_value
+                    else:
+                        for key, value in fun_value.items():
+                            if key in template_user_option:
+                                output_dict[key] = value
+        output_list.append(output_dict)
+    return output_list
 
 
 class TemplateList(Resource):
@@ -82,3 +112,12 @@ class SingleTemplate(Resource):
         parser.add_argument('tag_name', type=str)
         args = parser.parse_args()
         return tm_get_template(repository_id, args)
+    '''
+    @jwt_required
+    def post(self, repository_id):
+        role.require_pm("Error while getting template list.")
+        parser = reqparse.RequestParser()
+        parser.add_argument('body', type=str)
+        args = parser.parse_args()
+        return tm_get_template(repository_id, args)
+    '''
