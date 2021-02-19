@@ -19,6 +19,34 @@ template_replace_dict = {"registry": "harbor-demo.iiidevops.org",
 template_user_option = ["checkmarx.enabled", "sonarqube.enabled", "db.username", "db.password",
                         "db.name", "newman.enabled", "webinspect.enabled"]
 
+
+def __tm_get_git_pipline_json(repository_id, tag_name):
+    gl = Gitlab(config.get("GITLAB_BASE_URL"), private_token=config.get("GITLAB_PRIVATE_TOKEN"))
+    pj = gl.projects.get(repository_id)
+    pipeline_yaml = ".rancher-pipeline.yaml"
+    for item in  pj.repository_tree():
+        if item["path"] == ".rancher-pipeline.yml":
+            pipeline_yaml = ".rancher-pipeline.yml"
+    the_last_tag = {"tag_name": None, "commit_time": sys.float_info.max, "commit_id": None}
+    if tag_name is None:
+        # Get the last tag
+        for tag in pj.tags.list():
+            seconds = (datetime.now() - dateutil.parser.parse(tag.commit["committed_date"])
+                       .replace(tzinfo=None)).total_seconds()
+            if seconds < the_last_tag["commit_time"]:
+                the_last_tag["tag_name"] = tag.name
+                the_last_tag["commit_time"] = seconds
+                the_last_tag["commit_id"] = tag.commit["id"]
+    else:
+        for tag in pj.tags.list():
+            if tag_name == tag.name:
+                the_last_tag["tag_name"] = tag.name
+                the_last_tag["commit_id"] = tag.commit["id"]
+    f_raw = pj.files.raw(file_path = pipeline_yaml, ref = the_last_tag["commit_id"])
+    pipe_json = yaml.safe_load(f_raw.decode())
+    return pipe_json, the_last_tag
+
+
 def tm_get_template_list():
     output = []
     gl = Gitlab(config.get("GITLAB_BASE_URL"), private_token=config.get("GITLAB_PRIVATE_TOKEN"))
@@ -49,31 +77,9 @@ def tm_get_template_list():
     return output
 
 
-def tm_get_template(repository_id, args):
-    gl = Gitlab(config.get("GITLAB_BASE_URL"), private_token=config.get("GITLAB_PRIVATE_TOKEN"))
-    pj = gl.projects.get(repository_id)
-    pipeline_yaml = ".rancher-pipeline.yaml"
-    for item in  pj.repository_tree():
-        if item["path"] == ".rancher-pipeline.yml":
-            pipeline_yaml = ".rancher-pipeline.yml"
-    the_last_tag = {"tag_name": None, "commit_time": sys.float_info.max, "commit_id": None}
-    if args["tag_name"] is None:
-        # Get the last tag
-        for tag in pj.tags.list():
-            seconds = (datetime.now() - dateutil.parser.parse(tag.commit["committed_date"])
-                       .replace(tzinfo=None)).total_seconds()
-            if seconds < the_last_tag["commit_time"]:
-                the_last_tag["tag_name"] = tag.name
-                the_last_tag["commit_time"] = seconds
-                the_last_tag["commit_id"] = tag.commit["id"]
-    else:
-        for tag in pj.tags.list():
-            if args["tag_name"] == tag.name:
-                the_last_tag["tag_name"] = tag.name
-                the_last_tag["commit_id"] = tag.commit["id"]
-    f_raw = pj.files.raw(file_path = pipeline_yaml, ref = the_last_tag["commit_id"])
-    pipe_json = yaml.safe_load(f_raw.decode())
-    output = {"template_id": int(repository_id), "template_param": []}
+def tm_get_template(repository_id, tag_name):
+    pipe_json, the_last_tag = __tm_get_git_pipline_json(repository_id, tag_name)
+    output = {"template_id": int(repository_id), "tag_name": the_last_tag["tag_name"], "template_param": []}
     for stage in pipe_json["stages"]:
         output_dict = {}
         output_dict["branchs"] = None
@@ -97,6 +103,11 @@ def tm_get_template(repository_id, args):
     return output
 
 
+def tm_create_template(repository_id, tag_name, template_param):
+    pipe_json, the_last_tag = __tm_get_git_pipline_json(repository_id, tag_name)
+
+
+
 class TemplateList(Resource):
     @jwt_required
     def get(self):
@@ -111,8 +122,9 @@ class SingleTemplate(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('tag_name', type=str)
         args = parser.parse_args()
-        return tm_get_template(repository_id, args)
+        return tm_get_template(repository_id, args["tag_name"])
     
+    '''
     # temporary api, only for develop
     @jwt_required
     def post(self, repository_id):
@@ -121,4 +133,4 @@ class SingleTemplate(Resource):
         parser.add_argument('', type=str)
         args = parser.parse_args()
         return tm_get_template(repository_id, args)
-    
+    '''
