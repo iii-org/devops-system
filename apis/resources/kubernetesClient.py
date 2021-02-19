@@ -453,10 +453,8 @@ def list_ingress(namespace):
 
 def list_deployment_environement(namespace):
     try:
-
         deployment_info = {}
         list_node = list_work_node()
-        print(list_node)
         work_node_ip = list_node[0]['ip']
         for deployments in k8s_client.AppsV1Api().list_namespaced_deployment(namespace).items:
             if 'iiidevops.org/project_name' in deployments.spec.template.metadata.labels and 'iiidevops.org/branch' in  deployments.spec.template.metadata.labels:    
@@ -480,10 +478,7 @@ def list_deployment_environement(namespace):
                     container_info['commit_id'] = get_container_commit_id(container)
                     workload_info['container'].append(container_info)
                 deployment_info[environement]['workload'].append(workload_info)
-                # list_environment.append(deployment_info)
-
         return deployment_info
-        # return service_list
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
@@ -501,11 +496,7 @@ def deployment_analysis_containers(containers):
         if e.status_code != 404:
             raise e
 def get_deployment_publicEndpoint(public_endpoints,work_node_ip):
-    try:
-        
-        # print(json.loads(public_endpoints))
-        # print(type(publicEndpoints))
-        # print
+    try:        
         list_public_endpoint = []
         for public_endpoint in json.loads(public_endpoints):
             endpoint_info ={}
