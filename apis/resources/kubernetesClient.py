@@ -45,11 +45,8 @@ def list_service_all_namespaces():
 def list_work_node():
     node_list = []
     for node in v1.list_node().items:
-        logger.info("{0}, {1}".format(node.status.addresses,
-                                      node.metadata.labels['node-role.kubernetes.io/worker']))
         ip = None
         hostname = None
-        print (node.metadata.labels)
         if 'node-role.kubernetes.io/worker' in node.metadata.labels:
             ip = node.metadata.annotations['projectcalico.org/IPv4Address'].split('/')[0]
             for address in node.status.addresses:
