@@ -49,7 +49,8 @@ def list_work_node():
                                       node.metadata.labels['node-role.kubernetes.io/worker']))
         ip = None
         hostname = None
-        if node.metadata.labels['node-role.kubernetes.io/worker']:
+        print (node.metadata.labels)
+        if 'node-role.kubernetes.io/worker' in node.metadata.labels:
             ip = node.metadata.annotations['projectcalico.org/IPv4Address'].split('/')[0]
             for address in node.status.addresses:
                 # logger.info('address: {0}'.format(address))
