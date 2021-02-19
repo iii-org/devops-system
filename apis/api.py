@@ -194,7 +194,7 @@ api.add_resource(project.TestSummary, '/project/<sint:project_id>/test_summary')
 api.add_resource(template.TemplateList, '/template_list') 
 api.add_resource(template.SingleTemplate, '/template', '/template/<repository_id>') 
 
-# api.add_resource(project.ProjectDeployEnvironment, '/project/<sint:project_id>/deployment/list')
+api.add_resource(project.ProjectDeployEnvironment, '/project/<sint:project_id>/deployment/list')
 
 # Gitlab project
 api.add_resource(gitlab.GitProjectBranches, '/repositories/<repository_id>/branches')
