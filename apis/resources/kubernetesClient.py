@@ -456,11 +456,33 @@ def list_deployment_environement(namespace):
         deployment_info = {}
         list_node = list_work_node()
         work_node_ip = list_node[0]['ip']
+        list_container_status = {}
+        for pods in v1.list_namespaced_pod(namespace).items:
+            if pods.status.container_statuses is not None:
+                for container_status in pods.status.container_statuses:
+                    status=None
+                    status_time=None
+                    if container_status.state.running is not None:
+                        status = "running"
+                        if container_status.state.running.started_at is not None:
+                            status_time = str(container_status.state.running.started_at)
+                    elif container_status.state.terminated is not None:
+                        status = "terminated"
+                        if container_status.state.terminated.finished_at is not None:
+                            status_time = str(container_status.state.terminated.finished_at)
+                    else:
+                        status = "waiting"
+                    if container_status.name not in list_container_status:
+                        list_container_status[container_status.name] = {}
+                        list_container_status[container_status.name]['state'] = status
+                        list_container_status[container_status.name]['time'] = status_time
+                        list_container_status[container_status.name]['restart'] = container_status.restart_count
+
         for deployments in k8s_client.AppsV1Api().list_namespaced_deployment(namespace).items:
             if 'iiidevops.org/project_name' in deployments.spec.template.metadata.labels and 'iiidevops.org/branch' in  deployments.spec.template.metadata.labels:    
                 project_name = deployments.spec.template.metadata.labels['iiidevops.org/project_name']
                 branch_name = deployments.spec.template.metadata.labels['iiidevops.org/branch']                                
-                environement = f'{project_name} {branch_name}'
+                environement = f'{project_name}:{branch_name}'
                 if environement not in deployment_info:
                     deployment_info[environement] = {}
                     deployment_info[environement]['project_name'] = project_name
@@ -476,6 +498,10 @@ def list_deployment_environement(namespace):
                     container_info['name'] = container.name
                     container_info['image'] = container.image
                     container_info['commit_id'] = get_container_commit_id(container)
+                    if container.name in list_container_status:
+                        container_info['state'] = list_container_status[container.name]['state']
+                        container_info['time'] = list_container_status[container.name]['time']
+                        container_info['restart'] = list_container_status[container.name]['restart']
                     workload_info['container'].append(container_info)
                 deployment_info[environement]['workload'].append(workload_info)
         return deployment_info
