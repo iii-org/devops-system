@@ -451,6 +451,7 @@ def list_ingress(namespace):
         if e.status_code != 404:
             raise e
 
+
 def list_deployment_environement(namespace):
     try:
         deployment_info = {}
@@ -509,6 +510,7 @@ def list_deployment_environement(namespace):
         if e.status_code != 404:
             raise e
 
+
 def deployment_analysis_containers(containers):
     try:
         container_list = []
@@ -521,6 +523,8 @@ def deployment_analysis_containers(containers):
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
+
+
 def get_deployment_publicEndpoint(public_endpoints,work_node_ip):
     try:        
         list_public_endpoint = []
@@ -538,6 +542,7 @@ def get_deployment_publicEndpoint(public_endpoints,work_node_ip):
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
+
 
 def get_container_commit_id(container):
     try:
