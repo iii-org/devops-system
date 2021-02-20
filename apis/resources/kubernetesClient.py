@@ -547,7 +547,6 @@ def get_deployment_publicEndpoint(public_endpoints,work_node_ip):
 def get_container_commit_id(container):
     try:
         commit_id = ''
-        print(container)
         if container.env is not None:
             for env  in container.env:                                                
                  if env.name is 'commitID':
