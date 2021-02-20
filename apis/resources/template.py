@@ -90,7 +90,6 @@ def tm_get_template(repository_id, tag_name):
     output = {"template_id": int(repository_id), "tag_name": tag_info_dict["tag_name"], "template_param": []}
     for stage in pipe_json["stages"]:
         output_dict = {}
-        output_dict["branchs"] = None
         output_dict["name"] = stage["name"]
         if "when" in stage:
             output_dict["branchs"] = stage["when"]["branch"]["include"]
@@ -135,7 +134,7 @@ def tm_create_template(repository_id, tag_name, db_username, db_password, db_nam
                     for parm_key in fun_value.keys():
                         if parm_key in template_replace_dict:
                             fun_value[parm_key] = template_replace_dict[parm_key]
-    print(pipe_json)
+    #print(pipe_json)
 
 
 class TemplateList(Resource):
