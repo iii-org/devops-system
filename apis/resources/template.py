@@ -120,8 +120,8 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id, tag
     secret_pj_http_url = pj_http_url[:7] + f"root:{gitlab_private_token}@" + pj_http_url[7:]
     subprocess.call(['git', 'clone', '--branch', tag_info_dict["tag_name"], secret_temp_http_url
                      , pj.path])
-    subprocess.call(['git', 'config', 'user.email', '"system@iiidevops.org"'], pj.path)
-    subprocess.call(['git', 'config', 'user.name', '"system"'], pj.path)
+    subprocess.call(['git', 'config', 'user.email', '"system@iiidevops.org"'], cwd=pj.path)
+    subprocess.call(['git', 'config', 'user.name', '"system"'], cwd=pj.path)
     pipe_json = None
     with open(f'{pj.path}/{pipe_yaml_file_name}') as file:
         pipe_json = yaml.safe_load(file)
