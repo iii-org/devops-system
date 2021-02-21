@@ -1,6 +1,8 @@
 from datetime import datetime
 import dateutil.parser
 import sys
+import subprocess
+import shutil
 import yaml
 
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -11,13 +13,43 @@ from .logger import logger
 
 from gitlab import Gitlab
 
-template_replace_dict = {"registry": "harbor-demo.iiidevops.org", 
-                         "PLUGIN_MIRROR": "https://harbor-demo.iiidevops.org",
-                         "harbor.host": "harbor-demo.iiidevops.org",
-                         "git.host": "gitlab-demo.iiidevops.org"
-                        }
-template_user_option = ["checkmarx.enabled", "sonarqube.enabled", "db.username", "db.password",
-                        "db.name", "newman.enabled", "webinspect.enabled"]
+
+template_replace_dict = {
+    "registry": config.get("HARBOR_EXTERNAL_BASE_URL").replace("https://", ""), 
+    "PLUGIN_MIRROR": config.get("HARBOR_EXTERNAL_BASE_URL"),
+    "harbor.host": config.get("HARBOR_EXTERNAL_BASE_URL").replace("https://", ""),
+    "git.host": config.get("GITLAB_BASE_URL").replace("http://", "")
+    }
+
+template_user_option = ["db.username", "db.password", "db.name"]
+
+
+def __tm_get_git_pipline_json(repository_id, tag_name):
+    gl = Gitlab(config.get("GITLAB_BASE_URL"), private_token=config.get("GITLAB_PRIVATE_TOKEN"))
+    pj = gl.projects.get(repository_id)
+    pipe_yaml_file_name = ".rancher-pipeline.yaml"
+    for item in  pj.repository_tree():
+        if item["path"] == ".rancher-pipeline.yml":
+            pipe_yaml_file_name = ".rancher-pipeline.yml"
+    tag_info_dict = {"tag_name": None, "commit_time": sys.float_info.max, "commit_id": None}
+    if tag_name is None:
+        # Get the last tag
+        for tag in pj.tags.list():
+            seconds = (datetime.now() - dateutil.parser.parse(tag.commit["committed_date"])
+                       .replace(tzinfo=None)).total_seconds()
+            if seconds < tag_info_dict["commit_time"]:
+                tag_info_dict["tag_name"] = tag.name
+                tag_info_dict["commit_time"] = seconds
+                tag_info_dict["commit_id"] = tag.commit["id"]
+    else:
+        for tag in pj.tags.list():
+            if tag_name == tag.name:
+                tag_info_dict["tag_name"] = tag.name
+                tag_info_dict["commit_id"] = tag.commit["id"]
+    f_raw = pj.files.raw(file_path = pipe_yaml_file_name, ref = tag_info_dict["commit_id"])
+    pipe_json = yaml.safe_load(f_raw.decode())
+    return pipe_json, tag_info_dict, pipe_yaml_file_name
+
 
 def tm_get_template_list():
     output = []
@@ -49,34 +81,11 @@ def tm_get_template_list():
     return output
 
 
-def tm_get_template(repository_id, args):
-    gl = Gitlab(config.get("GITLAB_BASE_URL"), private_token=config.get("GITLAB_PRIVATE_TOKEN"))
-    pj = gl.projects.get(repository_id)
-    pipeline_yaml = ".rancher-pipeline.yaml"
-    for item in  pj.repository_tree():
-        if item["path"] == ".rancher-pipeline.yml":
-            pipeline_yaml = ".rancher-pipeline.yml"
-    the_last_tag = {"tag_name": None, "commit_time": sys.float_info.max, "commit_id": None}
-    if args["tag_name"] is None:
-        # Get the last tag
-        for tag in pj.tags.list():
-            seconds = (datetime.now() - dateutil.parser.parse(tag.commit["committed_date"])
-                       .replace(tzinfo=None)).total_seconds()
-            if seconds < the_last_tag["commit_time"]:
-                the_last_tag["tag_name"] = tag.name
-                the_last_tag["commit_time"] = seconds
-                the_last_tag["commit_id"] = tag.commit["id"]
-    else:
-        for tag in pj.tags.list():
-            if args["tag_name"] == tag.name:
-                the_last_tag["tag_name"] = tag.name
-                the_last_tag["commit_id"] = tag.commit["id"]
-    f_raw = pj.files.raw(file_path = pipeline_yaml, ref = the_last_tag["commit_id"])
-    pipe_json = yaml.safe_load(f_raw.decode())
-    output = {"template_id": int(repository_id), "template_param": []}
+def tm_get_template(repository_id, tag_name):
+    pipe_json, tag_info_dict, pipe_yaml_file_name = __tm_get_git_pipline_json(repository_id, tag_name)
+    output = {"template_id": int(repository_id), "tag_name": tag_info_dict["tag_name"], "template_param": []}
     for stage in pipe_json["stages"]:
         output_dict = {}
-        output_dict["branchs"] = None
         output_dict["name"] = stage["name"]
         if "when" in stage:
             output_dict["branchs"] = stage["when"]["branch"]["include"]
@@ -97,6 +106,54 @@ def tm_get_template(repository_id, args):
     return output
 
 
+def tm_use_template_push_into_pj(template_repository_id, user_repository_id, tag_name, db_username, db_password, db_name):
+    pipe_json, tag_info_dict, pipe_yaml_file_name = __tm_get_git_pipline_json(template_repository_id, tag_name)
+    gitlab_private_token = config.get("GITLAB_PRIVATE_TOKEN")
+    gl = Gitlab(config.get("GITLAB_BASE_URL"), private_token=gitlab_private_token)
+    
+    template_pj = gl.projects.get(template_repository_id)
+    temp_http_url = template_pj.http_url_to_repo
+    secret_temp_http_url = temp_http_url[:7] + f"root:{gitlab_private_token}@" + temp_http_url[7:]
+
+    pj = gl.projects.get(user_repository_id)
+    pj_http_url = pj.http_url_to_repo
+    secret_pj_http_url = pj_http_url[:7] + f"root:{gitlab_private_token}@" + pj_http_url[7:]
+    subprocess.call(['git', 'clone', '--branch', tag_info_dict["tag_name"], secret_temp_http_url
+                     , pj.path])
+    pipe_json = None
+    with open(f'{pj.path}/{pipe_yaml_file_name}') as file:
+        pipe_json = yaml.safe_load(file)
+        for stage in pipe_json["stages"]:
+            if "steps" in stage:
+                for step in stage["steps"]:
+                    for fun_key, fun_value in step.items():
+                        # Replace Sysytem parameters, like harbor.host, registry.
+                        if fun_key == "applyAppConfig":
+                            for ans_key in  fun_value["answers"].keys():
+                                if ans_key in template_replace_dict:
+                                    fun_value["answers"][ans_key] = template_replace_dict[ans_key]
+                                # Replace user input parameter.
+                                if db_username is not None and ans_key == "db.username":
+                                    fun_value["answers"][ans_key] = db_username
+                                if db_password is not None and ans_key == "db.password":
+                                    fun_value["answers"][ans_key] = db_password
+                                if db_name is not None and ans_key == "db.name":
+                                    fun_value["answers"][ans_key] = db_name
+                        for parm_key in fun_value.keys():
+                            if parm_key in template_replace_dict:
+                                fun_value[parm_key] = template_replace_dict[parm_key]
+    with open(f'{pj.path}/{pipe_yaml_file_name}', 'w') as file:
+        documents = yaml.dump(pipe_json, file)
+    subprocess.call(['git', 'branch'], cwd=pj.path)
+    subprocess.call(['rm', '-rf', f'{pj.path}/.git'])
+    subprocess.call(['git', 'init'], cwd=pj.path)
+    subprocess.call(['git', 'remote', 'add', 'origin', secret_pj_http_url], cwd=pj.path)
+    subprocess.call(['git', 'add', '.'], cwd=pj.path)
+    subprocess.call(['git', 'commit', '-m', '"範本 commit"'], cwd=pj.path)
+    subprocess.call(['git', 'push', '-u', 'origin', 'master'], cwd=pj.path)
+    shutil.rmtree(pj.path, ignore_errors=True)
+
+
 class TemplateList(Resource):
     @jwt_required
     def get(self):
@@ -111,14 +168,21 @@ class SingleTemplate(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('tag_name', type=str)
         args = parser.parse_args()
-        return tm_get_template(repository_id, args)
+        return tm_get_template(repository_id, args["tag_name"])
     
+    '''
     # temporary api, only for develop
     @jwt_required
     def post(self, repository_id):
         role.require_pm("Error while getting template list.")
         parser = reqparse.RequestParser()
-        parser.add_argument('', type=str)
+        parser.add_argument('user_repository_id', type=int)
+        parser.add_argument('tag_name', type=str)
+        parser.add_argument('db_username', type=str)
+        parser.add_argument('db_password', type=str)
+        parser.add_argument('db_name', type=str)
         args = parser.parse_args()
-        return tm_get_template(repository_id, args)
-    
+        return tm_use_template_push_into_pj(repository_id, args["user_repository_id"], 
+                                  args["tag_name"], args["db_username"], 
+                                  args["db_password"], args["db_name"])
+    '''
