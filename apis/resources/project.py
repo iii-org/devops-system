@@ -16,7 +16,7 @@ from model import db
 from nexus import nx_get_project_plugin_relation
 from resources.apiError import DevOpsError
 from util import DevOpsThread
-from . import user, harbor, kubernetesClient, role, sonarqube
+from . import user, harbor, kubernetesClient, role, sonarqube, template
 from .activity import record_activity, ActionType
 from .checkmarx import checkmarx
 from .gitlab import gitlab
@@ -259,7 +259,13 @@ def create_project(user_id, args):
         # 加關聯project_user_role
         project_add_member(project_id, user_id)
         create_bot(project_id)
-
+        
+        # Commit and push file by template , if template env is not None
+        if args["template_id"] is not None:
+            template.tm_use_template_push_into_pj(args["template_id"], gitlab_pj_id, 
+                                                  args["tag_name"], args["db_username"],
+                                                  args["db_password"], args["db_name"])
+        
         return {
             "project_id": project_id,
             "plan_project_id": redmine_pj_id,
@@ -913,6 +919,11 @@ class SingleProject(Resource):
         parser.add_argument('display', type=str)
         parser.add_argument('description', type=str)
         parser.add_argument('disabled', type=bool, required=True)
+        parser.add_argument('template_id', type=int)
+        parser.add_argument('tag_name', type=str)
+        parser.add_argument('db_username', type=str)
+        parser.add_argument('db_password', type=str)
+        parser.add_argument('db_name', type=str)
         args = parser.parse_args()
 
         pattern = "^[a-z][a-z0-9-]{0,28}[a-z0-9]$"
