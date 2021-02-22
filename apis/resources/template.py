@@ -147,9 +147,12 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id, tag
                                     fun_value["answers"][ans_key] = db_password
                                 if db_name is not None and ans_key == "db.name":
                                     fun_value["answers"][ans_key] = db_name
-                        for parm_key in fun_value.keys():
-                            if parm_key in template_replace_dict:
-                                fun_value[parm_key] = template_replace_dict[parm_key]
+                        elif fun_key == "envFrom":
+                            pass
+                        else:
+                            for parm_key in fun_value.keys():
+                                if parm_key in template_replace_dict:
+                                    fun_value[parm_key] = template_replace_dict[parm_key]
     with open(f'{pj.path}/{pipe_yaml_file_name}', 'w') as file:
         documents = yaml.dump(pipe_json, file)
     subprocess.call(['git', 'branch'], cwd=pj.path)
