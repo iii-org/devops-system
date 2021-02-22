@@ -128,11 +128,13 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id, tag
     Path("pj_push_template").mkdir(exist_ok=True)
     subprocess.call(['git', 'clone', '--branch', tag_info_dict["tag_name"], secret_temp_http_url
                      , f"pj_push_template/{pj.path}"])
-    git_user_email = subprocess.call(['git', 'config', 'user.email'])
-    git_user_name = subprocess.call(['git', 'config', 'user.name'])
-    if git_user_email is None:
+    git_user_email_proc = subprocess.Popen(['git', 'config', 'user.email'], stdout=subprocess.PIPE, shell=False)
+    git_user_name_proc = subprocess.Popen(['git', 'config', 'user.name'], stdout=subprocess.PIPE, shell=False)
+    git_user_email = git_user_email_proc.stdout.read().decode("utf-8")
+    git_user_name = git_user_name_proc.stdout.read().decode("utf-8")
+    if git_user_email == "":
         subprocess.call(['git', 'config', '--global', 'user.email', '"system@iiidevops.org"'], cwd=f"pj_push_template/{pj.path}")
-    if git_user_name is None:
+    if git_user_name == "":
         subprocess.call(['git', 'config', '--global', 'user.name', '"system"'], cwd=f"pj_push_template/{pj.path}")
     pipe_json = None
     with open(f'pj_push_template/{pj.path}/{pipe_yaml_file_name}') as file:
