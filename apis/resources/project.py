@@ -913,7 +913,6 @@ class SingleProject(Resource):
     def post(self):
         role.require_pm()
         user_id = get_jwt_identity()["user_id"]
-        print(user_id)
         parser = reqparse.RequestParser()
         parser.add_argument('name', type=str, required=True)
         parser.add_argument('display', type=str)
