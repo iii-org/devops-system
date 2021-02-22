@@ -32,20 +32,24 @@ def __tm_get_git_pipline_json(repository_id, tag_name):
         if item["path"] == ".rancher-pipeline.yml":
             pipe_yaml_file_name = ".rancher-pipeline.yml"
     tag_info_dict = {"tag_name": None, "commit_time": sys.float_info.max, "commit_id": None}
-    if tag_name is None:
-        # Get the last tag
-        for tag in pj.tags.list():
-            seconds = (datetime.now() - dateutil.parser.parse(tag.commit["committed_date"])
-                       .replace(tzinfo=None)).total_seconds()
-            if seconds < tag_info_dict["commit_time"]:
-                tag_info_dict["tag_name"] = tag.name
-                tag_info_dict["commit_time"] = seconds
-                tag_info_dict["commit_id"] = tag.commit["id"]
+    tags = pj.tags.list()
+    if len(tags) !=0:
+        if tag_name is None:
+            # Get the last tag
+            for tag in tags:
+                seconds = (datetime.now() - dateutil.parser.parse(tag.commit["committed_date"])
+                        .replace(tzinfo=None)).total_seconds()
+                if seconds < tag_info_dict["commit_time"]:
+                    tag_info_dict["tag_name"] = tag.name
+                    tag_info_dict["commit_time"] = seconds
+                    tag_info_dict["commit_id"] = tag.commit["id"]
+        else:
+            for tag in tags:
+                if tag_name == tag.name:
+                    tag_info_dict["tag_name"] = tag.name
+                    tag_info_dict["commit_id"] = tag.commit["id"]
     else:
-        for tag in pj.tags.list():
-            if tag_name == tag.name:
-                tag_info_dict["tag_name"] = tag.name
-                tag_info_dict["commit_id"] = tag.commit["id"]
+        tag_info_dict = {"tag_name": pj.default_branch, "commit_time": sys.float_info.max, "commit_id": pj.default_branch}
     f_raw = pj.files.raw(file_path = pipe_yaml_file_name, ref = tag_info_dict["commit_id"])
     pipe_json = yaml.safe_load(f_raw.decode())
     return pipe_json, tag_info_dict, pipe_yaml_file_name
