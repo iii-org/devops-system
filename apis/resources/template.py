@@ -98,6 +98,8 @@ def tm_get_template(repository_id, tag_name):
                         for ans_key, ans_value in fun_value["answers"].items():
                             if ans_key in template_user_option:
                                 output_dict[ans_key] = ans_value
+                    elif "envFrom" == fun_key:
+                        pass
                     else:
                         for key, value in fun_value.items():
                             if key in template_user_option:
