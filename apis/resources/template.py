@@ -156,7 +156,7 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id, tag
     with open(f'{pj.path}/{pipe_yaml_file_name}', 'w') as file:
         documents = yaml.dump(pipe_json, file)
     subprocess.call(['git', 'branch'], cwd=pj.path)
-    subprocess.call(['rm', '-rf', f'{pj.path}/.git'])
+    shutil.rmtree(f'{pj.path}/.git')
     subprocess.call(['git', 'init'], cwd=pj.path)
     subprocess.call(['git', 'remote', 'add', 'origin', secret_pj_http_url], cwd=pj.path)
     subprocess.call(['git', 'add', '.'], cwd=pj.path)
