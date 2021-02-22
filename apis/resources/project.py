@@ -803,10 +803,10 @@ def get_kubernetes_namespace_deployment(project_id):
     project_deployment = kubernetesClient.list_deployment(project_name)
     return util.success(project_deployment)
 
-# def get_kubernetes_namespace_deployment_environment(project_id):
-#     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
-#     project_deployment = kubernetesClient.list_deployment_environement(project_name)
-#     return util.success(project_deployment)
+def get_kubernetes_namespace_deployment_environment(project_id):
+    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
+    project_deployment = kubernetesClient.list_deployment_environement(project_name)
+    return util.success(project_deployment)
 
 
 def put_kubernetes_namespace_deployment(project_id, name):

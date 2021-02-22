@@ -11,6 +11,7 @@ from kubernetes import config as k8s_config
 
 from flask_restful import Resource, reqparse
 
+
 import resources.apiError as apiError
 from resources.logger import logger
 
@@ -299,7 +300,6 @@ def list_deployment(namespace):
     try:
         deployment_list = []
         for deployments in k8s_client.AppsV1Api().list_namespaced_deployment(namespace).items:
-            temp = deployments
             deployment_list.append({"deployment_name": deployments.metadata.name,
                                     "available_pod_number": deployments.status.available_replicas,
                                     "total_pod_number": deployments.status.replicas,
@@ -451,15 +451,65 @@ def list_ingress(namespace):
         if e.status_code != 404:
             raise e
 
-# def list_deployment_environement(namespace):
-#     try:
-#         service_list = []
-#         for services in v1.list_namespaced_service(namespace).items:
-#             service_list.append(services.metadata.name)
-#         return service_list
-#     except apiError.DevOpsError as e:
-#         if e.status_code != 404:
-#             raise e
+
+def list_deployment_environement(namespace):
+    try:
+        deployment_info = {}
+        list_node = list_work_node()
+        work_node_ip = list_node[0]['ip']
+        list_container_status = {}
+        for pods in v1.list_namespaced_pod(namespace).items:
+            if pods.status.container_statuses is not None:
+                for container_status in pods.status.container_statuses:
+                    status=None
+                    status_time=None
+                    if container_status.state.running is not None:
+                        status = "running"
+                        if container_status.state.running.started_at is not None:
+                            status_time = str(container_status.state.running.started_at)
+                    elif container_status.state.terminated is not None:
+                        status = "terminated"
+                        if container_status.state.terminated.finished_at is not None:
+                            status_time = str(container_status.state.terminated.finished_at)
+                    else:
+                        status = "waiting"
+                    if container_status.name not in list_container_status:
+                        list_container_status[container_status.name] = {}
+                        list_container_status[container_status.name]['state'] = status
+                        list_container_status[container_status.name]['time'] = status_time
+                        list_container_status[container_status.name]['restart'] = container_status.restart_count
+
+        for deployments in k8s_client.AppsV1Api().list_namespaced_deployment(namespace).items:
+            if 'iiidevops.org/project_name' in deployments.spec.template.metadata.labels and 'iiidevops.org/branch' in  deployments.spec.template.metadata.labels:    
+                project_name = deployments.spec.template.metadata.labels['iiidevops.org/project_name']
+                branch_name = deployments.spec.template.metadata.labels['iiidevops.org/branch']                                
+                environement = f'{project_name}:{branch_name}'
+                if environement not in deployment_info:
+                    deployment_info[environement] = {}
+                    deployment_info[environement]['project_name'] = project_name
+                    deployment_info[environement]['branch'] = branch_name
+                    deployment_info[environement]['workload'] = []                
+                workload_info = {}
+                workload_info['deployment_name']= deployments.metadata.name
+                workload_info['createion_timestamp']= str(deployments.metadata.creation_timestamp)
+                workload_info['pulicEnpoints'] = get_deployment_publicEndpoint(deployments.metadata.annotations['field.cattle.io/publicEndpoints'],work_node_ip)
+                workload_info['container'] = []
+                for container in deployments.spec.template.spec.containers:
+                    container_info = {}
+                    container_info['name'] = container.name
+                    container_info['image'] = container.image
+                    container_info['commit_id'] = get_container_commit_id(container)
+                    if container.name in list_container_status:
+                        container_info['state'] = list_container_status[container.name]['state']
+                        container_info['time'] = list_container_status[container.name]['time']
+                        container_info['restart'] = list_container_status[container.name]['restart']
+                    workload_info['container'].append(container_info)
+                deployment_info[environement]['workload'].append(workload_info)
+        return deployment_info
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+
 
 def deployment_analysis_containers(containers):
     try:
@@ -470,6 +520,39 @@ def deployment_analysis_containers(containers):
             container_info['name'] = container.name
             container_list.append(container_info)        
         return container_list
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+
+
+def get_deployment_publicEndpoint(public_endpoints,work_node_ip):
+    try:        
+        list_public_endpoint = []
+        for public_endpoint in json.loads(public_endpoints):
+            endpoint_info ={}
+            if "hostname" in public_endpoint:
+                endpoint_info['name'] = public_endpoint['serviceName']               
+                endpoint_info['url'] = "http://{0}/{1}".format(public_endpoint['hostname'], public_endpoint['path'])
+                list_public_endpoint.append(endpoint_info)
+            else:
+                endpoint_info['name'] = public_endpoint['serviceName']               
+                endpoint_info['url'] = "http://{0}:{1}".format(work_node_ip, public_endpoint['port'])
+                list_public_endpoint.append(endpoint_info)
+        return list_public_endpoint
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+
+
+def get_container_commit_id(container):
+    try:
+        commit_id = ''
+        if container.env is not None:
+            for env  in container.env:                                                
+                 if env.name is 'commitID':
+                     commit_id = env.value
+                     break
+        return commit_id
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
