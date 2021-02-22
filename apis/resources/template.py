@@ -135,7 +135,7 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id, tag
             if "steps" in stage:
                 for step in stage["steps"]:
                     for fun_key, fun_value in step.items():
-                        # Replace Sysytem parameters, like harbor.host, registry.
+                        # Replace System parameters, like harbor.host, registry.
                         if fun_key == "applyAppConfig":
                             for ans_key in  fun_value["answers"].keys():
                                 if ans_key in template_replace_dict:
