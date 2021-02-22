@@ -59,7 +59,7 @@ def __tm_get_git_pipline_json(repository_id, tag_name):
 def tm_get_template_list():
     output = []
     gl = Gitlab(config.get("GITLAB_BASE_URL"), private_token=config.get("GITLAB_PRIVATE_TOKEN"))
-    group = gl.groups.get("iii-org-app", all=True)
+    group = gl.groups.get("iiidevops-templates", all=True)
     for group_project in group.projects.list():
         pj = gl.projects.get(group_project.id)
         # get all tags
