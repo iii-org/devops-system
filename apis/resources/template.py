@@ -3,6 +3,7 @@ import dateutil.parser
 import sys
 import subprocess
 import shutil
+from pathlib import Path
 import yaml
 
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -58,7 +59,7 @@ def __tm_get_git_pipline_json(repository_id, tag_name):
 def tm_get_template_list():
     output = []
     gl = Gitlab(config.get("GITLAB_BASE_URL"), private_token=config.get("GITLAB_PRIVATE_TOKEN"))
-    group = gl.groups.get("iii-org-app", all=True)
+    group = gl.groups.get("iiidevops-templates", all=True)
     for group_project in group.projects.list():
         pj = gl.projects.get(group_project.id)
         # get all tags
@@ -124,18 +125,25 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id, tag
     pj = gl.projects.get(user_repository_id)
     pj_http_url = pj.http_url_to_repo
     secret_pj_http_url = pj_http_url[:7] + f"root:{gitlab_private_token}@" + pj_http_url[7:]
+    Path("pj_push_template").mkdir(exist_ok=True)
     subprocess.call(['git', 'clone', '--branch', tag_info_dict["tag_name"], secret_temp_http_url
-                     , pj.path])
-    subprocess.call(['git', 'config', '--global', 'user.email', '"system@iiidevops.org"'], cwd=pj.path)
-    subprocess.call(['git', 'config', '--global', 'user.name', '"system"'], cwd=pj.path)
+                     , f"pj_push_template/{pj.path}"])
+    git_user_email_proc = subprocess.Popen(['git', 'config', 'user.email'], stdout=subprocess.PIPE, shell=False)
+    git_user_name_proc = subprocess.Popen(['git', 'config', 'user.name'], stdout=subprocess.PIPE, shell=False)
+    git_user_email = git_user_email_proc.stdout.read().decode("utf-8")
+    git_user_name = git_user_name_proc.stdout.read().decode("utf-8")
+    if git_user_email == "":
+        subprocess.call(['git', 'config', '--global', 'user.email', '"system@iiidevops.org"'], cwd=f"pj_push_template/{pj.path}")
+    if git_user_name == "":
+        subprocess.call(['git', 'config', '--global', 'user.name', '"system"'], cwd=f"pj_push_template/{pj.path}")
     pipe_json = None
-    with open(f'{pj.path}/{pipe_yaml_file_name}') as file:
+    with open(f'pj_push_template/{pj.path}/{pipe_yaml_file_name}') as file:
         pipe_json = yaml.safe_load(file)
         for stage in pipe_json["stages"]:
             if "steps" in stage:
                 for step in stage["steps"]:
                     for fun_key, fun_value in step.items():
-                        # Replace Sysytem parameters, like harbor.host, registry.
+                        # Replace System parameters, like harbor.host, registry.
                         if fun_key == "applyAppConfig":
                             for ans_key in  fun_value["answers"].keys():
                                 if ans_key in template_replace_dict:
@@ -153,16 +161,16 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id, tag
                             for parm_key in fun_value.keys():
                                 if parm_key in template_replace_dict:
                                     fun_value[parm_key] = template_replace_dict[parm_key]
-    with open(f'{pj.path}/{pipe_yaml_file_name}', 'w') as file:
+    with open(f'pj_push_template/{pj.path}/{pipe_yaml_file_name}', 'w') as file:
         documents = yaml.dump(pipe_json, file)
-    subprocess.call(['git', 'branch'], cwd=pj.path)
-    subprocess.call(['rm', '-rf', f'{pj.path}/.git'])
-    subprocess.call(['git', 'init'], cwd=pj.path)
-    subprocess.call(['git', 'remote', 'add', 'origin', secret_pj_http_url], cwd=pj.path)
-    subprocess.call(['git', 'add', '.'], cwd=pj.path)
-    subprocess.call(['git', 'commit', '-m', '"範本 commit"'], cwd=pj.path)
-    subprocess.call(['git', 'push', '-u', 'origin', 'master'], cwd=pj.path)
-    shutil.rmtree(pj.path, ignore_errors=True)
+    subprocess.call(['git', 'branch'], cwd=f"pj_push_template/{pj.path}")
+    shutil.rmtree(f'pj_push_template/{pj.path}/.git')
+    subprocess.call(['git', 'init'], cwd=f"pj_push_template/{pj.path}")
+    subprocess.call(['git', 'remote', 'add', 'origin', secret_pj_http_url], cwd=f"pj_push_template/{pj.path}")
+    subprocess.call(['git', 'add', '.'], cwd=f"pj_push_template/{pj.path}")
+    subprocess.call(['git', 'commit', '-m', '"範本 commit"'], cwd=f"pj_push_template/{pj.path}")
+    subprocess.call(['git', 'push', '-u', 'origin', 'master'], cwd=f"pj_push_template/{pj.path}")
+    shutil.rmtree(f"pj_push_template/{pj.path}", ignore_errors=True)
 
 
 class TemplateList(Resource):

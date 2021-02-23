@@ -168,6 +168,7 @@ api.add_resource(project.ListMyProjects, '/project/list')
 api.add_resource(project.SingleProject, '/project', '/project/<sint:project_id>')
 api.add_resource(project.ProjectsByUser, '/projects_by_user/<int:user_id>')
 api.add_resource(project.ProjectUserList, '/project/<sint:project_id>/user/list')
+api.add_resource(project.ProjectPluginUsage,'/project/<sint:project_id>/plugin/resource')
 api.add_resource(project.ProjectUserResource, '/project/<sint:project_id>/resource')
 api.add_resource(project.ProjectUserResourcePod, '/project/<sint:project_id>/resource/list/pod', 
                  '/project/<sint:project_id>/resource/list/pod/<pod_name>')
@@ -199,23 +200,16 @@ api.add_resource(project.ProjectDeployEnvironment, '/project/<sint:project_id>/d
 # Gitlab project
 api.add_resource(gitlab.GitProjectBranches, '/repositories/<repository_id>/branches')
 api.add_resource(gitlab.GitProjectBranch,
-                 '/repositories/rd/<repository_id>/branch/<branch_name>',
                  '/repositories/<repository_id>/branch/<branch_name>')
 api.add_resource(gitlab.GitProjectRepositories,
-                 '/repositories/rd/<repository_id>/branch/<branch_name>/tree',
                  '/repositories/<repository_id>/branch/<branch_name>/tree')
 api.add_resource(gitlab.GitProjectFile,
-                 '/repositories/rd/<repository_id>/branch/files',
                  '/repositories/<repository_id>/branch/files',
-                 '/repositories/rd/<repository_id>/branch/<branch_name>/files/<file_path>',
-                 '/repositories<repository_id>/branch/<branch_name>/files/<file_path>')
+                 '/repositories/<repository_id>/branch/<branch_name>/files/<file_path>')
 api.add_resource(gitlab.GitProjectTag,
-                 '/repositories/rd/<repository_id>/tags/<tag_name>',
                  '/repositories/<repository_id>/tags/<tag_name>',
-                 '/repositories/rd/<repository_id>/tags',
                  '/repositories/<repository_id>/tags')
 api.add_resource(gitlab.GitProjectBranchCommits,
-                 '/repositories/rd/<repository_id>/commits',
                  '/repositories/<repository_id>/commits')
 api.add_resource(gitlab.GitProjectNetwork, '/repositories/<repository_id>/overview')
 api.add_resource(gitlab.GitProjectId, '/repositories/<repository_id>/id')
@@ -234,11 +228,10 @@ api.add_resource(user.UserSaConfig, '/user/<int:user_id>/config')
 api.add_resource(role.RoleList, '/user/role/list')
 
 # pipeline
-api.add_resource(pipeline.PipelineExec, '/pipelines/rd/<repository_id>/pipelines_exec',
+api.add_resource(pipeline.PipelineExec,
                  '/pipelines/<repository_id>/pipelines_exec')
 api.add_resource(pipeline.PipelineExecAction, '/pipelines/<repository_id>/pipelines_exec/action')
-api.add_resource(pipeline.PipelineExecLogs, '/pipelines/rd/logs',
-                 '/pipelines/logs')
+api.add_resource(pipeline.PipelineExecLogs, '/pipelines/logs')
 api.add_resource(pipeline.PipelineSoftware, '/pipelines/software')
 api.add_resource(pipeline.PipelinePhaseYaml,
                  '/pipelines/<repository_id>/branch/<branch_name>/phase_yaml')
@@ -261,15 +254,14 @@ api.add_resource(issue.SingleIssue, '/issues', '/issues/<issue_id>')
 api.add_resource(issue.IssueStatus, '/issues_status')
 api.add_resource(issue.IssuePriority, '/issues_priority')
 api.add_resource(issue.IssueTracker, '/issues_tracker')
-api.add_resource(issue.IssueRDbyUser, '/issues_by_user/rd/<user_id>',
-                 '/issues_by_user/<user_id>')
+api.add_resource(issue.IssueRDbyUser, '/issues_by_user/<user_id>')
 api.add_resource(issue.MyIssueStatistics, '/issues/statistics')
 api.add_resource(issue.MyOpenIssueStatistics, '/issues/open_statistics')
 api.add_resource(issue.MyIssueWeekStatistics, '/issues/week_statistics')
 api.add_resource(issue.MyIssueMonthStatistics, '/issues/month_statistics')
 
 # dashboard
-api.add_resource(issue.DashboardIssuePriority, '/dashboard_issues_priority/rd/<user_id>',
+api.add_resource(issue.DashboardIssuePriority,
                  '/dashboard_issues_priority/<user_id>')
 api.add_resource(issue.DashboardIssueProject, '/dashboard_issues_project/<user_id>')
 api.add_resource(issue.DashboardIssueType, '/dashboard_issues_type/<user_id>')

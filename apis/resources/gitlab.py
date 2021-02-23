@@ -110,7 +110,7 @@ class GitLab(object):
         }).json()
 
     def gl_get_project(self, repo_id):
-        return self.__api_get('/projects/{0}'.format(repo_id)).json()
+        return self.__api_get('/projects/{0}'.format(repo_id),{'statistics':'true'}).json()
 
     def gl_update_project(self, repo_id, description):
         params = {'description': description}

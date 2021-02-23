@@ -248,7 +248,6 @@ class Rancher(object):
     def rc_delete_secrets_into_rc_all(self, secret_name):
         self.rc_get_project_id()
         url = f'/projects/{self.project_id}/secrets/{self.project_id.split(":")[1]}:{secret_name}'
-        print(f"url: {url}")
         output = self.__api_delete(url)
         return output.json()
 
@@ -286,6 +285,24 @@ class Rancher(object):
         url = f'/catalogs'
         output = self.__api_post(url, data=body)
         return output.json()
+    
+    def rc_get_apps_all(self):
+        self.rc_get_project_id()
+        url = f'/projects/{self.project_id}/apps'
+        output = self.__api_get(url)
+        return output.json()['data']
+    
+    def rc_del_app(self, app_name):
+        self.rc_get_project_id()
+        url = f"/projects/{self.project_id}/apps/{self.project_id.split(':')[1]}:{app_name}"
+        output = self.__api_delete(url)
+    
+    def rc_del_app_when_devops_del_pj(self, project_name):
+        apps = self.rc_get_apps_all()
+        for app in apps:
+            if project_name == app["targetNamespace"]:
+                self.rc_del_app(app["name"])
+        
 
 rancher = Rancher()
 
