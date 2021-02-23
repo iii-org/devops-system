@@ -285,6 +285,12 @@ class Rancher(object):
         url = f'/catalogs'
         output = self.__api_post(url, data=body)
         return output.json()
+
+    def rc_refresh_catalogs(self):
+        params = {"action": "refresh"}
+        url = f'/catalogs/iii-dev-charts3'
+        output = self.__api_post(url, params=params)
+        return output.json()
     
     def rc_get_apps_all(self):
         self.rc_get_project_id()
@@ -323,3 +329,8 @@ class Catalogs(Resource):
         args = parser.parse_args()
         output = rancher.rc_add_catalogs(args)
         return util.success(output)
+
+class Catalogs_Refresh(Resource):
+    @jwt_required
+    def post(self):
+        return util.success(rancher.rc_refresh_catalogs())
