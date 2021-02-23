@@ -876,6 +876,20 @@ def get_kubernetes_namespace_ingress(project_id):
     ingress_list = kubernetesClient.list_ingress(project_name)
     return util.success(ingress_list)
 
+
+def get_plugin_usage(project_id):
+    project_plugin_relation = model.ProjectPluginRelation.query.filter_by(project_id=project_id).first()    
+    plugin_info = {}
+    plugin_info['used'] = {}
+    plugin_info['quota'] = {}
+    harbor_info = harbor.hb_get_project_summary(project_plugin_relation.harbor_project_id)
+    plugin_info['used']['harbor'] = harbor_info['quota']['used']['storage']
+    plugin_info['quota']['harbor'] = harbor_info['quota']['hard']['storage']
+    gitlab_info = gitlab.gl_get_project(project_plugin_relation.git_repository_id)
+    plugin_info['used']['gitlab'] = gitlab_info['statistics']['storage_size']
+    plugin_info['quota']['gitlab'] = None    
+    return util.success(plugin_info)
+
 # --------------------- Resources ---------------------
 class ListMyProjects(Resource):
     @jwt_required
@@ -999,6 +1013,25 @@ class ProjectUserList(Resource):
         parser.add_argument('exclude', type=int)
         args = parser.parse_args()
         return user.user_list_by_project(project_id, args)
+
+class ProjectPluginUsage(Resource):
+    @jwt_required
+    def get(self, project_id):
+        role.require_in_project(project_id, "Error while getting project info.")
+        return get_plugin_usage(project_id)
+
+    @jwt_required
+    def put(self, project_id):
+        role.require_admin("Error while updating project resource.")
+        parser = reqparse.RequestParser()
+        parser.add_argument('memory', type=str, required=True)
+        parser.add_argument('pods', type=int, required=True)
+        parser.add_argument('secrets', type=int, required=True)
+        parser.add_argument('configmaps', type=int, required=True)
+        parser.add_argument('services.nodeports', type=int, required=True)
+        parser.add_argument('persistentvolumeclaims', type=int, required=True)
+        args = parser.parse_args()
+        return update_kubernetes_namespace_Quota(project_id, args)
 
 
 class ProjectUserResource(Resource):

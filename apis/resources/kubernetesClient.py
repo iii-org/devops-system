@@ -549,7 +549,7 @@ def get_container_commit_id(container):
         commit_id = ''
         if container.env is not None:
             for env  in container.env:                                                
-                 if env.name is 'commitID':
+                 if env.name is 'git_commit_id':
                      commit_id = env.value
                      break
         return commit_id
