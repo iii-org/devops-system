@@ -248,7 +248,6 @@ class Rancher(object):
     def rc_delete_secrets_into_rc_all(self, secret_name):
         self.rc_get_project_id()
         url = f'/projects/{self.project_id}/secrets/{self.project_id.split(":")[1]}:{secret_name}'
-        print(f"url: {url}")
         output = self.__api_delete(url)
         return output.json()
 
