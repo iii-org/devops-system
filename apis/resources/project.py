@@ -401,9 +401,10 @@ def delete_project(project_id):
         try_to_delete(harbor.hb_delete_project, harbor_project_id)
     try_to_delete(sonarqube.sq_delete_project, project_name)
 
-    corr = model.Project.query.filter_by(id=project_id).first()
+    # delete rancher app
+    try_to_delete(rancher.rc_del_app_when_devops_del_pj, project_name)
     # delete kubernetes namespace
-    try_to_delete(kubernetesClient.delete_namespace, corr.name)
+    try_to_delete(kubernetesClient.delete_namespace, project_name)
 
     # 如果gitlab & redmine project都成功被刪除則繼續刪除db內相關tables欄位
     db.engine.execute(
