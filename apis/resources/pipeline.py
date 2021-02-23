@@ -40,8 +40,9 @@ def pipeline_exec_list(repository_id):
         output_dict['commit_branch'] = pipeline_output['branch']
         output_dict['commit_id'] = pipeline_output['commit'][0:7]
         output_dict['commit_url'] = commit_id_to_url(relation.project_id,
-                                                     pipeline_output['commit']),
+                                                     pipeline_output['commit'])
         output_dict['execution_state'] = pipeline_output['executionState']
+        output_dict['transitioning_message'] = pipeline_output['transitioningMessage']
         stage_status = []
         for stage in pipeline_output['stages']:
             logger.info("stage: {0}".format(stage))
