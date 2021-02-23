@@ -365,6 +365,7 @@ api.add_resource(maintenance.registry_into_rc_all, '/maintenance/registry_into_r
 
 # Raccher
 api.add_resource(rancher.Catalogs, '/rancher/catalogs')
+api.add_resource(rancher.Catalogs_Refresh, '/rancher/catalogs_refresh')
 
 # Activity
 api.add_resource(activity.AllActivities, '/all_activities')
