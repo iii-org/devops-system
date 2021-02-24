@@ -444,8 +444,8 @@ def list_ingress(namespace):
 def list_deployment_environement(namespace):
     try:
         deployment_info = {}
-        list_node = list_work_node()
-        work_node_ip = list_node[0]['ip']
+        # list_node = list_work_node()
+        # work_node_ip = list_node[0]['ip']
         list_container_status = {}
         for pods in v1.list_namespaced_pod(namespace).items:
             if pods.status.container_statuses is not None:                
@@ -460,6 +460,7 @@ def list_deployment_environement(namespace):
                     list_container_status[container_status.name]['time'] = container_status_info['status_time']                        
                     list_container_status[container_status.name]['restart'] = container_status.restart_count
                     list_container_status[container_status.name]['commit'] = commit_id
+        
                                                                     
         for deployments in k8s_client.AppsV1Api().list_namespaced_deployment(namespace).items:
             if 'iiidevops.org/project_name' in deployments.spec.template.metadata.annotations and \
@@ -475,7 +476,8 @@ def list_deployment_environement(namespace):
                 workload_info = {}
                 workload_info['deployment_name']= deployments.metadata.name
                 workload_info['createion_timestamp']= str(deployments.metadata.creation_timestamp)
-                workload_info['pulicEnpoints'] = get_deployment_publicEndpoint(deployments.metadata.annotations['field.cattle.io/publicEndpoints'],work_node_ip)
+                workload_info['pulicEnpoints'] = get_deployment_publicEndpoint(deployments.metadata.annotations['field.cattle.io/publicEndpoints'])
+                # workload_info['pulicEnpoints'] = get_deployment_publicEndpoint(deployments.metadata.annotations['field.cattle.io/publicEndpoints'],work_node_ip)
                 workload_info['container'] = []
                 for container in deployments.spec.template.spec.containers:
                     container_info = {}
@@ -508,7 +510,7 @@ def deployment_analysis_containers(containers):
             raise e
 
 
-def get_deployment_publicEndpoint(public_endpoints,work_node_ip):
+def get_deployment_publicEndpoint(public_endpoints,work_node_ip = ''):
     try:        
         list_public_endpoint = []
         for public_endpoint in json.loads(public_endpoints):
