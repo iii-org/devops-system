@@ -8,6 +8,7 @@ import util as util
 import base64
 from kubernetes import client as k8s_client
 from kubernetes import config as k8s_config
+from .gitlab import gitlab
 
 from flask_restful import Resource, reqparse
 
@@ -441,11 +442,9 @@ def list_ingress(namespace):
             raise e
 
 
-def list_deployment_environement(namespace):
+def list_deployment_environement(namespace,git_url):
     try:
         deployment_info = {}
-        # list_node = list_work_node()
-        # work_node_ip = list_node[0]['ip']
         list_container_status = {}
         for pods in v1.list_namespaced_pod(namespace).items:
             if pods.status.container_statuses is not None:                
@@ -472,6 +471,8 @@ def list_deployment_environement(namespace):
                     deployment_info[environement] = {}
                     deployment_info[environement]['project_name'] = project_name
                     deployment_info[environement]['branch'] = branch_name
+                    deployment_info[environement]['commit_id'] = deployments.spec.template.metadata.annotations['iiidevops.org/commit_id']
+                    deployment_info[environement]['commit_url'] =f'{git_url[0:-4]}/-/commit/{commit_id}'                     
                     deployment_info[environement]['workload'] = []                
                 workload_info = {}
                 workload_info['deployment_name']= deployments.metadata.name
