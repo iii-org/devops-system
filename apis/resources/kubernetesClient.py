@@ -448,15 +448,19 @@ def list_deployment_environement(namespace):
         work_node_ip = list_node[0]['ip']
         list_container_status = {}
         for pods in v1.list_namespaced_pod(namespace).items:
-            if pods.status.container_statuses is not None:
+            if pods.status.container_statuses is not None:                
+                commit_id = ''
+                if 'iiidevops.org/commit_id' in pods.metadata.annotations:
+                    commit_id = pods.metadata.annotations['iiidevops.org/commit_id']
                 for container_status in pods.status.container_statuses:
-                    container_status_info = analysis_container_status_time(container_status)
                     if container_status.name not in list_container_status:
                         list_container_status[container_status.name] = {}
-                        list_container_status[container_status.name]['state'] = container_status_info['state']
-                        list_container_status[container_status.name]['time'] = container_status_info['status_time']
-                        list_container_status[container_status.name]['restart'] = container_status.restart_count
-                        
+                    container_status_info = analysis_container_status_time(container_status)                    
+                    list_container_status[container_status.name]['state'] = container_status_info['state']
+                    list_container_status[container_status.name]['time'] = container_status_info['status_time']                        
+                    list_container_status[container_status.name]['restart'] = container_status.restart_count
+                    list_container_status[container_status.name]['commit'] = commit_id
+                                                                    
         for deployments in k8s_client.AppsV1Api().list_namespaced_deployment(namespace).items:
             if 'iiidevops.org/project_name' in deployments.spec.template.metadata.annotations and \
                 'iiidevops.org/branch' in  deployments.spec.template.metadata.annotations:    
@@ -481,6 +485,7 @@ def list_deployment_environement(namespace):
                         container_info['state'] = list_container_status[container.name]['state']
                         container_info['time'] = list_container_status[container.name]['time']
                         container_info['restart'] = list_container_status[container.name]['restart']
+                        container_info['commit'] = list_container_status[container.name]['commit']
                     workload_info['container'].append(container_info)
                 deployment_info[environement]['workload'].append(workload_info)
         return deployment_info
