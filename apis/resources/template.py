@@ -4,6 +4,7 @@ import sys
 import subprocess
 import shutil
 from pathlib import Path
+import json
 import yaml
 
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -67,22 +68,20 @@ def tm_get_template_list():
         for tag in pj.tags.list():
             tag_list.append({"name": tag.name, "commit_id": tag.commit["id"], 
                              "commit_time":tag.commit["committed_date"]})
-        summary = {"h1": [], "h2": []}
-        files = pj.repository_tree()
-        for file in files:
-            if file["name"] == "README.md":
-                f_raw = pj.files.raw(file_path="README.md", ref = pj.default_branch)
-                
-                for line in f_raw.decode().split('\n'):
-                    if line.count("#", 0, 5) == 2:
-                        summary["h2"].append(line[2:])
-                    elif line.count("#", 0, 5) == 1:
-                        summary["h1"].append(line[1:])
+        iiidevops_folder = pj.repository_tree(path="iiidevops")
+        pip_set_json = {}
+        for file in iiidevops_folder:
+            if file["name"] == "pipeline_settings.json":
+                f_raw = pj.files.raw(file_path="iiidevops/pipeline_settings.json", 
+                                     ref = pj.default_branch)
+                pip_set_json = json.loads(f_raw.decode())
         output.append({"id": pj.id,
                        "name": pj.name, 
-                       "path": pj.path, 
-                       "version": tag_list,
-                       "summary": summary})
+                       "path": pj.path,
+                       "display": pj.name if "name" not in pip_set_json else pip_set_json["name"],
+                       "description": 
+                           "" if "description" not in pip_set_json else pip_set_json["description"],
+                        "version": tag_list})
     return output
 
 
