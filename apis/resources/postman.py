@@ -22,18 +22,18 @@ def export_to_postman(project_id, target):
         'item': []
     }
 
-    cases = apiTest.get_testcase_by_project_id(project_id)
+    cases = apiTest.get_test_case_by_project_id(project_id)
     for case in cases:
         case_id = case['id']
         method = case['data']['method']
         path = case['data']['url']
         url = urlparse(target + path)
-        items = apiTest.get_testItem_by_testCase_id(case_id)
+        items = apiTest.get_test_item_by_tc_id(case_id)
         for item in items:
             item_id = item['id']
             o_item = {'name': '{0}-{1}'.format(case_id, item_id)}
             values = []
-            part_values = apiTest.get_testValue_by_testItem_id(item_id)
+            part_values = apiTest.get_test_value_by_ti_id(item_id)
             for value in part_values:
                 values.append(value)
 
