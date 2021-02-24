@@ -475,8 +475,8 @@ def list_deployment_environement(namespace):
                     deployment_info[environement]['workload'] = []                
                 workload_info = {}
                 workload_info['deployment_name']= deployments.metadata.name
-                workload_info['createion_timestamp']= str(deployments.metadata.creation_timestamp)
-                workload_info['pulicEnpoints'] = get_deployment_publicEndpoint(deployments.metadata.annotations['field.cattle.io/publicEndpoints'])
+                workload_info['creation_timestamp']= str(deployments.metadata.creation_timestamp)
+                workload_info['pulic_endpoints'] = get_deployment_publicEndpoint(deployments.metadata.annotations['field.cattle.io/publicEndpoints'])
                 # workload_info['pulicEnpoints'] = get_deployment_publicEndpoint(deployments.metadata.annotations['field.cattle.io/publicEndpoints'],work_node_ip)
                 workload_info['container'] = []
                 for container in deployments.spec.template.spec.containers:
