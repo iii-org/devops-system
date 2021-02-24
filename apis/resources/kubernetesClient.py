@@ -254,21 +254,10 @@ def list_pod(namespace):
             containers = []
             if pods.status.container_statuses is not None:
                 for container_status in pods.status.container_statuses:
-                    status=None
-                    status_time=None
-                    if container_status.state.running is not None:
-                        status = "running"
-                        if container_status.state.running.started_at is not None:
-                            status_time = str(container_status.state.running.started_at)
-                    elif container_status.state.terminated is not None:
-                        status = "terminated"
-                        if container_status.state.terminated.finished_at is not None:
-                            status_time = str(container_status.state.terminated.finished_at)
-                    else:
-                        status = "waiting"
+                    container_status_time = analysis_container_status_time(container_status)                    
                     containers.append({"name": container_status.name, "image": container_status.image,
-                                    "restart": container_status.restart_count, "state": status, 
-                                    "time": status_time})
+                                    "restart": container_status.restart_count, "state": container_status_time['state'], 
+                                    "time": container_status_time['status_time']})
             pod_list.append({'name':pods.metadata.name, 
                              "created_time": str(pods.metadata.creation_timestamp),
                              'containers': containers})
@@ -461,28 +450,18 @@ def list_deployment_environement(namespace):
         for pods in v1.list_namespaced_pod(namespace).items:
             if pods.status.container_statuses is not None:
                 for container_status in pods.status.container_statuses:
-                    status=None
-                    status_time=None
-                    if container_status.state.running is not None:
-                        status = "running"
-                        if container_status.state.running.started_at is not None:
-                            status_time = str(container_status.state.running.started_at)
-                    elif container_status.state.terminated is not None:
-                        status = "terminated"
-                        if container_status.state.terminated.finished_at is not None:
-                            status_time = str(container_status.state.terminated.finished_at)
-                    else:
-                        status = "waiting"
+                    container_status_info = analysis_container_status_time(container_status)
                     if container_status.name not in list_container_status:
                         list_container_status[container_status.name] = {}
-                        list_container_status[container_status.name]['state'] = status
-                        list_container_status[container_status.name]['time'] = status_time
+                        list_container_status[container_status.name]['state'] = container_status_info['state']
+                        list_container_status[container_status.name]['time'] = container_status_info['status_time']
                         list_container_status[container_status.name]['restart'] = container_status.restart_count
-
+                        
         for deployments in k8s_client.AppsV1Api().list_namespaced_deployment(namespace).items:
-            if 'iiidevops.org/project_name' in deployments.spec.template.metadata.labels and 'iiidevops.org/branch' in  deployments.spec.template.metadata.labels:    
-                project_name = deployments.spec.template.metadata.labels['iiidevops.org/project_name']
-                branch_name = deployments.spec.template.metadata.labels['iiidevops.org/branch']                                
+            if 'iiidevops.org/project_name' in deployments.spec.template.metadata.annotations and \
+                'iiidevops.org/branch' in  deployments.spec.template.metadata.annotations:    
+                project_name = deployments.spec.template.metadata.annotations['iiidevops.org/project_name']
+                branch_name = deployments.spec.template.metadata.annotations['iiidevops.org/branch']                                
                 environement = f'{project_name}:{branch_name}'
                 if environement not in deployment_info:
                     deployment_info[environement] = {}
@@ -498,7 +477,6 @@ def list_deployment_environement(namespace):
                     container_info = {}
                     container_info['name'] = container.name
                     container_info['image'] = container.image
-                    container_info['commit_id'] = get_container_commit_id(container)
                     if container.name in list_container_status:
                         container_info['state'] = list_container_status[container.name]['state']
                         container_info['time'] = list_container_status[container.name]['time']
@@ -529,30 +507,45 @@ def get_deployment_publicEndpoint(public_endpoints,work_node_ip):
     try:        
         list_public_endpoint = []
         for public_endpoint in json.loads(public_endpoints):
-            endpoint_info ={}
-            if "hostname" in public_endpoint:
-                endpoint_info['name'] = public_endpoint['serviceName']               
-                endpoint_info['url'] = "http://{0}/{1}".format(public_endpoint['hostname'], public_endpoint['path'])
-                list_public_endpoint.append(endpoint_info)
-            else:
-                endpoint_info['name'] = public_endpoint['serviceName']               
-                endpoint_info['url'] = "http://{0}:{1}".format(work_node_ip, public_endpoint['port'])
-                list_public_endpoint.append(endpoint_info)
+            public_info = PublicEndpoint(public_endpoint)            
+            list_public_endpoint.append(public_info.get_public_endpoint())
         return list_public_endpoint
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
 
-
-def get_container_commit_id(container):
+def analysis_container_status_time(container_status):
     try:
-        commit_id = ''
-        if container.env is not None:
-            for env  in container.env:                                                
-                 if env.name is 'git_commit_id':
-                     commit_id = env.value
-                     break
-        return commit_id
+        container_status_time = {}
+        status=None
+        status_time=None
+        if container_status.state.running is not None:
+            status = "running"
+            if container_status.state.running.started_at is not None:
+                status_time = str(container_status.state.running.started_at)
+        elif container_status.state.terminated is not None:
+            status = "terminated"
+            if container_status.state.terminated.finished_at is not None:
+                status_time = str(container_status.state.terminated.finished_at)
+        else:
+            status = "waiting"
+        container_status_time['status_time'] = status_time
+        container_status_time['state'] = status
+        return container_status_time
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
+class PublicEndpoint():
+    def __init__(self,public_endpoint):
+        service_name_info = public_endpoint['serviceName'].split(":")        
+        self.service_name = service_name_info[0]
+        if "hostname" in public_endpoint:
+            self.url = "http://{0}/{1}".format(public_endpoint['hostname'], public_endpoint['path'])
+        else:
+            self.url = "http://{0}:{1}".format(public_endpoint['addresses'][0], public_endpoint['port'])
+    
+    def get_public_endpoint(self):
+        public_info = {}
+        public_info['service_name'] = self.service_name
+        public_info['url'] = self.url
+        return public_info

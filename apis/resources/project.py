@@ -1021,19 +1021,6 @@ class ProjectPluginUsage(Resource):
         role.require_in_project(project_id, "Error while getting project info.")
         return get_plugin_usage(project_id)
 
-    @jwt_required
-    def put(self, project_id):
-        role.require_admin("Error while updating project resource.")
-        parser = reqparse.RequestParser()
-        parser.add_argument('memory', type=str, required=True)
-        parser.add_argument('pods', type=int, required=True)
-        parser.add_argument('secrets', type=int, required=True)
-        parser.add_argument('configmaps', type=int, required=True)
-        parser.add_argument('services.nodeports', type=int, required=True)
-        parser.add_argument('persistentvolumeclaims', type=int, required=True)
-        args = parser.parse_args()
-        return update_kubernetes_namespace_Quota(project_id, args)
-
 
 class ProjectUserResource(Resource):
     @jwt_required
