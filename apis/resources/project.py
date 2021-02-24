@@ -262,7 +262,7 @@ def create_project(user_id, args):
         
         # Commit and push file by template , if template env is not None
         if args["template_id"] is not None:
-            template.tm_use_template_push_into_pj(int(args["template_id"]), gitlab_pj_id, 
+            template.tm_use_template_push_into_pj(args["template_id"], gitlab_pj_id, 
                                                   args["tag_name"], args["arguments"])
         
         return {
@@ -926,7 +926,7 @@ class SingleProject(Resource):
         parser.add_argument('display', type=str)
         parser.add_argument('description', type=str)
         parser.add_argument('disabled', type=bool, required=True)
-        parser.add_argument('template_id', type=str)
+        parser.add_argument('template_id', type=int)
         parser.add_argument('tag_name', type=str)
         parser.add_argument('arguments', type=dict)
         args = parser.parse_args()
