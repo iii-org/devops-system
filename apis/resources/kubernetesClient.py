@@ -143,6 +143,7 @@ def get_service_account_config(sa_name):
 
 def get_namespace_quota(namespace):
     namespace_quota = v1.read_namespaced_resource_quota("project-quota", namespace)
+    print(namespace_quota)
     resource = {
         'quota': namespace_quota.status.hard,
         'used': namespace_quota.status.used

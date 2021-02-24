@@ -880,15 +880,9 @@ def get_kubernetes_namespace_ingress(project_id):
 
 def get_plugin_usage(project_id):
     project_plugin_relation = model.ProjectPluginRelation.query.filter_by(project_id=project_id).first()    
-    plugin_info = {}
-    plugin_info['used'] = {}
-    plugin_info['quota'] = {}
-    harbor_info = harbor.hb_get_project_summary(project_plugin_relation.harbor_project_id)
-    plugin_info['used']['harbor'] = harbor_info['quota']['used']['storage']
-    plugin_info['quota']['harbor'] = harbor_info['quota']['hard']['storage']
-    gitlab_info = gitlab.gl_get_project(project_plugin_relation.git_repository_id)
-    plugin_info['used']['gitlab'] = gitlab_info['statistics']['storage_size']
-    plugin_info['quota']['gitlab'] = None    
+    plugin_info = []
+    plugin_info.append(harbor.get_storage_usage(project_plugin_relation.harbor_project_id))
+    plugin_info.append(gitlab.gl_get_storage_usage(project_plugin_relation.git_repository_id))
     return util.success(plugin_info)
 
 # --------------------- Resources ---------------------

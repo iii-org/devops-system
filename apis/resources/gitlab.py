@@ -231,6 +231,18 @@ class GitLab(object):
                                 params={'ref': branch})
         return {"file_list": output.json()}
 
+    def gl_get_storage_usage(self, repo_id):
+        project_detail = self.gl_get_project(repo_id)
+        usage_info = {}
+        usage_info['title'] = 'GitLab'
+        usage_info['used'] = {}
+        usage_info['quota'] = {}
+        usage_info['used']['value']= project_detail['statistics']['storage_size']
+        usage_info['used']['unit']= ""
+        usage_info['quota']['value']= ""
+        usage_info['quota']['unit']= ""    
+        return usage_info
+                
     def __edit_file_exec(self, method, repo_id, args):
         path = '/projects/{0}/repository/files/{1}'.format(repo_id, args['file_path'])
         params = {}

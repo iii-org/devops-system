@@ -228,6 +228,20 @@ def hb_build_external_link(path):
     return f"{config.get('HARBOR_EXTERNAL_BASE_URL')}{path}"
 
 
+def get_storage_usage(project_id):
+    
+    habor_info = hb_get_project_summary(project_id)
+    usage_info = {}
+    usage_info['title'] = 'Harbor'
+    usage_info['used'] = {}
+    usage_info['used']['value']= habor_info['quota']['used']['storage']
+    usage_info['used']['unit']= ''
+    usage_info['quota'] = {}
+    usage_info['quota']['value']= habor_info['quota']['hard']['storage']
+    usage_info['quota']['unit']= ''
+    return usage_info
+
+
 # ----------------- Resources -----------------
 def extract_names():
     parser = reqparse.RequestParser()
