@@ -19,6 +19,10 @@ from resources.logger import logger
 
 import pprint
 
+iii_template = {}
+iii_template['project_name'] = 'iiidevops.org/project_name'
+iii_template['branch'] = 'iiidevops.org/branch'
+iii_template['commit_id'] = 'iiidevops.org/commit_id'
 con = k8s_client.Configuration()
 con.verify_ssl = False
 k8s_client.Configuration.set_default(con)
@@ -329,15 +333,7 @@ def delete_deployment(namespace, name):
         if e.status_code != 404:
             raise e
 
-# def delete_deployment_by_branch(namespace, branch_name):
-#     try:
-#         deployments = Deployment(namespace)
-#         check = deployments.is_iii()
-#         print(type(check))        
-#         return {"123":{}}
-#     except apiError.DevOpsError as e:
-#         if e.status_code != 404:
-#             raise e
+
 
 def list_service(namespace):
     try:
@@ -454,7 +450,7 @@ def list_ingress(namespace):
             raise e
 
 
-def list_deployment_environement(namespace,git_url):
+def list_deploy_environement(namespace,git_url):
     try:        
         # Analysis Pod Information\        
 
@@ -463,13 +459,13 @@ def list_deployment_environement(namespace,git_url):
             if pods.status.container_statuses is not None:                
                 annotations = pods.metadata.annotations
                 labels = pods.metadata.labels
-                if 'iiidevops.org/project_name' in annotations and \
-                    'iiidevops.org/branch' in annotations and \
-                    'iiidevops.org/commit_id' in annotations and \
+                if iii_template['project_name'] in annotations and \
+                    iii_template['branch'] in annotations and \
+                    iii_template['commit_id'] in annotations and \
                     'app' in labels:
-                    project_name = annotations['iiidevops.org/project_name']
-                    branch = annotations['iiidevops.org/branch']
-                    commit_id = annotations['iiidevops.org/commit_id']
+                    project_name = annotations[iii_template['project_name']]
+                    branch = annotations[iii_template['branch']]
+                    commit_id = annotations[iii_template['commit_id']]
                     deployment_name = labels['app']
                     environement = f'{project_name}:{branch}'
                     if environement not in pods_info:
@@ -500,13 +496,13 @@ def list_deployment_environement(namespace,git_url):
         for service in v1.list_namespaced_service(namespace).items:
             annotations = service.metadata.annotations
             labels = service.metadata.labels
-            if 'iiidevops.org/project_name' in annotations and \
-                'iiidevops.org/branch' in annotations and \
-                'iiidevops.org/commit_id' in annotations and \
+            if iii_template['project_name'] in annotations and \
+                iii_template['branch'] in annotations and \
+                iii_template['commit_id'] in annotations and \
                 'app' in labels:
-                project_name = annotations['iiidevops.org/project_name']
-                branch = annotations['iiidevops.org/branch']
-                commit_id = annotations['iiidevops.org/commit_id']
+                project_name = annotations[iii_template['project_name']]
+                branch = annotations[iii_template['branch']]
+                commit_id = annotations[iii_template['commit_id']]
                 deployment_name = labels['app']   
                 environement = f'{project_name}:{branch}'
                 if environement not in services_info:
@@ -530,19 +526,19 @@ def list_deployment_environement(namespace,git_url):
             annotations = deployment.metadata.annotations
             labels = deployment.metadata.labels
             # print(labels)
-            if 'iiidevops.org/project_name' in annotations and \
-                'iiidevops.org/branch' in annotations and \
-                'iiidevops.org/commit_id' in annotations and\
+            if iii_template['project_name'] in annotations and \
+                iii_template['branch'] in annotations and \
+                iii_template['commit_id'] in annotations and\
                 'app' in labels:                
-                project_name = annotations['iiidevops.org/project_name']
-                branch_name = annotations['iiidevops.org/branch'] 
-                commit_id = annotations['iiidevops.org/commit_id']                                                               
+                project_name = annotations[iii_template['project_name']]
+                branch_name = annotations[iii_template['branch']] 
+                commit_id = annotations[iii_template['commit_id']]                                                               
                 environement = f'{project_name}:{branch_name}'
                 if environement not in deployments_info:
                     deployments_info[environement] = {}
                     deployments_info[environement]['project_name'] = project_name
                     deployments_info[environement]['branch'] = branch_name
-                    deployments_info[environement]['commit_id'] = annotations['iiidevops.org/commit_id']
+                    deployments_info[environement]['commit_id'] = annotations[iii_template['commit_id']]
                     deployments_info[environement]['commit_url'] =f'{git_url[0:-4]}/-/commit/{commit_id}'                     
                     deployments_info[environement]['deployment'] = []                
                 deployment_info= {}
@@ -564,8 +560,24 @@ def list_deployment_environement(namespace,git_url):
             raise e
 
 
-def delete_deployment_by_environment():
-    return {}
+
+def delete_deploy_environment_by_branch(namespace, branch_name):
+    try:
+        for deployment in k8s_client.AppsV1Api().list_namespaced_deployment(namespace).items:
+            info  = {}
+            annotations = deployment.metadata.annotations
+            labels = deployment.metadata.labels
+            is_iii = check_if_iii_template(annotations, labels)
+            print(is_iii)
+            if is_iii is True:
+                deployment_info = Deployment(deployment)
+                info = deployment_info.get_info()
+        
+        return info
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+
 
 def deployment_analysis_containers(containers):
     try:
@@ -613,6 +625,37 @@ def analysis_container_status_time(container_status):
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
+
+
+
+def check_if_iii_template(annotations, labels):
+    is_iii = False
+    if iii_template['project_name'] in annotations and \
+        iii_template['branch'] in annotations and \
+        iii_template['commit_id'] in annotations and\
+        'app' in labels:  
+        is_iii = True
+    return is_iii
+
+
+class Deployment():    
+    def __init__(self,deployment):
+        self.labels =  deployment.metadata.labels['app']
+        self.project_name = deployment.metadata.annotations[iii_template['project_name']]
+        self.branch_name = deployment.metadata.annotations[iii_template['branch']] 
+        self.commit_id = deployment.metadata.annotations[iii_template['commit_id']]  
+
+
+    def get_info(self): 
+        info = {}
+        info ['label'] = self.labels
+        info['branch'] = self.branch_name
+        info['project_name'] = self.project_name
+        info['commit_id'] = self.commit_id
+        return info
+
+
+
 class PublicEndpoint():
     def __init__(self,public_endpoint):
         service_name_info = public_endpoint['serviceName'].split(":")        
@@ -631,29 +674,6 @@ class PublicEndpoint():
 
 
 
-def check_iii_template(annotations, labels):
-    is_iii = False
-    if 'iiidevops.org/project_name' in annotations and \
-        'iiidevops.org/branch' in annotations and \
-        'iiidevops.org/commit_id' in annotations and\
-        'app' in labels:  
-        is_iii = True
-    return is_iii
-
-
-
-
-class Deployment():    
-    def __init__(self,deployment) -> None:
-        self.annotations = deployment.metadata.annotations
-        self.labels =  deployment.metadata.labels
-        self.deployment = deployment        
-        self.is_iii = check_iii_template(self.annotations, self.labels)          
-        pass
-
-    def by_iii(self):   
-        is_iii = self.is_iii
-        return is_iii
 
 
 
