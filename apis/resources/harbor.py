@@ -95,15 +95,18 @@ def hb_create_project(project_name):
 
 def hb_delete_project(harbor_param):
     try:
-        for repository in hb_list_repositories(harbor_param[1]):
-            split_list = repository["name"].split("/")
-            project_name = split_list[0]
-            repository_name = '/'.join(split_list[1:])
-            hb_delete_repository(project_name, repository_name)
+        repositoriest = hb_list_repositories(harbor_param[1])
+        if len(repositoriest) !=0:
+            for repository in repositoriest:
+                split_list = repository["name"].split("/")
+                project_name = split_list[0]
+                repository_name = '/'.join(split_list[1:])
+                hb_delete_repository(project_name, repository_name)
         __api_delete('/projects/{0}'.format(harbor_param[0]))
     except DevOpsError as e:
-        if e.status_code == 404:
-            # Deleting a not existing project, let it go
+        if e.status_code in [404, 403]:
+            # 404: Deleting a not existing project , let it go
+            # 403: list not existing repositories, let it go
             pass
         else:
             raise e
