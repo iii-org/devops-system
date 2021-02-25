@@ -452,8 +452,6 @@ def list_ingress(namespace):
 
 def list_deploy_environement(namespace,git_url):
     try:        
-        # Analysis Pod Information\        
-
         pods_info = {}
         for pods in v1.list_namespaced_pod(namespace).items:
             if pods.status.container_statuses is not None:                
@@ -490,7 +488,6 @@ def list_deploy_environement(namespace,git_url):
                         container_info['name'] = container_status.name
                         container_info['ready'] = container_status.ready
                         pods_info[environement]['deployments'][deployment_name]['containers'].append(container_info)        
-
         # Analysis Services Information
         services_info = {}
         for service in v1.list_namespaced_service(namespace).items:
@@ -518,8 +515,7 @@ def list_deploy_environement(namespace,git_url):
                     services_info[environement]['deployments'][deployment_name]['type'] = annotations['iiidevops.org/type']
                     services_info[environement]['deployments'][deployment_name]['services'] = []                                    
                 for service in analysis_annotations_public_endpoint(annotations['field.cattle.io/publicEndpoints']):
-                    services_info[environement]['deployments'][deployment_name]['services'].append(service)
-        
+                    services_info[environement]['deployments'][deployment_name]['services'].append(service)        
         # Analysis Deployment Information
         deployments_info = {}                                                      
         for deployment in k8s_client.AppsV1Api().list_namespaced_deployment(namespace).items:
@@ -597,8 +593,18 @@ def analysis_annotations_public_endpoint(public_endpoints,work_node_ip = ''):
     try:        
         list_public_endpoint = []
         for public_endpoint in json.loads(public_endpoints):
-            public_info = PublicEndpoint(public_endpoint)            
-            list_public_endpoint.append(public_info.get_public_endpoint())
+            public_info = {}
+            service_name_info = public_endpoint['serviceName'].split(":")        
+            service_name = service_name_info[0]
+            url = ''
+            if "hostname" in public_endpoint:
+                url = "http://{0}/{1}".format(public_endpoint['hostname'], public_endpoint['path'])
+            else:
+                url = "http://{0}:{1}".format(public_endpoint['addresses'][0], public_endpoint['port'])
+            public_info['service_name'] = service_name
+            public_info['url'] = url
+            list_public_endpoint.append(public_info)
+
         return list_public_endpoint
     except apiError.DevOpsError as e:
         if e.status_code != 404:
@@ -653,56 +659,3 @@ class Deployment():
         info['project_name'] = self.project_name
         info['commit_id'] = self.commit_id
         return info
-
-
-
-class PublicEndpoint():
-    def __init__(self,public_endpoint):
-        service_name_info = public_endpoint['serviceName'].split(":")        
-        self.service_name = service_name_info[0]
-        if "hostname" in public_endpoint:
-            self.url = "http://{0}/{1}".format(public_endpoint['hostname'], public_endpoint['path'])
-        else:
-            self.url = "http://{0}:{1}".format(public_endpoint['addresses'][0], public_endpoint['port'])
-    
-    def get_public_endpoint(self):
-        public_info = {}
-        public_info['service_name'] = self.service_name
-        public_info['url'] = self.url
-        return public_info
-
-
-
-
-
-
-
-
-    # def 
-        
-#     def get_pods_info(self):
-
-#         return {}
-
-#     def check_container_status(self):
-#         container_status =self.
-#         slef.pods.status.container_statuses
-#         container_status= {}
-#         status=None
-#         status_time=None
-#         if container_status.state.running is not None:
-#             status = "running"
-#             if container_status.state.running.started_at is not None:
-#                 status_time = str(container_status.state.running.started_at)
-#         elif container_status.state.terminated is not None:
-#             status = "terminated"
-#             if container_status.state.terminated.finished_at is not None:
-#                 status_time = str(container_status.state.terminated.finished_at)
-#         else:
-#             status = "waiting"
-#         container_status_time['status_time'] = status_time
-#         container_status_time['state'] = status
-#         return container_status_time
-#         # return 
-
-
