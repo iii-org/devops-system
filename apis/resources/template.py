@@ -139,9 +139,10 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id, tag
                                 if ans_key in template_replace_dict:
                                     fun_value["answers"][ans_key] = template_replace_dict[ans_key]
                                 # Replace by pipeline_settings.json default value
-                                for argument in pip_set_json["arguments"]:
-                                    if "default_value" in argument and argument["key"] == ans_key:
-                                        fun_value["answers"][ans_key] = argument["default_value"]
+                                if "arguments" in pip_set_json:
+                                    for argument in pip_set_json["arguments"]:
+                                        if "default_value" in argument and argument["key"] == ans_key:
+                                            fun_value["answers"][ans_key] = argument["default_value"]
                                 # Replace by user input parameter.
                                 if arguments is not None and ans_key in arguments:
                                     for arg_key, arg_value in arguments.items():
