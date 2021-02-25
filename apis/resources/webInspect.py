@@ -7,11 +7,11 @@ from flask_restful import Resource, reqparse
 
 import config
 import model
+import nexus
 import util
 from model import db
 # -------- API methods --------
-from resources import apiError, role
-from resources.apiError import DevOpsError
+from resources import apiError, role, gitlab
 from resources.logger import logger
 
 
@@ -60,9 +60,12 @@ def wi_create_scan(args):
 
 def wi_list_scans(project_name):
     ret = []
+    project_id = nexus.nx_get_project(name=project_name).id
     rows = model.WebInspect.query.filter_by(project_name=project_name).all()
     for row in rows:
-        ret.append(json.loads(str(row)))
+        d = json.loads(str(row))
+        d['issue_link'] = gitlab.commit_id_to_url(project_id, d['commit_id'])
+        ret.append(d)
     return ret
 
 
@@ -74,6 +77,8 @@ def wi_get_scan_status(scan_id):
         if not scan.finished:
             # This line will fill the data in db
             wi_get_scan_statistics(scan_id)
+    elif status == 'NotRunning' or status == 'Interrupted':
+        wi_set_scan_failed(scan_id, status)
     return status
 
 
@@ -81,7 +86,7 @@ def wi_get_scan_statistics(scan_id):
     row = model.WebInspect.query.filter_by(scan_id=scan_id).one()
     if row.stats is not None:
         return json.loads(row.stats)
-    ret = {0: 0, 1: 0, 2: 0, 3: 0, 4: 0}
+    ret = {0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 'status': 'Complete'}
     results = __api_get('/scanner/scans/{0}.issue'.format(scan_id)).json()
     for r in results:
         for issue in r['issues']:
@@ -91,6 +96,13 @@ def wi_get_scan_statistics(scan_id):
     row.finished = True
     db.session.commit()
     return ret
+
+
+def wi_set_scan_failed(scan_id, status):
+    row = model.WebInspect.query.filter_by(scan_id=scan_id).one()
+    row.stats = json.dumps({'status': status})
+    row.finished = True
+    db.session.commit()
 
 
 def wi_download_report(scan_id):

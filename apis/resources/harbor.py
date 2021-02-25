@@ -20,8 +20,8 @@ def __api_request(method, path, headers=None, params=None, data=None):
         params = {}
     if 'Content-Type' not in headers:
         headers['Content-Type'] = 'application/json'
-    auth = HTTPBasicAuth(config.get('HARBOR_ACCOUNT'), config.get('HARBOR_PASSWORD'))    
-    url = "{0}{1}".format(config.get('HARBOR_BASE_URL'), path)
+    auth = HTTPBasicAuth(config.get('HARBOR_ACCOUNT'), config.get('HARBOR_PASSWORD'))
+    url = "{0}{1}".format(config.get('HARBOR_INTERNAL_BASE_URL'), path)
 
     output = util.api_request(method, url, headers=headers,
                               params=params, data=data, auth=auth)
@@ -93,12 +93,20 @@ def hb_create_project(project_name):
     return hb_get_id_by_name(project_name)
 
 
-def hb_delete_project(project_id):
+def hb_delete_project(harbor_param):
     try:
-        __api_delete('/projects/{0}'.format(project_id))
+        repositoriest = hb_list_repositories(harbor_param[1])
+        if len(repositoriest) !=0:
+            for repository in repositoriest:
+                split_list = repository["name"].split("/")
+                project_name = split_list[0]
+                repository_name = '/'.join(split_list[1:])
+                hb_delete_repository(project_name, repository_name)
+        __api_delete('/projects/{0}'.format(harbor_param[0]))
     except DevOpsError as e:
-        if e.status_code == 404:
-            # Deleting a not existing project, let it go
+        if e.status_code in [404, 403]:
+            # 404: Deleting a not existing project , let it go
+            # 403: list not existing repositories, let it go
             pass
         else:
             raise e
@@ -121,6 +129,14 @@ def hb_create_user(args, is_admin=False):
 
 def hb_delete_user(user_id):
     __api_delete('/users/{0}'.format(user_id))
+
+
+def hb_update_user_password(user_id, new_pwd, old_pwd):
+    data = {
+        "new_password": new_pwd,
+        "old_password": old_pwd
+    }
+    __api_put(f'/users/{user_id}/password', data=data)
 
 
 def hb_add_member(project_id, user_id):
@@ -150,9 +166,9 @@ def hb_list_repositories(project_name):
     repositories = __api_get('/projects/{0}/repositories'.format(project_name)).json()
     ret = []
     for repo in repositories:
-        repo['harbor_link'] = build_link('/harbor/projects/{0}/repositories/{1}'.format(
-            repo['project_id'], 
-            repo['name'].replace((project_name+"/"),"")))
+        repo['harbor_link'] = hb_build_external_link('/harbor/projects/{0}/repositories/{1}'.format(
+            repo['project_id'],
+            repo['name'].replace((project_name + "/"), "")))
         ret.append(repo)
     return ret
 
@@ -216,8 +232,23 @@ def hb_get_project_summary(project_id):
     return __api_get('/projects/{0}/summary'.format(project_id)).json()
 
 
-def build_link(path):
-    return "https://{0}{1}".format(config.get('HARBOR_IP_PORT'), path)
+def hb_build_external_link(path):
+    return f"{config.get('HARBOR_EXTERNAL_BASE_URL')}{path}"
+
+
+def get_storage_usage(project_id):
+    
+    habor_info = hb_get_project_summary(project_id)
+    usage_info = {}
+    usage_info['title'] = 'Harbor'
+    usage_info['used'] = {}
+    usage_info['used']['value']= habor_info['quota']['used']['storage']
+    usage_info['used']['unit']= ''
+    usage_info['quota'] = {}
+    usage_info['quota']['value']= habor_info['quota']['hard']['storage']
+    usage_info['quota']['unit']= ''
+    return usage_info
+
 
 # ----------------- Resources -----------------
 def extract_names():

@@ -16,19 +16,8 @@ class Role:
 RD = Role(1, 'Engineer')
 PM = Role(3, 'Project Manager')
 ADMIN = Role(5, 'Administrator')
-ALL_ROLES = [RD, PM, ADMIN]
-
-
-def is_admin():
-    return get_jwt_identity()['role_id'] == ADMIN.id
-
-
-def is_pm():
-    return get_jwt_identity()['role_id'] == PM.id
-
-
-def is_rd():
-    return get_jwt_identity()['role_id'] == RD.id
+BOT = Role(6, 'Project BOT')
+ALL_ROLES = [RD, PM, ADMIN, BOT]
 
 
 def get_role_name(role_id):

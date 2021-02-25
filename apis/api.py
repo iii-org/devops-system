@@ -18,13 +18,14 @@ import model
 import resources.apiError as apiError
 import resources.checkmarx as checkmarx
 import resources.pipeline as pipeline
+import resources.rancher as rancher
 import util
 import maintenance
 from jsonwebtoken import jsonwebtoken
 from model import db
 from resources import logger, role as role, activity
-from resources import project, gitlab, issue, user, redmine, wiki, version, sonar, apiTest, postman, mock, harbor, \
-    webInspect
+from resources import project, gitlab, issue, user, redmine, wiki, version, sonarqube, apiTest, postman, mock, harbor, \
+    webInspect, template
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -56,9 +57,8 @@ def internal_error(exception):
         return util.respond(404, 'Path not found.',
                             error=apiError.path_not_found())
     if type(exception) is apiError.DevOpsError:
-        if exception.status_code != 404:
-            traceback.print_exc()
-            logger.logger.exception(str(exception))
+        traceback.print_exc()
+        logger.logger.exception(str(exception))
         return util.respond(exception.status_code, exception.message, error=exception.error_value)
     traceback.print_exc()
     logger.logger.exception(str(exception))
@@ -168,9 +168,12 @@ api.add_resource(project.ListMyProjects, '/project/list')
 api.add_resource(project.SingleProject, '/project', '/project/<sint:project_id>')
 api.add_resource(project.ProjectsByUser, '/projects_by_user/<int:user_id>')
 api.add_resource(project.ProjectUserList, '/project/<sint:project_id>/user/list')
+api.add_resource(project.ProjectPluginUsage,'/project/<sint:project_id>/plugin/resource')
 api.add_resource(project.ProjectUserResource, '/project/<sint:project_id>/resource')
 api.add_resource(project.ProjectUserResourcePod, '/project/<sint:project_id>/resource/list/pod', 
                  '/project/<sint:project_id>/resource/list/pod/<pod_name>')
+api.add_resource(project.ProjectUserResourcePodLog, 
+                 '/project/<sint:project_id>/resource/list/pod/<pod_name>/log')
 api.add_resource(project.ProjectUserResourceDeployment, '/project/<sint:project_id>/resource/list/deployment',
                  '/project/<sint:project_id>/resource/list/deployment/<deployment_name>')
 api.add_resource(project.ProjectUserResourceService, '/project/<sint:project_id>/resource/list/service',
@@ -179,6 +182,8 @@ api.add_resource(project.ProjectUserResourceSecret, '/project/<sint:project_id>/
                  '/project/<sint:project_id>/resource/list/secret/<secret_name>')
 api.add_resource(project.ProjectUserResourceConfigMap, '/project/<sint:project_id>/resource/list/configmap',
                  '/project/<sint:project_id>/resource/list/configmap/<configmap_name>')
+api.add_resource(project.ProjectUserResourceIngress, '/project/<sint:project_id>/resource/list/ingress',
+                 '/project/<sint:project_id>/resource/list/ingress/<ingress_name>')
 api.add_resource(project.ProjectMember, '/project/<sint:project_id>/member',
                  '/project/<sint:project_id>/member/<int:user_id>')
 api.add_resource(wiki.ProjectWikiList, '/project/<sint:project_id>/wiki')
@@ -187,27 +192,24 @@ api.add_resource(version.ProjectVersionList, '/project/<sint:project_id>/version
 api.add_resource(version.ProjectVersion, '/project/<sint:project_id>/version',
                  '/project/<sint:project_id>/version/<int:version_id>')
 api.add_resource(project.TestSummary, '/project/<sint:project_id>/test_summary')
+api.add_resource(template.TemplateList, '/template_list') 
+api.add_resource(template.SingleTemplate, '/template', '/template/<repository_id>') 
+
+api.add_resource(project.ProjectDeployEnvironment, '/project/<sint:project_id>/deployment/list')
 
 # Gitlab project
 api.add_resource(gitlab.GitProjectBranches, '/repositories/<repository_id>/branches')
 api.add_resource(gitlab.GitProjectBranch,
-                 '/repositories/rd/<repository_id>/branch/<branch_name>',
                  '/repositories/<repository_id>/branch/<branch_name>')
 api.add_resource(gitlab.GitProjectRepositories,
-                 '/repositories/rd/<repository_id>/branch/<branch_name>/tree',
                  '/repositories/<repository_id>/branch/<branch_name>/tree')
 api.add_resource(gitlab.GitProjectFile,
-                 '/repositories/rd/<repository_id>/branch/files',
                  '/repositories/<repository_id>/branch/files',
-                 '/repositories/rd/<repository_id>/branch/<branch_name>/files/<file_path>',
-                 '/repositories<repository_id>/branch/<branch_name>/files/<file_path>')
+                 '/repositories/<repository_id>/branch/<branch_name>/files/<file_path>')
 api.add_resource(gitlab.GitProjectTag,
-                 '/repositories/rd/<repository_id>/tags/<tag_name>',
                  '/repositories/<repository_id>/tags/<tag_name>',
-                 '/repositories/rd/<repository_id>/tags',
                  '/repositories/<repository_id>/tags')
 api.add_resource(gitlab.GitProjectBranchCommits,
-                 '/repositories/rd/<repository_id>/commits',
                  '/repositories/<repository_id>/commits')
 api.add_resource(gitlab.GitProjectNetwork, '/repositories/<repository_id>/overview')
 api.add_resource(gitlab.GitProjectId, '/repositories/<repository_id>/id')
@@ -226,11 +228,10 @@ api.add_resource(user.UserSaConfig, '/user/<int:user_id>/config')
 api.add_resource(role.RoleList, '/user/role/list')
 
 # pipeline
-api.add_resource(pipeline.PipelineExec, '/pipelines/rd/<repository_id>/pipelines_exec',
+api.add_resource(pipeline.PipelineExec,
                  '/pipelines/<repository_id>/pipelines_exec')
 api.add_resource(pipeline.PipelineExecAction, '/pipelines/<repository_id>/pipelines_exec/action')
-api.add_resource(pipeline.PipelineExecLogs, '/pipelines/rd/logs',
-                 '/pipelines/logs')
+api.add_resource(pipeline.PipelineExecLogs, '/pipelines/logs')
 api.add_resource(pipeline.PipelineSoftware, '/pipelines/software')
 api.add_resource(pipeline.PipelinePhaseYaml,
                  '/pipelines/<repository_id>/branch/<branch_name>/phase_yaml')
@@ -253,15 +254,14 @@ api.add_resource(issue.SingleIssue, '/issues', '/issues/<issue_id>')
 api.add_resource(issue.IssueStatus, '/issues_status')
 api.add_resource(issue.IssuePriority, '/issues_priority')
 api.add_resource(issue.IssueTracker, '/issues_tracker')
-api.add_resource(issue.IssueRDbyUser, '/issues_by_user/rd/<user_id>',
-                 '/issues_by_user/<user_id>')
+api.add_resource(issue.IssueRDbyUser, '/issues_by_user/<user_id>')
 api.add_resource(issue.MyIssueStatistics, '/issues/statistics')
 api.add_resource(issue.MyOpenIssueStatistics, '/issues/open_statistics')
 api.add_resource(issue.MyIssueWeekStatistics, '/issues/week_statistics')
 api.add_resource(issue.MyIssueMonthStatistics, '/issues/month_statistics')
 
 # dashboard
-api.add_resource(issue.DashboardIssuePriority, '/dashboard_issues_priority/rd/<user_id>',
+api.add_resource(issue.DashboardIssuePriority,
                  '/dashboard_issues_priority/<user_id>')
 api.add_resource(issue.DashboardIssueProject, '/dashboard_issues_project/<user_id>')
 api.add_resource(issue.DashboardIssueType, '/dashboard_issues_type/<user_id>')
@@ -304,7 +304,7 @@ api.add_resource(apiTest.TestValue, '/testValues/<value_id>')
 # Postman tests
 api.add_resource(postman.ExportToPostman, '/export_to_postman/<sint:project_id>')
 api.add_resource(postman.PostmanResults, '/postman_results/<sint:project_id>')
-api.add_resource(postman.PostmanReport, '/testResults', '/postman_report/<sint:project_id>')
+api.add_resource(postman.PostmanReport, '/testResults', '/postman_report/<int:id>')
 
 # Checkmarx report generation
 api.add_resource(checkmarx.CreateCheckmarxScan, '/checkmarx/create_scan')
@@ -326,8 +326,9 @@ api.add_resource(checkmarx.GetCheckmarxProject,
 # Get everything by issue_id
 api.add_resource(issue.DumpByIssue, '/dump_by_issue/<issue_id>')
 
-# Get Sonarqube report by project_id
-api.add_resource(sonar.SonarReport, '/sonar_report/<sint:project_id>')
+# Sonarqube
+api.add_resource(sonarqube.SonarScan, '/sonar_scan/<project_name>')
+api.add_resource(sonarqube.SonarReport, '/sonar_report/<sint:project_id>')
 
 # Files
 api.add_resource(project.ProjectFile, '/project/<sint:project_id>/file')
@@ -361,6 +362,10 @@ api.add_resource(maintenance.secretes_into_rc_all, '/maintenance/secretes_into_r
                  '/maintenance/secretes_into_rc_all/<secret_name>')
 api.add_resource(maintenance.registry_into_rc_all, '/maintenance/registry_into_rc_all',
                  '/maintenance/registry_into_rc_all/<registry_name>')
+
+# Raccher
+api.add_resource(rancher.Catalogs, '/rancher/catalogs')
+api.add_resource(rancher.Catalogs_Refresh, '/rancher/catalogs_refresh')
 
 # Activity
 api.add_resource(activity.AllActivities, '/all_activities')

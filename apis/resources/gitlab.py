@@ -26,13 +26,17 @@ def get_repo_url(project_id):
     return row.http_url
 
 
+def commit_id_to_url(project_id, commit_id):
+    return f'{get_repo_url(project_id)[0:-4]}/-/commit/{commit_id}'
+
+
 class GitLab(object):
     private_token = None
 
     def __init__(self):
         if config.get("GITLAB_API_VERSION") == "v3":
             # get gitlab admin token
-            url = "http://{0}/api/v3/session".format(config.get("GITLAB_IP_PORT"))
+            url = f'{config.get("GITLAB_BASE_URL")}/api/v3/session'
             param = {
                 "login": config.get("GITLAB_ADMIN_ACCOUNT"),
                 "password": config.get("GITLAB_ADMIN_PASSWORD")
@@ -72,11 +76,9 @@ class GitLab(object):
         if 'Content-Type' not in headers:
             headers['Content-Type'] = 'application/json'
 
-        url = "http://{0}/api/{1}{2}?private_token={3}".format(
-            config.get("GITLAB_IP_PORT"),
-            config.get("GITLAB_API_VERSION"),
-            path,
-            self.private_token)
+        url = f'{config.get("GITLAB_BASE_URL")}/api/' \
+              f'{config.get("GITLAB_API_VERSION")}{path}' \
+              f'?private_token={self.private_token}'
 
         output = util.api_request(method, url, headers, params, data)
 
@@ -108,7 +110,7 @@ class GitLab(object):
         }).json()
 
     def gl_get_project(self, repo_id):
-        return self.__api_get('/projects/{0}'.format(repo_id)).json()
+        return self.__api_get('/projects/{0}'.format(repo_id),{'statistics':'true'}).json()
 
     def gl_update_project(self, repo_id, description):
         params = {'description': description}
@@ -207,7 +209,10 @@ class GitLab(object):
                 "last_commit_message": branch_info["commit"]["message"],
                 "last_commit_time":
                     branch_info["commit"]["committed_date"],
-                "short_id": branch_info["commit"]["short_id"],
+                "short_id": branch_info["commit"]["short_id"][0:7],
+                'commit_url': commit_id_to_url(
+                    get_nexus_project_id(repo_id),
+                    branch_info['commit']['short_id']),
                 "env_url": env_url_list
             }
             branch_list.append(branch)
@@ -233,6 +238,18 @@ class GitLab(object):
                                 params={'ref': branch})
         return {"file_list": output.json()}
 
+    def gl_get_storage_usage(self, repo_id):
+        project_detail = self.gl_get_project(repo_id)
+        usage_info = {}
+        usage_info['title'] = 'GitLab'
+        usage_info['used'] = {}
+        usage_info['quota'] = {}
+        usage_info['used']['value']= project_detail['statistics']['storage_size']
+        usage_info['used']['unit']= ""
+        usage_info['quota']['value']= ""
+        usage_info['quota']['unit']= ""    
+        return usage_info
+                
     def __edit_file_exec(self, method, repo_id, args):
         path = '/projects/{0}/repository/files/{1}'.format(repo_id, args['file_path'])
         params = {}
@@ -335,6 +352,14 @@ class GitLab(object):
                               key=lambda c_list: c_list["committed_date"])
 
         return util.success(data_by_time)
+
+    def gl_create_access_token(self, user_id):
+        data = {
+            'name': 'IIIDevops Helm source code analysis',
+            'scopes': ['read_api']
+        }
+        return self.__api_post(f'/users/{user_id}/impersonation_tokens', data=data
+                               ).json()['token']
 
 
 # May throws NoResultFound

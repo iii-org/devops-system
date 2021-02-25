@@ -11,7 +11,7 @@ import resources.apiError as apiError
 import util as util
 from model import db, PipelineLogsCache
 from resources.logger import logger
-from .gitlab import GitLab
+from .gitlab import GitLab, commit_id_to_url
 from .rancher import rancher
 
 gitlab = GitLab()
@@ -38,8 +38,11 @@ def pipeline_exec_list(repository_id):
         else:
             output_dict['commit_message'] = None
         output_dict['commit_branch'] = pipeline_output['branch']
-        output_dict['commit_id'] = pipeline_output['commit']
+        output_dict['commit_id'] = pipeline_output['commit'][0:7]
+        output_dict['commit_url'] = commit_id_to_url(relation.project_id,
+                                                     pipeline_output['commit'])
         output_dict['execution_state'] = pipeline_output['executionState']
+        output_dict['transitioning_message'] = pipeline_output['transitioningMessage']
         stage_status = []
         for stage in pipeline_output['stages']:
             logger.info("stage: {0}".format(stage))
@@ -61,11 +64,11 @@ def pipeline_exec_logs(args):
         raise apiError.DevOpsError(
             404, 'No such project.',
             error=apiError.repository_id_not_found(args['repository_id']))
-    
+
     # search PipelineLogsCache table log
-    log_cache = PipelineLogsCache.query.filter(PipelineLogsCache.project_id == relation.project_id, 
-                                   PipelineLogsCache.ci_pipeline_id == relation.ci_pipeline_id,
-                                   PipelineLogsCache.run == args['pipelines_exec_run']).first()
+    log_cache = PipelineLogsCache.query.filter(PipelineLogsCache.project_id == relation.project_id,
+                                               PipelineLogsCache.ci_pipeline_id == relation.ci_pipeline_id,
+                                               PipelineLogsCache.run == args['pipelines_exec_run']).first()
     if log_cache is None:
         output_array, execution_state = rancher.rc_get_pipeline_executions_logs(
             relation.ci_project_id,
@@ -74,10 +77,10 @@ def pipeline_exec_logs(args):
 
         # if execution status is Failed, Success, Aborted, log will insert into ipelineLogsCache table 
         if execution_state in ['Failed', 'Success', 'Aborted']:
-            log = PipelineLogsCache(project_id = relation.project_id, 
-                                ci_pipeline_id = relation.ci_pipeline_id,
-                                run = args['pipelines_exec_run'],
-                                logs = output_array)
+            log = PipelineLogsCache(project_id=relation.project_id,
+                                    ci_pipeline_id=relation.ci_pipeline_id,
+                                    run=args['pipelines_exec_run'],
+                                    logs=output_array)
             db.session.add(log)
             db.session.commit()
         return util.success(output_array)
@@ -88,12 +91,12 @@ def pipeline_exec_logs(args):
 def pipeline_exec_action(git_repository_id, args):
     try:
         relation = model.ProjectPluginRelation.query.filter_by(
-            git_repository_id = git_repository_id).one()
+            git_repository_id=git_repository_id).one()
     except NoResultFound:
         raise apiError.DevOpsError(
             404, 'No such project.',
             error=apiError.repository_id_not_found(git_repository_id))
-    
+
     response = rancher.rc_get_pipeline_executions_action(
         relation.ci_project_id,
         relation.ci_pipeline_id,
@@ -161,7 +164,7 @@ def get_phase_yaml(repository_id, branch_name):
         _get_rancher_pipeline_yaml(repository_id, parameter)
     if yaml_file_can_not_find and yml_file_can_not_find:
         return util.respond(204)
-    
+
     rancher_ci_yaml = base64.b64decode(
         get_yaml_data['content']).decode("utf-8")
     rancher_ci_json = yaml.safe_load(rancher_ci_yaml)
@@ -202,6 +205,7 @@ def _get_rancher_pipeline_yaml(repository_id, parameter):
         if e.status_code == 404:
             yml_file_can_not_find = True
     return yaml_file_can_not_find, yml_file_can_not_find, get_yaml_data
+
 
 # --------------------- Resources ---------------------
 class PipelineExec(Resource):
