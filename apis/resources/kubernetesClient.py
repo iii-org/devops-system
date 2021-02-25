@@ -75,7 +75,7 @@ def list_work_node():
 
 def create_namespace(project_name):
     try:
-        ret = v1.create_namespace(k8s_client.V1Namespace(metadata=k8s_client.V1ObjectMeta(name=project_name)))
+        v1.create_namespace(k8s_client.V1Namespace(metadata=k8s_client.V1ObjectMeta(name=project_name)))
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
@@ -94,7 +94,7 @@ def list_namespace():
 
 def delete_namespace(project_name):
     try:
-        ret = v1.delete_namespace(project_name)
+       v1.delete_namespace(project_name)
     except ApiException as e:
         if e.status != 404:
             raise e
@@ -165,7 +165,7 @@ def create_namespace_quota(namespace):
                 hard={"cpu": "10", "memory": "10G", "pods": "20", "persistentvolumeclaims": "0", "configmaps": "60",
                       "secrets": "60", "services.nodeports": "10"}))
         resource_quota.metadata = k8s_client.V1ObjectMeta(namespace=namespace, name="project-quota")
-        ret = v1.create_namespaced_resource_quota(namespace, resource_quota)
+        v1.create_namespaced_resource_quota(namespace, resource_quota)
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
@@ -177,7 +177,7 @@ def create_namespace_limitrange(namespace):
             limits=[{"default": {"memory": "10Gi", "cpu": 10},
                      "defaultRequest": {"memory": "64Mi", "cpu": 0.1}, "type": "Container"}]),
             metadata=k8s_client.V1ObjectMeta(namespace=namespace, name="project-limitrange"))
-        ret = v1.create_namespaced_limit_range(namespace, resource_quota)
+        v1.create_namespaced_limit_range(namespace, resource_quota)
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
@@ -198,7 +198,7 @@ def update_namespace_quota(namespace, resource):
     try:
         namespace_quota = v1.read_namespaced_resource_quota("project-quota", namespace)
         namespace_quota.spec.hard = resource
-        ret = v1.replace_namespaced_resource_quota("project-quota", namespace, namespace_quota)
+        v1.replace_namespaced_resource_quota("project-quota", namespace, namespace_quota)
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
