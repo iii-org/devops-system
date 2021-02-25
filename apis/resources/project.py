@@ -188,7 +188,8 @@ def create_project(user_id, args):
                 elif service == 'gitlab':
                     gitlab.gl_delete_project(gitlab_pj_id)
                 elif service == 'harbor':
-                    harbor.hb_delete_project(harbor_pj_id)
+                    harbor_param =[harbor_pj_id, project_name]
+                    harbor.hb_delete_project(harbor_param)
                 elif service == 'sonarqube':
                     sonarqube.sq_delete_project(project_name)
 
@@ -274,7 +275,8 @@ def create_project(user_id, args):
     except Exception as e:
         redmine.rm_delete_project(redmine_pj_id)
         gitlab.gl_delete_project(gitlab_pj_id)
-        harbor.hb_delete_project(harbor_pj_id)
+        harbor_param =[harbor_pj_id, project_name]
+        harbor.hb_delete_project(harbor_param)
         kubernetesClient.delete_namespace(project_name)
         sonarqube.sq_delete_project(project_name)
         raise e
@@ -397,7 +399,8 @@ def delete_project(project_id):
     try_to_delete(gitlab.gl_delete_project, gitlab_project_id)
     try_to_delete(redmine.rm_delete_project, redmine_project_id)
     if harbor_project_id is not None:
-        try_to_delete(harbor.hb_delete_project, harbor_project_id)
+        harbor_param =[harbor_project_id, project_name]
+        try_to_delete(harbor.hb_delete_project, harbor_param)
     try_to_delete(sonarqube.sq_delete_project, project_name)
 
     # delete rancher app
