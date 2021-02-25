@@ -329,6 +329,15 @@ def delete_deployment(namespace, name):
         if e.status_code != 404:
             raise e
 
+# def delete_deployment_by_branch(namespace, branch_name):
+#     try:
+#         deployments = Deployment(namespace)
+#         check = deployments.is_iii()
+#         print(type(check))        
+#         return {"123":{}}
+#     except apiError.DevOpsError as e:
+#         if e.status_code != 404:
+#             raise e
 
 def list_service(namespace):
     try:
@@ -447,7 +456,8 @@ def list_ingress(namespace):
 
 def list_deployment_environement(namespace,git_url):
     try:        
-        # Analysis Pod Information
+        # Analysis Pod Information\        
+
         pods_info = {}
         for pods in v1.list_namespaced_pod(namespace).items:
             if pods.status.container_statuses is not None:                
@@ -546,15 +556,16 @@ def list_deployment_environement(namespace,git_url):
                                 
                 if environement in services_info and str(labels['app']) in services_info[environement]['deployments'] :
                     deployment_info['services_type'] = services_info[environement]['deployments'][labels['app']]['type']                
-                    deployment_info['services'] = services_info[environement]['deployments'][labels['app']]['services']                
-                
+                    deployment_info['services'] = services_info[environement]['deployments'][labels['app']]['services']                                
                 deployments_info[environement]['deployment'].append(deployment_info)
-
-        return deployments_info
+        return list(deployments_info.values())
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
 
+
+def delete_deployment_by_environment():
+    return {}
 
 def deployment_analysis_containers(containers):
     try:
@@ -617,24 +628,37 @@ class PublicEndpoint():
         public_info['url'] = self.url
         return public_info
 
-# class Service():
-#     def __init__(self) -> None:
-#         pass
 
 
-# class Pod():
-#     def __init__(self,pods) -> None:
-        
-#         annotations = pods.metadata.annotations
-#         if 'iiidevops.org/project_name' in annotations and \
-#             'iiidevops.org/branch' in annotations and \
-#             'iiidevops.org/commit_id' in annotations:   
-#             self.project_name = annotations['iiidevops.org/project_name']
-#             self.branch_name = annotations['iiidevops.org/branch']
-#             self.pods = pods
-#         else:
-#             pass
-        
+
+def check_iii_template(annotations, labels):
+    is_iii = False
+    if 'iiidevops.org/project_name' in annotations and \
+        'iiidevops.org/branch' in annotations and \
+        'iiidevops.org/commit_id' in annotations and\
+        'app' in labels:  
+        is_iii = True
+    return is_iii
+
+
+
+
+class Deployment():    
+    def __init__(self,deployment) -> None:
+        self.annotations = deployment.metadata.annotations
+        self.labels =  deployment.metadata.labels
+        self.deployment = deployment        
+        self.is_iii = check_iii_template(self.annotations, self.labels)          
+        pass
+
+    def by_iii(self):   
+        is_iii = self.is_iii
+        return is_iii
+
+
+
+
+    # def 
         
 #     def get_pods_info(self):
 
@@ -660,3 +684,5 @@ class PublicEndpoint():
 #         container_status_time['state'] = status
 #         return container_status_time
 #         # return 
+
+

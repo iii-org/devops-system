@@ -814,6 +814,11 @@ def get_kubernetes_namespace_deployment_environment(project_id):
     project_deployment = kubernetesClient.list_deployment_environement(project_name,git_url)
     return util.success(project_deployment)
 
+def delete_kubernetes_namespace_deployment_by_branch(project_id, branch_name):
+    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
+    project_deployment = kubernetesClient.delete_deployment_by_branch(project_name, branch_name)
+    return util.success(project_deployment)
+
 
 def put_kubernetes_namespace_deployment(project_id, name):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
@@ -1060,11 +1065,15 @@ class ProjectUserResourcePodLog(Resource):
         args = parser.parse_args()
         return get_kubernetes_namespace_Pod_Log(project_id, pod_name, args['container_name'])
 
-class ProjectDeployEnvironment(Resource):
+class ProjectEnvironment(Resource):
     @jwt_required
     def get(self, project_id):
         role.require_in_project(project_id, "Error while getting project info.")
         return get_kubernetes_namespace_deployment_environment(project_id)
+    @jwt_required
+    def delete(self, project_id, branch_name):
+        role.require_in_project(project_id, "Error while getting project info.")
+        return delete_kubernetes_namespace_deployment_by_branch(project_id, branch_name)
 
 class ProjectUserResourceDeployment(Resource):
     @jwt_required
