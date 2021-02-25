@@ -517,7 +517,7 @@ def list_deploy_environement(namespace,git_url):
                     services_info[environement]['deployments'][deployment_name]['name'] = deployment_name
                     services_info[environement]['deployments'][deployment_name]['type'] = annotations['iiidevops.org/type']
                     services_info[environement]['deployments'][deployment_name]['services'] = []                                    
-                for service in analysis_annotations_publicEndpoint(annotations['field.cattle.io/publicEndpoints']):
+                for service in analysis_annotations_public_endpoint(annotations['field.cattle.io/publicEndpoints']):
                     services_info[environement]['deployments'][deployment_name]['services'].append(service)
         
         # Analysis Deployment Information
@@ -593,7 +593,7 @@ def deployment_analysis_containers(containers):
             raise e
 
 
-def analysis_annotations_publicEndpoint(public_endpoints,work_node_ip = ''):
+def analysis_annotations_public_endpoint(public_endpoints,work_node_ip = ''):
     try:        
         list_public_endpoint = []
         for public_endpoint in json.loads(public_endpoints):
