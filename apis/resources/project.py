@@ -828,10 +828,6 @@ def get_kubernetes_namespace_deploy_environment(project_id):
 def put_kubernetes_namespace_deploy_environment(project_id, branch_name):
     project_info = model.Project.query.filter_by(id=project_id).first()
     update_info = kubernetesClient.update_deploy_environment_by_branch(str(project_info.name),branch_name)
-    # deployment_info = kubernetesClient.get_deployment(project_name, name)
-    # deployment_info.spec.template.metadata.annotations["iiidevops_redeploy_at"] \
-    #     = str(datetime.utcnow())
-    # project_deployment = kubernetesClient.update_deployment(project_name, name, deployment_info)
     return util.success(update_info)
 
 def delete_kubernetes_namespace_deploy_by_branch(project_id, branch_name):
