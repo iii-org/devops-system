@@ -1,5 +1,6 @@
 import os
 import json
+from datetime import datetime
 
 from kubernetes.client import ApiException
 
@@ -569,6 +570,24 @@ def delete_deploy_environment_by_branch(namespace, branch_name):
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
+
+
+
+def update_deploy_environment_by_branch(namespace, branch_name):
+    try:
+        info = []
+        for deployment in k8s_client.AppsV1Api().list_namespaced_deployment(namespace).items:            
+            is_iii = check_if_iii_template(deployment.metadata.annotations, deployment.metadata.labels)
+            if is_iii is True  and branch_name == deployment.metadata.annotations[iii_template['branch']]:                                    
+                deployment.spec.template.metadata.annotations["iiidevops_redeploy_at"] = str(datetime.utcnow())
+                output = update_deployment(namespace, deployment.metadata.name, deployment)            
+                print(type(output))
+                print(output)
+        return info
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+
 
 
 def deployment_analysis_containers(containers):
