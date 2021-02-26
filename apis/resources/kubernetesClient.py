@@ -19,6 +19,7 @@ from resources.logger import logger
 
 import pprint
 
+# kubernates 抓取 III 定義 annotations 標籤
 iii_template = {}
 iii_template['project_name'] = 'iiidevops.org/project_name'
 iii_template['branch'] = 'iiidevops.org/branch'
@@ -559,16 +560,11 @@ def list_deploy_environement(namespace,git_url):
 
 def delete_deploy_environment_by_branch(namespace, branch_name):
     try:
-        for deployment in k8s_client.AppsV1Api().list_namespaced_deployment(namespace).items:
-            info  = {}
-            annotations = deployment.metadata.annotations
-            labels = deployment.metadata.labels
-            is_iii = check_if_iii_template(annotations, labels)
-            print(is_iii)
-            if is_iii is True:
-                deployment_info = Deployment(deployment)
-                info = deployment_info.get_info()
-        
+        info  = []
+        for deployment in k8s_client.AppsV1Api().list_namespaced_deployment(namespace).items:            
+            is_iii = check_if_iii_template(deployment.metadata.annotations, deployment.metadata.labels)
+            if is_iii is True  and branch_name == deployment.metadata.annotations[iii_template['branch']]:                
+                info.append(delete_deployment(namespace, deployment.metadata.name))                    
         return info
     except apiError.DevOpsError as e:
         if e.status_code != 404:
@@ -644,18 +640,10 @@ def check_if_iii_template(annotations, labels):
     return is_iii
 
 
-class Deployment():    
-    def __init__(self,deployment):
-        self.labels =  deployment.metadata.labels['app']
-        self.project_name = deployment.metadata.annotations[iii_template['project_name']]
-        self.branch_name = deployment.metadata.annotations[iii_template['branch']] 
-        self.commit_id = deployment.metadata.annotations[iii_template['commit_id']]  
-
-
-    def get_info(self): 
-        info = {}
-        info ['label'] = self.labels
-        info['branch'] = self.branch_name
-        info['project_name'] = self.project_name
-        info['commit_id'] = self.commit_id
-        return info
+def get_iii_template_info(metadata):
+    template_info = {}
+    template_info ['label'] = metadata.labels['app']
+    template_info['branch'] = metadata.annotations[iii_template['branch']]
+    template_info['project_name'] = metadata.annotations[iii_template['project_name']]
+    template_info['commit_id'] = metadata.annotations[iii_template['commit_id']]
+    return template_info

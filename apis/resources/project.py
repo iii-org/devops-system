@@ -811,12 +811,12 @@ def get_kubernetes_namespace_deployment_environment(project_id):
     project_info = model.Project.query.filter_by(id=project_id).first()
     project_name = str(project_info.name)
     git_url = str(project_info.http_url)
-    project_deployment = kubernetesClient.list_deployment_environement(project_name,git_url)
+    project_deployment = kubernetesClient.list_deploy_environement(project_name,git_url)
     return util.success(project_deployment)
 
 def delete_kubernetes_namespace_deployment_by_branch(project_id, branch_name):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
-    project_deployment = kubernetesClient.delete_deployment_by_branch(project_name, branch_name)
+    project_deployment = kubernetesClient.delete_deploy_environment_by_branch(project_name, branch_name)
     return util.success(project_deployment)
 
 
