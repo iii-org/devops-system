@@ -1,5 +1,6 @@
 import os
 import json
+from datetime import datetime
 
 from kubernetes.client import ApiException
 
@@ -16,6 +17,14 @@ from flask_restful import Resource, reqparse
 import resources.apiError as apiError
 from resources.logger import logger
 
+
+import pprint
+
+# kubernates 抓取 III 定義 annotations 標籤
+iii_template = {}
+iii_template['project_name'] = 'iiidevops.org/project_name'
+iii_template['branch'] = 'iiidevops.org/branch'
+iii_template['commit_id'] = 'iiidevops.org/commit_id'
 con = k8s_client.Configuration()
 con.verify_ssl = False
 k8s_client.Configuration.set_default(con)
@@ -68,7 +77,7 @@ def list_work_node():
 
 def create_namespace(project_name):
     try:
-        ret = v1.create_namespace(k8s_client.V1Namespace(metadata=k8s_client.V1ObjectMeta(name=project_name)))
+        v1.create_namespace(k8s_client.V1Namespace(metadata=k8s_client.V1ObjectMeta(name=project_name)))
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
@@ -87,7 +96,7 @@ def list_namespace():
 
 def delete_namespace(project_name):
     try:
-        ret = v1.delete_namespace(project_name)
+       v1.delete_namespace(project_name)
     except ApiException as e:
         if e.status != 404:
             raise e
@@ -158,7 +167,7 @@ def create_namespace_quota(namespace):
                 hard={"cpu": "10", "memory": "10G", "pods": "20", "persistentvolumeclaims": "0", "configmaps": "60",
                       "secrets": "60", "services.nodeports": "10"}))
         resource_quota.metadata = k8s_client.V1ObjectMeta(namespace=namespace, name="project-quota")
-        ret = v1.create_namespaced_resource_quota(namespace, resource_quota)
+        v1.create_namespaced_resource_quota(namespace, resource_quota)
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
@@ -170,7 +179,7 @@ def create_namespace_limitrange(namespace):
             limits=[{"default": {"memory": "10Gi", "cpu": 10},
                      "defaultRequest": {"memory": "64Mi", "cpu": 0.1}, "type": "Container"}]),
             metadata=k8s_client.V1ObjectMeta(namespace=namespace, name="project-limitrange"))
-        ret = v1.create_namespaced_limit_range(namespace, resource_quota)
+        v1.create_namespaced_limit_range(namespace, resource_quota)
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
@@ -191,7 +200,7 @@ def update_namespace_quota(namespace, resource):
     try:
         namespace_quota = v1.read_namespaced_resource_quota("project-quota", namespace)
         namespace_quota.spec.hard = resource
-        ret = v1.replace_namespaced_resource_quota("project-quota", namespace, namespace_quota)
+        v1.replace_namespaced_resource_quota("project-quota", namespace, namespace_quota)
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
@@ -327,6 +336,7 @@ def delete_deployment(namespace, name):
             raise e
 
 
+
 def list_service(namespace):
     try:
         service_list = []
@@ -442,59 +452,140 @@ def list_ingress(namespace):
             raise e
 
 
-def list_deployment_environement(namespace,git_url):
-    try:
-        deployment_info = {}
-        list_container_status = {}
+def list_deploy_environement(namespace,git_url):
+    try:        
+        pods_info = {}
         for pods in v1.list_namespaced_pod(namespace).items:
             if pods.status.container_statuses is not None:                
-                commit_id = ''
-                if 'iiidevops.org/commit_id' in pods.metadata.annotations:
-                    commit_id = pods.metadata.annotations['iiidevops.org/commit_id']
-                for container_status in pods.status.container_statuses:
-                    if container_status.name not in list_container_status:
-                        list_container_status[container_status.name] = {}
-                    container_status_info = analysis_container_status_time(container_status)                    
-                    list_container_status[container_status.name]['state'] = container_status_info['state']
-                    list_container_status[container_status.name]['time'] = container_status_info['status_time']                        
-                    list_container_status[container_status.name]['restart'] = container_status.restart_count
-                    list_container_status[container_status.name]['commit'] = commit_id
-        
-                                                                    
-        for deployments in k8s_client.AppsV1Api().list_namespaced_deployment(namespace).items:
-            if 'iiidevops.org/project_name' in deployments.spec.template.metadata.annotations and \
-                'iiidevops.org/branch' in  deployments.spec.template.metadata.annotations:    
-                project_name = deployments.spec.template.metadata.annotations['iiidevops.org/project_name']
-                branch_name = deployments.spec.template.metadata.annotations['iiidevops.org/branch']                                
+                annotations = pods.metadata.annotations
+                labels = pods.metadata.labels
+                if iii_template['project_name'] in annotations and \
+                    iii_template['branch'] in annotations and \
+                    iii_template['commit_id'] in annotations and \
+                    'app' in labels:
+                    project_name = annotations[iii_template['project_name']]
+                    branch = annotations[iii_template['branch']]
+                    commit_id = annotations[iii_template['commit_id']]
+                    deployment_name = labels['app']
+                    environement = f'{project_name}:{branch}'
+                    if environement not in pods_info:
+                        pods_info[environement] = {}
+                        pods_info[environement]['project_name'] = project_name
+                        pods_info[environement]['branch'] = branch
+                        pods_info[environement]['commit_id'] = commit_id
+                        pods_info[environement]['commit_url'] =f'{git_url[0:-4]}/-/commit/{commit_id}'
+                        pods_info[environement]['deployments'] = {}
+                    if deployment_name not in pods_info[environement]['deployments']:
+                        pods_info[environement]['deployments'][deployment_name] = {}
+                        pods_info[environement]['deployments'][deployment_name]['name'] = deployment_name
+                        pods_info[environement]['deployments'][deployment_name]['type'] = annotations['iiidevops.org/type']
+                        pods_info[environement]['deployments'][deployment_name]['containers'] = []                     
+                    for container_status in pods.status.container_statuses:
+                        container_info ={}
+                        container_status_info = analysis_container_status_time(container_status)                    
+                        container_info['state'] = container_status_info['state']
+                        container_info['time'] = container_status_info['status_time']                        
+                        container_info['restart'] = container_status.restart_count
+                        container_info['image'] = container_status.image
+                        container_info['name'] = container_status.name
+                        container_info['ready'] = container_status.ready
+                        pods_info[environement]['deployments'][deployment_name]['containers'].append(container_info)        
+        # Analysis Services Information
+        services_info = {}
+        for service in v1.list_namespaced_service(namespace).items:
+            annotations = service.metadata.annotations
+            labels = service.metadata.labels
+            if iii_template['project_name'] in annotations and \
+                iii_template['branch'] in annotations and \
+                iii_template['commit_id'] in annotations and \
+                'app' in labels:
+                project_name = annotations[iii_template['project_name']]
+                branch = annotations[iii_template['branch']]
+                commit_id = annotations[iii_template['commit_id']]
+                deployment_name = labels['app']   
+                environement = f'{project_name}:{branch}'
+                if environement not in services_info:
+                    services_info[environement] = {}
+                    services_info[environement]['project_name'] = project_name
+                    services_info[environement]['branch'] = branch
+                    services_info[environement]['commit_id'] = commit_id
+                    services_info[environement]['commit_url'] =f'{git_url[0:-4]}/-/commit/{commit_id}'
+                    services_info[environement]['deployments'] = {}
+                if deployment_name not in services_info[environement]['deployments']:
+                    services_info[environement]['deployments'][deployment_name] = {}
+                    services_info[environement]['deployments'][deployment_name]['name'] = deployment_name
+                    services_info[environement]['deployments'][deployment_name]['type'] = annotations['iiidevops.org/type']
+                    services_info[environement]['deployments'][deployment_name]['services'] = []                                    
+                for service in analysis_annotations_public_endpoint(annotations['field.cattle.io/publicEndpoints']):
+                    services_info[environement]['deployments'][deployment_name]['services'].append(service)        
+        # Analysis Deployment Information
+        deployments_info = {}                                                      
+        for deployment in k8s_client.AppsV1Api().list_namespaced_deployment(namespace).items:
+            annotations = deployment.metadata.annotations
+            labels = deployment.metadata.labels
+            # print(labels)
+            if iii_template['project_name'] in annotations and \
+                iii_template['branch'] in annotations and \
+                iii_template['commit_id'] in annotations and\
+                'app' in labels:                
+                project_name = annotations[iii_template['project_name']]
+                branch_name = annotations[iii_template['branch']] 
+                commit_id = annotations[iii_template['commit_id']]                                                               
                 environement = f'{project_name}:{branch_name}'
-                if environement not in deployment_info:
-                    deployment_info[environement] = {}
-                    deployment_info[environement]['project_name'] = project_name
-                    deployment_info[environement]['branch'] = branch_name
-                    deployment_info[environement]['commit_id'] = deployments.spec.template.metadata.annotations['iiidevops.org/commit_id']
-                    deployment_info[environement]['commit_url'] =f'{git_url[0:-4]}/-/commit/{commit_id}'                     
-                    deployment_info[environement]['workload'] = []                
-                workload_info = {}
-                workload_info['deployment_name']= deployments.metadata.name
-                workload_info['creation_timestamp']= str(deployments.metadata.creation_timestamp)
-                workload_info['pulic_endpoints'] = get_deployment_publicEndpoint(deployments.metadata.annotations['field.cattle.io/publicEndpoints'])
-                # workload_info['pulicEnpoints'] = get_deployment_publicEndpoint(deployments.metadata.annotations['field.cattle.io/publicEndpoints'],work_node_ip)
-                workload_info['container'] = []
-                for container in deployments.spec.template.spec.containers:
-                    container_info = {}
-                    container_info['name'] = container.name
-                    container_info['image'] = container.image
-                    if container.name in list_container_status:
-                        container_info['state'] = list_container_status[container.name]['state']
-                        container_info['time'] = list_container_status[container.name]['time']
-                        container_info['restart'] = list_container_status[container.name]['restart']
-                        container_info['commit'] = list_container_status[container.name]['commit']
-                    workload_info['container'].append(container_info)
-                deployment_info[environement]['workload'].append(workload_info)
-        return deployment_info
+                if environement not in deployments_info:
+                    deployments_info[environement] = {}
+                    deployments_info[environement]['project_name'] = project_name
+                    deployments_info[environement]['branch'] = branch_name
+                    deployments_info[environement]['commit_id'] = annotations[iii_template['commit_id']]
+                    deployments_info[environement]['commit_url'] =f'{git_url[0:-4]}/-/commit/{commit_id}'                     
+                    deployments_info[environement]['deployment'] = []                
+                deployment_info= {}
+                deployment_info['deployment_name']= deployment.metadata.name
+                deployment_info['app']= labels['app']
+                deployment_info['creation_timestamp']= str(deployment.metadata.creation_timestamp)
+
+                if environement in pods_info and str(labels['app']) in pods_info[environement]['deployments'] :
+                    deployment_info['container_type'] = pods_info[environement]['deployments'][labels['app']]['type']
+                    deployment_info['container'] = pods_info[environement]['deployments'][labels['app']]['containers']                
+                                
+                if environement in services_info and str(labels['app']) in services_info[environement]['deployments'] :
+                    deployment_info['services_type'] = services_info[environement]['deployments'][labels['app']]['type']                
+                    deployment_info['services'] = services_info[environement]['deployments'][labels['app']]['services']                                
+                deployments_info[environement]['deployment'].append(deployment_info)
+        return list(deployments_info.values())
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
+
+
+
+def delete_deploy_environment_by_branch(namespace, branch_name):
+    try:
+        info  = []
+        for deployment in k8s_client.AppsV1Api().list_namespaced_deployment(namespace).items:            
+            is_iii = check_if_iii_template(deployment.metadata.annotations, deployment.metadata.labels)
+            if is_iii is True  and branch_name == deployment.metadata.annotations[iii_template['branch']]:                
+                info.append(delete_deployment(namespace, deployment.metadata.name))                    
+        return info
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+
+
+
+def update_deploy_environment_by_branch(namespace, branch_name):
+    try:
+        info = []
+        for deployment in k8s_client.AppsV1Api().list_namespaced_deployment(namespace).items:            
+            is_iii = check_if_iii_template(deployment.metadata.annotations, deployment.metadata.labels)
+            if is_iii is True  and branch_name == deployment.metadata.annotations[iii_template['branch']]:                                    
+                deployment.spec.template.metadata.annotations["iiidevops_redeploy_at"] = str(datetime.utcnow())
+                update_deployment(namespace, deployment.metadata.name, deployment)            
+        return info
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+
 
 
 def deployment_analysis_containers(containers):
@@ -511,12 +602,22 @@ def deployment_analysis_containers(containers):
             raise e
 
 
-def get_deployment_publicEndpoint(public_endpoints,work_node_ip = ''):
+def analysis_annotations_public_endpoint(public_endpoints,work_node_ip = ''):
     try:        
         list_public_endpoint = []
         for public_endpoint in json.loads(public_endpoints):
-            public_info = PublicEndpoint(public_endpoint)            
-            list_public_endpoint.append(public_info.get_public_endpoint())
+            public_info = {}
+            service_name_info = public_endpoint['serviceName'].split(":")        
+            service_name = service_name_info[0]
+            url = ''
+            if "hostname" in public_endpoint:
+                url = "http://{0}/{1}".format(public_endpoint['hostname'], public_endpoint['path'])
+            else:
+                url = "http://{0}:{1}".format(public_endpoint['addresses'][0], public_endpoint['port'])
+            public_info['service_name'] = service_name
+            public_info['url'] = url
+            list_public_endpoint.append(public_info)
+
         return list_public_endpoint
     except apiError.DevOpsError as e:
         if e.status_code != 404:
@@ -543,17 +644,23 @@ def analysis_container_status_time(container_status):
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
-class PublicEndpoint():
-    def __init__(self,public_endpoint):
-        service_name_info = public_endpoint['serviceName'].split(":")        
-        self.service_name = service_name_info[0]
-        if "hostname" in public_endpoint:
-            self.url = "http://{0}/{1}".format(public_endpoint['hostname'], public_endpoint['path'])
-        else:
-            self.url = "http://{0}:{1}".format(public_endpoint['addresses'][0], public_endpoint['port'])
-    
-    def get_public_endpoint(self):
-        public_info = {}
-        public_info['service_name'] = self.service_name
-        public_info['url'] = self.url
-        return public_info
+
+
+
+def check_if_iii_template(annotations, labels):
+    is_iii = False
+    if iii_template['project_name'] in annotations and \
+        iii_template['branch'] in annotations and \
+        iii_template['commit_id'] in annotations and\
+        'app' in labels:  
+        is_iii = True
+    return is_iii
+
+
+def get_iii_template_info(metadata):
+    template_info = {}
+    template_info ['label'] = metadata.labels['app']
+    template_info['branch'] = metadata.annotations[iii_template['branch']]
+    template_info['project_name'] = metadata.annotations[iii_template['project_name']]
+    template_info['commit_id'] = metadata.annotations[iii_template['commit_id']]
+    return template_info

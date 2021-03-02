@@ -591,8 +591,9 @@ def deal_with_ParametersObject(sql_row):
               'name': sql_row.name,
               'parameter_type_id': sql_row.parameter_type_id
               }
-    if sql_row.parameter_type_id in PARAMETER_TYPES:
-        output['parameter_type'] = PARAMETER_TYPES[sql_row.parameter_type_id]
+    parameter_type_id = str(sql_row.parameter_type_id)
+    if parameter_type_id in PARAMETER_TYPES:
+        output['parameter_type'] = PARAMETER_TYPES[parameter_type_id]
     else:
         output['parameter_type'] = 'None'
     output['description'] = sql_row.description
