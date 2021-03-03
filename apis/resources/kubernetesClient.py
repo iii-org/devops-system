@@ -453,7 +453,8 @@ def list_ingress(namespace):
 
 
 def list_deploy_environement(namespace,git_url):
-    try:        
+    try:                
+        # Analysis Pods List
         pods_info = {}
         for pods in v1.list_namespaced_pod(namespace).items:
             if pods.status.container_statuses is not None:                
@@ -475,6 +476,7 @@ def list_deploy_environement(namespace,git_url):
                         pods_info[environement]['commit_id'] = commit_id
                         pods_info[environement]['commit_url'] =f'{git_url[0:-4]}/-/commit/{commit_id}'
                         pods_info[environement]['deployments'] = {}
+                        # print(pods.spec.service_account)
                     if deployment_name not in pods_info[environement]['deployments']:
                         pods_info[environement]['deployments'][deployment_name] = {}
                         pods_info[environement]['deployments'][deployment_name]['name'] = deployment_name
@@ -489,8 +491,12 @@ def list_deploy_environement(namespace,git_url):
                         container_info['image'] = container_status.image
                         container_info['name'] = container_status.name
                         container_info['ready'] = container_status.ready
-                        pods_info[environement]['deployments'][deployment_name]['containers'].append(container_info)        
+                        pods_info[environement]['deployments'][deployment_name]['containers'].append(container_info)      
+        
         # Analysis Services Information
+        k8s_node_list = list_work_node()
+        work_node_ip = k8s_node_list[0]['ip']
+
         services_info = {}
         for service in v1.list_namespaced_service(namespace).items:
             annotations = service.metadata.annotations
@@ -516,8 +522,26 @@ def list_deploy_environement(namespace,git_url):
                     services_info[environement]['deployments'][deployment_name]['name'] = deployment_name
                     services_info[environement]['deployments'][deployment_name]['type'] = annotations['iiidevops.org/type']
                     services_info[environement]['deployments'][deployment_name]['services'] = []                                    
-                for service in analysis_annotations_public_endpoint(annotations['field.cattle.io/publicEndpoints']):
-                    services_info[environement]['deployments'][deployment_name]['services'].append(service)        
+                    service_info = {}
+                    service_info['name'] = service.metadata.name
+                    service_info['type'] = service.spec.type
+                    service_info['url'] = []
+                for port in service.spec.ports:
+                    print(port)
+                    port_info = {"nodePort": port.node_port, "protocol": port.protocol,
+                              "target_port": port.target_port, "name": port.name, "port": port.port,"url":"http://{0}:{1}".format(work_node_ip, port.node_port)}
+                    service_info['url'].append(port_info)
+                services_info[environement]['deployments'][deployment_name]['services'].append(service_info)
+                    # services_info[environement]['deployments'][deployment_name]['services'].append({"nodePort": port.node_port, "protocol": port.protocol,
+                    #           "target_port": port.target_port, "name": port.name, "port": port.port})
+                # for service in analysis_annotations_public_endpoint(annotations['field.cattle.io/publicEndpoints']):
+                #     services_info[environement]['deployments'][deployment_name]['services'].append(service)      
+
+
+          
+        
+        
+         
         # Analysis Deployment Information
         deployments_info = {}                                                      
         for deployment in k8s_client.AppsV1Api().list_namespaced_deployment(namespace).items:
@@ -557,6 +581,8 @@ def list_deploy_environement(namespace,git_url):
         if e.status_code != 404:
             raise e
 
+
+# def analys
 
 
 def delete_deploy_environment_by_branch(namespace, branch_name):
