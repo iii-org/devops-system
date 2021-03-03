@@ -11,7 +11,7 @@ import util as util
 from resources import apiError, kubernetesClient, role
 from resources.apiError import DevOpsError
 from resources.logger import logger
-
+from .rancher import rancher
 
 def get_nexus_project_id(repo_id):
     row = model.ProjectPluginRelation.query.filter_by(git_repository_id=repo_id).first()
@@ -184,7 +184,10 @@ class GitLab(object):
         k8s_service_list = kubernetesClient.list_service_all_namespaces()
         k8s_node_list = kubernetesClient.list_work_node()
         work_node_ip = k8s_node_list[0]['ip']
-
+        
+        # get ci_project_id and ci_pipeline_id by repo_id
+        ppr_object = model.ProjectPluginRelation.query.filter_by(git_repository_id=repo_id).one()
+        
         branch_list = []
         for branch_info in output.json():
             env_url_list = []
