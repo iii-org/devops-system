@@ -687,7 +687,7 @@ def get_projects_by_user(user_id):
 
 def get_ci_last_test_result(output_dict, relation):
     # get rancher pipeline
-    pipeline_output, response = rancher.rc_get_pipeline_executions(
+    pipeline_output = rancher.rc_get_pipeline_executions(
         relation.ci_project_id, relation.ci_pipeline_id)
     if len(pipeline_output) != 0:
         output_dict['last_test_time'] = pipeline_output[0]['created']

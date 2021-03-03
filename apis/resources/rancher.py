@@ -83,7 +83,7 @@ class Rancher(object):
             params['run'] = run
         response = self.__api_get(path, params=params)
         output_array = response.json()['data']
-        return output_array, response
+        return output_array
 
     def rc_get_pipeline_executions_action(self, ci_project_id, ci_pipeline_id, pipelines_exec_run,
                                           action):
@@ -100,7 +100,7 @@ class Rancher(object):
         output_dict = []
         self.token = self.__generate_token()
         headersandtoken = "Authorization: Bearer {0}".format(self.token)
-        output_executions, response = self.rc_get_pipeline_executions(
+        output_executions = self.rc_get_pipeline_executions(
             ci_project_id, ci_pipeline_id, run=pipelines_exec_run
         )
         output_execution = output_executions[0]

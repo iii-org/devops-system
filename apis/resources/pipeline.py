@@ -25,7 +25,7 @@ def pipeline_exec_list(repository_id):
     except NoResultFound:
         raise apiError.DevOpsError(404, 'No such project',
                                    error=apiError.repository_id_not_found(repository_id))
-    pipeline_outputs, response = rancher.rc_get_pipeline_executions(
+    pipeline_outputs = rancher.rc_get_pipeline_executions(
         relation.ci_project_id,
         relation.ci_pipeline_id)
     for pipeline_output in pipeline_outputs:
