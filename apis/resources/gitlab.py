@@ -188,10 +188,6 @@ class GitLab(object):
         # get ci_project_id and ci_pipeline_id by repo_id
         ppr_object = model.ProjectPluginRelation.query.filter_by(git_repository_id=repo_id).one()
         
-        # get pipeline info
-        pipeline_info = rancher.rc_get_pipeline_info(ppr_object.ci_project_id, 
-                                                     ppr_object.ci_pipeline_id)
-        
         branch_list = []
         for branch_info in output.json():
             env_url_list = []
