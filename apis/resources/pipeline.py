@@ -5,6 +5,7 @@ import yaml
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
 from sqlalchemy.orm.exc import NoResultFound
+from flask_socketio import Namespace, emit
 
 import model
 import resources.apiError as apiError
@@ -55,6 +56,15 @@ def pipeline_exec_list(repository_id):
     logger.info("ci/cd output: {0}".format(output_array))
     return output_array
 
+def pipeline_config(repository_id, args):
+    try:
+        relation = model.ProjectPluginRelation.query.filter_by(
+            git_repository_id=repository_id).one()
+    except NoResultFound:
+        raise apiError.DevOpsError(
+            404, 'No such project.',
+            error=apiError.repository_id_not_found(repository_id))
+    return rancher.rc_get_pipeline_config(relation.ci_pipeline_id, args['pipelines_exec_run'])
 
 def pipeline_exec_logs(args):
     try:
@@ -87,6 +97,9 @@ def pipeline_exec_logs(args):
     else:
         return util.success(log_cache.logs)
 
+def pipeline_websocket_logs():
+    pass
+    #emit('my response', {'data': data['data']}, broadcast=True)
 
 def pipeline_exec_action(git_repository_id, args):
     try:
@@ -265,3 +278,22 @@ class PipelinePhaseYaml(Resource):
     @jwt_required
     def get(self, repository_id, branch_name):
         return get_phase_yaml(repository_id, branch_name)
+
+class PipelineConfig(Resource):
+    @jwt_required
+    def get(self, repository_id):
+        parser = reqparse.RequestParser()
+        parser.add_argument('pipelines_exec_run', type=int, required=True)
+        args = parser.parse_args()
+        return pipeline_config(repository_id, args)
+
+class Pipelinelog(Namespace):
+    def on_connect(self):
+        print('connect')
+
+    def on_disconnect(self):
+        print('Client disconnected')
+
+    def on_my_event(self, data):
+        print('my broadcast event')
+        pipeline_websocket_logs()

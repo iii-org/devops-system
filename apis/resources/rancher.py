@@ -94,6 +94,40 @@ class Rancher(object):
             params = {'action': 'stop'}
         response = self.__api_post(path, params=params, data='')
         return response
+    
+    def rc_get_pipeline_config(self, ci_pipeline_id, pipelines_exec_run):
+        output_dict = []
+        self.token = self.__generate_token()
+        self.rc_get_project_id()
+        output_executions = self.rc_get_pipeline_executions(
+            self.project_id, ci_pipeline_id, run=pipelines_exec_run
+        )
+        output_execution = output_executions[0]
+        for index, stage in enumerate(
+                output_execution['pipelineConfig']['stages']):
+            tmp_step_message = []
+            for step_index, step in enumerate(stage['steps']):
+                step_detail = output_execution['stages'][
+                    index]['steps'][step_index]
+                step_state = None
+                if 'state' in step_detail:
+                    step_state = step_detail['state']
+                tmp_step_message.append({
+                    "step_id": step_index,
+                    "state": step_state
+                })
+            stage_state_dict = output_execution['stages'][index]
+            stage_state = None
+            if 'state' in stage_state_dict:
+                stage_state = stage_state_dict['state']
+            output_dict.append({
+                "stage_id": index,
+                "name": stage['name'],
+                "state": stage_state,
+                "steps": tmp_step_message
+            })
+        return output_dict[1:]
+            
 
     def rc_get_pipeline_executions_logs(self, ci_project_id, ci_pipeline_id,
                                         pipelines_exec_run):
