@@ -127,7 +127,25 @@ class Rancher(object):
                 "steps": tmp_step_message
             })
         return output_dict[1:]
-            
+
+    def rc_get_pipe_log_websocket(self, ci_pipeline_id, pipelines_exec_run, stage_index, step_index):
+        self.token = self.__generate_token()
+        headersandtoken = "Authorization: Bearer {0}".format(self.token)
+        self.rc_get_project_id()
+        url = ("wss://{0}/{1}/project/{2}/pipelineExecutions/"
+                "{3}-{4}/log?stage={5}&step={6}").format(
+            config.get('RANCHER_IP_PORT'), config.get('RANCHER_API_VERSION'),
+            self.project_id,
+            ci_pipeline_id, pipelines_exec_run, stage_index, step_index)
+        result = None
+        ws = websocket.create_connection(url, header=[headersandtoken],
+                                            sslopt={"cert_reqs": ssl.CERT_NONE})
+        ws.settimeout(3)
+        try:
+            result = ws.recv()
+            ws.close()
+        except websocket.WebSocketTimeoutException:
+            ws.close()
 
     def rc_get_pipeline_executions_logs(self, ci_project_id, ci_pipeline_id,
                                         pipelines_exec_run):

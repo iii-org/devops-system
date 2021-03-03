@@ -279,6 +279,7 @@ class PipelinePhaseYaml(Resource):
     def get(self, repository_id, branch_name):
         return get_phase_yaml(repository_id, branch_name)
 
+
 class PipelineConfig(Resource):
     @jwt_required
     def get(self, repository_id):
@@ -286,6 +287,7 @@ class PipelineConfig(Resource):
         parser.add_argument('pipelines_exec_run', type=int, required=True)
         args = parser.parse_args()
         return pipeline_config(repository_id, args)
+
 
 class Pipelinelog(Namespace):
     def on_connect(self):
