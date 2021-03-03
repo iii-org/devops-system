@@ -482,6 +482,13 @@ def list_deploy_environement(namespace,git_url):
                         pods_info[environement]['deployments'][deployment_name]['name'] = deployment_name
                         pods_info[environement]['deployments'][deployment_name]['type'] = annotations['iiidevops.org/type']
                         pods_info[environement]['deployments'][deployment_name]['containers'] = []                     
+                        pods_info[environement]['deployments'][deployment_name]['ports'] = [] 
+                    for container in pods.spec.containers:
+                        container_info = {}
+                        port_info = []
+                        print(container.ports[0].container_port)
+                        container_info = {'name': container.name , 'image': container.image, 'container_port': container.ports[0].container_port}
+                        pods_info[environement]['deployments'][deployment_name]['ports'].append(container_info)
                     for container_status in pods.status.container_statuses:
                         container_info ={}
                         container_status_info = analysis_container_status_time(container_status)                    
@@ -525,13 +532,15 @@ def list_deploy_environement(namespace,git_url):
                     service_info = {}
                     service_info['name'] = service.metadata.name
                     service_info['type'] = service.spec.type
-                    service_info['url'] = []
-                for port in service.spec.ports:
-                    print(port)
-                    port_info = {"nodePort": port.node_port, "protocol": port.protocol,
-                              "target_port": port.target_port, "name": port.name, "port": port.port,"url":"http://{0}:{1}".format(work_node_ip, port.node_port)}
-                    service_info['url'].append(port_info)
+                    service_info['url'] = "http://{0}:{1}".format(work_node_ip, service.spec.ports[0].node_port)
+                    service_info['target_port'] = service.spec.ports[0].port
+                    # print(service.spec.ports[0])
                 services_info[environement]['deployments'][deployment_name]['services'].append(service_info)
+                # for port in service.spec.ports:
+                #     port_info = {"nodePort": port.node_port, "protocol": port.protocol,
+                #               "target_port": port.target_port, "name": port.name, "port": port.port,"url":"http://{0}:{1}".format(work_node_ip, port.node_port)}
+                    # service_info['url'].append(port_info)
+                # services_info[environement]['deployments'][deployment_name]['services'].append(service_info)
                     # services_info[environement]['deployments'][deployment_name]['services'].append({"nodePort": port.node_port, "protocol": port.protocol,
                     #           "target_port": port.target_port, "name": port.name, "port": port.port})
                 # for service in analysis_annotations_public_endpoint(annotations['field.cattle.io/publicEndpoints']):
@@ -571,6 +580,7 @@ def list_deploy_environement(namespace,git_url):
                 if environement in pods_info and str(labels['app']) in pods_info[environement]['deployments'] :
                     deployment_info['container_type'] = pods_info[environement]['deployments'][labels['app']]['type']
                     deployment_info['container'] = pods_info[environement]['deployments'][labels['app']]['containers']                
+                    deployment_info['container_port'] = pods_info[environement]['deployments'][labels['app']]['ports']                
                                 
                 if environement in services_info and str(labels['app']) in services_info[environement]['deployments'] :
                     deployment_info['services_type'] = services_info[environement]['deployments'][labels['app']]['type']                
