@@ -7,9 +7,9 @@ from flask_restful import Resource, reqparse
 from sqlalchemy.orm.exc import NoResultFound
 from flask_socketio import Namespace, emit
 
-import model
 import resources.apiError as apiError
 import util as util
+from nexus import nx_get_project_plugin_relation
 from model import db, PipelineLogsCache
 from resources.logger import logger
 from .gitlab import GitLab, commit_id_to_url
@@ -20,12 +20,7 @@ gitlab = GitLab()
 
 def pipeline_exec_list(repository_id):
     output_array = []
-    try:
-        relation = model.ProjectPluginRelation.query.filter_by(
-            git_repository_id=repository_id).one()
-    except NoResultFound:
-        raise apiError.DevOpsError(404, 'No such project',
-                                   error=apiError.repository_id_not_found(repository_id))
+    relation = nx_get_project_plugin_relation(repo_id=repository_id)
     pipeline_outputs = rancher.rc_get_pipeline_executions(
         relation.ci_project_id,
         relation.ci_pipeline_id)
@@ -57,23 +52,11 @@ def pipeline_exec_list(repository_id):
     return output_array
 
 def pipeline_config(repository_id, args):
-    try:
-        relation = model.ProjectPluginRelation.query.filter_by(
-            git_repository_id=repository_id).one()
-    except NoResultFound:
-        raise apiError.DevOpsError(
-            404, 'No such project.',
-            error=apiError.repository_id_not_found(repository_id))
+    relation = nx_get_project_plugin_relation(repo_id=repository_id)
     return rancher.rc_get_pipeline_config(relation.ci_pipeline_id, args['pipelines_exec_run'])
 
 def pipeline_exec_logs(args):
-    try:
-        relation = model.ProjectPluginRelation.query.filter_by(
-            git_repository_id=args['repository_id']).one()
-    except NoResultFound:
-        raise apiError.DevOpsError(
-            404, 'No such project.',
-            error=apiError.repository_id_not_found(args['repository_id']))
+    relation = nx_get_project_plugin_relation(repo_id=args["repository_id"])
 
     # search PipelineLogsCache table log
     log_cache = PipelineLogsCache.query.filter(PipelineLogsCache.project_id == relation.project_id,
@@ -102,13 +85,7 @@ def pipeline_websocket_logs():
     #emit('my response', {'data': data['data']}, broadcast=True)
 
 def pipeline_exec_action(git_repository_id, args):
-    try:
-        relation = model.ProjectPluginRelation.query.filter_by(
-            git_repository_id=git_repository_id).one()
-    except NoResultFound:
-        raise apiError.DevOpsError(
-            404, 'No such project.',
-            error=apiError.repository_id_not_found(git_repository_id))
+    relation = nx_get_project_plugin_relation(repo_id=git_repository_id)
 
     response = rancher.rc_get_pipeline_executions_action(
         relation.ci_project_id,

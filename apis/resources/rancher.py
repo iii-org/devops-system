@@ -8,6 +8,7 @@ from flask_jwt_extended import jwt_required
 import config
 import resources.apiError as apiError
 import util as util
+from nexus import nx_get_project_plugin_relation
 from resources.logger import logger
 
 

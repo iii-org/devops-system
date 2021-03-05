@@ -367,7 +367,7 @@ def try_to_delete(delete_method, argument):
 @record_activity(ActionType.DELETE_PROJECT)
 def delete_project(project_id):
     # 取得gitlab & redmine project_id
-    relation = nx_get_project_plugin_relation(project_id)
+    relation = nx_get_project_plugin_relation(nexus_project_id=project_id)
     if relation is None:
         # 如果 project table 有髒資料，將其移除
         corr = model.Project.query.filter_by(id=project_id).first()
@@ -494,7 +494,7 @@ def project_add_member(project_id, user_id):
     db.session.commit()
 
     user_relation = nexus.nx_get_user_plugin_relation(user_id=user_id)
-    project_relation = nx_get_project_plugin_relation(project_id)
+    project_relation = nx_get_project_plugin_relation(nexus_project_id=project_id)
     redmine_role_id = user.to_redmine_role_id(role_id)
 
     # get project name
@@ -534,7 +534,7 @@ def project_remove_member(project_id, user_id):
     role_id = user.get_role_id(user_id)
 
     user_relation = nexus.nx_get_user_plugin_relation(user_id=user_id)
-    project_relation = nx_get_project_plugin_relation(project_id)
+    project_relation = nx_get_project_plugin_relation(nexus_project_id=project_id)
     if project_relation is None:
         raise apiError.DevOpsError(404, "Error while removing a member from the project.",
                                    error=apiError.project_not_found(project_id))
