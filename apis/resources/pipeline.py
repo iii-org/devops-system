@@ -5,7 +5,7 @@ import yaml
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
 from sqlalchemy.orm.exc import NoResultFound
-from flask_socketio import Namespace, emit
+from flask_socketio import Namespace, emit, SocketIO
 
 import resources.apiError as apiError
 import util as util
@@ -54,6 +54,7 @@ def pipeline_exec_list(repository_id):
 def pipeline_config(repository_id, args):
     relation = nx_get_project_plugin_relation(repo_id=repository_id)
     return rancher.rc_get_pipeline_config(relation.ci_pipeline_id, args['pipelines_exec_run'])
+    
 
 def pipeline_exec_logs(args):
     relation = nx_get_project_plugin_relation(repo_id=args["repository_id"])
@@ -79,10 +80,6 @@ def pipeline_exec_logs(args):
         return util.success(output_array)
     else:
         return util.success(log_cache.logs)
-
-def pipeline_websocket_logs():
-    pass
-    #emit('my response', {'data': data['data']}, broadcast=True)
 
 def pipeline_exec_action(git_repository_id, args):
     relation = nx_get_project_plugin_relation(repo_id=git_repository_id)
@@ -264,15 +261,3 @@ class PipelineConfig(Resource):
         parser.add_argument('pipelines_exec_run', type=int, required=True)
         args = parser.parse_args()
         return pipeline_config(repository_id, args)
-
-
-class Pipelinelog(Namespace):
-    def on_connect(self):
-        print('connect')
-
-    def on_disconnect(self):
-        print('Client disconnected')
-
-    def on_my_event(self, data):
-        print('my broadcast event')
-        pipeline_websocket_logs()

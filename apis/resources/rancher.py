@@ -4,6 +4,7 @@ import websocket
 import base64
 from flask_restful import abort, Resource, reqparse
 from flask_jwt_extended import jwt_required
+from flask_socketio import Namespace, emit
 
 import config
 import resources.apiError as apiError
@@ -31,8 +32,6 @@ class Rancher(object):
             self.token = self.__generate_token()
             return self.__api_request(method, path, headers=headers, params=params, data=data,
                                       with_token=True, retried=True)
-        logger.info('Rancher api {0} {1}, params={2}, body={5}, response={3} {4}'.format(
-            method, url, params.__str__(), response.status_code, response.text, data))
         if int(response.status_code / 100) != 2:
             raise apiError.DevOpsError(
                 response.status_code,
@@ -129,7 +128,8 @@ class Rancher(object):
             })
         return output_dict[1:]
 
-    def rc_get_pipe_log_websocket(self, ci_pipeline_id, pipelines_exec_run, stage_index, step_index):
+    def rc_get_pipe_log_websocket(self, data):
+        relation = nx_get_project_plugin_relation(repo_id=data["repository_id"])
         self.token = self.__generate_token()
         headersandtoken = "Authorization: Bearer {0}".format(self.token)
         self.rc_get_project_id()
@@ -137,16 +137,20 @@ class Rancher(object):
                 "{3}-{4}/log?stage={5}&step={6}").format(
             config.get('RANCHER_IP_PORT'), config.get('RANCHER_API_VERSION'),
             self.project_id,
-            ci_pipeline_id, pipelines_exec_run, stage_index, step_index)
+            relation.ci_pipeline_id, data["pipelines_exec_run"], data["stage_index"], data["step_index"])
         result = None
-        ws = websocket.create_connection(url, header=[headersandtoken],
-                                            sslopt={"cert_reqs": ssl.CERT_NONE})
-        ws.settimeout(3)
         try:
-            result = ws.recv()
+            ws = websocket.create_connection(url, header=[headersandtoken],
+                                                sslopt={"cert_reqs": ssl.CERT_NONE})
+            while True:
+                result = ws.recv()
+                emit('pipeline_log', {'data': result}, broadcast=True)
+                if result is None:
+                    ws.close()
+                    break
+        except:
             ws.close()
-        except websocket.WebSocketTimeoutException:
-            ws.close()
+
 
     def rc_get_pipeline_executions_logs(self, ci_project_id, ci_pipeline_id,
                                         pipelines_exec_run):
@@ -209,7 +213,6 @@ class Rancher(object):
             rancher_output = self.__api_get('/clusters')
             output_array = rancher_output.json()['data']
             for output in output_array:
-                logger.debug("get_rancher_cluster output: {0}".format(output['name']))
                 if output['name'] == config.get('RANCHER_CLUSTER_NAME'):
                     self.cluster_id = output['id']
 
@@ -391,3 +394,16 @@ class Catalogs_Refresh(Resource):
     @jwt_required
     def post(self):
         return util.success(rancher.rc_refresh_catalogs())
+
+
+class RancherWebsocketLog(Namespace):
+
+    def on_connect(self):
+        print('connect')
+
+    def on_disconnect(self):
+        print('Client disconnected')
+
+    def on_get_pipe_log(self, data):
+        print('get_pipe_log')
+        rancher.rc_get_pipe_log_websocket(data)

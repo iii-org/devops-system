@@ -243,7 +243,7 @@ api.add_resource(pipeline.PipelineYaml,
                  '/pipelines/<repository_id>/branch/<branch_name>/generate_ci_yaml')
 
 # Websocket
-socketio.on_namespace(pipeline.Pipelinelog('/pipelines/websocket/logs'))
+socketio.on_namespace(rancher.RancherWebsocketLog('/rancher/websocket/logs'))
 
 # issue
 api.add_resource(issue.IssueByProject, '/project/<sint:project_id>/issues')
