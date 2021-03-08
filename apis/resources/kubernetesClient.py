@@ -28,6 +28,22 @@ iii_template['project_name'] = 'iiidevops.org/project_name'
 iii_template['branch'] = 'iiidevops.org/branch'
 iii_template['commit_id'] = 'iiidevops.org/commit_id'
 iii_template['type'] = 'iiidevops.org/type'
+
+iii_secret = ['gitlab-bot',
+    'gitlab',
+    'nexus-bot', 
+    'nexus',
+    'sonar-bot',
+    'checkmarx',
+    'harbor',
+    'harbor-local', 
+    'pipeline-docker-registry',
+    'rancher',
+    'sonarqube',
+    'sonar-bot',
+    'webinspect']
+
+
 con = k8s_client.Configuration()
 con.verify_ssl = False
 k8s_client.Configuration.set_default(con)
@@ -406,7 +422,8 @@ def list_secret(namespace):
     try:
         secret_list = []
         for secrets in v1.list_namespaced_secret(namespace).items:
-            secret_list.append(secrets.metadata.name)
+            if secrets.metadata.name in iii_secret:
+                secret_list.append(secrets.metadata.name)            
         return secret_list
     except apiError.DevOpsError as e:
         if e.status_code != 404:
