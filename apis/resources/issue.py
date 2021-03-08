@@ -183,7 +183,7 @@ def create_issue(args, operator_id):
     if 'parent_id' in args:
         args['parent_issue_id'] = args['parent_id']
         args.pop('parent_id', None)
-    project_plugin_relation = nexus.nx_get_project_plugin_relation(args['project_id'])
+    project_plugin_relation = nexus.nx_get_project_plugin_relation(nexus_project_id=args['project_id'])
     args['project_id'] = project_plugin_relation.plan_project_id
     if "assigned_to_id" in args:
         user_plugin_relation = nexus.nx_get_user_plugin_relation(user_id=args['assigned_to_id'])

@@ -11,6 +11,7 @@ from flask_restful import Resource, Api, reqparse
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy_utils import database_exists, create_database
 from werkzeug.routing import IntegerConverter
+from flask_socketio import SocketIO
 
 import config
 import migrate
@@ -39,6 +40,7 @@ for key in ['JWT_SECRET_KEY',
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = datetime.timedelta(days=1)
 api = Api(app, errors=apiError.custom_errors)
 CORS(app)
+socketio = SocketIO(app)
 
 
 class SignedIntConverter(IntegerConverter):
@@ -230,6 +232,8 @@ api.add_resource(role.RoleList, '/user/role/list')
 # pipeline
 api.add_resource(pipeline.PipelineExec,
                  '/pipelines/<repository_id>/pipelines_exec')
+api.add_resource(pipeline.PipelineConfig,
+                 '/pipelines/<repository_id>/config')
 api.add_resource(pipeline.PipelineExecAction, '/pipelines/<repository_id>/pipelines_exec/action')
 api.add_resource(pipeline.PipelineExecLogs, '/pipelines/logs')
 api.add_resource(pipeline.PipelineSoftware, '/pipelines/software')
@@ -237,6 +241,9 @@ api.add_resource(pipeline.PipelinePhaseYaml,
                  '/pipelines/<repository_id>/branch/<branch_name>/phase_yaml')
 api.add_resource(pipeline.PipelineYaml,
                  '/pipelines/<repository_id>/branch/<branch_name>/generate_ci_yaml')
+
+# Websocket
+socketio.on_namespace(rancher.RancherWebsocketLog('/rancher/websocket/logs'))
 
 # issue
 api.add_resource(issue.IssueByProject, '/project/<sint:project_id>/issues')
@@ -375,6 +382,7 @@ api.add_resource(activity.ProjectActivities, '/project/<sint:project_id>/activit
 api.add_resource(NexusVersion, '/system_versions')
 
 
+
 if __name__ == "__main__":
     try:
         db.init_app(app)
@@ -382,7 +390,7 @@ if __name__ == "__main__":
         jsonwebtoken.init_app(app)
         initialize(config.get('SQLALCHEMY_DATABASE_URI'))
         migrate.run()
-        app.run(host='0.0.0.0', port=10009, debug=(config.get('DEBUG') is True))
+        socketio.run(app, host='0.0.0.0', port=10009, debug=(config.get('DEBUG') is True))
     except Exception as e:
         ret = internal_error(e)
         if ret[1] == 404:
