@@ -96,7 +96,7 @@ def hb_create_project(project_name):
 def hb_delete_project(harbor_param):
     try:
         repositoriest = hb_list_repositories(harbor_param[1])
-        if len(repositoriest) !=0:
+        if len(repositoriest) != 0:
             for repository in repositoriest:
                 split_list = repository["name"].split("/")
                 project_name = split_list[0]
@@ -184,11 +184,23 @@ def hb_list_artifacts(project_name, repository_name):
             vul = ''
         else:
             vul = '{0} ({1})'.format(scan['severity'], scan['summary']['total'])
-        for tag in art['tags']:
+        if 'tags' in art:
+            for tag in art['tags']:
+                ret.append({
+                    'artifact_id': art['id'],
+                    'tag_id': tag['id'],
+                    'name': tag['name'],
+                    'size': art['size'],
+                    'vulnerabilities': vul,
+                    'digest': art['digest'],
+                    'labels': art['labels'],
+                    'push_time': art['push_time']
+                })
+        else:
             ret.append({
                 'artifact_id': art['id'],
-                'tag_id': tag['id'],
-                'name': tag['name'],
+                'tag_id': '',
+                'name': '',
                 'size': art['size'],
                 'vulnerabilities': vul,
                 'digest': art['digest'],
@@ -237,16 +249,15 @@ def hb_build_external_link(path):
 
 
 def get_storage_usage(project_id):
-    
     habor_info = hb_get_project_summary(project_id)
     usage_info = {}
     usage_info['title'] = 'Harbor'
     usage_info['used'] = {}
-    usage_info['used']['value']= habor_info['quota']['used']['storage']
-    usage_info['used']['unit']= ''
+    usage_info['used']['value'] = habor_info['quota']['used']['storage']
+    usage_info['used']['unit'] = ''
     usage_info['quota'] = {}
-    usage_info['quota']['value']= habor_info['quota']['hard']['storage']
-    usage_info['quota']['unit']= ''
+    usage_info['quota']['value'] = habor_info['quota']['hard']['storage']
+    usage_info['quota']['unit'] = ''
     return usage_info
 
 
