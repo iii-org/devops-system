@@ -40,7 +40,7 @@ for key in ['JWT_SECRET_KEY',
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = datetime.timedelta(days=1)
 api = Api(app, errors=apiError.custom_errors)
 CORS(app)
-socketio = SocketIO(app)
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 
 class SignedIntConverter(IntegerConverter):
