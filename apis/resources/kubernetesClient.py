@@ -422,7 +422,7 @@ def list_secret(namespace):
     try:
         secret_list = []
         for secrets in v1.list_namespaced_secret(namespace).items:
-            if secrets.metadata.name in iii_secret:
+            if secrets.metadata.name not in iii_secret:
                 secret_list.append(secrets.metadata.name)            
         return secret_list
     except apiError.DevOpsError as e:
