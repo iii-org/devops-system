@@ -821,9 +821,8 @@ def delete_kubernetes_namespace_deployment(project_id, name):
 
 def get_kubernetes_namespace_deploy_environment(project_id):    
     project_info = model.Project.query.filter_by(id=project_id).first()
-    project_deployment = kubernetesClient.list_deploy_environement(str(project_info.name),str(project_info.http_url))
+    project_deployment = kubernetesClient.list_pod_environement(str(project_info.name),str(project_info.http_url))
     return util.success(project_deployment)
-
 
 def put_kubernetes_namespace_deploy_environment(project_id, branch_name):
     project_info = model.Project.query.filter_by(id=project_id).first()
