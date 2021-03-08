@@ -537,7 +537,7 @@ def get_list_services_info(namespace):
                 service_info['public_endpoints'] = analysis_annotations_public_endpoint(
                     annotations['field.cattle.io/publicEndpoints'])
                 service_info['url'] = map_port_and_public_endpoint(
-                    service.spec.ports, service_info['public_endpoints'])
+                    service.spec.ports, service_info['public_endpoints'], annotations[iii_template['type']])
                 list_services[environement]['services'].append(service_info)
         return list_services
     except apiError.DevOpsError as e:
@@ -657,7 +657,7 @@ def analysis_annotations_public_endpoint(public_endpoints):
         if e.status_code != 404:
             raise e
 
-def map_port_and_public_endpoint(ports, public_endpoints):
+def map_port_and_public_endpoint(ports, public_endpoints,service_type=''):
     try:
         info = []
         for port in ports:
@@ -665,7 +665,7 @@ def map_port_and_public_endpoint(ports, public_endpoints):
                 url_info = {}
                 url_info['port_name'] = port.name
                 url_info['target_port'], url_info['port']  = identify_target_port(port.target_port, port.port)
-                url_info['url'] = identify_extenral_url(public_endpoint,port.node_port)
+                url_info['url'] = identify_extenral_url(public_endpoint,port.node_port,service_type)
                 info.append(url_info)                
         return info
     except apiError.DevOpsError as e:
@@ -685,9 +685,12 @@ def identify_target_port(target_port, port):
             raise e
 
 # Identify Service Exact Extenral URL
-def identify_extenral_url(public_endpoint, node_port):
+def identify_extenral_url(public_endpoint, node_port, service_type = ''):
     try:
-        external_url_format = "http://{0}:{1}"
+        external_url_format = '{0}:{1}'
+        if service_type != 'db-server':
+            external_url_format = "http://"+external_url_format
+        
         url = []
         if config.get('INGRESS_EXTERNAL_BASE') is not '' and config.get('INGRESS_EXTERNAL_BASE') is not None:
             url.append(external_url_format.format(config.get('INGRESS_EXTERNAL_BASE'), node_port))                    
