@@ -306,7 +306,7 @@ class Rancher(object):
         self.rc_get_project_id()
         url = f"/projects/{self.project_id}/apps/{self.project_id.split(':')[1]}:{app_name}"
         output = self.__api_delete(url)
-    
+
     def rc_del_app_when_devops_del_pj(self, project_name):
         apps = self.rc_get_apps_all()
         for app in apps:

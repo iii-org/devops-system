@@ -279,6 +279,10 @@ def create_project(user_id, args):
         harbor.hb_delete_project(harbor_param)
         kubernetesClient.delete_namespace(project_name)
         sonarqube.sq_delete_project(project_name)
+        t_rancher = DevOpsThread(target=rancher.rc_disable_project_pipeline,
+                                 args=(gitlab_pj_http_url,))
+        t_rancher.start()
+        kubernetesClient.delete_namespace(project_name)
         raise e
 
 
