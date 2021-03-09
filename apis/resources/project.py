@@ -771,11 +771,11 @@ def get_kubernetes_namespace_Quota(project_id):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
     project_quota = kubernetesClient.get_namespace_quota(project_name)
     deployments = kubernetesClient.list_deployment(project_name)
-    ingresss = kubernetesClient.list_ingress(project_name)
+    ingress = kubernetesClient.list_ingress(project_name)
     project_quota["quota"]["deployments"] = None
     project_quota["used"]["deployments"] = str(len(deployments))
-    project_quota["quota"]["ingresss"] = None
-    project_quota["used"]["ingresss"] = str(len(ingresss))
+    project_quota["quota"]["ingress"] = None
+    project_quota["used"]["ingress"] = str(len(ingress))
     return util.success(project_quota)
 
 
