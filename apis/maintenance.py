@@ -40,7 +40,16 @@ class secretes_into_rc_all(Resource):
 
     @jwt_required
     def get(self):
-        return util.success(rancher.rc_get_secrets_all_list())
+        secret_list = rancher.rc_get_secrets_all_list()
+        registry_list = rancher.rc_get_registry_into_rc_all()
+        i = 0
+        while i < len(secret_list):
+            for registry in registry_list:
+                if secret_list[i]["name"] == registry["name"]:
+                    del secret_list[i]
+                    break
+            i += 1
+        return util.success(secret_list)
         
     @jwt_required
     def post(self):
