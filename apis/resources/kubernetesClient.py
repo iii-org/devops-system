@@ -307,7 +307,7 @@ def list_namespace_pods_info(namespace):
             raise e
 
 
-def delete_pod(namespace, name):
+def delete_namespace_pod(namespace, name):
     try:
         pod = v1.delete_namespaced_pod(name, namespace)
         return pod.metadata.self_link
@@ -471,14 +471,13 @@ def delete_configmap(namespace, name):
             raise e
 
 
-def list_namespace_ingress(namespace):
+def list_namespace_ingress_info(namespace):
     try:
         ingress_list = []
         for ingress in extensions_v1beta1.list_namespaced_ingress(namespace).items:
             ingress_info = {}
             ingress_info["name"] = ingress.metadata.name
-            ingress_info["created_time"] = str(
-                ingress.metadata.creation_timestamp)
+            ingress_info["created_time"] = str(ingress.metadata.creation_timestamp)
             ip = None
             if ingress.status.load_balancer.ingress is not None:
                 ip = ingress.status.load_balancer.ingress[0].ip
