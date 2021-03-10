@@ -785,25 +785,25 @@ def update_kubernetes_namespace_Quota(project_id, resource):
     return util.success(project_quota)
 
 
-def get_kubernetes_namespace_Pod(project_id):
+def get_kubernetes_namespace_pods(project_id):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
-    project_pod = kubernetesClient.list_pod(project_name)
+    project_pod = kubernetesClient.list_namespace_pods_info(project_name)
     return util.success(project_pod)
 
 
-def delete_kubernetes_namespace_Pod(project_id, name):
+def delete_kubernetes_namespace_pod(project_id, name):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
     project_pod = kubernetesClient.delete_pod(project_name, name)
     return util.success(project_pod)
 
-def get_kubernetes_namespace_Pod_Log(project_id, name, container_name=None):
+def get_kubernetes_namespace_pod_log(project_id, name, container_name=None):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
-    pod_log = kubernetesClient.get_pod_logs(project_name, name, container_name)
+    pod_log = kubernetesClient.read_namespace_pod_log(project_name, name, container_name)
     return util.success(pod_log)
 
 def get_kubernetes_namespace_deployment(project_id):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
-    project_deployment = kubernetesClient.list_namespace_deployment(project_name)
+    project_deployment = kubernetesClient.list_namespace_deployment_info(project_name)
     return util.success(project_deployment)
 
 def put_kubernetes_namespace_deployment(project_id, name):
@@ -819,7 +819,7 @@ def delete_kubernetes_namespace_deployment(project_id, name):
     project_deployment = kubernetesClient.delete_namespace_deployment(project_name, name)
     return util.success(project_deployment)
 
-def get_kubernetes_namespace_deploy_environment(project_id):    
+def get_kubernetes_namespace_dev_environment(project_id):    
     project_info = model.Project.query.filter_by(id=project_id).first()
     project_deployment = kubernetesClient.list_pod_environement(str(project_info.name),str(project_info.http_url))
     return util.success(project_deployment)
@@ -1050,16 +1050,18 @@ class ProjectUserResource(Resource):
         return update_kubernetes_namespace_Quota(project_id, args)
 
 
-class ProjectUserResourcePod(Resource):
+class ProjectUserResourcePods(Resource):
     @jwt_required
     def get(self, project_id):
         role.require_in_project(project_id, "Error while getting project info.")
-        return get_kubernetes_namespace_Pod(project_id)
+        return get_kubernetes_namespace_pods(project_id)
+
+class ProjectUserResourcePod(Resource):
 
     @jwt_required
     def delete(self, project_id, pod_name):
         role.require_in_project(project_id, "Error while getting project info.")
-        return delete_kubernetes_namespace_Pod(project_id, pod_name)
+        return delete_kubernetes_namespace_pod(project_id, pod_name)
 
 
 class ProjectUserResourcePodLog(Resource): 
@@ -1069,13 +1071,14 @@ class ProjectUserResourcePodLog(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('container_name', type=str)
         args = parser.parse_args()
-        return get_kubernetes_namespace_Pod_Log(project_id, pod_name, args['container_name'])
+        print(project_id)
+        return get_kubernetes_namespace_pod_log(project_id, pod_name, args['container_name'])
 
 class ProjectEnvironment(Resource):
     @jwt_required
     def get(self, project_id):
         role.require_in_project(project_id, "Error while getting project info.")
-        return get_kubernetes_namespace_deploy_environment(project_id)
+        return get_kubernetes_namespace_dev_environment(project_id)
     
     @jwt_required
     def put(self, project_id, branch_name):

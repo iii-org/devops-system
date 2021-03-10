@@ -172,13 +172,13 @@ api.add_resource(project.ProjectsByUser, '/projects_by_user/<int:user_id>')
 api.add_resource(project.ProjectUserList, '/project/<sint:project_id>/user/list')
 api.add_resource(project.ProjectPluginUsage,'/project/<sint:project_id>/plugin/resource')
 api.add_resource(project.ProjectUserResource, '/project/<sint:project_id>/resource')
-api.add_resource(project.ProjectUserResourcePod, '/project/<sint:project_id>/resource/list/pod', 
-                 '/project/<sint:project_id>/resource/list/pod/<pod_name>')
-api.add_resource(project.ProjectUserResourcePodLog, 
-                 '/project/<sint:project_id>/resource/list/pod/<pod_name>/log')
 
+api.add_resource(project.ProjectUserResourcePods, '/project/<sint:project_id>/resource/pods')
+api.add_resource(project.ProjectUserResourcePod, '/project/<sint:project_id>/resource/pods/<pod_name>')
+api.add_resource(project.ProjectUserResourcePodLog, '/project/<sint:project_id>/resource/pods/<pod_name>/log')
+
+# k8s Deployment
 api.add_resource(project.ProjectUserResourceDeployments, '/project/<sint:project_id>/resource/deployments')
-
 api.add_resource(project.ProjectUserResourceDeployment, '/project/<sint:project_id>/resource/deployments/<deployment_name>')
 
 # List k8s Services

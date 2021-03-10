@@ -286,7 +286,7 @@ def delete_role_binding(namespace, role_binding_name):
             raise e
 
 
-def list_pod(namespace):
+def list_namespace_pods_info(namespace):
     try:
         pod_list = []
         for pods in v1.list_namespaced_pod(namespace).items:
@@ -316,7 +316,7 @@ def delete_pod(namespace, name):
             raise e
 
 
-def get_pod_logs(namespace, name, container_name=None):
+def read_namespace_pod_log(namespace, name, container_name=None):
     try:
         pod_log = v1.read_namespaced_pod_log(
             name, namespace, container=container_name)
@@ -326,7 +326,7 @@ def get_pod_logs(namespace, name, container_name=None):
             raise e
 
 
-def list_namespace_deployment(namespace):
+def list_namespace_deployment_info(namespace):
     try:
         deployment_list = []
         for deployments in k8s_client.AppsV1Api().list_namespaced_deployment(namespace).items:
@@ -504,9 +504,9 @@ def list_namespace_ingress(namespace):
 
 
 
-def list_pod_environement(namespace, git_url):
+def list_dev_environement(namespace, git_url):
     try:
-        list_services = get_list_namespace_services_by_iii(namespace)
+        list_services = list_namespace_services_by_iii(namespace)
         pods_info = {}
         for pod in v1.list_namespaced_pod(namespace).items:
             annotations = pod.metadata.annotations
@@ -550,7 +550,7 @@ def get_list_container_statuses(container_statuses):
         if e.status_code != 404:
             raise e
 
-def get_list_namespace_services_by_iii(namespace):
+def list_namespace_services_by_iii(namespace):
     try:
         list_services = {}
         for service in v1.list_namespaced_service(namespace).items:
