@@ -146,14 +146,13 @@ class GitLab(object):
                                params=params)
 
     def gl_project_delete_member(self, project_id, user_id):
-        return self.__api_delete('/projects/{0}/members/{1}'.format(
-            project_id, user_id))
+        return self.__api_delete(f'/projects/{project_id}/members/{user_id}')
 
     def gl_delete_user(self, gitlab_user_id):
-        return self.__api_delete('/users/{0}'.format(gitlab_user_id))
+        return self.__api_delete(f'/users/{gitlab_user_id}')
 
     def gl_count_branches(self, repo_id):
-        output = self.__api_get('/projects/{0}/repository/branches'.format(repo_id))
+        output = self.__api_get(f'/projects/{repo_id}/repository/branches')
         return len(output.json())
 
     def gl_get_tags(self, repo_id):
@@ -188,7 +187,7 @@ class GitLab(object):
             env_url_list = []
             for k8s_service in k8s_service_list:
                 if k8s_service['type'] == 'NodePort' and \
-                        "{0}-{1}".format(project_detail['path'], branch_info["name"]) \
+                        f'{project_detail["path"]}-{branch_info["name"]}' \
                         in k8s_service['name']:
                     port_list = []
                     for port in k8s_service['ports']:
