@@ -835,9 +835,9 @@ def delete_kubernetes_namespace_deploy_by_branch(project_id, branch_name):
     return util.success(project_deployment)
 
 
-def get_kubernetes_namespace_service(project_id):
+def get_kubernetes_namespace_services(project_id):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
-    project_service = kubernetesClient.list_service(project_name)
+    project_service = kubernetesClient.list_namespace_services(project_name)
     return util.success(project_service)
 
 
@@ -887,9 +887,10 @@ def delete_kubernetes_namespace_configmap(project_id, name):
     project_configmap = kubernetesClient.delete_configmap(project_name, name)
     return util.success(project_configmap)
 
-def get_kubernetes_namespace_ingress(project_id):
+
+def get_kubernetes_namespace_ingresses(project_id):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
-    ingress_list = kubernetesClient.list_ingress(project_name)
+    ingress_list = kubernetesClient.list_namespace_ingress(project_name)
     return util.success(ingress_list)
 
 
@@ -1101,13 +1102,14 @@ class ProjectUserResourceDeployment(Resource):
         role.require_in_project(project_id, "Error while getting project info.")
         return delete_kubernetes_namespace_deployment(project_id, deployment_name)
 
-
-class ProjectUserResourceService(Resource):
+class ProjectUserResourceServices(Resource):
     @jwt_required
     def get(self, project_id):
         role.require_in_project(project_id, "Error while getting project info.")
-        return get_kubernetes_namespace_service(project_id)
+        return get_kubernetes_namespace_services(project_id)
 
+
+class ProjectUserResourceService(Resource):
     @jwt_required
     def delete(self, project_id, service_name):
         role.require_in_project(project_id, "Error while getting project info.")
@@ -1165,8 +1167,9 @@ class ProjectUserResourceConfigMap(Resource):
         return delete_kubernetes_namespace_configmap(project_id, configmap_name)
 
 
-class ProjectUserResourceIngress(Resource):
+class ProjectUserResourceIngresses(Resource):
     @jwt_required
     def get(self, project_id):
         role.require_in_project(project_id, "Error while getting project info.")
-        return get_kubernetes_namespace_ingress(project_id)
+        return get_kubernetes_namespace_ingresses(project_id)
+

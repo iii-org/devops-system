@@ -178,21 +178,23 @@ api.add_resource(project.ProjectUserResourcePodLog,
                  '/project/<sint:project_id>/resource/list/pod/<pod_name>/log')
 api.add_resource(project.ProjectUserResourceDeployment, '/project/<sint:project_id>/resource/list/deployment',
                  '/project/<sint:project_id>/resource/list/deployment/<deployment_name>')
-api.add_resource(project.ProjectUserResourceService, '/project/<sint:project_id>/resource/list/service',
-                 '/project/<sint:project_id>/resource/list/service/<service_name>')
+
+# List k8s Services
+api.add_resource(project.ProjectUserResourceServices, '/project/<sint:project_id>/resource/services')
+api.add_resource(project.ProjectUserResourceService, '/project/<sint:project_id>/resource/services/<service_name>')
 
 # k8s Secrets
-api.add_resource(project.ProjectUserResourceSecrets, '/project/<sint:project_id>/resource/secret')
-api.add_resource(project.ProjectUserResourceSecret,  '/project/<sint:project_id>/resource/secret/<secret_name>')
+api.add_resource(project.ProjectUserResourceSecrets, '/project/<sint:project_id>/resource/secrets')
+api.add_resource(project.ProjectUserResourceSecret,  '/project/<sint:project_id>/resource/secrets/<secret_name>')
 
 # k8s ConfigMaps
-api.add_resource(project.ProjectUserResourceConfigMaps, '/project/<sint:project_id>/resource/configmap' )
-api.add_resource(project.ProjectUserResourceConfigMap,  '/project/<sint:project_id>/resource/configmap/<configmap_name>')
+api.add_resource(project.ProjectUserResourceConfigMaps, '/project/<sint:project_id>/resource/configmaps' )
+api.add_resource(project.ProjectUserResourceConfigMap,  '/project/<sint:project_id>/resource/configmaps/<configmap_name>')
+
+#k8s Ingress
+api.add_resource(project.ProjectUserResourceIngresses, '/project/<sint:project_id>/resource/ingresses')
 
 
-
-api.add_resource(project.ProjectUserResourceIngress, '/project/<sint:project_id>/resource/list/ingress',
-                 '/project/<sint:project_id>/resource/list/ingress/<ingress_name>')
 api.add_resource(project.ProjectMember, '/project/<sint:project_id>/member',
                  '/project/<sint:project_id>/member/<int:user_id>')
 api.add_resource(wiki.ProjectWikiList, '/project/<sint:project_id>/wiki')

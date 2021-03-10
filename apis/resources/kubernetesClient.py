@@ -367,6 +367,16 @@ def delete_deployment(namespace, name):
             raise e
 
 
+def list_namespace_services(namespace):
+    try:
+        service_list = []
+        for services in v1.list_namespaced_service(namespace).items:
+            service_list.append(services.metadata.name)
+        return service_list
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+
 
 def delete_service(namespace, name):
     try:
@@ -461,7 +471,7 @@ def delete_configmap(namespace, name):
             raise e
 
 
-def list_ingress(namespace):
+def list_namespace_ingress(namespace):
     try:
         ingress_list = []
         for ingress in extensions_v1beta1.list_namespaced_ingress(namespace).items:
@@ -496,7 +506,7 @@ def list_ingress(namespace):
 
 def list_pod_environement(namespace, git_url):
     try:
-        list_services = get_list_services_info(namespace)
+        list_services = get_list_namespace_services_by_iii(namespace)
         pods_info = {}
         for pod in v1.list_namespaced_pod(namespace).items:
             annotations = pod.metadata.annotations
@@ -540,7 +550,7 @@ def get_list_container_statuses(container_statuses):
         if e.status_code != 404:
             raise e
 
-def get_list_services_info(namespace):
+def get_list_namespace_services_by_iii(namespace):
     try:
         list_services = {}
         for service in v1.list_namespaced_service(namespace).items:
@@ -799,6 +809,7 @@ def analysis_container_status_time(container_status):
             raise e
 
 def check_if_iii_template(metadata):
+    print(metadata.annotations)
     is_iii= False
     if iii_template['project_name'] in metadata.annotations and\
         iii_template['branch'] in metadata.annotations and\
