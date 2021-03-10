@@ -43,6 +43,7 @@ iii_secret = ['gitlab-bot',
     'sonar-bot',
     'webinspect']
 
+iii_secret_type = ['Opaque']
 
 con = k8s_client.Configuration()
 con.verify_ssl = False
@@ -366,16 +367,6 @@ def delete_deployment(namespace, name):
             raise e
 
 
-def list_service(namespace):
-    try:
-        service_list = []
-        for services in v1.list_namespaced_service(namespace).items:
-            service_list.append(services.metadata.name)
-        return service_list
-    except apiError.DevOpsError as e:
-        if e.status_code != 404:
-            raise e
-
 
 def delete_service(namespace, name):
     try:
@@ -385,8 +376,32 @@ def delete_service(namespace, name):
         if e.status_code != 404:
             raise e
 
+def list_namespace_secrets(namespace):
+    try:
+        secret_list = []
+        for secrets in v1.list_namespaced_secret(namespace).items:
+            if secrets.metadata.name not in iii_secret and secrets.type in iii_secret_type:
+                secret_list.append(secrets.metadata.name)            
+        return secret_list
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
 
-def create_secret(namespace, secret_name, secrets):
+
+def read_namespace_secret(namespace,secret_name):
+    try:
+        secret_data = {}
+        print(namespace)
+        secret= v1.read_namespaced_secret(secret_name,namespace)
+        for key , value in secret.data.items():
+            secret_data[key] =str(base64.b64decode(str(value)).decode('utf-8'))            
+        return secret_data
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+
+
+def create_namespace_secret(namespace, secret_name, secrets):
     for key, value in secrets.items():
         secrets[key] = base64.b64encode(
             bytes(value, encoding='utf-8')).decode('utf-8')
@@ -402,7 +417,7 @@ def create_secret(namespace, secret_name, secrets):
             raise e
 
 
-def patch_secret(namespace, secret_name, secrets):
+def patch_namespace_secret(namespace, secret_name, secrets):
     for key, value in secrets.items():
         secrets[key] = base64.b64encode(
             bytes(value, encoding='utf-8')).decode('utf-8')
@@ -417,20 +432,7 @@ def patch_secret(namespace, secret_name, secrets):
         if e.status_code != 404:
             raise e
 
-
-def list_secret(namespace):
-    try:
-        secret_list = []
-        for secrets in v1.list_namespaced_secret(namespace).items:
-            if secrets.metadata.name not in iii_secret:
-                secret_list.append(secrets.metadata.name)            
-        return secret_list
-    except apiError.DevOpsError as e:
-        if e.status_code != 404:
-            raise e
-
-
-def delete_secret(namespace, name):
+def delete_namespace_secret(namespace, name):
     try:
         secret = v1.delete_namespaced_secret(name, namespace)
         return secret.details.name

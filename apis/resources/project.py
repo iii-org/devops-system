@@ -849,25 +849,30 @@ def delete_kubernetes_namespace_service(project_id, name):
 
 def get_kubernetes_namespace_secret(project_id):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
-    project_secret = kubernetesClient.list_secret(project_name)
+    project_secret = kubernetesClient.list_namespace_secrets(project_name)
+    return util.success(project_secret)
+
+def read_kubernetes_namespace_secret(project_id,secret_name):
+    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
+    project_secret = kubernetesClient.read_namespace_secret(project_name,secret_name)
     return util.success(project_secret)
 
 
 def create_kubernetes_namespace_secret(project_id, secret_name, secrets):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
-    kubernetesClient.create_secret(project_name, secret_name, secrets)
+    kubernetesClient.create_namespace_secret(project_name, secret_name, secrets)
     return util.success()
 
 
 def put_kubernetes_namespace_secret(project_id, secret_name, secrets):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
-    kubernetesClient.patch_secret(project_name, secret_name, secrets)
+    kubernetesClient.patch_namespace_secret(project_name, secret_name, secrets)
     return util.success()
 
 
 def delete_kubernetes_namespace_secret(project_id, name):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
-    project_secret = kubernetesClient.delete_secret(project_name, name)
+    project_secret = kubernetesClient.delete_namespace_secret(project_name, name)
     return util.success(project_secret)
 
 
@@ -1109,11 +1114,17 @@ class ProjectUserResourceService(Resource):
         return delete_kubernetes_namespace_service(project_id, service_name)
 
 
-class ProjectUserResourceSecret(Resource):
+class ProjectUserResourceSecrets(Resource):
     @jwt_required
     def get(self, project_id):
         role.require_in_project(project_id, "Error while getting project info.")
         return get_kubernetes_namespace_secret(project_id)
+class ProjectUserResourceSecret(Resource):
+    
+    @jwt_required
+    def get(self, project_id,secret_name):
+        role.require_in_project(project_id, "Error while getting project info.")
+        return read_kubernetes_namespace_secret(project_id,secret_name)
 
     @jwt_required
     def post(self, project_id, secret_name):
