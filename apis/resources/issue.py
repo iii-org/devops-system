@@ -300,7 +300,7 @@ def get_issue_by_date_by_project(project_id):
     return util.success(get_issue_by_date_output)
 
 
-def get_issueProgress_by_project(project_id, args):
+def get_issue_progress_by_project(project_id, args):
     issue_list = get_issue_by_project(project_id, args)
     open_issue = 0
     for issue in issue_list:
@@ -312,7 +312,7 @@ def get_issueProgress_by_project(project_id, args):
     })
 
 
-def get_issueProgress_allVersion_by_project(project_id):
+def get_issue_progress_all_version_by_project(project_id):
     args = {}
     issue_list = get_issue_by_project(project_id, args)
     ret = {}
@@ -925,14 +925,14 @@ class IssuesProgressByProject(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('fixed_version_id', type=int)
         args = parser.parse_args()
-        return get_issueProgress_by_project(project_id, args)
+        return get_issue_progress_by_project(project_id, args)
 
 
 class IssuesProgressAllVersionByProject(Resource):
     @jwt_required
     def get(self, project_id):
         role.require_in_project(project_id)
-        return get_issueProgress_allVersion_by_project(project_id)
+        return get_issue_progress_all_version_by_project(project_id)
 
 
 class IssuesStatisticsByProject(Resource):

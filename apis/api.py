@@ -40,7 +40,7 @@ for key in ['JWT_SECRET_KEY',
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = datetime.timedelta(days=1)
 api = Api(app, errors=apiError.custom_errors)
 CORS(app)
-socketio = SocketIO(app)
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 
 class SignedIntConverter(IntegerConverter):
@@ -180,10 +180,17 @@ api.add_resource(project.ProjectUserResourceDeployment, '/project/<sint:project_
                  '/project/<sint:project_id>/resource/list/deployment/<deployment_name>')
 api.add_resource(project.ProjectUserResourceService, '/project/<sint:project_id>/resource/list/service',
                  '/project/<sint:project_id>/resource/list/service/<service_name>')
-api.add_resource(project.ProjectUserResourceSecret, '/project/<sint:project_id>/resource/list/secret',
-                 '/project/<sint:project_id>/resource/list/secret/<secret_name>')
-api.add_resource(project.ProjectUserResourceConfigMap, '/project/<sint:project_id>/resource/list/configmap',
-                 '/project/<sint:project_id>/resource/list/configmap/<configmap_name>')
+
+# k8s Secrets
+api.add_resource(project.ProjectUserResourceSecrets, '/project/<sint:project_id>/resource/secret')
+api.add_resource(project.ProjectUserResourceSecret,  '/project/<sint:project_id>/resource/secret/<secret_name>')
+
+# k8s ConfigMaps
+api.add_resource(project.ProjectUserResourceConfigMaps, '/project/<sint:project_id>/resource/configmap' )
+api.add_resource(project.ProjectUserResourceConfigMap,  '/project/<sint:project_id>/resource/configmap/<configmap_name>')
+
+
+
 api.add_resource(project.ProjectUserResourceIngress, '/project/<sint:project_id>/resource/list/ingress',
                  '/project/<sint:project_id>/resource/list/ingress/<ingress_name>')
 api.add_resource(project.ProjectMember, '/project/<sint:project_id>/member',
@@ -364,10 +371,10 @@ api.add_resource(webInspect.WebInspectScanStatistics, '/webinspect/stats/<scan_i
 api.add_resource(webInspect.WebInspectReport, '/webinspect/report/<scan_id>')
 
 # Maintenance
-api.add_resource(maintenance.update_db_rc_project_pipeline_id, '/maintenance/update_rc_pj_pipe_id')
-api.add_resource(maintenance.secretes_into_rc_all, '/maintenance/secretes_into_rc_all', 
+api.add_resource(maintenance.UpdateDbRcProjectPipelineId, '/maintenance/update_rc_pj_pipe_id')
+api.add_resource(maintenance.SecretesIntoRcAll, '/maintenance/secretes_into_rc_all', 
                  '/maintenance/secretes_into_rc_all/<secret_name>')
-api.add_resource(maintenance.registry_into_rc_all, '/maintenance/registry_into_rc_all',
+api.add_resource(maintenance.RegistryIntoRcAll, '/maintenance/registry_into_rc_all',
                  '/maintenance/registry_into_rc_all/<registry_name>')
 
 # Raccher
