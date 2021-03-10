@@ -743,7 +743,7 @@ def delete_deploy_environment_by_branch(namespace, branch_name):
             is_iii= check_if_iii_template(
                 deployment.metadata)
             if is_iii is True and branch_name == deployment.metadata.annotations[iii_template['branch']]:
-                info.append(delete_deployment(
+                info.append(delete_namespace_deployment(
                     namespace, deployment.metadata.name))
         return info
     except apiError.DevOpsError as e:
@@ -761,7 +761,7 @@ def update_deploy_environment_by_branch(namespace, branch_name):
             if is_iii is True and branch_name == deployment.metadata.annotations[iii_template['branch']]:
                 deployment.spec.template.metadata.annotations["iiidevops_redeploy_at"]= str(
                     datetime.utcnow())
-                update_deployment(
+                update_namespace_deployment(
                     namespace, deployment.metadata.name, deployment)
         return info
     except apiError.DevOpsError as e:
