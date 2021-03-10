@@ -183,9 +183,6 @@ class GitLab(object):
         k8s_node_list = kubernetesClient.list_work_node()
         work_node_ip = k8s_node_list[0]['ip']
         
-        # get ci_project_id and ci_pipeline_id by repo_id
-        ppr_object = model.ProjectPluginRelation.query.filter_by(git_repository_id=repo_id).one()
-        
         branch_list = []
         for branch_info in output.json():
             env_url_list = []
