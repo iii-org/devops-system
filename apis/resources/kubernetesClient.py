@@ -326,7 +326,7 @@ def get_pod_logs(namespace, name, container_name=None):
             raise e
 
 
-def list_deployment(namespace):
+def list_namespace_deployment(namespace):
     try:
         deployment_list = []
         for deployments in k8s_client.AppsV1Api().list_namespaced_deployment(namespace).items:
@@ -342,7 +342,7 @@ def list_deployment(namespace):
             raise e
 
 
-def get_deployment(namespace, name):
+def read_namespace_deployment(namespace, name):
     try:
         return k8s_client.AppsV1Api().read_namespaced_deployment(name, namespace)
     except apiError.DevOpsError as e:
@@ -350,7 +350,7 @@ def get_deployment(namespace, name):
             raise e
 
 
-def update_deployment(namespace, name, body):
+def update_namespace_deployment(namespace, name, body):
     try:
         return k8s_client.AppsV1Api().patch_namespaced_deployment(name, namespace, body)
     except apiError.DevOpsError as e:
@@ -358,7 +358,7 @@ def update_deployment(namespace, name, body):
             raise e
 
 
-def delete_deployment(namespace, name):
+def delete_namespace_deployment(namespace, name):
     try:
         deployment = k8s_client.AppsV1Api().delete_namespaced_deployment(name, namespace)
         return deployment.details.name
@@ -639,7 +639,9 @@ def check_service_map_container(container_port, services):
     try:
         services_info = []
         for service in services:            
-            if service['port_name'] == container_port['name']  or service['target_port'] == container_port['port']:
+            print(service)
+            print(container_port)
+            if service['port_name'] == container_port['name']  or service['target_port'] == container_port['container_port']:
                 services_info.append(service)            
         return services_info
     except apiError.DevOpsError as e:

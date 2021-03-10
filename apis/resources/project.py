@@ -803,20 +803,20 @@ def get_kubernetes_namespace_Pod_Log(project_id, name, container_name=None):
 
 def get_kubernetes_namespace_deployment(project_id):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
-    project_deployment = kubernetesClient.list_deployment(project_name)
+    project_deployment = kubernetesClient.list_namespace_deployment(project_name)
     return util.success(project_deployment)
 
 def put_kubernetes_namespace_deployment(project_id, name):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
-    deployment_info = kubernetesClient.get_deployment(project_name, name)
+    deployment_info = kubernetesClient.read_namespace_deployment(project_name, name)
     deployment_info.spec.template.metadata.annotations["iiidevops_redeploy_at"] \
         = str(datetime.utcnow())
-    project_deployment = kubernetesClient.update_deployment(project_name, name, deployment_info)
+    project_deployment = kubernetesClient.update_namespace_deployment(project_name, name, deployment_info)
     return util.success()
 
 def delete_kubernetes_namespace_deployment(project_id, name):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
-    project_deployment = kubernetesClient.delete_deployment(project_name, name)
+    project_deployment = kubernetesClient.delete_namespace_deployment(project_name, name)
     return util.success(project_deployment)
 
 def get_kubernetes_namespace_deploy_environment(project_id):    
@@ -1086,11 +1086,13 @@ class ProjectEnvironment(Resource):
         role.require_in_project(project_id, "Error while getting project info.")
         return delete_kubernetes_namespace_deploy_by_branch(project_id, branch_name)
 
-class ProjectUserResourceDeployment(Resource):
+class ProjectUserResourceDeployments(Resource):
     @jwt_required
     def get(self, project_id):
         role.require_in_project(project_id, "Error while getting project info.")
         return get_kubernetes_namespace_deployment(project_id)
+
+class ProjectUserResourceDeployment(Resource):
 
     @jwt_required
     def put(self, project_id, deployment_name):

@@ -176,8 +176,10 @@ api.add_resource(project.ProjectUserResourcePod, '/project/<sint:project_id>/res
                  '/project/<sint:project_id>/resource/list/pod/<pod_name>')
 api.add_resource(project.ProjectUserResourcePodLog, 
                  '/project/<sint:project_id>/resource/list/pod/<pod_name>/log')
-api.add_resource(project.ProjectUserResourceDeployment, '/project/<sint:project_id>/resource/list/deployment',
-                 '/project/<sint:project_id>/resource/list/deployment/<deployment_name>')
+
+api.add_resource(project.ProjectUserResourceDeployments, '/project/<sint:project_id>/resource/deployments')
+
+api.add_resource(project.ProjectUserResourceDeployment, '/project/<sint:project_id>/resource/deployments/<deployment_name>')
 
 # List k8s Services
 api.add_resource(project.ProjectUserResourceServices, '/project/<sint:project_id>/resource/services')
