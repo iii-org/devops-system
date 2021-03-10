@@ -180,10 +180,17 @@ api.add_resource(project.ProjectUserResourceDeployment, '/project/<sint:project_
                  '/project/<sint:project_id>/resource/list/deployment/<deployment_name>')
 api.add_resource(project.ProjectUserResourceService, '/project/<sint:project_id>/resource/list/service',
                  '/project/<sint:project_id>/resource/list/service/<service_name>')
+
+# k8s Secrets
 api.add_resource(project.ProjectUserResourceSecrets, '/project/<sint:project_id>/resource/secret')
 api.add_resource(project.ProjectUserResourceSecret,  '/project/<sint:project_id>/resource/secret/<secret_name>')
-api.add_resource(project.ProjectUserResourceConfigMap, '/project/<sint:project_id>/resource/list/configmap',
-                 '/project/<sint:project_id>/resource/list/configmap/<configmap_name>')
+
+# k8s ConfigMaps
+api.add_resource(project.ProjectUserResourceConfigMaps, '/project/<sint:project_id>/resource/configmap' )
+api.add_resource(project.ProjectUserResourceConfigMap,  '/project/<sint:project_id>/resource/configmap/<configmap_name>')
+
+
+
 api.add_resource(project.ProjectUserResourceIngress, '/project/<sint:project_id>/resource/list/ingress',
                  '/project/<sint:project_id>/resource/list/ingress/<ingress_name>')
 api.add_resource(project.ProjectMember, '/project/<sint:project_id>/member',

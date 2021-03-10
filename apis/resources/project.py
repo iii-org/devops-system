@@ -847,7 +847,7 @@ def delete_kubernetes_namespace_service(project_id, name):
     return util.success(project_service)
 
 
-def get_kubernetes_namespace_secret(project_id):
+def get_kubernetes_namespace_secrets(project_id):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
     project_secret = kubernetesClient.list_namespace_secrets(project_name)
     return util.success(project_secret)
@@ -1118,7 +1118,7 @@ class ProjectUserResourceSecrets(Resource):
     @jwt_required
     def get(self, project_id):
         role.require_in_project(project_id, "Error while getting project info.")
-        return get_kubernetes_namespace_secret(project_id)
+        return get_kubernetes_namespace_secrets(project_id)
 class ProjectUserResourceSecret(Resource):
     
     @jwt_required
@@ -1147,6 +1147,11 @@ class ProjectUserResourceSecret(Resource):
         role.require_in_project(project_id, "Error while getting project info.")
         return delete_kubernetes_namespace_secret(project_id, secret_name)
 
+class ProjectUserResourceConfigMaps(Resource):
+    @jwt_required
+    def get(self, project_id):
+        role.require_in_project(project_id, "Error while getting project info.")
+        return get_kubernetes_namespace_configmap(project_id)
 
 class ProjectUserResourceConfigMap(Resource):
     @jwt_required
