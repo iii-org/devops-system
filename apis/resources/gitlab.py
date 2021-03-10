@@ -110,14 +110,14 @@ class GitLab(object):
         }).json()
 
     def gl_get_project(self, repo_id):
-        return self.__api_get('/projects/{0}'.format(repo_id),{'statistics':'true'}).json()
+        return self.__api_get(f'/projects/{repo_id}',{'statistics':'true'}).json()
 
     def gl_update_project(self, repo_id, description):
         params = {'description': description}
-        return self.__api_put('/projects/{0}'.format(repo_id), params=params)
+        return self.__api_put(f'/projects/{repo_id}', params=params)
 
     def gl_delete_project(self, repo_id):
-        return self.__api_delete('/projects/{0}'.format(repo_id))
+        return self.__api_delete(f'/projects/{repo_id}')
 
     def gl_create_user(self, args, user_source_password, is_admin=False):
         data = {
