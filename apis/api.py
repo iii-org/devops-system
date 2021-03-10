@@ -364,10 +364,10 @@ api.add_resource(webInspect.WebInspectScanStatistics, '/webinspect/stats/<scan_i
 api.add_resource(webInspect.WebInspectReport, '/webinspect/report/<scan_id>')
 
 # Maintenance
-api.add_resource(maintenance.update_db_rc_project_pipeline_id, '/maintenance/update_rc_pj_pipe_id')
-api.add_resource(maintenance.secretes_into_rc_all, '/maintenance/secretes_into_rc_all', 
+api.add_resource(maintenance.UpdateDbRcProjectPipelineId, '/maintenance/update_rc_pj_pipe_id')
+api.add_resource(maintenance.SecretesIntoRcAll, '/maintenance/secretes_into_rc_all', 
                  '/maintenance/secretes_into_rc_all/<secret_name>')
-api.add_resource(maintenance.registry_into_rc_all, '/maintenance/registry_into_rc_all',
+api.add_resource(maintenance.RegistryIntoRcAll, '/maintenance/registry_into_rc_all',
                  '/maintenance/registry_into_rc_all/<registry_name>')
 
 # Raccher

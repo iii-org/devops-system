@@ -15,28 +15,25 @@ def update_db_rancher_projectid_and_pipelineid():
     # print("ci_project_id: {0}".format(rancher.project_id))
 
     for row in rows:
-        try:
-            rancher.rc_disable_project_pipeline( row.ProjectPluginRelation.ci_project_id, \
-                row.ProjectPluginRelation.ci_pipeline_id)
-            rancher_pipeline_id= rancher.rc_enable_project_pipeline(row.Project.http_url)
-            # print(row.ProjectPluginRelation.ci_pipeline_id)
-            ppro =ProjectPluginRelation.query.filter_by(id=row.ProjectPluginRelation.id).first()
-            ppro.ci_project_id= rancher.project_id
-            ppro.ci_pipeline_id= rancher_pipeline_id
-            # print("ci_pipeline_id: {0}".format(rancher_pipeline_id))
-            db.session.commit()
-        except:
-            pass
+        rancher.rc_disable_project_pipeline( row.ProjectPluginRelation.ci_project_id, \
+            row.ProjectPluginRelation.ci_pipeline_id)
+        rancher_pipeline_id= rancher.rc_enable_project_pipeline(row.Project.http_url)
+        # print(row.ProjectPluginRelation.ci_pipeline_id)
+        ppro =ProjectPluginRelation.query.filter_by(id=row.ProjectPluginRelation.id).first()
+        ppro.ci_project_id= rancher.project_id
+        ppro.ci_pipeline_id= rancher_pipeline_id
+        # print("ci_pipeline_id: {0}".format(rancher_pipeline_id))
+        db.session.commit()
 
 
-class update_db_rc_project_pipeline_id(Resource):
+class UpdateDbRcProjectPipelineId(Resource):
     
     @jwt_required
     def get(self):
         role.require_admin()
         update_db_rancher_projectid_and_pipelineid()
 
-class secretes_into_rc_all(Resource):
+class SecretesIntoRcAll(Resource):
 
     @jwt_required
     def get(self):
@@ -65,7 +62,7 @@ class secretes_into_rc_all(Resource):
     def delete(self, secret_name):
         return util.success(rancher.rc_delete_secrets_into_rc_all(secret_name))
 
-class registry_into_rc_all(Resource):
+class RegistryIntoRcAll(Resource):
 
     @jwt_required
     def get(self):
