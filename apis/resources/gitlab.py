@@ -473,17 +473,6 @@ class GitProjectTag(Resource):
         return util.success()
 
 
-# class GitProjectMergeBranch(Resource):
-#     @jwt_required
-#     def post(self, repository_id):
-#         project_id = repo_id_to_project_id(repository_id)
-#         role.require_in_project(project_id)
-#         parser = reqparse.RequestParser()
-#         parser.add_argument('schemas', type=dict, required=True)
-#         args = parser.parse_args()["schemas"]
-#         return gitlab.gl_merge(repository_id, args)
-#
-#
 class GitProjectBranchCommits(Resource):
     @jwt_required
     def get(self, repository_id):
