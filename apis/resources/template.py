@@ -174,6 +174,10 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id, tag
     shutil.rmtree(f"pj_push_template/{pj.path}", ignore_errors=True)
 
 
+def tm_put_into_pj(repository_id):
+    pass
+
+
 class TemplateList(Resource):
     @jwt_required
     def get(self):
