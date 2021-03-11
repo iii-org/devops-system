@@ -312,13 +312,13 @@ api.add_resource(apiTest.GetTestCaseType, '/testCases/support_type')
 # testPhase TestCase
 api.add_resource(apiTest.TestCaseByIssue, '/testCases_by_issue/<issue_id>')
 api.add_resource(apiTest.TestCaseByProject, '/testCases_by_project/<project_id>')
-api.add_resource(apiTest.TestCase, '/testCases/<testCase_id>')
+api.add_resource(apiTest.TestCase, '/testCases/<sint:tc_id>')
 
 # testPhase TestCase Support API Method
 api.add_resource(apiTest.GetTestCaseAPIMethod, '/testCases/support_RestfulAPI_Method')
 
 # testPhase TestItem Support API Method
-api.add_resource(apiTest.TestItemByTestCase, '/testItems_by_testCase/<testCase_id>')
+api.add_resource(apiTest.TestItemByTestCase, '/testItems_by_testCase/<tc_id>')
 api.add_resource(apiTest.TestItem, '/testItems/<item_id>')
 
 # testPhase Testitem Value
