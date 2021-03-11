@@ -880,10 +880,22 @@ def read_kubernetes_namespace_configmap(project_id,name):
     project_configmap = kubernetesClient.read_namespace_configmap(project_name,name)
     return util.success(project_configmap)
 
+
+def create_kubernetes_namespace_configmap(project_id, name, configmaps):
+    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
+    project_configmap = kubernetesClient.create_namespace_configmap(project_name, name, configmaps)
+    return util.success(project_configmap)
+
+def put_kubernetes_namespace_configmap(project_id, name, configmaps):
+    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
+    project_configmap = kubernetesClient.put_namespace_configmap(project_name, name, configmaps)
+    return util.success(project_configmap)
+
 def delete_kubernetes_namespace_configmap(project_id, name):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
     project_configmap = kubernetesClient.delete_configmap(project_name, name)
     return util.success(project_configmap)
+
 
 
 def get_kubernetes_namespace_ingresses(project_id):
@@ -1168,6 +1180,23 @@ class ProjectUserResourceConfigMap(Resource):
     def delete(self, project_id, configmap_name):
         role.require_in_project(project_id, "Error while getting project info.")
         return delete_kubernetes_namespace_configmap(project_id, configmap_name)
+
+    @jwt_required
+    def put(self, project_id, configmap_name):
+        parser = reqparse.RequestParser()
+        parser.add_argument('configmaps', type=dict, required=True)
+        args = parser.parse_args()
+        role.require_in_project(project_id, "Error while getting project info.")
+        return put_kubernetes_namespace_configmap(project_id,configmap_name,args['configmaps'])
+
+    @jwt_required
+    def post(self, project_id, configmap_name):
+        parser = reqparse.RequestParser()
+        parser.add_argument('configmaps', type=dict, required=True)
+        args = parser.parse_args()
+        role.require_in_project(project_id, "Error while getting project info.")
+        print(args)
+        return create_kubernetes_namespace_configmap(project_id, configmap_name, args['configmaps'])
 
 
 class ProjectUserResourceIngresses(Resource):

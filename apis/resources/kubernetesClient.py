@@ -419,8 +419,8 @@ def create_namespace_secret(namespace, secret_name, secrets):
             metadata=k8s_client.V1ObjectMeta(
                 namespace=namespace, name=secret_name),
             data=secrets)
-        info = v1.create_namespaced_secret(namespace, body)
-        return info 
+        v1.create_namespaced_secret(namespace, body)
+        return {} 
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
@@ -435,8 +435,8 @@ def patch_namespace_secret(namespace, secret_name, secrets):
             metadata=k8s_client.V1ObjectMeta(
                 namespace=namespace, name=secret_name),
             data=secrets)
-        info = v1.patch_namespaced_secret(secret_name, namespace, body)
-        return info 
+        v1.patch_namespaced_secret(secret_name, namespace, body)
+        return {}
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
@@ -468,6 +468,31 @@ def read_namespace_configmap(namespace,name):
         for key , value in configmaps.data.items():
             configmaps_info[key] = str(value)        
         return configmaps_info
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+
+def create_namespace_configmap(namespace,name,configmaps):
+    try:
+        body = k8s_client.V1ConfigMap(
+            metadata=k8s_client.V1ObjectMeta(
+                name=name),
+            data=configmaps)
+        v1.create_namespaced_config_map(namespace, body)
+        return {}
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+
+
+def put_namespace_configmap(namespace,name,configmaps):
+    try:
+        body = k8s_client.V1ConfigMap(
+            metadata=k8s_client.V1ObjectMeta(
+                namespace=namespace, name=name),
+            data=configmaps)
+        v1.patch_namespaced_config_map(name,namespace,body)
+        return {}
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
