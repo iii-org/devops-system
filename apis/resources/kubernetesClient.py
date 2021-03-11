@@ -386,6 +386,7 @@ def delete_service(namespace, name):
         if e.status_code != 404:
             raise e
 
+### Secret
 def list_namespace_secrets(namespace):
     try:
         secret_list = []
@@ -401,7 +402,6 @@ def list_namespace_secrets(namespace):
 def read_namespace_secret(namespace,secret_name):
     try:
         secret_data = {}
-        print(namespace)
         secret= v1.read_namespaced_secret(secret_name,namespace)
         for key , value in secret.data.items():
             secret_data[key] =str(base64.b64decode(str(value)).decode('utf-8'))            
@@ -450,8 +450,8 @@ def delete_namespace_secret(namespace, name):
         if e.status_code != 404:
             raise e
 
-
-def list_configmap(namespace):
+# K8s ConfigMaps Usage
+def list_namespace_configmap(namespace):
     try:
         configmap_list = []
         for configmaps in v1.list_namespaced_config_map(namespace).items:
@@ -461,6 +461,17 @@ def list_configmap(namespace):
         if e.status_code != 404:
             raise e
 
+
+def read_namespace_configmap(namespace,name):
+    try:
+        configmaps_info = {}
+        configmaps= v1.read_namespaced_config_map(name,namespace)
+        for key , value in configmaps.data.items():
+            configmaps_info[key] = str(value)        
+        return configmaps_info
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
 
 def delete_configmap(namespace, name):
     try:
