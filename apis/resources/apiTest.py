@@ -420,28 +420,28 @@ class TestCaseByProject(Resource):
 # noinspection PyPep8Naming
 class TestCase(Resource):
 
-    # 用testCase_id 取得目前測試案例
+    # 用testCase id 取得目前測試案例
     @jwt_required
-    def get(self, testCase_id):
-        output = get_test_case_by_tc_id(testCase_id)
+    def get(self, tc_id):
+        output = get_test_case_by_tc_id(tc_id)
         return util.success(output)
 
-    # 用testCase_id 刪除目前測試案例
+    # 用testCase id 刪除目前測試案例
     @jwt_required
-    def delete(self, testCase_id):
-        output = del_test_case_by_tc_id(testCase_id)
+    def delete(self, tc_id):
+        output = del_test_case_by_tc_id(tc_id)
         return util.success(output)
 
-    # 用testCase_id 更新目前測試案例
+    # 用testCase id 更新目前測試案例
     @jwt_required
-    def put(self, testCase_id):
+    def put(self, tc_id):
         parser = reqparse.RequestParser()
         parser.add_argument('data')
         parser.add_argument('name', type=str)
         parser.add_argument('type_id', type=int)
         parser.add_argument('description', type=str)
         args = parser.parse_args()
-        output = modify_test_case_by_tc_id(testCase_id, args)
+        output = modify_test_case_by_tc_id(tc_id, args)
         return util.success(output)
 
 
@@ -462,22 +462,22 @@ class GetTestCaseType(Resource):
 # noinspection PyPep8Naming
 class TestItemByTestCase(Resource):
 
-    # 用issues ID 取得目前所有的目前測試案例
+    # 用TestCase ID 取得目前所有的目前測試案例
     @jwt_required
-    def get(self, testCase_id):
-        output = get_test_item_by_tc_id(testCase_id)
+    def get(self, tc_id):
+        output = get_test_item_by_tc_id(tc_id)
         return util.success(output)
 
-    # 用issues ID 新建立測試案例
+    # 用TestCase ID 新建立測試案例
     @jwt_required
-    def post(self, testCase_id):
+    def post(self, tc_id):
         parser = reqparse.RequestParser()
         parser.add_argument('project_id', type=int)
         parser.add_argument('name', type=str)
         parser.add_argument('issue_id', type=int)
         parser.add_argument('is_passed', type=bool)
         args = parser.parse_args()
-        output = post_testitem_by_tc_id(testCase_id, args)
+        output = post_testitem_by_tc_id(tc_id, args)
         return util.success(output)
 
 
