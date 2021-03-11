@@ -166,6 +166,7 @@ def initialize(db_uri):
 # Projects
 api.add_resource(project.ListMyProjects, '/project/list')
 api.add_resource(project.SingleProject, '/project', '/project/<sint:project_id>')
+api.add_resource(project.SingleProjectByName, '/project_by_name/<project_name>')
 api.add_resource(project.ProjectsByUser, '/projects_by_user/<int:user_id>')
 api.add_resource(project.ProjectUserList, '/project/<sint:project_id>/user/list')
 api.add_resource(project.ProjectPluginUsage,'/project/<sint:project_id>/plugin/resource')
