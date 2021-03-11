@@ -492,18 +492,7 @@ def list_namespace_ingress_info(namespace):
             ip = None
             if ingress.status.load_balancer.ingress is not None:
                 ip = ingress.status.load_balancer.ingress[0].ip
-            ingress_info["ingress_list"] = []
-            for rule in ingress.spec.rules:
-                hostname = ip
-                if rule.host != None:
-                    hostname = rule.host
-                for path in rule.http.paths:
-                    if hostname is not None:
-                        ingress_info["ingress_list"].append({"hostname_path": hostname+path.path,
-                            "service": f"{path.backend.service_name}:{path.backend.service_port}"})
-                    else:
-                        ingress_info["ingress_list"].append({"hostname_path": path.path,
-                            "service": f"{path.backend.service_name}:{path.backend.service_port}"})
+            ingress_info["ingress_list"] = map_ingress_with_host(ingress.spec.rules, ip)
             ingress_info["tls"] = ingress.spec.tls
             ingress_list.append(ingress_info)
         return ingress_list
@@ -511,8 +500,24 @@ def list_namespace_ingress_info(namespace):
         if e.status_code != 404:
             raise e
 
-
-
+def map_ingress_with_host(rules, ip):
+    try:
+        info = []
+        for rule in rules:
+            hostname = ip
+            if rule.host != None:
+                hostname = rule.host
+                for path in rule.http.paths:
+                    if hostname is not None:
+                        info.append({"hostname_path": hostname+path.path,
+                                    "service": f"{path.backend.service_name}:{path.backend.service_port}"})
+                    else:
+                        info.append({"hostname_path": path.path,
+                                    "service": f"{path.backend.service_name}:{path.backend.service_port}"})
+        return info
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
 
 def list_dev_environement(namespace, git_url):
     try:
