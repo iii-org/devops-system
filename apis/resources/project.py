@@ -771,11 +771,11 @@ def get_kubernetes_namespace_Quota(project_id):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
     project_quota = kubernetesClient.get_namespace_quota(project_name)
     deployments = kubernetesClient.list_namespace_deployment_info(project_name)
-    ingresss = kubernetesClient.list_namespace_ingress_info(project_name)
+    ingresses = kubernetesClient.list_namespace_ingress_info(project_name)
     project_quota["quota"]["deployments"] = None
     project_quota["used"]["deployments"] = str(len(deployments))
-    project_quota["quota"]["ingresss"] = None
-    project_quota["used"]["ingresss"] = str(len(ingresss))
+    project_quota["quota"]["ingresses"] = None
+    project_quota["used"]["ingresses"] = str(len(ingresses))
     return util.success(project_quota)
 
 
@@ -821,31 +821,28 @@ def delete_kubernetes_namespace_deployment(project_id, name):
 
 def get_kubernetes_namespace_dev_environment(project_id):    
     project_info = model.Project.query.filter_by(id=project_id).first()
-    project_deployment = kubernetesClient.list_dev_environement(str(project_info.name),str(project_info.http_url))
+    project_deployment = kubernetesClient.list_dev_environment_by_branch(str(project_info.name),str(project_info.http_url))
     return util.success(project_deployment)
 
 def put_kubernetes_namespace_dev_environment(project_id, branch_name):
     project_info = model.Project.query.filter_by(id=project_id).first()
-    update_info = kubernetesClient.update_deploy_environment_by_branch(str(project_info.name),branch_name)
+    update_info = kubernetesClient.update_dev_environment_by_branch(str(project_info.name),branch_name)
     return util.success(update_info)
 
 def delete_kubernetes_namespace_dev_environment(project_id, branch_name):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
-    project_deployment = kubernetesClient.delete_deploy_environment_by_branch(project_name, branch_name)
+    project_deployment = kubernetesClient.delete_dev_environment_by_branch(project_name, branch_name)
     return util.success(project_deployment)
-
 
 def get_kubernetes_namespace_services(project_id):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
     project_service = kubernetesClient.list_namespace_services(project_name)
     return util.success(project_service)
 
-
 def delete_kubernetes_namespace_service(project_id, name):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
     project_service = kubernetesClient.delete_service(project_name, name)
     return util.success(project_service)
-
 
 def get_kubernetes_namespace_secrets(project_id):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
@@ -856,7 +853,6 @@ def read_kubernetes_namespace_secret(project_id,secret_name):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
     project_secret = kubernetesClient.read_namespace_secret(project_name,secret_name)
     return util.success(project_secret)
-
 
 def create_kubernetes_namespace_secret(project_id, secret_name, secrets):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)

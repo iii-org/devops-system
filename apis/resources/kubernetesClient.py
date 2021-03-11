@@ -22,7 +22,7 @@ from resources.logger import logger
 
 import pprint
 
-# kubernates 抓取 III 定義 annotations 標籤
+# kubernetes 抓取 III 定義 annotations 標籤
 iii_template = {}
 iii_template['project_name'] = 'iiidevops.org/project_name'
 iii_template['branch'] = 'iiidevops.org/branch'
@@ -70,7 +70,6 @@ def list_service_all_namespaces():
             "type": service.spec.type,
             "ports": port_list
         })
-    # logger.info("list_service_all_namespaces service_list: {0}".format(service_list))
     return service_list
 
 
@@ -519,7 +518,7 @@ def map_ingress_with_host(rules, ip):
         if e.status_code != 404:
             raise e
 
-def list_dev_environement(namespace, git_url):
+def list_dev_environment_by_branch(namespace, git_url):
     try:
         list_services = list_namespace_services_by_iii(namespace)
         pods_info = {}
@@ -527,14 +526,14 @@ def list_dev_environement(namespace, git_url):
             annotations = pod.metadata.annotations
             labels = pod.metadata.labels
             is_iii = check_if_iii_template(pod.metadata)                
-            if is_iii is True and pod.status.container_statuses is not None :
-                pods_info, environement = check_iii_project_branch_key_exist(pod.metadata, pods_info, git_url,'pods')
+            if is_iii is True and pod.status.container_statuses is not None :                
+                pods_info, environment = check_iii_project_branch_key_exist(pod.metadata, pods_info, git_url,'pods')
                 pod_info = {}
                 pod_info['app_name'] = labels['app']
                 pod_info['pod_name'] = pod.metadata.name
                 pod_info['type'] = annotations[iii_template['type']]
                 pod_info['containers'] = []                
-                namespace_services_info = get_list_service_match_pods_labels(list_services, labels, environement)
+                namespace_services_info = get_list_service_match_pods_labels(list_services, labels, environment)
                 container_status_info= get_list_container_statuses(pod.status.container_statuses)
                 container_info = {}
                 for container in pod.spec.containers:
@@ -549,8 +548,38 @@ def list_dev_environement(namespace, git_url):
                                                            'port': get_spec_container_ports(container.ports)}                        
                 pod_info['containers'] = list(container_info.values())
                 
-                pods_info[environement]['pods'].append(pod_info)
+                pods_info[environment]['pods'].append(pod_info)
         return list(pods_info.values())
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+
+def delete_dev_environment_by_branch(namespace, branch_name):
+    try:
+        info= []
+        for deployment in k8s_client.AppsV1Api().list_namespaced_deployment(namespace).items:
+            is_iii= check_if_iii_template(
+                deployment.metadata)
+            if is_iii is True and branch_name == deployment.metadata.annotations[iii_template['branch']]:
+                info.append(delete_namespace_deployment(
+                    namespace, deployment.metadata.name))
+        return info
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+
+def update_dev_environment_by_branch(namespace, branch_name):
+    try:
+        info= []
+        for deployment in k8s_client.AppsV1Api().list_namespaced_deployment(namespace).items:
+            is_iii= check_if_iii_template(
+                deployment.metadata)
+            if is_iii is True and branch_name == deployment.metadata.annotations[iii_template['branch']]:
+                deployment.spec.template.metadata.annotations["iiidevops_redeploy_at"]= str(
+                    datetime.utcnow())
+                update_namespace_deployment(
+                    namespace, deployment.metadata.name, deployment)
+        return info
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
@@ -572,7 +601,7 @@ def list_namespace_services_by_iii(namespace):
             annotations = service.metadata.annotations
             is_iii = check_if_iii_template(service.metadata)
             if is_iii is True:
-                list_services, environement = check_iii_project_branch_key_exist(service.metadata, list_services, '','services')
+                list_services, environment = check_iii_project_branch_key_exist(service.metadata, list_services, '','services')
                 service_info = {}
                 service_info['type'] = service.spec.type
                 service_info['name'] = service.metadata.name
@@ -582,17 +611,17 @@ def list_namespace_services_by_iii(namespace):
                     annotations['field.cattle.io/publicEndpoints'])
                 service_info['url'] = map_port_and_public_endpoint(
                     service.spec.ports, service_info['public_endpoints'], annotations[iii_template['type']])
-                list_services[environement]['services'].append(service_info)
+                list_services[environment]['services'].append(service_info)
         return list_services
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
 
 
-def get_list_service_match_pods_labels(list_services, pod_labels, environement):
+def get_list_service_match_pods_labels(list_services, pod_labels, environment):
     namespace_services_info =[]
-    if environement in list_services:
-        for service in list_services[environement]['services']:
+    if environment in list_services:
+        for service in list_services[environment]['services']:
             is_match = check_match_selector(
             service['service_selector'], pod_labels)
             if is_match is True:
@@ -606,23 +635,23 @@ def check_iii_project_branch_key_exist(metadata, target_info, git_url = '', info
     project_name = metadata.annotations[iii_template['project_name']]
     branch = metadata.annotations[iii_template['branch']]
     commit_id = metadata.annotations[iii_template['commit_id']]
-    environement = f'{project_name}:{branch}'
-    if environement not in target_info:
-        target_info[environement] = {}
-        target_info[environement]['project_name'] = project_name
-        target_info[environement]['branch'] = branch
-        target_info[environement]['commit_id'] = commit_id
+    environment = f'{project_name}:{branch}'
+    if environment not in target_info:
+        target_info[environment] = {}
+        target_info[environment]['project_name'] = project_name
+        target_info[environment]['branch'] = branch
+        target_info[environment]['commit_id'] = commit_id
         if git_url is not '':
-            target_info[environement]['commit_url'] = f'{git_url[0:-4]}/-/commit/{commit_id}'
-        target_info[environement][info_type] = []
-    return target_info, environement
+            target_info[environment]['commit_url'] = f'{git_url[0:-4]}/-/commit/{commit_id}'
+        target_info[environment][info_type] = []
+    return target_info, environment
     
 
 def analysis_k8s_container_stauts(container_status):
     info = {}
-    analys_status = analysis_container_status_time(container_status)
-    info['state'] = analys_status['state']
-    info['time'] = analys_status['status_time']
+    analysis_status = analysis_container_status_time(container_status)
+    info['state'] = analysis_status['state']
+    info['time'] = analysis_status['status_time']
     info['restart'] = container_status.restart_count
     info['image'] = container_status.image
     info['name'] = container_status.name
@@ -654,8 +683,6 @@ def check_service_map_container(container_port, services):
     try:
         services_info = []
         for service in services:            
-            print(service)
-            print(container_port)
             if service['port_name'] == container_port['name']  or service['target_port'] == container_port['container_port']:
                 services_info.append(service)            
         return services_info
@@ -711,7 +738,7 @@ def map_port_and_public_endpoint(ports, public_endpoints,service_type=''):
                 url_info = {}
                 url_info['port_name'] = port.name
                 url_info['target_port'], url_info['port']  = identify_target_port(port.target_port, port.port)
-                url_info['url'] = identify_extenral_url(public_endpoint,port.node_port,service_type)
+                url_info['url'] = identify_external_url(public_endpoint,port.node_port,service_type)
                 info.append(url_info)                
         return info
     except apiError.DevOpsError as e:
@@ -730,8 +757,8 @@ def identify_target_port(target_port, port):
         if e.status_code != 404:
             raise e
 
-# Identify Service Exact Extenral URL
-def identify_extenral_url(public_endpoint, node_port, service_type = ''):
+# Identify Service Exact External URL
+def identify_external_url(public_endpoint, node_port, service_type = ''):
     try:
         external_url_format = '{0}:{1}'
         if service_type != 'db-server':
@@ -751,41 +778,6 @@ def identify_extenral_url(public_endpoint, node_port, service_type = ''):
             raise e
 
 
-def delete_deploy_environment_by_branch(namespace, branch_name):
-    try:
-        info= []
-        for deployment in k8s_client.AppsV1Api().list_namespaced_deployment(namespace).items:
-            is_iii= check_if_iii_template(
-                deployment.metadata)
-            if is_iii is True and branch_name == deployment.metadata.annotations[iii_template['branch']]:
-                info.append(delete_namespace_deployment(
-                    namespace, deployment.metadata.name))
-        return info
-    except apiError.DevOpsError as e:
-        if e.status_code != 404:
-            raise e
-
-
-
-def update_deploy_environment_by_branch(namespace, branch_name):
-    try:
-        info= []
-        for deployment in k8s_client.AppsV1Api().list_namespaced_deployment(namespace).items:
-            is_iii= check_if_iii_template(
-                deployment.metadata)
-            if is_iii is True and branch_name == deployment.metadata.annotations[iii_template['branch']]:
-                deployment.spec.template.metadata.annotations["iiidevops_redeploy_at"]= str(
-                    datetime.utcnow())
-                update_namespace_deployment(
-                    namespace, deployment.metadata.name, deployment)
-        return info
-    except apiError.DevOpsError as e:
-        if e.status_code != 404:
-            raise e
-
-
-
-
 def get_spec_containers_image_and_name(containers):
     try:
         container_list= []
@@ -798,8 +790,6 @@ def get_spec_containers_image_and_name(containers):
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
-
-
 
 
 def analysis_container_status_time(container_status):
@@ -826,7 +816,6 @@ def analysis_container_status_time(container_status):
             raise e
 
 def check_if_iii_template(metadata):
-    print(metadata.annotations)
     is_iii= False
     if iii_template['project_name'] in metadata.annotations and\
         iii_template['branch'] in metadata.annotations and\
@@ -834,8 +823,7 @@ def check_if_iii_template(metadata):
         'app' in metadata.labels:
         is_iii= True
     return is_iii
-
-
+    
 def get_iii_template_info(metadata):
     template_info= {}
     template_info['label']= metadata.labels['app']
