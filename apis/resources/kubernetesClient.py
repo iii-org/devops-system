@@ -55,26 +55,26 @@ extensions_v1beta1 = k8s_client.ExtensionsV1beta1Api()
 
 
 def list_service_all_namespaces():
-    service_list = []
+    list_services = []
     for service in v1.list_service_for_all_namespaces().items:
         logger.info("{0}, {1}, {2}, {3}".format(service.metadata.name,
                                                 service.metadata.namespace, service.spec.type,
                                                 service.spec.ports[0].node_port))
-        port_list = []
+        list_ports = []
         for port in service.spec.ports:
-            port_list.append({"nodePort": port.node_port, "protocol": port.protocol,
+            list_ports.append({"nodePort": port.node_port, "protocol": port.protocol,
                               "target_port": port.target_port, "name": port.name, "port": port.port})
-        service_list.append({
+        list_services.append({
             "name": service.metadata.name,
             "namespace": service.metadata.namespace,
             "type": service.spec.type,
-            "ports": port_list
+            "ports": list_ports
         })
-    return service_list
+    return list_services
 
 
 def list_work_node():
-    node_list = []
+    list_nodes = []
     for node in v1.list_node().items:
         ip = None
         hostname = None
@@ -83,13 +83,13 @@ def list_work_node():
             for address in node.status.addresses:
                 if address.type == 'Hostname':
                     hostname = address.address
-            node_list.append({
+            list_nodes.append({
                 "worker": node.metadata.labels['node-role.kubernetes.io/worker'],
                 "ip": ip,
                 "hostname": hostname
             })
-    logger.info("list_worknode node_list: {0}".format(node_list))
-    return node_list
+    logger.info("list_worknode node_list: {0}".format(list_nodes))
+    return list_nodes
 
 
 def create_namespace(project_name):
@@ -103,10 +103,10 @@ def create_namespace(project_name):
 
 def list_namespace():
     try:
-        namespace_list = []
+        list_namespaces = []
         for namespace in v1.list_namespace().items:
-            namespace_list.append(namespace.metadata.name)
-        return namespace_list
+            list_namespaces.append(namespace.metadata.name)
+        return list_namespaces
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
@@ -132,14 +132,14 @@ def delete_service_account(login_sa_name):
 
 
 def list_service_account():
-    sa_list = []
+    list_service_accouts = []
     for sa in v1.list_namespaced_service_account("account").items:
-        sa_list.append(sa.metadata.name)
-    return sa_list
+        list_service_accouts.append(sa.metadata.name)
+    return list_service_accouts
 
 
 def get_service_account_config(sa_name):
-    node_list = []
+    list_nodes = []
     for node in v1.list_node().items:
         ip = None
         hostname = None
@@ -149,14 +149,14 @@ def get_service_account_config(sa_name):
                     ip = address.address
                 elif address.type == 'Hostname':
                     hostname = address.address
-            node_list.append({
+            list_nodes.append({
                 "controlplane": node.metadata.labels['node-role.kubernetes.io/controlplane'],
                 "ip": ip,
                 "hostname": hostname
             })
     sa_secrets_name = v1.read_namespaced_service_account(
         sa_name, "account").secrets[0].name
-    server_ip = str(node_list[0]['ip'])
+    server_ip = str(list_nodes[0]['ip'])
     sa_secret = v1.read_namespaced_secret(sa_secrets_name, "account")
     sa_ca = sa_secret.data['ca.crt']
     sa_token = str(base64.b64decode(
@@ -209,10 +209,10 @@ def create_namespace_limitrange(namespace):
 
 def list_limitrange_in_namespace(namespace):
     try:
-        limitrange_list = []
+        list_limitranges = []
         for limitrange in v1.list_namespaced_limit_range(namespace).items:
-            limitrange_list.append(limitrange.metadata.name)
-        return limitrange_list
+            list_limitranges.append(limitrange.metadata.name)
+        return list_limitranges
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
@@ -244,10 +244,10 @@ def create_role_in_namespace(namespace):
 
 def list_role_in_namespace(namespace):
     try:
-        role_list = []
-        for roles in rbac.list_namespaced_role(namespace).items:
-            role_list.append(roles.metadata.name)
-        return role_list
+        list_roles = []
+        for role in rbac.list_namespaced_role(namespace).items:
+            list_roles.append(role.metadata.name)
+        return list_roles
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
@@ -287,20 +287,20 @@ def delete_role_binding(namespace, role_binding_name):
 
 def list_namespace_pods_info(namespace):
     try:
-        pod_list = []
-        for pods in v1.list_namespaced_pod(namespace).items:
+        list_pods = []
+        for pod in v1.list_namespaced_pod(namespace).items:
             containers = []
-            if pods.status.container_statuses is not None:
-                for container_status in pods.status.container_statuses:
+            if pod.status.container_statuses is not None:
+                for container_status in pod.status.container_statuses:
                     container_status_time = analysis_container_status_time(
                         container_status)
                     containers.append({"name": container_status.name, "image": container_status.image,
                                     "restart": container_status.restart_count, "state": container_status_time['state'],
                                     "time": container_status_time['status_time']})
-            pod_list.append({'name': pods.metadata.name,
-                             "created_time": str(pods.metadata.creation_timestamp),
+            list_pods.append({'name': pod.metadata.name,
+                             "created_time": str(pod.metadata.creation_timestamp),
                              'containers': containers})
-        return pod_list
+        return list_pods
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
@@ -327,15 +327,15 @@ def read_namespace_pod_log(namespace, name, container_name=None):
 
 def list_namespace_deployment_info(namespace):
     try:
-        deployment_list = []
-        for deployments in k8s_client.AppsV1Api().list_namespaced_deployment(namespace).items:
-            deployment_list.append({"deployment_name": deployments.metadata.name,
-                                    "available_pod_number": deployments.status.available_replicas,
-                                    "total_pod_number": deployments.status.replicas,
-                                    "createion_timestamp": str(deployments.metadata.creation_timestamp),
-                                    "container": get_spec_containers_image_and_name(deployments.spec.template.spec.containers)
+        list_deployments = []
+        for deployment in k8s_client.AppsV1Api().list_namespaced_deployment(namespace).items:
+            list_deployments.append({"deployment_name": deployment.metadata.name,
+                                    "available_pod_number": deployment.status.available_replicas,
+                                    "total_pod_number": deployment.status.replicas,
+                                    "createion_timestamp": str(deployment.metadata.creation_timestamp),
+                                    "container": get_spec_containers_image_and_name(deployment.spec.template.spec.containers)
                                     })
-        return deployment_list
+        return list_deployments
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
@@ -368,10 +368,10 @@ def delete_namespace_deployment(namespace, name):
 
 def list_namespace_services(namespace):
     try:
-        service_list = []
-        for services in v1.list_namespaced_service(namespace).items:
-            service_list.append(services.metadata.name)
-        return service_list
+        list_services = []
+        for service in v1.list_namespaced_service(namespace).items:
+            list_services.append(service.metadata.name)
+        return list_services
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
@@ -391,7 +391,6 @@ def list_namespace_secrets(namespace):
         list_secrets = []
         for secret in v1.list_namespaced_secret(namespace).items:
             list_secrets.append(secret_info_by_iii(secret))     
-            # if secret.metadata.name not in iii_secret and secret.type in iii_secret_type:                            
         return list_secrets
     except apiError.DevOpsError as e:
         if e.status_code != 404:
@@ -463,11 +462,11 @@ def list_namespace_configmap(namespace):
 
 def read_namespace_configmap(namespace,name):
     try:
-        configmaps_info = {}
+        configmap_data = {}
         configmaps= v1.read_namespaced_config_map(name,namespace)
         for key , value in configmaps.data.items():
-            configmaps_info[key] = str(value)        
-        return configmaps_info
+            configmap_data[key] = str(value)        
+        return configmap_data
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
@@ -508,7 +507,7 @@ def delete_configmap(namespace, name):
 
 def list_namespace_ingress_info(namespace):
     try:
-        ingress_list = []
+        list_ingresses = []
         for ingress in extensions_v1beta1.list_namespaced_ingress(namespace).items:
             ingress_info = {}
             ingress_info["name"] = ingress.metadata.name
@@ -518,8 +517,8 @@ def list_namespace_ingress_info(namespace):
                 ip = ingress.status.load_balancer.ingress[0].ip
             ingress_info["ingress_list"] = map_ingress_with_host(ingress.spec.rules, ip)
             ingress_info["tls"] = ingress.spec.tls
-            ingress_list.append(ingress_info)
-        return ingress_list
+            list_ingresses.append(ingress_info)
+        return list_ingresses
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
@@ -613,7 +612,7 @@ def get_list_container_statuses(container_statuses):
     try:
         container_status_info = {}
         for container_status in container_statuses:                        
-            container_status_info[container_status.name] = analysis_k8s_container_stauts(container_status)
+            container_status_info[container_status.name] = analysis_k8s_container_status(container_status)
         return container_status_info
     except apiError.DevOpsError as e:
         if e.status_code != 404:
@@ -696,7 +695,7 @@ def check_iii_project_branch_key_exist(metadata, target_info, git_url = '', info
     return target_info, environment
     
 
-def analysis_k8s_container_stauts(container_status):
+def analysis_k8s_container_status(container_status):
     info = {}
     analysis_status = analysis_container_status_time(container_status)
     info['state'] = analysis_status['state']
@@ -766,15 +765,15 @@ def get_spec_container_ports(ports):
 
 def analysis_annotations_public_endpoint(public_endpoints):
     try:
-        list_public_endpoint= []
+        list_public_endpoints= []
         for public_endpoint in json.loads(public_endpoints):
             public_info= {}
             if "hostname" in public_endpoint:
                 public_info['hostname']= public_endpoint['hostname']
             else:
                 public_info['address']= public_endpoint['addresses']
-            list_public_endpoint.append(public_info)
-        return list_public_endpoint
+            list_public_endpoints.append(public_info)
+        return list_public_endpoints
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
