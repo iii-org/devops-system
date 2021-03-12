@@ -388,11 +388,11 @@ def delete_service(namespace, name):
 ### Secret
 def list_namespace_secrets(namespace):
     try:
-        secret_list = []
-        for secrets in v1.list_namespaced_secret(namespace).items:
-            if secrets.metadata.name not in iii_secret and secrets.type in iii_secret_type:
-                secret_list.append(secrets.metadata.name)            
-        return secret_list
+        list_secrets = []
+        for secret in v1.list_namespaced_secret(namespace).items:
+            list_secrets.append(secret_info_by_iii(secret))     
+            # if secret.metadata.name not in iii_secret and secret.type in iii_secret_type:                            
+        return list_secrets
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
@@ -452,10 +452,10 @@ def delete_namespace_secret(namespace, name):
 # K8s ConfigMaps Usage
 def list_namespace_configmap(namespace):
     try:
-        configmap_list = []
-        for configmaps in v1.list_namespaced_config_map(namespace).items:
-            configmap_list.append(configmaps.metadata.name)
-        return configmap_list
+        list_configmaps = []
+        for configmap in v1.list_namespaced_config_map(namespace).items:
+            list_configmaps.append(configmap_info_by_iii(configmap))     
+        return list_configmaps
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
@@ -618,6 +618,30 @@ def get_list_container_statuses(container_statuses):
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
+
+def secret_info_by_iii(secret):
+    try:
+        info = {}
+        info['is_iii']= check_if_iii_template(secret.metadata)
+        info['name'] =secret.metadata.name
+        info['data'] = secret.data
+        return info
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+
+
+def configmap_info_by_iii(configmap):
+    try:
+        info = {}
+        info['is_iii']= check_if_iii_template(configmap.metadata)
+        info['name'] = configmap.metadata.name
+        info['data'] = configmap.data
+        return info
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+
 
 def list_namespace_services_by_iii(namespace):
     try:
@@ -840,9 +864,10 @@ def analysis_container_status_time(container_status):
         if e.status_code != 404:
             raise e
 
-def check_if_iii_template(metadata):
+def check_if_iii_template(metadata):    
     is_iii= False
-    if iii_template['project_name'] in metadata.annotations and\
+    if  metadata.annotations is not None and\
+        iii_template['project_name'] in metadata.annotations and\
         iii_template['branch'] in metadata.annotations and\
         iii_template['commit_id'] in metadata.annotations and\
         'app' in metadata.labels:
