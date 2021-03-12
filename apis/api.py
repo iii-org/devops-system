@@ -42,8 +42,8 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     "pool_pre_ping": True,
     "pool_recycle": 300,
     'pool_timeout': 900,
-    'pool_size': 1024,
-    'max_overflow': 1024,
+    'pool_size': 80,
+    'max_overflow': 20,
 }
 
 api = Api(app, errors=apiError.custom_errors)
