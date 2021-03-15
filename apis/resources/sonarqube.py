@@ -1,3 +1,5 @@
+import json
+
 import requests
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
@@ -12,10 +14,10 @@ from resources import role, apiError
 # ------------- Internal API methods -------------
 from resources.logger import logger
 
-METRICS = 'quality_gate_details,alert_status,bugs,reliability_rating,'
-'vulnerabilities,security_hotspots,security_rating,'
-'sqale_index,code_smells,sqale_rating,coverage,duplicated_blocks,'
-'duplicated_lines_density'
+SONARQUBE_DATE_FORMAT = '%Y-%m-%dT%H:%M:%S+0000'
+METRICS = ('alert_status,bugs,reliability_rating,vulnerabilities,security_hotspots'
+           ',security_rating,sqale_index,code_smells,sqale_rating,coverage'
+           ',duplicated_blocks,duplicated_lines_density')
 
 
 def __api_request(method, path, headers=None, params=None, data=None):
@@ -97,24 +99,49 @@ def sq_create_access_token(login):
 #     return __api_get('/api/measures/component', params).json()['measures']
 
 def sq_load_measures(project_name):
+    # Final output
+    ret = {}
     # First get data in db
-    rows = model.Sonarqube.query.filter(project_name=project_name).\
+    rows = model.Sonarqube.query.filter_by(project_name=project_name). \
         order_by(desc(model.Sonarqube.date)).all()
+    latest = None
+    if len(rows) > 0:
+        latest = rows[0].date.strftime(SONARQUBE_DATE_FORMAT)
+    for row in rows:
+        ret[row.date.strftime(SONARQUBE_DATE_FORMAT)] = json.loads(row.measures)
+
+    # Get new data and extract into return dict
     params = {
         'component': project_name,
         'metrics': METRICS
     }
-    data = __api_get(f'/api/measures/search_history', params).json()
-    pass
+    if latest is not None:
+        params['from'] = latest
+    fetch = {}
+    data = __api_get(f'/measures/search_history', params).json()
+    for measure in data['measures']:
+        metric = measure['metric']
+        history = measure['history']
+        for h in history:
+            date = h['date']
+            value = h['value']
+            if date not in fetch:
+                fetch[date] = {}
+            fetch[date][metric] = value
+    # Write new data into db
+    for (date, measures) in fetch.items():
+        if date == latest:
+            continue
+        new = model.Sonarqube(project_name=project_name, date=date,
+                              measures=json.dumps(measures))
+        db.session.add(new)
+        db.session.commit()
+    ret.update(fetch)
+    return ret
 
 
 # --------------------- Resources ---------------------
-class SonarScan(Resource):
+class SonarqubeHistory(Resource):
     @jwt_required
-    def post(self, project_name):
-        parser = reqparse.RequestParser()
-        parser.add_argument('branch', type=str, required=True)
-        parser.add_argument('commit_id', type=str, required=True)
-        args = parser.parse_args()
-        return None
-        # return create_scan(args)
+    def get(self, project_name):
+        return sq_load_measures(project_name)

@@ -353,7 +353,7 @@ api.add_resource(checkmarx.GetCheckmarxProject,
 api.add_resource(issue.DumpByIssue, '/dump_by_issue/<issue_id>')
 
 # Sonarqube
-api.add_resource(sonarqube.SonarScan, '/sonar_scan/<project_name>')
+api.add_resource(sonarqube.SonarqubeHistory, '/sonarqube/<project_name>')
 
 # Files
 api.add_resource(project.ProjectFile, '/project/<sint:project_id>/file')
@@ -388,7 +388,7 @@ api.add_resource(maintenance.SecretesIntoRcAll, '/maintenance/secretes_into_rc_a
 api.add_resource(maintenance.RegistryIntoRcAll, '/maintenance/registry_into_rc_all',
                  '/maintenance/registry_into_rc_all/<registry_name>')
 
-# Raccher
+# Rancher
 api.add_resource(rancher.Catalogs, '/rancher/catalogs')
 api.add_resource(rancher.Catalogs_Refresh, '/rancher/catalogs_refresh')
 
