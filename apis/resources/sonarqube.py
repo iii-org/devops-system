@@ -99,6 +99,7 @@ def sq_create_access_token(login):
 #     return __api_get('/api/measures/component', params).json()['measures']
 
 def sq_load_measures(project_name):
+    # FIXME: Do paging
     # Final output
     ret = {}
     # First get data in db
@@ -128,6 +129,23 @@ def sq_load_measures(project_name):
             if date not in fetch:
                 fetch[date] = {}
             fetch[date][metric] = value
+
+    # Get branch and commit id information
+    params = {'project': project_name}
+    if latest is not None:
+        params['from'] = latest
+    res = __api_get('/project_analyses/search', params).json()
+    for ana in res['analyses']:
+        date = ana['date']
+        git_info = ana['projectVersion'].split(':')
+        if len(git_info) != 2:
+            del fetch[date]
+            continue
+        branch = git_info[0]
+        commit_id = git_info[1]
+        fetch[date]['branch'] = branch
+        fetch[date]['commit_id'] = commit_id
+
     # Write new data into db
     for (date, measures) in fetch.items():
         if date == latest:
@@ -144,4 +162,4 @@ def sq_load_measures(project_name):
 class SonarqubeHistory(Resource):
     @jwt_required
     def get(self, project_name):
-        return sq_load_measures(project_name)
+        return util.success(sq_load_measures(project_name))
