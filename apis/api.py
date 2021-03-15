@@ -328,7 +328,6 @@ api.add_resource(issue.DumpByIssue, '/dump_by_issue/<issue_id>')
 
 # Sonarqube
 api.add_resource(sonarqube.SonarScan, '/sonar_scan/<project_name>')
-api.add_resource(sonarqube.SonarReport, '/sonar_report/<sint:project_id>')
 
 # Files
 api.add_resource(project.ProjectFile, '/project/<sint:project_id>/file')

@@ -8,3 +8,4 @@ __pycache__
 /devops-api-rotate
 alembic.ini
 .api_version
+pj_push_template
