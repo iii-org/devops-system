@@ -11,6 +11,7 @@ from flask_restful import Resource, Api, reqparse
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy_utils import database_exists, create_database
 from werkzeug.routing import IntegerConverter
+from flask_socketio import SocketIO
 
 import config
 import migrate
@@ -37,8 +38,17 @@ for key in ['JWT_SECRET_KEY',
     app.config[key] = config.get(key)
 
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = datetime.timedelta(days=1)
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    "pool_pre_ping": True,
+    "pool_recycle": 300,
+    'pool_timeout': 900,
+    'pool_size': 80,
+    'max_overflow': 20,
+}
+
 api = Api(app, errors=apiError.custom_errors)
 CORS(app)
+socketio = SocketIO(app, cors_allowed_origins="*", logger=True, engineio_logger=True)
 
 
 class SignedIntConverter(IntegerConverter):
@@ -170,20 +180,31 @@ api.add_resource(project.ProjectsByUser, '/projects_by_user/<int:user_id>')
 api.add_resource(project.ProjectUserList, '/project/<sint:project_id>/user/list')
 api.add_resource(project.ProjectPluginUsage,'/project/<sint:project_id>/plugin/resource')
 api.add_resource(project.ProjectUserResource, '/project/<sint:project_id>/resource')
-api.add_resource(project.ProjectUserResourcePod, '/project/<sint:project_id>/resource/list/pod', 
-                 '/project/<sint:project_id>/resource/list/pod/<pod_name>')
-api.add_resource(project.ProjectUserResourcePodLog, 
-                 '/project/<sint:project_id>/resource/list/pod/<pod_name>/log')
-api.add_resource(project.ProjectUserResourceDeployment, '/project/<sint:project_id>/resource/list/deployment',
-                 '/project/<sint:project_id>/resource/list/deployment/<deployment_name>')
-api.add_resource(project.ProjectUserResourceService, '/project/<sint:project_id>/resource/list/service',
-                 '/project/<sint:project_id>/resource/list/service/<service_name>')
-api.add_resource(project.ProjectUserResourceSecret, '/project/<sint:project_id>/resource/list/secret',
-                 '/project/<sint:project_id>/resource/list/secret/<secret_name>')
-api.add_resource(project.ProjectUserResourceConfigMap, '/project/<sint:project_id>/resource/list/configmap',
-                 '/project/<sint:project_id>/resource/list/configmap/<configmap_name>')
-api.add_resource(project.ProjectUserResourceIngress, '/project/<sint:project_id>/resource/list/ingress',
-                 '/project/<sint:project_id>/resource/list/ingress/<ingress_name>')
+
+api.add_resource(project.ProjectUserResourcePods, '/project/<sint:project_id>/resource/pods')
+api.add_resource(project.ProjectUserResourcePod, '/project/<sint:project_id>/resource/pods/<pod_name>')
+api.add_resource(project.ProjectUserResourcePodLog, '/project/<sint:project_id>/resource/pods/<pod_name>/log')
+
+# k8s Deployment
+api.add_resource(project.ProjectUserResourceDeployments, '/project/<sint:project_id>/resource/deployments')
+api.add_resource(project.ProjectUserResourceDeployment, '/project/<sint:project_id>/resource/deployments/<deployment_name>')
+
+# List k8s Services
+api.add_resource(project.ProjectUserResourceServices, '/project/<sint:project_id>/resource/services')
+api.add_resource(project.ProjectUserResourceService, '/project/<sint:project_id>/resource/services/<service_name>')
+
+# k8s Secrets
+api.add_resource(project.ProjectUserResourceSecrets, '/project/<sint:project_id>/resource/secrets')
+api.add_resource(project.ProjectUserResourceSecret,  '/project/<sint:project_id>/resource/secrets/<secret_name>')
+
+# k8s ConfigMaps
+api.add_resource(project.ProjectUserResourceConfigMaps, '/project/<sint:project_id>/resource/configmaps' )
+api.add_resource(project.ProjectUserResourceConfigMap,  '/project/<sint:project_id>/resource/configmaps/<configmap_name>')
+
+#k8s Ingress
+api.add_resource(project.ProjectUserResourceIngresses, '/project/<sint:project_id>/resource/ingresses')
+
+
 api.add_resource(project.ProjectMember, '/project/<sint:project_id>/member',
                  '/project/<sint:project_id>/member/<int:user_id>')
 api.add_resource(wiki.ProjectWikiList, '/project/<sint:project_id>/wiki')
@@ -194,8 +215,8 @@ api.add_resource(version.ProjectVersion, '/project/<sint:project_id>/version',
 api.add_resource(project.TestSummary, '/project/<sint:project_id>/test_summary')
 api.add_resource(template.TemplateList, '/template_list') 
 api.add_resource(template.SingleTemplate, '/template', '/template/<repository_id>') 
-api.add_resource(project.ProjectEnvironment, '/project/<sint:project_id>/environment',
-                 '/project/<sint:project_id>/environment/branch/<branch_name>')
+api.add_resource(project.ProjectEnvironment, '/project/<sint:project_id>/environments',
+                 '/project/<sint:project_id>/environments/branch/<branch_name>')
 
 # Gitlab project
 api.add_resource(gitlab.GitProjectBranches, '/repositories/<repository_id>/branches')
@@ -230,6 +251,8 @@ api.add_resource(role.RoleList, '/user/role/list')
 # pipeline
 api.add_resource(pipeline.PipelineExec,
                  '/pipelines/<repository_id>/pipelines_exec')
+api.add_resource(pipeline.PipelineConfig,
+                 '/pipelines/<repository_id>/config')
 api.add_resource(pipeline.PipelineExecAction, '/pipelines/<repository_id>/pipelines_exec/action')
 api.add_resource(pipeline.PipelineExecLogs, '/pipelines/logs')
 api.add_resource(pipeline.PipelineSoftware, '/pipelines/software')
@@ -237,6 +260,9 @@ api.add_resource(pipeline.PipelinePhaseYaml,
                  '/pipelines/<repository_id>/branch/<branch_name>/phase_yaml')
 api.add_resource(pipeline.PipelineYaml,
                  '/pipelines/<repository_id>/branch/<branch_name>/generate_ci_yaml')
+
+# Websocket
+socketio.on_namespace(rancher.RancherWebsocketLog('/rancher/websocket/logs'))
 
 # issue
 api.add_resource(issue.IssueByProject, '/project/<sint:project_id>/issues')
@@ -286,13 +312,13 @@ api.add_resource(apiTest.GetTestCaseType, '/testCases/support_type')
 # testPhase TestCase
 api.add_resource(apiTest.TestCaseByIssue, '/testCases_by_issue/<issue_id>')
 api.add_resource(apiTest.TestCaseByProject, '/testCases_by_project/<project_id>')
-api.add_resource(apiTest.TestCase, '/testCases/<testCase_id>')
+api.add_resource(apiTest.TestCase, '/testCases/<sint:tc_id>')
 
 # testPhase TestCase Support API Method
 api.add_resource(apiTest.GetTestCaseAPIMethod, '/testCases/support_RestfulAPI_Method')
 
 # testPhase TestItem Support API Method
-api.add_resource(apiTest.TestItemByTestCase, '/testItems_by_testCase/<testCase_id>')
+api.add_resource(apiTest.TestItemByTestCase, '/testItems_by_testCase/<tc_id>')
 api.add_resource(apiTest.TestItem, '/testItems/<item_id>')
 
 # testPhase Testitem Value
@@ -356,10 +382,10 @@ api.add_resource(webInspect.WebInspectScanStatistics, '/webinspect/stats/<scan_i
 api.add_resource(webInspect.WebInspectReport, '/webinspect/report/<scan_id>')
 
 # Maintenance
-api.add_resource(maintenance.update_db_rc_project_pipeline_id, '/maintenance/update_rc_pj_pipe_id')
-api.add_resource(maintenance.secretes_into_rc_all, '/maintenance/secretes_into_rc_all', 
+api.add_resource(maintenance.UpdateDbRcProjectPipelineId, '/maintenance/update_rc_pj_pipe_id')
+api.add_resource(maintenance.SecretesIntoRcAll, '/maintenance/secretes_into_rc_all', 
                  '/maintenance/secretes_into_rc_all/<secret_name>')
-api.add_resource(maintenance.registry_into_rc_all, '/maintenance/registry_into_rc_all',
+api.add_resource(maintenance.RegistryIntoRcAll, '/maintenance/registry_into_rc_all',
                  '/maintenance/registry_into_rc_all/<registry_name>')
 
 # Raccher
@@ -374,6 +400,7 @@ api.add_resource(activity.ProjectActivities, '/project/<sint:project_id>/activit
 api.add_resource(NexusVersion, '/system_versions')
 
 
+
 if __name__ == "__main__":
     try:
         db.init_app(app)
@@ -381,7 +408,7 @@ if __name__ == "__main__":
         jsonwebtoken.init_app(app)
         initialize(config.get('SQLALCHEMY_DATABASE_URI'))
         migrate.run()
-        app.run(host='0.0.0.0', port=10009, debug=(config.get('DEBUG') is True))
+        socketio.run(app, host='0.0.0.0', port=10009, debug=(config.get('DEBUG') is True))
     except Exception as e:
         ret = internal_error(e)
         if ret[1] == 404:
