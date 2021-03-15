@@ -278,5 +278,5 @@ class NexusVersion(db.Model):
 class Sonarqube(db.Model):
     id = Column(Integer, primary_key=True)
     project_name = Column(String, ForeignKey(Project.name, ondelete='CASCADE'))
-    date = Column(String)
+    date = Column(DateTime)
     measures = Column(String)

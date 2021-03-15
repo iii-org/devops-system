@@ -689,7 +689,7 @@ def check_iii_project_branch_key_exist(metadata, target_info, git_url = '', info
         target_info[environment]['project_name'] = project_name
         target_info[environment]['branch'] = branch
         target_info[environment]['commit_id'] = commit_id
-        if git_url is not '':
+        if git_url != '':
             target_info[environment]['commit_url'] = f'{git_url[0:-4]}/-/commit/{commit_id}'
         target_info[environment][info_type] = []
     return target_info, environment
@@ -813,7 +813,7 @@ def identify_external_url(public_endpoint, node_port, service_type = ''):
             external_url_format = "http://"+external_url_format
         
         url = []
-        if config.get('INGRESS_EXTERNAL_BASE') is not '' and config.get('INGRESS_EXTERNAL_BASE') is not None:
+        if config.get('INGRESS_EXTERNAL_BASE') != '' and config.get('INGRESS_EXTERNAL_BASE') is not None:
             url.append(external_url_format.format(config.get('INGRESS_EXTERNAL_BASE'), node_port))                    
         elif 'hostname' in public_endpoint:
             url.append(external_url_format.format(public_endpoint['hostname'], node_port))            

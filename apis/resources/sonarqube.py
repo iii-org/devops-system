@@ -2,8 +2,10 @@ import requests
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
 from requests.auth import HTTPBasicAuth
+from sqlalchemy import desc
 
 import config
+import model
 import util
 from model import db
 from resources import role, apiError
@@ -95,6 +97,9 @@ def sq_create_access_token(login):
 #     return __api_get('/api/measures/component', params).json()['measures']
 
 def sq_load_measures(project_name):
+    # First get data in db
+    rows = model.Sonarqube.query.filter(project_name=project_name).\
+        order_by(desc(model.Sonarqube.date)).all()
     params = {
         'component': project_name,
         'metrics': METRICS
@@ -111,4 +116,5 @@ class SonarScan(Resource):
         parser.add_argument('branch', type=str, required=True)
         parser.add_argument('commit_id', type=str, required=True)
         args = parser.parse_args()
-        return create_scan(args)
+        return None
+        # return create_scan(args)
