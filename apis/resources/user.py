@@ -499,6 +499,7 @@ def user_list_by_project(project_id, args):
             for pu in project_users:
                 if ret_users[i].User.id == pu.id:
                     del ret_users[i]
+                    i -= 1
                     break
             i += 1
     else:
