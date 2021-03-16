@@ -16,7 +16,7 @@ from model import db
 from nexus import nx_get_project_plugin_relation
 from resources.apiError import DevOpsError
 from util import DevOpsThread
-from . import user, harbor, kubernetesClient, role, sonarqube, template
+from . import user, harbor, kubernetesClient, role, sonarqube, template, webInspect
 from .activity import record_activity, ActionType
 from .checkmarx import checkmarx
 from .gitlab import gitlab
@@ -754,6 +754,17 @@ def get_test_summary(project_id):
                     for k3, v3 in v2.items():
                         cm_data[k3] = v3
     ret['checkmarx'] = cm_data
+
+    project_name = nexus.nx_get_project(id=project_id).name
+    # webinspect
+    scans = webInspect.wi_list_scans(project_name)
+    wi_data = {}
+    for scan in scans:
+        if type(scan['stats']) is dict and scan['stats']['status'] == 'Complete':
+            wi_data = scan['stats']
+            wi_data['run_at'] = scan['run_at']
+            break
+    ret['webinspect'] = wi_data
 
     # sonarqube
     # qube = self.get_sonar_report(logger, app, project_id)
