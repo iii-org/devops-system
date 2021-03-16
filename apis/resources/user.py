@@ -493,15 +493,14 @@ def user_list_by_project(project_id, args):
         ) \
             .filter(model.ProjectUserRole.role_id != role.BOT.id) \
             .all()
-
         i = 0
         while i < len(ret_users):
             for pu in project_users:
                 if ret_users[i].User.id == pu.id:
                     del ret_users[i]
-                    i -= 1
                     break
-            i += 1
+            else:
+                i += 1
     else:
         # list users in the project
         ret_users = db.session.query(model.User, model.ProjectUserRole.role_id). \
