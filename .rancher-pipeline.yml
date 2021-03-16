@@ -14,7 +14,7 @@ stages:
     when:
       branch: [develope]
 
-  - name: Publish iiidevops-api i mage
+  - name: Publish iiidevops-api image
     steps:
     - publishImageConfig:
         dockerfilePath: ./Dockerfile
