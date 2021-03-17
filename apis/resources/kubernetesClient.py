@@ -620,8 +620,8 @@ def get_list_container_statuses(container_statuses):
 
 def secret_info_by_iii(secret):
     try:
-        info = {}
-        info['is_iii']= check_if_iii_template(secret.metadata)
+        info = {}        
+        info['is_iii']= check_if_iii_default(secret.metadata.name)
         info['name'] =secret.metadata.name
         info['data'] = secret.data
         return info
@@ -632,8 +632,8 @@ def secret_info_by_iii(secret):
 
 def configmap_info_by_iii(configmap):
     try:
-        info = {}
-        info['is_iii']= check_if_iii_template(configmap.metadata)
+        info = {}        
+        info['is_iii']= check_if_iii_default(secret.metadata.name)
         info['name'] = configmap.metadata.name
         info['data'] = configmap.data
         return info
@@ -862,6 +862,13 @@ def analysis_container_status_time(container_status):
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
+
+
+def check_if_iii_default(name):
+    is_iii = False
+    if name in iii_secret:
+        is_iii = True
+    return is_iii
 
 def check_if_iii_template(metadata):    
     is_iii= False
