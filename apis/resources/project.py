@@ -787,6 +787,10 @@ def get_kubernetes_namespace_Quota(project_id):
     project_quota["used"]["deployments"] = str(len(deployments))
     project_quota["quota"]["ingresses"] = None
     project_quota["used"]["ingresses"] = str(len(ingresses))
+    if "secrets" not in project_quota["quota"]:
+        secrets = kubernetesClient.list_namespace_secrets(project_name)
+        project_quota["quota"]["secrets"] = None
+        project_quota["used"]["secrets"] = str(len(secrets))
     return util.success(project_quota)
 
 
