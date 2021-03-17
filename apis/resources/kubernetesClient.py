@@ -29,7 +29,7 @@ iii_template['branch'] = 'iiidevops.org/branch'
 iii_template['commit_id'] = 'iiidevops.org/commit_id'
 iii_template['type'] = 'iiidevops.org/type'
 
-iii_secret = ['gitlab-bot',
+iii_secret_default = ['gitlab-bot',
     'gitlab',
     'nexus-bot', 
     'nexus',
@@ -41,7 +41,8 @@ iii_secret = ['gitlab-bot',
     'rancher',
     'sonarqube',
     'sonar-bot',
-    'webinspect']
+    'webinspect'
+    ]
 
 iii_secret_type = ['Opaque']
 
@@ -620,7 +621,7 @@ def get_list_container_statuses(container_statuses):
 
 def secret_info_by_iii(secret):
     try:
-        info = {}        
+        info = {} 
         info['is_iii']= check_if_iii_default(secret.metadata.name)
         info['name'] =secret.metadata.name
         info['data'] = secret.data
@@ -633,7 +634,7 @@ def secret_info_by_iii(secret):
 def configmap_info_by_iii(configmap):
     try:
         info = {}        
-        info['is_iii']= check_if_iii_default(secret.metadata.name)
+        info['is_iii']= check_if_iii_default(configmap.metadata.name)
         info['name'] = configmap.metadata.name
         info['data'] = configmap.data
         return info
@@ -865,8 +866,10 @@ def analysis_container_status_time(container_status):
 
 
 def check_if_iii_default(name):
+    print(name)
+    print(iii_secret_default)
     is_iii = False
-    if name in iii_secret:
+    if name in iii_secret_default:
         is_iii = True
     return is_iii
 
