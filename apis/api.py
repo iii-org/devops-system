@@ -272,8 +272,8 @@ api.add_resource(issue.IssueByStatusByProject,
 api.add_resource(issue.IssueByDateByProject, '/project/<sint:project_id>/issues_by_date')
 api.add_resource(issue.IssuesProgressByProject,
                  '/project/<sint:project_id>/issues_progress')
-api.add_resource(issue.IssuesProgressAllVersionByProject,
-                 '/project/<sint:project_id>/issues_progress/all_version')
+# api.add_resource(issue.IssuesProgressAllVersionByProject,
+#                  '/project/<sint:project_id>/issues_progress/all_version')
 api.add_resource(issue.IssuesStatisticsByProject,
                  '/project/<sint:project_id>/issues_statistics')
 api.add_resource(issue.SingleIssue, '/issues', '/issues/<issue_id>')
@@ -307,12 +307,10 @@ api.add_resource(issue.Parameter, '/parameters/<parameter_id>')
 api.add_resource(issue.ParameterType, '/parameter_types')
 
 
-#
+# testPhase TestCase Support Case Type
 api.add_resource(apiTest.TestCases, '/test_cases')
 api.add_resource(apiTest.TestCase, '/test_cases/<sint:tc_id>','/testCases/<sint:tc_id>')
 
-
-# testPhase TestCase Support Case Type
 api.add_resource(apiTest.GetTestCaseType, '/testCases/support_type')
 
 # testPhase TestCase
