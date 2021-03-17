@@ -306,13 +306,19 @@ api.add_resource(issue.ParameterByIssue, '/parameters_by_issue/<issue_id>')
 api.add_resource(issue.Parameter, '/parameters/<parameter_id>')
 api.add_resource(issue.ParameterType, '/parameter_types')
 
+
+#
+api.add_resource(apiTest.TestCases, '/test_cases')
+api.add_resource(apiTest.TestCase, '/test_cases/<sint:tc_id>','/testCases/<sint:tc_id>')
+
+
 # testPhase TestCase Support Case Type
 api.add_resource(apiTest.GetTestCaseType, '/testCases/support_type')
 
 # testPhase TestCase
 api.add_resource(apiTest.TestCaseByIssue, '/testCases_by_issue/<issue_id>')
 api.add_resource(apiTest.TestCaseByProject, '/testCases_by_project/<project_id>')
-api.add_resource(apiTest.TestCase, '/testCases/<sint:tc_id>')
+# api.add_resource(apiTest.TestCase, '/testCases/<sint:tc_id>')
 
 # testPhase TestCase Support API Method
 api.add_resource(apiTest.GetTestCaseAPIMethod, '/testCases/support_RestfulAPI_Method')

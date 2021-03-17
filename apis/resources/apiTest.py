@@ -97,6 +97,24 @@ def get_test_case_by_project_id(project_id):
     return deal_with_fetchall(rows)
 
 
+
+def create_test_case(args):
+    new = model.TestCases(
+        project_id=args['project_id'],
+        issue_id = args['issue_id'],
+        data=json.dumps(ast.literal_eval(args['data'])),
+        name=args['name'],
+        description=args['description'],
+        type_id=args['type_id'],
+        create_at=datetime.datetime.now(),
+        update_at=datetime.datetime.now(),
+        disabled=False
+    )
+    db.session.add(new)
+    db.session.commit()
+    return {'tc_id': new.id}
+
+
 def post_test_case_by_issue_id(issue_id, args):
     new = model.TestCases(
         issue_id=issue_id,
@@ -114,9 +132,11 @@ def post_test_case_by_issue_id(issue_id, args):
     return {'testCase_id': new.id}
 
 
+
 def post_test_case_by_project_id(project_id, args):
     new = model.TestCases(
         project_id=project_id,
+        issue_id = args['issue_id'],
         data=json.dumps(ast.literal_eval(args['data'])),
         name=args['name'],
         description=args['description'],
@@ -375,6 +395,58 @@ def list_results(project_id):
 
 
 # --------------------- Resources ---------------------
+# noinspection PyPep8Naming
+class TestCases(Resource):
+
+    # 用testCase id 取得目前測試個案
+    @jwt_required
+    def get(self, tc_id):
+        output = get_test_case_by_tc_id(tc_id)
+        return util.success(output)
+
+    # 用 project_id 建立測試個案
+    @jwt_required
+    def post(self):
+        parser = reqparse.RequestParser()        
+        parser.add_argument('name', type=str,required=True)
+        parser.add_argument('data', type=str)
+        parser.add_argument('type_id', type=int, required=True)
+        parser.add_argument('description', type=str)
+        parser.add_argument('issue_id', type=str)
+        parser.add_argument('project_id', type=str, required=True)
+        args = parser.parse_args()
+        # output = post_test_case_by_issue_id(issue_id, args)
+        # output = post_test_case_by_project_id(project_id, args)
+        output = create_test_case(args)
+        return util.success(output)
+
+
+class TestCase(Resource):
+
+    # 用testCase id 取得目前測試案例
+    @jwt_required
+    def get(self, tc_id):
+        output = get_test_case_by_tc_id(tc_id)
+        return util.success(output)
+
+    # 用testCase id 刪除目前測試案例
+    @jwt_required
+    def delete(self, tc_id):
+        output = del_test_case_by_tc_id(tc_id)
+        return util.success(output)
+
+    # 用testCase id 更新目前測試案例
+    @jwt_required
+    def put(self, tc_id):
+        parser = reqparse.RequestParser()
+        parser.add_argument('data')
+        parser.add_argument('name', type=str)
+        parser.add_argument('type_id', type=int)
+        parser.add_argument('description', type=str)
+        args = parser.parse_args()
+        output = modify_test_case_by_tc_id(tc_id, args)
+        return util.success(output)
+
 class TestCaseByIssue(Resource):
 
     # 用issues ID 取得目前所有的目前測試案例
@@ -408,42 +480,18 @@ class TestCaseByProject(Resource):
     # 用issues ID 新建立測試案例
     @jwt_required
     def post(self, project_id):
-        parser = reqparse.RequestParser()
+        parser = reqparse.RequestParser()        
         parser.add_argument('name', type=str)
         parser.add_argument('data', type=str)
         parser.add_argument('type_id', type=int)
         parser.add_argument('description', type=str)
+        parser.add_argument('issue_id', type=str)
         args = parser.parse_args()
+        
         output = post_test_case_by_project_id(project_id, args)
         return util.success(output)
 
 
-# noinspection PyPep8Naming
-class TestCase(Resource):
-
-    # 用testCase id 取得目前測試案例
-    @jwt_required
-    def get(self, tc_id):
-        output = get_test_case_by_tc_id(tc_id)
-        return util.success(output)
-
-    # 用testCase id 刪除目前測試案例
-    @jwt_required
-    def delete(self, tc_id):
-        output = del_test_case_by_tc_id(tc_id)
-        return util.success(output)
-
-    # 用testCase id 更新目前測試案例
-    @jwt_required
-    def put(self, tc_id):
-        parser = reqparse.RequestParser()
-        parser.add_argument('data')
-        parser.add_argument('name', type=str)
-        parser.add_argument('type_id', type=int)
-        parser.add_argument('description', type=str)
-        args = parser.parse_args()
-        output = modify_test_case_by_tc_id(tc_id, args)
-        return util.success(output)
 
 
 class GetTestCaseAPIMethod(Resource):
