@@ -914,11 +914,11 @@ class IssuesProgressByProject(Resource):
         return get_issue_progress_by_project(project_id, args)
 
 
-# class IssuesProgressAllVersionByProject(Resource):
-#     @jwt_required
-#     def get(self, project_id):
-#         role.require_in_project(project_id)
-#         return get_issue_progress_all_version_by_project(project_id)
+class IssuesProgressAllVersionByProject(Resource):
+    @jwt_required
+    def get(self, project_id):
+        role.require_in_project(project_id)
+        return get_issue_progress_all_version_by_project(project_id)
 
 
 class IssuesStatisticsByProject(Resource):
