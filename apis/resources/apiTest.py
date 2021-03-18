@@ -364,8 +364,22 @@ def get_test_value_by_column(args, order_column=''):
         return {}
 
 
+def get_test_result(id):
+    row = model.TestResults.query.filter_by(id=id).one()        
+    # Yet runner complete or corrupted data by old runners    
+    if row.report is None or row.report == 'undefined':  
+        return util.respond(204)
+    result = {
+        "report": json.loads(row.report),
+        "branch": row.branch, 
+        "commit_id": row.commit_id, 
+        'commit_url': gitlab.commit_id_to_url(row.project_id, row.commit_id),
+        "start_time": str(row.run_at)
+    }
+    return util.success(result)
+
 def get_report(id):
-    row = model.TestResults.query.filter_by(id=id).one()
+    row = model.TestResults.query.filter_by(id=id).one()        
     report = row.report
     if report is None or report == 'undefined':  # Yet runner complete or corrupted data by old runners
         return util.respond(204)
