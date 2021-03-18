@@ -40,6 +40,7 @@ def deal_with_fetchall(data):
 
 
 def get_test_case_by_tc_id(testcase_id):
+    print(testcase_id)
     row = model.TestCases.query.filter_by(id=testcase_id).filter(
         model.TestCases.disabled.isnot(True)).one()
     return deal_with_test_case_object(row)
@@ -96,6 +97,24 @@ def get_test_case_by_project_id(project_id):
     return deal_with_fetchall(rows)
 
 
+
+def create_test_case(args):
+    new = model.TestCases(
+        project_id=args['project_id'],
+        issue_id = args['issue_id'],
+        data=json.dumps(ast.literal_eval(args['data'])),
+        name=args['name'],
+        description=args['description'],
+        type_id=args['type_id'],
+        create_at=datetime.datetime.now(),
+        update_at=datetime.datetime.now(),
+        disabled=False
+    )
+    db.session.add(new)
+    db.session.commit()
+    return {'tc_id': new.id}
+
+
 def post_test_case_by_issue_id(issue_id, args):
     new = model.TestCases(
         issue_id=issue_id,
@@ -113,9 +132,11 @@ def post_test_case_by_issue_id(issue_id, args):
     return {'testCase_id': new.id}
 
 
+
 def post_test_case_by_project_id(project_id, args):
     new = model.TestCases(
         project_id=project_id,
+        issue_id = args['issue_id'],
         data=json.dumps(ast.literal_eval(args['data'])),
         name=args['name'],
         description=args['description'],
@@ -343,8 +364,22 @@ def get_test_value_by_column(args, order_column=''):
         return {}
 
 
+def get_test_result(id):
+    row = model.TestResults.query.filter_by(id=id).one()        
+    # Yet runner complete or corrupted data by old runners    
+    if row.report is None or row.report == 'undefined':  
+        return util.respond(204)
+    result = {
+        "report": json.loads(row.report),
+        "branch": row.branch, 
+        "commit_id": row.commit_id, 
+        'commit_url': gitlab.commit_id_to_url(row.project_id, row.commit_id),
+        "start_time": str(row.run_at)
+    }
+    return util.success(result)
+
 def get_report(id):
-    row = model.TestResults.query.filter_by(id=id).one()
+    row = model.TestResults.query.filter_by(id=id).one()        
     report = row.report
     if report is None or report == 'undefined':  # Yet runner complete or corrupted data by old runners
         return util.respond(204)
@@ -374,6 +409,58 @@ def list_results(project_id):
 
 
 # --------------------- Resources ---------------------
+# noinspection PyPep8Naming
+class TestCases(Resource):
+
+    # 用testCase id 取得目前測試個案
+    @jwt_required
+    def get(self, tc_id):
+        output = get_test_case_by_tc_id(tc_id)
+        return util.success(output)
+
+    # 用 project_id 建立測試個案
+    @jwt_required
+    def post(self):
+        parser = reqparse.RequestParser()        
+        parser.add_argument('name', type=str,required=True)
+        parser.add_argument('data', type=str)
+        parser.add_argument('type_id', type=int, required=True)
+        parser.add_argument('description', type=str)
+        parser.add_argument('issue_id', type=str)
+        parser.add_argument('project_id', type=str, required=True)
+        args = parser.parse_args()
+        # output = post_test_case_by_issue_id(issue_id, args)
+        # output = post_test_case_by_project_id(project_id, args)
+        output = create_test_case(args)
+        return util.success(output)
+
+
+class TestCase(Resource):
+
+    # 用testCase id 取得目前測試案例
+    @jwt_required
+    def get(self, tc_id):
+        output = get_test_case_by_tc_id(tc_id)
+        return util.success(output)
+
+    # 用testCase id 刪除目前測試案例
+    @jwt_required
+    def delete(self, tc_id):
+        output = del_test_case_by_tc_id(tc_id)
+        return util.success(output)
+
+    # 用testCase id 更新目前測試案例
+    @jwt_required
+    def put(self, tc_id):
+        parser = reqparse.RequestParser()
+        parser.add_argument('data')
+        parser.add_argument('name', type=str)
+        parser.add_argument('type_id', type=int)
+        parser.add_argument('description', type=str)
+        args = parser.parse_args()
+        output = modify_test_case_by_tc_id(tc_id, args)
+        return util.success(output)
+
 class TestCaseByIssue(Resource):
 
     # 用issues ID 取得目前所有的目前測試案例
@@ -407,42 +494,18 @@ class TestCaseByProject(Resource):
     # 用issues ID 新建立測試案例
     @jwt_required
     def post(self, project_id):
-        parser = reqparse.RequestParser()
+        parser = reqparse.RequestParser()        
         parser.add_argument('name', type=str)
         parser.add_argument('data', type=str)
         parser.add_argument('type_id', type=int)
         parser.add_argument('description', type=str)
+        parser.add_argument('issue_id', type=str)
         args = parser.parse_args()
+        
         output = post_test_case_by_project_id(project_id, args)
         return util.success(output)
 
 
-# noinspection PyPep8Naming
-class TestCase(Resource):
-
-    # 用testCase_id 取得目前測試案例
-    @jwt_required
-    def get(self, testCase_id):
-        output = get_test_case_by_tc_id(testCase_id)
-        return util.success(output)
-
-    # 用testCase_id 刪除目前測試案例
-    @jwt_required
-    def delete(self, testCase_id):
-        output = del_test_case_by_tc_id(testCase_id)
-        return util.success(output)
-
-    # 用testCase_id 更新目前測試案例
-    @jwt_required
-    def put(self, testCase_id):
-        parser = reqparse.RequestParser()
-        parser.add_argument('data')
-        parser.add_argument('name', type=str)
-        parser.add_argument('type_id', type=int)
-        parser.add_argument('description', type=str)
-        args = parser.parse_args()
-        output = modify_test_case_by_tc_id(testCase_id, args)
-        return util.success(output)
 
 
 class GetTestCaseAPIMethod(Resource):
@@ -462,22 +525,22 @@ class GetTestCaseType(Resource):
 # noinspection PyPep8Naming
 class TestItemByTestCase(Resource):
 
-    # 用issues ID 取得目前所有的目前測試案例
+    # 用TestCase ID 取得目前所有的目前測試案例
     @jwt_required
-    def get(self, testCase_id):
-        output = get_test_item_by_tc_id(testCase_id)
+    def get(self, tc_id):
+        output = get_test_item_by_tc_id(tc_id)
         return util.success(output)
 
-    # 用issues ID 新建立測試案例
+    # 用TestCase ID 新建立測試案例
     @jwt_required
-    def post(self, testCase_id):
+    def post(self, tc_id):
         parser = reqparse.RequestParser()
         parser.add_argument('project_id', type=int)
         parser.add_argument('name', type=str)
         parser.add_argument('issue_id', type=int)
         parser.add_argument('is_passed', type=bool)
         args = parser.parse_args()
-        output = post_testitem_by_tc_id(testCase_id, args)
+        output = post_testitem_by_tc_id(tc_id, args)
         return util.success(output)
 
 

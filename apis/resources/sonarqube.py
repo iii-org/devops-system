@@ -1,14 +1,23 @@
+import json
+
 import requests
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
 from requests.auth import HTTPBasicAuth
+from sqlalchemy import desc
 
 import config
+import model
 import util
 from model import db
 from resources import role, apiError
 # ------------- Internal API methods -------------
 from resources.logger import logger
+
+SONARQUBE_DATE_FORMAT = '%Y-%m-%dT%H:%M:%S+0000'
+METRICS = ('alert_status,bugs,reliability_rating,vulnerabilities,security_hotspots'
+           ',security_rating,sqale_index,code_smells,sqale_rating,coverage'
+           ',duplicated_blocks,duplicated_lines_density')
 
 
 def __api_request(method, path, headers=None, params=None, data=None):
@@ -78,135 +87,79 @@ def sq_create_access_token(login):
     return __api_post('/user_tokens/generate', params=params).json()['token']
 
 
-def get_sonar_report(project_id):
-    result = db.engine.execute(
-        "SELECT name FROM public.projects WHERE id = '{0}'".format(project_id))
-    project_name = result.fetchone()[0]
-    result.close()
-    url = ("{0}/measures/component?"
-           "component={1}&metricKeys=bugs,vulnerabilities,security_hotspots,code_smells,"
-           "coverage,duplicated_blocks,sqale_index,duplicated_lines_density,reliability_rating,"
-           "security_rating,security_review_rating,sqale_rating,security_hotspots_reviewed,"
-           "lines_to_cover").format(
-        config.get("SONARQUBE_INTERNAL_BASE_URL"), project_name)
-    output = requests.get(url, headers={'Content-Type': 'application/json'}, verify=False)
-    if output.status_code == 200:
-        data_list = output.json()["component"]["measures"]
-        reliability = []
-        security = []
-        security_review = []
-        maintainability = []
-        coverage = []
-        duplications = []
+# def sq_get_measures(project_name):
+#     params = {
+#         'metricKeys': 'quality_gate_details,alert_status,bugs,new_bugs,reliability_rating,new_reliability_rating,'
+#                       'vulnerabilities,new_vulnerabilities,security_hotspots,new_security_hotspots,security_rating,'
+#                       'new_security_rating,sqale_index,new_technical_debt,code_smells,new_code_smells,sqale_rating,'
+#                       'new_maintainability_rating,coverage,new_coverage,duplicated_blocks,new_duplicated_blocks,'
+#                       'duplicated_lines_density,new_duplicated_lines_density,new_lines',
+#         'componentKey': project_name
+#     }
+#     return __api_get('/api/measures/component', params).json()['measures']
 
-        for data in data_list:
-            if data["metric"] == "bugs":
-                reliability.append({
-                    "metric": "Bugs",
-                    "value": data["value"]
-                })
-            if data["metric"] == "reliability_rating":
-                reliability.append({
-                    "metric": "Rating",
-                    "value": data["value"]
-                })
+def sq_load_measures(project_name):
+    # FIXME: Do paging
+    # Final output
+    ret = {}
+    # First get data in db
+    rows = model.Sonarqube.query.filter_by(project_name=project_name). \
+        order_by(desc(model.Sonarqube.date)).all()
+    latest = None
+    if len(rows) > 0:
+        latest = rows[0].date.strftime(SONARQUBE_DATE_FORMAT)
+    for row in rows:
+        ret[row.date.strftime(SONARQUBE_DATE_FORMAT)] = json.loads(row.measures)
 
-            if data["metric"] == "vulnerabilities":
-                security.append({
-                    "metric": "Vulnerabilities",
-                    "value": data["value"]
-                })
-            if data["metric"] == "security_rating":
-                security.append({
-                    "metric": "Rating",
-                    "value": data["value"]
-                })
+    # Get new data and extract into return dict
+    params = {
+        'component': project_name,
+        'metrics': METRICS
+    }
+    if latest is not None:
+        params['from'] = latest
+    fetch = {}
+    data = __api_get(f'/measures/search_history', params).json()
+    for measure in data['measures']:
+        metric = measure['metric']
+        history = measure['history']
+        for h in history:
+            date = h['date']
+            value = h['value']
+            if date not in fetch:
+                fetch[date] = {}
+            fetch[date][metric] = value
 
-            if data["metric"] == "security_hotspots":
-                security_review.append({
-                    "metric": "Security Hotspots",
-                    "value": data["value"]
-                })
-            if data["metric"] == "security_hotspots_reviewed":
-                security_review.append({
-                    "metric": "Reviewed",
-                    "value": data["value"]
-                })
-            if data["metric"] == "security_review_rating":
-                security_review.append({
-                    "metric": "Rating",
-                    "value": data["value"]
-                })
+    # Get branch and commit id information
+    params = {'project': project_name}
+    if latest is not None:
+        params['from'] = latest
+    res = __api_get('/project_analyses/search', params).json()
+    for ana in res['analyses']:
+        date = ana['date']
+        git_info = ana['projectVersion'].split(':')
+        if len(git_info) != 2:
+            del fetch[date]
+            continue
+        branch = git_info[0]
+        commit_id = git_info[1]
+        fetch[date]['branch'] = branch
+        fetch[date]['commit_id'] = commit_id
 
-            if data["metric"] == "sqale_index":
-                maintainability.append({
-                    "metric": "Debt",
-                    "value": data["value"]
-                })
-            if data["metric"] == "code_smells":
-                maintainability.append({
-                    "metric": "Code Smells",
-                    "value": data["value"]
-                })
-            if data["metric"] == "sqale_rating":
-                maintainability.append({
-                    "metric": "Rating",
-                    "value": data["value"]
-                })
-
-            if data["metric"] == "coverage":
-                coverage.append({
-                    "metric": "Coverage",
-                    "value": data["value"]
-                })
-            if data["metric"] == "lines_to_cover":
-                coverage.append({
-                    "metric": "Lines to cover",
-                    "value": data["value"]
-                })
-
-            if data["metric"] == "duplicated_lines_density":
-                duplications.append({
-                    "metric": "Duplications",
-                    "value": data["value"]
-                })
-            if data["metric"] == "duplicated_blocks":
-                duplications.append({
-                    "metric": "Duplicated Blocks",
-                    "value": data["value"]
-                })
-
-        return {
-                   "message": "success",
-                   "data": {
-                       "Reliability": reliability,
-                       "Security": security,
-                       "Security Review": security_review,
-                       "Maintainability": maintainability,
-                       "Coverage": coverage,
-                       "Duplications": duplications
-                   }
-               }, 200
-    else:
-        error_msg_list = []
-        for error in output.json()["errors"]:
-            error_msg_list.append(error["msg"])
-        return {"message": {"errors": error_msg_list}}, output.status_code
+    # Write new data into db
+    for (date, measures) in fetch.items():
+        if date == latest:
+            continue
+        new = model.Sonarqube(project_name=project_name, date=date,
+                              measures=json.dumps(measures))
+        db.session.add(new)
+        db.session.commit()
+    ret.update(fetch)
+    return ret
 
 
 # --------------------- Resources ---------------------
-class SonarScan(Resource):
+class SonarqubeHistory(Resource):
     @jwt_required
-    def post(self, project_name):
-        parser = reqparse.RequestParser()
-        parser.add_argument('branch', type=str, required=True)
-        parser.add_argument('commit_id', type=str, required=True)
-        args = parser.parse_args()
-        return checkmarx.create_scan(args)
-
-
-class SonarReport(Resource):
-    @jwt_required
-    def get(self, project_id):
-        role.require_pm()
-        return get_sonar_report(project_id)
+    def get(self, project_name):
+        return util.success(sq_load_measures(project_name))

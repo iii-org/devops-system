@@ -234,7 +234,7 @@ class GitLab(object):
         usage_info['quota'] = {}
         usage_info['used']['value']= project_detail['statistics']['storage_size']
         usage_info['used']['unit']= ""
-        usage_info['quota']['value']= ""
+        usage_info['quota']['value']= "10737418240"
         usage_info['quota']['unit']= ""    
         return usage_info
                 

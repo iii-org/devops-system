@@ -38,9 +38,17 @@ for key in ['JWT_SECRET_KEY',
     app.config[key] = config.get(key)
 
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = datetime.timedelta(days=1)
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    "pool_pre_ping": True,
+    "pool_recycle": 300,
+    'pool_timeout': 900,
+    'pool_size': 80,
+    'max_overflow': 20,
+}
+
 api = Api(app, errors=apiError.custom_errors)
 CORS(app)
-socketio = SocketIO(app, cors_allowed_origins="*")
+socketio = SocketIO(app, cors_allowed_origins="*", logger=True, engineio_logger=True)
 
 
 class SignedIntConverter(IntegerConverter):
@@ -172,27 +180,31 @@ api.add_resource(project.ProjectsByUser, '/projects_by_user/<int:user_id>')
 api.add_resource(project.ProjectUserList, '/project/<sint:project_id>/user/list')
 api.add_resource(project.ProjectPluginUsage,'/project/<sint:project_id>/plugin/resource')
 api.add_resource(project.ProjectUserResource, '/project/<sint:project_id>/resource')
-api.add_resource(project.ProjectUserResourcePod, '/project/<sint:project_id>/resource/list/pod', 
-                 '/project/<sint:project_id>/resource/list/pod/<pod_name>')
-api.add_resource(project.ProjectUserResourcePodLog, 
-                 '/project/<sint:project_id>/resource/list/pod/<pod_name>/log')
-api.add_resource(project.ProjectUserResourceDeployment, '/project/<sint:project_id>/resource/list/deployment',
-                 '/project/<sint:project_id>/resource/list/deployment/<deployment_name>')
-api.add_resource(project.ProjectUserResourceService, '/project/<sint:project_id>/resource/list/service',
-                 '/project/<sint:project_id>/resource/list/service/<service_name>')
+
+api.add_resource(project.ProjectUserResourcePods, '/project/<sint:project_id>/resource/pods')
+api.add_resource(project.ProjectUserResourcePod, '/project/<sint:project_id>/resource/pods/<pod_name>')
+api.add_resource(project.ProjectUserResourcePodLog, '/project/<sint:project_id>/resource/pods/<pod_name>/log')
+
+# k8s Deployment
+api.add_resource(project.ProjectUserResourceDeployments, '/project/<sint:project_id>/resource/deployments')
+api.add_resource(project.ProjectUserResourceDeployment, '/project/<sint:project_id>/resource/deployments/<deployment_name>')
+
+# List k8s Services
+api.add_resource(project.ProjectUserResourceServices, '/project/<sint:project_id>/resource/services')
+api.add_resource(project.ProjectUserResourceService, '/project/<sint:project_id>/resource/services/<service_name>')
 
 # k8s Secrets
-api.add_resource(project.ProjectUserResourceSecrets, '/project/<sint:project_id>/resource/secret')
-api.add_resource(project.ProjectUserResourceSecret,  '/project/<sint:project_id>/resource/secret/<secret_name>')
+api.add_resource(project.ProjectUserResourceSecrets, '/project/<sint:project_id>/resource/secrets')
+api.add_resource(project.ProjectUserResourceSecret,  '/project/<sint:project_id>/resource/secrets/<secret_name>')
 
 # k8s ConfigMaps
-api.add_resource(project.ProjectUserResourceConfigMaps, '/project/<sint:project_id>/resource/configmap' )
-api.add_resource(project.ProjectUserResourceConfigMap,  '/project/<sint:project_id>/resource/configmap/<configmap_name>')
+api.add_resource(project.ProjectUserResourceConfigMaps, '/project/<sint:project_id>/resource/configmaps' )
+api.add_resource(project.ProjectUserResourceConfigMap,  '/project/<sint:project_id>/resource/configmaps/<configmap_name>')
+
+#k8s Ingress
+api.add_resource(project.ProjectUserResourceIngresses, '/project/<sint:project_id>/resource/ingresses')
 
 
-
-api.add_resource(project.ProjectUserResourceIngress, '/project/<sint:project_id>/resource/list/ingress',
-                 '/project/<sint:project_id>/resource/list/ingress/<ingress_name>')
 api.add_resource(project.ProjectMember, '/project/<sint:project_id>/member',
                  '/project/<sint:project_id>/member/<int:user_id>')
 api.add_resource(wiki.ProjectWikiList, '/project/<sint:project_id>/wiki')
@@ -203,8 +215,8 @@ api.add_resource(version.ProjectVersion, '/project/<sint:project_id>/version',
 api.add_resource(project.TestSummary, '/project/<sint:project_id>/test_summary')
 api.add_resource(template.TemplateList, '/template_list') 
 api.add_resource(template.SingleTemplate, '/template', '/template/<repository_id>') 
-api.add_resource(project.ProjectEnvironment, '/project/<sint:project_id>/environment',
-                 '/project/<sint:project_id>/environment/branch/<branch_name>')
+api.add_resource(project.ProjectEnvironment, '/project/<sint:project_id>/environments',
+                 '/project/<sint:project_id>/environments/branch/<branch_name>')
 
 # Gitlab project
 api.add_resource(gitlab.GitProjectBranches, '/repositories/<repository_id>/branches')
@@ -260,8 +272,8 @@ api.add_resource(issue.IssueByStatusByProject,
 api.add_resource(issue.IssueByDateByProject, '/project/<sint:project_id>/issues_by_date')
 api.add_resource(issue.IssuesProgressByProject,
                  '/project/<sint:project_id>/issues_progress')
-api.add_resource(issue.IssuesProgressAllVersionByProject,
-                 '/project/<sint:project_id>/issues_progress/all_version')
+# api.add_resource(issue.IssuesProgressAllVersionByProject,
+#                  '/project/<sint:project_id>/issues_progress/all_version')
 api.add_resource(issue.IssuesStatisticsByProject,
                  '/project/<sint:project_id>/issues_statistics')
 api.add_resource(issue.SingleIssue, '/issues', '/issues/<issue_id>')
@@ -294,19 +306,23 @@ api.add_resource(issue.ParameterByIssue, '/parameters_by_issue/<issue_id>')
 api.add_resource(issue.Parameter, '/parameters/<parameter_id>')
 api.add_resource(issue.ParameterType, '/parameter_types')
 
+
 # testPhase TestCase Support Case Type
+api.add_resource(apiTest.TestCases, '/test_cases')
+api.add_resource(apiTest.TestCase, '/test_cases/<sint:tc_id>','/testCases/<sint:tc_id>')
+
 api.add_resource(apiTest.GetTestCaseType, '/testCases/support_type')
 
 # testPhase TestCase
 api.add_resource(apiTest.TestCaseByIssue, '/testCases_by_issue/<issue_id>')
 api.add_resource(apiTest.TestCaseByProject, '/testCases_by_project/<project_id>')
-api.add_resource(apiTest.TestCase, '/testCases/<testCase_id>')
+# api.add_resource(apiTest.TestCase, '/testCases/<sint:tc_id>')
 
 # testPhase TestCase Support API Method
 api.add_resource(apiTest.GetTestCaseAPIMethod, '/testCases/support_RestfulAPI_Method')
 
 # testPhase TestItem Support API Method
-api.add_resource(apiTest.TestItemByTestCase, '/testItems_by_testCase/<testCase_id>')
+api.add_resource(apiTest.TestItemByTestCase, '/testItems_by_testCase/<tc_id>')
 api.add_resource(apiTest.TestItem, '/testItems/<item_id>')
 
 # testPhase Testitem Value
@@ -341,8 +357,7 @@ api.add_resource(checkmarx.GetCheckmarxProject,
 api.add_resource(issue.DumpByIssue, '/dump_by_issue/<issue_id>')
 
 # Sonarqube
-api.add_resource(sonarqube.SonarScan, '/sonar_scan/<project_name>')
-api.add_resource(sonarqube.SonarReport, '/sonar_report/<sint:project_id>')
+api.add_resource(sonarqube.SonarqubeHistory, '/sonarqube/<project_name>')
 
 # Files
 api.add_resource(project.ProjectFile, '/project/<sint:project_id>/file')
@@ -377,7 +392,7 @@ api.add_resource(maintenance.SecretesIntoRcAll, '/maintenance/secretes_into_rc_a
 api.add_resource(maintenance.RegistryIntoRcAll, '/maintenance/registry_into_rc_all',
                  '/maintenance/registry_into_rc_all/<registry_name>')
 
-# Raccher
+# Rancher
 api.add_resource(rancher.Catalogs, '/rancher/catalogs')
 api.add_resource(rancher.Catalogs_Refresh, '/rancher/catalogs_refresh')
 
