@@ -82,12 +82,8 @@ def export_to_postman(project_id, target):
                             'key': value['key'],
                             'value': value['value']
                         })
-                    else:
-                        pass
                 elif type_id == 2:
-                    if location_id == 1:
-                        pass
-                    elif location_id == 2:
+                    if location_id == 2:
                         negative = ''
                         if not item['is_passed']:
                             negative = '.not'
@@ -95,8 +91,6 @@ def export_to_postman(project_id, target):
                             'pm.test("value #{0}", function () {{ '
                             'pm.expect(pm.response.json().{1}).to.be{2}.eql("{3}");}});'.format(
                                 value['id'], value['key'], negative, value['value']))
-                else:
-                    pass
 
             if bool(o_request_body):
                 o_request['body'] = {
