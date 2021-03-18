@@ -323,57 +323,42 @@ def mapping_status_id_to_name(object, status_name):
     return output
 
 
-def get_issueStatistics_by_project(project_id, args):
+def get_issue_statistics_by_project(project_id, args):
     issue_list = get_issue_by_project(project_id, args)
-    issues_by_statuses, list_statuses = list_issue_statuses('issues_count_by_status')
-    priority_list = {}
-    category_list = {}
-    owner_list = {}
+    issues_by_statuses, list_statuses = list_issue_statuses('issues_count_by_status') 
+    analysis_targets = ['issue_priority', 'issue_category', 'assigned_to']
+    # Count  by Issue
     for issue in issue_list:
-        issue_status_id = str(issue['issue_status_id'])
-        # count priority
-        if issue["issue_priority"] not in priority_list:
-            priority_list[issue["issue_priority"]] = issues_by_statuses.copy()
-        
-        if issue_status_id in issues_by_statuses:
-            priority_list[issue["issue_priority"]][issue_status_id] +=1
+        output = count_issue(issue, issues_by_statuses, analysis_targets, output= {} )    
+    # Mapping Status id to Status name
+    output = mapping_statistics_output(analysis_targets,list_statuses,output)
+    return util.success(output)
+
+def mapping_statistics_output(targets, list_statuses, output = None):
+    for key in targets:
+        if key not in output:
+            break        
+        for item_key in output[key]:
+            output[key][item_key] = mapping_status_id_to_name(output[key][item_key],list_statuses )
+    return output
+
+def count_issue(issue, statuses, targets,  output= None):
+    issue_status_id = str(issue['issue_status_id'])   
+    for key in targets:
+        if key == '':
+            return {}
+        if key not in output:
+            output[key] = {}   
+        key_info = issue[key]     
+        if key  == 'assigned_to' and issue[key] is None:
+            key_info = 'Unassigned'        
+        if key_info not in output[key]:
+                output[key][key_info] = statuses.copy()        
+        if issue_status_id in statuses:
+            output[key][key_info][issue_status_id] +=1
         else:
-            priority_list[issue["issue_priority"]]["-1"] +=1
-        
-        # count category
-        if issue["issue_category"] not in category_list:
-            category_list[issue["issue_category"]] = issues_by_statuses.copy()
-        if issue_status_id in issues_by_statuses:
-            category_list[issue["issue_category"]][issue_status_id] +=1
-        else:
-            category_list[issue["issue_category"]]["-1"] +=1
-
-        #count owner
-        assigned_to = issue["assigned_to"]
-        if assigned_to is None:
-            assigned_to = '_unassigned'
-        if assigned_to not in owner_list:
-            owner_list[assigned_to] = issues_by_statuses.copy()
-        if issue_status_id in issues_by_statuses:
-            owner_list[assigned_to][issue_status_id] +=1
-        else:
-            owner_list[assigned_to]["-1"] +=1
-
-    # mapping status_id to status name
-    for key in priority_list:
-        priority_list[key] = mapping_status_id_to_name(priority_list[key],list_statuses )
-    for key in category_list:
-        category_list[key] = mapping_status_id_to_name(category_list[key],list_statuses )
-    for key in owner_list:
-        owner_list[key] = mapping_status_id_to_name(owner_list[key],list_statuses )
-
-    
-    return util.success({
-        "priority": priority_list,
-        "category": category_list,
-        "owner": owner_list
-    })
-
+            output[key][key_info]["-1"] +=1
+    return output
 
 def get_issue_by_user(user_id):
     user_to_plan, plan_to_user = get_dict_userid()
@@ -556,16 +541,15 @@ def deal_with_json_string(json_string):
     return json.dumps(json.loads(json_string), ensure_ascii=False, separators=(',', ':'))
 
 
-def deal_with_ParametersObject(sql_row):
+def deal_with_parameters(sql_row):
     output = {'id': sql_row.id,
               'name': sql_row.name,
               'parameter_type_id': sql_row.parameter_type_id
               }
     parameter_type_id = str(sql_row.parameter_type_id)
+    output['parameter_type'] = 'None'
     if parameter_type_id in PARAMETER_TYPES:
-        output['parameter_type'] = PARAMETER_TYPES[parameter_type_id]
-    else:
-        output['parameter_type'] = 'None'
+        output['parameter_type'] = PARAMETER_TYPES[parameter_type_id]        
     output['description'] = sql_row.description
     output['limitation'] = sql_row.limitation
     output['length'] = sql_row.length
@@ -576,7 +560,7 @@ def deal_with_ParametersObject(sql_row):
 
 def get_parameters_by_param_id(parameters_id):
     row = model.Parameters.query.filter_by(id=parameters_id).first()
-    output = deal_with_ParametersObject(row)
+    output = deal_with_parameters(row)
     return output
 
 
@@ -604,7 +588,7 @@ def get_parameters_by_issue_id(issue_id):
         model.Parameters.disabled.isnot(True))
     output = []
     for row in rows:
-        output.append(deal_with_ParametersObject(row))
+        output.append(deal_with_parameters(row))
     return output
 
 
@@ -904,7 +888,7 @@ class IssuesStatisticsByProject(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('fixed_version_id', type=int)
         args = parser.parse_args()
-        return get_issueStatistics_by_project(project_id, args)
+        return get_issue_statistics_by_project(project_id, args)
 
 
 class IssueStatus(Resource):
@@ -1016,7 +1000,6 @@ class Requirement(Resource):
     # 用requirement_id 取得目前需求流程
     @jwt_required
     def get(self, requirement_id):
-        # temp = get_jwt_identity()
         output = get_requirement_by_rqmt_id(requirement_id)
         return util.success(output)
 
