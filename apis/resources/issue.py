@@ -73,6 +73,9 @@ def deal_with_issue_by_user_redmine_output(redmine_output):
     output_list['issue_category'] = redmine_output['tracker']['name']
     output_list['issue_priority'] = redmine_output['priority']['name']
     output_list['issue_status'] = redmine_output['status']['name']
+    output_list['issue_category_id'] = redmine_output['tracker']['id']
+    output_list['issue_priority_id'] = redmine_output['priority']['id']
+    output_list['issue_status_id'] = redmine_output['status']['id']
     output_list['issue_name'] = redmine_output['subject']
     output_list['description'] = redmine_output['description']
     output_list['updated_on'] = redmine_output['updated_on']
@@ -302,139 +305,85 @@ def get_issue_by_date_by_project(project_id):
 
 
 def get_issue_progress_by_project(project_id, args):
-    issues_with_stauses = list_issue_statuses('count_issues')
+    issues_by_statuses, list_statuses = list_issue_statuses('issues_count_by_status')
     list_issues = get_issue_by_project(project_id, args)
-    for issue in list_issues:            
-        if issue["issue_status"] in issues_with_stauses:
-            issues_with_stauses[issue["issue_status"]] +=1
-    return util.success(issues_with_stauses)
+    for issue in list_issues:  
+        issue_status_id = str(issue['issue_status_id'])
+        if issue_status_id in issues_by_statuses:
+            issues_by_statuses[issue_status_id] +=1
+        else:
+            issues_by_statuses["-1"] +=1
+    return util.success(mapping_status_id_to_name(issues_by_statuses,list_statuses ))
+
+def mapping_status_id_to_name(object, status_name):
+    output = {}
+    for key in object:
+        if key in status_name:
+            output[status_name[key]]  = object[key]
+    return output
 
 
-# def get_issue_progress_all_version_by_project(project_id):
-#     args = {}
-#     list_issues = get_issue_by_project(project_id, args)
-#     ret = {}
-#     for issue in list_issues:
-#         count_dict = {'open': 0, 'closed': 0}
+def get_issue_progress_all_version_by_project(project_id):
+    args = {}
+    list_issues = get_issue_by_project(project_id, args)
+    ret = {}
+    for issue in list_issues:
+        count_dict = {'open': 0, 'closed': 0}
         
-#         if issue['fixed_version_name'] not in ret:
-#             ret[issue['fixed_version_name']] = count_dict
-#         if issue["issue_status"] != "Closed":
-#             ret[issue['fixed_version_name']]['open'] += 1
-#         else:
-#             ret[issue['fixed_version_name']]['closed'] += 1
-#     return util.success(ret)
+        if issue['fixed_version_name'] not in ret:
+            ret[issue['fixed_version_name']] = count_dict
+        if issue["issue_status"] != "Closed":
+            ret[issue['fixed_version_name']]['open'] += 1
+        else:
+            ret[issue['fixed_version_name']]['closed'] += 1
+    return util.success(ret)
 
 
 def get_issueStatistics_by_project(project_id, args):
     issue_list = get_issue_by_project(project_id, args)
-    issues_with_stauses = list_issue_statuses('count_issues')    
+    issues_by_statuses, list_statuses = list_issue_statuses('issues_count_by_status')
     priority_list = {}
     category_list = {}
     owner_list = {}
     for issue in issue_list:
-        
+        issue_status_id = str(issue['issue_status_id'])
         # count priority
         if issue["issue_priority"] not in priority_list:
-            priority_list[issue["issue_priority"]] = issues_with_stauses.copy()
-        priority_list[issue["issue_priority"]][issue["issue_status"]] +=1
+            priority_list[issue["issue_priority"]] = issues_by_statuses.copy()
+        
+        if issue_status_id in issues_by_statuses:
+            priority_list[issue["issue_priority"]][issue_status_id] +=1
+        else:
+            priority_list[issue["issue_priority"]]["-1"] +=1
         
         # count category
         if issue["issue_category"] not in category_list:
-            category_list[issue["issue_category"]] = issues_with_stauses.copy()
-        category_list[issue["issue_category"]][issue["issue_status"]] +=1
+            category_list[issue["issue_category"]] = issues_by_statuses.copy()
+        if issue_status_id in issues_by_statuses:
+            category_list[issue["issue_category"]][issue_status_id] +=1
+        else:
+            category_list[issue["issue_category"]]["-1"] +=1
 
-        # count owner
+        #count owner
         assigned_to = issue["assigned_to"]
         if assigned_to is None:
             assigned_to = '_unassigned'
         if assigned_to not in owner_list:
-            owner_list[assigned_to] = issues_with_stauses.copy()
-        owner_list[assigned_to][issue["issue_status"]] +=1
+            owner_list[assigned_to] = issues_by_statuses.copy()
+        if issue_status_id in issues_by_statuses:
+            owner_list[assigned_to][issue_status_id] +=1
+        else:
+            owner_list[assigned_to]["-1"] +=1
 
-        # count priority
-        # if issue["issue_priority"] not in priority_list:
-        #     if issue["issue_status"] != "Closed":
-        #         priority_list[issue["issue_priority"]] = {
-        #             "open": 1,
-        #             "closed": 0
-        #         }
-        #     else:
-        #         priority_list[issue["issue_priority"]] = {
-        #             "open": 0,
-        #             "closed": 1
-        #         }
-        # else:
-        #     open_count = priority_list[
-        #         issue["issue_priority"]]["open"]
-        #     closed_count = priority_list[
-        #         issue["issue_priority"]]["closed"]
-        #     if issue["issue_status"] != "Closed":
-        #         priority_list[issue["issue_priority"]] = {
-        #             "open": open_count + 1,
-        #             "closed": closed_count
-        #         }
-        #     else:
-        #         priority_list[issue["issue_priority"]] = {
-        #             "open": open_count,
-        #             "closed": closed_count + 1
-        #         }
-        # count category
-        # if issue["issue_category"] not in category_list:
-        #     if issue["issue_status"] != "Closed":
-        #         category_list[issue["issue_category"]] = {
-        #             "open": 1,
-        #             "closed": 0
-        #         }
-        #     else:
-        #         category_list[issue["issue_category"]] = {
-        #             "open": 0,
-        #             "closed": 1
-        #         }
-        # else:
-        #     open_count = category_list[
-        #         issue["issue_category"]]["open"]
-        #     closed_count = category_list[
-        #         issue["issue_category"]]["closed"]
-        #     if issue["issue_status"] != "Closed":
-        #         category_list[issue["issue_category"]] = {
-        #             "open": open_count + 1,
-        #             "closed": closed_count
-        #         }
-        #     else:
-        #         category_list[issue["issue_category"]] = {
-        #             "open": open_count,
-        #             "closed": closed_count + 1
-        #         }
-        # # count owner
-        # assigned_to = issue["assigned_to"]
-        # if assigned_to is None:
-        #     assigned_to = '_unassigned'
-        # if assigned_to not in owner_list:
-        #     if issue["issue_status"] != "Closed":
-        #         owner_list[assigned_to] = {
-        #             "open": 1,
-        #             "closed": 0
-        #         }
-        #     else:
-        #         owner_list[assigned_to] = {
-        #             "open": 0,
-        #             "closed": 1
-        #         }
-        # else:
-        #     open_count = owner_list[
-        #         assigned_to]["open"]
-        #     closed_count = owner_list[assigned_to]["closed"]
-        #     if issue["issue_status"] != "Closed":
-        #         owner_list[assigned_to] = {
-        #             "open": open_count + 1,
-        #             "closed": closed_count
-        #         }
-        #     else:
-        #         owner_list[assigned_to] = {
-        #             "open": open_count,
-        #             "closed": closed_count + 1
-        #         }
+    # mapping status_id to status name
+    for key in priority_list:
+        priority_list[key] = mapping_status_id_to_name(priority_list[key],list_statuses )
+    for key in category_list:
+        category_list[key] = mapping_status_id_to_name(category_list[key],list_statuses )
+    for key in owner_list:
+        owner_list[key] = mapping_status_id_to_name(owner_list[key],list_statuses )
+
+    
     return util.success({
         "priority": priority_list,
         "category": category_list,
@@ -454,10 +403,6 @@ def get_issue_by_user(user_id):
         output_array.append(output_dict)
     return output_array
 
-
-
-
-
 def list_issue_statuses(data_type):
     issue_statuses = redmine.rm_get_issue_status()
     if data_type == 'api':
@@ -468,12 +413,17 @@ def list_issue_statuses(data_type):
         for status in statuses:
             list_statuses_name.append(status['name'])
         return list_statuses_name
-    elif data_type == 'count_issues' :
+    elif data_type == 'issues_count_by_status' :
         statuses = issue_statuses['issue_statuses']
-        count_issues = {}
+        issues_by_statuses = {}
+        list_statuses = {}
         for status in statuses:
-            count_issues[status['name']] = 0
-        return count_issues
+            status_id = str(status['id'])
+            issues_by_statuses[status_id] = 0
+            list_statuses[status_id] = status['name']
+        issues_by_statuses['-1'] = 0
+        list_statuses['-1'] = 'Unknown'
+        return issues_by_statuses, list_statuses
 
 
 
