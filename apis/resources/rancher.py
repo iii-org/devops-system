@@ -144,7 +144,11 @@ class Rancher(object):
                                                 sslopt={"cert_reqs": ssl.CERT_NONE})
             while True:
                 result = ws.recv()
-                emit('pipeline_log', {'data': result}, broadcast=True)
+                emit('pipeline_log', {'data': result, 
+                                      'repository_id': data["repository_id"],
+                                      'pipelines_exec_run': data["pipelines_exec_run"],
+                                      'stage_index': data["stage_index"],
+                                      'step_index': data["step_index"]}, broadcast=True)
                 if result is None:
                     ws.close()
                     break
