@@ -323,22 +323,6 @@ def mapping_status_id_to_name(object, status_name):
     return output
 
 
-def get_issue_progress_all_version_by_project(project_id):
-    args = {}
-    list_issues = get_issue_by_project(project_id, args)
-    ret = {}
-    for issue in list_issues:
-        count_dict = {'open': 0, 'closed': 0}
-        
-        if issue['fixed_version_name'] not in ret:
-            ret[issue['fixed_version_name']] = count_dict
-        if issue["issue_status"] != "Closed":
-            ret[issue['fixed_version_name']]['open'] += 1
-        else:
-            ret[issue['fixed_version_name']]['closed'] += 1
-    return util.success(ret)
-
-
 def get_issueStatistics_by_project(project_id, args):
     issue_list = get_issue_by_project(project_id, args)
     issues_by_statuses, list_statuses = list_issue_statuses('issues_count_by_status')
@@ -912,14 +896,6 @@ class IssuesProgressByProject(Resource):
         parser.add_argument('fixed_version_id', type=int)
         args = parser.parse_args()
         return get_issue_progress_by_project(project_id, args)
-
-
-class IssuesProgressAllVersionByProject(Resource):
-    @jwt_required
-    def get(self, project_id):
-        role.require_in_project(project_id)
-        return get_issue_progress_all_version_by_project(project_id)
-
 
 class IssuesStatisticsByProject(Resource):
     @jwt_required
