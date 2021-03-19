@@ -29,7 +29,7 @@ iii_template['branch'] = 'iiidevops.org/branch'
 iii_template['commit_id'] = 'iiidevops.org/commit_id'
 iii_template['type'] = 'iiidevops.org/type'
 
-iii_secret_default = ['gitlab-bot',
+iii_env_default = ['gitlab-bot',
     'gitlab',
     'nexus-bot', 
     'nexus',
@@ -44,7 +44,7 @@ iii_secret_default = ['gitlab-bot',
     'webinspect'
     ]
 
-iii_secret_type = ['Opaque']
+env_normal_type = ['Opaque']
 
 con = k8s_client.Configuration()
 con.verify_ssl = False
@@ -622,7 +622,7 @@ def get_list_container_statuses(container_statuses):
 def secret_info_by_iii(secret):
     try:
         info = {} 
-        info['is_iii']= check_if_iii_default(secret.metadata.name)
+        info['is_iii']= check_if_iii_default(secret.metadata.name, secret.type)
         info['name'] =secret.metadata.name
         info['data'] = secret.data
         return info
@@ -634,7 +634,7 @@ def secret_info_by_iii(secret):
 def configmap_info_by_iii(configmap):
     try:
         info = {}        
-        info['is_iii']= check_if_iii_default(configmap.metadata.name)
+        info['is_iii']= check_if_iii_default(configmap.metadata.name, configmap.type)
         info['name'] = configmap.metadata.name
         info['data'] = configmap.data
         return info
@@ -865,11 +865,9 @@ def analysis_container_status_time(container_status):
             raise e
 
 
-def check_if_iii_default(name):
-    print(name)
-    print(iii_secret_default)
+def check_if_iii_default(name, var_type):
     is_iii = False
-    if name in iii_secret_default:
+    if name in iii_env_default or var_type not in env_normal_type:
         is_iii = True
     return is_iii
 
