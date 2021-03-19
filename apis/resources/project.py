@@ -727,9 +727,14 @@ def get_test_summary(project_id):
     if row is not None:
         test_id = row.id
         total = row.total
-        fail = row.fail
+        if total is None:
+            total = 0
+            fail = 0
+            passed = 0
+        else:
+            fail = row.fail
+            passed = total - fail
         run_at = str(row.run_at)
-        passed = total - fail
         ret['postman'] = {
             'id': test_id,
             'passed': passed,
