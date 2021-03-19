@@ -1,12 +1,11 @@
-import os
 import json
 import numbers
-import config
 from datetime import datetime
 
 from kubernetes.client import ApiException
 
 import util as util
+import config
 
 import base64
 from kubernetes import client as k8s_client
@@ -157,7 +156,10 @@ def get_service_account_config(sa_name):
             })
     sa_secrets_name = v1.read_namespaced_service_account(
         sa_name, "account").secrets[0].name
-    server_ip = str(list_nodes[0]['ip'])
+    if config.get("KUBERNETES_MASTER_DOMAIN") != None:
+        server_ip = str(config.get("KUBERNETES_MASTER_DOMAIN"))
+    else:
+        server_ip = str(list_nodes[0]['ip'])
     sa_secret = v1.read_namespaced_secret(sa_secrets_name, "account")
     sa_ca = sa_secret.data['ca.crt']
     sa_token = str(base64.b64decode(
@@ -165,11 +167,11 @@ def get_service_account_config(sa_name):
     sa_config = "apiVersion: v1\nclusters:\n- cluster:\n    certificate-authority-data: " + sa_ca + "\n    server: https://" + server_ip + ":6443" + \
                 "\n  name: cluster\ncontexts:\n- context:\n    cluster: cluster\n    user: " + sa_name + "\n  name: default\ncurrent-context: default\nkind: Config\npreferences: {}\nusers:\n- name: " + sa_name + \
                 "\n  user:\n    token: " + sa_token
-    config = {
+    k8s_sa_config = {
         'name': sa_name,
         'config': sa_config
     }
-    return config
+    return k8s_sa_config
 
 
 def get_namespace_quota(namespace):
