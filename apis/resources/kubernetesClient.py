@@ -332,11 +332,11 @@ def list_namespace_deployment_info(namespace):
     try:
         list_deployments = []
         for deployment in k8s_client.AppsV1Api().list_namespaced_deployment(namespace).items:
-            list_deployments.append({"deployment_name": deployment.metadata.name,
+            list_deployments.append({"name": deployment.metadata.name,
                                     "available_pod_number": deployment.status.available_replicas,
                                     "total_pod_number": deployment.status.replicas,
-                                    "createion_timestamp": str(deployment.metadata.creation_timestamp),
-                                    "container": get_spec_containers_image_and_name(deployment.spec.template.spec.containers)
+                                    "created_time": str(deployment.metadata.creation_timestamp),
+                                    "containers": get_spec_containers_image_and_name(deployment.spec.template.spec.containers)
                                     })
         return list_deployments
     except apiError.DevOpsError as e:
@@ -380,7 +380,7 @@ def list_namespace_services(namespace):
             raise e
 
 
-def delete_service(namespace, name):
+def delete_namespace_service(namespace, name):
     try:
         service = v1.delete_namespaced_service(name, namespace)
         return service.details.name
@@ -499,7 +499,7 @@ def put_namespace_configmap(namespace,name,configmaps):
         if e.status_code != 404:
             raise e
 
-def delete_configmap(namespace, name):
+def delete_namespace_configmap(namespace, name):
     try:
         configmap = v1.delete_namespaced_config_map(name, namespace)
         return configmap.details.name

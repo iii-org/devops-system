@@ -861,7 +861,7 @@ def get_kubernetes_namespace_services(project_id):
 
 def delete_kubernetes_namespace_service(project_id, name):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
-    project_service = kubernetesClient.delete_service(project_name, name)
+    project_service = kubernetesClient.delete_namespace_service(project_name, name)
     return util.success(project_service)
 
 def get_kubernetes_namespace_secrets(project_id):
@@ -913,7 +913,7 @@ def put_kubernetes_namespace_configmap(project_id, name, configmaps):
 
 def delete_kubernetes_namespace_configmap(project_id, name):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
-    project_configmap = kubernetesClient.delete_configmap(project_name, name)
+    project_configmap = kubernetesClient.delete_namespace_configmap(project_name, name)
     return util.success(project_configmap)
 
 
