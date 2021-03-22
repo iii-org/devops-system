@@ -787,7 +787,7 @@ def get_kubernetes_namespace_Quota(project_id):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
     project_quota = kubernetesClient.get_namespace_quota(project_name)
     deployments = kubernetesClient.list_namespace_deployments(project_name)
-    ingresses = kubernetesClient.list_namespace_ingress_info(project_name)
+    ingresses = kubernetesClient.list_namespace_ingresses(project_name)
     project_quota["quota"]["deployments"] = None
     project_quota["used"]["deployments"] = str(len(deployments))
     project_quota["quota"]["ingresses"] = None
@@ -829,10 +829,11 @@ def get_kubernetes_namespace_deployment(project_id):
 def put_kubernetes_namespace_deployment(project_id, name):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
     deployment_info = kubernetesClient.read_namespace_deployment(project_name, name)
-    deployment_info.spec.template.metadata.annotations["iiidevops_redeploy_at"] \
-        = str(datetime.utcnow())
+    if deployment_info.spec.template.metadata.annotations is not None :
+        deployment_info.spec.template.metadata.annotations["iiidevops_redeploy_at"] = str(datetime.utcnow())
     project_deployment = kubernetesClient.update_namespace_deployment(project_name, name, deployment_info)
-    return util.success()
+    print(project_deployment)
+    return util.success(project_deployment.metadata.name)
 
 def delete_kubernetes_namespace_deployment(project_id, name):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
@@ -920,7 +921,7 @@ def delete_kubernetes_namespace_configmap(project_id, name):
 
 def get_kubernetes_namespace_ingresses(project_id):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
-    ingress_list = kubernetesClient.list_namespace_ingress_info(project_name)
+    ingress_list = kubernetesClient.list_namespace_ingresses(project_name)
     return util.success(ingress_list)
 
 
