@@ -786,7 +786,7 @@ def get_test_summary(project_id):
 def get_kubernetes_namespace_Quota(project_id):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
     project_quota = kubernetesClient.get_namespace_quota(project_name)
-    deployments = kubernetesClient.list_namespace_deployment_info(project_name)
+    deployments = kubernetesClient.list_namespace_deployments(project_name)
     ingresses = kubernetesClient.list_namespace_ingress_info(project_name)
     project_quota["quota"]["deployments"] = None
     project_quota["used"]["deployments"] = str(len(deployments))
@@ -823,7 +823,7 @@ def get_kubernetes_namespace_pod_log(project_id, name, container_name=None):
 
 def get_kubernetes_namespace_deployment(project_id):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
-    project_deployment = kubernetesClient.list_namespace_deployment_info(project_name)
+    project_deployment = kubernetesClient.list_namespace_deployments(project_name)
     return util.success(project_deployment)
 
 def put_kubernetes_namespace_deployment(project_id, name):

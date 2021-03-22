@@ -312,7 +312,9 @@ def list_namespace_pods_info(namespace):
 def delete_namespace_pod(namespace, name):
     try:
         pod = v1.delete_namespaced_pod(name, namespace)
-        return pod.metadata.self_link
+        link_path = pod.metadata.self_link
+        paths = link_path.split('/')
+        return paths[len(paths)-1]
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
@@ -328,7 +330,7 @@ def read_namespace_pod_log(namespace, name, container_name=None):
             raise e
 
 
-def list_namespace_deployment_info(namespace):
+def list_namespace_deployments(namespace):
     try:
         list_deployments = []
         for deployment in k8s_client.AppsV1Api().list_namespaced_deployment(namespace).items:
@@ -508,7 +510,7 @@ def delete_namespace_configmap(namespace, name):
             raise e
 
 
-def list_namespace_ingress_info(namespace):
+def list_namespace_ingresses(namespace):
     try:
         list_ingresses = []
         for ingress in extensions_v1beta1.list_namespaced_ingress(namespace).items:
