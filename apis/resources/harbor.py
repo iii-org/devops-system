@@ -319,5 +319,5 @@ class HarborProject(Resource):
     @jwt_required
     def get(self, nexus_project_id):
         role.require_in_project(nexus_project_id)
-        project_id = nexus.nx_get_project_plugin_relation(nexus_project_id).harbor_project_id
+        project_id = nexus.nx_get_project_plugin_relation(nexus_project_id=nexus_project_id).harbor_project_id
         return util.success(hb_get_project_summary(project_id))

@@ -6,12 +6,24 @@ from resources import apiError
 from resources.apiError import DevOpsError
 
 
-def nx_get_project_plugin_relation(nexus_project_id):
+def nx_get_project_plugin_relation(nexus_project_id=None, repo_id=None):
+    if nexus_project_id is not None:
+        it = nexus_project_id
+        query = model.ProjectPluginRelation.query.filter_by(project_id=nexus_project_id)
+    elif repo_id is not None:
+        it = repo_id
+        query = model.ProjectPluginRelation.query.filter_by(git_repository_id=repo_id)
+    else:
+        raise apiError.DevOpsError(
+            500, 'Either nexus_project_id or repo_id needs to be indicated for nx_get_project_plugin_relation.',
+            error=apiError.invalid_code_path(
+                'Either nexus_project_id or repo_id needs to be indicated for nx_get_project_plugin_relation.'))
     try:
-        return model.ProjectPluginRelation.query.filter_by(project_id=nexus_project_id).one()
+        row = query.one()
     except NoResultFound:
         raise DevOpsError(404, 'Error when getting project relations.',
-                          error=apiError.project_not_found(nexus_project_id))
+                          error=apiError.project_not_found(it))
+    return row
 
 
 def nx_get_project(id=None, name=None):
