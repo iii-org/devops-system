@@ -162,4 +162,7 @@ def sq_load_measures(project_name):
 class SonarqubeHistory(Resource):
     @jwt_required
     def get(self, project_name):
-        return util.success(sq_load_measures(project_name))
+        return util.success({
+            'link': f'{config.get("SONARQUBE_EXTERNAL_BASE_URL")}/dashboard?id={project_name}',
+            'history': sq_load_measures(project_name)
+        })
