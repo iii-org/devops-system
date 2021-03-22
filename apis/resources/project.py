@@ -918,6 +918,16 @@ def put_kubernetes_namespace_configmap(project_id, name, configmaps):
     project_configmap = kubernetesClient.put_namespace_configmap(project_name, name, configmaps)
     return util.success(project_configmap)
 
+def create_kubernetes_namespace_configmap(project_id, name, configmaps):
+    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
+    project_configmap = kubernetesClient.create_namespace_configmap(project_name, name, configmaps)
+    return util.success(project_configmap)
+
+def put_kubernetes_namespace_configmap(project_id, name, configmaps):
+    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
+    project_configmap = kubernetesClient.put_namespace_configmap(project_name, name, configmaps)
+    return util.success(project_configmap)
+
 def delete_kubernetes_namespace_configmap(project_id, name):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
     project_configmap = kubernetesClient.delete_configmap(project_name, name)
@@ -1122,13 +1132,12 @@ class ProjectUserResourcePodLog(Resource):
         print(project_id)
         return get_kubernetes_namespace_pod_log(project_id, pod_name, args['container_name'])
 
-
 class ProjectEnvironment(Resource):
     @jwt_required
     def get(self, project_id):
         role.require_in_project(project_id, "Error while getting project info.")
         return get_kubernetes_namespace_dev_environment(project_id)
-
+    
     @jwt_required
     def put(self, project_id, branch_name):
         role.require_in_project(project_id, "Error while getting project info.")
