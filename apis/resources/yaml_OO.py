@@ -3,11 +3,8 @@ class RancherPipelineYaml:
         self.stages = RancherPipelineStage
         self.when = RancherPipelineWhen
 
-class RancherPipelineStage:
-    def __init__(self):
-        self.name = ""
-        self.when = RancherPipelineWhen
-        self.steps = RancherPipelineStep
+
+
 
 class RancherPipelineStep:
     def __init__(self):
@@ -19,15 +16,24 @@ class RancherPipelineStep:
         self.envFrom = RancherPipelineEnvFrom
         self.when = RancherPipelineWhen
 
-class RancherPipelineWhen:
-    def __init__(self):
-        self.branch = RancherPipelineBranch
-
 class RancherPipelineBranch:
-    def __init__(self):
-        self.include = []
-        self.exclude = []
-        self.event = ""
+    def __init__(self, include=None, exclude=None, event=None):
+        self.include = include
+        self.exclude = exclude
+        self.event = event
+
+class RancherPipelineWhen:
+    def __init__(self, branch=None):
+        if branch is not None:
+            self.branch = RancherPipelineBranch(branch.get("include"), branch.get("exclude"), branch.get("event"))
+
+
+class RancherPipelineStage(RancherPipelineWhen):
+    def __init__(self, name, branch):
+        super().__init__(branch)
+        self.name = name
+
+
 
 
 class RancherPipelineEnvFrom:
