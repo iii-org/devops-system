@@ -128,7 +128,7 @@ def create_project(user_id, args):
     if args['display'] is None:
         args['display'] = args['name']
     project_name = args['name']
-        
+
     # create namespace in kubernetes
     try:
         kubernetesClient.create_namespace(project_name)
@@ -188,7 +188,7 @@ def create_project(user_id, args):
                 elif service == 'gitlab':
                     gitlab.gl_delete_project(gitlab_pj_id)
                 elif service == 'harbor':
-                    harbor_param =[harbor_pj_id, project_name]
+                    harbor_param = [harbor_pj_id, project_name]
                     harbor.hb_delete_project(harbor_param)
                 elif service == 'sonarqube':
                     sonarqube.sq_delete_project(project_name)
@@ -260,12 +260,12 @@ def create_project(user_id, args):
         # 加關聯project_user_role
         project_add_member(project_id, user_id)
         create_bot(project_id)
-        
+
         # Commit and push file by template , if template env is not None
         if args["template_id"] is not None:
-            template.tm_use_template_push_into_pj(args["template_id"], gitlab_pj_id, 
+            template.tm_use_template_push_into_pj(args["template_id"], gitlab_pj_id,
                                                   args["tag_name"], args["arguments"])
-        
+
         return {
             "project_id": project_id,
             "plan_project_id": redmine_pj_id,
@@ -275,10 +275,14 @@ def create_project(user_id, args):
     except Exception as e:
         redmine.rm_delete_project(redmine_pj_id)
         gitlab.gl_delete_project(gitlab_pj_id)
-        harbor_param =[harbor_pj_id, project_name]
+        harbor_param = [harbor_pj_id, project_name]
         harbor.hb_delete_project(harbor_param)
         kubernetesClient.delete_namespace(project_name)
         sonarqube.sq_delete_project(project_name)
+        t_rancher = DevOpsThread(target=rancher.rc_disable_project_pipeline,
+                                 args=(gitlab_pj_http_url,))
+        t_rancher.start()
+        kubernetesClient.delete_namespace(project_name)
         raise e
 
 
@@ -399,7 +403,7 @@ def delete_project(project_id):
     try_to_delete(gitlab.gl_delete_project, gitlab_project_id)
     try_to_delete(redmine.rm_delete_project, redmine_project_id)
     if harbor_project_id is not None:
-        harbor_param =[harbor_project_id, project_name]
+        harbor_param = [harbor_project_id, project_name]
         try_to_delete(harbor.hb_delete_project, harbor_param)
     try_to_delete(sonarqube.sq_delete_project, project_name)
 
@@ -627,8 +631,8 @@ def get_projects_by_user(user_id):
                        'git_url': row.Project.http_url,
                        'redmine_url': f'{config.get("REDMINE_EXTERNAL_BASE_URL")}/projects/'
                                       f'{row.ProjectPluginRelation.plan_project_id}',
-                       'harbor_url': f'{config.get("HARBOR_EXTERNAL_BASE_URL")}/harbor/projects/'+
-                           f'{row.ProjectPluginRelation.harbor_project_id}/repositories',
+                       'harbor_url': f'{config.get("HARBOR_EXTERNAL_BASE_URL")}/harbor/projects/' +
+                                     f'{row.ProjectPluginRelation.harbor_project_id}/repositories',
                        'repository_ids': row.ProjectPluginRelation.git_repository_id,
                        'issues': None,
                        'branch': None,
@@ -821,10 +825,12 @@ def get_kubernetes_namespace_pod_log(project_id, name, container_name=None):
     pod_log = kubernetesClient.read_namespace_pod_log(project_name, name, container_name)
     return util.success(pod_log)
 
+
 def get_kubernetes_namespace_deployment(project_id):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
     project_deployment = kubernetesClient.list_namespace_deployments(project_name)
     return util.success(project_deployment)
+
 
 def put_kubernetes_namespace_deployment(project_id, name):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
@@ -834,6 +840,7 @@ def put_kubernetes_namespace_deployment(project_id, name):
     project_deployment = kubernetesClient.update_namespace_deployment(project_name, name, deployment_info)
     print(project_deployment)
     return util.success(project_deployment.metadata.name)
+
 
 def delete_kubernetes_namespace_deployment(project_id, name):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
@@ -912,6 +919,16 @@ def put_kubernetes_namespace_configmap(project_id, name, configmaps):
     project_configmap = kubernetesClient.put_namespace_configmap(project_name, name, configmaps)
     return util.success(project_configmap)
 
+def create_kubernetes_namespace_configmap(project_id, name, configmaps):
+    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
+    project_configmap = kubernetesClient.create_namespace_configmap(project_name, name, configmaps)
+    return util.success(project_configmap)
+
+def put_kubernetes_namespace_configmap(project_id, name, configmaps):
+    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
+    project_configmap = kubernetesClient.put_namespace_configmap(project_name, name, configmaps)
+    return util.success(project_configmap)
+
 def delete_kubernetes_namespace_configmap(project_id, name):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
     project_configmap = kubernetesClient.delete_namespace_configmap(project_name, name)
@@ -926,11 +943,12 @@ def get_kubernetes_namespace_ingresses(project_id):
 
 
 def get_plugin_usage(project_id):
-    project_plugin_relation = model.ProjectPluginRelation.query.filter_by(project_id=project_id).first()    
+    project_plugin_relation = model.ProjectPluginRelation.query.filter_by(project_id=project_id).first()
     plugin_info = []
     plugin_info.append(harbor.get_storage_usage(project_plugin_relation.harbor_project_id))
     plugin_info.append(gitlab.gl_get_storage_usage(project_plugin_relation.git_repository_id))
     return util.success(plugin_info)
+
 
 # --------------------- Resources ---------------------
 class ListMyProjects(Resource):
@@ -985,6 +1003,15 @@ class SingleProject(Resource):
             return util.respond(400, 'Error while creating project',
                                 error=apiError.invalid_project_name(args['name']))
         return util.success(create_project(user_id, args))
+
+
+class SingleProjectByName(Resource):
+    @jwt_required
+    def get(self, project_name):
+        project_id = nexus.nx_get_project(name=project_name).id
+        role.require_pm("Error while getting project info.")
+        role.require_in_project(project_id, "Error while getting project info.")
+        return pm_get_project(project_id)
 
 
 class ProjectMember(Resource):
@@ -1054,6 +1081,7 @@ class ProjectUserList(Resource):
         args = parser.parse_args()
         return user.user_list_by_project(project_id, args)
 
+
 class ProjectPluginUsage(Resource):
     @jwt_required
     def get(self, project_id):
@@ -1095,7 +1123,7 @@ class ProjectUserResourcePod(Resource):
         return delete_kubernetes_namespace_pod(project_id, pod_name)
 
 
-class ProjectUserResourcePodLog(Resource): 
+class ProjectUserResourcePodLog(Resource):
     @jwt_required
     def get(self, project_id, pod_name):
         role.require_in_project(project_id, "Error while getting project info.")
@@ -1115,6 +1143,7 @@ class ProjectEnvironment(Resource):
     def put(self, project_id, branch_name):
         role.require_in_project(project_id, "Error while getting project info.")
         return put_kubernetes_namespace_dev_environment(project_id, branch_name)
+
     @jwt_required
     def delete(self, project_id, branch_name):
         role.require_in_project(project_id, "Error while getting project info.")

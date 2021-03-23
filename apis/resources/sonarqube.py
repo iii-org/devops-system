@@ -18,6 +18,7 @@ SONARQUBE_DATE_FORMAT = '%Y-%m-%dT%H:%M:%S+0000'
 METRICS = ('alert_status,bugs,reliability_rating,vulnerabilities,security_hotspots'
            ',security_rating,sqale_index,code_smells,sqale_rating,coverage'
            ',duplicated_blocks,duplicated_lines_density')
+PAGE_SIZE = 1000
 
 
 def __api_request(method, path, headers=None, params=None, data=None):
@@ -99,7 +100,6 @@ def sq_create_access_token(login):
 #     return __api_get('/api/measures/component', params).json()['measures']
 
 def sq_load_measures(project_name):
-    # FIXME: Do paging
     # Final output
     ret = {}
     # First get data in db
@@ -113,22 +113,28 @@ def sq_load_measures(project_name):
 
     # Get new data and extract into return dict
     params = {
+        'p': 1,
+        'ps': PAGE_SIZE,
         'component': project_name,
         'metrics': METRICS
     }
     if latest is not None:
         params['from'] = latest
     fetch = {}
-    data = __api_get(f'/measures/search_history', params).json()
-    for measure in data['measures']:
-        metric = measure['metric']
-        history = measure['history']
-        for h in history:
-            date = h['date']
-            value = h['value']
-            if date not in fetch:
-                fetch[date] = {}
-            fetch[date][metric] = value
+    while True:
+        data = __api_get(f'/measures/search_history', params).json()
+        for measure in data['measures']:
+            metric = measure['metric']
+            history = measure['history']
+            for h in history:
+                date = h['date']
+                value = h['value']
+                if date not in fetch:
+                    fetch[date] = {}
+                fetch[date][metric] = value
+        if len(data) < PAGE_SIZE:
+            break
+        params['p'] = params['p'] + 1
 
     # Get branch and commit id information
     params = {'project': project_name}
@@ -162,4 +168,7 @@ def sq_load_measures(project_name):
 class SonarqubeHistory(Resource):
     @jwt_required
     def get(self, project_name):
-        return util.success(sq_load_measures(project_name))
+        return util.success({
+            'link': f'{config.get("SONARQUBE_EXTERNAL_BASE_URL")}/dashboard?id={project_name}',
+            'history': sq_load_measures(project_name)
+        })
