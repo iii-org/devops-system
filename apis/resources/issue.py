@@ -327,6 +327,7 @@ def get_issue_statistics_by_project(project_id, args):
     issue_list = get_issue_by_project(project_id, args)
     issues_by_statuses, list_statuses = list_issue_statuses('issues_count_by_status') 
     analysis_targets = ['issue_priority', 'issue_category', 'assigned_to']
+    output = {}
     # Count  by Issue
     for issue in issue_list:
         output = count_issue(issue, issues_by_statuses, analysis_targets, output= {} )    
