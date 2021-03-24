@@ -330,7 +330,7 @@ def get_issue_statistics_by_project(project_id, args):
     output = {}
     # Count  by Issue
     for issue in issue_list:
-        output = count_issue(issue, issues_by_statuses, analysis_targets, output= {} )    
+        output = count_issue(issue, issues_by_statuses, analysis_targets, outpu )    
     # Mapping Status id to Status name
     output = mapping_statistics_output(analysis_targets,list_statuses,output)
     return util.success(output)
