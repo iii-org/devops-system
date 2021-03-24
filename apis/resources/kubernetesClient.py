@@ -375,7 +375,7 @@ def list_namespace_services(namespace):
     try:
         list_services = []
         for service in v1.list_namespaced_service(namespace).items:
-            list_services.append(service.metadata.name)
+            list_services.append({'name': service.metadata.name, 'is_iii':check_if_iii_template(service.metadata)})
         return list_services
     except apiError.DevOpsError as e:
         if e.status_code != 404:
