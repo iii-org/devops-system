@@ -17,3 +17,4 @@ alembic == 1.5.4
 python-gitlab == 2.6.0
 flask-socketio
 eventlet
+gunicorn
