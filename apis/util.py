@@ -134,13 +134,6 @@ def api_request(method, url, headers=None, params=None, data=None, auth=None):
                                              '{0} provided.'.format(method)))
 
 
-def enable_k8s_proxy():
-    try:
-        os.system("kubectl proxy &")
-    except:
-        pass
-
-
 def encode_k8s_sa(name):
     ret = ''
     for c in name:

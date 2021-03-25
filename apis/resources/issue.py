@@ -150,6 +150,7 @@ def __deal_with_issue_redmine_output(redmine_output):
                 redmine_output['journals'][i].pop('id', None)
                 redmine_output['journals'][i].pop('private_notes', None)
                 i += 1
+    
     redmine_output['issue_link'] = f'{config.get("REDMINE_EXTERNAL_BASE_URL")}/issues/{redmine_output["id"]}'
     return redmine_output
 
@@ -170,15 +171,18 @@ def require_issue_visible(issue_id,
 
 def verify_issue_user(issue_id, user_id):
     issue_info = get_issue(issue_id)
-    project_id = issue_info['project']['id']
+    plan_project_id = issue_info['project']['id']
+    project_plugin_relation = model.ProjectPluginRelation.query.filter_by(plan_project_id=plan_project_id).first()
     count = model.ProjectUserRole.query.filter_by(
-        project_id=project_id, user_id=user_id).count()
+        project_id=project_plugin_relation.project_id, user_id=user_id).count()
     return count > 0
+
 
 
 def get_issue(issue_id):
     redmine_output_issue = redmine.rm_get_issue(issue_id)
-    return __deal_with_issue_redmine_output(redmine_output_issue.json()['issue'])
+    return redmine_output_issue.json()['issue']
+    # return __deal_with_issue_redmine_output(redmine_output_issue.json()['issue'])
 
 
 def create_issue(args, operator_id):
