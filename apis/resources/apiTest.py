@@ -429,8 +429,6 @@ class TestCases(Resource):
         parser.add_argument('issue_id', type=str)
         parser.add_argument('project_id', type=str, required=True)
         args = parser.parse_args()
-        # output = post_test_case_by_issue_id(issue_id, args)
-        # output = post_test_case_by_project_id(project_id, args)
         output = create_test_case(args)
         return util.success(output)
 

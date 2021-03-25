@@ -1,12 +1,11 @@
-import os
 import json
 import numbers
-import config
 from datetime import datetime
 
 from kubernetes.client import ApiException
 
 import util as util
+import config
 
 import base64
 from kubernetes import client as k8s_client
@@ -29,7 +28,7 @@ iii_template['branch'] = 'iiidevops.org/branch'
 iii_template['commit_id'] = 'iiidevops.org/commit_id'
 iii_template['type'] = 'iiidevops.org/type'
 
-iii_secret_default = ['gitlab-bot',
+iii_env_default = ['gitlab-bot',
     'gitlab',
     'nexus-bot', 
     'nexus',
@@ -44,7 +43,7 @@ iii_secret_default = ['gitlab-bot',
     'webinspect'
     ]
 
-iii_secret_type = ['Opaque']
+env_normal_type = ['Opaque']
 
 con = k8s_client.Configuration()
 con.verify_ssl = False
@@ -157,7 +156,10 @@ def get_service_account_config(sa_name):
             })
     sa_secrets_name = v1.read_namespaced_service_account(
         sa_name, "account").secrets[0].name
-    server_ip = str(list_nodes[0]['ip'])
+    if config.get("KUBERNETES_MASTER_DOMAIN") != None:
+        server_ip = str(config.get("KUBERNETES_MASTER_DOMAIN"))
+    else:
+        server_ip = str(list_nodes[0]['ip'])
     sa_secret = v1.read_namespaced_secret(sa_secrets_name, "account")
     sa_ca = sa_secret.data['ca.crt']
     sa_token = str(base64.b64decode(
@@ -165,11 +167,11 @@ def get_service_account_config(sa_name):
     sa_config = "apiVersion: v1\nclusters:\n- cluster:\n    certificate-authority-data: " + sa_ca + "\n    server: https://" + server_ip + ":6443" + \
                 "\n  name: cluster\ncontexts:\n- context:\n    cluster: cluster\n    user: " + sa_name + "\n  name: default\ncurrent-context: default\nkind: Config\npreferences: {}\nusers:\n- name: " + sa_name + \
                 "\n  user:\n    token: " + sa_token
-    config = {
+    k8s_sa_config = {
         'name': sa_name,
         'config': sa_config
     }
-    return config
+    return k8s_sa_config
 
 
 def get_namespace_quota(namespace):
@@ -310,7 +312,9 @@ def list_namespace_pods_info(namespace):
 def delete_namespace_pod(namespace, name):
     try:
         pod = v1.delete_namespaced_pod(name, namespace)
-        return pod.metadata.self_link
+        link_path = pod.metadata.self_link
+        paths = link_path.split('/')
+        return paths[len(paths)-1]
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
@@ -326,15 +330,15 @@ def read_namespace_pod_log(namespace, name, container_name=None):
             raise e
 
 
-def list_namespace_deployment_info(namespace):
+def list_namespace_deployments(namespace):
     try:
         list_deployments = []
         for deployment in k8s_client.AppsV1Api().list_namespaced_deployment(namespace).items:
-            list_deployments.append({"deployment_name": deployment.metadata.name,
+            list_deployments.append({"name": deployment.metadata.name,
                                     "available_pod_number": deployment.status.available_replicas,
                                     "total_pod_number": deployment.status.replicas,
-                                    "createion_timestamp": str(deployment.metadata.creation_timestamp),
-                                    "container": get_spec_containers_image_and_name(deployment.spec.template.spec.containers)
+                                    "created_time": str(deployment.metadata.creation_timestamp),
+                                    "containers": get_spec_containers_image_and_name(deployment.spec.template.spec.containers)
                                     })
         return list_deployments
     except apiError.DevOpsError as e:
@@ -371,14 +375,14 @@ def list_namespace_services(namespace):
     try:
         list_services = []
         for service in v1.list_namespaced_service(namespace).items:
-            list_services.append(service.metadata.name)
+            list_services.append({'name': service.metadata.name, 'is_iii':check_if_iii_template(service.metadata)})
         return list_services
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
 
 
-def delete_service(namespace, name):
+def delete_namespace_service(namespace, name):
     try:
         service = v1.delete_namespaced_service(name, namespace)
         return service.details.name
@@ -497,7 +501,7 @@ def put_namespace_configmap(namespace,name,configmaps):
         if e.status_code != 404:
             raise e
 
-def delete_configmap(namespace, name):
+def delete_namespace_configmap(namespace, name):
     try:
         configmap = v1.delete_namespaced_config_map(name, namespace)
         return configmap.details.name
@@ -506,7 +510,7 @@ def delete_configmap(namespace, name):
             raise e
 
 
-def list_namespace_ingress_info(namespace):
+def list_namespace_ingresses(namespace):
     try:
         list_ingresses = []
         for ingress in extensions_v1beta1.list_namespaced_ingress(namespace).items:
@@ -622,7 +626,7 @@ def get_list_container_statuses(container_statuses):
 def secret_info_by_iii(secret):
     try:
         info = {} 
-        info['is_iii']= check_if_iii_default(secret.metadata.name)
+        info['is_iii']= check_if_iii_default(secret.metadata.name, secret.type)
         info['name'] =secret.metadata.name
         info['data'] = secret.data
         return info
@@ -865,12 +869,11 @@ def analysis_container_status_time(container_status):
             raise e
 
 
-def check_if_iii_default(name):
-    print(name)
-    print(iii_secret_default)
+def check_if_iii_default(name, var_type = None):
     is_iii = False
-    if name in iii_secret_default:
-        is_iii = True
+    if name in iii_env_default :
+        if var_type not in env_normal_type or var_type is None:
+            is_iii = True
     return is_iii
 
 def check_if_iii_template(metadata):    

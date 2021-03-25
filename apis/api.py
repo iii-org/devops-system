@@ -2,6 +2,7 @@ import datetime
 import os
 import traceback
 from os.path import isfile
+import sys
 
 import werkzeug
 from flask import Flask
@@ -12,6 +13,9 @@ from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy_utils import database_exists, create_database
 from werkzeug.routing import IntegerConverter
 from flask_socketio import SocketIO
+
+if f"{os.getcwd()}/apis" not in sys.path:
+    sys.path.insert(1, f"{os.getcwd()}/apis")
 
 import config
 import migrate
@@ -176,6 +180,7 @@ def initialize(db_uri):
 # Projects
 api.add_resource(project.ListMyProjects, '/project/list')
 api.add_resource(project.SingleProject, '/project', '/project/<sint:project_id>')
+api.add_resource(project.SingleProjectByName, '/project_by_name/<project_name>')
 api.add_resource(project.ProjectsByUser, '/projects_by_user/<int:user_id>')
 api.add_resource(project.ProjectUserList, '/project/<sint:project_id>/user/list')
 api.add_resource(project.ProjectPluginUsage,'/project/<sint:project_id>/plugin/resource')
@@ -273,8 +278,6 @@ api.add_resource(issue.IssueByStatusByProject,
 api.add_resource(issue.IssueByDateByProject, '/project/<sint:project_id>/issues_by_date')
 api.add_resource(issue.IssuesProgressByProject,
                  '/project/<sint:project_id>/issues_progress')
-# api.add_resource(issue.IssuesProgressAllVersionByProject,
-#                  '/project/<sint:project_id>/issues_progress/all_version')
 api.add_resource(issue.IssuesStatisticsByProject,
                  '/project/<sint:project_id>/issues_statistics')
 api.add_resource(issue.SingleIssue, '/issues', '/issues/<issue_id>')
@@ -405,17 +408,21 @@ api.add_resource(activity.ProjectActivities, '/project/<sint:project_id>/activit
 api.add_resource(NexusVersion, '/system_versions')
 
 
-
-if __name__ == "__main__":
+def start_prod():
     try:
         db.init_app(app)
         db.app = app
         jsonwebtoken.init_app(app)
         initialize(config.get('SQLALCHEMY_DATABASE_URI'))
         migrate.run()
-        socketio.run(app, host='0.0.0.0', port=10009, debug=(config.get('DEBUG') is True))
+        return app
     except Exception as e:
         ret = internal_error(e)
         if ret[1] == 404:
             logger.logger.exception(e)
         raise e
+
+
+if __name__ == "__main__":
+    start_prod()
+    socketio.run(app, host='0.0.0.0', port=10009, debug=(config.get('DEBUG') is True))
