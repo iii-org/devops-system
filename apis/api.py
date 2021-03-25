@@ -2,6 +2,7 @@ import datetime
 import os
 import traceback
 from os.path import isfile
+import sys
 
 import werkzeug
 from flask import Flask
@@ -12,6 +13,9 @@ from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy_utils import database_exists, create_database
 from werkzeug.routing import IntegerConverter
 from flask_socketio import SocketIO
+
+if f"{os.getcwd()}/apis" not in sys.path:
+    sys.path.insert(1, f"{os.getcwd()}/apis")
 
 import config
 import migrate
@@ -216,6 +220,7 @@ api.add_resource(version.ProjectVersion, '/project/<sint:project_id>/version',
 api.add_resource(project.TestSummary, '/project/<sint:project_id>/test_summary')
 api.add_resource(template.TemplateList, '/template_list') 
 api.add_resource(template.SingleTemplate, '/template', '/template/<repository_id>') 
+api.add_resource(template.ProjectPipelineYaml, '/project/<repository_id>/pipeline_yaml') 
 api.add_resource(project.ProjectEnvironment, '/project/<sint:project_id>/environments',
                  '/project/<sint:project_id>/environments/branch/<branch_name>')
 
@@ -411,17 +416,21 @@ api.add_resource(activity.ProjectActivities, '/project/<sint:project_id>/activit
 api.add_resource(NexusVersion, '/system_versions')
 
 
-
-if __name__ == "__main__":
+def start_prod():
     try:
         db.init_app(app)
         db.app = app
         jsonwebtoken.init_app(app)
         initialize(config.get('SQLALCHEMY_DATABASE_URI'))
         migrate.run()
-        socketio.run(app, host='0.0.0.0', port=10009, debug=(config.get('DEBUG') is True))
+        return app
     except Exception as e:
         ret = internal_error(e)
         if ret[1] == 404:
             logger.logger.exception(e)
         raise e
+
+
+if __name__ == "__main__":
+    start_prod()
+    socketio.run(app, host='0.0.0.0', port=10009, debug=(config.get('DEBUG') is True))

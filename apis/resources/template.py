@@ -9,7 +9,9 @@ import yaml
 
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
+import util
 import config
+import resources.yaml_OO as pipeline_yaml_OO
 from . import role
 from .logger import logger
 
@@ -22,6 +24,14 @@ template_replace_dict = {
     "harbor.host": config.get("HARBOR_EXTERNAL_BASE_URL").replace("https://", ""),
     "git.host": config.get("GITLAB_BASE_URL").replace("http://", "")
     }
+
+support_software = [{"key": "scan-sonarqube", "display": "Sonarqube"}, 
+                    {"key": "scan-checkmarx", "display": "Checkmarx"}, 
+                    {"key": "test-postman", "display": "Postman"}, 
+                    {"key": "test-webinspect", "display": "Webinspect"},
+                    {"key": "db", "display": "Database"},
+                    {"key": "web", "display": "Web"}]
+
 gitlab_private_token = config.get("GITLAB_PRIVATE_TOKEN")
 gl = Gitlab(config.get("GITLAB_BASE_URL"), private_token=gitlab_private_token)
 
@@ -49,18 +59,28 @@ def __tm_get_tag_info(pj, tag_name):
     return tag_info_dict
 
 
-def __tm_get_pipe_yamlfile_name(pj, tag_name):
+def __tm_get_pipe_yamlfile_name(pj, tag_name=None):
     pipe_yaml_file_name = ".rancher-pipeline.yaml"
-    tag_info_dict = __tm_get_tag_info(pj, tag_name)
-    for item in  pj.repository_tree(ref=tag_info_dict["commit_id"]):
+    if tag_name is None:
+        ref=pj.default_branch
+    else:
+        tag_info_dict = __tm_get_tag_info(pj, tag_name)
+        ref = tag_info_dict["commit_id"]
+    for item in  pj.repository_tree(ref=ref):
         if item["path"] == ".rancher-pipeline.yml":
             pipe_yaml_file_name = ".rancher-pipeline.yml"
     return pipe_yaml_file_name
 
-def __tm_get_git_pipline_json(pj, tag_name):
-    pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj, tag_name)
-    tag_info_dict = __tm_get_tag_info(pj, tag_name)
-    f_raw = pj.files.raw(file_path = pipe_yaml_file_name, ref = tag_info_dict["commit_id"])
+def __tm_get_git_pipline_json(pj, tag_name=None):
+    if tag_name == None:
+        pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj)
+        ref = pj.default_branch
+    else:
+        pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj, tag_name=tag_name)
+        tag_info_dict = __tm_get_tag_info(pj, tag_name)
+        ref = tag_info_dict["commit_id"]
+    
+    f_raw = pj.files.raw(file_path = pipe_yaml_file_name, ref = ref)
     pipe_json = yaml.safe_load(f_raw.decode())
     return pipe_json
 
@@ -114,9 +134,9 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id, tag
     template_pj = gl.projects.get(template_repository_id)
     temp_http_url = template_pj.http_url_to_repo
     secret_temp_http_url = temp_http_url[:7] + f"root:{gitlab_private_token}@" + temp_http_url[7:]
-    pipe_json = __tm_get_git_pipline_json(template_pj, tag_name)
+    pipe_json = __tm_get_git_pipline_json(template_pj, tag_name=tag_name)
     tag_info_dict= __tm_get_tag_info(template_pj, tag_name)
-    pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(template_pj, tag_name)
+    pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(template_pj, tag_name=tag_name)
     pip_set_json= __tm_read_pipe_set_json(template_pj, tag_name)
     
     pj = gl.projects.get(user_repository_id)
@@ -174,6 +194,43 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id, tag
     shutil.rmtree(f"pj_push_template/{pj.path}", ignore_errors=True)
 
 
+def tm_put_pj_pipeline_yaml(repository_id):
+    pj = gl.projects.get(repository_id)
+    temp_http_url = pj.http_url_to_repo
+    secret_temp_http_url = temp_http_url[:7] + f"root:{gitlab_private_token}@" + temp_http_url[7:]
+    pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj)
+    Path("pj_edit_pipe_yaml").mkdir(exist_ok=True)
+    subprocess.call(['git', 'clone', '-b', pj.default_branch, secret_temp_http_url
+                     , f"pj_edit_pipe_yaml/{pj.path}"])
+    stage_list = None
+    with open(f'pj_edit_pipe_yaml/{pj.path}/{pipe_yaml_file_name}') as file:
+        stage_list = yaml.safe_load(file)["stages"]
+        out = {}
+        out["default_branch"] = pj.default_branch
+        br_list = []
+        for br in pj.branches.list():
+            br_list.append(br.name)
+        out["all_branch_list"] = br_list
+        
+        out["stages"] = []
+        for stage in stage_list:
+            stage_out_list={}
+            catalogTemplate_value =stage.get("steps")[0].get("applyAppConfig", {}).get("catalogTemplate")
+            if catalogTemplate_value is not None:
+                catalogTemplate_value = catalogTemplate_value.split(":")[1].replace("iii-dev-charts3-","")
+            for software in  support_software:
+                if catalogTemplate_value is not None and software["key"] == catalogTemplate_value:
+                    stage_out_list["name"] = software["display"]
+                    stage_out_list["key"] = software["key"]
+                    if "when" in stage:
+                        stage_when = pipeline_yaml_OO.RancherPipelineWhen(stage["when"]["branch"])
+                        stage_out_list["branches"] = stage_when.branch.include
+                        if stage_out_list["key"] == "web":
+                            out["has_environment_branch_list"] = stage_out_list["branches"]
+                    out["stages"].append(stage_out_list)
+    return out
+
+
 class TemplateList(Resource):
     @jwt_required
     def get(self):
@@ -190,16 +247,7 @@ class SingleTemplate(Resource):
         args = parser.parse_args()
         return tm_get_template(repository_id, args["tag_name"])
     
-    '''
-    # temporary api, only for develop
+class ProjectPipelineYaml(Resource):
     @jwt_required
-    def post(self, repository_id):
-        role.require_pm("Error while getting template list.")
-        parser = reqparse.RequestParser()
-        parser.add_argument('user_repository_id', type=int)
-        parser.add_argument('tag_name', type=str)
-        parser.add_argument('arguments', type=dict)
-        args = parser.parse_args()
-        return tm_use_template_push_into_pj(repository_id, args["user_repository_id"], 
-                                  args["tag_name"], args["arguments"])
-    '''
+    def get(self, repository_id):
+        return util.success(tm_put_pj_pipeline_yaml(repository_id))
