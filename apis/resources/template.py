@@ -9,6 +9,7 @@ import yaml
 
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
+import util
 import config
 import resources.yaml_OO as pipeline_yaml_OO
 from . import role
@@ -24,7 +25,12 @@ template_replace_dict = {
     "git.host": config.get("GITLAB_BASE_URL").replace("http://", "")
     }
 
-pj_get_can_enable_fun = ["Sonarqube", "Checkmarx", "Postman", "Webinspect"]
+support_software = [{"key": "scan-sonarqube", "display": "Sonarqube"}, 
+                    {"key": "scan-checkmarx", "display": "Checkmarx"}, 
+                    {"key": "test-postman", "display": "Postman"}, 
+                    {"key": "test-webinspect", "display": "Webinspect"},
+                    {"key": "db", "display": "Database"},
+                    {"key": "web", "display": "Web"}]
 
 gitlab_private_token = config.get("GITLAB_PRIVATE_TOKEN")
 gl = Gitlab(config.get("GITLAB_BASE_URL"), private_token=gitlab_private_token)
@@ -205,15 +211,24 @@ def tm_put_pj_pipeline_yaml(repository_id):
         for br in pj.branches.list():
             br_list.append(br.name)
         out["all_branch_list"] = br_list
+        
         out["stages"] = []
         for stage in stage_list:
             stage_out_list={}
-            stage_out_list["name"] = stage.get("name")
-            if "when" in stage:
-                stage_when = pipeline_yaml_OO.RancherPipelineWhen(stage["when"]["branch"])
-                stage_out_list["branches"] = stage_when.branch.include
-            out["stages"].append(stage_out_list)
-    print(f"out: {out}")
+            catalogTemplate_value =stage.get("steps")[0].get("applyAppConfig", {}).get("catalogTemplate")
+            if catalogTemplate_value is not None:
+                catalogTemplate_value = catalogTemplate_value.split(":")[1].replace("iii-dev-charts3-","")
+            for software in  support_software:
+                if catalogTemplate_value is not None and software["key"] == catalogTemplate_value:
+                    stage_out_list["name"] = software["display"]
+                    stage_out_list["key"] = software["key"]
+                    if "when" in stage:
+                        stage_when = pipeline_yaml_OO.RancherPipelineWhen(stage["when"]["branch"])
+                        stage_out_list["branches"] = stage_when.branch.include
+                        if stage_out_list["key"] == "web":
+                            out["has_environment_branch_list"] = stage_out_list["branches"]
+                    out["stages"].append(stage_out_list)
+    return out
 
 
 class TemplateList(Resource):
@@ -235,4 +250,4 @@ class SingleTemplate(Resource):
 class ProjectPipelineYaml(Resource):
     @jwt_required
     def get(self, repository_id):
-        return tm_put_pj_pipeline_yaml(repository_id)
+        return util.success(tm_put_pj_pipeline_yaml(repository_id))
