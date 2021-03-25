@@ -29,6 +29,11 @@ def get_repo_url(project_id):
 def commit_id_to_url(project_id, commit_id):
     return f'{get_repo_url(project_id)[0:-4]}/-/commit/{commit_id}'
 
+# May throws NoResultFound
+def get_repository_id(project_id):
+    return model.ProjectPluginRelation.query.filter_by(
+        project_id=project_id).one().git_repository_id
+
 
 class GitLab(object):
     private_token = None
@@ -346,11 +351,30 @@ class GitLab(object):
                                ).json()['token']
 
 
-# May throws NoResultFound
-def get_repository_id(project_id):
-    return model.ProjectPluginRelation.query.filter_by(
-        project_id=project_id).one().git_repository_id
 
+    # Get Gitlab list releases
+    def gl_list_releases(self, repo_id):
+        return self.__api_get(f'/projects/{repo_id}/releases').json()
+
+    # Get Gitlab list releases
+    def gl_get_release(self, repo_id,tag_name):
+        return self.__api_get(f'/projects/{repo_id}/releases/{tag_name}').json()
+
+    def gl_get_release(self, repo_id,tag_name):
+        return self.__api_get(f'/projects/{repo_id}/releases/{tag_name}').json()
+
+    def gl_create_release(self, repo_id,data):
+        path = f'/projects/{repo_id}/releases'
+        print(data)
+        return self.__api_post(path, params=data).json()
+
+    def gl_update_release(self, repo_id,tag_name,data):
+        path = f'/projects/{repo_id}/releases/{tag_name}'
+        return self.__api_put(path, params=data).json()
+
+    def gl_delete_release(self, repo_id,tag_name):
+        path = f'/projects/{repo_id}/releases/{tag_name}'
+        return self.__api_delete(path).json()
 
 # --------------------- Resources ---------------------
 gitlab = GitLab()

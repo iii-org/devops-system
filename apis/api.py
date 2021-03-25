@@ -2,7 +2,6 @@ import datetime
 import os
 import traceback
 from os.path import isfile
-import sys
 
 import werkzeug
 from flask import Flask
@@ -13,9 +12,6 @@ from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy_utils import database_exists, create_database
 from werkzeug.routing import IntegerConverter
 from flask_socketio import SocketIO
-
-if f"{os.getcwd()}/apis" not in sys.path:
-    sys.path.insert(1, f"{os.getcwd()}/apis")
 
 import config
 import migrate
@@ -30,7 +26,7 @@ from jsonwebtoken import jsonwebtoken
 from model import db
 from resources import logger, role as role, activity
 from resources import project, gitlab, issue, user, redmine, wiki, version, sonarqube, apiTest, postman, mock, harbor, \
-    webInspect, template
+    webInspect, template, release
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -279,6 +275,8 @@ api.add_resource(issue.IssuesProgressByProject,
                  '/project/<sint:project_id>/issues_progress')
 api.add_resource(issue.IssuesStatisticsByProject,
                  '/project/<sint:project_id>/issues_statistics')
+
+api.add_resource(issue.IssueByVersion, '/issues_by_versions')
 api.add_resource(issue.SingleIssue, '/issues', '/issues/<issue_id>')
 api.add_resource(issue.IssueStatus, '/issues_status')
 api.add_resource(issue.IssuePriority, '/issues_priority')
@@ -288,6 +286,12 @@ api.add_resource(issue.MyIssueStatistics, '/issues/statistics')
 api.add_resource(issue.MyOpenIssueStatistics, '/issues/open_statistics')
 api.add_resource(issue.MyIssueWeekStatistics, '/issues/week_statistics')
 api.add_resource(issue.MyIssueMonthStatistics, '/issues/month_statistics')
+
+
+
+## release 
+api.add_resource(release.Releases,'/project/<project_id>/releases')
+api.add_resource(release.Release,'/project/<project_id>/releases/<release_name>')
 
 # dashboard
 api.add_resource(issue.DashboardIssuePriority,
@@ -407,21 +411,17 @@ api.add_resource(activity.ProjectActivities, '/project/<sint:project_id>/activit
 api.add_resource(NexusVersion, '/system_versions')
 
 
-def start_prod():
+
+if __name__ == "__main__":
     try:
         db.init_app(app)
         db.app = app
         jsonwebtoken.init_app(app)
         initialize(config.get('SQLALCHEMY_DATABASE_URI'))
         migrate.run()
-        return app
+        socketio.run(app, host='0.0.0.0', port=10009, debug=(config.get('DEBUG') is True))
     except Exception as e:
         ret = internal_error(e)
         if ret[1] == 404:
             logger.logger.exception(e)
         raise e
-
-
-if __name__ == "__main__":
-    start_prod()
-    socketio.run(app, host='0.0.0.0', port=10009, debug=(config.get('DEBUG') is True))
