@@ -307,6 +307,8 @@ def get_issue_by_date_by_project(project_id):
 def get_issue_progress_by_project(project_id, args):
     issues_by_statuses, list_statuses = list_issue_statuses('issues_count_by_status')
     list_issues = get_issue_by_project(project_id, args)
+    if len(list_issues) == 0 :
+        return util.success({})
     for issue in list_issues:  
         issue_status_id = str(issue['issue_status_id'])
         if issue_status_id in issues_by_statuses:
@@ -849,6 +851,18 @@ class IssueByProject(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('fixed_version_id', type=int)
         args = parser.parse_args()
+        return util.success(get_issue_by_project(project_id, args))
+
+
+class IssueByVersion(Resource):
+    @jwt_required
+    def get(self, project_id):
+        role.require_in_project(project_id, 'Error to get issue.')
+        parser = reqparse.RequestParser()
+        parser.add_argument('fixed_version_id')
+        args = parser.parse_args()
+
+
         return util.success(get_issue_by_project(project_id, args))
 
 
