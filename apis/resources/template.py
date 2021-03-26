@@ -12,6 +12,7 @@ from flask_restful import Resource, reqparse
 import util
 import config
 import resources.yaml_OO as pipeline_yaml_OO
+import util
 from . import role
 from .logger import logger
 
@@ -235,7 +236,7 @@ class TemplateList(Resource):
     @jwt_required
     def get(self):
         role.require_pm("Error while getting template list.")
-        return tm_get_template_list()
+        return util.success(tm_get_template_list())
 
 
 class SingleTemplate(Resource):
@@ -245,7 +246,7 @@ class SingleTemplate(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('tag_name', type=str)
         args = parser.parse_args()
-        return tm_get_template(repository_id, args["tag_name"])
+        return util.success(tm_get_template(repository_id, args["tag_name"]))
     
 class ProjectPipelineYaml(Resource):
     @jwt_required
