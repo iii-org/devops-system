@@ -139,9 +139,6 @@ def __deal_with_issue_redmine_output(redmine_output):
     list_user = {}
     for rm_user_info in rm_users:
         list_user[rm_user_info['id']] = rm_user_info['firstname'] + ' ' + rm_user_info['lastname']
-    
-    journals = []
-    print(redmine_output['journals'])
     if 'journals' in redmine_output:        
         i = 0
         while i < len(redmine_output['journals']):
@@ -167,9 +164,8 @@ def __deal_with_issue_redmine_output(redmine_output):
                         else :
                             detail_info['new_value'] = detail['new_value']
                     else:
-                        detail_info['new_value'] = detail['new_value']
                         detail_info['old_value'] = detail['old_value']
-
+                        detail_info['new_value'] = detail['new_value']                        
             list_details.append(detail_info)
             redmine_output['journals'][i]['details']  = list_details
             i += 1
