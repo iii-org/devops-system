@@ -95,13 +95,13 @@ class Redmine:
 
     # --------------- Normal methods ---------------
 
-    def paging(self, key, params=None):
+    def paging(self, key, page=100, params=None):
         if params is None:
             params = {}
         offset = 0
         ret = []
         path = '/{0}'.format(key)
-        params['limit'] = 100
+        params['limit'] = page
         while True:
             res = self.__api_get(path=path, params=params).json().get(key)
             ret.extend(res)
@@ -136,11 +136,11 @@ class Redmine:
 
     def rm_list_issues(self):
         params = {'status_id': '*'}
-        return self.paging('issues', params)
+        return self.paging('issues', 100,  params)
 
     def rm_get_issues_by_user(self, user_id):
         params = {'assigned_to_id': user_id, 'status_id': '*'}
-        return self.paging('issues', params)
+        return self.paging('issues', 100,  params)
 
     def rm_get_issues_by_project(self, plan_project_id, args=None):
         if args is not None and 'fixed_version_id' in args:
@@ -148,7 +148,7 @@ class Redmine:
                       'fixed_version_id': args['fixed_version_id']}
         else:
             params = {'project_id': plan_project_id, 'status_id': '*'}
-        return self.paging('issues', params)
+        return self.paging('issues', 100,  params)
 
     def rm_get_issues_by_project_and_user(self, user_id, plan_project_id):
         params = {
@@ -156,12 +156,12 @@ class Redmine:
             'project_id': plan_project_id,
             'status_id': '*'
         }
-        return self.paging('issues', params)
+        return self.paging('issues', 100, params)
 
     def rm_get_issue(self, issue_id):
-        params = {'include': 'journals,attachments'}
-        output = self.__api_get('/issues/{0}'.format(issue_id), params=params)
-        return output
+        params = {'include': 'children,attachments,relations,changesets,journals,watchers'}
+        output = self.__api_get('/issues/{0}'.format(issue_id), params=params)      
+        return output.json()['issue']
 
     def rm_get_statistics(self, params):
         if 'status_id' not in params:
@@ -207,7 +207,7 @@ class Redmine:
         param = {"user": {"password": new_pwd}}
         return self.__api_put('/users/{0}'.format(plan_user_id), data=param)
 
-    def rm_get_user_list(self, args):
+    def rm_get_user_list(self, args):        
         return self.__api_get('/users', params=args).json()
 
     def rm_delete_user(self, redmine_user_id):
@@ -360,6 +360,15 @@ class Redmine:
         return self.__api_post('/projects',
                                headers=headers,
                                data=xml_body.encode('utf-8')).json()
+
+
+    def rm_journals_mapping_users(journal, users):
+        list_user = {}
+        for user in users:
+            list_user[user['id']] = user['first_name'] + ' ' + user['last_name']
+        print(list_user)
+        return journal
+
 
     @staticmethod
     def rm_build_external_link(path):
