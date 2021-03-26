@@ -220,7 +220,8 @@ api.add_resource(version.ProjectVersion, '/project/<sint:project_id>/version',
 api.add_resource(project.TestSummary, '/project/<sint:project_id>/test_summary')
 api.add_resource(template.TemplateList, '/template_list') 
 api.add_resource(template.SingleTemplate, '/template', '/template/<repository_id>') 
-api.add_resource(template.ProjectPipelineYaml, '/project/<repository_id>/pipeline_yaml') 
+api.add_resource(template.ProjectPipelineBranches, '/project/<repository_id>/pipeline/branches') 
+api.add_resource(template.ProjectPipelineDefaultBranch, '/project/<repository_id>/pipeline/default_branch') 
 api.add_resource(project.ProjectEnvironment, '/project/<sint:project_id>/environments',
                  '/project/<sint:project_id>/environments/branch/<branch_name>')
 

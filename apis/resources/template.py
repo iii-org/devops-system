@@ -100,6 +100,15 @@ def __tm_read_pipe_set_json(pj, tag_name=None):
             pip_set_json = json.loads(f_raw.decode())
     return pip_set_json
 
+
+def __tm_git_clone_file(pj, dest_folder_name):
+    temp_http_url = pj.http_url_to_repo
+    secret_temp_http_url = temp_http_url[:7] + f"root:{gitlab_private_token}@" + temp_http_url[7:]
+    Path(f"{dest_folder_name}").mkdir(exist_ok=True)
+    subprocess.call(['git', 'clone', '-b', pj.default_branch, secret_temp_http_url
+                     , f"{dest_folder_name}/{pj.path}"])
+
+
 def tm_get_template_list():
     output = []
     group = gl.groups.get("iiidevops-templates", all=True)
@@ -195,15 +204,11 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id, tag
     shutil.rmtree(f"pj_push_template/{pj.path}", ignore_errors=True)
 
 
-def tm_put_pj_pipeline_yaml(repository_id):
+def tm_get_pipeline_branches(repository_id):
     pj = gl.projects.get(repository_id)
-    temp_http_url = pj.http_url_to_repo
-    secret_temp_http_url = temp_http_url[:7] + f"root:{gitlab_private_token}@" + temp_http_url[7:]
-    pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj)
-    Path("pj_edit_pipe_yaml").mkdir(exist_ok=True)
-    subprocess.call(['git', 'clone', '-b', pj.default_branch, secret_temp_http_url
-                     , f"pj_edit_pipe_yaml/{pj.path}"])
+    __tm_git_clone_file(pj, "pj_edit_pipe_yaml")
     stage_list = None
+    pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj)
     with open(f'pj_edit_pipe_yaml/{pj.path}/{pipe_yaml_file_name}') as file:
         stage_list = yaml.safe_load(file)["stages"]
         out = {}
@@ -212,7 +217,6 @@ def tm_put_pj_pipeline_yaml(repository_id):
         for br in pj.branches.list():
             br_list.append(br.name)
         out["all_branch_list"] = br_list
-        
         out["stages"] = []
         for stage in stage_list:
             stage_out_list={}
@@ -232,6 +236,38 @@ def tm_put_pj_pipeline_yaml(repository_id):
     return out
 
 
+def tm_get_pipeline_default_branch(repository_id):
+    pj = gl.projects.get(repository_id)
+    __tm_git_clone_file(pj, "pj_edit_pipe_yaml")
+    stage_list = None
+    pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj)
+    with open(f'pj_edit_pipe_yaml/{pj.path}/{pipe_yaml_file_name}') as file:
+        stage_list = yaml.safe_load(file)["stages"]
+        out = {}
+        out["default_branch"] = pj.default_branch
+        out["stages"] = []
+        for stage in stage_list:
+            stage_out_list={}
+            stage_out_list["has_default_branch"] = False
+            catalogTemplate_value =stage.get("steps")[0].get("applyAppConfig", {}).get("catalogTemplate")
+            if catalogTemplate_value is not None:
+                catalogTemplate_value = catalogTemplate_value.split(":")[1].replace("iii-dev-charts3-","")
+            for software in  support_software:
+                if catalogTemplate_value is not None and software["key"] == catalogTemplate_value:
+                    stage_out_list["name"] = software["display"]
+                    stage_out_list["key"] = software["key"]
+                    if "when" in stage:
+                        stage_when = pipeline_yaml_OO.RancherPipelineWhen(stage["when"]["branch"])
+                        if pj.default_branch in stage_when.branch.include:
+                            stage_out_list["has_default_branch"] = True
+                    out["stages"].append(stage_out_list)
+    shutil.rmtree(f"pj_edit_pipe_yaml/{pj.path}", ignore_errors=True)
+    return out
+
+def tm_put_pipeline_default_branch(repository_id, args):
+    pass
+    
+
 class TemplateList(Resource):
     @jwt_required
     def get(self):
@@ -248,7 +284,20 @@ class SingleTemplate(Resource):
         args = parser.parse_args()
         return util.success(tm_get_template(repository_id, args["tag_name"]))
     
-class ProjectPipelineYaml(Resource):
+class ProjectPipelineBranches(Resource):
     @jwt_required
     def get(self, repository_id):
-        return util.success(tm_put_pj_pipeline_yaml(repository_id))
+        return util.success(tm_get_pipeline_branches(repository_id))
+
+class ProjectPipelineDefaultBranch(Resource):
+    @jwt_required
+    def get(self, repository_id):
+        return util.success(tm_get_pipeline_default_branch(repository_id))
+
+    @jwt_required
+    def put(self, repository_id):
+        parser = reqparse.RequestParser()
+        parser.add_argument('stages')
+        args = parser.parse_args()
+        tm_put_pipeline_default_branch(repository_id, args)
+        return util.success()
