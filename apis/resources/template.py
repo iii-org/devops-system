@@ -10,6 +10,7 @@ import yaml
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
 import config
+import util
 from . import role
 from .logger import logger
 
@@ -178,7 +179,7 @@ class TemplateList(Resource):
     @jwt_required
     def get(self):
         role.require_pm("Error while getting template list.")
-        return tm_get_template_list()
+        return util.success(tm_get_template_list())
 
 
 class SingleTemplate(Resource):
@@ -188,7 +189,7 @@ class SingleTemplate(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('tag_name', type=str)
         args = parser.parse_args()
-        return tm_get_template(repository_id, args["tag_name"])
+        return util.success(tm_get_template(repository_id, args["tag_name"]))
     
     '''
     # temporary api, only for develop
