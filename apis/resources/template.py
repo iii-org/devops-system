@@ -101,12 +101,16 @@ def __tm_read_pipe_set_json(pj, tag_name=None):
     return pip_set_json
 
 
-def __tm_git_clone_file(pj, dest_folder_name):
+def __tm_git_clone_file(pj, dest_folder_name, create_time=None):
     temp_http_url = pj.http_url_to_repo
     secret_temp_http_url = temp_http_url[:7] + f"root:{gitlab_private_token}@" + temp_http_url[7:]
     Path(f"{dest_folder_name}").mkdir(exist_ok=True)
+    if create_time is not None:
+        pj_name = f"{pj.path}_{create_time}"
+    else:
+        pj_name = f"{pj.path}"
     subprocess.call(['git', 'clone', '-b', pj.default_branch, secret_temp_http_url
-                     , f"{dest_folder_name}/{pj.path}"])
+                     , f"{dest_folder_name}/{pj_name}"])
 
 
 def tm_get_template_list():
@@ -207,7 +211,6 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id, tag
 def tm_get_pipeline_branches(repository_id):
     pj = gl.projects.get(repository_id)
     __tm_git_clone_file(pj, "pj_edit_pipe_yaml")
-    stage_list = None
     pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj)
     with open(f'pj_edit_pipe_yaml/{pj.path}/{pipe_yaml_file_name}') as file:
         stage_list = yaml.safe_load(file)["stages"]
@@ -238,10 +241,10 @@ def tm_get_pipeline_branches(repository_id):
 
 def tm_get_pipeline_default_branch(repository_id):
     pj = gl.projects.get(repository_id)
-    __tm_git_clone_file(pj, "pj_edit_pipe_yaml")
-    stage_list = None
+    create_time = datetime.now().strftime("%y%m%d_%H%M%S")
+    __tm_git_clone_file(pj, "pj_edit_pipe_yaml", create_time)
     pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj)
-    with open(f'pj_edit_pipe_yaml/{pj.path}/{pipe_yaml_file_name}') as file:
+    with open(f'pj_edit_pipe_yaml/{pj.path}_{create_time}/{pipe_yaml_file_name}') as file:
         stage_list = yaml.safe_load(file)["stages"]
         out = {}
         out["default_branch"] = pj.default_branch
@@ -261,12 +264,29 @@ def tm_get_pipeline_default_branch(repository_id):
                         if pj.default_branch in stage_when.branch.include:
                             stage_out_list["has_default_branch"] = True
                     out["stages"].append(stage_out_list)
-    shutil.rmtree(f"pj_edit_pipe_yaml/{pj.path}", ignore_errors=True)
+    shutil.rmtree(f"pj_edit_pipe_yaml/{pj.path}_{create_time}", ignore_errors=True)
     return out
 
-def tm_put_pipeline_default_branch(repository_id, args):
-    pass
-    
+def tm_put_pipeline_default_branch(repository_id, data):
+    pj = gl.projects.get(repository_id)
+    create_time = datetime.now().strftime("%y%m%d_%H%M%S")
+    __tm_git_clone_file(pj, "pj_edit_pipe_yaml", create_time)
+    pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj)
+    with open(f'pj_edit_pipe_yaml/{pj.path}_{create_time}/{pipe_yaml_file_name}') as file:
+        pipe_json = yaml.safe_load(file)
+        for stage in pipe_json["stages"]:
+            catalogTemplate_value =stage.get("steps")[0].get("applyAppConfig", {}).get("catalogTemplate")
+            if catalogTemplate_value is not None:
+                catalogTemplate_value = catalogTemplate_value.split(":")[1].replace("iii-dev-charts3-","")
+            for put_pipe_soft in data["stages"]:
+                if catalogTemplate_value is not None and put_pipe_soft["key"] == catalogTemplate_value:
+                    put_pipe_soft["has_default_branch"]
+                    if "when" in stage:
+                        stage_when = pipeline_yaml_OO.RancherPipelineWhen(stage["when"]["branch"])
+                        print(f"stage_when branch include: {stage_when.branch.include}")
+                    
+
+
 
 class TemplateList(Resource):
     @jwt_required
@@ -297,7 +317,7 @@ class ProjectPipelineDefaultBranch(Resource):
     @jwt_required
     def put(self, repository_id):
         parser = reqparse.RequestParser()
-        parser.add_argument('stages')
+        parser.add_argument('detail', type=dict)
         args = parser.parse_args()
-        tm_put_pipeline_default_branch(repository_id, args)
+        tm_put_pipeline_default_branch(repository_id, args["detail"])
         return util.success()
