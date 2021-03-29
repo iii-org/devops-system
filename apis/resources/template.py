@@ -10,6 +10,7 @@ import yaml
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
 import config
+import util
 from . import role
 from .logger import logger
 
@@ -139,9 +140,10 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id, tag
                                 if ans_key in template_replace_dict:
                                     fun_value["answers"][ans_key] = template_replace_dict[ans_key]
                                 # Replace by pipeline_settings.json default value
-                                for argument in pip_set_json["arguments"]:
-                                    if "default_value" in argument and argument["key"] == ans_key:
-                                        fun_value["answers"][ans_key] = argument["default_value"]
+                                if "arguments" in pip_set_json:
+                                    for argument in pip_set_json["arguments"]:
+                                        if "default_value" in argument and argument["key"] == ans_key:
+                                            fun_value["answers"][ans_key] = argument["default_value"]
                                 # Replace by user input parameter.
                                 if arguments is not None and ans_key in arguments:
                                     for arg_key, arg_value in arguments.items():
@@ -177,7 +179,7 @@ class TemplateList(Resource):
     @jwt_required
     def get(self):
         role.require_pm("Error while getting template list.")
-        return tm_get_template_list()
+        return util.success(tm_get_template_list())
 
 
 class SingleTemplate(Resource):
@@ -187,7 +189,7 @@ class SingleTemplate(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('tag_name', type=str)
         args = parser.parse_args()
-        return tm_get_template(repository_id, args["tag_name"])
+        return util.success(tm_get_template(repository_id, args["tag_name"]))
     
     '''
     # temporary api, only for develop

@@ -7,7 +7,7 @@ Steps to modify the ORM model:
 5. If no error, rollback: $ alembic downgrade -1
 6. If with error, modify the file generated in step 3 then repeat step 4.
 7. Add an API server version in migrate.py's VERSION array.
-8. Add an alembic_upgrade() statement for that version.
+8. Add an alembic_upgrade() statement for that version, or add it in the ONLY_UPDATE_DB_MODELS array.
 9. Commit all files includes the file generated in step 3 to git.
 10. Restart the API server, then you're done.
 
@@ -273,3 +273,10 @@ class NexusVersion(db.Model):
     id = Column(Integer, primary_key=True)
     api_version = Column(String)
     deploy_version = Column(String)
+
+
+class Sonarqube(db.Model):
+    id = Column(Integer, primary_key=True)
+    project_name = Column(String, ForeignKey(Project.name, ondelete='CASCADE'))
+    date = Column(DateTime)
+    measures = Column(String)

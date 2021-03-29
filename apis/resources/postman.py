@@ -22,18 +22,18 @@ def export_to_postman(project_id, target):
         'item': []
     }
 
-    cases = apiTest.get_testcase_by_project_id(project_id)
+    cases = apiTest.get_test_case_by_project_id(project_id)
     for case in cases:
         case_id = case['id']
         method = case['data']['method']
         path = case['data']['url']
         url = urlparse(target + path)
-        items = apiTest.get_testItem_by_testCase_id(case_id)
+        items = apiTest.get_test_item_by_tc_id(case_id)
         for item in items:
             item_id = item['id']
             o_item = {'name': '{0}-{1}'.format(case_id, item_id)}
             values = []
-            part_values = apiTest.get_testValue_by_testItem_id(item_id)
+            part_values = apiTest.get_test_value_by_ti_id(item_id)
             for value in part_values:
                 values.append(value)
 
@@ -82,21 +82,14 @@ def export_to_postman(project_id, target):
                             'key': value['key'],
                             'value': value['value']
                         })
-                    else:
-                        pass
-                elif type_id == 2:
-                    if location_id == 1:
-                        pass
-                    elif location_id == 2:
-                        negative = ''
-                        if not item['is_passed']:
-                            negative = '.not'
+                elif type_id == 2 and location_id ==2:
+                    negative = ''
+                    if not item['is_passed']:
+                        negative = '.not'
                         o_execs.append(
                             'pm.test("value #{0}", function () {{ '
                             'pm.expect(pm.response.json().{1}).to.be{2}.eql("{3}");}});'.format(
                                 value['id'], value['key'], negative, value['value']))
-                else:
-                    pass
 
             if bool(o_request_body):
                 o_request['body'] = {
@@ -163,7 +156,7 @@ class PostmanResults(Resource):
 class PostmanReport(Resource):
     @jwt_required
     def get(self, id):
-        return apiTest.get_report(id)
+        return apiTest.get_test_result(id)
 
     @jwt_required
     def put(self):

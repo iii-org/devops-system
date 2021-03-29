@@ -4,10 +4,12 @@ import websocket
 import base64
 from flask_restful import abort, Resource, reqparse
 from flask_jwt_extended import jwt_required
+from flask_socketio import Namespace, emit
 
 import config
 import resources.apiError as apiError
 import util as util
+from nexus import nx_get_project_plugin_relation
 from resources.logger import logger
 
 
@@ -30,8 +32,6 @@ class Rancher(object):
             self.token = self.__generate_token()
             return self.__api_request(method, path, headers=headers, params=params, data=data,
                                       with_token=True, retried=True)
-        logger.info('Rancher api {0} {1}, params={2}, body={5}, response={3} {4}'.format(
-            method, url, params.__str__(), response.status_code, response.text, data))
         if int(response.status_code / 100) != 2:
             raise apiError.DevOpsError(
                 response.status_code,
@@ -83,7 +83,7 @@ class Rancher(object):
             params['run'] = run
         response = self.__api_get(path, params=params)
         output_array = response.json()['data']
-        return output_array, response
+        return output_array
 
     def rc_get_pipeline_executions_action(self, ci_project_id, ci_pipeline_id, pipelines_exec_run,
                                           action):
@@ -94,13 +94,74 @@ class Rancher(object):
             params = {'action': 'stop'}
         response = self.__api_post(path, params=params, data='')
         return response
+    
+    def rc_get_pipeline_config(self, ci_pipeline_id, pipelines_exec_run):
+        output_dict = []
+        self.token = self.__generate_token()
+        self.rc_get_project_id()
+        output_executions = self.rc_get_pipeline_executions(
+            self.project_id, ci_pipeline_id, run=pipelines_exec_run
+        )
+        output_execution = output_executions[0]
+        for index, stage in enumerate(
+                output_execution['pipelineConfig']['stages']):
+            tmp_step_message = []
+            for step_index, step in enumerate(stage['steps']):
+                step_detail = output_execution['stages'][
+                    index]['steps'][step_index]
+                step_state = None
+                if 'state' in step_detail:
+                    step_state = step_detail['state']
+                tmp_step_message.append({
+                    "step_id": step_index,
+                    "state": step_state
+                })
+            stage_state_dict = output_execution['stages'][index]
+            stage_state = None
+            if 'state' in stage_state_dict:
+                stage_state = stage_state_dict['state']
+            output_dict.append({
+                "stage_id": index,
+                "name": stage['name'],
+                "state": stage_state,
+                "steps": tmp_step_message
+            })
+        return output_dict[1:]
+
+    def rc_get_pipe_log_websocket(self, data):
+        relation = nx_get_project_plugin_relation(repo_id=data["repository_id"])
+        self.token = self.__generate_token()
+        headersandtoken = "Authorization: Bearer {0}".format(self.token)
+        self.rc_get_project_id()
+        url = ("wss://{0}/{1}/project/{2}/pipelineExecutions/"
+                "{3}-{4}/log?stage={5}&step={6}").format(
+            config.get('RANCHER_IP_PORT'), config.get('RANCHER_API_VERSION'),
+            self.project_id,
+            relation.ci_pipeline_id, data["pipelines_exec_run"], data["stage_index"], data["step_index"])
+        result = None
+        try:
+            ws = websocket.create_connection(url, header=[headersandtoken],
+                                                sslopt={"cert_reqs": ssl.CERT_NONE})
+            while True:
+                result = ws.recv()
+                emit('pipeline_log', {'data': result, 
+                                      'repository_id': data["repository_id"],
+                                      'pipelines_exec_run': data["pipelines_exec_run"],
+                                      'stage_index': data["stage_index"],
+                                      'step_index': data["step_index"]}, broadcast=True)
+                if result is None:
+                    ws.close()
+                    break
+        except:
+            ws.close()
+
 
     def rc_get_pipeline_executions_logs(self, ci_project_id, ci_pipeline_id,
                                         pipelines_exec_run):
         output_dict = []
         self.token = self.__generate_token()
         headersandtoken = "Authorization: Bearer {0}".format(self.token)
-        output_executions, response = self.rc_get_pipeline_executions(
+        output_executions = self.rc_get_pipeline_executions(
             ci_project_id, ci_pipeline_id, run=pipelines_exec_run
         )
         output_execution = output_executions[0]
@@ -156,7 +217,6 @@ class Rancher(object):
             rancher_output = self.__api_get('/clusters')
             output_array = rancher_output.json()['data']
             for output in output_array:
-                logger.debug("get_rancher_cluster output: {0}".format(output['name']))
                 if output['name'] == config.get('RANCHER_CLUSTER_NAME'):
                     self.cluster_id = output['id']
 
@@ -210,6 +270,10 @@ class Rancher(object):
             logger.info("disable_rancher_project_pipeline error, error message: {0}".format(rancher_output.text))
             abort(400,
                   message='"disable_rancher_project_pipeline error, error message: {0}'.format(rancher_output.text))
+
+    def rc_get_pipeline_info(self, project_id, pipeline_id):
+        rancher_output = self.__api_get(f"/project/{project_id}/pipelines/{pipeline_id}")
+        return rancher_output.json()
 
     def rc_get_project_pipeline(self):
         self.rc_get_project_id()
@@ -302,7 +366,7 @@ class Rancher(object):
         self.rc_get_project_id()
         url = f"/projects/{self.project_id}/apps/{self.project_id.split(':')[1]}:{app_name}"
         output = self.__api_delete(url)
-    
+
     def rc_del_app_when_devops_del_pj(self, project_name):
         apps = self.rc_get_apps_all()
         for app in apps:
@@ -334,3 +398,16 @@ class Catalogs_Refresh(Resource):
     @jwt_required
     def post(self):
         return util.success(rancher.rc_refresh_catalogs())
+
+
+class RancherWebsocketLog(Namespace):
+
+    def on_connect(self):
+        print('connect')
+
+    def on_disconnect(self):
+        print('Client disconnected')
+
+    def on_get_pipe_log(self, data):
+        print('get_pipe_log')
+        rancher.rc_get_pipe_log_websocket(data)
