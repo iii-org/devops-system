@@ -83,11 +83,11 @@ def __tm_read_pipe_set_json(pj, tag_name=None):
 def tm_get_template_list():
     output = []
     group = gl.groups.get("iiidevops-templates", all=True)
-    for group_project in group.projects.list():
+    for group_project in group.projects.list(all=True):
         pj = gl.projects.get(group_project.id)
         # get all tags
         tag_list = []
-        for tag in pj.tags.list():
+        for tag in pj.tags.list(all=True):
             tag_list.append({"name": tag.name, "commit_id": tag.commit["id"], 
                              "commit_time":tag.commit["committed_date"]})
         pip_set_json = __tm_read_pipe_set_json(pj)
