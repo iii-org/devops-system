@@ -19,6 +19,8 @@ class Redmine:
         self.key_generated = 0.0
         self.last_operator_id = None
         self.redmine_key = None
+        self.versions = None
+        self.issues= None
 
     def __api_request(self, method, path, headers=None, params=None, data=None,
                       operator_id=None, resp_format='.json'):
@@ -134,8 +136,7 @@ class Redmine:
     def rm_delete_project(self, plan_project_id):
         return self.__api_delete('/projects/{0}'.format(plan_project_id))
 
-    def rm_list_issues(self):
-        params = {'status_id': '*'}
+    def rm_list_issues(self, paging = 100, params = {'status_id': '*'}):
         return self.paging('issues', 100,  params)
 
     def rm_get_issues_by_user(self, user_id):
@@ -361,15 +362,27 @@ class Redmine:
                                headers=headers,
                                data=xml_body.encode('utf-8')).json()
 
+    def rm_list_issues_by_versions(self, plan_project_id, versions):
+        self.versions  = {}        
+        for version in versions :            
+            self.versions[version] = {'id': str(version),'closed': 0 , 'unclosed': 0 , 'issues' :  [] }
+            params = {'project_id' : plan_project_id, 'fixed_version_id': version, 'status_id' : '*'}
+            issues = self.paging('issues', 100, params )
+            self.analysis_issue_type_by_versions(issues)         
+        return list(self.versions.values())
 
-    def rm_journals_mapping_users(journal, users):
-        list_user = {}
-        for user in users:
-            list_user[user['id']] = user['first_name'] + ' ' + user['last_name']
-        print(list_user)
-        return journal
-
-
+    def analysis_issue_type_by_versions(self, issues):         
+        for issue in issues:    
+            version_id = str(issue['fixed_version']['id'])
+            if version_id not in self.versions:
+                break            
+            if issue['closed_on'] is not None:
+                self.versions[version_id]['closed'] +=1
+            else:
+                self.versions[version_id]['unclosed'] +=1
+                self.versions[version_id]['issues'].append(issue)              
+            
+                               
     @staticmethod
     def rm_build_external_link(path):
         return f"{config.get('REDMINE_EXTERNAL_BASE_URL')}{path}"

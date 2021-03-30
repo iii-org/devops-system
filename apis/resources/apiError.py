@@ -98,6 +98,9 @@ class NotUserHimselfError(HTTPException):
 def issue_not_found(issue_id):
     return build(4001, 'Issue not found.', {'issue_id': issue_id})
 
+def issue_not_all_closed(version_ids):
+    return build(4001, 'Issue in Versions not closed.', {'versions': version_ids})
+
 
 # General errors
 def no_detail():
