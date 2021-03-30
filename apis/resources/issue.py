@@ -135,54 +135,72 @@ def __deal_with_issue_redmine_output(redmine_output):
     if 'parent' in redmine_output:
         redmine_output['parent_id'] = redmine_output['parent']['id']
         redmine_output.pop('parent', None)
-    if 'journals' in redmine_output:
+    rm_users = redmine.paging('users',25)
+    list_user = {}
+    for rm_user_info in rm_users:
+        list_user[rm_user_info['id']] = rm_user_info['firstname'] + ' ' + rm_user_info['lastname']
+    if 'journals' in redmine_output:        
         i = 0
         while i < len(redmine_output['journals']):
-            if redmine_output['journals'][i]['notes'] == "":
-                del redmine_output['journals'][i]
-            else:
-                if 'user' in redmine_output['journals'][i]:
-                    user_info = user.get_user_id_name_by_plan_user_id(
-                        redmine_output['journals'][i]['user']['id'])
-                    if user_info is not None:
-                        redmine_output['journals'][i]['user'] = {
-                            'id': user_info.id, 'name': user_info.name}
-                redmine_output['journals'][i].pop('id', None)
-                redmine_output['journals'][i].pop('private_notes', None)
-                i += 1
-    
+            if 'user' in redmine_output['journals'][i]:
+                user_info = user.get_user_id_name_by_plan_user_id(redmine_output['journals'][i]['user']['id'])
+                if user_info is not None:
+                    redmine_output['journals'][i]['user'] = {'id': user_info.id, 'name': user_info.name}
+            list_details = []
+            if 'details' in redmine_output['journals'][i] and len(redmine_output['journals'][i]['details']) > 0:                
+                for detail in redmine_output['journals'][i]['details']:
+                    detail_info = {}    
+                    detail_info['name'] = detail['name']     
+                    detail_info['property'] = detail['property']     
+                    if detail['name']  ==  "assigned_to_id":                        
+                        if detail['old_value'] is not None:
+                            user_info = user.get_user_id_name_by_plan_user_id(detail['old_value'])
+                            detail_info['old_value'] = {'user':{'id': user_info.id, 'name': user_info.name}}
+                        else :
+                            detail_info['old_value'] = detail['old_value']
+                        if detail['new_value'] is not None:
+                            user_info = user.get_user_id_name_by_plan_user_id(detail['new_value'])
+                            detail_info['new_value'] = {'user':{'id': user_info.id, 'name': user_info.name}}
+                        else :
+                            detail_info['new_value'] = detail['new_value']
+                    else:
+                        detail_info['old_value'] = detail['old_value']
+                        detail_info['new_value'] = detail['new_value']                        
+            list_details.append(detail_info)
+            redmine_output['journals'][i]['details']  = list_details
+            i += 1
     redmine_output['issue_link'] = f'{config.get("REDMINE_EXTERNAL_BASE_URL")}/issues/{redmine_output["id"]}'
     return redmine_output
 
 
 def require_issue_visible(issue_id,
+                          issue_info = None,
                           err_message="You don't have the permission to access this issue.",
                           even_admin=False):
     identity = get_jwt_identity()
     user_id = identity['user_id']
     if not even_admin and identity['role_id'] == role.ADMIN.id:
         return
-    check_result = verify_issue_user(issue_id, user_id)
+    check_result = verify_issue_user(issue_id, user_id, issue_info)
     if check_result:
         return
     else:
         raise apiError.NotInProjectError(err_message)
 
 
-def verify_issue_user(issue_id, user_id):
-    issue_info = get_issue(issue_id)
-    plan_project_id = issue_info['project']['id']
-    project_plugin_relation = model.ProjectPluginRelation.query.filter_by(plan_project_id=plan_project_id).first()
+def verify_issue_user(issue_id, user_id, issue_info= None):
+    if issue_info is None:
+        issue_info = get_issue(issue_id)
+    project_id = issue_info['project']['id']
     count = model.ProjectUserRole.query.filter_by(
-        project_id=project_plugin_relation.project_id, user_id=user_id).count()
+        project_id=project_id, user_id=user_id).count()
     return count > 0
 
 
 
 def get_issue(issue_id):
-    redmine_output_issue = redmine.rm_get_issue(issue_id)
-    return redmine_output_issue.json()['issue']
-    # return __deal_with_issue_redmine_output(redmine_output_issue.json()['issue'])
+    issue = redmine.rm_get_issue(issue_id)
+    return __deal_with_issue_redmine_output(issue)
 
 
 def create_issue(args, operator_id):
@@ -775,8 +793,9 @@ def get_requirements_by_project_id(project_id):
 class SingleIssue(Resource):
     @jwt_required
     def get(self, issue_id):
-        require_issue_visible(issue_id)
-        return util.success(get_issue(issue_id))
+        issue_info = get_issue(issue_id)
+        require_issue_visible(issue_id,issue_info)
+        return util.success(issue_info)
 
     @jwt_required
     def post(self):
