@@ -184,7 +184,7 @@ def hb_list_artifacts(project_name, repository_name):
             vul = ''
         else:
             vul = '{0} ({1})'.format(scan['severity'], scan['summary']['total'])
-        if 'tags' in art:
+        if 'tags' in art and art['tags'] is not None:
             for tag in art['tags']:
                 ret.append({
                     'artifact_id': art['id'],
