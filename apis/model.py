@@ -278,5 +278,18 @@ class NexusVersion(db.Model):
 class Sonarqube(db.Model):
     id = Column(Integer, primary_key=True)
     project_name = Column(String, ForeignKey(Project.name, ondelete='CASCADE'))
-    date = Column(DateTime)
+    date = Column(DateTime, nullable=False)
     measures = Column(String)
+
+
+class Zap(db.Model):
+    id = Column(Integer, primary_key=True)
+    project_name = Column(String, ForeignKey(Project.name, ondelete='CASCADE'))
+    branch = Column(String)
+    commit_id = Column(String)
+    sequence = Column(String)
+    status = Column(String)
+    result = Column(String)
+    full_log = Column(String)
+    # The time scan registered
+    run_at = Column(DateTime)
