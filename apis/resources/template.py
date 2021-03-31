@@ -113,6 +113,16 @@ def __tm_git_clone_file(pj, dest_folder_name, create_time=None):
                      , f"{dest_folder_name}/{pj_name}"])
 
 
+def __set_git_username_config(path):
+    git_user_email_proc = subprocess.Popen(['git', 'config', 'user.email'], stdout=subprocess.PIPE, shell=False)
+    git_user_name_proc = subprocess.Popen(['git', 'config', 'user.name'], stdout=subprocess.PIPE, shell=False)
+    git_user_email = git_user_email_proc.stdout.read().decode("utf-8")
+    git_user_name = git_user_name_proc.stdout.read().decode("utf-8")
+    if git_user_email == "":
+        subprocess.call(['git', 'config', '--global', 'user.email', '"system@iiidevops.org"'], cwd=path)
+    if git_user_name == "":
+        subprocess.call(['git', 'config', '--global', 'user.name', '"system"'], cwd=path)
+
 def tm_get_template_list():
     output = []
     group = gl.groups.get("iiidevops-templates", all=True)
@@ -190,14 +200,7 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id, tag
                                     fun_value[parm_key] = template_replace_dict[parm_key]
     with open(f'pj_push_template/{pj.path}/{pipe_yaml_file_name}', 'w') as file:
         documents = yaml.dump(pipe_json, file)
-    git_user_email_proc = subprocess.Popen(['git', 'config', 'user.email'], stdout=subprocess.PIPE, shell=False)
-    git_user_name_proc = subprocess.Popen(['git', 'config', 'user.name'], stdout=subprocess.PIPE, shell=False)
-    git_user_email = git_user_email_proc.stdout.read().decode("utf-8")
-    git_user_name = git_user_name_proc.stdout.read().decode("utf-8")
-    if git_user_email == "":
-        subprocess.call(['git', 'config', '--global', 'user.email', '"system@iiidevops.org"'], cwd=f"pj_push_template/{pj.path}")
-    if git_user_name == "":
-        subprocess.call(['git', 'config', '--global', 'user.name', '"system"'], cwd=f"pj_push_template/{pj.path}")
+    __set_git_username_config(f"pj_push_template/{pj.path}")
     subprocess.call(['git', 'branch'], cwd=f"pj_push_template/{pj.path}")
     shutil.rmtree(f'pj_push_template/{pj.path}/.git')
     subprocess.call(['git', 'init'], cwd=f"pj_push_template/{pj.path}")
@@ -280,11 +283,18 @@ def tm_put_pipeline_default_branch(repository_id, data):
                 catalogTemplate_value = catalogTemplate_value.split(":")[1].replace("iii-dev-charts3-","")
             for put_pipe_soft in data["stages"]:
                 if catalogTemplate_value is not None and put_pipe_soft["key"] == catalogTemplate_value:
-                    put_pipe_soft["has_default_branch"]
                     if "when" in stage:
                         stage_when = pipeline_yaml_OO.RancherPipelineWhen(stage["when"]["branch"])
-                        print(f"stage_when branch include: {stage_when.branch.include}")
-                    
+                        if  put_pipe_soft["key"] == catalogTemplate_value:
+                            if put_pipe_soft["has_default_branch"] and pj.default_branch not in stage_when.branch.include:
+                                stage_when.branch.include.append(pj.default_branch)
+                            elif put_pipe_soft["has_default_branch"] is False and pj.default_branch in stage_when.branch.include:
+                                stage_when.branch.include.remove(pj.default_branch)
+        print(f"pipe_json: {pipe_json}")
+    with open(f'pj_edit_pipe_yaml/{pj.path}_{create_time}/{pipe_yaml_file_name}', 'w') as file:
+        documents = yaml.dump(pipe_json, file)
+    __set_git_username_config(f'pj_edit_pipe_yaml/{pj.path}_{create_time}')
+    
 
 
 
