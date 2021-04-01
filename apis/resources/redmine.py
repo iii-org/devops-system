@@ -21,6 +21,7 @@ class Redmine:
         self.redmine_key = None
         self.versions = None
         self.issues= None
+        self.closed_status = []
 
     def __api_request(self, method, path, headers=None, params=None, data=None,
                       operator_id=None, resp_format='.json'):
@@ -65,7 +66,7 @@ class Redmine:
                                   operator_id=operator_id, resp_format=resp_format)
 
     def __api_put(self, path, params=None, headers=None, data=None,
-                  operator_id=None, resp_format='.json'):
+                  operator_id=None, resp_format='.json'):            
         return self.__api_request('PUT', path, headers=headers, data=data, params=params,
                                   operator_id=operator_id, resp_format=resp_format)
 
@@ -362,27 +363,34 @@ class Redmine:
                                headers=headers,
                                data=xml_body.encode('utf-8')).json()
 
-    def rm_list_issues_by_versions(self, plan_project_id, versions):
-        self.versions  = {}        
+    def rm_list_issues_by_versions_and_closed(self, plan_project_id, versions,closed_statuses):
+        self.versions  = {}               
         for version in versions :            
-            self.versions[version] = {'id': str(version),'closed': 0 , 'unclosed': 0 , 'issues' :  [] }
+            self.versions[version] = {'id': str(version), 'name' : "", 'closed': 0 , 'unclosed': 0 , 'issues' :  [] }
             params = {'project_id' : plan_project_id, 'fixed_version_id': version, 'status_id' : '*'}
             issues = self.paging('issues', 100, params )
-            self.analysis_issue_type_by_versions(issues)         
+            self.analysis_issue_type_by_versions(issues,closed_statuses)         
         return list(self.versions.values())
 
-    def analysis_issue_type_by_versions(self, issues):         
+    def analysis_issue_type_by_versions(self, issues,closed_statuses):         
         for issue in issues:    
             version_id = str(issue['fixed_version']['id'])
             if version_id not in self.versions:
                 break            
-            if issue['closed_on'] is not None:
+            if self.versions[version_id]['name'] is "":
+                self.versions[version_id]['name'] = issue['fixed_version']['name']                
+            if issue['closed_on'] is not None  and int(issue['status']['id']) in closed_statuses:
                 self.versions[version_id]['closed'] +=1
             else:
                 self.versions[version_id]['unclosed'] +=1
-                self.versions[version_id]['issues'].append(issue)              
+            self.versions[version_id]['issues'].append(issue)              
             
-                               
+    def get_closed_status(self, statuses):        
+        for status in statuses:
+            if status['is_closed'] is True:
+                self.closed_status.append(status['id'])
+        return self.closed_status
+
     @staticmethod
     def rm_build_external_link(path):
         return f"{config.get('REDMINE_EXTERNAL_BASE_URL')}{path}"
@@ -404,3 +412,25 @@ class RedmineFile(Resource):
     @jwt_required
     def delete(self, file_id):
         return redmine.rm_delete_attachment(file_id)
+
+
+
+class RedmineRelease():
+    @jwt_required    
+    def check_redemine_release(self, targets, versions, main_version =  None):
+        output = { 'check' : True,"info":"", 'errors':{},'versions' : {"pass": [], "failed": []},'failed_name' : [], 'issues':[]}       
+        for target in targets :
+            version_id = str(target['id'])
+            if version_id  ==  main_version:
+                output['errors'] = {"id": version_id,'name':versions[version_id]['name']}
+            if target['unclosed'] is not 0:
+                output['check'] = False            
+                output['versions']['failed'].append({"id": version_id,'name':versions[version_id]['name']}) 
+                output['failed_name'].append(versions[version_id]['name'])
+                output['issues'] += target['issues']
+            else:
+                output['versions']['pass'].append({"id": version_id,'name':versions[version_id]['name']}) 
+        if len(output['failed_name']) > 0 :
+            output['info'] = 'Issue is not closed in version {0} in redmine'.format(' '.join(map(str, output['failed_name'])))
+        return output
+rm_release = RedmineRelease()

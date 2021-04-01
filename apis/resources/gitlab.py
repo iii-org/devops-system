@@ -160,8 +160,8 @@ class GitLab(object):
         output = self.__api_get(f'/projects/{repo_id}/repository/branches')
         return len(output.json())
 
-    def gl_get_tags(self, repo_id):
-        return self.__api_get(f'/projects/{repo_id}/repository/tags').json()
+    def gl_get_tags(self, repo_id, params = {}):
+        return self.__api_get(f'/projects/{repo_id}/repository/tags', params).json()
 
     def gl_create_rancher_pipeline_yaml(self, repo_id, args, method):
         path = f'/projects/{repo_id}/repository/files/{args["file_path"]}'
@@ -365,7 +365,6 @@ class GitLab(object):
 
     def gl_create_release(self, repo_id,data):
         path = f'/projects/{repo_id}/releases'
-        print(data)
         return self.__api_post(path, params=data).json()
 
     def gl_update_release(self, repo_id,tag_name,data):
@@ -379,6 +378,19 @@ class GitLab(object):
 # --------------------- Resources ---------------------
 gitlab = GitLab()
 
+
+class GitRelease():
+    @jwt_required
+    def check_gitlab_release(self, repository_id,tag_name):        
+        output = {'check' : True, "info":"", "errors":{} }    
+        tag = gitlab.gl_get_tags(str(repository_id), {'search': tag_name} )        
+        if len(tag) > 0 :
+            output['check'] = False
+            output['info'] = '{0} is exists in gitlab'.format(tag_name)        
+            output['errors'] = tag[0]
+        return output  
+
+gl_release = GitRelease()
 
 class GitProjectBranches(Resource):
     @jwt_required

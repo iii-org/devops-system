@@ -43,9 +43,15 @@ def repository_id_not_found(repository_id=None):
 def redmine_project_not_found(project_id=None):
     return build(1005, 'Redmine does not have this project.', {'project_id': project_id})
 
-
 def redmine_unable_to_delete_version(version_id=None):
     return build(1006, 'Unable to delete the version.', {'version_id': version_id})
+
+def redmine_unable_to_forced_closed_issues(issues=None):
+    return build(1007, 'Unable to build the release.',{'issues': issues})
+
+def release_unable_to_build(info=None):
+    return build(1008, 'Unable to build the release.',info)
+
 
 
 # User errors
