@@ -1,9 +1,11 @@
+import json
 from datetime import datetime
 
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
 
 import model
+import nexus
 import util
 from resources import role
 
@@ -34,6 +36,15 @@ def zap_finish_scan(args):
     model.db.session.commit()
 
 
+def zap_get_tests(project_id):
+    project_name = nexus.nx_get_project(id=project_id).name
+    rows = model.Zap.query.filter_by(project_name=project_name).all()
+    ret = []
+    for row in rows:
+        ret.append(json.loads(str(row)))
+    return ret
+
+
 # --------------------- Resources ---------------------
 class Zap(Resource):
     @jwt_required
@@ -59,3 +70,8 @@ class Zap(Resource):
         role.require_in_project(project_name=project_name)
         zap_finish_scan(args)
         return util.success()
+
+    @jwt_required
+    def get(self, project_id):
+        role.require_in_project(project_id=project_id)
+        return util.success(zap_get_tests(project_id))

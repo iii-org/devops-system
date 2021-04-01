@@ -292,3 +292,18 @@ class Zap(db.Model):
     full_log = Column(String)
     # The time scan registered
     run_at = Column(DateTime)
+
+    def __repr__(self):
+        fields = {}
+        for field in [x for x in dir(self) if
+                      not x.startswith('query') and not x.startswith('_') and x != 'metadata']:
+            data = self.__getattribute__(field)
+            try:
+                json.dumps(data)  # this will fail on unencodable values, like other classes
+                if field == 'result':
+                    fields[field] = json.loads(data)
+                else:
+                    fields[field] = data
+            except TypeError:
+                fields[field] = str(data)
+        return json.dumps(fields)
