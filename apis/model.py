@@ -287,7 +287,6 @@ class Zap(db.Model):
     project_name = Column(String, ForeignKey(Project.name, ondelete='CASCADE'))
     branch = Column(String)
     commit_id = Column(String)
-    sequence = Column(String)
     status = Column(String)
     result = Column(String)
     full_log = Column(String)

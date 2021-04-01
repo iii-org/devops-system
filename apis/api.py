@@ -412,7 +412,7 @@ api.add_resource(activity.AllActivities, '/all_activities')
 api.add_resource(activity.ProjectActivities, '/project/<sint:project_id>/activities')
 
 # ZAP
-api.add_resource(zap.Zap, '/zap/start', '/zap/finish')
+api.add_resource(zap.Zap, '/zap')
 
 # System versions
 api.add_resource(NexusVersion, '/system_versions')
