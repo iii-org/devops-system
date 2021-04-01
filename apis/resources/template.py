@@ -283,18 +283,22 @@ def tm_put_pipeline_default_branch(repository_id, data):
                 catalogTemplate_value = catalogTemplate_value.split(":")[1].replace("iii-dev-charts3-","")
             for put_pipe_soft in data["stages"]:
                 if catalogTemplate_value is not None and put_pipe_soft["key"] == catalogTemplate_value:
-                    if "when" in stage:
-                        stage_when = pipeline_yaml_OO.RancherPipelineWhen(stage["when"]["branch"])
-                        if  put_pipe_soft["key"] == catalogTemplate_value:
-                            if put_pipe_soft["has_default_branch"] and pj.default_branch not in stage_when.branch.include:
-                                stage_when.branch.include.append(pj.default_branch)
-                            elif put_pipe_soft["has_default_branch"] is False and pj.default_branch in stage_when.branch.include:
-                                stage_when.branch.include.remove(pj.default_branch)
-        print(f"pipe_json: {pipe_json}")
+                    if "when" not in stage:
+                        stage["when"] = {"branch": {"include": []}}
+                    stage_when = stage.get("when", {}).get("branch", {}).get("include", {})
+                    if put_pipe_soft["has_default_branch"] and pj.default_branch not in stage_when:
+                        stage_when.append(pj.default_branch)
+                    elif put_pipe_soft["has_default_branch"] is False and pj.default_branch in stage_when:
+                        stage_when.remove(pj.default_branch)
+                        if len(stage_when) == 0:
+                            del stage["when"]
     with open(f'pj_edit_pipe_yaml/{pj.path}_{create_time}/{pipe_yaml_file_name}', 'w') as file:
         documents = yaml.dump(pipe_json, file)
     __set_git_username_config(f'pj_edit_pipe_yaml/{pj.path}_{create_time}')
-    
+    subprocess.call(['git', 'add', '.'], cwd=f"pj_edit_pipe_yaml/{pj.path}_{create_time}")
+    subprocess.call(['git', 'commit', '-m', '"UI 編輯 .rancher-pipeline.yaml commit"'], cwd=f"pj_edit_pipe_yaml/{pj.path}_{create_time}")
+    subprocess.call(['git', 'push', '-u', 'origin', 'master'], cwd=f"pj_edit_pipe_yaml/{pj.path}_{create_time}")
+    shutil.rmtree(f"pj_edit_pipe_yaml/{pj.path}_{create_time}", ignore_errors=True)
 
 
 
