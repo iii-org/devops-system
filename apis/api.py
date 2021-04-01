@@ -28,7 +28,7 @@ import util
 import maintenance
 from jsonwebtoken import jsonwebtoken
 from model import db
-from resources import logger, role as role, activity
+from resources import logger, role as role, activity, zap
 from resources import project, gitlab, issue, user, redmine, wiki, version, sonarqube, apiTest, postman, mock, harbor, \
     webInspect, template, release
 
@@ -410,6 +410,9 @@ api.add_resource(rancher.Catalogs_Refresh, '/rancher/catalogs_refresh')
 # Activity
 api.add_resource(activity.AllActivities, '/all_activities')
 api.add_resource(activity.ProjectActivities, '/project/<sint:project_id>/activities')
+
+# ZAP
+api.add_resource(zap.Zap, '/zap/start', '/zap/finish')
 
 # System versions
 api.add_resource(NexusVersion, '/system_versions')
