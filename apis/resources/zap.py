@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
@@ -7,7 +7,7 @@ from flask_restful import Resource, reqparse
 import model
 import nexus
 import util
-from resources import role
+from resources import role, gitlab
 
 
 def zap_start_scan(args):
@@ -41,7 +41,14 @@ def zap_get_tests(project_id):
     rows = model.Zap.query.filter_by(project_name=project_name).all()
     ret = []
     for row in rows:
-        ret.append(json.loads(str(row)))
+        if row.status == 'Scanning':
+            # 1 hour timeout
+            if datetime.now() - row.run_at > timedelta(hours=1):
+                row.status = 'Failed'
+                model.db.session.commit()
+        r = json.loads(str(row))
+        r['issue_link'] = gitlab.commit_id_to_url(project_id, r['commit_id'])
+        ret.append(r)
     return ret
 
 
