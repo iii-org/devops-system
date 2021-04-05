@@ -252,6 +252,39 @@ def tm_get_pipeline_branches(repository_id):
     return out
 
 
+def tm_put_pipeline_branches(repository_id, data):
+    pj = gl.projects.get(repository_id)
+    create_time = datetime.now().strftime("%y%m%d_%H%M%S")
+    __tm_git_clone_file(pj, "pj_edit_pipe_yaml", create_time)
+    pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj)
+    with open(f'pj_edit_pipe_yaml/{pj.path}_{create_time}/{pipe_yaml_file_name}') as file:
+        pipe_json = yaml.safe_load(file)
+        for stage in pipe_json["stages"]:
+            catalogTemplate_value =stage.get("steps")[0].get("applyAppConfig", {}).get("catalogTemplate")
+            if catalogTemplate_value is not None:
+                catalogTemplate_value = catalogTemplate_value.split(":")[1].replace("iii-dev-charts3-","")
+            for input_branch, input_softwares in data.items():
+                for input_soft_enable in input_softwares:
+                    if catalogTemplate_value is not None and input_soft_enable["key"] == catalogTemplate_value:
+                        if "when" not in stage:
+                            stage["when"] = {"branch": {"include": []}}
+                        stage_when = stage.get("when", {}).get("branch", {}).get("include", {})
+                        if input_soft_enable["enable"] and input_branch not in stage_when:
+                            stage_when.append(input_branch)
+                        elif input_soft_enable["enable"] is False and input_branch in stage_when:
+                            stage_when.remove(input_branch)
+                            if len(stage_when) == 0:
+                                del stage["when"]
+    with open(f'pj_edit_pipe_yaml/{pj.path}_{create_time}/{pipe_yaml_file_name}', 'w') as file:
+        documents = yaml.dump(pipe_json, file)
+    __set_git_username_config(f'pj_edit_pipe_yaml/{pj.path}_{create_time}')
+    subprocess.call(['git', 'add', '.'], cwd=f"pj_edit_pipe_yaml/{pj.path}_{create_time}")
+    subprocess.call(['git', 'commit', '-m', '"編輯 .rancher-pipeline.yaml 啟用停用分支"'], cwd=f"pj_edit_pipe_yaml/{pj.path}_{create_time}")
+    subprocess.call(['git', 'push', '-u', 'origin', 'master'], cwd=f"pj_edit_pipe_yaml/{pj.path}_{create_time}")
+    shutil.rmtree(f"pj_edit_pipe_yaml/{pj.path}_{create_time}", ignore_errors=True)
+
+
+
 def tm_get_pipeline_default_branch(repository_id):
     pj = gl.projects.get(repository_id)
     create_time = datetime.now().strftime("%y%m%d_%H%M%S")
@@ -332,6 +365,14 @@ class ProjectPipelineBranches(Resource):
     @jwt_required
     def get(self, repository_id):
         return util.success(tm_get_pipeline_branches(repository_id))
+    
+    @jwt_required
+    def put(self, repository_id):
+        parser = reqparse.RequestParser()
+        parser.add_argument('detail', type=dict)
+        args = parser.parse_args()
+        tm_put_pipeline_branches(repository_id, args["detail"])
+        return util.success()
 
 class ProjectPipelineDefaultBranch(Resource):
     @jwt_required
