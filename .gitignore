@@ -9,3 +9,4 @@ __pycache__
 alembic.ini
 .api_version
 pj_push_template
+pj_edit_pipe_yaml
