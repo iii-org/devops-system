@@ -42,8 +42,8 @@ def zap_get_tests(project_id):
     ret = []
     for row in rows:
         if row.status == 'Scanning':
-            # 1 hour timeout
-            if datetime.now() - row.run_at > timedelta(hours=1):
+            # 12 hour timeout
+            if datetime.now() - row.run_at > timedelta(hours=12):
                 row.status = 'Failed'
                 model.db.session.commit()
         r = json.loads(str(row))
