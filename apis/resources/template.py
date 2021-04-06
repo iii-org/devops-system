@@ -14,7 +14,6 @@ import config
 import resources.yaml_OO as pipeline_yaml_OO
 import util
 from . import role
-from .logger import logger
 
 from gitlab import Gitlab
 
@@ -61,7 +60,7 @@ def __tm_get_tag_info(pj, tag_name):
 
 
 def __tm_get_pipe_yamlfile_name(pj, tag_name=None):
-    pipe_yaml_file_name = ".rancher-pipeline.yaml"
+    pipe_yaml_file_name = None
     if tag_name is None:
         ref=pj.default_branch
     else:
@@ -70,6 +69,8 @@ def __tm_get_pipe_yamlfile_name(pj, tag_name=None):
     for item in  pj.repository_tree(ref=ref):
         if item["path"] == ".rancher-pipeline.yml":
             pipe_yaml_file_name = ".rancher-pipeline.yml"
+        elif item["path"] == ".rancher-pipeline.yaml":
+            pipe_yaml_file_name = ".rancher-pipeline.yaml"
     return pipe_yaml_file_name
 
 def __tm_get_git_pipline_json(pj, tag_name=None):
@@ -109,9 +110,6 @@ def __tm_git_clone_file(pj, dest_folder_name, create_time=None):
         pj_name = f"{pj.path}_{create_time}"
     else:
         pj_name = f"{pj.path}"
-    logger.error(f"pj.default_branch: {pj.default_branch}")
-    logger.error(f"secret_temp_http_url: {secret_temp_http_url}")
-    logger.error(f"dest_folder_name/pj_name: {dest_folder_name}/{pj_name}")
     subprocess.call(['git', 'clone', '-b', pj.default_branch, secret_temp_http_url
                      , f"{dest_folder_name}/{pj_name}"])
 
@@ -125,6 +123,12 @@ def __set_git_username_config(path):
         subprocess.call(['git', 'config', '--global', 'user.email', '"system@iiidevops.org"'], cwd=path)
     if git_user_name == "":
         subprocess.call(['git', 'config', '--global', 'user.name', '"system"'], cwd=path)
+
+
+def __check_git_project_is_empty(pj):
+    if pj.default_branch is None or pj.repository_tree() is None:
+        return True
+
 
 def tm_get_template_list():
     output = []
@@ -216,9 +220,13 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id, tag
 
 def tm_get_pipeline_branches(repository_id):
     pj = gl.projects.get(repository_id)
+    if __check_git_project_is_empty(pj):
+        return {}
     create_time = datetime.now().strftime("%y%m%d_%H%M%S")
     __tm_git_clone_file(pj, "pj_edit_pipe_yaml", create_time)
     pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj)
+    if pipe_yaml_file_name == None:
+        return {}
     with open(f'pj_edit_pipe_yaml/{pj.path}_{create_time}/{pipe_yaml_file_name}') as file:
         stage_list = yaml.safe_load(file)["stages"]
         out = {}
@@ -257,9 +265,13 @@ def tm_get_pipeline_branches(repository_id):
 
 def tm_put_pipeline_branches(repository_id, data):
     pj = gl.projects.get(repository_id)
+    if __check_git_project_is_empty(pj):
+        return
     create_time = datetime.now().strftime("%y%m%d_%H%M%S")
     __tm_git_clone_file(pj, "pj_edit_pipe_yaml", create_time)
     pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj)
+    if pipe_yaml_file_name == None:
+        return
     with open(f'pj_edit_pipe_yaml/{pj.path}_{create_time}/{pipe_yaml_file_name}') as file:
         pipe_json = yaml.safe_load(file)
         for stage in pipe_json["stages"]:
@@ -290,10 +302,13 @@ def tm_put_pipeline_branches(repository_id, data):
 
 def tm_get_pipeline_default_branch(repository_id):
     pj = gl.projects.get(repository_id)
+    if __check_git_project_is_empty(pj):
+        return {}
     create_time = datetime.now().strftime("%y%m%d_%H%M%S")
-    logger.error(f"create_time: {create_time}")
     __tm_git_clone_file(pj, "pj_edit_pipe_yaml", create_time)
     pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj)
+    if pipe_yaml_file_name == None:
+        return {}
     with open(f'pj_edit_pipe_yaml/{pj.path}_{create_time}/{pipe_yaml_file_name}') as file:
         stage_list = yaml.safe_load(file)["stages"]
         stages_info = {}
@@ -319,9 +334,13 @@ def tm_get_pipeline_default_branch(repository_id):
 
 def tm_put_pipeline_default_branch(repository_id, data):
     pj = gl.projects.get(repository_id)
+    if __check_git_project_is_empty(pj):
+        return
     create_time = datetime.now().strftime("%y%m%d_%H%M%S")
     __tm_git_clone_file(pj, "pj_edit_pipe_yaml", create_time)
     pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj)
+    if pipe_yaml_file_name == None:
+        return
     with open(f'pj_edit_pipe_yaml/{pj.path}_{create_time}/{pipe_yaml_file_name}') as file:
         pipe_json = yaml.safe_load(file)
         for stage in pipe_json["stages"]:
