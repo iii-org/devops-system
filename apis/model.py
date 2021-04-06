@@ -292,6 +292,7 @@ class Zap(db.Model):
     full_log = Column(String)
     # The time scan registered
     run_at = Column(DateTime)
+    finished_at = Column(DateTime)
 
     def __repr__(self):
         fields = {}
