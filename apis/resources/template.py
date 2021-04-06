@@ -105,14 +105,13 @@ def __tm_git_clone_file(pj, dest_folder_name, create_time=None):
     temp_http_url = pj.http_url_to_repo
     secret_temp_http_url = temp_http_url[:7] + f"root:{gitlab_private_token}@" + temp_http_url[7:]
     Path(f"{dest_folder_name}").mkdir(exist_ok=True)
-    print(f"create_time")
     if create_time is not None:
         pj_name = f"{pj.path}_{create_time}"
     else:
         pj_name = f"{pj.path}"
-    print(f"pj.default_branch: {pj.default_branch}")
-    print(f"secret_temp_http_url: {secret_temp_http_url}")
-    print(f"dest_folder_name/pj_name: {dest_folder_name}/{pj_name}")
+    logger.error(f"pj.default_branch: {pj.default_branch}")
+    logger.error(f"secret_temp_http_url: {secret_temp_http_url}")
+    logger.error(f"dest_folder_name/pj_name: {dest_folder_name}/{pj_name}")
     subprocess.call(['git', 'clone', '-b', pj.default_branch, secret_temp_http_url
                      , f"{dest_folder_name}/{pj_name}"])
 
@@ -292,7 +291,7 @@ def tm_put_pipeline_branches(repository_id, data):
 def tm_get_pipeline_default_branch(repository_id):
     pj = gl.projects.get(repository_id)
     create_time = datetime.now().strftime("%y%m%d_%H%M%S")
-    print(f"create_time: {create_time}")
+    logger.error(f"create_time: {create_time}")
     __tm_git_clone_file(pj, "pj_edit_pipe_yaml", create_time)
     pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj)
     with open(f'pj_edit_pipe_yaml/{pj.path}_{create_time}/{pipe_yaml_file_name}') as file:
