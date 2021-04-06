@@ -109,6 +109,9 @@ def __tm_git_clone_file(pj, dest_folder_name, create_time=None):
         pj_name = f"{pj.path}_{create_time}"
     else:
         pj_name = f"{pj.path}"
+    print(f"pj.default_branch: {pj.default_branch}")
+    print(f"secret_temp_http_url: {secret_temp_http_url}")
+    print(f"dest_folder_name/pj_name: {dest_folder_name}/{pj_name}")
     subprocess.call(['git', 'clone', '-b', pj.default_branch, secret_temp_http_url
                      , f"{dest_folder_name}/{pj_name}"])
 
