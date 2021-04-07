@@ -184,7 +184,7 @@ class Releases(Resource):
         # Verify Issues is all closed in versions                                 
         self.check_release_states()
         
-        if args['forced'] is 'True' and self.valid_info['check'] is False:
+        if args['forced']  == 'True' and self.valid_info['check'] is False:
             self.forced_close(release_name, branch_name)                       
         elif self.valid_info['check'] is False:
             return util.respond(404, error_release_build,
@@ -198,7 +198,7 @@ class Releases(Resource):
                 'ref' : branch_name,
                 'description': args['description']
             }
-            if args['released_at'] is not "":
+            if args['released_at']  !=  "":
                 gitlab_data['release_at'] = args['released_at']
             
             gitlab.gl_create_release(self.plugin_relation.git_repository_id,gitlab_data)

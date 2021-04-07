@@ -305,9 +305,9 @@ class Redmine:
             'token': token,
             'filename': filename
         }
-        if args['description'] is not None:
+        if args['description']  != None:
             params['description'] = args['description']
-        if args['version_id'] is not None:
+        if args['version_id']  !=  None:
             params['version_id'] = args['version_id']
         data = {'file': params}
         res = self.__api_post('/projects/%d/files' % plan_project_id, data=data)
@@ -377,9 +377,9 @@ class Redmine:
             version_id = str(issue['fixed_version']['id'])
             if version_id not in self.versions:
                 break            
-            if self.versions[version_id]['name'] is "":
+            if self.versions[version_id]['name'] == "":
                 self.versions[version_id]['name'] = issue['fixed_version']['name']                
-            if issue['closed_on'] is not None  and int(issue['status']['id']) in closed_statuses:
+            if issue['closed_on']  != ""  and int(issue['status']['id']) in closed_statuses:
                 self.versions[version_id]['closed'] +=1
             else:
                 self.versions[version_id]['unclosed'] +=1
@@ -423,7 +423,7 @@ class RedmineRelease():
             version_id = str(target['id'])
             if version_id  ==  main_version:
                 output['errors'] = {"id": version_id,'name':versions[version_id]['name']}
-            if target['unclosed'] is not 0:
+            if target['unclosed'] != 0:
                 output['check'] = False            
                 output['versions']['failed'].append({"id": version_id,'name':versions[version_id]['name']}) 
                 output['failed_name'].append(versions[version_id]['name'])
