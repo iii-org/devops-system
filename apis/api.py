@@ -1,18 +1,18 @@
 import datetime
 import os
+import sys
 import traceback
 from os.path import isfile
-import sys
 
 import werkzeug
 from flask import Flask
 from flask_cors import CORS
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, Api, reqparse
+from flask_socketio import SocketIO
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy_utils import database_exists, create_database
 from werkzeug.routing import IntegerConverter
-from flask_socketio import SocketIO
 
 if f"{os.getcwd()}/apis" not in sys.path:
     sys.path.insert(1, f"{os.getcwd()}/apis")
@@ -41,6 +41,7 @@ for key in ['JWT_SECRET_KEY',
             ]:
     app.config[key] = config.get(key)
 
+app.config['PROPAGATE_EXCEPTIONS'] = True
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = datetime.timedelta(days=1)
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     "pool_pre_ping": True,
@@ -54,10 +55,8 @@ api = Api(app, errors=apiError.custom_errors)
 CORS(app)
 socketio = SocketIO(app, cors_allowed_origins="*", logger=True, engineio_logger=True)
 
-
 class SignedIntConverter(IntegerConverter):
     regex = r'-?\d+'
-
 
 app.url_map.converters['sint'] = SignedIntConverter
 
