@@ -87,7 +87,7 @@ def hb_create_project(project_name):
     except DevOpsError as e:
         if e.unpack_response()['errors'][0]['code'] == 'CONFLICT':
             raise DevOpsError(422, 'Harbor already has a project using this name.',
-                              error=apiError.identifier_has_been_token(project_name))
+                              error=apiError.identifier_has_been_taken(project_name))
         else:
             raise e
     return hb_get_id_by_name(project_name)

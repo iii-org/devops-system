@@ -21,7 +21,7 @@ def error_3rd_party_api(service_name, response):
 
 
 # Project errors
-def identifier_has_been_token(identifier):
+def identifier_has_been_taken(identifier):
     return build(1001, 'Project identifier has been taken.', {'identifier': identifier})
 
 
@@ -43,15 +43,17 @@ def repository_id_not_found(repository_id=None):
 def redmine_project_not_found(project_id=None):
     return build(1005, 'Redmine does not have this project.', {'project_id': project_id})
 
+
 def redmine_unable_to_delete_version(version_id=None):
     return build(1006, 'Unable to delete the version.', {'version_id': version_id})
 
+
 def redmine_unable_to_forced_closed_issues(issues=None):
-    return build(1007, 'Unable to build the release.',{'issues': issues})
+    return build(1007, 'Unable to build the release.', {'issues': issues})
+
 
 def release_unable_to_build(info=None):
-    return build(1008, 'Unable to build the release.',info)
-
+    return build(1008, 'Unable to build the release.', info)
 
 
 # User errors
@@ -103,6 +105,7 @@ class NotUserHimselfError(HTTPException):
 # Redmine Issue/Wiki/... errors
 def issue_not_found(issue_id):
     return build(4001, 'Issue not found.', {'issue_id': issue_id})
+
 
 def issue_not_all_closed(version_ids):
     return build(4001, 'Issue in Versions not closed.', {'versions': version_ids})
