@@ -32,6 +32,7 @@ def zap_finish_scan(args):
     row.status = 'Finished'
     row.result = args['result']
     row.full_log = args['full_log']
+    row.finished_at = datetime.now()
     model.db.session.add(row)
     model.db.session.commit()
 
