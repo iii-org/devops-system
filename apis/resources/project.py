@@ -4,6 +4,7 @@ import base64
 
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
+from kubernetes.client import ApiException
 from sqlalchemy import desc
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -135,7 +136,10 @@ def create_project(user_id, args):
         kubernetesClient.create_role_in_namespace(project_name)
         kubernetesClient.create_namespace_quota(project_name)
         kubernetesClient.create_namespace_limitrange(project_name)
-    except Exception as e:
+    except ApiException as e:
+        if e.status == 409:
+            raise DevOpsError(e.status, 'Kubernetes already has this identifier.',
+                              error=apiError.identifier_has_been_taken(args['name']))
         kubernetesClient.delete_namespace(project_name)
         raise e
 
@@ -204,7 +208,7 @@ def create_project(user_id, args):
                         if len(resp['errors']) > 0:
                             if resp['errors'][0] == 'Identifier has already been taken':
                                 raise DevOpsError(status_code, 'Redmine already used this identifier.',
-                                                  error=apiError.identifier_has_been_token(args['name']))
+                                                  error=apiError.identifier_has_been_taken(args['name']))
                     raise e
                 elif service == 'gitlab':
                     status_code = e.status_code
@@ -214,7 +218,7 @@ def create_project(user_id, args):
                             if gitlab_json['message']['name'][0] == 'has already been taken':
                                 raise DevOpsError(
                                     status_code, {"gitlab": gitlab_json},
-                                    error=apiError.identifier_has_been_token(args['name'])
+                                    error=apiError.identifier_has_been_taken(args['name'])
                                 )
                         except (KeyError, IndexError):
                             pass

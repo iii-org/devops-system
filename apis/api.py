@@ -1,18 +1,18 @@
 import datetime
 import os
+import sys
 import traceback
 from os.path import isfile
-import sys
 
 import werkzeug
 from flask import Flask
 from flask_cors import CORS
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, Api, reqparse
+from flask_socketio import SocketIO
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy_utils import database_exists, create_database
 from werkzeug.routing import IntegerConverter
-from flask_socketio import SocketIO
 
 if f"{os.getcwd()}/apis" not in sys.path:
     sys.path.insert(1, f"{os.getcwd()}/apis")
@@ -28,7 +28,7 @@ import util
 import maintenance
 from jsonwebtoken import jsonwebtoken
 from model import db
-from resources import logger, role as role, activity
+from resources import logger, role as role, activity, zap
 from resources import project, gitlab, issue, user, redmine, wiki, version, sonarqube, apiTest, postman, mock, harbor, \
     webInspect, template, release
 
@@ -41,6 +41,7 @@ for key in ['JWT_SECRET_KEY',
             ]:
     app.config[key] = config.get(key)
 
+app.config['PROPAGATE_EXCEPTIONS'] = True
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = datetime.timedelta(days=1)
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     "pool_pre_ping": True,
@@ -54,10 +55,8 @@ api = Api(app, errors=apiError.custom_errors)
 CORS(app)
 socketio = SocketIO(app, cors_allowed_origins="*", logger=True, engineio_logger=True)
 
-
 class SignedIntConverter(IntegerConverter):
     regex = r'-?\d+'
-
 
 app.url_map.converters['sint'] = SignedIntConverter
 
@@ -220,6 +219,8 @@ api.add_resource(version.ProjectVersion, '/project/<sint:project_id>/version',
 api.add_resource(project.TestSummary, '/project/<sint:project_id>/test_summary')
 api.add_resource(template.TemplateList, '/template_list') 
 api.add_resource(template.SingleTemplate, '/template', '/template/<repository_id>') 
+api.add_resource(template.ProjectPipelineBranches, '/project/<repository_id>/pipeline/branches') 
+api.add_resource(template.ProjectPipelineDefaultBranch, '/project/<repository_id>/pipeline/default_branch') 
 api.add_resource(project.ProjectEnvironment, '/project/<sint:project_id>/environments',
                  '/project/<sint:project_id>/environments/branch/<branch_name>')
 
@@ -410,6 +411,9 @@ api.add_resource(rancher.Catalogs_Refresh, '/rancher/catalogs_refresh')
 # Activity
 api.add_resource(activity.AllActivities, '/all_activities')
 api.add_resource(activity.ProjectActivities, '/project/<sint:project_id>/activities')
+
+# ZAP
+api.add_resource(zap.Zap, '/zap', '/project/<sint:project_id>/zap')
 
 # System versions
 api.add_resource(NexusVersion, '/system_versions')

@@ -871,9 +871,8 @@ def analysis_container_status_time(container_status):
 
 def check_if_iii_default(name, var_type = None):
     is_iii = False
-    if name in iii_env_default :
-        if var_type not in env_normal_type or var_type is None:
-            is_iii = True
+    if name in iii_env_default and (var_type not in env_normal_type or var_type is None):
+        is_iii = True
     return is_iii
 
 def check_if_iii_template(metadata):    
