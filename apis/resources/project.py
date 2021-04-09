@@ -7,7 +7,6 @@ from flask_restful import Resource, reqparse
 from kubernetes.client import ApiException
 from sqlalchemy import desc
 from sqlalchemy.orm.exc import NoResultFound
-
 import config
 import model
 import nexus
@@ -74,7 +73,7 @@ def list_projects(user_id):
             if issue["status"]["name"] == "Closed":
                 closed_count += 1
             if issue["due_date"] is not None:
-                if (datetime.today() > datetime.strptime(
+                if (datetime.utcnow() > datetime.strptime(
                         issue["due_date"], "%Y-%m-%d")):
                     overdue_count += 1
             total_count += 1
@@ -129,7 +128,6 @@ def create_project(user_id, args):
     if args['display'] is None:
         args['display'] = args['name']
     project_name = args['name']
-
     # create namespace in kubernetes
     try:
         kubernetesClient.create_namespace(project_name)
@@ -243,7 +241,12 @@ def create_project(user_id, args):
             description=args['description'],
             ssh_url=gitlab_pj_ssh_url,
             http_url=gitlab_pj_http_url,
-            disabled=args['disabled']
+            disabled=args['disabled'],
+            start_date = args['start_date'],
+            due_date = args['due_date'],
+            create_at = str(datetime.utcnow()),
+            owner_id = user_id,
+
         )
         db.session.add(new_pjt)
         db.session.commit()
@@ -319,48 +322,28 @@ def create_bot(project_id):
         project_id, 'nexus-bot', {'username': login, 'password': password})
 
 
+def check_modify_database_type(items, args, select_db):    
+    output = {}
+    for item in items:
+        if args[item] is None:
+             output[item] = getattr(select_db, item)
+        else:
+            output[item] = args[item]
+            setattr(select_db,item,args[item])
+    return args , select_db
+
 @record_activity(ActionType.UPDATE_PROJECT)
 def pm_update_project(project_id, args):
-    result = db.engine.execute(
-        "SELECT * FROM public.project_plugin_relation WHERE project_id = '{0}'".format(
-            project_id))
-    project_relation = result.fetchone()
-    result.close()
-
-    redmine_project_id = project_relation["plan_project_id"]
-    gitlab_project_id = project_relation["git_repository_id"]
-
-    if args["name"] is None:
-        result = db.engine.execute(
-            "SELECT name FROM public.projects WHERE id = '{0}'".format(
-                project_id))
-        args["name"] = result.fetchone()[0]
-        result.close()
-    if args["display"] is None:
-        result = db.engine.execute(
-            "SELECT name FROM public.projects WHERE id = '{0}'".format(
-                project_id))
-        args["display"] = result.fetchone()[0]
-        result.close()
-    if args["description"] is None:
-        result = db.engine.execute(
-            "SELECT description FROM public.projects WHERE id = '{0}'".format(
-                project_id))
-        args["description"] = result.fetchone()[0]
-        result.close()
-
-    gitlab.gl_update_project(gitlab_project_id, args["description"])
-    redmine.rm_update_project(redmine_project_id, args)
-    # 修改db
-    # 修改projects
-    fields = ['name', 'display', 'description', 'disabled']
-    for field in fields:
-        if args[field] is not None:
-            db.engine.execute(
-                "UPDATE public.projects SET {0} = '{1}' WHERE id = '{2}'".format(
-                    field, args[field], project_id))
-
+    targets = ['display','name','description','disabled','owner_id']
+    plugin_relation = model.ProjectPluginRelation.query.filter_by(project_id=project_id).first()                
+    gitlab.gl_update_project(plugin_relation.git_repository_id, args["description"])
+    redmine.rm_update_project(plugin_relation.plan_project_id, args)
+    project = model.Project.query.filter_by(id=project_id).first()                
+    args, project = check_modify_database_type(targets,args, project)    
+    project.update_at = str(datetime.utcnow())
+    db.session.commit()
     return util.success()
+
 
 
 def try_to_delete(delete_method, argument):
@@ -668,7 +651,7 @@ def get_projects_by_user(user_id):
         if len(issue_due_date_list) != 0:
             next_d_time = min(
                 issue_due_date_list,
-                key=lambda d: abs(d - datetime.now()))
+                key=lambda d: abs(d - datetime.utcnow()))
         if next_d_time is not None:
             output_dict['next_d_time'] = next_d_time.isoformat()
 
@@ -978,6 +961,7 @@ class SingleProject(Resource):
         parser.add_argument('display', type=str)
         parser.add_argument('description', type=str)
         parser.add_argument('disabled', type=bool)
+        parser.add_argument('owner_id', type=int)
         args = parser.parse_args()
         return pm_update_project(project_id, args)
 
@@ -999,8 +983,9 @@ class SingleProject(Resource):
         parser.add_argument('template_id', type=int)
         parser.add_argument('tag_name', type=str)
         parser.add_argument('arguments', type=dict)
+        parser.add_argument('start_date', type=str, required=True)
+        parser.add_argument('due_date', type=str, required=True)
         args = parser.parse_args()
-
         pattern = "^[a-z][a-z0-9-]{0,28}[a-z0-9]$"
         result = re.fullmatch(pattern, args["name"])
         if result is None:
@@ -1134,7 +1119,6 @@ class ProjectUserResourcePodLog(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('container_name', type=str)
         args = parser.parse_args()
-        print(project_id)
         return get_kubernetes_namespace_pod_log(project_id, pod_name, args['container_name'])
 
 class ProjectEnvironment(Resource):
