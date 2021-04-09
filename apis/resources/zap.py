@@ -11,6 +11,14 @@ from resources import role, gitlab
 
 
 def zap_start_scan(args):
+    # Abort previous scans of the same branch
+    aborts = model.Zap.query.filter_by(
+        project_name=args['project_name'],
+        branch=args['branch']).all()
+    for abort in aborts:
+        abort.status = 'Aborted'
+    model.db.session.commit()
+
     new = model.Zap(
         project_name=args['project_name'],
         branch=args['branch'],
