@@ -334,7 +334,7 @@ def check_modify_database_type(items, args, select_db):
 
 @record_activity(ActionType.UPDATE_PROJECT)
 def pm_update_project(project_id, args):
-    targets = ['display','name','description','disabled','owner_id']
+    targets = ['display','name','description','disabled','owner_id','start_date', 'due_date']
     plugin_relation = model.ProjectPluginRelation.query.filter_by(project_id=project_id).first()                
     gitlab.gl_update_project(plugin_relation.git_repository_id, args["description"])
     redmine.rm_update_project(plugin_relation.plan_project_id, args)
@@ -961,6 +961,8 @@ class SingleProject(Resource):
         parser.add_argument('display', type=str)
         parser.add_argument('description', type=str)
         parser.add_argument('disabled', type=bool)
+        parser.add_argument('start_date', type=str, required=True)
+        parser.add_argument('due_date', type=str, required=True)
         parser.add_argument('owner_id', type=int)
         args = parser.parse_args()
         return pm_update_project(project_id, args)
