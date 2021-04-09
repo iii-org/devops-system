@@ -40,15 +40,15 @@ def list_projects(user_id):
     for row in rows:
         project_id_list.append(row.Project.id)
 
-    pm_map = {}
-    pms = db.session.query(model.User, model.Project.id) \
-        .join(model.ProjectUserRole,
-              model.ProjectUserRole.user_id == model.User.id) \
-        .filter(model.ProjectUserRole.project_id.in_(project_id_list),
-                model.ProjectUserRole.role_id.in_((role.PM.id, role.ADMIN.id))) \
-        .all()
-    for pm in pms:
-        pm_map[pm.id] = pm.User
+    # pm_map = {}
+    # pms = db.session.query(model.User, model.Project.id) \
+    #     .join(model.ProjectUserRole,
+    #           model.ProjectUserRole.user_id == model.User.id) \
+    #     .filter(model.ProjectUserRole.project_id.in_(project_id_list),
+    #             model.ProjectUserRole.role_id.in_((role.PM.id, role.ADMIN.id))) \
+    #     .all()
+    # for pm in pms:
+    #     pm_map[pm.id] = pm.User
 
     projects = redmine.rm_list_projects()
     issues = redmine.rm_list_issues()
@@ -77,18 +77,15 @@ def list_projects(user_id):
                     overdue_count += 1
             total_count += 1
             del issue
-
         project_status = "進行中"
         if total_count == 0:
             project_status = "未開始"
         if closed_count == total_count and total_count != 0:
             project_status = "已結案"
-
-        pm = pm_map[project_id]
-        
-        if pm is None:
+        if row.Project.owner_id is None:
             pm = model.User(id=0, name='No One')
-
+        else:
+            pm = nexus.nx_get_user(row.Project.owner_id)
         updated_on = None
         for pjt in projects:
             if pjt['id'] == plan_project_id:
