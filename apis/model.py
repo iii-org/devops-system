@@ -53,7 +53,7 @@ class Project(db.Model):
     update_at = Column(DateTime)
     disabled = Column(Boolean)
     display = Column(String)
-    owner = Column(Integer, ForeignKey(User.id))
+    owner_id = Column(Integer, ForeignKey(User.id))
 
 
 class ProjectPluginRelation(db.Model):
@@ -97,6 +97,17 @@ class PipelineLogsCache(db.Model):
     ci_pipeline_id = Column(String)
     run = Column(Integer)
     logs = Column(JSON)
+
+
+class TemplateListCache(db.Model):
+    id = Column(Integer, primary_key=True)
+    temp_repo_id = Column(Integer, primary_key=True)
+    name = Column(String)
+    path = Column(String)
+    display = Column(String)
+    description = Column(String)
+    version = Column(JSON)
+    update_at = Column(DateTime)
 
 
 class ProjectUserRole(db.Model):
@@ -309,3 +320,27 @@ class Zap(db.Model):
             except TypeError:
                 fields[field] = str(data)
         return json.dumps(fields)
+
+class RedmineIssue(db.Model):
+    issue_id = Column(Integer, primary_key=True)
+    project_id = Column(String)
+    project_name = Column(String)
+    assigned_to = Column(String)
+    issue_type = Column(String)
+    issue_name = Column(String)
+    status_id = Column(String)
+    is_closed = Column(Boolean)
+
+class RedmineProject(db.Model):
+    project_id = Column(Integer, primary_key=True)
+    project_name = Column(String)
+    start_date = Column(DateTime)
+    end_date = Column(DateTime)
+
+class ProjectMember(db.Model):
+    user_id = Column(Integer, primary_key=True)
+    user_name = Column(String)
+    project_id = Column(String)
+    project_name = Column(String)
+    role_id = Column(Integer)
+    role_name = Column(String)
