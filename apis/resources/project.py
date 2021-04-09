@@ -52,7 +52,6 @@ def list_projects(user_id):
 
     projects = redmine.rm_list_projects()
     issues = redmine.rm_list_issues()
-
     output_array = []
     for row in rows:
         project_id = row.Project.id
@@ -86,6 +85,7 @@ def list_projects(user_id):
             project_status = "已結案"
 
         pm = pm_map[project_id]
+        
         if pm is None:
             pm = model.User(id=0, name='No One')
 
@@ -114,7 +114,9 @@ def list_projects(user_id):
             "project_status": project_status,
             "closed_count": closed_count,
             "total_count": total_count,
-            "overdue_count": overdue_count
+            "overdue_count": overdue_count,
+            'start_date' : str(row.Project.start_date),
+            'due_date' : str(row.Project.due_date)
         })
 
     return util.success({"project_list": output_array})
