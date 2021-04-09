@@ -309,3 +309,27 @@ class Zap(db.Model):
             except TypeError:
                 fields[field] = str(data)
         return json.dumps(fields)
+
+class RedmineIssue(db.Model):
+    issue_id = Column(Integer, primary_key=True)
+    project_id = Column(String)
+    project_name = Column(String)
+    assigned_to = Column(String)
+    issue_type = Column(String)
+    issue_name = Column(String)
+    status_id = Column(String)
+    is_closed = Column(Boolean)
+
+class RedmineProject(db.Model):
+    project_id = Column(Integer, primary_key=True)
+    project_name = Column(String)
+    start_date = Column(DateTime)
+    end_date = Column(DateTime)
+
+class ProjectMember(db.Model):
+    user_id = Column(Integer, primary_key=True)
+    user_name = Column(String)
+    project_id = Column(String)
+    project_name = Column(String)
+    role_id = Column(Integer)
+    role_name = Column(String)
