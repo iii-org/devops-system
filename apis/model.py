@@ -99,6 +99,17 @@ class PipelineLogsCache(db.Model):
     logs = Column(JSON)
 
 
+class TemplateListCache(db.Model):
+    id = Column(Integer, primary_key=True)
+    temp_repo_id = Column(Integer, primary_key=True)
+    name = Column(String)
+    path = Column(String)
+    display = Column(String)
+    description = Column(String)
+    version = Column(JSON)
+    update_at = Column(DateTime)
+
+
 class ProjectUserRole(db.Model):
     project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), primary_key=True)
     user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'), primary_key=True)
