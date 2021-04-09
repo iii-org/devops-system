@@ -53,6 +53,7 @@ class Project(db.Model):
     update_at = Column(DateTime)
     disabled = Column(Boolean)
     display = Column(String)
+    owner = Column(Integer, ForeignKey(User.id))
 
 
 class ProjectPluginRelation(db.Model):
