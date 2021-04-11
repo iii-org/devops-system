@@ -100,7 +100,6 @@ class PipelineLogsCache(db.Model):
 
 
 class TemplateListCache(db.Model):
-    id = Column(Integer, primary_key=True)
     temp_repo_id = Column(Integer, primary_key=True)
     name = Column(String)
     path = Column(String)
