@@ -382,9 +382,11 @@ class GitLab(object):
         path = f'/projects/{repo_id}/releases/{tag_name}'
         return self.__api_delete(path).json()
     
-    def gl_get_the_last_hours_commits(self):
+    def gl_get_the_last_hours_commits(self, the_last_hours=None):
         out_list=[]
-        twelve_hours_age = (datetime.utcnow() - timedelta(hours = 4)).isoformat()
+        if the_last_hours == None:
+            the_last_hours = 24
+        twelve_hours_age = (datetime.utcnow() - timedelta(hours = the_last_hours)).isoformat()
         for pj in self.gl.projects.list():
             if pj.empty_repo is False:
                 for commit in  pj.commits.list(since=twelve_hours_age):
@@ -586,4 +588,7 @@ class GitProjectURLFromId(Resource):
 class GitTheLastHoursCommits(Resource):
     @jwt_required
     def get(self):
-        return util.success(gitlab.gl_get_the_last_hours_commits())
+        parser = reqparse.RequestParser()
+        parser.add_argument('the_last_hours', type=int)
+        args = parser.parse_args()
+        return util.success(gitlab.gl_get_the_last_hours_commits(args["the_last_hours"]))
