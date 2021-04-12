@@ -172,16 +172,25 @@ def __get_template_list():
     return output
 
 
-def tm_get_template_list():
+def tm_get_template_list(force_update=0):
     one_day_ago = datetime.fromtimestamp(datetime.utcnow().timestamp() - 86400)
     total_data = TemplateListCache.query.all()
     one_day_ago_data = TemplateListCache.query.filter(TemplateListCache.update_at < one_day_ago).all()
-    print(f"one_day_ago_data: {one_day_ago_data}")
-    if len(total_data) ==0 or len(one_day_ago_data) > 1:
+    if force_update == 1:
+        return __get_template_list()
+    elif len(total_data) ==0 or len(one_day_ago_data) > 1:
         return __get_template_list()
     else:
-        print(f"total_data: {total_data}")
-        return total_data
+        output = []
+        for data in total_data:
+            output.append({
+            "id": data.temp_repo_id,
+            "name": data.name, 
+            "path": data.path,
+            "display": data.display,
+            "description": data.description,
+            "version": data.version})
+        return output
 
 
 
@@ -408,7 +417,10 @@ class TemplateList(Resource):
     @jwt_required
     def get(self):
         role.require_pm("Error while getting template list.")
-        return util.success(tm_get_template_list())
+        parser = reqparse.RequestParser()
+        parser.add_argument('force_update', type=int)
+        args = parser.parse_args()
+        return util.success(tm_get_template_list(args["force_update"]))
 
 
 class SingleTemplate(Resource):
