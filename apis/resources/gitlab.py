@@ -387,9 +387,9 @@ class GitLab(object):
         if the_last_hours == None:
             the_last_hours = 24
         twelve_hours_age = (datetime.utcnow() - timedelta(hours = the_last_hours)).isoformat()
-        for pj in self.gl.projects.list():
+        for pj in self.gl.projects.list(order_by="last_activity_at"):
             if pj.empty_repo is False:
-                for commit in  pj.commits.list(since=twelve_hours_age):
+                for commit in pj.commits.list(since=twelve_hours_age):
                     out_list.append({"pj_name": pj.name, 
                      "author_name": commit.author_name, 
                      "author_email": commit.author_email, 
