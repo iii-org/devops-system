@@ -14,6 +14,8 @@ import config
 import resources.yaml_OO as pipeline_yaml_OO
 import util
 from . import role
+from model import db, TemplateListCache
+from sqlalchemy import func, or_, and_
 
 from gitlab import Gitlab
 
@@ -130,7 +132,7 @@ def __check_git_project_is_empty(pj):
         return True
 
 
-def tm_get_template_list():
+def __get_template_list():
     output = []
     group = gl.groups.get("iiidevops-templates", all=True)
     for group_project in group.projects.list(all=True):
@@ -139,16 +141,59 @@ def tm_get_template_list():
         tag_list = []
         for tag in pj.tags.list(all=True):
             tag_list.append({"name": tag.name, "commit_id": tag.commit["id"], 
-                             "commit_time":tag.commit["committed_date"]})
+                            "commit_time":tag.commit["committed_date"]})
         pip_set_json = __tm_read_pipe_set_json(pj)
         output.append({"id": pj.id,
-                       "name": pj.name, 
-                       "path": pj.path,
-                       "display": pj.name if "name" not in pip_set_json else pip_set_json["name"],
-                       "description": 
-                           "" if "description" not in pip_set_json else pip_set_json["description"],
-                       "version": tag_list})
+                    "name": pj.name, 
+                    "path": pj.path,
+                    "display": pj.name if "name" not in pip_set_json else pip_set_json["name"],
+                    "description": 
+                        "" if "description" not in pip_set_json else pip_set_json["description"],
+                    "version": tag_list})
+        temp = TemplateListCache.query.filter(TemplateListCache.temp_repo_id == pj.id).first()
+        if temp is None:
+            cache_temp = TemplateListCache(temp_repo_id=pj.id,
+                            name=pj.name,
+                            path=pj.path,
+                            display=pj.name if "name" not in pip_set_json else pip_set_json["name"],
+                            description="" if "description" not in pip_set_json else pip_set_json["description"],
+                            version=tag_list,
+                            update_at=datetime.now())
+            db.session.add(cache_temp)
+            db.session.commit()
+        else:
+            temp.name = pj.name
+            temp.path=pj.path
+            temp.display=pj.name if "name" not in pip_set_json else pip_set_json["name"]
+            temp.description="" if "description" not in pip_set_json else pip_set_json["description"]
+            temp.version=tag_list
+            temp.update_at=datetime.now()
+            db.session.commit()
     return output
+
+
+def tm_get_template_list(force_update=0):
+    one_day_ago = datetime.fromtimestamp(datetime.utcnow().timestamp() - 86400)
+    total_data = TemplateListCache.query.all()
+    one_day_ago_data = TemplateListCache.query.filter(TemplateListCache.update_at < one_day_ago).all()
+    if force_update == 1:
+        return __get_template_list()
+    elif len(total_data) ==0 or len(one_day_ago_data) > 1:
+        return __get_template_list()
+    else:
+        output = []
+        for data in total_data:
+            output.append({
+            "id": data.temp_repo_id,
+            "name": data.name, 
+            "path": data.path,
+            "display": data.display,
+            "description": data.description,
+            "version": data.version})
+        return output
+
+
+
 
 
 def tm_get_template(repository_id, tag_name):
@@ -372,7 +417,10 @@ class TemplateList(Resource):
     @jwt_required
     def get(self):
         role.require_pm("Error while getting template list.")
-        return util.success(tm_get_template_list())
+        parser = reqparse.RequestParser()
+        parser.add_argument('force_update', type=int)
+        args = parser.parse_args()
+        return util.success(tm_get_template_list(args["force_update"]))
 
 
 class SingleTemplate(Resource):
