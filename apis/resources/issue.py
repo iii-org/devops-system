@@ -172,7 +172,7 @@ def __deal_with_issue_redmine_output(redmine_output):
                     else:
                         detail_info['old_value'] = detail['old_value']
                         detail_info['new_value'] = detail['new_value']                        
-            list_details.append(detail_info)
+                    list_details.append(detail_info)
             redmine_output['journals'][i]['details']  = list_details
             i += 1
     redmine_output['issue_link'] = f'{config.get("REDMINE_EXTERNAL_BASE_URL")}/issues/{redmine_output["id"]}'
