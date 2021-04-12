@@ -399,6 +399,19 @@ class GitLab(object):
         sorted((out["commit_time"] for out in out_list), reverse=True)
         return out_list
 
+    def gl_count_each_pj_commits_by_days(self):
+        out_list=[]
+        print(f"project number: {len(self.gl.projects.list())}")
+        i=0
+        for pj in self.gl.projects.list(all=True):
+            pj_dict ={"pj_name": pj.name}
+            if pj.empty_repo is False:
+                i +=1
+                print(f"project_name: {pj.name}")
+                print(len(pj.commits.list(all=True,
+                               query_parameters={'since': '2021-04-11T00:00:00Z', 'until': '2021-04-11T23:59:59Z'})))
+                print("-"*30)
+        print(f"not emtpy project nubmers: {i}")
 
 # --------------------- Resources ---------------------
 gitlab = GitLab()
@@ -592,3 +605,9 @@ class GitTheLastHoursCommits(Resource):
         parser.add_argument('the_last_hours', type=int)
         args = parser.parse_args()
         return util.success(gitlab.gl_get_the_last_hours_commits(args["the_last_hours"]))
+
+
+class GitCountEachPjCommitsByDays(Resource):
+    @jwt_required
+    def get(self):
+        return (gitlab.gl_count_each_pj_commits_by_days())
