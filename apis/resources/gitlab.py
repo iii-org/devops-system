@@ -1,5 +1,7 @@
 import json
-
+import pytz
+from datetime import datetime, timedelta
+from gitlab import Gitlab
 import requests
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
@@ -12,6 +14,7 @@ from resources import apiError, kubernetesClient, role
 from resources.apiError import DevOpsError
 from resources.logger import logger
 from .rancher import rancher
+
 
 def get_nexus_project_id(repo_id):
     row = model.ProjectPluginRelation.query.filter_by(git_repository_id=repo_id).first()
@@ -53,6 +56,7 @@ class GitLab(object):
             self.private_token = output.json()['private_token']
         else:
             self.private_token = config.get("GITLAB_PRIVATE_TOKEN")
+        self.gl = Gitlab(config.get("GITLAB_BASE_URL"), private_token=self.private_token)
 
     @staticmethod
     def gl_get_nexus_project_id(repository_id):
@@ -106,6 +110,9 @@ class GitLab(object):
 
     def __api_delete(self, path, params=None, headers=None):
         return self.__api_request('DELETE', path, params=params, headers=headers)
+    
+    def __gl_timezone_to_utc(self, gl_datetime_str):
+        return datetime.strftime(datetime.strptime(gl_datetime_str, '%Y-%m-%dT%H:%M:%S.%f%z').astimezone(pytz.utc), '%Y-%m-%dT%H:%M:%S%z')
 
     def gl_create_project(self, args):
         return self.__api_post('/projects', params={
@@ -374,6 +381,24 @@ class GitLab(object):
     def gl_delete_release(self, repo_id,tag_name):
         path = f'/projects/{repo_id}/releases/{tag_name}'
         return self.__api_delete(path).json()
+    
+    def gl_get_the_last_hours_commits(self, the_last_hours=None):
+        out_list=[]
+        if the_last_hours == None:
+            the_last_hours = 24
+        twelve_hours_age = (datetime.utcnow() - timedelta(hours = the_last_hours)).isoformat()
+        for pj in self.gl.projects.list():
+            if pj.empty_repo is False:
+                for commit in  pj.commits.list(since=twelve_hours_age):
+                    out_list.append({"pj_name": pj.name, 
+                     "author_name": commit.author_name, 
+                     "author_email": commit.author_email, 
+                     "commit_time": self.__gl_timezone_to_utc(commit.committed_date),
+                     "commit_id": commit.short_id, "commit_title": commit.title, 
+                     "commit_message": commit.message})
+        sorted((out["commit_time"] for out in out_list), reverse=True)
+        return out_list
+
 
 # --------------------- Resources ---------------------
 gitlab = GitLab()
@@ -559,3 +584,11 @@ class GitProjectURLFromId(Resource):
                                     error=apiError.argument_error('project_id|repository_id'))
             project_id = get_nexus_project_id(repo_id)
         return util.success({'http_url': get_repo_url(project_id)})
+    
+class GitTheLastHoursCommits(Resource):
+    @jwt_required
+    def get(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('the_last_hours', type=int)
+        args = parser.parse_args()
+        return util.success(gitlab.gl_get_the_last_hours_commits(args["the_last_hours"]))
