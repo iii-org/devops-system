@@ -144,7 +144,7 @@ class GitLab(object):
 
     def gl_update_password(self, repository_user_id, new_pwd):
         return self.__api_put(f'/users/{repository_user_id}',
-                              params={"password": new_pwd})
+                              params={"password": new_pwd, "skip_confirmation": True})
 
     def gl_get_user_list(self, args):
         return self.__api_get('/users', params=args)
