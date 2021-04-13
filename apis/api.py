@@ -30,7 +30,7 @@ from jsonwebtoken import jsonwebtoken
 from model import db
 from resources import logger, role as role, activity, zap
 from resources import project, gitlab, issue, user, redmine, wiki, version, sonarqube, apiTest, postman, mock, harbor, \
-    webInspect, template, release
+    webInspect, template, release, sync_redmine
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -305,6 +305,14 @@ api.add_resource(issue.DashboardIssueProject, '/dashboard_issues_project/<user_i
 api.add_resource(issue.DashboardIssueType, '/dashboard_issues_type/<user_id>')
 api.add_resource(gitlab.GitTheLastHoursCommits, '/dashboard/the_last_hours_commits')
 api.add_resource(gitlab.GitCountEachPjCommitsByDays, '/dashboard/count_each_pj_commits_by_days')
+api.add_resource(sync_redmine.ProjectMembers, '/dashboard/project_mumbers')
+api.add_resource(sync_redmine.ProjectOverview, '/dashboard/project_overview')
+api.add_resource(sync_redmine.RedmineProjects, '/dashboard/redmine_projects')
+api.add_resource(sync_redmine.RedmineIssueRank, '/dashboard/issue_rank')
+api.add_resource(sync_redmine.UnclosedIssues, '/dashboard/<user_id>/unclosed_issues')
+api.add_resource(sync_redmine.InvolvedProjects, '/dashboard/<user_id>/involved_projects')
+api.add_resource(sync_redmine.PassingRate, '/dashboard/passing_rate')
+
 
 # testPhase Requirement
 api.add_resource(issue.RequirementByIssue, '/requirements_by_issue/<issue_id>')
@@ -416,6 +424,9 @@ api.add_resource(activity.ProjectActivities, '/project/<sint:project_id>/activit
 
 # ZAP
 api.add_resource(zap.Zap, '/zap', '/project/<sint:project_id>/zap')
+
+# Sync Redmine
+api.add_resource(sync_redmine.SyncRedmine, '/sync_redmine')
 
 # System versions
 api.add_resource(NexusVersion, '/system_versions')
