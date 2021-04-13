@@ -303,6 +303,8 @@ api.add_resource(issue.DashboardIssuePriority,
                  '/dashboard_issues_priority/<user_id>')
 api.add_resource(issue.DashboardIssueProject, '/dashboard_issues_project/<user_id>')
 api.add_resource(issue.DashboardIssueType, '/dashboard_issues_type/<user_id>')
+api.add_resource(gitlab.GitTheLastHoursCommits, '/dashboard/the_last_hours_commits')
+api.add_resource(gitlab.GitCountEachPjCommitsByDays, '/dashboard/count_each_pj_commits_by_days')
 
 # testPhase Requirement
 api.add_resource(issue.RequirementByIssue, '/requirements_by_issue/<issue_id>')
