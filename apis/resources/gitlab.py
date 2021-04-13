@@ -382,20 +382,36 @@ class GitLab(object):
         path = f'/projects/{repo_id}/releases/{tag_name}'
         return self.__api_delete(path).json()
     
-    def gl_get_the_last_hours_commits(self, the_last_hours=None):
+    def gl_get_the_last_hours_commits(self, the_last_hours=None, show_commit_rows = None):
         out_list=[]
-        if the_last_hours == None:
-            the_last_hours = 24
-        twelve_hours_age = (datetime.utcnow() - timedelta(hours = the_last_hours)).isoformat()
-        for pj in self.gl.projects.list(order_by="last_activity_at"):
-            if pj.empty_repo is False:
-                for commit in pj.commits.list(since=twelve_hours_age):
-                    out_list.append({"pj_name": pj.name, 
-                     "author_name": commit.author_name, 
-                     "author_email": commit.author_email, 
-                     "commit_time": self.__gl_timezone_to_utc(commit.committed_date),
-                     "commit_id": commit.short_id, "commit_title": commit.title, 
-                     "commit_message": commit.message})
+        if show_commit_rows is not None:
+            for x in range(12, 169, 12):
+                hours_age = (datetime.utcnow() - timedelta(days = x)).isoformat()
+                for pj in self.gl.projects.list(order_by="last_activity_at"):
+                    if pj.empty_repo is False:
+                        for commit in pj.commits.list(since=hours_age):
+                            out_list.append({"pj_name": pj.name, 
+                            "author_name": commit.author_name, 
+                            "author_email": commit.author_email, 
+                            "commit_time": self.__gl_timezone_to_utc(commit.committed_date),
+                            "commit_id": commit.short_id, "commit_title": commit.title, 
+                            "commit_message": commit.message})
+                            if len(out_list) > show_commit_rows-1:
+                                sorted((out["commit_time"] for out in out_list), reverse=True)
+                                return out_list[:show_commit_rows]
+        else:
+            if the_last_hours == None:
+                the_last_hours = 24
+            hours_age = (datetime.utcnow() - timedelta(hours = the_last_hours)).isoformat()
+            for pj in self.gl.projects.list(order_by="last_activity_at"):
+                if pj.empty_repo is False:
+                    for commit in pj.commits.list(since=hours_age):
+                        out_list.append({"pj_name": pj.name, 
+                        "author_name": commit.author_name, 
+                        "author_email": commit.author_email, 
+                        "commit_time": self.__gl_timezone_to_utc(commit.committed_date),
+                        "commit_id": commit.short_id, "commit_title": commit.title, 
+                        "commit_message": commit.message})
         sorted((out["commit_time"] for out in out_list), reverse=True)
         return out_list
 
@@ -608,8 +624,9 @@ class GitTheLastHoursCommits(Resource):
     def get(self):
         parser = reqparse.RequestParser()
         parser.add_argument('the_last_hours', type=int)
+        parser.add_argument('show_commit_rows', type=int)
         args = parser.parse_args()
-        return util.success(gitlab.gl_get_the_last_hours_commits(args["the_last_hours"]))
+        return util.success(gitlab.gl_get_the_last_hours_commits(args["the_last_hours"], args["show_commit_rows"]))
 
 
 class GitCountEachPjCommitsByDays(Resource):
