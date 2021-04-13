@@ -415,17 +415,18 @@ class GitLab(object):
         sorted((out["commit_time"] for out in out_list), reverse=True)
         return out_list
 
-    def gl_count_each_pj_commits_by_days(self, days=3, admin_timezone=8):
+    def gl_count_each_pj_commits_by_days(self, days=30):
         '''
         store 30 days total commit numbers by git repository id
         '''
         for pj in self.gl.projects.list(order_by="last_activity_at"):
-            if pj.empty_repo is False:
+            if (pj.empty_repo is False) and ("iiidevops-templates" not in pj.path_with_namespace):
                 for i in range(1, days+1):
                     # day = (datetime.utcnow() - timedelta(days = i)).isoformat()
                     day_start = datetime.combine((datetime.utcnow() - timedelta(days = i)), time(00, 00))
                     day_end = datetime.combine((datetime.utcnow() - timedelta(days = i)), time(23, 59))
-                    print(f"project_name: [")
+                    print(f"project_id: {pj.id}")
+                    print(f"project_name: {pj.name}")
                     print(f"day_start: {day_start}")
                     commit_number = len(pj.commits.list(all=True,
                                query_parameters={'since': day_start, 'until': day_end}))
