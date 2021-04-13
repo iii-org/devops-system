@@ -374,6 +374,7 @@ class IssueRank(db.Model):
 
 class GitCommitNumberEachDays(db.Model):
     id = Column(Integer, primary_key=True)
-    repo_id = Column(Integer, ForeignKey(ProjectPluginRelation.git_repository_id, ondelete='CASCADE'))
+    repo_id = Column(Integer)
+    repo_name = Column(String)
     date = Column(Date)
     commit_number = Column(Integer)
