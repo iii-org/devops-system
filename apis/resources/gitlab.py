@@ -1,6 +1,6 @@
 import json
 import pytz
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
 from gitlab import Gitlab
 import requests
 from flask_jwt_extended import jwt_required
@@ -399,19 +399,24 @@ class GitLab(object):
         sorted((out["commit_time"] for out in out_list), reverse=True)
         return out_list
 
-    def gl_count_each_pj_commits_by_days(self):
-        out_list=[]
-        print(f"project number: {len(self.gl.projects.list())}")
-        i=0
-        for pj in self.gl.projects.list(all=True):
-            pj_dict ={"pj_name": pj.name}
+    def gl_count_each_pj_commits_by_days(self, days=3, admin_timezone=8):
+        '''
+        store 30 days total commit numbers by git repository id
+        '''
+        for pj in self.gl.projects.list(order_by="last_activity_at"):
             if pj.empty_repo is False:
-                i +=1
-                print(f"project_name: {pj.name}")
-                print(len(pj.commits.list(all=True,
-                               query_parameters={'since': '2021-04-11T00:00:00Z', 'until': '2021-04-11T23:59:59Z'})))
-                print("-"*30)
-        print(f"not emtpy project nubmers: {i}")
+                for i in range(1, days+1):
+                    # day = (datetime.utcnow() - timedelta(days = i)).isoformat()
+                    day_start = datetime.combine((datetime.utcnow() - timedelta(days = i)), time(00, 00))
+                    day_end = datetime.combine((datetime.utcnow() - timedelta(days = i)), time(23, 59))
+                    print(f"project_name: [")
+                    print(f"day_start: {day_start}")
+                    commit_number = len(pj.commits.list(all=True,
+                               query_parameters={'since': day_start, 'until': day_end}))
+                    print(f"commit_number: {commit_number}")
+            else:
+                pass
+
 
 # --------------------- Resources ---------------------
 gitlab = GitLab()
