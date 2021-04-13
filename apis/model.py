@@ -325,6 +325,7 @@ class RedmineIssue(db.Model):
     project_id = Column(String)
     project_name = Column(String)
     assigned_to = Column(String)
+    assigned_to_id = Column(Integer)
     issue_type = Column(String)
     issue_name = Column(String)
     status_id = Column(String)
@@ -345,9 +346,10 @@ class RedmineProject(db.Model):
     end_date = Column(DateTime)
 
 class ProjectMember(db.Model):
-    user_id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer)
     user_name = Column(String)
-    project_id = Column(String)
+    project_id = Column(Integer)
     project_name = Column(String)
     role_id = Column(Integer)
     role_name = Column(String)
@@ -367,4 +369,4 @@ class IssueRank(db.Model):
     user_id = Column(Integer, primary_key=True)
     user_name = Column(String)
     unclosed_count = Column(Integer)
-    prject_count = Column(Integer)
+    project_count = Column(Integer)
