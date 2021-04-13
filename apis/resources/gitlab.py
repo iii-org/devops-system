@@ -388,7 +388,7 @@ class GitLab(object):
             for x in range(12, 169, 12):
                 hours_age = (datetime.utcnow() - timedelta(days = x)).isoformat()
                 for pj in self.gl.projects.list(order_by="last_activity_at"):
-                    if pj.empty_repo is False:
+                    if (pj.empty_repo is False) and ("iiidevops-templates" not in pj.path_with_namespace):
                         for commit in pj.commits.list(since=hours_age):
                             out_list.append({"pj_name": pj.name, 
                             "author_name": commit.author_name, 
@@ -404,7 +404,7 @@ class GitLab(object):
                 the_last_hours = 24
             hours_age = (datetime.utcnow() - timedelta(hours = the_last_hours)).isoformat()
             for pj in self.gl.projects.list(order_by="last_activity_at"):
-                if pj.empty_repo is False:
+                if (pj.empty_repo is False) and ("iiidevops-templates" not in pj.path_with_namespace):
                     for commit in pj.commits.list(since=hours_age):
                         out_list.append({"pj_name": pj.name, 
                         "author_name": commit.author_name, 
