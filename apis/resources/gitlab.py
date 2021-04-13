@@ -417,26 +417,28 @@ class GitLab(object):
         return out_list
 
     def gl_count_each_pj_commits_by_days(self, days=30):
+        #for pj in self.gl.projects.list(order_by="last_activity_at"):
         for pj in self.gl.projects.list(all=True):
-            if (pj.empty_repo is False) and ("iiidevops-templates" not in pj.path_with_namespace):
+            if ("iiidevops-templates" not in pj.path_with_namespace):
                 for i in range(1, days+1):
-                    # day = (datetime.utcnow() - timedelta(days = i)).isoformat()
+                    pj_create_date = datetime.strptime(pj.created_at, '%Y-%m-%dT%H:%M:%S.%f%z').date()
                     day_start = datetime.combine((datetime.utcnow() - timedelta(days = i)), time(00, 00))
                     day_end = datetime.combine((datetime.utcnow() - timedelta(days = i)), time(23, 59))
-                    print(f"project_id: {pj.id}")
-                    print(f"project_name: {pj.name}")
-                    commit_number = len(pj.commits.list(all=True,
-                               query_parameters={'since': day_start, 'until': day_end}))
-                    print(f"day_start: {day_start}")
-                    print(f"commit_number: {commit_number}")
-                    row = GitCommitNumberEachDays.query.filter(GitCommitNumberEachDays.repo_id == pj.id,
-                                                                GitCommitNumberEachDays.date == day_start.date()).first()
-                    if row is None:
-                        one_row_data = GitCommitNumberEachDays(repo_id=pj.id,
-                                        date=day_start.date(),
-                                        commit_number=commit_number)
-                        db.session.add(one_row_data)
-                        db.session.commit()
+                    if day_start.date() >= pj_create_date:
+                        count = GitCommitNumberEachDays.query.filter(GitCommitNumberEachDays.repo_id == pj.id,
+                                                                GitCommitNumberEachDays.date == day_start.date()).count()
+                        if count == 0:
+                            if (pj.empty_repo is True):
+                                commit_number = 0
+                            else:
+                                commit_number = len(pj.commits.list(all=True,
+                                        query_parameters={'since': day_start, 'until': day_end}))
+                            one_row_data = GitCommitNumberEachDays(repo_id=pj.id,
+                                                                repo_name=pj.name,
+                                                                date=day_start.date(),
+                                            commit_number=commit_number)
+                            db.session.add(one_row_data)
+                            db.session.commit()
 
 
 # --------------------- Resources ---------------------
