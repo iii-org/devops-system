@@ -304,7 +304,6 @@ api.add_resource(issue.DashboardIssuePriority,
 api.add_resource(issue.DashboardIssueProject, '/dashboard_issues_project/<user_id>')
 api.add_resource(issue.DashboardIssueType, '/dashboard_issues_type/<user_id>')
 api.add_resource(gitlab.GitTheLastHoursCommits, '/dashboard/the_last_hours_commits')
-api.add_resource(gitlab.GitCountEachPjCommitsByDays, '/dashboard/count_each_pj_commits_by_days')
 api.add_resource(sync_redmine.ProjectMembers, '/dashboard/project_members')
 api.add_resource(sync_redmine.ProjectOverview, '/dashboard/project_overview')
 api.add_resource(sync_redmine.RedmineProjects, '/dashboard/redmine_projects')
@@ -425,8 +424,9 @@ api.add_resource(activity.ProjectActivities, '/project/<sint:project_id>/activit
 # ZAP
 api.add_resource(zap.Zap, '/zap', '/project/<sint:project_id>/zap')
 
-# Sync Redmine
+# Sync Redmine, Gitlab
 api.add_resource(sync_redmine.SyncRedmine, '/sync_redmine')
+api.add_resource(gitlab.GitCountEachPjCommitsByDays, '/sync_gitlab/count_each_pj_commits_by_days')
 
 # System versions
 api.add_resource(NexusVersion, '/system_versions')

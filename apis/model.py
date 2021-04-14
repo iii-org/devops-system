@@ -370,3 +370,12 @@ class IssueRank(db.Model):
     user_name = Column(String)
     unclosed_count = Column(Integer)
     project_count = Column(Integer)
+
+
+class GitCommitNumberEachDays(db.Model):
+    id = Column(Integer, primary_key=True)
+    repo_id = Column(Integer)
+    repo_name = Column(String)
+    date = Column(Date)
+    commit_number = Column(Integer)
+    created_at = Column(DateTime)

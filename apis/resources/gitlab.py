@@ -1,6 +1,6 @@
 import json
 import pytz
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
 from gitlab import Gitlab
 import requests
 from flask_jwt_extended import jwt_required
@@ -9,6 +9,7 @@ from sqlalchemy.orm.exc import NoResultFound
 
 import config
 import model
+from model import db, GitCommitNumberEachDays
 import util as util
 from resources import apiError, kubernetesClient, role
 from resources.apiError import DevOpsError
@@ -144,7 +145,7 @@ class GitLab(object):
 
     def gl_update_password(self, repository_user_id, new_pwd):
         return self.__api_put(f'/users/{repository_user_id}',
-                              params={"password": new_pwd})
+                              params={"password": new_pwd, "skip_reconfirmation": True})
 
     def gl_get_user_list(self, args):
         return self.__api_get('/users', params=args)
@@ -388,7 +389,7 @@ class GitLab(object):
             for x in range(12, 169, 12):
                 hours_age = (datetime.utcnow() - timedelta(days = x)).isoformat()
                 for pj in self.gl.projects.list(order_by="last_activity_at"):
-                    if pj.empty_repo is False:
+                    if (pj.empty_repo is False) and ("iiidevops-templates" not in pj.path_with_namespace):
                         for commit in pj.commits.list(since=hours_age):
                             out_list.append({"pj_name": pj.name, 
                             "author_name": commit.author_name, 
@@ -404,7 +405,7 @@ class GitLab(object):
                 the_last_hours = 24
             hours_age = (datetime.utcnow() - timedelta(hours = the_last_hours)).isoformat()
             for pj in self.gl.projects.list(order_by="last_activity_at"):
-                if pj.empty_repo is False:
+                if (pj.empty_repo is False) and ("iiidevops-templates" not in pj.path_with_namespace):
                     for commit in pj.commits.list(since=hours_age):
                         out_list.append({"pj_name": pj.name, 
                         "author_name": commit.author_name, 
@@ -415,19 +416,31 @@ class GitLab(object):
         sorted((out["commit_time"] for out in out_list), reverse=True)
         return out_list
 
-    def gl_count_each_pj_commits_by_days(self):
-        out_list=[]
-        print(f"project number: {len(self.gl.projects.list())}")
-        i=0
+    def gl_count_each_pj_commits_by_days(self, days=30):
+        #for pj in self.gl.projects.list(order_by="last_activity_at"):
         for pj in self.gl.projects.list(all=True):
-            pj_dict ={"pj_name": pj.name}
-            if pj.empty_repo is False:
-                i +=1
-                print(f"project_name: {pj.name}")
-                print(len(pj.commits.list(all=True,
-                               query_parameters={'since': '2021-04-11T00:00:00Z', 'until': '2021-04-11T23:59:59Z'})))
-                print("-"*30)
-        print(f"not emtpy project nubmers: {i}")
+            if ("iiidevops-templates" not in pj.path_with_namespace):
+                for i in range(1, days+1):
+                    pj_create_date = datetime.strptime(pj.created_at, '%Y-%m-%dT%H:%M:%S.%f%z').date()
+                    day_start = datetime.combine((datetime.utcnow() - timedelta(days = i)), time(00, 00))
+                    day_end = datetime.combine((datetime.utcnow() - timedelta(days = i)), time(23, 59))
+                    if day_start.date() >= pj_create_date:
+                        count = GitCommitNumberEachDays.query.filter(GitCommitNumberEachDays.repo_id == pj.id,
+                                                                GitCommitNumberEachDays.date == day_start.date()).count()
+                        if count == 0:
+                            if (pj.empty_repo is True):
+                                commit_number = 0
+                            else:
+                                commit_number = len(pj.commits.list(all=True,
+                                        query_parameters={'since': day_start, 'until': day_end}))
+                            one_row_data = GitCommitNumberEachDays(repo_id=pj.id,
+                                                                repo_name=pj.name,
+                                                                date=day_start.date(),
+                                            commit_number=commit_number,
+                                            created_at=str(datetime.utcnow()))
+                            db.session.add(one_row_data)
+                            db.session.commit()
+
 
 # --------------------- Resources ---------------------
 gitlab = GitLab()
@@ -627,4 +640,4 @@ class GitTheLastHoursCommits(Resource):
 class GitCountEachPjCommitsByDays(Resource):
     @jwt_required
     def get(self):
-        return (gitlab.gl_count_each_pj_commits_by_days())
+        return util.success(gitlab.gl_count_each_pj_commits_by_days())
