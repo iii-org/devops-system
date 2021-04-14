@@ -1,6 +1,7 @@
 import os
 import model
 import util
+from operator import itemgetter
 from resources.project import list_projects
 from resources.user import user_list_by_project
 from resources.issue import get_issue_by_project
@@ -198,6 +199,7 @@ def get_project_members_detail():
             'end_date': context.__dict__['end_date'].strftime("%Y-%m-%d"),             
         } for context in query_collections
     ]
+    project_member_detail = sorted(project_member_detail, key=itemgetter('project_id'))
     return project_member_detail  
 
 def get_project_members(project_id):
@@ -290,6 +292,7 @@ def get_unclosed_issues_by_user(user_id):
             'is_closed': context.__dict__['is_closed'],
         } for context in query_collections
     ]
+    unclosed_issues = sorted(unclosed_issues, key=itemgetter('project_id'))
     return unclosed_issues
 
 def get_involved_project_by_user(user_id):
@@ -310,6 +313,7 @@ def get_involved_project_by_user(user_id):
             'end_date': context.__dict__['end_date'].strftime("%Y-%m-%d"),
         } for context in project_collections
     ]
+    redmine_projects = sorted(redmine_projects, key=itemgetter('project_id'))
     return redmine_projects
 
 def get_postman_passing_rate():
@@ -329,12 +333,33 @@ def get_postman_passing_rate():
             'test_result_id': last_test_results.__dict__['id'],
             'passing_rate': passing_rate,
             'total': last_test_results.__dict__['total'] if last_test_results.__dict__['total'] else 0,
+            'count': test_results_count
+        }
+        all_passing_rate.append(test_results)
+    all_passing_rate = sorted(all_passing_rate, key=itemgetter('total'), reverse=True)[:10]
+    return all_passing_rate
+
+def get_postman_passing_rate_detail():
+    all_passing_rate_detail = []
+    project_id_collections = model.TestResults.query.with_entities(model.TestResults.project_id).distinct()
+    for project_id in project_id_collections:
+        last_test_results = model.TestResults.query.filter(
+            model.TestResults.run_at < datetime.today(), 
+            model.TestResults.project_id==project_id[0]).order_by(model.TestResults.run_at.desc()).first()
+        test_results_count = model.TestResults.query.filter(
+            model.TestResults.run_at < datetime.today(), 
+            model.TestResults.project_id==project_id[0]).count()
+        test_results = {
+            'project_id': project_id[0],
+            'project_name': model.RedmineProject.query.filter_by(project_id=project_id[0]).first().project_name,
+            'total': last_test_results.__dict__['total'] if last_test_results.__dict__['total'] else 0,
             'fail': last_test_results.__dict__['fail'] if last_test_results.__dict__['fail'] else 0,
             'run_at': last_test_results.__dict__['run_at'].strftime("%Y-%m-%d %H:%M:%S"),
             'count': test_results_count
         }
-        all_passing_rate.append(test_results)
-    return all_passing_rate
+        all_passing_rate_detail.append(test_results)
+    all_passing_rate_detail = sorted(all_passing_rate_detail, key=itemgetter('project_id'))
+    return all_passing_rate_detail
 
 # --------------------- Resources ---------------------
 
@@ -416,3 +441,10 @@ class PassingRate(Resource):
     def get(self):
         passing_rate = get_postman_passing_rate()
         return util.success(passing_rate)
+
+
+class PassingRateDetail(Resource):
+    @jwt_required
+    def get(self):
+        passing_rate_detail = get_postman_passing_rate_detail()
+        return util.success(passing_rate_detail)

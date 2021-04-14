@@ -314,6 +314,7 @@ api.add_resource(sync_redmine.RedmineIssueRank, '/dashboard/issue_rank')
 api.add_resource(sync_redmine.UnclosedIssues, '/dashboard/<user_id>/unclosed_issues')
 api.add_resource(sync_redmine.InvolvedProjects, '/dashboard/<user_id>/involved_projects')
 api.add_resource(sync_redmine.PassingRate, '/dashboard/passing_rate')
+api.add_resource(sync_redmine.PassingRateDetail, '/dashboard/passing_rate_detail')
 
 # testPhase Requirement
 api.add_resource(issue.RequirementByIssue, '/requirements_by_issue/<issue_id>')
