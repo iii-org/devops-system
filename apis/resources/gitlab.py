@@ -436,7 +436,8 @@ class GitLab(object):
                             one_row_data = GitCommitNumberEachDays(repo_id=pj.id,
                                                                 repo_name=pj.name,
                                                                 date=day_start.date(),
-                                            commit_number=commit_number)
+                                            commit_number=commit_number,
+                                            created_at=str(datetime.utcnow()))
                             db.session.add(one_row_data)
                             db.session.commit()
 
