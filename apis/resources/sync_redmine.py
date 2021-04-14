@@ -18,13 +18,11 @@ def round_off_float(num):
         num = str(num)
     return float(Decimal(num).quantize(Decimal('0.000'), rounding=ROUND_HALF_UP))
 
-
 def calculate_expired_days(first, last):
     first_date= datetime.strptime(first, "%Y-%m-%d")
     last_date = datetime.strptime(last, "%Y-%m-%d")
     expired_days = (last_date - first_date).days
     return expired_days
-
 
 def get_complete_percent(project):
     complete_percent = 0.0
@@ -32,13 +30,11 @@ def get_complete_percent(project):
         complete_percent = round_off_float(project['closed_count']/project['total_count'])
     return complete_percent
 
-
 def get_expired_days(project):
     if project['start_date'] != 'None' and project['due_date'] != 'None':
         return calculate_expired_days(project['start_date'], project['due_date'])
     else:
         return None
-
 
 def check_overdue(last):
     if last != 'None':
@@ -50,13 +46,12 @@ def check_overdue(last):
     else:
         return None
 
-
 def get_passing_rate(last_test_results):
     passing_rate = 0.0
     total = last_test_results.__dict__['total']
     fail = last_test_results.__dict__['fail']
     if total and fail:
-        passing_rate = round_off_float(fail/total)
+        passing_rate = round_off_float(1-(fail/total))
     return passing_rate
 
 
@@ -64,15 +59,15 @@ def get_admin_user_id():
     user_detail = model.User.query.filter_by(login=account).first()
     return user_detail.id
 
-
 def sync_redmine():
+    sync_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     need_to_track_issue = []
     overdue_projects = []
     response = list_projects(user_id=get_admin_user_id())
     all_projects = response[0]['data']['project_list']
     for project in all_projects:
         member_count = insert_project_member(project['id'], project['name'])
-        insert_project(project, member_count)
+        insert_project(project, member_count, sync_date)
         insert_project_member_count(project, member_count)
         if project['total_count']:
             need_to_track_issue.append(project['id'])
@@ -81,8 +76,7 @@ def sync_redmine():
     insert_project_overview(len(all_projects), len(overdue_projects), len(need_to_track_issue))
     return need_to_track_issue
 
-
-def insert_project(project, member_count):
+def insert_project(project, member_count, sync_date):
     new_project = model.RedmineProject(
         project_id = project['id'], 
         project_name = project['name'],
@@ -95,11 +89,11 @@ def insert_project(project, member_count):
         member_count = member_count,
         expired_day = get_expired_days(project),
         start_date = project['start_date'] if project['start_date'] != 'None' else '1970-01-01', 
-        end_date = project['due_date'] if project['due_date'] != 'None' else '1970-01-01'
+        end_date = project['due_date'] if project['due_date'] != 'None' else '1970-01-01',
+        sync_date = sync_date
     )
     model.db.session.add(new_project)
     model.db.session.commit()
-
 
 def insert_project_member_count(project, member_count):
     new_project_member = model.ProjectMemberCount(
@@ -110,7 +104,6 @@ def insert_project_member_count(project, member_count):
     model.db.session.add(new_project_member)
     model.db.session.commit()
 
-
 def insert_project_overview(project_count, overdue_issue_count, need_to_track_issue_count):
     new_project_overview = model.ProjectOvewview(
         project_count = project_count,
@@ -120,8 +113,8 @@ def insert_project_overview(project_count, overdue_issue_count, need_to_track_is
     model.db.session.add(new_project_overview)
     model.db.session.commit()
 
-
 def insert_project_member(project_id, project_name):
+    members_list = []
     response = user_list_by_project(project_id=project_id, args={'exclude': None})
     all_members = response[0]['data']['user_list']
     for member in all_members:
@@ -133,12 +126,13 @@ def insert_project_member(project_id, project_name):
             role_id = member['role_id'],
             role_name = member['role_name']
         )
-        model.db.session.add(new_member)
-        model.db.session.commit()
+        members_list.append(new_member)
+    model.db.session.add_all(members_list)
+    model.db.session.commit()
     return len(all_members)
 
-
 def insert_all_issues(project_id):
+    issues_list = []
     all_issues = get_issue_by_project(project_id=project_id, args=None)
     for issue in all_issues:
         new_issue = model.RedmineIssue(
@@ -152,11 +146,12 @@ def insert_all_issues(project_id):
             status_id = issue['issue_status_id'],
             is_closed = issue['is_closed'] if 'is_closed' in issue else None
         )
-        model.db.session.add(new_issue)
-        model.db.session.commit()
-
+        issues_list.append(new_issue)
+    model.db.session.add_all(issues_list)
+    model.db.session.commit()
 
 def insert_issue_rank():
+    issues_list = []
     all_users = model.User.query.with_entities(model.User.id, model.User.name).all()
     for user in all_users:
         unclosed_issue_count = model.RedmineIssue.query.filter_by(assigned_to_id=user[0], is_closed=False).count()
@@ -167,9 +162,9 @@ def insert_issue_rank():
             unclosed_count = unclosed_issue_count,
             project_count = project_involve_count
         )
-        model.db.session.add(new_issue_rank)
-        model.db.session.commit()
-
+        issues_list.append(new_issue_rank)
+    model.db.session.add_all(issues_list)
+    model.db.session.commit()
 
 def clear_all_tables():
     model.RedmineIssue.query.delete()
@@ -180,18 +175,16 @@ def clear_all_tables():
     model.IssueRank.query.delete()
     model.db.session.commit()
 
-
 def get_project_member_count():
     query_collections = model.ProjectMemberCount.query.all()
     project_member_list = [
         {
-            'project_id': context.__dict__['project_id'],
-            'project_name': context.__dict__['project_name'],
-            'member_count': context.__dict__['member_count']
+            'id': context.__dict__['project_id'],
+            'name': context.__dict__['project_name'],
+            'value': context.__dict__['member_count']
         } for context in query_collections
     ]
     return project_member_list    
-
 
 def get_project_overview():
     query_collections = model.ProjectOvewview.query.all()
@@ -203,7 +196,6 @@ def get_project_overview():
         } for context in query_collections
     ]
     return project_overview 
-
 
 def get_redmine_projects():
     query_collections = model.RedmineProject.query.all()
@@ -223,9 +215,8 @@ def get_redmine_projects():
     ]
     return redmine_projects
 
-
 def get_redmine_issue_rank():
-    query_collections = model.IssueRank.query.all()
+    query_collections = model.IssueRank.query.order_by(model.IssueRank.project_count.desc()).limit(5).all()
     issue_rank = [
         {
             'user_id': context.__dict__['user_id'],
@@ -235,7 +226,6 @@ def get_redmine_issue_rank():
         } for context in query_collections
     ]
     return issue_rank 
-
 
 def get_unclosed_issues_by_user(user_id):
     query_collections = model.RedmineIssue.query.filter_by(assigned_to_id=user_id, is_closed=False)
@@ -253,7 +243,6 @@ def get_unclosed_issues_by_user(user_id):
         } for context in query_collections
     ]
     return unclosed_issues
-
 
 def get_involved_project_by_user(user_id):
     project_member_collections = model.ProjectMember.query.filter_by(user_id=user_id)
@@ -275,9 +264,8 @@ def get_involved_project_by_user(user_id):
     ]
     return redmine_projects
 
-
 def get_postman_passing_rate():
-    passing_rate = []
+    all_passing_rate = []
     project_id_collections = model.TestResults.query.with_entities(model.TestResults.project_id).distinct()
     for project_id in project_id_collections:
         last_test_results = model.TestResults.query.filter(
@@ -286,19 +274,19 @@ def get_postman_passing_rate():
         test_results_count = model.TestResults.query.filter(
             model.TestResults.run_at < datetime.today(), 
             model.TestResults.project_id==project_id[0]).count()
-        rate = get_passing_rate(last_test_results)
+        passing_rate = get_passing_rate(last_test_results)
         test_results = {
             'project_id': project_id[0],
+            'project_name': model.RedmineProject.query.filter_by(project_id=project_id[0]).first().project_name,
             'test_result_id': last_test_results.__dict__['id'],
-            'rate': rate,
+            'passing_rate': passing_rate,
             'total': last_test_results.__dict__['total'] if last_test_results.__dict__['total'] else 0,
             'fail': last_test_results.__dict__['fail'] if last_test_results.__dict__['fail'] else 0,
             'run_at': last_test_results.__dict__['run_at'].strftime("%Y-%m-%d %H:%M:%S"),
             'count': test_results_count
         }
-        passing_rate.append(test_results)
-    return passing_rate
-
+        all_passing_rate.append(test_results)
+    return all_passing_rate
 
 # --------------------- Resources ---------------------
 
