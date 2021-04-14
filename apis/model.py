@@ -378,3 +378,4 @@ class GitCommitNumberEachDays(db.Model):
     repo_name = Column(String)
     date = Column(Date)
     commit_number = Column(Integer)
+    created_at = Column(DateTime)
