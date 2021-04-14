@@ -332,7 +332,8 @@ class RedmineIssue(db.Model):
     is_closed = Column(Boolean)
 
 class RedmineProject(db.Model):
-    project_id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer)
     project_name = Column(String)
     pm_user_id = Column(Integer)
     pm_user_name = Column(String)
@@ -344,6 +345,7 @@ class RedmineProject(db.Model):
     expired_day = Column(Integer)
     start_date = Column(DateTime)
     end_date = Column(DateTime)
+    sync_date = Column(DateTime)
 
 class ProjectMember(db.Model):
     id = Column(Integer, primary_key=True)
