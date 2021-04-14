@@ -186,7 +186,7 @@ def get_project_members_count():
     return project_members_list    
 
 def get_project_members_detail():
-    query_collections = model.RedmineProject.query.order_by(model.RedmineProject.member_count.desc()).limit(10).all()
+    query_collections = model.RedmineProject.query.order_by(model.RedmineProject.member_count.desc()).all()
     project_member_detail = [
         {
             'project_id': context.__dict__['project_id'],
