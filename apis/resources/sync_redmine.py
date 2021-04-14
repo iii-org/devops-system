@@ -168,23 +168,49 @@ def insert_issue_rank():
 
 def clear_all_tables():
     model.RedmineIssue.query.delete()
-    model.RedmineProject.query.delete()
     model.ProjectMember.query.delete()
     model.ProjectMemberCount.query.delete()
     model.ProjectOvewview.query.delete()
     model.IssueRank.query.delete()
     model.db.session.commit()
 
-def get_project_member_count():
-    query_collections = model.ProjectMemberCount.query.all()
-    project_member_list = [
+def get_project_members_count():
+    query_collections = model.ProjectMemberCount.query.order_by(model.ProjectMemberCount.member_count.desc()).limit(10).all()
+    project_members_list = [
         {
             'id': context.__dict__['project_id'],
             'name': context.__dict__['project_name'],
             'value': context.__dict__['member_count']
         } for context in query_collections
     ]
-    return project_member_list    
+    return project_members_list    
+
+def get_project_members_detail():
+    query_collections = model.RedmineProject.query.order_by(model.RedmineProject.member_count.desc()).limit(10).all()
+    project_member_detail = [
+        {
+            'project_id': context.__dict__['project_id'],
+            'project_name': context.__dict__['project_name'],
+            'pm_user_id': context.__dict__['pm_user_id'],
+            'pm_user_name': context.__dict__['pm_user_name'],
+            'member_count': context.__dict__['member_count'],
+            'start_date': context.__dict__['start_date'].strftime("%Y-%m-%d"),       
+            'end_date': context.__dict__['end_date'].strftime("%Y-%m-%d"),             
+        } for context in query_collections
+    ]
+    return project_member_detail  
+
+def get_project_members(project_id):
+    query_collections = model.ProjectMember.query.filter(model.ProjectMember.project_id==project_id).all()
+    project_members = [
+        {
+            'user_id': context.__dict__['user_id'],
+            'user_name': context.__dict__['user_name'],
+            'role_id': context.__dict__['role_id'],
+            'role_name': context.__dict__['role_name']
+        } for context in query_collections
+    ]
+    return project_members
 
 def get_project_overview():
     query_collections = model.ProjectOvewview.query.all()
@@ -198,7 +224,9 @@ def get_project_overview():
     return project_overview 
 
 def get_redmine_projects():
-    query_collections = model.RedmineProject.query.all()
+    response = model.RedmineProject.query.order_by(model.RedmineProject.sync_date.desc()).distinct().first()
+    current_sync_date = response.__dict__['sync_date']
+    query_collections = model.RedmineProject.query.filter(model.RedmineProject.sync_date==current_sync_date).all()
     redmine_projects = [
         {
             'project_id': context.__dict__['project_id'],
@@ -211,6 +239,26 @@ def get_redmine_projects():
             'member_count': context.__dict__['member_count'],
             'expired_day': context.__dict__['expired_day'],
             'end_date': context.__dict__['end_date'].strftime("%Y-%m-%d"),
+            'sync_date': context.__dict__['sync_date'].strftime("%Y-%m-%d")
+        } for context in query_collections
+    ]
+    return redmine_projects
+
+def get_redmine_project_detail(project_id):
+    query_collections = model.RedmineProject.query.filter(model.RedmineProject.project_id==project_id).all()
+    redmine_projects = [
+        {
+            'project_id': context.__dict__['project_id'],
+            'project_name': context.__dict__['project_name'],
+            'pm_user_id': context.__dict__['pm_user_id'],
+            'pm_user_name': context.__dict__['pm_user_name'],
+            'complete_percent': context.__dict__['complete_percent'],
+            'unclosed_issue_count': context.__dict__['unclosed_issue_count'],
+            'closed_issue_count': context.__dict__['closed_issue_count'],
+            'member_count': context.__dict__['member_count'],
+            'expired_day': context.__dict__['expired_day'],
+            'end_date': context.__dict__['end_date'].strftime("%Y-%m-%d"),
+            'sync_date': context.__dict__['sync_date'].strftime("%Y-%m-%d")
         } for context in query_collections
     ]
     return redmine_projects
@@ -291,7 +339,6 @@ def get_postman_passing_rate():
 # --------------------- Resources ---------------------
 
 class SyncRedmine(Resource):
-    @jwt_required
     def get(self):
         clear_all_tables()
         need_to_track_issue = sync_redmine()
@@ -301,11 +348,25 @@ class SyncRedmine(Resource):
         return util.success()
 
 
-class ProjectMembers(Resource):
+class ProjectMembersCount(Resource):
     @jwt_required
     def get(self):
-        project_member_list = get_project_member_count()
-        return util.success(project_member_list)
+        project_members_count = get_project_members_count()
+        return util.success(project_members_count)
+
+
+class ProjectMembersDetail(Resource):
+    @jwt_required
+    def get(self):
+        project_members_detail = get_project_members_detail()
+        return util.success(project_members_detail)
+
+
+class ProjectMembers(Resource):
+    @jwt_required
+    def get(self, project_id):
+        project_members = get_project_members(project_id)
+        return util.success(project_members)
 
 
 class ProjectOverview(Resource):
@@ -320,6 +381,13 @@ class RedmineProjects(Resource):
     def get(self):
         redmine_projects = get_redmine_projects()
         return util.success(redmine_projects)
+
+
+class RedminProjectDetail(Resource):
+    @jwt_required
+    def get(self, project_id):
+        redmine_project_detail = get_redmine_project_detail(project_id)
+        return util.success(redmine_project_detail)
 
 
 class RedmineIssueRank(Resource):
