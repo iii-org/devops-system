@@ -305,7 +305,7 @@ api.add_resource(issue.DashboardIssueProject, '/dashboard_issues_project/<user_i
 api.add_resource(issue.DashboardIssueType, '/dashboard_issues_type/<user_id>')
 api.add_resource(gitlab.GitTheLastHoursCommits, '/dashboard/the_last_hours_commits')
 api.add_resource(gitlab.GitCountEachPjCommitsByDays, '/dashboard/count_each_pj_commits_by_days')
-api.add_resource(sync_redmine.ProjectMembers, '/dashboard/project_mumbers')
+api.add_resource(sync_redmine.ProjectMembers, '/dashboard/project_members')
 api.add_resource(sync_redmine.ProjectOverview, '/dashboard/project_overview')
 api.add_resource(sync_redmine.RedmineProjects, '/dashboard/redmine_projects')
 api.add_resource(sync_redmine.RedmineIssueRank, '/dashboard/issue_rank')
