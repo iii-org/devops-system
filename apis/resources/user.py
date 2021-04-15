@@ -12,7 +12,7 @@ import resources.apiError as apiError
 import util as util
 from enums.action_type import ActionType
 from model import db
-from nexus import nx_get_user_plugin_relation
+from nexus import nx_get_user_plugin_relation, nx_get_user
 from resources.activity import record_activity
 from resources.apiError import DevOpsError
 import model
@@ -203,6 +203,7 @@ def update_user(user_id, args):
 
 
 def update_external_passwords(user_id, new_pwd, old_pwd):
+    user_login = nx_get_user(id=user_id).login
     user_relation = nx_get_user_plugin_relation(user_id=user_id)
     if user_relation is None:
         return util.respond(400, 'Error when updating password',
@@ -216,7 +217,7 @@ def update_external_passwords(user_id, new_pwd, old_pwd):
     harbor_user_id = user_relation.harbor_user_id
     harbor.hb_update_user_password(harbor_user_id, new_pwd, old_pwd)
 
-    return None
+    sonarqube.sq_update_password(user_login, new_pwd)
 
 
 def try_to_delete(delete_method, obj):

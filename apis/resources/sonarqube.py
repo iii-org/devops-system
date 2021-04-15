@@ -90,6 +90,14 @@ def sq_create_access_token(login):
     return __api_post('/user_tokens/generate', params=params).json()['token']
 
 
+def sq_update_password(login, new_password):
+    params = {
+        'login': login,
+        'password': new_password
+    }
+    return __api_post('/users/change_password', params=params)
+
+
 # def sq_get_measures(project_name):
 #     params = {
 #         'metricKeys': 'quality_gate_details,alert_status,bugs,new_bugs,reliability_rating,new_reliability_rating,'
