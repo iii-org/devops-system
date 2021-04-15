@@ -594,6 +594,7 @@ def create_user(args):
         gitlab.gl_delete_user(gitlab_user_id)
         redmine.rm_delete_user(redmine_user_id)
         kubernetesClient.delete_service_account(kubernetes_sa_name)
+        sonarqube.sq_deactivate_user(args["login"])
         raise e
 
     logger.info('User created.')
