@@ -322,14 +322,17 @@ class Zap(db.Model):
 
 class RedmineIssue(db.Model):
     issue_id = Column(Integer, primary_key=True)
-    project_id = Column(String)
+    project_id = Column(Integer)
     project_name = Column(String)
     assigned_to = Column(String)
     assigned_to_id = Column(Integer)
     issue_type = Column(String)
     issue_name = Column(String)
-    status_id = Column(String)
+    status_id = Column(Integer)
+    status = Column(String)
     is_closed = Column(Boolean)
+    start_date = Column(DateTime)
+    sync_date = Column(DateTime)
 
 class RedmineProject(db.Model):
     id = Column(Integer, primary_key=True)
@@ -346,6 +349,7 @@ class RedmineProject(db.Model):
     start_date = Column(DateTime)
     end_date = Column(DateTime)
     sync_date = Column(DateTime)
+    project_status = Column(String)
 
 class ProjectMember(db.Model):
     id = Column(Integer, primary_key=True)
