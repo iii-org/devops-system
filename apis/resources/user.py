@@ -393,6 +393,8 @@ def try_to_delete(delete_method, obj):
 
 @record_activity(ActionType.DELETE_USER)
 def delete_user(user_id):
+    if user_id == 1:
+        raise apiError.NotAllowedError('You cannot delete the system admin.')
     relation = nx_get_user_plugin_relation(user_id=user_id)
     user_login = model.User.query.filter_by(id=user_id).one().login
 
