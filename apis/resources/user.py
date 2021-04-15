@@ -100,7 +100,7 @@ def check_ad_login(server_info, account, password, output):
                 search_scope=SUBTREE,
                 attributes=attributes
                 )
-    output['connect'] = True
+    output['is_pass'] = True
     for attribute in attributes:
         output['data'][attribute] = str(conn.entries[0][attribute].value)
     return output
@@ -125,27 +125,15 @@ def get_access_token(id, login, role_id):
     return token
 
 
-def check_db_login(account, password, output):
-    user_attrs = ['id', 'name', 'login', 'password', 'disabled']
-    user = db.session.query(model.User).filter(
-        model.User.login == account).first()
-    if user is None:
-        return output
+def check_db_login(user, password, output):
     project_user_role = db.session.query(model.ProjectUserRole).filter(
         model.ProjectUserRole.user_id == user.id).first()
-
     h = SHA256.new()
     h.update(password.encode())
     login_password = h.hexdigest()
     output['hex_password'] = login_password
-    if user.login == account and user.password == login_password:
+    if user.password == login_password:
         output['is_pass'] = True
-        # output['token'] = get_access_token(
-        #     user.id, user.login, project_user_role.role_id)
-    # for attr in user_attrs:
-    #     output['User'][attr] = getattr(user, attr)
-    # output['ProjectUserRole']['role_id'] = getattr(
-    #     project_user_role, 'role_id')
     return output , user , project_user_role
 
 
@@ -157,7 +145,7 @@ def login(args):
         'domain': config.get('AD_DOMAIN')
     }
     try:
-        ad_info = {'exists': False, 'connect': False,
+        ad_info = {'is_pass': False, 'connect': False,
                    'login': login_account, 'data': {}}
         if ad_server['url'] is not None and ad_server['domain'] is not None:
             ad_info['exists'] = True
@@ -168,10 +156,15 @@ def login(args):
                    'login': login_account,
                    'is_pass': False,
                    'User': {}, 'ProjectUserRole': {}}
-        db_info, user, project_user_role = check_db_login(login_account, login_password, db_info)
-        if user is not None and project_user_role is not None:
+        user = db.session.query(model.User).filter(model.User.login == login_account).first()
+        if user is not None:
+            db_info, user, project_user_role = check_db_login(user, login_password, db_info)
             token = get_access_token(user.id, user.login, project_user_role.role_id)
-        if ad_info['connect'] is True and ad_info['exists'] is True:
+        print(ad_info)
+        print(db_info)
+        
+        # Check AD exists
+        if ad_info['is_pass'] is True and ad_info['exists'] is True:
             status = 'direct login'
             if db_info['is_pass'] is not True:
                 status = 'change plattform password'
@@ -180,11 +173,15 @@ def login(args):
                     logger.exception(err)                 
                 user.password = db_info['hex_password']
                 db.session.commit()
+            else:
+                status = 'Create User'
+                # create_user()
+
             return  util.success({'status' : status, 'token':  token})            
-        else:
-            status = 'Create Account'
-            # create_user(args):
-            return  util.success({'status' : status, 'token':  token})            
+        # AD not exists
+        elif db_info['is_pass'] is True:
+            status = "DB Login"
+            return  util.success({'status' : status, 'token' : token})            
         # elif db_info['is_pass'] is True:
         #     token = get_access_token(
         #             db_info['User']['id'], db_info['User']['login'], db_info['ProjectUserRole']['role_id'])
