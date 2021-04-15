@@ -1,18 +1,18 @@
 import datetime
 import os
+import sys
 import traceback
 from os.path import isfile
-import sys
 
 import werkzeug
 from flask import Flask
 from flask_cors import CORS
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, Api, reqparse
+from flask_socketio import SocketIO
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy_utils import database_exists, create_database
 from werkzeug.routing import IntegerConverter
-from flask_socketio import SocketIO
 
 if f"{os.getcwd()}/apis" not in sys.path:
     sys.path.insert(1, f"{os.getcwd()}/apis")
@@ -28,9 +28,9 @@ import util
 import maintenance
 from jsonwebtoken import jsonwebtoken
 from model import db
-from resources import logger, role as role, activity
+from resources import logger, role as role, activity, zap
 from resources import project, gitlab, issue, user, redmine, wiki, version, sonarqube, apiTest, postman, mock, harbor, \
-    webInspect, template, release
+    webInspect, template, release, sync_redmine
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -41,6 +41,7 @@ for key in ['JWT_SECRET_KEY',
             ]:
     app.config[key] = config.get(key)
 
+app.config['PROPAGATE_EXCEPTIONS'] = True
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = datetime.timedelta(days=1)
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     "pool_pre_ping": True,
@@ -54,10 +55,8 @@ api = Api(app, errors=apiError.custom_errors)
 CORS(app)
 socketio = SocketIO(app, cors_allowed_origins="*", logger=True, engineio_logger=True)
 
-
 class SignedIntConverter(IntegerConverter):
     regex = r'-?\d+'
-
 
 app.url_map.converters['sint'] = SignedIntConverter
 
@@ -304,6 +303,18 @@ api.add_resource(issue.DashboardIssuePriority,
                  '/dashboard_issues_priority/<user_id>')
 api.add_resource(issue.DashboardIssueProject, '/dashboard_issues_project/<user_id>')
 api.add_resource(issue.DashboardIssueType, '/dashboard_issues_type/<user_id>')
+api.add_resource(gitlab.GitTheLastHoursCommits, '/dashboard/the_last_hours_commits')
+api.add_resource(sync_redmine.ProjectMembersCount, '/dashboard/project_members_count')
+api.add_resource(sync_redmine.ProjectMembersDetail, '/dashboard/project_members_detail')
+api.add_resource(sync_redmine.ProjectMembers, '/dashboard/<project_id>/project_members')
+api.add_resource(sync_redmine.ProjectOverview, '/dashboard/project_overview')
+api.add_resource(sync_redmine.RedmineProjects, '/dashboard/redmine_projects')
+api.add_resource(sync_redmine.RedminProjectDetail, '/dashboard/<project_id>/redmine_project_detail')
+api.add_resource(sync_redmine.RedmineIssueRank, '/dashboard/issue_rank')
+api.add_resource(sync_redmine.UnclosedIssues, '/dashboard/<user_id>/unclosed_issues')
+api.add_resource(sync_redmine.InvolvedProjects, '/dashboard/<user_id>/involved_projects')
+api.add_resource(sync_redmine.PassingRate, '/dashboard/passing_rate')
+api.add_resource(sync_redmine.PassingRateDetail, '/dashboard/passing_rate_detail')
 
 # testPhase Requirement
 api.add_resource(issue.RequirementByIssue, '/requirements_by_issue/<issue_id>')
@@ -412,6 +423,13 @@ api.add_resource(rancher.Catalogs_Refresh, '/rancher/catalogs_refresh')
 # Activity
 api.add_resource(activity.AllActivities, '/all_activities')
 api.add_resource(activity.ProjectActivities, '/project/<sint:project_id>/activities')
+
+# ZAP
+api.add_resource(zap.Zap, '/zap', '/project/<sint:project_id>/zap')
+
+# Sync Redmine, Gitlab
+api.add_resource(sync_redmine.SyncRedmine, '/sync_redmine')
+api.add_resource(gitlab.GitCountEachPjCommitsByDays, '/sync_gitlab/count_each_pj_commits_by_days')
 
 # System versions
 api.add_resource(NexusVersion, '/system_versions')

@@ -71,6 +71,8 @@ def sq_delete_project(project_name):
 
 
 def sq_add_member(project_name, user_login):
+    __api_post(f'/permissions/add_user?login={user_login}'
+               f'&projectKey={project_name}&permission=user')
     return __api_post(f'/permissions/add_user?login={user_login}'
                       f'&projectKey={project_name}&permission=codeviewer')
 

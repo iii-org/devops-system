@@ -14,7 +14,8 @@ import config
 import resources.yaml_OO as pipeline_yaml_OO
 import util
 from . import role
-from .logger import logger
+from model import db, TemplateListCache
+from sqlalchemy import func, or_, and_
 
 from gitlab import Gitlab
 
@@ -61,7 +62,7 @@ def __tm_get_tag_info(pj, tag_name):
 
 
 def __tm_get_pipe_yamlfile_name(pj, tag_name=None):
-    pipe_yaml_file_name = ".rancher-pipeline.yaml"
+    pipe_yaml_file_name = None
     if tag_name is None:
         ref=pj.default_branch
     else:
@@ -70,6 +71,8 @@ def __tm_get_pipe_yamlfile_name(pj, tag_name=None):
     for item in  pj.repository_tree(ref=ref):
         if item["path"] == ".rancher-pipeline.yml":
             pipe_yaml_file_name = ".rancher-pipeline.yml"
+        elif item["path"] == ".rancher-pipeline.yaml":
+            pipe_yaml_file_name = ".rancher-pipeline.yaml"
     return pipe_yaml_file_name
 
 def __tm_get_git_pipline_json(pj, tag_name=None):
@@ -123,7 +126,13 @@ def __set_git_username_config(path):
     if git_user_name == "":
         subprocess.call(['git', 'config', '--global', 'user.name', '"system"'], cwd=path)
 
-def tm_get_template_list():
+
+def __check_git_project_is_empty(pj):
+    if pj.default_branch is None or pj.repository_tree() is None:
+        return True
+
+
+def __get_template_list():
     output = []
     group = gl.groups.get("iiidevops-templates", all=True)
     for group_project in group.projects.list(all=True):
@@ -132,16 +141,59 @@ def tm_get_template_list():
         tag_list = []
         for tag in pj.tags.list(all=True):
             tag_list.append({"name": tag.name, "commit_id": tag.commit["id"], 
-                             "commit_time":tag.commit["committed_date"]})
+                            "commit_time":tag.commit["committed_date"]})
         pip_set_json = __tm_read_pipe_set_json(pj)
         output.append({"id": pj.id,
-                       "name": pj.name, 
-                       "path": pj.path,
-                       "display": pj.name if "name" not in pip_set_json else pip_set_json["name"],
-                       "description": 
-                           "" if "description" not in pip_set_json else pip_set_json["description"],
-                       "version": tag_list})
+                    "name": pj.name, 
+                    "path": pj.path,
+                    "display": pj.name if "name" not in pip_set_json else pip_set_json["name"],
+                    "description": 
+                        "" if "description" not in pip_set_json else pip_set_json["description"],
+                    "version": tag_list})
+        temp = TemplateListCache.query.filter(TemplateListCache.temp_repo_id == pj.id).first()
+        if temp is None:
+            cache_temp = TemplateListCache(temp_repo_id=pj.id,
+                            name=pj.name,
+                            path=pj.path,
+                            display=pj.name if "name" not in pip_set_json else pip_set_json["name"],
+                            description="" if "description" not in pip_set_json else pip_set_json["description"],
+                            version=tag_list,
+                            update_at=datetime.now())
+            db.session.add(cache_temp)
+            db.session.commit()
+        else:
+            temp.name = pj.name
+            temp.path=pj.path
+            temp.display=pj.name if "name" not in pip_set_json else pip_set_json["name"]
+            temp.description="" if "description" not in pip_set_json else pip_set_json["description"]
+            temp.version=tag_list
+            temp.update_at=datetime.now()
+            db.session.commit()
     return output
+
+
+def tm_get_template_list(force_update=0):
+    one_day_ago = datetime.fromtimestamp(datetime.utcnow().timestamp() - 86400)
+    total_data = TemplateListCache.query.all()
+    one_day_ago_data = TemplateListCache.query.filter(TemplateListCache.update_at < one_day_ago).all()
+    if force_update == 1:
+        return __get_template_list()
+    elif len(total_data) ==0 or len(one_day_ago_data) > 1:
+        return __get_template_list()
+    else:
+        output = []
+        for data in total_data:
+            output.append({
+            "id": data.temp_repo_id,
+            "name": data.name, 
+            "path": data.path,
+            "display": data.display,
+            "description": data.description,
+            "version": data.version})
+        return output
+
+
+
 
 
 def tm_get_template(repository_id, tag_name):
@@ -213,9 +265,13 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id, tag
 
 def tm_get_pipeline_branches(repository_id):
     pj = gl.projects.get(repository_id)
+    if __check_git_project_is_empty(pj):
+        return {}
     create_time = datetime.now().strftime("%y%m%d_%H%M%S")
     __tm_git_clone_file(pj, "pj_edit_pipe_yaml", create_time)
     pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj)
+    if pipe_yaml_file_name == None:
+        return {}
     with open(f'pj_edit_pipe_yaml/{pj.path}_{create_time}/{pipe_yaml_file_name}') as file:
         stage_list = yaml.safe_load(file)["stages"]
         out = {}
@@ -254,9 +310,13 @@ def tm_get_pipeline_branches(repository_id):
 
 def tm_put_pipeline_branches(repository_id, data):
     pj = gl.projects.get(repository_id)
+    if __check_git_project_is_empty(pj):
+        return
     create_time = datetime.now().strftime("%y%m%d_%H%M%S")
     __tm_git_clone_file(pj, "pj_edit_pipe_yaml", create_time)
     pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj)
+    if pipe_yaml_file_name == None:
+        return
     with open(f'pj_edit_pipe_yaml/{pj.path}_{create_time}/{pipe_yaml_file_name}') as file:
         pipe_json = yaml.safe_load(file)
         for stage in pipe_json["stages"]:
@@ -287,9 +347,13 @@ def tm_put_pipeline_branches(repository_id, data):
 
 def tm_get_pipeline_default_branch(repository_id):
     pj = gl.projects.get(repository_id)
+    if __check_git_project_is_empty(pj):
+        return {}
     create_time = datetime.now().strftime("%y%m%d_%H%M%S")
     __tm_git_clone_file(pj, "pj_edit_pipe_yaml", create_time)
     pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj)
+    if pipe_yaml_file_name == None:
+        return {}
     with open(f'pj_edit_pipe_yaml/{pj.path}_{create_time}/{pipe_yaml_file_name}') as file:
         stage_list = yaml.safe_load(file)["stages"]
         stages_info = {}
@@ -315,9 +379,13 @@ def tm_get_pipeline_default_branch(repository_id):
 
 def tm_put_pipeline_default_branch(repository_id, data):
     pj = gl.projects.get(repository_id)
+    if __check_git_project_is_empty(pj):
+        return
     create_time = datetime.now().strftime("%y%m%d_%H%M%S")
     __tm_git_clone_file(pj, "pj_edit_pipe_yaml", create_time)
     pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj)
+    if pipe_yaml_file_name == None:
+        return
     with open(f'pj_edit_pipe_yaml/{pj.path}_{create_time}/{pipe_yaml_file_name}') as file:
         pipe_json = yaml.safe_load(file)
         for stage in pipe_json["stages"]:
@@ -349,7 +417,10 @@ class TemplateList(Resource):
     @jwt_required
     def get(self):
         role.require_pm("Error while getting template list.")
-        return util.success(tm_get_template_list())
+        parser = reqparse.RequestParser()
+        parser.add_argument('force_update', type=int)
+        args = parser.parse_args()
+        return util.success(tm_get_template_list(args["force_update"]))
 
 
 class SingleTemplate(Resource):

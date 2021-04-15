@@ -1,5 +1,7 @@
 import json
-
+import pytz
+from datetime import datetime, timedelta, time
+from gitlab import Gitlab
 import requests
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
@@ -7,11 +9,13 @@ from sqlalchemy.orm.exc import NoResultFound
 
 import config
 import model
+from model import db, GitCommitNumberEachDays
 import util as util
 from resources import apiError, kubernetesClient, role
 from resources.apiError import DevOpsError
 from resources.logger import logger
 from .rancher import rancher
+
 
 def get_nexus_project_id(repo_id):
     row = model.ProjectPluginRelation.query.filter_by(git_repository_id=repo_id).first()
@@ -53,6 +57,7 @@ class GitLab(object):
             self.private_token = output.json()['private_token']
         else:
             self.private_token = config.get("GITLAB_PRIVATE_TOKEN")
+        self.gl = Gitlab(config.get("GITLAB_BASE_URL"), private_token=self.private_token)
 
     @staticmethod
     def gl_get_nexus_project_id(repository_id):
@@ -106,6 +111,9 @@ class GitLab(object):
 
     def __api_delete(self, path, params=None, headers=None):
         return self.__api_request('DELETE', path, params=params, headers=headers)
+    
+    def __gl_timezone_to_utc(self, gl_datetime_str):
+        return datetime.strftime(datetime.strptime(gl_datetime_str, '%Y-%m-%dT%H:%M:%S.%f%z').astimezone(pytz.utc), '%Y-%m-%dT%H:%M:%S%z')
 
     def gl_create_project(self, args):
         return self.__api_post('/projects', params={
@@ -137,7 +145,7 @@ class GitLab(object):
 
     def gl_update_password(self, repository_user_id, new_pwd):
         return self.__api_put(f'/users/{repository_user_id}',
-                              params={"password": new_pwd})
+                              params={"password": new_pwd, "skip_reconfirmation": True})
 
     def gl_get_user_list(self, args):
         return self.__api_get('/users', params=args)
@@ -160,8 +168,8 @@ class GitLab(object):
         output = self.__api_get(f'/projects/{repo_id}/repository/branches')
         return len(output.json())
 
-    def gl_get_tags(self, repo_id):
-        return self.__api_get(f'/projects/{repo_id}/repository/tags').json()
+    def gl_get_tags(self, repo_id, params = {}):
+        return self.__api_get(f'/projects/{repo_id}/repository/tags', params).json()
 
     def gl_create_rancher_pipeline_yaml(self, repo_id, args, method):
         path = f'/projects/{repo_id}/repository/files/{args["file_path"]}'
@@ -365,7 +373,6 @@ class GitLab(object):
 
     def gl_create_release(self, repo_id,data):
         path = f'/projects/{repo_id}/releases'
-        print(data)
         return self.__api_post(path, params=data).json()
 
     def gl_update_release(self, repo_id,tag_name,data):
@@ -375,10 +382,82 @@ class GitLab(object):
     def gl_delete_release(self, repo_id,tag_name):
         path = f'/projects/{repo_id}/releases/{tag_name}'
         return self.__api_delete(path).json()
+    
+    def gl_get_the_last_hours_commits(self, the_last_hours=None, show_commit_rows = None):
+        out_list=[]
+        if show_commit_rows is not None:
+            for x in range(12, 169, 12):
+                hours_age = (datetime.utcnow() - timedelta(days = x)).isoformat()
+                for pj in self.gl.projects.list(order_by="last_activity_at"):
+                    if (pj.empty_repo is False) and ("iiidevops-templates" not in pj.path_with_namespace):
+                        for commit in pj.commits.list(since=hours_age):
+                            out_list.append({"pj_name": pj.name, 
+                            "author_name": commit.author_name, 
+                            "author_email": commit.author_email, 
+                            "commit_time": self.__gl_timezone_to_utc(commit.committed_date),
+                            "commit_id": commit.short_id, "commit_title": commit.title, 
+                            "commit_message": commit.message})
+                            if len(out_list) > show_commit_rows-1:
+                                sorted((out["commit_time"] for out in out_list), reverse=True)
+                                return out_list[:show_commit_rows]
+        else:
+            if the_last_hours == None:
+                the_last_hours = 24
+            hours_age = (datetime.utcnow() - timedelta(hours = the_last_hours)).isoformat()
+            for pj in self.gl.projects.list(order_by="last_activity_at"):
+                if (pj.empty_repo is False) and ("iiidevops-templates" not in pj.path_with_namespace):
+                    for commit in pj.commits.list(since=hours_age):
+                        out_list.append({"pj_name": pj.name, 
+                        "author_name": commit.author_name, 
+                        "author_email": commit.author_email, 
+                        "commit_time": self.__gl_timezone_to_utc(commit.committed_date),
+                        "commit_id": commit.short_id, "commit_title": commit.title, 
+                        "commit_message": commit.message})
+        sorted((out["commit_time"] for out in out_list), reverse=True)
+        return out_list
+
+    def gl_count_each_pj_commits_by_days(self, days=30):
+        #for pj in self.gl.projects.list(order_by="last_activity_at"):
+        for pj in self.gl.projects.list(all=True):
+            if ("iiidevops-templates" not in pj.path_with_namespace):
+                for i in range(1, days+1):
+                    pj_create_date = datetime.strptime(pj.created_at, '%Y-%m-%dT%H:%M:%S.%f%z').date()
+                    day_start = datetime.combine((datetime.utcnow() - timedelta(days = i)), time(00, 00))
+                    day_end = datetime.combine((datetime.utcnow() - timedelta(days = i)), time(23, 59))
+                    if day_start.date() >= pj_create_date:
+                        count = GitCommitNumberEachDays.query.filter(GitCommitNumberEachDays.repo_id == pj.id,
+                                                                GitCommitNumberEachDays.date == day_start.date()).count()
+                        if count == 0:
+                            if (pj.empty_repo is True):
+                                commit_number = 0
+                            else:
+                                commit_number = len(pj.commits.list(all=True,
+                                        query_parameters={'since': day_start, 'until': day_end}))
+                            one_row_data = GitCommitNumberEachDays(repo_id=pj.id,
+                                                                repo_name=pj.name,
+                                                                date=day_start.date(),
+                                            commit_number=commit_number,
+                                            created_at=str(datetime.utcnow()))
+                            db.session.add(one_row_data)
+                            db.session.commit()
+
 
 # --------------------- Resources ---------------------
 gitlab = GitLab()
 
+
+class GitRelease():
+    @jwt_required
+    def check_gitlab_release(self, repository_id,tag_name):        
+        output = {'check' : True, "info":"", "errors":{} }    
+        tag = gitlab.gl_get_tags(str(repository_id), {'search': tag_name} )        
+        if len(tag) > 0 :
+            output['check'] = False
+            output['info'] = '{0} is exists in gitlab'.format(tag_name)        
+            output['errors'] = tag[0]
+        return output  
+
+gl_release = GitRelease()
 
 class GitProjectBranches(Resource):
     @jwt_required
@@ -547,3 +626,18 @@ class GitProjectURLFromId(Resource):
                                     error=apiError.argument_error('project_id|repository_id'))
             project_id = get_nexus_project_id(repo_id)
         return util.success({'http_url': get_repo_url(project_id)})
+    
+class GitTheLastHoursCommits(Resource):
+    @jwt_required
+    def get(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('the_last_hours', type=int)
+        parser.add_argument('show_commit_rows', type=int)
+        args = parser.parse_args()
+        return util.success(gitlab.gl_get_the_last_hours_commits(args["the_last_hours"], args["show_commit_rows"]))
+
+
+class GitCountEachPjCommitsByDays(Resource):
+    @jwt_required
+    def get(self):
+        return util.success(gitlab.gl_count_each_pj_commits_by_days())

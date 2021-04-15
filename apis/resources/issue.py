@@ -61,7 +61,7 @@ def dump_by_issue(issue_id):
     return {'message': 'success', 'data': output}, 200
 
 
-def deal_with_issue_by_user_redmine_output(redmine_output):
+def deal_with_issue_by_user_redmine_output(redmine_output, closed_status = None):
     output_list = {'id': redmine_output['id']}
     project_list = project_module.get_project_by_plan_project_id(redmine_output['project']['id'])
     pjt = project_module.get_project_info(project_list['project_id'])
@@ -80,33 +80,42 @@ def deal_with_issue_by_user_redmine_output(redmine_output):
     output_list['description'] = redmine_output['description']
     output_list['updated_on'] = redmine_output['updated_on']
     output_list['start_date'] = None
+    output_list['due_date'] = None
+    output_list['parent_id'] = None
+    output_list['fixed_version_id'] = None
+    output_list['fixed_version_name'] = None
+    output_list['assigned_to'] = ''   
     if 'start_date' in redmine_output:
         output_list['start_date'] = redmine_output['start_date']
-    output_list['due_date'] = None
+    
     if 'due_date' in redmine_output:
-        output_list['due_date'] = redmine_output['due_date']
-    output_list['assigned_to'] = None
+        output_list['due_date'] = redmine_output['due_date']    
     if 'assigned_to' in redmine_output:
         user_info = user.get_user_id_name_by_plan_user_id(redmine_output['assigned_to']['id'])
         if user_info is not None:
             output_list['assigned_to'] = user_info.name
-    output_list['parent_id'] = None
+            output_list['assigned_to_id'] = user_info.id            
+        else:
+            output_list['assigned_to'] = ''    
+        
     if 'parent' in redmine_output:
-        output_list['parent_id'] = redmine_output['parent']['id']
-    output_list['fixed_version_id'] = None
-    output_list['fixed_version_name'] = None
+        output_list['parent_id'] = redmine_output['parent']['id']    
     if 'fixed_version' in redmine_output:
         output_list['fixed_version_id'] = redmine_output['fixed_version'][
             'id']
         output_list['fixed_version_name'] = redmine_output[
             'fixed_version']['name']
+    output_list['is_closed'] = False
+    if redmine_output['status']['id'] in closed_status:
+        output_list['is_closed'] = True
+        
     output_list['issue_link'] = redmine.rm_build_external_link('/issues/{0}'.format(redmine_output['id']))
     logger.info(
         "get issue by user redmine_output: {0}".format(output_list))
     return output_list
 
 
-def __deal_with_issue_redmine_output(redmine_output):
+def __deal_with_issue_redmine_output(redmine_output,closed_status = None):
     project_list = project_module.get_project_by_plan_project_id(redmine_output['project']['id'])
     if project_list is not None:
         project_name = project_module.get_project_info(project_list['project_id']).name
@@ -135,10 +144,10 @@ def __deal_with_issue_redmine_output(redmine_output):
     if 'parent' in redmine_output:
         redmine_output['parent_id'] = redmine_output['parent']['id']
         redmine_output.pop('parent', None)
-    rm_users = redmine.paging('users',25)
-    list_user = {}
-    for rm_user_info in rm_users:
-        list_user[rm_user_info['id']] = rm_user_info['firstname'] + ' ' + rm_user_info['lastname']
+    # rm_users = redmine.paging('users',25)
+    # list_user = {}
+    # for rm_user_info in rm_users:
+    #     list_user[rm_user_info['id']] = rm_user_info['firstname'] + ' ' + rm_user_info['lastname']
     if 'journals' in redmine_output:        
         i = 0
         while i < len(redmine_output['journals']):
@@ -166,10 +175,13 @@ def __deal_with_issue_redmine_output(redmine_output):
                     else:
                         detail_info['old_value'] = detail['old_value']
                         detail_info['new_value'] = detail['new_value']                        
-            list_details.append(detail_info)
+                    list_details.append(detail_info)
             redmine_output['journals'][i]['details']  = list_details
             i += 1
     redmine_output['issue_link'] = f'{config.get("REDMINE_EXTERNAL_BASE_URL")}/issues/{redmine_output["id"]}'
+    redmine_output['is_closed'] = False
+    if redmine_output['status']['id'] in closed_status:
+        redmine_output['is_closed'] = True
     return redmine_output
 
 
@@ -200,7 +212,9 @@ def verify_issue_user(issue_id, user_id, issue_info= None):
 
 def get_issue(issue_id):
     issue = redmine.rm_get_issue(issue_id)
-    return __deal_with_issue_redmine_output(issue)
+    redmine_issue_status = redmine.rm_get_issue_status()
+    closed_statuses = redmine.get_closed_status(redmine_issue_status['issue_statuses'])     
+    return __deal_with_issue_redmine_output(issue,closed_statuses)
 
 
 def create_issue(args, operator_id):
@@ -270,8 +284,10 @@ def get_issue_by_project(project_id, args):
     output_array = []
     redmine_output_issue_array = redmine.rm_get_issues_by_project(
         plan_id, args)
+    redmine_issue_status = redmine.rm_get_issue_status()
+    closed_statuses = redmine.get_closed_status(redmine_issue_status['issue_statuses'])     
     for redmine_issue in redmine_output_issue_array:
-        output_dict = deal_with_issue_by_user_redmine_output(redmine_issue)
+        output_dict = deal_with_issue_by_user_redmine_output(redmine_issue, closed_statuses)
         output_array.append(output_dict)
     return output_array
 
@@ -392,8 +408,10 @@ def get_issue_by_user(user_id):
         raise DevOpsError(400, 'Cannot find user in redmine.',
                           error=apiError.user_not_found(user_id))
     redmine_output_issue_array = redmine.rm_get_issues_by_user(user_to_plan[str(user_id)])
+    redmine_issue_status = redmine.rm_get_issue_status()
+    closed_statuses = redmine.get_closed_status(redmine_issue_status['issue_statuses'])     
     for redmine_issue in redmine_output_issue_array:
-        output_dict = deal_with_issue_by_user_redmine_output(redmine_issue)
+        output_dict = deal_with_issue_by_user_redmine_output(redmine_issue,closed_statuses)
         output_array.append(output_dict)
     return output_array
 
