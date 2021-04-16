@@ -358,6 +358,8 @@ def try_to_delete(delete_method, obj):
 
 @record_activity(ActionType.DELETE_USER)
 def delete_user(user_id):
+    if user_id == 1:
+        raise apiError.NotAllowedError('You cannot delete the system admin.')
     relation = nx_get_user_plugin_relation(user_id=user_id)
     user_login = model.User.query.filter_by(id=user_id).one().login
 
@@ -559,6 +561,7 @@ def create_user(args):
         gitlab.gl_delete_user(gitlab_user_id)
         redmine.rm_delete_user(redmine_user_id)
         kubernetesClient.delete_service_account(kubernetes_sa_name)
+        sonarqube.sq_deactivate_user(args["login"])
         raise e
 
     logger.info('User created.')
