@@ -294,7 +294,7 @@ def get_redmine_issue_rank():
             'user_id': context.__dict__['user_id'],
             'user_name': context.__dict__['user_name'],
             'unclosed_count': context.__dict__['unclosed_count'],
-            'project_count': context.__dict__['project_count']
+            'project_count': context.__dict__['project_count'],
         } for context in query_collections
     ]
     return issue_rank 
@@ -313,7 +313,8 @@ def get_unclosed_issues_by_user(user_id):
             'status_id': context.__dict__['status_id'],
             'status': context.__dict__['status'],
             'is_closed': context.__dict__['is_closed'],
-            'start_date': context.__dict__['start_date'].strftime("%Y-%m-%d")
+            'start_date': context.__dict__['start_date'].strftime("%Y-%m-%d"),
+            'sync_date': context.__dict__['sync_date'].strftime("%Y-%m-%d")
         } for context in query_collections
     ]
     return sorted(unclosed_issues, key=itemgetter('project_id'))
