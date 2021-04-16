@@ -28,7 +28,7 @@ def record_activity(action_type):
 
             identity = get_jwt_identity()
             if identity is None:
-                identity = {'user_id': -1, 'user_account': 'anonymous'}
+                identity = {'user_id': 1, 'user_account': 'system'}
             new = Activity(
                 operator_id=identity['user_id'],
                 action_type=action_type,
