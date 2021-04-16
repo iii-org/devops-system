@@ -71,32 +71,6 @@ class ProjectPluginRelation(db.Model):
     harbor_project_id = Column(Integer)
 
 
-class PipelinePhase(db.Model):
-    id = Column(Integer, primary_key=True)
-    name = Column(String)
-    description = Column(String)
-    parent_phase_Id = Column(Integer)
-    is_closed = Column(Boolean)
-
-
-
-class PipelineSoftware(db.Model):
-    id = Column(Integer, primary_key=True)
-    name = Column(String)
-    phase_id = Column(Integer)
-    is_closed = Column(Boolean)
-    description = Column(String)
-
-
-class PipelineSoftwareConfig(db.Model):
-    id = Column(Integer, primary_key=True)
-    software_id = Column(Integer, ForeignKey(PipelineSoftware.id, ondelete='CASCADE'),
-                         nullable=False)
-    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
-    detail = Column(String)
-    sample = Column(Boolean)
-
-
 class PipelineLogsCache(db.Model):
     id = Column(Integer, primary_key=True)
     project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
