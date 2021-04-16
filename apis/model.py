@@ -55,6 +55,11 @@ class Project(db.Model):
     display = Column(String)
     owner_id = Column(Integer, ForeignKey(User.id))
 
+class PluginSoftware(db.Model):
+    id = Column(Integer, primary_key=True)
+    name = Column(String)
+    parameter = Column(String)
+    disabled = Column(Boolean)
 
 class ProjectPluginRelation(db.Model):
     id = Column(Integer, primary_key=True)
@@ -64,31 +69,6 @@ class ProjectPluginRelation(db.Model):
     ci_project_id = Column(String)
     ci_pipeline_id = Column(String)
     harbor_project_id = Column(Integer)
-
-
-class PipelinePhase(db.Model):
-    id = Column(Integer, primary_key=True)
-    name = Column(String)
-    description = Column(String)
-    parent_phase_Id = Column(Integer)
-    is_closed = Column(Boolean)
-
-
-class PipelineSoftware(db.Model):
-    id = Column(Integer, primary_key=True)
-    name = Column(String)
-    phase_id = Column(Integer)
-    is_closed = Column(Boolean)
-    description = Column(String)
-
-
-class PipelineSoftwareConfig(db.Model):
-    id = Column(Integer, primary_key=True)
-    software_id = Column(Integer, ForeignKey(PipelineSoftware.id, ondelete='CASCADE'),
-                         nullable=False)
-    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
-    detail = Column(String)
-    sample = Column(Boolean)
 
 
 class PipelineLogsCache(db.Model):

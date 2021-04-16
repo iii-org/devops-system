@@ -12,7 +12,7 @@ class DevOpsFilter(logging.Filter):
         if has_request_context():
             jwt = get_jwt_identity()
             if jwt is None:
-                record.user_id = 0
+                record.user_id = 1
                 record.user_name = 'system'
             else:
                 with current_app.app_context():
@@ -20,7 +20,7 @@ class DevOpsFilter(logging.Filter):
                 record.user_id = jwt['user_id']
                 record.user_name = jwt['user_account']
         else:
-            record.user_id = 0
+            record.user_id = 1
             record.user_name = 'system'
         return True
 

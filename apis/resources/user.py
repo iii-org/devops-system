@@ -87,7 +87,8 @@ def get_token_expires(role_id):
 
 def check_ad_login(server_info, account, password, output):
     attributes = ['department', 'company', 'title', 'cn',
-                  'canonicalName', 'distinguishedName', 'userPrincipalName']
+                  'canonicalName', 'distinguishedName', 'userPrincipalName', 'sn', 'givenName'
+                  ]
     ip, port = server_info['url'].split(':')
     email = account+'@'+server_info['domain']
     server = Server(host=ip, port=int(port), get_info=ALL)
@@ -100,7 +101,7 @@ def check_ad_login(server_info, account, password, output):
                 search_scope=SUBTREE,
                 attributes=attributes
                 )
-    output['connect'] = True
+    output['is_pass'] = True
     for attribute in attributes:
         output['data'][attribute] = str(conn.entries[0][attribute].value)
     return output
@@ -125,31 +126,20 @@ def get_access_token(id, login, role_id):
     return token
 
 
-def check_db_login(account, password, output):
-    user_attrs = ['id', 'name', 'login', 'password', 'disabled']
-    user = db.session.query(model.User).filter(
-        model.User.login == account).first()
-    if user is None:
-        return output
+def check_db_login(user, password, output):
     project_user_role = db.session.query(model.ProjectUserRole).filter(
         model.ProjectUserRole.user_id == user.id).first()
-
     h = SHA256.new()
     h.update(password.encode())
     login_password = h.hexdigest()
     output['hex_password'] = login_password
-    if user.login == account and user.password == login_password:
+    if user.password == login_password:
         output['is_pass'] = True
-        # output['token'] = get_access_token(
-        #     user.id, user.login, project_user_role.role_id)
-    # for attr in user_attrs:
-    #     output['User'][attr] = getattr(user, attr)
-    # output['ProjectUserRole']['role_id'] = getattr(
-    #     project_user_role, 'role_id')
-    return output , user , project_user_role
+    return output, user, project_user_role
 
 
 def login(args):
+    default_role_id = 3
     login_account = args['username']
     login_password = args['password']
     ad_server = {
@@ -157,7 +147,7 @@ def login(args):
         'domain': config.get('AD_DOMAIN')
     }
     try:
-        ad_info = {'exists': False, 'connect': False,
+        ad_info = {'is_pass': False, 'connect': False,
                    'login': login_account, 'data': {}}
         if ad_server['url'] is not None and ad_server['domain'] is not None:
             ad_info['exists'] = True
@@ -168,82 +158,57 @@ def login(args):
                    'login': login_account,
                    'is_pass': False,
                    'User': {}, 'ProjectUserRole': {}}
-        db_info, user, project_user_role = check_db_login(login_account, login_password, db_info)
-        if user is not None and project_user_role is not None:
-            token = get_access_token(user.id, user.login, project_user_role.role_id)
-        if ad_info['connect'] is True and ad_info['exists'] is True:
-            status = 'direct login'
-            if db_info['is_pass'] is not True:
-                status = 'change plattform password'
-                err = update_external_passwords(user.id, login_password, login_password)                 
-                if err is not None:      
-                    logger.exception(err)                 
-                user.password = db_info['hex_password']
-                db.session.commit()
-            return  util.success({'status' : status, 'token':  token})            
-        else:
-            status = 'Create Account'
-            # create_user(args):
-            return  util.success({'status' : status, 'token':  token})            
-        # elif db_info['is_pass'] is True:
-        #     token = get_access_token(
-        #             db_info['User']['id'], db_info['User']['login'], db_info['ProjectUserRole']['role_id'])
-        #     return util.success({'token': token})
+        user = db.session.query(model.User).filter(
+            model.User.login == login_account).first()
+        if user is not None:
+            db_info['connect'] = True
+            db_info, user, project_user_role = check_db_login(
+                user, login_password, db_info)
 
-        # if user_info[1] == user_login and user_info[2] == h.hexdigest():
-        #     if user_login == "admin":
-        #         expires = datetime.timedelta(days=36500)
-        #     else:
-        #         expires = datetime.timedelta(days=30)
-        #         # access_token = create_access_token(
-        #         #     identity=jwt_response_data(user_info),
-        #         #     expires_delta=expires)
-        #     return util.success({'token':  {}})
-        # else:
-        #     return util.respond(401, "Error when logging in.", error=apiError.wrong_password())
+        if ad_info['is_pass'] is True:
+            status = 'Direct login by AD, DB pass'
+            user_id = ''
+            user_login = ''
+            user_role_id = ''
+            if db_info['connect'] is not False:
+                user_id = user.id
+                user_login = user.login
+                user_role_id = project_user_role.role_id
+                if db_info['is_pass'] is not True:
+                    status = 'Direct login AD pass, DB change password'
+                    err = update_external_passwords(
+                        user.id, login_password, login_password)
+                    if err is not None:
+                        logger.exception(err)
+                    user.password = db_info['hex_password']
+                    db.session.commit()
+            else:
+                status = 'Direct Login AD pass, DB create User'
+                args = {
+                    'name': ad_info['data']['sn'] + ad_info['data']['givenName'],
+                    'email': ad_info['data']['userPrincipalName'],
+                    'login': login_account,
+                    'password': login_password,
+                    'role_id': default_role_id,
+                    'status': "enable",
+                    'phone': ''
+                }
+                new_user = create_user(args)
+                user_id = new_user['user_id']
+                user_login = login_account
+                user_role_id = default_role_id
+            token = get_access_token(user_id, user_login, user_role_id)
+            return  util.success({'status': status,'token': token})
+        elif db_info['is_pass'] is True:
+            status = "DB Login"
+            token = get_access_token(
+                user.id, user.login, project_user_role.role_id)
+            return  util.success({'status': status,'token': token})
+        else:
+            return util.respond(401, "Error when logging in.", error=apiError.wrong_password())
     except Exception as e:
         raise DevOpsError(500, 'Error when downloading an attachment.',
                           error=apiError.uncaught_exception(e))
-
-    # print(user_login)
-    # # row = db.session. \
-    # #         query(model.User). \
-    # #         join(model).\
-    # #         filter(model.User.login == user_login
-    # #                ).first()
-    # rows = db.session. \
-    #         query(model.User, model.ProjectUserRole.role_id). \
-    #         join(model.ProjectUserRole). \
-    #         filter(model.User.login == user_login,
-    #                model.ProjectUserRole.project_id != -1,
-    #                model.User.id == model.ProjectUserRole.user_id
-    #                ).all()
-    # print(rows)
-    # return user_login
-    # row = db.session.query(model.User.id, model.User.name, model.User.password,model.User.disabled).filter(
-    #         model.User.login == args['username'],
-    #         model.ProjectUserRole.user_id == model.User.id
-    # ).one()
-
-    # h = SHA256.new()
-    # h.update(args["password"].encode())
-
-    # result = db.engine.execute(
-    #     "SELECT ur.id, ur.login, ur.password, pur.role_id"
-    #     " FROM public.user as ur, public.project_user_role as pur"
-    #     " WHERE ur.disabled = false AND ur.id = pur.user_id"
-    # )
-    # for row in result:
-    #     if row['login'] == args["username"] and row['password'] == h.hexdigest():
-    #         if args["username"] == "admin":
-    #             expires = datetime.timedelta(days=36500)
-    #         else:
-    #             expires = datetime.timedelta(days=30)
-    #         access_token = create_access_token(
-    #             identity=jwt_response_data(row),
-    #             expires_delta=expires)
-    #         return util.success({'token': access_token})
-    # return util.respond(401, "Error when logging in.", error=apiError.wrong_password())
 
 
 def user_forgot_password(args):
@@ -768,14 +733,14 @@ class SingleUser(Resource):
     def post(self):
         role.require_admin('Only admins can create user.')
         parser = reqparse.RequestParser()
-        parser.add_argument('name', type=str,required= True)
+        parser.add_argument('name', type=str, required=True)
         parser.add_argument('email', type=str, required=True)
         parser.add_argument('phone', type=str)
         parser.add_argument('login', type=str, required=True)
         parser.add_argument('password', type=str, required=True)
         parser.add_argument('role_id', type=int, required=True)
         parser.add_argument('status', type=str)
-        args = parser.parse_args()        
+        args = parser.parse_args()
         return util.success(create_user(args))
 
 

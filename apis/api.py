@@ -261,7 +261,6 @@ api.add_resource(pipeline.PipelineConfig,
                  '/pipelines/<repository_id>/config')
 api.add_resource(pipeline.PipelineExecAction, '/pipelines/<repository_id>/pipelines_exec/action')
 api.add_resource(pipeline.PipelineExecLogs, '/pipelines/logs')
-api.add_resource(pipeline.PipelineSoftware, '/pipelines/software')
 api.add_resource(pipeline.PipelinePhaseYaml,
                  '/pipelines/<repository_id>/branch/<branch_name>/phase_yaml')
 api.add_resource(pipeline.PipelineYaml,
