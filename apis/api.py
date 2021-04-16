@@ -30,7 +30,7 @@ from jsonwebtoken import jsonwebtoken
 from model import db
 from resources import logger, role as role, activity, zap
 from resources import project, gitlab, issue, user, redmine, wiki, version, sonarqube, apiTest, postman, mock, harbor, \
-    webInspect, template, release, sync_redmine
+    webInspect, template, release, sync_redmine, kubernetesClient
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -174,7 +174,6 @@ def initialize(db_uri):
     logger.logger.info('Initial admin created.')
     migrate.init()
     logger.logger.info('Server initialized.')
-
 
 # Projects
 api.add_resource(project.ListMyProjects, '/project/list')
@@ -441,6 +440,8 @@ def start_prod():
         jsonwebtoken.init_app(app)
         initialize(config.get('SQLALCHEMY_DATABASE_URI'))
         migrate.run()
+        kubernetesClient.apply_cronjob_yamls()
+        logger.logger.info('Apply k8s-yaml cronjob.')
         return app
     except Exception as e:
         ret = internal_error(e)
