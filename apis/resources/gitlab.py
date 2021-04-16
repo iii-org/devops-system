@@ -638,6 +638,5 @@ class GitTheLastHoursCommits(Resource):
 
 
 class GitCountEachPjCommitsByDays(Resource):
-    @jwt_required
     def get(self):
         return util.success(gitlab.gl_count_each_pj_commits_by_days())
