@@ -57,7 +57,6 @@ def get_passing_rate(last_test_results):
     return passing_rate
 
 def get_admin_user_id():
-    account = 'public_pm'
     user_detail = model.User.query.filter_by(login=account).first()
     return user_detail.id
 
@@ -186,30 +185,35 @@ def insert_issue_rank():
 
 # --------------------- Complicated Query ---------------------
 
-def get_project_by_current_sync_date(detail=False):
+def get_project_by_current_sync_date(detail):
     response = model.RedmineProject.query.order_by(model.RedmineProject.sync_date.desc()).distinct().first()
     current_sync_date = response.__dict__['sync_date']
     if detail:
-        return model.RedmineProject.query.filter(
-            model.RedmineProject.sync_date==current_sync_date).order_by(model.RedmineProject.end_date).all()
+        return model.RedmineProject.query.filter_by(
+            sync_date=current_sync_date).order_by(model.RedmineProject.end_date).all()
     else:
-        return model.RedmineProject.query.filter(
-            model.RedmineProject.sync_date==current_sync_date).order_by(model.RedmineProject.end_date).limit(5).all()
+        return model.RedmineProject.query.filter_by(
+            sync_date=current_sync_date).order_by(model.RedmineProject.end_date).limit(5).all()
 
 def get_project_by_user(user_id):
     project_member_collections = model.ProjectMember.query.filter_by(user_id=user_id)
     involed_projects_id = [context.__dict__['project_id'] for context in project_member_collections]
     return model.RedmineProject.query.filter(model.RedmineProject.project_id.in_(involed_projects_id)).all()
 
+def get_current_sync_date_project_by_project_id(project_id):
+    response = model.RedmineProject.query.order_by(model.RedmineProject.sync_date.desc()).distinct().first()
+    current_sync_date = response.__dict__['sync_date']
+    return model.RedmineProject.query.filter_by(
+        project_id=project_id[0], sync_date=current_sync_date).order_by(model.RedmineProject.end_date).first()
+
 def get_last_test_results(project_id):
     return model.TestResults.query.filter(
-            model.TestResults.run_at < datetime.today(), 
-            model.TestResults.project_id==project_id[0]).order_by(model.TestResults.run_at.desc()).first()
+            model.TestResults.run_at < datetime.today(), model.TestResults.project_id==project_id[0]).order_by(
+                model.TestResults.run_at.desc()).first()
 
 def get_test_results_count(project_id):
     return model.TestResults.query.filter(
-            model.TestResults.run_at < datetime.today(), 
-            model.TestResults.project_id==project_id[0]).count()
+            model.TestResults.run_at < datetime.today(), model.TestResults.project_id==project_id[0]).count()
 
 # --------------------- API Tasks ---------------------
 
@@ -241,7 +245,7 @@ def get_project_members_detail():
     return sorted(project_member_detail, key=itemgetter('project_id'))
 
 def get_project_members(project_id):
-    query_collections = model.ProjectMember.query.filter(model.ProjectMember.project_id==project_id).all()
+    query_collections = model.ProjectMember.query.filter_by(project_id=project_id).all()
     project_members = [
         {
             'user_id': context.__dict__['user_id'],
@@ -263,7 +267,7 @@ def get_project_overview():
     ]
     return project_overview 
 
-def get_redmine_projects(detail=False):
+def get_redmine_projects(detail):
     query_collections = get_project_by_current_sync_date(detail)
     redmine_projects = [
         {
@@ -336,29 +340,33 @@ def get_postman_passing_rate(detail=False):
     all_passing_rate = []
     project_id_collections = model.TestResults.query.with_entities(model.TestResults.project_id).distinct()
     for project_id in project_id_collections:
-        response = model.RedmineProject.query.filter_by(project_id=project_id[0]).first()
+        response = get_current_sync_date_project_by_project_id(project_id)
         if not response:
             continue
-        project_name = response.project_name
         last_test_results = get_last_test_results(project_id)
         test_results_count = get_test_results_count(project_id)
+        total = last_test_results.__dict__['total'] if last_test_results.__dict__['total'] else 0
+        fail = last_test_results.__dict__['fail'] if last_test_results.__dict__['fail'] else 0
+        success = total - fail
         if detail:
             test_results = {
                 'project_id': project_id[0],
-                'project_name': project_name,
-                'total': last_test_results.__dict__['total'] if last_test_results.__dict__['total'] else 0,
-                'fail': last_test_results.__dict__['fail'] if last_test_results.__dict__['fail'] else 0,
+                'project_name': response.project_name,
+                'total': total,
+                'fail': fail,
+                'success': success,
                 'run_at': last_test_results.__dict__['run_at'].strftime("%Y-%m-%d %H:%M:%S"),
-                'count': test_results_count
+                'count': test_results_count,
+                'sync_date': response.sync_date.strftime("%Y-%m-%d")
             }
         else:
             passing_rate = get_passing_rate(last_test_results)
             test_results = {
                 'project_id': project_id[0],
-                'project_name': project_name,
+                'project_name': response.project_name,
                 'test_result_id': last_test_results.__dict__['id'],
                 'passing_rate': passing_rate,
-                'total': last_test_results.__dict__['total'] if last_test_results.__dict__['total'] else 0,
+                'total': total,
                 'count': test_results_count
             }
         all_passing_rate.append(test_results)
@@ -411,7 +419,7 @@ class ProjectOverview(Resource):
 class RedmineProjects(Resource):
     @jwt_required
     def get(self):
-        redmine_projects = get_redmine_projects()
+        redmine_projects = get_redmine_projects(detail=False)
         return util.success(redmine_projects)
 
 
