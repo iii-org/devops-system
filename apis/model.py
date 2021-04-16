@@ -55,6 +55,11 @@ class Project(db.Model):
     display = Column(String)
     owner_id = Column(Integer, ForeignKey(User.id))
 
+class PluginSoftware(db.Model):
+    id = Column(Integer, primary_key=True)
+    name = Column(String)
+    parameter = Column(String)
+    disabled = Column(Boolean)
 
 class ProjectPluginRelation(db.Model):
     id = Column(Integer, primary_key=True)
@@ -72,6 +77,7 @@ class PipelinePhase(db.Model):
     description = Column(String)
     parent_phase_Id = Column(Integer)
     is_closed = Column(Boolean)
+
 
 
 class PipelineSoftware(db.Model):
