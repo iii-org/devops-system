@@ -30,7 +30,7 @@ from jsonwebtoken import jsonwebtoken
 from model import db
 from resources import logger, role as role, activity, zap
 from resources import project, gitlab, issue, user, redmine, wiki, version, sonarqube, apiTest, postman, mock, harbor, \
-    webInspect, template, release, sync_redmine
+    webInspect, template, release, sync_redmine,plugin
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -297,6 +297,11 @@ api.add_resource(issue.MyIssueMonthStatistics, '/issues/month_statistics')
 api.add_resource(release.Releases,'/project/<project_id>/releases')
 api.add_resource(release.Release,'/project/<project_id>/releases/<release_name>')
 
+
+## release 
+api.add_resource(plugin.Plugins,'/plugins')
+api.add_resource(plugin.Plugin,'/plugins/<sint:plugin_id>')
+
 # dashboard
 api.add_resource(issue.DashboardIssuePriority,
                  '/dashboard_issues_priority/<user_id>')
@@ -392,6 +397,7 @@ api.add_resource(SystemGitCommitID, '/system_git_commit_id')  # git commit
 # Mocks
 api.add_resource(mock.MockTestResult, '/mock/test_summary')
 api.add_resource(mock.MockSesame, '/mock/sesame')
+api.add_resource(mock.MockFillProjectOwner, '/mock/fill_project_owner')
 
 # Harbor
 api.add_resource(harbor.HarborRepository,
