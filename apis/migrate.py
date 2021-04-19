@@ -143,11 +143,6 @@ def fill_projet_owner(id):
     check = []
     for row in rows:
         if row.Project.id not in check:
-            data  = {
-                'project_display': row.Project.display,
-                'project_id': row.Project.id,
-                'user_id': row.ProjectUserRole.user_id
-            }
             row.Project.owner_id = row.ProjectUserRole.user_id
             check.append(row.Project.id)
             db.session.commit()
