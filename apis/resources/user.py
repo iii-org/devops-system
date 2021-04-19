@@ -35,7 +35,7 @@ jwt = JWTManager()
 
 
 def get_user_id_name_by_plan_user_id(plan_user_id):
-    return db.session.query(model.User.id, model.User.name).filter(
+    return db.session.query(model.User.id, model.User.name, model.User.login).filter(
         model.UserPluginRelation.plan_user_id == plan_user_id,
         model.UserPluginRelation.user_id == model.User.id
     ).first()
@@ -79,7 +79,7 @@ def get_token_expires(role_id):
 
 def check_ad_login(server_info, account, password):
     ad_info = {'is_pass': False,
-                   'login': account, 'data': {}}
+               'login': account, 'data': {}}
     if server_info['ip_port'] is not None and server_info['domain'] is not None:
         ad_info['exists'] = True
     else:
@@ -232,12 +232,12 @@ def user_forgot_password(args):
 
 
 # noinspection PyMethodMayBeStatic
-def get_user_info(user_id):    
+def get_user_info(user_id):
     user, project_user_role = db.session.query(model.User, model.ProjectUserRole).\
         filter(
             model.User.id == user_id,
             model.User.id == model.ProjectUserRole.user_id
-            ).first()
+    ).first()
     if user is not None and project_user_role is not None:
         if user.disabled is True:
             status = "disable"
@@ -288,7 +288,7 @@ def update_user(user_id, args):
     user = db.session.query(model.User).\
         filter(
             model.User.id == user_id
-            ).first()
+    ).first()
     if args['password'] is not None:
         if args["old_password"] == args["password"]:
             return util.respond(400, "Password is not changed.", error=apiError.wrong_password())
@@ -296,13 +296,13 @@ def update_user(user_id, args):
             if args["old_password"] is None:
                 return util.respond(400, "old_password is empty", error=apiError.wrong_password())
             h_old_password = SHA256.new()
-            h_old_password.update(args["old_password"].encode())             
+            h_old_password.update(args["old_password"].encode())
             if user.password != h_old_password.hexdigest():
-                return util.respond(400, "Password is incorrect", error=apiError.wrong_password())            
+                return util.respond(400, "Password is incorrect", error=apiError.wrong_password())
         err = update_external_passwords(
             user_id, args["password"], args["old_password"])
         if err is not None:
-            logger.exception(err)  # Don't stop change password on API server    
+            logger.exception(err)  # Don't stop change password on API server
         h = SHA256.new()
         h.update(args["password"].encode())
         user.password = h.hexdigest()
@@ -318,7 +318,7 @@ def update_user(user_id, args):
         else:
             user.status = False
     user.update_at = util.date_to_str(datetime.datetime.now())
-    db.session.commit()    
+    db.session.commit()
     return util.success()
 
 
