@@ -515,6 +515,10 @@ def project_add_member(project_id, user_id):
 @record_activity(ActionType.REMOVE_MEMBER)
 def project_remove_member(project_id, user_id):
     role_id = user.get_role_id(user_id)
+    project = model.Project.query.filter_by(id=project_id).first()
+    if project.owner_id == user_id :
+        raise apiError.DevOpsError(404, "Error while removing a member from the project.",
+                          error=apiError.is_project_owner_in_project(user_id,project_id))
 
     user_relation = nexus.nx_get_user_plugin_relation(user_id=user_id)
     project_relation = nx_get_project_plugin_relation(nexus_project_id=project_id)
@@ -966,12 +970,12 @@ class SingleProject(Resource):
         role.require_pm("Error while updating project info.")
         role.require_in_project(project_id, "Error while updating project info.")
         parser = reqparse.RequestParser()
-        parser.add_argument('display', type=str)
+        parser.add_argument('display', type=str,required = True)
         parser.add_argument('description', type=str)
-        parser.add_argument('disabled', type=bool)
-        parser.add_argument('start_date', type=str)
-        parser.add_argument('due_date', type=str)
-        parser.add_argument('owner_id', type=int)
+        parser.add_argument('disabled', type=bool, required=True)
+        parser.add_argument('start_date', type=str, required= True)
+        parser.add_argument('due_date', type=str, required = True)
+        parser.add_argument('owner_id', type=int, required = True)
         args = parser.parse_args()
         return pm_update_project(project_id, args)
 
