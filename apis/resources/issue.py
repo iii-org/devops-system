@@ -86,6 +86,8 @@ def deal_with_issue_by_user_redmine_output(redmine_output, closed_status=None):
     output_list['fixed_version_id'] = None
     output_list['fixed_version_name'] = None
     output_list['assigned_to'] = ''
+    output_list['assigned_to_id'] = ''
+    output_list['assigned_to_login'] = ''
     if 'start_date' in redmine_output:
         output_list['start_date'] = redmine_output['start_date']
 
@@ -93,13 +95,12 @@ def deal_with_issue_by_user_redmine_output(redmine_output, closed_status=None):
         output_list['due_date'] = redmine_output['due_date']
     if 'assigned_to' in redmine_output:
         user_info = user.get_user_id_name_by_plan_user_id(
-            redmine_output['assigned_to']['id'])
+            redmine_output['assigned_to']['id'])        
         if user_info is not None:
             output_list['assigned_to'] = user_info.name
             output_list['assigned_to_id'] = user_info.id
             output_list['assigned_to_login'] = user_info.login
-        else:
-            output_list['assigned_to'] = ''
+            
 
     if 'parent' in redmine_output:
         output_list['parent_id'] = redmine_output['parent']['id']
