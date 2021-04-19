@@ -31,7 +31,6 @@ def transfer_array_to_object(targets, key):
     output = {}
     for target in targets:
         key_value = str(target[key])
-        output[key_value] = {}
         output[key_value] = target
     return output
 
@@ -57,19 +56,6 @@ def get_mapping_list_info(versions, releases):
     gl_key_releases = transfer_array_to_object(releases, 'tag_name')
     output = mapping_function_by_key(rm_key_versions, gl_key_releases)
     return list(output.values())
-
-
-# def check_release_states(checklist):
-#     output = {'check' : True, "items" : [], 'messages' :[], 'errors': {}}
-#     for key in checklist:
-#         if checklist[key]['check'] is False:
-#             output['check'] = False
-#             output['items'].append(key)
-#             output['messages'].append(checklist[key]['info'])
-#             output['errors'][key] = checklist[key]['main']
-#     return output
-
-
 class Releases(Resource):
     def __init__(self):
         self.plugin_relation = None
@@ -115,7 +101,7 @@ class Releases(Resource):
         # Delete Gitlab Tags
         if 'gitlab' in self.valid_info['errors']:
             try:
-                del_gl_info = gitlab.gl_delete_tag(
+                gitlab.gl_delete_tag(
                     self.plugin_relation.git_repository_id, release_name)
             except NoResultFound:
                 return util.respond(404, error_gitlab_not_found,
@@ -123,7 +109,7 @@ class Releases(Resource):
         # Delete Harbor Tags
         if 'harbor' in self.valid_info['errors']:
             try:
-                del_hb_info = hb_release.delete_harbor_tag(self.project.name, branch_name,
+                hb_release.delete_harbor_tag(self.project.name, branch_name,
                                                            self.valid_info['errors']['harbor'])
             except NoResultFound:
                 return util.respond(404, error_gitlab_not_found,
@@ -167,7 +153,6 @@ class Releases(Resource):
         list_versions = rm_list_versions['versions']
         list_releases = gl_list_releases[0]
         return util.success(get_mapping_list_info(list_versions, list_releases))
-        # return util.success({'versions': list_versions, 'git_releases':list_releases})
 
     @jwt_required
     def post(self, project_id):
@@ -203,9 +188,6 @@ class Releases(Resource):
             return util.respond(404, error_release_build,
                                 error=apiError.release_unable_to_build(self.valid_info))
         try:
-            output = {
-                'redmine': []
-            }
             gitlab_data = {
                 'tag_name': release_name,
                 'ref': branch_name,
