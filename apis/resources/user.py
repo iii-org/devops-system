@@ -1,38 +1,45 @@
+from ldap3 import Server, Connection, ObjectDef, SUBTREE, LEVEL, ALL
 import datetime
 import re
 
 import kubernetes
 from Cryptodome.Hash import SHA256
-from flask_jwt_extended import (create_access_token, JWTManager, jwt_required, get_jwt_identity)
+from flask_jwt_extended import (
+    create_access_token, JWTManager, jwt_required, get_jwt_identity)
 from flask_restful import Resource, reqparse
 from sqlalchemy import desc
 from sqlalchemy.orm.exc import NoResultFound
 
+
+import model
+import re
+import config
 import resources.apiError as apiError
 import util as util
 from enums.action_type import ActionType
 from model import db
-from nexus import nx_get_user_plugin_relation
+from nexus import nx_get_user_plugin_relation, nx_get_user
 from resources.activity import record_activity
 from resources.apiError import DevOpsError
-import model
 from resources import harbor, role, sonarqube
 from resources.logger import logger
 from resources.redmine import redmine
 from resources.gitlab import gitlab
 from resources import kubernetesClient
 
+# Make a regular expression
+# for validating an Email
+email_regex = '[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+'
+
+
 jwt = JWTManager()
 
 
-@jwt.user_claims_loader
-def jwt_response_data(row):
-    return {
-        'user_id': row['id'],
-        'user_account': row["login"],
-        'role_id': row['role_id'],
-        'role_name': role.get_role_name(row['role_id'])
-    }
+def check_email(email):
+    check = False
+    if(re.search(email_regex, email)):
+        check = True
+    return check
 
 
 def get_user_id_name_by_plan_user_id(plan_user_id):
@@ -64,25 +71,144 @@ def to_redmine_role_id(role_id):
         return 4
 
 
-def login(args):
-    h = SHA256.new()
-    h.update(args["password"].encode())
-    result = db.engine.execute(
-        "SELECT ur.id, ur.login, ur.password, pur.role_id"
-        " FROM public.user as ur, public.project_user_role as pur"
-        " WHERE ur.disabled = false AND ur.id = pur.user_id"
+def get_dc_string(domains):
+    output = ''
+    for domain in domains:
+        output += 'dc='+domain+','
+    return output[:-1]
+
+
+def get_token_expires(role_id):
+    expires = datetime.timedelta(days=30)
+    if role_id == 5:
+        datetime.timedelta(days=36500)
+    return expires
+
+
+def check_ad_login(server_info, account, password, output):
+    attributes = ['department', 'company', 'title', 'cn',
+                  'canonicalName', 'distinguishedName', 'userPrincipalName', 'sn', 'givenName'
+                  ]
+    ip, port = server_info['url'].split(':')
+    email = account+'@'+server_info['domain']
+    server = Server(host=ip, port=int(port), get_info=ALL)
+    conn = Connection(server, user=email, password=password)
+    if conn.bind() is False:
+        return output
+
+    conn.search(search_base=get_dc_string(server_info['domain'].split('.')),
+                search_filter='(&(objectclass=person)(sAMAccountName='+account+'))',
+                search_scope=SUBTREE,
+                attributes=attributes
+                )
+    output['is_pass'] = True
+    for attribute in attributes:
+        output['data'][attribute] = str(conn.entries[0][attribute].value)
+    return output
+
+
+@jwt.user_claims_loader
+def jwt_response_data(id, login, role_id):
+    return {
+        'user_id': id,
+        'user_account': login,
+        'role_id': role_id,
+        'role_name': role.get_role_name(role_id)
+    }
+
+
+def get_access_token(id, login, role_id):
+    expires = get_token_expires(role_id)
+    token = create_access_token(
+        identity=jwt_response_data(id, login, role_id),
+        expires_delta=expires
     )
-    for row in result:
-        if row['login'] == args["username"] and row['password'] == h.hexdigest():
-            if args["username"] == "admin":
-                expires = datetime.timedelta(days=36500)
+    return token
+
+
+def check_db_login(user, password, output):
+    project_user_role = db.session.query(model.ProjectUserRole).filter(
+        model.ProjectUserRole.user_id == user.id).first()
+    h = SHA256.new()
+    h.update(password.encode())
+    login_password = h.hexdigest()
+    output['hex_password'] = login_password
+    if user.password == login_password:
+        output['is_pass'] = True
+    return output, user, project_user_role
+
+
+def login(args):
+    default_role_id = 3
+    login_account = args['username']
+    login_password = args['password']
+    ad_server = {
+        'url': config.get('AD_IP_PORT'),
+        'domain': config.get('AD_DOMAIN')
+    }
+    try:
+        ad_info = {'is_pass': False, 'connect': False,
+                   'login': login_account, 'data': {}}
+        if ad_server['url'] is not None and ad_server['domain'] is not None:
+            ad_info['exists'] = True
+            ad_info = check_ad_login(
+                ad_server, login_account, login_password, ad_info)
+
+        db_info = {'connect': False,
+                   'login': login_account,
+                   'is_pass': False,
+                   'User': {}, 'ProjectUserRole': {}}
+        user = db.session.query(model.User).filter(
+            model.User.login == login_account).first()
+        if user is not None:
+            db_info['connect'] = True
+            db_info, user, project_user_role = check_db_login(
+                user, login_password, db_info)
+
+        if ad_info['is_pass'] is True:
+            status = 'Direct login by AD, DB pass'
+            user_id = ''
+            user_login = ''
+            user_role_id = ''
+            if db_info['connect'] is not False:
+                user_id = user.id
+                user_login = user.login
+                user_role_id = project_user_role.role_id
+                if db_info['is_pass'] is not True:
+                    status = 'Direct login AD pass, DB change password'
+                    err = update_external_passwords(
+                        user.id, login_password, login_password)
+                    if err is not None:
+                        logger.exception(err)
+                    user.password = db_info['hex_password']
+                    db.session.commit()
             else:
-                expires = datetime.timedelta(days=30)
-            access_token = create_access_token(
-                identity=jwt_response_data(row),
-                expires_delta=expires)
-            return util.success({'token': access_token})
-    return util.respond(401, "Error when logging in.", error=apiError.wrong_password())
+                status = 'Direct Login AD pass, DB create User'
+                args = {
+                    'name': ad_info['data']['sn'] + ad_info['data']['givenName'],
+                    'email': ad_info['data']['userPrincipalName'],
+                    'login': login_account,
+                    'password': login_password,
+                    'role_id': default_role_id,
+                    'status': "enable",
+                    'phone': ''
+                }
+                new_user = create_user(args)
+                user_id = new_user['user_id']
+                user_login = login_account
+                user_role_id = default_role_id
+            token = get_access_token(user_id, user_login, user_role_id)
+            return  util.success({'status': status,'token': token})
+        elif db_info['is_pass'] is True:
+            status = "DB Login"
+            token = get_access_token(
+                user.id, user.login, project_user_role.role_id)
+            return  util.success({'status': status,'token': token})
+        else:
+            return util.respond(401, "Error when logging in.", error=apiError.wrong_password())
+    except Exception as e:
+        raise DevOpsError(500, 'Error when downloading an attachment.',
+                          error=apiError.uncaught_exception(e))
 
 
 def user_forgot_password(args):
@@ -169,11 +295,13 @@ def update_user(user_id, args):
             h_old_password.update(args["old_password"].encode())
             result = db.engine.execute(
                 "SELECT ur.id, ur.password FROM public.user as ur"
-                " WHERE ur.disabled = false AND ur.id = {0}".format(get_jwt_identity()['user_id'])
+                " WHERE ur.disabled = false AND ur.id = {0}".format(
+                    get_jwt_identity()['user_id'])
             ).fetchone()
             if result['password'] != h_old_password.hexdigest():
                 return util.respond(400, "Password is incorrect", error=apiError.wrong_password())
-        err = update_external_passwords(user_id, args["password"], args["old_password"])
+        err = update_external_passwords(
+            user_id, args["password"], args["old_password"])
         if err is not None:
             logger.exception(err)  # Don't stop change password on API server
         h = SHA256.new()
@@ -203,6 +331,7 @@ def update_user(user_id, args):
 
 
 def update_external_passwords(user_id, new_pwd, old_pwd):
+    user_login = nx_get_user(id=user_id).login
     user_relation = nx_get_user_plugin_relation(user_id=user_id)
     if user_relation is None:
         return util.respond(400, 'Error when updating password',
@@ -212,11 +341,11 @@ def update_external_passwords(user_id, new_pwd, old_pwd):
 
     gitlab_user_id = user_relation.repository_user_id
     gitlab.gl_update_password(gitlab_user_id, new_pwd)
-    
+
     harbor_user_id = user_relation.harbor_user_id
     harbor.hb_update_user_password(harbor_user_id, new_pwd, old_pwd)
 
-    return None
+    sonarqube.sq_update_password(user_login, new_pwd)
 
 
 def try_to_delete(delete_method, obj):
@@ -229,6 +358,8 @@ def try_to_delete(delete_method, obj):
 
 @record_activity(ActionType.DELETE_USER)
 def delete_user(user_id):
+    if user_id == 1:
+        raise apiError.NotAllowedError('You cannot delete the system admin.')
     relation = nx_get_user_plugin_relation(user_id=user_id)
     user_login = model.User.query.filter_by(id=user_id).one().login
 
@@ -237,7 +368,8 @@ def delete_user(user_id):
     try_to_delete(harbor.hb_delete_user, relation.harbor_user_id)
     try_to_delete(sonarqube.sq_deactivate_user, user_login)
     try:
-        try_to_delete(kubernetesClient.delete_service_account, relation.kubernetes_sa_name)
+        try_to_delete(kubernetesClient.delete_service_account,
+                      relation.kubernetes_sa_name)
     except kubernetes.client.exceptions.ApiException as e:
         if e.status != 404:
             raise e
@@ -339,13 +471,15 @@ def create_user(args):
     logger.info('Account name not used in kubernetes.')
 
     # plan software user create
-    red_user = redmine.rm_create_user(args, user_source_password, is_admin=is_admin)
+    red_user = redmine.rm_create_user(
+        args, user_source_password, is_admin=is_admin)
     redmine_user_id = red_user['user']['id']
     logger.info(f'Redmine user created, id={redmine_user_id}')
 
     # gitlab software user create
     try:
-        git_user = gitlab.gl_create_user(args, user_source_password, is_admin=is_admin)
+        git_user = gitlab.gl_create_user(
+            args, user_source_password, is_admin=is_admin)
     except Exception as e:
         redmine.rm_delete_user(redmine_user_id)
         raise e
@@ -417,7 +551,8 @@ def create_user(args):
         logger.info(f'Nexus user_plugin built.')
 
         # insert project_user_role
-        rol = model.ProjectUserRole(project_id=-1, user_id=user_id, role_id=args['role_id'])
+        rol = model.ProjectUserRole(
+            project_id=-1, user_id=user_id, role_id=args['role_id'])
         db.session.add(rol)
         db.session.commit()
         logger.info(f'Nexus user project_user_role created.')
@@ -426,6 +561,7 @@ def create_user(args):
         gitlab.gl_delete_user(gitlab_user_id)
         redmine.rm_delete_user(redmine_user_id)
         kubernetesClient.delete_service_account(kubernetes_sa_name)
+        sonarqube.sq_deactivate_user(args["login"])
         raise e
 
     logger.info('User created.')
@@ -597,9 +733,9 @@ class SingleUser(Resource):
     def post(self):
         role.require_admin('Only admins can create user.')
         parser = reqparse.RequestParser()
-        parser.add_argument('name', type=str)
+        parser.add_argument('name', type=str, required=True)
         parser.add_argument('email', type=str, required=True)
-        parser.add_argument('phone', type=str, required=True)
+        parser.add_argument('phone', type=str)
         parser.add_argument('login', type=str, required=True)
         parser.add_argument('password', type=str, required=True)
         parser.add_argument('role_id', type=int, required=True)

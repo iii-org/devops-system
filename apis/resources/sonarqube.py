@@ -71,6 +71,8 @@ def sq_delete_project(project_name):
 
 
 def sq_add_member(project_name, user_login):
+    __api_post(f'/permissions/add_user?login={user_login}'
+               f'&projectKey={project_name}&permission=user')
     return __api_post(f'/permissions/add_user?login={user_login}'
                       f'&projectKey={project_name}&permission=codeviewer')
 
@@ -86,6 +88,14 @@ def sq_create_access_token(login):
         'name': 'iiidevops-bot'
     }
     return __api_post('/user_tokens/generate', params=params).json()['token']
+
+
+def sq_update_password(login, new_password):
+    params = {
+        'login': login,
+        'password': new_password
+    }
+    return __api_post('/users/change_password', params=params)
 
 
 # def sq_get_measures(project_name):

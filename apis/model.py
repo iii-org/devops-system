@@ -16,7 +16,7 @@ If you don't have the alembic.ini, copy _alembic.ini and replace the postgres ur
 import json
 
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Date, Enum, JSON
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Date, Enum, JSON, Float
 
 from enums.action_type import ActionType
 
@@ -55,6 +55,13 @@ class Project(db.Model):
     display = Column(String)
     owner_id = Column(Integer, ForeignKey(User.id))
 
+class PluginSoftware(db.Model):
+    id = Column(Integer, primary_key=True)
+    name = Column(String)
+    parameter = Column(String)
+    disabled = Column(Boolean)
+    create_at = Column(DateTime)
+    update_at = Column(DateTime)
 
 class ProjectPluginRelation(db.Model):
     id = Column(Integer, primary_key=True)
@@ -64,31 +71,6 @@ class ProjectPluginRelation(db.Model):
     ci_project_id = Column(String)
     ci_pipeline_id = Column(String)
     harbor_project_id = Column(Integer)
-
-
-class PipelinePhase(db.Model):
-    id = Column(Integer, primary_key=True)
-    name = Column(String)
-    description = Column(String)
-    parent_phase_Id = Column(Integer)
-    is_closed = Column(Boolean)
-
-
-class PipelineSoftware(db.Model):
-    id = Column(Integer, primary_key=True)
-    name = Column(String)
-    phase_id = Column(Integer)
-    is_closed = Column(Boolean)
-    description = Column(String)
-
-
-class PipelineSoftwareConfig(db.Model):
-    id = Column(Integer, primary_key=True)
-    software_id = Column(Integer, ForeignKey(PipelineSoftware.id, ondelete='CASCADE'),
-                         nullable=False)
-    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
-    detail = Column(String)
-    sample = Column(Boolean)
 
 
 class PipelineLogsCache(db.Model):
@@ -322,24 +304,66 @@ class Zap(db.Model):
 
 class RedmineIssue(db.Model):
     issue_id = Column(Integer, primary_key=True)
-    project_id = Column(String)
+    project_id = Column(Integer)
     project_name = Column(String)
     assigned_to = Column(String)
+    assigned_to_id = Column(Integer)
     issue_type = Column(String)
     issue_name = Column(String)
-    status_id = Column(String)
+    status_id = Column(Integer)
+    status = Column(String)
     is_closed = Column(Boolean)
+    start_date = Column(DateTime)
+    sync_date = Column(DateTime)
 
 class RedmineProject(db.Model):
-    project_id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer)
     project_name = Column(String)
+    pm_user_id = Column(Integer)
+    pm_user_name = Column(String)
+    complete_percent = Column(Float)
+    closed_issue_count = Column(Integer)
+    unclosed_issue_count = Column(Integer)
+    total_issue_count = Column(Integer)
+    member_count = Column(Integer)
+    expired_day = Column(Integer)
     start_date = Column(DateTime)
     end_date = Column(DateTime)
+    sync_date = Column(DateTime)
+    project_status = Column(String)
 
 class ProjectMember(db.Model):
-    user_id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer)
     user_name = Column(String)
-    project_id = Column(String)
+    project_id = Column(Integer)
     project_name = Column(String)
     role_id = Column(Integer)
     role_name = Column(String)
+
+class ProjectMemberCount(db.Model):
+    project_id = Column(Integer, primary_key=True)
+    project_name = Column(String)
+    member_count = Column(Integer)
+
+class ProjectOvewview(db.Model):
+    id = Column(Integer, primary_key=True)
+    project_count = Column(Integer)
+    overdue_issue_count = Column(Integer)
+    no_started_issue_count = Column(Integer)
+
+class IssueRank(db.Model):
+    user_id = Column(Integer, primary_key=True)
+    user_name = Column(String)
+    unclosed_count = Column(Integer)
+    project_count = Column(Integer)
+
+
+class GitCommitNumberEachDays(db.Model):
+    id = Column(Integer, primary_key=True)
+    repo_id = Column(Integer)
+    repo_name = Column(String)
+    date = Column(Date)
+    commit_number = Column(Integer)
+    created_at = Column(DateTime)

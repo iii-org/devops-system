@@ -30,7 +30,7 @@ from jsonwebtoken import jsonwebtoken
 from model import db
 from resources import logger, role as role, activity, zap
 from resources import project, gitlab, issue, user, redmine, wiki, version, sonarqube, apiTest, postman, mock, harbor, \
-    webInspect, template, release
+    webInspect, template, release, sync_redmine, plugin, kubernetesClient
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -175,7 +175,6 @@ def initialize(db_uri):
     migrate.init()
     logger.logger.info('Server initialized.')
 
-
 # Projects
 api.add_resource(project.ListMyProjects, '/project/list')
 api.add_resource(project.SingleProject, '/project', '/project/<sint:project_id>')
@@ -261,7 +260,6 @@ api.add_resource(pipeline.PipelineConfig,
                  '/pipelines/<repository_id>/config')
 api.add_resource(pipeline.PipelineExecAction, '/pipelines/<repository_id>/pipelines_exec/action')
 api.add_resource(pipeline.PipelineExecLogs, '/pipelines/logs')
-api.add_resource(pipeline.PipelineSoftware, '/pipelines/software')
 api.add_resource(pipeline.PipelinePhaseYaml,
                  '/pipelines/<repository_id>/branch/<branch_name>/phase_yaml')
 api.add_resource(pipeline.PipelineYaml,
@@ -298,11 +296,28 @@ api.add_resource(issue.MyIssueMonthStatistics, '/issues/month_statistics')
 api.add_resource(release.Releases,'/project/<project_id>/releases')
 api.add_resource(release.Release,'/project/<project_id>/releases/<release_name>')
 
+
+## release 
+api.add_resource(plugin.Plugins,'/plugins')
+api.add_resource(plugin.Plugin,'/plugins/<sint:plugin_id>')
+
 # dashboard
 api.add_resource(issue.DashboardIssuePriority,
                  '/dashboard_issues_priority/<user_id>')
 api.add_resource(issue.DashboardIssueProject, '/dashboard_issues_project/<user_id>')
 api.add_resource(issue.DashboardIssueType, '/dashboard_issues_type/<user_id>')
+api.add_resource(gitlab.GitTheLastHoursCommits, '/dashboard/the_last_hours_commits')
+api.add_resource(sync_redmine.ProjectMembersCount, '/dashboard/project_members_count')
+api.add_resource(sync_redmine.ProjectMembersDetail, '/dashboard/project_members_detail')
+api.add_resource(sync_redmine.ProjectMembers, '/dashboard/<project_id>/project_members')
+api.add_resource(sync_redmine.ProjectOverview, '/dashboard/project_overview')
+api.add_resource(sync_redmine.RedmineProjects, '/dashboard/redmine_projects')
+api.add_resource(sync_redmine.RedminProjectDetail, '/dashboard/redmine_projects_detail')
+api.add_resource(sync_redmine.RedmineIssueRank, '/dashboard/issue_rank')
+api.add_resource(sync_redmine.UnclosedIssues, '/dashboard/<user_id>/unclosed_issues')
+api.add_resource(sync_redmine.InvolvedProjects, '/dashboard/<user_id>/involved_projects')
+api.add_resource(sync_redmine.PassingRate, '/dashboard/passing_rate')
+api.add_resource(sync_redmine.PassingRateDetail, '/dashboard/passing_rate_detail')
 
 # testPhase Requirement
 api.add_resource(issue.RequirementByIssue, '/requirements_by_issue/<issue_id>')
@@ -415,6 +430,10 @@ api.add_resource(activity.ProjectActivities, '/project/<sint:project_id>/activit
 # ZAP
 api.add_resource(zap.Zap, '/zap', '/project/<sint:project_id>/zap')
 
+# Sync Redmine, Gitlab
+api.add_resource(sync_redmine.SyncRedmine, '/sync_redmine')
+api.add_resource(gitlab.GitCountEachPjCommitsByDays, '/sync_gitlab/count_each_pj_commits_by_days')
+
 # System versions
 api.add_resource(NexusVersion, '/system_versions')
 
@@ -426,6 +445,8 @@ def start_prod():
         jsonwebtoken.init_app(app)
         initialize(config.get('SQLALCHEMY_DATABASE_URI'))
         migrate.run()
+        kubernetesClient.apply_cronjob_yamls()
+        logger.logger.info('Apply k8s-yaml cronjob.')
         return app
     except Exception as e:
         ret = internal_error(e)
@@ -436,4 +457,4 @@ def start_prod():
 
 if __name__ == "__main__":
     start_prod()
-    socketio.run(app, host='0.0.0.0', port=10009, debug=(config.get('DEBUG') is True))
+    socketio.run(app, host='0.0.0.0', port=10009, debug=(config.get('DEBUG') is True), use_reloader=False)
