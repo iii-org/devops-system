@@ -396,7 +396,6 @@ api.add_resource(SystemGitCommitID, '/system_git_commit_id')  # git commit
 # Mocks
 api.add_resource(mock.MockTestResult, '/mock/test_summary')
 api.add_resource(mock.MockSesame, '/mock/sesame')
-api.add_resource(mock.MockFillProjectOwner, '/mock/fill_project_owner')
 
 # Harbor
 api.add_resource(harbor.HarborRepository,
