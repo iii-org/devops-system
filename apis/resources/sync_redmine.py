@@ -264,7 +264,7 @@ def get_project_members(project_id):
 
 def get_project_overview():
     column_mapping = {
-        'Started': 'project_count',
+        'Projects': 'project_count',
         'Overdue': 'overdue_issue_count',
         'Not_Started': 'no_started_issue_count'
     }
