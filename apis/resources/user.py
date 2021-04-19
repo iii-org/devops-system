@@ -1,5 +1,5 @@
 from ldap3 import Server, Connection, ObjectDef, SUBTREE, LEVEL, ALL
-import datetime
+from datetime import datetime, date
 import re
 
 import kubernetes
@@ -196,6 +196,7 @@ def login(args):
                     if err is not None:
                         logger.exception(err)
                     user.password = db_info['hex_password']
+                    user.update_at = util.date_to_str(datetime.now())
                     db.session.commit()
             else:
                 status = 'Direct Login AD pass, DB create User'
@@ -284,10 +285,6 @@ def get_user_info(user_id):
 
 @record_activity(ActionType.UPDATE_USER)
 def update_user(user_id, args):
-    set_string = ""
-    if args["name"] is not None:
-        set_string += "name = '{0}'".format(args["name"])
-        set_string += ","
     user = db.session.query(model.User).\
         filter(
             model.User.id == user_id
@@ -309,15 +306,18 @@ def update_user(user_id, args):
         h = SHA256.new()
         h.update(args["password"].encode())
         user.password = h.hexdigest()
+    if args["name"] is not None:
+        user.name = args['name']
     if args["phone"] is not None:
         user.phone = args['phone']
     if args["email"] is not None:
-       user.phone = args['email']
+        user.email = args['email']
     if args["status"] is not None:
         if args["status"] == "disable":
             user.status = True
         else:
             user.status = False
+    user.update_at = util.date_to_str(datetime.now())
     db.session.commit()    
     return util.success()
 
