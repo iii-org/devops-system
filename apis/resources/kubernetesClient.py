@@ -1,3 +1,5 @@
+import os
+import yaml
 import json
 import numbers
 from datetime import datetime
@@ -10,16 +12,15 @@ import config
 import base64
 from kubernetes import client as k8s_client
 from kubernetes import config as k8s_config
+from kubernetes import utils as k8s_utils
 from .gitlab import gitlab
 
-from flask_restful import Resource, reqparse
+from flask_restful import reqparse
 
 
 import resources.apiError as apiError
 from resources.logger import logger
 
-
-import pprint
 
 # kubernetes 抓取 III 定義 annotations 標籤
 iii_template = {}
@@ -51,8 +52,35 @@ k8s_client.Configuration.set_default(con)
 k8s_config.load_kube_config()
 v1 = k8s_client.CoreV1Api()
 rbac = k8s_client.RbacAuthorizationV1Api()
+api_client = k8s_client.ApiClient()
+api_instance = k8s_client.BatchV1beta1Api(api_client)
 extensions_v1beta1 = k8s_client.ExtensionsV1beta1Api()
 
+
+def apply_cronjob_yamls():
+    for root, dirs, files in os.walk("k8s-yaml/api-init/cronjob"):
+        for file in files:
+            if file.endswith(".yaml") or file.endswith(".yml"):
+                with open(os.path.join(root, file)) as f:
+                    json_file = yaml.safe_load(f)
+                    for cronjob_json in api_instance.list_cron_job_for_all_namespaces().items:
+                        if cronjob_json.metadata.name == json_file["metadata"]["name"]:
+                            api_instance.delete_namespaced_cron_job(cronjob_json.metadata.name, cronjob_json.metadata.namespace)
+                            while True:
+                                still_has_cj =False
+                                for cj in api_instance.list_namespaced_cron_job(cronjob_json.metadata.namespace).items:
+                                    if cronjob_json.metadata.name in cj.metadata.name:
+                                        still_has_cj = True
+                                if still_has_cj is False:
+                                    break
+                try:
+                    k8s_utils.create_from_yaml(api_client, os.path.join(root, file))
+                except k8s_utils.FailToCreateError as e:
+                    info = json.loads(e.api_exceptions[0].body)
+                    if info.get('reason').lower() == 'alreadyexists':
+                        pass
+                    else:
+                        raise e
 
 def list_service_all_namespaces():
     list_services = []

@@ -30,7 +30,7 @@ from jsonwebtoken import jsonwebtoken
 from model import db
 from resources import logger, role as role, activity, zap
 from resources import project, gitlab, issue, user, redmine, wiki, version, sonarqube, apiTest, postman, mock, harbor, \
-    webInspect, template, release, sync_redmine
+    webInspect, template, release, sync_redmine, plugin, kubernetesClient
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -175,7 +175,6 @@ def initialize(db_uri):
     migrate.init()
     logger.logger.info('Server initialized.')
 
-
 # Projects
 api.add_resource(project.ListMyProjects, '/project/list')
 api.add_resource(project.SingleProject, '/project', '/project/<sint:project_id>')
@@ -297,6 +296,11 @@ api.add_resource(issue.MyIssueMonthStatistics, '/issues/month_statistics')
 api.add_resource(release.Releases,'/project/<project_id>/releases')
 api.add_resource(release.Release,'/project/<project_id>/releases/<release_name>')
 
+
+## release 
+api.add_resource(plugin.Plugins,'/plugins')
+api.add_resource(plugin.Plugin,'/plugins/<sint:plugin_id>')
+
 # dashboard
 api.add_resource(issue.DashboardIssuePriority,
                  '/dashboard_issues_priority/<user_id>')
@@ -392,6 +396,7 @@ api.add_resource(SystemGitCommitID, '/system_git_commit_id')  # git commit
 # Mocks
 api.add_resource(mock.MockTestResult, '/mock/test_summary')
 api.add_resource(mock.MockSesame, '/mock/sesame')
+api.add_resource(mock.MockFillProjectOwner, '/mock/fill_project_owner')
 
 # Harbor
 api.add_resource(harbor.HarborRepository,
@@ -441,6 +446,8 @@ def start_prod():
         jsonwebtoken.init_app(app)
         initialize(config.get('SQLALCHEMY_DATABASE_URI'))
         migrate.run()
+        kubernetesClient.apply_cronjob_yamls()
+        logger.logger.info('Apply k8s-yaml cronjob.')
         return app
     except Exception as e:
         ret = internal_error(e)
@@ -451,4 +458,4 @@ def start_prod():
 
 if __name__ == "__main__":
     start_prod()
-    socketio.run(app, host='0.0.0.0', port=10009, debug=(config.get('DEBUG') is True))
+    socketio.run(app, host='0.0.0.0', port=10009, debug=(config.get('DEBUG') is True), use_reloader=False)
