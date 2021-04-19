@@ -14,6 +14,7 @@ from sqlalchemy.orm.exc import NoResultFound
 import model
 import re
 import config
+import json
 import resources.apiError as apiError
 import util as util
 from enums.action_type import ActionType
@@ -28,18 +29,9 @@ from resources.gitlab import gitlab
 from resources import kubernetesClient
 
 # Make a regular expression
-# for validating an Email
-email_regex = '[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+'
-
-
+ad_connect_timeout = 5
+ad_receive_timeout = 30
 jwt = JWTManager()
-
-
-def check_email(email):
-    check = False
-    if(re.search(email_regex, email)):
-        check = True
-    return check
 
 
 def get_user_id_name_by_plan_user_id(plan_user_id):
@@ -86,25 +78,32 @@ def get_token_expires(role_id):
 
 
 def check_ad_login(server_info, account, password, output):
-    attributes = ['department', 'company', 'title', 'cn',
-                  'canonicalName', 'distinguishedName', 'userPrincipalName', 'sn', 'givenName'
-                  ]
-    ip, port = server_info['url'].split(':')
-    email = account+'@'+server_info['domain']
-    server = Server(host=ip, port=int(port), get_info=ALL)
-    conn = Connection(server, user=email, password=password)
-    if conn.bind() is False:
+    try:
+        attributes = ['department', 'company', 'title', 'cn',
+                      'canonicalName', 'distinguishedName', 'userPrincipalName', 'sn', 'givenName'
+                      ]
+        ip, port = server_info['ip_port'].split(':')
+        email = account+'@'+server_info['domain']
+        server = Server(host=ip, port=int(port), get_info=ALL,
+                        connect_timeout=ad_connect_timeout)
+        conn = Connection(server, user=email,
+                          password=password, read_only=True)
+        if conn.bind() is False:
+            logger.info("User Login Failed by AD: {0}".format(account))
+            return output
+        logger.info("User Login Success by AD: {0}".format(account))
+        conn.search(search_base=get_dc_string(server_info['domain'].split('.')),
+                    search_filter='(&(objectclass=person)(sAMAccountName='+account+'))',
+                    search_scope=SUBTREE,
+                    attributes=attributes
+                    )
+        output['is_pass'] = True
+        for attribute in attributes:
+            output['data'][attribute] = str(conn.entries[0][attribute].value)
         return output
-
-    conn.search(search_base=get_dc_string(server_info['domain'].split('.')),
-                search_filter='(&(objectclass=person)(sAMAccountName='+account+'))',
-                search_scope=SUBTREE,
-                attributes=attributes
-                )
-    output['is_pass'] = True
-    for attribute in attributes:
-        output['data'][attribute] = str(conn.entries[0][attribute].value)
-    return output
+    except Exception as e:
+        raise DevOpsError(500, 'Error when AD Login ',
+                          error=apiError.uncaught_exception(e))
 
 
 @jwt.user_claims_loader
@@ -135,25 +134,39 @@ def check_db_login(user, password, output):
     output['hex_password'] = login_password
     if user.password == login_password:
         output['is_pass'] = True
+        logger.info("User Login success by DB user_id: {0}".format(user.id))
+    else:
+        logger.info("User Login failed by DB user_id: {0}".format(user.id))
     return output, user, project_user_role
+
+
+def check_ad_server():
+    ad_server = {
+        'ip_port': config.get('AD_IP_PORT'),
+        'domain': config.get('AD_DOMAIN')
+    }
+    plugin = model.PluginSoftware.query.\
+        filter(model.PluginSoftware.name == 'ad_server').\
+        first()
+    if plugin is not None:
+        parameters = json.loads(plugin.parameter)
+        ad_server['ip_port'] = parameters['ip_port']
+        ad_server['domain'] = parameters['domain']
+    return ad_server
 
 
 def login(args):
     default_role_id = 3
     login_account = args['username']
     login_password = args['password']
-    ad_server = {
-        'url': config.get('AD_IP_PORT'),
-        'domain': config.get('AD_DOMAIN')
-    }
+    ad_server = check_ad_server()
     try:
-        ad_info = {'is_pass': False, 'connect': False,
+        ad_info = {'is_pass': False,
                    'login': login_account, 'data': {}}
-        if ad_server['url'] is not None and ad_server['domain'] is not None:
+        if ad_server['ip_port'] is not None and ad_server['domain'] is not None:
             ad_info['exists'] = True
             ad_info = check_ad_login(
                 ad_server, login_account, login_password, ad_info)
-
         db_info = {'connect': False,
                    'login': login_account,
                    'is_pass': False,
@@ -198,16 +211,16 @@ def login(args):
                 user_login = login_account
                 user_role_id = default_role_id
             token = get_access_token(user_id, user_login, user_role_id)
-            return  util.success({'status': status,'token': token})
+            return util.success({'status': status, 'token': token})
         elif db_info['is_pass'] is True:
             status = "DB Login"
             token = get_access_token(
                 user.id, user.login, project_user_role.role_id)
-            return  util.success({'status': status,'token': token})
+            return util.success({'status': status, 'token': token})
         else:
             return util.respond(401, "Error when logging in.", error=apiError.wrong_password())
     except Exception as e:
-        raise DevOpsError(500, 'Error when downloading an attachment.',
+        raise DevOpsError(500, 'Error when user login.',
                           error=apiError.uncaught_exception(e))
 
 
