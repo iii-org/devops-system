@@ -60,6 +60,8 @@ class PluginSoftware(db.Model):
     name = Column(String)
     parameter = Column(String)
     disabled = Column(Boolean)
+    create_at = Column(DateTime)
+    update_at = Column(DateTime)
 
 class ProjectPluginRelation(db.Model):
     id = Column(Integer, primary_key=True)
