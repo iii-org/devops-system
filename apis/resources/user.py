@@ -1,5 +1,5 @@
 from ldap3 import Server, Connection, ObjectDef, SUBTREE, LEVEL, ALL
-from datetime import datetime, date
+import datetime
 import re
 
 import kubernetes
@@ -196,7 +196,7 @@ def login(args):
                     if err is not None:
                         logger.exception(err)
                     user.password = db_info['hex_password']
-                    user.update_at = util.date_to_str(datetime.now())
+                    user.update_at = util.date_to_str(datetime.datetime.now())
                     db.session.commit()
             else:
                 status = 'Direct Login AD pass, DB create User'
@@ -317,7 +317,7 @@ def update_user(user_id, args):
             user.status = True
         else:
             user.status = False
-    user.update_at = util.date_to_str(datetime.now())
+    user.update_at = util.date_to_str(datetime.datetime.now())
     db.session.commit()    
     return util.success()
 
