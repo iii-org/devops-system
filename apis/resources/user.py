@@ -77,7 +77,14 @@ def get_token_expires(role_id):
     return expires
 
 
-def check_ad_login(server_info, account, password, output):
+def check_ad_login(server_info, account, password):
+    ad_info = {'is_pass': False,
+                   'login': account, 'data': {}}
+    if server_info['ip_port'] is not None and server_info['domain'] is not None:
+        ad_info['exists'] = True
+    else:
+        ad_info['exists'] = False
+        return ad_info
     try:
         attributes = ['department', 'company', 'title', 'cn',
                       'canonicalName', 'distinguishedName', 'userPrincipalName', 'sn', 'givenName'
@@ -90,17 +97,17 @@ def check_ad_login(server_info, account, password, output):
                           password=password, read_only=True)
         if conn.bind() is False:
             logger.info("User Login Failed by AD: {0}".format(account))
-            return output
+            return ad_info
         logger.info("User Login Success by AD: {0}".format(account))
         conn.search(search_base=get_dc_string(server_info['domain'].split('.')),
                     search_filter='(&(objectclass=person)(sAMAccountName='+account+'))',
                     search_scope=SUBTREE,
                     attributes=attributes
                     )
-        output['is_pass'] = True
+        ad_info['is_pass'] = True
         for attribute in attributes:
-            output['data'][attribute] = str(conn.entries[0][attribute].value)
-        return output
+            ad_info['data'][attribute] = str(conn.entries[0][attribute].value)
+        return ad_info
     except Exception as e:
         raise DevOpsError(500, 'Error when AD Login ',
                           error=apiError.uncaught_exception(e))
@@ -161,12 +168,7 @@ def login(args):
     login_password = args['password']
     ad_server = check_ad_server()
     try:
-        ad_info = {'is_pass': False,
-                   'login': login_account, 'data': {}}
-        if ad_server['ip_port'] is not None and ad_server['domain'] is not None:
-            ad_info['exists'] = True
-            ad_info = check_ad_login(
-                ad_server, login_account, login_password, ad_info)
+        ad_info = check_ad_login(ad_server, login_account, login_password)
         db_info = {'connect': False,
                    'login': login_account,
                    'is_pass': False,
