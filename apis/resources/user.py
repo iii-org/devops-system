@@ -227,47 +227,35 @@ def login(args):
 
 
 def user_forgot_password(args):
-    result = db.engine.execute("SELECT login, email FROM public.user")
-    for row in result:
-        if row['login'] == args["user_account"] and row['email'] == args["mail"]:
-            pass
-            logger.info(
-                "user_forgot_password API: user_account and mail were correct"
-            )
     return 'dummy_response', 200
 
 
 # noinspection PyMethodMayBeStatic
-def get_user_info(user_id):
-    result = db.engine.execute(
-        "SELECT ur.id as id, ur.name as name,"
-        " ur.email as email, ur.phone as phone, ur.login as login, ur.create_at as create_at,"
-        " ur.update_at as update_at, pur.role_id, ur.disabled as disabled"
-        " FROM public.user as ur, public.project_user_role as pur"
-        " WHERE ur.id = {0} AND ur.id = pur.user_id".format(user_id))
-    user_data = result.fetchone()
-    result.close()
-
-    if user_data:
-        if user_data["disabled"] is True:
+def get_user_info(user_id):    
+    user, project_user_role = db.session.query(model.User, model.ProjectUserRole).\
+        filter(
+            model.User.id == user_id,
+            model.User.id == model.ProjectUserRole.user_id
+            ).first()
+    if user is not None and project_user_role is not None:
+        if user.disabled is True:
             status = "disable"
         else:
             status = "enable"
         output = {
-            "id": user_data["id"],
-            "name": user_data["name"],
-            "email": user_data["email"],
-            "phone": user_data["phone"],
-            "login": user_data["login"],
-            "create_at": util.date_to_str(user_data["create_at"]),
-            "update_at": util.date_to_str(user_data["update_at"]),
+            "id": user.id,
+            "name": user.name,
+            "email": user.email,
+            "phone": user.phone,
+            "login": user.login,
+            "create_at": util.date_to_str(user.create_at),
+            "update_at": util.date_to_str(user.update_at),
             "role": {
-                "name": role.get_role_name(user_data["role_id"]),
-                "id": user_data["role_id"]
+                "name": role.get_role_name(project_user_role.role_id),
+                "id": project_user_role.role_id
             },
             "status": status
         }
-        # get user's involved project list
         rows = db.session. \
             query(model.Project, model.ProjectPluginRelation.git_repository_id). \
             join(model.ProjectPluginRelation). \
@@ -300,48 +288,37 @@ def update_user(user_id, args):
     if args["name"] is not None:
         set_string += "name = '{0}'".format(args["name"])
         set_string += ","
-    if args["password"] is not None:
+    user = db.session.query(model.User).\
+        filter(
+            model.User.id == user_id
+            ).first()
+    if args['password'] is not None:
         if args["old_password"] == args["password"]:
             return util.respond(400, "Password is not changed.", error=apiError.wrong_password())
         if role.ADMIN.id != get_jwt_identity()['role_id']:
             if args["old_password"] is None:
                 return util.respond(400, "old_password is empty", error=apiError.wrong_password())
             h_old_password = SHA256.new()
-            h_old_password.update(args["old_password"].encode())
-            result = db.engine.execute(
-                "SELECT ur.id, ur.password FROM public.user as ur"
-                " WHERE ur.disabled = false AND ur.id = {0}".format(
-                    get_jwt_identity()['user_id'])
-            ).fetchone()
-            if result['password'] != h_old_password.hexdigest():
-                return util.respond(400, "Password is incorrect", error=apiError.wrong_password())
+            h_old_password.update(args["old_password"].encode())             
+            if user.password != h_old_password.hexdigest():
+                return util.respond(400, "Password is incorrect", error=apiError.wrong_password())            
         err = update_external_passwords(
             user_id, args["password"], args["old_password"])
         if err is not None:
-            logger.exception(err)  # Don't stop change password on API server
+            logger.exception(err)  # Don't stop change password on API server    
         h = SHA256.new()
         h.update(args["password"].encode())
-        set_string += "password = '{0}'".format(h.hexdigest())
-        set_string += ","
+        user.password = h.hexdigest()
     if args["phone"] is not None:
-        set_string += "phone = '{0}'".format(args["phone"])
-        set_string += ","
+        user.phone = args['phone']
     if args["email"] is not None:
-        set_string += "email = '{0}'".format(args["email"])
-        set_string += ","
+       user.phone = args['email']
     if args["status"] is not None:
-        status = False
         if args["status"] == "disable":
-            status = True
-        set_string += "disabled = '{0}'".format(status)
-        set_string += ","
-    set_string += "update_at = localtimestamp"
-    logger.info("set_string: {0}".format(set_string))
-    result = db.engine.execute(
-        "UPDATE public.user SET {0} WHERE id = {1}".format(
-            set_string, user_id))
-    logger.debug("{0} rows updated.".format(result.rowcount))
-
+            user.status = True
+        else:
+            user.status = False
+    db.session.commit()    
     return util.success()
 
 
