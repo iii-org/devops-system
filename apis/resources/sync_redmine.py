@@ -58,7 +58,6 @@ def get_passing_rate(last_test_results):
     return passing_rate
 
 def get_admin_user_id():
-    account = 'public_pm'
     user_detail = model.User.query.filter_by(login=account).first()
     return user_detail.id
 
