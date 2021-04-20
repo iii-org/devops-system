@@ -66,28 +66,35 @@ def deal_with_issue_by_user_redmine_output(redmine_output, closed_status=None):
     project_list = project_module.get_project_by_plan_project_id(
         redmine_output['project']['id'])
     pjt = project_module.get_project_info(project_list['project_id'])
-    project_name = pjt.name
-    project_display = pjt.display
-    output_list['project_id'] = project_list['project_id']
-    output_list['project_name'] = project_name
-    output_list['project_display'] = project_display
-    output_list['issue_tracker'] = redmine_output['tracker']['name']
-    output_list['issue_priority'] = redmine_output['priority']['name']
-    output_list['issue_status'] = redmine_output['status']['name']
-    output_list['issue_tracker_id'] = redmine_output['tracker']['id']
-    output_list['issue_priority_id'] = redmine_output['priority']['id']
-    output_list['issue_status_id'] = redmine_output['status']['id']
-    output_list['issue_name'] = redmine_output['subject']
+    output_list['project'] = {
+        'id' : project_list['project_id'],
+        'name' : pjt.name,
+        'display' : pjt.display,
+    }
+    output_list['tracker'] = {
+        'id' : redmine_output['tracker']['id'],
+        'name' : redmine_output['tracker']['name']
+    }
+    output_list['priority'] = {
+        'id' : redmine_output['priority']['id'],
+        'name' : redmine_output['priority']['name']
+    }
+    output_list['status'] = {
+        'id' : redmine_output['status']['id'],
+        'name' : redmine_output['status']['name']
+    }
+    output_list['status'] = {
+        'id' : redmine_output['status']['id'],
+        'name' : redmine_output['status']['name']
+    }
+    output_list['assigned_to'] = {}
+    output_list['fixed_version'] = {}
+    output_list['name'] = redmine_output['subject']
     output_list['description'] = redmine_output['description']
     output_list['updated_on'] = redmine_output['updated_on']
     output_list['start_date'] = None
     output_list['due_date'] = None
-    output_list['parent_id'] = None
-    output_list['fixed_version_id'] = None
-    output_list['fixed_version'] = None
-    output_list['assigned_to'] = ''
-    output_list['assigned_to_id'] = ''
-    output_list['assigned_to_login'] = ''
+    output_list['parent_id'] = None    
     if 'start_date' in redmine_output:
         output_list['start_date'] = redmine_output['start_date']
 
@@ -97,18 +104,19 @@ def deal_with_issue_by_user_redmine_output(redmine_output, closed_status=None):
         user_info = user.get_user_id_name_by_plan_user_id(
             redmine_output['assigned_to']['id'])        
         if user_info is not None:
-            output_list['assigned_to'] = user_info.name
-            output_list['assigned_to_id'] = user_info.id
-            output_list['assigned_to_login'] = user_info.login
-            
+            output_list['assigned_to'] = {
+                'id': user_info.id,
+                'name': user_info.name,
+                'login': user_info.login
 
+            }            
     if 'parent' in redmine_output:
         output_list['parent_id'] = redmine_output['parent']['id']
     if 'fixed_version' in redmine_output:
-        output_list['fixed_version_id'] = redmine_output['fixed_version'][
-            'id']
-        output_list['fixed_version_name'] = redmine_output[
-            'fixed_version']['name']
+        output_list['fixed_version'] = {
+                'id': redmine_output['fixed_version']['id'],
+                'name': redmine_output['fixed_version']['name']
+            }
     output_list['is_closed'] = False
     if redmine_output['status']['id'] in closed_status:
         output_list['is_closed'] = True
@@ -136,7 +144,7 @@ def __deal_with_issue_redmine_output(redmine_output, closed_status=None):
             redmine_output['assigned_to']['id'])
         if user_info is not None:
             redmine_output['assigned_to'] = {
-                'id': user_info.id, 'name': user_info.name}
+                'id': user_info.id, 'name': user_info.name, 'login': user_info.login}
     if 'author' in redmine_output:
         user_info = user.get_user_id_name_by_plan_user_id(
             redmine_output['author']['id'])
