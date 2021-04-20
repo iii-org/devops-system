@@ -3,7 +3,9 @@ kind: CronJob
 metadata:
   name: git-count-commits
 spec:
-  schedule: "0 22 * * *"
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  schedule: "0 14 * * *"
   jobTemplate:
     spec:
       template:
