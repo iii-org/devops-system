@@ -347,13 +347,14 @@ def get_issue_by_status_by_project(project_id):
     if util.is_dummy_project(project_id):
         return util.success({})
     args = {}
-    issue_list_output = get_issue_by_project(project_id, args)
+    list_issues = get_issue_by_project(project_id, args)
     get_issue_by_status_output = {}
-    for issue_list in issue_list_output:
-        if issue_list['issue_status'] not in get_issue_by_status_output:
-            get_issue_by_status_output[issue_list['issue_status']] = []
-        get_issue_by_status_output[issue_list['issue_status']].append(
-            issue_list)
+    for issue in list_issues:
+        status = issue['status']['name']
+        if status not in get_issue_by_status_output:
+            get_issue_by_status_output[status] = []
+        get_issue_by_status_output[status].append(
+            issue)
     return util.success(get_issue_by_status_output)
 
 
@@ -380,7 +381,7 @@ def get_issue_progress_by_project(project_id, args):
     if len(list_issues) == 0:
         return util.success({})
     for issue in list_issues:
-        issue_status_id = str(issue['issue_status_id'])
+        issue_status_id = str(issue['status']['id'])
         if issue_status_id in issues_by_statuses:
             issues_by_statuses[issue_status_id] += 1
         else:
@@ -400,7 +401,7 @@ def get_issue_statistics_by_project(project_id, args):
     issue_list = get_issue_by_project(project_id, args)
     issues_by_statuses, list_statuses = list_issue_statuses(
         'issues_count_by_status')
-    analysis_targets = ['issue_priority', 'issue_category', 'assigned_to']
+    analysis_targets = ['priority', 'tracker', 'assigned_to']
     output = {}
     # Count  by Issue
     for issue in issue_list:
@@ -421,16 +422,17 @@ def mapping_statistics_output(targets, list_statuses, output=None):
     return output
 
 
-def count_issue(issue, statuses, targets,  output=None):
-    issue_status_id = str(issue['issue_status_id'])
+def count_issue(issue, statuses, targets,  output=None):    
+    issue_status_id = str(issue['status']['id'])
     for key in targets:
         if key == '':
             return {}
         if key not in output:
-            output[key] = {}
-        key_info = issue[key]
-        if key == 'assigned_to' and issue[key] is None:
+            output[key] = {}        
+        if key == 'assigned_to' and issue[key] == {}:
             key_info = 'Unassigned'
+        else:
+            key_info = issue[key]['name']
         if key_info not in output[key]:
             output[key][key_info] = statuses.copy()
         if issue_status_id in statuses:
@@ -573,10 +575,11 @@ def count_project_number_by_issues(user_id):
     project_count = {}
     issues = get_issue_by_user(user_id)
     for issue in issues:
-        if issue['project_name'] not in project_count:
-            project_count[issue['project_name']] = 1
+        project_name = issue['project']['name']
+        if project_name not in project_count:
+            project_count[project_name] = 1
         else:
-            project_count[issue['project_name']] += 1
+            project_count[project_name] += 1
     output = []
     for key, value in project_count.items():
         output.append({'name': key, 'number': value})
@@ -587,7 +590,7 @@ def count_priority_number_by_issues(user_id):
     priority_count = {}
     issues = get_issue_by_user(user_id)
     for issue in issues:
-        priority = issue['issue_priority']
+        priority = issue['priority']['name']
         if priority not in priority_count:
             priority_count[priority] = 1
         else:
@@ -602,10 +605,11 @@ def count_type_number_by_issues(user_id):
     tracker_count = {}
     issues = get_issue_by_user(user_id)
     for issue in issues:
-        if issue['issue_category'] not in tracker_count:
-            tracker_count[issue['issue_category']] = 1
+        tracker = issue['tracker']['name']
+        if tracker not in tracker_count:
+            tracker_count[tracker] = 1
         else:
-            tracker_count[issue['issue_category']] += 1
+            tracker_count[tracker] += 1
     output = []
     for key, value in tracker_count.items():
         output.append({'name': key, 'number': value})
