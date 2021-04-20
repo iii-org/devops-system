@@ -1,5 +1,8 @@
 import json
-
+import pytz
+from datetime import datetime, timedelta, time
+from dateutil import tz
+from gitlab import Gitlab
 import requests
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
@@ -7,10 +10,12 @@ from sqlalchemy.orm.exc import NoResultFound
 
 import config
 import model
+from model import db, GitCommitNumberEachDays
 import util as util
 from resources import apiError, kubernetesClient, role
 from resources.apiError import DevOpsError
 from resources.logger import logger
+from .rancher import rancher
 
 
 def get_nexus_project_id(repo_id):
@@ -28,6 +33,11 @@ def get_repo_url(project_id):
 
 def commit_id_to_url(project_id, commit_id):
     return f'{get_repo_url(project_id)[0:-4]}/-/commit/{commit_id}'
+
+# May throws NoResultFound
+def get_repository_id(project_id):
+    return model.ProjectPluginRelation.query.filter_by(
+        project_id=project_id).one().git_repository_id
 
 
 class GitLab(object):
@@ -48,6 +58,7 @@ class GitLab(object):
             self.private_token = output.json()['private_token']
         else:
             self.private_token = config.get("GITLAB_PRIVATE_TOKEN")
+        self.gl = Gitlab(config.get("GITLAB_BASE_URL"), private_token=self.private_token)
 
     @staticmethod
     def gl_get_nexus_project_id(repository_id):
@@ -82,8 +93,7 @@ class GitLab(object):
 
         output = util.api_request(method, url, headers, params, data)
 
-        logger.info('gitlab api {0} {1}, params={2}, body={5}, response={3} {4}'.format(
-            method, url, params.__str__(), output.status_code, output.text, data))
+        logger.info(f'gitlab api {method} {url}, params={params.__str__()}, body={data}, response={output.status_code} {output.text}')
         if int(output.status_code / 100) != 2:
             raise apiError.DevOpsError(
                 output.status_code,
@@ -102,6 +112,9 @@ class GitLab(object):
 
     def __api_delete(self, path, params=None, headers=None):
         return self.__api_request('DELETE', path, params=params, headers=headers)
+    
+    def __gl_timezone_to_utc(self, gl_datetime_str):
+        return datetime.strftime(datetime.strptime(gl_datetime_str, '%Y-%m-%dT%H:%M:%S.%f%z').astimezone(pytz.utc), '%Y-%m-%dT%H:%M:%S%z')
 
     def gl_create_project(self, args):
         return self.__api_post('/projects', params={
@@ -110,14 +123,14 @@ class GitLab(object):
         }).json()
 
     def gl_get_project(self, repo_id):
-        return self.__api_get('/projects/{0}'.format(repo_id)).json()
+        return self.__api_get(f'/projects/{repo_id}',{'statistics':'true'}).json()
 
     def gl_update_project(self, repo_id, description):
         params = {'description': description}
-        return self.__api_put('/projects/{0}'.format(repo_id), params=params)
+        return self.__api_put(f'/projects/{repo_id}', params=params)
 
     def gl_delete_project(self, repo_id):
-        return self.__api_delete('/projects/{0}'.format(repo_id))
+        return self.__api_delete(f'/projects/{repo_id}')
 
     def gl_create_user(self, args, user_source_password, is_admin=False):
         data = {
@@ -132,8 +145,8 @@ class GitLab(object):
         return self.__api_post('/users', data=data).json()
 
     def gl_update_password(self, repository_user_id, new_pwd):
-        return self.__api_put('/users/{0}'.format(repository_user_id),
-                              params={"password": new_pwd})
+        return self.__api_put(f'/users/{repository_user_id}',
+                              params={"password": new_pwd, "skip_reconfirmation": True})
 
     def gl_get_user_list(self, args):
         return self.__api_get('/users', params=args)
@@ -143,25 +156,24 @@ class GitLab(object):
             "user_id": user_id,
             "access_level": 40,
         }
-        return self.__api_post('/projects/{0}/members'.format(project_id),
+        return self.__api_post(f'/projects/{project_id}/members',
                                params=params)
 
     def gl_project_delete_member(self, project_id, user_id):
-        return self.__api_delete('/projects/{0}/members/{1}'.format(
-            project_id, user_id))
+        return self.__api_delete(f'/projects/{project_id}/members/{user_id}')
 
     def gl_delete_user(self, gitlab_user_id):
-        return self.__api_delete('/users/{0}'.format(gitlab_user_id))
+        return self.__api_delete(f'/users/{gitlab_user_id}')
 
     def gl_count_branches(self, repo_id):
-        output = self.__api_get('/projects/{0}/repository/branches'.format(repo_id))
+        output = self.__api_get(f'/projects/{repo_id}/repository/branches')
         return len(output.json())
 
-    def gl_get_tags(self, repo_id):
-        return self.__api_get('/projects/{0}/repository/tags'.format(repo_id)).json()
+    def gl_get_tags(self, repo_id, params = {}):
+        return self.__api_get(f'/projects/{repo_id}/repository/tags', params).json()
 
     def gl_create_rancher_pipeline_yaml(self, repo_id, args, method):
-        path = '/projects/{0}/repository/files/{1}'.format(repo_id, args["file_path"])
+        path = f'/projects/{repo_id}/repository/files/{args["file_path"]}'
         params = {}
         for key in ['branch', 'start_branch', 'encoding', 'author_email',
                     'author_name', 'content', 'commit_message']:
@@ -169,12 +181,11 @@ class GitLab(object):
         return self.__api_request(method, path, params=params)
 
     def gl_get_project_file_for_pipeline(self, project_id, args):
-        return self.__api_get('/projects/{0}/repository/files/{1}'.format(
-            project_id, args["file_path"]
-        ), params={'ref': args["branch"]})
+        return self.__api_get(f'/projects/{project_id}/repository/files/{args["file_path"]}', 
+                              params={'ref': args["branch"]})
 
     def gl_get_branches(self, repo_id):
-        output = self.__api_get('/projects/{0}/repository/branches'.format(repo_id))
+        output = self.__api_get(f'/projects/{repo_id}/repository/branches')
         if output.status_code != 200:
             raise DevOpsError(output.status_code, "Error while getting git branches",
                               error=apiError.gitlab_error(output))
@@ -184,18 +195,18 @@ class GitLab(object):
         k8s_service_list = kubernetesClient.list_service_all_namespaces()
         k8s_node_list = kubernetesClient.list_work_node()
         work_node_ip = k8s_node_list[0]['ip']
-
+        
         branch_list = []
         for branch_info in output.json():
             env_url_list = []
             for k8s_service in k8s_service_list:
                 if k8s_service['type'] == 'NodePort' and \
-                        "{0}-{1}".format(project_detail['path'], branch_info["name"]) \
+                        f'{project_detail["path"]}-{branch_info["name"]}' \
                         in k8s_service['name']:
                     port_list = []
                     for port in k8s_service['ports']:
                         port_list.append(
-                            {"port": port['port'], "url": "http://{0}:{1}".format(work_node_ip, port['nodePort'])})
+                            {"port": port['port'], "url": f"http://{work_node_ip}:{port['nodePort']}"})
                     env_url_list.append({k8s_service['name']: port_list})
             branch = {
                 "name": branch_info["name"],
@@ -212,27 +223,37 @@ class GitLab(object):
         return branch_list
 
     def gl_create_branch(self, repo_id, args):
-        output = self.__api_post('/projects/{0}/repository/branches'.format(repo_id),
+        output = self.__api_post(f'/projects/{repo_id}/repository/branches',
                                  params={'branch': args['branch'], 'ref': args['ref']})
         return output.json()
 
     def gl_get_branch(self, repo_id, branch):
-        output = self.__api_get('/projects/{0}/repository/branches/{1}'.format(
-            repo_id, branch))
+        output = self.__api_get(f'/projects/{repo_id}/repository/branches/{branch}')
         return output.json()
 
     def gl_delete_branch(self, project_id, branch):
-        output = self.__api_delete('/projects/{0}/repository/branches/{1}'.format(
-            project_id, branch))
+        output = self.__api_delete(f'/projects/{project_id}/repository/branches/{branch}')
         return output
 
     def gl_get_repository_tree(self, repo_id, branch):
-        output = self.__api_get('/projects/{0}/repository/tree'.format(repo_id),
+        output = self.__api_get(f'/projects/{repo_id}/repository/tree',
                                 params={'ref': branch})
         return {"file_list": output.json()}
 
+    def gl_get_storage_usage(self, repo_id):
+        project_detail = self.gl_get_project(repo_id)
+        usage_info = {}
+        usage_info['title'] = 'GitLab'
+        usage_info['used'] = {}
+        usage_info['quota'] = {}
+        usage_info['used']['value']= project_detail['statistics']['storage_size']
+        usage_info['used']['unit']= ""
+        usage_info['quota']['value']= "1073741824"
+        usage_info['quota']['unit']= ""    
+        return usage_info
+                
     def __edit_file_exec(self, method, repo_id, args):
-        path = '/projects/{0}/repository/files/{1}'.format(repo_id, args['file_path'])
+        path = f'/projects/{repo_id}/repository/files/{args["file_path"]}'
         params = {}
         keys = ['branch', 'start_branch', 'encoding', 'author_email', 'author_name',
                 'content', 'commit_message']
@@ -246,7 +267,7 @@ class GitLab(object):
         else:
             raise DevOpsError(500, 'Only accept POST and PUT.',
                               error=apiError.invalid_code_path('Only PUT and POST is allowed, but'
-                                                               '{0} provided.'.format(method)))
+                                                               f'{method} provided.'))
 
         if output.status_code == 201:
             return util.success({
@@ -263,9 +284,7 @@ class GitLab(object):
         return self.__edit_file_exec('PUT', repo_id, args)
 
     def gl_get_file(self, repo_id, branch, file_path):
-        output = self.__api_get('/projects/{0}/repository/files/{1}'.format(
-            repo_id, file_path
-        ), params={'ref': branch})
+        output = self.__api_get(f'/projects/{repo_id}/repository/files/{file_path}', params={'ref': branch})
         return util.success({
             "file_name": output.json()["file_name"],
             "file_path": output.json()["file_path"],
@@ -278,14 +297,13 @@ class GitLab(object):
         })
 
     def gl_delete_file(self, repo_id, branch, file_path, args):
-        return self.__api_delete('/projects/{0}/repository/files/{1}'.format(
-            repo_id, file_path), params={
+        return self.__api_delete(f'/projects/{repo_id}/repository/files/{file_path}', params={
             'branch': branch,
             'commit_message': args['commit_message']
         })
 
     def gl_create_tag(self, repo_id, args):
-        path = '/projects/{0}/repository/tags'.format(repo_id)
+        path = f'/projects/{repo_id}/repository/tags'
         params = {}
         keys = ['tag_name', 'ref', 'message', 'release_description']
         for k in keys:
@@ -293,11 +311,10 @@ class GitLab(object):
         return self.__api_post(path, params=params).json()
 
     def gl_delete_tag(self, repo_id, tag_name):
-        return self.__api_delete('/projects/{0}/repository/tags/{1}'.format(
-            repo_id, tag_name))
+        return self.__api_delete(f'/projects/{repo_id}/repository/tags/{tag_name}')
 
     def gl_get_commits(self, project_id, branch):
-        return self.__api_get('/projects/{0}/repository/commits'.format(project_id),
+        return self.__api_get(f'/projects/{project_id}/repository/commits',
                               params={'ref_name': branch, 'per_page': 100}).json()
 
     # 用project_id查詢project的網路圖
@@ -343,15 +360,104 @@ class GitLab(object):
                                ).json()['token']
 
 
-# May throws NoResultFound
-def get_repository_id(project_id):
-    return model.ProjectPluginRelation.query.filter_by(
-        project_id=project_id).one().git_repository_id
+
+    # Get Gitlab list releases
+    def gl_list_releases(self, repo_id):
+        return self.__api_get(f'/projects/{repo_id}/releases').json()
+
+    # Get Gitlab list releases
+    def gl_get_release(self, repo_id,tag_name):
+        return self.__api_get(f'/projects/{repo_id}/releases/{tag_name}').json()
+
+    def gl_get_release(self, repo_id,tag_name):
+        return self.__api_get(f'/projects/{repo_id}/releases/{tag_name}').json()
+
+    def gl_create_release(self, repo_id,data):
+        path = f'/projects/{repo_id}/releases'
+        return self.__api_post(path, params=data).json()
+
+    def gl_update_release(self, repo_id,tag_name,data):
+        path = f'/projects/{repo_id}/releases/{tag_name}'
+        return self.__api_put(path, params=data).json()
+
+    def gl_delete_release(self, repo_id,tag_name):
+        path = f'/projects/{repo_id}/releases/{tag_name}'
+        return self.__api_delete(path).json()
+    
+    def gl_get_the_last_hours_commits(self, the_last_hours=None, show_commit_rows = None):
+        out_list=[]
+        if show_commit_rows is not None:
+            for x in range(12, 169, 12):
+                hours_age = (datetime.utcnow() - timedelta(days = x)).isoformat()
+                for pj in self.gl.projects.list(order_by="last_activity_at"):
+                    if (pj.empty_repo is False) and ("iiidevops-templates" not in pj.path_with_namespace):
+                        for commit in pj.commits.list(since=hours_age):
+                            out_list.append({"pj_name": pj.name, 
+                            "author_name": commit.author_name, 
+                            "author_email": commit.author_email, 
+                            "commit_time": self.__gl_timezone_to_utc(commit.committed_date),
+                            "commit_id": commit.short_id, "commit_title": commit.title, 
+                            "commit_message": commit.message})
+                            if len(out_list) > show_commit_rows-1:
+                                sorted((out["commit_time"] for out in out_list), reverse=True)
+                                return out_list[:show_commit_rows]
+        else:
+            if the_last_hours == None:
+                the_last_hours = 24
+            hours_age = (datetime.utcnow() - timedelta(hours = the_last_hours)).isoformat()
+            for pj in self.gl.projects.list(order_by="last_activity_at"):
+                if (pj.empty_repo is False) and ("iiidevops-templates" not in pj.path_with_namespace):
+                    for commit in pj.commits.list(since=hours_age):
+                        out_list.append({"pj_name": pj.name, 
+                        "author_name": commit.author_name, 
+                        "author_email": commit.author_email, 
+                        "commit_time": self.__gl_timezone_to_utc(commit.committed_date),
+                        "commit_id": commit.short_id, "commit_title": commit.title, 
+                        "commit_message": commit.message})
+        sorted((out["commit_time"] for out in out_list), reverse=True)
+        return out_list
+
+    def gl_count_each_pj_commits_by_days(self, days=30):
+        for pj in self.gl.projects.list(all=True):
+            if ("iiidevops-templates" not in pj.path_with_namespace):
+                for i in range(1, days+1):
+                    pj_create_date = datetime.strptime(pj.created_at, '%Y-%m-%dT%H:%M:%S.%f%z').astimezone(tz.tzlocal()).date()
+                    day_start = datetime.combine((datetime.now() - timedelta(days = i)), time(00, 00))
+                    day_end = datetime.combine((datetime.now() - timedelta(days = i)), time(23, 59))
+                    if day_start.date() >= pj_create_date:
+                        count = GitCommitNumberEachDays.query.filter(GitCommitNumberEachDays.repo_id == pj.id,
+                                                                GitCommitNumberEachDays.date == day_start.date()).count()
+                        if count == 0:
+                            if (pj.empty_repo is True):
+                                commit_number = 0
+                            else:
+                                commit_number = len(pj.commits.list(all=True,
+                                        query_parameters={'since': day_start, 'until': day_end}))
+                            one_row_data = GitCommitNumberEachDays(repo_id=pj.id,
+                                                                repo_name=pj.name,
+                                                                date=day_start.date(),
+                                            commit_number=commit_number,
+                                            created_at=str(datetime.now()))
+                            db.session.add(one_row_data)
+                            db.session.commit()
 
 
 # --------------------- Resources ---------------------
 gitlab = GitLab()
 
+
+class GitRelease():
+    @jwt_required
+    def check_gitlab_release(self, repository_id,tag_name):        
+        output = {'check' : True, "info":"", "errors":{} }    
+        tag = gitlab.gl_get_tags(str(repository_id), {'search': tag_name} )        
+        if len(tag) > 0 :
+            output['check'] = False
+            output['info'] = '{0} is exists in gitlab'.format(tag_name)        
+            output['errors'] = tag[0]
+        return output  
+
+gl_release = GitRelease()
 
 class GitProjectBranches(Resource):
     @jwt_required
@@ -469,17 +575,6 @@ class GitProjectTag(Resource):
         return util.success()
 
 
-# class GitProjectMergeBranch(Resource):
-#     @jwt_required
-#     def post(self, repository_id):
-#         project_id = repo_id_to_project_id(repository_id)
-#         role.require_in_project(project_id)
-#         parser = reqparse.RequestParser()
-#         parser.add_argument('schemas', type=dict, required=True)
-#         args = parser.parse_args()["schemas"]
-#         return gitlab.gl_merge(repository_id, args)
-#
-#
 class GitProjectBranchCommits(Resource):
     @jwt_required
     def get(self, repository_id):
@@ -531,3 +626,17 @@ class GitProjectURLFromId(Resource):
                                     error=apiError.argument_error('project_id|repository_id'))
             project_id = get_nexus_project_id(repo_id)
         return util.success({'http_url': get_repo_url(project_id)})
+    
+class GitTheLastHoursCommits(Resource):
+    @jwt_required
+    def get(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('the_last_hours', type=int)
+        parser.add_argument('show_commit_rows', type=int)
+        args = parser.parse_args()
+        return util.success(gitlab.gl_get_the_last_hours_commits(args["the_last_hours"], args["show_commit_rows"]))
+
+
+class GitCountEachPjCommitsByDays(Resource):
+    def get(self):
+        return util.success(gitlab.gl_count_each_pj_commits_by_days())

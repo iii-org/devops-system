@@ -5,10 +5,11 @@ import yaml
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
 from sqlalchemy.orm.exc import NoResultFound
+from flask_socketio import Namespace, emit, SocketIO
 
-import model
 import resources.apiError as apiError
 import util as util
+from nexus import nx_get_project_plugin_relation
 from model import db, PipelineLogsCache
 from resources.logger import logger
 from .gitlab import GitLab, commit_id_to_url
@@ -19,13 +20,8 @@ gitlab = GitLab()
 
 def pipeline_exec_list(repository_id):
     output_array = []
-    try:
-        relation = model.ProjectPluginRelation.query.filter_by(
-            git_repository_id=repository_id).one()
-    except NoResultFound:
-        raise apiError.DevOpsError(404, 'No such project',
-                                   error=apiError.repository_id_not_found(repository_id))
-    pipeline_outputs, response = rancher.rc_get_pipeline_executions(
+    relation = nx_get_project_plugin_relation(repo_id=repository_id)
+    pipeline_outputs = rancher.rc_get_pipeline_executions(
         relation.ci_project_id,
         relation.ci_pipeline_id)
     for pipeline_output in pipeline_outputs:
@@ -55,15 +51,13 @@ def pipeline_exec_list(repository_id):
     logger.info("ci/cd output: {0}".format(output_array))
     return output_array
 
+def pipeline_config(repository_id, args):
+    relation = nx_get_project_plugin_relation(repo_id=repository_id)
+    return rancher.rc_get_pipeline_config(relation.ci_pipeline_id, args['pipelines_exec_run'])
+    
 
 def pipeline_exec_logs(args):
-    try:
-        relation = model.ProjectPluginRelation.query.filter_by(
-            git_repository_id=args['repository_id']).one()
-    except NoResultFound:
-        raise apiError.DevOpsError(
-            404, 'No such project.',
-            error=apiError.repository_id_not_found(args['repository_id']))
+    relation = nx_get_project_plugin_relation(repo_id=args["repository_id"])
 
     # search PipelineLogsCache table log
     log_cache = PipelineLogsCache.query.filter(PipelineLogsCache.project_id == relation.project_id,
@@ -87,15 +81,8 @@ def pipeline_exec_logs(args):
     else:
         return util.success(log_cache.logs)
 
-
 def pipeline_exec_action(git_repository_id, args):
-    try:
-        relation = model.ProjectPluginRelation.query.filter_by(
-            git_repository_id=git_repository_id).one()
-    except NoResultFound:
-        raise apiError.DevOpsError(
-            404, 'No such project.',
-            error=apiError.repository_id_not_found(git_repository_id))
+    relation = nx_get_project_plugin_relation(repo_id=git_repository_id)
 
     response = rancher.rc_get_pipeline_executions_action(
         relation.ci_project_id,
@@ -103,18 +90,6 @@ def pipeline_exec_action(git_repository_id, args):
         args['pipelines_exec_run'],
         args['action'])
     return util.success()
-
-
-def pipeline_software():
-    result = db.engine.execute(
-        "SELECT pp.name as phase_name, ps.name as software_name, "
-        "psc.detail as detail FROM public.pipeline_phase as pp, "
-        "public.pipeline_software as ps, public.pipeline_software_config as psc "
-        "WHERE psc.software_id = ps.id AND ps.phase_id = pp.id AND psc.sample = true;"
-    )
-    pipe_software = result.fetchall()
-    result.close()
-    return [dict(row) for row in pipe_software]
 
 
 def generate_ci_yaml(args, repository_id, branch_name):
@@ -235,19 +210,6 @@ class PipelineExecLogs(Resource):
         return pipeline_exec_logs(args)
 
 
-class PipelineSoftware(Resource):
-    @jwt_required
-    def get(self):
-        pipe_out_list = pipeline_software()
-        output_list = []
-        for pipe_out in pipe_out_list:
-            if 'detail' in pipe_out:
-                pipe_out['detail'] = json.loads(pipe_out['detail'].replace(
-                    "'", '"'))
-            output_list.append(pipe_out)
-        return util.success(output_list)
-
-
 class PipelineYaml(Resource):
     @jwt_required
     def get(self, repository_id, branch_name):
@@ -265,3 +227,12 @@ class PipelinePhaseYaml(Resource):
     @jwt_required
     def get(self, repository_id, branch_name):
         return get_phase_yaml(repository_id, branch_name)
+
+
+class PipelineConfig(Resource):
+    @jwt_required
+    def get(self, repository_id):
+        parser = reqparse.RequestParser()
+        parser.add_argument('pipelines_exec_run', type=int, required=True)
+        args = parser.parse_args()
+        return pipeline_config(repository_id, args)

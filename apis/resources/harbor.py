@@ -87,18 +87,26 @@ def hb_create_project(project_name):
     except DevOpsError as e:
         if e.unpack_response()['errors'][0]['code'] == 'CONFLICT':
             raise DevOpsError(422, 'Harbor already has a project using this name.',
-                              error=apiError.identifier_has_been_token(project_name))
+                              error=apiError.identifier_has_been_taken(project_name))
         else:
             raise e
     return hb_get_id_by_name(project_name)
 
 
-def hb_delete_project(project_id):
+def hb_delete_project(harbor_param):
     try:
-        __api_delete('/projects/{0}'.format(project_id))
+        repositoriest = hb_list_repositories(harbor_param[1])
+        if len(repositoriest) != 0:
+            for repository in repositoriest:
+                split_list = repository["name"].split("/")
+                project_name = split_list[0]
+                repository_name = '/'.join(split_list[1:])
+                hb_delete_repository(project_name, repository_name)
+        __api_delete('/projects/{0}'.format(harbor_param[0]))
     except DevOpsError as e:
-        if e.status_code == 404:
-            # Deleting a not existing project, let it go
+        if e.status_code in [404, 403]:
+            # 404: Deleting a not existing project , let it go
+            # 403: list not existing repositories, let it go
             pass
         else:
             raise e
@@ -176,11 +184,23 @@ def hb_list_artifacts(project_name, repository_name):
             vul = ''
         else:
             vul = '{0} ({1})'.format(scan['severity'], scan['summary']['total'])
-        for tag in art['tags']:
+        if 'tags' in art and art['tags'] is not None:
+            for tag in art['tags']:
+                ret.append({
+                    'artifact_id': art['id'],
+                    'tag_id': tag['id'],
+                    'name': tag['name'],
+                    'size': art['size'],
+                    'vulnerabilities': vul,
+                    'digest': art['digest'],
+                    'labels': art['labels'],
+                    'push_time': art['push_time']
+                })
+        else:
             ret.append({
                 'artifact_id': art['id'],
-                'tag_id': tag['id'],
-                'name': tag['name'],
+                'tag_id': '',
+                'name': '',
                 'size': art['size'],
                 'vulnerabilities': vul,
                 'digest': art['digest'],
@@ -188,6 +208,11 @@ def hb_list_artifacts(project_name, repository_name):
                 'push_time': art['push_time']
             })
     return ret
+
+def hb_check_tags(project_name, repository_name,tag_name):
+
+    return {}
+
 
 
 def hb_get_repository_info(project_name, repository_name):
@@ -213,6 +238,10 @@ def hb_list_tags(project_name, repository_name, reference):
                      f'/artifacts/{reference}/tags').json()
 
 
+def hb_create_artifact_tag(project_name, repository_name, reference, tag_name):
+    return __api_post(f'/projects/{project_name}/repositories/{__encode(repository_name)}'
+                 f'/artifacts/{reference}/tags',data={'name': tag_name})
+
 def hb_delete_artifact_tag(project_name, repository_name, reference, tag_name):
     __api_delete(f'/projects/{project_name}/repositories/{__encode(repository_name)}'
                  f'/artifacts/{reference}/tags/{tag_name}')
@@ -223,9 +252,21 @@ def hb_delete_artifact_tag(project_name, repository_name, reference, tag_name):
 def hb_get_project_summary(project_id):
     return __api_get('/projects/{0}/summary'.format(project_id)).json()
 
-
 def hb_build_external_link(path):
     return f"{config.get('HARBOR_EXTERNAL_BASE_URL')}{path}"
+
+
+def get_storage_usage(project_id):
+    habor_info = hb_get_project_summary(project_id)
+    usage_info = {}
+    usage_info['title'] = 'Harbor'
+    usage_info['used'] = {}
+    usage_info['used']['value'] = habor_info['quota']['used']['storage']
+    usage_info['used']['unit'] = ''
+    usage_info['quota'] = {}
+    usage_info['quota']['value'] = habor_info['quota']['hard']['storage']
+    usage_info['quota']['unit'] = ''
+    return usage_info
 
 
 # ----------------- Resources -----------------
@@ -277,7 +318,6 @@ class HarborArtifact(Resource):
         parser.add_argument('digest', type=str)
         parser.add_argument('tag_name', type=str)
         args = parser.parse_args()
-
         hb_delete_artifact_tag(project_name, repository_name, args['digest'], args['tag_name'])
         return util.success()
 
@@ -286,5 +326,35 @@ class HarborProject(Resource):
     @jwt_required
     def get(self, nexus_project_id):
         role.require_in_project(nexus_project_id)
-        project_id = nexus.nx_get_project_plugin_relation(nexus_project_id).harbor_project_id
+        project_id = nexus.nx_get_project_plugin_relation(nexus_project_id=nexus_project_id).harbor_project_id
         return util.success(hb_get_project_summary(project_id))
+
+
+
+
+
+class HarborRelease():
+            
+    @jwt_required
+    def get_list_artifacts(self,project_name, repository_name):    
+        return hb_list_artifacts(project_name, repository_name)
+
+    def check_harbor_release(self,artifacts, tag_name):
+        output = {'check' : False, "info":"", "target":{} ,"errors":{}}    
+        if len(artifacts) > 0 :
+            output['check'] = True
+            output['target'] = artifacts[0]
+        for art in artifacts :
+            if art['name']  == tag_name:
+                output['check'] = False
+                output['info'] = '{0} is exists in harbor'.format(tag_name)        
+                output['errors'] = art
+        return output        
+
+    def create(self,project_name, repository_name,reference,tag_name):    
+        return hb_create_artifact_tag(project_name, repository_name,reference, tag_name)
+
+    def delete_harbor_tag(self, project_name, repository_name,hb_info):
+        return hb_delete_artifact_tag(project_name, repository_name, hb_info['digest'], hb_info['name'] )
+
+hb_release = HarborRelease()
