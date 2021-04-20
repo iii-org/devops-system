@@ -132,7 +132,10 @@ def __check_git_project_is_empty(pj):
         return True
 
 
-def __get_template_list():
+def __force_update_template_cache_table():
+    for template_list_cache in  TemplateListCache.query.all():
+        db.session.delete(template_list_cache)
+        db.session.commit()
     output = []
     group = gl.groups.get("iiidevops-templates", all=True)
     for group_project in group.projects.list(all=True):
@@ -150,25 +153,15 @@ def __get_template_list():
                     "description": 
                         "" if "description" not in pip_set_json else pip_set_json["description"],
                     "version": tag_list})
-        temp = TemplateListCache.query.filter(TemplateListCache.temp_repo_id == pj.id).first()
-        if temp is None:
-            cache_temp = TemplateListCache(temp_repo_id=pj.id,
-                            name=pj.name,
-                            path=pj.path,
-                            display=pj.name if "name" not in pip_set_json else pip_set_json["name"],
-                            description="" if "description" not in pip_set_json else pip_set_json["description"],
-                            version=tag_list,
-                            update_at=datetime.now())
-            db.session.add(cache_temp)
-            db.session.commit()
-        else:
-            temp.name = pj.name
-            temp.path=pj.path
-            temp.display=pj.name if "name" not in pip_set_json else pip_set_json["name"]
-            temp.description="" if "description" not in pip_set_json else pip_set_json["description"]
-            temp.version=tag_list
-            temp.update_at=datetime.now()
-            db.session.commit()
+        cache_temp = TemplateListCache(temp_repo_id=pj.id,
+                        name=pj.name,
+                        path=pj.path,
+                        display=pj.name if "name" not in pip_set_json else pip_set_json["name"],
+                        description="" if "description" not in pip_set_json else pip_set_json["description"],
+                        version=tag_list,
+                        update_at=datetime.now())
+        db.session.add(cache_temp)
+        db.session.commit()
     return output
 
 
@@ -177,9 +170,9 @@ def tm_get_template_list(force_update=0):
     total_data = TemplateListCache.query.all()
     one_day_ago_data = TemplateListCache.query.filter(TemplateListCache.update_at < one_day_ago).all()
     if force_update == 1:
-        return __get_template_list()
+        return __force_update_template_cache_table()
     elif len(total_data) ==0 or len(one_day_ago_data) > 1:
-        return __get_template_list()
+        return __force_update_template_cache_table()
     else:
         output = []
         for data in total_data:
@@ -333,8 +326,8 @@ def tm_put_pipeline_branches(repository_id, data):
                             stage_when.append(input_branch)
                         elif input_soft_enable["enable"] is False and input_branch in stage_when:
                             stage_when.remove(input_branch)
-                            if len(stage_when) == 0:
-                                del stage["when"]
+                        if len(stage_when) == 0:
+                            stage_when.append("skip")
     with open(f'pj_edit_pipe_yaml/{pj.path}_{create_time}/{pipe_yaml_file_name}', 'w') as file:
         documents = yaml.dump(pipe_json, file)
     __set_git_username_config(f'pj_edit_pipe_yaml/{pj.path}_{create_time}')
@@ -401,8 +394,8 @@ def tm_put_pipeline_default_branch(repository_id, data):
                         stage_when.append(pj.default_branch)
                     elif put_pipe_soft["has_default_branch"] is False and pj.default_branch in stage_when:
                         stage_when.remove(pj.default_branch)
-                        if len(stage_when) == 0:
-                            del stage["when"]
+                    if len(stage_when) == 0:
+                        stage_when.append("skip")
     with open(f'pj_edit_pipe_yaml/{pj.path}_{create_time}/{pipe_yaml_file_name}', 'w') as file:
         documents = yaml.dump(pipe_json, file)
     __set_git_username_config(f'pj_edit_pipe_yaml/{pj.path}_{create_time}')

@@ -159,15 +159,15 @@ def insert_all_issues(project_id, sync_date):
     for issue in all_issues:
         new_issue = model.RedmineIssue(
             issue_id = issue['id'],
-            project_id = issue['project_id'],
-            project_name = issue['project_name'],
-            assigned_to = issue['assigned_to'],
-            assigned_to_id = issue['assigned_to_id'] if 'assigned_to_id' in issue else None,
-            issue_type = issue['issue_category'],
-            issue_name = issue['issue_name'],
-            status_id = issue['issue_status_id'],
-            status = issue['issue_status'],
-            is_closed = issue['is_closed'] if 'is_closed' in issue else None,
+            project_id = issue['project']['id'],
+            project_name = issue['project']['name'],
+            assigned_to = issue['assigned_to'].get('name', None),
+            assigned_to_id = issue['assigned_to'].get('id', None),
+            issue_type = issue['tracker']['name'],
+            issue_name = issue['name'],
+            status_id = issue['status']['id'],
+            status = issue['status']['name'],
+            is_closed = issue['is_closed'],
             start_date = issue['start_date'],
             sync_date = sync_date
         )
