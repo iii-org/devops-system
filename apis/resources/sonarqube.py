@@ -137,13 +137,15 @@ def sq_load_measures(project_name):
             metric = measure['metric']
             history = measure['history']
             for h in history:
+                if 'date' not in h:
+                    continue
                 date = h['date']
+                if date not in fetch:
+                    fetch[date] = {}
                 if 'value' in h:
                     value = h['value']
                 else:
                     value = ''
-                if date not in fetch:
-                    fetch[date] = {}
                 fetch[date][metric] = value
         if len(data) < PAGE_SIZE:
             break
