@@ -315,7 +315,6 @@ api.add_resource(sync_redmine.RedmineProjects, '/dashboard/redmine_projects')
 api.add_resource(sync_redmine.RedminProjectDetail, '/dashboard/redmine_projects_detail')
 api.add_resource(sync_redmine.RedmineIssueRank, '/dashboard/issue_rank')
 api.add_resource(sync_redmine.UnclosedIssues, '/dashboard/<user_id>/unclosed_issues')
-api.add_resource(sync_redmine.InvolvedProjects, '/dashboard/<user_id>/involved_projects')
 api.add_resource(sync_redmine.PassingRate, '/dashboard/passing_rate')
 api.add_resource(sync_redmine.PassingRateDetail, '/dashboard/passing_rate_detail')
 
@@ -445,7 +444,7 @@ def start_prod():
         jsonwebtoken.init_app(app)
         initialize(config.get('SQLALCHEMY_DATABASE_URI'))
         migrate.run()
-        kubernetesClient.apply_cronjob_yamls()
+        # kubernetesClient.apply_cronjob_yamls()
         logger.logger.info('Apply k8s-yaml cronjob.')
         return app
     except Exception as e:
