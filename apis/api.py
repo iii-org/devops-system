@@ -28,7 +28,7 @@ import util
 import maintenance
 from jsonwebtoken import jsonwebtoken
 from model import db
-from resources import logger, role as role, activity, zap
+from resources import logger, role as role, activity, zap, sideex
 from resources import project, gitlab, issue, user, redmine, wiki, version, sonarqube, apiTest, postman, mock, harbor, \
     webInspect, template, release, sync_redmine, plugin, kubernetesClient
 
@@ -428,6 +428,9 @@ api.add_resource(activity.ProjectActivities, '/project/<sint:project_id>/activit
 
 # ZAP
 api.add_resource(zap.Zap, '/zap', '/project/<sint:project_id>/zap')
+
+# Sideex
+api.add_resource(sideex.Sideex, '/sideex', '/project/<sint:project_id>/sideex')
 
 # Sync Redmine, Gitlab
 api.add_resource(sync_redmine.SyncRedmine, '/sync_redmine')
