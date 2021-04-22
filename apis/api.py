@@ -28,7 +28,7 @@ import util
 import maintenance
 from jsonwebtoken import jsonwebtoken
 from model import db
-from resources import logger, role as role, activity, zap
+from resources import logger, role as role, activity, zap, sideex
 from resources import project, gitlab, issue, user, redmine, wiki, version, sonarqube, apiTest, postman, mock, harbor, \
     webInspect, template, release, sync_redmine, plugin, kubernetesClient, ad
 
@@ -320,7 +320,6 @@ api.add_resource(sync_redmine.RedmineProjects, '/dashboard/redmine_projects')
 api.add_resource(sync_redmine.RedminProjectDetail, '/dashboard/redmine_projects_detail')
 api.add_resource(sync_redmine.RedmineIssueRank, '/dashboard/issue_rank')
 api.add_resource(sync_redmine.UnclosedIssues, '/dashboard/<user_id>/unclosed_issues')
-api.add_resource(sync_redmine.InvolvedProjects, '/dashboard/<user_id>/involved_projects')
 api.add_resource(sync_redmine.PassingRate, '/dashboard/passing_rate')
 api.add_resource(sync_redmine.PassingRateDetail, '/dashboard/passing_rate_detail')
 
@@ -434,6 +433,10 @@ api.add_resource(activity.ProjectActivities, '/project/<sint:project_id>/activit
 
 # ZAP
 api.add_resource(zap.Zap, '/zap', '/project/<sint:project_id>/zap')
+
+# Sideex
+api.add_resource(sideex.Sideex, '/sideex', '/project/<sint:project_id>/sideex')
+api.add_resource(sideex.SideexReport, '/sideex_report/<int:test_id>')
 
 # Sync Redmine, Gitlab
 api.add_resource(sync_redmine.SyncRedmine, '/sync_redmine')
