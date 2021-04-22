@@ -431,6 +431,7 @@ api.add_resource(zap.Zap, '/zap', '/project/<sint:project_id>/zap')
 
 # Sideex
 api.add_resource(sideex.Sideex, '/sideex', '/project/<sint:project_id>/sideex')
+api.add_resource(sideex.SideexReport, '/sideex_report/<int:test_id>')
 
 # Sync Redmine, Gitlab
 api.add_resource(sync_redmine.SyncRedmine, '/sync_redmine')

@@ -35,7 +35,7 @@ def sd_start_test(args):
 
 
 def sd_finish_test(args):
-    row = model.Zap.query.filter_by(
+    row = model.Sideex.query.filter_by(
         id=args['test_id']
     ).one()
     row.status = 'Finished'
@@ -46,20 +46,25 @@ def sd_finish_test(args):
     model.db.session.commit()
 
 
-def zap_get_tests(project_id):
+def sd_get_tests(project_id):
     project_name = nexus.nx_get_project(id=project_id).name
-    rows = model.Zap.query.filter_by(project_name=project_name).all()
+    rows = model.Sideex.query.filter_by(project_name=project_name).all()
     ret = []
     for row in rows:
         if row.status == 'Scanning':
             # 12 hour timeout
-            if datetime.now() - row.run_at > timedelta(hours=12):
+            if datetime.now() - row.run_at > timedelta(hours=1):
                 row.status = 'Failed'
                 model.db.session.commit()
         r = json.loads(str(row))
         r['issue_link'] = gitlab.commit_id_to_url(project_id, r['commit_id'])
         ret.append(r)
     return ret
+
+
+def sd_get_report(test_id):
+    row = model.Sideex.query.filter_by(id=test_id).one()
+    return row.report
 
 
 # --------------------- Resources ---------------------
@@ -83,7 +88,7 @@ class Sideex(Resource):
         parser.add_argument('report', type=str)
         args = parser.parse_args()
         test_id = args['test_id']
-        project_name = model.Zap.query.filter_by(id=test_id).one().project_name
+        project_name = model.Sideex.query.filter_by(id=test_id).one().project_name
         role.require_in_project(project_name=project_name)
         sd_finish_test(args)
         return util.success()
@@ -91,4 +96,12 @@ class Sideex(Resource):
     @jwt_required
     def get(self, project_id):
         role.require_in_project(project_id=project_id)
-        return util.success(zap_get_tests(project_id))
+        return util.success(sd_get_tests(project_id))
+
+
+class SideexReport(Resource):
+    @jwt_required
+    def get(self, test_id):
+        project_name = model.Sideex.query.filter_by(id=test_id).one().project_name
+        role.require_in_project(project_name=project_name)
+        return util.success(sd_get_report(test_id))
