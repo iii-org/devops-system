@@ -63,8 +63,6 @@ def clear_all_tables():
     model.RedmineIssue.query.delete()
     model.ProjectMember.query.delete()
     model.ProjectMemberCount.query.delete()
-    model.ProjectOvewview.query.delete()
-    model.IssueRank.query.delete()
     model.db.session.commit()
 
 # --------------------- Sync Redmine ---------------------
@@ -196,8 +194,7 @@ def get_user_id_by_project(own_project):
         model.RedmineIssue.assigned_to_id).distinct().all()
     return list(sum(user_id_collections, ()))
 
-def get_current_sync_date_project_by_project_id(project_id):
-    sync_date = get_sync_date()
+def get_current_sync_date_project_by_project_id(project_id, sync_date):
     return model.RedmineProject.query.filter_by(
         project_id=project_id, sync_date=sync_date).order_by(model.RedmineProject.end_date).first()
 
@@ -218,6 +215,13 @@ def get_project_count_by_user_and_project(user_id, own_project):
     return model.ProjectMember.query.filter(
             model.ProjectMember.user_id==user_id, model.ProjectMember.project_id.in_(own_project)).count()
 
+def get_current_sync_date_project_count_by_status(own_project, sync_date, status=None):
+    if status:
+        return model.RedmineProject.query.filter(
+            model.RedmineProject.project_id.in_(own_project), model.RedmineProject.project_status==status, model.RedmineProject.sync_date==sync_date).count()
+    else:
+        return model.RedmineProject.query.filter(
+            model.RedmineProject.project_id.in_(own_project), model.RedmineProject.sync_date==sync_date).count()
 
 # --------------------- API Tasks ---------------------
 
@@ -264,11 +268,10 @@ def get_project_members(project_id):
     return project_members
 
 def get_project_overview(own_project):
-    projects = model.RedmineProject.query.filter(model.RedmineProject.project_id.in_(own_project)).count()
-    overdue = model.RedmineProject.query.filter(
-        model.RedmineProject.project_id.in_(own_project), model.RedmineProject.project_status == 'Overdue').count()
-    not_started = model.RedmineProject.query.filter(
-        model.RedmineProject.project_id.in_(own_project), model.RedmineProject.project_status == 'Not_Started').count()
+    sync_date = get_sync_date()
+    projects = get_current_sync_date_project_count_by_status(own_project=own_project, sync_date=sync_date)
+    overdue = get_current_sync_date_project_count_by_status(own_project=own_project, sync_date=sync_date, status='Overdue')
+    not_started = get_current_sync_date_project_count_by_status(own_project=own_project, sync_date=sync_date, status='Not_Started')
     index = {'Projects': projects, 'Overdue': overdue, 'Not_Started': not_started}
     project_overview = [
         {
@@ -313,7 +316,7 @@ def get_redmine_issue_rank(own_project):
                 'project_count': project_count
             }
         )
-    return sorted(issue_rank, key=itemgetter('unclosed_count'), reverse=True)
+    return sorted(issue_rank, key=itemgetter('unclosed_count'), reverse=True)[:5]
 
 def get_unclosed_issues_by_user(user_id):
     query_collections = model.RedmineIssue.query.filter_by(assigned_to_id=user_id, is_closed=False)
@@ -337,8 +340,9 @@ def get_unclosed_issues_by_user(user_id):
 
 def get_postman_passing_rate(detail, own_project):
     all_passing_rate = []
+    sync_date = get_sync_date()
     for project_id in own_project:
-        response = get_current_sync_date_project_by_project_id(project_id)
+        response = get_current_sync_date_project_by_project_id(project_id=project_id, sync_date=sync_date)
         if not response:
             continue
         last_test_results = get_last_test_results(project_id)
@@ -448,6 +452,7 @@ class UnclosedIssues(Resource):
     def get(self, user_id):
         unclosed_issues = get_unclosed_issues_by_user(user_id)
         return util.success(unclosed_issues)
+
 
 class PassingRate(Resource):
     @jwt_required
