@@ -331,8 +331,7 @@ def tm_put_pipeline_branches(repository_id, data):
     with open(f'pj_edit_pipe_yaml/{pj.path}_{create_time}/{pipe_yaml_file_name}', 'w') as file:
         documents = yaml.dump(pipe_json, file)
     __set_git_username_config(f'pj_edit_pipe_yaml/{pj.path}_{create_time}')
-    subprocess.call(['git', 'add', '.'], cwd=f"pj_edit_pipe_yaml/{pj.path}_{create_time}")
-    subprocess.call(['git', 'commit', '-m', '"編輯 .rancher-pipeline.yaml 啟用停用分支"'], cwd=f"pj_edit_pipe_yaml/{pj.path}_{create_time}")
+    subprocess.call(['git', 'commit', '-m', '"編輯 .rancher-pipeline.yaml 啟用停用分支"', f'{pipe_yaml_file_name}'], cwd=f"pj_edit_pipe_yaml/{pj.path}_{create_time}")
     subprocess.call(['git', 'push', '-u', 'origin', 'master'], cwd=f"pj_edit_pipe_yaml/{pj.path}_{create_time}")
     shutil.rmtree(f"pj_edit_pipe_yaml/{pj.path}_{create_time}", ignore_errors=True)
 
@@ -399,8 +398,7 @@ def tm_put_pipeline_default_branch(repository_id, data):
     with open(f'pj_edit_pipe_yaml/{pj.path}_{create_time}/{pipe_yaml_file_name}', 'w') as file:
         documents = yaml.dump(pipe_json, file)
     __set_git_username_config(f'pj_edit_pipe_yaml/{pj.path}_{create_time}')
-    subprocess.call(['git', 'add', '.'], cwd=f"pj_edit_pipe_yaml/{pj.path}_{create_time}")
-    subprocess.call(['git', 'commit', '-m', '"UI 編輯 .rancher-pipeline.yaml commit"'], cwd=f"pj_edit_pipe_yaml/{pj.path}_{create_time}")
+    subprocess.call(['git', 'commit', '-m', '"UI 編輯 .rancher-pipeline.yaml commit"', f'{pipe_yaml_file_name}'], cwd=f"pj_edit_pipe_yaml/{pj.path}_{create_time}")
     subprocess.call(['git', 'push', '-u', 'origin', 'master'], cwd=f"pj_edit_pipe_yaml/{pj.path}_{create_time}")
     shutil.rmtree(f"pj_edit_pipe_yaml/{pj.path}_{create_time}", ignore_errors=True)
 
