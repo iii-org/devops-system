@@ -347,19 +347,6 @@ class ProjectMemberCount(db.Model):
     project_name = Column(String)
     member_count = Column(Integer)
 
-class ProjectOvewview(db.Model):
-    id = Column(Integer, primary_key=True)
-    project_count = Column(Integer)
-    overdue_issue_count = Column(Integer)
-    no_started_issue_count = Column(Integer)
-
-class IssueRank(db.Model):
-    user_id = Column(Integer, primary_key=True)
-    user_name = Column(String)
-    unclosed_count = Column(Integer)
-    project_count = Column(Integer)
-
-
 class GitCommitNumberEachDays(db.Model):
     id = Column(Integer, primary_key=True)
     repo_id = Column(Integer)
