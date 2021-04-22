@@ -66,28 +66,35 @@ def deal_with_issue_by_user_redmine_output(redmine_output, closed_status=None):
     project_list = project_module.get_project_by_plan_project_id(
         redmine_output['project']['id'])
     pjt = project_module.get_project_info(project_list['project_id'])
-    project_name = pjt.name
-    project_display = pjt.display
-    output_list['project_id'] = project_list['project_id']
-    output_list['project_name'] = project_name
-    output_list['project_display'] = project_display
-    output_list['issue_category'] = redmine_output['tracker']['name']
-    output_list['issue_priority'] = redmine_output['priority']['name']
-    output_list['issue_status'] = redmine_output['status']['name']
-    output_list['issue_category_id'] = redmine_output['tracker']['id']
-    output_list['issue_priority_id'] = redmine_output['priority']['id']
-    output_list['issue_status_id'] = redmine_output['status']['id']
-    output_list['issue_name'] = redmine_output['subject']
+    output_list['project'] = {
+        'id' : project_list['project_id'],
+        'name' : pjt.name,
+        'display' : pjt.display,
+    }
+    output_list['tracker'] = {
+        'id' : redmine_output['tracker']['id'],
+        'name' : redmine_output['tracker']['name']
+    }
+    output_list['priority'] = {
+        'id' : redmine_output['priority']['id'],
+        'name' : redmine_output['priority']['name']
+    }
+    output_list['status'] = {
+        'id' : redmine_output['status']['id'],
+        'name' : redmine_output['status']['name']
+    }
+    output_list['status'] = {
+        'id' : redmine_output['status']['id'],
+        'name' : redmine_output['status']['name']
+    }
+    output_list['assigned_to'] = {}
+    output_list['fixed_version'] = {}
+    output_list['name'] = redmine_output['subject']
     output_list['description'] = redmine_output['description']
     output_list['updated_on'] = redmine_output['updated_on']
     output_list['start_date'] = None
     output_list['due_date'] = None
-    output_list['parent_id'] = None
-    output_list['fixed_version_id'] = None
-    output_list['fixed_version_name'] = None
-    output_list['assigned_to'] = ''
-    output_list['assigned_to_id'] = ''
-    output_list['assigned_to_login'] = ''
+    output_list['parent_id'] = None    
     if 'start_date' in redmine_output:
         output_list['start_date'] = redmine_output['start_date']
 
@@ -97,18 +104,19 @@ def deal_with_issue_by_user_redmine_output(redmine_output, closed_status=None):
         user_info = user.get_user_id_name_by_plan_user_id(
             redmine_output['assigned_to']['id'])        
         if user_info is not None:
-            output_list['assigned_to'] = user_info.name
-            output_list['assigned_to_id'] = user_info.id
-            output_list['assigned_to_login'] = user_info.login
-            
+            output_list['assigned_to'] = {
+                'id': user_info.id,
+                'name': user_info.name,
+                'login': user_info.login
 
+            }            
     if 'parent' in redmine_output:
         output_list['parent_id'] = redmine_output['parent']['id']
     if 'fixed_version' in redmine_output:
-        output_list['fixed_version_id'] = redmine_output['fixed_version'][
-            'id']
-        output_list['fixed_version_name'] = redmine_output[
-            'fixed_version']['name']
+        output_list['fixed_version'] = {
+                'id': redmine_output['fixed_version']['id'],
+                'name': redmine_output['fixed_version']['name']
+            }
     output_list['is_closed'] = False
     if redmine_output['status']['id'] in closed_status:
         output_list['is_closed'] = True
@@ -136,7 +144,7 @@ def __deal_with_issue_redmine_output(redmine_output, closed_status=None):
             redmine_output['assigned_to']['id'])
         if user_info is not None:
             redmine_output['assigned_to'] = {
-                'id': user_info.id, 'name': user_info.name}
+                'id': user_info.id, 'name': user_info.name, 'login': user_info.login}
     if 'author' in redmine_output:
         user_info = user.get_user_id_name_by_plan_user_id(
             redmine_output['author']['id'])
@@ -339,13 +347,14 @@ def get_issue_by_status_by_project(project_id):
     if util.is_dummy_project(project_id):
         return util.success({})
     args = {}
-    issue_list_output = get_issue_by_project(project_id, args)
+    list_issues = get_issue_by_project(project_id, args)
     get_issue_by_status_output = {}
-    for issue_list in issue_list_output:
-        if issue_list['issue_status'] not in get_issue_by_status_output:
-            get_issue_by_status_output[issue_list['issue_status']] = []
-        get_issue_by_status_output[issue_list['issue_status']].append(
-            issue_list)
+    for issue in list_issues:
+        status = issue['status']['name']
+        if status not in get_issue_by_status_output:
+            get_issue_by_status_output[status] = []
+        get_issue_by_status_output[status].append(
+            issue)
     return util.success(get_issue_by_status_output)
 
 
@@ -372,7 +381,7 @@ def get_issue_progress_by_project(project_id, args):
     if len(list_issues) == 0:
         return util.success({})
     for issue in list_issues:
-        issue_status_id = str(issue['issue_status_id'])
+        issue_status_id = str(issue['status']['id'])
         if issue_status_id in issues_by_statuses:
             issues_by_statuses[issue_status_id] += 1
         else:
@@ -392,7 +401,7 @@ def get_issue_statistics_by_project(project_id, args):
     issue_list = get_issue_by_project(project_id, args)
     issues_by_statuses, list_statuses = list_issue_statuses(
         'issues_count_by_status')
-    analysis_targets = ['issue_priority', 'issue_category', 'assigned_to']
+    analysis_targets = ['priority', 'tracker', 'assigned_to']
     output = {}
     # Count  by Issue
     for issue in issue_list:
@@ -413,16 +422,17 @@ def mapping_statistics_output(targets, list_statuses, output=None):
     return output
 
 
-def count_issue(issue, statuses, targets,  output=None):
-    issue_status_id = str(issue['issue_status_id'])
+def count_issue(issue, statuses, targets,  output=None):    
+    issue_status_id = str(issue['status']['id'])
     for key in targets:
         if key == '':
             return {}
         if key not in output:
-            output[key] = {}
-        key_info = issue[key]
-        if key == 'assigned_to' and issue[key] is None:
+            output[key] = {}        
+        if key == 'assigned_to' and issue[key] == {}:
             key_info = 'Unassigned'
+        else:
+            key_info = issue[key]['name']
         if key_info not in output[key]:
             output[key][key_info] = statuses.copy()
         if issue_status_id in statuses:
@@ -565,10 +575,11 @@ def count_project_number_by_issues(user_id):
     project_count = {}
     issues = get_issue_by_user(user_id)
     for issue in issues:
-        if issue['project_name'] not in project_count:
-            project_count[issue['project_name']] = 1
+        project_name = issue['project']['name']
+        if project_name not in project_count:
+            project_count[project_name] = 1
         else:
-            project_count[issue['project_name']] += 1
+            project_count[project_name] += 1
     output = []
     for key, value in project_count.items():
         output.append({'name': key, 'number': value})
@@ -579,7 +590,7 @@ def count_priority_number_by_issues(user_id):
     priority_count = {}
     issues = get_issue_by_user(user_id)
     for issue in issues:
-        priority = issue['issue_priority']
+        priority = issue['priority']['name']
         if priority not in priority_count:
             priority_count[priority] = 1
         else:
@@ -594,10 +605,11 @@ def count_type_number_by_issues(user_id):
     tracker_count = {}
     issues = get_issue_by_user(user_id)
     for issue in issues:
-        if issue['issue_category'] not in tracker_count:
-            tracker_count[issue['issue_category']] = 1
+        tracker = issue['tracker']['name']
+        if tracker not in tracker_count:
+            tracker_count[tracker] = 1
         else:
-            tracker_count[issue['issue_category']] += 1
+            tracker_count[tracker] += 1
     output = []
     for key, value in tracker_count.items():
         output.append({'name': key, 'number': value})
