@@ -21,10 +21,13 @@ def round_off_float(num):
         num = str(num)
     return float(Decimal(num).quantize(Decimal('0.000'), rounding=ROUND_HALF_UP))
 
-def calculate_expired_days(first, last):
-    first_date= datetime.strptime(first, "%Y-%m-%d")
-    last_date = datetime.strptime(last, "%Y-%m-%d")
-    expired_days = (last_date - first_date).days
+def calculate_expired_days(last):
+    first_date = datetime.now().date()
+    last_date = datetime.strptime(last, "%Y-%m-%d").date()
+    if first_date > last_date:
+        expired_days = None
+    else:
+        expired_days = (last_date - first_date).days
     return expired_days
 
 def get_complete_percent(project):
@@ -34,8 +37,8 @@ def get_complete_percent(project):
     return complete_percent
 
 def get_expired_days(project):
-    if project['start_date'] != 'None' and project['due_date'] != 'None':
-        return calculate_expired_days(project['start_date'], project['due_date'])
+    if project['due_date'] != 'None':
+        return calculate_expired_days(project['due_date'])
     else:
         return None
 
