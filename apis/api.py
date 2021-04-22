@@ -30,7 +30,7 @@ from jsonwebtoken import jsonwebtoken
 from model import db
 from resources import logger, role as role, activity, zap
 from resources import project, gitlab, issue, user, redmine, wiki, version, sonarqube, apiTest, postman, mock, harbor, \
-    webInspect, template, release, sync_redmine, plugin, kubernetesClient
+    webInspect, template, release, sync_redmine, plugin, kubernetesClient, ad
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -300,6 +300,11 @@ api.add_resource(release.Release,'/project/<project_id>/releases/<release_name>'
 ## release 
 api.add_resource(plugin.Plugins,'/plugins')
 api.add_resource(plugin.Plugin,'/plugins/<sint:plugin_id>')
+
+
+##AD Server
+
+api.add_resource(ad.Users, '/plugins/ad/users')
 
 # dashboard
 api.add_resource(issue.DashboardIssuePriority,
