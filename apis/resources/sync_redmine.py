@@ -54,8 +54,7 @@ def check_overdue(last):
 
 def get_passing_rate(total, fail):
     passing_rate = 0.0
-    if total and fail:
-        passing_rate = round_off_float(1-(fail/total))
+    passing_rate = round_off_float(1-(fail/total))
     return passing_rate
 
 def get_admin_user_id():
@@ -391,7 +390,6 @@ class SyncRedmine(Resource):
         need_to_track_issue = sync_redmine(sync_date)
         for project_id in need_to_track_issue:
             insert_all_issues(project_id, sync_date)
-        # insert_issue_rank()
         return util.success()
 
 
