@@ -17,7 +17,8 @@ RD = Role(1, 'Engineer')
 PM = Role(3, 'Project Manager')
 ADMIN = Role(5, 'Administrator')
 BOT = Role(6, 'Project BOT')
-ALL_ROLES = [RD, PM, ADMIN, BOT]
+QA = Role(7, 'QA')
+ALL_ROLES = [RD, PM, ADMIN, BOT, QA]
 
 
 def get_role_name(role_id):
@@ -41,11 +42,13 @@ def require_admin(err_message='You must be an admin for this operation.'):
     require_role([ADMIN.id], err_message)
 
 
-def require_pm(err_message='You must be a PM for this operation.', exclude_admin=False):
-    if exclude_admin:
-        require_role([PM.id], err_message)
-    else:
-        require_role([PM.id, ADMIN.id], err_message)
+def require_pm(err_message='You must be a PM for this operation.', exclude_admin=False, exclude_qa=False):
+    allowed_roles = [PM.id]
+    if not exclude_admin:
+        allowed_roles.append(ADMIN.id)
+    if not exclude_qa:
+        allowed_roles.append(QA.id)
+    require_role(allowed_roles, err_message)
 
 
 def require_in_project(project_id=None,
@@ -57,7 +60,7 @@ def require_in_project(project_id=None,
             project_id = nexus.nx_get_project(name=project_name).id
     identity = get_jwt_identity()
     user_id = identity['user_id']
-    if not even_admin and identity['role_id'] == ADMIN.id:
+    if not even_admin and identity['role_id'] in [ADMIN.id, QA.id]:
         return
     check_result = verify_project_user(project_id, user_id)
     if check_result:
