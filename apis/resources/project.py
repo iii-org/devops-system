@@ -32,7 +32,7 @@ def list_projects(user_id):
               model.ProjectUserRole.project_id == model.Project.id)
     # 如果是 admin，列出所有 project
     # 如果不是 admin，取得 user_id 有參加的 project 列表
-    if user.get_role_id(user_id) != role.ADMIN.id:
+    if user.get_role_id(user_id) not in [role.ADMIN.id, role.QA.id]:
         query = query.filter(model.ProjectUserRole.user_id == user_id)
     rows = query.order_by(desc(model.Project.id)).all()
 
@@ -967,15 +967,15 @@ class SingleProject(Resource):
 
     @jwt_required
     def put(self, project_id):
-        role.require_pm("Error while updating project info.")
+        role.require_pm("Error while updating project info.", exclude_qa=True)
         role.require_in_project(project_id, "Error while updating project info.")
         parser = reqparse.RequestParser()
-        parser.add_argument('display', type=str,required = True)
+        parser.add_argument('display', type=str, required=True)
         parser.add_argument('description', type=str)
         parser.add_argument('disabled', type=bool, required=True)
-        parser.add_argument('start_date', type=str, required= True)
-        parser.add_argument('due_date', type=str, required = True)
-        parser.add_argument('owner_id', type=int, required = True)
+        parser.add_argument('start_date', type=str, required=True)
+        parser.add_argument('due_date', type=str, required=True)
+        parser.add_argument('owner_id', type=int, required=True)
         args = parser.parse_args()
         return pm_update_project(project_id, args)
 
@@ -983,6 +983,14 @@ class SingleProject(Resource):
     def delete(self, project_id):
         role.require_pm()
         role.require_in_project(project_id)
+        role_id = get_jwt_identity()["role_id"]
+        user_id = get_jwt_identity()["user_id"]
+        if role_id == role.QA.id:
+            if bool(
+                model.ProjectUserRole.query.filter(
+                    model.ProjectUserRole.project_id == project_id, model.ProjectUserRole.user_id != user_id
+                    ).count()):
+                apiError.NotAllowedError('Error while deleting project with members.')
         return delete_project(project_id)
 
     @jwt_required
@@ -1029,7 +1037,7 @@ class ProjectMember(Resource):
 
     @jwt_required
     def delete(self, project_id, user_id):
-        role.require_pm()
+        role.require_pm(exclude_qa=True)
         role.require_in_project(project_id)
         return project_remove_member(project_id, user_id)
 
