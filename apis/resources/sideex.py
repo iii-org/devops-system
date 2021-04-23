@@ -47,8 +47,11 @@ def sd_finish_test(args):
     model.db.session.commit()
 
     # Clean up old reports
-    rows = model.Sideex.query.filter(model.Sideex.report.isnot(None)) \
-        .order_by(desc(model.Sideex.id)).all()
+    rows = model.Sideex.query.filter(
+        model.Sideex.project_name == row.project_name,
+        model.Sideex.branch == row.branch,
+        model.Sideex.report.isnot(None)
+    ).order_by(desc(model.Sideex.id)).all()
     for index, row in enumerate(rows):
         if index < 5:
             continue
