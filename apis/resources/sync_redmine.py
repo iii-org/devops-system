@@ -63,8 +63,10 @@ def check_overdue(last):
 
 def get_passing_rate(total, fail):
     passing_rate = 0.0
-    if total:
+    try:
         passing_rate = round_off_float(1 - (fail / total))
+    except ZeroDivisionError:
+        return passing_rate
     return passing_rate
 
 
