@@ -71,6 +71,8 @@ def sq_delete_project(project_name):
 
 
 def sq_add_member(project_name, user_login):
+    __api_post(f'/permissions/add_user?login={user_login}'
+               f'&projectKey={project_name}&permission=user')
     return __api_post(f'/permissions/add_user?login={user_login}'
                       f'&projectKey={project_name}&permission=codeviewer')
 
@@ -86,6 +88,14 @@ def sq_create_access_token(login):
         'name': 'iiidevops-bot'
     }
     return __api_post('/user_tokens/generate', params=params).json()['token']
+
+
+def sq_update_password(login, new_password):
+    params = {
+        'login': login,
+        'password': new_password
+    }
+    return __api_post('/users/change_password', params=params)
 
 
 # def sq_get_measures(project_name):
@@ -127,10 +137,15 @@ def sq_load_measures(project_name):
             metric = measure['metric']
             history = measure['history']
             for h in history:
+                if 'date' not in h:
+                    continue
                 date = h['date']
-                value = h['value']
                 if date not in fetch:
                     fetch[date] = {}
+                if 'value' in h:
+                    value = h['value']
+                else:
+                    value = ''
                 fetch[date][metric] = value
         if len(data) < PAGE_SIZE:
             break

@@ -39,7 +39,7 @@ def list_projects(user_id):
     project_id_list = []
     for row in rows:
         project_id_list.append(row.Project.id)
-        
+
     projects = redmine.rm_list_projects()
     issues = redmine.rm_list_issues()
     output_array = []
@@ -104,8 +104,8 @@ def list_projects(user_id):
             "closed_count": closed_count,
             "total_count": total_count,
             "overdue_count": overdue_count,
-            'start_date' : str(row.Project.start_date),
-            'due_date' : str(row.Project.due_date)
+            'start_date': str(row.Project.start_date),
+            'due_date': str(row.Project.due_date)
         })
 
     return util.success({"project_list": output_array})
@@ -233,10 +233,10 @@ def create_project(user_id, args):
             ssh_url=gitlab_pj_ssh_url,
             http_url=gitlab_pj_http_url,
             disabled=args['disabled'],
-            start_date = args['start_date'],
-            due_date = args['due_date'],
-            create_at = str(datetime.utcnow()),
-            owner_id = user_id,
+            start_date=args['start_date'],
+            due_date=args['due_date'],
+            create_at=str(datetime.utcnow()),
+            owner_id=user_id,
 
         )
         db.session.add(new_pjt)
@@ -313,28 +313,29 @@ def create_bot(project_id):
         project_id, 'nexus-bot', {'username': login, 'password': password})
 
 
-def check_modify_database_type(items, args, select_db):    
+def check_modify_database_type(items, args, select_db):
     output = {}
     for item in items:
         if args[item] is None:
-             output[item] = getattr(select_db, item)
+            output[item] = getattr(select_db, item)
         else:
             output[item] = args[item]
-            setattr(select_db,item,args[item])
-    return args , select_db
+            setattr(select_db, item, args[item])
+    return args, select_db
+
 
 @record_activity(ActionType.UPDATE_PROJECT)
 def pm_update_project(project_id, args):
-    targets = ['display','name','description','disabled','owner_id','start_date', 'due_date']
-    plugin_relation = model.ProjectPluginRelation.query.filter_by(project_id=project_id).first()                
-    gitlab.gl_update_project(plugin_relation.git_repository_id, args["description"])
+    targets = ['display', 'description', 'disabled', 'owner_id', 'start_date', 'due_date']
+    plugin_relation = model.ProjectPluginRelation.query.filter_by(project_id=project_id).first()
+    if args['description'] is not None:
+        gitlab.gl_update_project(plugin_relation.git_repository_id, args["description"])
     redmine.rm_update_project(plugin_relation.plan_project_id, args)
-    project = model.Project.query.filter_by(id=project_id).first()                
-    args, project = check_modify_database_type(targets,args, project)    
+    project = model.Project.query.filter_by(id=project_id).first()
+    args, project = check_modify_database_type(targets, args, project)
     project.update_at = str(datetime.utcnow())
     db.session.commit()
     return util.success()
-
 
 
 def try_to_delete(delete_method, argument):
@@ -514,6 +515,10 @@ def project_add_member(project_id, user_id):
 @record_activity(ActionType.REMOVE_MEMBER)
 def project_remove_member(project_id, user_id):
     role_id = user.get_role_id(user_id)
+    project = model.Project.query.filter_by(id=project_id).first()
+    if project.owner_id == user_id :
+        raise apiError.DevOpsError(404, "Error while removing a member from the project.",
+                          error=apiError.is_project_owner_in_project(user_id,project_id))
 
     user_relation = nexus.nx_get_user_plugin_relation(user_id=user_id)
     project_relation = nx_get_project_plugin_relation(nexus_project_id=project_id)
@@ -798,6 +803,7 @@ def delete_kubernetes_namespace_pod(project_id, name):
     project_pod = kubernetesClient.delete_namespace_pod(project_name, name)
     return util.success(project_pod)
 
+
 def get_kubernetes_namespace_pod_log(project_id, name, container_name=None):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
     pod_log = kubernetesClient.read_namespace_pod_log(project_name, name, container_name)
@@ -813,7 +819,7 @@ def get_kubernetes_namespace_deployment(project_id):
 def put_kubernetes_namespace_deployment(project_id, name):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
     deployment_info = kubernetesClient.read_namespace_deployment(project_name, name)
-    if deployment_info.spec.template.metadata.annotations is not None :
+    if deployment_info.spec.template.metadata.annotations is not None:
         deployment_info.spec.template.metadata.annotations["iiidevops_redeploy_at"] = str(datetime.utcnow())
     project_deployment = kubernetesClient.update_namespace_deployment(project_name, name, deployment_info)
     print(project_deployment)
@@ -825,65 +831,78 @@ def delete_kubernetes_namespace_deployment(project_id, name):
     project_deployment = kubernetesClient.delete_namespace_deployment(project_name, name)
     return util.success(project_deployment)
 
-def get_kubernetes_namespace_dev_environment(project_id):    
+
+def get_kubernetes_namespace_dev_environment(project_id):
     project_info = model.Project.query.filter_by(id=project_id).first()
-    project_deployment = kubernetesClient.list_dev_environment_by_branch(str(project_info.name),str(project_info.http_url))
+    project_deployment = kubernetesClient.list_dev_environment_by_branch(str(project_info.name),
+                                                                         str(project_info.http_url))
     return util.success(project_deployment)
+
 
 def put_kubernetes_namespace_dev_environment(project_id, branch_name):
     project_info = model.Project.query.filter_by(id=project_id).first()
-    update_info = kubernetesClient.update_dev_environment_by_branch(str(project_info.name),branch_name)
+    update_info = kubernetesClient.update_dev_environment_by_branch(str(project_info.name), branch_name)
     return util.success(update_info)
+
 
 def delete_kubernetes_namespace_dev_environment(project_id, branch_name):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
     project_deployment = kubernetesClient.delete_dev_environment_by_branch(project_name, branch_name)
     return util.success(project_deployment)
 
+
 def get_kubernetes_namespace_services(project_id):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
     project_service = kubernetesClient.list_namespace_services(project_name)
     return util.success(project_service)
+
 
 def delete_kubernetes_namespace_service(project_id, name):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
     project_service = kubernetesClient.delete_namespace_service(project_name, name)
     return util.success(project_service)
 
+
 def get_kubernetes_namespace_secrets(project_id):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
     project_secret = kubernetesClient.list_namespace_secrets(project_name)
     return util.success(project_secret)
 
-def read_kubernetes_namespace_secret(project_id,secret_name):
+
+def read_kubernetes_namespace_secret(project_id, secret_name):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
-    project_secret = kubernetesClient.read_namespace_secret(project_name,secret_name)
+    project_secret = kubernetesClient.read_namespace_secret(project_name, secret_name)
     return util.success(project_secret)
+
 
 def create_kubernetes_namespace_secret(project_id, secret_name, secrets):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
     kubernetesClient.create_namespace_secret(project_name, secret_name, secrets)
     return util.success()
 
+
 def put_kubernetes_namespace_secret(project_id, secret_name, secrets):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
     kubernetesClient.patch_namespace_secret(project_name, secret_name, secrets)
     return util.success()
+
 
 def delete_kubernetes_namespace_secret(project_id, name):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
     project_secret = kubernetesClient.delete_namespace_secret(project_name, name)
     return util.success(project_secret)
 
-#ConfigMap
+
+# ConfigMap
 def get_kubernetes_namespace_configmaps(project_id):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
     project_configmap = kubernetesClient.list_namespace_configmap(project_name)
     return util.success(project_configmap)
 
-def read_kubernetes_namespace_configmap(project_id,name):
+
+def read_kubernetes_namespace_configmap(project_id, name):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
-    project_configmap = kubernetesClient.read_namespace_configmap(project_name,name)
+    project_configmap = kubernetesClient.read_namespace_configmap(project_name, name)
     return util.success(project_configmap)
 
 
@@ -892,26 +911,29 @@ def create_kubernetes_namespace_configmap(project_id, name, configmaps):
     project_configmap = kubernetesClient.create_namespace_configmap(project_name, name, configmaps)
     return util.success(project_configmap)
 
+
 def put_kubernetes_namespace_configmap(project_id, name, configmaps):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
     project_configmap = kubernetesClient.put_namespace_configmap(project_name, name, configmaps)
     return util.success(project_configmap)
+
 
 def create_kubernetes_namespace_configmap(project_id, name, configmaps):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
     project_configmap = kubernetesClient.create_namespace_configmap(project_name, name, configmaps)
     return util.success(project_configmap)
 
+
 def put_kubernetes_namespace_configmap(project_id, name, configmaps):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
     project_configmap = kubernetesClient.put_namespace_configmap(project_name, name, configmaps)
     return util.success(project_configmap)
+
 
 def delete_kubernetes_namespace_configmap(project_id, name):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
     project_configmap = kubernetesClient.delete_namespace_configmap(project_name, name)
     return util.success(project_configmap)
-
 
 
 def get_kubernetes_namespace_ingresses(project_id):
@@ -948,13 +970,12 @@ class SingleProject(Resource):
         role.require_pm("Error while updating project info.")
         role.require_in_project(project_id, "Error while updating project info.")
         parser = reqparse.RequestParser()
-        parser.add_argument('name', type=str)
-        parser.add_argument('display', type=str)
+        parser.add_argument('display', type=str,required = True)
         parser.add_argument('description', type=str)
-        parser.add_argument('disabled', type=bool)
-        parser.add_argument('start_date', type=str, required=True)
-        parser.add_argument('due_date', type=str, required=True)
-        parser.add_argument('owner_id', type=int)
+        parser.add_argument('disabled', type=bool, required=True)
+        parser.add_argument('start_date', type=str, required= True)
+        parser.add_argument('due_date', type=str, required = True)
+        parser.add_argument('owner_id', type=int, required = True)
         args = parser.parse_args()
         return pm_update_project(project_id, args)
 
@@ -1097,6 +1118,7 @@ class ProjectUserResourcePods(Resource):
         role.require_in_project(project_id, "Error while getting project info.")
         return get_kubernetes_namespace_pods(project_id)
 
+
 class ProjectUserResourcePod(Resource):
 
     @jwt_required
@@ -1114,12 +1136,13 @@ class ProjectUserResourcePodLog(Resource):
         args = parser.parse_args()
         return get_kubernetes_namespace_pod_log(project_id, pod_name, args['container_name'])
 
+
 class ProjectEnvironment(Resource):
     @jwt_required
     def get(self, project_id):
         role.require_in_project(project_id, "Error while getting project info.")
         return get_kubernetes_namespace_dev_environment(project_id)
-    
+
     @jwt_required
     def put(self, project_id, branch_name):
         role.require_in_project(project_id, "Error while getting project info.")
@@ -1130,11 +1153,13 @@ class ProjectEnvironment(Resource):
         role.require_in_project(project_id, "Error while getting project info.")
         return delete_kubernetes_namespace_dev_environment(project_id, branch_name)
 
+
 class ProjectUserResourceDeployments(Resource):
     @jwt_required
     def get(self, project_id):
         role.require_in_project(project_id, "Error while getting project info.")
         return get_kubernetes_namespace_deployment(project_id)
+
 
 class ProjectUserResourceDeployment(Resource):
 
@@ -1147,6 +1172,7 @@ class ProjectUserResourceDeployment(Resource):
     def delete(self, project_id, deployment_name):
         role.require_in_project(project_id, "Error while getting project info.")
         return delete_kubernetes_namespace_deployment(project_id, deployment_name)
+
 
 class ProjectUserResourceServices(Resource):
     @jwt_required
@@ -1167,12 +1193,14 @@ class ProjectUserResourceSecrets(Resource):
     def get(self, project_id):
         role.require_in_project(project_id, "Error while getting project info.")
         return get_kubernetes_namespace_secrets(project_id)
+
+
 class ProjectUserResourceSecret(Resource):
-    
+
     @jwt_required
-    def get(self, project_id,secret_name):
+    def get(self, project_id, secret_name):
         role.require_in_project(project_id, "Error while getting project info.")
-        return read_kubernetes_namespace_secret(project_id,secret_name)
+        return read_kubernetes_namespace_secret(project_id, secret_name)
 
     @jwt_required
     def post(self, project_id, secret_name):
@@ -1195,17 +1223,19 @@ class ProjectUserResourceSecret(Resource):
         role.require_in_project(project_id, "Error while getting project info.")
         return delete_kubernetes_namespace_secret(project_id, secret_name)
 
+
 class ProjectUserResourceConfigMaps(Resource):
     @jwt_required
     def get(self, project_id):
         role.require_in_project(project_id, "Error while getting project info.")
         return get_kubernetes_namespace_configmaps(project_id)
 
+
 class ProjectUserResourceConfigMap(Resource):
     @jwt_required
     def get(self, project_id, configmap_name):
         role.require_in_project(project_id, "Error while getting project info.")
-        return read_kubernetes_namespace_configmap(project_id,configmap_name)
+        return read_kubernetes_namespace_configmap(project_id, configmap_name)
 
     @jwt_required
     def delete(self, project_id, configmap_name):
@@ -1218,7 +1248,7 @@ class ProjectUserResourceConfigMap(Resource):
         parser.add_argument('configmaps', type=dict, required=True)
         args = parser.parse_args()
         role.require_in_project(project_id, "Error while getting project info.")
-        return put_kubernetes_namespace_configmap(project_id,configmap_name,args['configmaps'])
+        return put_kubernetes_namespace_configmap(project_id, configmap_name, args['configmaps'])
 
     @jwt_required
     def post(self, project_id, configmap_name):
@@ -1235,4 +1265,3 @@ class ProjectUserResourceIngresses(Resource):
     def get(self, project_id):
         role.require_in_project(project_id, "Error while getting project info.")
         return get_kubernetes_namespace_ingresses(project_id)
-
