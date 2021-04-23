@@ -55,6 +55,7 @@ class Project(db.Model):
     display = Column(String)
     owner_id = Column(Integer, ForeignKey(User.id))
 
+
 class PluginSoftware(db.Model):
     id = Column(Integer, primary_key=True)
     name = Column(String)
@@ -62,6 +63,7 @@ class PluginSoftware(db.Model):
     disabled = Column(Boolean)
     create_at = Column(DateTime)
     update_at = Column(DateTime)
+
 
 class ProjectPluginRelation(db.Model):
     id = Column(Integer, primary_key=True)
@@ -302,6 +304,37 @@ class Zap(db.Model):
                 fields[field] = str(data)
         return json.dumps(fields)
 
+
+class Sideex(db.Model):
+    id = Column(Integer, primary_key=True)
+    project_name = Column(String, ForeignKey(Project.name, ondelete='CASCADE'))
+    branch = Column(String)
+    commit_id = Column(String)
+    status = Column(String)
+    result = Column(String)
+    report = Column(String)
+    # The time scan registered
+    run_at = Column(DateTime)
+    finished_at = Column(DateTime)
+
+    def __repr__(self):
+        fields = {}
+        for field in [x for x in dir(self) if
+                      not x.startswith('query') and not x.startswith('_') and x != 'metadata']:
+            data = self.__getattribute__(field)
+            try:
+                json.dumps(data)  # this will fail on unencodable values, like other classes
+                if field == 'result':
+                    fields[field] = json.loads(data)
+                elif field == 'report':
+                    fields['has_report'] = (data is not None)
+                else:
+                    fields[field] = data
+            except TypeError:
+                fields[field] = str(data)
+        return json.dumps(fields)
+
+
 class RedmineIssue(db.Model):
     issue_id = Column(Integer, primary_key=True)
     project_id = Column(Integer)
@@ -315,6 +348,7 @@ class RedmineIssue(db.Model):
     is_closed = Column(Boolean)
     start_date = Column(DateTime)
     sync_date = Column(DateTime)
+
 
 class RedmineProject(db.Model):
     id = Column(Integer, primary_key=True)
@@ -333,6 +367,7 @@ class RedmineProject(db.Model):
     sync_date = Column(DateTime)
     project_status = Column(String)
 
+
 class ProjectMember(db.Model):
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer)
@@ -342,10 +377,12 @@ class ProjectMember(db.Model):
     role_id = Column(Integer)
     role_name = Column(String)
 
+
 class ProjectMemberCount(db.Model):
     project_id = Column(Integer, primary_key=True)
     project_name = Column(String)
     member_count = Column(Integer)
+
 
 class GitCommitNumberEachDays(db.Model):
     id = Column(Integer, primary_key=True)
