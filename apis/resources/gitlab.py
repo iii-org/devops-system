@@ -387,11 +387,12 @@ class GitLab(object):
     def gl_get_the_last_hours_commits(self, the_last_hours=None, show_commit_rows = None):
         out_list=[]
         if show_commit_rows is not None:
+            last_days_ago =None
             for x in range(12, 169, 12):
                 days_ago = (datetime.utcnow() - timedelta(days = x)).isoformat()
                 for pj in self.gl.projects.list(order_by="last_activity_at"):
                     if (pj.empty_repo is False) and ("iiidevops-templates" not in pj.path_with_namespace):
-                        for commit in pj.commits.list(since=days_ago):
+                        for commit in pj.commits.list(since=days_ago, until=last_days_ago):
                             out_list.append({"pj_name": pj.name, 
                             "author_name": commit.author_name, 
                             "author_email": commit.author_email, 
@@ -401,6 +402,9 @@ class GitLab(object):
                             if len(out_list) > show_commit_rows-1:
                                 sorted((out["commit_time"] for out in out_list), reverse=True)
                                 return out_list[:show_commit_rows]
+                last_days_ago = days_ago
+            sorted((out["commit_time"] for out in out_list), reverse=True)
+            return out_list[:show_commit_rows]
         else:
             if the_last_hours == None:
                 the_last_hours = 24
