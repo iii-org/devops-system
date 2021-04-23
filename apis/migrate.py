@@ -251,7 +251,7 @@ def cleanup_change_to_orm():
         db.session.commit()
 
 
-def init_sync_redmine()
+def init_sync_redmine():
     sync_redmine.init_data()
 
 
