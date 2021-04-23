@@ -233,7 +233,7 @@ def get_current_sync_date_project_count_by_status(own_project, sync_date, status
 
 # --------------------- API Tasks ---------------------
 
-def init_sync_redmine():
+def init_data():
     clear_all_tables()
     sync_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     need_to_track_issue = sync_redmine(sync_date)
@@ -399,7 +399,7 @@ def get_postman_passing_rate(detail, own_project):
 
 class SyncRedmine(Resource):
     def get(self):
-        init_sync_redmine()
+        init_data()
         return util.success()
 
 
