@@ -6,7 +6,7 @@ import config
 import model
 import util
 from model import db, ProjectPluginRelation, Project, UserPluginRelation, User, ProjectUserRole
-from resources import harbor, kubernetesClient, role
+from resources import harbor, kubernetesClient, role, sync_redmine
 from resources.apiError import DevOpsError
 from resources.logger import logger
 from resources.rancher import rancher
@@ -18,7 +18,8 @@ VERSIONS = ['0.9.2', '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.4', '0.9.2.5',
             '0.9.2.6', '0.9.2.a7', '0.9.2.a8', '0.9.2.a9', '0.9.2.a10',
             '1.0.0.1', '1.0.0.2', '1.3.0.1', '1.3.0.2', '1.3.0.3', '1.3.0.4', '1.3.1', '1.3.1.1',
             '1.3.1.2', '1.3.1.3', '1.3.1.4', '1.3.1.5', '1.3.1.6', '1.3.1.7', '1.3.1.8',
-            '1.3.1.9', '1.3.1.10', '1.3.1.11', '1.3.1.12', '1.3.1.13', '1.3.1.14', '1.3.2.1', '1.3.2.2']
+            '1.3.1.9', '1.3.1.10', '1.3.1.11', '1.3.1.12', '1.3.1.13', '1.3.1.14', '1.3.2.1', '1.3.2.2',
+            '1.3.2.3']
 ONLY_UPDATE_DB_MODELS = [
     '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.5', '0.9.2.6', '0.9.2.a8',
     '1.0.0.2', '1.3.0.1', '1.3.0.2', '1.3.0.3', '1.3.0.4', '1.3.1', '1.3.1.1', '1.3.1.2',
@@ -49,6 +50,8 @@ def upgrade(version):
         fill_sonarqube_resources()
     elif version == '1.3.1.12':
         fill_project_owner_by_role()
+    elif version == '1.3.2.3':
+        init_sync_redmine()
 
 
 def move_version_to_db(version):
@@ -246,6 +249,10 @@ def cleanup_change_to_orm():
         new = model.Project(id=-1, name='dummy-project', disabled=False)
         db.session.add(new)
         db.session.commit()
+
+
+def init_sync_redmine()
+    sync_redmine.init_data()
 
 
 def init():
