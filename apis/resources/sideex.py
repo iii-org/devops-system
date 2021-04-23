@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
+from sqlalchemy import desc
 
 import model
 import nexus
@@ -44,6 +45,15 @@ def sd_finish_test(args):
     row.finished_at = datetime.now()
     model.db.session.add(row)
     model.db.session.commit()
+
+    # Clean up old reports
+    rows = model.Sideex.query.filter(model.Sideex.report.isnot(None)) \
+        .order_by(desc(model.Sideex.id)).all()
+    for index, row in enumerate(rows):
+        if index < 5:
+            continue
+        row.report = None
+        model.db.session.commit()
 
 
 def sd_get_tests(project_id):
