@@ -1,6 +1,7 @@
 import os
 import model
 import util
+from . import role
 from sqlalchemy import func
 from operator import itemgetter
 from resources.project import list_projects
@@ -11,7 +12,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource
 
-# Get admin account from enviroment
+# Get admin account from environment
 admin_account = os.environ.get('ADMIN_INIT_LOGIN')
 
 # --------------------- Useful Functions ---------------------
@@ -54,7 +55,8 @@ def check_overdue(last):
 
 def get_passing_rate(total, fail):
     passing_rate = 0.0
-    passing_rate = round_off_float(1-(fail/total))
+    if total:
+        passing_rate = round_off_float(1-(fail/total))
     return passing_rate
 
 def get_admin_user_id():
@@ -73,16 +75,17 @@ def sync_redmine(sync_date):
     need_to_track_issue = []
     response = list_projects(user_id=get_admin_user_id())
     all_projects = response[0]['data']['project_list']
-    for project in all_projects:
-        project_status = 'Not_Started'
-        if project['total_count']:
-            project_status = 'Started'
-            need_to_track_issue.append(project['id'])
-        if check_overdue(project['due_date']):
-            project_status = 'Overdue'
-        member_count = insert_project_member(project['id'], project['name'])
-        insert_project(project, member_count, sync_date, project_status)
-        insert_project_member_count(project, member_count)
+    if all_projects:
+        for project in all_projects:
+            project_status = 'Not_Started'
+            if project['total_count']:
+                project_status = 'Started'
+                need_to_track_issue.append(project['id'])
+            if check_overdue(project['due_date']):
+                project_status = 'Overdue'
+            member_count = insert_project_member(project['id'], project['name'])
+            insert_project(project, member_count, sync_date, project_status)
+            insert_project_member_count(project, member_count)
     return need_to_track_issue
 
 def insert_project(project, member_count, sync_date, project_status):
@@ -164,14 +167,17 @@ def insert_all_issues(project_id, sync_date):
 # --------------------- Complicated Query ---------------------
 
 def get_sync_date():
+    default_sync_date = datetime.now().strftime("%Y-%m-%d")
     response = model.RedmineProject.query.order_by(model.RedmineProject.sync_date.desc()).distinct().first()
-    return response.sync_date
+    if response:
+        default_sync_date = response.sync_date
+    return default_sync_date
 
 def get_current_sync_date_project_id_by_user():
     sync_date = get_sync_date()
-    user_id = get_jwt_identity()["user_id"]
-    user_account = get_jwt_identity()["user_account"]
-    if user_account == admin_account:
+    user_id = get_jwt_identity()['user_id']
+    role_id = get_jwt_identity()['role_id']
+    if role_id == role.ADMIN.id:
         project_id_collections = model.RedmineProject.query.with_entities(model.RedmineProject.project_id).filter_by(
             sync_date=sync_date).order_by(model.RedmineProject.end_date).all()
     else:
@@ -226,6 +232,14 @@ def get_current_sync_date_project_count_by_status(own_project, sync_date, status
             model.RedmineProject.project_id.in_(own_project), model.RedmineProject.sync_date==sync_date).count()
 
 # --------------------- API Tasks ---------------------
+
+def init_sync_redmine():
+    clear_all_tables()
+    sync_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    need_to_track_issue = sync_redmine(sync_date)
+    if need_to_track_issue:
+        for project_id in need_to_track_issue:
+            insert_all_issues(project_id, sync_date)
 
 def get_project_members_count(own_project):
     query_collections = model.ProjectMemberCount.query.filter(
@@ -385,11 +399,7 @@ def get_postman_passing_rate(detail, own_project):
 
 class SyncRedmine(Resource):
     def get(self):
-        clear_all_tables()
-        sync_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        need_to_track_issue = sync_redmine(sync_date)
-        for project_id in need_to_track_issue:
-            insert_all_issues(project_id, sync_date)
+        init_sync_redmine()
         return util.success()
 
 
