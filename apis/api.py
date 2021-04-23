@@ -28,9 +28,9 @@ import util
 import maintenance
 from jsonwebtoken import jsonwebtoken
 from model import db
-from resources import logger, role as role, activity, zap
+from resources import logger, role as role, activity, zap, sideex
 from resources import project, gitlab, issue, user, redmine, wiki, version, sonarqube, apiTest, postman, mock, harbor, \
-    webInspect, template, release, sync_redmine, plugin, kubernetesClient
+    webInspect, template, release, sync_redmine, plugin, kubernetesClient, ad
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -301,6 +301,11 @@ api.add_resource(release.Release,'/project/<project_id>/releases/<release_name>'
 api.add_resource(plugin.Plugins,'/plugins')
 api.add_resource(plugin.Plugin,'/plugins/<sint:plugin_id>')
 
+
+##AD Server
+
+api.add_resource(ad.Users, '/plugins/ad/users')
+
 # dashboard
 api.add_resource(issue.DashboardIssuePriority,
                  '/dashboard_issues_priority/<user_id>')
@@ -428,6 +433,10 @@ api.add_resource(activity.ProjectActivities, '/project/<sint:project_id>/activit
 
 # ZAP
 api.add_resource(zap.Zap, '/zap', '/project/<sint:project_id>/zap')
+
+# Sideex
+api.add_resource(sideex.Sideex, '/sideex', '/project/<sint:project_id>/sideex')
+api.add_resource(sideex.SideexReport, '/sideex_report/<int:test_id>')
 
 # Sync Redmine, Gitlab
 api.add_resource(sync_redmine.SyncRedmine, '/sync_redmine')
