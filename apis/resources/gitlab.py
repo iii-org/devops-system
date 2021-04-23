@@ -388,10 +388,10 @@ class GitLab(object):
         out_list=[]
         if show_commit_rows is not None:
             for x in range(12, 169, 12):
-                hours_age = (datetime.utcnow() - timedelta(days = x)).isoformat()
+                days_ago = (datetime.utcnow() - timedelta(days = x)).isoformat()
                 for pj in self.gl.projects.list(order_by="last_activity_at"):
                     if (pj.empty_repo is False) and ("iiidevops-templates" not in pj.path_with_namespace):
-                        for commit in pj.commits.list(since=hours_age):
+                        for commit in pj.commits.list(since=days_ago):
                             out_list.append({"pj_name": pj.name, 
                             "author_name": commit.author_name, 
                             "author_email": commit.author_email, 
@@ -404,10 +404,10 @@ class GitLab(object):
         else:
             if the_last_hours == None:
                 the_last_hours = 24
-            hours_age = (datetime.utcnow() - timedelta(hours = the_last_hours)).isoformat()
+            days_ago = (datetime.utcnow() - timedelta(hours = the_last_hours)).isoformat()
             for pj in self.gl.projects.list(order_by="last_activity_at"):
                 if (pj.empty_repo is False) and ("iiidevops-templates" not in pj.path_with_namespace):
-                    for commit in pj.commits.list(since=hours_age):
+                    for commit in pj.commits.list(since=days_ago):
                         out_list.append({"pj_name": pj.name, 
                         "author_name": commit.author_name, 
                         "author_email": commit.author_email, 
