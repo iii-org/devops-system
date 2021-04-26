@@ -27,11 +27,11 @@ template_replace_dict = {
     "git.host": config.get("GITLAB_BASE_URL").replace("http://", "")
     }
 
-support_software = [{"key": "scan-sonarqube", "display": "Sonarqube"}, 
+support_software = [{"key": "scan-sonarqube", "display": "SonarQube"}, 
                     {"key": "scan-checkmarx", "display": "Checkmarx"}, 
                     {"key": "test-postman", "display": "Postman"}, 
                     {"key": "test-sideex", "display": "SideeX"}, 
-                    {"key": "test-webinspect", "display": "Webinspect"},
+                    {"key": "test-webinspect", "display": "WebInspect"},
                     {"key": "db", "display": "Database"},
                     {"key": "web", "display": "Web"}]
 
