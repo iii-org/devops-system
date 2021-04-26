@@ -98,7 +98,7 @@ def sync_redmine(sync_date):
             if check_overdue(project['due_date']):
                 project_status = 'Overdue'
             member_count = insert_project_member(project['id'],
-                                                 project['name'])
+                                                 project['display'])
             insert_project(project, member_count, sync_date, project_status)
             insert_project_member_count(project, member_count)
     return need_to_track_issue
@@ -136,7 +136,7 @@ def insert_project(project, member_count, sync_date, project_status):
 
 def insert_project_member_count(project, member_count):
     new_project_member = model.ProjectMemberCount(project_id=project['id'],
-                                                  project_name=project['name'],
+                                                  project_name=project['display'],
                                                   member_count=member_count)
     model.db.session.add(new_project_member)
     model.db.session.commit()
