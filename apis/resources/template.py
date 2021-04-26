@@ -138,31 +138,32 @@ def __force_update_template_cache_table():
         db.session.delete(template_list_cache)
         db.session.commit()
     output = []
-    group = gl.groups.get("iiidevops-templates", all=True)
-    for group_project in group.projects.list(all=True):
-        pj = gl.projects.get(group_project.id)
-        # get all tags
-        tag_list = []
-        for tag in pj.tags.list(all=True):
-            tag_list.append({"name": tag.name, "commit_id": tag.commit["id"], 
-                            "commit_time":tag.commit["committed_date"]})
-        pip_set_json = __tm_read_pipe_set_json(pj)
-        output.append({"id": pj.id,
-                    "name": pj.name, 
-                    "path": pj.path,
-                    "display": pj.name if "name" not in pip_set_json else pip_set_json["name"],
-                    "description": 
-                        "" if "description" not in pip_set_json else pip_set_json["description"],
-                    "version": tag_list})
-        cache_temp = TemplateListCache(temp_repo_id=pj.id,
-                        name=pj.name,
-                        path=pj.path,
-                        display=pj.name if "name" not in pip_set_json else pip_set_json["name"],
-                        description="" if "description" not in pip_set_json else pip_set_json["description"],
-                        version=tag_list,
-                        update_at=datetime.now())
-        db.session.add(cache_temp)
-        db.session.commit()
+    for group in gl.groups.list(all=True):
+        if group.name in ["iiidevops-templates", "local-templates"]:
+            for group_project in group.projects.list(all=True):
+                pj = gl.projects.get(group_project.id)
+                # get all tags
+                tag_list = []
+                for tag in pj.tags.list(all=True):
+                    tag_list.append({"name": tag.name, "commit_id": tag.commit["id"], 
+                                    "commit_time":tag.commit["committed_date"]})
+                pip_set_json = __tm_read_pipe_set_json(pj)
+                output.append({"id": pj.id,
+                            "name": pj.name, 
+                            "path": pj.path,
+                            "display": pj.name if "name" not in pip_set_json else pip_set_json["name"],
+                            "description": 
+                                "" if "description" not in pip_set_json else pip_set_json["description"],
+                            "version": tag_list})
+                cache_temp = TemplateListCache(temp_repo_id=pj.id,
+                                name=pj.name,
+                                path=pj.path,
+                                display=pj.name if "name" not in pip_set_json else pip_set_json["name"],
+                                description="" if "description" not in pip_set_json else pip_set_json["description"],
+                                version=tag_list,
+                                update_at=datetime.now())
+                db.session.add(cache_temp)
+                db.session.commit()
     return output
 
 
