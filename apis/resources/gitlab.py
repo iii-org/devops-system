@@ -391,7 +391,7 @@ class GitLab(object):
             for x in range(12, 169, 12):
                 days_ago = (datetime.utcnow() - timedelta(days = x)).isoformat()
                 for pj in self.gl.projects.list(order_by="last_activity_at"):
-                    if (pj.empty_repo is False) and ("iiidevops-templates" not in pj.path_with_namespace):
+                    if (pj.empty_repo is False) and (("iiidevops-templates" not in pj.path_with_namespace) and ("local-templates" not in pj.path_with_namespace)):
                         for commit in pj.commits.list(since=days_ago, until=last_days_ago):
                             out_list.append({"pj_name": pj.name, 
                             "author_name": commit.author_name, 
@@ -410,7 +410,7 @@ class GitLab(object):
                 the_last_hours = 24
             days_ago = (datetime.utcnow() - timedelta(hours = the_last_hours)).isoformat()
             for pj in self.gl.projects.list(order_by="last_activity_at"):
-                if (pj.empty_repo is False) and ("iiidevops-templates" not in pj.path_with_namespace):
+                if (pj.empty_repo is False) and (("iiidevops-templates" not in pj.path_with_namespace) and ("local-templates" not in pj.path_with_namespace)):
                     for commit in pj.commits.list(since=days_ago):
                         out_list.append({"pj_name": pj.name, 
                         "author_name": commit.author_name, 
@@ -423,7 +423,7 @@ class GitLab(object):
 
     def gl_count_each_pj_commits_by_days(self, days=30):
         for pj in self.gl.projects.list(all=True):
-            if ("iiidevops-templates" not in pj.path_with_namespace):
+            if ("iiidevops-templates" not in pj.path_with_namespace) and ("local-templates" not in pj.path_with_namespace):
                 for i in range(1, days+1):
                     pj_create_date = datetime.strptime(pj.created_at, '%Y-%m-%dT%H:%M:%S.%f%z').astimezone(tz.tzlocal()).date()
                     day_start = datetime.combine((datetime.now() - timedelta(days = i)), time(00, 00))
