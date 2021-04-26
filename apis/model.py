@@ -37,7 +37,9 @@ class User(db.Model):
     create_at = Column(DateTime)
     update_at = Column(DateTime)
     disabled = Column(Boolean)
-
+    from_ad = Column(Boolean, default=False)
+    department = Column(String(300))
+    title = Column(String(40))
 
 class Project(db.Model):
     __tablename__ = 'projects'
