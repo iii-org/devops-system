@@ -30,6 +30,7 @@ template_replace_dict = {
 support_software = [{"key": "scan-sonarqube", "display": "Sonarqube"}, 
                     {"key": "scan-checkmarx", "display": "Checkmarx"}, 
                     {"key": "test-postman", "display": "Postman"}, 
+                    {"key": "test-sideex", "display": "SideeX"}, 
                     {"key": "test-webinspect", "display": "Webinspect"},
                     {"key": "db", "display": "Database"},
                     {"key": "web", "display": "Web"}]
