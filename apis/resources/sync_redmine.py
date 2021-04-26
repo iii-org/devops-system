@@ -108,7 +108,7 @@ def insert_project(project, member_count, sync_date, project_status):
     date_of_sync_date = sync_date.split(' ')[0]
     new_data = {
         'project_id': project['id'],
-        'project_name': project['name'],
+        'project_name': project['display'],
         'pm_user_id': project['pm_user_id'],
         'pm_user_name': project['pm_user_name'],
         'complete_percent': get_complete_percent(project),
@@ -167,7 +167,7 @@ def insert_all_issues(project_id, sync_date):
         new_issue = model.RedmineIssue(
             issue_id=issue['id'],
             project_id=issue['project']['id'],
-            project_name=issue['project']['name'],
+            project_name=issue['project']['display'],
             assigned_to=issue['assigned_to'].get('name', None),
             assigned_to_id=issue['assigned_to'].get('id', None),
             issue_type=issue['tracker']['name'],
@@ -204,9 +204,13 @@ def get_current_sync_date_project_id_by_user():
                 sync_date=sync_date).order_by(
                     model.RedmineProject.end_date).all()
     else:
+        reverse_query_projects = model.ProjectUserRole.query.with_entities(
+            model.ProjectUserRole.project_id).filter_by(user_id=user_id).all()
+        reverse_query_projects = list(sum(reverse_query_projects, ()))
         project_id_collections = model.RedmineProject.query.with_entities(
-            model.RedmineProject.project_id).filter_by(
-                sync_date=sync_date, pm_user_id=user_id).order_by(
+            model.RedmineProject.project_id).filter(
+                model.RedmineProject.sync_date == sync_date,
+                model.RedmineProject.project_id.in_(reverse_query_projects)).order_by(
                     model.RedmineProject.end_date).all()
     return list(sum(project_id_collections, ()))
 
