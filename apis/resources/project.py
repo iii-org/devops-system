@@ -30,7 +30,7 @@ def list_projects(user_id):
         .join(model.ProjectPluginRelation) \
         .join(model.ProjectUserRole,
               model.ProjectUserRole.project_id == model.Project.id)
-    # 如果是 admin，列出所有 project
+    # 如果是 admin or qa，列出所有 project
     # 如果不是 admin，取得 user_id 有參加的 project 列表
     if user.get_role_id(user_id) not in [role.ADMIN.id, role.QA.id]:
         query = query.filter(model.ProjectUserRole.user_id == user_id)
@@ -990,7 +990,7 @@ class SingleProject(Resource):
                 model.ProjectUserRole.query.filter(
                     model.ProjectUserRole.project_id == project_id, model.ProjectUserRole.user_id != user_id
                     ).count()):
-                apiError.NotAllowedError('Error while deleting project with members.')
+                raise apiError.NotAllowedError('Error while deleting project with members.')
         return delete_project(project_id)
 
     @jwt_required
