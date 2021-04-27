@@ -305,6 +305,7 @@ api.add_resource(plugin.Plugin,'/plugins/<sint:plugin_id>')
 ##AD Server
 
 api.add_resource(ad.Users, '/plugins/ad/users')
+api.add_resource(ad.Organizations, '/plugins/ad/organizations')
 
 # dashboard
 api.add_resource(issue.DashboardIssuePriority,
@@ -400,6 +401,7 @@ api.add_resource(SystemGitCommitID, '/system_git_commit_id')  # git commit
 # Mocks
 api.add_resource(mock.MockTestResult, '/mock/test_summary')
 api.add_resource(mock.MockSesame, '/mock/sesame')
+api.add_resource(mock.UserDefaultFromAd, '/mock/userdefaultad')
 
 # Harbor
 api.add_resource(harbor.HarborRepository,
