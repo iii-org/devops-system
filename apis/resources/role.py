@@ -21,6 +21,10 @@ QA = Role(7, 'QA')
 ALL_ROLES = [RD, PM, ADMIN, BOT, QA]
 
 
+def is_role(role):
+    return get_jwt_identity()['role_id'] == role.id
+
+
 def get_role_name(role_id):
     for role in ALL_ROLES:
         if role.id == role_id:
