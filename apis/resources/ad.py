@@ -35,33 +35,55 @@ def get_dc_string(domains):
     return output[:-1]
 
 
-def check_ad_server():
-    plugin = api_plugin.get_plugin('ad_server')
-    
-    
-    # plugin = model.PluginSoftware.query.\
-    #     filter(model.PluginSoftware.name == 'ad_server').\
-    #     first()
-    ad_server = {
-        'ip_port': config.get('AD_IP_PORT'),
-        'domain': config.get('AD_DOMAIN'),
-        'account': config.get('AD_ACCOUNT'),
-        'password': config.get('AD_PASSWORD')
-    }
-    if plugin is not None:
-        parameters = json.loads(plugin.parameter)        
-        ad_server['ip_port'] = parameters['ip_port']
-        ad_server['domain'] = parameters['domain']
-        ad_server['account'] = parameters['account']
-        ad_server['password'] = parameters['password']
-    return ad_server
+def create_user_from_ad(users):
+    res = []
+    user = db.session.query(model.User).filter(
+            model.User.login == login_account).all()
+
+    for user in users:
+        status = 'Direct Login AD pass, DB create User'
+        res.append({'user': user , 'status': status})
+        # args = {
+        #     'name': ad_info['data']['iii_name'],
+        #     'email': ad_info['data']['userPrincipalName'],
+        #     'login': login_account,
+        #     'password': login_password,
+        #     'role_id': default_role_id,
+        #     'status': "enable",
+        #     'phone': ad_info['data']['telephoneNumber'],
+        #     'title': ad_info['data']['title'],
+        #     'department': ad_info['data']['department'],
+        #     'from_ad': True
+        # }
+        # res.append(user.create_user(args, ad_info['data']['whenChanged'])_
+
+    return res
+# def check_ad_server():
+#     plugin = api_plugin.get_plugin('ad_server')
+
+#     plugin = model.PluginSoftware.query.\
+#         filter(model.PluginSoftware.name == 'ad_server').\
+#         first()
+#     ad_server = {
+#         'ip_port': config.get('AD_IP_PORT'),
+#         'domain': config.get('AD_DOMAIN'),
+#         'account': config.get('AD_ACCOUNT'),
+#         'password': config.get('AD_PASSWORD')
+#     }
+#     if plugin is not None:
+#         parameters = json.loads(plugin.parameter)
+#         ad_server['ip_port'] = parameters['ip_port']
+#         ad_server['domain'] = parameters['domain']
+#         ad_server['account'] = parameters['account']
+#         ad_server['password'] = parameters['password']
+#     return ad_server
 
 
 def add_ad_user_info_by_iii(ad_user_info):
-    iii_info = {'is_iii' : False}
+    iii_info = {'is_iii': False}
     need_attributes = ['displayName', 'telephoneNumber', 'physicalDeliveryOfficeName',
-                       'givenName', 'sn', 'title', 'telephoneNumber', 'mail', 'userAccountControl', 'sAMAccountName', 'userPrincipalName', 
-                       'whenChanged', 'whenCreated', 'department' ]
+                       'givenName', 'sn', 'title', 'telephoneNumber', 'mail', 'userAccountControl', 'sAMAccountName', 'userPrincipalName',
+                       'whenChanged', 'whenCreated', 'department']
     organization = ['institute', 'director', 'section']
     if 'physicalDeliveryOfficeName' in ad_user_info and 'sn' in ad_user_info and 'givenName' in ad_user_info:
         list_departments = ad_user_info['physicalDeliveryOfficeName'].split(
@@ -72,7 +94,7 @@ def add_ad_user_info_by_iii(ad_user_info):
         for name in list_departments:
             iii_info[organization[layer]] = name
             layer += 1
-        iii_info['is_iii'] = True                    
+        iii_info['is_iii'] = True
     for attribute in need_attributes:
         if attribute in ad_user_info:
             iii_info[attribute] = ad_user_info[attribute]
@@ -87,6 +109,7 @@ def get_user_info_from_ad(users):
         user = add_ad_user_info_by_iii(user['attributes'])
         user_info.append(user)
     return user_info
+
 
 def create_ad_users(ad_users):
     new_users = []
@@ -135,25 +158,20 @@ class AD(object):
             'login': account,
             'data': {}
         }
-        ad_server = {
-            'hosts': [{config.get('AD_IP_PORT')}],
-            'domain': config.get('AD_DOMAIN'),
-            'account': config.get('AD_ACCOUNT'),
-            'password': config.get('AD_PASSWORD')
-        }
-        plugin = api_plugin.get_plugin('ad_server')        
+        plugin = api_plugin.get_plugin('ad_server')
         if plugin is not None and plugin['disabled'] is False:
-            ad_server = plugin
-        ad_parameter = ad_server['parameter']
-        server = ServerPool(None, pool_strategy=FIRST, active=True)        
+            ad_parameter = plugin['parameter']
+        else:
+            ad_parameter = ad_server
+        server = ServerPool(None, pool_strategy=FIRST, active=True)
         for host in ad_parameter['host']:
             ip, port = host['ip_port'].split(':')
             server.add(Server(host=ip, port=int(port), get_info=ALL,
-                        connect_timeout=ad_connect_timeout)  )                    
+                              connect_timeout=ad_connect_timeout))
         if account is None and password is None:
             account = ad_parameter['account']
-            password = ad_parameter['password']        
-        email = account+'@'+ad_parameter['domain']        
+            password = ad_parameter['password']
+        email = account+'@'+ad_parameter['domain']
         self.conn = Connection(server, user=email,
                                password=password, read_only=True)
         if self.conn.bind() is True:
@@ -207,13 +225,22 @@ class User(object):
         try:
             output = None
             ad = AD(account, password)
-            user = ad.get_user(account)            
+            user = ad.get_user(account)
             if user is not None:
                 output = add_ad_user_info_by_iii(user['attributes'])
             return output
         except NoResultFound:
             return util.respond(404, invalid_ad_server,
                                 error=apiError.invalid_plugin_id(invalid_ad_server))
+
+    def check_ad_info(self):
+        try:
+            plugin = api_plugin.get_plugin('ad_server')
+            return plugin
+        except NoResultFound:
+            return util.respond(404, invalid_ad_server,
+                                error=apiError.invalid_plugin_id(invalid_ad_server))
+
 
 ad_user = User()
 
@@ -234,9 +261,9 @@ class Users(Resource):
         try:
             ad = AD()
             ad_users = ad.get_users()
-            users = get_user_info_from_ad(ad_users)      
+            users = get_user_info_from_ad(ad_users)
             res = create_user_from_ad(users)
-            return util.success(users)
+            return util.success(res)
         except NoResultFound:
             return util.respond(404, invalid_ad_server,
                                 error=apiError.invalid_plugin_id(invalid_ad_server))
