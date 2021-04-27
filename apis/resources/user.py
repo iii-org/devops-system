@@ -321,10 +321,13 @@ def update_user(user_id, args):
         user.email = args['email']
     if args["status"] is not None:
         if args["status"] == "disable":
-            user.status = True
+            user.disabled = True
         else:
-            user.status = False
-    user.update_at = util.date_to_str(datetime.datetime.now())
+            user.disabled = False
+    if 'from_ad' in args and args['from_ad'] is True:
+        user.update_at = args['update_at']
+    else:
+        user.update_at = util.date_to_str(datetime.datetime.utcnow())
     db.session.commit()
     return util.success()
 
@@ -392,7 +395,7 @@ def change_user_status(user_id, args):
         disabled = True
     try:
         user = model.User.query.filter_by(id=user_id).one()
-        user.update_at = datetime.datetime.now()
+        user.update_at = datetime.datetime.utcnow()
         user.disabled = disabled
         db.session.commit()
         return util.success()
@@ -540,7 +543,7 @@ def create_user(args):
             title = title,
             department = department,
             password=h.hexdigest(),
-            create_at=datetime.datetime.now(),
+            create_at=datetime.datetime.utcnow(),
             disabled=disabled,
             from_ad=('from_ad' in args) and (args['from_ad'])
         )
@@ -549,6 +552,7 @@ def create_user(args):
 
         db.session.add(user)
         db.session.commit()
+
 
         user_id = user.id
         logger.info(f'Nexus user created, id={user_id}')

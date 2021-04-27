@@ -14,11 +14,7 @@ from resources.plugin import api_plugin
 from resources.apiError import DevOpsError
 import resources.apiError as apiError
 from resources.logger import logger
-from resources import user
-
-
-AD_SYSTEM_ACCOUNT = 'sysadmin'
-system_password = 'IIIdevops123!'
+from . import user
 
 ad_connect_timeout = 5
 ad_receive_timeout = 30
@@ -35,58 +31,95 @@ def get_dc_string(domains):
     return output[:-1]
 
 
-def create_user_from_ad(users):
+def get_db_user_by_login():
+    output = {}
+    rows = db.session.query(model.User).all()
+    for row in rows:
+        output[row.login] = {
+            'id': row.id,
+            'name': row.name,
+            'phone': row.phone,
+            'email': row.email,
+            'department': row.department,
+            'title': row.title,
+            'update_at': row.update_at
+        }
+    return output
+
+
+def update_user(ad_user, db_user):
+    args = {
+        "name": None,
+        "phone": None,
+        "email": None,
+        "title": None,
+        "department": None,
+        "status": "disable",
+        "password": None,
+        "from_ad" : True
+    }    
+    if ad_user['is_iii'] is True :
+        if ad_user["iii_name"] is not None:
+            args['name'] = ad_user['iii_name']
+        if ad_user["telephoneNumber"] is not None:
+            args['phone'] = ad_user['telephoneNumber']
+        if ad_user["userPrincipalName"] is not None:
+            args['email'] = ad_user['userPrincipalName']
+        if ad_user["title"] is not None:
+            args['title'] = ad_user['title']
+        if ad_user["department"] is not None:
+            args['department'] = ad_user['department']
+        if ad_user["userAccountControl"] == 512:
+            args['status'] = "enable"
+        if ad_user['whenChanged'] is not None:
+            args['update_at'] = str(ad_user['whenChanged'])
+        user.update_user(db_user['id'], args)
+    return db_user['id']
+
+
+def create_user(ad_user):
     res = []
-    user = db.session.query(model.User).filter(
-            model.User.login == login_account).all()
-
-    for user in users:
-        status = 'Direct Login AD pass, DB create User'
-        res.append({'user': user , 'status': status})
-        # args = {
-        #     'name': ad_info['data']['iii_name'],
-        #     'email': ad_info['data']['userPrincipalName'],
-        #     'login': login_account,
-        #     'password': login_password,
-        #     'role_id': default_role_id,
-        #     'status': "enable",
-        #     'phone': ad_info['data']['telephoneNumber'],
-        #     'title': ad_info['data']['title'],
-        #     'department': ad_info['data']['department'],
-        #     'from_ad': True
-        # }
-        # res.append(user.create_user(args, ad_info['data']['whenChanged'])_
-
+    if ad_user['is_iii'] is True and ad_user["userAccountControl"] ==  512:
+        args = {
+            'name': ad_user['iii_name'],
+            'email': ad_user['userPrincipalName'],
+            'login': ad_user['sAMAccountName'],
+            'password': default_password,
+            'role_id': default_role_id,
+            "status": "enable",
+            'phone': ad_user['telephoneNumber'],
+            'title': ad_user['title'],
+            'department': ad_user['department'],
+            'update_at' : ad_user['whenChanged'],
+            'from_ad': True
+        }
+        res.append(user.create_user(args))
     return res
-# def check_ad_server():
-#     plugin = api_plugin.get_plugin('ad_server')
 
-#     plugin = model.PluginSoftware.query.\
-#         filter(model.PluginSoftware.name == 'ad_server').\
-#         first()
-#     ad_server = {
-#         'ip_port': config.get('AD_IP_PORT'),
-#         'domain': config.get('AD_DOMAIN'),
-#         'account': config.get('AD_ACCOUNT'),
-#         'password': config.get('AD_PASSWORD')
-#     }
-#     if plugin is not None:
-#         parameters = json.loads(plugin.parameter)
-#         ad_server['ip_port'] = parameters['ip_port']
-#         ad_server['domain'] = parameters['domain']
-#         ad_server['account'] = parameters['account']
-#         ad_server['password'] = parameters['password']
-#     return ad_server
+
+
+def check_user_from_ad(ad_users):
+    res = {'new': [], 'old': [], 'none': []}
+    db_users = get_db_user_by_login()
+    for ad_user in ad_users:
+        if ad_user['sAMAccountName'] in db_users:
+            res['old'].append(update_user(
+                ad_user, db_users[ad_user['sAMAccountName']]))
+        else:
+            new_user = create_user(ad_user)
+            if new_user is None:
+                res['new'].append(new_user)
+    return res
 
 
 def add_ad_user_info_by_iii(ad_user_info):
     iii_info = {'is_iii': False}
     need_attributes = ['displayName', 'telephoneNumber', 'physicalDeliveryOfficeName',
                        'givenName', 'sn', 'title', 'telephoneNumber', 'mail', 'userAccountControl', 'sAMAccountName', 'userPrincipalName',
-                       'whenChanged', 'whenCreated', 'department']
+                       'whenChanged', 'whenCreated', 'department','department']
     organization = ['institute', 'director', 'section']
-    if 'physicalDeliveryOfficeName' in ad_user_info and 'sn' in ad_user_info and 'givenName' in ad_user_info:
-        list_departments = ad_user_info['physicalDeliveryOfficeName'].split(
+    if 'department' in ad_user_info and 'sn' in ad_user_info and 'givenName' in ad_user_info:
+        list_departments = ad_user_info['department'].split(
             '/')
         iii_info['iii_name'] = list_departments[(
             len(list_departments)-1)]+'_'+ad_user_info['sn']+ad_user_info['givenName']
@@ -220,7 +253,7 @@ class AD(object):
 
 class User(object):
     #  check User login
-    def get_user_info(self, account, password,ad_info):
+    def get_user_info(self, account, password, ad_info):
         try:
             output = None
             ad = AD(account, password)
@@ -265,8 +298,9 @@ class Users(Resource):
             ad = AD()
             ad_users = ad.get_users()
             users = get_user_info_from_ad(ad_users)
-            res = create_user_from_ad(users)
-            return util.success(res)
+            res = check_user_from_ad(users)
+            return res
+            # return util.success(res)
         except NoResultFound:
             return util.respond(404, invalid_ad_server,
                                 error=apiError.invalid_plugin_id(invalid_ad_server))
