@@ -78,7 +78,7 @@ def get_token_expires(role_id):
 
 def check_ad_login(account, password, ad_info={}):        
     try:            
-        ad_info_data = ad_user.get_user_info(account, password)        
+        ad_info_data = ad_user.get_user_info(account, password, ad_info)        
         if ad_info_data is not None:
             ad_info['is_pass'] = True            
             ad_info['data'] = ad_info_data                
@@ -147,6 +147,7 @@ def login(args):
         ad_info = {'is_pass': False,
                'login': login_account, 'data': {}}
         if ad_server['disabled'] is False:
+            print(ad_info)
             ad_info = check_ad_login(login_account, login_password,ad_info)        
         db_info = {'connect': False,
                    'login': login_account,
@@ -190,7 +191,6 @@ def login(args):
                 args['email'] = ad_info['data']['iii_name']
                 args['status'] = ad_info['data']['iii_name']
                 args['department'] = ad_info['data']['iii_name']
-                
                 user_id = user.id
                 user_login = user.login
                 user_role_id = project_user_role.role_id
@@ -203,8 +203,6 @@ def login(args):
                         logger.exception(err)
                     user.password = db_info['hex_password']
                     user.update_at = util.date_to_str(datetime.datetime.utcnow())                
-                args['']
-
                 user.name = ad_info['data']['iii_name']
                 user.phone = ad_info['data']['telephoneNumber']
                 user.department = ad_info['data']['department']

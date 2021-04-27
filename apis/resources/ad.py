@@ -159,10 +159,9 @@ class AD(object):
             'data': {}
         }
         plugin = api_plugin.get_plugin('ad_server')
+
         if plugin is not None and plugin['disabled'] is False:
             ad_parameter = plugin['parameter']
-        else:
-            ad_parameter = ad_server
         server = ServerPool(None, pool_strategy=FIRST, active=True)
         for host in ad_parameter['host']:
             ip, port = host['ip_port'].split(':')
@@ -221,7 +220,7 @@ class AD(object):
 
 class User(object):
     #  check User login
-    def get_user_info(self, account, password):
+    def get_user_info(self, account, password,ad_info):
         try:
             output = None
             ad = AD(account, password)
@@ -235,8 +234,12 @@ class User(object):
 
     def check_ad_info(self):
         try:
+            output = {}
+            output['disabled'] = True
             plugin = api_plugin.get_plugin('ad_server')
-            return plugin
+            if plugin is not None:
+                output = plugin
+            return output
         except NoResultFound:
             return util.respond(404, invalid_ad_server,
                                 error=apiError.invalid_plugin_id(invalid_ad_server))
