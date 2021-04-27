@@ -3,7 +3,7 @@ kind: CronJob
 metadata:
   name: sync-redmine
 spec:
-  schedule: "0 14 * * *"
+  schedule: "0 * * * *"
   jobTemplate:
     spec:
       template:
