@@ -178,9 +178,11 @@ def login(args):
                     'phone': ad_info['data']['telephoneNumber'],
                     'title': ad_info['data']['title'],
                     'department': ad_info['data']['department'],
-                    'from_ad': True
-                }                
-                new_user = create_user(args, ad_info['data']['whenChanged'])
+                    'from_ad': True,
+                    'update_at':  ad_info['data']['whenChanged']
+                }
+
+                new_user = create_user(args)
                 user_id = new_user['user_id']
                 user_login = login_account
                 user_role_id = default_role_id
@@ -202,12 +204,12 @@ def login(args):
                     if err is not None:
                         logger.exception(err)
                     user.password = db_info['hex_password']
-                    user.update_at = util.date_to_str(datetime.datetime.utcnow())                
+                    # user.update_at = util.date_to_str(datetime.datetime.utcnow())
                 user.name = ad_info['data']['iii_name']
                 user.phone = ad_info['data']['telephoneNumber']
                 user.department = ad_info['data']['department']
                 user.title = ad_info['data']['title']
-                user.ad_update_at = ad_info['data']['whenChanged']    
+                user.update_at = ad_info['data']['whenChanged']
                 db.session.commit()                                
             token = get_access_token(user_id, user_login, user_role_id, True)
             return util.success({'status': status, 'token': token, 'ad_info': ad_info})
@@ -401,7 +403,7 @@ def change_user_status(user_id, args):
 
 
 @record_activity(ActionType.CREATE_USER)
-def create_user(args, ad_update_at = None):
+def create_user(args):
     logger.info('Creating user...')
     # Check if name is valid
     login_name = args['login']
@@ -525,10 +527,6 @@ def create_user(args, ad_update_at = None):
 
         if args['status'] == "disable":
             disabled = True
-        if ad_update_at is not None:
-            from_ad = True
-        else:
-            from_ad = False        
         if 'title' in args :
             title = args['title']
         if 'department' in args:
@@ -544,9 +542,10 @@ def create_user(args, ad_update_at = None):
             password=h.hexdigest(),
             create_at=datetime.datetime.now(),
             disabled=disabled,
-            from_ad = from_ad,
-            ad_update_at = ad_update_at
+            from_ad=('from_ad' in args) and (args['from_ad'])
         )
+        if 'update_at' in args:
+            user.update_at = args['update_at']
 
         db.session.add(user)
         db.session.commit()

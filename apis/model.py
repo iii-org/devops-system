@@ -38,9 +38,9 @@ class User(db.Model):
     update_at = Column(DateTime)
     disabled = Column(Boolean)
     from_ad = Column(Boolean, default=False)
-    title = Column(String(45))    
-    department = Column(String(300))    
-    ad_update_at = Column(DateTime)
+    title = Column(String(45))
+    department = Column(String(300))
+
 
 class Project(db.Model):
     __tablename__ = 'projects'
