@@ -16,7 +16,7 @@ from model import db
 from nexus import nx_get_project_plugin_relation
 from resources.apiError import DevOpsError
 from util import DevOpsThread
-from . import user, harbor, kubernetesClient, role, sonarqube, template, webInspect
+from . import user, harbor, kubernetesClient, role, sonarqube, template, webInspect, zap, sideex
 from .activity import record_activity, ActionType
 from .checkmarx import checkmarx
 from .gitlab import gitlab
@@ -758,10 +758,9 @@ def get_test_summary(project_id):
             break
     ret['webinspect'] = wi_data
 
-    # sonarqube
     ret['sonarqube'] = sonarqube.sq_get_current_measures(project_name)
-
-
+    ret['zap'] = zap.zap_get_latest_test(project_id)
+    ret['sideex'] = sideex.sd_get_tests(project_id)
 
     return util.success({'test_results': ret})
 
