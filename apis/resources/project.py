@@ -707,6 +707,7 @@ def get_project_info(project_id):
 
 def get_test_summary(project_id):
     ret = {}
+    project_name = nexus.nx_get_project(id=project_id).name
 
     # newman
     row = model.TestResults.query.filter_by(project_id=project_id).order_by(desc(
@@ -747,7 +748,6 @@ def get_test_summary(project_id):
                         cm_data[k3] = v3
     ret['checkmarx'] = cm_data
 
-    project_name = nexus.nx_get_project(id=project_id).name
     # webinspect
     scans = webInspect.wi_list_scans(project_name)
     wi_data = {}
@@ -759,13 +759,9 @@ def get_test_summary(project_id):
     ret['webinspect'] = wi_data
 
     # sonarqube
-    # qube = self.get_sonar_report(logger, app, project_id)
-    # ret["sonarqube"] = {
-    #     "bug": 1,
-    #     "security": 1,
-    #     "security_review": 1,
-    #     "maintainability": 1
-    # }
+    ret['sonarqube'] = sonarqube.sq_get_current_measures(project_name)
+
+
 
     return util.success({'test_results': ret})
 
