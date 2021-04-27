@@ -1,7 +1,7 @@
 import json
 import numbers
 from datetime import datetime, date
-from ldap3 import Server, Connection, ObjectDef, Reader, SUBTREE, LEVEL, ALL, ALL_ATTRIBUTES, ALL_OPERATIONAL_ATTRIBUTES
+from ldap3 import Server, ServerPool, Connection, SUBTREE, LEVEL, ALL, ALL_ATTRIBUTES, FIRST
 import util as util
 import config
 import model
@@ -10,15 +10,19 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from Cryptodome.Hash import SHA256
 from flask_restful import Resource, reqparse
 from sqlalchemy.orm.exc import NoResultFound
+from resources.plugin import api_plugin
 from resources.apiError import DevOpsError
 import resources.apiError as apiError
 from resources.logger import logger
 from resources import user
 
-login_account = 'sysadmin'
-login_password = 'IIIdevops123!'
+
+AD_SYSTEM_ACCOUNT = 'sysadmin'
+system_password = 'IIIdevops123!'
+
 ad_connect_timeout = 5
 ad_receive_timeout = 30
+
 invalid_ad_server = 'Get AD User Error'
 default_role_id = 3
 default_password = 'IIIdevops_12345'
@@ -32,110 +36,88 @@ def get_dc_string(domains):
 
 
 def check_ad_server():
+    plugin = api_plugin.get_plugin('ad_server')
+    
+    
+    # plugin = model.PluginSoftware.query.\
+    #     filter(model.PluginSoftware.name == 'ad_server').\
+    #     first()
     ad_server = {
         'ip_port': config.get('AD_IP_PORT'),
-        'domain': config.get('AD_DOMAIN')
+        'domain': config.get('AD_DOMAIN'),
+        'account': config.get('AD_ACCOUNT'),
+        'password': config.get('AD_PASSWORD')
     }
-    plugin = model.PluginSoftware.query.\
-        filter(model.PluginSoftware.name == 'ad_server').\
-        first()
     if plugin is not None:
-        parameters = json.loads(plugin.parameter)
+        parameters = json.loads(plugin.parameter)        
         ad_server['ip_port'] = parameters['ip_port']
         ad_server['domain'] = parameters['domain']
+        ad_server['account'] = parameters['account']
+        ad_server['password'] = parameters['password']
     return ad_server
 
 
-def get_ad_users_info(server_info, account, password):
-    ad_info = {'is_pass': False,
-               'login': account, 'data': {}}
-    if server_info['ip_port'] is not None and server_info['domain'] is not None:
-        ad_info['exists'] = True
-    else:
-        ad_info['exists'] = False
-        return ad_info
-    try:
-        ip, port = server_info['ip_port'].split(':')
-        email = account+'@'+server_info['domain']
-        server = Server(host=ip, port=int(port), get_info=ALL,
-                        connect_timeout=ad_connect_timeout)
-        conn = Connection(server, user=email,
-                          password=password, read_only=True)
-        if conn.bind() is False:
-            logger.info("User Login Failed by AD: {0}".format(account))
-        search_filter = '(!(isCriticalSystemObject=True))'
-        search_domain = get_dc_string(server_info['domain'].split('.'))
-        # person = ObjectDef(['user','person','organizationalPerson', 'top'], conn)
-        person = ObjectDef(['user'], conn)
-        person +='sAMAccountName'
-        r = Reader(conn, person, search_domain, search_filter)
-        r.search_subtree()
-        exclusive_attributes = ['replPropertyMetaData', 'allowedAttributes',
-                                'msDS-ReplAttributeMetaData', 'allowedAttributesEffective']
-        organization = ['institue', 'director', 'section']
-        ad_info['is_pass'] = True
-        ad_info['data'] = []
-        for entry in r.entries:
-            info = {}
-            for attribute in entry.entry_attributes:
-                if hasattr(entry, attribute) and getattr(entry, attribute).value is not None and attribute not in exclusive_attributes:
-                    value = getattr(entry, attribute).value
-                    if type(value) is date:
-                        info[attribute] = value
-                    else:
-                        info[attribute] = str(value)
-            if 'department' in info and 'sn' in info and 'givenName' in info:
-                list_departments = info['department'].split('/')
-                info['account_name'] = list_departments[(
-                    len(list_departments)-1)]+'_'+info['sn']+info['givenName']
-                layer = 0
-                for name in list_departments:
-                    info[organization[layer]] = name
-                    layer += 1
-            ad_info['data'].append(info)
-        return ad_info
-    except Exception as e:
-        raise DevOpsError(500, 'Error when AD Login ',
-                          error=apiError.uncaught_exception(e))
+def add_ad_user_info_by_iii(ad_user_info):
+    iii_info = {'is_iii' : False}
+    need_attributes = ['displayName', 'telephoneNumber', 'physicalDeliveryOfficeName',
+                       'givenName', 'sn', 'title', 'telephoneNumber', 'mail', 'userAccountControl', 'sAMAccountName', 'userPrincipalName', 
+                       'whenChanged', 'whenCreated', 'department' ]
+    organization = ['institute', 'director', 'section']
+    if 'physicalDeliveryOfficeName' in ad_user_info and 'sn' in ad_user_info and 'givenName' in ad_user_info:
+        list_departments = ad_user_info['physicalDeliveryOfficeName'].split(
+            '/')
+        iii_info['iii_name'] = list_departments[(
+            len(list_departments)-1)]+'_'+ad_user_info['sn']+ad_user_info['givenName']
+        layer = 0
+        for name in list_departments:
+            iii_info[organization[layer]] = name
+            layer += 1
+        iii_info['is_iii'] = True                    
+    for attribute in need_attributes:
+        if attribute in ad_user_info:
+            iii_info[attribute] = ad_user_info[attribute]
+        else:
+            iii_info[attribute] = None
+    return iii_info
 
 
-def get_ad_users():
-    server = check_ad_server()
-    ad_info = get_ad_users_info(server, login_account, login_password)
-    return ad_info
+def get_user_info_from_ad(users):
+    user_info = []
+    for user in users:
+        user = add_ad_user_info_by_iii(user['attributes'])
+        user_info.append(user)
+    return user_info
 
-
-def create_ad_users():
-    ad_info = get_ad_users()
+def create_ad_users(ad_users):
     new_users = []
     old_users = []
     account_disable = []
     temp = []
-    if 'data' in ad_info and len(ad_info['data']) > 0:
-        users_info = ad_info['data']        
-        for user_info in users_info:
-            print(user_info['userPrincipalName'])
+    if 'data' in ad_users and len(ad_users['data']) > 0:
+        ad_users_info = ad_users['data']
+        for user_info in ad_users_info:
             login = user_info['sAMAccountName']
             email = user_info['userPrincipalName']
             db_user = db.session.query(model.User).filter(
                 (model.User.email == email) | (model.User.login == login)
             ).first()
             #  Create New User
-            if db_user is None and 'account_name' in user_info and int(user_info['userAccountControl']) == 512:
+            if db_user is None and 'iii_name' in user_info and int(user_info['userAccountControl']) == 512:
                 args = {
-                    'name': user_info['account_name'],
+                    'name': user_info['iii_name'],
                     'email': email,
                     'login': login,
                     'password': default_password,
                     'role_id': default_role_id,
                     'status': "enable",
-                    'phone': ''
+                    'phone': user_info['email'],
+
                 }
-                new_users.append(user.create_user(args))
-            elif db_user is None and 'account_name' in user_info:
+                new_users.append(user.create_user(args, True))
+            elif db_user is None and 'iii_name' in user_info:
                 account_disable.append(user_info)
-            elif 'account_name' in user_info:
-                old_users.append(user_info)                
+            elif 'iii_name' in user_info:
+                old_users.append(user_info)
             else:
                 temp.append(user_info)
     return {
@@ -146,12 +128,103 @@ def create_ad_users():
     }
 
 
+class AD(object):
+    def __init__(self, account=None, password=None):
+        self.ad_info = {
+            'is_pass': False,
+            'login': account,
+            'data': {}
+        }
+        ad_server = {
+            'hosts': [{config.get('AD_IP_PORT')}],
+            'domain': config.get('AD_DOMAIN'),
+            'account': config.get('AD_ACCOUNT'),
+            'password': config.get('AD_PASSWORD')
+        }
+        plugin = api_plugin.get_plugin('ad_server')        
+        if plugin is not None and plugin['disabled'] is False:
+            ad_server = plugin
+        ad_parameter = ad_server['parameter']
+        server = ServerPool(None, pool_strategy=FIRST, active=True)        
+        for host in ad_parameter['host']:
+            ip, port = host['ip_port'].split(':')
+            server.add(Server(host=ip, port=int(port), get_info=ALL,
+                        connect_timeout=ad_connect_timeout)  )                    
+        if account is None and password is None:
+            account = ad_parameter['account']
+            password = ad_parameter['password']        
+        email = account+'@'+ad_parameter['domain']        
+        self.conn = Connection(server, user=email,
+                               password=password, read_only=True)
+        if self.conn.bind() is True:
+            self.ad_info['is_pass'] = True
+        self.active_base_dn = get_dc_string(ad_parameter['domain'].split('.'))
+
+    def get_users(self):
+        user_search_filter = '(&(|(objectclass=user)(objectclass=person))(!(isCriticalSystemObject=True)))'
+        self.conn.search(search_base=self.active_base_dn,
+                         search_filter=user_search_filter, attributes=ALL_ATTRIBUTES)
+        res = self.conn.response_to_json()
+        res = json.loads(res)['entries']
+        return res
+
+    def get_ous(self):
+        ou_search_filter = '(&(objectclass=OrganizationalPerson)(!(isCriticalSystemObject=True)))'
+        self.conn.search(search_base=self.active_base_dn,
+                         search_filter=ou_search_filter, attributes=ALL_ATTRIBUTES)
+        res = self.conn.response_to_json()
+        res = json.loads(res)
+        return res
+
+    def get_user(self, account):
+        output = None
+        # 只获取【用户】对象
+        user_search_filter = '(&(|(objectclass=user)(objectclass=person))(!(isCriticalSystemObject=True))(sAMAccountName='+account+'))'
+        if self.ad_info['is_pass'] is True:
+            self.conn.search(search_base=self.active_base_dn,
+                             search_filter=user_search_filter,
+                             attributes=ALL_ATTRIBUTES
+                             )
+            res = self.conn.response_to_json()
+            output = json.loads(res)['entries'][0]
+        return output
+
+    def compare_attr(self, dn, attr, value):
+        res = self.conn.compare(dn=dn, attribute=attr, value=value)
+        return res
+
+    def get_user_by_ou(self):
+        self.conn.search(search_base=self.active_base_dn,
+                         search_filter=self.ou_search_filter, attributes=ALL_ATTRIBUTES)
+        res = self.conn.response_to_json()
+        res = json.loads(res)
+        return res
+
+
+class User(object):
+    #  check User login
+    def get_user_info(self, account, password):
+        try:
+            output = None
+            ad = AD(account, password)
+            user = ad.get_user(account)            
+            if user is not None:
+                output = add_ad_user_info_by_iii(user['attributes'])
+            return output
+        except NoResultFound:
+            return util.respond(404, invalid_ad_server,
+                                error=apiError.invalid_plugin_id(invalid_ad_server))
+
+ad_user = User()
+
+
 class Users(Resource):
     @jwt_required
     def get(self):
         try:
-            print("Get Users")
-            return util.success(get_ad_users())
+            print('Get Users by OU')
+            ad = AD()
+            return util.success(ad.get_users())
         except NoResultFound:
             return util.respond(404, invalid_ad_server,
                                 error=apiError.invalid_plugin_id(invalid_ad_server))
@@ -159,20 +232,23 @@ class Users(Resource):
     @jwt_required
     def post(self):
         try:
-            print("Create Users")
-            return util.success(create_ad_users())
+            ad = AD()
+            ad_users = ad.get_users()
+            users = get_user_info_from_ad(ad_users)      
+            res = create_user_from_ad(users)
+            return util.success(users)
         except NoResultFound:
             return util.respond(404, invalid_ad_server,
                                 error=apiError.invalid_plugin_id(invalid_ad_server))
 
 
-class organizational(Resource):
+class Organizations(Resource):
     @jwt_required
     def get(self):
         try:
-            print("Get Users")
-            return util.success(get_ad_users())
+            print("Get Organizations")
+            ad = AD()
+            return util.success(ad.get_ous())
         except NoResultFound:
             return util.respond(404, invalid_ad_server,
                                 error=apiError.invalid_plugin_id(invalid_ad_server))
-

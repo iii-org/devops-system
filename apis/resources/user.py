@@ -9,8 +9,6 @@ from flask_jwt_extended import (
 from flask_restful import Resource, reqparse
 from sqlalchemy import desc
 from sqlalchemy.orm.exc import NoResultFound
-
-
 import model
 import re
 import config
@@ -27,6 +25,7 @@ from resources.logger import logger
 from resources.redmine import redmine
 from resources.gitlab import gitlab
 from resources import kubernetesClient
+from resources.ad import ad_user
 
 # Make a regular expression
 ad_connect_timeout = 5
@@ -77,36 +76,14 @@ def get_token_expires(role_id):
     return expires
 
 
-def check_ad_login(server_info, account, password):
+def check_ad_login(account, password):    
     ad_info = {'is_pass': False,
                'login': account, 'data': {}}
-    if server_info['ip_port'] is not None and server_info['domain'] is not None:
-        ad_info['exists'] = True
-    else:
-        ad_info['exists'] = False
-        return ad_info
     try:
-        attributes = ['department', 'company', 'title', 'cn',
-                      'canonicalName', 'distinguishedName', 'userPrincipalName', 'sn', 'givenName'
-                      ]
-        ip, port = server_info['ip_port'].split(':')
-        email = account+'@'+server_info['domain']
-        server = Server(host=ip, port=int(port), get_info=ALL,
-                        connect_timeout=ad_connect_timeout)
-        conn = Connection(server, user=email,
-                          password=password, read_only=True)
-        if conn.bind() is False:
-            logger.info("User Login Failed by AD: {0}".format(account))
-            return ad_info
-        logger.info("User Login Success by AD: {0}".format(account))
-        conn.search(search_base=get_dc_string(server_info['domain'].split('.')),
-                    search_filter='(&(objectclass=person)(sAMAccountName='+account+'))',
-                    search_scope=SUBTREE,
-                    attributes=attributes
-                    )
-        ad_info['is_pass'] = True
-        for attribute in attributes:
-            ad_info['data'][attribute] = str(conn.entries[0][attribute].value)
+        ad_info_data = ad_user.get_user_info(account, password)
+        if ad_info_data is not None:
+            ad_info['is_pass'] = True            
+            ad_info['data'] = ad_info_data                
         return ad_info
     except Exception as e:
         raise DevOpsError(500, 'Error when AD Login ',
@@ -114,19 +91,20 @@ def check_ad_login(server_info, account, password):
 
 
 @jwt.user_claims_loader
-def jwt_response_data(id, login, role_id):
+def jwt_response_data(id, login, role_id,from_ad):
     return {
         'user_id': id,
         'user_account': login,
         'role_id': role_id,
-        'role_name': role.get_role_name(role_id)
+        'role_name': role.get_role_name(role_id),
+        'from_ad': from_ad
     }
 
 
-def get_access_token(id, login, role_id):
+def get_access_token(id, login, role_id, from_ad = True):
     expires = get_token_expires(role_id)
     token = create_access_token(
-        identity=jwt_response_data(id, login, role_id),
+        identity=jwt_response_data(id, login, role_id, from_ad),
         expires_delta=expires
     )
     return token
@@ -139,6 +117,7 @@ def check_db_login(user, password, output):
     h.update(password.encode())
     login_password = h.hexdigest()
     output['hex_password'] = login_password
+    output['from_ad'] = user.from_ad
     if user.password == login_password:
         output['is_pass'] = True
         logger.info("User Login success by DB user_id: {0}".format(user.id))
@@ -161,14 +140,12 @@ def check_ad_server():
         ad_server['domain'] = parameters['domain']
     return ad_server
 
-
 def login(args):
     default_role_id = 3
     login_account = args['username']
     login_password = args['password']
-    ad_server = check_ad_server()
     try:
-        ad_info = check_ad_login(ad_server, login_account, login_password)
+        ad_info = check_ad_login(login_account, login_password)    
         db_info = {'connect': False,
                    'login': login_account,
                    'is_pass': False,
@@ -178,17 +155,19 @@ def login(args):
         if user is not None:
             db_info['connect'] = True
             db_info, user, project_user_role = check_db_login(
-                user, login_password, db_info)
-
-        if ad_info['is_pass'] is True:
-            status = 'Direct login by AD, DB pass'
+                user, login_password, db_info)                                                    
+        # Login By AD
+        if ad_info['is_pass'] is True and db_info['from_ad'] is True:
+            status = 'Direct login by AD pass, DB pass'
             user_id = ''
             user_login = ''
             user_role_id = ''
+            # 'Direct login AD pass, DB change password'
             if db_info['connect'] is not False:
                 user_id = user.id
                 user_login = user.login
                 user_role_id = project_user_role.role_id
+                # db_modify = True                
                 if db_info['is_pass'] is not True:
                     status = 'Direct login AD pass, DB change password'
                     err = update_external_passwords(
@@ -196,30 +175,40 @@ def login(args):
                     if err is not None:
                         logger.exception(err)
                     user.password = db_info['hex_password']
-                    user.update_at = util.date_to_str(datetime.datetime.now())
-                    db.session.commit()
-            else:
+                    user.update_at = util.date_to_str(datetime.datetime.utcnow())                
+                user.name = ad_info['data']['iii_name']
+                user.phone = ad_info['data']['telephoneNumber']
+                user.department = ad_info['data']['department']
+                user.title = ad_info['data']['title']
+                user.ad_update_at = ad_info['data']['whenChanged']    
+                db.session.commit()    
+            # 'Direct Login AD pass, DB create User'
+            else:                
                 status = 'Direct Login AD pass, DB create User'
                 args = {
-                    'name': ad_info['data']['sn'] + ad_info['data']['givenName'],
+                    'name': ad_info['data']['iii_name'],
                     'email': ad_info['data']['userPrincipalName'],
                     'login': login_account,
                     'password': login_password,
                     'role_id': default_role_id,
                     'status': "enable",
-                    'phone': ''
-                }
-                new_user = create_user(args)
+                    'phone': ad_info['data']['telephoneNumber'],
+                    'title': ad_info['data']['title'],
+                    'department': ad_info['data']['department'],
+                    'from_ad': True
+                }                
+                new_user = create_user(args, True)
                 user_id = new_user['user_id']
                 user_login = login_account
                 user_role_id = default_role_id
-            token = get_access_token(user_id, user_login, user_role_id)
-            return util.success({'status': status, 'token': token})
+            token = get_access_token(user_id, user_login, user_role_id, True)
+            return util.success({'status': status, 'token': token, 'ad_info': ad_info})
+        # Login By Database
         elif db_info['is_pass'] is True:
             status = "DB Login"
             token = get_access_token(
-                user.id, user.login, project_user_role.role_id)
-            return util.success({'status': status, 'token': token})
+                user.id, user.login, project_user_role.role_id, user.from_ad)
+            return util.success({'status': status, 'token': token, 'ad_info':ad_info})
         else:
             return util.respond(401, "Error when logging in.", error=apiError.wrong_password())
     except Exception as e:
@@ -233,6 +222,7 @@ def user_forgot_password(args):
 
 # noinspection PyMethodMayBeStatic
 def get_user_info(user_id):
+    print(user_id)
     user, project_user_role = db.session.query(model.User, model.ProjectUserRole).\
         filter(
             model.User.id == user_id,
@@ -255,6 +245,7 @@ def get_user_info(user_id):
                 "name": role.get_role_name(project_user_role.role_id),
                 "id": project_user_role.role_id
             },
+            'from_ad': user.from_ad,
             "status": status
         }
         if role.is_role(role.ADMIN):
@@ -403,7 +394,7 @@ def change_user_status(user_id, args):
 
 
 @record_activity(ActionType.CREATE_USER)
-def create_user(args):
+def create_user(args, ad_update_at = None):
     logger.info('Creating user...')
     # Check if name is valid
     login_name = args['login']
@@ -525,6 +516,11 @@ def create_user(args):
         disabled = False
         if args['status'] == "disable":
             disabled = True
+        if ad_update_at is not None:
+            from_ad = True
+        else:
+            from_ad = False
+
         user = model.User(
             name=args['name'],
             email=args['email'],
@@ -532,7 +528,10 @@ def create_user(args):
             login=args['login'],
             password=h.hexdigest(),
             create_at=datetime.datetime.now(),
-            disabled=disabled)
+            disabled=disabled,
+            from_ad = from_ad,
+            ad_update_at = ad_update_at
+        )
         db.session.add(user)
         db.session.commit()
 
@@ -646,17 +645,17 @@ def user_list_by_project(project_id, args):
             order_by(desc(model.User.id)).all()
 
     arr_ret = []
-    for data_userRole_by_project in ret_users:
+    for user_role_by_project in ret_users:
         arr_ret.append({
-            "id": data_userRole_by_project.User.id,
-            "name": data_userRole_by_project.User.name,
-            "email": data_userRole_by_project.User.email,
-            "phone": data_userRole_by_project.User.phone,
-            "login": data_userRole_by_project.User.login,
-            "create_at": util.date_to_str(data_userRole_by_project.User.create_at),
-            "update_at": util.date_to_str(data_userRole_by_project.User.update_at),
-            "role_id": data_userRole_by_project.role_id,
-            "role_name": role.get_role_name(data_userRole_by_project.role_id),
+            "id": user_role_by_project.User.id,
+            "name": user_role_by_project.User.name,
+            "email": user_role_by_project.User.email,
+            "phone": user_role_by_project.User.phone,
+            "login": user_role_by_project.User.login,
+            "create_at": util.date_to_str(user_role_by_project.User.create_at),
+            "update_at": util.date_to_str(user_role_by_project.User.update_at),
+            "role_id": user_role_by_project.role_id,
+            "role_name": role.get_role_name(user_role_by_project.role_id),
         })
     return util.success({"user_list": arr_ret})
 
