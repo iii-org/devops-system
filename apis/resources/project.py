@@ -988,7 +988,9 @@ class SingleProject(Resource):
         if role_id == role.QA.id:
             if bool(
                 model.ProjectUserRole.query.filter(
-                    model.ProjectUserRole.project_id == project_id, model.ProjectUserRole.user_id != user_id
+                    model.ProjectUserRole.project_id == project_id,
+                    model.ProjectUserRole.user_id != user_id,
+                    model.ProjectUserRole.role_id.in_([1, 3])
                     ).count()):
                 raise apiError.NotAllowedError('Error while deleting project with members.')
         return delete_project(project_id)
