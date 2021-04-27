@@ -79,8 +79,6 @@ def clear_all_tables():
     model.RedmineIssue.query.delete()
     model.ProjectMember.query.delete()
     model.ProjectMemberCount.query.delete()
-    model.ProjectOvewview.query.delete()
-    model.IssueRank.query.delete()
     model.db.session.commit()
 
 
@@ -419,6 +417,7 @@ def get_unclosed_issues_by_user(user_id):
 
 def get_postman_passing_rate(detail, own_project):
     all_passing_rate = []
+    sync_date = get_sync_date()
     for project_id in own_project:
         response = get_current_sync_date_project_by_project_id(
             project_id=project_id, sync_date=sync_date)
@@ -534,6 +533,7 @@ class UnclosedIssues(Resource):
     def get(self, user_id):
         unclosed_issues = get_unclosed_issues_by_user(user_id)
         return util.success(unclosed_issues)
+
 
 class PassingRate(Resource):
     @jwt_required
