@@ -46,7 +46,10 @@ class NexusUser:
 
     def to_json(self, with_projects=False):
         ret = json.loads(str(self.user_row))
-        ret['default_role_id'] = self.default_role_id()
+        ret['default_role'] = {
+            'id': self.default_role_id(),
+            'name': role.get_role_name(self.default_role_id())
+        }
         if with_projects:
             rows = db.session. \
                 query(model.Project, model.ProjectPluginRelation.git_repository_id). \
