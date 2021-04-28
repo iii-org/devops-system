@@ -95,6 +95,10 @@ def is_project_owner_in_project(user_id, project_id):
     return build(2007, 'This user is project owner  in the project.',
                  {'user_id': user_id, 'project_id': project_id})
 
+
+def user_from_ad(user_id):
+    return build(2008, 'This user comes from ad server, normal user cannot modfiy',
+                 {'user_id': user_id})
 # Permission errors
 class NotAllowedError(HTTPException):
     pass

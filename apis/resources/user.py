@@ -65,7 +65,7 @@ def to_redmine_role_id(role_id):
 def get_dc_string(domains):
     output = ''
     for domain in domains:
-        output += 'dc=' + domain + ','
+        output += 'dc='+domain+','
     return output[:-1]
 
 
@@ -76,12 +76,12 @@ def get_token_expires(role_id):
     return expires
 
 
-def check_ad_login(account, password, ad_info={}):
-    try:
-        ad_info_data = ad_user.get_user_info(account, password, ad_info)
+def check_ad_login(account, password, ad_info={}):        
+    try:            
+        ad_info_data = ad_user.get_user_info(account, password, ad_info)        
         if ad_info_data is not None:
-            ad_info['is_pass'] = True
-            ad_info['data'] = ad_info_data
+            ad_info['is_pass'] = True            
+            ad_info['data'] = ad_info_data                
         return ad_info
     except Exception as e:
         raise DevOpsError(500, 'Error when AD Login ',
@@ -89,7 +89,7 @@ def check_ad_login(account, password, ad_info={}):
 
 
 @jwt.user_claims_loader
-def jwt_response_data(id, login, role_id, from_ad):
+def jwt_response_data(id, login, role_id,from_ad):
     return {
         'user_id': id,
         'user_account': login,
@@ -99,7 +99,7 @@ def jwt_response_data(id, login, role_id, from_ad):
     }
 
 
-def get_access_token(id, login, role_id, from_ad=True):
+def get_access_token(id, login, role_id, from_ad = True):
     expires = get_token_expires(role_id)
     token = create_access_token(
         identity=jwt_response_data(id, login, role_id, from_ad),
@@ -129,8 +129,8 @@ def check_ad_server():
         'ip_port': config.get('AD_IP_PORT'),
         'domain': config.get('AD_DOMAIN')
     }
-    plugin = model.PluginSoftware.query. \
-        filter(model.PluginSoftware.name == 'ad_server'). \
+    plugin = model.PluginSoftware.query.\
+        filter(model.PluginSoftware.name == 'ad_server').\
         first()
     if plugin is not None:
         parameters = json.loads(plugin.parameter)
@@ -138,18 +138,17 @@ def check_ad_server():
         ad_server['domain'] = parameters['domain']
     return ad_server
 
-
 def login(args):
     default_role_id = 3
     login_account = args['username']
-    login_password = args['password']
-    ad_server = ad_user.check_ad_info()
+    login_password = args['password']  
+    ad_server = ad_user.check_ad_info()   
     try:
         ad_info = {'is_pass': False,
-                   'login': login_account, 'data': {}}
+               'login': login_account, 'data': {}}
         if ad_server['disabled'] is False:
             print(ad_info)
-            ad_info = check_ad_login(login_account, login_password, ad_info)
+            ad_info = check_ad_login(login_account, login_password,ad_info)        
         db_info = {'connect': False,
                    'login': login_account,
                    'is_pass': False,
@@ -159,8 +158,8 @@ def login(args):
         if user is not None:
             db_info['connect'] = True
             db_info, user, project_user_role = check_db_login(
-                user, login_password, db_info)
-            # Login By AD
+                user, login_password, db_info)                                                    
+        # Login By AD
         if ad_info['is_pass'] is True:
             status = 'Direct login by AD pass, DB pass'
             user_id = ''
@@ -180,7 +179,7 @@ def login(args):
                     'title': ad_info['data']['title'],
                     'department': ad_info['data']['department'],
                     'from_ad': True,
-                    'update_at': ad_info['data']['whenChanged']
+                    'update_at':  ad_info['data']['whenChanged']
                 }
 
                 new_user = create_user(args)
@@ -211,7 +210,7 @@ def login(args):
                 user.department = ad_info['data']['department']
                 user.title = ad_info['data']['title']
                 user.update_at = ad_info['data']['whenChanged']
-                db.session.commit()
+                db.session.commit()                                
             token = get_access_token(user_id, user_login, user_role_id, True)
             return util.success({'status': status, 'token': token, 'ad_info': ad_info})
         # Login By Database
@@ -219,7 +218,7 @@ def login(args):
             status = "DB Login"
             token = get_access_token(
                 user.id, user.login, project_user_role.role_id, user.from_ad)
-            return util.success({'status': status, 'token': token, 'ad_info': ad_info})
+            return util.success({'status': status, 'token': token, 'ad_info':ad_info})
         else:
             return util.respond(401, "Error when logging in.", error=apiError.wrong_password())
     except Exception as e:
@@ -233,10 +232,10 @@ def user_forgot_password(args):
 
 # noinspection PyMethodMayBeStatic
 def get_user_info(user_id):
-    user, project_user_role = db.session.query(model.User, model.ProjectUserRole). \
+    user, project_user_role = db.session.query(model.User, model.ProjectUserRole).\
         filter(
-        model.User.id == user_id,
-        model.User.id == model.ProjectUserRole.user_id
+            model.User.id == user_id,
+            model.User.id == model.ProjectUserRole.user_id
     ).first()
     if user is not None and project_user_role is not None:
         if user.disabled is True:
@@ -262,7 +261,7 @@ def get_user_info(user_id):
             rows = db.session. \
                 query(model.Project, model.ProjectPluginRelation.git_repository_id). \
                 join(model.ProjectPluginRelation). \
-                filter(model.ProjectUserRole.project_id != -1). \
+                filter(model.ProjectUserRole.project_id != -1).\
                 all()
         else:
             rows = db.session. \
@@ -293,9 +292,9 @@ def get_user_info(user_id):
 
 @record_activity(ActionType.UPDATE_USER)
 def update_user(user_id, args):
-    user = db.session.query(model.User). \
+    user = db.session.query(model.User).\
         filter(
-        model.User.id == user_id
+            model.User.id == user_id
     ).first()
     if args['password'] is not None:
         if args["old_password"] == args["password"]:
@@ -523,7 +522,7 @@ def create_user(args):
 
     try:
         # DB
-        title = department = ''
+        title = department =  ''
         h = SHA256.new()
         h.update(args["password"].encode())
         args["password"] = h.hexdigest()
@@ -531,18 +530,18 @@ def create_user(args):
 
         if args['status'] == "disable":
             disabled = True
-        if 'title' in args:
+        if 'title' in args :
             title = args['title']
         if 'department' in args:
-            department = args['department']
-
+            department = args['department']        
+           
         user = model.User(
             name=args['name'],
             email=args['email'],
             phone=args['phone'],
             login=args['login'],
-            title=title,
-            department=department,
+            title = title,
+            department = department,
             password=h.hexdigest(),
             create_at=datetime.datetime.utcnow(),
             disabled=disabled,
@@ -553,6 +552,7 @@ def create_user(args):
 
         db.session.add(user)
         db.session.commit()
+
 
         user_id = user.id
         logger.info(f'Nexus user created, id={user_id}')
