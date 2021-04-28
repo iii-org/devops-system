@@ -336,6 +336,10 @@ def update_user(user_id, args, from_ad = False):
     else:
         user.update_at = util.date_to_str(datetime.datetime.utcnow())
     db.session.commit()
+
+    if 'role_id' in args:
+        role.update_role(user_id, args['role_id'])
+
     return util.success()
 
 
@@ -752,6 +756,7 @@ class SingleUser(Resource):
         parser.add_argument('department', type=str)
         parser.add_argument('title', type=str)
         parser.add_argument('status', type=str)
+        parser.add_argument('role_id', type=int)
         args = parser.parse_args()
         return update_user(user_id, args)
 

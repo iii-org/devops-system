@@ -5,6 +5,7 @@ import nexus
 from resources import apiError
 import util
 import model
+from resources.apiError import DevOpsError
 
 
 class Role:
@@ -107,10 +108,22 @@ def verify_project_user(project_id, user_id):
 def get_role_list():
     output_array = []
     for r in ALL_ROLES:
+        if r is BOT:
+            continue
         role_info = {"id": r.id, "name": r.name}
         output_array.append(role_info)
 
     return util.success({"role_list": output_array})
+
+
+def update_role(user_id, new_role_id):
+    row = model.ProjectUserRole.query.filter_by(user_id=user_id).all()
+    if len(row) == 0:
+        raise DevOpsError(404, 'User not found.', apiError.user_not_found(user_id))
+    if len(row) > 1:
+        raise DevOpsError(400, 'User is in a project.', apiError.user_in_a_project(user_id))
+    row.role_id = new_role_id
+    model.db.session.commit()
 
 
 # --------------------- Resources ---------------------
