@@ -31,9 +31,8 @@ def list_projects(user_id):
         .join(model.ProjectUserRole,
               model.ProjectUserRole.project_id == model.Project.id)
     # 如果是 admin，列出所有 project
-    # 如果不是 admin，取得 user_id 有參加的 project 列表
     if user.get_role_id(user_id) == role.ADMIN.id:
-        query = query.filter(model.ProjectUserRole.user_id == user_id)
+        pass
     # 如果是 qa(subadmin)，列出 permission 允許的 project
     elif user.get_role_id(user_id) == role.QA.id:
         allowed_project_id = model.ProjectUserRole.query.filter_by(
@@ -41,6 +40,9 @@ def list_projects(user_id):
         ).with_entities(model.ProjectUserRole.project_id).all()
         allowed_project_id_list = list(sum(allowed_project_id, ()))
         query = query.filter(model.Project.id.in_(allowed_project_id_list))
+    # 如果都不是（也就是一般RD/PM），取得 user_id 有參加的 project 列表
+    else:
+        query = query.filter(model.ProjectUserRole.user_id == user_id)
     rows = query.order_by(desc(model.Project.id)).all()
 
     project_id_list = []
