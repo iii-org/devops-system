@@ -28,7 +28,6 @@ from resources import kubernetesClient
 from resources.ad import ad_user
 
 # Make a regular expression
-default_role_id = 3
 ad_connect_timeout = 5
 ad_receive_timeout = 30
 jwt = JWTManager()
@@ -77,7 +76,7 @@ def get_token_expires(role_id):
     return expires
 
 
-def check_ad_login(account, password, ad_info=None):        
+def check_ad_login(account, password, ad_info={}):        
     try:            
         ad_info_data = ad_user.get_user_info(account, password)        
         if ad_info_data is not None:
@@ -117,7 +116,6 @@ def check_db_login(user, password, output):
     login_password = h.hexdigest()
     output['hex_password'] = login_password
     output['from_ad'] = user.from_ad
-    output['role_id'] = project_user_role.role_id
     if user.password == login_password:
         output['is_pass'] = True
         logger.info("User Login success by DB user_id: {0}".format(user.id))
@@ -140,55 +138,8 @@ def check_ad_server():
         ad_server['domain'] = parameters['domain']
     return ad_server
 
-def login_by_ad(user, db_info,ad_info, login_account, login_password):
-    status = 'Direct login by AD pass, DB pass'
-    user_id = ''
-    user_login = ''
-    user_role_id = ''
-    # 'Direct Login AD pass, DB create User'            
-    if db_info['connect'] is False:
-        status = 'Direct Login AD pass, DB create User'
-        args = {
-            'name': ad_info['data']['iii_name'],
-            'email': ad_info['data']['userPrincipalName'],
-            'login': login_account,
-            'password': login_password,
-            'role_id': default_role_id,
-            'status': "enable",
-            'phone': ad_info['data']['telephoneNumber'],
-            'title': ad_info['data']['title'],
-            'department': ad_info['data']['department'],
-            'from_ad': True,
-            'update_at':  ad_info['data']['whenChanged']
-        }
-        new_user = create_user(args)
-        user_id = new_user['user_id']
-        user_login = login_account
-        user_role_id = default_role_id
-    # 'Direct login AD pass,'
-    elif db_info['from_ad'] is True:
-        user_id = user.id
-        user_login = user.login
-        user_role_id = db_info['role_id']
-        # 'Direct login AD pass, DB change password'
-        if db_info['is_pass'] is not True:
-            status = 'Direct login AD pass, DB change password'
-            err = update_external_passwords(
-                user.id, login_password, login_password)
-            if err is not None:
-                logger.exception(err)
-            user.password = db_info['hex_password']
-        user.name = ad_info['data']['iii_name']
-        user.phone = ad_info['data']['telephoneNumber']
-        user.department = ad_info['data']['department']
-        user.title = ad_info['data']['title']
-        user.update_at = ad_info['data']['whenChanged']
-        db.session.commit()
-    token = get_access_token(user_id, user_login, user_role_id, True)
-    return status, token
-
-
 def login(args):
+    default_role_id = 3
     login_account = args['username']
     login_password = args['password']  
     ad_server = ad_user.check_ad_info()   
@@ -210,7 +161,57 @@ def login(args):
                 user, login_password, db_info)                                                    
         # Login By AD
         if ad_info['is_pass'] is True:
-            status, token = login_by_ad(user,db_info,ad_info, login_account, login_password)
+            status = 'Direct login by AD pass, DB pass'
+            user_id = ''
+            user_login = ''
+            user_role_id = ''
+            # 'Direct Login AD pass, DB create User'            
+            if db_info['connect'] is False:
+                status = 'Direct Login AD pass, DB create User'
+                args = {
+                    'name': ad_info['data']['iii_name'],
+                    'email': ad_info['data']['userPrincipalName'],
+                    'login': login_account,
+                    'password': login_password,
+                    'role_id': default_role_id,
+                    'status': "enable",
+                    'phone': ad_info['data']['telephoneNumber'],
+                    'title': ad_info['data']['title'],
+                    'department': ad_info['data']['department'],
+                    'from_ad': True,
+                    'update_at':  ad_info['data']['whenChanged']
+                }
+
+                new_user = create_user(args)
+                user_id = new_user['user_id']
+                user_login = login_account
+                user_role_id = default_role_id
+            # 'Direct login AD pass,'
+            elif db_info['from_ad'] is True:
+                args['name'] = ad_info['data']['iii_name']
+                args['phone'] = ad_info['data']['iii_name']
+                args['email'] = ad_info['data']['iii_name']
+                args['status'] = ad_info['data']['iii_name']
+                args['department'] = ad_info['data']['iii_name']
+                user_id = user.id
+                user_login = user.login
+                user_role_id = project_user_role.role_id
+                # 'Direct login AD pass, DB change password'
+                if db_info['is_pass'] is not True:
+                    status = 'Direct login AD pass, DB change password'
+                    err = update_external_passwords(
+                        user.id, login_password, login_password)
+                    if err is not None:
+                        logger.exception(err)
+                    user.password = db_info['hex_password']
+                    # user.update_at = util.date_to_str(datetime.datetime.utcnow())
+                user.name = ad_info['data']['iii_name']
+                user.phone = ad_info['data']['telephoneNumber']
+                user.department = ad_info['data']['department']
+                user.title = ad_info['data']['title']
+                user.update_at = ad_info['data']['whenChanged']
+                db.session.commit()                                
+            token = get_access_token(user_id, user_login, user_role_id, True)
             return util.success({'status': status, 'token': token, 'ad_info': ad_info})
         # Login By Database
         elif db_info['is_pass'] is True and db_info['from_ad'] is False:
@@ -254,8 +255,6 @@ def get_user_info(user_id):
                 "id": project_user_role.role_id
             },
             'from_ad': user.from_ad,
-            'department' : user.department,
-            'title' : user.title,
             "status": status
         }
         if role.is_role(role.ADMIN):
@@ -644,12 +643,12 @@ def user_list_by_project(project_id, args):
         # list users not in the project
         ret_users = db.session.query(model.User, model.ProjectUserRole.role_id). \
             join(model.ProjectUserRole). \
-            filter(model.User.disabled == False). \
+            filter(model.User.disabled is False). \
             filter(model.ProjectUserRole.role_id != role.BOT.id). \
             order_by(desc(model.User.id)).all()
 
         project_users = db.session.query(model.User).join(model.ProjectUserRole).filter(
-            model.User.disabled == False,
+            model.User.disabled is False,
             model.ProjectUserRole.project_id == project_id
         ) \
             .filter(model.ProjectUserRole.role_id != role.BOT.id) \
@@ -666,7 +665,7 @@ def user_list_by_project(project_id, args):
         # list users in the project
         ret_users = db.session.query(model.User, model.ProjectUserRole.role_id). \
             join(model.ProjectUserRole). \
-            filter(model.User.disabled == False,
+            filter(model.User.disabled is False,
                    model.ProjectUserRole.project_id == project_id,
                    model.ProjectUserRole.role_id != role.BOT.id). \
             order_by(desc(model.User.id)).all()
@@ -691,7 +690,7 @@ def user_sa_config(user_id):
     ret_users = db.session.query(model.User, model.UserPluginRelation.kubernetes_sa_name). \
         join(model.UserPluginRelation). \
         filter(model.User.id == user_id). \
-        filter(model.User.disabled == False).first()
+        filter(model.User.disabled is False).first()
     sa_name = str(ret_users.kubernetes_sa_name)
     sa_config = kubernetesClient.get_service_account_config(sa_name)
     return util.success(sa_config)
