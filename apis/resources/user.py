@@ -338,6 +338,7 @@ def update_user(user_id, args, from_ad = False):
     db.session.commit()
 
     if 'role_id' in args:
+        role.require_admin('Only admin can update role.')
         role.update_role(user_id, args['role_id'])
 
     return util.success()
