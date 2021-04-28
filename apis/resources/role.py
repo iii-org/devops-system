@@ -117,12 +117,16 @@ def get_role_list():
 
 
 def update_role(user_id, new_role_id):
-    row = model.ProjectUserRole.query.filter_by(user_id=user_id).all()
-    if len(row) == 0:
+    rows = model.ProjectUserRole.query.filter_by(user_id=user_id).all()
+    if len(rows) == 0:
         raise DevOpsError(404, 'User not found.', apiError.user_not_found(user_id))
-    if len(row) > 1:
+    if len(rows) > 1:
+        # No change will be made, just returns
+        if rows[0].role_id == new_role_id:
+            return
+        # Can not change role when belonging to a project
         raise DevOpsError(400, 'User is in a project.', apiError.user_in_a_project(user_id))
-    row[0].role_id = new_role_id
+    rows[0].role_id = new_role_id
     model.db.session.commit()
 
 
