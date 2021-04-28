@@ -608,7 +608,7 @@ def user_list(filters):
         join(model.ProjectUserRole). \
         order_by(desc(model.User.id))
     if 'role_ids' in filters:
-        query = query.filter(model.ProjectUserRole.role_id.in_(json.loads(filters['role_ids'])))
+        query = query.filter(model.ProjectUserRole.role_id.in_(filters['role_ids']))
     rows = query.all()
     output_array = []
     for row in rows:
@@ -793,7 +793,7 @@ class UserList(Resource):
         args = parser.parse_args()
         filters = {}
         if args['role_ids'] is not None:
-            filters['role_ids'] = f'[{args["role_ids"]}]'
+            filters['role_ids'] = json.loads(f'[{args["role_ids"]}]')
         return user_list(filters)
 
 
