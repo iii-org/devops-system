@@ -122,7 +122,7 @@ def update_role(user_id, new_role_id):
         raise DevOpsError(404, 'User not found.', apiError.user_not_found(user_id))
     if len(row) > 1:
         raise DevOpsError(400, 'User is in a project.', apiError.user_in_a_project(user_id))
-    row.role_id = new_role_id
+    row[0].role_id = new_role_id
     model.db.session.commit()
 
 

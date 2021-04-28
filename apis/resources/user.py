@@ -337,7 +337,7 @@ def update_user(user_id, args, from_ad = False):
         user.update_at = util.date_to_str(datetime.datetime.utcnow())
     db.session.commit()
 
-    if 'role_id' in args:
+    if 'role_id' in args and args['role_id'] is not None:
         role.require_admin('Only admin can update role.')
         role.update_role(user_id, args['role_id'])
 
