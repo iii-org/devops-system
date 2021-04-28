@@ -1,3 +1,4 @@
+from array import ArrayType
 import json
 import numbers
 from datetime import datetime, date
@@ -39,7 +40,7 @@ def get_db_user_by_login():
             'email': row.email,
             'department': row.department,
             'title': row.title,
-            'update_at': row.update_at
+            'update_at': row.update_at            
         }
     return output
 
@@ -55,7 +56,10 @@ def update_user(ad_user, db_user):
         "password": None,
         "from_ad" : True
     }    
+    
     if ad_user['is_iii'] is True :
+        print(ad_user)
+        print(db_user)
         if ad_user["iii_name"] is not None:
             args['name'] = ad_user['iii_name']
         if ad_user["telephoneNumber"] is not None:
@@ -75,7 +79,7 @@ def update_user(ad_user, db_user):
 
 
 def create_user(ad_user):
-    res = []
+    res = None
     if ad_user['is_iii'] is True and ad_user["userAccountControl"] ==  512:
         args = {
             'name': ad_user['iii_name'],
@@ -90,7 +94,7 @@ def create_user(ad_user):
             'update_at' : ad_user['whenChanged'],
             'from_ad': True
         }
-        res.append(user.create_user(args))
+        res = user.create_user(args)
     return res
 
 
@@ -104,7 +108,7 @@ def check_user_from_ad(ad_users):
                 ad_user, db_users[ad_user['sAMAccountName']]))
         else:
             new_user = create_user(ad_user)
-            if new_user is None:
+            if new_user is not None:
                 res['new'].append(new_user)
     return res
 
@@ -164,13 +168,18 @@ class AD(object):
         if self.conn.bind() is True:
             self.ad_info['is_pass'] = True
         self.active_base_dn = get_dc_string(ad_parameter['domain'].split('.'))
+        print(self.active_base_dn)
 
     def get_users(self):
-        user_search_filter = '(&(|(objectclass=user)(objectclass=person))(!(isCriticalSystemObject=True)))'
-        self.conn.search(search_base=self.active_base_dn,
-                         search_filter=user_search_filter, attributes=ALL_ATTRIBUTES)
-        res = self.conn.response_to_json()
-        res = json.loads(res)['entries']
+        print(self.conn.bind())
+        if self.ad_info['is_pass'] is True:
+            user_search_filter = '(&(|(objectclass=user)(objectclass=person))(!(isCriticalSystemObject=True)))'
+            self.conn.search(search_base=self.active_base_dn,
+                            search_filter=user_search_filter, attributes=ALL_ATTRIBUTES)
+            res = self.conn.response_to_json()
+            res = json.loads(res)['entries']        
+        else:
+            res = self.conn.bind()
         return res
 
     def get_ous(self):
@@ -183,7 +192,7 @@ class AD(object):
 
     def get_user(self, account):
         output = None
-        user_search_filter = '(&(|(objectclass=user)(objectclass=person))(!(isCriticalSystemObject=True))(sAMAccountName='+account+'))'
+        user_search_filter = '(&(|(objectclass=user)(objectclass=person))(!(isCriticalSystemObject=True))(sAMAccountName='+account+'))'        
         if self.ad_info['is_pass'] is True:
             self.conn.search(search_base=self.active_base_dn,
                              search_filter=user_search_filter,
@@ -230,6 +239,42 @@ class User(object):
         except NoResultFound:
             return util.respond(404, invalid_ad_server,
                                 error=apiError.invalid_plugin_id(invalid_ad_server))
+    
+    def login_by_ad(self, db_user, db_info,ad_info, login_account, login_password):
+        status = 'Direct login by AD pass, DB pass'
+        user_id = ''
+        user_login = ''
+        user_role_id = ''
+        # 'Direct Login AD pass, DB create User'            
+        if db_info['connect'] is False:            
+            status = 'Direct Login AD pass, DB create User'
+            new_user = create_user(ad_info['data'])
+            user_id = new_user['user_id']
+            user_login = login_account
+            user_role_id = default_role_id
+        # 'Direct login AD pass,'
+        elif db_info['from_ad'] is True:
+            user_id = db_user.id
+            user_login = db_user.login
+            user_role_id = db_info['role_id']
+            # 'Direct login AD pass, DB change password'
+            if db_info['is_pass'] is not True:
+                status = 'Direct login AD pass, DB change password'
+                err = user.update_external_passwords(
+                    user.id, login_password, login_password)
+                if err is not None:
+                    logger.exception(err)
+                db_user.password = db_info['hex_password']
+            db_user.name = ad_info['data']['iii_name']
+            db_user.phone = ad_info['data']['telephoneNumber']
+            db_user.department = ad_info['data']['department']
+            db_user.title = ad_info['data']['title']
+            db_user.update_at = ad_info['data']['whenChanged']
+            db.session.commit()
+        token = user.get_access_token(user_id, user_login, user_role_id, True)
+        return status, token
+
+
 
 
 ad_user = User()
@@ -241,7 +286,11 @@ class Users(Resource):
         try:
             role.require_admin('Only admins can get ad users.')
             ad = AD()
-            return util.success(ad.get_users())
+            res = ad.get_users()
+            if isinstance(res, list):
+                return util.success(get_user_info_from_ad(res))
+            else:
+                return res
         except NoResultFound:
             return util.respond(404, invalid_ad_server,
                                 error=apiError.invalid_plugin_id(invalid_ad_server))
