@@ -8,8 +8,8 @@ from flask_restful import Resource, reqparse
 
 
 # Get admin account from environment
-# admin_account = os.environ.get('ADMIN_INIT_LOGIN')
-admin_account = 'sysadmin'
+admin_account = os.environ.get('ADMIN_INIT_LOGIN')
+
 
 def get_admin_user_id():
     user_detail = model.User.query.filter_by(login=admin_account).first()
