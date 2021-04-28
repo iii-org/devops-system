@@ -372,7 +372,7 @@ def get_redmine_projects(detail, own_project):
         'member_count': context.member_count,
         'expired_day': context.expired_day,
         'end_date': context.end_date.strftime("%Y-%m-%d"),
-        'sync_date': context.sync_date.strftime("%Y-%m-%d %H:%M:%S"),
+        'sync_date': context.sync_date.strftime("%Y-%m-%d"),
         'project_status': context.project_status
     } for context in query_collections]
     return redmine_projects
