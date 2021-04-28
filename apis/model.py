@@ -18,6 +18,7 @@ import json
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Date, Enum, JSON, Float
 
+import util
 from enums.action_type import ActionType
 
 db = SQLAlchemy()
@@ -40,6 +41,26 @@ class User(db.Model):
     from_ad = Column(Boolean, default=False)
     title = Column(String(45))
     department = Column(String(300))
+
+    def __repr__(self):
+        fields = {}
+        for field in [x for x in dir(self) if
+                      not x.startswith('query') and not x.startswith('_') and x != 'metadata']:
+            data = self.__getattribute__(field)
+            try:
+                json.dumps(data)  # this will fail on unencodable values, like other classes
+                if field == 'password':
+                    continue
+                elif field == 'disabled':
+                    if data:
+                        fields['status'] = 'disable'
+                    else:
+                        fields['status'] = 'enable'
+                else:
+                    fields[field] = data
+            except TypeError:
+                fields[field] = util.date_to_str(data)
+        return json.dumps(fields)
 
 
 class Project(db.Model):

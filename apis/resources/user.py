@@ -1,5 +1,5 @@
-from ldap3 import Server, Connection, ObjectDef, SUBTREE, LEVEL, ALL
 import datetime
+import json
 import re
 
 import kubernetes
@@ -7,30 +7,73 @@ from Cryptodome.Hash import SHA256
 from flask_jwt_extended import (
     create_access_token, JWTManager, jwt_required, get_jwt_identity)
 from flask_restful import Resource, reqparse
-from sqlalchemy import desc
+from sqlalchemy import desc, inspect
 from sqlalchemy.orm.exc import NoResultFound
-import model
-import re
+
 import config
-import json
+import model
 import resources.apiError as apiError
 import util as util
 from enums.action_type import ActionType
 from model import db
 from nexus import nx_get_user_plugin_relation, nx_get_user
-from resources.activity import record_activity
-from resources.apiError import DevOpsError
 from resources import harbor, role, sonarqube
+from resources import kubernetesClient
+from resources.activity import record_activity
+from resources.ad import ad_user
+from resources.apiError import DevOpsError
+from resources.gitlab import gitlab
 from resources.logger import logger
 from resources.redmine import redmine
-from resources.gitlab import gitlab
-from resources import kubernetesClient
-from resources.ad import ad_user
 
 # Make a regular expression
 ad_connect_timeout = 5
 ad_receive_timeout = 30
 jwt = JWTManager()
+
+
+class NexusUser:
+    def __init__(self, user_id):
+        self.user_id = user_id
+        self.user_row = model.User.query.filter_by(id=user_id).one()
+        self.role_rows = model.ProjectUserRole.query.filter_by(user_id=user_id).all()
+
+        inst = inspect(model.User)
+        attr_names = [c_attr.key for c_attr in inst.mapper.column_attrs]
+        for attr in attr_names:
+            setattr(self, attr, getattr(self.user_row, attr))
+
+    def to_json(self, with_projects=False):
+        ret = json.loads(str(self.user_row))
+        ret['default_role_id'] = self.default_role_id()
+        if with_projects:
+            rows = db.session. \
+                query(model.Project, model.ProjectPluginRelation.git_repository_id). \
+                join(model.ProjectPluginRelation). \
+                filter(model.ProjectUserRole.user_id == self.user_id,
+                       model.ProjectUserRole.project_id != -1,
+                       model.ProjectUserRole.project_id == model.ProjectPluginRelation.project_id
+                       ).all()
+            if len(rows) > 0:
+                project_list = []
+                for row in rows:
+                    project_list.append({
+                        'id': row.Project.id,
+                        'name': row.Project.name,
+                        'display': row.Project.display,
+                        'repository_id': row.git_repository_id
+                    })
+                ret['project'] = project_list
+            else:
+                ret['project'] = []
+        return ret
+
+    def default_role_id(self):
+        for row in self.role_rows:
+            if row.project_id == -1:
+                return row.role_id
+        raise DevOpsError(500, 'This user does not have project -1 role.',
+                          error=apiError.invalid_code_path('This user does not have project -1 role.'))
 
 
 def get_user_id_name_by_plan_user_id(plan_user_id):
@@ -65,7 +108,7 @@ def to_redmine_role_id(role_id):
 def get_dc_string(domains):
     output = ''
     for domain in domains:
-        output += 'dc='+domain+','
+        output += 'dc=' + domain + ','
     return output[:-1]
 
 
@@ -76,12 +119,12 @@ def get_token_expires(role_id):
     return expires
 
 
-def check_ad_login(account, password, ad_info={}):        
-    try:            
-        ad_info_data = ad_user.get_user_info(account, password)        
+def check_ad_login(account, password, ad_info={}):
+    try:
+        ad_info_data = ad_user.get_user_info(account, password)
         if ad_info_data is not None:
-            ad_info['is_pass'] = True            
-            ad_info['data'] = ad_info_data                
+            ad_info['is_pass'] = True
+            ad_info['data'] = ad_info_data
         return ad_info
     except Exception as e:
         raise DevOpsError(500, 'Error when AD Login ',
@@ -89,7 +132,7 @@ def check_ad_login(account, password, ad_info={}):
 
 
 @jwt.user_claims_loader
-def jwt_response_data(id, login, role_id,from_ad):
+def jwt_response_data(id, login, role_id, from_ad):
     return {
         'user_id': id,
         'user_account': login,
@@ -99,7 +142,7 @@ def jwt_response_data(id, login, role_id,from_ad):
     }
 
 
-def get_access_token(id, login, role_id, from_ad = True):
+def get_access_token(id, login, role_id, from_ad=True):
     expires = get_token_expires(role_id)
     token = create_access_token(
         identity=jwt_response_data(id, login, role_id, from_ad),
@@ -129,8 +172,8 @@ def check_ad_server():
         'ip_port': config.get('AD_IP_PORT'),
         'domain': config.get('AD_DOMAIN')
     }
-    plugin = model.PluginSoftware.query.\
-        filter(model.PluginSoftware.name == 'ad_server').\
+    plugin = model.PluginSoftware.query. \
+        filter(model.PluginSoftware.name == 'ad_server'). \
         first()
     if plugin is not None:
         parameters = json.loads(plugin.parameter)
@@ -138,17 +181,18 @@ def check_ad_server():
         ad_server['domain'] = parameters['domain']
     return ad_server
 
+
 def login(args):
     default_role_id = 3
     login_account = args['username']
-    login_password = args['password']  
-    ad_server = ad_user.check_ad_info()   
+    login_password = args['password']
+    ad_server = ad_user.check_ad_info()
     try:
         ad_info = {'is_pass': False,
-               'login': login_account, 'data': {}}
+                   'login': login_account, 'data': {}}
         if ad_server['disabled'] is False:
             print(ad_info)
-            ad_info = check_ad_login(login_account, login_password,ad_info)        
+            ad_info = check_ad_login(login_account, login_password, ad_info)
         db_info = {'connect': False,
                    'login': login_account,
                    'is_pass': False,
@@ -158,8 +202,8 @@ def login(args):
         if user is not None:
             db_info['connect'] = True
             db_info, user, project_user_role = check_db_login(
-                user, login_password, db_info)                                                    
-        # Login By AD
+                user, login_password, db_info)
+            # Login By AD
         if ad_info['is_pass'] is True:
             status = 'Direct login by AD pass, DB pass'
             user_id = ''
@@ -179,7 +223,7 @@ def login(args):
                     'title': ad_info['data']['title'],
                     'department': ad_info['data']['department'],
                     'from_ad': True,
-                    'update_at':  ad_info['data']['whenChanged']
+                    'update_at': ad_info['data']['whenChanged']
                 }
 
                 new_user = create_user(args)
@@ -210,7 +254,7 @@ def login(args):
                 user.department = ad_info['data']['department']
                 user.title = ad_info['data']['title']
                 user.update_at = ad_info['data']['whenChanged']
-                db.session.commit()                                
+                db.session.commit()
             token = get_access_token(user_id, user_login, user_role_id, True)
             return util.success({'status': status, 'token': token, 'ad_info': ad_info})
         # Login By Database
@@ -218,7 +262,7 @@ def login(args):
             status = "DB Login"
             token = get_access_token(
                 user.id, user.login, project_user_role.role_id, user.from_ad)
-            return util.success({'status': status, 'token': token, 'ad_info':ad_info})
+            return util.success({'status': status, 'token': token, 'ad_info': ad_info})
         else:
             return util.respond(401, "Error when logging in.", error=apiError.wrong_password())
     except Exception as e:
@@ -230,76 +274,14 @@ def user_forgot_password(args):
     return 'dummy_response', 200
 
 
-# noinspection PyMethodMayBeStatic
-def get_user_info(user_id):
-    user, project_user_role = db.session.query(model.User, model.ProjectUserRole).\
-        filter(
-            model.User.id == user_id,
-            model.User.id == model.ProjectUserRole.user_id
-    ).first()
-    if user is not None and project_user_role is not None:
-        if user.disabled is True:
-            status = "disable"
-        else:
-            status = "enable"
-        output = {
-            "id": user.id,
-            "name": user.name,
-            "email": user.email,
-            "phone": user.phone,
-            "login": user.login,
-            "create_at": util.date_to_str(user.create_at),
-            "update_at": util.date_to_str(user.update_at),
-            "role": {
-                "name": role.get_role_name(project_user_role.role_id),
-                "id": project_user_role.role_id
-            },
-            'department' : user.department,
-            'title' : user.title,
-            'from_ad': user.from_ad,
-            "status": status
-        }
-        if role.is_role(role.ADMIN):
-            rows = db.session. \
-                query(model.Project, model.ProjectPluginRelation.git_repository_id). \
-                join(model.ProjectPluginRelation). \
-                filter(model.ProjectUserRole.project_id != -1).\
-                all()
-        else:
-            rows = db.session. \
-                query(model.Project, model.ProjectPluginRelation.git_repository_id). \
-                join(model.ProjectPluginRelation). \
-                filter(model.ProjectUserRole.user_id == user_id,
-                       model.ProjectUserRole.project_id != -1,
-                       model.ProjectUserRole.project_id == model.ProjectPluginRelation.project_id
-                       ).all()
-        if len(rows) > 0:
-            project_list = []
-            for row in rows:
-                project_list.append({
-                    "id": row.Project.id,
-                    "name": row.Project.name,
-                    "display": row.Project.display,
-                    "repository_id": row.git_repository_id
-                })
-            output["project"] = project_list
-        else:
-            output["project"] = []
-
-        return util.success(output)
-    else:
-        raise apiError.DevOpsError(
-            404, 'User not found.', apiError.user_not_found(user_id))
-
-
 @record_activity(ActionType.UPDATE_USER)
-def update_user(user_id, args, from_ad = False):
-    user = db.session.query(model.User).\
+def update_user(user_id, args, from_ad=False):
+    user = db.session.query(model.User). \
         filter(
-            model.User.id == user_id
+        model.User.id == user_id
     ).first()
-    if user.from_ad is True and from_ad is False :
-        return  util.respond(400, 'Error when updating Message',
+    if user.from_ad is True and from_ad is False:
+        return util.respond(400, 'Error when updating Message',
                             error=apiError.user_from_ad(user_id))
     if args['password'] is not None:
         if args["old_password"] == args["password"]:
@@ -536,7 +518,7 @@ def create_user(args):
 
     try:
         # DB
-        title = department =  ''
+        title = department = ''
         h = SHA256.new()
         h.update(args["password"].encode())
         args["password"] = h.hexdigest()
@@ -544,18 +526,18 @@ def create_user(args):
 
         if args['status'] == "disable":
             disabled = True
-        if 'title' in args :
+        if 'title' in args:
             title = args['title']
         if 'department' in args:
-            department = args['department']        
-           
+            department = args['department']
+
         user = model.User(
             name=args['name'],
             email=args['email'],
             phone=args['phone'],
             login=args['login'],
-            title = title,
-            department = department,
+            title=title,
+            department=department,
             password=h.hexdigest(),
             create_at=datetime.datetime.utcnow(),
             disabled=disabled,
@@ -566,7 +548,6 @@ def create_user(args):
 
         db.session.add(user)
         db.session.commit()
-
 
         user_id = user.id
         logger.info(f'Nexus user created, id={user_id}')
@@ -607,45 +588,14 @@ def create_user(args):
 
 def user_list(filters):
     query = db.session.query(model.User, model.ProjectUserRole.role_id). \
-        join(model.ProjectUserRole). \
-        order_by(desc(model.User.id))
+        join(model.ProjectUserRole).order_by(model.User.id)
     if 'role_ids' in filters:
         query = query.filter(model.ProjectUserRole.role_id.in_(filters['role_ids']))
     rows = query.all()
     output_array = []
     for row in rows:
-        project_rows = model.Project.query.filter(
-            model.ProjectUserRole.user_id == row.User.id,
-            model.ProjectUserRole.project_id != -1,
-            model.ProjectUserRole.project_id == model.Project.id
-        ).all()
-        projects = []
-        for p in project_rows:
-            projects.append({
-                "id": p.id,
-                "name": p.name,
-                "display": p.display
-            })
-        status = "disable"
-        if row.User.disabled is False:
-            status = "enable"
-        output = {
-            "id": row.User.id,
-            "name": row.User.name,
-            "email": row.User.email,
-            "phone": row.User.phone,
-            "login": row.User.login,
-            "create_at": util.date_to_str(row.User.create_at),
-            "update_at": util.date_to_str(row.User.update_at),
-            "role": {
-                "name": role.get_role_name(row.role_id),
-                "id": row.role_id
-            },
-            "project": projects,
-            "status": status
-        }
-        output_array.append(output)
-    return util.success({"user_list": output_array})
+        output_array.append(NexusUser(row.User.id).to_json(with_projects=True))
+    return output_array
 
 
 def user_list_by_project(project_id, args):
@@ -656,8 +606,6 @@ def user_list_by_project(project_id, args):
             filter(model.User.disabled == False). \
             filter(model.ProjectUserRole.role_id != role.BOT.id). \
             order_by(desc(model.User.id)).all()
-        print('ret_users')
-        print(ret_users)
 
         project_users = db.session.query(model.User).join(model.ProjectUserRole).filter(
             model.User.disabled == False,
@@ -665,8 +613,6 @@ def user_list_by_project(project_id, args):
         ) \
             .filter(model.ProjectUserRole.role_id != role.BOT.id) \
             .all()
-        print('project_users')
-        print(project_users)
         i = 0
         while i < len(ret_users):
             for pu in project_users:
@@ -686,17 +632,10 @@ def user_list_by_project(project_id, args):
 
     arr_ret = []
     for user_role_by_project in ret_users:
-        arr_ret.append({
-            "id": user_role_by_project.User.id,
-            "name": user_role_by_project.User.name,
-            "email": user_role_by_project.User.email,
-            "phone": user_role_by_project.User.phone,
-            "login": user_role_by_project.User.login,
-            "create_at": util.date_to_str(user_role_by_project.User.create_at),
-            "update_at": util.date_to_str(user_role_by_project.User.update_at),
-            "role_id": user_role_by_project.role_id,
-            "role_name": role.get_role_name(user_role_by_project.role_id),
-        })
+        user_json = NexusUser(user_role_by_project.User.id).to_json(with_projects=False)
+        user_json['role_id'] = user_role_by_project.role_id
+        user_json['role_name'] = role.get_role_name(user_role_by_project.role_id)
+        arr_ret.append(user_json)
     return util.success({"user_list": arr_ret})
 
 
@@ -747,7 +686,7 @@ class SingleUser(Resource):
     def get(self, user_id):
         role.require_user_himself(user_id, even_pm=False,
                                   err_message="Only admin and PM can access another user's data.")
-        return get_user_info(user_id)
+        return util.success(NexusUser(user_id).to_json(with_projects=True))
 
     @jwt_required
     def put(self, user_id):
@@ -796,7 +735,7 @@ class UserList(Resource):
         filters = {}
         if args['role_ids'] is not None:
             filters['role_ids'] = json.loads(f'[{args["role_ids"]}]')
-        return user_list(filters)
+        return util.success({'user_list': user_list(filters)})
 
 
 class UserSaConfig(Resource):
