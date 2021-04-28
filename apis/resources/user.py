@@ -636,12 +636,12 @@ def user_list_by_project(project_id, args):
         # list users not in the project
         ret_users = db.session.query(model.User, model.ProjectUserRole.role_id). \
             join(model.ProjectUserRole). \
-            filter(model.User.disabled == False). \
+            filter(model.User.disabled is False). \
             filter(model.ProjectUserRole.role_id != role.BOT.id). \
             order_by(desc(model.User.id)).all()
 
         project_users = db.session.query(model.User).join(model.ProjectUserRole).filter(
-            model.User.disabled == False,
+            model.User.disabled is False,
             model.ProjectUserRole.project_id == project_id
         ) \
             .filter(model.ProjectUserRole.role_id != role.BOT.id) \
@@ -658,7 +658,7 @@ def user_list_by_project(project_id, args):
         # list users in the project
         ret_users = db.session.query(model.User, model.ProjectUserRole.role_id). \
             join(model.ProjectUserRole). \
-            filter(model.User.disabled == False,
+            filter(model.User.disabled is False,
                    model.ProjectUserRole.project_id == project_id,
                    model.ProjectUserRole.role_id != role.BOT.id). \
             order_by(desc(model.User.id)).all()
@@ -683,7 +683,7 @@ def user_sa_config(user_id):
     ret_users = db.session.query(model.User, model.UserPluginRelation.kubernetes_sa_name). \
         join(model.UserPluginRelation). \
         filter(model.User.id == user_id). \
-        filter(model.User.disabled == False).first()
+        filter(model.User.disabled is False).first()
     sa_name = str(ret_users.kubernetes_sa_name)
     sa_config = kubernetesClient.get_service_account_config(sa_name)
     return util.success(sa_config)
