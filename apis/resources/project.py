@@ -30,9 +30,8 @@ def list_projects(user_id):
         .join(model.ProjectPluginRelation) \
         .join(model.ProjectUserRole,
               model.ProjectUserRole.project_id == model.Project.id)
-    # 如果是 admin or qa，列出所有 project
-    # 如果不是 admin，取得 user_id 有參加的 project 列表
-    if user.get_role_id(user_id) not in [role.ADMIN.id, role.QA.id]:
+    # 如果不是admin（也就是一般RD/PM/QA），取得 user_id 有參加的 project 列表
+    if user.get_role_id(user_id) != role.ADMIN.id:
         query = query.filter(model.ProjectUserRole.user_id == user_id)
     rows = query.order_by(desc(model.Project.id)).all()
 
@@ -118,6 +117,10 @@ def create_project(user_id, args):
         args["description"] = ""
     if args['display'] is None:
         args['display'] = args['name']
+    if not args['owner_id']:
+        owner_id = user_id
+    else:
+        owner_id = args['owner_id']
     project_name = args['name']
     # create namespace in kubernetes
     try:
@@ -236,7 +239,7 @@ def create_project(user_id, args):
             start_date=args['start_date'],
             due_date=args['due_date'],
             create_at=str(datetime.utcnow()),
-            owner_id=user_id,
+            owner_id=owner_id,
 
         )
         db.session.add(new_pjt)
@@ -256,7 +259,9 @@ def create_project(user_id, args):
         db.session.commit()
 
         # 加關聯project_user_role
-        project_add_member(project_id, user_id)
+        project_add_member(project_id, owner_id)
+        if owner_id != user_id:
+            project_add_subadmin(project_id, user_id)
         create_bot(project_id)
 
         # Commit and push file by template , if template env is not None
@@ -282,6 +287,22 @@ def create_project(user_id, args):
         t_rancher.start()
         kubernetesClient.delete_namespace(project_name)
         raise e
+
+
+def project_add_subadmin(project_id, user_id):
+    role_id = user.get_role_id(user_id)
+
+    # Check ProjectUserRole table has relationship or not
+    row = model.ProjectUserRole.query.filter_by(
+        user_id=user_id, project_id=project_id, role_id=role_id).first()
+    # if ProjectUserRole table not has relationship
+    if row is not None:
+        raise DevOpsError(422, "Error while adding user to project.",
+                          error=apiError.already_in_project(user_id, project_id))
+    # insert one relationship
+    new = model.ProjectUserRole(project_id=project_id, user_id=user_id, role_id=role_id)
+    db.session.add(new)
+    db.session.commit()
 
 
 def create_bot(project_id):
@@ -401,7 +422,6 @@ def delete_project(project_id):
     db.engine.execute(
         "DELETE FROM public.projects WHERE id = '{0}'".format(
             project_id))
-
     return util.success()
 
 
@@ -1009,6 +1029,7 @@ class SingleProject(Resource):
         parser.add_argument('arguments', type=dict)
         parser.add_argument('start_date', type=str, required=True)
         parser.add_argument('due_date', type=str, required=True)
+        parser.add_argument('owner_id', type=int)
         args = parser.parse_args()
         pattern = "^[a-z][a-z0-9-]{0,28}[a-z0-9]$"
         result = re.fullmatch(pattern, args["name"])
@@ -1039,7 +1060,7 @@ class ProjectMember(Resource):
 
     @jwt_required
     def delete(self, project_id, user_id):
-        role.require_pm(exclude_qa=True)
+        role.require_pm()
         role.require_in_project(project_id)
         return project_remove_member(project_id, user_id)
 

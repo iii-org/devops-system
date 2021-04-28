@@ -338,6 +338,11 @@ def update_user(user_id, args, from_ad = False):
     else:
         user.update_at = util.date_to_str(datetime.datetime.utcnow())
     db.session.commit()
+
+    if args['role_id'] is not None:
+        role.require_admin('Only admin can update role.')
+        role.update_role(user_id, args['role_id'])
+
     return util.success()
 
 
@@ -600,10 +605,13 @@ def create_user(args):
     }
 
 
-def user_list():
-    rows = db.session.query(model.User, model.ProjectUserRole.role_id). \
+def user_list(filters):
+    query = db.session.query(model.User, model.ProjectUserRole.role_id). \
         join(model.ProjectUserRole). \
-        order_by(desc(model.User.id)).all()
+        order_by(desc(model.User.id))
+    if 'role_ids' in filters:
+        query = query.filter(model.ProjectUserRole.role_id.in_(filters['role_ids']))
+    rows = query.all()
     output_array = []
     for row in rows:
         project_rows = model.Project.query.filter(
@@ -754,6 +762,7 @@ class SingleUser(Resource):
         parser.add_argument('department', type=str)
         parser.add_argument('title', type=str)
         parser.add_argument('status', type=str)
+        parser.add_argument('role_id', type=int)
         args = parser.parse_args()
         return update_user(user_id, args)
 
@@ -781,7 +790,13 @@ class UserList(Resource):
     @jwt_required
     def get(self):
         role.require_pm()
-        return user_list()
+        parser = reqparse.RequestParser()
+        parser.add_argument('role_ids', type=str)
+        args = parser.parse_args()
+        filters = {}
+        if args['role_ids'] is not None:
+            filters['role_ids'] = json.loads(f'[{args["role_ids"]}]')
+        return user_list(filters)
 
 
 class UserSaConfig(Resource):

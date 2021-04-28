@@ -198,7 +198,7 @@ def get_current_sync_date_project_id_by_user():
     sync_date = get_sync_date()
     user_id = get_jwt_identity()['user_id']
     role_id = get_jwt_identity()['role_id']
-    if role_id in [role.ADMIN.id, role.QA.id]:
+    if role_id == role.ADMIN.id:
         project_id_collections = model.RedmineProject.query.with_entities(
             model.RedmineProject.project_id).filter_by(
                 sync_date=sync_date).order_by(
