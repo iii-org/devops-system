@@ -259,7 +259,7 @@ def get_test_results_count(project_id):
 def get_unclosed_issue_count_by_user_and_project(user_id, own_project):
     return model.RedmineIssue.query.filter(
         model.RedmineIssue.assigned_to_id == user_id,
-        model.RedmineIssue.is_closed is False,
+        model.RedmineIssue.is_closed == False,
         model.RedmineIssue.project_id.in_(own_project)).count()
 
 
