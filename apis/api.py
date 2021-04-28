@@ -55,8 +55,10 @@ api = Api(app, errors=apiError.custom_errors)
 CORS(app)
 socketio = SocketIO(app, cors_allowed_origins="*", logger=True, engineio_logger=True)
 
+
 class SignedIntConverter(IntegerConverter):
     regex = r'-?\d+'
+
 
 app.url_map.converters['sint'] = SignedIntConverter
 
@@ -175,13 +177,14 @@ def initialize(db_uri):
     migrate.init()
     logger.logger.info('Server initialized.')
 
+
 # Projects
 api.add_resource(project.ListMyProjects, '/project/list')
 api.add_resource(project.SingleProject, '/project', '/project/<sint:project_id>')
 api.add_resource(project.SingleProjectByName, '/project_by_name/<project_name>')
 api.add_resource(project.ProjectsByUser, '/projects_by_user/<int:user_id>')
 api.add_resource(project.ProjectUserList, '/project/<sint:project_id>/user/list')
-api.add_resource(project.ProjectPluginUsage,'/project/<sint:project_id>/plugin/resource')
+api.add_resource(project.ProjectPluginUsage, '/project/<sint:project_id>/plugin/resource')
 api.add_resource(project.ProjectUserResource, '/project/<sint:project_id>/resource')
 
 api.add_resource(project.ProjectUserResourcePods, '/project/<sint:project_id>/resource/pods')
@@ -190,7 +193,8 @@ api.add_resource(project.ProjectUserResourcePodLog, '/project/<sint:project_id>/
 
 # k8s Deployment
 api.add_resource(project.ProjectUserResourceDeployments, '/project/<sint:project_id>/resource/deployments')
-api.add_resource(project.ProjectUserResourceDeployment, '/project/<sint:project_id>/resource/deployments/<deployment_name>')
+api.add_resource(project.ProjectUserResourceDeployment,
+                 '/project/<sint:project_id>/resource/deployments/<deployment_name>')
 
 # List k8s Services
 api.add_resource(project.ProjectUserResourceServices, '/project/<sint:project_id>/resource/services')
@@ -198,15 +202,15 @@ api.add_resource(project.ProjectUserResourceService, '/project/<sint:project_id>
 
 # k8s Secrets
 api.add_resource(project.ProjectUserResourceSecrets, '/project/<sint:project_id>/resource/secrets')
-api.add_resource(project.ProjectUserResourceSecret,  '/project/<sint:project_id>/resource/secrets/<secret_name>')
+api.add_resource(project.ProjectUserResourceSecret, '/project/<sint:project_id>/resource/secrets/<secret_name>')
 
 # k8s ConfigMaps
-api.add_resource(project.ProjectUserResourceConfigMaps, '/project/<sint:project_id>/resource/configmaps' )
-api.add_resource(project.ProjectUserResourceConfigMap,  '/project/<sint:project_id>/resource/configmaps/<configmap_name>')
+api.add_resource(project.ProjectUserResourceConfigMaps, '/project/<sint:project_id>/resource/configmaps')
+api.add_resource(project.ProjectUserResourceConfigMap,
+                 '/project/<sint:project_id>/resource/configmaps/<configmap_name>')
 
-#k8s Ingress
+# k8s Ingress
 api.add_resource(project.ProjectUserResourceIngresses, '/project/<sint:project_id>/resource/ingresses')
-
 
 api.add_resource(project.ProjectMember, '/project/<sint:project_id>/member',
                  '/project/<sint:project_id>/member/<int:user_id>')
@@ -216,10 +220,10 @@ api.add_resource(version.ProjectVersionList, '/project/<sint:project_id>/version
 api.add_resource(version.ProjectVersion, '/project/<sint:project_id>/version',
                  '/project/<sint:project_id>/version/<int:version_id>')
 api.add_resource(project.TestSummary, '/project/<sint:project_id>/test_summary')
-api.add_resource(template.TemplateList, '/template_list') 
-api.add_resource(template.SingleTemplate, '/template', '/template/<repository_id>') 
-api.add_resource(template.ProjectPipelineBranches, '/project/<repository_id>/pipeline/branches') 
-api.add_resource(template.ProjectPipelineDefaultBranch, '/project/<repository_id>/pipeline/default_branch') 
+api.add_resource(template.TemplateList, '/template_list')
+api.add_resource(template.SingleTemplate, '/template', '/template/<repository_id>')
+api.add_resource(template.ProjectPipelineBranches, '/project/<repository_id>/pipeline/branches')
+api.add_resource(template.ProjectPipelineDefaultBranch, '/project/<repository_id>/pipeline/default_branch')
 api.add_resource(project.ProjectEnvironment, '/project/<sint:project_id>/environments',
                  '/project/<sint:project_id>/environments/branch/<branch_name>')
 
@@ -290,20 +294,15 @@ api.add_resource(issue.MyOpenIssueStatistics, '/issues/open_statistics')
 api.add_resource(issue.MyIssueWeekStatistics, '/issues/week_statistics')
 api.add_resource(issue.MyIssueMonthStatistics, '/issues/month_statistics')
 
+## release
+api.add_resource(release.Releases, '/project/<project_id>/releases')
+api.add_resource(release.Release, '/project/<project_id>/releases/<release_name>')
 
+# Release
+api.add_resource(plugin.Plugins, '/plugins')
+api.add_resource(plugin.Plugin, '/plugins/<sint:plugin_id>')
 
-## release 
-api.add_resource(release.Releases,'/project/<project_id>/releases')
-api.add_resource(release.Release,'/project/<project_id>/releases/<release_name>')
-
-
-## release 
-api.add_resource(plugin.Plugins,'/plugins')
-api.add_resource(plugin.Plugin,'/plugins/<sint:plugin_id>')
-
-
-##AD Server
-
+# AD Server
 api.add_resource(ad.Users, '/plugins/ad/users')
 api.add_resource(ad.Organizations, '/plugins/ad/organizations')
 
@@ -338,10 +337,9 @@ api.add_resource(issue.ParameterByIssue, '/parameters_by_issue/<issue_id>')
 api.add_resource(issue.Parameter, '/parameters/<parameter_id>')
 api.add_resource(issue.ParameterType, '/parameter_types')
 
-
 # testPhase TestCase Support Case Type
 api.add_resource(apiTest.TestCases, '/test_cases')
-api.add_resource(apiTest.TestCase, '/test_cases/<sint:tc_id>','/testCases/<sint:tc_id>')
+api.add_resource(apiTest.TestCase, '/test_cases/<sint:tc_id>', '/testCases/<sint:tc_id>')
 
 api.add_resource(apiTest.GetTestCaseType, '/testCases/support_type')
 
@@ -420,7 +418,7 @@ api.add_resource(webInspect.WebInspectReport, '/webinspect/report/<scan_id>')
 
 # Maintenance
 api.add_resource(maintenance.UpdateDbRcProjectPipelineId, '/maintenance/update_rc_pj_pipe_id')
-api.add_resource(maintenance.SecretesIntoRcAll, '/maintenance/secretes_into_rc_all', 
+api.add_resource(maintenance.SecretesIntoRcAll, '/maintenance/secretes_into_rc_all',
                  '/maintenance/secretes_into_rc_all/<secret_name>')
 api.add_resource(maintenance.RegistryIntoRcAll, '/maintenance/registry_into_rc_all',
                  '/maintenance/registry_into_rc_all/<registry_name>')

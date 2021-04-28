@@ -78,7 +78,7 @@ def get_token_expires(role_id):
 
 def check_ad_login(account, password, ad_info={}):        
     try:            
-        ad_info_data = ad_user.get_user_info(account, password, ad_info)        
+        ad_info_data = ad_user.get_user_info(account, password)        
         if ad_info_data is not None:
             ad_info['is_pass'] = True            
             ad_info['data'] = ad_info_data                
@@ -291,11 +291,14 @@ def get_user_info(user_id):
 
 
 @record_activity(ActionType.UPDATE_USER)
-def update_user(user_id, args):
+def update_user(user_id, args, from_ad = False):
     user = db.session.query(model.User).\
         filter(
             model.User.id == user_id
     ).first()
+    if user.from_ad is True and from_ad is False :
+        return  util.respond(400, 'Error when updating Message',
+                            error=apiError.user_from_ad(user_id))
     if args['password'] is not None:
         if args["old_password"] == args["password"]:
             return util.respond(400, "Password is not changed.", error=apiError.wrong_password())
@@ -319,6 +322,10 @@ def update_user(user_id, args):
         user.phone = args['phone']
     if args["email"] is not None:
         user.email = args['email']
+    if args["title"] is not None:
+        user.title = args['title']
+    if args["department"] is not None:
+        user.department = args['department']
     if args["status"] is not None:
         if args["status"] == "disable":
             user.disabled = True
@@ -639,6 +646,8 @@ def user_list_by_project(project_id, args):
             filter(model.User.disabled == False). \
             filter(model.ProjectUserRole.role_id != role.BOT.id). \
             order_by(desc(model.User.id)).all()
+        print('ret_users')
+        print(ret_users)
 
         project_users = db.session.query(model.User).join(model.ProjectUserRole).filter(
             model.User.disabled == False,
@@ -646,6 +655,8 @@ def user_list_by_project(project_id, args):
         ) \
             .filter(model.ProjectUserRole.role_id != role.BOT.id) \
             .all()
+        print('project_users')
+        print(project_users)
         i = 0
         while i < len(ret_users):
             for pu in project_users:
@@ -737,6 +748,9 @@ class SingleUser(Resource):
         parser.add_argument('old_password', type=str)
         parser.add_argument('phone', type=str)
         parser.add_argument('email', type=str)
+        parser.add_argument('status', type=str)
+        parser.add_argument('department', type=str)
+        parser.add_argument('title', type=str)
         parser.add_argument('status', type=str)
         args = parser.parse_args()
         return update_user(user_id, args)

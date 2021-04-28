@@ -3,13 +3,12 @@ import numbers
 from datetime import datetime, date
 from ldap3 import Server, ServerPool, Connection, SUBTREE, LEVEL, ALL, ALL_ATTRIBUTES, FIRST
 import util as util
-import config
 import model
 from model import db
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from Cryptodome.Hash import SHA256
 from flask_restful import Resource, reqparse
 from sqlalchemy.orm.exc import NoResultFound
+from resources import role
 from resources.plugin import api_plugin
 from resources.apiError import DevOpsError
 import resources.apiError as apiError
@@ -23,13 +22,11 @@ invalid_ad_server = 'Get AD User Error'
 default_role_id = 3
 default_password = 'IIIdevops_12345'
 
-
 def get_dc_string(domains):
     output = ''
     for domain in domains:
         output += 'dc='+domain+','
     return output[:-1]
-
 
 def get_db_user_by_login():
     output = {}
@@ -73,7 +70,7 @@ def update_user(ad_user, db_user):
             args['status'] = "enable"
         if ad_user['whenChanged'] is not None:
             args['update_at'] = str(ad_user['whenChanged'])
-        user.update_user(db_user['id'], args)
+        user.update_user(db_user['id'], args, True)
     return db_user['id']
 
 
@@ -143,47 +140,6 @@ def get_user_info_from_ad(users):
         user_info.append(user)
     return user_info
 
-
-def create_ad_users(ad_users):
-    new_users = []
-    old_users = []
-    account_disable = []
-    temp = []
-    if 'data' in ad_users and len(ad_users['data']) > 0:
-        ad_users_info = ad_users['data']
-        for user_info in ad_users_info:
-            login = user_info['sAMAccountName']
-            email = user_info['userPrincipalName']
-            db_user = db.session.query(model.User).filter(
-                (model.User.email == email) | (model.User.login == login)
-            ).first()
-            #  Create New User
-            if db_user is None and 'iii_name' in user_info and int(user_info['userAccountControl']) == 512:
-                args = {
-                    'name': user_info['iii_name'],
-                    'email': email,
-                    'login': login,
-                    'password': default_password,
-                    'role_id': default_role_id,
-                    'status': "enable",
-                    'phone': user_info['email'],
-
-                }
-                new_users.append(user.create_user(args, True))
-            elif db_user is None and 'iii_name' in user_info:
-                account_disable.append(user_info)
-            elif 'iii_name' in user_info:
-                old_users.append(user_info)
-            else:
-                temp.append(user_info)
-    return {
-        'new_user': new_users,
-        'suspend_user': account_disable,
-        'old_user': old_users,
-        'temp': temp
-    }
-
-
 class AD(object):
     def __init__(self, account=None, password=None):
         self.ad_info = {
@@ -192,7 +148,6 @@ class AD(object):
             'data': {}
         }
         plugin = api_plugin.get_plugin('ad_server')
-
         if plugin is not None and plugin['disabled'] is False:
             ad_parameter = plugin['parameter']
         server = ServerPool(None, pool_strategy=FIRST, active=True)
@@ -228,7 +183,6 @@ class AD(object):
 
     def get_user(self, account):
         output = None
-        # 只获取【用户】对象
         user_search_filter = '(&(|(objectclass=user)(objectclass=person))(!(isCriticalSystemObject=True))(sAMAccountName='+account+'))'
         if self.ad_info['is_pass'] is True:
             self.conn.search(search_base=self.active_base_dn,
@@ -253,7 +207,7 @@ class AD(object):
 
 class User(object):
     #  check User login
-    def get_user_info(self, account, password, ad_info):
+    def get_user_info(self, account, password):
         try:
             output = None
             ad = AD(account, password)
@@ -285,7 +239,7 @@ class Users(Resource):
     @jwt_required
     def get(self):
         try:
-            print('Get Users by OU')
+            role.require_admin('Only admins can get ad users.')
             ad = AD()
             return util.success(ad.get_users())
         except NoResultFound:
@@ -295,12 +249,12 @@ class Users(Resource):
     @jwt_required
     def post(self):
         try:
+            role.require_admin('Only admins can use ad crate user.')
             ad = AD()
             ad_users = ad.get_users()
             users = get_user_info_from_ad(ad_users)
             res = check_user_from_ad(users)
-            return res
-            # return util.success(res)
+            return util.success(res)
         except NoResultFound:
             return util.respond(404, invalid_ad_server,
                                 error=apiError.invalid_plugin_id(invalid_ad_server))
@@ -310,7 +264,6 @@ class Organizations(Resource):
     @jwt_required
     def get(self):
         try:
-            print("Get Organizations")
             ad = AD()
             return util.success(ad.get_ous())
         except NoResultFound:
