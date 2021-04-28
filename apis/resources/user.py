@@ -292,12 +292,12 @@ def get_user_info(user_id):
 
 
 @record_activity(ActionType.UPDATE_USER)
-def update_user(user_id, args):
+def update_user(user_id, args, from_ad = False):
     user = db.session.query(model.User).\
         filter(
             model.User.id == user_id
     ).first()
-    if user.from_ad is True :
+    if user.from_ad is True and from_ad is False :
         return  util.respond(400, 'Error when updating Message',
                             error=apiError.user_from_ad(user_id))
     if args['password'] is not None:
@@ -323,6 +323,10 @@ def update_user(user_id, args):
         user.phone = args['phone']
     if args["email"] is not None:
         user.email = args['email']
+    if args["title"] is not None:
+        user.title = args['title']
+    if args["department"] is not None:
+        user.department = args['department']
     if args["status"] is not None:
         if args["status"] == "disable":
             user.disabled = True
@@ -741,6 +745,9 @@ class SingleUser(Resource):
         parser.add_argument('old_password', type=str)
         parser.add_argument('phone', type=str)
         parser.add_argument('email', type=str)
+        parser.add_argument('status', type=str)
+        parser.add_argument('department', type=str)
+        parser.add_argument('title', type=str)
         parser.add_argument('status', type=str)
         args = parser.parse_args()
         return update_user(user_id, args)

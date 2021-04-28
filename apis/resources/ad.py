@@ -3,11 +3,9 @@ import numbers
 from datetime import datetime, date
 from ldap3 import Server, ServerPool, Connection, SUBTREE, LEVEL, ALL, ALL_ATTRIBUTES, FIRST
 import util as util
-import config
 import model
 from model import db
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from Cryptodome.Hash import SHA256
 from flask_restful import Resource, reqparse
 from sqlalchemy.orm.exc import NoResultFound
 from resources import role
@@ -23,7 +21,6 @@ ad_receive_timeout = 30
 invalid_ad_server = 'Get AD User Error'
 default_role_id = 3
 default_password = 'IIIdevops_12345'
-
 
 def get_dc_string(domains):
     output = ''
@@ -73,7 +70,7 @@ def update_user(ad_user, db_user):
             args['status'] = "enable"
         if ad_user['whenChanged'] is not None:
             args['update_at'] = str(ad_user['whenChanged'])
-        user.update_user(db_user['id'], args)
+        user.update_user(db_user['id'], args, True)
     return db_user['id']
 
 
@@ -242,7 +239,7 @@ class Users(Resource):
     @jwt_required
     def get(self):
         try:
-            print('Get Users')
+            role.require_admin('Only admins can get ad users.')
             ad = AD()
             return util.success(ad.get_users())
         except NoResultFound:
@@ -252,7 +249,7 @@ class Users(Resource):
     @jwt_required
     def post(self):
         try:
-            role.require_admin('Only admins can use admin crate user.')
+            role.require_admin('Only admins can use ad crate user.')
             ad = AD()
             ad_users = ad.get_users()
             users = get_user_info_from_ad(ad_users)
