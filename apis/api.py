@@ -30,7 +30,7 @@ from jsonwebtoken import jsonwebtoken
 from model import db
 from resources import logger, role as role, activity, zap, sideex
 from resources import project, gitlab, issue, user, redmine, wiki, version, sonarqube, apiTest, postman, mock, harbor, \
-    webInspect, template, release, sync_redmine, plugin, kubernetesClient, ad
+    webInspect, template, release, sync_redmine, plugin, kubernetesClient, ad, project_permission
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -443,6 +443,12 @@ api.add_resource(sideex.SideexReport, '/sideex_report/<int:test_id>')
 # Sync Redmine, Gitlab
 api.add_resource(sync_redmine.SyncRedmine, '/sync_redmine')
 api.add_resource(gitlab.GitCountEachPjCommitsByDays, '/sync_gitlab/count_each_pj_commits_by_days')
+
+# Subadmin Projects Permission
+api.add_resource(project_permission.list_admin_projects, '/project_permission/admin_projects')
+api.add_resource(project_permission.list_subadmin_projects, '/project_permission/subadmin_projects')
+api.add_resource(project_permission.list_subadmins, '/project_permission/subadmins')
+api.add_resource(project_permission.set_subadmin_permission, '/project_permission/set_permission')
 
 # System versions
 api.add_resource(NexusVersion, '/system_versions')
