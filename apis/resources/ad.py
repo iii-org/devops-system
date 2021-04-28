@@ -163,6 +163,7 @@ class AD(object):
             account = ad_parameter['account']
             password = ad_parameter['password']
         email = account+'@'+ad_parameter['domain']
+        self.server = server
         self.conn = Connection(server, user=email,
                                password=password, read_only=True)
         if self.conn.bind() is True:
@@ -171,7 +172,6 @@ class AD(object):
         print(self.active_base_dn)
 
     def get_users(self):
-        print(self.conn.bind())
         if self.ad_info['is_pass'] is True:
             user_search_filter = '(&(|(objectclass=user)(objectclass=person))(!(isCriticalSystemObject=True)))'
             self.conn.search(search_base=self.active_base_dn,
@@ -179,7 +179,7 @@ class AD(object):
             res = self.conn.response_to_json()
             res = json.loads(res)['entries']        
         else:
-            res = self.conn.bind()
+            res = {'bind': self.conn.bind(), 'server' : str(self.server), 'bind_result': str(self.conn.result)}
         return res
 
     def get_ous(self):
