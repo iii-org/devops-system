@@ -65,7 +65,7 @@ def require_in_project(project_id=None,
             project_id = nexus.nx_get_project(name=project_name).id
     identity = get_jwt_identity()
     user_id = identity['user_id']
-    if not even_admin and identity['role_id'] in [ADMIN.id, QA.id]:
+    if not even_admin and identity['role_id'] == ADMIN.id:
         return
     check_result = verify_project_user(project_id, user_id)
     if check_result:
