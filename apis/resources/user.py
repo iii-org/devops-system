@@ -29,6 +29,7 @@ from resources.redmine import redmine
 # Make a regular expression
 ad_connect_timeout = 5
 ad_receive_timeout = 30
+default_role_id = 3
 jwt = JWTManager()
 
 
@@ -181,88 +182,85 @@ def check_ad_server():
         ad_server['domain'] = parameters['domain']
     return ad_server
 
+def login_by_ad(user, db_info,ad_info, login_account, login_password):
+    status = 'Direct login by AD pass, DB pass'
+    user_id = ''
+    user_login = ''
+    user_role_id = ''
+    # 'Direct Login AD pass, DB create User'            
+    if db_info['connect'] is False:
+        status = 'Direct Login AD pass, DB create User'
+        args = {
+            'name': ad_info['data']['iii_name'],
+            'email': ad_info['data']['userPrincipalName'],
+            'login': login_account,
+            'password': login_password,
+            'role_id': default_role_id,
+            'status': "enable",
+            'phone': ad_info['data']['telephoneNumber'],
+            'title': ad_info['data']['title'],
+            'department': ad_info['data']['department'],
+            'from_ad': True,
+            'update_at':  ad_info['data']['whenChanged']
+        }
+        new_user = create_user(args)
+        user_id = new_user['user_id']
+        user_login = login_account
+        user_role_id = default_role_id
+    # 'Direct login AD pass,'
+    elif db_info['from_ad'] is True:
+        user_id = user.id
+        user_login = user.login
+        user_role_id = db_info['role_id']
+        # 'Direct login AD pass, DB change password'
+        if db_info['is_pass'] is not True:
+            status = 'Direct login AD pass, DB change password'
+            err = update_external_passwords(
+                user.id, login_password, login_password)
+            if err is not None:
+                logger.exception(err)
+            user.password = db_info['hex_password']
+        user.name = ad_info['data']['iii_name']
+        user.phone = ad_info['data']['telephoneNumber']
+        user.department = ad_info['data']['department']
+        user.title = ad_info['data']['title']
+        user.update_at = ad_info['data']['whenChanged']
+        db.session.commit()
+    token = get_access_token(user_id, user_login, user_role_id, True)
+    return status, token
+
 
 def login(args):
-    default_role_id = 3
     login_account = args['username']
-    login_password = args['password']
-    ad_server = ad_user.check_ad_info()
+    login_password = args['password']  
+    ad_server = ad_user.check_ad_info()   
     try:
         ad_info = {'is_pass': False,
-                   'login': login_account, 'data': {}}
+               'login': login_account, 'data': {}}
+        # Check Ad server exists
         if ad_server['disabled'] is False:
-            print(ad_info)
-            ad_info = check_ad_login(login_account, login_password, ad_info)
+            ad_info = check_ad_login(login_account, login_password,ad_info)        
         db_info = {'connect': False,
                    'login': login_account,
                    'is_pass': False,
                    'User': {}, 'ProjectUserRole': {}}
         user = db.session.query(model.User).filter(
             model.User.login == login_account).first()
+        # Check User in DB
         if user is not None:
             db_info['connect'] = True
             db_info, user, project_user_role = check_db_login(
-                user, login_password, db_info)
-            # Login By AD
+                user, login_password, db_info)                                                    
+        # Login By AD
         if ad_info['is_pass'] is True:
-            status = 'Direct login by AD pass, DB pass'
-            user_id = ''
-            user_login = ''
-            user_role_id = ''
-            # 'Direct Login AD pass, DB create User'            
-            if db_info['connect'] is False:
-                status = 'Direct Login AD pass, DB create User'
-                args = {
-                    'name': ad_info['data']['iii_name'],
-                    'email': ad_info['data']['userPrincipalName'],
-                    'login': login_account,
-                    'password': login_password,
-                    'role_id': default_role_id,
-                    'status': "enable",
-                    'phone': ad_info['data']['telephoneNumber'],
-                    'title': ad_info['data']['title'],
-                    'department': ad_info['data']['department'],
-                    'from_ad': True,
-                    'update_at': ad_info['data']['whenChanged']
-                }
-
-                new_user = create_user(args)
-                user_id = new_user['user_id']
-                user_login = login_account
-                user_role_id = default_role_id
-            # 'Direct login AD pass,'
-            elif db_info['from_ad'] is True:
-                args['name'] = ad_info['data']['iii_name']
-                args['phone'] = ad_info['data']['iii_name']
-                args['email'] = ad_info['data']['iii_name']
-                args['status'] = ad_info['data']['iii_name']
-                args['department'] = ad_info['data']['iii_name']
-                user_id = user.id
-                user_login = user.login
-                user_role_id = project_user_role.role_id
-                # 'Direct login AD pass, DB change password'
-                if db_info['is_pass'] is not True:
-                    status = 'Direct login AD pass, DB change password'
-                    err = update_external_passwords(
-                        user.id, login_password, login_password)
-                    if err is not None:
-                        logger.exception(err)
-                    user.password = db_info['hex_password']
-                    # user.update_at = util.date_to_str(datetime.datetime.utcnow())
-                user.name = ad_info['data']['iii_name']
-                user.phone = ad_info['data']['telephoneNumber']
-                user.department = ad_info['data']['department']
-                user.title = ad_info['data']['title']
-                user.update_at = ad_info['data']['whenChanged']
-                db.session.commit()
-            token = get_access_token(user_id, user_login, user_role_id, True)
+            status, token = login_by_ad(user,db_info,ad_info, login_account, login_password)
             return util.success({'status': status, 'token': token, 'ad_info': ad_info})
         # Login By Database
         elif db_info['is_pass'] is True and db_info['from_ad'] is False:
             status = "DB Login"
             token = get_access_token(
                 user.id, user.login, project_user_role.role_id, user.from_ad)
-            return util.success({'status': status, 'token': token, 'ad_info': ad_info})
+            return util.success({'status': status, 'token': token, 'ad_info':ad_info})
         else:
             return util.respond(401, "Error when logging in.", error=apiError.wrong_password())
     except Exception as e:
