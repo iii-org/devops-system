@@ -603,10 +603,13 @@ def create_user(args):
     }
 
 
-def user_list():
-    rows = db.session.query(model.User, model.ProjectUserRole.role_id). \
+def user_list(filters):
+    query = db.session.query(model.User, model.ProjectUserRole.role_id). \
         join(model.ProjectUserRole). \
-        order_by(desc(model.User.id)).all()
+        order_by(desc(model.User.id))
+    if 'role_ids' in filters:
+        query = query.filter(model.ProjectUserRole.role_id.in_(json.loads(filters['role_ids'])))
+    rows = query.all()
     output_array = []
     for row in rows:
         project_rows = model.Project.query.filter(
@@ -785,7 +788,13 @@ class UserList(Resource):
     @jwt_required
     def get(self):
         role.require_pm()
-        return user_list()
+        parser = reqparse.RequestParser()
+        parser.add_argument('role_ids', type=str)
+        args = parser.parse_args()
+        filters = {}
+        if args['role_ids'] is not None:
+            filters['role_ids'] = f'[{args["role_ids"]}]'
+        return user_list(filters)
 
 
 class UserSaConfig(Resource):
