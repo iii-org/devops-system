@@ -254,6 +254,8 @@ def get_user_info(user_id):
                 "name": role.get_role_name(project_user_role.role_id),
                 "id": project_user_role.role_id
             },
+            'department' : user.department,
+            'title' : user.title,
             'from_ad': user.from_ad,
             "status": status
         }
