@@ -269,6 +269,7 @@ class User(object):
         user_id = ''
         user_login = ''
         user_role_id = ''
+        token  = {}
         # 'Direct Login AD pass, DB create User'
         if db_info['connect'] is False and ad_info['data']['is_iii'] is True:
             status = 'Direct Login AD pass, DB create User'
@@ -276,8 +277,10 @@ class User(object):
             user_id = new_user['user_id']
             user_login = login_account
             user_role_id = default_role_id
+            token = user.get_access_token(user_id, user_login, user_role_id, True)
         # 'Direct login AD pass,'
-        elif db_info['from_ad'] is True:
+        elif ad_info['data']['is_iii']:
+        # elif db_info['from_ad'] is True:
             user_id = db_user.id
             user_login = db_user.login
             user_role_id = db_info['role_id']
@@ -293,9 +296,10 @@ class User(object):
             db_user.phone = ad_info['data']['telephoneNumber']
             db_user.department = ad_info['data']['department']
             db_user.title = ad_info['data']['title']
-            db_user.update_at = ad_info['data']['whenChanged']
+            db_user.update_at = ad_info['data']['whenChanged']            
+            db_user.from_ad = True
             db.session.commit()
-        token = user.get_access_token(user_id, user_login, user_role_id, True)
+            token = user.get_access_token(user_id, user_login, user_role_id, True)
         return status, token
 
 
