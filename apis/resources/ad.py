@@ -155,6 +155,33 @@ def get_user_info_from_ad(users , info = 'iii'):
     return user_info
 
 
+
+def check_update_info(db_user,db_info, ad_data):
+    need_change = False
+    if db_info['is_pass'] is not True:
+        need_change = True
+    if db_user.name != ad_data['iii_name']:
+        need_change = True
+        db_user.name = ad_data['iii_name']
+    if db_user.phone != ad_data['telephoneNumber']:
+        need_change = True
+        db_user.phone = ad_data['telephoneNumber']
+    if db_user.department != ad_data['department']:
+        need_change = True
+        db_user.department = ad_data['department']
+    if db_user.title != ad_data['title']:
+        need_change = True
+        db_user.title = ad_data['title']
+    if db_user.update_at != ad_data['whenChanged']:
+        need_change = True
+        db_user.update_at = ad_data['whenChanged']
+    if db_user.from_ad is not True:
+        need_change = True
+        db_user.from_ad = True
+    if need_change is True:
+        db.session.commit()
+    return need_change 
+
 class AD(object):
     def __init__(self, account=None, password=None):
         self.ad_info = {
@@ -165,18 +192,20 @@ class AD(object):
         plugin = api_plugin.get_plugin('ad_server')
         if plugin is not None and plugin['disabled'] is False:
             ad_parameter = plugin['parameter']
-        server = ServerPool(None, pool_strategy=FIRST, active=True)
+        self.server = ServerPool(None, pool_strategy=FIRST, active=True)
         for host in ad_parameter['host']:
             ip, port = host['ip_port'].split(':')
-            server.add(Server(host=ip, port=int(port), get_info=ALL,
+            self.server.add(Server(host=ip, port=int(port), get_info=ALL,
                               connect_timeout=ad_connect_timeout))
         if account is None and password is None:
-            account = ad_parameter['account']
-            password = ad_parameter['password']
-        email = account+'@'+ad_parameter['domain']
-        self.server = server
-        self.conn = Connection(server, user=email,
-                               password=password, read_only=True)
+            self.account = ad_parameter['account']
+            self.password = ad_parameter['password']
+        else:
+            self.account = account
+            self.password = password
+        self.email = account+'@'+ad_parameter['domain']
+        self.conn = Connection(self.server, user=self.email,
+                               password=self.password, read_only=True)
         if self.conn.bind() is True:
             self.ad_info['is_pass'] = True
         self.active_base_dn = get_dc_string(ad_parameter['domain'].split('.'))
@@ -218,10 +247,11 @@ class AD(object):
         return res
 
     def get_user_by_ou(self):
+        # user_search_filter_by_ou = '(&(|(objectclass=user)(objectclass=person))(!(isCriticalSystemObject=True))(sAMAccountName='+account+'))'
         self.conn.search(search_base=self.active_base_dn,
                          search_filter=self.ou_search_filter, attributes=ALL_ATTRIBUTES)
         res = self.conn.response_to_json()
-        res = json.loads(res)
+        res = json.loads(res)['entries']
         return res
 
 
@@ -264,12 +294,8 @@ class User(object):
             return util.respond(404, invalid_ad_server,
                                 error=apiError.invalid_plugin_id(invalid_ad_server))
 
-    def login_by_ad(self, db_user, db_info, ad_info, login_account, login_password):
+    def login_by_ad(self, db_user, db_info, ad_info, login_account, login_password):        
         status = 'Direct login by AD pass, DB pass'
-        user_id = ''
-        user_login = ''
-        user_role_id = ''
-        token  = {}
         ad_info_data = ad_info['data']
         # 'Direct Login AD pass, DB create User'
         if db_info['connect'] is False and ad_info_data['is_iii'] is True:
@@ -292,20 +318,13 @@ class User(object):
                 if err is not None:
                     logger.exception(err)
                 db_user.password = db_info['hex_password']
-            db_user.name = ad_info_data['iii_name']
-            db_user.phone = ad_info_data['telephoneNumber']
-            db_user.department = ad_info_data['department']
-            db_user.title = ad_info_data['title']
-            db_user.update_at = ad_info_data['whenChanged']            
-            db_user.from_ad = True
-            db.session.commit()
+            # Check Need Update User Info
+            check_update_info(db_user,db_info, ad_info_data)
             token = user.get_access_token(user_id, user_login, user_role_id, True)
         else :
-            print("diferent email")
             status = 'Not allow ad Account'
             token = None
         return status, token
-
 
 ad_user = User()
 
