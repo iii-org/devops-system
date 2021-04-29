@@ -53,8 +53,8 @@ def get_subadmin_projects(args):
             if response:
                 projects = [
                     {
-                        'project_id': context.project_id,
-                        'project_name': model.Project.query.get(context.project_id).display
+                        'id': context.project_id,
+                        'name': model.Project.query.get(context.project_id).display
                     } for context in response
                 ]
             projects_detail = {
