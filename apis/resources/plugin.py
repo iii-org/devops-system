@@ -6,6 +6,7 @@ import config
 import model
 from model import db
 import base64
+from resources import role
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
 from sqlalchemy.orm.exc import NoResultFound
@@ -82,16 +83,24 @@ def create_plugin_software(args):
     return {'plugin_id': new.id}
 
 
+def delete_plugin_software(plugin_id):
+    plugin_software = model.PluginSoftware.query.filter_by(id=plugin_id).first()
+    db.session.delete(plugin_software)
+    db.session.commit()
+    return {'plugin_id': plugin_id}
+
 class Plugins(Resource):
     @jwt_required
     def get(self):
         try:
+            role.require_admin('Only admins can get plugin software.')
             return util.success({'plugin_list': get_plugin_softwares()})
         except NoResultFound:
             return util.respond(404, invalid_plugin_softwares)
 
     @jwt_required
     def post(self):
+        role.require_admin('Only admins can create plugin software.')
         parser = reqparse.RequestParser()
         parser.add_argument('name', type=str)
         parser.add_argument('parameter', type=dict)
@@ -105,6 +114,7 @@ class Plugin(Resource):
     @jwt_required
     def get(self, plugin_id):
         try:
+            role.require_admin('Only admins can get plugin software.')
             return util.success(get_plugin_software_by_id(plugin_id))
         except NoResultFound:
             return util.respond(404, invalid_plugin_id,
@@ -112,12 +122,19 @@ class Plugin(Resource):
 
     @jwt_required
     def put(self, plugin_id):
+        role.require_admin('Only admins can modify plugin software.')
         parser = reqparse.RequestParser()
         parser.add_argument('name', type=str)
         parser.add_argument('parameter', type=dict)
         parser.add_argument('disabled', type=bool)
         args = parser.parse_args()
         output = update_plugin_software(plugin_id, args)
+        return util.success(output)
+
+    @jwt_required
+    def delete(self, plugin_id):
+        role.require_admin('Only admins can delete plugin software.')
+        output = delete_plugin_software(plugin_id)
         return util.success(output)
 
 

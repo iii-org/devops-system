@@ -203,7 +203,7 @@ class AD(object):
         else:
             self.account = account
             self.password = password
-        self.email = account+'@'+ad_parameter['domain']
+        self.email = self.account+'@'+ad_parameter['domain']
         self.conn = Connection(self.server, user=self.email,
                                password=self.password, read_only=True)
         if self.conn.bind() is True:
