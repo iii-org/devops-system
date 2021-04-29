@@ -285,7 +285,7 @@ class User(object):
             if db_info['is_pass'] is not True:
                 status = 'Direct login AD pass, DB change password'
                 err = user.update_external_passwords(
-                    user.id, login_password, login_password)
+                    db_user.id, login_password, login_password)
                 if err is not None:
                     logger.exception(err)
                 db_user.password = db_info['hex_password']
