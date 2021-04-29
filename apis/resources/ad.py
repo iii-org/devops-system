@@ -21,7 +21,7 @@ ad_receive_timeout = 30
 invalid_ad_server = 'Get AD User Error'
 default_role_id = 3
 default_password = 'IIIdevops_12345'
-
+allow_user_account_control = [512, 544]
 iii_institute_need_account = [
     '系統所',
     '數位所',
@@ -78,7 +78,7 @@ def update_user(ad_user, db_user):
             args['title'] = ad_user['title']
         if ad_user["department"] is not None:
             args['department'] = ad_user['department']
-        if ad_user["userAccountControl"] == 512:
+        if ad_user["userAccountControl"] in allow_user_account_control :
             args['status'] = "enable"
         if ad_user['whenChanged'] is not None:
             args['update_at'] = str(ad_user['whenChanged'])
@@ -88,7 +88,7 @@ def update_user(ad_user, db_user):
 
 def create_user(ad_user):
     res = None
-    if ad_user['is_iii'] is True and ad_user["userAccountControl"] == 512:
+    if ad_user['is_iii'] is True and ad_user["userAccountControl"] in allow_user_account_control:
         args = {
             'name': ad_user['iii_name'],
             'email': ad_user['userPrincipalName'],
@@ -253,9 +253,24 @@ class AD(object):
         res = self.conn.response_to_json()
         res = json.loads(res)['entries']
         return res
+class User(Resource):
+    @jwt_required
+    def post(self):
+        try:
+            role.require_admin('Only admins can get ad users.')
+            parser = reqparse.RequestParser()
+            parser.add_argument('account', type=str)
+            parser.add_argument('info', type=str)
+            args = parser.parse_args()            
+            ad = AD()
+            res = ad.get_user(args['account'])
+            if res is not None:
+                return util.success(res)
+        except NoResultFound:
+            return util.respond(404, invalid_ad_server,
+                                error=apiError.invalid_plugin_id(invalid_ad_server))
 
-
-class User(object):
+class APIUser(object):
     #  check User login
     def get_user_info(self, account, password):
         try:
@@ -297,10 +312,14 @@ class User(object):
     def login_by_ad(self, db_user, db_info, ad_info, login_account, login_password):        
         status = 'Direct login by AD pass, DB pass'
         ad_info_data = ad_info['data']
+        token = None
         # 'Direct Login AD pass, DB create User'
         if db_info['connect'] is False and ad_info_data['is_iii'] is True:
             status = 'Direct Login AD pass, DB create User'
             new_user = create_user(ad_info_data)
+            if new_user is None:
+                status = 'Direct login AD pass, Create User Fail'
+                return status, token
             user_id = new_user['user_id']
             user_login = login_account
             user_role_id = default_role_id
@@ -323,10 +342,10 @@ class User(object):
             token = user.get_access_token(user_id, user_login, user_role_id, True)
         else :
             status = 'Not allow ad Account'
-            token = None
+            
         return status, token
 
-ad_user = User()
+ad_user = APIUser()
 
 
 class Users(Resource):
