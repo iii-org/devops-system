@@ -88,7 +88,10 @@ def update_user(ad_user, db_user):
 
 def create_user(ad_user):
     res = None
-    if ad_user['is_iii'] is True and ad_user["userAccountControl"] in allow_user_account_control:
+    if ad_user['is_iii'] is True and \
+        ad_user["userAccountControl"] in allow_user_account_control and \
+        ad_user['userPrincipalName'] is not None and \
+        ad_user['sAMAccountName'] is not None  :
         args = {
             'name': ad_user['iii_name'],
             'email': ad_user['userPrincipalName'],
@@ -239,7 +242,8 @@ class AD(object):
                              attributes=ALL_ATTRIBUTES
                              )
             res = self.conn.response_to_json()
-            output = json.loads(res)['entries'][0]
+            if len(json.loads(res)['entries']) > 0:
+                output = json.loads(res)['entries'][0]                
         return output
 
     def compare_attr(self, dn, attr, value):
