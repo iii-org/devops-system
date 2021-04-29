@@ -22,18 +22,14 @@ invalid_ad_server = 'Get AD User Error'
 default_role_id = 3
 default_password = 'IIIdevops_12345'
 
-# iii_institute_need_account = [
-#     '系統所',
-#     '數位所',
-#     '資安所',
-#     '服創所',
-#     '資訊處', 
-#     '前瞻中心',
-#     '執行長室'
-# ]
-
 iii_institute_need_account = [
-    '前瞻中心'    
+    '系統所',
+    '數位所',
+    '資安所',
+    '服創所',
+    '資訊處', 
+    '前瞻中心',
+    '執行長室'
 ]
 
 
