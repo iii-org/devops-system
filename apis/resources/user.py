@@ -52,13 +52,20 @@ class NexusUser:
             'name': role.get_role_name(self.default_role_id())
         }
         if with_projects:
-            rows = db.session. \
-                query(model.Project, model.ProjectPluginRelation.git_repository_id). \
-                join(model.ProjectPluginRelation). \
-                filter(model.ProjectUserRole.user_id == self.user_row.id,
-                       model.ProjectUserRole.project_id != -1,
-                       model.ProjectUserRole.project_id == model.ProjectPluginRelation.project_id
-                       ).all()
+            if role.is_role(role.ADMIN):
+                rows = db.session. \
+                    query(model.Project, model.ProjectPluginRelation.git_repository_id). \
+                    join(model.ProjectPluginRelation). \
+                    filter(model.ProjectUserRole.project_id != -1). \
+                    all()
+            else:
+                rows = db.session. \
+                    query(model.Project, model.ProjectPluginRelation.git_repository_id). \
+                    join(model.ProjectPluginRelation). \
+                    filter(model.ProjectUserRole.user_id == self.user_row.id,
+                           model.ProjectUserRole.project_id != -1,
+                           model.ProjectUserRole.project_id == model.ProjectPluginRelation.project_id
+                           ).all()
             if len(rows) > 0:
                 project_list = []
                 for row in rows:
