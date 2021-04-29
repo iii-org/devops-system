@@ -248,7 +248,10 @@ def login(args):
         # Login By AD
         if ad_info['is_pass'] is True:
             status, token = ad_user.login_by_ad(user,db_info,ad_info, login_account, login_password)
-            return util.success({'status': status, 'token': token, 'ad_info': ad_info})
+            if token is None:
+                return util.respond(401, "Error when logging in. Please contact system administrator", error=apiError.ad_account_not_allow())
+            else:
+                return util.success({'status': status, 'token': token, 'ad_info': ad_info})
         # Login By Database
         elif db_info['is_pass'] is True and db_info['from_ad'] is False:
             status = "DB Login"

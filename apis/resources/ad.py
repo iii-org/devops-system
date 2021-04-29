@@ -22,18 +22,13 @@ invalid_ad_server = 'Get AD User Error'
 default_role_id = 3
 default_password = 'IIIdevops_12345'
 
-# iii_institute_need_account = [
-#     '系統所',
-#     '數位所',
-#     '資安所',
-#     '服創所',
-#     '資訊處', 
-#     '前瞻中心',
-#     '執行長室'
-# ]
-
 iii_institute_need_account = [
-    '前瞻中心'    
+    '系統所',
+    '數位所',
+    '資安所',
+    '服創所',
+    '資訊處', 
+    '前瞻中心'
 ]
 
 
@@ -274,15 +269,18 @@ class User(object):
         user_id = ''
         user_login = ''
         user_role_id = ''
+        token  = {}
+        ad_info_data = ad_info['data']
         # 'Direct Login AD pass, DB create User'
-        if db_info['connect'] is False and ad_info['data']['is_iii'] is True and ad_info['data']['institute'] in iii_institute_need_account:
+        if db_info['connect'] is False and ad_info_data['is_iii'] is True:
             status = 'Direct Login AD pass, DB create User'
-            new_user = create_user(ad_info['data'])
+            new_user = create_user(ad_info_data)
             user_id = new_user['user_id']
             user_login = login_account
             user_role_id = default_role_id
+            token = user.get_access_token(user_id, user_login, user_role_id, True)
         # 'Direct login AD pass,'
-        elif db_info['from_ad'] is True:
+        elif ad_info_data['is_iii'] is True and ad_info_data['userPrincipalName'] == db_user.email:
             user_id = db_user.id
             user_login = db_user.login
             user_role_id = db_info['role_id']
@@ -290,17 +288,22 @@ class User(object):
             if db_info['is_pass'] is not True:
                 status = 'Direct login AD pass, DB change password'
                 err = user.update_external_passwords(
-                    user.id, login_password, login_password)
+                    db_user.id, login_password, login_password)
                 if err is not None:
                     logger.exception(err)
                 db_user.password = db_info['hex_password']
-            db_user.name = ad_info['data']['iii_name']
-            db_user.phone = ad_info['data']['telephoneNumber']
-            db_user.department = ad_info['data']['department']
-            db_user.title = ad_info['data']['title']
-            db_user.update_at = ad_info['data']['whenChanged']
+            db_user.name = ad_info_data['iii_name']
+            db_user.phone = ad_info_data['telephoneNumber']
+            db_user.department = ad_info_data['department']
+            db_user.title = ad_info_data['title']
+            db_user.update_at = ad_info_data['whenChanged']            
+            db_user.from_ad = True
             db.session.commit()
-        token = user.get_access_token(user_id, user_login, user_role_id, True)
+            token = user.get_access_token(user_id, user_login, user_role_id, True)
+        else :
+            print("diferent email")
+            status = 'Not allow ad Account'
+            token = None
         return status, token
 
 

@@ -111,6 +111,9 @@ def user_in_a_project(user_id):
                  {'user_id': user_id})
 
 
+def ad_account_not_allow():
+    return build(2010, 'User Account in AD is invalid in DevOps System')
+
 # Permission errors
 class NotAllowedError(HTTPException):
     pass
