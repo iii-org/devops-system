@@ -7,7 +7,7 @@ from Cryptodome.Hash import SHA256
 from flask_jwt_extended import (
     create_access_token, JWTManager, jwt_required, get_jwt_identity)
 from flask_restful import Resource, reqparse
-from sqlalchemy import desc, inspect
+from sqlalchemy import desc, inspect, not_
 from sqlalchemy.orm.exc import NoResultFound
 
 import config
@@ -591,20 +591,29 @@ def user_list(filters):
 
 
 def user_list_by_project(project_id, args):
+    exclude_role_filter = not_(model.ProjectUserRole.role_id.in_(
+        [role.BOT.id, role.ADMIN.id, role.QA.id]
+    ))
     if args["exclude"] is not None and args["exclude"] == 1:
         # list users not in the project
-        ret_users = db.session.query(model.User, model.ProjectUserRole.role_id). \
-            join(model.ProjectUserRole). \
-            filter(model.User.disabled == False). \
-            filter(model.ProjectUserRole.role_id != role.BOT.id). \
-            order_by(desc(model.User.id)).all()
-
-        project_users = db.session.query(model.User).join(model.ProjectUserRole).filter(
+        ret_users = db.session.query(
+            model.User, model.ProjectUserRole.role_id
+        ).join(
+            model.ProjectUserRole
+        ).filter(
             model.User.disabled == False,
-            model.ProjectUserRole.project_id == project_id
-        ) \
-            .filter(model.ProjectUserRole.role_id != role.BOT.id) \
-            .all()
+            exclude_role_filter
+        ).order_by(desc(model.User.id)).all()
+
+        project_users = db.session.query(
+            model.User
+        ).join(
+            model.ProjectUserRole
+        ).filter(
+            model.User.disabled == False,
+            model.ProjectUserRole.project_id == project_id,
+            exclude_role_filter
+        ).all()
         i = 0
         while i < len(ret_users):
             for pu in project_users:
