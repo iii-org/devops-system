@@ -44,14 +44,14 @@ def get_complete_percent(project):
 
 
 def get_expired_days(project):
-    if project['due_date'] != 'None':
+    if project['due_date'] is not None:
         return calculate_expired_days(project['due_date'])
     else:
         return None
 
 
 def check_overdue(last):
-    if last != 'None':
+    if last is not None:
         last_date = datetime.strptime(last, "%Y-%m-%d")
         if last_date < datetime.now():
             return True
