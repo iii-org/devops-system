@@ -44,14 +44,14 @@ def get_complete_percent(project):
 
 
 def get_expired_days(project):
-    if project['due_date'] != 'None':
+    if project['due_date'] is not None:
         return calculate_expired_days(project['due_date'])
     else:
         return None
 
 
 def check_overdue(last):
-    if last != 'None':
+    if last is not None:
         last_date = datetime.strptime(last, "%Y-%m-%d")
         if last_date < datetime.now():
             return True
@@ -117,8 +117,8 @@ def insert_project(project, member_count, sync_date, project_status):
         'total_issue_count': project['total_count'],
         'member_count': member_count,
         'expired_day': get_expired_days(project),
-        'start_date': project['start_date'] if project['start_date'] != 'None' else '1970-01-01',
-        'end_date': project['due_date'] if project['due_date'] != 'None' else '1970-01-01',
+        'start_date': project['start_date'] if project['start_date'] is not None else '1970-01-01',
+        'end_date': project['due_date'] if project['due_date'] is not None else '1970-01-01',
         'sync_date': sync_date,
         'project_status': project_status
     }
