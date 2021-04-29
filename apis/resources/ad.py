@@ -28,8 +28,7 @@ iii_institute_need_account = [
     '資安所',
     '服創所',
     '資訊處', 
-    '前瞻中心',
-    '執行長室'
+    '前瞻中心'
 ]
 
 
@@ -271,7 +270,7 @@ class User(object):
         user_login = ''
         user_role_id = ''
         # 'Direct Login AD pass, DB create User'
-        if db_info['connect'] is False and ad_info['data']['is_iii'] is True and ad_info['data']['institute'] in iii_institute_need_account:
+        if db_info['connect'] is False and ad_info['data']['is_iii'] is True:
             status = 'Direct Login AD pass, DB create User'
             new_user = create_user(ad_info['data'])
             user_id = new_user['user_id']
