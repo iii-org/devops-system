@@ -5,6 +5,7 @@ import nexus
 from resources import apiError
 import util
 import model
+from resources.apiError import DevOpsError
 
 
 class Role:
@@ -64,7 +65,7 @@ def require_in_project(project_id=None,
             project_id = nexus.nx_get_project(name=project_name).id
     identity = get_jwt_identity()
     user_id = identity['user_id']
-    if not even_admin and identity['role_id'] in [ADMIN.id, QA.id]:
+    if not even_admin and identity['role_id'] == ADMIN.id:
         return
     check_result = verify_project_user(project_id, user_id)
     if check_result:
@@ -107,10 +108,26 @@ def verify_project_user(project_id, user_id):
 def get_role_list():
     output_array = []
     for r in ALL_ROLES:
+        if r is BOT:
+            continue
         role_info = {"id": r.id, "name": r.name}
         output_array.append(role_info)
 
     return util.success({"role_list": output_array})
+
+
+def update_role(user_id, new_role_id):
+    rows = model.ProjectUserRole.query.filter_by(user_id=user_id).all()
+    if len(rows) == 0:
+        raise DevOpsError(404, 'User not found.', apiError.user_not_found(user_id))
+    if len(rows) > 1:
+        # No change will be made, just returns
+        if rows[0].role_id == new_role_id:
+            return
+        # Can not change role when belonging to a project
+        raise DevOpsError(400, 'User is in a project.', apiError.user_in_a_project(user_id))
+    rows[0].role_id = new_role_id
+    model.db.session.commit()
 
 
 # --------------------- Resources ---------------------

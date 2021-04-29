@@ -18,6 +18,8 @@ invalid_plugin_softwares = 'Unable get plugin softwares'
 
 def row_to_dict(row):
     ret = {}
+    if row is None:
+        return row
     for key in type(row).__table__.columns.keys():
         value = getattr(row, key)
         if type(value) is datetime or type(value) is date:
@@ -34,7 +36,8 @@ def get_plugin_softwares():
     plugins = model.PluginSoftware.query.all()
     output = []
     for plugin in plugins:
-        output.append(row_to_dict(plugin))
+        if plugin is not None:
+            output.append(row_to_dict(plugin))
     return output
 
 
@@ -65,9 +68,12 @@ def update_plugin_software(plugin_id, args):
 
 
 def create_plugin_software(args):
+    
+    parameters = base64.b64encode(
+        bytes(json.dumps(args['parameter']), encoding='utf-8')).decode('utf-8')
     new = model.PluginSoftware(
         name=args['name'],
-        parameter=json.dumps(args['parameter']),
+        parameter=parameters,
         disabled=args['disabled'],
         create_at=str(datetime.now())
     )

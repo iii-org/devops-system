@@ -1,8 +1,8 @@
-"""set user from_ad column defalut false
+"""add user title column
 
-Revision ID: 4d2e7a69ca2e
-Revises: 65e32ff674e1
-Create Date: 2021-04-26 11:07:25.003385
+Revision ID: 63cac0772a9c
+Revises: 3848c2a26348
+Create Date: 2021-04-27 11:32:08.841872
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '4d2e7a69ca2e'
+revision = '63cac0772a9c'
 down_revision = '65e32ff674e1'
 branch_labels = None
 depends_on = None

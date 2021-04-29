@@ -79,8 +79,6 @@ def clear_all_tables():
     model.RedmineIssue.query.delete()
     model.ProjectMember.query.delete()
     model.ProjectMemberCount.query.delete()
-    model.ProjectOvewview.query.delete()
-    model.IssueRank.query.delete()
     model.db.session.commit()
 
 
@@ -150,6 +148,8 @@ def insert_project_member(project_id, project_name):
                                     args={'exclude': None})
     all_members = response[0]['data']['user_list']
     for member in all_members:
+        if int(member['role_id']) in [role.ADMIN.id, role.QA.id]:
+            continue
         new_member = model.ProjectMember(user_id=member['id'],
                                          user_name=member['name'],
                                          project_id=project_id,
@@ -159,7 +159,7 @@ def insert_project_member(project_id, project_name):
         members_list.append(new_member)
     model.db.session.add_all(members_list)
     model.db.session.commit()
-    return len(all_members)
+    return len(members_list)
 
 
 def insert_all_issues(project_id, sync_date):
@@ -200,7 +200,7 @@ def get_current_sync_date_project_id_by_user():
     sync_date = get_sync_date()
     user_id = get_jwt_identity()['user_id']
     role_id = get_jwt_identity()['role_id']
-    if role_id in [role.ADMIN.id, role.QA.id]:
+    if role_id == role.ADMIN.id:
         project_id_collections = model.RedmineProject.query.with_entities(
             model.RedmineProject.project_id).filter_by(
                 sync_date=sync_date).order_by(
@@ -419,6 +419,7 @@ def get_unclosed_issues_by_user(user_id):
 
 def get_postman_passing_rate(detail, own_project):
     all_passing_rate = []
+    sync_date = get_sync_date()
     for project_id in own_project:
         response = get_current_sync_date_project_by_project_id(
             project_id=project_id, sync_date=sync_date)
@@ -534,6 +535,7 @@ class UnclosedIssues(Resource):
     def get(self, user_id):
         unclosed_issues = get_unclosed_issues_by_user(user_id)
         return util.success(unclosed_issues)
+
 
 class PassingRate(Resource):
     @jwt_required
