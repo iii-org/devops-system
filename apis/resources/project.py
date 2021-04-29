@@ -26,17 +26,12 @@ from .rancher import rancher
 from .redmine import redmine
 
 
-class NexusProjectFull:
+class NexusProject:
     def __init__(self,
                  project_id=None,
                  project_row=None,
-                 plugin_row=None,
-                 redmine_projects=None,
-                 issues=None):
-        if redmine_projects is None or issues is None:
-            raise DevOpsError(400, 'You must pass in redmine_projects and issues.')
-        self.redmine_projects = redmine_projects
-        self.issues = issues
+                 plugin_row=None):
+        self.extra_fields = {}
         if project_row is None:
             if project_id is None:
                 raise DevOpsError(400, 'Either project_id or project_row should be given.')
@@ -67,29 +62,36 @@ class NexusProjectFull:
         ret['pm_user_id'] = self.owner.id
         ret['pm_user_name'] = self.owner.name
         ret['department'] = self.owner.department
-        ret['updated_time'] = self.get_updated_time()
-        issue_stats = self.get_issue_statistics()
-        for key, value in issue_stats.items():
+
+        for key, value in self.extra_fields.items():
             ret[key] = value
+
         return ret
 
-    def get_updated_time(self):
+    def fill_redmine_fields(self, redmine_projects, issues):
+        self.extra_fields['updated_time'] = self.get_updated_time(redmine_projects)
+        issue_stats = self.get_issue_statistics(issues)
+        for key, value in issue_stats.items():
+            self.extra_fields[key] = value
+        return self
+
+    def get_updated_time(self, redmine_projects):
         ret = None
-        for pjt in self.redmine_projects:
+        for pjt in redmine_projects:
             if pjt['id'] == self.plugin_row.plan_project_id:
                 ret = pjt['updated_on']
                 del pjt
                 break
         return ret
 
-    def get_issue_statistics(self):
+    def get_issue_statistics(self, issues):
         ret = {
             'closed_count': 0,
             'overdue_count': 0,
             'total_count': 0,
             'project_status': None
         }
-        for issue in self.issues:
+        for issue in issues:
             if issue['project']['id'] != self.plugin_row.plan_project_id:
                 continue
             if issue["status"]["name"] == "Closed":
@@ -124,12 +126,10 @@ def list_projects(user_id):
     for row in rows:
         if row.Project.id == -1:
             continue
-        output_array.append(NexusProjectFull(
+        output_array.append(NexusProject(
             project_row=row.Project,
             plugin_row=row.ProjectPluginRelation,
-            redmine_projects=redmine_projects,
-            issues=issues
-        ).to_json())
+        ).fill_redmine_fields(redmine_projects, issues).to_json())
     return util.success({"project_list": output_array})
 
 
@@ -660,6 +660,7 @@ def get_projects_by_user(user_id):
                        'harbor_url': f'{config.get("HARBOR_EXTERNAL_BASE_URL")}/harbor/projects/' +
                                      f'{row.ProjectPluginRelation.harbor_project_id}/repositories',
                        'repository_ids': row.ProjectPluginRelation.git_repository_id,
+                       'department': user.NexusUser(row.Project.owner_id).department,
                        'issues': None,
                        'branch': None,
                        'tag': None,
