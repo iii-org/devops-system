@@ -60,6 +60,8 @@ def zap_get_latest_test(project_id):
     project_name = nexus.nx_get_project(id=project_id).name
     row = model.Zap.query.filter_by(
         project_name=project_name).order_by(desc(model.Zap.id)).first()
+    if row is None:
+        return {}
     return process_row(row, project_id)
 
 
