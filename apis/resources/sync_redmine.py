@@ -148,6 +148,8 @@ def insert_project_member(project_id, project_name):
                                     args={'exclude': None})
     all_members = response[0]['data']['user_list']
     for member in all_members:
+        if int(member['role_id']) in [role.ADMIN.id, role.QA.id]:
+            continue
         new_member = model.ProjectMember(user_id=member['id'],
                                          user_name=member['name'],
                                          project_id=project_id,
@@ -157,7 +159,7 @@ def insert_project_member(project_id, project_name):
         members_list.append(new_member)
     model.db.session.add_all(members_list)
     model.db.session.commit()
-    return len(all_members)
+    return len(members_list)
 
 
 def insert_all_issues(project_id, sync_date):
