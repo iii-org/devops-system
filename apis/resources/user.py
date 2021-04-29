@@ -7,7 +7,7 @@ from Cryptodome.Hash import SHA256
 from flask_jwt_extended import (
     create_access_token, JWTManager, jwt_required, get_jwt_identity)
 from flask_restful import Resource, reqparse
-from sqlalchemy import desc, inspect
+from sqlalchemy import desc, inspect, not_
 from sqlalchemy.orm.exc import NoResultFound
 
 import config
@@ -185,7 +185,8 @@ def check_ad_server():
         ad_server['domain'] = parameters['domain']
     return ad_server
 
-def login_by_ad(user, db_info,ad_info, login_account, login_password):
+
+def login_by_ad(user, db_info, ad_info, login_account, login_password):
     status = 'Direct login by AD pass, DB pass'
     user_id = ''
     user_login = ''
@@ -204,7 +205,7 @@ def login_by_ad(user, db_info,ad_info, login_account, login_password):
             'title': ad_info['data']['title'],
             'department': ad_info['data']['department'],
             'from_ad': True,
-            'update_at':  ad_info['data']['whenChanged']
+            'update_at': ad_info['data']['whenChanged']
         }
         new_user = create_user(args)
         user_id = new_user['user_id']
@@ -235,14 +236,14 @@ def login_by_ad(user, db_info,ad_info, login_account, login_password):
 
 def login(args):
     login_account = args['username']
-    login_password = args['password']  
-    ad_server = ad_user.check_ad_info()   
+    login_password = args['password']
+    ad_server = ad_user.check_ad_info()
     try:
         ad_info = {'is_pass': False,
-               'login': login_account, 'data': {}}
+                   'login': login_account, 'data': {}}
         # Check Ad server exists
         if ad_server['disabled'] is False:
-            ad_info = check_ad_login(login_account, login_password,ad_info)        
+            ad_info = check_ad_login(login_account, login_password, ad_info)
         db_info = {'connect': False,
                    'login': login_account,
                    'is_pass': False,
@@ -253,17 +254,17 @@ def login(args):
         if user is not None:
             db_info['connect'] = True
             db_info, user, project_user_role = check_db_login(
-                user, login_password, db_info)                                                    
-        # Login By AD
+                user, login_password, db_info)
+            # Login By AD
         if ad_info['is_pass'] is True:
-            status, token = login_by_ad(user,db_info,ad_info, login_account, login_password)
+            status, token = login_by_ad(user, db_info, ad_info, login_account, login_password)
             return util.success({'status': status, 'token': token, 'ad_info': ad_info})
         # Login By Database
         elif db_info['is_pass'] is True and db_info['from_ad'] is False:
             status = "DB Login"
             token = get_access_token(
                 user.id, user.login, project_user_role.role_id, user.from_ad)
-            return util.success({'status': status, 'token': token, 'ad_info':ad_info})
+            return util.success({'status': status, 'token': token, 'ad_info': ad_info})
         else:
             return util.respond(401, "Error when logging in.", error=apiError.wrong_password())
     except Exception as e:
@@ -600,20 +601,29 @@ def user_list(filters):
 
 
 def user_list_by_project(project_id, args):
+    exclude_role_filter = not_(model.ProjectUserRole.role_id.in_(
+        [role.BOT.id, role.ADMIN.id, role.QA.id]
+    ))
     if args["exclude"] is not None and args["exclude"] == 1:
         # list users not in the project
-        ret_users = db.session.query(model.User, model.ProjectUserRole.role_id). \
-            join(model.ProjectUserRole). \
-            filter(model.User.disabled == False). \
-            filter(model.ProjectUserRole.role_id != role.BOT.id). \
-            order_by(desc(model.User.id)).all()
-
-        project_users = db.session.query(model.User).join(model.ProjectUserRole).filter(
+        ret_users = db.session.query(
+            model.User, model.ProjectUserRole.role_id
+        ).join(
+            model.ProjectUserRole
+        ).filter(
             model.User.disabled == False,
-            model.ProjectUserRole.project_id == project_id
-        ) \
-            .filter(model.ProjectUserRole.role_id != role.BOT.id) \
-            .all()
+            exclude_role_filter
+        ).order_by(desc(model.User.id)).all()
+
+        project_users = db.session.query(
+            model.User
+        ).join(
+            model.ProjectUserRole
+        ).filter(
+            model.User.disabled == False,
+            model.ProjectUserRole.project_id == project_id,
+            exclude_role_filter
+        ).all()
         i = 0
         while i < len(ret_users):
             for pu in project_users:
@@ -624,12 +634,17 @@ def user_list_by_project(project_id, args):
                 i += 1
     else:
         # list users in the project
-        ret_users = db.session.query(model.User, model.ProjectUserRole.role_id). \
-            join(model.ProjectUserRole). \
-            filter(model.User.disabled == False,
-                   model.ProjectUserRole.project_id == project_id,
-                   model.ProjectUserRole.role_id != role.BOT.id). \
-            order_by(desc(model.User.id)).all()
+        ret_users = db.session.query(
+            model.User, model.ProjectUserRole.role_id
+        ).join(
+            model.ProjectUserRole
+        ).filter(
+            model.User.disabled == False,
+            model.ProjectUserRole.project_id == project_id,
+            exclude_role_filter
+        ).order_by(
+            desc(model.User.id)
+        ).all()
 
     arr_ret = []
     for user_role_by_project in ret_users:
