@@ -304,6 +304,7 @@ api.add_resource(plugin.Plugin, '/plugins/<sint:plugin_id>')
 
 # AD Server
 api.add_resource(ad.Users, '/plugins/ad/users')
+api.add_resource(ad.User, '/plugins/ad/user')
 api.add_resource(ad.Organizations, '/plugins/ad/organizations')
 
 # dashboard
