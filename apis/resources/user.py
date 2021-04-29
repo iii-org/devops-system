@@ -628,7 +628,7 @@ def user_list_by_project(project_id, args):
             join(model.ProjectUserRole). \
             filter(model.User.disabled == False,
                    model.ProjectUserRole.project_id == project_id,
-                   model.ProjectUserRole.role_id != role.BOT.id). \
+                   exclude_role_filter). \
             order_by(desc(model.User.id)).all()
 
     arr_ret = []
