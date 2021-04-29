@@ -594,16 +594,7 @@ def user_list_by_project(project_id, args):
 
     arr_ret = []
     for user_role_by_project in ret_users:
-<<<<<<< HEAD
-        if get_jwt_identity() and \
-            get_jwt_identity()['role_id'] not in [role.ADMIN.id, role.QA.id] and \
-                user_role_by_project.role_id in [role.ADMIN.id, role.QA.id]:
-            continue
-        user_json = NexusUser(user_role_by_project.User.id).to_json(
-            with_projects=False)
-=======
         user_json = NexusUser(user_role_by_project.User.id).to_json(with_projects=False)
->>>>>>> b9f15008a32057bc32d774baa33b0de39d70fe1b
         user_json['role_id'] = user_role_by_project.role_id
         user_json['role_name'] = role.get_role_name(
             user_role_by_project.role_id)
