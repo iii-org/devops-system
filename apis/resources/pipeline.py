@@ -92,18 +92,6 @@ def pipeline_exec_action(git_repository_id, args):
     return util.success()
 
 
-def pipeline_software():
-    result = db.engine.execute(
-        "SELECT pp.name as phase_name, ps.name as software_name, "
-        "psc.detail as detail FROM public.pipeline_phase as pp, "
-        "public.pipeline_software as ps, public.pipeline_software_config as psc "
-        "WHERE psc.software_id = ps.id AND ps.phase_id = pp.id AND psc.sample = true;"
-    )
-    pipe_software = result.fetchall()
-    result.close()
-    return [dict(row) for row in pipe_software]
-
-
 def generate_ci_yaml(args, repository_id, branch_name):
     parameter = {}
     logger.debug("generate_ci_yaml detail: {0}".format(args['detail']))
@@ -220,19 +208,6 @@ class PipelineExecLogs(Resource):
         parser.add_argument('pipelines_exec_run', type=int, required=True)
         args = parser.parse_args()
         return pipeline_exec_logs(args)
-
-
-class PipelineSoftware(Resource):
-    @jwt_required
-    def get(self):
-        pipe_out_list = pipeline_software()
-        output_list = []
-        for pipe_out in pipe_out_list:
-            if 'detail' in pipe_out:
-                pipe_out['detail'] = json.loads(pipe_out['detail'].replace(
-                    "'", '"'))
-            output_list.append(pipe_out)
-        return util.success(output_list)
 
 
 class PipelineYaml(Resource):

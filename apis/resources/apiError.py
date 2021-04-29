@@ -1,3 +1,6 @@
+# Error code document at:
+# https://github.com/iii-org/devops-system/wiki/ErrorCodes
+
 from werkzeug.exceptions import HTTPException
 
 
@@ -56,6 +59,10 @@ def release_unable_to_build(info=None):
     return build(1008, 'Unable to build the release.', info)
 
 
+def invalid_plugin_id(plugin_id):
+    return build(1009, 'Plugin Software not fount.', {'plugin_id': plugin_id})
+
+
 # User errors
 def user_not_found(user_id):
     return build(2001, 'User not found.', {'user_id': user_id})
@@ -88,6 +95,24 @@ def already_in_project(user_id, project_id):
     return build(2006, 'This user is already in the project.',
                  {'user_id': user_id, 'project_id': project_id})
 
+
+def is_project_owner_in_project(user_id, project_id):
+    return build(2007, 'This user is project owner  in the project.',
+                 {'user_id': user_id, 'project_id': project_id})
+
+
+def user_from_ad(user_id):
+    return build(2008, 'This user comes from ad server, normal user cannot modify.',
+                 {'user_id': user_id})
+
+
+def user_in_a_project(user_id):
+    return build(2009, 'User is in a project, cannot change his role.',
+                 {'user_id': user_id})
+
+
+def ad_account_not_allow():
+    return build(2010, 'User Account in AD is invalid in DevOps System')
 
 # Permission errors
 class NotAllowedError(HTTPException):

@@ -90,18 +90,23 @@ def sq_create_access_token(login):
     return __api_post('/user_tokens/generate', params=params).json()['token']
 
 
-# def sq_get_measures(project_name):
-#     params = {
-#         'metricKeys': 'quality_gate_details,alert_status,bugs,new_bugs,reliability_rating,new_reliability_rating,'
-#                       'vulnerabilities,new_vulnerabilities,security_hotspots,new_security_hotspots,security_rating,'
-#                       'new_security_rating,sqale_index,new_technical_debt,code_smells,new_code_smells,sqale_rating,'
-#                       'new_maintainability_rating,coverage,new_coverage,duplicated_blocks,new_duplicated_blocks,'
-#                       'duplicated_lines_density,new_duplicated_lines_density,new_lines',
-#         'componentKey': project_name
-#     }
-#     return __api_get('/api/measures/component', params).json()['measures']
+def sq_update_password(login, new_password):
+    params = {
+        'login': login,
+        'password': new_password
+    }
+    return __api_post('/users/change_password', params=params)
 
-def sq_load_measures(project_name):
+
+def sq_get_current_measures(project_name):
+    params = {
+        'metricKeys': METRICS,
+        'componentKey': project_name
+    }
+    return __api_get('/measures/component', params).json()['component']['measures']
+
+
+def sq_get_history_measures(project_name):
     # Final output
     ret = {}
     # First get data in db
@@ -177,5 +182,5 @@ class SonarqubeHistory(Resource):
     def get(self, project_name):
         return util.success({
             'link': f'{config.get("SONARQUBE_EXTERNAL_BASE_URL")}/dashboard?id={project_name}',
-            'history': sq_load_measures(project_name)
+            'history': sq_get_history_measures(project_name)
         })

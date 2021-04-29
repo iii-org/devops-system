@@ -148,7 +148,7 @@ class Rancher(object):
                                       'repository_id': data["repository_id"],
                                       'pipelines_exec_run': data["pipelines_exec_run"],
                                       'stage_index': data["stage_index"],
-                                      'step_index': data["step_index"]}, broadcast=True)
+                                      'step_index': data["step_index"]})
                 if result is None:
                     ws.close()
                     break
