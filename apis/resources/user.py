@@ -33,7 +33,9 @@ jwt = JWTManager()
 
 class NexusUser:
     def __init__(self, user_id):
-        self.user_id = user_id
+        if user_id is None:
+            self.fill_dummy_user()
+            return
         self.user_row = model.User.query.filter_by(id=user_id).one()
         self.role_rows = model.ProjectUserRole.query.filter_by(
             user_id=user_id).all()
@@ -50,13 +52,20 @@ class NexusUser:
             'name': role.get_role_name(self.default_role_id())
         }
         if with_projects:
-            rows = db.session. \
-                query(model.Project, model.ProjectPluginRelation.git_repository_id). \
-                join(model.ProjectPluginRelation). \
-                filter(model.ProjectUserRole.user_id == self.user_id,
-                       model.ProjectUserRole.project_id != -1,
-                       model.ProjectUserRole.project_id == model.ProjectPluginRelation.project_id
-                       ).all()
+            if role.is_role(role.ADMIN):
+                rows = db.session. \
+                    query(model.Project, model.ProjectPluginRelation.git_repository_id). \
+                    join(model.ProjectPluginRelation). \
+                    filter(model.ProjectUserRole.project_id != -1). \
+                    all()
+            else:
+                rows = db.session. \
+                    query(model.Project, model.ProjectPluginRelation.git_repository_id). \
+                    join(model.ProjectPluginRelation). \
+                    filter(model.ProjectUserRole.user_id == self.user_row.id,
+                           model.ProjectUserRole.project_id != -1,
+                           model.ProjectUserRole.project_id == model.ProjectPluginRelation.project_id
+                           ).all()
             if len(rows) > 0:
                 project_list = []
                 for row in rows:
@@ -77,6 +86,9 @@ class NexusUser:
                 return row.role_id
         raise DevOpsError(500, 'This user does not have project -1 role.',
                           error=apiError.invalid_code_path('This user does not have project -1 role.'))
+
+    def fill_dummy_user(self):
+        self.user_row = model.User(id=0, name='No One')
 
 
 def get_user_id_name_by_plan_user_id(plan_user_id):

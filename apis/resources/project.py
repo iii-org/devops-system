@@ -1,3 +1,4 @@
+import json
 import re
 from datetime import datetime
 import base64
@@ -5,7 +6,7 @@ import base64
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
 from kubernetes.client import ApiException
-from sqlalchemy import desc
+from sqlalchemy import desc, inspect
 from sqlalchemy.orm.exc import NoResultFound
 import config
 import model
@@ -25,6 +26,90 @@ from .rancher import rancher
 from .redmine import redmine
 
 
+class NexusProject:
+    def __init__(self,
+                 project_id=None,
+                 project_row=None,
+                 plugin_row=None):
+        self.extra_fields = {}
+        if project_row is None:
+            if project_id is None:
+                raise DevOpsError(400, 'Either project_id or project_row should be given.')
+            self.project_row = model.Project.query.filter_by(id=project_id).one()
+        else:
+            self.project_row = project_row
+        if plugin_row is None:
+            self.plugin_row = model.ProjectPluginRelation.query.filter_by(
+                project_id=project_id).one()
+        else:
+            self.plugin_row = plugin_row
+        self.owner = user.NexusUser(self.project_row.owner_id)
+
+        inst = inspect(model.Project)
+        attr_names = [c_attr.key for c_attr in inst.mapper.column_attrs]
+        for attr in attr_names:
+            setattr(self, attr, getattr(self.project_row, attr))
+
+    def to_json(self):
+        ret = json.loads(str(self.project_row))
+        ret['git_url'] = ret['http_url']
+        del ret['http_url']
+        ret['repository_ids'] = self.plugin_row.git_repository_id
+        ret['redmine_url'] = \
+            f'{config.get("REDMINE_EXTERNAL_BASE_URL")}/projects/{self.plugin_row.plan_project_id}'
+        ret['harbor_url'] = \
+            f'{config.get("HARBOR_EXTERNAL_BASE_URL")}/harbor/projects/{self.plugin_row.harbor_project_id}/repositories'
+        ret['pm_user_id'] = self.owner.id
+        ret['pm_user_name'] = self.owner.name
+        ret['department'] = self.owner.department
+
+        for key, value in self.extra_fields.items():
+            ret[key] = value
+
+        return ret
+
+    def fill_redmine_fields(self, redmine_projects, issues):
+        self.extra_fields['updated_time'] = self.get_updated_time(redmine_projects)
+        issue_stats = self.get_issue_statistics(issues)
+        for key, value in issue_stats.items():
+            self.extra_fields[key] = value
+        return self
+
+    def get_updated_time(self, redmine_projects):
+        ret = None
+        for pjt in redmine_projects:
+            if pjt['id'] == self.plugin_row.plan_project_id:
+                ret = pjt['updated_on']
+                del pjt
+                break
+        return ret
+
+    def get_issue_statistics(self, issues):
+        ret = {
+            'closed_count': 0,
+            'overdue_count': 0,
+            'total_count': 0,
+            'project_status': None
+        }
+        for issue in issues:
+            if issue['project']['id'] != self.plugin_row.plan_project_id:
+                continue
+            if issue["status"]["name"] == "Closed":
+                ret['closed_count'] += 1
+            if issue["due_date"] is not None:
+                if (datetime.utcnow() > datetime.strptime(
+                        issue["due_date"], "%Y-%m-%d")):
+                    ret['overdue_count'] += 1
+            ret['total_count'] += 1
+            del issue
+        ret['project_status'] = "進行中"
+        if ret['total_count'] == 0:
+            ret['project_status'] = "未開始"
+        if ret['closed_count'] == ret['total_count'] and ret['total_count'] != 0:
+            ret['project_status'] = "已結案"
+        return ret
+
+
 def list_projects(user_id):
     query = db.session.query(model.Project, model.ProjectPluginRelation) \
         .join(model.ProjectPluginRelation) \
@@ -35,78 +120,16 @@ def list_projects(user_id):
         query = query.filter(model.ProjectUserRole.user_id == user_id)
     rows = query.order_by(desc(model.Project.id)).all()
 
-    project_id_list = []
-    for row in rows:
-        project_id_list.append(row.Project.id)
-
-    projects = redmine.rm_list_projects()
-    issues = redmine.rm_list_issues()
     output_array = []
+    redmine_projects = redmine.rm_list_projects()
+    issues = redmine.rm_list_issues()
     for row in rows:
-        project_id = row.Project.id
-        if project_id == -1:
+        if row.Project.id == -1:
             continue
-        plan_project_id = row.ProjectPluginRelation.plan_project_id
-        if plan_project_id is None:
-            continue
-        git_repository_id = row.ProjectPluginRelation.git_repository_id
-        harbor_project_id = row.ProjectPluginRelation.harbor_project_id
-
-        closed_count = 0
-        overdue_count = 0
-        total_count = 0
-        for issue in issues:
-            if issue['project']['id'] != plan_project_id:
-                continue
-            if issue["status"]["name"] == "Closed":
-                closed_count += 1
-            if issue["due_date"] is not None:
-                if (datetime.utcnow() > datetime.strptime(
-                        issue["due_date"], "%Y-%m-%d")):
-                    overdue_count += 1
-            total_count += 1
-            del issue
-        project_status = "進行中"
-        if total_count == 0:
-            project_status = "未開始"
-        if closed_count == total_count and total_count != 0:
-            project_status = "已結案"
-
-        if row.Project.owner_id is None:
-            pm = model.User(id=0, name='No One')
-        else:
-            pm = nexus.nx_get_user(row.Project.owner_id)
-
-        updated_on = None
-        for pjt in projects:
-            if pjt['id'] == plan_project_id:
-                updated_on = pjt['updated_on']
-                del pjt
-                break
-
-        redmine_url = f'{config.get("REDMINE_EXTERNAL_BASE_URL")}/projects/{plan_project_id}'
-        harbor_url = f'{config.get("HARBOR_EXTERNAL_BASE_URL")}/harbor/projects/{harbor_project_id}/repositories'
-        output_array.append({
-            "id": project_id,
-            "name": row.Project.name,
-            "display": row.Project.display,
-            "description": row.Project.description,
-            "git_url": row.Project.http_url,
-            "redmine_url": redmine_url,
-            "harbor_url": harbor_url,
-            "repository_ids": git_repository_id,
-            "disabled": row.Project.disabled,
-            "pm_user_id": pm.id,
-            "pm_user_name": pm.name,
-            "updated_time": updated_on,
-            "project_status": project_status,
-            "closed_count": closed_count,
-            "total_count": total_count,
-            "overdue_count": overdue_count,
-            'start_date': str(row.Project.start_date),
-            'due_date': str(row.Project.due_date)
-        })
-
+        output_array.append(NexusProject(
+            project_row=row.Project,
+            plugin_row=row.ProjectPluginRelation,
+        ).fill_redmine_fields(redmine_projects, issues).to_json())
     return util.success({"project_list": output_array})
 
 
@@ -536,9 +559,9 @@ def project_add_member(project_id, user_id):
 def project_remove_member(project_id, user_id):
     role_id = user.get_role_id(user_id)
     project = model.Project.query.filter_by(id=project_id).first()
-    if project.owner_id == user_id :
+    if project.owner_id == user_id:
         raise apiError.DevOpsError(404, "Error while removing a member from the project.",
-                          error=apiError.is_project_owner_in_project(user_id,project_id))
+                                   error=apiError.is_project_owner_in_project(user_id, project_id))
 
     user_relation = nexus.nx_get_user_plugin_relation(user_id=user_id)
     project_relation = nx_get_project_plugin_relation(nexus_project_id=project_id)
@@ -637,6 +660,7 @@ def get_projects_by_user(user_id):
                        'harbor_url': f'{config.get("HARBOR_EXTERNAL_BASE_URL")}/harbor/projects/' +
                                      f'{row.ProjectPluginRelation.harbor_project_id}/repositories',
                        'repository_ids': row.ProjectPluginRelation.git_repository_id,
+                       'department': user.NexusUser(row.Project.owner_id).department,
                        'issues': None,
                        'branch': None,
                        'tag': None,
@@ -780,7 +804,7 @@ def get_test_summary(project_id):
 
     ret['sonarqube'] = sonarqube.sq_get_current_measures(project_name)
     ret['zap'] = zap.zap_get_latest_test(project_id)
-    ret['sideex'] = sideex.sd_get_tests(project_id)
+    ret['sideex'] = sideex.sd_get_latest_test(project_id)
 
     return util.success({'test_results': ret})
 
@@ -1002,10 +1026,10 @@ class SingleProject(Resource):
         user_id = get_jwt_identity()["user_id"]
         if role_id == role.QA.id:
             if bool(
-                model.ProjectUserRole.query.filter(
-                    model.ProjectUserRole.project_id == project_id,
-                    model.ProjectUserRole.user_id != user_id,
-                    model.ProjectUserRole.role_id.in_([1, 3])
+                    model.ProjectUserRole.query.filter(
+                        model.ProjectUserRole.project_id == project_id,
+                        model.ProjectUserRole.user_id != user_id,
+                        model.ProjectUserRole.role_id.in_([1, 3])
                     ).count()):
                 raise apiError.NotAllowedError('Error while deleting project with members.')
         return delete_project(project_id)

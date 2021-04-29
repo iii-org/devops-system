@@ -79,6 +79,18 @@ class Project(db.Model):
     display = Column(String)
     owner_id = Column(Integer, ForeignKey(User.id))
 
+    def __repr__(self):
+        fields = {}
+        for field in [x for x in dir(self) if
+                      not x.startswith('query') and not x.startswith('_') and x != 'metadata']:
+            data = self.__getattribute__(field)
+            try:
+                json.dumps(data)  # this will fail on unencodable values, like other classes
+                fields[field] = data
+            except TypeError:
+                fields[field] = str(data)
+        return json.dumps(fields)
+
 
 class PluginSoftware(db.Model):
     id = Column(Integer, primary_key=True)
