@@ -69,7 +69,7 @@ class NexusProjectFull:
         ret['department'] = self.owner.department
         ret['updated_time'] = self.get_updated_time()
         issue_stats = self.get_issue_statistics()
-        for value, key in enumerate(issue_stats):
+        for key, value in issue_stats.items():
             ret[key] = value
         return ret
 
@@ -803,7 +803,7 @@ def get_test_summary(project_id):
 
     ret['sonarqube'] = sonarqube.sq_get_current_measures(project_name)
     ret['zap'] = zap.zap_get_latest_test(project_id)
-    ret['sideex'] = sideex.sd_get_tests(project_id)
+    ret['sideex'] = sideex.sd_get_latest_test(project_id)
 
     return util.success({'test_results': ret})
 

@@ -72,6 +72,8 @@ def sd_get_latest_test(project_id):
     project_name = nexus.nx_get_project(id=project_id).name
     row = model.Sideex.query.filter_by(
         project_name=project_name).order_by(desc(model.Sideex.id)).first()
+    if row is None:
+        return {}
     return process_row(row, project_id)
 
 

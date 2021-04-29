@@ -72,6 +72,7 @@ def process_row(row, project_id):
             row.status = 'Failed'
             model.db.session.commit()
     r = json.loads(str(row))
+    del r['full_log']
     r['issue_link'] = gitlab.commit_id_to_url(project_id, r['commit_id'])
     return r
 
