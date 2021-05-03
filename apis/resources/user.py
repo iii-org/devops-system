@@ -552,16 +552,33 @@ def create_user(args):
 
 
 def user_list(filters):
-    query = db.session.query(model.User, model.ProjectUserRole.role_id). \
-        join(model.ProjectUserRole).order_by(model.User.id)
+    page_dict = None
+    query = model.User.query.filter(model.User.id != 1).order_by(model.User.id)
     if 'role_ids' in filters:
         query = query.filter(
             model.ProjectUserRole.role_id.in_(filters['role_ids']))
-    rows = query.all()
+    if 'page' in filters:
+        paginate_query = query.paginate(
+            page=filters['page'],
+            per_page=10,
+            error_out=False
+            )
+        page_dict = {
+            'current': paginate_query.page,
+            'next': paginate_query.next_num,
+            'prev': paginate_query.prev_num,
+            'total': paginate_query.pages
+        }
+        rows = paginate_query.items
+    else:
+        rows = query.all()
     output_array = []
     for row in rows:
-        output_array.append(NexusUser(row.User.id).to_json(with_projects=True))
-    return output_array
+        output_array.append(NexusUser(row.id).to_json(with_projects=True))
+    response = {'user_list': output_array}
+    if page_dict:
+        response['page'] = page_dict
+    return response
 
 
 def user_list_by_project(project_id, args):
@@ -707,11 +724,14 @@ class UserList(Resource):
         role.require_pm()
         parser = reqparse.RequestParser()
         parser.add_argument('role_ids', type=str)
+        parser.add_argument('page', type=int)
         args = parser.parse_args()
         filters = {}
         if args['role_ids'] is not None:
             filters['role_ids'] = json.loads(f'[{args["role_ids"]}]')
-        return util.success({'user_list': user_list(filters)})
+        if args['page'] is not None:
+            filters['page'] = args['page']
+        return util.success(user_list(filters))
 
 
 class UserSaConfig(Resource):
