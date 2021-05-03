@@ -448,13 +448,18 @@ class GitLab(object):
 
     def gl_get_the_last_hours_commits(self,
                                       the_last_hours=None,
-                                      show_commit_rows=None):
+                                      show_commit_rows=None, git_repository_id=None):
         out_list = []
         if show_commit_rows is not None:
             last_days_ago = None
             for x in range(12, 169, 12):
                 days_ago = (datetime.utcnow() - timedelta(days=x)).isoformat()
-                for pj in self.gl.projects.list(order_by="last_activity_at"):
+                if git_repository_id is None:
+                    pjs = self.gl.projects.list(order_by="last_activity_at")
+                else:
+                    pjs = []
+                    pjs.append(self.gl.projects.get(git_repository_id))
+                for pj in pjs:
                     if (pj.empty_repo is False) and (
                         ("iiidevops-templates" not in pj.path_with_namespace)
                             and
@@ -491,7 +496,12 @@ class GitLab(object):
                 the_last_hours = 24
             days_ago = (datetime.utcnow() -
                         timedelta(hours=the_last_hours)).isoformat()
-            for pj in self.gl.projects.list(order_by="last_activity_at"):
+            if git_repository_id is None:
+                pjs = self.gl.projects.list(order_by="last_activity_at")
+            else:
+                pjs = []
+                pjs.append(self.gl.projects.get(git_repository_id))
+            for pj in pjs:
                 if (pj.empty_repo is False) and (
                     ("iiidevops-templates" not in pj.path_with_namespace) and
                     ("local-templates" not in pj.path_with_namespace)):
@@ -753,10 +763,12 @@ class GitTheLastHoursCommits(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('the_last_hours', type=int)
         parser.add_argument('show_commit_rows', type=int)
+        parser.add_argument('git_repository_id', type=int)
         args = parser.parse_args()
         return util.success(
             gitlab.gl_get_the_last_hours_commits(args["the_last_hours"],
-                                                 args["show_commit_rows"]))
+                                                 args["show_commit_rows"],
+                                                 args["git_repository_id"]))
 
 
 class GitCountEachPjCommitsByDays(Resource):
