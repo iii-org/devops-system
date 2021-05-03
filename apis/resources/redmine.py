@@ -145,7 +145,7 @@ class Redmine:
         return self.paging('issues', 100,  params)
 
     def rm_get_issues_by_project(self, plan_project_id, args=None):
-        if args is not None and 'fixed_version_id' in args:
+        if args is not None and 'fixed_version_id' in args and args['fixed_version_id'] is not None:
             params = {'project_id': plan_project_id, 'status_id': '*',
                       'fixed_version_id': args['fixed_version_id']}
         else:

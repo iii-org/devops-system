@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
+from sqlalchemy import desc
 
 import model
 import nexus
@@ -51,16 +52,29 @@ def zap_get_tests(project_id):
     rows = model.Zap.query.filter_by(project_name=project_name).all()
     ret = []
     for row in rows:
-        if row.status == 'Scanning':
-            # 12 hour timeout
-            if datetime.now() - row.run_at > timedelta(hours=12):
-                row.status = 'Failed'
-                model.db.session.commit()
-        r = json.loads(str(row))
-        r['issue_link'] = gitlab.commit_id_to_url(project_id, r['commit_id'])
-        ret.append(r)
+        ret.append(process_row(row, project_id))
     return ret
 
+
+def zap_get_latest_test(project_id):
+    project_name = nexus.nx_get_project(id=project_id).name
+    row = model.Zap.query.filter_by(
+        project_name=project_name).order_by(desc(model.Zap.id)).first()
+    if row is None:
+        return {}
+    return process_row(row, project_id)
+
+
+def process_row(row, project_id):
+    if row.status == 'Scanning':
+        # 12 hour timeout
+        if datetime.now() - row.run_at > timedelta(hours=12):
+            row.status = 'Failed'
+            model.db.session.commit()
+    r = json.loads(str(row))
+    del r['full_log']
+    r['issue_link'] = gitlab.commit_id_to_url(project_id, r['commit_id'])
+    return r
 
 # --------------------- Resources ---------------------
 class Zap(Resource):

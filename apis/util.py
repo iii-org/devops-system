@@ -35,9 +35,11 @@ def success(data=None, has_date_etc=False):
     else:
         if has_date_etc:
             return {'message': 'success',
-                    'data': json.loads(json.dumps(data, cls=DateEncoder))}, 200
+                    'data': json.loads(json.dumps(data, cls=DateEncoder)),
+                    'datetime': datetime.utcnow().isoformat()}, 200
         else:
-            return {'message': 'success', 'data': data}, 200
+            return {'message': 'success', 'data': data,
+                    'datetime': datetime.utcnow().isoformat()}, 200
 
 
 def respond(status_code, message=None, data=None, error=None):

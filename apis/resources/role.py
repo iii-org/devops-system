@@ -5,6 +5,7 @@ import nexus
 from resources import apiError
 import util
 import model
+from resources.apiError import DevOpsError
 
 
 class Role:
@@ -17,7 +18,12 @@ RD = Role(1, 'Engineer')
 PM = Role(3, 'Project Manager')
 ADMIN = Role(5, 'Administrator')
 BOT = Role(6, 'Project BOT')
-ALL_ROLES = [RD, PM, ADMIN, BOT]
+QA = Role(7, 'QA')
+ALL_ROLES = [RD, PM, ADMIN, BOT, QA]
+
+
+def is_role(role):
+    return get_jwt_identity()['role_id'] == role.id
 
 
 def get_role_name(role_id):
@@ -41,11 +47,13 @@ def require_admin(err_message='You must be an admin for this operation.'):
     require_role([ADMIN.id], err_message)
 
 
-def require_pm(err_message='You must be a PM for this operation.', exclude_admin=False):
-    if exclude_admin:
-        require_role([PM.id], err_message)
-    else:
-        require_role([PM.id, ADMIN.id], err_message)
+def require_pm(err_message='You must be a PM for this operation.', exclude_admin=False, exclude_qa=False):
+    allowed_roles = [PM.id]
+    if not exclude_admin:
+        allowed_roles.append(ADMIN.id)
+    if not exclude_qa:
+        allowed_roles.append(QA.id)
+    require_role(allowed_roles, err_message)
 
 
 def require_in_project(project_id=None,
@@ -100,10 +108,26 @@ def verify_project_user(project_id, user_id):
 def get_role_list():
     output_array = []
     for r in ALL_ROLES:
+        if r is BOT:
+            continue
         role_info = {"id": r.id, "name": r.name}
         output_array.append(role_info)
 
     return util.success({"role_list": output_array})
+
+
+def update_role(user_id, new_role_id):
+    rows = model.ProjectUserRole.query.filter_by(user_id=user_id).all()
+    if len(rows) == 0:
+        raise DevOpsError(404, 'User not found.', apiError.user_not_found(user_id))
+    if len(rows) > 1:
+        # No change will be made, just returns
+        if rows[0].role_id == new_role_id:
+            return
+        # Can not change role when belonging to a project
+        raise DevOpsError(400, 'User is in a project.', apiError.user_in_a_project(user_id))
+    rows[0].role_id = new_role_id
+    model.db.session.commit()
 
 
 # --------------------- Resources ---------------------

@@ -27,10 +27,11 @@ template_replace_dict = {
     "git.host": config.get("GITLAB_BASE_URL").replace("http://", "")
     }
 
-support_software = [{"key": "scan-sonarqube", "display": "Sonarqube"}, 
+support_software = [{"key": "scan-sonarqube", "display": "SonarQube"}, 
                     {"key": "scan-checkmarx", "display": "Checkmarx"}, 
                     {"key": "test-postman", "display": "Postman"}, 
-                    {"key": "test-webinspect", "display": "Webinspect"},
+                    {"key": "test-sideex", "display": "SideeX"}, 
+                    {"key": "test-webinspect", "display": "WebInspect"},
                     {"key": "db", "display": "Database"},
                     {"key": "web", "display": "Web"}]
 
@@ -104,7 +105,7 @@ def __tm_read_pipe_set_json(pj, tag_name=None):
     return pip_set_json
 
 
-def __tm_git_clone_file(pj, dest_folder_name, create_time=None):
+def __tm_git_clone_file(pj, dest_folder_name, create_time=None, branch_name=None):
     temp_http_url = pj.http_url_to_repo
     secret_temp_http_url = temp_http_url[:7] + f"root:{gitlab_private_token}@" + temp_http_url[7:]
     Path(f"{dest_folder_name}").mkdir(exist_ok=True)
@@ -112,7 +113,9 @@ def __tm_git_clone_file(pj, dest_folder_name, create_time=None):
         pj_name = f"{pj.path}_{create_time}"
     else:
         pj_name = f"{pj.path}"
-    subprocess.call(['git', 'clone', '-b', pj.default_branch, secret_temp_http_url
+    if branch_name is None:
+        branch_name = pj.default_branch
+    subprocess.call(['git', 'clone', '-b', branch_name, secret_temp_http_url
                      , f"{dest_folder_name}/{pj_name}"])
 
 
@@ -137,31 +140,32 @@ def __force_update_template_cache_table():
         db.session.delete(template_list_cache)
         db.session.commit()
     output = []
-    group = gl.groups.get("iiidevops-templates", all=True)
-    for group_project in group.projects.list(all=True):
-        pj = gl.projects.get(group_project.id)
-        # get all tags
-        tag_list = []
-        for tag in pj.tags.list(all=True):
-            tag_list.append({"name": tag.name, "commit_id": tag.commit["id"], 
-                            "commit_time":tag.commit["committed_date"]})
-        pip_set_json = __tm_read_pipe_set_json(pj)
-        output.append({"id": pj.id,
-                    "name": pj.name, 
-                    "path": pj.path,
-                    "display": pj.name if "name" not in pip_set_json else pip_set_json["name"],
-                    "description": 
-                        "" if "description" not in pip_set_json else pip_set_json["description"],
-                    "version": tag_list})
-        cache_temp = TemplateListCache(temp_repo_id=pj.id,
-                        name=pj.name,
-                        path=pj.path,
-                        display=pj.name if "name" not in pip_set_json else pip_set_json["name"],
-                        description="" if "description" not in pip_set_json else pip_set_json["description"],
-                        version=tag_list,
-                        update_at=datetime.now())
-        db.session.add(cache_temp)
-        db.session.commit()
+    for group in gl.groups.list(all=True):
+        if group.name in ["iiidevops-templates", "local-templates"]:
+            for group_project in group.projects.list(all=True):
+                pj = gl.projects.get(group_project.id)
+                # get all tags
+                tag_list = []
+                for tag in pj.tags.list(all=True):
+                    tag_list.append({"name": tag.name, "commit_id": tag.commit["id"], 
+                                    "commit_time":tag.commit["committed_date"]})
+                pip_set_json = __tm_read_pipe_set_json(pj)
+                output.append({"id": pj.id,
+                            "name": pj.name, 
+                            "path": pj.path,
+                            "display": pj.name if "name" not in pip_set_json else pip_set_json["name"],
+                            "description": 
+                                "" if "description" not in pip_set_json else pip_set_json["description"],
+                            "version": tag_list})
+                cache_temp = TemplateListCache(temp_repo_id=pj.id,
+                                name=pj.name,
+                                path=pj.path,
+                                display=pj.name if "name" not in pip_set_json else pip_set_json["name"],
+                                description="" if "description" not in pip_set_json else pip_set_json["description"],
+                                version=tag_list,
+                                update_at=datetime.now())
+                db.session.add(cache_temp)
+                db.session.commit()
     return output
 
 
@@ -305,36 +309,36 @@ def tm_put_pipeline_branches(repository_id, data):
     pj = gl.projects.get(repository_id)
     if __check_git_project_is_empty(pj):
         return
-    create_time = datetime.now().strftime("%y%m%d_%H%M%S")
-    __tm_git_clone_file(pj, "pj_edit_pipe_yaml", create_time)
-    pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj)
-    if pipe_yaml_file_name == None:
-        return
-    with open(f'pj_edit_pipe_yaml/{pj.path}_{create_time}/{pipe_yaml_file_name}') as file:
-        pipe_json = yaml.safe_load(file)
-        for stage in pipe_json["stages"]:
-            catalogTemplate_value =stage.get("steps")[0].get("applyAppConfig", {}).get("catalogTemplate")
-            if catalogTemplate_value is not None:
-                catalogTemplate_value = catalogTemplate_value.split(":")[1].replace("iii-dev-charts3-","")
-            for input_branch, input_softwares in data.items():
-                for input_soft_enable in input_softwares:
-                    if catalogTemplate_value is not None and input_soft_enable["key"] == catalogTemplate_value:
-                        if "when" not in stage:
-                            stage["when"] = {"branch": {"include": []}}
-                        stage_when = stage.get("when", {}).get("branch", {}).get("include", {})
-                        if input_soft_enable["enable"] and input_branch not in stage_when:
-                            stage_when.append(input_branch)
-                        elif input_soft_enable["enable"] is False and input_branch in stage_when:
-                            stage_when.remove(input_branch)
-                        if len(stage_when) == 0:
-                            stage_when.append("skip")
-    with open(f'pj_edit_pipe_yaml/{pj.path}_{create_time}/{pipe_yaml_file_name}', 'w') as file:
-        documents = yaml.dump(pipe_json, file)
-    __set_git_username_config(f'pj_edit_pipe_yaml/{pj.path}_{create_time}')
-    subprocess.call(['git', 'add', '.'], cwd=f"pj_edit_pipe_yaml/{pj.path}_{create_time}")
-    subprocess.call(['git', 'commit', '-m', '"編輯 .rancher-pipeline.yaml 啟用停用分支"'], cwd=f"pj_edit_pipe_yaml/{pj.path}_{create_time}")
-    subprocess.call(['git', 'push', '-u', 'origin', 'master'], cwd=f"pj_edit_pipe_yaml/{pj.path}_{create_time}")
-    shutil.rmtree(f"pj_edit_pipe_yaml/{pj.path}_{create_time}", ignore_errors=True)
+    for br in pj.branches.list(all=True):
+        create_time = datetime.now().strftime("%y%m%d_%H%M%S")
+        __tm_git_clone_file(pj, "pj_edit_pipe_yaml", create_time, br.name)
+        pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj)
+        if pipe_yaml_file_name == None:
+            return
+        with open(f'pj_edit_pipe_yaml/{pj.path}_{create_time}/{pipe_yaml_file_name}') as file:
+            pipe_json = yaml.safe_load(file)
+            for stage in pipe_json["stages"]:
+                catalogTemplate_value =stage.get("steps")[0].get("applyAppConfig", {}).get("catalogTemplate")
+                if catalogTemplate_value is not None:
+                    catalogTemplate_value = catalogTemplate_value.split(":")[1].replace("iii-dev-charts3-","")
+                for input_branch, input_softwares in data.items():
+                    for input_soft_enable in input_softwares:
+                        if catalogTemplate_value is not None and input_soft_enable["key"] == catalogTemplate_value:
+                            if "when" not in stage:
+                                stage["when"] = {"branch": {"include": []}}
+                            stage_when = stage.get("when", {}).get("branch", {}).get("include", {})
+                            if input_soft_enable["enable"] and input_branch not in stage_when:
+                                stage_when.append(input_branch)
+                            elif input_soft_enable["enable"] is False and input_branch in stage_when:
+                                stage_when.remove(input_branch)
+                            if len(stage_when) == 0:
+                                stage_when.append("skip")
+        with open(f'pj_edit_pipe_yaml/{pj.path}_{create_time}/{pipe_yaml_file_name}', 'w') as file:
+            documents = yaml.dump(pipe_json, file)
+        __set_git_username_config(f'pj_edit_pipe_yaml/{pj.path}_{create_time}')
+        subprocess.call(['git', 'commit', '-m', '"編輯 .rancher-pipeline.yaml 啟用停用分支"', f'{pipe_yaml_file_name}'], cwd=f"pj_edit_pipe_yaml/{pj.path}_{create_time}")
+        subprocess.call(['git', 'push', '-u', 'origin', f'{br.name}'], cwd=f"pj_edit_pipe_yaml/{pj.path}_{create_time}")
+        shutil.rmtree(f"pj_edit_pipe_yaml/{pj.path}_{create_time}", ignore_errors=True)
 
 
 
@@ -374,35 +378,35 @@ def tm_put_pipeline_default_branch(repository_id, data):
     pj = gl.projects.get(repository_id)
     if __check_git_project_is_empty(pj):
         return
-    create_time = datetime.now().strftime("%y%m%d_%H%M%S")
-    __tm_git_clone_file(pj, "pj_edit_pipe_yaml", create_time)
-    pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj)
-    if pipe_yaml_file_name == None:
-        return
-    with open(f'pj_edit_pipe_yaml/{pj.path}_{create_time}/{pipe_yaml_file_name}') as file:
-        pipe_json = yaml.safe_load(file)
-        for stage in pipe_json["stages"]:
-            catalogTemplate_value =stage.get("steps")[0].get("applyAppConfig", {}).get("catalogTemplate")
-            if catalogTemplate_value is not None:
-                catalogTemplate_value = catalogTemplate_value.split(":")[1].replace("iii-dev-charts3-","")
-            for put_pipe_soft in data["stages"]:
-                if catalogTemplate_value is not None and put_pipe_soft["key"] == catalogTemplate_value:
-                    if "when" not in stage:
-                        stage["when"] = {"branch": {"include": []}}
-                    stage_when = stage.get("when", {}).get("branch", {}).get("include", {})
-                    if put_pipe_soft["has_default_branch"] and pj.default_branch not in stage_when:
-                        stage_when.append(pj.default_branch)
-                    elif put_pipe_soft["has_default_branch"] is False and pj.default_branch in stage_when:
-                        stage_when.remove(pj.default_branch)
-                    if len(stage_when) == 0:
-                        stage_when.append("skip")
-    with open(f'pj_edit_pipe_yaml/{pj.path}_{create_time}/{pipe_yaml_file_name}', 'w') as file:
-        documents = yaml.dump(pipe_json, file)
-    __set_git_username_config(f'pj_edit_pipe_yaml/{pj.path}_{create_time}')
-    subprocess.call(['git', 'add', '.'], cwd=f"pj_edit_pipe_yaml/{pj.path}_{create_time}")
-    subprocess.call(['git', 'commit', '-m', '"UI 編輯 .rancher-pipeline.yaml commit"'], cwd=f"pj_edit_pipe_yaml/{pj.path}_{create_time}")
-    subprocess.call(['git', 'push', '-u', 'origin', 'master'], cwd=f"pj_edit_pipe_yaml/{pj.path}_{create_time}")
-    shutil.rmtree(f"pj_edit_pipe_yaml/{pj.path}_{create_time}", ignore_errors=True)
+    for br in pj.branches.list(all=True):
+        create_time = datetime.now().strftime("%y%m%d_%H%M%S")
+        __tm_git_clone_file(pj, "pj_edit_pipe_yaml", create_time, br.name)
+        pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj)
+        if pipe_yaml_file_name == None:
+            return
+        with open(f'pj_edit_pipe_yaml/{pj.path}_{create_time}/{pipe_yaml_file_name}') as file:
+            pipe_json = yaml.safe_load(file)
+            for stage in pipe_json["stages"]:
+                catalogTemplate_value =stage.get("steps")[0].get("applyAppConfig", {}).get("catalogTemplate")
+                if catalogTemplate_value is not None:
+                    catalogTemplate_value = catalogTemplate_value.split(":")[1].replace("iii-dev-charts3-","")
+                for put_pipe_soft in data["stages"]:
+                    if catalogTemplate_value is not None and put_pipe_soft["key"] == catalogTemplate_value:
+                        if "when" not in stage:
+                            stage["when"] = {"branch": {"include": []}}
+                        stage_when = stage.get("when", {}).get("branch", {}).get("include", {})
+                        if put_pipe_soft["has_default_branch"] and pj.default_branch not in stage_when:
+                            stage_when.append(pj.default_branch)
+                        elif put_pipe_soft["has_default_branch"] is False and pj.default_branch in stage_when:
+                            stage_when.remove(pj.default_branch)
+                        if len(stage_when) == 0:
+                            stage_when.append("skip")
+        with open(f'pj_edit_pipe_yaml/{pj.path}_{create_time}/{pipe_yaml_file_name}', 'w') as file:
+            documents = yaml.dump(pipe_json, file)
+        __set_git_username_config(f'pj_edit_pipe_yaml/{pj.path}_{create_time}')
+        subprocess.call(['git', 'commit', '-m', '"UI 編輯 .rancher-pipeline.yaml commit"', f'{pipe_yaml_file_name}'], cwd=f"pj_edit_pipe_yaml/{pj.path}_{create_time}")
+        subprocess.call(['git', 'push', '-u', 'origin', f'{br.name}'], cwd=f"pj_edit_pipe_yaml/{pj.path}_{create_time}")
+        shutil.rmtree(f"pj_edit_pipe_yaml/{pj.path}_{create_time}", ignore_errors=True)
 
 
 

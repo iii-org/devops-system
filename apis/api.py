@@ -30,7 +30,7 @@ from jsonwebtoken import jsonwebtoken
 from model import db
 from resources import logger, role as role, activity, zap, sideex
 from resources import project, gitlab, issue, user, redmine, wiki, version, sonarqube, apiTest, postman, mock, harbor, \
-    webInspect, template, release, sync_redmine, plugin, kubernetesClient, ad
+    webInspect, template, release, sync_redmine, plugin, kubernetesClient, ad, project_permission
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -55,8 +55,10 @@ api = Api(app, errors=apiError.custom_errors)
 CORS(app)
 socketio = SocketIO(app, cors_allowed_origins="*", logger=True, engineio_logger=True)
 
+
 class SignedIntConverter(IntegerConverter):
     regex = r'-?\d+'
+
 
 app.url_map.converters['sint'] = SignedIntConverter
 
@@ -175,13 +177,14 @@ def initialize(db_uri):
     migrate.init()
     logger.logger.info('Server initialized.')
 
+
 # Projects
 api.add_resource(project.ListMyProjects, '/project/list')
 api.add_resource(project.SingleProject, '/project', '/project/<sint:project_id>')
 api.add_resource(project.SingleProjectByName, '/project_by_name/<project_name>')
 api.add_resource(project.ProjectsByUser, '/projects_by_user/<int:user_id>')
 api.add_resource(project.ProjectUserList, '/project/<sint:project_id>/user/list')
-api.add_resource(project.ProjectPluginUsage,'/project/<sint:project_id>/plugin/resource')
+api.add_resource(project.ProjectPluginUsage, '/project/<sint:project_id>/plugin/resource')
 api.add_resource(project.ProjectUserResource, '/project/<sint:project_id>/resource')
 
 api.add_resource(project.ProjectUserResourcePods, '/project/<sint:project_id>/resource/pods')
@@ -190,7 +193,8 @@ api.add_resource(project.ProjectUserResourcePodLog, '/project/<sint:project_id>/
 
 # k8s Deployment
 api.add_resource(project.ProjectUserResourceDeployments, '/project/<sint:project_id>/resource/deployments')
-api.add_resource(project.ProjectUserResourceDeployment, '/project/<sint:project_id>/resource/deployments/<deployment_name>')
+api.add_resource(project.ProjectUserResourceDeployment,
+                 '/project/<sint:project_id>/resource/deployments/<deployment_name>')
 
 # List k8s Services
 api.add_resource(project.ProjectUserResourceServices, '/project/<sint:project_id>/resource/services')
@@ -198,15 +202,15 @@ api.add_resource(project.ProjectUserResourceService, '/project/<sint:project_id>
 
 # k8s Secrets
 api.add_resource(project.ProjectUserResourceSecrets, '/project/<sint:project_id>/resource/secrets')
-api.add_resource(project.ProjectUserResourceSecret,  '/project/<sint:project_id>/resource/secrets/<secret_name>')
+api.add_resource(project.ProjectUserResourceSecret, '/project/<sint:project_id>/resource/secrets/<secret_name>')
 
 # k8s ConfigMaps
-api.add_resource(project.ProjectUserResourceConfigMaps, '/project/<sint:project_id>/resource/configmaps' )
-api.add_resource(project.ProjectUserResourceConfigMap,  '/project/<sint:project_id>/resource/configmaps/<configmap_name>')
+api.add_resource(project.ProjectUserResourceConfigMaps, '/project/<sint:project_id>/resource/configmaps')
+api.add_resource(project.ProjectUserResourceConfigMap,
+                 '/project/<sint:project_id>/resource/configmaps/<configmap_name>')
 
-#k8s Ingress
+# k8s Ingress
 api.add_resource(project.ProjectUserResourceIngresses, '/project/<sint:project_id>/resource/ingresses')
-
 
 api.add_resource(project.ProjectMember, '/project/<sint:project_id>/member',
                  '/project/<sint:project_id>/member/<int:user_id>')
@@ -216,10 +220,10 @@ api.add_resource(version.ProjectVersionList, '/project/<sint:project_id>/version
 api.add_resource(version.ProjectVersion, '/project/<sint:project_id>/version',
                  '/project/<sint:project_id>/version/<int:version_id>')
 api.add_resource(project.TestSummary, '/project/<sint:project_id>/test_summary')
-api.add_resource(template.TemplateList, '/template_list') 
-api.add_resource(template.SingleTemplate, '/template', '/template/<repository_id>') 
-api.add_resource(template.ProjectPipelineBranches, '/project/<repository_id>/pipeline/branches') 
-api.add_resource(template.ProjectPipelineDefaultBranch, '/project/<repository_id>/pipeline/default_branch') 
+api.add_resource(template.TemplateList, '/template_list')
+api.add_resource(template.SingleTemplate, '/template', '/template/<repository_id>')
+api.add_resource(template.ProjectPipelineBranches, '/project/<repository_id>/pipeline/branches')
+api.add_resource(template.ProjectPipelineDefaultBranch, '/project/<repository_id>/pipeline/default_branch')
 api.add_resource(project.ProjectEnvironment, '/project/<sint:project_id>/environments',
                  '/project/<sint:project_id>/environments/branch/<branch_name>')
 
@@ -290,21 +294,18 @@ api.add_resource(issue.MyOpenIssueStatistics, '/issues/open_statistics')
 api.add_resource(issue.MyIssueWeekStatistics, '/issues/week_statistics')
 api.add_resource(issue.MyIssueMonthStatistics, '/issues/month_statistics')
 
+## release
+api.add_resource(release.Releases, '/project/<project_id>/releases')
+api.add_resource(release.Release, '/project/<project_id>/releases/<release_name>')
 
+# Release
+api.add_resource(plugin.Plugins, '/plugins')
+api.add_resource(plugin.Plugin, '/plugins/<sint:plugin_id>')
 
-## release 
-api.add_resource(release.Releases,'/project/<project_id>/releases')
-api.add_resource(release.Release,'/project/<project_id>/releases/<release_name>')
-
-
-## release 
-api.add_resource(plugin.Plugins,'/plugins')
-api.add_resource(plugin.Plugin,'/plugins/<sint:plugin_id>')
-
-
-##AD Server
-
+# AD Server
 api.add_resource(ad.Users, '/plugins/ad/users')
+api.add_resource(ad.User, '/plugins/ad/user')
+api.add_resource(ad.Organizations, '/plugins/ad/organizations')
 
 # dashboard
 api.add_resource(issue.DashboardIssuePriority,
@@ -337,10 +338,9 @@ api.add_resource(issue.ParameterByIssue, '/parameters_by_issue/<issue_id>')
 api.add_resource(issue.Parameter, '/parameters/<parameter_id>')
 api.add_resource(issue.ParameterType, '/parameter_types')
 
-
 # testPhase TestCase Support Case Type
 api.add_resource(apiTest.TestCases, '/test_cases')
-api.add_resource(apiTest.TestCase, '/test_cases/<sint:tc_id>','/testCases/<sint:tc_id>')
+api.add_resource(apiTest.TestCase, '/test_cases/<sint:tc_id>', '/testCases/<sint:tc_id>')
 
 api.add_resource(apiTest.GetTestCaseType, '/testCases/support_type')
 
@@ -400,6 +400,7 @@ api.add_resource(SystemGitCommitID, '/system_git_commit_id')  # git commit
 # Mocks
 api.add_resource(mock.MockTestResult, '/mock/test_summary')
 api.add_resource(mock.MockSesame, '/mock/sesame')
+# api.add_resource(mock.UserDefaultFromAd, '/mock/userdefaultad')
 
 # Harbor
 api.add_resource(harbor.HarborRepository,
@@ -418,7 +419,7 @@ api.add_resource(webInspect.WebInspectReport, '/webinspect/report/<scan_id>')
 
 # Maintenance
 api.add_resource(maintenance.UpdateDbRcProjectPipelineId, '/maintenance/update_rc_pj_pipe_id')
-api.add_resource(maintenance.SecretesIntoRcAll, '/maintenance/secretes_into_rc_all', 
+api.add_resource(maintenance.SecretesIntoRcAll, '/maintenance/secretes_into_rc_all',
                  '/maintenance/secretes_into_rc_all/<secret_name>')
 api.add_resource(maintenance.RegistryIntoRcAll, '/maintenance/registry_into_rc_all',
                  '/maintenance/registry_into_rc_all/<registry_name>')
@@ -441,6 +442,12 @@ api.add_resource(sideex.SideexReport, '/sideex_report/<int:test_id>')
 # Sync Redmine, Gitlab
 api.add_resource(sync_redmine.SyncRedmine, '/sync_redmine')
 api.add_resource(gitlab.GitCountEachPjCommitsByDays, '/sync_gitlab/count_each_pj_commits_by_days')
+
+# Subadmin Projects Permission
+api.add_resource(project_permission.list_admin_projects, '/project_permission/admin_projects')
+api.add_resource(project_permission.list_subadmin_projects, '/project_permission/subadmin_projects')
+api.add_resource(project_permission.list_subadmins, '/project_permission/subadmins')
+api.add_resource(project_permission.set_subadmin_permission, '/project_permission/set_permission')
 
 # System versions
 api.add_resource(NexusVersion, '/system_versions')
@@ -465,4 +472,5 @@ def start_prod():
 
 if __name__ == "__main__":
     start_prod()
-    socketio.run(app, host='0.0.0.0', port=10009, debug=(config.get('DEBUG') is True), use_reloader=False)
+    socketio.run(app, host='0.0.0.0', port=10009, debug=(config.get('DEBUG')),
+                 use_reloader=False)

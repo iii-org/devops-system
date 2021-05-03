@@ -1,5 +1,5 @@
-from ldap3 import Server, Connection, ObjectDef, SUBTREE, LEVEL, ALL
 import datetime
+import json
 import re
 
 import kubernetes
@@ -7,31 +7,88 @@ from Cryptodome.Hash import SHA256
 from flask_jwt_extended import (
     create_access_token, JWTManager, jwt_required, get_jwt_identity)
 from flask_restful import Resource, reqparse
-from sqlalchemy import desc
+from sqlalchemy import desc, inspect, not_
 from sqlalchemy.orm.exc import NoResultFound
 
-
-import model
-import re
 import config
-import json
+import model
 import resources.apiError as apiError
 import util as util
 from enums.action_type import ActionType
 from model import db
 from nexus import nx_get_user_plugin_relation, nx_get_user
-from resources.activity import record_activity
-from resources.apiError import DevOpsError
 from resources import harbor, role, sonarqube
+from resources import kubernetesClient
+from resources.activity import record_activity
+from resources.ad import ad_user
+from resources.apiError import DevOpsError
+from resources.gitlab import gitlab
 from resources.logger import logger
 from resources.redmine import redmine
-from resources.gitlab import gitlab
-from resources import kubernetesClient
 
 # Make a regular expression
-ad_connect_timeout = 5
-ad_receive_timeout = 30
+default_role_id = 3
 jwt = JWTManager()
+
+
+class NexusUser:
+    def __init__(self, user_id):
+        if user_id is None:
+            self.fill_dummy_user()
+            return
+        self.user_row = model.User.query.filter_by(id=user_id).one()
+        self.role_rows = model.ProjectUserRole.query.filter_by(
+            user_id=user_id).all()
+
+        inst = inspect(model.User)
+        attr_names = [c_attr.key for c_attr in inst.mapper.column_attrs]
+        for attr in attr_names:
+            setattr(self, attr, getattr(self.user_row, attr))
+
+    def to_json(self, with_projects=False):
+        ret = json.loads(str(self.user_row))
+        ret['default_role'] = {
+            'id': self.default_role_id(),
+            'name': role.get_role_name(self.default_role_id())
+        }
+        if with_projects:
+            if role.is_role(role.ADMIN):
+                rows = db.session. \
+                    query(model.Project, model.ProjectPluginRelation.git_repository_id). \
+                    join(model.ProjectPluginRelation). \
+                    filter(model.ProjectUserRole.project_id != -1). \
+                    all()
+            else:
+                rows = db.session. \
+                    query(model.Project, model.ProjectPluginRelation.git_repository_id). \
+                    join(model.ProjectPluginRelation). \
+                    filter(model.ProjectUserRole.user_id == self.user_row.id,
+                           model.ProjectUserRole.project_id != -1,
+                           model.ProjectUserRole.project_id == model.ProjectPluginRelation.project_id
+                           ).all()
+            if len(rows) > 0:
+                project_list = []
+                for row in rows:
+                    project_list.append({
+                        'id': row.Project.id,
+                        'name': row.Project.name,
+                        'display': row.Project.display,
+                        'repository_id': row.git_repository_id
+                    })
+                ret['project'] = project_list
+            else:
+                ret['project'] = []
+        return ret
+
+    def default_role_id(self):
+        for row in self.role_rows:
+            if row.project_id == -1:
+                return row.role_id
+        raise DevOpsError(500, 'This user does not have project -1 role.',
+                          error=apiError.invalid_code_path('This user does not have project -1 role.'))
+
+    def fill_dummy_user(self):
+        self.user_row = model.User(id=0, name='No One')
 
 
 def get_user_id_name_by_plan_user_id(plan_user_id):
@@ -63,13 +120,6 @@ def to_redmine_role_id(role_id):
         return 4
 
 
-def get_dc_string(domains):
-    output = ''
-    for domain in domains:
-        output += 'dc='+domain+','
-    return output[:-1]
-
-
 def get_token_expires(role_id):
     expires = datetime.timedelta(days=30)
     if role_id == 5:
@@ -77,36 +127,12 @@ def get_token_expires(role_id):
     return expires
 
 
-def check_ad_login(server_info, account, password):
-    ad_info = {'is_pass': False,
-               'login': account, 'data': {}}
-    if server_info['ip_port'] is not None and server_info['domain'] is not None:
-        ad_info['exists'] = True
-    else:
-        ad_info['exists'] = False
-        return ad_info
+def check_ad_login(account, password, ad_info={}):
     try:
-        attributes = ['department', 'company', 'title', 'cn',
-                      'canonicalName', 'distinguishedName', 'userPrincipalName', 'sn', 'givenName'
-                      ]
-        ip, port = server_info['ip_port'].split(':')
-        email = account+'@'+server_info['domain']
-        server = Server(host=ip, port=int(port), get_info=ALL,
-                        connect_timeout=ad_connect_timeout)
-        conn = Connection(server, user=email,
-                          password=password, read_only=True)
-        if conn.bind() is False:
-            logger.info("User Login Failed by AD: {0}".format(account))
-            return ad_info
-        logger.info("User Login Success by AD: {0}".format(account))
-        conn.search(search_base=get_dc_string(server_info['domain'].split('.')),
-                    search_filter='(&(objectclass=person)(sAMAccountName='+account+'))',
-                    search_scope=SUBTREE,
-                    attributes=attributes
-                    )
-        ad_info['is_pass'] = True
-        for attribute in attributes:
-            ad_info['data'][attribute] = str(conn.entries[0][attribute].value)
+        ad_info_data = ad_user.get_user_info(account, password)
+        if ad_info_data is not None:
+            ad_info['is_pass'] = True
+            ad_info['data'] = ad_info_data
         return ad_info
     except Exception as e:
         raise DevOpsError(500, 'Error when AD Login ',
@@ -114,19 +140,20 @@ def check_ad_login(server_info, account, password):
 
 
 @jwt.user_claims_loader
-def jwt_response_data(id, login, role_id):
+def jwt_response_data(id, login, role_id, from_ad):
     return {
         'user_id': id,
         'user_account': login,
         'role_id': role_id,
-        'role_name': role.get_role_name(role_id)
+        'role_name': role.get_role_name(role_id),
+        'from_ad': from_ad
     }
 
 
-def get_access_token(id, login, role_id):
+def get_access_token(id, login, role_id, from_ad=True):
     expires = get_token_expires(role_id)
     token = create_access_token(
-        identity=jwt_response_data(id, login, role_id),
+        identity=jwt_response_data(id, login, role_id, from_ad),
         expires_delta=expires
     )
     return token
@@ -139,6 +166,8 @@ def check_db_login(user, password, output):
     h.update(password.encode())
     login_password = h.hexdigest()
     output['hex_password'] = login_password
+    output['from_ad'] = user.from_ad
+    output['role_id'] = project_user_role.role_id
     if user.password == login_password:
         output['is_pass'] = True
         logger.info("User Login success by DB user_id: {0}".format(user.id))
@@ -152,8 +181,8 @@ def check_ad_server():
         'ip_port': config.get('AD_IP_PORT'),
         'domain': config.get('AD_DOMAIN')
     }
-    plugin = model.PluginSoftware.query.\
-        filter(model.PluginSoftware.name == 'ad_server').\
+    plugin = model.PluginSoftware.query. \
+        filter(model.PluginSoftware.name == 'ad_server'). \
         first()
     if plugin is not None:
         parameters = json.loads(plugin.parameter)
@@ -163,63 +192,41 @@ def check_ad_server():
 
 
 def login(args):
-    default_role_id = 3
     login_account = args['username']
     login_password = args['password']
-    ad_server = check_ad_server()
+    ad_server = ad_user.check_ad_info()
     try:
-        ad_info = check_ad_login(ad_server, login_account, login_password)
+        ad_info = {'is_pass': False,
+                   'login': login_account, 'data': {}}
+
+        # Check Ad server exists
+        if ad_server['disabled'] is False:
+            ad_info = check_ad_login(login_account, login_password, ad_info)
         db_info = {'connect': False,
                    'login': login_account,
                    'is_pass': False,
                    'User': {}, 'ProjectUserRole': {}}
         user = db.session.query(model.User).filter(
             model.User.login == login_account).first()
+        # Check User in DB
         if user is not None:
             db_info['connect'] = True
             db_info, user, project_user_role = check_db_login(
                 user, login_password, db_info)
-
+        # Login By AD
         if ad_info['is_pass'] is True:
-            status = 'Direct login by AD, DB pass'
-            user_id = ''
-            user_login = ''
-            user_role_id = ''
-            if db_info['connect'] is not False:
-                user_id = user.id
-                user_login = user.login
-                user_role_id = project_user_role.role_id
-                if db_info['is_pass'] is not True:
-                    status = 'Direct login AD pass, DB change password'
-                    err = update_external_passwords(
-                        user.id, login_password, login_password)
-                    if err is not None:
-                        logger.exception(err)
-                    user.password = db_info['hex_password']
-                    user.update_at = util.date_to_str(datetime.datetime.now())
-                    db.session.commit()
+            status, token = ad_user.login_by_ad(
+                user, db_info, ad_info, login_account, login_password)
+            if token is None:
+                return util.respond(401, "Error when logging in. Please contact system administrator", error=apiError.ad_account_not_allow())
             else:
-                status = 'Direct Login AD pass, DB create User'
-                args = {
-                    'name': ad_info['data']['sn'] + ad_info['data']['givenName'],
-                    'email': ad_info['data']['userPrincipalName'],
-                    'login': login_account,
-                    'password': login_password,
-                    'role_id': default_role_id,
-                    'status': "enable",
-                    'phone': ''
-                }
-                new_user = create_user(args)
-                user_id = new_user['user_id']
-                user_login = login_account
-                user_role_id = default_role_id
-            token = get_access_token(user_id, user_login, user_role_id)
-            return util.success({'status': status, 'token': token})
-        elif db_info['is_pass'] is True:
+                return util.success({'status': status, 'token': token, 'ad_info': ad_info})
+        # Login By Database
+        elif db_info['is_pass'] is True and db_info['from_ad'] is False:
             status = "DB Login"
             token = get_access_token(
-                user.id, user.login, project_user_role.role_id)
-            return util.success({'status': status, 'token': token})
+                user.id, user.login, project_user_role.role_id, user.from_ad)
+            return util.success({'status': status, 'token': token, 'ad_info': ad_info})
         else:
             return util.respond(401, "Error when logging in.", error=apiError.wrong_password())
     except Exception as e:
@@ -231,64 +238,15 @@ def user_forgot_password(args):
     return 'dummy_response', 200
 
 
-# noinspection PyMethodMayBeStatic
-def get_user_info(user_id):
-    user, project_user_role = db.session.query(model.User, model.ProjectUserRole).\
-        filter(
-            model.User.id == user_id,
-            model.User.id == model.ProjectUserRole.user_id
-    ).first()
-    if user is not None and project_user_role is not None:
-        if user.disabled is True:
-            status = "disable"
-        else:
-            status = "enable"
-        output = {
-            "id": user.id,
-            "name": user.name,
-            "email": user.email,
-            "phone": user.phone,
-            "login": user.login,
-            "create_at": util.date_to_str(user.create_at),
-            "update_at": util.date_to_str(user.update_at),
-            "role": {
-                "name": role.get_role_name(project_user_role.role_id),
-                "id": project_user_role.role_id
-            },
-            "status": status
-        }
-        rows = db.session. \
-            query(model.Project, model.ProjectPluginRelation.git_repository_id). \
-            join(model.ProjectPluginRelation). \
-            filter(model.ProjectUserRole.user_id == user_id,
-                   model.ProjectUserRole.project_id != -1,
-                   model.ProjectUserRole.project_id == model.ProjectPluginRelation.project_id
-                   ).all()
-        if len(rows) > 0:
-            project_list = []
-            for row in rows:
-                project_list.append({
-                    "id": row.Project.id,
-                    "name": row.Project.name,
-                    "display": row.Project.display,
-                    "repository_id": row.git_repository_id
-                })
-            output["project"] = project_list
-        else:
-            output["project"] = []
-
-        return util.success(output)
-    else:
-        raise apiError.DevOpsError(
-            404, 'User not found.', apiError.user_not_found(user_id))
-
-
 @record_activity(ActionType.UPDATE_USER)
-def update_user(user_id, args):
-    user = db.session.query(model.User).\
+def update_user(user_id, args, from_ad=False):
+    user = db.session.query(model.User). \
         filter(
-            model.User.id == user_id
+        model.User.id == user_id
     ).first()
+    if user.from_ad is True and from_ad is False:
+        return util.respond(400, 'Error when updating Message',
+                            error=apiError.user_from_ad(user_id))
     if args['password'] is not None:
         if args["old_password"] == args["password"]:
             return util.respond(400, "Password is not changed.", error=apiError.wrong_password())
@@ -312,13 +270,25 @@ def update_user(user_id, args):
         user.phone = args['phone']
     if args["email"] is not None:
         user.email = args['email']
+    if args["title"] is not None:
+        user.title = args['title']
+    if args["department"] is not None:
+        user.department = args['department']
     if args["status"] is not None:
         if args["status"] == "disable":
-            user.status = True
+            user.disabled = True
         else:
-            user.status = False
-    user.update_at = util.date_to_str(datetime.datetime.now())
+            user.disabled = False
+    if 'from_ad' in args and args['from_ad'] is True:
+        user.update_at = args['update_at']
+    else:
+        user.update_at = util.date_to_str(datetime.datetime.utcnow())
     db.session.commit()
+
+    if 'role_id' in args and args['role_id'] is not None:
+        role.require_admin('Only admin can update role.')
+        role.update_role(user_id, args['role_id'])
+
     return util.success()
 
 
@@ -385,7 +355,7 @@ def change_user_status(user_id, args):
         disabled = True
     try:
         user = model.User.query.filter_by(id=user_id).one()
-        user.update_at = datetime.datetime.now()
+        user.update_at = datetime.datetime.utcnow()
         user.disabled = disabled
         db.session.commit()
         return util.success()
@@ -512,20 +482,34 @@ def create_user(args):
 
     try:
         # DB
+        title = department = ''
         h = SHA256.new()
         h.update(args["password"].encode())
         args["password"] = h.hexdigest()
         disabled = False
+
         if args['status'] == "disable":
             disabled = True
+        if 'title' in args:
+            title = args['title']
+        if 'department' in args:
+            department = args['department']
+
         user = model.User(
             name=args['name'],
             email=args['email'],
             phone=args['phone'],
             login=args['login'],
+            title=title,
+            department=department,
             password=h.hexdigest(),
-            create_at=datetime.datetime.now(),
-            disabled=disabled)
+            create_at=datetime.datetime.utcnow(),
+            disabled=disabled,
+            from_ad=('from_ad' in args) and (args['from_ad'])
+        )
+        if 'update_at' in args:
+            user.update_at = args['update_at']
+
         db.session.add(user)
         db.session.commit()
 
@@ -566,61 +550,43 @@ def create_user(args):
     }
 
 
-def user_list():
-    rows = db.session.query(model.User, model.ProjectUserRole.role_id). \
-        join(model.ProjectUserRole). \
-        order_by(desc(model.User.id)).all()
+def user_list(filters):
+    query = db.session.query(model.User, model.ProjectUserRole.role_id). \
+        join(model.ProjectUserRole).order_by(model.User.id)
+    if 'role_ids' in filters:
+        query = query.filter(
+            model.ProjectUserRole.role_id.in_(filters['role_ids']))
+    rows = query.all()
     output_array = []
     for row in rows:
-        project_rows = model.Project.query.filter(
-            model.ProjectUserRole.user_id == row.User.id,
-            model.ProjectUserRole.project_id != -1,
-            model.ProjectUserRole.project_id == model.Project.id
-        ).all()
-        projects = []
-        for p in project_rows:
-            projects.append({
-                "id": p.id,
-                "name": p.name,
-                "display": p.display
-            })
-        status = "disable"
-        if row.User.disabled is False:
-            status = "enable"
-        output = {
-            "id": row.User.id,
-            "name": row.User.name,
-            "email": row.User.email,
-            "phone": row.User.phone,
-            "login": row.User.login,
-            "create_at": util.date_to_str(row.User.create_at),
-            "update_at": util.date_to_str(row.User.update_at),
-            "role": {
-                "name": role.get_role_name(row.role_id),
-                "id": row.role_id
-            },
-            "project": projects,
-            "status": status
-        }
-        output_array.append(output)
-    return util.success({"user_list": output_array})
+        output_array.append(NexusUser(row.User.id).to_json(with_projects=True))
+    return output_array
 
 
 def user_list_by_project(project_id, args):
+    exclude_role_filter = not_(model.ProjectUserRole.role_id.in_(
+        [role.BOT.id, role.ADMIN.id, role.QA.id]
+    ))
     if args["exclude"] is not None and args["exclude"] == 1:
         # list users not in the project
-        ret_users = db.session.query(model.User, model.ProjectUserRole.role_id). \
-            join(model.ProjectUserRole). \
-            filter(model.User.disabled == False). \
-            filter(model.ProjectUserRole.role_id != role.BOT.id). \
-            order_by(desc(model.User.id)).all()
-
-        project_users = db.session.query(model.User).join(model.ProjectUserRole).filter(
+        ret_users = db.session.query(
+            model.User, model.ProjectUserRole.role_id
+        ).join(
+            model.ProjectUserRole
+        ).filter(
             model.User.disabled == False,
-            model.ProjectUserRole.project_id == project_id
-        ) \
-            .filter(model.ProjectUserRole.role_id != role.BOT.id) \
-            .all()
+            exclude_role_filter
+        ).order_by(desc(model.User.id)).all()
+
+        project_users = db.session.query(
+            model.User
+        ).join(
+            model.ProjectUserRole
+        ).filter(
+            model.User.disabled == False,
+            model.ProjectUserRole.project_id == project_id,
+            exclude_role_filter
+        ).all()
         i = 0
         while i < len(ret_users):
             for pu in project_users:
@@ -635,22 +601,16 @@ def user_list_by_project(project_id, args):
             join(model.ProjectUserRole). \
             filter(model.User.disabled == False,
                    model.ProjectUserRole.project_id == project_id,
-                   model.ProjectUserRole.role_id != role.BOT.id). \
+                   exclude_role_filter). \
             order_by(desc(model.User.id)).all()
 
     arr_ret = []
-    for data_userRole_by_project in ret_users:
-        arr_ret.append({
-            "id": data_userRole_by_project.User.id,
-            "name": data_userRole_by_project.User.name,
-            "email": data_userRole_by_project.User.email,
-            "phone": data_userRole_by_project.User.phone,
-            "login": data_userRole_by_project.User.login,
-            "create_at": util.date_to_str(data_userRole_by_project.User.create_at),
-            "update_at": util.date_to_str(data_userRole_by_project.User.update_at),
-            "role_id": data_userRole_by_project.role_id,
-            "role_name": role.get_role_name(data_userRole_by_project.role_id),
-        })
+    for user_role_by_project in ret_users:
+        user_json = NexusUser(user_role_by_project.User.id).to_json(with_projects=False)
+        user_json['role_id'] = user_role_by_project.role_id
+        user_json['role_name'] = role.get_role_name(
+            user_role_by_project.role_id)
+        arr_ret.append(user_json)
     return util.success({"user_list": arr_ret})
 
 
@@ -701,7 +661,7 @@ class SingleUser(Resource):
     def get(self, user_id):
         role.require_user_himself(user_id, even_pm=False,
                                   err_message="Only admin and PM can access another user's data.")
-        return get_user_info(user_id)
+        return util.success(NexusUser(user_id).to_json(with_projects=True))
 
     @jwt_required
     def put(self, user_id):
@@ -713,6 +673,10 @@ class SingleUser(Resource):
         parser.add_argument('phone', type=str)
         parser.add_argument('email', type=str)
         parser.add_argument('status', type=str)
+        parser.add_argument('department', type=str)
+        parser.add_argument('title', type=str)
+        parser.add_argument('status', type=str)
+        parser.add_argument('role_id', type=int)
         args = parser.parse_args()
         return update_user(user_id, args)
 
@@ -740,7 +704,13 @@ class UserList(Resource):
     @jwt_required
     def get(self):
         role.require_pm()
-        return user_list()
+        parser = reqparse.RequestParser()
+        parser.add_argument('role_ids', type=str)
+        args = parser.parse_args()
+        filters = {}
+        if args['role_ids'] is not None:
+            filters['role_ids'] = json.loads(f'[{args["role_ids"]}]')
+        return util.success({'user_list': user_list(filters)})
 
 
 class UserSaConfig(Resource):

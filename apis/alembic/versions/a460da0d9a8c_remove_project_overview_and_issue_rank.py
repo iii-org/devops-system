@@ -1,9 +1,7 @@
 """remove project overview and issue rank
-
 Revision ID: a460da0d9a8c
 Revises: b363e9236a88
 Create Date: 2021-04-21 18:05:54.000094
-
 """
 from alembic import op
 import sqlalchemy as sa
