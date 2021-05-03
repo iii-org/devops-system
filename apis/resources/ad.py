@@ -257,6 +257,11 @@ class AD(object):
         res = self.conn.response_to_json()
         res = json.loads(res)['entries']
         return res
+
+    def conn_unbind(self):
+        return self.conn.unbind()
+
+
 class User(Resource):
     @jwt_required
     def post(self):
@@ -268,6 +273,7 @@ class User(Resource):
             args = parser.parse_args()            
             ad = AD()
             res = ad.get_user(args['account'])
+            ad.conn_unbind()
             if res is not None:
                 return util.success(res)
         except NoResultFound:
@@ -280,7 +286,8 @@ class APIUser(object):
         try:
             output = None
             ad = AD(account, password)
-            user = ad.get_user(account)
+            user = ad.get_user(account)            
+            ad.conn_unbind()
             if user is not None:
                 output = add_ad_user_info_by_iii(user['attributes'])
             return output
@@ -294,6 +301,7 @@ class APIUser(object):
             output = None
             ad = AD(account, password)
             user = ad.get_user(account)
+            ad.conn_unbind()
             if user is not None:
                 output = add_ad_user_info_by_iii(user['attributes'])
             return output
@@ -362,6 +370,7 @@ class Users(Resource):
             args = parser.parse_args()            
             ad = AD()
             res = ad.get_users()
+            ad.conn_unbind()
             if isinstance(res, list):
                 return util.success(get_user_info_from_ad(res, args['info']))
             else:
@@ -378,6 +387,7 @@ class Users(Resource):
             ad_users = ad.get_users()
             users = get_user_info_from_ad(ad_users, 'iii')
             res = check_user_from_ad(users)
+            ad.conn_unbind()
             return util.success(res)
         except NoResultFound:
             return util.respond(404, invalid_ad_server,
@@ -389,15 +399,19 @@ class Organizations(Resource):
     def get(self):
         try:
             ad = AD()
-            return util.success(ad.get_ous())
+            ous = ad.get_ous()
+            ad.conn_unbind()
+            return util.success(ous)
         except NoResultFound:
             return util.respond(404, invalid_ad_server,
                                 error=apiError.invalid_plugin_id(invalid_ad_server))
     @jwt_required
     def post(self):
         try:
-            ad = AD()            
-            return util.success(ad.get_ous())
+            ad = AD()       
+            ous = ad.get_ous()
+            ad.conn_unbind()                 
+            return util.success(ous)
         except NoResultFound:
             return util.respond(404, invalid_ad_server,
                                 error=apiError.invalid_plugin_id(invalid_ad_server))
