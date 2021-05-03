@@ -23,7 +23,11 @@ def check_subadmin(user_id):
         role_id=7
         ).first()
     if user:
-        return model.User.query.get(user_id).name
+        user_info = {
+            'name': model.User.query.get(user_id).name,
+            'login': model.User.query.get(user_id).login
+        }
+        return user_info
     else:
         raise apiError.user_not_found(user_id=user_id)
 
@@ -44,8 +48,8 @@ def get_subadmin_projects(args):
     subadmin_id_list = args['id'].split(',')
     for user_id in subadmin_id_list:
         projects = []
-        user_name = check_subadmin(user_id)
-        if user_name:
+        user_info = check_subadmin(user_id)
+        if user_info:
             response = model.ProjectUserRole.query.filter(
                 model.ProjectUserRole.user_id == user_id,
                 model.ProjectUserRole.project_id != -1
@@ -59,7 +63,8 @@ def get_subadmin_projects(args):
                 ]
             projects_detail = {
                 'id': user_id,
-                'name': user_name,
+                'name': user_info['name'],
+                'login': user_info['login'],
                 'projects': projects
             }
             all_subadmin_projects.append(projects_detail)
@@ -78,7 +83,8 @@ def get_subadmin():
         subadmin = [
             {
                 'id': context.id,
-                'name': context.name
+                'name': context.name,
+                'login': context.login
             } for context in response
         ]
     return subadmin
@@ -88,8 +94,8 @@ def set_permission(args):
     user_id = args['user_id']
     project_id = args['project_id']
     role_id = user.get_role_id(user_id)
-    user_name = check_subadmin(user_id)
-    if user_name:
+    user_info = check_subadmin(user_id)
+    if user_info:
         new_project_permission = model.ProjectUserRole(
             user_id=user_id,
             project_id=project_id,
@@ -102,8 +108,8 @@ def set_permission(args):
 def unset_permission(args):
     user_id = args['user_id']
     project_id = args['project_id']
-    user_name = check_subadmin(user_id)
-    if user_name:
+    user_info = check_subadmin(user_id)
+    if user_info:
         delete_project_permission = model.ProjectUserRole.query.filter_by(
             user_id=user_id,
             project_id=project_id
