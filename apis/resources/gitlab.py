@@ -448,17 +448,26 @@ class GitLab(object):
 
     def gl_get_the_last_hours_commits(self,
                                       the_last_hours=None,
-                                      show_commit_rows=None, git_repository_id=None):
+                                      show_commit_rows=None, git_repository_id=None, user_id=None):
+        if user_id is not None:
+            rows = db.session.query(model.ProjectUserRole, model.ProjectPluginRelation).join(\
+                model.ProjectPluginRelation, \
+                model.ProjectPluginRelation.project_id == model.ProjectUserRole.project_id).\
+                filter(model.ProjectUserRole.user_id == user_id, 
+                        model.ProjectUserRole.project_id == model.ProjectPluginRelation.project_id).all()
         out_list = []
         if show_commit_rows is not None:
             last_days_ago = None
             for x in range(12, 169, 12):
                 days_ago = (datetime.utcnow() - timedelta(days=x)).isoformat()
-                if git_repository_id is None:
-                    pjs = self.gl.projects.list(order_by="last_activity_at")
-                else:
-                    pjs = []
+                pjs = []
+                if git_repository_id is not None:
                     pjs.append(self.gl.projects.get(git_repository_id))
+                elif user_id is not None:
+                    for row in rows:
+                        pjs.append(self.gl.projects.get(row.ProjectPluginRelation.git_repository_id))
+                else:
+                    pjs = self.gl.projects.list(order_by="last_activity_at")
                 for pj in pjs:
                     if (pj.empty_repo is False) and (
                         ("iiidevops-templates" not in pj.path_with_namespace)
@@ -496,11 +505,14 @@ class GitLab(object):
                 the_last_hours = 24
             days_ago = (datetime.utcnow() -
                         timedelta(hours=the_last_hours)).isoformat()
-            if git_repository_id is None:
-                pjs = self.gl.projects.list(order_by="last_activity_at")
-            else:
-                pjs = []
+            pjs = []
+            if git_repository_id is not None:
                 pjs.append(self.gl.projects.get(git_repository_id))
+            elif user_id is not None:
+                for row in rows:
+                    pjs.append(self.gl.projects.get(row.ProjectPluginRelation.git_repository_id))
+            else:
+                pjs = self.gl.projects.list(order_by="last_activity_at")
             for pj in pjs:
                 if (pj.empty_repo is False) and (
                     ("iiidevops-templates" not in pj.path_with_namespace) and
@@ -764,11 +776,13 @@ class GitTheLastHoursCommits(Resource):
         parser.add_argument('the_last_hours', type=int)
         parser.add_argument('show_commit_rows', type=int)
         parser.add_argument('git_repository_id', type=int)
+        parser.add_argument('user_id', type=int)
         args = parser.parse_args()
         return util.success(
             gitlab.gl_get_the_last_hours_commits(args["the_last_hours"],
                                                  args["show_commit_rows"],
-                                                 args["git_repository_id"]))
+                                                 args["git_repository_id"],
+                                                 args["user_id"]))
 
 
 class GitCountEachPjCommitsByDays(Resource):
