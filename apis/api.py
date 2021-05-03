@@ -444,10 +444,10 @@ api.add_resource(sync_redmine.SyncRedmine, '/sync_redmine')
 api.add_resource(gitlab.GitCountEachPjCommitsByDays, '/sync_gitlab/count_each_pj_commits_by_days')
 
 # Subadmin Projects Permission
-api.add_resource(project_permission.list_admin_projects, '/project_permission/admin_projects')
-api.add_resource(project_permission.list_subadmin_projects, '/project_permission/subadmin_projects')
-api.add_resource(project_permission.list_subadmins, '/project_permission/subadmins')
-api.add_resource(project_permission.set_subadmin_permission, '/project_permission/set_permission')
+api.add_resource(project_permission.AdminProjects, '/project_permission/admin_projects')
+api.add_resource(project_permission.SubadminProjects, '/project_permission/subadmin_projects')
+api.add_resource(project_permission.Subadmins, '/project_permission/subadmins')
+api.add_resource(project_permission.SetPermission, '/project_permission/set_permission')
 
 # System versions
 api.add_resource(NexusVersion, '/system_versions')
