@@ -115,14 +115,14 @@ def unset_permission(args):
             raise apiError.project_not_found(project_id=project_id)
 
 
-class list_admin_projects(Resource):
+class AdminProjects(Resource):
     @jwt_required
     def get(self):
         all_projects = get_admin_projects()
         return util.success(all_projects)
 
 
-class list_subadmin_projects(Resource):
+class SubadminProjects(Resource):
     @jwt_required
     def get(self):
         parser = reqparse.RequestParser()
@@ -132,14 +132,14 @@ class list_subadmin_projects(Resource):
         return util.success(all_subadmin_projects)
 
 
-class list_subadmins(Resource):
+class Subadmins(Resource):
     @jwt_required
     def get(self):
         all_subadmin = get_subadmin()
         return util.success(all_subadmin)
 
 
-class set_subadmin_permission(Resource):
+class SetPermission(Resource):
     @jwt_required
     def post(self):
         parser = reqparse.RequestParser()
