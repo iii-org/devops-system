@@ -623,7 +623,7 @@ def user_list(filters):
     for row in rows:
         output_array.append(NexusUser()
                             .set_user_row(row)
-                            .to_json(with_projects=True))
+                            .to_json(with_projects=False))
     response = {'user_list': output_array}
     if page_dict:
         response['page'] = page_dict
