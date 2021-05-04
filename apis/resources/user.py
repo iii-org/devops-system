@@ -39,8 +39,11 @@ class NexusUser:
         self.__user_row = None
         self.__role_rows = None
 
-    def set_user_id(self, user_id):
+    def set_user_id(self, user_id, do_query=True):
         self.__user_id = user_id
+        if do_query:
+            self.get_user_row()
+            self.get_role_rows()
         return self
 
     def set_user_row(self, user_row):
