@@ -412,6 +412,8 @@ class ProjectMember(db.Model):
     project_name = Column(String)
     role_id = Column(Integer)
     role_name = Column(String)
+    department = Column(String)
+    title = Column(String)
 
 
 class ProjectMemberCount(db.Model):
