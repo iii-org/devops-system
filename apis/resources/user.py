@@ -552,6 +552,7 @@ def create_user(args):
 
 
 def user_list(filters):
+    per_page = 10
     page_dict = None
     query = model.User.query.filter(model.User.id != 1).order_by(model.User.id)
     if 'role_ids' in filters:
@@ -564,17 +565,21 @@ def user_list(filters):
             model.User.login.ilike(f'%{filters["search"]}%'),
             model.User.name.ilike(f'%{filters["search"]}%')
         ))
+    if 'per_page' in filters:
+        per_page = filters['per_page']
     if 'page' in filters:
         paginate_query = query.paginate(
             page=filters['page'],
-            per_page=10,
+            per_page=per_page,
             error_out=False
         )
         page_dict = {
             'current': paginate_query.page,
-            'next': paginate_query.next_num,
             'prev': paginate_query.prev_num,
-            'total': paginate_query.pages
+            'next': paginate_query.next_num,
+            'pages': paginate_query.pages,
+            'per_page': paginate_query.per_page,
+            'total': paginate_query.total
         }
         rows = paginate_query.items
     else:
@@ -732,6 +737,7 @@ class UserList(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('role_ids', type=str)
         parser.add_argument('page', type=int)
+        parser.add_argument('per_page', type=int)
         parser.add_argument('search', type=str)
         args = parser.parse_args()
         filters = {}
@@ -739,6 +745,8 @@ class UserList(Resource):
             filters['role_ids'] = json.loads(f'[{args["role_ids"]}]')
         if args['page'] is not None:
             filters['page'] = args['page']
+        if args['per_page'] is not None:
+            filters['per_page'] = args['per_page']
         if args['search'] is not None:
             filters['search'] = args['search']
         return util.success(user_list(filters))
