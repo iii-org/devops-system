@@ -130,6 +130,13 @@ def update_role(user_id, new_role_id):
     model.db.session.commit()
 
 
+def is_admin():
+    if get_jwt_identity()['role_id'] == ADMIN.id:
+        return True
+    else:
+        return False
+
+
 # --------------------- Resources ---------------------
 class RoleList(Resource):
     # noinspection PyMethodMayBeStatic

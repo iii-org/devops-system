@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, time
 from dateutil import tz
 from gitlab import Gitlab
 import requests
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -449,6 +449,8 @@ class GitLab(object):
     def gl_get_the_last_hours_commits(self,
                                       the_last_hours=None,
                                       show_commit_rows=None, git_repository_id=None, user_id=None):
+        if role.is_admin() is False:
+            user_id = get_jwt_identity()["user_id"]
         if user_id is not None:
             rows = db.session.query(model.ProjectUserRole, model.ProjectPluginRelation).join(\
                 model.ProjectPluginRelation, \
