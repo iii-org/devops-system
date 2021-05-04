@@ -86,7 +86,7 @@ def update_user(ad_user, db_user):
     return db_user['id']
 
 
-def create_user(ad_user):
+def create_user(ad_user, login_password = default_password):
     res = None
     if ad_user['is_iii'] is True and \
         ad_user["userAccountControl"] in allow_user_account_control and \
@@ -96,7 +96,7 @@ def create_user(ad_user):
             'name': ad_user['iii_name'],
             'email': ad_user['userPrincipalName'],
             'login': ad_user['sAMAccountName'],
-            'password': default_password,
+            'password': login_password,
             'role_id': default_role_id,
             "status": "enable",
             'phone': ad_user['telephoneNumber'],
@@ -328,7 +328,7 @@ class APIUser(object):
         # 'Direct Login AD pass, DB create User'
         if db_info['connect'] is False and ad_info_data['is_iii'] is True:
             status = 'Direct Login AD pass, DB create User'
-            new_user = create_user(ad_info_data)
+            new_user = create_user(ad_info_data, login_password)
             if new_user is None:
                 status = 'Direct login AD pass, Create User Fail'
                 return status, token

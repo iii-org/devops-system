@@ -121,11 +121,12 @@ def hb_delete_project(harbor_param):
 def hb_create_user(args, is_admin=False):
     login = args['login']
     pass_quality = check_passsword(args['password'])   
+    harbor_password = args['password']
     if pass_quality is False:
-        args['password'] = DEFAULT_PASSWORD
+        harbor_password = DEFAULT_PASSWORD
     data = {
         "username": login,
-        "password": args['password'],
+        "password": harbor_password,
         "realname": args['name'],
         "email": args['email']
     }
