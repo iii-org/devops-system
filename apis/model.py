@@ -78,7 +78,6 @@ class Project(db.Model):
     disabled = Column(Boolean)
     display = Column(String)
     owner_id = Column(Integer, ForeignKey(User.id))
-    creator_id = Column(Integer, ForeignKey(User.id))
 
     def __repr__(self):
         fields = {}
