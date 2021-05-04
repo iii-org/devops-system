@@ -7,7 +7,7 @@ from Cryptodome.Hash import SHA256
 from flask_jwt_extended import (
     create_access_token, JWTManager, jwt_required, get_jwt_identity)
 from flask_restful import Resource, reqparse
-from sqlalchemy import desc, inspect, not_
+from sqlalchemy import desc, inspect, not_, or_
 from sqlalchemy.orm.exc import NoResultFound
 
 import config
@@ -560,14 +560,21 @@ def user_list(filters):
     page_dict = None
     query = model.User.query.filter(model.User.id != 1).order_by(model.User.id)
     if 'role_ids' in filters:
-        query = query.filter(
-            model.ProjectUserRole.role_id.in_(filters['role_ids']))
+        filtered_user_ids = model.ProjectUserRole.query.filter(
+            model.ProjectUserRole.role_id.in_(filters['role_ids'])
+        ).with_entities(model.ProjectUserRole.user_id).distinct().subquery()
+        query = query.filter(model.User.id.in_(filtered_user_ids))
+    if 'search' in filters:
+        query = query.filter(or_(
+            model.User.login.ilike(f'%{filters["search"]}%'),
+            model.User.name.ilike(f'%{filters["search"]}%')
+        ))
     if 'page' in filters:
         paginate_query = query.paginate(
             page=filters['page'],
             per_page=10,
             error_out=False
-            )
+        )
         page_dict = {
             'current': paginate_query.page,
             'next': paginate_query.next_num,
@@ -730,12 +737,15 @@ class UserList(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('role_ids', type=str)
         parser.add_argument('page', type=int)
+        parser.add_argument('search', type=str)
         args = parser.parse_args()
         filters = {}
         if args['role_ids'] is not None:
             filters['role_ids'] = json.loads(f'[{args["role_ids"]}]')
         if args['page'] is not None:
             filters['page'] = args['page']
+        if args['search'] is not None:
+            filters['search'] = args['search']
         return util.success(user_list(filters))
 
 
