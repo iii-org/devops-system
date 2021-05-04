@@ -377,7 +377,12 @@ def create_user(args):
 
     user_source_password = args["password"]
     #  User created by AD skip password check
-    if args['from_ad'] is False and re.fullmatch(r'(?=.*\d)(?=.*[a-z])(?=.*[A-Z])'
+    # if 'from_ad' in args and args['from_ad'] is False:
+    need_password_check = True
+    if 'from_ad' in args and args['from_ad'] is True:
+        need_password_check = False
+    
+    if need_password_check is True and re.fullmatch(r'(?=.*\d)(?=.*[a-z])(?=.*[A-Z])'
                     r'^[\w!@#$%^&*()+|{}\[\]`~\-\'\";:/?.\\>,<]{8,20}$',
                     user_source_password) is None:
         raise apiError.DevOpsError(400, "Error when creating new user",
