@@ -288,17 +288,14 @@ api.add_resource(issue.SingleIssue, '/issues', '/issues/<issue_id>')
 api.add_resource(issue.IssueStatus, '/issues_status')
 api.add_resource(issue.IssuePriority, '/issues_priority')
 api.add_resource(issue.IssueTracker, '/issues_tracker')
-api.add_resource(issue.IssueRDbyUser, '/issues_by_user/<user_id>')
 api.add_resource(issue.MyIssueStatistics, '/issues/statistics')
 api.add_resource(issue.MyOpenIssueStatistics, '/issues/open_statistics')
 api.add_resource(issue.MyIssueWeekStatistics, '/issues/week_statistics')
 api.add_resource(issue.MyIssueMonthStatistics, '/issues/month_statistics')
 
-## release
+# Release
 api.add_resource(release.Releases, '/project/<project_id>/releases')
 api.add_resource(release.Release, '/project/<project_id>/releases/<release_name>')
-
-# Release
 api.add_resource(plugin.Plugins, '/plugins')
 api.add_resource(plugin.Plugin, '/plugins/<sint:plugin_id>')
 
@@ -473,4 +470,4 @@ def start_prod():
 if __name__ == "__main__":
     start_prod()
     socketio.run(app, host='0.0.0.0', port=10009, debug=(config.get('DEBUG')),
-                 use_reloader=False)
+                 use_reloader=True)

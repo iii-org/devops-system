@@ -36,8 +36,18 @@ class NexusProject:
         self.__owner = None
         self.__extra_fields = {}
 
-    def set_project_id(self, project_id):
+    # Usually for a single project query in an API flow
+    def set_project_id(self, project_id, do_query=True):
         self.__project_id = project_id
+        if do_query:
+            self.get_project_row()
+            self.get_plugin_row()
+            self.get_owner()
+        return self
+
+    def set_plan_project_id(self, plan_project_id, do_query=True):
+        row = model.ProjectPluginRelation.query.filter_by(plan_project_id=plan_project_id).one()
+        self.set_project_id(row.project_id, do_query=do_query)
         return self
 
     def set_project_row(self, project_row):
@@ -79,7 +89,8 @@ class NexusProject:
 
     def get_owner(self):
         if self.__owner is None:
-            self.__owner = user.NexusUser().set_user_id(self.get_project_row().owner_id).get_user_row()
+            row = self.get_project_row()
+            self.__owner = user.NexusUser().set_user_id(self.get_project_row().owner_id)
         return self.__owner
 
     def get_extra_fields(self):
