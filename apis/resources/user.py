@@ -7,7 +7,7 @@ from Cryptodome.Hash import SHA256
 from flask_jwt_extended import (
     create_access_token, JWTManager, jwt_required, get_jwt_identity)
 from flask_restful import Resource, reqparse
-from sqlalchemy import desc, inspect, not_
+from sqlalchemy import desc, inspect, not_, or_
 from sqlalchemy.orm.exc import NoResultFound
 
 import config
@@ -376,7 +376,13 @@ def create_user(args):
     logger.info('Name is valid.')
 
     user_source_password = args["password"]
-    if re.fullmatch(r'(?=.*\d)(?=.*[a-z])(?=.*[A-Z])'
+    #  User created by AD skip password check
+    # if 'from_ad' in args and args['from_ad'] is False:
+    need_password_check = True
+    if 'from_ad' in args and args['from_ad'] is True:
+        need_password_check = False
+    
+    if need_password_check is True and re.fullmatch(r'(?=.*\d)(?=.*[a-z])(?=.*[A-Z])'
                     r'^[\w!@#$%^&*()+|{}\[\]`~\-\'\";:/?.\\>,<]{8,20}$',
                     user_source_password) is None:
         raise apiError.DevOpsError(400, "Error when creating new user",
@@ -551,24 +557,40 @@ def create_user(args):
 
 
 def user_list(filters):
-    query = model.User.query.filter(
-        model.User.id != 1
-    ).order_by(model.User.id)
+    page_dict = None
+    query = model.User.query.filter(model.User.id != 1).order_by(model.User.id)
     if 'role_ids' in filters:
-        query = query.filter(
-            model.ProjectUserRole.role_id.in_(filters['role_ids']))
+        filtered_user_ids = model.ProjectUserRole.query.filter(
+            model.ProjectUserRole.role_id.in_(filters['role_ids'])
+        ).with_entities(model.ProjectUserRole.user_id).distinct().subquery()
+        query = query.filter(model.User.id.in_(filtered_user_ids))
+    if 'search' in filters:
+        query = query.filter(or_(
+            model.User.login.ilike(f'%{filters["search"]}%'),
+            model.User.name.ilike(f'%{filters["search"]}%')
+        ))
     if 'page' in filters:
-        rows = query.paginate(
+        paginate_query = query.paginate(
             page=filters['page'],
             per_page=10,
             error_out=False
-            ).items
+        )
+        page_dict = {
+            'current': paginate_query.page,
+            'next': paginate_query.next_num,
+            'prev': paginate_query.prev_num,
+            'total': paginate_query.pages
+        }
+        rows = paginate_query.items
     else:
         rows = query.all()
     output_array = []
     for row in rows:
         output_array.append(NexusUser(row.id).to_json(with_projects=True))
-    return output_array
+    response = {'user_list': output_array}
+    if page_dict:
+        response['page'] = page_dict
+    return response
 
 
 def user_list_by_project(project_id, args):
@@ -715,13 +737,16 @@ class UserList(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('role_ids', type=str)
         parser.add_argument('page', type=int)
+        parser.add_argument('search', type=str)
         args = parser.parse_args()
         filters = {}
         if args['role_ids'] is not None:
             filters['role_ids'] = json.loads(f'[{args["role_ids"]}]')
         if args['page'] is not None:
             filters['page'] = args['page']
-        return util.success({'user_list': user_list(filters)})
+        if args['search'] is not None:
+            filters['search'] = args['search']
+        return util.success(user_list(filters))
 
 
 class UserSaConfig(Resource):

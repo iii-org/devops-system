@@ -76,9 +76,8 @@ def get_subadmin():
     user_id = model.ProjectUserRole.query.filter_by(
         project_id=-1,
         role_id=7
-        ).with_entities(model.ProjectUserRole.user_id).all()
-    user_id_list = list(sum(user_id, ()))
-    response = model.User.query.filter(model.User.id.in_(user_id_list)).all()
+        ).with_entities(model.ProjectUserRole.user_id).subquery()
+    response = model.User.query.filter(model.User.id.in_(user_id)).all()
     if response:
         subadmin = [
             {
