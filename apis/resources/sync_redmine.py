@@ -207,8 +207,7 @@ def get_current_sync_date_project_id_by_user():
                     model.RedmineProject.end_date).all()
     else:
         reverse_query_projects = model.ProjectUserRole.query.with_entities(
-            model.ProjectUserRole.project_id).filter_by(user_id=user_id).all()
-        reverse_query_projects = list(sum(reverse_query_projects, ()))
+            model.ProjectUserRole.project_id).filter_by(user_id=user_id).subquery()
         project_id_collections = model.RedmineProject.query.with_entities(
             model.RedmineProject.project_id).filter(
                 model.RedmineProject.sync_date == sync_date,
