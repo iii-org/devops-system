@@ -79,7 +79,7 @@ class NexusProject:
 
     def get_owner(self):
         if self.__owner is None:
-            self.__owner = user.NexusUser().set_user_id(self.get_project_row().owner_id)
+            self.__owner = user.NexusUser().set_user_id(self.get_project_row().owner_id).get_user_row()
         return self.__owner
 
     def get_extra_fields(self):
@@ -299,7 +299,7 @@ def create_project(user_id, args):
             due_date=args['due_date'],
             create_at=str(datetime.utcnow()),
             owner_id=owner_id,
-
+            creator_id=user_id
         )
         db.session.add(new_pjt)
         db.session.commit()
@@ -1061,13 +1061,12 @@ class SingleProject(Resource):
         role_id = get_jwt_identity()["role_id"]
         user_id = get_jwt_identity()["user_id"]
         if role_id == role.QA.id:
-            if bool(
-                    model.ProjectUserRole.query.filter(
-                        model.ProjectUserRole.project_id == project_id,
-                        model.ProjectUserRole.user_id != user_id,
-                        model.ProjectUserRole.role_id.in_([1, 3])
+            if not bool(
+                    model.Project.query.filter_by(
+                        id=project_id,
+                        creator_id=user_id
                     ).count()):
-                raise apiError.NotAllowedError('Error while deleting project with members.')
+                raise apiError.NotAllowedError('Error while deleting project.')
         return delete_project(project_id)
 
     @jwt_required
