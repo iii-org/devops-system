@@ -463,11 +463,11 @@ class GitLab(object):
             for x in range(12, 169, 12):
                 days_ago = (datetime.utcnow() - timedelta(days=x)).isoformat()
                 pjs = []
-                if git_repository_id is not None:
-                    pjs.append(self.gl.projects.get(git_repository_id))
-                elif user_id is not None:
+                if user_id is not None:
                     for row in rows:
                         pjs.append(self.gl.projects.get(row.ProjectPluginRelation.git_repository_id))
+                elif git_repository_id is not None:
+                    pjs.append(self.gl.projects.get(git_repository_id))
                 else:
                     pjs = self.gl.projects.list(order_by="last_activity_at")
                 for pj in pjs:
@@ -508,11 +508,11 @@ class GitLab(object):
             days_ago = (datetime.utcnow() -
                         timedelta(hours=the_last_hours)).isoformat()
             pjs = []
-            if git_repository_id is not None:
-                pjs.append(self.gl.projects.get(git_repository_id))
-            elif user_id is not None:
+            if user_id is not None:
                 for row in rows:
                     pjs.append(self.gl.projects.get(row.ProjectPluginRelation.git_repository_id))
+            elif git_repository_id is not None:
+                pjs.append(self.gl.projects.get(git_repository_id))
             else:
                 pjs = self.gl.projects.list(order_by="last_activity_at")
             for pj in pjs:
