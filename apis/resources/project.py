@@ -299,7 +299,7 @@ def create_project(user_id, args):
             due_date=args['due_date'],
             create_at=str(datetime.utcnow()),
             owner_id=owner_id,
-
+            creator_id = user_id
         )
         db.session.add(new_pjt)
         db.session.commit()
