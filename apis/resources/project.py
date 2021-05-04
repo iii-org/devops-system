@@ -36,6 +36,10 @@ class NexusProject:
         self.__owner = None
         self.__extra_fields = {}
 
+    def set_project_id(self, project_id):
+        self.__project_id = project_id
+        return self
+
     def set_project_row(self, project_row):
         self.__project_row = project_row
         self.set_project_id(project_row.id)
@@ -51,14 +55,15 @@ class NexusProject:
         self.set_project_id(plugin_row.project_id)
         return self
 
-    def set_project_id(self, project_id):
-        self.__project_id = project_id
-        return self
-
     # Owner is a NexusUser object
     def set_owner(self, owner):
         self.__owner = owner
         return self
+
+    def get_project_id(self):
+        if self.__project_id is None:
+            raise DevOpsError(500, 'Project id or row is not set!')
+        return self.__project_id
 
     def get_project_row(self):
         if self.__project_row is None:
@@ -72,14 +77,9 @@ class NexusProject:
                 project_id=self.get_project_id()).one())
         return self.__plugin_row
 
-    def get_project_id(self):
-        if self.__project_id is None:
-            raise DevOpsError(500, 'Project id or row is not set!')
-        return self.__project_id
-
     def get_owner(self):
         if self.__owner is None:
-            self.__owner = user.NexusUser(self.get_project_row().owner_id)
+            self.__owner = user.NexusUser().set_user_id(self.get_project_row().owner_id)
         return self.__owner
 
     def get_extra_fields(self):
@@ -696,7 +696,7 @@ def get_projects_by_user(user_id):
                        'harbor_url': f'{config.get("HARBOR_EXTERNAL_BASE_URL")}/harbor/projects/' +
                                      f'{row.ProjectPluginRelation.harbor_project_id}/repositories',
                        'repository_ids': row.ProjectPluginRelation.git_repository_id,
-                       'department': user.NexusUser(row.Project.owner_id).department,
+                       'department': user.NexusUser().set_user_id(row.Project.owner_id).department,
                        'issues': None,
                        'branch': None,
                        'tag': None,

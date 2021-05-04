@@ -31,22 +31,51 @@ default_role_id = 3
 jwt = JWTManager()
 
 
+# Use lazy loading to avoid redundant db queries, build up this object like:
+# NexusUser().set_user_id(4) or NexusProject().set_user_row(row)
 class NexusUser:
-    def __init__(self, user_id):
-        if user_id is None:
-            self.fill_dummy_user()
-            return
-        self.user_row = model.User.query.filter_by(id=user_id).one()
-        self.role_rows = model.ProjectUserRole.query.filter_by(
-            user_id=user_id).all()
+    def __init__(self):
+        self.__user_id = None
+        self.__user_row = None
+        self.__role_rows = None
 
+    def set_user_id(self, user_id):
+        self.__user_id = user_id
+        return self
+
+    def set_user_row(self, user_row):
+        self.__user_row = user_row
+        self.set_user_id(user_row.id)
+        # Mirror data model fields to this object, so it can be used like an ORM row
         inst = inspect(model.User)
         attr_names = [c_attr.key for c_attr in inst.mapper.column_attrs]
         for attr in attr_names:
-            setattr(self, attr, getattr(self.user_row, attr))
+            setattr(self, attr, getattr(user_row, attr))
+        return self
+
+    def set_role_rows(self, role_rows):
+        self.__role_rows = role_rows
+        self.set_user_id(role_rows[0].user_id)
+        return self
+
+    def get_user_id(self):
+        if self.__user_id is None:
+            raise DevOpsError(500, 'User id or row is not set!')
+        return self.__user_id
+
+    def get_user_row(self):
+        if self.__user_row is None:
+            self.set_user_row(model.User.query.filter_by(id=self.get_user_id()).one())
+        return self.__user_row
+
+    def get_role_rows(self):
+        if self.__role_rows is None:
+            self.set_role_rows(model.ProjectUserRole.query.filter_by(
+                user_id=self.get_user_id()).all())
+        return self.__role_rows
 
     def to_json(self, with_projects=False):
-        ret = json.loads(str(self.user_row))
+        ret = json.loads(str(self.get_user_row()))
         ret['default_role'] = {
             'id': self.default_role_id(),
             'name': role.get_role_name(self.default_role_id())
@@ -62,7 +91,7 @@ class NexusUser:
                 rows = db.session. \
                     query(model.Project, model.ProjectPluginRelation.git_repository_id). \
                     join(model.ProjectPluginRelation). \
-                    filter(model.ProjectUserRole.user_id == self.user_row.id,
+                    filter(model.ProjectUserRole.user_id == self.get_user_row().id,
                            model.ProjectUserRole.project_id != -1,
                            model.ProjectUserRole.project_id == model.ProjectPluginRelation.project_id
                            ).all()
@@ -81,14 +110,14 @@ class NexusUser:
         return ret
 
     def default_role_id(self):
-        for row in self.role_rows:
+        for row in self.get_role_rows():
             if row.project_id == -1:
                 return row.role_id
         raise DevOpsError(500, 'This user does not have project -1 role.',
                           error=apiError.invalid_code_path('This user does not have project -1 role.'))
 
     def fill_dummy_user(self):
-        self.user_row = model.User(id=0, name='No One')
+        self.set_user_row(model.User(id=0, name='No One'))
 
 
 def get_user_id_name_by_plan_user_id(plan_user_id):
@@ -218,7 +247,8 @@ def login(args):
             status, token = ad_user.login_by_ad(
                 user, db_info, ad_info, login_account, login_password)
             if token is None:
-                return util.respond(401, "Error when logging in. Please contact system administrator", error=apiError.ad_account_not_allow())
+                return util.respond(401, "Error when logging in. Please contact system administrator",
+                                    error=apiError.ad_account_not_allow())
             else:
                 return util.success({'status': status, 'token': token, 'ad_info': ad_info})
         # Login By Database
@@ -381,10 +411,10 @@ def create_user(args):
     need_password_check = True
     if 'from_ad' in args and args['from_ad'] is True:
         need_password_check = False
-    
+
     if need_password_check is True and re.fullmatch(r'(?=.*\d)(?=.*[a-z])(?=.*[A-Z])'
-                    r'^[\w!@#$%^&*()+|{}\[\]`~\-\'\";:/?.\\>,<]{8,20}$',
-                    user_source_password) is None:
+                                                    r'^[\w!@#$%^&*()+|{}\[\]`~\-\'\";:/?.\\>,<]{8,20}$',
+                                                    user_source_password) is None:
         raise apiError.DevOpsError(400, "Error when creating new user",
                                    error=apiError.invalid_user_password())
     logger.info('Password is valid.')
@@ -591,7 +621,9 @@ def user_list(filters):
         rows = query.all()
     output_array = []
     for row in rows:
-        output_array.append(NexusUser(row.id).to_json(with_projects=True))
+        output_array.append(NexusUser()
+                            .set_user_row(row)
+                            .to_json(with_projects=True))
     response = {'user_list': output_array}
     if page_dict:
         response['page'] = page_dict
@@ -641,7 +673,8 @@ def user_list_by_project(project_id, args):
 
     arr_ret = []
     for user_role_by_project in ret_users:
-        user_json = NexusUser(user_role_by_project.User.id).to_json(with_projects=False)
+        user_json = NexusUser().set_user_row(user_role_by_project.User)\
+            .to_json(with_projects=False)
         user_json['role_id'] = user_role_by_project.role_id
         user_json['role_name'] = role.get_role_name(
             user_role_by_project.role_id)
@@ -696,7 +729,7 @@ class SingleUser(Resource):
     def get(self, user_id):
         role.require_user_himself(user_id, even_pm=False,
                                   err_message="Only admin and PM can access another user's data.")
-        return util.success(NexusUser(user_id).to_json(with_projects=True))
+        return util.success(NexusUser().set_user_id(user_id).to_json(with_projects=True))
 
     @jwt_required
     def put(self, user_id):
