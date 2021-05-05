@@ -129,7 +129,7 @@ class Rancher(object):
         return output_dict[1:]
 
     def rc_get_pipe_log_websocket(self, data):
-        relation = nx_get_project_plugin_relation(repo_id=data["repository_id"])
+        # relation = nx_get_project_plugin_relation(repo_id=data["repository_id"])
         self.token = self.__generate_token()
         headersandtoken = "Authorization: Bearer {0}".format(self.token)
         self.rc_get_project_id()
