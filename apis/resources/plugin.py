@@ -62,7 +62,10 @@ def update_plugin_software(plugin_id, args):
     r.name = args['name']
     r.parameter = base64.b64encode(
         bytes(json.dumps(args['parameter']), encoding='utf-8')).decode('utf-8')
-    r.disabled = args['disabled']
+    disabled = False
+    if args['disabled'] == "true":
+        disabled = True
+    r.disabled = disabled
     r.update_at = str(datetime.now())
     db.session.commit()
     return row_to_dict(r)
