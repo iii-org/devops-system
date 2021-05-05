@@ -2,9 +2,10 @@ import ssl
 import json
 import websocket
 import base64
+import time
 from flask_restful import abort, Resource, reqparse
 from flask_jwt_extended import jwt_required
-from flask_socketio import Namespace, emit
+from flask_socketio import Namespace, emit, disconnect
 
 import config
 import resources.apiError as apiError
@@ -129,7 +130,7 @@ class Rancher(object):
         return output_dict[1:]
 
     def rc_get_pipe_log_websocket(self, data):
-        # relation = nx_get_project_plugin_relation(repo_id=data["repository_id"])
+        relation = nx_get_project_plugin_relation(repo_id=data["repository_id"])
         self.token = self.__generate_token()
         headersandtoken = "Authorization: Bearer {0}".format(self.token)
         self.rc_get_project_id()
@@ -140,20 +141,29 @@ class Rancher(object):
             relation.ci_pipeline_id, data["pipelines_exec_run"], data["stage_index"], data["step_index"])
         result = None
         try:
+            ws_start_time = time.time()
             ws = websocket.create_connection(url, header=[headersandtoken],
                                                 sslopt={"cert_reqs": ssl.CERT_NONE})
+            i = 0
             while True:
                 result = ws.recv()
                 emit('pipeline_log', {'data': result, 
-                                      'repository_id': data["repository_id"],
-                                      'pipelines_exec_run': data["pipelines_exec_run"],
-                                      'stage_index': data["stage_index"],
-                                      'step_index': data["step_index"]})
-                if result is None:
+                                    'repository_id': data["repository_id"],
+                                    'pipelines_exec_run': data["pipelines_exec_run"],
+                                    'stage_index': data["stage_index"],
+                                    'step_index': data["step_index"]})
+                #print(f"result: {result}")
+                ws_end_time = time.time() - ws_start_time
+                if result == '' or ws_end_time > 8 or i == 2:
                     ws.close()
+                    disconnect()
+                    print(f"result: {result}, ws_end_time: {ws_end_time}, i: {i}")
                     break
+                else:
+                    i +=1
         except:
             ws.close()
+            disconnect()
 
 
     def rc_get_pipeline_executions_logs(self, ci_project_id, ci_pipeline_id,
