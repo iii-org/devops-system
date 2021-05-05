@@ -410,7 +410,8 @@ class APIUser(object):
             ad = AD(ad_parameter, account, password)
             user = ad.get_user(account)            
             ad.conn_unbind()
-            if user is not None:
+            if len(user) > 0:
+                user = user[0]
                 output = add_ad_user_info_by_iii(user['attributes'])
             return output
         except NoResultFound:
@@ -427,7 +428,8 @@ class APIUser(object):
             ad = AD(ad_parameter, account, password)
             user = ad.get_user(account)
             ad.conn_unbind()
-            if user is not None:
+            if len(user) > 0:   
+                user = user[0]             
                 output = add_ad_user_info_by_iii(user['attributes'])
             return output
         except NoResultFound:
