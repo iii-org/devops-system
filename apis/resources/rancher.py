@@ -156,6 +156,7 @@ class Rancher(object):
                 ws_end_time = time.time() - ws_start_time
                 if result == '' or ws_end_time > 8 or i == 2:
                     ws.close()
+                    disconnect()
                     print(f"result: {result}, ws_end_time: {ws_end_time}, i: {i}")
                     break
                 else:
