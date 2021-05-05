@@ -1036,6 +1036,10 @@ def get_plugin_usage(project_id):
     return util.success(plugin_info)
 
 
+def git_repo_id_to_ci_pipe_id(repository_id):
+    project_plugin_relation = model.ProjectPluginRelation.query.filter_by(git_repository_id=int(repository_id)).first()
+    return util.success(project_plugin_relation.ci_pipeline_id)
+
 # --------------------- Resources ---------------------
 class ListMyProjects(Resource):
     @jwt_required
@@ -1361,3 +1365,9 @@ class ProjectUserResourceIngresses(Resource):
     def get(self, project_id):
         role.require_in_project(project_id, "Error while getting project info.")
         return get_kubernetes_namespace_ingresses(project_id)
+
+
+class GitRepoIdToCiPipeId(Resource):
+    @jwt_required
+    def get(self, repository_id):
+        return git_repo_id_to_ci_pipe_id(repository_id)

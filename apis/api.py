@@ -178,6 +178,8 @@ def initialize(db_uri):
     logger.logger.info('Server initialized.')
 
 
+api.add_resource(project.GitRepoIdToCiPipeId, '/git_repo_id_to_ci_pipe_id/<repository_id>')
+
 # Projects
 api.add_resource(project.ListMyProjects, '/project/list')
 api.add_resource(project.SingleProject, '/project', '/project/<sint:project_id>')
@@ -271,6 +273,8 @@ api.add_resource(pipeline.PipelineYaml,
 
 # Websocket
 socketio.on_namespace(rancher.RancherWebsocketLog('/rancher/websocket/logs'))
+
+
 
 # issue
 api.add_resource(issue.IssueByProject, '/project/<sint:project_id>/issues')
