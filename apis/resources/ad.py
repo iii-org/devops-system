@@ -192,7 +192,7 @@ def check_update_info(db_user,db_info, ad_data):
 
 def check_ad_server_status():
     ad_parameter = None
-    plugin = api_plugin.get_plugin('ad_server')    
+    plugin = api_plugin.get_plugin('ad_server')   
     if plugin is not None and plugin['disabled'] is False:
         ad_parameter = plugin['parameter']
     return ad_parameter
@@ -205,6 +205,8 @@ class AD(object):
             'login': account,
             'data': {}
         }    
+        self.account= None
+        self.password= None
         self.server = ServerPool(None, pool_strategy=FIRST, active=True)
         for host in ad_parameter['host']:
             ip, port = host['ip_port'].split(':')
@@ -219,23 +221,23 @@ class AD(object):
         self.email = self.account+'@'+ad_parameter['domain']
         self.conn = Connection(self.server, user=self.email,
                                password=self.password, read_only=True)
+        
         if self.conn.bind() is True:
             self.ad_info['is_pass'] = True
         self.active_base_dn = get_dc_string(ad_parameter['domain'].split('.'))
 
     def get_users(self):
+        res = []
         if self.ad_info['is_pass'] is True:
             user_search_filter = '(&(|(objectclass=user)(objectclass=person))(!(isCriticalSystemObject=True)))'
             self.conn.search(search_base=self.active_base_dn,
                              search_filter=user_search_filter, attributes=ALL_ATTRIBUTES)
             res = self.conn.response_to_json()
             res = json.loads(res)['entries']
-        else:
-            res = {'bind': self.conn.bind(), 'server': str(self.server),
-                   'bind_result': str(self.conn.result)}
         return res
 
     def get_ous(self):
+        res = []
         ou_search_filter = '(&(objectclass=OrganizationalUnit)(!(isCriticalSystemObject=True)))'
         self.conn.search(search_base=self.active_base_dn,
                          search_filter=ou_search_filter, attributes=ALL_ATTRIBUTES)
@@ -244,7 +246,7 @@ class AD(object):
         return res
 
     def get_user(self, account):
-        output = None
+        output = []
         user_search_filter = '(&(|(objectclass=user)(objectclass=person))(!(isCriticalSystemObject=True))(sAMAccountName='+account+'))'
         if self.ad_info['is_pass'] is True:
             self.conn.search(search_base=self.active_base_dn,
@@ -281,17 +283,18 @@ class User(Resource):
             parser.add_argument('account', type=str)
             parser.add_argument('info', type=str)
             args = parser.parse_args()
-            res = None
+            res = []
             ad_parameter = check_ad_server_status()
             if ad_parameter is None:
                 return res    
-            ad = AD(ad_parameter)          
+            ad = AD(ad_parameter)           
             res = ad.get_user(args['account'])
-            if args['info'] == 'iii': 
-                res = get_user_info_from_ad(res, 'iii')
             ad.conn_unbind()
             if len(res) == 1:
+                if args['info'] == 'iii' : 
+                    res = get_user_info_from_ad(res, 'iii')                        
                 return util.success(res[0])
+            return util.success(res)
         except NoResultFound:
             return util.respond(404, invalid_ad_server,
                                 error=apiError.invalid_plugin_id(invalid_ad_server))
@@ -303,17 +306,17 @@ class User(Resource):
             parser.add_argument('account', type=str)
             parser.add_argument('info', type=str)
             args = parser.parse_args()            
-            res = None
+            res = []
             ad_parameter = check_ad_server_status()
             if ad_parameter is None:
                 return res    
             ad = AD(ad_parameter)
             res = ad.get_user(args['account'])
-            users = get_user_info_from_ad(res, 'iii')
-            res = create_user_from_ad(users)
             ad.conn_unbind()
-            if res is not None:
-                return util.success(res)
+            if len(res) == 1:
+                users = get_user_info_from_ad(res, 'iii')            
+                res = create_user_from_ad(users)
+            return util.success(res)
         except NoResultFound:
             return util.respond(404, invalid_ad_server,
                                 error=apiError.invalid_plugin_id(invalid_ad_server))
