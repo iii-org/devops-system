@@ -77,8 +77,8 @@ class Project(db.Model):
     update_at = Column(DateTime)
     disabled = Column(Boolean)
     display = Column(String)
-    owner_id = Column(Integer, ForeignKey(User.id))
-    creator_id = Column(Integer, ForeignKey(User.id))
+    owner_id = Column(Integer, ForeignKey(User.id, ondelete='SET NULL'), nullable=True)
+    creator_id = Column(Integer, ForeignKey(User.id, ondelete='SET NULL'), nullable=True)
 
     def __repr__(self):
         fields = {}
