@@ -26,59 +26,105 @@ from .rancher import rancher
 from .redmine import redmine
 
 
+# Use lazy loading to avoid redundant db queries, build up this object like:
+# NexusProject().set_project_id(4) or NexusProject().set_project_row(row)
 class NexusProject:
-    def __init__(self,
-                 project_id=None,
-                 project_row=None,
-                 plugin_row=None):
-        self.extra_fields = {}
-        if project_row is None:
-            if project_id is None:
-                raise DevOpsError(400, 'Either project_id or project_row should be given.')
-            self.project_row = model.Project.query.filter_by(id=project_id).one()
-        else:
-            self.project_row = project_row
-        if plugin_row is None:
-            self.plugin_row = model.ProjectPluginRelation.query.filter_by(
-                project_id=project_id).one()
-        else:
-            self.plugin_row = plugin_row
-        self.owner = user.NexusUser(self.project_row.owner_id)
+    def __init__(self):
+        self.__project_id = None
+        self.__project_row = None
+        self.__plugin_row = None
+        self.__owner = None
+        self.__extra_fields = {}
 
+    # Usually for a single project query in an API flow
+    def set_project_id(self, project_id, do_query=True):
+        self.__project_id = project_id
+        if do_query:
+            self.get_project_row()
+            self.get_plugin_row()
+            self.get_owner()
+        return self
+
+    def set_plan_project_id(self, plan_project_id, do_query=True):
+        row = model.ProjectPluginRelation.query.filter_by(plan_project_id=plan_project_id).one()
+        self.set_project_id(row.project_id, do_query=do_query)
+        return self
+
+    def set_project_row(self, project_row):
+        self.__project_row = project_row
+        self.set_project_id(project_row.id)
+        # Mirror data model fields to this object, so it can be used like an ORM row
         inst = inspect(model.Project)
         attr_names = [c_attr.key for c_attr in inst.mapper.column_attrs]
         for attr in attr_names:
-            setattr(self, attr, getattr(self.project_row, attr))
+            setattr(self, attr, getattr(project_row, attr))
+        return self
+
+    def set_plugin_row(self, plugin_row):
+        self.__plugin_row = plugin_row
+        self.set_project_id(plugin_row.project_id)
+        return self
+
+    # Owner is a NexusUser object
+    def set_owner(self, owner):
+        self.__owner = owner
+        return self
+
+    def get_project_id(self):
+        if self.__project_id is None:
+            raise DevOpsError(500, 'Project id or row is not set!')
+        return self.__project_id
+
+    def get_project_row(self):
+        if self.__project_row is None:
+            self.set_project_row(model.Project.query.filter_by(
+                id=self.get_project_id()).one())
+        return self.__project_row
+
+    def get_plugin_row(self):
+        if self.__plugin_row is None:
+            self.set_plugin_row(model.ProjectPluginRelation.query.filter_by(
+                project_id=self.get_project_id()).one())
+        return self.__plugin_row
+
+    def get_owner(self):
+        if self.__owner is None:
+            row = self.get_project_row()
+            self.__owner = user.NexusUser().set_user_id(self.get_project_row().owner_id)
+        return self.__owner
+
+    def get_extra_fields(self):
+        return self.__extra_fields
 
     def to_json(self):
-        ret = json.loads(str(self.project_row))
+        ret = json.loads(str(self.get_project_row()))
         ret['git_url'] = ret['http_url']
         del ret['http_url']
-        ret['repository_ids'] = self.plugin_row.git_repository_id
+        ret['repository_ids'] = self.get_plugin_row().git_repository_id
         ret['redmine_url'] = \
-            f'{config.get("REDMINE_EXTERNAL_BASE_URL")}/projects/{self.plugin_row.plan_project_id}'
+            f'{config.get("REDMINE_EXTERNAL_BASE_URL")}/projects/' \
+            f'{self.get_plugin_row().plan_project_id}'
         ret['harbor_url'] = \
-            f'{config.get("HARBOR_EXTERNAL_BASE_URL")}/harbor/projects/{self.plugin_row.harbor_project_id}/repositories'
-        ret['pm_user_id'] = self.owner.id
-        ret['pm_user_name'] = self.owner.name
-        ret['department'] = self.owner.department
-
-        for key, value in self.extra_fields.items():
+            f'{config.get("HARBOR_EXTERNAL_BASE_URL")}/harbor/projects/' \
+            f'{self.get_plugin_row().harbor_project_id}/repositories'
+        ret['pm_user_id'] = self.get_owner().id
+        ret['pm_user_name'] = self.get_owner().name
+        ret['department'] = self.get_owner().department
+        for key, value in self.get_extra_fields().items():
             ret[key] = value
-
         return ret
 
     def fill_redmine_fields(self, redmine_projects, issues):
-        self.extra_fields['updated_time'] = self.get_updated_time(redmine_projects)
+        self.__extra_fields['updated_time'] = self.get_updated_time(redmine_projects)
         issue_stats = self.get_issue_statistics(issues)
         for key, value in issue_stats.items():
-            self.extra_fields[key] = value
+            self.__extra_fields[key] = value
         return self
 
     def get_updated_time(self, redmine_projects):
         ret = None
         for pjt in redmine_projects:
-            if pjt['id'] == self.plugin_row.plan_project_id:
+            if pjt['id'] == self.get_plugin_row().plan_project_id:
                 ret = pjt['updated_on']
                 del pjt
                 break
@@ -92,7 +138,7 @@ class NexusProject:
             'project_status': None
         }
         for issue in issues:
-            if issue['project']['id'] != self.plugin_row.plan_project_id:
+            if issue['project']['id'] != self.get_plugin_row().plan_project_id:
                 continue
             if issue["status"]["name"] == "Closed":
                 ret['closed_count'] += 1
@@ -126,10 +172,11 @@ def list_projects(user_id):
     for row in rows:
         if row.Project.id == -1:
             continue
-        output_array.append(NexusProject(
-            project_row=row.Project,
-            plugin_row=row.ProjectPluginRelation,
-        ).fill_redmine_fields(redmine_projects, issues).to_json())
+        output_array.append(NexusProject()
+                            .set_project_row(row.Project)
+                            .set_plugin_row(row.ProjectPluginRelation)
+                            .fill_redmine_fields(redmine_projects, issues)
+                            .to_json())
     return util.success({"project_list": output_array})
 
 
@@ -263,7 +310,7 @@ def create_project(user_id, args):
             due_date=args['due_date'],
             create_at=str(datetime.utcnow()),
             owner_id=owner_id,
-
+            creator_id=user_id
         )
         db.session.add(new_pjt)
         db.session.commit()
@@ -660,7 +707,7 @@ def get_projects_by_user(user_id):
                        'harbor_url': f'{config.get("HARBOR_EXTERNAL_BASE_URL")}/harbor/projects/' +
                                      f'{row.ProjectPluginRelation.harbor_project_id}/repositories',
                        'repository_ids': row.ProjectPluginRelation.git_repository_id,
-                       'department': user.NexusUser(row.Project.owner_id).department,
+                       'department': user.NexusUser().set_user_id(row.Project.owner_id).department,
                        'issues': None,
                        'branch': None,
                        'tag': None,
@@ -989,6 +1036,10 @@ def get_plugin_usage(project_id):
     return util.success(plugin_info)
 
 
+def git_repo_id_to_ci_pipe_id(repository_id):
+    project_plugin_relation = model.ProjectPluginRelation.query.filter_by(git_repository_id=int(repository_id)).first()
+    return util.success(project_plugin_relation.ci_pipeline_id)
+
 # --------------------- Resources ---------------------
 class ListMyProjects(Resource):
     @jwt_required
@@ -1025,13 +1076,12 @@ class SingleProject(Resource):
         role_id = get_jwt_identity()["role_id"]
         user_id = get_jwt_identity()["user_id"]
         if role_id == role.QA.id:
-            if bool(
-                    model.ProjectUserRole.query.filter(
-                        model.ProjectUserRole.project_id == project_id,
-                        model.ProjectUserRole.user_id != user_id,
-                        model.ProjectUserRole.role_id.in_([1, 3])
+            if not bool(
+                    model.Project.query.filter_by(
+                        id=project_id,
+                        creator_id=user_id
                     ).count()):
-                raise apiError.NotAllowedError('Error while deleting project with members.')
+                raise apiError.NotAllowedError('Error while deleting project.')
         return delete_project(project_id)
 
     @jwt_required
@@ -1315,3 +1365,9 @@ class ProjectUserResourceIngresses(Resource):
     def get(self, project_id):
         role.require_in_project(project_id, "Error while getting project info.")
         return get_kubernetes_namespace_ingresses(project_id)
+
+
+class GitRepoIdToCiPipeId(Resource):
+    @jwt_required
+    def get(self, repository_id):
+        return git_repo_id_to_ci_pipe_id(repository_id)

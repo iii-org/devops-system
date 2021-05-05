@@ -155,7 +155,9 @@ def insert_project_member(project_id, project_name):
                                          project_id=project_id,
                                          project_name=project_name,
                                          role_id=member['role_id'],
-                                         role_name=member['role_name'])
+                                         role_name=member['role_name'],
+                                         department=member['department'] if member['department'] else '',
+                                         title=member['title'] if member['title'] else '')
         members_list.append(new_member)
     model.db.session.add_all(members_list)
     model.db.session.commit()
@@ -207,8 +209,7 @@ def get_current_sync_date_project_id_by_user():
                     model.RedmineProject.end_date).all()
     else:
         reverse_query_projects = model.ProjectUserRole.query.with_entities(
-            model.ProjectUserRole.project_id).filter_by(user_id=user_id).all()
-        reverse_query_projects = list(sum(reverse_query_projects, ()))
+            model.ProjectUserRole.project_id).filter_by(user_id=user_id).subquery()
         project_id_collections = model.RedmineProject.query.with_entities(
             model.RedmineProject.project_id).filter(
                 model.RedmineProject.sync_date == sync_date,
@@ -333,7 +334,9 @@ def get_project_members(project_id):
         'user_id': context.user_id,
         'user_name': context.user_name,
         'role_id': context.role_id,
-        'role_name': context.role_name
+        'role_name': context.role_name,
+        'department': context.department,
+        'title': context.title
     } for context in query_collections]
     return project_members
 

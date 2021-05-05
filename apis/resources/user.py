@@ -7,7 +7,7 @@ from Cryptodome.Hash import SHA256
 from flask_jwt_extended import (
     create_access_token, JWTManager, jwt_required, get_jwt_identity)
 from flask_restful import Resource, reqparse
-from sqlalchemy import desc, inspect, not_
+from sqlalchemy import desc, inspect, not_, or_
 from sqlalchemy.orm.exc import NoResultFound
 
 import config
@@ -31,22 +31,54 @@ default_role_id = 3
 jwt = JWTManager()
 
 
+# Use lazy loading to avoid redundant db queries, build up this object like:
+# NexusUser().set_user_id(4) or NexusProject().set_user_row(row)
 class NexusUser:
-    def __init__(self, user_id):
-        if user_id is None:
-            self.fill_dummy_user()
-            return
-        self.user_row = model.User.query.filter_by(id=user_id).one()
-        self.role_rows = model.ProjectUserRole.query.filter_by(
-            user_id=user_id).all()
+    def __init__(self):
+        self.__user_id = None
+        self.__user_row = None
+        self.__role_rows = None
 
+    def set_user_id(self, user_id, do_query=True):
+        self.__user_id = user_id
+        if do_query:
+            self.get_user_row()
+            self.get_role_rows()
+        return self
+
+    def set_user_row(self, user_row):
+        self.__user_row = user_row
+        self.set_user_id(user_row.id)
+        # Mirror data model fields to this object, so it can be used like an ORM row
         inst = inspect(model.User)
         attr_names = [c_attr.key for c_attr in inst.mapper.column_attrs]
         for attr in attr_names:
-            setattr(self, attr, getattr(self.user_row, attr))
+            setattr(self, attr, getattr(user_row, attr))
+        return self
+
+    def set_role_rows(self, role_rows):
+        self.__role_rows = role_rows
+        self.set_user_id(role_rows[0].user_id)
+        return self
+
+    def get_user_id(self):
+        if self.__user_id is None:
+            raise DevOpsError(500, 'User id or row is not set!')
+        return self.__user_id
+
+    def get_user_row(self):
+        if self.__user_row is None:
+            self.set_user_row(model.User.query.filter_by(id=self.get_user_id()).one())
+        return self.__user_row
+
+    def get_role_rows(self):
+        if self.__role_rows is None:
+            self.set_role_rows(model.ProjectUserRole.query.filter_by(
+                user_id=self.get_user_id()).all())
+        return self.__role_rows
 
     def to_json(self, with_projects=False):
-        ret = json.loads(str(self.user_row))
+        ret = json.loads(str(self.get_user_row()))
         ret['default_role'] = {
             'id': self.default_role_id(),
             'name': role.get_role_name(self.default_role_id())
@@ -62,7 +94,7 @@ class NexusUser:
                 rows = db.session. \
                     query(model.Project, model.ProjectPluginRelation.git_repository_id). \
                     join(model.ProjectPluginRelation). \
-                    filter(model.ProjectUserRole.user_id == self.user_row.id,
+                    filter(model.ProjectUserRole.user_id == self.get_user_row().id,
                            model.ProjectUserRole.project_id != -1,
                            model.ProjectUserRole.project_id == model.ProjectPluginRelation.project_id
                            ).all()
@@ -81,14 +113,14 @@ class NexusUser:
         return ret
 
     def default_role_id(self):
-        for row in self.role_rows:
+        for row in self.get_role_rows():
             if row.project_id == -1:
                 return row.role_id
         raise DevOpsError(500, 'This user does not have project -1 role.',
                           error=apiError.invalid_code_path('This user does not have project -1 role.'))
 
     def fill_dummy_user(self):
-        self.user_row = model.User(id=0, name='No One')
+        self.set_user_row(model.User(id=0, name='No One'))
 
 
 def get_user_id_name_by_plan_user_id(plan_user_id):
@@ -218,7 +250,8 @@ def login(args):
             status, token = ad_user.login_by_ad(
                 user, db_info, ad_info, login_account, login_password)
             if token is None:
-                return util.respond(401, "Error when logging in. Please contact system administrator", error=apiError.ad_account_not_allow())
+                return util.respond(401, "Error when logging in. Please contact system administrator",
+                                    error=apiError.ad_account_not_allow())
             else:
                 return util.success({'status': status, 'token': token, 'ad_info': ad_info})
         # Login By Database
@@ -240,10 +273,8 @@ def user_forgot_password(args):
 
 @record_activity(ActionType.UPDATE_USER)
 def update_user(user_id, args, from_ad=False):
-    user = db.session.query(model.User). \
-        filter(
-        model.User.id == user_id
-    ).first()
+    user = model.User.query.filter_by(id=user_id).first()
+    new_password = None
     if user.from_ad is True and from_ad is False:
         return util.respond(400, 'Error when updating Message',
                             error=apiError.user_from_ad(user_id))
@@ -263,7 +294,10 @@ def update_user(user_id, args, from_ad=False):
             logger.exception(err)  # Don't stop change password on API server
         h = SHA256.new()
         h.update(args["password"].encode())
-        user.password = h.hexdigest()
+        new_password = h.hexdigest()    
+    user = model.User.query.filter_by(id=user_id).first()
+    if new_password is not None:
+        user.password = new_password
     if args["name"] is not None:
         user.name = args['name']
     if args["phone"] is not None:
@@ -284,7 +318,6 @@ def update_user(user_id, args, from_ad=False):
     else:
         user.update_at = util.date_to_str(datetime.datetime.utcnow())
     db.session.commit()
-
     if 'role_id' in args and args['role_id'] is not None:
         role.require_admin('Only admin can update role.')
         role.update_role(user_id, args['role_id'])
@@ -376,9 +409,15 @@ def create_user(args):
     logger.info('Name is valid.')
 
     user_source_password = args["password"]
-    if re.fullmatch(r'(?=.*\d)(?=.*[a-z])(?=.*[A-Z])'
-                    r'^[\w!@#$%^&*()+|{}\[\]`~\-\'\";:/?.\\>,<]{8,20}$',
-                    user_source_password) is None:
+    #  User created by AD skip password check
+    # if 'from_ad' in args and args['from_ad'] is False:
+    need_password_check = True
+    if 'from_ad' in args and args['from_ad'] is True:
+        need_password_check = False
+
+    if need_password_check is True and re.fullmatch(r'(?=.*\d)(?=.*[a-z])(?=.*[A-Z])'
+                                                    r'^[\w!@#$%^&*()+|{}\[\]`~\-\'\";:/?.\\>,<]{8,20}$',
+                                                    user_source_password) is None:
         raise apiError.DevOpsError(400, "Error when creating new user",
                                    error=apiError.invalid_user_password())
     logger.info('Password is valid.')
@@ -551,16 +590,47 @@ def create_user(args):
 
 
 def user_list(filters):
-    query = db.session.query(model.User, model.ProjectUserRole.role_id). \
-        join(model.ProjectUserRole).order_by(model.User.id)
+    per_page = 10
+    page_dict = None
+    query = model.User.query.filter(model.User.id != 1).order_by(model.User.id)
     if 'role_ids' in filters:
-        query = query.filter(
-            model.ProjectUserRole.role_id.in_(filters['role_ids']))
-    rows = query.all()
+        filtered_user_ids = model.ProjectUserRole.query.filter(
+            model.ProjectUserRole.role_id.in_(filters['role_ids'])
+        ).with_entities(model.ProjectUserRole.user_id).distinct().subquery()
+        query = query.filter(model.User.id.in_(filtered_user_ids))
+    if 'search' in filters:
+        query = query.filter(or_(
+            model.User.login.ilike(f'%{filters["search"]}%'),
+            model.User.name.ilike(f'%{filters["search"]}%')
+        ))
+    if 'per_page' in filters:
+        per_page = filters['per_page']
+    if 'page' in filters:
+        paginate_query = query.paginate(
+            page=filters['page'],
+            per_page=per_page,
+            error_out=False
+        )
+        page_dict = {
+            'current': paginate_query.page,
+            'prev': paginate_query.prev_num,
+            'next': paginate_query.next_num,
+            'pages': paginate_query.pages,
+            'per_page': paginate_query.per_page,
+            'total': paginate_query.total
+        }
+        rows = paginate_query.items
+    else:
+        rows = query.all()
     output_array = []
     for row in rows:
-        output_array.append(NexusUser(row.User.id).to_json(with_projects=True))
-    return output_array
+        output_array.append(NexusUser()
+                            .set_user_row(row)
+                            .to_json(with_projects=False))
+    response = {'user_list': output_array}
+    if page_dict:
+        response['page'] = page_dict
+    return response
 
 
 def user_list_by_project(project_id, args):
@@ -606,7 +676,8 @@ def user_list_by_project(project_id, args):
 
     arr_ret = []
     for user_role_by_project in ret_users:
-        user_json = NexusUser(user_role_by_project.User.id).to_json(with_projects=False)
+        user_json = NexusUser().set_user_row(user_role_by_project.User)\
+            .to_json(with_projects=False)
         user_json['role_id'] = user_role_by_project.role_id
         user_json['role_name'] = role.get_role_name(
             user_role_by_project.role_id)
@@ -661,7 +732,7 @@ class SingleUser(Resource):
     def get(self, user_id):
         role.require_user_himself(user_id, even_pm=False,
                                   err_message="Only admin and PM can access another user's data.")
-        return util.success(NexusUser(user_id).to_json(with_projects=True))
+        return util.success(NexusUser().set_user_id(user_id).to_json(with_projects=True))
 
     @jwt_required
     def put(self, user_id):
@@ -706,11 +777,20 @@ class UserList(Resource):
         role.require_pm()
         parser = reqparse.RequestParser()
         parser.add_argument('role_ids', type=str)
+        parser.add_argument('page', type=int)
+        parser.add_argument('per_page', type=int)
+        parser.add_argument('search', type=str)
         args = parser.parse_args()
         filters = {}
         if args['role_ids'] is not None:
             filters['role_ids'] = json.loads(f'[{args["role_ids"]}]')
-        return util.success({'user_list': user_list(filters)})
+        if args['page'] is not None:
+            filters['page'] = args['page']
+        if args['per_page'] is not None:
+            filters['per_page'] = args['per_page']
+        if args['search'] is not None:
+            filters['search'] = args['search']
+        return util.success(user_list(filters))
 
 
 class UserSaConfig(Resource):

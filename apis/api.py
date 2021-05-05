@@ -178,6 +178,8 @@ def initialize(db_uri):
     logger.logger.info('Server initialized.')
 
 
+api.add_resource(project.GitRepoIdToCiPipeId, '/git_repo_id_to_ci_pipe_id/<repository_id>')
+
 # Projects
 api.add_resource(project.ListMyProjects, '/project/list')
 api.add_resource(project.SingleProject, '/project', '/project/<sint:project_id>')
@@ -272,6 +274,8 @@ api.add_resource(pipeline.PipelineYaml,
 # Websocket
 socketio.on_namespace(rancher.RancherWebsocketLog('/rancher/websocket/logs'))
 
+
+
 # issue
 api.add_resource(issue.IssueByProject, '/project/<sint:project_id>/issues')
 api.add_resource(issue.IssueByTreeByProject, '/project/<sint:project_id>/issues_by_tree')
@@ -288,17 +292,14 @@ api.add_resource(issue.SingleIssue, '/issues', '/issues/<issue_id>')
 api.add_resource(issue.IssueStatus, '/issues_status')
 api.add_resource(issue.IssuePriority, '/issues_priority')
 api.add_resource(issue.IssueTracker, '/issues_tracker')
-api.add_resource(issue.IssueRDbyUser, '/issues_by_user/<user_id>')
 api.add_resource(issue.MyIssueStatistics, '/issues/statistics')
 api.add_resource(issue.MyOpenIssueStatistics, '/issues/open_statistics')
 api.add_resource(issue.MyIssueWeekStatistics, '/issues/week_statistics')
 api.add_resource(issue.MyIssueMonthStatistics, '/issues/month_statistics')
 
-## release
+# Release
 api.add_resource(release.Releases, '/project/<project_id>/releases')
 api.add_resource(release.Release, '/project/<project_id>/releases/<release_name>')
-
-# Release
 api.add_resource(plugin.Plugins, '/plugins')
 api.add_resource(plugin.Plugin, '/plugins/<sint:plugin_id>')
 
@@ -444,10 +445,10 @@ api.add_resource(sync_redmine.SyncRedmine, '/sync_redmine')
 api.add_resource(gitlab.GitCountEachPjCommitsByDays, '/sync_gitlab/count_each_pj_commits_by_days')
 
 # Subadmin Projects Permission
-api.add_resource(project_permission.list_admin_projects, '/project_permission/admin_projects')
-api.add_resource(project_permission.list_subadmin_projects, '/project_permission/subadmin_projects')
-api.add_resource(project_permission.list_subadmins, '/project_permission/subadmins')
-api.add_resource(project_permission.set_subadmin_permission, '/project_permission/set_permission')
+api.add_resource(project_permission.AdminProjects, '/project_permission/admin_projects')
+api.add_resource(project_permission.SubadminProjects, '/project_permission/subadmin_projects')
+api.add_resource(project_permission.Subadmins, '/project_permission/subadmins')
+api.add_resource(project_permission.SetPermission, '/project_permission/set_permission')
 
 # System versions
 api.add_resource(NexusVersion, '/system_versions')

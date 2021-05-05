@@ -77,7 +77,8 @@ class Project(db.Model):
     update_at = Column(DateTime)
     disabled = Column(Boolean)
     display = Column(String)
-    owner_id = Column(Integer, ForeignKey(User.id))
+    owner_id = Column(Integer, ForeignKey(User.id, ondelete='SET NULL'), nullable=True)
+    creator_id = Column(Integer, ForeignKey(User.id, ondelete='SET NULL'), nullable=True)
 
     def __repr__(self):
         fields = {}
@@ -412,6 +413,8 @@ class ProjectMember(db.Model):
     project_name = Column(String)
     role_id = Column(Integer)
     role_name = Column(String)
+    department = Column(String)
+    title = Column(String)
 
 
 class ProjectMemberCount(db.Model):

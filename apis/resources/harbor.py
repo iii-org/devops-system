@@ -7,10 +7,16 @@ from requests.auth import HTTPBasicAuth
 import config
 import nexus
 import util
+import re
 from resources import apiError, role
 from resources.apiError import DevOpsError
 from resources.logger import logger
 
+HAR_PASS_REG = '((?=.*\d)(?=.*[a-z])(?=.*[A-Z])).{8,20}$'
+DEFAULT_PASSWORD = 'IIIdevops_12345'
+
+def check_passsword(password):
+    return bool(re.match(HAR_PASS_REG, password))
 
 # API bridge methods
 def __api_request(method, path, headers=None, params=None, data=None):
@@ -27,7 +33,7 @@ def __api_request(method, path, headers=None, params=None, data=None):
                               params=params, data=data, auth=auth)
 
     logger.info('Harbor api {0} {1}, params={2}, body={5}, response={3} {4}'.format(
-        method, url, params.__str__(), output.status_code, output.text, data))
+        method, url, params.__str__(), output.status_code, output.text, data))    
     if int(output.status_code / 100) != 2:
         raise DevOpsError(
             output.status_code,
@@ -114,9 +120,13 @@ def hb_delete_project(harbor_param):
 
 def hb_create_user(args, is_admin=False):
     login = args['login']
+    pass_quality = check_passsword(args['password'])   
+    harbor_password = args['password']
+    if pass_quality is False:
+        harbor_password = DEFAULT_PASSWORD
     data = {
         "username": login,
-        "password": args['password'],
+        "password": harbor_password,
         "realname": args['name'],
         "email": args['email']
     }
@@ -132,11 +142,25 @@ def hb_delete_user(user_id):
 
 
 def hb_update_user_password(user_id, new_pwd, old_pwd):
+    pass_quality = check_passsword(new_pwd)   
+    if pass_quality is False:
+        new_pwd = DEFAULT_PASSWORD    
     data = {
         "new_password": new_pwd,
         "old_password": old_pwd
     }
-    __api_put(f'/users/{user_id}/password', data=data)
+    try: 
+        __api_put(f'/users/{user_id}/password', data=data)
+    except DevOpsError as e:
+        if e.status_code == 400 and \
+            e.error_value['details']['response']['errors'][0]['message'] == 'the new password can not be same with the old one':
+            pass 
+        else:
+            raise e
+
+
+
+    
 
 
 def hb_add_member(project_id, user_id):
