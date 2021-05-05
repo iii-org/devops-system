@@ -273,10 +273,8 @@ def user_forgot_password(args):
 
 @record_activity(ActionType.UPDATE_USER)
 def update_user(user_id, args, from_ad=False):
-    user = db.session.query(model.User). \
-        filter(
-        model.User.id == user_id
-    ).first()
+    user = model.User.query.filter_by(id=user_id).first()
+    new_password = None
     if user.from_ad is True and from_ad is False:
         return util.respond(400, 'Error when updating Message',
                             error=apiError.user_from_ad(user_id))
@@ -296,7 +294,10 @@ def update_user(user_id, args, from_ad=False):
             logger.exception(err)  # Don't stop change password on API server
         h = SHA256.new()
         h.update(args["password"].encode())
-        user.password = h.hexdigest()
+        new_password = h.hexdigest()    
+    user = model.User.query.filter_by(id=user_id).first()
+    if new_password is not None:
+        user.password = new_password
     if args["name"] is not None:
         user.name = args['name']
     if args["phone"] is not None:
@@ -317,7 +318,6 @@ def update_user(user_id, args, from_ad=False):
     else:
         user.update_at = util.date_to_str(datetime.datetime.utcnow())
     db.session.commit()
-
     if 'role_id' in args and args['role_id'] is not None:
         role.require_admin('Only admin can update role.')
         role.update_role(user_id, args['role_id'])
