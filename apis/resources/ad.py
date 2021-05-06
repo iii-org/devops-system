@@ -24,11 +24,17 @@ default_password = 'IIIdevops_12345'
 allow_user_account_control = [512, 544]
 III_INSTITUTE_NEED_ACCOUT = [
     '系統所',
+    '智慧系統研究所',
     '數位所',
+    '數位轉型研究所',
     '資安所',
+    '資安科技研究所',    
     '服創所',
+    '數位服務創新研究所',
     '資訊處', 
-    '前瞻中心'
+    '資訊服務處',
+    '前瞻中心',
+    '執行長室'
 ]
 
 
