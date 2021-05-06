@@ -53,7 +53,7 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
 
 api = Api(app, errors=apiError.custom_errors)
 CORS(app)
-socketio = SocketIO(app, cors_allowed_origins="*", logger=True, engineio_logger=True)
+socketio = SocketIO(app, cors_allowed_origins="*", logger=True, engineio_logger=True, timeout=60000)
 
 
 class SignedIntConverter(IntegerConverter):
