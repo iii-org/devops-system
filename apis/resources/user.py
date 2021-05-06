@@ -247,36 +247,23 @@ def user_forgot_password(args):
 @record_activity(ActionType.UPDATE_USER)
 def update_user(user_id, args, from_ad=False):
     user = model.User.query.filter_by(id=user_id).first()
-
     if 'role_id' in args:
         update_user_role(user_id, args.get('role_id'))
-
-    new_email = None
-    new_password = None
-    if user.from_ad and not from_ad:
-        if args.get('role_id', None) is None:
-            return util.respond(400, 'Error when updating Message',
-                                error=apiError.user_from_ad(user_id))
-        else:
-            return util.success()
-    user_role_id = 0
+    user_role_id = -1
     jwt_token = get_jwt_identity()
     if jwt_token is not None:
         user_role_id = jwt_token.get('role_id')
-
-    if args['password'] is not None:
+    new_email = None
+    new_password = None
+    # Change Password
+    if args.get('password') is not None:
         if args["old_password"] == args["password"]:
             return util.respond(400, "Password is not changed.", error=apiError.wrong_password())
-
-        if role.ADMIN.id != user_role_id and from_ad is False:
+        # Only Update password from ad trigger or syadmin can skip verify password
+        if role.ADMIN.id != user_role_id and not from_ad:
+            is_password_verify, hex_login_password = verify_password(user.password, args['old_password'])
             if args["old_password"] is None:
                 return util.respond(400, "old_password is empty", error=apiError.wrong_password())
-            # check password the same
-            # h_old_password = SHA256.new()
-            # h_old_password.update(args["old_password"].encode())
-            # if user.password != h_old_password.hexdigest():
-            #     return util.respond(400, "Password is incorrect", error=apiError.wrong_password())
-            is_password_verify, hex_login_password = verify_password(user.password, args['old_password'])
             if is_password_verify is False:
                 return util.respond(400, "Password is incorrect", error=apiError.wrong_password())
         err = update_external_passwords(
@@ -287,39 +274,48 @@ def update_user(user_id, args, from_ad=False):
         h.update(args["password"].encode())
         new_password = h.hexdigest()
 
-    if args["email"] is not None:
-        err = update_external_email(user_id, user.name, args['email'])
-        if err is not None:
-            logger.exception(err)
-        new_email = args['email']
     user = model.User.query.filter_by(id=user_id).first()
-    if new_password is not None:
-        user.password = new_password
-    if new_email is not None:
-        user.email = new_email
-    if args["name"] is not None:
-        user.name = args['name']
-        update_external_name(user_id, args['name'], user.login, user.email)
-    if args["phone"] is not None:
-        user.phone = args['phone']
-    if args["title"] is not None:
-        user.title = args['title']
-    if args["department"] is not None:
-        user.department = args['department']
-    if args.get("status", None) is not None:
-        if args.get("status", None) == "disable":
-            user.disabled = True
-            block_external_user(user_id)
-        else:
-            user.disabled = False
-            unblock_external_user(user_id)
-
-    if 'from_ad' in args and args['from_ad'] is True:
-        user.update_at = args['update_at']
+    # API update AD User only can update password
+    if user_role_id == role.ADMIN.id and not from_ad and user.from_ad:
+        if new_password is not None:
+            user.password = new_password
+        db.session.commit()
     else:
-        user.update_at = util.date_to_str(datetime.datetime.utcnow())
-    db.session.commit()
-
+        if new_password is not None:
+            user.password = new_password
+        # Change Email
+        if args["email"] is not None:
+            err = update_external_email(user_id, user.name, args['email'])
+            if err is not None:
+                logger.exception(err)
+            new_email = args['email']
+        if new_email is not None:
+            user.email = new_email
+        if args["name"] is not None:
+            user.name = args['name']
+            update_external_name(user_id, args['name'], user.login, user.email)
+        if args["phone"] is not None:
+            user.phone = args['phone']
+        if args["title"] is not None:
+            user.title = args['title']
+        if args["department"] is not None:
+            user.department = args['department']
+        if args.get("status", None) is not None:
+            if args.get("status", None) == "disable":
+                user.disabled = True
+                block_external_user(user_id)
+            else:
+                user.disabled = False
+                unblock_external_user(user_id)
+        if from_ad:
+            user.update_at = args['update_at']
+        else:
+            user.update_at = util.date_to_str(datetime.datetime.utcnow())
+        if user.from_ad and not from_ad:
+            return util.respond(400, 'Error when updating Message',
+                                error=apiError.user_from_ad(user_id))
+        else:
+            db.session.commit()
     return util.success()
 
 
