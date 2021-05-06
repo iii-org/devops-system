@@ -250,11 +250,13 @@ def verify_issue_user(issue_id, user_id, issue_info=None):
     return count > 0
 
 
-def get_issue(issue_id):
+def get_issue(issue_id, with_children=True):
     issue = redmine.rm_get_issue(issue_id)
     redmine_issue_status = redmine.rm_get_issue_status()
     closed_statuses = redmine.get_closed_status(
         redmine_issue_status['issue_statuses'])
+    if not with_children:
+        issue.pop('children', None)
     return __deal_with_issue_redmine_output(issue, closed_statuses)
 
 
@@ -869,6 +871,10 @@ class SingleIssue(Resource):
     @jwt_required
     def get(self, issue_id):
         issue_info = get_issue(issue_id)
+        if 'parent_id' in issue_info:
+            parent_info = get_issue(issue_info['parent_id'], with_children=False)
+            issue_info.pop('parent_id', None)
+            issue_info['parent'] = parent_info
         require_issue_visible(issue_id, issue_info)
         return util.success(issue_info)
 
