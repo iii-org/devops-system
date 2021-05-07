@@ -62,7 +62,9 @@ def zap_get_latest_test(project_id):
         project_name=project_name).order_by(desc(model.Zap.id)).first()
     if row is None:
         return {}
-    return process_row(row, project_id)
+    ret = process_row(row, project_id)
+    del ret['full_log']
+    return ret
 
 
 def process_row(row, project_id):
@@ -72,7 +74,6 @@ def process_row(row, project_id):
             row.status = 'Failed'
             model.db.session.commit()
     r = json.loads(str(row))
-    del r['full_log']
     r['issue_link'] = gitlab.commit_id_to_url(project_id, r['commit_id'])
     return r
 
