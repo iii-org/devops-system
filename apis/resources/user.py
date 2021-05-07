@@ -274,10 +274,17 @@ def user_forgot_password(args):
 @record_activity(ActionType.UPDATE_USER)
 def update_user(user_id, args, from_ad=False):
     user = model.User.query.filter_by(id=user_id).first()
+
+    if 'role_id' in args:
+        update_user_role(user_id, args.get('role_id'))
+
     new_password = None
-    if user.from_ad is True and from_ad is False:
-        return util.respond(400, 'Error when updating Message',
-                            error=apiError.user_from_ad(user_id))
+    if user.from_ad and not from_ad:
+        if args.get('role_id', None) is None:
+            return util.respond(400, 'Error when updating Message',
+                                error=apiError.user_from_ad(user_id))
+        else:
+            return util.success()
     if args['password'] is not None:
         if args["old_password"] == args["password"]:
             return util.respond(400, "Password is not changed.", error=apiError.wrong_password())
@@ -318,11 +325,15 @@ def update_user(user_id, args, from_ad=False):
     else:
         user.update_at = util.date_to_str(datetime.datetime.utcnow())
     db.session.commit()
-    if 'role_id' in args and args['role_id'] is not None:
-        role.require_admin('Only admin can update role.')
-        role.update_role(user_id, args['role_id'])
 
     return util.success()
+
+
+def update_user_role(user_id, role_id):
+    if role_id is None:
+        return
+    role.require_admin('Only admin can update role.')
+    role.update_role(user_id, role_id)
 
 
 def update_external_passwords(user_id, new_pwd, old_pwd):
