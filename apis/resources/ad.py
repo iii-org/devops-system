@@ -129,7 +129,6 @@ def create_user_from_ad(ad_users, create_by = None):
         #  Create user            
         elif ad_user.get(create_by) is True:                        
             new_user = create_user(ad_user)
-            print('Create New User')
             if new_user is not None:
                 res['new'].append(new_user)
         else:
@@ -239,14 +238,13 @@ class AD(object):
 
     def get_users(self):
         res = []     
-        print(self.active_base_dn)   
         user_search_filter = '(&(|(objectclass=user)(objectclass=person))(!(isCriticalSystemObject=True)))'
         if self.ad_info['is_pass'] is True:                    
             self.conn.extend.standard.paged_search(
                             search_base=self.active_base_dn,
                             search_filter=user_search_filter,                              
                             attributes=ALL_ATTRIBUTES,
-                            paged_size =1 ,
+                            paged_size = 500,
                             generator = False
                             )
             res = self.conn.response_to_json()
@@ -256,15 +254,19 @@ class AD(object):
     def get_ous(self):
         res = []
         ou_search_filter = '(&(objectclass=OrganizationalUnit)(!(isCriticalSystemObject=True)))'
-        self.conn.search(search_base=self.active_base_dn,
-                         search_filter=ou_search_filter, attributes=ALL_ATTRIBUTES)
+        self.conn.extend.standard.paged_search(
+                        search_base=self.active_base_dn,
+                        earch_filter=ou_search_filter,
+                        attributes=ALL_ATTRIBUTES,
+                        paged_size = 500,
+                        generator = False
+                        )
         res = self.conn.response_to_json()
         res = json.loads(res)['entries']
         return res
 
     def get_user(self, account):
         output = []
-        print(self.active_base_dn)
         user_search_filter = '(&(|(objectclass=user)(objectclass=person))(!(isCriticalSystemObject=True))(sAMAccountName='+account+'))'
         if self.ad_info['is_pass'] is True:
             self.conn.search(search_base=self.active_base_dn,
@@ -388,7 +390,6 @@ class Users(Resource):
                     ous = ad_parameter.get('ou')
                     ad_users = []
                     for ou in ous:
-                        print(ou)
                         ad_parameter['ou'] = [ou]
                         ad = AD(ad_parameter)
                         ad_users.extend(ad.get_users())            
