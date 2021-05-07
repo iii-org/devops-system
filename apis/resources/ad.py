@@ -7,7 +7,7 @@ import util as util
 import model
 from model import db
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from flask_restful import Resource, reqparse
+from flask_restful import Resource, reqparse ,inputs
 from sqlalchemy.orm.exc import NoResultFound
 from resources import role
 from resources.plugin import api_plugin
@@ -22,27 +22,34 @@ invalid_ad_server = 'Get AD User Error'
 default_role_id = 3
 default_password = 'IIIdevops_12345'
 allow_user_account_control = [512, 544]
-III_INSTITUTE_NEED_ACCOUT = [
-    '系統所',
-    '智慧系統研究所',
-    '數位所',
-    '數位轉型研究所',
-    '資安所',
-    '資安科技研究所',    
-    '服創所',
-    '數位服務創新研究所',
-    '資訊處', 
-    '資訊服務處',
-    '前瞻中心',
-    '執行長室'
-]
 
 
-def get_dc_string(domains):
+def generate_base_dn(ad_parameter):
+    search_base = ''
+    if ad_parameter.get('ou') is not None:
+        search_base += get_search_base_string('ou',ad_parameter.get('ou'))
+    if ad_parameter.get('domain') is not None:
+        search_base += get_search_base_string('dc',ad_parameter.get('domain').split('.'))
+    
+    return search_base[:-1]
+
+def generate_search_parameter(search_type, search_values):
+    search_filter = ""
+    for search_value in search_values:
+        search_filter = search_filter+ '('+search_type+'='+search_value+')'
+    if len(search_values) > 1:
+        search_filter = '(|'+search_filter+ ')'    
+    if search_filter != "":        
+        return search_filter
+    else:
+        return None
+    
+
+def get_search_base_string(search_type,values):
     output = ''
-    for domain in domains:
-        output += 'dc='+domain+','
-    return output[:-1]
+    for value in values:
+        output +=  search_type+'='+value+','
+    return output
 
 
 def get_db_user_by_login():
@@ -72,41 +79,36 @@ def update_user(ad_user, db_user):
         "password": None,
         "from_ad": True
     }
-
-    if ad_user['is_iii'] is True:
-        if ad_user["iii_name"] is not None:
-            args['name'] = ad_user['iii_name']
-        if ad_user["telephoneNumber"] is not None:
-            args['phone'] = ad_user['telephoneNumber']
-        if ad_user["userPrincipalName"] is not None:
-            args['email'] = ad_user['userPrincipalName']
-        if ad_user["title"] is not None:
-            args['title'] = ad_user['title']
-        if ad_user["department"] is not None:
+    if ad_user.get('iii') is True and ad_user.get('userPrincipalName') == db_user.get('email'):
+        if ad_user.get('iii_name') != db_user.get('name'):
+            args['name'] = ad_user.get('iii_name')
+        if ad_user.get("telephoneNumber") != db_user.get('phone'):
+            args['phone'] = ad_user.get('telephoneNumber')
+        if ad_user.get("title") != db_user.get('title'):
+            args['title'] = ad_user.get('title')
+        if ad_user.get("department") != db_user.get('department'):
             args['department'] = ad_user['department']
-        if ad_user["userAccountControl"] in allow_user_account_control :
-            args['status'] = "enable"
-        if ad_user['whenChanged'] is not None:
-            args['update_at'] = str(ad_user['whenChanged'])
+        if ad_user.get('whenChanged') != db_user.get('update_at'):
+            args['update_at'] = str(ad_user['whenChanged'])            
         user.update_user(db_user['id'], args, True)
     return db_user['id']
 
 
 def create_user(ad_user, login_password = default_password):
     res = None
-    if ad_user['is_iii'] is True and \
-        ad_user["userAccountControl"] in allow_user_account_control and \
-        ad_user['userPrincipalName'] is not None and \
-        ad_user['sAMAccountName'] is not None  :
+    if ad_user.get('iii') is True and \
+        ad_user.get("userAccountControl") in allow_user_account_control and \
+        ad_user.get('userPrincipalName') is not None and \
+        ad_user.get('sAMAccountName') is not None:
         args = {
-            'name': ad_user['iii_name'],
-            'email': ad_user['userPrincipalName'],
+            'name': ad_user.get('iii_name'),
+            'email': ad_user.get('userPrincipalName'),
             'login': ad_user['sAMAccountName'],
             'password': login_password,
             'role_id': default_role_id,
             "status": "enable",
-            'phone': ad_user['telephoneNumber'],
-            'title': ad_user['title'],
+            'phone': ad_user.get('telephoneNumber'),
+            'title': ad_user.get('title'),
             'department': ad_user['department'],
             'update_at': ad_user['whenChanged'],
             'from_ad': True
@@ -114,27 +116,30 @@ def create_user(ad_user, login_password = default_password):
         res = user.create_user(args)
     return res
 
-
-def create_user_from_ad(ad_users, list_departments = None):
-    if list_departments is None:
-        list_departments = III_INSTITUTE_NEED_ACCOUT
+def create_user_from_ad(ad_users, create_by = None):
     res = {'new': [], 'old': [], 'none': []}
-    db_users = get_db_user_by_login()
+    users = []
+    db_users = get_db_user_by_login()    
     for ad_user in ad_users:               
-        #  Update Exist User 
-        if ad_user['sAMAccountName'] in db_users:
+        if ad_user.get('sAMAccountName') in users:
+            continue
+        if ad_user.get('sAMAccountName') in db_users:
             res['old'].append(update_user(
-                ad_user, db_users[ad_user['sAMAccountName']]))        
-        #  Create user
-        elif ad_user['is_iii'] is True and ad_user['institute'] in list_departments:            
+                ad_user, db_users[ad_user.get('sAMAccountName')]))        
+        #  Create user            
+        elif ad_user.get(create_by) is True:                        
             new_user = create_user(ad_user)
+            print('Create New User')
             if new_user is not None:
                 res['new'].append(new_user)
+        else:
+            res['none'].append(ad_user.get('sAMAccountName'))
+        users.append(ad_user.get('sAMAccountName'))
     return res
 
 
 def add_ad_user_info_by_iii(ad_user_info):
-    iii_info = {'is_iii': False}
+    iii_info = {'iii': False}
     need_attributes = ['displayName', 'telephoneNumber', 'physicalDeliveryOfficeName',
                        'givenName', 'sn', 'title', 'telephoneNumber', 'mail', 'userAccountControl', 'sAMAccountName', 'userPrincipalName',
                        'whenChanged', 'whenCreated', 'department', 'department']
@@ -148,7 +153,7 @@ def add_ad_user_info_by_iii(ad_user_info):
         for name in list_departments:
             iii_info[organization[layer]] = name
             layer += 1
-        iii_info['is_iii'] = True
+        iii_info['iii'] = True
     for attribute in need_attributes:
         if attribute in ad_user_info:
             iii_info[attribute] = ad_user_info[attribute]
@@ -162,10 +167,10 @@ def get_user_info_from_ad(users , info = 'iii'):
     list_users = []
     for user in users:
         if info  == 'iii':
-            user_info = add_ad_user_info_by_iii(user['attributes'])
+            user_info = add_ad_user_info_by_iii(user.get('attributes'))
             list_users.append(user_info)
-        elif info == 'raw':
-            list_users.append(user_info)
+        else:
+            list_users.append(user)
     return list_users
 
 
@@ -229,15 +234,21 @@ class AD(object):
                                password=self.password, read_only=True)
         
         if self.conn.bind() is True:
-            self.ad_info['is_pass'] = True
-        self.active_base_dn = get_dc_string(ad_parameter['domain'].split('.'))
+            self.ad_info['is_pass'] = True        
+        self.active_base_dn = generate_base_dn(ad_parameter)
 
     def get_users(self):
-        res = []
-        if self.ad_info['is_pass'] is True:
-            user_search_filter = '(&(|(objectclass=user)(objectclass=person))(!(isCriticalSystemObject=True)))'
-            self.conn.search(search_base=self.active_base_dn,
-                             search_filter=user_search_filter, attributes=ALL_ATTRIBUTES)
+        res = []     
+        print(self.active_base_dn)   
+        user_search_filter = '(&(|(objectclass=user)(objectclass=person))(!(isCriticalSystemObject=True)))'
+        if self.ad_info['is_pass'] is True:                    
+            self.conn.extend.standard.paged_search(
+                            search_base=self.active_base_dn,
+                            search_filter=user_search_filter,                              
+                            attributes=ALL_ATTRIBUTES,
+                            paged_size =1 ,
+                            generator = False
+                            )
             res = self.conn.response_to_json()
             res = json.loads(res)['entries']
         return res
@@ -253,6 +264,7 @@ class AD(object):
 
     def get_user(self, account):
         output = []
+        print(self.active_base_dn)
         user_search_filter = '(&(|(objectclass=user)(objectclass=person))(!(isCriticalSystemObject=True))(sAMAccountName='+account+'))'
         if self.ad_info['is_pass'] is True:
             self.conn.search(search_base=self.active_base_dn,
@@ -269,7 +281,6 @@ class AD(object):
         return res
 
     def get_user_by_ou(self):
-        # user_search_filter_by_ou = '(&(|(objectclass=user)(objectclass=person))(!(isCriticalSystemObject=True))(sAMAccountName='+account+'))'
         self.conn.search(search_base=self.active_base_dn,
                          search_filter=self.ou_search_filter, attributes=ALL_ATTRIBUTES)
         res = self.conn.response_to_json()
@@ -287,18 +298,18 @@ class User(Resource):
             role.require_admin('Only admins can get ad users.')
             parser = reqparse.RequestParser()
             parser.add_argument('account', type=str)
-            parser.add_argument('info', type=str)
+            parser.add_argument('ad_type', type=str)
             args = parser.parse_args()
             res = []
             ad_parameter = check_ad_server_status()
             if ad_parameter is None:
                 return res    
+            ad_parameter.pop('ou')
             ad = AD(ad_parameter)           
             res = ad.get_user(args['account'])
             ad.conn_unbind()
             if len(res) == 1:
-                if args['info'] == 'iii' : 
-                    res = get_user_info_from_ad(res, 'iii')                        
+                res = get_user_info_from_ad(res, args.get('ad_type'))                        
                 return util.success(res[0])
             return util.success(res)
         except NoResultFound:
@@ -310,18 +321,19 @@ class User(Resource):
             role.require_admin('Only admins can get ad users.')
             parser = reqparse.RequestParser()
             parser.add_argument('account', type=str)
-            parser.add_argument('info', type=str)
+            parser.add_argument('ad_type', type=str)
             args = parser.parse_args()            
             res = []
             ad_parameter = check_ad_server_status()
             if ad_parameter is None:
                 return res    
+            ad_parameter.pop('ou')
             ad = AD(ad_parameter)
             res = ad.get_user(args['account'])
             ad.conn_unbind()
             if len(res) == 1:
-                users = get_user_info_from_ad(res, 'iii')            
-                res = create_user_from_ad(users)
+                users = get_user_info_from_ad(res, args.get('ad_type'))            
+                res = create_user_from_ad(users,args.get('ad_type'))
             return util.success(res)
         except NoResultFound:
             return util.respond(404, invalid_ad_server,
@@ -336,42 +348,76 @@ class Users(Resource):
             res = None
             role.require_admin('Only admins can get ad users.')
             parser = reqparse.RequestParser()
-            parser.add_argument('info', type=str)
-            args = parser.parse_args()            
+            parser.add_argument('ou', action='append')
+            parser.add_argument('ad_type', type=str)            
+            args = parser.parse_args()                     
             ad_parameter = check_ad_server_status()
             if ad_parameter is None:
-                return res    
+                return res           
+            if args.get('ou') is not None:
+                ad_parameter['ou'] = args.get('ou')               
             ad = AD(ad_parameter)
             res = ad.get_users()
             ad.conn_unbind()
             if isinstance(res, list):
-                return util.success(get_user_info_from_ad(res, args['info']))
+                return util.success(get_user_info_from_ad(res, args.get('ad_type')))
             else:
                 return res
         except NoResultFound:
             return util.respond(404, invalid_ad_server,
                                 error=apiError.invalid_plugin_id(invalid_ad_server))
-
     @jwt_required
     def post(self):
         try:            
             role.require_admin('Only admins can use ad crate user.')            
+            res = None
             parser = reqparse.RequestParser()
-            parser.add_argument('departments', action='append')            
-            args = parser.parse_args()   
+            parser.add_argument('ou', action='append')            
+            parser.add_argument('batch', type=inputs.boolean, default=False)            
+            parser.add_argument('ad_type', type=str)            
+            args = parser.parse_args()               
+            ad_parameter = check_ad_server_status()
+            if ad_parameter is None:
+                return res    
+            if args.get('ou') is not None and args.get('batch') is False:
+                ad_parameter['ou'] = args.get('ou') 
+                ad = AD(ad_parameter)
+                ad_users = ad.get_users()
+            else:                
+                if isinstance(ad_parameter.get('ou'), list):
+                    ous = ad_parameter.get('ou')
+                    ad_users = []
+                    for ou in ous:
+                        print(ou)
+                        ad_parameter['ou'] = [ou]
+                        ad = AD(ad_parameter)
+                        ad_users.extend(ad.get_users())            
+                        ad.conn_unbind()
+            users = get_user_info_from_ad(ad_users, args.get('ad_type'))
+            res = create_user_from_ad(users,args.get('ad_type'))
+            
+            return util.success(res)
+        except NoResultFound:
+            return util.respond(404, invalid_ad_server,
+                                error=apiError.invalid_plugin_id(invalid_ad_server))
+
+
+class BackgroundUsers(Resource):
+    @jwt_required
+    def post(self):
+        try :
             res = None
             ad_parameter = check_ad_server_status()
             if ad_parameter is None:
                 return res    
             ad = AD(ad_parameter)
-            ad_users = ad.get_users()       
-            users = get_user_info_from_ad(ad_users, 'iii')
-            res = create_user_from_ad(users, args['departments'])
-            ad.conn_unbind()
+            res = ad.get_users()
+            ad.conn_unbind()                 
             return util.success(res)
         except NoResultFound:
             return util.respond(404, invalid_ad_server,
                                 error=apiError.invalid_plugin_id(invalid_ad_server))
+
 
 
 class Organizations(Resource):
@@ -404,6 +450,10 @@ class Organizations(Resource):
             return util.respond(404, invalid_ad_server,
                                 error=apiError.invalid_plugin_id(invalid_ad_server))
 
+
+
+
+    
 
 class APIUser(object):
     #  check User login
@@ -459,7 +509,7 @@ class APIUser(object):
         ad_info_data = ad_info['data']
         token = None
         # 'Direct Login AD pass, DB create User'
-        if db_info['connect'] is False and ad_info_data['is_iii'] is True:
+        if db_info['connect'] is False and ad_info_data['iii'] is True:
             status = 'Direct Login AD pass, DB create User'
             new_user = create_user(ad_info_data, login_password)
             if new_user is None:
@@ -470,7 +520,7 @@ class APIUser(object):
             user_role_id = default_role_id
             token = user.get_access_token(user_id, user_login, user_role_id, True)
         # 'Direct login AD pass,'
-        elif ad_info_data['is_iii'] is True and ad_info_data['userPrincipalName'] == db_user.email:
+        elif ad_info_data['iii'] is True and ad_info_data['userPrincipalName'] == db_user.email:
             user_id = db_user.id
             user_login = db_user.login
             user_role_id = db_info['role_id']
