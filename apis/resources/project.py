@@ -100,7 +100,7 @@ class NexusProject:
         ret = json.loads(str(self.get_project_row()))
         ret['git_url'] = ret['http_url']
         del ret['http_url']
-        ret['repository_ids'] = self.get_plugin_row().git_repository_id
+        ret['repository_ids'] = [self.get_plugin_row().git_repository_id]
         ret['redmine_url'] = \
             f'{config.get("REDMINE_EXTERNAL_BASE_URL")}/projects/' \
             f'{self.get_plugin_row().plan_project_id}'
@@ -706,7 +706,7 @@ def get_projects_by_user(user_id):
                                       f'{row.ProjectPluginRelation.plan_project_id}',
                        'harbor_url': f'{config.get("HARBOR_EXTERNAL_BASE_URL")}/harbor/projects/' +
                                      f'{row.ProjectPluginRelation.harbor_project_id}/repositories',
-                       'repository_ids': row.ProjectPluginRelation.git_repository_id,
+                       'repository_ids': [row.ProjectPluginRelation.git_repository_id],
                        'department': user.NexusUser().set_user_id(row.Project.owner_id).department,
                        'issues': None,
                        'branch': None,
