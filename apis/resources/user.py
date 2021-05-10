@@ -368,12 +368,17 @@ def delete_user(user_id):
         raise apiError.NotAllowedError('You cannot delete the system admin.')
     relation = nx_get_user_plugin_relation(user_id=user_id)
     user_login = model.User.query.filter_by(id=user_id).one().login
-
+    pj_ur_rls = db.session.query(model.Project, model.ProjectUserRole).join(model.ProjectUserRole). \
+        filter(model.ProjectUserRole.user_id == user_id, model.ProjectUserRole.project_id != -1,
+               model.ProjectUserRole.project_id == model.Project.id).all()
+    
     try_to_delete(gitlab.gl_delete_user, relation.repository_user_id)
     try_to_delete(redmine.rm_delete_user, relation.plan_user_id)
     try_to_delete(harbor.hb_delete_user, relation.harbor_user_id)
     try_to_delete(sonarqube.sq_deactivate_user, user_login)
     try:
+        for pur_row in pj_ur_rls:
+            kubernetesClient.delete_role_binding(pur_row.Project.name, f"{util.encode_k8s_sa(user_login)}-rb")
         try_to_delete(kubernetesClient.delete_service_account,
                       relation.kubernetes_sa_name)
     except kubernetes.client.exceptions.ApiException as e:
