@@ -63,6 +63,10 @@ def invalid_plugin_id(plugin_id):
     return build(1009, 'Plugin Software not fount.', {'plugin_id': plugin_id})
 
 
+def invalid_project_description(description=None):
+    return build(1010, 'Project description contain characters like & or <.', {'description': description})
+
+
 # User errors
 def user_not_found(user_id):
     return build(2001, 'User not found.', {'user_id': user_id})

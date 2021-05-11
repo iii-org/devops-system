@@ -1040,6 +1040,22 @@ def git_repo_id_to_ci_pipe_id(repository_id):
     project_plugin_relation = model.ProjectPluginRelation.query.filter_by(git_repository_id=int(repository_id)).first()
     return util.success(project_plugin_relation.ci_pipeline_id)
 
+
+def check_project_name_or_description_patterns(args):
+    if args.get('name', None):
+        pattern = "^[a-z][a-z0-9-]{0,28}[a-z0-9]$"
+        result = re.fullmatch(pattern, args["name"])
+        if result is None:
+            raise apiError.DevOpsError(400, 'Error while creating project',
+                                       error=apiError.invalid_project_name(args["name"]))
+    if args.get('description', None):
+        pattern = "&|<"
+        result = re.findall(pattern, args['description'])
+        if any(result):
+            raise apiError.DevOpsError(400, 'Error while creating project',
+                                       error=apiError.invalid_project_description(args['description']))
+
+
 # --------------------- Resources ---------------------
 class ListMyProjects(Resource):
     @jwt_required
@@ -1067,6 +1083,7 @@ class SingleProject(Resource):
         parser.add_argument('due_date', type=str, required=True)
         parser.add_argument('owner_id', type=int, required=True)
         args = parser.parse_args()
+        check_project_name_or_description_patterns(args)
         return pm_update_project(project_id, args)
 
     @jwt_required
@@ -1100,11 +1117,7 @@ class SingleProject(Resource):
         parser.add_argument('due_date', type=str, required=True)
         parser.add_argument('owner_id', type=int)
         args = parser.parse_args()
-        pattern = "^[a-z][a-z0-9-]{0,28}[a-z0-9]$"
-        result = re.fullmatch(pattern, args["name"])
-        if result is None:
-            return util.respond(400, 'Error while creating project',
-                                error=apiError.invalid_project_name(args['name']))
+        check_project_name_or_description_patterns(args)
         return util.success(create_project(user_id, args))
 
 
