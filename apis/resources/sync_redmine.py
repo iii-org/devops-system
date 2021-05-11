@@ -325,6 +325,7 @@ def get_project_members_detail(own_project):
         'project_name': context.project_name,
         'pm_user_id': context.pm_user_id,
         'pm_user_name': context.pm_user_name,
+        'pm_user_login': context.pm_user_login,
         'member_count': context.member_count,
         'start_date': context.start_date.strftime("%Y-%m-%d"),
         'end_date': context.end_date.strftime("%Y-%m-%d"),
