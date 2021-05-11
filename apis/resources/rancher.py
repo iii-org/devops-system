@@ -154,6 +154,11 @@ class Rancher(object):
                 #print(f"result: {result}")
                 ws_end_time = time.time() - ws_start_time
                 if result == '' or ws_end_time > 8 or i == 2:
+                    emit('pipeline_log', {'data': '', 
+                                    'ci_pipeline_id': data["ci_pipeline_id"],
+                                    'pipelines_exec_run': data["pipelines_exec_run"],
+                                    'stage_index': data["stage_index"],
+                                    'step_index': data["step_index"]})
                     ws.close()
                     print(f"result: {result}, ws_end_time: {ws_end_time}, i: {i}")
                     break
