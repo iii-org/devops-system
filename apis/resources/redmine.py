@@ -1,6 +1,6 @@
 import time
 from io import BytesIO
-
+import yaml
 import requests
 import werkzeug
 from flask import send_file
@@ -12,6 +12,7 @@ import resources.apiError as apiError
 import util as util
 from resources.apiError import DevOpsError
 from resources.logger import logger
+from . import kubernetesClient
 
 
 class Redmine:
@@ -390,7 +391,18 @@ class Redmine:
             if status['is_closed'] is True:
                 self.closed_status.append(status['id'])
         return self.closed_status
-
+    
+    def rm_get_mail_setting(self):
+        redmine_config_name = "redmine-config"
+        configs = kubernetesClient.list_namespace_configmap("default")
+        if any(redmine_config_name == config.get("name") for config in configs) is False:
+            #Don't has redmine config, create one.
+            with open(f'k8s-yaml/redmine-config.yaml') as file:
+                redmine_config_json = yaml.safe_load(file)['data']
+                pass
+        else:
+            print("has redmine config")
+    
     @staticmethod
     def rm_build_external_link(path):
         return f"{config.get('REDMINE_EXTERNAL_BASE_URL')}{path}"
@@ -414,6 +426,9 @@ class RedmineFile(Resource):
         return redmine.rm_delete_attachment(file_id)
 
 
+class RedmineMail(Resource):
+    def get(self):
+        return redmine.rm_get_mail_setting()
 
 class RedmineRelease():
     @jwt_required    
