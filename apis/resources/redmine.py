@@ -1,5 +1,5 @@
 import time
-from io import BytesIO
+from io import BytesIO, StringIO
 import yaml
 import requests
 import werkzeug
@@ -23,6 +23,10 @@ class Redmine:
         self.versions = None
         self.issues= None
         self.closed_status = []
+        self.redmine_plugins =[
+            "smtp_enable_starttls_auto", "smtp_address", "smtp_authentication",
+            "smtp_domain", "smtp_username", "smtp_password"
+        ]
 
     def __api_request(self, method, path, headers=None, params=None, data=None,
                       operator_id=None, resp_format='.json'):
@@ -399,9 +403,13 @@ class Redmine:
             #Don't has redmine config, create one.
             with open(f'k8s-yaml/redmine-config.yaml') as file:
                 redmine_config_json = yaml.safe_load(file)['data']
-                pass
+                kubernetesClient.create_namespace_configmap("default", redmine_config_name, redmine_config_json)
         else:
-            print("has redmine config")
+            for line in StringIO(kubernetesClient.read_namespace_configmap("default", redmine_config_name)["configuration.yml"]).readlines():
+                for plug in self.redmine_plugins:
+                    if plug in line:
+                        print(line.replace("{","").replace("}",""))
+            pass
     
     @staticmethod
     def rm_build_external_link(path):
