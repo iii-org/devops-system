@@ -271,13 +271,21 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id, tag
         documents = yaml.dump(pipe_json, file)
     __set_git_username_config(f"pj_push_template/{pj.path}")
     subprocess.call(['git', 'branch'], cwd=f"pj_push_template/{pj.path}")
-    shutil.rmtree(f'pj_push_template/{pj.path}/.git')
+    # Too lazy to handle file deleting issue on Windows, just keep the garbage there
+    try:
+        shutil.rmtree(f'pj_push_template/{pj.path}/.git')
+    except PermissionError:
+        pass
     subprocess.call(['git', 'init'], cwd=f"pj_push_template/{pj.path}")
     subprocess.call(['git', 'remote', 'add', 'origin', secret_pj_http_url], cwd=f"pj_push_template/{pj.path}")
     subprocess.call(['git', 'add', '.'], cwd=f"pj_push_template/{pj.path}")
     subprocess.call(['git', 'commit', '-m', '"範本 commit"'], cwd=f"pj_push_template/{pj.path}")
     subprocess.call(['git', 'push', '-u', 'origin', 'master'], cwd=f"pj_push_template/{pj.path}")
-    shutil.rmtree(f"pj_push_template/{pj.path}", ignore_errors=True)
+    # Too lazy to handle file deleting issue on Windows, just keep the garbage there
+    try:
+        shutil.rmtree(f"pj_push_template/{pj.path}", ignore_errors=True)
+    except PermissionError:
+        pass
 
 
 def tm_get_pipeline_branches(repository_id):

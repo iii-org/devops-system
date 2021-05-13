@@ -15,8 +15,10 @@ from resources.logger import logger
 HAR_PASS_REG = '((?=.*\d)(?=.*[a-z])(?=.*[A-Z])).{8,20}$'
 DEFAULT_PASSWORD = 'IIIdevops_12345'
 
+
 def check_passsword(password):
     return bool(re.match(HAR_PASS_REG, password))
+
 
 # API bridge methods
 def __api_request(method, path, headers=None, params=None, data=None):
@@ -33,7 +35,7 @@ def __api_request(method, path, headers=None, params=None, data=None):
                               params=params, data=data, auth=auth)
 
     logger.info('Harbor api {0} {1}, params={2}, body={5}, response={3} {4}'.format(
-        method, url, params.__str__(), output.status_code, output.text, data))    
+        method, url, params.__str__(), output.status_code, output.text, data))
     if int(output.status_code / 100) != 2:
         raise DevOpsError(
             output.status_code,
@@ -120,7 +122,7 @@ def hb_delete_project(harbor_param):
 
 def hb_create_user(args, is_admin=False):
     login = args['login']
-    pass_quality = check_passsword(args['password'])   
+    pass_quality = check_passsword(args['password'])
     harbor_password = args['password']
     if pass_quality is False:
         harbor_password = DEFAULT_PASSWORD
@@ -142,25 +144,22 @@ def hb_delete_user(user_id):
 
 
 def hb_update_user_password(user_id, new_pwd, old_pwd):
-    pass_quality = check_passsword(new_pwd)   
+    pass_quality = check_passsword(new_pwd)
     if pass_quality is False:
-        new_pwd = DEFAULT_PASSWORD    
+        new_pwd = DEFAULT_PASSWORD
     data = {
         "new_password": new_pwd,
         "old_password": old_pwd
     }
-    try: 
+    try:
         __api_put(f'/users/{user_id}/password', data=data)
     except DevOpsError as e:
         if e.status_code == 400 and \
-            e.error_value['details']['response']['errors'][0]['message'] == 'the new password can not be same with the old one':
-            pass 
+                e.error_value['details']['response']['errors'][0][
+                    'message'] == 'the new password can not be same with the old one':
+            pass
         else:
             raise e
-
-
-
-    
 
 
 def hb_add_member(project_id, user_id):
@@ -233,10 +232,9 @@ def hb_list_artifacts(project_name, repository_name):
             })
     return ret
 
-def hb_check_tags(project_name, repository_name,tag_name):
 
+def hb_check_tags(project_name, repository_name, tag_name):
     return {}
-
 
 
 def hb_get_repository_info(project_name, repository_name):
@@ -264,7 +262,8 @@ def hb_list_tags(project_name, repository_name, reference):
 
 def hb_create_artifact_tag(project_name, repository_name, reference, tag_name):
     return __api_post(f'/projects/{project_name}/repositories/{__encode(repository_name)}'
-                 f'/artifacts/{reference}/tags',data={'name': tag_name})
+                      f'/artifacts/{reference}/tags', data={'name': tag_name})
+
 
 def hb_delete_artifact_tag(project_name, repository_name, reference, tag_name):
     __api_delete(f'/projects/{project_name}/repositories/{__encode(repository_name)}'
@@ -275,6 +274,7 @@ def hb_delete_artifact_tag(project_name, repository_name, reference, tag_name):
 
 def hb_get_project_summary(project_id):
     return __api_get('/projects/{0}/summary'.format(project_id)).json()
+
 
 def hb_build_external_link(path):
     return f"{config.get('HARBOR_EXTERNAL_BASE_URL')}{path}"
@@ -354,31 +354,29 @@ class HarborProject(Resource):
         return util.success(hb_get_project_summary(project_id))
 
 
-
-
-
 class HarborRelease():
-            
+
     @jwt_required
-    def get_list_artifacts(self,project_name, repository_name):    
+    def get_list_artifacts(self, project_name, repository_name):
         return hb_list_artifacts(project_name, repository_name)
 
-    def check_harbor_release(self,artifacts, tag_name):
-        output = {'check' : False, "info":"", "target":{} ,"errors":{}}    
-        if len(artifacts) > 0 :
+    def check_harbor_release(self, artifacts, tag_name):
+        output = {'check': False, "info": "", "target": {}, "errors": {}}
+        if len(artifacts) > 0:
             output['check'] = True
             output['target'] = artifacts[0]
-        for art in artifacts :
-            if art['name']  == tag_name:
+        for art in artifacts:
+            if art['name'] == tag_name:
                 output['check'] = False
-                output['info'] = '{0} is exists in harbor'.format(tag_name)        
+                output['info'] = '{0} is exists in harbor'.format(tag_name)
                 output['errors'] = art
-        return output        
+        return output
 
-    def create(self,project_name, repository_name,reference,tag_name):    
-        return hb_create_artifact_tag(project_name, repository_name,reference, tag_name)
+    def create(self, project_name, repository_name, reference, tag_name):
+        return hb_create_artifact_tag(project_name, repository_name, reference, tag_name)
 
-    def delete_harbor_tag(self, project_name, repository_name,hb_info):
-        return hb_delete_artifact_tag(project_name, repository_name, hb_info['digest'], hb_info['name'] )
+    def delete_harbor_tag(self, project_name, repository_name, hb_info):
+        return hb_delete_artifact_tag(project_name, repository_name, hb_info['digest'], hb_info['name'])
+
 
 hb_release = HarborRelease()
