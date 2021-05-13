@@ -23,6 +23,8 @@
     "RANCHER_ADMIN_PASSWORD": "*********",
     "RANCHER_CLUSTER_NAME": "**-**-*-**-*****",
 
+    "KUBERNETES_MASTER_DOMAIN": "k8sctl.your.com",
+
     "CHECKMARX_ORIGIN": "https://checkmarx.somewhere.net/cxrestapi",
     "CHECKMARX_USERNAME": "*****",
     "CHECKMARX_PASSWORD": "***********",

@@ -128,6 +128,7 @@ class TemplateListCache(db.Model):
     description = Column(String)
     version = Column(JSON)
     update_at = Column(DateTime)
+    group_name = Column(String)
 
 
 class ProjectUserRole(db.Model):
