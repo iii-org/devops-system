@@ -32,6 +32,7 @@ support_software = [{"key": "scan-sonarqube", "display": "SonarQube"},
                     {"key": "test-postman", "display": "Postman"}, 
                     {"key": "test-sideex", "display": "SideeX"}, 
                     {"key": "test-webinspect", "display": "WebInspect"},
+                    {"key": "test-zap", "display": "ZAP"},
                     {"key": "db", "display": "Database"},
                     {"key": "web", "display": "Web"}]
 
