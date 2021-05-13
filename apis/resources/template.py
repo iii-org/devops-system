@@ -139,9 +139,10 @@ def __force_update_template_cache_table():
     for template_list_cache in  TemplateListCache.query.all():
         db.session.delete(template_list_cache)
         db.session.commit()
-    output = []
+    output = [{"source": "Public Templates", "options": []},{"source": "Local Templates", "options": []}]
+    template_group_dict = {"iiidevops-templates": "Public Templates", "local-templates": "Local Templates"}
     for group in gl.groups.list(all=True):
-        if group.name in ["iiidevops-templates", "local-templates"]:
+        if group.name in template_group_dict:
             for group_project in group.projects.list(all=True):
                 pj = gl.projects.get(group_project.id)
                 # get all tags
@@ -150,20 +151,30 @@ def __force_update_template_cache_table():
                     tag_list.append({"name": tag.name, "commit_id": tag.commit["id"], 
                                     "commit_time":tag.commit["committed_date"]})
                 pip_set_json = __tm_read_pipe_set_json(pj)
-                output.append({"id": pj.id,
-                            "name": pj.name, 
-                            "path": pj.path,
-                            "display": pj.name if "name" not in pip_set_json else pip_set_json["name"],
-                            "description": 
-                                "" if "description" not in pip_set_json else pip_set_json["description"],
-                            "version": tag_list})
+                if group.name == "iiidevops-templates":
+                    output[0]['options'].append({"id": pj.id,
+                                "name": pj.name, 
+                                "path": pj.path,
+                                "display": pj.name if "name" not in pip_set_json else pip_set_json["name"],
+                                "description": 
+                                    "" if "description" not in pip_set_json else pip_set_json["description"],
+                                "version": tag_list})
+                elif group.name == "local-templates":
+                    output[1]['options'].append({"id": pj.id,
+                                "name": pj.name, 
+                                "path": pj.path,
+                                "display": pj.name if "name" not in pip_set_json else pip_set_json["name"],
+                                "description": 
+                                    "" if "description" not in pip_set_json else pip_set_json["description"],
+                                "version": tag_list})
                 cache_temp = TemplateListCache(temp_repo_id=pj.id,
                                 name=pj.name,
                                 path=pj.path,
                                 display=pj.name if "name" not in pip_set_json else pip_set_json["name"],
                                 description="" if "description" not in pip_set_json else pip_set_json["description"],
                                 version=tag_list,
-                                update_at=datetime.now())
+                                update_at=datetime.now(),
+                                group_name=template_group_dict.get(group.name))
                 db.session.add(cache_temp)
                 db.session.commit()
     return output
@@ -178,15 +189,24 @@ def tm_get_template_list(force_update=0):
     elif len(total_data) ==0 or len(one_day_ago_data) > 1:
         return __force_update_template_cache_table()
     else:
-        output = []
+        output = [{"source": "Public Templates", "options": []},{"source": "Local Templates", "options": []}]
         for data in total_data:
-            output.append({
-            "id": data.temp_repo_id,
-            "name": data.name, 
-            "path": data.path,
-            "display": data.display,
-            "description": data.description,
-            "version": data.version})
+            if data.group_name == "Public Templates":
+                output[0]["options"].append({
+                "id": data.temp_repo_id,
+                "name": data.name, 
+                "path": data.path,
+                "display": data.display,
+                "description": data.description,
+                "version": data.version})
+            else:
+                output[1]["options"].append({
+                "id": data.temp_repo_id,
+                "name": data.name, 
+                "path": data.path,
+                "display": data.display,
+                "description": data.description,
+                "version": data.version})
         return output
 
 
