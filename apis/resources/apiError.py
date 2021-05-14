@@ -22,6 +22,14 @@ def error_3rd_party_api(service_name, response):
     return build(8001, '{0} responds error.'.format(service_name),
                  {'service_name': service_name, 'response': resp_value})
 
+# Temlate errors
+def template_not_found(template_id):
+    return build(5001, 'Template not found.', 
+                 {'template_id': template_id})
+
+def template_file_not_found(template_id, template_name):
+    return build(5002, 'Can not get template file or folder.', 
+                 {'template_id': template_id, 'template_name': template_name})
 
 # Project errors
 def identifier_has_been_taken(identifier):
@@ -211,3 +219,11 @@ class DevOpsError(Exception):
 
     def unpack_response(self):
         return self.error_value['details']['response']
+
+
+class TemplateError(Exception):
+    def __init__(self, status_code, message, error=None):
+        self.status_code = status_code
+        self.message = message
+        self.error_value = error
+

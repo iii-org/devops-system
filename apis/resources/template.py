@@ -14,6 +14,7 @@ import config
 import resources.yaml_OO as pipeline_yaml_OO
 import util
 from . import role
+import resources.apiError as apiError
 from model import db, TemplateListCache
 from sqlalchemy import func, or_, and_
 
@@ -93,17 +94,22 @@ def __tm_get_git_pipline_json(pj, tag_name=None):
 
 def __tm_read_pipe_set_json(pj, tag_name=None):
     pip_set_json = {}
-    if tag_name is None:
-        iiidevops_folder = pj.repository_tree(path="iiidevops")
-    else:
-        tag_info_dict = __tm_get_tag_info(pj, tag_name)
-        iiidevops_folder = pj.repository_tree(path="iiidevops", ref = tag_info_dict["commit_id"])
-    for file in iiidevops_folder:
-        if file["name"] == "pipeline_settings.json":
-            f_raw = pj.files.raw(file_path="iiidevops/pipeline_settings.json", 
-                                    ref = pj.default_branch)
-            pip_set_json = json.loads(f_raw.decode())
-    return pip_set_json
+    try:
+        if pj.empty_repo:
+            return {"description": "", "name": pj.name }
+        if tag_name is None:
+            iiidevops_folder = pj.repository_tree(path="iiidevops")
+        else:
+            tag_info_dict = __tm_get_tag_info(pj, tag_name)
+            iiidevops_folder = pj.repository_tree(path="iiidevops", ref = tag_info_dict["commit_id"])
+        for file in iiidevops_folder:
+            if file["name"] == "pipeline_settings.json":
+                f_raw = pj.files.raw(file_path="iiidevops/pipeline_settings.json", 
+                                        ref = pj.default_branch)
+                pip_set_json = json.loads(f_raw.decode())
+        return pip_set_json
+    except apiError.TemplateError as e:
+        return {"description": "", "name": pj.name }
 
 
 def __tm_git_clone_file(pj, dest_folder_name, create_time=None, branch_name=None):
@@ -156,23 +162,21 @@ def __force_update_template_cache_table():
                     output[0]['options'].append({"id": pj.id,
                                 "name": pj.name, 
                                 "path": pj.path,
-                                "display": pj.name if "name" not in pip_set_json else pip_set_json["name"],
-                                "description": 
-                                    "" if "description" not in pip_set_json else pip_set_json["description"],
+                                "display": pip_set_json["name"],
+                                "description": pip_set_json["description"],
                                 "version": tag_list})
                 elif group.name == "local-templates":
                     output[1]['options'].append({"id": pj.id,
                                 "name": pj.name, 
                                 "path": pj.path,
-                                "display": pj.name if "name" not in pip_set_json else pip_set_json["name"],
-                                "description": 
-                                    "" if "description" not in pip_set_json else pip_set_json["description"],
+                                "display": pip_set_json["name"],
+                                "description": pip_set_json["description"],
                                 "version": tag_list})
                 cache_temp = TemplateListCache(temp_repo_id=pj.id,
                                 name=pj.name,
                                 path=pj.path,
-                                display=pj.name if "name" not in pip_set_json else pip_set_json["name"],
-                                description="" if "description" not in pip_set_json else pip_set_json["description"],
+                                display= pip_set_json["name"],
+                                description= pip_set_json["description"],
                                 version=tag_list,
                                 update_at=datetime.now(),
                                 group_name=template_group_dict.get(group.name))
