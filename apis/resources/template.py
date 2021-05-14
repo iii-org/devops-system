@@ -95,6 +95,8 @@ def __tm_get_git_pipline_json(pj, tag_name=None):
 def __tm_read_pipe_set_json(pj, tag_name=None):
     pip_set_json = {}
     try:
+        if pj.empty_repo:
+            return {"description": "", "name": pj.name }
         if tag_name is None:
             iiidevops_folder = pj.repository_tree(path="iiidevops")
         else:
@@ -106,8 +108,8 @@ def __tm_read_pipe_set_json(pj, tag_name=None):
                                         ref = pj.default_branch)
                 pip_set_json = json.loads(f_raw.decode())
         return pip_set_json
-    except:
-        raise apiError.template_file_not_found(pj.id, pj.name)
+    except apiError.TemplateError as e:
+        return {"description": "", "name": pj.name }
 
 
 def __tm_git_clone_file(pj, dest_folder_name, create_time=None, branch_name=None):
@@ -149,39 +151,36 @@ def __force_update_template_cache_table():
     for group in gl.groups.list(all=True):
         if group.name in template_group_dict:
             for group_project in group.projects.list(all=True):
-                try:
-                    pj = gl.projects.get(group_project.id)
-                except:
-                    raise apiError.template_not_found(group_project.id)
+                pj = gl.projects.get(group_project.id)
                 # get all tags
                 tag_list = []
                 for tag in pj.tags.list(all=True):
                     tag_list.append({"name": tag.name, "commit_id": tag.commit["id"], 
                                     "commit_time":tag.commit["committed_date"]})
-                temp_display = pj.name
-                temp_description = ""
+                #temp_display = pj.name
+                #temp_description = ""
+                pip_set_json = __tm_read_pipe_set_json(pj)
+                #temp_display = pj.name if "name" not in pip_set_json else pip_set_json["name"]
+                #temp_description = "" if "description" not in pip_set_json else pip_set_json["description"]
                 if group.name == "iiidevops-templates":
-                    pip_set_json = __tm_read_pipe_set_json(pj)
-                    temp_display = pj.name if "name" not in pip_set_json else pip_set_json["name"]
-                    temp_description = "" if "description" not in pip_set_json else pip_set_json["description"]
                     output[0]['options'].append({"id": pj.id,
                                 "name": pj.name, 
                                 "path": pj.path,
-                                "display": temp_display,
-                                "description": temp_description,
+                                "display": pip_set_json["name"],
+                                "description": pip_set_json["description"],
                                 "version": tag_list})
                 elif group.name == "local-templates":
                     output[1]['options'].append({"id": pj.id,
                                 "name": pj.name, 
                                 "path": pj.path,
-                                "display": temp_display,
-                                "description": temp_description,
+                                "display": pip_set_json["name"],
+                                "description": pip_set_json["description"],
                                 "version": tag_list})
                 cache_temp = TemplateListCache(temp_repo_id=pj.id,
                                 name=pj.name,
                                 path=pj.path,
-                                display= temp_display,
-                                description= temp_description,
+                                display= pip_set_json["name"],
+                                description= pip_set_json["description"],
                                 version=tag_list,
                                 update_at=datetime.now(),
                                 group_name=template_group_dict.get(group.name))

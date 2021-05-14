@@ -219,3 +219,11 @@ class DevOpsError(Exception):
 
     def unpack_response(self):
         return self.error_value['details']['response']
+
+
+class TemplateError(Exception):
+    def __init__(self, status_code, message, error=None):
+        self.status_code = status_code
+        self.message = message
+        self.error_value = error
+
