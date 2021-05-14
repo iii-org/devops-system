@@ -157,11 +157,7 @@ def __force_update_template_cache_table():
                 for tag in pj.tags.list(all=True):
                     tag_list.append({"name": tag.name, "commit_id": tag.commit["id"], 
                                     "commit_time":tag.commit["committed_date"]})
-                #temp_display = pj.name
-                #temp_description = ""
                 pip_set_json = __tm_read_pipe_set_json(pj)
-                #temp_display = pj.name if "name" not in pip_set_json else pip_set_json["name"]
-                #temp_description = "" if "description" not in pip_set_json else pip_set_json["description"]
                 if group.name == "iiidevops-templates":
                     output[0]['options'].append({"id": pj.id,
                                 "name": pj.name, 
