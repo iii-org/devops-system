@@ -395,6 +395,8 @@ api.add_resource(sonarqube.SonarqubeHistory, '/sonarqube/<project_name>')
 api.add_resource(project.ProjectFile, '/project/<sint:project_id>/file')
 api.add_resource(redmine.RedmineFile, '/download', '/file/<int:file_id>')
 
+api.add_resource(redmine.RedmineMail, '/mail')
+
 # System administrations
 api.add_resource(SystemGitCommitID, '/system_git_commit_id')  # git commit
 
@@ -474,4 +476,4 @@ def start_prod():
 if __name__ == "__main__":
     start_prod()
     socketio.run(app, host='0.0.0.0', port=10009, debug=(config.get('DEBUG')),
-                 use_reloader=True)
+                 use_reloader=False)

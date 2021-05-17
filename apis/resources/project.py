@@ -1004,12 +1004,6 @@ def create_kubernetes_namespace_configmap(project_id, name, configmaps):
     return util.success(project_configmap)
 
 
-def put_kubernetes_namespace_configmap(project_id, name, configmaps):
-    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
-    project_configmap = kubernetesClient.put_namespace_configmap(project_name, name, configmaps)
-    return util.success(project_configmap)
-
-
 def create_kubernetes_namespace_configmap(project_id, name, configmaps):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
     project_configmap = kubernetesClient.create_namespace_configmap(project_name, name, configmaps)
