@@ -1042,21 +1042,21 @@ def git_repo_id_to_ci_pipe_id(repository_id):
 
 
 def check_project_args_patterns(args):
-    keys_to_check = ["name", "description", "display"]
+    keys_to_check = ["name", "display", "description"]
     for key in keys_to_check:
         if args.get(key, None):
-            if key == "name":
-                pattern = "^[a-z][a-z0-9-]{0,28}[a-z0-9]$"
-                result = re.findall(pattern, args[key])
-                if result is None:
-                    raise apiError.DevOpsError(400, "Error while creating project",
-                                               error=apiError.invalid_project_name(args[key]))
-            else:
+            if key != "name":
                 pattern = "&|<"
                 result = re.findall(pattern, args[key])
                 if any(result):
                     raise apiError.DevOpsError(400, "Error while creating project",
                                                error=apiError.invalid_project_content(key, args[key]))
+            else:
+                pattern = "^[a-z][a-z0-9-]{0,28}[a-z0-9]$"
+                result = re.findall(pattern, args[key])
+                if result is None:
+                    raise apiError.DevOpsError(400, "Error while creating project",
+                                               error=apiError.invalid_project_name(args[key]))
 
 
 # --------------------- Resources ---------------------
