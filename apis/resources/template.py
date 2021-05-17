@@ -14,6 +14,7 @@ import config
 import resources.yaml_OO as pipeline_yaml_OO
 import util
 from . import role
+import resources.apiError as apiError
 from model import db, TemplateListCache
 from sqlalchemy import func, or_, and_
 
@@ -32,6 +33,7 @@ support_software = [{"key": "scan-sonarqube", "display": "SonarQube"},
                     {"key": "test-postman", "display": "Postman"}, 
                     {"key": "test-sideex", "display": "SideeX"}, 
                     {"key": "test-webinspect", "display": "WebInspect"},
+                    {"key": "test-zap", "display": "ZAP"},
                     {"key": "db", "display": "Database"},
                     {"key": "web", "display": "Web"}]
 
@@ -92,17 +94,22 @@ def __tm_get_git_pipline_json(pj, tag_name=None):
 
 def __tm_read_pipe_set_json(pj, tag_name=None):
     pip_set_json = {}
-    if tag_name is None:
-        iiidevops_folder = pj.repository_tree(path="iiidevops")
-    else:
-        tag_info_dict = __tm_get_tag_info(pj, tag_name)
-        iiidevops_folder = pj.repository_tree(path="iiidevops", ref = tag_info_dict["commit_id"])
-    for file in iiidevops_folder:
-        if file["name"] == "pipeline_settings.json":
-            f_raw = pj.files.raw(file_path="iiidevops/pipeline_settings.json", 
-                                    ref = pj.default_branch)
-            pip_set_json = json.loads(f_raw.decode())
-    return pip_set_json
+    try:
+        if pj.empty_repo:
+            return {"description": "", "name": pj.name }
+        if tag_name is None:
+            iiidevops_folder = pj.repository_tree(path="iiidevops")
+        else:
+            tag_info_dict = __tm_get_tag_info(pj, tag_name)
+            iiidevops_folder = pj.repository_tree(path="iiidevops", ref = tag_info_dict["commit_id"])
+        for file in iiidevops_folder:
+            if file["name"] == "pipeline_settings.json":
+                f_raw = pj.files.raw(file_path="iiidevops/pipeline_settings.json", 
+                                        ref = pj.default_branch)
+                pip_set_json = json.loads(f_raw.decode())
+        return pip_set_json
+    except apiError.TemplateError as e:
+        return {"description": "", "name": pj.name }
 
 
 def __tm_git_clone_file(pj, dest_folder_name, create_time=None, branch_name=None):
@@ -139,9 +146,10 @@ def __force_update_template_cache_table():
     for template_list_cache in  TemplateListCache.query.all():
         db.session.delete(template_list_cache)
         db.session.commit()
-    output = []
+    output = [{"source": "Public Templates", "options": []},{"source": "Local Templates", "options": []}]
+    template_group_dict = {"iiidevops-templates": "Public Templates", "local-templates": "Local Templates"}
     for group in gl.groups.list(all=True):
-        if group.name in ["iiidevops-templates", "local-templates"]:
+        if group.name in template_group_dict:
             for group_project in group.projects.list(all=True):
                 pj = gl.projects.get(group_project.id)
                 # get all tags
@@ -150,20 +158,28 @@ def __force_update_template_cache_table():
                     tag_list.append({"name": tag.name, "commit_id": tag.commit["id"], 
                                     "commit_time":tag.commit["committed_date"]})
                 pip_set_json = __tm_read_pipe_set_json(pj)
-                output.append({"id": pj.id,
-                            "name": pj.name, 
-                            "path": pj.path,
-                            "display": pj.name if "name" not in pip_set_json else pip_set_json["name"],
-                            "description": 
-                                "" if "description" not in pip_set_json else pip_set_json["description"],
-                            "version": tag_list})
+                if group.name == "iiidevops-templates":
+                    output[0]['options'].append({"id": pj.id,
+                                "name": pj.name, 
+                                "path": pj.path,
+                                "display": pip_set_json["name"],
+                                "description": pip_set_json["description"],
+                                "version": tag_list})
+                elif group.name == "local-templates":
+                    output[1]['options'].append({"id": pj.id,
+                                "name": pj.name, 
+                                "path": pj.path,
+                                "display": pip_set_json["name"],
+                                "description": pip_set_json["description"],
+                                "version": tag_list})
                 cache_temp = TemplateListCache(temp_repo_id=pj.id,
                                 name=pj.name,
                                 path=pj.path,
-                                display=pj.name if "name" not in pip_set_json else pip_set_json["name"],
-                                description="" if "description" not in pip_set_json else pip_set_json["description"],
+                                display= pip_set_json["name"],
+                                description= pip_set_json["description"],
                                 version=tag_list,
-                                update_at=datetime.now())
+                                update_at=datetime.now(),
+                                group_name=template_group_dict.get(group.name))
                 db.session.add(cache_temp)
                 db.session.commit()
     return output
@@ -178,15 +194,24 @@ def tm_get_template_list(force_update=0):
     elif len(total_data) ==0 or len(one_day_ago_data) > 1:
         return __force_update_template_cache_table()
     else:
-        output = []
+        output = [{"source": "Public Templates", "options": []},{"source": "Local Templates", "options": []}]
         for data in total_data:
-            output.append({
-            "id": data.temp_repo_id,
-            "name": data.name, 
-            "path": data.path,
-            "display": data.display,
-            "description": data.description,
-            "version": data.version})
+            if data.group_name == "Public Templates":
+                output[0]["options"].append({
+                "id": data.temp_repo_id,
+                "name": data.name, 
+                "path": data.path,
+                "display": data.display,
+                "description": data.description,
+                "version": data.version})
+            else:
+                output[1]["options"].append({
+                "id": data.temp_repo_id,
+                "name": data.name, 
+                "path": data.path,
+                "display": data.display,
+                "description": data.description,
+                "version": data.version})
         return output
 
 
@@ -251,13 +276,21 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id, tag
         documents = yaml.dump(pipe_json, file)
     __set_git_username_config(f"pj_push_template/{pj.path}")
     subprocess.call(['git', 'branch'], cwd=f"pj_push_template/{pj.path}")
-    shutil.rmtree(f'pj_push_template/{pj.path}/.git')
+    # Too lazy to handle file deleting issue on Windows, just keep the garbage there
+    try:
+        shutil.rmtree(f'pj_push_template/{pj.path}/.git')
+    except PermissionError:
+        pass
     subprocess.call(['git', 'init'], cwd=f"pj_push_template/{pj.path}")
     subprocess.call(['git', 'remote', 'add', 'origin', secret_pj_http_url], cwd=f"pj_push_template/{pj.path}")
     subprocess.call(['git', 'add', '.'], cwd=f"pj_push_template/{pj.path}")
     subprocess.call(['git', 'commit', '-m', '"範本 commit"'], cwd=f"pj_push_template/{pj.path}")
     subprocess.call(['git', 'push', '-u', 'origin', 'master'], cwd=f"pj_push_template/{pj.path}")
-    shutil.rmtree(f"pj_push_template/{pj.path}", ignore_errors=True)
+    # Too lazy to handle file deleting issue on Windows, just keep the garbage there
+    try:
+        shutil.rmtree(f"pj_push_template/{pj.path}", ignore_errors=True)
+    except PermissionError:
+        pass
 
 
 def tm_get_pipeline_branches(repository_id):

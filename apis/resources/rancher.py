@@ -153,7 +153,7 @@ class Rancher(object):
                                     'step_index': data["step_index"]})
                 #print(f"result: {result}")
                 ws_end_time = time.time() - ws_start_time
-                if result == '' or ws_end_time > 8 or i == 2:
+                if result == '' or ws_end_time >= 600 or i >= 100:
                     emit('pipeline_log', {'data': '', 
                                     'ci_pipeline_id': data["ci_pipeline_id"],
                                     'pipelines_exec_run': data["pipelines_exec_run"],

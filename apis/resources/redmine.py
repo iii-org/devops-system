@@ -1,6 +1,6 @@
 import time
 from io import BytesIO
-
+import yaml
 import requests
 import werkzeug
 from flask import send_file
@@ -12,6 +12,7 @@ import resources.apiError as apiError
 import util as util
 from resources.apiError import DevOpsError
 from resources.logger import logger
+from . import kubernetesClient, role
 
 
 class Redmine:
@@ -22,6 +23,7 @@ class Redmine:
         self.versions = None
         self.issues= None
         self.closed_status = []
+        self.redmine_config_name = "redmine-config"
 
     def __api_request(self, method, path, headers=None, params=None, data=None,
                       operator_id=None, resp_format='.json'):
@@ -390,6 +392,28 @@ class Redmine:
             if status['is_closed'] is True:
                 self.closed_status.append(status['id'])
         return self.closed_status
+    
+    def rm_get_or_create_configmap(self):
+        configs = kubernetesClient.list_namespace_configmap("default")
+        if any(self.redmine_config_name == config.get("name") for config in configs) is False:
+            #Don't has redmine config, create one.
+            with open(f'k8s-yaml/redmine-config.yaml') as file:
+                redmine_config_json = yaml.safe_load(file)['data']
+                kubernetesClient.create_namespace_configmap("default", self.redmine_config_name, redmine_config_json)
+        return yaml.safe_load(kubernetesClient.read_namespace_configmap("default", self.redmine_config_name)["configuration.yml"])
+
+    def rm_get_mail_setting(self):
+        rm_con_json = self.rm_get_or_create_configmap()
+        return rm_con_json["default"]["email_delivery"]
+
+    def rm_put_mail_setting(self, rm_put_mail_dict):
+        rm_configmap_dict = self.rm_get_or_create_configmap()
+        rm_configmap_dict["default"]["email_delivery"]["delivery_method"]= rm_put_mail_dict["delivery_method"]
+        rm_configmap_dict["default"]["email_delivery"]["smtp_settings"]= rm_put_mail_dict["smtp_settings"]
+        out = {}
+        out["configuration.yml"] = str(yaml.dump(rm_configmap_dict))
+        kubernetesClient.put_namespace_configmap("default", self.redmine_config_name, out)
+        kubernetesClient.redeploy_deployment("default", "redmine")
 
     @staticmethod
     def rm_build_external_link(path):
@@ -403,6 +427,7 @@ redmine = Redmine()
 class RedmineFile(Resource):
     @jwt_required
     def get(self):
+        role.require_admin()
         parser = reqparse.RequestParser()
         parser.add_argument('id', type=int)
         parser.add_argument('filename', type=str)
@@ -414,6 +439,20 @@ class RedmineFile(Resource):
         return redmine.rm_delete_attachment(file_id)
 
 
+class RedmineMail(Resource):
+    @jwt_required
+    def get(self):
+        role.require_admin()
+        return util.success(redmine.rm_get_mail_setting())
+
+    @jwt_required
+    def put(self):
+        role.require_admin()
+        parser = reqparse.RequestParser()
+        parser.add_argument('redmine_mail', type=dict)
+        args = parser.parse_args()
+        redmine.rm_put_mail_setting(args["redmine_mail"])
+        return util.success()
 
 class RedmineRelease():
     @jwt_required    

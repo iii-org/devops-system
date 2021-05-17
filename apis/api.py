@@ -395,6 +395,8 @@ api.add_resource(sonarqube.SonarqubeHistory, '/sonarqube/<project_name>')
 api.add_resource(project.ProjectFile, '/project/<sint:project_id>/file')
 api.add_resource(redmine.RedmineFile, '/download', '/file/<int:file_id>')
 
+api.add_resource(redmine.RedmineMail, '/mail')
+
 # System administrations
 api.add_resource(SystemGitCommitID, '/system_git_commit_id')  # git commit
 

@@ -89,7 +89,6 @@ class NexusProject:
 
     def get_owner(self):
         if self.__owner is None:
-            row = self.get_project_row()
             self.__owner = user.NexusUser().set_user_id(self.get_project_row().owner_id)
         return self.__owner
 
@@ -687,6 +686,8 @@ def get_plan_project_id(project_id):
 
 
 def get_projects_by_user(user_id):
+    print(user_id)
+    util.tick('Start', True)
     output_array = []
     rows = db.session.query(model.ProjectPluginRelation, model.Project, model.ProjectUserRole
                             ).join(model.ProjectUserRole). \
@@ -716,6 +717,7 @@ def get_projects_by_user(user_id):
                        'last_test_result': {}
                        }
 
+        util.tick('db done.')
         # get issue total cont
         try:
             all_issues = redmine.rm_get_issues_by_project_and_user(
@@ -728,6 +730,7 @@ def get_projects_by_user(user_id):
                 raise e
         output_dict['issues'] = len(all_issues)
 
+        util.tick('issue got.')
         # get next_d_time
         issue_due_date_list = []
         for issue in all_issues:
@@ -742,6 +745,7 @@ def get_projects_by_user(user_id):
         if next_d_time is not None:
             output_dict['next_d_time'] = next_d_time.isoformat()
 
+        util.tick('due done.')
         git_repository_id = row.ProjectPluginRelation.git_repository_id
         try:
             # branch number
@@ -756,8 +760,10 @@ def get_projects_by_user(user_id):
                 logger.error('project not found. repository_id={0}'.format(git_repository_id))
                 continue
 
+        util.tick('repo done.')
         output_dict = get_ci_last_test_result(output_dict, row.ProjectPluginRelation)
 
+        util.tick('all done.')
         output_array.append(output_dict)
 
     return util.success(output_array)
@@ -995,12 +1001,6 @@ def read_kubernetes_namespace_configmap(project_id, name):
 def create_kubernetes_namespace_configmap(project_id, name, configmaps):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
     project_configmap = kubernetesClient.create_namespace_configmap(project_name, name, configmaps)
-    return util.success(project_configmap)
-
-
-def put_kubernetes_namespace_configmap(project_id, name, configmaps):
-    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
-    project_configmap = kubernetesClient.put_namespace_configmap(project_name, name, configmaps)
     return util.success(project_configmap)
 
 
