@@ -393,19 +393,21 @@ class Redmine:
                 self.closed_status.append(status['id'])
         return self.closed_status
     
-    def rm_get_mail_setting(self):
+    def rm_get_or_create_configmap(self):
         configs = kubernetesClient.list_namespace_configmap("default")
         if any(self.redmine_config_name == config.get("name") for config in configs) is False:
             #Don't has redmine config, create one.
             with open(f'k8s-yaml/redmine-config.yaml') as file:
                 redmine_config_json = yaml.safe_load(file)['data']
                 kubernetesClient.create_namespace_configmap("default", self.redmine_config_name, redmine_config_json)
-                
-        rm_con_json = yaml.safe_load(kubernetesClient.read_namespace_configmap("default", self.redmine_config_name)["configuration.yml"])
+        return yaml.safe_load(kubernetesClient.read_namespace_configmap("default", self.redmine_config_name)["configuration.yml"])
+
+    def rm_get_mail_setting(self):
+        rm_con_json = self.rm_get_or_create_configmap()
         return rm_con_json["default"]["email_delivery"]
 
     def rm_put_mail_setting(self, rm_put_mail_dict):
-        rm_configmap_dict = yaml.safe_load(kubernetesClient.read_namespace_configmap("default", self.redmine_config_name)["configuration.yml"])
+        rm_configmap_dict = self.rm_get_or_create_configmap()
         rm_configmap_dict["default"]["email_delivery"]["delivery_method"]= rm_put_mail_dict["delivery_method"]
         rm_configmap_dict["default"]["email_delivery"]["smtp_settings"]= rm_put_mail_dict["smtp_settings"]
         out = {}
