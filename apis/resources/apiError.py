@@ -63,8 +63,8 @@ def invalid_plugin_id(plugin_id):
     return build(1009, 'Plugin Software not fount.', {'plugin_id': plugin_id})
 
 
-def invalid_project_description(description=None):
-    return build(1010, 'Project description contain characters like & or <.', {'description': description})
+def invalid_project_content(key, value):
+    return build(1010, 'Project {0} contain characters like & or <.'.format(key), {'{0}'.format(key): value})
 
 
 # User errors

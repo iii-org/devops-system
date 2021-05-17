@@ -1041,19 +1041,22 @@ def git_repo_id_to_ci_pipe_id(repository_id):
     return util.success(project_plugin_relation.ci_pipeline_id)
 
 
-def check_project_name_or_description_patterns(args):
-    if args.get("name", None):
-        pattern = "^[a-z][a-z0-9-]{0,28}[a-z0-9]$"
-        result = re.fullmatch(pattern, args["name"])
-        if result is None:
-            raise apiError.DevOpsError(400, "Error while creating project",
-                                       error=apiError.invalid_project_name(args["name"]))
-    if args.get("description", None):
-        pattern = "&|<"
-        result = re.findall(pattern, args["description"])
-        if any(result):
-            raise apiError.DevOpsError(400, "Error while creating project",
-                                       error=apiError.invalid_project_description(args["description"]))
+def check_project_args_patterns(args):
+    keys_to_check = ["name", "description", "display"]
+    for key in keys_to_check:
+        if args.get(key, None):
+            if key == "name":
+                pattern = "^[a-z][a-z0-9-]{0,28}[a-z0-9]$"
+                result = re.findall(pattern, args[key])
+                if result is None:
+                    raise apiError.DevOpsError(400, "Error while creating project",
+                                               error=apiError.invalid_project_name(args[key]))
+            else:
+                pattern = "&|<"
+                result = re.findall(pattern, args[key])
+                if any(result):
+                    raise apiError.DevOpsError(400, "Error while creating project",
+                                               error=apiError.invalid_project_content(key, args[key]))
 
 
 # --------------------- Resources ---------------------
@@ -1083,7 +1086,7 @@ class SingleProject(Resource):
         parser.add_argument('due_date', type=str, required=True)
         parser.add_argument('owner_id', type=int, required=True)
         args = parser.parse_args()
-        check_project_name_or_description_patterns(args)
+        check_project_args_patterns(args)
         return pm_update_project(project_id, args)
 
     @jwt_required
@@ -1117,7 +1120,7 @@ class SingleProject(Resource):
         parser.add_argument('due_date', type=str, required=True)
         parser.add_argument('owner_id', type=int)
         args = parser.parse_args()
-        check_project_name_or_description_patterns(args)
+        check_project_args_patterns(args)
         return util.success(create_project(user_id, args))
 
 
