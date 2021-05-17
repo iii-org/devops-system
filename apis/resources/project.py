@@ -1042,18 +1042,18 @@ def git_repo_id_to_ci_pipe_id(repository_id):
 
 
 def check_project_name_or_description_patterns(args):
-    if args.get('name', None):
+    if args.get("name", None):
         pattern = "^[a-z][a-z0-9-]{0,28}[a-z0-9]$"
         result = re.fullmatch(pattern, args["name"])
         if result is None:
-            raise apiError.DevOpsError(400, 'Error while creating project',
+            raise apiError.DevOpsError(400, "Error while creating project",
                                        error=apiError.invalid_project_name(args["name"]))
-    if args.get('description', None):
+    if args.get("description", None):
         pattern = "&|<"
-        result = re.findall(pattern, args['description'])
+        result = re.findall(pattern, args["description"])
         if any(result):
-            raise apiError.DevOpsError(400, 'Error while creating project',
-                                       error=apiError.invalid_project_description(args['description']))
+            raise apiError.DevOpsError(400, "Error while creating project",
+                                       error=apiError.invalid_project_description(args["description"]))
 
 
 # --------------------- Resources ---------------------
