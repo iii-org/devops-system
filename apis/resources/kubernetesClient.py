@@ -641,6 +641,21 @@ def update_dev_environment_by_branch(namespace, branch_name):
         if e.status_code != 404:
             raise e
 
+
+def redeploy_deployment(namespace, deployment_name):
+    try:
+        deploy = read_namespace_deployment(namespace, deployment_name)
+        if deploy.spec.template.metadata.annotations == None:
+            deploy.spec.template.metadata.annotations = {}
+        deploy.spec.template.metadata.annotations[f"{deployment_name}_redeploy_at"]= str(
+                datetime.utcnow())
+        update_namespace_deployment(
+                namespace, deployment_name, deploy)
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+
+
 def get_list_container_statuses(container_statuses):
     try:
         container_status_info = {}

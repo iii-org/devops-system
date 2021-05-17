@@ -28,15 +28,15 @@ data:
       # ==== SMTP server at example.com using LOGIN authentication and checking HELO for foo.com
       #
       #  email_delivery:
-         delivery_method: {{smtp_delivery_method }}
+         delivery_method: smtp_delivery_method
          smtp_settings:
-           enable_starttls_auto: {{ smtp_enable_starttls_auto }}
-           address: '{{smtp_address}}'
-           port: {{ smtp_port }}
-           authentication: {{ smtp_authentication }}
-           domain: '{{smtp_domain}}'
-           user_name: '{{smtp_username}}'
-           password: '{{smtp_password}}'
+           enable_starttls_auto: smtp_enable_starttls_auto
+           address: smtp_address
+           port: smtp_port
+           authentication: smtp_authentication
+           domain: smtp_domain
+           user_name: smtp_username
+           password: smtp_password
       #
       # ==== SMTP server at example.com using PLAIN authentication
       #

@@ -1,5 +1,5 @@
 import time
-from io import BytesIO, StringIO
+from io import BytesIO
 import yaml
 import requests
 import werkzeug
@@ -12,7 +12,7 @@ import resources.apiError as apiError
 import util as util
 from resources.apiError import DevOpsError
 from resources.logger import logger
-from . import kubernetesClient
+from . import kubernetesClient, role
 
 
 class Redmine:
@@ -23,10 +23,7 @@ class Redmine:
         self.versions = None
         self.issues= None
         self.closed_status = []
-        self.redmine_plugins =[
-            "smtp_enable_starttls_auto", "smtp_address", "smtp_authentication",
-            "smtp_domain", "smtp_username", "smtp_password"
-        ]
+        self.redmine_config_name = "redmine-config"
 
     def __api_request(self, method, path, headers=None, params=None, data=None,
                       operator_id=None, resp_format='.json'):
@@ -397,20 +394,25 @@ class Redmine:
         return self.closed_status
     
     def rm_get_mail_setting(self):
-        redmine_config_name = "redmine-config"
         configs = kubernetesClient.list_namespace_configmap("default")
-        if any(redmine_config_name == config.get("name") for config in configs) is False:
+        if any(self.redmine_config_name == config.get("name") for config in configs) is False:
             #Don't has redmine config, create one.
             with open(f'k8s-yaml/redmine-config.yaml') as file:
                 redmine_config_json = yaml.safe_load(file)['data']
-                kubernetesClient.create_namespace_configmap("default", redmine_config_name, redmine_config_json)
-        else:
-            for line in StringIO(kubernetesClient.read_namespace_configmap("default", redmine_config_name)["configuration.yml"]).readlines():
-                for plug in self.redmine_plugins:
-                    if plug in line:
-                        print(line.replace("{","").replace("}",""))
-            pass
-    
+                kubernetesClient.create_namespace_configmap("default", self.redmine_config_name, redmine_config_json)
+                
+        rm_con_json = yaml.safe_load(kubernetesClient.read_namespace_configmap("default", self.redmine_config_name)["configuration.yml"])
+        return rm_con_json["default"]["email_delivery"]
+
+    def rm_put_mail_setting(self, rm_put_mail_dict):
+        rm_configmap_dict = yaml.safe_load(kubernetesClient.read_namespace_configmap("default", self.redmine_config_name)["configuration.yml"])
+        rm_configmap_dict["default"]["email_delivery"]["delivery_method"]= rm_put_mail_dict["delivery_method"]
+        rm_configmap_dict["default"]["email_delivery"]["smtp_settings"]= rm_put_mail_dict["smtp_settings"]
+        out = {}
+        out["configuration.yml"] = str(yaml.dump(rm_configmap_dict))
+        kubernetesClient.put_namespace_configmap("default", self.redmine_config_name, out)
+        kubernetesClient.redeploy_deployment("default", "redmine")
+
     @staticmethod
     def rm_build_external_link(path):
         return f"{config.get('REDMINE_EXTERNAL_BASE_URL')}{path}"
@@ -423,6 +425,7 @@ redmine = Redmine()
 class RedmineFile(Resource):
     @jwt_required
     def get(self):
+        role.require_admin()
         parser = reqparse.RequestParser()
         parser.add_argument('id', type=int)
         parser.add_argument('filename', type=str)
@@ -435,8 +438,19 @@ class RedmineFile(Resource):
 
 
 class RedmineMail(Resource):
+    @jwt_required
     def get(self):
-        return redmine.rm_get_mail_setting()
+        role.require_admin()
+        return util.success(redmine.rm_get_mail_setting())
+
+    @jwt_required
+    def put(self):
+        role.require_admin()
+        parser = reqparse.RequestParser()
+        parser.add_argument('redmine_mail', type=dict)
+        args = parser.parse_args()
+        redmine.rm_put_mail_setting(args["redmine_mail"])
+        return util.success()
 
 class RedmineRelease():
     @jwt_required    
