@@ -4,7 +4,7 @@ import util
 from . import role
 from sqlalchemy import func
 from operator import itemgetter
-from resources.project import list_projects
+from resources.project import get_pm_project_list
 from resources.user import user_list_by_project
 from resources.issue import get_issue_by_project
 from datetime import datetime
@@ -89,8 +89,7 @@ def clear_all_tables():
 
 def sync_redmine(sync_date):
     need_to_track_issue = []
-    response = list_projects(user_id=get_admin_user_id())
-    all_projects = response[0]['data']['project_list']
+    all_projects = get_pm_project_list(user_id=get_admin_user_id())
     if all_projects:
         for project in all_projects:
             project_status = 'Not_Started'
