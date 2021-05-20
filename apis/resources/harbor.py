@@ -1,6 +1,6 @@
 from urllib.parse import quote
 
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
 from requests.auth import HTTPBasicAuth
 
@@ -8,6 +8,8 @@ import config
 import nexus
 import util
 import re
+import json
+import model
 from resources import apiError, role
 from resources.apiError import DevOpsError
 from resources.logger import logger
@@ -293,6 +295,78 @@ def get_storage_usage(project_id):
     return usage_info
 
 
+def hb_get_registries(registry_id=None, args=None):
+    if registry_id:
+        response = __api_get('/registries/{0}'.format(registry_id))
+    if args:
+        response = __api_get('/registries?q={0}'.format(args))
+    registry = json.loads(response.content.decode('utf8'))
+    return registry
+
+
+def hb_create_registries(args):
+    user_id = get_jwt_identity()['user_id']
+    cloud_provider = model.CloudProvider.query.get(args['provider_id'])
+    if cloud_provider.type == 'aws':
+        data = {
+            'name': args['name'],
+            'description': args['description'],
+            'type': 'aws-ecr',
+            'url': 'https://api.ecr.{location}.amazonaws.com'.format(location=args['location']),
+            'insecure': False,
+            'access_key': cloud_provider.provider_info['access_key_id'],
+            'access_secret': cloud_provider.provider_info['secret_access_key']
+        }
+        __api_post('/registries/ping', data=data)
+        data['credential'] = {
+            'access_key': data['access_key'],
+            'access_secret': data['access_secret'],
+            'type': 'basic'
+        }
+        __api_post('/registries', data=data)
+        registries_id = hb_get_registries(args='name={0}'.format(args['name']))[0].get('id')
+        new_registries = model.Registries(
+            user_id=user_id,
+            name=args['name'],
+            provider_id=args['provider_id'],
+            registries_id=registries_id
+        )
+        model.db.session.add(new_registries)
+        model.db.session.commit()
+
+
+def hb_create_replication_policy(args):
+    dest_registry = hb_get_registries(registry_id=args['registry_id'])
+    data = {
+        "name": args['name'],
+        "description": args['description'],
+        "dest_registry": dest_registry,
+        "trigger": {
+            "type": "manual",
+            "trigger_settings": {"cron": ""}
+            },
+        "enabled": True,
+        "deletion": False,
+        "override": True,
+        "filters": [
+            {
+                "type": "name",
+                "value": args['image_name']
+            },
+            {
+                "type": "resource",
+                "value": "image"
+            }
+        ]
+    }
+    __api_post('/replication/policies', data=data)
+
+
+def hb_execute_replication_policy(args):
+    data = {"policy_id": args['policy_id']}
+    __api_post('/replication/executions', data=data)
+
+
 # ----------------- Resources -----------------
 def extract_names():
     parser = reqparse.RequestParser()
@@ -355,7 +429,6 @@ class HarborProject(Resource):
 
 
 class HarborRelease():
-
     @jwt_required
     def get_list_artifacts(self, project_name, repository_name):
         return hb_list_artifacts(project_name, repository_name)
@@ -380,3 +453,39 @@ class HarborRelease():
 
 
 hb_release = HarborRelease()
+
+
+class HarborRegistries(Resource):
+    @jwt_required
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('name', type=str)
+        parser.add_argument('provider_id', type=int)
+        parser.add_argument('location', type=str)
+        parser.add_argument('description', type=str)
+        args = parser.parse_args()
+        hb_create_registries(args)
+        return util.success()
+
+
+class HarborReplicationPolicy(Resource):
+    @jwt_required
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('name', type=str)
+        parser.add_argument('image_name', type=str)
+        parser.add_argument('registry_id', type=int)
+        parser.add_argument('description', type=str)
+        args = parser.parse_args()
+        hb_create_replication_policy(args)
+        return util.success()
+
+
+class HarborReplicationExecution(Resource):
+    @jwt_required
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('policy_id', type=int)
+        args = parser.parse_args()
+        hb_execute_replication_policy(args)
+        return util.success()

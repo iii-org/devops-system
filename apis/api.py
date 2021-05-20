@@ -412,6 +412,9 @@ api.add_resource(harbor.HarborRepository,
 api.add_resource(harbor.HarborArtifact,
                  '/harbor/artifacts')
 api.add_resource(harbor.HarborProject, '/harbor/projects/<int:nexus_project_id>/summary')
+api.add_resource(harbor.HarborRegistries, '/harbor/registries')
+api.add_resource(harbor.HarborReplicationPolicy, '/harbor/replication/policy')
+api.add_resource(harbor.HarborReplicationExecution, '/harbor/replication/execution')
 
 # WebInspect
 api.add_resource(webInspect.WebInspectScan, '/webinspect/create_scan',
