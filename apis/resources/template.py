@@ -15,6 +15,7 @@ import resources.yaml_OO as pipeline_yaml_OO
 import util
 from . import role
 import resources.apiError as apiError
+import resources.pipeline as pipeline
 from model import db, TemplateListCache
 from sqlalchemy import func, or_, and_
 
@@ -438,8 +439,10 @@ def tm_put_pipeline_default_branch(repository_id, data):
             documents = yaml.dump(pipe_json, file)
         __set_git_username_config(f'pj_edit_pipe_yaml/{pj.path}_{create_time}')
         subprocess.call(['git', 'commit', '-m', '"UI 編輯 .rancher-pipeline.yaml commit"', f'{pipe_yaml_file_name}'], cwd=f"pj_edit_pipe_yaml/{pj.path}_{create_time}")
+        next_run = pipeline.get_pipeline_next_run(repository_id)
         subprocess.call(['git', 'push', '-u', 'origin', f'{br.name}'], cwd=f"pj_edit_pipe_yaml/{pj.path}_{create_time}")
         shutil.rmtree(f"pj_edit_pipe_yaml/{pj.path}_{create_time}", ignore_errors=True)
+        pipeline.stop_and_delete_pipeline(repository_id, next_run)
 
 
 
