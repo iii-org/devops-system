@@ -92,6 +92,29 @@ def pipeline_exec_action(git_repository_id, args):
     return util.success()
 
 
+def stop_and_delete_pipeline(repository_id, run): 
+    relation = nx_get_project_plugin_relation(repo_id=repository_id)
+    i = 0
+    while True:
+        pipeline_outputs = rancher.rc_get_pipeline_executions(
+            relation.ci_project_id,
+            relation.ci_pipeline_id)
+        if pipeline_outputs[0]['run'] == run or i > 50:
+            break
+        else:
+            i+=1
+    rancher.rc_delete_pipeline_executions_run(
+        relation.ci_project_id,
+        relation.ci_pipeline_id,
+        run)
+
+
+def get_pipeline_next_run(repository_id):
+    relation = nx_get_project_plugin_relation(repo_id=repository_id)
+    info_json = rancher.rc_get_pipeline_info(relation.ci_project_id, relation.ci_pipeline_id)
+    return info_json['nextRun']
+
+
 def generate_ci_yaml(args, repository_id, branch_name):
     parameter = {}
     logger.debug("generate_ci_yaml detail: {0}".format(args['detail']))
