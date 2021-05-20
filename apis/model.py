@@ -433,3 +433,19 @@ class GitCommitNumberEachDays(db.Model):
     date = Column(Date)
     commit_number = Column(Integer)
     created_at = Column(DateTime)
+
+
+class CloudProvider(db.Model):
+    id = Column(Integer, primary_key=True)
+    name = Column(String)
+    user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'))
+    type = Column(String)
+    provider_info = Column(JSON)
+
+
+class Registries(db.Model):
+    registries_id = Column(Integer, primary_key=True)
+    name = Column(String)
+    user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'))
+    provider_id = Column(Integer, ForeignKey(CloudProvider.id, ondelete='CASCADE'))
+    provider = db.relationship(CloudProvider, backref='registries')
