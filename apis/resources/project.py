@@ -1049,14 +1049,25 @@ def check_project_args_patterns(args):
                 pattern = "&|<"
                 result = re.findall(pattern, args[key])
                 if any(result):
-                    raise apiError.DevOpsError(400, "Error while creating project",
+                    raise apiError.DevOpsError(400, "Error while creating project.",
                                                error=apiError.invalid_project_content(key, args[key]))
             else:
                 pattern = "^[a-z][a-z0-9-]{0,28}[a-z0-9]$"
                 result = re.findall(pattern, args[key])
                 if result is None:
-                    raise apiError.DevOpsError(400, "Error while creating project",
+                    raise apiError.DevOpsError(400, "Error while creating project.",
                                                error=apiError.invalid_project_name(args[key]))
+
+
+def check_project_owner_id(new_owner_id, user_id, project_id):
+    origin_owner_id = model.Project.query.get(project_id).owner_id
+    if new_owner_id != user_id:
+        if origin_owner_id != user_id:
+            raise apiError.NotAllowedError("Error while updating project info.")
+        else:
+            if not bool(model.ProjectUserRole.query.filter_by(project_id=-1, user_id=new_owner_id, role_id=3).all()):
+                raise apiError.DevOpsError(400, "Error while updating project info.",
+                                           error=apiError.invalid_project_owner(new_owner_id))
 
 
 # --------------------- Resources ---------------------
@@ -1091,6 +1102,7 @@ class SingleProject(Resource):
         parser.add_argument('owner_id', type=int, required=True)
         args = parser.parse_args()
         check_project_args_patterns(args)
+        check_project_owner_id(args['owner_id'], get_jwt_identity()['user_id'], project_id)
         return pm_update_project(project_id, args)
 
     @jwt_required

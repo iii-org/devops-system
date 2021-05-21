@@ -177,8 +177,10 @@ class WIE:
         row = model.WebInspect.query.filter_by(scan_id=scan_id).one()
         if row.stats is not None:
             return json.loads(row.stats)
-        ret = wi_api_get(f'/v2/scans/{scan_id}', headers=self.cookie_header()
-                         ).json().get('data').get('scanStatistics')
+        data = wi_api_get(f'/v2/scans/{scan_id}', headers=self.cookie_header()
+                          ).json().get('data')
+        ret = data.get('scanStatistics')
+        ret['status'] = data.get('scanStateText', 'Error')
         row = model.WebInspect.query.filter_by(scan_id=scan_id).one()
         row.stats = json.dumps(ret)
         row.finished = True
