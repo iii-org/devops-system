@@ -1060,12 +1060,12 @@ def check_project_args_patterns(args):
 
 
 def check_project_owner_id(new_owner_id, user_id, project_id):
-    origin_owner_id = model.Project.query.get(id=project_id).owner_id
+    origin_owner_id = model.Project.query.get(project_id).owner_id
     if new_owner_id != user_id:
         if origin_owner_id != user_id:
             raise apiError.NotAllowedError("Error while updating project info.")
         else:
-            if not bool(model.ProjectUserRole.query.filter_by(project_id=-1, user_id=new_owner_id, role_id=3)):
+            if not bool(model.ProjectUserRole.query.filter_by(project_id=-1, user_id=new_owner_id, role_id=3).all()):
                 raise apiError.DevOpsError(400, "Error while updating project info.",
                                            error=apiError.invalid_project_owner(new_owner_id))
 
