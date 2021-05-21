@@ -1061,13 +1061,21 @@ def check_project_args_patterns(args):
 
 def check_project_owner_id(new_owner_id, user_id, project_id):
     origin_owner_id = model.Project.query.get(project_id).owner_id
-    if new_owner_id != user_id:
-        if origin_owner_id != user_id:
-            raise apiError.NotAllowedError("Error while updating project info.")
-        else:
-            if not bool(model.ProjectUserRole.query.filter_by(project_id=-1, user_id=new_owner_id, role_id=3).all()):
-                raise apiError.DevOpsError(400, "Error while updating project info.",
-                                           error=apiError.invalid_project_owner(new_owner_id))
+    # 不更動 owner_id，僅修改其他資訊 (由 project 中 owner 的 PM 執行)
+    if origin_owner_id == user_id and new_owner_id == user_id:
+        pass
+    # 更動 owner_id (由 project 中 owner 的 PM 執行)
+    elif origin_owner_id == user_id and new_owner_id != user_id:
+        # 檢查 new_owner_id 的 role 是否為 PM
+        if not bool(model.ProjectUserRole.query.filter_by(project_id=-1, user_id=new_owner_id, role_id=3).all()):
+            raise apiError.DevOpsError(400, "Error while updating project info.",
+                                       error=apiError.invalid_project_owner(new_owner_id))
+    # 不更動 owner_id，僅修改其他資訊 (由 project 中其他 PM 執行)
+    elif origin_owner_id != user_id and new_owner_id == origin_owner_id:
+        pass
+    # 其餘權限不足
+    else:
+        raise apiError.NotAllowedError("Error while updating project info.")
 
 
 # --------------------- Resources ---------------------
