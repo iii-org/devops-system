@@ -506,6 +506,7 @@ def pm_update_project(project_id, args):
         gitlab.gl_update_project(plugin_relation.git_repository_id, args["description"])
     redmine.rm_update_project(plugin_relation.plan_project_id, args)
     project = model.Project.query.filter_by(id=project_id).first()
+    check_project_owner_id(args['owner_id'], get_jwt_identity()['user_id'], project.owner_id)
     args, project = check_modify_database_type(targets, args, project)
     project.update_at = str(datetime.utcnow())
     db.session.commit()
@@ -1049,14 +1050,24 @@ def check_project_args_patterns(args):
                 pattern = "&|<"
                 result = re.findall(pattern, args[key])
                 if any(result):
-                    raise apiError.DevOpsError(400, "Error while creating project",
+                    raise apiError.DevOpsError(400, "Error while creating project.",
                                                error=apiError.invalid_project_content(key, args[key]))
             else:
                 pattern = "^[a-z][a-z0-9-]{0,28}[a-z0-9]$"
                 result = re.findall(pattern, args[key])
                 if result is None:
-                    raise apiError.DevOpsError(400, "Error while creating project",
+                    raise apiError.DevOpsError(400, "Error while creating project.",
                                                error=apiError.invalid_project_name(args[key]))
+
+
+def check_project_owner_id(new_owner_id, user_id, old_owner_id):
+    if new_owner_id != user_id:
+        if old_owner_id != user_id:
+            raise apiError.NotAllowedError("Error while updating project info.")
+        else:
+            if not bool(model.ProjectUserRole.query.filter_by(project_id=-1, user_id=new_owner_id, role_id=3)):
+                raise apiError.DevOpsError(400, "Error while updating project info.",
+                                           error=apiError.invalid_project_owner(new_owner_id))
 
 
 # --------------------- Resources ---------------------

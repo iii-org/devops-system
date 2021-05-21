@@ -75,6 +75,10 @@ def invalid_project_content(key, value):
     return build(1010, 'Project {0} contain characters like & or <.'.format(key), {'{0}'.format(key): value})
 
 
+def invalid_project_owner(owner_id=None):
+    return build(1011, 'Project owner role must be PM.', {'owner_id': owner_id})
+
+
 # User errors
 def user_not_found(user_id):
     return build(2001, 'User not found.', {'user_id': user_id})
