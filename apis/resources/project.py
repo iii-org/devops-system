@@ -154,88 +154,71 @@ class NexusProject:
             ret['project_status'] = "已結案"
         return ret
 
-    def fill_rd_extra_fields(self):
-        print(user_id)
-        util.tick('Start', True)
-        output_array = []
-        rows = db.session.query(model.ProjectPluginRelation, model.Project, model.ProjectUserRole
-                                ).join(model.ProjectUserRole). \
-            filter(model.ProjectUserRole.user_id == user_id,
-                   model.ProjectUserRole.project_id == model.Project.id,
-                   model.ProjectPluginRelation.project_id == model.Project.id).all()
-        if len(rows) == 0:
-            return util.success([])
+    def fill_rd_extra_fields(self, user_id):
+        row = self.get_project_row()
         relation = nexus.nx_get_user_plugin_relation(user_id=user_id)
         plan_user_id = relation.plan_user_id
-        for row in rows:
-            output_dict = {'name': row.Project.name,
-                           'display': row.Project.display,
-                           'project_id': row.Project.id,
-                           'git_url': row.Project.http_url,
-                           'redmine_url': f'{config.get("REDMINE_EXTERNAL_BASE_URL")}/projects/'
-                                          f'{row.ProjectPluginRelation.plan_project_id}',
-                           'harbor_url': f'{config.get("HARBOR_EXTERNAL_BASE_URL")}/harbor/projects/' +
-                                         f'{row.ProjectPluginRelation.harbor_project_id}/repositories',
-                           'repository_ids': [row.ProjectPluginRelation.git_repository_id],
-                           'department': user.NexusUser().set_user_id(row.Project.owner_id).department,
-                           'issues': None,
-                           'branch': None,
-                           'tag': None,
-                           'next_d_time': None,
-                           'last_test_time': "",
-                           'last_test_result': {}
-                           }
+        output_dict = {'name': row.name,
+                       'display': row.display,
+                       'project_id': row.id,
+                       'git_url': row.http_url,
+                       'redmine_url': f'{config.get("REDMINE_EXTERNAL_BASE_URL")}/projects/'
+                                      f'{self.get_plugin_row().plan_project_id}',
+                       'harbor_url': f'{config.get("HARBOR_EXTERNAL_BASE_URL")}/harbor/projects/' +
+                                     f'{self.get_plugin_row().harbor_project_id}/repositories',
+                       'repository_ids': [self.get_plugin_row().git_repository_id],
+                       'department': user.NexusUser().set_user_id(row.owner_id).department,
+                       'issues': None,
+                       'branch': None,
+                       'tag': None,
+                       'next_d_time': None,
+                       'last_test_time': "",
+                       'last_test_result': {}
+                       }
 
-            util.tick('db done.')
-            # get issue total cont
-            try:
-                all_issues = redmine.rm_get_issues_by_project_and_user(
-                    plan_user_id, row.ProjectPluginRelation.plan_project_id)
-            except DevOpsError as e:
-                if e.status_code == 404:
-                    # No record, not error
-                    all_issues = []
-                else:
-                    raise e
-            output_dict['issues'] = len(all_issues)
+        # get issue total cont
+        try:
+            all_issues = redmine.rm_get_issues_by_project_and_user(
+                plan_user_id, self.get_plugin_row().plan_project_id)
+        except DevOpsError as e:
+            if e.status_code == 404:
+                # No record, not error
+                all_issues = []
+            else:
+                raise e
+        output_dict['issues'] = len(all_issues)
 
-            util.tick('issue got.')
-            # get next_d_time
-            issue_due_date_list = []
-            for issue in all_issues:
-                if issue['due_date'] is not None:
-                    issue_due_date_list.append(
-                        datetime.strptime(issue['due_date'], "%Y-%m-%d"))
-            next_d_time = None
-            if len(issue_due_date_list) != 0:
-                next_d_time = min(
-                    issue_due_date_list,
-                    key=lambda d: abs(d - datetime.utcnow()))
-            if next_d_time is not None:
-                output_dict['next_d_time'] = next_d_time.isoformat()
+        # get next_d_time
+        issue_due_date_list = []
+        for issue in all_issues:
+            if issue['due_date'] is not None:
+                issue_due_date_list.append(
+                    datetime.strptime(issue['due_date'], "%Y-%m-%d"))
+        next_d_time = None
+        if len(issue_due_date_list) != 0:
+            next_d_time = min(
+                issue_due_date_list,
+                key=lambda d: abs(d - datetime.utcnow()))
+        if next_d_time is not None:
+            output_dict['next_d_time'] = next_d_time.isoformat()
 
-            util.tick('due done.')
-            git_repository_id = row.ProjectPluginRelation.git_repository_id
-            try:
-                # branch number
-                branch_number = gitlab.gl_count_branches(git_repository_id)
-                output_dict['branch'] = branch_number
-                # tag number
-                tags = gitlab.gl_get_tags(git_repository_id)
-                tag_number = len(tags)
-                output_dict['tag'] = tag_number
-            except DevOpsError as e:
-                if e.status_code == 404:
-                    logger.error('project not found. repository_id={0}'.format(git_repository_id))
-                    continue
+        git_repository_id = self.get_plugin_row().git_repository_id
+        try:
+            # branch number
+            branch_number = gitlab.gl_count_branches(git_repository_id)
+            output_dict['branch'] = branch_number
+            # tag number
+            tags = gitlab.gl_get_tags(git_repository_id)
+            tag_number = len(tags)
+            output_dict['tag'] = tag_number
+        except DevOpsError as e:
+            if e.status_code == 404:
+                logger.error('project not found. repository_id={0}'.format(git_repository_id))
+                return
 
-            util.tick('repo done.')
-            output_dict = get_ci_last_test_result(output_dict, row.ProjectPluginRelation)
-
-            util.tick('all done.')
-            output_array.append(output_dict)
-
-        return util.success(output_array)
+        output_dict = get_ci_last_test_result(output_dict, self.get_plugin_row())
+        self.__extra_fields = output_dict
+        return self
 
 
 def get_pm_project_list(user_id):
@@ -247,27 +230,24 @@ def get_pm_project_list(user_id):
         if row.Project.id == -1:
             continue
         ret.append(NexusProject()
-                            .set_project_row(row.Project)
-                            .set_plugin_row(row.ProjectPluginRelation)
-                            .fill_pm_redmine_fields(redmine_projects, issues)
-                            .to_json())
+                   .set_project_row(row.Project)
+                   .set_plugin_row(row.ProjectPluginRelation)
+                   .fill_pm_redmine_fields(redmine_projects, issues)
+                   .to_json())
     return ret
 
 
 def get_rd_project_list(user_id):
     rows = get_project_rows_by_user(user_id)
     ret = []
-
-    redmine_projects = redmine.rm_list_projects()
-    issues = redmine.rm_list_issues()
     for row in rows:
         if row.Project.id == -1:
             continue
         ret.append(NexusProject()
-                            .set_project_row(row.Project)
-                            .set_plugin_row(row.ProjectPluginRelation)
-                            .fill_pm_redmine_fields(redmine_projects, issues)
-                            .to_json())
+                   .set_project_row(row.Project)
+                   .set_plugin_row(row.ProjectPluginRelation)
+                   .fill_rd_extra_fields(user_id)
+                   .to_json())
     return ret
 
 
