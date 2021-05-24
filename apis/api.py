@@ -30,7 +30,7 @@ from jsonwebtoken import jsonwebtoken
 from model import db
 from resources import logger, role as role, activity, zap, sideex
 from resources import project, gitlab, issue, user, redmine, wiki, version, sonarqube, apiTest, postman, mock, harbor, \
-    webInspect, template, release, sync_redmine, plugin, kubernetesClient, ad, project_permission
+    webInspect, template, release, sync_redmine, plugin, kubernetesClient, ad, project_permission, quality
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -454,6 +454,9 @@ api.add_resource(project_permission.SubadminProjects, '/project_permission/subad
 api.add_resource(project_permission.Subadmins, '/project_permission/subadmins')
 api.add_resource(project_permission.SetPermission, '/project_permission/set_permission')
 
+# Quality
+api.add_resource(quality.Collection, '/quality/<int:repository_id>/collection')
+
 # System versions
 api.add_resource(NexusVersion, '/system_versions')
 
@@ -478,4 +481,4 @@ def start_prod():
 if __name__ == "__main__":
     start_prod()
     socketio.run(app, host='0.0.0.0', port=10009, debug=(config.get('DEBUG')),
-                 use_reloader=True)
+                 use_reloader=False)
