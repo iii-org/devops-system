@@ -8,9 +8,10 @@ from sqlalchemy import desc
 
 import config
 import model
+import nexus
 import util
 from model import db
-from resources import role, apiError
+from resources import role, apiError, gitlab
 # ------------- Internal API methods -------------
 from resources.logger import logger
 
@@ -110,6 +111,7 @@ def sq_get_history_measures(project_name):
     # Final output
     ret = {}
     # First get data in db
+    project_id = nexus.nx_get_project(name=project_name).id
     rows = model.Sonarqube.query.filter_by(project_name=project_name). \
         order_by(desc(model.Sonarqube.date)).all()
     latest = None
@@ -163,6 +165,7 @@ def sq_get_history_measures(project_name):
         commit_id = git_info[1]
         fetch[date]['branch'] = branch
         fetch[date]['commit_id'] = commit_id
+        fetch[date]['issue_link'] = gitlab.commit_id_to_url(project_id, commit_id)
 
     # Write new data into db
     for (date, measures) in fetch.items():
