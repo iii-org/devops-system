@@ -1,6 +1,6 @@
 import json
 import re
-from datetime import datetime
+from datetime import datetime, date
 import base64
 
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -16,6 +16,7 @@ import util as util
 from model import db
 from nexus import nx_get_project_plugin_relation
 from resources.apiError import DevOpsError
+from services import redmine_lib
 from util import DevOpsThread
 from . import user, harbor, kubernetesClient, role, sonarqube, template, webInspect, zap, sideex
 from .activity import record_activity, ActionType
@@ -158,47 +159,42 @@ class NexusProject:
         row = self.get_project_row()
         relation = nexus.nx_get_user_plugin_relation(user_id=user_id)
         plan_user_id = relation.plan_user_id
-        output_dict = {'name': row.name,
-                       'display': row.display,
-                       'project_id': row.id,
-                       'git_url': row.http_url,
-                       'redmine_url': f'{config.get("REDMINE_EXTERNAL_BASE_URL")}/projects/'
-                                      f'{self.get_plugin_row().plan_project_id}',
-                       'harbor_url': f'{config.get("HARBOR_EXTERNAL_BASE_URL")}/harbor/projects/' +
-                                     f'{self.get_plugin_row().harbor_project_id}/repositories',
-                       'repository_ids': [self.get_plugin_row().git_repository_id],
-                       'department': user.NexusUser().set_user_id(row.owner_id).department,
-                       'issues': None,
-                       'branch': None,
-                       'tag': None,
-                       'next_d_time': None,
-                       'last_test_time': "",
-                       'last_test_result': {}
-                       }
+        output_dict = {
+            'name': row.name,
+            'display': row.display,
+            'project_id': row.id,
+            'git_url': row.http_url,
+            'redmine_url': f'{config.get("REDMINE_EXTERNAL_BASE_URL")}/projects/'
+                           f'{self.get_plugin_row().plan_project_id}',
+            'harbor_url': f'{config.get("HARBOR_EXTERNAL_BASE_URL")}/harbor/projects/' +
+                          f'{self.get_plugin_row().harbor_project_id}/repositories',
+            'repository_ids': [self.get_plugin_row().git_repository_id],
+            'department': user.NexusUser().set_user_id(row.owner_id).department,
+            'issues': None,
+            'branch': None,
+            'tag': None,
+            'next_d_time': None,
+            'last_test_time': "",
+            'last_test_result': {}
+        }
 
-        # get issue total cont
-        try:
-            all_issues = redmine.rm_get_issues_by_project_and_user(
-                plan_user_id, self.get_plugin_row().plan_project_id)
-        except DevOpsError as e:
-            if e.status_code == 404:
-                # No record, not error
-                all_issues = []
-            else:
-                raise e
+        all_issues = redmine_lib.redmine.issue.filter(
+            project_id=self.get_plugin_row().plan_project_id,
+            assigned_to_id=plan_user_id,
+            status_id='*'
+        )
         output_dict['issues'] = len(all_issues)
 
         # get next_d_time
         issue_due_date_list = []
         for issue in all_issues:
-            if issue['due_date'] is not None:
-                issue_due_date_list.append(
-                    datetime.strptime(issue['due_date'], "%Y-%m-%d"))
+            if getattr(issue, 'due_date', None) is not None:
+                issue_due_date_list.append(issue.due_date)
         next_d_time = None
         if len(issue_due_date_list) != 0:
             next_d_time = min(
                 issue_due_date_list,
-                key=lambda d: abs(d - datetime.utcnow()))
+                key=lambda d: abs(d - date.today()))
         if next_d_time is not None:
             output_dict['next_d_time'] = next_d_time.isoformat()
 
