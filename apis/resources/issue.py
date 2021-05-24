@@ -108,12 +108,17 @@ class NexusIssue:
 
 
 def get_issue_attr_name(detail, value):
-    if detail['name'] == 'status_id':
+    if detail['name'] == 'status_id' and value:
         return redmine_lib.redmine.issue_status.get(int(value)).name
-    elif detail['name'] == 'tracker_id':
+    elif detail['name'] == 'tracker_id' and value:
         return redmine_lib.redmine.tracker.get(int(value)).name
-    elif detail['name'] == 'priority_id':
+    elif detail['name'] == 'priority_id' and value:
         return redmine_lib.redmine.enumeration.get(int(value), resource='issue_priorities').name
+    elif detail['name'] == 'parent_id' and value:
+        return {
+            'id': int(value),
+            'subject': redmine_lib.redmine.issue.get(int(value)).subject
+        }
     else:
         return value
 
