@@ -171,8 +171,6 @@ class NexusProject:
             'repository_ids': [self.get_plugin_row().git_repository_id],
             'department': user.NexusUser().set_user_id(row.owner_id).department,
             'issues': None,
-            'branch': None,
-            'tag': None,
             'next_d_time': None,
             'last_test_time': "",
             'last_test_result': {}
@@ -197,20 +195,6 @@ class NexusProject:
                 key=lambda d: abs(d - date.today()))
         if next_d_time is not None:
             output_dict['next_d_time'] = next_d_time.isoformat()
-
-        git_repository_id = self.get_plugin_row().git_repository_id
-        try:
-            # branch number
-            branch_number = gitlab.gl_count_branches(git_repository_id)
-            output_dict['branch'] = branch_number
-            # tag number
-            tags = gitlab.gl_get_tags(git_repository_id)
-            tag_number = len(tags)
-            output_dict['tag'] = tag_number
-        except DevOpsError as e:
-            if e.status_code == 404:
-                logger.error('project not found. repository_id={0}'.format(git_repository_id))
-                return
 
         output_dict = get_ci_last_test_result(output_dict, self.get_plugin_row())
         self.__extra_fields = output_dict
@@ -766,22 +750,24 @@ def get_plan_project_id(project_id):
 
 
 def get_ci_last_test_result(output_dict, relation):
+    pl = rancher.rc_get_pipeline_info(relation.ci_project_id, relation.ci_pipeline_id)
+    last_exec_id = pl.get('lastExecutionId')
+    last_run = rancher.rc_get_pipeline_execution(
+        relation.ci_project_id, relation.ci_pipeline_id, last_exec_id)
+
     # get rancher pipeline
-    pipeline_output = rancher.rc_get_pipeline_executions(
-        relation.ci_project_id, relation.ci_pipeline_id)
-    if len(pipeline_output) != 0:
-        output_dict['last_test_time'] = pipeline_output[0]['created']
-        stage_status = []
-        for stage in pipeline_output[0]['stages']:
-            if 'state' in stage:
-                stage_status.append(stage['state'])
-        if 'Failed' in stage_status:
-            failed_item = stage_status.index('Failed')
-            output_dict['last_test_result'] = {'total': len(pipeline_output[0]['stages']),
-                                               'success': failed_item}
-        else:
-            output_dict['last_test_result'] = {'total': len(pipeline_output[0]['stages']),
-                                               'success': len(pipeline_output[0]['stages'])}
+    output_dict['last_test_time'] = last_run['created']
+    stage_status = []
+    for stage in last_run['stages']:
+        if 'state' in stage:
+            stage_status.append(stage['state'])
+    if 'Failed' in stage_status:
+        failed_item = stage_status.index('Failed')
+        output_dict['last_test_result'] = {'total': len(last_run['stages']),
+                                           'success': failed_item}
+    else:
+        output_dict['last_test_result'] = {'total': len(last_run['stages']),
+                                           'success': len(last_run['stages'])}
     return output_dict
 
 
