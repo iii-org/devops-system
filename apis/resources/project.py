@@ -29,6 +29,9 @@ from .redmine import redmine
 
 # Use lazy loading to avoid redundant db queries, build up this object like:
 # NexusProject().set_project_id(4) or NexusProject().set_project_row(row)
+from .role import Role
+
+
 class NexusProject:
     def __init__(self):
         self.__project_id = None
@@ -196,7 +199,7 @@ class NexusProject:
         if next_d_time is not None:
             output_dict['next_d_time'] = next_d_time.isoformat()
 
-        output_dict = get_ci_last_test_result(output_dict, self.get_plugin_row())
+        output_dict.update(get_ci_last_test_result(self.get_plugin_row()))
         self.__extra_fields = output_dict
         return self
 
@@ -467,29 +470,18 @@ def create_bot(project_id):
         project_id, 'nexus-bot', {'username': login, 'password': password})
 
 
-def check_modify_database_type(items, args, select_db):
-    output = {}
-    for item in items:
-        if args[item] is None:
-            output[item] = getattr(select_db, item)
-        else:
-            output[item] = args[item]
-            setattr(select_db, item, args[item])
-    return args, select_db
-
-
 @record_activity(ActionType.UPDATE_PROJECT)
 def pm_update_project(project_id, args):
-    targets = ['display', 'description', 'disabled', 'owner_id', 'start_date', 'due_date']
     plugin_relation = model.ProjectPluginRelation.query.filter_by(project_id=project_id).first()
     if args['description'] is not None:
         gitlab.gl_update_project(plugin_relation.git_repository_id, args["description"])
     redmine.rm_update_project(plugin_relation.plan_project_id, args)
-    project = model.Project.query.filter_by(id=project_id).first()
-    args, project = check_modify_database_type(targets, args, project)
-    project.update_at = str(datetime.utcnow())
-    db.session.commit()
-    return util.success()
+    nexus.nx_update_project(project_id, args)
+
+
+@record_activity(ActionType.UPDATE_PROJECT)
+def nexus_update_project(project_id, args):
+    nexus.nx_update_project(project_id, args)
 
 
 def try_to_delete(delete_method, argument):
@@ -749,26 +741,36 @@ def get_plan_project_id(project_id):
         project_id=project_id).one().plan_project_id
 
 
-def get_ci_last_test_result(output_dict, relation):
+def get_ci_last_test_result(relation):
+    ret = {
+        'last_test_result': {'total': 0, 'success': 0},
+        'last_test_time': ''
+    }
     pl = rancher.rc_get_pipeline_info(relation.ci_project_id, relation.ci_pipeline_id)
     last_exec_id = pl.get('lastExecutionId')
-    last_run = rancher.rc_get_pipeline_execution(
-        relation.ci_project_id, relation.ci_pipeline_id, last_exec_id)
+    if last_exec_id is None:
+        return ret
+    try:
+        last_run = rancher.rc_get_pipeline_execution(
+            relation.ci_project_id, relation.ci_pipeline_id, last_exec_id)
+    except DevOpsError as e:
+        if e.status_code == 404:
+            return ret
+        else:
+            raise e
 
-    # get rancher pipeline
-    output_dict['last_test_time'] = last_run['created']
+    ret['last_test_result']['total'] = len(last_run['stages'])
+    ret['last_test_time'] = last_run['created']
     stage_status = []
     for stage in last_run['stages']:
         if 'state' in stage:
             stage_status.append(stage['state'])
     if 'Failed' in stage_status:
         failed_item = stage_status.index('Failed')
-        output_dict['last_test_result'] = {'total': len(last_run['stages']),
-                                           'success': failed_item}
+        ret['last_test_result']['success'] = failed_item
     else:
-        output_dict['last_test_result'] = {'total': len(last_run['stages']),
-                                           'success': len(last_run['stages'])}
-    return output_dict
+        ret['last_test_result']['success'] = len(last_run['stages'])
+    return ret
 
 
 def get_project_by_plan_project_id(plan_project_id):
@@ -1043,8 +1045,11 @@ def check_project_args_patterns(args):
 
 def check_project_owner_id(new_owner_id, user_id, project_id):
     origin_owner_id = model.Project.query.get(project_id).owner_id
+    # 你是皇帝，你說了算
+    if role.is_role(role.ADMIN):
+        pass
     # 不更動 owner_id，僅修改其他資訊 (由 project 中 owner 的 PM 執行)
-    if origin_owner_id == user_id and new_owner_id == user_id:
+    elif origin_owner_id == user_id and new_owner_id == user_id:
         pass
     # 更動 owner_id (由 project 中 owner 的 PM 執行)
     elif origin_owner_id == user_id and new_owner_id != user_id:
@@ -1093,7 +1098,21 @@ class SingleProject(Resource):
         args = parser.parse_args()
         check_project_args_patterns(args)
         check_project_owner_id(args['owner_id'], get_jwt_identity()['user_id'], project_id)
-        return pm_update_project(project_id, args)
+        pm_update_project(project_id, args)
+        return util.success()
+
+    @jwt_required
+    def patch(self, project_id):
+        role.require_pm("Error while updating project info.", exclude_qa=True)
+        role.require_in_project(project_id, "Error while updating project info.")
+        parser = reqparse.RequestParser()
+        parser.add_argument('owner_id', type=int, required=False)
+        args = parser.parse_args()
+        check_project_args_patterns(args)
+        if args.get('owner_id', None) is not None:
+            check_project_owner_id(args['owner_id'], get_jwt_identity()['user_id'], project_id)
+        nexus_update_project(project_id, args)
+        return util.success()
 
     @jwt_required
     def delete(self, project_id):
