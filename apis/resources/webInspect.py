@@ -14,7 +14,10 @@ from resources import apiError, role, gitlab, kubernetesClient
 from resources.logger import logger
 
 wie = None
-wi_base_url = kubernetesClient.read_namespace_secret('default', 'webinspect').get('wi-base-url', '')
+wi_base_url = ''
+sec = kubernetesClient.read_namespace_secret('default', 'webinspect')
+if sec is not None:
+    wi_base_url = sec.get('wi-base-url', '')
 
 
 def wie_instance():
