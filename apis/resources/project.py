@@ -1,6 +1,6 @@
 import json
 import re
-from datetime import datetime
+from datetime import datetime, date
 import base64
 
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -16,6 +16,7 @@ import util as util
 from model import db
 from nexus import nx_get_project_plugin_relation
 from resources.apiError import DevOpsError
+from services import redmine_lib
 from util import DevOpsThread
 from . import user, harbor, kubernetesClient, role, sonarqube, template, webInspect, zap, sideex
 from .activity import record_activity, ActionType
@@ -28,6 +29,9 @@ from .redmine import redmine
 
 # Use lazy loading to avoid redundant db queries, build up this object like:
 # NexusProject().set_project_id(4) or NexusProject().set_project_row(row)
+from .role import Role
+
+
 class NexusProject:
     def __init__(self):
         self.__project_id = None
@@ -106,8 +110,8 @@ class NexusProject:
         ret['harbor_url'] = \
             f'{config.get("HARBOR_EXTERNAL_BASE_URL")}/harbor/projects/' \
             f'{self.get_plugin_row().harbor_project_id}/repositories'
-        ret['pm_user_id'] = self.get_owner().id
-        ret['pm_user_name'] = self.get_owner().name
+        ret['owner_id'] = self.get_owner().id
+        ret['owner_name'] = self.get_owner().name
         ret['department'] = self.get_owner().department
         for key, value in self.get_extra_fields().items():
             ret[key] = value
@@ -158,65 +162,44 @@ class NexusProject:
         row = self.get_project_row()
         relation = nexus.nx_get_user_plugin_relation(user_id=user_id)
         plan_user_id = relation.plan_user_id
-        output_dict = {'name': row.name,
-                       'display': row.display,
-                       'project_id': row.id,
-                       'git_url': row.http_url,
-                       'redmine_url': f'{config.get("REDMINE_EXTERNAL_BASE_URL")}/projects/'
-                                      f'{self.get_plugin_row().plan_project_id}',
-                       'harbor_url': f'{config.get("HARBOR_EXTERNAL_BASE_URL")}/harbor/projects/' +
-                                     f'{self.get_plugin_row().harbor_project_id}/repositories',
-                       'repository_ids': [self.get_plugin_row().git_repository_id],
-                       'department': user.NexusUser().set_user_id(row.owner_id).department,
-                       'issues': None,
-                       'branch': None,
-                       'tag': None,
-                       'next_d_time': None,
-                       'last_test_time': "",
-                       'last_test_result': {}
-                       }
+        output_dict = {
+            'name': row.name,
+            'display': row.display,
+            'project_id': row.id,
+            'git_url': row.http_url,
+            'redmine_url': f'{config.get("REDMINE_EXTERNAL_BASE_URL")}/projects/'
+                           f'{self.get_plugin_row().plan_project_id}',
+            'harbor_url': f'{config.get("HARBOR_EXTERNAL_BASE_URL")}/harbor/projects/' +
+                          f'{self.get_plugin_row().harbor_project_id}/repositories',
+            'repository_ids': [self.get_plugin_row().git_repository_id],
+            'department': user.NexusUser().set_user_id(row.owner_id).department,
+            'issues': None,
+            'next_d_time': None,
+            'last_test_time': "",
+            'last_test_result': {}
+        }
 
-        # get issue total cont
-        try:
-            all_issues = redmine.rm_get_issues_by_project_and_user(
-                plan_user_id, self.get_plugin_row().plan_project_id)
-        except DevOpsError as e:
-            if e.status_code == 404:
-                # No record, not error
-                all_issues = []
-            else:
-                raise e
+        all_issues = redmine_lib.redmine.issue.filter(
+            project_id=self.get_plugin_row().plan_project_id,
+            assigned_to_id=plan_user_id,
+            status_id='*'
+        )
         output_dict['issues'] = len(all_issues)
 
         # get next_d_time
         issue_due_date_list = []
         for issue in all_issues:
-            if issue['due_date'] is not None:
-                issue_due_date_list.append(
-                    datetime.strptime(issue['due_date'], "%Y-%m-%d"))
+            if getattr(issue, 'due_date', None) is not None:
+                issue_due_date_list.append(issue.due_date)
         next_d_time = None
         if len(issue_due_date_list) != 0:
             next_d_time = min(
                 issue_due_date_list,
-                key=lambda d: abs(d - datetime.utcnow()))
+                key=lambda d: abs(d - date.today()))
         if next_d_time is not None:
             output_dict['next_d_time'] = next_d_time.isoformat()
 
-        git_repository_id = self.get_plugin_row().git_repository_id
-        try:
-            # branch number
-            branch_number = gitlab.gl_count_branches(git_repository_id)
-            output_dict['branch'] = branch_number
-            # tag number
-            tags = gitlab.gl_get_tags(git_repository_id)
-            tag_number = len(tags)
-            output_dict['tag'] = tag_number
-        except DevOpsError as e:
-            if e.status_code == 404:
-                logger.error('project not found. repository_id={0}'.format(git_repository_id))
-                return
-
-        output_dict = get_ci_last_test_result(output_dict, self.get_plugin_row())
+        output_dict.update(get_ci_last_test_result(self.get_plugin_row()))
         self.__extra_fields = output_dict
         return self
 
@@ -487,29 +470,18 @@ def create_bot(project_id):
         project_id, 'nexus-bot', {'username': login, 'password': password})
 
 
-def check_modify_database_type(items, args, select_db):
-    output = {}
-    for item in items:
-        if args[item] is None:
-            output[item] = getattr(select_db, item)
-        else:
-            output[item] = args[item]
-            setattr(select_db, item, args[item])
-    return args, select_db
-
-
 @record_activity(ActionType.UPDATE_PROJECT)
 def pm_update_project(project_id, args):
-    targets = ['display', 'description', 'disabled', 'owner_id', 'start_date', 'due_date']
     plugin_relation = model.ProjectPluginRelation.query.filter_by(project_id=project_id).first()
     if args['description'] is not None:
         gitlab.gl_update_project(plugin_relation.git_repository_id, args["description"])
     redmine.rm_update_project(plugin_relation.plan_project_id, args)
-    project = model.Project.query.filter_by(id=project_id).first()
-    args, project = check_modify_database_type(targets, args, project)
-    project.update_at = str(datetime.utcnow())
-    db.session.commit()
-    return util.success()
+    nexus.nx_update_project(project_id, args)
+
+
+@record_activity(ActionType.UPDATE_PROJECT)
+def nexus_update_project(project_id, args):
+    nexus.nx_update_project(project_id, args)
 
 
 def try_to_delete(delete_method, argument):
@@ -615,21 +587,9 @@ def pm_get_project(project_id):
         "redmine_url": redmine_url,
         "ssh_url": project_info["ssh_url"],
         "repository_id": project_info["git_repository_id"],
+        "owner_id": project_info["owner_id"],
+        "owner_name": model.User.query.get(project_info["owner_id"]).name
     }
-    # 查詢專案負責人
-    result = db.engine.execute(
-        "SELECT user_id FROM public.project_user_role WHERE project_id = '{0}'"
-        " AND role_id = '{1}'".format(project_id, 3))
-    user_id = result.fetchone()[0]
-    result.close()
-
-    result = db.engine.execute(
-        "SELECT name FROM public.user WHERE id = '{0}'".format(user_id))
-    user_name = result.fetchone()[0]
-    result.close()
-    output["pm_user_id"] = user_id
-    output["pm_user_name"] = user_name
-
     return util.success(output)
 
 
@@ -769,24 +729,36 @@ def get_plan_project_id(project_id):
         project_id=project_id).one().plan_project_id
 
 
-def get_ci_last_test_result(output_dict, relation):
-    # get rancher pipeline
-    pipeline_output = rancher.rc_get_pipeline_executions(
-        relation.ci_project_id, relation.ci_pipeline_id)
-    if len(pipeline_output) != 0:
-        output_dict['last_test_time'] = pipeline_output[0]['created']
-        stage_status = []
-        for stage in pipeline_output[0]['stages']:
-            if 'state' in stage:
-                stage_status.append(stage['state'])
-        if 'Failed' in stage_status:
-            failed_item = stage_status.index('Failed')
-            output_dict['last_test_result'] = {'total': len(pipeline_output[0]['stages']),
-                                               'success': failed_item}
+def get_ci_last_test_result(relation):
+    ret = {
+        'last_test_result': {'total': 0, 'success': 0},
+        'last_test_time': ''
+    }
+    pl = rancher.rc_get_pipeline_info(relation.ci_project_id, relation.ci_pipeline_id)
+    last_exec_id = pl.get('lastExecutionId')
+    if last_exec_id is None:
+        return ret
+    try:
+        last_run = rancher.rc_get_pipeline_execution(
+            relation.ci_project_id, relation.ci_pipeline_id, last_exec_id)
+    except DevOpsError as e:
+        if e.status_code == 404:
+            return ret
         else:
-            output_dict['last_test_result'] = {'total': len(pipeline_output[0]['stages']),
-                                               'success': len(pipeline_output[0]['stages'])}
-    return output_dict
+            raise e
+
+    ret['last_test_result']['total'] = len(last_run['stages'])
+    ret['last_test_time'] = last_run['created']
+    stage_status = []
+    for stage in last_run['stages']:
+        if 'state' in stage:
+            stage_status.append(stage['state'])
+    if 'Failed' in stage_status:
+        failed_item = stage_status.index('Failed')
+        ret['last_test_result']['success'] = failed_item
+    else:
+        ret['last_test_result']['success'] = len(last_run['stages'])
+    return ret
 
 
 def get_project_by_plan_project_id(plan_project_id):
@@ -1061,8 +1033,11 @@ def check_project_args_patterns(args):
 
 def check_project_owner_id(new_owner_id, user_id, project_id):
     origin_owner_id = model.Project.query.get(project_id).owner_id
+    # 你是皇帝，你說了算
+    if role.is_role(role.ADMIN):
+        pass
     # 不更動 owner_id，僅修改其他資訊 (由 project 中 owner 的 PM 執行)
-    if origin_owner_id == user_id and new_owner_id == user_id:
+    elif origin_owner_id == user_id and new_owner_id == user_id:
         pass
     # 更動 owner_id (由 project 中 owner 的 PM 執行)
     elif origin_owner_id == user_id and new_owner_id != user_id:
@@ -1111,7 +1086,21 @@ class SingleProject(Resource):
         args = parser.parse_args()
         check_project_args_patterns(args)
         check_project_owner_id(args['owner_id'], get_jwt_identity()['user_id'], project_id)
-        return pm_update_project(project_id, args)
+        pm_update_project(project_id, args)
+        return util.success()
+
+    @jwt_required
+    def patch(self, project_id):
+        role.require_pm("Error while updating project info.", exclude_qa=True)
+        role.require_in_project(project_id, "Error while updating project info.")
+        parser = reqparse.RequestParser()
+        parser.add_argument('owner_id', type=int, required=False)
+        args = parser.parse_args()
+        check_project_args_patterns(args)
+        if args.get('owner_id', None) is not None:
+            check_project_owner_id(args['owner_id'], get_jwt_identity()['user_id'], project_id)
+        nexus_update_project(project_id, args)
+        return util.success()
 
     @jwt_required
     def delete(self, project_id):

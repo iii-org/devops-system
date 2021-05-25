@@ -5,18 +5,19 @@ from flask import make_response
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
 
-import config
 import model
 import nexus
 import util
 from model import db
 # -------- API methods --------
 from resources import apiError, role, gitlab, kubernetesClient
-from resources.apiError import DevOpsError
 from resources.logger import logger
-from resources.rancher import rancher
 
 wie = None
+wi_base_url = ''
+sec = kubernetesClient.read_namespace_secret('default', 'webinspect')
+if sec is not None:
+    wi_base_url = sec.get('wi-base-url', '')
 
 
 def wie_instance():
@@ -34,7 +35,12 @@ def wi_api_request(method, path, headers=None, params=None, data=None):
     if 'Content-Type' not in headers:
         headers['Content-Type'] = 'application/json'
 
-    url = f"{config.get('WEBINSPECT_BASE_URL')}{path}"
+    if wi_base_url == '':
+        raise apiError.DevOpsError(
+            500,
+            'WebInspect is not set up.',
+            apiError.resource_not_found())
+    url = f"{wi_base_url}{path}"
     output = util.api_request(method, url, headers, params, data)
 
     logger.info(f"WebInspect api {method} {url}, params={params.__str__()}, body={data},"

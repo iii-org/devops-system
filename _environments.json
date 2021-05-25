@@ -39,8 +39,6 @@
     "HARBOR_ACCOUNT": "admin",
     "HARBOR_PASSWORD": "***********",
 
-    "WEBINSPECT_BASE_URL": "http://127.0.0.1:5814/webinspect",
-
     "ADMIN_INIT_LOGIN": "devops_admin",
     "ADMIN_INIT_EMAIL": "admin@devops.iii.org",
     "ADMIN_INIT_PASSWORD": "********",

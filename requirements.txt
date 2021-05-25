@@ -18,3 +18,4 @@ python-gitlab == 2.6.0
 flask-socketio == 5.0.1
 eventlet == 0.30.2
 gunicorn == 20.1.0
+python-redmine == 2.3.0

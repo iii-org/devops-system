@@ -19,6 +19,7 @@ from resources.logger import logger
 from resources.redmine import redmine
 from . import project as project_module, project, role
 from .project import NexusProject
+from services import redmine_lib
 
 FLOW_TYPES = {"0": "Given", "1": "When", "2": "Then", "3": "But", "4": "And"}
 PARAMETER_TYPES = {'1': '文字', '2': '英數字', '3': '英文字', '4': '數字'}
@@ -104,6 +105,31 @@ class NexusIssue:
 
     def get_tracker_name(self):
         return self.data['tracker']['name']
+
+
+def get_issue_attr_name(detail, value):
+    # 例外處理: dev3 環境的 issue fixed_version_id 有 -1
+    if not value or value == '-1':
+        return value
+    else:
+        if detail['name'] == 'status_id':
+            return redmine_lib.redmine.issue_status.get(int(value)).name
+        elif detail['name'] == 'tracker_id':
+            return redmine_lib.redmine.tracker.get(int(value)).name
+        elif detail['name'] == 'priority_id':
+            return redmine_lib.redmine.enumeration.get(int(value), resource='issue_priorities').name
+        elif detail['name'] == 'fixed_version_id':
+            return {
+                'id': int(value),
+                'name': redmine_lib.redmine.version.get(int(value)).name
+            }
+        elif detail['name'] == 'parent_id':
+            return {
+                'id': int(value),
+                'subject': redmine_lib.redmine.issue.get(int(value)).subject
+            }
+        else:
+            return value
 
 
 def get_dict_userid():
@@ -214,8 +240,8 @@ def __deal_with_issue_redmine_output(redmine_output, closed_status=None):
                         else:
                             detail_info['new_value'] = detail['new_value']
                     else:
-                        detail_info['old_value'] = detail['old_value']
-                        detail_info['new_value'] = detail['new_value']
+                        detail_info['old_value'] = get_issue_attr_name(detail, detail['old_value'])
+                        detail_info['new_value'] = get_issue_attr_name(detail, detail['new_value'])
                     list_details.append(detail_info)
             redmine_output['journals'][i]['details'] = list_details
             i += 1

@@ -73,8 +73,13 @@ class Rancher(object):
                                  data=body, with_token=False, retried=True)
         return output.json()['token']
 
-    def rc_get_pipeline_executions(self, ci_project_id, ci_pipeline_id, run=None):
-        path = '/projects/{0}/pipelineexecutions'.format(ci_project_id)
+    def rc_get_pipeline_execution(self, ci_project_id, ci_pipeline_id, execution_id):
+        path = f'/projects/{ci_project_id}/pipelineExecutions/{execution_id}'
+        response = self.__api_get(path)
+        return response.json()
+
+    def rc_get_pipeline_executions(self, ci_project_id, ci_pipeline_id, run=None, execution_id=None):
+        path = f'/projects/{ci_project_id}/pipelineexecutions'
         params = {
             'order': 'desc',
             'sort': 'started',
