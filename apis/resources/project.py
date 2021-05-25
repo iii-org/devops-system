@@ -110,8 +110,8 @@ class NexusProject:
         ret['harbor_url'] = \
             f'{config.get("HARBOR_EXTERNAL_BASE_URL")}/harbor/projects/' \
             f'{self.get_plugin_row().harbor_project_id}/repositories'
-        ret['pm_user_id'] = self.get_owner().id
-        ret['pm_user_name'] = self.get_owner().name
+        ret['owner_id'] = self.get_owner().id
+        ret['owner_name'] = self.get_owner().name
         ret['department'] = self.get_owner().department
         for key, value in self.get_extra_fields().items():
             ret[key] = value
@@ -587,21 +587,9 @@ def pm_get_project(project_id):
         "redmine_url": redmine_url,
         "ssh_url": project_info["ssh_url"],
         "repository_id": project_info["git_repository_id"],
+        "owner_id": project_info["owner_id"],
+        "owner_name": model.User.query.get(project_info["owner_id"]).name
     }
-    # 查詢專案負責人
-    result = db.engine.execute(
-        "SELECT user_id FROM public.project_user_role WHERE project_id = '{0}'"
-        " AND role_id = '{1}'".format(project_id, 3))
-    user_id = result.fetchone()[0]
-    result.close()
-
-    result = db.engine.execute(
-        "SELECT name FROM public.user WHERE id = '{0}'".format(user_id))
-    user_name = result.fetchone()[0]
-    result.close()
-    output["pm_user_id"] = user_id
-    output["pm_user_name"] = user_name
-
     return util.success(output)
 
 
