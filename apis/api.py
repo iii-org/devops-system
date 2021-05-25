@@ -455,7 +455,8 @@ api.add_resource(project_permission.Subadmins, '/project_permission/subadmins')
 api.add_resource(project_permission.SetPermission, '/project_permission/set_permission')
 
 # Quality
-api.add_resource(quality.Collection, '/quality/<int:repository_id>/collection')
+api.add_resource(quality.CollectionList, '/quality/<int:repository_id>/collection_list')
+api.add_resource(quality.Collection, '/quality/<int:repository_id>/collection/<software_name>/<collection_name>')
 
 # System versions
 api.add_resource(NexusVersion, '/system_versions')
