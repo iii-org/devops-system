@@ -108,7 +108,8 @@ class NexusIssue:
 
 
 def get_issue_attr_name(detail, value):
-    if not value:
+    # 例外處理: dev3 環境的 issue fixed_version_id 有 -1
+    if not value or value == '-1':
         return value
     else:
         if detail['name'] == 'status_id':
@@ -117,6 +118,11 @@ def get_issue_attr_name(detail, value):
             return redmine_lib.redmine.tracker.get(int(value)).name
         elif detail['name'] == 'priority_id':
             return redmine_lib.redmine.enumeration.get(int(value), resource='issue_priorities').name
+        elif detail['name'] == 'fixed_version_id':
+            return {
+                'id': int(value),
+                'name': redmine_lib.redmine.version.get(int(value)).name
+            }
         elif detail['name'] == 'parent_id':
             return {
                 'id': int(value),
@@ -234,8 +240,6 @@ def __deal_with_issue_redmine_output(redmine_output, closed_status=None):
                         else:
                             detail_info['new_value'] = detail['new_value']
                     else:
-                        # detail_info['old_value'] = detail['old_value']
-                        # detail_info['new_value'] = detail['new_value']
                         detail_info['old_value'] = get_issue_attr_name(detail, detail['old_value'])
                         detail_info['new_value'] = get_issue_attr_name(detail, detail['new_value'])
                     list_details.append(detail_info)
