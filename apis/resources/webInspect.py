@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from flask import make_response
 from flask_jwt_extended import jwt_required
@@ -162,6 +162,7 @@ def wi_download_report(scan_id):
 class WIE:
     def __init__(self):
         self.token = None
+        self.token_made = None
         self.login()
 
     def login(self):
@@ -171,8 +172,11 @@ class WIE:
             'password': secret.get('wi-password', None)
         })
         self.token = res.json().get('data').split(' ')[1]
+        self.token_made = datetime.now()
 
     def cookie_header(self):
+        if (datetime.now() - self.token_made) > timedelta(hours=12):
+            self.login()
         return {'Cookie': f'WIESession={self.token}'}
 
     def get_scan_status(self, scan_id):
