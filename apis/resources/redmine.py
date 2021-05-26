@@ -13,6 +13,7 @@ import util as util
 from resources.apiError import DevOpsError
 from resources.logger import logger
 from . import kubernetesClient, role
+from services import redmine_lib
 
 
 class Redmine:
@@ -392,7 +393,7 @@ class Redmine:
             if status['is_closed'] is True:
                 self.closed_status.append(status['id'])
         return self.closed_status
-    
+
     def rm_get_or_create_configmap(self):
         configs = kubernetesClient.list_namespace_configmap("default")
         if any(self.redmine_config_name == config.get("name") for config in configs) is False:
@@ -418,6 +419,11 @@ class Redmine:
     @staticmethod
     def rm_build_external_link(path):
         return f"{config.get('REDMINE_EXTERNAL_BASE_URL')}{path}"
+
+    def rm_update_email(self, plan_user_id, new_email):
+        user = redmine_lib.redmine.user.get(plan_user_id)
+        setattr(user, 'email', new_email)
+        user.save()
 
 
 # --------------------- Resources ---------------------

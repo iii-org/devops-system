@@ -164,6 +164,22 @@ def hb_update_user_password(user_id, new_pwd, old_pwd):
             raise e
 
 
+def hb_update_user_email(user_id, user_name, new_email):
+    data = {
+        'email': new_email,
+        'realname': user_name
+    }
+    try:
+        __api_put(f'/users/{user_id}', data=data)
+    except DevOpsError as e:
+        if e.status_code == 400 and \
+                e.error_value['details']['response']['errors'][0][
+                    'message'] == 'the new password can not be same with the old one':
+            pass
+        else:
+            raise e
+
+
 def hb_add_member(project_id, user_id):
     data = {
         "role_id": 1,

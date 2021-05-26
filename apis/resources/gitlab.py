@@ -177,6 +177,12 @@ class GitLab(object):
                                   "skip_reconfirmation": True
                               })
 
+    def gl_update_email(self, repository_user_id, new_email):
+        return self.__api_put(f'/users/{repository_user_id}',
+                              params={
+                                  "email": new_email
+                              })
+
     def gl_get_user_list(self, args):
         return self.__api_get('/users', params=args)
 
