@@ -26,7 +26,6 @@ from .logger import logger
 from .rancher import rancher
 from .redmine import redmine
 
-
 # Use lazy loading to avoid redundant db queries, build up this object like:
 # NexusProject().set_project_id(4) or NexusProject().set_project_row(row)
 from .role import Role
@@ -1283,7 +1282,6 @@ class ProjectUserResourceDeployments(Resource):
 
 
 class ProjectUserResourceDeployment(Resource):
-
     @jwt_required
     def put(self, project_id, deployment_name):
         role.require_in_project(project_id, "Error while getting project info.")
@@ -1317,7 +1315,6 @@ class ProjectUserResourceSecrets(Resource):
 
 
 class ProjectUserResourceSecret(Resource):
-
     @jwt_required
     def get(self, project_id, secret_name):
         role.require_in_project(project_id, "Error while getting project info.")
