@@ -23,6 +23,17 @@ def error_3rd_party_api(service_name, response):
                  {'service_name': service_name, 'response': resp_value})
 
 
+# Temlate errors
+def template_not_found(template_id):
+    return build(5001, 'Template not found.',
+                 {'template_id': template_id})
+
+
+def template_file_not_found(template_id, template_name):
+    return build(5002, 'Can not get template file or folder.',
+                 {'template_id': template_id, 'template_name': template_name})
+
+
 # Project errors
 def identifier_has_been_taken(identifier):
     return build(1001, 'Project identifier has been taken.', {'identifier': identifier})
@@ -61,6 +72,14 @@ def release_unable_to_build(info=None):
 
 def invalid_plugin_id(plugin_id):
     return build(1009, 'Plugin Software not fount.', {'plugin_id': plugin_id})
+
+
+def invalid_project_content(key, value):
+    return build(1010, 'Project {0} contain characters like & or <.'.format(key), {'{0}'.format(key): value})
+
+
+def invalid_project_owner(owner_id=None):
+    return build(1011, 'Project owner role must be PM.', {'owner_id': owner_id})
 
 
 # User errors
@@ -113,6 +132,7 @@ def user_in_a_project(user_id):
 
 def ad_account_not_allow():
     return build(2010, 'User Account in AD is invalid in DevOps System')
+
 
 # Permission errors
 class NotAllowedError(HTTPException):
@@ -207,3 +227,10 @@ class DevOpsError(Exception):
 
     def unpack_response(self):
         return self.error_value['details']['response']
+
+
+class TemplateError(Exception):
+    def __init__(self, status_code, message, error=None):
+        self.status_code = status_code
+        self.message = message
+        self.error_value = error

@@ -1,6 +1,6 @@
 import json
 import re
-from datetime import datetime
+from datetime import datetime, date
 import base64
 
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -16,6 +16,7 @@ import util as util
 from model import db
 from nexus import nx_get_project_plugin_relation
 from resources.apiError import DevOpsError
+from services import redmine_lib
 from util import DevOpsThread
 from . import user, harbor, kubernetesClient, role, sonarqube, template, webInspect, zap, sideex
 from .activity import record_activity, ActionType
@@ -28,6 +29,9 @@ from .redmine import redmine
 
 # Use lazy loading to avoid redundant db queries, build up this object like:
 # NexusProject().set_project_id(4) or NexusProject().set_project_row(row)
+from .role import Role
+
+
 class NexusProject:
     def __init__(self):
         self.__project_id = None
@@ -89,7 +93,6 @@ class NexusProject:
 
     def get_owner(self):
         if self.__owner is None:
-            row = self.get_project_row()
             self.__owner = user.NexusUser().set_user_id(self.get_project_row().owner_id)
         return self.__owner
 
@@ -100,21 +103,21 @@ class NexusProject:
         ret = json.loads(str(self.get_project_row()))
         ret['git_url'] = ret['http_url']
         del ret['http_url']
-        ret['repository_ids'] = self.get_plugin_row().git_repository_id
+        ret['repository_ids'] = [self.get_plugin_row().git_repository_id]
         ret['redmine_url'] = \
             f'{config.get("REDMINE_EXTERNAL_BASE_URL")}/projects/' \
             f'{self.get_plugin_row().plan_project_id}'
         ret['harbor_url'] = \
             f'{config.get("HARBOR_EXTERNAL_BASE_URL")}/harbor/projects/' \
             f'{self.get_plugin_row().harbor_project_id}/repositories'
-        ret['pm_user_id'] = self.get_owner().id
-        ret['pm_user_name'] = self.get_owner().name
+        ret['owner_id'] = self.get_owner().id
+        ret['owner_name'] = self.get_owner().name
         ret['department'] = self.get_owner().department
         for key, value in self.get_extra_fields().items():
             ret[key] = value
         return ret
 
-    def fill_redmine_fields(self, redmine_projects, issues):
+    def fill_pm_redmine_fields(self, redmine_projects, issues):
         self.__extra_fields['updated_time'] = self.get_updated_time(redmine_projects)
         issue_stats = self.get_issue_statistics(issues)
         for key, value in issue_stats.items():
@@ -155,8 +158,83 @@ class NexusProject:
             ret['project_status'] = "已結案"
         return ret
 
+    def fill_rd_extra_fields(self, user_id):
+        row = self.get_project_row()
+        relation = nexus.nx_get_user_plugin_relation(user_id=user_id)
+        plan_user_id = relation.plan_user_id
+        output_dict = {
+            'name': row.name,
+            'display': row.display,
+            'project_id': row.id,
+            'git_url': row.http_url,
+            'redmine_url': f'{config.get("REDMINE_EXTERNAL_BASE_URL")}/projects/'
+                           f'{self.get_plugin_row().plan_project_id}',
+            'harbor_url': f'{config.get("HARBOR_EXTERNAL_BASE_URL")}/harbor/projects/' +
+                          f'{self.get_plugin_row().harbor_project_id}/repositories',
+            'repository_ids': [self.get_plugin_row().git_repository_id],
+            'department': user.NexusUser().set_user_id(row.owner_id).department,
+            'issues': None,
+            'next_d_time': None,
+            'last_test_time': "",
+            'last_test_result': {}
+        }
 
-def list_projects(user_id):
+        all_issues = redmine_lib.redmine.issue.filter(
+            project_id=self.get_plugin_row().plan_project_id,
+            assigned_to_id=plan_user_id,
+            status_id='*'
+        )
+        output_dict['issues'] = len(all_issues)
+
+        # get next_d_time
+        issue_due_date_list = []
+        for issue in all_issues:
+            if getattr(issue, 'due_date', None) is not None:
+                issue_due_date_list.append(issue.due_date)
+        next_d_time = None
+        if len(issue_due_date_list) != 0:
+            next_d_time = min(
+                issue_due_date_list,
+                key=lambda d: abs(d - date.today()))
+        if next_d_time is not None:
+            output_dict['next_d_time'] = next_d_time.isoformat()
+
+        output_dict.update(get_ci_last_test_result(self.get_plugin_row()))
+        self.__extra_fields = output_dict
+        return self
+
+
+def get_pm_project_list(user_id):
+    rows = get_project_rows_by_user(user_id)
+    ret = []
+    redmine_projects = redmine.rm_list_projects()
+    issues = redmine.rm_list_issues()
+    for row in rows:
+        if row.Project.id == -1:
+            continue
+        ret.append(NexusProject()
+                   .set_project_row(row.Project)
+                   .set_plugin_row(row.ProjectPluginRelation)
+                   .fill_pm_redmine_fields(redmine_projects, issues)
+                   .to_json())
+    return ret
+
+
+def get_rd_project_list(user_id):
+    rows = get_project_rows_by_user(user_id)
+    ret = []
+    for row in rows:
+        if row.Project.id == -1:
+            continue
+        ret.append(NexusProject()
+                   .set_project_row(row.Project)
+                   .set_plugin_row(row.ProjectPluginRelation)
+                   .fill_rd_extra_fields(user_id)
+                   .to_json())
+    return ret
+
+
+def get_project_rows_by_user(user_id):
     query = db.session.query(model.Project, model.ProjectPluginRelation) \
         .join(model.ProjectPluginRelation) \
         .join(model.ProjectUserRole,
@@ -165,19 +243,7 @@ def list_projects(user_id):
     if user.get_role_id(user_id) != role.ADMIN.id:
         query = query.filter(model.ProjectUserRole.user_id == user_id)
     rows = query.order_by(desc(model.Project.id)).all()
-
-    output_array = []
-    redmine_projects = redmine.rm_list_projects()
-    issues = redmine.rm_list_issues()
-    for row in rows:
-        if row.Project.id == -1:
-            continue
-        output_array.append(NexusProject()
-                            .set_project_row(row.Project)
-                            .set_plugin_row(row.ProjectPluginRelation)
-                            .fill_redmine_fields(redmine_projects, issues)
-                            .to_json())
-    return util.success({"project_list": output_array})
+    return rows
 
 
 # 新增redmine & gitlab的project並將db相關table新增資訊
@@ -404,29 +470,18 @@ def create_bot(project_id):
         project_id, 'nexus-bot', {'username': login, 'password': password})
 
 
-def check_modify_database_type(items, args, select_db):
-    output = {}
-    for item in items:
-        if args[item] is None:
-            output[item] = getattr(select_db, item)
-        else:
-            output[item] = args[item]
-            setattr(select_db, item, args[item])
-    return args, select_db
-
-
 @record_activity(ActionType.UPDATE_PROJECT)
 def pm_update_project(project_id, args):
-    targets = ['display', 'description', 'disabled', 'owner_id', 'start_date', 'due_date']
     plugin_relation = model.ProjectPluginRelation.query.filter_by(project_id=project_id).first()
     if args['description'] is not None:
         gitlab.gl_update_project(plugin_relation.git_repository_id, args["description"])
     redmine.rm_update_project(plugin_relation.plan_project_id, args)
-    project = model.Project.query.filter_by(id=project_id).first()
-    args, project = check_modify_database_type(targets, args, project)
-    project.update_at = str(datetime.utcnow())
-    db.session.commit()
-    return util.success()
+    nexus.nx_update_project(project_id, args)
+
+
+@record_activity(ActionType.UPDATE_PROJECT)
+def nexus_update_project(project_id, args):
+    nexus.nx_update_project(project_id, args)
 
 
 def try_to_delete(delete_method, argument):
@@ -532,21 +587,9 @@ def pm_get_project(project_id):
         "redmine_url": redmine_url,
         "ssh_url": project_info["ssh_url"],
         "repository_id": project_info["git_repository_id"],
+        "owner_id": project_info["owner_id"],
+        "owner_name": model.User.query.get(project_info["owner_id"]).name
     }
-    # 查詢專案負責人
-    result = db.engine.execute(
-        "SELECT user_id FROM public.project_user_role WHERE project_id = '{0}'"
-        " AND role_id = '{1}'".format(project_id, 3))
-    user_id = result.fetchone()[0]
-    result.close()
-
-    result = db.engine.execute(
-        "SELECT name FROM public.user WHERE id = '{0}'".format(user_id))
-    user_name = result.fetchone()[0]
-    result.close()
-    output["pm_user_id"] = user_id
-    output["pm_user_name"] = user_name
-
     return util.success(output)
 
 
@@ -686,101 +729,36 @@ def get_plan_project_id(project_id):
         project_id=project_id).one().plan_project_id
 
 
-def get_projects_by_user(user_id):
-    output_array = []
-    rows = db.session.query(model.ProjectPluginRelation, model.Project, model.ProjectUserRole
-                            ).join(model.ProjectUserRole). \
-        filter(model.ProjectUserRole.user_id == user_id,
-               model.ProjectUserRole.project_id == model.Project.id,
-               model.ProjectPluginRelation.project_id == model.Project.id).all()
-    if len(rows) == 0:
-        return util.success([])
-    relation = nexus.nx_get_user_plugin_relation(user_id=user_id)
-    plan_user_id = relation.plan_user_id
-    for row in rows:
-        output_dict = {'name': row.Project.name,
-                       'display': row.Project.display,
-                       'project_id': row.Project.id,
-                       'git_url': row.Project.http_url,
-                       'redmine_url': f'{config.get("REDMINE_EXTERNAL_BASE_URL")}/projects/'
-                                      f'{row.ProjectPluginRelation.plan_project_id}',
-                       'harbor_url': f'{config.get("HARBOR_EXTERNAL_BASE_URL")}/harbor/projects/' +
-                                     f'{row.ProjectPluginRelation.harbor_project_id}/repositories',
-                       'repository_ids': row.ProjectPluginRelation.git_repository_id,
-                       'department': user.NexusUser().set_user_id(row.Project.owner_id).department,
-                       'issues': None,
-                       'branch': None,
-                       'tag': None,
-                       'next_d_time': None,
-                       'last_test_time': "",
-                       'last_test_result': {}
-                       }
-
-        # get issue total cont
-        try:
-            all_issues = redmine.rm_get_issues_by_project_and_user(
-                plan_user_id, row.ProjectPluginRelation.plan_project_id)
-        except DevOpsError as e:
-            if e.status_code == 404:
-                # No record, not error
-                all_issues = []
-            else:
-                raise e
-        output_dict['issues'] = len(all_issues)
-
-        # get next_d_time
-        issue_due_date_list = []
-        for issue in all_issues:
-            if issue['due_date'] is not None:
-                issue_due_date_list.append(
-                    datetime.strptime(issue['due_date'], "%Y-%m-%d"))
-        next_d_time = None
-        if len(issue_due_date_list) != 0:
-            next_d_time = min(
-                issue_due_date_list,
-                key=lambda d: abs(d - datetime.utcnow()))
-        if next_d_time is not None:
-            output_dict['next_d_time'] = next_d_time.isoformat()
-
-        git_repository_id = row.ProjectPluginRelation.git_repository_id
-        try:
-            # branch number
-            branch_number = gitlab.gl_count_branches(git_repository_id)
-            output_dict['branch'] = branch_number
-            # tag number
-            tags = gitlab.gl_get_tags(git_repository_id)
-            tag_number = len(tags)
-            output_dict['tag'] = tag_number
-        except DevOpsError as e:
-            if e.status_code == 404:
-                logger.error('project not found. repository_id={0}'.format(git_repository_id))
-                continue
-
-        output_dict = get_ci_last_test_result(output_dict, row.ProjectPluginRelation)
-
-        output_array.append(output_dict)
-
-    return util.success(output_array)
-
-
-def get_ci_last_test_result(output_dict, relation):
-    # get rancher pipeline
-    pipeline_output = rancher.rc_get_pipeline_executions(
-        relation.ci_project_id, relation.ci_pipeline_id)
-    if len(pipeline_output) != 0:
-        output_dict['last_test_time'] = pipeline_output[0]['created']
-        stage_status = []
-        for stage in pipeline_output[0]['stages']:
-            if 'state' in stage:
-                stage_status.append(stage['state'])
-        if 'Failed' in stage_status:
-            failed_item = stage_status.index('Failed')
-            output_dict['last_test_result'] = {'total': len(pipeline_output[0]['stages']),
-                                               'success': failed_item}
+def get_ci_last_test_result(relation):
+    ret = {
+        'last_test_result': {'total': 0, 'success': 0},
+        'last_test_time': ''
+    }
+    pl = rancher.rc_get_pipeline_info(relation.ci_project_id, relation.ci_pipeline_id)
+    last_exec_id = pl.get('lastExecutionId')
+    if last_exec_id is None:
+        return ret
+    try:
+        last_run = rancher.rc_get_pipeline_execution(
+            relation.ci_project_id, relation.ci_pipeline_id, last_exec_id)
+    except DevOpsError as e:
+        if e.status_code == 404:
+            return ret
         else:
-            output_dict['last_test_result'] = {'total': len(pipeline_output[0]['stages']),
-                                               'success': len(pipeline_output[0]['stages'])}
-    return output_dict
+            raise e
+
+    ret['last_test_result']['total'] = len(last_run['stages'])
+    ret['last_test_time'] = last_run['created']
+    stage_status = []
+    for stage in last_run['stages']:
+        if 'state' in stage:
+            stage_status.append(stage['state'])
+    if 'Failed' in stage_status:
+        failed_item = stage_status.index('Failed')
+        ret['last_test_result']['success'] = failed_item
+    else:
+        ret['last_test_result']['success'] = len(last_run['stages'])
+    return ret
 
 
 def get_project_by_plan_project_id(plan_project_id):
@@ -998,12 +976,6 @@ def create_kubernetes_namespace_configmap(project_id, name, configmaps):
     return util.success(project_configmap)
 
 
-def put_kubernetes_namespace_configmap(project_id, name, configmaps):
-    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
-    project_configmap = kubernetesClient.put_namespace_configmap(project_name, name, configmaps)
-    return util.success(project_configmap)
-
-
 def create_kubernetes_namespace_configmap(project_id, name, configmaps):
     project_name = str(model.Project.query.filter_by(id=project_id).first().name)
     project_configmap = kubernetesClient.create_namespace_configmap(project_name, name, configmaps)
@@ -1040,12 +1012,57 @@ def git_repo_id_to_ci_pipe_id(repository_id):
     project_plugin_relation = model.ProjectPluginRelation.query.filter_by(git_repository_id=int(repository_id)).first()
     return util.success(project_plugin_relation.ci_pipeline_id)
 
+
+def check_project_args_patterns(args):
+    keys_to_check = ["name", "display", "description"]
+    for key in keys_to_check:
+        if args.get(key, None):
+            if key != "name":
+                pattern = "&|<"
+                result = re.findall(pattern, args[key])
+                if any(result):
+                    raise apiError.DevOpsError(400, "Error while creating project.",
+                                               error=apiError.invalid_project_content(key, args[key]))
+            else:
+                pattern = "^[a-z][a-z0-9-]{0,28}[a-z0-9]$"
+                result = re.findall(pattern, args[key])
+                if result is None:
+                    raise apiError.DevOpsError(400, "Error while creating project.",
+                                               error=apiError.invalid_project_name(args[key]))
+
+
+def check_project_owner_id(new_owner_id, user_id, project_id):
+    origin_owner_id = model.Project.query.get(project_id).owner_id
+    # 你是皇帝，你說了算
+    if role.is_role(role.ADMIN):
+        pass
+    # 不更動 owner_id，僅修改其他資訊 (由 project 中 owner 的 PM 執行)
+    elif origin_owner_id == user_id and new_owner_id == user_id:
+        pass
+    # 更動 owner_id (由 project 中 owner 的 PM 執行)
+    elif origin_owner_id == user_id and new_owner_id != user_id:
+        # 檢查 new_owner_id 的 role 是否為 PM
+        if not bool(model.ProjectUserRole.query.filter_by(project_id=-1, user_id=new_owner_id, role_id=3).all()):
+            raise apiError.DevOpsError(400, "Error while updating project info.",
+                                       error=apiError.invalid_project_owner(new_owner_id))
+    # 不更動 owner_id，僅修改其他資訊 (由 project 中其他 PM 執行)
+    elif origin_owner_id != user_id and new_owner_id == origin_owner_id:
+        pass
+    # 其餘權限不足
+    else:
+        raise apiError.NotAllowedError("Error while updating project info.")
+
+
 # --------------------- Resources ---------------------
 class ListMyProjects(Resource):
     @jwt_required
     def get(self):
-        user_id = get_jwt_identity()["user_id"]
-        return list_projects(user_id)
+        if role.is_role(role.RD):
+            return util.success(
+                {'project_list': get_rd_project_list(get_jwt_identity()['user_id'])})
+        else:
+            return util.success(
+                {'project_list': get_pm_project_list(get_jwt_identity()['user_id'])})
 
 
 class SingleProject(Resource):
@@ -1067,7 +1084,23 @@ class SingleProject(Resource):
         parser.add_argument('due_date', type=str, required=True)
         parser.add_argument('owner_id', type=int, required=True)
         args = parser.parse_args()
-        return pm_update_project(project_id, args)
+        check_project_args_patterns(args)
+        check_project_owner_id(args['owner_id'], get_jwt_identity()['user_id'], project_id)
+        pm_update_project(project_id, args)
+        return util.success()
+
+    @jwt_required
+    def patch(self, project_id):
+        role.require_pm("Error while updating project info.", exclude_qa=True)
+        role.require_in_project(project_id, "Error while updating project info.")
+        parser = reqparse.RequestParser()
+        parser.add_argument('owner_id', type=int, required=False)
+        args = parser.parse_args()
+        check_project_args_patterns(args)
+        if args.get('owner_id', None) is not None:
+            check_project_owner_id(args['owner_id'], get_jwt_identity()['user_id'], project_id)
+        nexus_update_project(project_id, args)
+        return util.success()
 
     @jwt_required
     def delete(self, project_id):
@@ -1100,11 +1133,7 @@ class SingleProject(Resource):
         parser.add_argument('due_date', type=str, required=True)
         parser.add_argument('owner_id', type=int)
         args = parser.parse_args()
-        pattern = "^[a-z][a-z0-9-]{0,28}[a-z0-9]$"
-        result = re.fullmatch(pattern, args["name"])
-        if result is None:
-            return util.respond(400, 'Error while creating project',
-                                error=apiError.invalid_project_name(args['name']))
+        check_project_args_patterns(args)
         return util.success(create_project(user_id, args))
 
 
@@ -1132,14 +1161,6 @@ class ProjectMember(Resource):
         role.require_pm()
         role.require_in_project(project_id)
         return project_remove_member(project_id, user_id)
-
-
-class ProjectsByUser(Resource):
-    @jwt_required
-    def get(self, user_id):
-        role.require_user_himself(user_id, even_pm=False,
-                                  err_message="Only admin and PM can access another user's data.")
-        return get_projects_by_user(user_id)
 
 
 class TestSummary(Resource):

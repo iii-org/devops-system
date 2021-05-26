@@ -4,7 +4,7 @@ import util
 from . import role
 from sqlalchemy import func
 from operator import itemgetter
-from resources.project import list_projects
+from resources.project import get_pm_project_list
 from resources.user import user_list_by_project
 from resources.issue import get_issue_by_project
 from datetime import datetime
@@ -14,6 +14,8 @@ from flask_restful import Resource
 
 # Get admin account from environment
 admin_account = os.environ.get('ADMIN_INIT_LOGIN')
+if not admin_account:
+    admin_account = 'sysadmin'
 
 # --------------------- Useful Functions ---------------------
 
@@ -87,8 +89,7 @@ def clear_all_tables():
 
 def sync_redmine(sync_date):
     need_to_track_issue = []
-    response = list_projects(user_id=get_admin_user_id())
-    all_projects = response[0]['data']['project_list']
+    all_projects = get_pm_project_list(user_id=get_admin_user_id())
     if all_projects:
         for project in all_projects:
             project_status = 'Not_Started'
@@ -109,8 +110,9 @@ def insert_project(project, member_count, sync_date, project_status):
     new_data = {
         'project_id': project['id'],
         'project_name': project['display'],
-        'pm_user_id': project['pm_user_id'],
-        'pm_user_name': project['pm_user_name'],
+        'owner_id': project['owner_id'],
+        'owner_login': model.User.query.get(project['owner_id']).login,
+        'owner_name': project['owner_name'],
         'complete_percent': get_complete_percent(project),
         'closed_issue_count': project['closed_count'],
         'unclosed_issue_count': project['total_count'] - project['closed_count'],
@@ -168,12 +170,15 @@ def insert_all_issues(project_id, sync_date):
     issues_list = []
     all_issues = get_issue_by_project(project_id=project_id, args=None)
     for issue in all_issues:
+        if 'id' in issue['assigned_to']:
+            issue['assigned_to']['login'] = model.User.query.get(issue['assigned_to']['id']).login
         new_issue = model.RedmineIssue(
             issue_id=issue['id'],
             project_id=issue['project']['id'],
             project_name=issue['project']['display'],
             assigned_to=issue['assigned_to'].get('name', None),
             assigned_to_id=issue['assigned_to'].get('id', None),
+            assigned_to_login=issue['assigned_to'].get('login', None),
             issue_type=issue['tracker']['name'],
             issue_name=issue['name'],
             status_id=issue['status']['id'],
@@ -317,8 +322,9 @@ def get_project_members_detail(own_project):
     project_member_detail = [{
         'project_id': context.project_id,
         'project_name': context.project_name,
-        'pm_user_id': context.pm_user_id,
-        'pm_user_name': context.pm_user_name,
+        'owner_id': context.owner_id,
+        'owner_name': context.owner_name,
+        'owner_login': context.owner_login,
         'member_count': context.member_count,
         'start_date': context.start_date.strftime("%Y-%m-%d"),
         'end_date': context.end_date.strftime("%Y-%m-%d"),
@@ -367,8 +373,9 @@ def get_redmine_projects(detail, own_project):
     redmine_projects = [{
         'project_id': context.project_id,
         'project_name': context.project_name,
-        'pm_user_id': context.pm_user_id,
-        'pm_user_name': context.pm_user_name,
+        'owner_id': context.owner_id,
+        'owner_login': context.owner_login,
+        'owner_name': context.owner_name,
         'complete_percent': context.complete_percent,
         'unclosed_issue_count': context.unclosed_issue_count,
         'closed_issue_count': context.closed_issue_count,
@@ -385,14 +392,15 @@ def get_redmine_issue_rank(own_project):
     issue_rank = []
     project_user = get_user_id_by_project(own_project)
     for user_id in project_user:
-        user_name = model.User.query.filter_by(id=user_id).first().name
+        user = model.User.query.filter_by(id=user_id).first()
         unclosed_issue_count = get_unclosed_issue_count_by_user_and_project(
             user_id=user_id, own_project=own_project)
         project_count = get_project_count_by_user_and_project(
             user_id=user_id, own_project=own_project)
         issue_rank.append({
-            'user_id': user_id,
-            'user_name': user_name,
+            'user_id': user.id,
+            'user_name': user.name,
+            'user_login': user.login,
             'unclosed_count': unclosed_issue_count,
             'project_count': project_count
         })
@@ -409,6 +417,7 @@ def get_unclosed_issues_by_user(user_id):
         'project_name': context.project_name,
         'assigned_to': context.assigned_to,
         'assigned_to_id': context.assigned_to_id,
+        'assigned_to_login': context.assigned_to_login,
         'issue_type': context.issue_type,
         'issue_name': context.issue_name,
         'status_id': context.status_id,

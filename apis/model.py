@@ -128,6 +128,7 @@ class TemplateListCache(db.Model):
     description = Column(String)
     version = Column(JSON)
     update_at = Column(DateTime)
+    group_name = Column(String)
 
 
 class ProjectUserRole(db.Model):
@@ -378,6 +379,7 @@ class RedmineIssue(db.Model):
     project_name = Column(String)
     assigned_to = Column(String)
     assigned_to_id = Column(Integer)
+    assigned_to_login = Column(String)
     issue_type = Column(String)
     issue_name = Column(String)
     status_id = Column(Integer)
@@ -391,8 +393,9 @@ class RedmineProject(db.Model):
     id = Column(Integer, primary_key=True)
     project_id = Column(Integer)
     project_name = Column(String)
-    pm_user_id = Column(Integer)
-    pm_user_name = Column(String)
+    owner_id = Column(Integer)
+    owner_login = Column(String)
+    owner_name = Column(String)
     complete_percent = Column(Float)
     closed_issue_count = Column(Integer)
     unclosed_issue_count = Column(Integer)
@@ -430,3 +433,19 @@ class GitCommitNumberEachDays(db.Model):
     date = Column(Date)
     commit_number = Column(Integer)
     created_at = Column(DateTime)
+
+
+class CloudProvider(db.Model):
+    id = Column(Integer, primary_key=True)
+    name = Column(String)
+    user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'))
+    type = Column(String)
+    provider_info = Column(JSON)
+
+
+class Registries(db.Model):
+    registries_id = Column(Integer, primary_key=True)
+    name = Column(String)
+    user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'))
+    provider_id = Column(Integer, ForeignKey(CloudProvider.id, ondelete='CASCADE'))
+    provider = db.relationship(CloudProvider, backref='registries')

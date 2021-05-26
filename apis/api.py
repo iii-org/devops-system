@@ -30,7 +30,7 @@ from jsonwebtoken import jsonwebtoken
 from model import db
 from resources import logger, role as role, activity, zap, sideex
 from resources import project, gitlab, issue, user, redmine, wiki, version, sonarqube, apiTest, postman, mock, harbor, \
-    webInspect, template, release, sync_redmine, plugin, kubernetesClient, ad, project_permission
+    webInspect, template, release, sync_redmine, plugin, kubernetesClient, ad, project_permission, quality
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -53,7 +53,7 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
 
 api = Api(app, errors=apiError.custom_errors)
 CORS(app)
-socketio = SocketIO(app, cors_allowed_origins="*", logger=True, engineio_logger=True)
+socketio = SocketIO(app, cors_allowed_origins="*", logger=True, engineio_logger=True, timeout=60000)
 
 
 class SignedIntConverter(IntegerConverter):
@@ -184,7 +184,6 @@ api.add_resource(project.GitRepoIdToCiPipeId, '/git_repo_id_to_ci_pipe_id/<repos
 api.add_resource(project.ListMyProjects, '/project/list')
 api.add_resource(project.SingleProject, '/project', '/project/<sint:project_id>')
 api.add_resource(project.SingleProjectByName, '/project_by_name/<project_name>')
-api.add_resource(project.ProjectsByUser, '/projects_by_user/<int:user_id>')
 api.add_resource(project.ProjectUserList, '/project/<sint:project_id>/user/list')
 api.add_resource(project.ProjectPluginUsage, '/project/<sint:project_id>/plugin/resource')
 api.add_resource(project.ProjectUserResource, '/project/<sint:project_id>/resource')
@@ -395,6 +394,8 @@ api.add_resource(sonarqube.SonarqubeHistory, '/sonarqube/<project_name>')
 api.add_resource(project.ProjectFile, '/project/<sint:project_id>/file')
 api.add_resource(redmine.RedmineFile, '/download', '/file/<int:file_id>')
 
+api.add_resource(redmine.RedmineMail, '/mail')
+
 # System administrations
 api.add_resource(SystemGitCommitID, '/system_git_commit_id')  # git commit
 
@@ -410,6 +411,9 @@ api.add_resource(harbor.HarborRepository,
 api.add_resource(harbor.HarborArtifact,
                  '/harbor/artifacts')
 api.add_resource(harbor.HarborProject, '/harbor/projects/<int:nexus_project_id>/summary')
+api.add_resource(harbor.HarborRegistries, '/harbor/registries')
+api.add_resource(harbor.HarborReplicationPolicy, '/harbor/replication/policy')
+api.add_resource(harbor.HarborReplicationExecution, '/harbor/replication/execution')
 
 # WebInspect
 api.add_resource(webInspect.WebInspectScan, '/webinspect/create_scan',
@@ -450,6 +454,9 @@ api.add_resource(project_permission.SubadminProjects, '/project_permission/subad
 api.add_resource(project_permission.Subadmins, '/project_permission/subadmins')
 api.add_resource(project_permission.SetPermission, '/project_permission/set_permission')
 
+# Quality
+api.add_resource(quality.Collection, '/quality/<int:repository_id>/collection')
+
 # System versions
 api.add_resource(NexusVersion, '/system_versions')
 
@@ -474,4 +481,4 @@ def start_prod():
 if __name__ == "__main__":
     start_prod()
     socketio.run(app, host='0.0.0.0', port=10009, debug=(config.get('DEBUG')),
-                 use_reloader=False)
+                 use_reloader=True)

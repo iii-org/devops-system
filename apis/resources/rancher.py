@@ -73,8 +73,13 @@ class Rancher(object):
                                  data=body, with_token=False, retried=True)
         return output.json()['token']
 
-    def rc_get_pipeline_executions(self, ci_project_id, ci_pipeline_id, run=None):
-        path = '/projects/{0}/pipelineexecutions'.format(ci_project_id)
+    def rc_get_pipeline_execution(self, ci_project_id, ci_pipeline_id, execution_id):
+        path = f'/projects/{ci_project_id}/pipelineExecutions/{execution_id}'
+        response = self.__api_get(path)
+        return response.json()
+
+    def rc_get_pipeline_executions(self, ci_project_id, ci_pipeline_id, run=None, execution_id=None):
+        path = f'/projects/{ci_project_id}/pipelineexecutions'
         params = {
             'order': 'desc',
             'sort': 'started',
@@ -96,6 +101,17 @@ class Rancher(object):
         response = self.__api_post(path, params=params, data='')
         return response
     
+    def rc_delete_pipeline_executions_run(self, ci_project_id, ci_pipeline_id, pipelines_exec_run):
+        path = '/project/{0}/pipelineExecutions/{1}-{2}'.format(ci_project_id, ci_pipeline_id,
+                                                                pipelines_exec_run)
+        response = self.__api_delete(path)
+
+    def rc_get_pipeline_info(self, ci_project_id, ci_pipeline_id):
+        path = f'/project/{ci_project_id}/pipelines/{ci_pipeline_id}'
+        info = self.__api_get(path)
+        return info.json()
+
+
     def rc_get_pipeline_config(self, ci_pipeline_id, pipelines_exec_run):
         output_dict = []
         self.token = self.__generate_token()
@@ -153,7 +169,12 @@ class Rancher(object):
                                     'step_index': data["step_index"]})
                 #print(f"result: {result}")
                 ws_end_time = time.time() - ws_start_time
-                if result == '' or ws_end_time > 8 or i == 2:
+                if result == '' or ws_end_time >= 600 or i >= 100:
+                    emit('pipeline_log', {'data': '', 
+                                    'ci_pipeline_id': data["ci_pipeline_id"],
+                                    'pipelines_exec_run': data["pipelines_exec_run"],
+                                    'stage_index': data["stage_index"],
+                                    'step_index': data["step_index"]})
                     ws.close()
                     print(f"result: {result}, ws_end_time: {ws_end_time}, i: {i}")
                     break
