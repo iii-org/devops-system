@@ -41,14 +41,12 @@ def pipeline_exec_list(repository_id):
         output_dict['transitioning_message'] = pipeline_output['transitioningMessage']
         stage_status = []
         for stage in pipeline_output['stages']:
-            logger.info("stage: {0}".format(stage))
             if 'state' in stage:
                 stage_status.append(stage['state'])
         success_time = stage_status[1:].count('Success')
         output_dict['status'] = {'total': len(pipeline_output['stages'])-1,
                                  'success': success_time}
         output_array.append(output_dict)
-    logger.info("ci/cd output: {0}".format(output_array))
     return output_array
 
 def pipeline_config(repository_id, args):
@@ -117,13 +115,9 @@ def get_pipeline_next_run(repository_id):
 
 def generate_ci_yaml(args, repository_id, branch_name):
     parameter = {}
-    logger.debug("generate_ci_yaml detail: {0}".format(args['detail']))
     dict_object = json.loads(args['detail'].replace("'", '"'))
     doc = yaml.dump(dict_object)
-    logger.info("generate_ci_yaml documents: {0}".format(doc))
-    base_file = base64.b64encode(bytes(doc,
-                                       encoding='utf-8')).decode('utf-8')
-    logger.info("generate_ci_yaml base_file: {0}".format(base_file))
+    base_file = base64.b64encode(bytes(doc, encoding='utf-8')).decode('utf-8')
     parameter['branch'] = branch_name
     parameter['start_branch'] = branch_name
     parameter['encoding'] = 'base64'

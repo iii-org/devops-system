@@ -43,7 +43,7 @@ def wi_api_request(method, path, headers=None, params=None, data=None):
     url = f"{wi_base_url}{path}"
     output = util.api_request(method, url, headers, params, data)
 
-    logger.info(f"WebInspect api {method} {url}, params={params.__str__()}, body={data},"
+    logger.info(f"WebInspect api {method} {url}, header={str(headers)}, params={str(params)}, body={data},"
                 f" response={output.status_code} {output.text}")
     if int(output.status_code / 100) != 2:
         raise apiError.DevOpsError(
