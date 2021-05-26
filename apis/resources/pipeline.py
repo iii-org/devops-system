@@ -44,8 +44,8 @@ def pipeline_exec_list(repository_id):
             logger.info("stage: {0}".format(stage))
             if 'state' in stage:
                 stage_status.append(stage['state'])
-        success_time = stage_status.count('Success')
-        output_dict['status'] = {'total': len(pipeline_output['stages']),
+        success_time = stage_status[1:].count('Success')
+        output_dict['status'] = {'total': len(pipeline_output['stages'])-1,
                                  'success': success_time}
         output_array.append(output_dict)
     logger.info("ci/cd output: {0}".format(output_array))
