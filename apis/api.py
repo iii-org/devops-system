@@ -455,6 +455,7 @@ api.add_resource(project_permission.Subadmins, '/project_permission/subadmins')
 api.add_resource(project_permission.SetPermission, '/project_permission/set_permission')
 
 # Quality
+api.add_resource(quality.TestPlanList, '/quality/<int:project_id>/testplan_list')
 api.add_resource(quality.CollectionList, '/quality/<int:repository_id>/collection_list')
 
 # System versions

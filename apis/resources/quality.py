@@ -2,6 +2,8 @@ from flask_restful import Resource
 import json
 
 from .gitlab import gitlab
+from resources.redmine import redmine
+from . import issue
 import util as util
 
 paths = [{
@@ -53,6 +55,18 @@ class SideeXJSONRecord:
         self.name = record_dict.get("name")
 
 
+def qu_get_testplan_list(project_id):
+    testplan = "Test Plan"
+    testplan_id = -1
+    for tracker in redmine.rm_get_trackers()["trackers"]:
+        if tracker["name"] == testplan:
+            testplan_id = tracker["id"]
+    if testplan_id != -1:
+        args= {"tracker_id": testplan_id}
+        issues = issue.get_issue_by_project(project_id, args)
+        return issues
+
+
 def qu_get_collection_list(repository_id):
     out_dict = {}
     for path in paths:
@@ -99,6 +113,12 @@ def qu_get_collection_list(repository_id):
                                 records
                             })
     return out_dict
+
+
+class TestPlanList(Resource):
+    def get(self, project_id):
+        out = qu_get_testplan_list(project_id)
+        return util.success(out)
 
 
 class CollectionList(Resource):
