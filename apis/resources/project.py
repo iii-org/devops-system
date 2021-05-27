@@ -233,6 +233,19 @@ def get_rd_project_list(user_id):
     return ret
 
 
+def get_simple_project_list(user_id):
+    rows = get_project_rows_by_user(user_id)
+    ret = []
+    for row in rows:
+        if row.Project.id == -1:
+            continue
+        ret.append(NexusProject()
+                   .set_project_row(row.Project)
+                   .set_plugin_row(row.ProjectPluginRelation)
+                   .to_json())
+    return ret
+
+
 def get_project_rows_by_user(user_id):
     query = db.session.query(model.Project, model.ProjectPluginRelation) \
         .join(model.ProjectPluginRelation) \
@@ -1021,6 +1034,12 @@ def check_project_owner_id(new_owner_id, user_id, project_id):
 class ListMyProjects(Resource):
     @jwt_required
     def get(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('simple', type=str)
+        args = parser.parse_args()
+        if args.get('simple', 'false') == 'true':
+            return util.success(
+                {'project_list': get_simple_project_list(get_jwt_identity()['user_id'])})
         if role.is_role(role.RD):
             return util.success(
                 {'project_list': get_rd_project_list(get_jwt_identity()['user_id'])})
