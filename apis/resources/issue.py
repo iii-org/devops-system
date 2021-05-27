@@ -174,8 +174,7 @@ def __deal_with_issue_redmine_output(redmine_output, closed_status=None):
     project_list = project_module.get_project_by_plan_project_id(
         redmine_output['project']['id'])
     if project_list is not None:
-        project_name = project_module.get_project_info(
-            project_list['project_id']).name
+        project_name = nexus.nx_get_project(id=project_list['project_id']).name
         redmine_output['project']['id'] = project_list['project_id']
         redmine_output['project']['name'] = project_name
     else:
