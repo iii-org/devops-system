@@ -158,32 +158,21 @@ class NexusProject:
         return ret
 
     def fill_rd_extra_fields(self, user_id):
-        row = self.get_project_row()
         relation = nexus.nx_get_user_plugin_relation(user_id=user_id)
         plan_user_id = relation.plan_user_id
-        output_dict = {
-            'name': row.name,
-            'display': row.display,
-            'project_id': row.id,
-            'git_url': row.http_url,
-            'redmine_url': f'{config.get("REDMINE_EXTERNAL_BASE_URL")}/projects/'
-                           f'{self.get_plugin_row().plan_project_id}',
-            'harbor_url': f'{config.get("HARBOR_EXTERNAL_BASE_URL")}/harbor/projects/' +
-                          f'{self.get_plugin_row().harbor_project_id}/repositories',
-            'repository_ids': [self.get_plugin_row().git_repository_id],
-            'department': user.NexusUser().set_user_id(row.owner_id).department,
+
+        extras = {
             'issues': None,
             'next_d_time': None,
             'last_test_time': "",
             'last_test_result': {}
         }
-
         all_issues = redmine_lib.redmine.issue.filter(
             project_id=self.get_plugin_row().plan_project_id,
             assigned_to_id=plan_user_id,
             status_id='*'
         )
-        output_dict['issues'] = len(all_issues)
+        extras['issues'] = len(all_issues)
 
         # get next_d_time
         issue_due_date_list = []
@@ -196,10 +185,10 @@ class NexusProject:
                 issue_due_date_list,
                 key=lambda d: abs(d - date.today()))
         if next_d_time is not None:
-            output_dict['next_d_time'] = next_d_time.isoformat()
+            extras['next_d_time'] = next_d_time.isoformat()
 
-        output_dict.update(get_ci_last_test_result(self.get_plugin_row()))
-        self.__extra_fields = output_dict
+        extras.update(get_ci_last_test_result(self.get_plugin_row()))
+        self.__extra_fields = extras
         return self
 
 
