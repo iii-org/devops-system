@@ -278,6 +278,7 @@ def update_user(user_id, args, from_ad=False):
     if 'role_id' in args:
         update_user_role(user_id, args.get('role_id'))
 
+    new_email = None
     new_password = None
     if user.from_ad and not from_ad:
         if args.get('role_id', None) is None:
@@ -301,16 +302,21 @@ def update_user(user_id, args, from_ad=False):
             logger.exception(err)  # Don't stop change password on API server
         h = SHA256.new()
         h.update(args["password"].encode())
-        new_password = h.hexdigest()    
+        new_password = h.hexdigest()
+    if args["email"] is not None:
+        err = update_external_email(user_id, user.name, args['email'])
+        if err is not None:
+            logger.exception(err)
+        new_email = args['email']
     user = model.User.query.filter_by(id=user_id).first()
     if new_password is not None:
         user.password = new_password
+    if new_email is not None:
+        user.email = new_email
     if args["name"] is not None:
         user.name = args['name']
     if args["phone"] is not None:
         user.phone = args['phone']
-    if args["email"] is not None:
-        user.email = args['email']
     if args["title"] is not None:
         user.title = args['title']
     if args["department"] is not None:
@@ -352,6 +358,21 @@ def update_external_passwords(user_id, new_pwd, old_pwd):
     harbor.hb_update_user_password(harbor_user_id, new_pwd, old_pwd)
 
     sonarqube.sq_update_password(user_login, new_pwd)
+
+
+def update_external_email(user_id, user_name, new_email):
+    user_relation = nx_get_user_plugin_relation(user_id=user_id)
+    if user_relation is None:
+        return util.respond(400, 'Error when updating password',
+                            error=apiError.user_not_found(user_id))
+    redmine_user_id = user_relation.plan_user_id
+    redmine.rm_update_email(redmine_user_id, new_email)
+
+    gitlab_user_id = user_relation.repository_user_id
+    gitlab.gl_update_email(gitlab_user_id, new_email)
+
+    harbor_user_id = user_relation.harbor_user_id
+    harbor.hb_update_user_email(harbor_user_id, user_name, new_email)
 
 
 def try_to_delete(delete_method, obj):
