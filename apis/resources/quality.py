@@ -101,22 +101,7 @@ def qu_get_collection_list(repository_id):
     return out_dict
 
 
-def qu_get_collection(repository_id, software_name, collection_name):
-    for path in paths:
-        if software_name == path["file_name_key"]:
-            path_file = f'{path["path"]}/{collection_name}'
-            collection_json = json.loads(
-                gitlab.gl_get_file(repository_id, path_file))
-            pass
-
-
 class CollectionList(Resource):
     def get(self, repository_id):
         out = qu_get_collection_list(repository_id)
-        return util.success(out)
-
-
-class Collection(Resource):
-    def get(self, repository_id, software_name, collection_name):
-        out = qu_get_collection(repository_id, software_name, collection_name)
         return util.success(out)
