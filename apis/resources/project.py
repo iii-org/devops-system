@@ -557,39 +557,8 @@ def delete_bot(project_id):
     user.delete_user(row.user_id)
 
 
-# 用project_id查詢db的相關table欄位資訊
-def pm_get_project(project_id):
-    # 查詢專案名稱＆專案說明＆＆專案狀態
-    try:
-        plan_project_id = get_plan_project_id(project_id)
-    except NoResultFound:
-        raise apiError.DevOpsError(404, 'Error when getting project info.',
-                                   error=apiError.project_not_found(project_id))
-    result = db.engine.execute(
-        "SELECT * FROM public.projects as pj, public.project_plugin_relation as ppr "
-        "WHERE pj.id = '{0}' AND pj.id = ppr.project_id".format(
-            project_id))
-    if result.rowcount == 0:
-        result.close()
-        raise apiError.DevOpsError(404, 'Error when getting project info.',
-                                   error=apiError.project_not_found(project_id))
-    project_info = result.fetchone()
-    result.close()
-    redmine_url = f'{config.get("REDMINE_EXTERNAL_BASE_URL")}/projects/{plan_project_id}'
-    output = {
-        "project_id": project_info["project_id"],
-        "name": project_info["name"],
-        "display": project_info["display"],
-        "description": project_info["description"],
-        "disabled": project_info["disabled"],
-        "git_url": project_info["http_url"],
-        "redmine_url": redmine_url,
-        "ssh_url": project_info["ssh_url"],
-        "repository_id": project_info["git_repository_id"],
-        "owner_id": project_info["owner_id"],
-        "owner_name": model.User.query.get(project_info["owner_id"]).name
-    }
-    return util.success(output)
+def get_project_info(project_id):
+    return NexusProject().set_project_id(project_id, do_query=True).to_json()
 
 
 @record_activity(ActionType.ADD_MEMBER)
@@ -767,10 +736,6 @@ def get_project_by_plan_project_id(plan_project_id):
     project = result.fetchone()
     result.close()
     return project
-
-
-def get_project_info(project_id):
-    return model.Project.query.filter_by(id=project_id).first()
 
 
 def get_test_summary(project_id):
@@ -1069,7 +1034,7 @@ class SingleProject(Resource):
     def get(self, project_id):
         role.require_pm("Error while getting project info.")
         role.require_in_project(project_id, "Error while getting project info.")
-        return pm_get_project(project_id)
+        return util.success(get_project_info(project_id))
 
     @jwt_required
     def put(self, project_id):
@@ -1142,7 +1107,7 @@ class SingleProjectByName(Resource):
         project_id = nexus.nx_get_project(name=project_name).id
         role.require_pm("Error while getting project info.")
         role.require_in_project(project_id, "Error while getting project info.")
-        return pm_get_project(project_id)
+        return util.success(get_project_info(project_id))
 
 
 class ProjectMember(Resource):
