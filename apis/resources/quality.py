@@ -1,6 +1,7 @@
 from flask_restful import Resource
 import json
 
+from nexus import nx_get_project_plugin_relation
 from .gitlab import gitlab
 from resources.redmine import redmine
 from . import issue
@@ -67,7 +68,8 @@ def qu_get_testplan_list(project_id):
         return issues
 
 
-def qu_get_collection_list(repository_id):
+def qu_get_collection_list(project_id):
+    repository_id = nx_get_project_plugin_relation(nexus_project_id=project_id).git_repository_id
     out_dict = {}
     for path in paths:
         out_dict[path["software_name"]] = []
@@ -122,6 +124,6 @@ class TestPlanList(Resource):
 
 
 class CollectionList(Resource):
-    def get(self, repository_id):
-        out = qu_get_collection_list(repository_id)
+    def get(self, project_id):
+        out = qu_get_collection_list(project_id)
         return util.success(out)
