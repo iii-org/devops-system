@@ -336,7 +336,7 @@ def update_external_passwords(user_id, new_pwd, old_pwd):
 def update_external_email(user_id, user_name, new_email):
     user_relation = nx_get_user_plugin_relation(user_id=user_id)
     if user_relation is None:
-        return util.respond(400, 'Error when updating password',
+        return util.respond(400, 'Error when updating email',
                             error=apiError.user_not_found(user_id))
     redmine_user_id = user_relation.plan_user_id
     redmine.rm_update_email(redmine_user_id, new_email)

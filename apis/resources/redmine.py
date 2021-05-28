@@ -422,7 +422,7 @@ class Redmine:
 
     def rm_update_email(self, plan_user_id, new_email):
         user = redmine_lib.redmine.user.get(plan_user_id)
-        setattr(user, 'email', new_email)
+        setattr(user, 'mail', new_email)
         user.save()
 
 
