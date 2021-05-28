@@ -449,3 +449,13 @@ class Registries(db.Model):
     user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'))
     provider_id = Column(Integer, ForeignKey(CloudProvider.id, ondelete='CASCADE'))
     provider = db.relationship(CloudProvider, backref='registries')
+
+
+class IssueCollectionRelation(db.Model):
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
+    issue_id = Column(Integer)
+    software_name = Column(String)
+    file_name = Column(String)
+    plan_name = Column(String)
+    items = Column(JSON)

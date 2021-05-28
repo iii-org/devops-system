@@ -596,6 +596,11 @@ class GitLab(object):
                 404,
                 "Error when getting project repository_tree.",
                 error=apiError.gitlab_error(e))
+    
+    def gl_get_file(self, repository_id, path):
+        pj = self.gl.projects.get(repository_id)
+        f_byte = pj.files.raw(file_path=path, ref=pj.default_branch).decode()
+        return f_byte
 
 
 # --------------------- Resources ---------------------

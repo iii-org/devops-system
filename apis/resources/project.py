@@ -158,32 +158,21 @@ class NexusProject:
         return ret
 
     def fill_rd_extra_fields(self, user_id):
-        row = self.get_project_row()
         relation = nexus.nx_get_user_plugin_relation(user_id=user_id)
         plan_user_id = relation.plan_user_id
-        output_dict = {
-            'name': row.name,
-            'display': row.display,
-            'project_id': row.id,
-            'git_url': row.http_url,
-            'redmine_url': f'{config.get("REDMINE_EXTERNAL_BASE_URL")}/projects/'
-                           f'{self.get_plugin_row().plan_project_id}',
-            'harbor_url': f'{config.get("HARBOR_EXTERNAL_BASE_URL")}/harbor/projects/' +
-                          f'{self.get_plugin_row().harbor_project_id}/repositories',
-            'repository_ids': [self.get_plugin_row().git_repository_id],
-            'department': user.NexusUser().set_user_id(row.owner_id).department,
+
+        extras = {
             'issues': None,
             'next_d_time': None,
             'last_test_time': "",
             'last_test_result': {}
         }
-
         all_issues = redmine_lib.redmine.issue.filter(
             project_id=self.get_plugin_row().plan_project_id,
             assigned_to_id=plan_user_id,
             status_id='*'
         )
-        output_dict['issues'] = len(all_issues)
+        extras['issues'] = len(all_issues)
 
         # get next_d_time
         issue_due_date_list = []
@@ -196,10 +185,10 @@ class NexusProject:
                 issue_due_date_list,
                 key=lambda d: abs(d - date.today()))
         if next_d_time is not None:
-            output_dict['next_d_time'] = next_d_time.isoformat()
+            extras['next_d_time'] = next_d_time.isoformat()
 
-        output_dict.update(get_ci_last_test_result(self.get_plugin_row()))
-        self.__extra_fields = output_dict
+        extras.update(get_ci_last_test_result(self.get_plugin_row()))
+        self.__extra_fields = extras
         return self
 
 
@@ -229,6 +218,19 @@ def get_rd_project_list(user_id):
                    .set_project_row(row.Project)
                    .set_plugin_row(row.ProjectPluginRelation)
                    .fill_rd_extra_fields(user_id)
+                   .to_json())
+    return ret
+
+
+def get_simple_project_list(user_id):
+    rows = get_project_rows_by_user(user_id)
+    ret = []
+    for row in rows:
+        if row.Project.id == -1:
+            continue
+        ret.append(NexusProject()
+                   .set_project_row(row.Project)
+                   .set_plugin_row(row.ProjectPluginRelation)
                    .to_json())
     return ret
 
@@ -557,39 +559,8 @@ def delete_bot(project_id):
     user.delete_user(row.user_id)
 
 
-# 用project_id查詢db的相關table欄位資訊
-def pm_get_project(project_id):
-    # 查詢專案名稱＆專案說明＆＆專案狀態
-    try:
-        plan_project_id = get_plan_project_id(project_id)
-    except NoResultFound:
-        raise apiError.DevOpsError(404, 'Error when getting project info.',
-                                   error=apiError.project_not_found(project_id))
-    result = db.engine.execute(
-        "SELECT * FROM public.projects as pj, public.project_plugin_relation as ppr "
-        "WHERE pj.id = '{0}' AND pj.id = ppr.project_id".format(
-            project_id))
-    if result.rowcount == 0:
-        result.close()
-        raise apiError.DevOpsError(404, 'Error when getting project info.',
-                                   error=apiError.project_not_found(project_id))
-    project_info = result.fetchone()
-    result.close()
-    redmine_url = f'{config.get("REDMINE_EXTERNAL_BASE_URL")}/projects/{plan_project_id}'
-    output = {
-        "project_id": project_info["project_id"],
-        "name": project_info["name"],
-        "display": project_info["display"],
-        "description": project_info["description"],
-        "disabled": project_info["disabled"],
-        "git_url": project_info["http_url"],
-        "redmine_url": redmine_url,
-        "ssh_url": project_info["ssh_url"],
-        "repository_id": project_info["git_repository_id"],
-        "owner_id": project_info["owner_id"],
-        "owner_name": model.User.query.get(project_info["owner_id"]).name
-    }
-    return util.success(output)
+def get_project_info(project_id):
+    return NexusProject().set_project_id(project_id, do_query=True).to_json()
 
 
 @record_activity(ActionType.ADD_MEMBER)
@@ -767,10 +738,6 @@ def get_project_by_plan_project_id(plan_project_id):
     project = result.fetchone()
     result.close()
     return project
-
-
-def get_project_info(project_id):
-    return model.Project.query.filter_by(id=project_id).first()
 
 
 def get_test_summary(project_id):
@@ -1056,6 +1023,12 @@ def check_project_owner_id(new_owner_id, user_id, project_id):
 class ListMyProjects(Resource):
     @jwt_required
     def get(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('simple', type=str)
+        args = parser.parse_args()
+        if args.get('simple', 'false') == 'true':
+            return util.success(
+                {'project_list': get_simple_project_list(get_jwt_identity()['user_id'])})
         if role.is_role(role.RD):
             return util.success(
                 {'project_list': get_rd_project_list(get_jwt_identity()['user_id'])})
@@ -1069,7 +1042,7 @@ class SingleProject(Resource):
     def get(self, project_id):
         role.require_pm("Error while getting project info.")
         role.require_in_project(project_id, "Error while getting project info.")
-        return pm_get_project(project_id)
+        return util.success(get_project_info(project_id))
 
     @jwt_required
     def put(self, project_id):
@@ -1142,7 +1115,7 @@ class SingleProjectByName(Resource):
         project_id = nexus.nx_get_project(name=project_name).id
         role.require_pm("Error while getting project info.")
         role.require_in_project(project_id, "Error while getting project info.")
-        return pm_get_project(project_id)
+        return util.success(get_project_info(project_id))
 
 
 class ProjectMember(Resource):
