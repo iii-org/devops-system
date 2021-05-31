@@ -74,6 +74,7 @@ def qu_get_collection_list(project_id):
     repository_id = nx_get_project_plugin_relation(
         nexus_project_id=project_id).git_repository_id
     out_dict = {}
+    issues_info = qu_get_testplan_list(project_id)
     for path in paths:
         out_dict[path["software_name"]] = []
         trees = gitlab.ql_get_collection(repository_id, path['path'])
@@ -89,13 +90,21 @@ def qu_get_collection_list(project_id):
                     for item in collection_obj.item:
                         postman_item_obj = PostmanJSONItem(item)
                         items.append({"name": postman_item_obj.name})
+                    test_plans =[]
+                    rows = get_test_plans_from_params(project_id, path["software_name"],tree["name"],postman_info_obj.name)
+                    for row in rows:
+                        for issue_info in issues_info:
+                            if row["issue_id"] == issue_info["id"]:
+                                test_plans.append(issue_info)
+                                break
                     out_dict[path["software_name"]].append({
                         "file_name":
                         tree["name"],
                         "name":
                         postman_info_obj.name,
                         "items":
-                        items
+                        items,
+                        "test_plans": test_plans
                     })
                 elif path["file_name_key"] == "sideex.json":
                     sideex_obj = SideeXJSON(coll_json)
@@ -107,6 +116,13 @@ def qu_get_collection_list(project_id):
                             for record_dict in case_obj.records:
                                 record_obj = SideeXJSONRecord(record_dict)
                                 records.append({"name": record_obj.name})
+                            test_plans =[]
+                            rows = get_test_plans_from_params(project_id, path["software_name"],tree["name"],case_obj.title)
+                            for row in rows:
+                                for issue_info in issues_info:
+                                    if row["issue_id"] == issue_info["id"]:
+                                        test_plans.append(issue_info)
+                                        break
                             out_dict[path["software_name"]].append({
                                 "file_name":
                                 tree["name"],
@@ -115,14 +131,25 @@ def qu_get_collection_list(project_id):
                                 "name":
                                 case_obj.title,
                                 "items":
-                                records
+                                records,
+                                "test_plans": test_plans
                             })
     return out_dict
 
 
+def get_test_plans_from_params(project_id, software_name, file_name, plan_name):
+    rows = model.IssueCollectionRelation.query.filter_by(
+                                        project_id=project_id,
+                                        software_name=software_name,
+                                        file_name=file_name,
+                                        plan_name=plan_name).all()
+    return util.rows_to_list(rows)
+
+
 def qu_create_testplan_testfile_relate(project_id, issue_id, software_name,
                                        file_name, plan_name):
-    row_num = model.IssueCollectionRelation.query.filter_by(issue_id=issue_id,
+    row_num = model.IssueCollectionRelation.query.filter_by(project_id=project_id,
+                                        issue_id=issue_id,
                                         software_name=software_name,
                                         file_name=file_name,
                                         plan_name=plan_name).count()
