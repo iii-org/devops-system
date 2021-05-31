@@ -1,4 +1,4 @@
-from flask_restful import Resource
+from flask_restful import Resource, reqparse
 import json
 
 from nexus import nx_get_project_plugin_relation
@@ -6,6 +6,8 @@ from .gitlab import gitlab
 from resources.redmine import redmine
 from . import issue
 import util as util
+import model
+from model import db
 
 paths = [{
     "software_name": "Postman",
@@ -63,13 +65,14 @@ def qu_get_testplan_list(project_id):
         if tracker["name"] == testplan:
             testplan_id = tracker["id"]
     if testplan_id != -1:
-        args= {"tracker_id": testplan_id}
+        args = {"tracker_id": testplan_id}
         issues = issue.get_issue_by_project(project_id, args)
         return issues
 
 
 def qu_get_collection_list(project_id):
-    repository_id = nx_get_project_plugin_relation(nexus_project_id=project_id).git_repository_id
+    repository_id = nx_get_project_plugin_relation(
+        nexus_project_id=project_id).git_repository_id
     out_dict = {}
     for path in paths:
         out_dict[path["software_name"]] = []
@@ -117,6 +120,37 @@ def qu_get_collection_list(project_id):
     return out_dict
 
 
+def qu_create_testplan_testfile_relate(project_id, issue_id, software_name,
+                                       file_name, plan_name):
+    row_num = model.IssueCollectionRelation.query.filter_by(issue_id=issue_id,
+                                        software_name=software_name,
+                                        file_name=file_name,
+                                        plan_name=plan_name).count()
+    if row_num == 0 :
+        new = model.IssueCollectionRelation(project_id=project_id,
+                                            issue_id=issue_id,
+                                            software_name=software_name,
+                                            file_name=file_name,
+                                            plan_name=plan_name)
+        db.session.add(new)
+        db.session.commit()
+        return {"id": new.id}
+
+
+def qu_get_testplan_testfile_relate_list(project_id):
+    out = []
+    rows = model.IssueCollectionRelation.query.filter_by(
+        project_id=project_id).all()
+    return util.rows_to_list(rows)
+
+
+def qu_del_testplan_testfile_relate_list(project_id, item_id):
+    row = model.IssueCollectionRelation.query.filter_by(id=item_id).first()
+    if row is not None:
+        db.session.delete(row)
+        db.session.commit()
+
+
 class TestPlanList(Resource):
     def get(self, project_id):
         out = qu_get_testplan_list(project_id)
@@ -127,3 +161,26 @@ class CollectionList(Resource):
     def get(self, project_id):
         out = qu_get_collection_list(project_id)
         return util.success(out)
+
+
+class TestPlanWithTestFile(Resource):
+    def post(self, project_id):
+        parser = reqparse.RequestParser()
+        parser.add_argument('issue_id', type=int, required=True)
+        parser.add_argument('software_name', type=str, required=True)
+        parser.add_argument('file_name', type=str, required=True)
+        parser.add_argument('plan_name', type=str, required=True)
+        args = parser.parse_args()
+        out = qu_create_testplan_testfile_relate(project_id, args['issue_id'],
+                                                 args['software_name'],
+                                                 args['file_name'],
+                                                 args['plan_name'])
+        return util.success(out)
+
+    def get(self, project_id):
+        out = qu_get_testplan_testfile_relate_list(project_id)
+        return util.success(out)
+
+    def delete(self, project_id, item_id):
+        qu_del_testplan_testfile_relate_list(project_id, item_id)
+        return util.success()
