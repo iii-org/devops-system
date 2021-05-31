@@ -80,12 +80,11 @@ def qu_get_testplan_list(project_id):
 def qu_get_testfile_list(project_id):
     repository_id = nx_get_project_plugin_relation(
         nexus_project_id=project_id).git_repository_id
-    out_dict = {}
+    out_list = []
     issues_info = qu_get_testplan_list(project_id)
     postman_results = apiTest.list_results(project_id)
     sideex_results = sideex.sd_get_tests(project_id)
     for path in paths:
-        out_dict[path["software_name"]] = []
         trees = gitlab.ql_get_collection(repository_id, path['path'])
         for tree in trees:
             if path["file_name_key"] in tree["name"]:
@@ -109,7 +108,8 @@ def qu_get_testfile_list(project_id):
                     the_last_result = None
                     if len(postman_results) !=0:
                         the_last_result = postman_results[0]
-                    out_dict[path["software_name"]].append({
+                    out_list.append({
+                        "software_name": path["software_name"],
                         "file_name":
                         tree["name"],
                         "name":
@@ -139,7 +139,8 @@ def qu_get_testfile_list(project_id):
                             the_last_result = None
                             if len(sideex_results) !=0:
                                 the_last_result = sideex_results[0]
-                            out_dict[path["software_name"]].append({
+                            out_list.append({
+                                "software_name": path["software_name"],
                                 "file_name":
                                 tree["name"],
                                 "parent_name":
@@ -151,7 +152,7 @@ def qu_get_testfile_list(project_id):
                                 "test_plans": test_plans,
                                 "the_last_test_result": the_last_result
                             })
-    return out_dict
+    return out_list
 
 
 def get_test_plans_from_params(project_id, software_name, file_name, plan_name):
