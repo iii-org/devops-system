@@ -42,7 +42,7 @@ class NexusIssue:
             'assigned_to': {},
             'fixed_version': {},
             'due_date': None,
-            'parent_id': None,
+            'parent': None,
             'is_closed': False,
             'issue_link': redmine.rm_build_external_link(
                 '/issues/{0}'.format(redmine_issue['id'])),
@@ -67,7 +67,8 @@ class NexusIssue:
         if 'start_date' in redmine_issue:
             self.data['start_date'] = redmine_issue['start_date']
         if 'parent' in redmine_issue:
-            self.data['parent_id'] = redmine_issue['parent']['id']
+            get_issue_assign_to_detail(redmine_issue['parent'])
+            self.data['parent'] = redmine_issue['parent']
         if 'assigned_to' in redmine_issue:
             user_info = user.get_user_id_name_by_plan_user_id(
                 redmine_issue['assigned_to']['id'])
@@ -282,7 +283,34 @@ def get_issue(issue_id, with_children=True):
         redmine_issue_status['issue_statuses'])
     if not with_children:
         issue.pop('children', None)
+    elif issue.get('children', None):
+        for children_issue in issue['children']:
+            get_issue_assign_to_detail(children_issue)
     return __deal_with_issue_redmine_output(issue, closed_statuses)
+
+
+def get_issue_assign_to_detail(issue):
+    issue_obj = redmine_lib.redmine.issue.get(issue['id'])
+    issue['status'] = {
+        'id': issue_obj.status.id,
+        'name': issue_obj.status.name
+    }
+    if hasattr(issue_obj, 'assigned_to'):
+        user_relation = nexus.nx_get_user_plugin_relation(
+            plan_user_id=issue_obj.assigned_to.id)
+        user = model.User.query.get(user_relation.user_id)
+        issue['assigned_to'] = {
+            'id': user.id,
+            'name': user.name,
+            'login': user.login
+        }
+    if not issue.get('tracker', None):
+        issue['tracker'] = {
+            'id': issue_obj.tracker.id,
+            'name': issue_obj.tracker.name
+        }
+    if not issue.get('subject', None):
+        issue['subject'] = issue_obj.subject
 
 
 def create_issue(args, operator_id):
@@ -375,10 +403,10 @@ def get_issue_by_tree_by_project(project_id):
     forest = []
     for issue_list in issue_list_output:
         node = nodes[issue_list['id']]
-        if issue_list['parent_id'] is None:
+        if issue_list['parent'] is None:
             forest.append(node)
         else:
-            parent = nodes[issue_list['parent_id']]
+            parent = nodes[issue_list['parent']['id']]
             parent['children'].append(node)
     return util.success(forest)
 
@@ -896,11 +924,11 @@ class SingleIssue(Resource):
     @jwt_required
     def get(self, issue_id):
         issue_info = get_issue(issue_id)
+        require_issue_visible(issue_id, issue_info)
         if 'parent_id' in issue_info:
             parent_info = get_issue(issue_info['parent_id'], with_children=False)
             issue_info.pop('parent_id', None)
             issue_info['parent'] = parent_info
-        require_issue_visible(issue_id, issue_info)
         return util.success(issue_info)
 
     @jwt_required

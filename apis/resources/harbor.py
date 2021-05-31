@@ -314,8 +314,10 @@ def get_storage_usage(project_id):
 def hb_get_registries(registry_id=None, args=None):
     if registry_id:
         response = __api_get('/registries/{0}'.format(registry_id))
-    if args:
+    elif args:
         response = __api_get('/registries?q={0}'.format(args))
+    else:
+        response = __api_get('/registries')
     registry = json.loads(response.content.decode('utf8'))
     return registry
 
@@ -375,6 +377,12 @@ def hb_create_replication_policy(args):
         ]
     }
     __api_post('/replication/policies', data=data)
+
+
+def hb_get_replication_policy():
+    response = __api_get('/replication/policies')
+    policies = json.loads(response.content.decode('utf8'))
+    return policies
 
 
 def hb_execute_replication_policy(args):
@@ -477,6 +485,21 @@ hb_release = HarborRelease()
 
 class HarborRegistries(Resource):
     @jwt_required
+    def get(self):
+        response = model.Registries.query.all()
+        registries = [
+            {
+                'name': context.name,
+                'description': context.description,
+                'type': context.type,
+                'url': context.url,
+                'registries_id': context.registries_id,
+                'user_id': context.user_id
+            } for context in response
+        ]
+        return util.success(registries)
+
+    @jwt_required
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('name', type=str, required=True)
@@ -497,11 +520,16 @@ class HarborRegistriesPing(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('registries_id', type=str, required=True)
         args = parser.parse_args()
-        hb_create_replication_policy(args)
+        hb_ping_registries(args)
         return util.success()
 
 
 class HarborReplicationPolicy(Resource):
+    @jwt_required
+    def get(self):
+        policies = hb_get_replication_policy()
+        return util.success(policies)
+
     @jwt_required
     def post(self):
         parser = reqparse.RequestParser()
