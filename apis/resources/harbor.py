@@ -322,33 +322,32 @@ def hb_get_registries(registry_id=None, args=None):
 
 def hb_create_registries(args):
     user_id = get_jwt_identity()['user_id']
-    cloud_provider = model.CloudProvider.query.get(args['provider_id'])
-    if cloud_provider.type == 'aws':
-        data = {
-            'name': args['name'],
-            'description': args['description'],
-            'type': 'aws-ecr',
-            'url': 'https://api.ecr.{location}.amazonaws.com'.format(location=args['location']),
-            'insecure': False,
-            'access_key': cloud_provider.provider_info['access_key_id'],
-            'access_secret': cloud_provider.provider_info['secret_access_key']
-        }
-        __api_post('/registries/ping', data=data)
-        data['credential'] = {
-            'access_key': data['access_key'],
-            'access_secret': data['access_secret'],
-            'type': 'basic'
-        }
-        __api_post('/registries', data=data)
-        registries_id = hb_get_registries(args='name={0}'.format(args['name']))[0].get('id')
-        new_registries = model.Registries(
-            user_id=user_id,
-            name=args['name'],
-            provider_id=args['provider_id'],
-            registries_id=registries_id
-        )
-        model.db.session.add(new_registries)
-        model.db.session.commit()
+    if args['type'] == 'aws-ecr':
+        args['insecure'] = False
+        args['url'] = 'https://api.ecr.{location}.amazonaws.com'.format(location=args['location'])
+    elif args['type'] == 'azure-acr':
+        args['insecure'] = False
+        args['url'] = 'https://{login_server}'.format(login_server=args['login_server'])
+    __api_post('/registries/ping', data=args)
+    args['credential'] = {
+        'access_key': args['access_key'],
+        'access_secret': args['access_secret'],
+        'type': 'basic'
+    }
+    __api_post('/registries', data=args)
+    registries_id = hb_get_registries(args='name={0}'.format(args['name']))[0].get('id')
+    new_registries = model.Registries(
+        registries_id=registries_id,
+        name=args['name'],
+        user_id=user_id,
+        description=args['description'],
+        access_key=args['access_key'],
+        access_secret=args['access_secret'],
+        url=args['url'],
+        type=args['type']
+    )
+    model.db.session.add(new_registries)
+    model.db.session.commit()
 
 
 def hb_create_replication_policy(args):
@@ -381,6 +380,11 @@ def hb_create_replication_policy(args):
 def hb_execute_replication_policy(args):
     data = {"policy_id": args['policy_id']}
     __api_post('/replication/executions', data=data)
+
+
+def hb_ping_registries(args):
+    data = {"id": args['registries_id']}
+    __api_post('/registries/ping', data=data)
 
 
 # ----------------- Resources -----------------
@@ -475,12 +479,25 @@ class HarborRegistries(Resource):
     @jwt_required
     def post(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('name', type=str)
-        parser.add_argument('provider_id', type=int)
-        parser.add_argument('location', type=str)
+        parser.add_argument('name', type=str, required=True)
+        parser.add_argument('type', type=str, required=True)
+        parser.add_argument('access_key', type=str, required=True)
+        parser.add_argument('access_secret', type=str, required=True)
+        parser.add_argument('location', type=str, required=False)
+        parser.add_argument('login_server', type=str, required=False)
         parser.add_argument('description', type=str)
         args = parser.parse_args()
         hb_create_registries(args)
+        return util.success()
+
+
+class HarborRegistriesPing(Resource):
+    @jwt_required
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('registries_id', type=str, required=True)
+        args = parser.parse_args()
+        hb_create_replication_policy(args)
         return util.success()
 
 
