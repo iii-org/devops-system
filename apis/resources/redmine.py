@@ -151,6 +151,8 @@ class Redmine:
         if args is not None and 'fixed_version_id' in args and args['fixed_version_id'] is not None:
             params = {'project_id': plan_project_id, 'status_id': '*',
                       'fixed_version_id': args['fixed_version_id']}
+        elif args is not None and 'tracker_id' in args and args['tracker_id'] is not None:
+            params = {'project_id': plan_project_id, 'status_id': '*', 'tracker_id': args['tracker_id']}
         else:
             params = {'project_id': plan_project_id, 'status_id': '*'}
         return self.paging('issues', 100, params)
