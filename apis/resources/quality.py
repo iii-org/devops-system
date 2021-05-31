@@ -4,6 +4,7 @@ import json
 from nexus import nx_get_project_plugin_relation
 from .gitlab import gitlab
 from resources.redmine import redmine
+from resources import apiTest, sideex
 from . import issue
 import util as util
 import model
@@ -70,11 +71,13 @@ def qu_get_testplan_list(project_id):
         return issues
 
 
-def qu_get_collection_list(project_id):
+def qu_get_testfile_list(project_id):
     repository_id = nx_get_project_plugin_relation(
         nexus_project_id=project_id).git_repository_id
     out_dict = {}
     issues_info = qu_get_testplan_list(project_id)
+    postman_results = apiTest.list_results(project_id)
+    sideex_results = sideex.sd_get_tests(project_id)
     for path in paths:
         out_dict[path["software_name"]] = []
         trees = gitlab.ql_get_collection(repository_id, path['path'])
@@ -97,6 +100,9 @@ def qu_get_collection_list(project_id):
                             if row["issue_id"] == issue_info["id"]:
                                 test_plans.append(issue_info)
                                 break
+                    the_last_result = None
+                    if len(postman_results) !=0:
+                        the_last_result = postman_results[0]
                     out_dict[path["software_name"]].append({
                         "file_name":
                         tree["name"],
@@ -104,7 +110,8 @@ def qu_get_collection_list(project_id):
                         postman_info_obj.name,
                         "items":
                         items,
-                        "test_plans": test_plans
+                        "test_plans": test_plans,
+                        "the_last_test_result": the_last_result
                     })
                 elif path["file_name_key"] == "sideex.json":
                     sideex_obj = SideeXJSON(coll_json)
@@ -123,6 +130,9 @@ def qu_get_collection_list(project_id):
                                     if row["issue_id"] == issue_info["id"]:
                                         test_plans.append(issue_info)
                                         break
+                            the_last_result = None
+                            if len(sideex_results) !=0:
+                                the_last_result = sideex_results[0]
                             out_dict[path["software_name"]].append({
                                 "file_name":
                                 tree["name"],
@@ -132,7 +142,8 @@ def qu_get_collection_list(project_id):
                                 case_obj.title,
                                 "items":
                                 records,
-                                "test_plans": test_plans
+                                "test_plans": test_plans,
+                                "the_last_test_result": the_last_result
                             })
     return out_dict
 
@@ -184,9 +195,9 @@ class TestPlanList(Resource):
         return util.success(out)
 
 
-class CollectionList(Resource):
+class TestFileList(Resource):
     def get(self, project_id):
-        out = qu_get_collection_list(project_id)
+        out = qu_get_testfile_list(project_id)
         return util.success(out)
 
 
