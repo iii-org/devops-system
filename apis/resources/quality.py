@@ -67,8 +67,14 @@ def qu_get_testplan_list(project_id):
             testplan_id = tracker["id"]
     if testplan_id != -1:
         args = {"tracker_id": testplan_id}
-        issues = issue.get_issue_by_project(project_id, args)
-        return issues
+        issue_infos = issue.get_issue_by_project(project_id, args)
+        test_plan_file_conn_list = qu_get_testplan_testfile_relate_list(project_id)
+        for issue_info in issue_infos:
+            issue_info["test_files"] =[]
+            for test_plan_file_conn in test_plan_file_conn_list:
+                if issue_info['id'] == test_plan_file_conn['issue_id']:
+                    issue_info["test_files"].append(test_plan_file_conn)
+        return issue_infos
 
 
 def qu_get_testfile_list(project_id):
