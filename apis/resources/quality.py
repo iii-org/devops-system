@@ -1,8 +1,14 @@
-from flask_restful import Resource
+from flask_restful import Resource, reqparse
 import json
 
+from nexus import nx_get_project_plugin_relation
 from .gitlab import gitlab
+from resources.redmine import redmine
+from resources import apiTest, sideex
+from . import issue
 import util as util
+import model
+from model import db
 
 paths = [{
     "software_name": "Postman",
@@ -53,8 +59,25 @@ class SideeXJSONRecord:
         self.name = record_dict.get("name")
 
 
-def qu_get_collection_list(repository_id):
+def qu_get_testplan_list(project_id):
+    testplan = "Test Plan"
+    testplan_id = -1
+    for tracker in redmine.rm_get_trackers()["trackers"]:
+        if tracker["name"] == testplan:
+            testplan_id = tracker["id"]
+    if testplan_id != -1:
+        args = {"tracker_id": testplan_id}
+        issues = issue.get_issue_by_project(project_id, args)
+        return issues
+
+
+def qu_get_testfile_list(project_id):
+    repository_id = nx_get_project_plugin_relation(
+        nexus_project_id=project_id).git_repository_id
     out_dict = {}
+    issues_info = qu_get_testplan_list(project_id)
+    postman_results = apiTest.list_results(project_id)
+    sideex_results = sideex.sd_get_tests(project_id)
     for path in paths:
         out_dict[path["software_name"]] = []
         trees = gitlab.ql_get_collection(repository_id, path['path'])
@@ -70,13 +93,25 @@ def qu_get_collection_list(repository_id):
                     for item in collection_obj.item:
                         postman_item_obj = PostmanJSONItem(item)
                         items.append({"name": postman_item_obj.name})
+                    test_plans =[]
+                    rows = get_test_plans_from_params(project_id, path["software_name"],tree["name"],postman_info_obj.name)
+                    for row in rows:
+                        for issue_info in issues_info:
+                            if row["issue_id"] == issue_info["id"]:
+                                test_plans.append(issue_info)
+                                break
+                    the_last_result = None
+                    if len(postman_results) !=0:
+                        the_last_result = postman_results[0]
                     out_dict[path["software_name"]].append({
                         "file_name":
                         tree["name"],
                         "name":
                         postman_info_obj.name,
                         "items":
-                        items
+                        items,
+                        "test_plans": test_plans,
+                        "the_last_test_result": the_last_result
                     })
                 elif path["file_name_key"] == "sideex.json":
                     sideex_obj = SideeXJSON(coll_json)
@@ -88,6 +123,16 @@ def qu_get_collection_list(repository_id):
                             for record_dict in case_obj.records:
                                 record_obj = SideeXJSONRecord(record_dict)
                                 records.append({"name": record_obj.name})
+                            test_plans =[]
+                            rows = get_test_plans_from_params(project_id, path["software_name"],tree["name"],case_obj.title)
+                            for row in rows:
+                                for issue_info in issues_info:
+                                    if row["issue_id"] == issue_info["id"]:
+                                        test_plans.append(issue_info)
+                                        break
+                            the_last_result = None
+                            if len(sideex_results) !=0:
+                                the_last_result = sideex_results[0]
                             out_dict[path["software_name"]].append({
                                 "file_name":
                                 tree["name"],
@@ -96,27 +141,84 @@ def qu_get_collection_list(repository_id):
                                 "name":
                                 case_obj.title,
                                 "items":
-                                records
+                                records,
+                                "test_plans": test_plans,
+                                "the_last_test_result": the_last_result
                             })
     return out_dict
 
 
-def qu_get_collection(repository_id, software_name, collection_name):
-    for path in paths:
-        if software_name == path["file_name_key"]:
-            path_file = f'{path["path"]}/{collection_name}'
-            collection_json = json.loads(
-                gitlab.gl_get_file(repository_id, path_file))
-            pass
+def get_test_plans_from_params(project_id, software_name, file_name, plan_name):
+    rows = model.IssueCollectionRelation.query.filter_by(
+                                        project_id=project_id,
+                                        software_name=software_name,
+                                        file_name=file_name,
+                                        plan_name=plan_name).all()
+    return util.rows_to_list(rows)
 
 
-class CollectionList(Resource):
-    def get(self, repository_id):
-        out = qu_get_collection_list(repository_id)
+def qu_create_testplan_testfile_relate(project_id, issue_id, software_name,
+                                       file_name, plan_name):
+    row_num = model.IssueCollectionRelation.query.filter_by(project_id=project_id,
+                                        issue_id=issue_id,
+                                        software_name=software_name,
+                                        file_name=file_name,
+                                        plan_name=plan_name).count()
+    if row_num == 0 :
+        new = model.IssueCollectionRelation(project_id=project_id,
+                                            issue_id=issue_id,
+                                            software_name=software_name,
+                                            file_name=file_name,
+                                            plan_name=plan_name)
+        db.session.add(new)
+        db.session.commit()
+        return {"id": new.id}
+
+
+def qu_get_testplan_testfile_relate_list(project_id):
+    out = []
+    rows = model.IssueCollectionRelation.query.filter_by(
+        project_id=project_id).all()
+    return util.rows_to_list(rows)
+
+
+def qu_del_testplan_testfile_relate_list(project_id, item_id):
+    row = model.IssueCollectionRelation.query.filter_by(id=item_id).first()
+    if row is not None:
+        db.session.delete(row)
+        db.session.commit()
+
+
+class TestPlanList(Resource):
+    def get(self, project_id):
+        out = qu_get_testplan_list(project_id)
         return util.success(out)
 
 
-class Collection(Resource):
-    def get(self, repository_id, software_name, collection_name):
-        out = qu_get_collection(repository_id, software_name, collection_name)
+class TestFileList(Resource):
+    def get(self, project_id):
+        out = qu_get_testfile_list(project_id)
         return util.success(out)
+
+
+class TestPlanWithTestFile(Resource):
+    def post(self, project_id):
+        parser = reqparse.RequestParser()
+        parser.add_argument('issue_id', type=int, required=True)
+        parser.add_argument('software_name', type=str, required=True)
+        parser.add_argument('file_name', type=str, required=True)
+        parser.add_argument('plan_name', type=str, required=True)
+        args = parser.parse_args()
+        out = qu_create_testplan_testfile_relate(project_id, args['issue_id'],
+                                                 args['software_name'],
+                                                 args['file_name'],
+                                                 args['plan_name'])
+        return util.success(out)
+
+    def get(self, project_id):
+        out = qu_get_testplan_testfile_relate_list(project_id)
+        return util.success(out)
+
+    def delete(self, project_id, item_id):
+        qu_del_testplan_testfile_relate_list(project_id, item_id)
+        return util.success()

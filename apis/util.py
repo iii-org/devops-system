@@ -3,7 +3,7 @@ import os
 import random
 import string
 import time
-from datetime import datetime
+from datetime import datetime, date
 from threading import Thread
 
 import requests
@@ -204,6 +204,20 @@ def get_random_alphanumeric_string(letters_count_each, digits_count):
     random.shuffle(sample_list)
     final_string = ''.join(sample_list)
     return final_string
+
+
+def rows_to_list(rows):
+    out = []
+    for row in rows:
+        ret = {}
+        for key in type(row).__table__.columns.keys():
+            value = getattr(row, key)
+            if type(value) is datetime or type(value) is date:
+                ret[key] = str(value)
+            else:
+                ret[key] = value
+        out.append(ret)
+    return out
 
 
 class DevOpsThread(Thread):
