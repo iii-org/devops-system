@@ -1008,7 +1008,9 @@ def check_project_owner_id(new_owner_id, user_id, project_id):
     # 更動 owner_id (由 project 中 owner 的 PM 執行)
     elif origin_owner_id == user_id and new_owner_id != user_id:
         # 檢查 new_owner_id 的 role 是否為 PM
-        if not bool(model.ProjectUserRole.query.filter_by(project_id=-1, user_id=new_owner_id, role_id=3).all()):
+        if not bool(model.ProjectUserRole.query.filter_by(
+            project_id=-1, user_id=new_owner_id, role_id=3
+                ).all()):
             raise apiError.DevOpsError(400, "Error while updating project info.",
                                        error=apiError.invalid_project_owner(new_owner_id))
     # 不更動 owner_id，僅修改其他資訊 (由 project 中其他 PM 執行)
@@ -1017,6 +1019,20 @@ def check_project_owner_id(new_owner_id, user_id, project_id):
     # 其餘權限不足
     else:
         raise apiError.NotAllowedError("Error while updating project info.")
+
+
+def get_projects_by_user(user_id):
+    try:
+        model.ProjectUserRole.query.filter_by(project_id=-1, user_id=user_id).one()
+    except NoResultFound:
+        raise apiError.DevOpsError(
+            404, 'User id {0} does not exist.'.format(user_id),
+            apiError.user_not_found(user_id))
+    projects_id_list = list(sum(
+        model.ProjectUserRole.query.filter_by(
+            user_id=user_id).with_entities(model.ProjectUserRole.project_id), ()))
+    projects = [NexusProject().set_project_id(id).to_json() for id in projects_id_list if id != -1]
+    return projects
 
 
 # --------------------- Resources ---------------------
@@ -1035,6 +1051,14 @@ class ListMyProjects(Resource):
         else:
             return util.success(
                 {'project_list': get_pm_project_list(get_jwt_identity()['user_id'])})
+
+
+class ListProjectsByUser(Resource):
+    @jwt_required
+    def get(self, user_id):
+        role.require_admin("Error while getting project info")
+        projects = get_projects_by_user(user_id)
+        return util.success(projects)
 
 
 class SingleProject(Resource):
