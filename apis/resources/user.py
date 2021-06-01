@@ -344,6 +344,11 @@ def update_external_email(user_id, user_name, new_email):
     gitlab_user_id = user_relation.repository_user_id
     gitlab.gl_update_email(gitlab_user_id, new_email)
 
+    gitlab_user_email_list = gitlab.gl_get_user_email(gitlab_user_id).json()
+    need_to_delete_email = [email['id'] for email in gitlab_user_email_list if email['email'] != new_email]
+    for gitlab_email_id in need_to_delete_email:
+        gitlab.gl_delete_user_email(gitlab_user_id, gitlab_email_id)
+
     harbor_user_id = user_relation.harbor_user_id
     harbor.hb_update_user_email(harbor_user_id, user_name, new_email)
 

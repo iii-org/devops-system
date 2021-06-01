@@ -201,6 +201,12 @@ class GitLab(object):
     def gl_delete_user(self, gitlab_user_id):
         return self.__api_delete(f'/users/{gitlab_user_id}')
 
+    def gl_get_user_email(self, gitlab_user_id):
+        return self.__api_get(f'/users/{gitlab_user_id}/emails')
+
+    def gl_delete_user_email(self, gitlab_user_id, gitlab_email_id):
+        return self.__api_delete(f'/users/{gitlab_user_id}/emails/{gitlab_email_id}')
+
     def gl_count_branches(self, repo_id):
         output = self.__api_get(f'/projects/{repo_id}/repository/branches')
         return len(output.json())
