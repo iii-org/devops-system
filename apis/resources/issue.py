@@ -62,7 +62,8 @@ class NexusIssue:
             'status': {
                 'id': redmine_issue['status']['id'],
                 'name': redmine_issue['status']['name']
-            }
+            },
+            'relations': []
         }
         if 'start_date' in redmine_issue:
             self.data['start_date'] = redmine_issue['start_date']
@@ -85,6 +86,8 @@ class NexusIssue:
             }
         if redmine_issue['status']['id'] in NexusIssue.get_closed_statuses():
             self.data['is_closed'] = True
+        if 'relations' in redmine_issue:
+            self.data['relations'] = redmine_issue['relations']
         return self
 
     @staticmethod
