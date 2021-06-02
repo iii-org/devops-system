@@ -62,7 +62,8 @@ class NexusIssue:
             'status': {
                 'id': redmine_issue['status']['id'],
                 'name': redmine_issue['status']['name']
-            }
+            },
+            'relations': []
         }
         if 'start_date' in redmine_issue:
             self.data['start_date'] = redmine_issue['start_date']
@@ -85,6 +86,8 @@ class NexusIssue:
             }
         if redmine_issue['status']['id'] in NexusIssue.get_closed_statuses():
             self.data['is_closed'] = True
+        if 'relations' in redmine_issue:
+            self.data['relations'] = redmine_issue['relations']
         return self
 
     @staticmethod
@@ -919,6 +922,14 @@ def get_requirements_by_project_id(project_id):
     return {'flow_info': output}
 
 
+def post_issue_relation(issue_id, issue_to_id):
+    return redmine_lib.rm_post_relation(issue_id, issue_to_id)
+
+
+def delete_issue_relation(relation_id):
+    return redmine_lib.rm_delete_relation(relation_id)
+
+
 # --------------------- Resources ---------------------
 class SingleIssue(Resource):
     @jwt_required
@@ -1314,4 +1325,18 @@ class Parameter(Resource):
         parser.add_argument('length', type=int)
         args = parser.parse_args()
         output = modify_parameters_by_param_id(parameter_id, args)
+        return util.success(output)
+
+
+class Relation(Resource):
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('issue_id', type=int, required=True)
+        parser.add_argument('issue_to_id', type=int, required=True)
+        args = parser.parse_args()
+        output = post_issue_relation(args['issue_id'], args['issue_to_id'])
+        return util.success(output)
+
+    def delete(self, relation_id):
+        output = delete_issue_relation(relation_id)
         return util.success(output)
