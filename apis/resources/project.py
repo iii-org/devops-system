@@ -1,13 +1,13 @@
 import json
 import re
 from datetime import datetime, date
-import base64
 
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
 from kubernetes.client import ApiException
 from sqlalchemy import desc, inspect
 from sqlalchemy.orm.exc import NoResultFound
+
 import config
 import model
 import nexus
@@ -22,16 +22,19 @@ from . import user, harbor, kubernetesClient, role, sonarqube, template, webInsp
 from .activity import record_activity, ActionType
 from .checkmarx import checkmarx
 from .gitlab import gitlab
-from .logger import logger
 from .rancher import rancher
 from .redmine import redmine
 
+
 # Use lazy loading to avoid redundant db queries, build up this object like:
 # NexusProject().set_project_id(4) or NexusProject().set_project_row(row)
-from .role import Role
 
 
 class NexusProject:
+    STATUS_IN_PROGRESS = 'in_progress'
+    STATUS_NOT_STARTED = 'not_started'
+    STATUS_CLOSED = 'closed'
+
     def __init__(self):
         self.__project_id = None
         self.__project_row = None
@@ -116,46 +119,38 @@ class NexusProject:
             ret[key] = value
         return ret
 
-    def fill_pm_redmine_fields(self, redmine_projects, issues):
-        self.__extra_fields['updated_time'] = self.get_updated_time(redmine_projects)
-        issue_stats = self.get_issue_statistics(issues)
-        for key, value in issue_stats.items():
-            self.__extra_fields[key] = value
-        return self
+    def fill_pm_redmine_fields(self):
+        rm_project = redmine_lib.redmine.project.get(self.get_plugin_row().plan_project_id)
+        updated_on = rm_project.updated_on
 
-    def get_updated_time(self, redmine_projects):
-        ret = None
-        for pjt in redmine_projects:
-            if pjt['id'] == self.get_plugin_row().plan_project_id:
-                ret = pjt['updated_on']
-                del pjt
-                break
-        return ret
+        closed_count = 0
+        overdue_count = 0
+        total_count = 0
 
-    def get_issue_statistics(self, issues):
-        ret = {
-            'closed_count': 0,
-            'overdue_count': 0,
-            'total_count': 0,
-            'project_status': None
-        }
+        issues = redmine_lib.redmine.issue.filter(project_id=rm_project.id, status_id='*')
         for issue in issues:
-            if issue['project']['id'] != self.get_plugin_row().plan_project_id:
-                continue
-            if issue["status"]["name"] == "Closed":
-                ret['closed_count'] += 1
-            if issue["due_date"] is not None:
-                if (datetime.utcnow() > datetime.strptime(
-                        issue["due_date"], "%Y-%m-%d")):
-                    ret['overdue_count'] += 1
-            ret['total_count'] += 1
-            del issue
-        ret['project_status'] = "進行中"
-        if ret['total_count'] == 0:
-            ret['project_status'] = "未開始"
-        if ret['closed_count'] == ret['total_count'] and ret['total_count'] != 0:
-            ret['project_status'] = "已結案"
-        return ret
+            if issue.status.id == redmine_lib.STATUS_ID_ISSUE_CLOSED:
+                closed_count += 1
+            if getattr(issue, 'due_date', None) is not None:
+                if date.today() > issue.due_date:
+                    overdue_count += 1
+            if issue.updated_on > updated_on:
+                updated_on = issue.updated_on
+            total_count += 1
+
+        project_status = NexusProject.STATUS_IN_PROGRESS
+        if total_count == 0:
+            project_status = NexusProject.STATUS_NOT_STARTED
+        elif closed_count == total_count:
+            project_status = NexusProject.STATUS_CLOSED
+
+        self.__extra_fields['closed_count'] = closed_count
+        self.__extra_fields['overdue_count'] = overdue_count
+        self.__extra_fields['total_count'] = total_count
+        self.__extra_fields['project_status'] = project_status
+        self.__extra_fields['updated_time'] = str(updated_on)
+
+        return self
 
     def fill_rd_extra_fields(self, user_id):
         relation = nexus.nx_get_user_plugin_relation(user_id=user_id)
@@ -195,15 +190,13 @@ class NexusProject:
 def get_pm_project_list(user_id):
     rows = get_project_rows_by_user(user_id)
     ret = []
-    redmine_projects = redmine.rm_list_projects()
-    issues = redmine.rm_list_issues()
     for row in rows:
         if row.Project.id == -1:
             continue
         ret.append(NexusProject()
                    .set_project_row(row.Project)
                    .set_plugin_row(row.ProjectPluginRelation)
-                   .fill_pm_redmine_fields(redmine_projects, issues)
+                   .fill_pm_redmine_fields()
                    .to_json())
     return ret
 
@@ -1008,7 +1001,9 @@ def check_project_owner_id(new_owner_id, user_id, project_id):
     # 更動 owner_id (由 project 中 owner 的 PM 執行)
     elif origin_owner_id == user_id and new_owner_id != user_id:
         # 檢查 new_owner_id 的 role 是否為 PM
-        if not bool(model.ProjectUserRole.query.filter_by(project_id=-1, user_id=new_owner_id, role_id=3).all()):
+        if not bool(model.ProjectUserRole.query.filter_by(
+                project_id=-1, user_id=new_owner_id, role_id=3
+        ).all()):
             raise apiError.DevOpsError(400, "Error while updating project info.",
                                        error=apiError.invalid_project_owner(new_owner_id))
     # 不更動 owner_id，僅修改其他資訊 (由 project 中其他 PM 執行)
@@ -1017,6 +1012,20 @@ def check_project_owner_id(new_owner_id, user_id, project_id):
     # 其餘權限不足
     else:
         raise apiError.NotAllowedError("Error while updating project info.")
+
+
+def get_projects_by_user(user_id):
+    try:
+        model.ProjectUserRole.query.filter_by(project_id=-1, user_id=user_id).one()
+    except NoResultFound:
+        raise apiError.DevOpsError(
+            404, 'User id {0} does not exist.'.format(user_id),
+            apiError.user_not_found(user_id))
+    projects_id_list = list(sum(
+        model.ProjectUserRole.query.filter_by(
+            user_id=user_id).with_entities(model.ProjectUserRole.project_id), ()))
+    projects = [NexusProject().set_project_id(id).to_json() for id in projects_id_list if id != -1]
+    return projects
 
 
 # --------------------- Resources ---------------------
@@ -1035,6 +1044,14 @@ class ListMyProjects(Resource):
         else:
             return util.success(
                 {'project_list': get_pm_project_list(get_jwt_identity()['user_id'])})
+
+
+class ListProjectsByUser(Resource):
+    @jwt_required
+    def get(self, user_id):
+        role.require_admin("Error while getting project info")
+        projects = get_projects_by_user(user_id)
+        return util.success(projects)
 
 
 class SingleProject(Resource):
