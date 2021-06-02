@@ -12,6 +12,11 @@ from decimal import Decimal, ROUND_HALF_UP
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource
 
+STATUS_IN_PROGRESS = 'in_progress'
+STATUS_NOT_STARTED = 'not_started'
+STATUS_OVERDUE = 'overdue'
+STATUS_CLOSED = 'closed'
+
 # Get admin account from environment
 admin_account = os.environ.get('ADMIN_INIT_LOGIN')
 if not admin_account:
@@ -92,12 +97,11 @@ def sync_redmine(sync_date):
     all_projects = get_pm_project_list(user_id=get_admin_user_id())
     if all_projects:
         for project in all_projects:
-            project_status = 'Not_Started'
-            if project['total_count']:
-                project_status = 'Started'
+            project_status = project['project_status']
+            if project_status == STATUS_IN_PROGRESS:
                 need_to_track_issue.append(project['id'])
-            if check_overdue(project['due_date']):
-                project_status = 'Overdue'
+            if check_overdue(project['due_date']) and project_status != STATUS_CLOSED:
+                project_status = STATUS_OVERDUE
             member_count = insert_project_member(project['id'],
                                                  project['display'])
             insert_project(project, member_count, sync_date, project_status)
@@ -352,13 +356,13 @@ def get_project_overview(own_project):
     projects = get_current_sync_date_project_count_by_status(
         own_project=own_project, sync_date=sync_date)
     overdue = get_current_sync_date_project_count_by_status(
-        own_project=own_project, sync_date=sync_date, status='Overdue')
+        own_project=own_project, sync_date=sync_date, status=STATUS_OVERDUE)
     not_started = get_current_sync_date_project_count_by_status(
-        own_project=own_project, sync_date=sync_date, status='Not_Started')
+        own_project=own_project, sync_date=sync_date, status=STATUS_NOT_STARTED)
     index = {
-        'Projects': projects,
-        'Overdue': overdue,
-        'Not_Started': not_started
+        'projects': projects,
+        STATUS_OVERDUE: overdue,
+        STATUS_NOT_STARTED: not_started
     }
     project_overview = [{
         'project_status': key,
