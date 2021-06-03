@@ -35,10 +35,7 @@ def round_off_float(num):
 def calculate_expired_days(last):
     first_date = datetime.now().date()
     last_date = datetime.strptime(last, "%Y-%m-%d").date()
-    if first_date > last_date:
-        expired_days = None
-    else:
-        expired_days = (last_date - first_date).days
+    expired_days = (last_date - first_date).days
     return expired_days
 
 
@@ -211,48 +208,51 @@ def get_current_sync_date_project_id_by_user():
     sync_date = get_sync_date()
     user_id = get_jwt_identity()['user_id']
     role_id = get_jwt_identity()['role_id']
+    project_id_collections = model.RedmineProject.query.with_entities(
+        model.RedmineProject.project_id).filter(
+            model.RedmineProject.sync_date == sync_date,
+            model.RedmineProject.project_status != STATUS_CLOSED)
+
     if role_id == role.ADMIN.id:
-        project_id_collections = model.RedmineProject.query.with_entities(
-            model.RedmineProject.project_id).filter_by(
-                sync_date=sync_date).order_by(
+        project_id_collections = project_id_collections.order_by(
                     model.RedmineProject.end_date).all()
     else:
         reverse_query_projects = model.ProjectUserRole.query.with_entities(
             model.ProjectUserRole.project_id).filter_by(user_id=user_id).subquery()
-        project_id_collections = model.RedmineProject.query.with_entities(
-            model.RedmineProject.project_id).filter(
-                model.RedmineProject.sync_date == sync_date,
-                model.RedmineProject.project_id.in_(reverse_query_projects)).order_by(
+
+        project_id_collections = project_id_collections.filter(
+            model.RedmineProject.project_id.in_(reverse_query_projects)).order_by(
                     model.RedmineProject.end_date).all()
     return list(sum(project_id_collections, ()))
 
 
 def get_project_by_current_sync_date(detail, own_project):
     sync_date = get_sync_date()
+    project_collections = model.RedmineProject.query.filter(
+            model.RedmineProject.sync_date == sync_date,
+            model.RedmineProject.project_status != STATUS_CLOSED,
+            model.RedmineProject.project_id.in_(own_project)).order_by(
+                model.RedmineProject.end_date)
     if detail:
-        return model.RedmineProject.query.filter(
-            model.RedmineProject.sync_date == sync_date,
-            model.RedmineProject.project_id.in_(own_project)).order_by(
-                model.RedmineProject.end_date).all()
+        return project_collections.all()
     else:
-        return model.RedmineProject.query.filter(
-            model.RedmineProject.sync_date == sync_date,
-            model.RedmineProject.project_id.in_(own_project)).order_by(
-                model.RedmineProject.end_date).limit(5).all()
+        return project_collections.limit(5).all()
 
 
 def get_user_id_by_project(own_project):
     user_id_collections = model.RedmineIssue.query.filter(
         model.RedmineIssue.project_id.in_(own_project),
+        model.RedmineProject.project_status != STATUS_CLOSED,
         model.RedmineIssue.assigned_to_id.isnot(None)).with_entities(
             model.RedmineIssue.assigned_to_id).distinct().all()
     return list(sum(user_id_collections, ()))
 
 
 def get_current_sync_date_project_by_project_id(project_id, sync_date):
-    return model.RedmineProject.query.filter_by(
-        project_id=project_id,
-        sync_date=sync_date).order_by(model.RedmineProject.end_date).first()
+    return model.RedmineProject.query.filter(
+        model.RedmineProject.project_status != STATUS_CLOSED,
+        model.RedmineProject.project_id == project_id,
+        model.RedmineProject.sync_date == sync_date).order_by(model.RedmineProject.end_date).first()
 
 
 def get_last_test_results(project_id):
@@ -284,15 +284,15 @@ def get_project_count_by_user_and_project(user_id, own_project):
 def get_current_sync_date_project_count_by_status(own_project,
                                                   sync_date,
                                                   status=None):
+    project_collections = model.RedmineProject.query.filter(
+            model.RedmineProject.project_id.in_(own_project),
+            model.RedmineProject.sync_date == sync_date)
     if status:
-        return model.RedmineProject.query.filter(
-            model.RedmineProject.project_id.in_(own_project),
-            model.RedmineProject.project_status == status,
-            model.RedmineProject.sync_date == sync_date).count()
+        return project_collections.filter(
+            model.RedmineProject.project_status == status).count()
     else:
-        return model.RedmineProject.query.filter(
-            model.RedmineProject.project_id.in_(own_project),
-            model.RedmineProject.sync_date == sync_date).count()
+        return project_collections.filter(
+            model.RedmineProject.project_status != STATUS_CLOSED).count()
 
 
 # --------------------- API Tasks ---------------------
