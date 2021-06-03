@@ -1,9 +1,11 @@
 from flask_restful import Resource, reqparse
 import json
+import urllib.parse
 
 from nexus import nx_get_project_plugin_relation
 from .gitlab import gitlab
 from resources.redmine import redmine
+import resources.pipeline as pipeline
 from resources import apiTest, sideex
 from . import issue
 import util as util
@@ -88,7 +90,7 @@ def qu_get_testfile_list(project_id):
     for path in paths:
         trees = gitlab.ql_get_collection(repository_id, path['path'])
         for tree in trees:
-            if path["file_name_key"] in tree["name"]:
+            if path["file_name_key"] in tree["name"] and tree["name"][-5:]== ".json":
                 path_file = f'{path["path"]}/{tree["name"]}'
                 coll_json = json.loads(
                     gitlab.gl_get_file(repository_id, path_file))
@@ -203,6 +205,21 @@ def qu_del_testplan_testfile_relate_list(project_id, item_id):
         db.session.commit()
 
 
+def qu_del_testfile(project_id, test_file_name):
+    rows = model.IssueCollectionRelation.query.filter_by(file_name=test_file_name).all()
+    if len(rows) > 0:
+        for row in rows:
+            db.session.delete(row)
+        db.session.commit()
+    repository_id = nx_get_project_plugin_relation(
+        nexus_project_id=project_id).git_repository_id
+    for path in paths:
+        if path["file_name_key"] in test_file_name and test_file_name[-5:]== ".json":
+            url = urllib.parse.quote(f"{path['path']}/{test_file_name}", safe='')
+            gitlab.gl_delete_file(repository_id, url, {"commit_message": f"Delete Test file {path['path']}/{test_file_name} from UI"})
+            next_run = pipeline.get_pipeline_next_run(repository_id)
+            pipeline.stop_and_delete_pipeline(repository_id, next_run)
+
 class TestPlanList(Resource):
     def get(self, project_id):
         out = qu_get_testplan_list(project_id)
@@ -212,6 +229,12 @@ class TestPlanList(Resource):
 class TestFileList(Resource):
     def get(self, project_id):
         out = qu_get_testfile_list(project_id)
+        return util.success(out)
+
+
+class TestFile(Resource):
+    def delete(self, project_id, test_file_name):
+        out = qu_del_testfile(project_id, test_file_name)
         return util.success(out)
 
 
