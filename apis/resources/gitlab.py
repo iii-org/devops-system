@@ -365,7 +365,10 @@ class GitLab(object):
             "last_commit_id": output.json()["last_commit_id"]
         })
 
-    def gl_delete_file(self, repo_id, branch, file_path, args):
+    def gl_delete_file(self, repo_id, file_path, args, branch=None):
+        if branch is None:
+            pj = self.gl.projects.get(repo_id)
+            branch = pj.default_branch
         return self.__api_delete(
             f'/projects/{repo_id}/repository/files/{file_path}',
             params={
@@ -714,7 +717,7 @@ class GitProjectFile(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('commit_message', type=str, required=True)
         args = parser.parse_args()
-        gitlab.gl_delete_file(repository_id, branch_name, file_path, args)
+        gitlab.gl_delete_file(repository_id, file_path, args, branch_name)
         return util.success()
 
 
