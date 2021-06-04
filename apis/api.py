@@ -459,6 +459,7 @@ api.add_resource(project_permission.SetPermission, '/project_permission/set_perm
 # Quality
 api.add_resource(quality.TestPlanList, '/quality/<int:project_id>/testplan_list')
 api.add_resource(quality.TestFileList, '/quality/<int:project_id>/testfile_list')
+api.add_resource(quality.TestFile, '/quality/<int:project_id>/testfile/<test_file_name>')
 api.add_resource(quality.TestPlanWithTestFile, '/quality/<int:project_id>/testplan_with_testfile',
                  '/quality/<int:project_id>/testplan_with_testfile/<int:item_id>')
 

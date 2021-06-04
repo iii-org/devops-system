@@ -48,7 +48,7 @@ class NexusUser:
 
     def set_user_row(self, user_row):
         self.__user_row = user_row
-        self.set_user_id(user_row.id)
+        self.set_user_id(user_row.id, False)
         # Mirror data model fields to this object, so it can be used like an ORM row
         inst = inspect(model.User)
         attr_names = [c_attr.key for c_attr in inst.mapper.column_attrs]
@@ -58,7 +58,7 @@ class NexusUser:
 
     def set_role_rows(self, role_rows):
         self.__role_rows = role_rows
-        self.set_user_id(role_rows[0].user_id)
+        self.set_user_id(role_rows[0].user_id, False)
         return self
 
     def get_user_id(self):

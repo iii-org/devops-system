@@ -1,9 +1,11 @@
 from flask_restful import Resource, reqparse
 import json
+import urllib.parse
 
 from nexus import nx_get_project_plugin_relation
 from .gitlab import gitlab
 from resources.redmine import redmine
+import resources.pipeline as pipeline
 from resources import apiTest, sideex
 from . import issue
 import util as util
@@ -68,9 +70,10 @@ def qu_get_testplan_list(project_id):
     if testplan_id != -1:
         args = {"tracker_id": testplan_id}
         issue_infos = issue.get_issue_by_project(project_id, args)
-        test_plan_file_conn_list = qu_get_testplan_testfile_relate_list(project_id)
+        test_plan_file_conn_list = qu_get_testplan_testfile_relate_list(
+            project_id)
         for issue_info in issue_infos:
-            issue_info["test_files"] =[]
+            issue_info["test_files"] = []
             for test_plan_file_conn in test_plan_file_conn_list:
                 if issue_info['id'] == test_plan_file_conn['issue_id']:
                     issue_info["test_files"].append(test_plan_file_conn)
@@ -87,7 +90,7 @@ def qu_get_testfile_list(project_id):
     for path in paths:
         trees = gitlab.ql_get_collection(repository_id, path['path'])
         for tree in trees:
-            if path["file_name_key"] in tree["name"]:
+            if path["file_name_key"] in tree["name"] and tree["name"][-5:]== ".json":
                 path_file = f'{path["path"]}/{tree["name"]}'
                 coll_json = json.loads(
                     gitlab.gl_get_file(repository_id, path_file))
@@ -98,24 +101,24 @@ def qu_get_testfile_list(project_id):
                     for item in collection_obj.item:
                         postman_item_obj = PostmanJSONItem(item)
                         items.append({"name": postman_item_obj.name})
-                    test_plans =[]
-                    rows = get_test_plans_from_params(project_id, path["software_name"],tree["name"],postman_info_obj.name)
+                    test_plans = []
+                    rows = get_test_plans_from_params(project_id,
+                                                      path["software_name"],
+                                                      tree["name"],
+                                                      postman_info_obj.name)
                     for row in rows:
                         for issue_info in issues_info:
                             if row["issue_id"] == issue_info["id"]:
                                 test_plans.append(issue_info)
                                 break
                     the_last_result = None
-                    if len(postman_results) !=0:
+                    if len(postman_results) != 0:
                         the_last_result = postman_results[0]
                     out_list.append({
                         "software_name": path["software_name"],
-                        "file_name":
-                        tree["name"],
-                        "name":
-                        postman_info_obj.name,
-                        "items":
-                        items,
+                        "file_name": tree["name"],
+                        "name": postman_info_obj.name,
+                        "items": items,
                         "test_plans": test_plans,
                         "the_last_test_result": the_last_result
                     })
@@ -129,18 +132,21 @@ def qu_get_testfile_list(project_id):
                             for record_dict in case_obj.records:
                                 record_obj = SideeXJSONRecord(record_dict)
                                 records.append({"name": record_obj.name})
-                            test_plans =[]
-                            rows = get_test_plans_from_params(project_id, path["software_name"],tree["name"],case_obj.title)
+                            test_plans = []
+                            rows = get_test_plans_from_params(
+                                project_id, path["software_name"],
+                                tree["name"], case_obj.title)
                             for row in rows:
                                 for issue_info in issues_info:
                                     if row["issue_id"] == issue_info["id"]:
                                         test_plans.append(issue_info)
                                         break
                             the_last_result = None
-                            if len(sideex_results) !=0:
+                            if len(sideex_results) != 0:
                                 the_last_result = sideex_results[0]
                             out_list.append({
-                                "software_name": path["software_name"],
+                                "software_name":
+                                path["software_name"],
                                 "file_name":
                                 tree["name"],
                                 "parent_name":
@@ -149,29 +155,33 @@ def qu_get_testfile_list(project_id):
                                 case_obj.title,
                                 "items":
                                 records,
-                                "test_plans": test_plans,
-                                "the_last_test_result": the_last_result
+                                "test_plans":
+                                test_plans,
+                                "the_last_test_result":
+                                the_last_result
                             })
     return out_list
 
 
-def get_test_plans_from_params(project_id, software_name, file_name, plan_name):
+def get_test_plans_from_params(project_id, software_name, file_name,
+                               plan_name):
     rows = model.IssueCollectionRelation.query.filter_by(
-                                        project_id=project_id,
-                                        software_name=software_name,
-                                        file_name=file_name,
-                                        plan_name=plan_name).all()
+        project_id=project_id,
+        software_name=software_name,
+        file_name=file_name,
+        plan_name=plan_name).all()
     return util.rows_to_list(rows)
 
 
 def qu_create_testplan_testfile_relate(project_id, issue_id, software_name,
                                        file_name, plan_name):
-    row_num = model.IssueCollectionRelation.query.filter_by(project_id=project_id,
-                                        issue_id=issue_id,
-                                        software_name=software_name,
-                                        file_name=file_name,
-                                        plan_name=plan_name).count()
-    if row_num == 0 :
+    row_num = model.IssueCollectionRelation.query.filter_by(
+        project_id=project_id,
+        issue_id=issue_id,
+        software_name=software_name,
+        file_name=file_name,
+        plan_name=plan_name).count()
+    if row_num == 0:
         new = model.IssueCollectionRelation(project_id=project_id,
                                             issue_id=issue_id,
                                             software_name=software_name,
@@ -183,7 +193,6 @@ def qu_create_testplan_testfile_relate(project_id, issue_id, software_name,
 
 
 def qu_get_testplan_testfile_relate_list(project_id):
-    out = []
     rows = model.IssueCollectionRelation.query.filter_by(
         project_id=project_id).all()
     return util.rows_to_list(rows)
@@ -196,6 +205,21 @@ def qu_del_testplan_testfile_relate_list(project_id, item_id):
         db.session.commit()
 
 
+def qu_del_testfile(project_id, test_file_name):
+    rows = model.IssueCollectionRelation.query.filter_by(file_name=test_file_name).all()
+    if len(rows) > 0:
+        for row in rows:
+            db.session.delete(row)
+        db.session.commit()
+    repository_id = nx_get_project_plugin_relation(
+        nexus_project_id=project_id).git_repository_id
+    for path in paths:
+        if path["file_name_key"] in test_file_name and test_file_name[-5:]== ".json":
+            url = urllib.parse.quote(f"{path['path']}/{test_file_name}", safe='')
+            gitlab.gl_delete_file(repository_id, url, {"commit_message": f"Delete Test file {path['path']}/{test_file_name} from UI"})
+            next_run = pipeline.get_pipeline_next_run(repository_id)
+            pipeline.stop_and_delete_pipeline(repository_id, next_run)
+
 class TestPlanList(Resource):
     def get(self, project_id):
         out = qu_get_testplan_list(project_id)
@@ -205,6 +229,12 @@ class TestPlanList(Resource):
 class TestFileList(Resource):
     def get(self, project_id):
         out = qu_get_testfile_list(project_id)
+        return util.success(out)
+
+
+class TestFile(Resource):
+    def delete(self, project_id, test_file_name):
+        out = qu_del_testfile(project_id, test_file_name)
         return util.success(out)
 
 

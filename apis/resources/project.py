@@ -58,7 +58,7 @@ class NexusProject:
 
     def set_project_row(self, project_row):
         self.__project_row = project_row
-        self.set_project_id(project_row.id)
+        self.set_project_id(project_row.id, False)
         # Mirror data model fields to this object, so it can be used like an ORM row
         inst = inspect(model.Project)
         attr_names = [c_attr.key for c_attr in inst.mapper.column_attrs]
@@ -68,7 +68,7 @@ class NexusProject:
 
     def set_plugin_row(self, plugin_row):
         self.__plugin_row = plugin_row
-        self.set_project_id(plugin_row.project_id)
+        self.set_project_id(plugin_row.project_id, False)
         return self
 
     # Owner is a NexusUser object
@@ -119,16 +119,16 @@ class NexusProject:
             ret[key] = value
         return ret
 
-    def fill_pm_redmine_fields(self):
-        rm_project = redmine_lib.redmine.project.get(self.get_plugin_row().plan_project_id)
+    def fill_pm_redmine_fields(self, rm_project, rm_project_issues):
         updated_on = rm_project.updated_on
 
         closed_count = 0
         overdue_count = 0
         total_count = 0
 
-        issues = redmine_lib.redmine.issue.filter(project_id=rm_project.id, status_id='*')
-        for issue in issues:
+        for issue in rm_project_issues:
+            if issue.project.id != rm_project.id:
+                continue
             if issue.status.id == redmine_lib.STATUS_ID_ISSUE_CLOSED:
                 closed_count += 1
             if getattr(issue, 'due_date', None) is not None:
@@ -149,7 +149,6 @@ class NexusProject:
         self.__extra_fields['total_count'] = total_count
         self.__extra_fields['project_status'] = project_status
         self.__extra_fields['updated_time'] = str(updated_on)
-
         return self
 
     def fill_rd_extra_fields(self, user_id):
@@ -189,15 +188,32 @@ class NexusProject:
 
 def get_pm_project_list(user_id):
     rows = get_project_rows_by_user(user_id)
+    rm_projects = redmine_lib.redmine.project.all()
+    rm_issues = redmine_lib.redmine.issue.filter(status_id='*', filter=[])
+    rm_issues_by_project = {}
+    rm_project_dict = {}
+    for project in rm_projects:
+        rm_project_dict[project.id] = project
+    for issue in rm_issues:
+        project_id = issue.project.id
+        if project_id not in rm_issues_by_project:
+            rm_issues_by_project[project_id] = []
+        rm_issues_by_project[project_id].append(issue)
     ret = []
     for row in rows:
         if row.Project.id == -1:
             continue
-        ret.append(NexusProject()
-                   .set_project_row(row.Project)
-                   .set_plugin_row(row.ProjectPluginRelation)
-                   .fill_pm_redmine_fields()
-                   .to_json())
+        redmine_project_id = row.ProjectPluginRelation.plan_project_id
+        if redmine_project_id in rm_issues_by_project:
+            rm_project_issues = rm_issues_by_project[redmine_project_id]
+        else:
+            rm_project_issues = []
+        nexus_project = NexusProject()
+        nexus_project.set_project_row(row.Project)
+        nexus_project.set_plugin_row(row.ProjectPluginRelation)
+        nexus_project.fill_pm_redmine_fields(rm_project_dict[redmine_project_id],
+                                           rm_project_issues)
+        ret.append(nexus_project.to_json())
     return ret
 
 
