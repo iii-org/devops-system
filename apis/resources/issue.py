@@ -490,17 +490,14 @@ def get_issue_statistics_by_project(project_id, args):
     default_values = {status: 0 for status in all_status.values()}
     # 補上預設沒有的 Unknown status 次數
     default_values['Unknown'] = 0
-    # 預設 issue priority status 次數
     priority_dict = {
         priority.name: default_values.copy()
         for priority in redmine_lib.redmine.enumeration.filter(resource='issue_priorities')
     }
-    # 預設 issue tracker status 次數
     tracker_dict = {
         tracker.name: default_values.copy()
         for tracker in redmine_lib.redmine.tracker.all()
     }
-    # 預設 issue assigned_to status 次數
     assigned_to_dict = {'Unassigned': default_values.copy()}
     calculate_issue_statistics(filters, default_values, all_status,
                                assigned_to_dict, priority_dict, tracker_dict)
@@ -512,16 +509,11 @@ def calculate_issue_statistics(filters, default_values, all_status,
                                assigned_to_dict, priority_dict, tracker_dict):
     redmine_issues = redmine_lib.redmine.issue.filter(**filters)
     for issue in redmine_issues:
-        # 預設 assigned_to 為 Unassigned
         assigned_to = 'Unassigned'
-        # 檢查 issue obj 是否存在 assigned_to
         if hasattr(issue, 'assigned_to'):
-            # 取得 nexus user_id, user_name
             user_id = nexus.nx_get_user_plugin_relation(plan_user_id=issue.assigned_to.id).user_id
             user_name = user.NexusUser().set_user_id(user_id).name
-            # 設置 assigned_to 為 nexus user_name
             assigned_to = user_name
-            # 若 assigned_to_dict 不存在 user_name 的 key，則自己新增
             if not assigned_to_dict.get(user_name, None):
                 assigned_to_dict[user_name] = default_values.copy()
         # 判斷 issue status id 是否存在於 all status 中，不存在則為 Unknown status
@@ -1112,9 +1104,9 @@ class IssueByDateByProject(Resource):
 
 
 class IssuesProgressByProject(Resource):
-    # @jwt_required
+    @jwt_required
     def get(self, project_id):
-        # role.require_in_project(project_id)
+        role.require_in_project(project_id)
         parser = reqparse.RequestParser()
         parser.add_argument('fixed_version_id', type=int)
         args = parser.parse_args()
@@ -1123,9 +1115,9 @@ class IssuesProgressByProject(Resource):
 
 
 class IssuesStatisticsByProject(Resource):
-    # @jwt_required
+    @jwt_required
     def get(self, project_id):
-        # role.require_in_project(project_id)
+        role.require_in_project(project_id)
         parser = reqparse.RequestParser()
         parser.add_argument('fixed_version_id', type=int)
         args = parser.parse_args()
