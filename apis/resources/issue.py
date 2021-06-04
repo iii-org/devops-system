@@ -930,6 +930,39 @@ def delete_issue_relation(relation_id):
     return redmine_lib.rm_delete_relation(relation_id)
 
 
+def check_issue_closable(issue_id):
+    # loop 離開標誌
+    exit_flag = False
+    # 已完成 issues
+    finished_issues = []
+    # 未完成 issues，預設為 request 的 issue_id
+    unfinished_issues = [issue_id]
+    while unfinished_issues and not exit_flag:
+        for id in unfinished_issues:
+            # 已完成 issue_id 不需重複檢查
+            if id not in finished_issues:
+                issue = redmine_lib.redmine.issue.get(id)
+                # 如果 issue status 不是 Closed
+                # 如果 id 非預設 request 的 issue_id
+                if issue.status.id != 6 and id != issue_id:
+                    # 設置離開標誌，break
+                    exit_flag = True
+                    break
+                # 若 issue 的 children 存在，將 children issue id 放入未完成 issues 中
+                elif issue.children.total_count != 0:
+                    unfinished_issues.extend([children_issue.id for children_issue in issue.children])
+                    # 消除重複的 issue_id
+                    set(unfinished_issues)
+                # 將上述動作完成的 issue 從未完成-->已完成
+                unfinished_issues.remove(id)
+                finished_issues.append(id)
+    # 若未完成的 issues 存在，回傳布林值
+    if unfinished_issues:
+        return False
+    else:
+        return True
+
+
 # --------------------- Resources ---------------------
 class SingleIssue(Resource):
     @jwt_required
@@ -1339,4 +1372,11 @@ class Relation(Resource):
 
     def delete(self, relation_id):
         output = delete_issue_relation(relation_id)
+        return util.success(output)
+
+
+class CheckIssueClosable(Resource):
+    @jwt_required
+    def get(self, issue_id):
+        output = check_issue_closable(issue_id)
         return util.success(output)
