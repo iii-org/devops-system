@@ -6,6 +6,8 @@ import werkzeug
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
 from sqlalchemy.orm.exc import NoResultFound
+from collections import defaultdict
+
 import copy
 import config
 import model
@@ -445,35 +447,10 @@ def get_issue_by_date_by_project(project_id):
     return util.success(get_issue_by_date_output)
 
 
-def get_issue_progress_by_project(project_id, args):
-    output = []
+def get_issue_progress_or_statistics_by_project(project_id, args, progress=False, statistics=False):
+    output = {}
     if util.is_dummy_project(project_id):
-        return output
-    try:
-        nx_project = NexusProject().set_project_id(project_id)
-        plan_id = nx_project.get_plugin_row().plan_project_id
-    except NoResultFound:
-        raise DevOpsError(404, "Error while getting issues",
-                          error=apiError.project_not_found(project_id))
-    filters = {'project_id': plan_id, 'status_id': '*'}
-    if args.get('fixed_version_id'):
-        filters['fixed_version_id'] = args['fixed_version_id']
-    status_dict = {status.id: status.name for status in redmine_lib.redmine.issue_status.all()}
-    output = {status.name: 0 for status in redmine_lib.redmine.issue_status.all()}
-    output['Unknown'] = 0
-    redmine_issues = redmine_lib.redmine.issue.filter(**filters)
-    for issue in redmine_issues:
-        if issue.status.id in status_dict:
-            output[issue.status.name] += 1
-        else:
-            output['Unknown'] += 1
-    return output
-
-
-def get_issue_statistics_by_project(project_id, args):
-    output = []
-    if util.is_dummy_project(project_id):
-        return output
+        return []
     try:
         nx_project = NexusProject().set_project_id(project_id)
         plan_id = nx_project.get_plugin_row().plan_project_id
@@ -485,46 +462,55 @@ def get_issue_statistics_by_project(project_id, args):
     if args.get('fixed_version_id'):
         filters['fixed_version_id'] = args['fixed_version_id']
     # 取得 redmine issue all status
-    all_status = {status.id: status.name for status in redmine_lib.redmine.issue_status.all()}
-    # 預設 issue status 次數
-    default_values = {status: 0 for status in all_status.values()}
-    # 補上預設沒有的 Unknown status 次數
-    default_values['Unknown'] = 0
-    priority_dict = {
-        priority.name: default_values.copy()
-        for priority in redmine_lib.redmine.enumeration.filter(resource='issue_priorities')
+    all_status = {
+        status.id: status.name for status in redmine_lib.redmine.issue_status.all()
     }
-    tracker_dict = {
-        tracker.name: default_values.copy()
-        for tracker in redmine_lib.redmine.tracker.all()
-    }
-    assigned_to_dict = {'Unassigned': default_values.copy()}
-    calculate_issue_statistics(filters, default_values, all_status,
-                               assigned_to_dict, priority_dict, tracker_dict)
-    output = {'priority': priority_dict, 'tracker': tracker_dict, 'assigned_to': assigned_to_dict}
+
+    if progress:
+        output = defaultdict(int)
+        calculate_issue_progress(filters, all_status, output)
+
+    elif statistics:
+        default_values = defaultdict(
+            lambda: defaultdict(
+                dict, {status: 0 for status in all_status.values()}
+                )
+            )
+        output = {
+            'priority': default_values.copy(),
+            'tracker': default_values.copy(),
+            'assigned_to': default_values.copy()
+        }
+        calculate_issue_statistics(filters, all_status, output)
     return output
 
 
-def calculate_issue_statistics(filters, default_values, all_status,
-                               assigned_to_dict, priority_dict, tracker_dict):
+def calculate_issue_progress(filters, all_status, output):
     redmine_issues = redmine_lib.redmine.issue.filter(**filters)
     for issue in redmine_issues:
-        assigned_to = 'Unassigned'
+        if issue.status.id in all_status:
+            output[issue.status.name] += 1
+        else:
+            output['Unknown'] += 1
+
+
+def calculate_issue_statistics(filters, all_status, output):
+    redmine_issues = redmine_lib.redmine.issue.filter(**filters)
+    for issue in redmine_issues:
+        default_assigned_key = 'Unassigned'
         if hasattr(issue, 'assigned_to'):
             user_id = nexus.nx_get_user_plugin_relation(plan_user_id=issue.assigned_to.id).user_id
             user_name = user.NexusUser().set_user_id(user_id).name
-            assigned_to = user_name
-            if not assigned_to_dict.get(user_name, None):
-                assigned_to_dict[user_name] = default_values.copy()
+            default_assigned_key = user_name
         # 判斷 issue status id 是否存在於 all status 中，不存在則為 Unknown status
         if issue.status.id in all_status:
-            assigned_to_dict[assigned_to][issue.status.name] += 1
-            priority_dict[issue.priority.name][issue.status.name] += 1
-            tracker_dict[issue.tracker.name][issue.status.name] += 1
+            output['assigned_to'][default_assigned_key][issue.status.name] += 1
+            output['priority'][issue.priority.name][issue.status.name] += 1
+            output['tracker'][issue.tracker.name][issue.status.name] += 1
         else:
-            assigned_to_dict[assigned_to]['Unknown'] += 1
-            priority_dict[issue.priority.name]['Unknown'] += 1
-            tracker_dict[issue.tracker.name]['Unknown'] += 1
+            output['assigned_to'][default_assigned_key]['Unknown'] += 1
+            output['priority'][issue.priority.name]['Unknown'] += 1
+            output['tracker'][issue.tracker.name]['Unknown'] += 1
 
 
 def get_issue_by_user(user_id):
@@ -1110,7 +1096,7 @@ class IssuesProgressByProject(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('fixed_version_id', type=int)
         args = parser.parse_args()
-        output = get_issue_progress_by_project(project_id, args)
+        output = get_issue_progress_or_statistics_by_project(project_id, args, progress=True)
         return util.success(output)
 
 
@@ -1121,7 +1107,7 @@ class IssuesStatisticsByProject(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('fixed_version_id', type=int)
         args = parser.parse_args()
-        output = get_issue_statistics_by_project(project_id, args)
+        output = get_issue_progress_or_statistics_by_project(project_id, args, statistics=True)
         return util.success(output)
 
 
