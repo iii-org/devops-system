@@ -457,60 +457,56 @@ def get_issue_progress_or_statistics_by_project(project_id, args, progress=False
     except NoResultFound:
         raise DevOpsError(404, "Error while getting issues",
                           error=apiError.project_not_found(project_id))
-    # redmine issue filter 用參數，fixed_version_id 為 optional
+    # redmine issue filter 參數，fixed_version_id 為 optional
     filters = {'project_id': plan_id, 'status_id': '*'}
     if args.get('fixed_version_id'):
         filters['fixed_version_id'] = args['fixed_version_id']
-    # 取得 redmine issue all status
-    all_status = {
+    issue_status = {
         status.id: status.name for status in redmine_lib.redmine.issue_status.all()
     }
-
     if progress:
         output = defaultdict(int)
-        calculate_issue_progress(filters, all_status, output)
-
+        calculate_issue_progress(filters, issue_status, output)
     elif statistics:
-        default_values = defaultdict(
+        output_keys = ['assigned_to', 'priority', 'tracker']
+        # output_values 格式: {'xxxx': { "Active": 0, "Assigned": 0, "InProgress": 0 ..... }}
+        output_values = defaultdict(
             lambda: defaultdict(
-                dict, {status: 0 for status in all_status.values()}
+                dict, {status: 0 for status in issue_status.values()}
                 )
             )
-        output = {
-            'priority': default_values.copy(),
-            'tracker': default_values.copy(),
-            'assigned_to': default_values.copy()
-        }
-        calculate_issue_statistics(filters, all_status, output)
+        output = {key: output_values.copy() for key in output_keys}
+        calculate_issue_statistics(filters, issue_status, output_keys, output)
     return output
 
 
-def calculate_issue_progress(filters, all_status, output):
+def calculate_issue_progress(filters, issue_status, output):
     redmine_issues = redmine_lib.redmine.issue.filter(**filters)
     for issue in redmine_issues:
-        if issue.status.id in all_status:
+        if issue.status.id in issue_status:
             output[issue.status.name] += 1
         else:
             output['Unknown'] += 1
 
 
-def calculate_issue_statistics(filters, all_status, output):
+def calculate_issue_statistics(filters, issue_status, output_keys, output):
     redmine_issues = redmine_lib.redmine.issue.filter(**filters)
     for issue in redmine_issues:
-        default_assigned_key = 'Unassigned'
+        mappings = {
+            'assigned_to': 'Unassigned',
+            'priority': issue.priority.name,
+            'tracker': issue.tracker.name
+        }
         if hasattr(issue, 'assigned_to'):
             user_id = nexus.nx_get_user_plugin_relation(plan_user_id=issue.assigned_to.id).user_id
             user_name = user.NexusUser().set_user_id(user_id).name
-            default_assigned_key = user_name
-        # 判斷 issue status id 是否存在於 all status 中，不存在則為 Unknown status
-        if issue.status.id in all_status:
-            output['assigned_to'][default_assigned_key][issue.status.name] += 1
-            output['priority'][issue.priority.name][issue.status.name] += 1
-            output['tracker'][issue.tracker.name][issue.status.name] += 1
-        else:
-            output['assigned_to'][default_assigned_key]['Unknown'] += 1
-            output['priority'][issue.priority.name]['Unknown'] += 1
-            output['tracker'][issue.tracker.name]['Unknown'] += 1
+            mappings['assigned_to'] = user_name
+
+        for key in output_keys:
+            if issue.status.id in issue_status:
+                output[key][mappings[key]][issue.status.name] += 1
+            else:
+                output[key][mappings[key]]['Unknown'] += 1
 
 
 def get_issue_by_user(user_id):
