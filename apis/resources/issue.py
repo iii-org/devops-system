@@ -92,7 +92,7 @@ class NexusIssue:
             self.data['relations'] = redmine_issue['relations']
         return self
 
-    def set_redmine_issue_v2(self, redmine_issue, nx_project):
+    def set_redmine_issue_v2(self, redmine_issue, nx_project, with_relationship=False):
         self.data = {
             'id': redmine_issue.id,
             'name': redmine_issue.subject,
@@ -102,8 +102,6 @@ class NexusIssue:
             'assigned_to': {},
             'fixed_version': {},
             'due_date': None,
-            'parent': None,
-            'children': [],
             'is_closed': False,
             'issue_link': redmine.rm_build_external_link(
                 '/issues/{0}'.format(redmine_issue.id)),
@@ -126,12 +124,17 @@ class NexusIssue:
             },
             'relations': []
         }
+        if with_relationship:
+            self.data['parent'] = None
+            self.data['children'] = []
         if hasattr(redmine_issue, 'parent'):
             self.data['parent'] = redmine_issue.parent.id
         if hasattr(redmine_issue, 'decritpion'):
             self.data['decritpion'] = redmine_issue.decritpion
         if hasattr(redmine_issue, 'start_date'):
             self.data['start_date'] = redmine_issue.start_date.isoformat()
+        if hasattr(redmine_issue, 'due_date'):
+            self.data['due_date'] = redmine_issue.due_date.isoformat()
         if hasattr(redmine_issue, 'assigned_to'):
             user_info = user.get_user_id_name_by_plan_user_id(
                 redmine_issue.assigned_to.id)
@@ -472,7 +475,8 @@ def get_issue_by_project_v2(project_id, args):
         default_filters['fixed_version_id'] = args['fixed_version_id']
     all_issues = redmine_lib.redmine.issue.filter(**default_filters)
     for redmine_issue in all_issues:
-        output.append(NexusIssue().set_redmine_issue_v2(redmine_issue, nx_project=nx_project).to_json())
+        output.append(NexusIssue().set_redmine_issue_v2(redmine_issue,
+                                                        nx_project=nx_project).to_json())
     return output
 
 
@@ -491,7 +495,8 @@ def get_issue_by_tree_by_project(project_id):
     all_issues = redmine_lib.redmine.issue.filter(**default_filters)
     for redmine_issue in all_issues:
         tree[redmine_issue.id] = NexusIssue().set_redmine_issue_v2(redmine_issue,
-                                                                   nx_project=nx_project).to_json()
+                                                                   nx_project=nx_project,
+                                                                   with_relationship=True).to_json()
     for id in tree:
         if tree[id]['parent']:
             tree[id]['parent'] = {
