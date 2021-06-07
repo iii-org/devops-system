@@ -436,7 +436,6 @@ redmine = Redmine()
 class RedmineFile(Resource):
     @jwt_required
     def get(self):
-        role.require_admin()
         parser = reqparse.RequestParser()
         parser.add_argument('id', type=int)
         parser.add_argument('filename', type=str)
