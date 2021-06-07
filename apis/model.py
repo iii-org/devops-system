@@ -100,6 +100,7 @@ class PluginSoftware(db.Model):
     disabled = Column(Boolean)
     create_at = Column(DateTime)
     update_at = Column(DateTime)
+    type_id = Column(Integer, default = 1)  #For Server = 1, For Pipeline = 2
 
 
 class ProjectPluginRelation(db.Model):

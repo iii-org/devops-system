@@ -6,6 +6,8 @@ import werkzeug
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
 from sqlalchemy.orm.exc import NoResultFound
+from collections import defaultdict
+
 import copy
 import config
 import model
@@ -88,6 +90,66 @@ class NexusIssue:
             self.data['is_closed'] = True
         if 'relations' in redmine_issue:
             self.data['relations'] = redmine_issue['relations']
+        return self
+
+    def set_redmine_issue_v2(self, redmine_issue, nx_project):
+        self.data = {
+            'id': redmine_issue.id,
+            'name': redmine_issue.subject,
+            'description': None,
+            'updated_on': redmine_issue.updated_on.isoformat(),
+            'start_date': {},
+            'assigned_to': {},
+            'fixed_version': {},
+            'due_date': None,
+            'parent': None,
+            'children': [],
+            'is_closed': False,
+            'issue_link': redmine.rm_build_external_link(
+                '/issues/{0}'.format(redmine_issue.id)),
+            'project': {
+                'id': nx_project.id,
+                'name': nx_project.name,
+                'display': nx_project.display,
+            },
+            'tracker': {
+                'id': redmine_issue.tracker.id,
+                'name': redmine_issue.tracker.name
+            },
+            'priority': {
+                'id': redmine_issue.priority.id,
+                'name': redmine_issue.priority.name
+            },
+            'status': {
+                'id': redmine_issue.status.id,
+                'name': redmine_issue.status.name
+            },
+            'relations': []
+        }
+        if hasattr(redmine_issue, 'parent'):
+            self.data['parent'] = redmine_issue.parent.id
+        if hasattr(redmine_issue, 'decritpion'):
+            self.data['decritpion'] = redmine_issue.decritpion
+        if hasattr(redmine_issue, 'start_date'):
+            self.data['start_date'] = redmine_issue.start_date.isoformat()
+        if hasattr(redmine_issue, 'assigned_to'):
+            user_info = user.get_user_id_name_by_plan_user_id(
+                redmine_issue.assigned_to.id)
+            if user_info is not None:
+                self.data['assigned_to'] = {
+                    'id': user_info.id,
+                    'name': user_info.name,
+                    'login': user_info.login
+                }
+        if hasattr(redmine_issue, 'fixed_version'):
+            self.data['fixed_version'] = {
+                'id': redmine_issue.fixed_version.id,
+                'name': redmine_issue.fixed_version.name
+            }
+        if redmine_issue.status.id in NexusIssue.get_closed_statuses():
+            self.data['is_closed'] = True
+        if hasattr(redmine_issue, 'relations'):
+            self.data['relations'] = list(redmine_issue.relations.values())
         return self
 
     @staticmethod
@@ -401,23 +463,54 @@ def get_issue_by_project(project_id, args):
     return output_array
 
 
-def get_issue_by_tree_by_project(project_id):
-    args = {}
+def get_issue_by_project_v2(project_id, args):
+    output = []
+    if util.is_dummy_project(project_id):
+        return []
+    try:
+        nx_project = NexusProject().set_project_id(project_id)
+        plan_id = nx_project.get_plugin_row().plan_project_id
+    except NoResultFound:
+        raise DevOpsError(404, "Error while getting issues",
+                          error=apiError.project_not_found(project_id))
+    default_filters = {'project_id': plan_id, 'status_id': '*', 'include': 'relations'}
+    if args['fixed_version_id']:
+        default_filters['fixed_version_id'] = args['fixed_version_id']
+    all_issues = redmine_lib.redmine.issue.filter(**default_filters)
+    for redmine_issue in all_issues:
+        output.append(NexusIssue().set_redmine_issue_v2(redmine_issue, nx_project=nx_project).to_json())
+    return output
 
-    issue_list_output = get_issue_by_project(project_id, args)
-    nodes = {}
-    for issue_list in issue_list_output:
-        issue_list['children'] = []
-        nodes[issue_list['id']] = issue_list
-    forest = []
-    for issue_list in issue_list_output:
-        node = nodes[issue_list['id']]
-        if issue_list['parent'] is None:
-            forest.append(node)
-        else:
-            parent = nodes[issue_list['parent']['id']]
-            parent['children'].append(node)
-    return util.success(forest)
+
+def get_issue_by_tree_by_project(project_id):
+    children_issues = []
+    tree = defaultdict(dict)
+    if util.is_dummy_project(project_id):
+        return []
+    try:
+        nx_project = NexusProject().set_project_id(project_id)
+        plan_id = nx_project.get_plugin_row().plan_project_id
+    except NoResultFound:
+        raise DevOpsError(404, "Error while getting issues",
+                          error=apiError.project_not_found(project_id))
+    default_filters = {'project_id': plan_id, 'status_id': '*', 'include': 'relations'}
+    all_issues = redmine_lib.redmine.issue.filter(**default_filters)
+    for redmine_issue in all_issues:
+        tree[redmine_issue.id] = NexusIssue().set_redmine_issue_v2(redmine_issue,
+                                                                   nx_project=nx_project).to_json()
+    for id in tree:
+        if tree[id]['parent']:
+            tree[id]['parent'] = {
+                'id': tree[tree[id]['parent']]['id'],
+                'subject': tree[tree[id]['parent']]['name'],
+                'status': tree[tree[id]['parent']]['status'].copy(),
+                'tracker': tree[tree[id]['parent']]['tracker'].copy(),
+                'assigned_to': tree[tree[id]['parent']]['assigned_to'].copy()
+            }
+            tree[tree[id]['parent']['id']]['children'].append(tree[id].copy())
+            children_issues.append(id)
+    output = [tree[id] for id in tree if id not in children_issues]
+    return output
 
 
 def get_issue_by_status_by_project(project_id):
@@ -451,72 +544,66 @@ def get_issue_by_date_by_project(project_id):
     return util.success(get_issue_by_date_output)
 
 
-def get_issue_progress_by_project(project_id, args):
-    issues_by_statuses, list_statuses = list_issue_statuses(
-        'issues_count_by_status')
-    list_issues = get_issue_by_project(project_id, args)
-    if len(list_issues) == 0:
-        return util.success({})
-    for issue in list_issues:
-        issue_status_id = str(issue['status']['id'])
-        if issue_status_id in issues_by_statuses:
-            issues_by_statuses[issue_status_id] += 1
-        else:
-            issues_by_statuses["-1"] += 1
-    return util.success(mapping_status_id_to_name(issues_by_statuses, list_statuses))
-
-
-def mapping_status_id_to_name(object, status_name):
+def get_issue_progress_or_statistics_by_project(project_id, args, progress=False, statistics=False):
     output = {}
-    for key in object:
-        if key in status_name:
-            output[status_name[key]] = object[key]
+    if util.is_dummy_project(project_id):
+        return []
+    try:
+        nx_project = NexusProject().set_project_id(project_id)
+        plan_id = nx_project.get_plugin_row().plan_project_id
+    except NoResultFound:
+        raise DevOpsError(404, "Error while getting issues",
+                          error=apiError.project_not_found(project_id))
+    # redmine issue filter 參數，fixed_version_id 為 optional
+    filters = {'project_id': plan_id, 'status_id': '*'}
+    if args.get('fixed_version_id'):
+        filters['fixed_version_id'] = args['fixed_version_id']
+    issue_status = {
+        status.id: status.name for status in redmine_lib.redmine.issue_status.all()
+    }
+    if progress:
+        output = defaultdict(int)
+        calculate_issue_progress(filters, issue_status, output)
+    elif statistics:
+        output_keys = ['assigned_to', 'priority', 'tracker']
+        # output_values 格式: {'xxxx': { "Active": 0, "Assigned": 0, "InProgress": 0 ..... }}
+        output_values = defaultdict(
+            lambda: defaultdict(
+                dict, {status: 0 for status in issue_status.values()}
+                )
+            )
+        output = {key: output_values.copy() for key in output_keys}
+        calculate_issue_statistics(filters, issue_status, output_keys, output)
     return output
 
 
-def get_issue_statistics_by_project(project_id, args):
-    issue_list = get_issue_by_project(project_id, args)
-    issues_by_statuses, list_statuses = list_issue_statuses(
-        'issues_count_by_status')
-    analysis_targets = ['priority', 'tracker', 'assigned_to']
-    output = {}
-    # Count  by Issue
-    for issue in issue_list:
-        output = count_issue(issue, issues_by_statuses,
-                             analysis_targets, output)
-    # Mapping Status id to Status name
-    output = mapping_statistics_output(analysis_targets, list_statuses, output)
-    return util.success(output)
-
-
-def mapping_statistics_output(targets, list_statuses, output=None):
-    for key in targets:
-        if key not in output:
-            break
-        for item_key in output[key]:
-            output[key][item_key] = mapping_status_id_to_name(
-                output[key][item_key], list_statuses)
-    return output
-
-
-def count_issue(issue, statuses, targets, output=None):
-    issue_status_id = str(issue['status']['id'])
-    for key in targets:
-        if key == '':
-            return {}
-        if key not in output:
-            output[key] = {}
-        if key == 'assigned_to' and issue[key] == {}:
-            key_info = 'Unassigned'
+def calculate_issue_progress(filters, issue_status, output):
+    redmine_issues = redmine_lib.redmine.issue.filter(**filters)
+    for issue in redmine_issues:
+        if issue.status.id in issue_status:
+            output[issue.status.name] += 1
         else:
-            key_info = issue[key]['name']
-        if key_info not in output[key]:
-            output[key][key_info] = statuses.copy()
-        if issue_status_id in statuses:
-            output[key][key_info][issue_status_id] += 1
-        else:
-            output[key][key_info]["-1"] += 1
-    return output
+            output['Unknown'] += 1
+
+
+def calculate_issue_statistics(filters, issue_status, output_keys, output):
+    redmine_issues = redmine_lib.redmine.issue.filter(**filters)
+    for issue in redmine_issues:
+        mappings = {
+            'assigned_to': 'Unassigned',
+            'priority': issue.priority.name,
+            'tracker': issue.tracker.name
+        }
+        if hasattr(issue, 'assigned_to'):
+            user_id = nexus.nx_get_user_plugin_relation(plan_user_id=issue.assigned_to.id).user_id
+            user_name = user.NexusUser().set_user_id(user_id).name
+            mappings['assigned_to'] = user_name
+
+        for key in output_keys:
+            if issue.status.id in issue_status:
+                output[key][mappings[key]][issue.status.name] += 1
+            else:
+                output[key][mappings[key]]['Unknown'] += 1
 
 
 def get_issue_by_user(user_id):
@@ -936,6 +1023,39 @@ def delete_issue_relation(relation_id):
     return redmine_lib.rm_delete_relation(relation_id)
 
 
+def check_issue_closable(issue_id):
+    # loop 離開標誌
+    exit_flag = False
+    # 已完成 issues
+    finished_issues = []
+    # 未完成 issues，預設為 request 的 issue_id
+    unfinished_issues = [issue_id]
+    while unfinished_issues and not exit_flag:
+        for id in unfinished_issues:
+            # 已完成 issue_id 不需重複檢查
+            if id not in finished_issues:
+                issue = redmine_lib.redmine.issue.get(id)
+                # 如果 issue status 不是 Closed
+                # 如果 id 非預設 request 的 issue_id
+                if issue.status.id != 6 and id != issue_id:
+                    # 設置離開標誌，break
+                    exit_flag = True
+                    break
+                # 若 issue 的 children 存在，將 children issue id 放入未完成 issues 中
+                elif issue.children.total_count != 0:
+                    unfinished_issues.extend([children_issue.id for children_issue in issue.children])
+                    # 消除重複的 issue_id
+                    set(unfinished_issues)
+                # 將上述動作完成的 issue 從未完成-->已完成
+                unfinished_issues.remove(id)
+                finished_issues.append(id)
+    # 若未完成的 issues 存在，回傳布林值
+    if unfinished_issues:
+        return False
+    else:
+        return True
+
+
 # --------------------- Resources ---------------------
 class SingleIssue(Resource):
     @jwt_required
@@ -1027,7 +1147,8 @@ class IssueByProject(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('fixed_version_id', type=int)
         args = parser.parse_args()
-        return util.success(get_issue_by_project(project_id, args))
+        output = get_issue_by_project_v2(project_id, args)
+        return util.success(output)
 
 
 class IssueByVersion(Resource):
@@ -1045,7 +1166,8 @@ class IssueByTreeByProject(Resource):
     @jwt_required
     def get(self, project_id):
         role.require_in_project(project_id, 'Error to get issue.')
-        return get_issue_by_tree_by_project(project_id)
+        output = get_issue_by_tree_by_project(project_id)
+        return util.success(output)
 
 
 class IssueByStatusByProject(Resource):
@@ -1069,7 +1191,8 @@ class IssuesProgressByProject(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('fixed_version_id', type=int)
         args = parser.parse_args()
-        return get_issue_progress_by_project(project_id, args)
+        output = get_issue_progress_or_statistics_by_project(project_id, args, progress=True)
+        return util.success(output)
 
 
 class IssuesStatisticsByProject(Resource):
@@ -1079,7 +1202,8 @@ class IssuesStatisticsByProject(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('fixed_version_id', type=int)
         args = parser.parse_args()
-        return get_issue_statistics_by_project(project_id, args)
+        output = get_issue_progress_or_statistics_by_project(project_id, args, statistics=True)
+        return util.success(output)
 
 
 class IssueStatus(Resource):
@@ -1345,4 +1469,11 @@ class Relation(Resource):
 
     def delete(self, relation_id):
         output = delete_issue_relation(relation_id)
+        return util.success(output)
+
+
+class CheckIssueClosable(Resource):
+    @jwt_required
+    def get(self, issue_id):
+        output = check_issue_closable(issue_id)
         return util.success(output)

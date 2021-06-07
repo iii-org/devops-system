@@ -296,6 +296,7 @@ api.add_resource(issue.MyOpenIssueStatistics, '/issues/open_statistics')
 api.add_resource(issue.MyIssueWeekStatistics, '/issues/week_statistics')
 api.add_resource(issue.MyIssueMonthStatistics, '/issues/month_statistics')
 api.add_resource(issue.Relation, '/issues/relation', '/issues/relation/<int:relation_id>')
+api.add_resource(issue.CheckIssueClosable, '/issues/<issue_id>/check_closable')
 
 # Release
 api.add_resource(release.Releases, '/project/<project_id>/releases')
