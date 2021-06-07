@@ -115,8 +115,7 @@ def qu_get_testfile_list(project_id):
                     test_plans = []
                     rows = get_test_plans_from_params(project_id,
                                                       path["software_name"],
-                                                      tree["name"],
-                                                      postman_info_obj.name)
+                                                      tree["name"])
                     for row in rows:
                         for issue_info in issues_info:
                             if row["issue_id"] == issue_info["id"]:
@@ -146,7 +145,7 @@ def qu_get_testfile_list(project_id):
                             test_plans = []
                             rows = get_test_plans_from_params(
                                 project_id, path["software_name"],
-                                tree["name"], case_obj.title)
+                                tree["name"])
                             for row in rows:
                                 for issue_info in issues_info:
                                     if row["issue_id"] == issue_info["id"]:
@@ -174,30 +173,26 @@ def qu_get_testfile_list(project_id):
     return out_list
 
 
-def get_test_plans_from_params(project_id, software_name, file_name,
-                               plan_name):
+def get_test_plans_from_params(project_id, software_name, file_name):
     rows = model.IssueCollectionRelation.query.filter_by(
         project_id=project_id,
         software_name=software_name,
-        file_name=file_name,
-        plan_name=plan_name).all()
+        file_name=file_name).all()
     return util.rows_to_list(rows)
 
 
 def qu_create_testplan_testfile_relate(project_id, issue_id, software_name,
-                                       file_name, plan_name):
+                                       file_name):
     row_num = model.IssueCollectionRelation.query.filter_by(
         project_id=project_id,
         issue_id=issue_id,
         software_name=software_name,
-        file_name=file_name,
-        plan_name=plan_name).count()
+        file_name=file_name).count()
     if row_num == 0:
         new = model.IssueCollectionRelation(project_id=project_id,
                                             issue_id=issue_id,
                                             software_name=software_name,
-                                            file_name=file_name,
-                                            plan_name=plan_name)
+                                            file_name=file_name)
         db.session.add(new)
         db.session.commit()
         return {"id": new.id}
@@ -261,12 +256,10 @@ class TestPlanWithTestFile(Resource):
         parser.add_argument('issue_id', type=int, required=True)
         parser.add_argument('software_name', type=str, required=True)
         parser.add_argument('file_name', type=str, required=True)
-        parser.add_argument('plan_name', type=str, required=True)
         args = parser.parse_args()
         out = qu_create_testplan_testfile_relate(project_id, args['issue_id'],
                                                  args['software_name'],
-                                                 args['file_name'],
-                                                 args['plan_name'])
+                                                 args['file_name'])
         return util.success(out)
 
     def get(self, project_id):
