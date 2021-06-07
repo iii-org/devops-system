@@ -80,6 +80,17 @@ def qu_get_testplan_list(project_id):
         return issue_infos
 
 
+def qu_get_testplan(project_id, testplan_id):
+    issue_info = issue.get_issue_new_parser(project_id, testplan_id)
+    test_plan_file_conn_list = qu_get_testplan_testfile_relate_list(
+        project_id)
+    issue_info["test_files"] = []
+    for test_plan_file_conn in test_plan_file_conn_list:
+        if issue_info['id'] == test_plan_file_conn['issue_id']:
+            issue_info["test_files"].append(test_plan_file_conn)
+    return issue_info
+
+
 def qu_get_testfile_list(project_id):
     repository_id = nx_get_project_plugin_relation(
         nexus_project_id=project_id).git_repository_id
@@ -223,6 +234,12 @@ def qu_del_testfile(project_id, test_file_name):
 class TestPlanList(Resource):
     def get(self, project_id):
         out = qu_get_testplan_list(project_id)
+        return util.success(out)
+
+
+class TestPlan(Resource):
+    def get(self, project_id, testplan_id):
+        out = qu_get_testplan(project_id, testplan_id)
         return util.success(out)
 
 
