@@ -277,6 +277,7 @@ socketio.on_namespace(rancher.RancherWebsocketLog('/rancher/websocket/logs'))
 
 # issue
 api.add_resource(issue.IssueByProject, '/project/<sint:project_id>/issues')
+api.add_resource(issue.IssueListByProject, '/project/<sint:project_id>/issues_list')
 api.add_resource(issue.IssueByTreeByProject, '/project/<sint:project_id>/issues_by_tree')
 api.add_resource(issue.IssueByStatusByProject,
                  '/project/<sint:project_id>/issues_by_status')
@@ -489,4 +490,4 @@ def start_prod():
 if __name__ == "__main__":
     start_prod()
     socketio.run(app, host='0.0.0.0', port=10009, debug=(config.get('DEBUG')),
-                 use_reloader=True)
+                 use_reloader=False)
