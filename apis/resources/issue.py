@@ -91,7 +91,7 @@ class NexusIssue:
             self.data['relations'] = redmine_issue['relations']
         return self
 
-    def set_redmine_issue_v2(self, redmine_issue, nx_project, 
+    def set_redmine_issue_v2(self, redmine_issue, nx_project,
                              with_relationship=False, relationship_bool=False):
         self.data = {
             'id': redmine_issue.id,
@@ -522,16 +522,24 @@ def get_issue_list_by_project(project_id, args):
         default_filters['offset'] = args['per_page']*(args['page']-1)
     all_issues = redmine_lib.redmine.issue.filter(**default_filters)
     for redmine_issue in all_issues:
-        issue = NexusIssue().set_redmine_issue_v2(redmine_issue,
-                                                  nx_project=nx_project,
-                                                  relationship_bool=True).to_json()
-        children_issues = redmine_lib.redmine.issue.filter(parent_id=redmine_issue.id, status_id='*')
-        if len(children_issues):
-            issue['children'] = True
+        if args['selection']:
+            issue = NexusIssue().set_redmine_issue_v2(redmine_issue,
+                                                      nx_project=nx_project).to_json()
+        else:
+            issue = NexusIssue().set_redmine_issue_v2(redmine_issue,
+                                                      nx_project=nx_project,
+                                                      relationship_bool=True).to_json()
+            if issue['parent']:
+                children_issues = redmine_lib.redmine.issue.filter(parent_id=redmine_issue.id, status_id='*')
+                if len(children_issues):
+                    issue['children'] = True
         output.append(issue)
-    page_dict = util.get_pagination(all_issues.total_count, args['page'], args['per_page'])
-    response = {'issue_list': output, 'page': page_dict}
-    return response
+    if args['page'] and args['per_page']:
+        page_dict = util.get_pagination(all_issues.total_count, args['page'], args['per_page'])
+        response = {'issue_list': output, 'page': page_dict}
+        return response
+    else:
+        return output
 
 
 def get_issue_assigned_to_search(keyword, default_filters):
@@ -1228,6 +1236,7 @@ class IssueListByProject(Resource):
         parser.add_argument('page', type=int)
         parser.add_argument('per_page', type=int)
         parser.add_argument('search', type=str)
+        parser.add_argument('selection', type=bool)
         args = parser.parse_args()
         output = get_issue_list_by_project(project_id, args)
         return util.success(output)
