@@ -1095,6 +1095,14 @@ def post_issue_relation(issue_id, issue_to_id):
     return redmine_lib.rm_post_relation(issue_id, issue_to_id)
 
 
+def put_issue_relation(issue_id, issue_to_ids):
+    redmine_issue = redmine.rm_get_issue(issue_id)
+    for relation in redmine_issue["relations"]:
+        redmine_lib.rm_delete_relation(relation['id'])
+    for issue_to_id in issue_to_ids:
+        redmine_lib.rm_post_relation(issue_id, issue_to_id)
+
+
 def delete_issue_relation(relation_id):
     return redmine_lib.rm_delete_relation(relation_id)
 
@@ -1557,6 +1565,14 @@ class Relation(Resource):
         args = parser.parse_args()
         output = post_issue_relation(args['issue_id'], args['issue_to_id'])
         return util.success(output)
+
+    def put(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('issue_id', type=int, required=True)
+        parser.add_argument('issue_to_ids', type=list, location='json', required=True)
+        args = parser.parse_args()
+        put_issue_relation(args['issue_id'], args['issue_to_ids'])
+        return util.success()
 
     def delete(self, relation_id):
         output = delete_issue_relation(relation_id)
