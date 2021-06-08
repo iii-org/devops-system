@@ -3,6 +3,7 @@ import os
 import random
 import string
 import time
+import math
 from datetime import datetime, date
 from threading import Thread
 
@@ -218,6 +219,19 @@ def rows_to_list(rows):
                 ret[key] = value
         out.append(ret)
     return out
+
+
+def get_pagination(total_count, page, per_page):
+    pages = math.ceil(float(total_count)/per_page)
+    page_dict = {
+        'current': page,
+        'prev': page-1 if page-1 > 0 else None,
+        'next': page+1 if page+1 < pages else None,
+        'pages': pages,
+        'per_page': per_page,
+        'total': total_count
+    }
+    return page_dict
 
 
 class DevOpsThread(Thread):
