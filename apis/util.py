@@ -3,7 +3,8 @@ import os
 import random
 import string
 import time
-from datetime import datetime
+import math
+from datetime import datetime, date
 from threading import Thread
 
 import requests
@@ -35,9 +36,11 @@ def success(data=None, has_date_etc=False):
     else:
         if has_date_etc:
             return {'message': 'success',
-                    'data': json.loads(json.dumps(data, cls=DateEncoder))}, 200
+                    'data': json.loads(json.dumps(data, cls=DateEncoder)),
+                    'datetime': datetime.utcnow().isoformat()}, 200
         else:
-            return {'message': 'success', 'data': data}, 200
+            return {'message': 'success', 'data': data,
+                    'datetime': datetime.utcnow().isoformat()}, 200
 
 
 def respond(status_code, message=None, data=None, error=None):
@@ -202,6 +205,33 @@ def get_random_alphanumeric_string(letters_count_each, digits_count):
     random.shuffle(sample_list)
     final_string = ''.join(sample_list)
     return final_string
+
+
+def rows_to_list(rows):
+    out = []
+    for row in rows:
+        ret = {}
+        for key in type(row).__table__.columns.keys():
+            value = getattr(row, key)
+            if type(value) is datetime or type(value) is date:
+                ret[key] = str(value)
+            else:
+                ret[key] = value
+        out.append(ret)
+    return out
+
+
+def get_pagination(total_count, page, per_page):
+    pages = math.ceil(float(total_count)/per_page)
+    page_dict = {
+        'current': page,
+        'prev': page-1 if page-1 > 0 else None,
+        'next': page+1 if page+1 < pages else None,
+        'pages': pages,
+        'per_page': per_page,
+        'total': total_count
+    }
+    return page_dict
 
 
 class DevOpsThread(Thread):

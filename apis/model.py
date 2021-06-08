@@ -18,6 +18,7 @@ import json
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Date, Enum, JSON, Float
 
+import util
 from enums.action_type import ActionType
 
 db = SQLAlchemy()
@@ -37,6 +38,29 @@ class User(db.Model):
     create_at = Column(DateTime)
     update_at = Column(DateTime)
     disabled = Column(Boolean)
+    from_ad = Column(Boolean, default=False)
+    title = Column(String(45))
+    department = Column(String(300))
+
+    def __repr__(self):
+        fields = {}
+        for field in [x for x in dir(self) if
+                      not x.startswith('query') and not x.startswith('_') and x != 'metadata']:
+            data = self.__getattribute__(field)
+            try:
+                json.dumps(data)  # this will fail on unencodable values, like other classes
+                if field == 'password':
+                    continue
+                elif field == 'disabled':
+                    if data:
+                        fields['status'] = 'disable'
+                    else:
+                        fields['status'] = 'enable'
+                else:
+                    fields[field] = data
+            except TypeError:
+                fields[field] = util.date_to_str(data)
+        return json.dumps(fields)
 
 
 class Project(db.Model):
@@ -53,7 +77,21 @@ class Project(db.Model):
     update_at = Column(DateTime)
     disabled = Column(Boolean)
     display = Column(String)
-    owner_id = Column(Integer, ForeignKey(User.id))
+    owner_id = Column(Integer, ForeignKey(User.id, ondelete='SET NULL'), nullable=True)
+    creator_id = Column(Integer, ForeignKey(User.id, ondelete='SET NULL'), nullable=True)
+
+    def __repr__(self):
+        fields = {}
+        for field in [x for x in dir(self) if
+                      not x.startswith('query') and not x.startswith('_') and x != 'metadata']:
+            data = self.__getattribute__(field)
+            try:
+                json.dumps(data)  # this will fail on unencodable values, like other classes
+                fields[field] = data
+            except TypeError:
+                fields[field] = str(data)
+        return json.dumps(fields)
+
 
 class PluginSoftware(db.Model):
     id = Column(Integer, primary_key=True)
@@ -62,6 +100,8 @@ class PluginSoftware(db.Model):
     disabled = Column(Boolean)
     create_at = Column(DateTime)
     update_at = Column(DateTime)
+    type_id = Column(Integer, default = 1)  #For Server = 1, For Pipeline = 2
+
 
 class ProjectPluginRelation(db.Model):
     id = Column(Integer, primary_key=True)
@@ -89,6 +129,7 @@ class TemplateListCache(db.Model):
     description = Column(String)
     version = Column(JSON)
     update_at = Column(DateTime)
+    group_name = Column(String)
 
 
 class ProjectUserRole(db.Model):
@@ -302,12 +343,44 @@ class Zap(db.Model):
                 fields[field] = str(data)
         return json.dumps(fields)
 
+
+class Sideex(db.Model):
+    id = Column(Integer, primary_key=True)
+    project_name = Column(String, ForeignKey(Project.name, ondelete='CASCADE'))
+    branch = Column(String)
+    commit_id = Column(String)
+    status = Column(String)
+    result = Column(String)
+    report = Column(String)
+    # The time scan registered
+    run_at = Column(DateTime)
+    finished_at = Column(DateTime)
+
+    def __repr__(self):
+        fields = {}
+        for field in [x for x in dir(self) if
+                      not x.startswith('query') and not x.startswith('_') and x != 'metadata']:
+            data = self.__getattribute__(field)
+            try:
+                json.dumps(data)  # this will fail on unencodable values, like other classes
+                if field == 'result':
+                    fields[field] = json.loads(data)
+                elif field == 'report':
+                    fields['has_report'] = (data is not None)
+                else:
+                    fields[field] = data
+            except TypeError:
+                fields[field] = str(data)
+        return json.dumps(fields)
+
+
 class RedmineIssue(db.Model):
     issue_id = Column(Integer, primary_key=True)
     project_id = Column(Integer)
     project_name = Column(String)
     assigned_to = Column(String)
     assigned_to_id = Column(Integer)
+    assigned_to_login = Column(String)
     issue_type = Column(String)
     issue_name = Column(String)
     status_id = Column(Integer)
@@ -316,12 +389,14 @@ class RedmineIssue(db.Model):
     start_date = Column(DateTime)
     sync_date = Column(DateTime)
 
+
 class RedmineProject(db.Model):
     id = Column(Integer, primary_key=True)
     project_id = Column(Integer)
     project_name = Column(String)
-    pm_user_id = Column(Integer)
-    pm_user_name = Column(String)
+    owner_id = Column(Integer)
+    owner_login = Column(String)
+    owner_name = Column(String)
     complete_percent = Column(Float)
     closed_issue_count = Column(Integer)
     unclosed_issue_count = Column(Integer)
@@ -333,6 +408,7 @@ class RedmineProject(db.Model):
     sync_date = Column(DateTime)
     project_status = Column(String)
 
+
 class ProjectMember(db.Model):
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer)
@@ -341,23 +417,14 @@ class ProjectMember(db.Model):
     project_name = Column(String)
     role_id = Column(Integer)
     role_name = Column(String)
+    department = Column(String)
+    title = Column(String)
+
 
 class ProjectMemberCount(db.Model):
     project_id = Column(Integer, primary_key=True)
     project_name = Column(String)
     member_count = Column(Integer)
-
-class ProjectOvewview(db.Model):
-    id = Column(Integer, primary_key=True)
-    project_count = Column(Integer)
-    overdue_issue_count = Column(Integer)
-    no_started_issue_count = Column(Integer)
-
-class IssueRank(db.Model):
-    user_id = Column(Integer, primary_key=True)
-    user_name = Column(String)
-    unclosed_count = Column(Integer)
-    project_count = Column(Integer)
 
 
 class GitCommitNumberEachDays(db.Model):
@@ -367,3 +434,24 @@ class GitCommitNumberEachDays(db.Model):
     date = Column(Date)
     commit_number = Column(Integer)
     created_at = Column(DateTime)
+
+
+class Registries(db.Model):
+    registries_id = Column(Integer, primary_key=True)
+    name = Column(String)
+    user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'))
+    description = Column(String)
+    access_key = Column(String)
+    access_secret = Column(String)
+    url = Column(String)
+    type = Column(String)
+
+
+class IssueCollectionRelation(db.Model):
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
+    issue_id = Column(Integer)
+    software_name = Column(String)
+    file_name = Column(String)
+    plan_name = Column(String)
+    items = Column(JSON)

@@ -3,7 +3,9 @@ kind: CronJob
 metadata:
   name: sync-redmine
 spec:
-  schedule: "0 14 * * *"
+  schedule: "0 * * * *"
+  successfulJobsHistoryLimit: 0
+  failedJobsHistoryLimit: 0
   jobTemplate:
     spec:
       template:

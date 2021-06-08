@@ -1,3 +1,6 @@
+# Error code document at:
+# https://github.com/iii-org/devops-system/wiki/ErrorCodes
+
 from werkzeug.exceptions import HTTPException
 
 
@@ -18,6 +21,17 @@ def error_3rd_party_api(service_name, response):
             resp_value = response.text
     return build(8001, '{0} responds error.'.format(service_name),
                  {'service_name': service_name, 'response': resp_value})
+
+
+# Temlate errors
+def template_not_found(template_id):
+    return build(5001, 'Template not found.',
+                 {'template_id': template_id})
+
+
+def template_file_not_found(template_id, template_name):
+    return build(5002, 'Can not get template file or folder.',
+                 {'template_id': template_id, 'template_name': template_name})
 
 
 # Project errors
@@ -59,6 +73,15 @@ def release_unable_to_build(info=None):
 def invalid_plugin_id(plugin_id):
     return build(1009, 'Plugin Software not fount.', {'plugin_id': plugin_id})
 
+
+def invalid_project_content(key, value):
+    return build(1010, 'Project {0} contain characters like & or <.'.format(key), {'{0}'.format(key): value})
+
+
+def invalid_project_owner(owner_id=None):
+    return build(1011, 'Project owner role must be PM.', {'owner_id': owner_id})
+
+
 # User errors
 def user_not_found(user_id):
     return build(2001, 'User not found.', {'user_id': user_id})
@@ -91,9 +114,25 @@ def already_in_project(user_id, project_id):
     return build(2006, 'This user is already in the project.',
                  {'user_id': user_id, 'project_id': project_id})
 
+
 def is_project_owner_in_project(user_id, project_id):
     return build(2007, 'This user is project owner  in the project.',
                  {'user_id': user_id, 'project_id': project_id})
+
+
+def user_from_ad(user_id):
+    return build(2008, 'This user comes from ad server, normal user cannot modify.',
+                 {'user_id': user_id})
+
+
+def user_in_a_project(user_id):
+    return build(2009, 'User is in a project, cannot change his role.',
+                 {'user_id': user_id})
+
+
+def ad_account_not_allow():
+    return build(2010, 'User Account in AD is invalid in DevOps System')
+
 
 # Permission errors
 class NotAllowedError(HTTPException):
@@ -188,3 +227,10 @@ class DevOpsError(Exception):
 
     def unpack_response(self):
         return self.error_value['details']['response']
+
+
+class TemplateError(Exception):
+    def __init__(self, status_code, message, error=None):
+        self.status_code = status_code
+        self.message = message
+        self.error_value = error

@@ -1,4 +1,6 @@
 # Module to store methods related to nexus database, i.e. the database used by API Server.
+from datetime import datetime
+
 from sqlalchemy.orm.exc import NoResultFound
 
 import model
@@ -92,3 +94,13 @@ def nx_get_user(id=None, login=None):
         raise apiError.DevOpsError(404, 'User not found.',
                                    error=apiError.user_not_found(it))
     return row
+
+
+def nx_update_project(project_id, args):
+    project = model.Project.query.filter_by(id=project_id).one()
+    for key in args.keys():
+        if not hasattr(project, key):
+            continue
+        setattr(project, key, args[key])
+    project.update_at = str(datetime.utcnow())
+    model.db.session.commit()
