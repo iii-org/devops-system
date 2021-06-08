@@ -8,7 +8,6 @@ from flask_restful import Resource, reqparse
 from sqlalchemy.orm.exc import NoResultFound
 from collections import defaultdict
 
-import copy
 import config
 import model
 import nexus
@@ -506,16 +505,21 @@ def get_issue_list_by_project(project_id, args):
         'project_id': plan_id,
         'status_id': '*',
         'include': 'relations',
-        'limit': args['per_page'],
-        'offset': args['per_page']*(args['page']-1)
     }
     if args['search']:
+        search = get_issue_assigned_to_search(args['search'], default_filters)
         search_issues = redmine_lib.redmine.issue.search(args['search'], titles_only=True)
         if search_issues:
-            issue_id = ','.join(str(id) for id in list(search_issues.values_list('id', flat=True)))
+            search.extend(list(search_issues.values_list('id', flat=True)))
+        set(search)
+        if search:
+            issue_id = ','.join(str(id) for id in search)
             default_filters['issue_id'] = issue_id
         else:
             return output
+    if args['page'] and args['per_page']:
+        default_filters['limit'] = args['per_page']
+        default_filters['offset'] = args['per_page']*(args['page']-1)
     all_issues = redmine_lib.redmine.issue.filter(**default_filters)
     for redmine_issue in all_issues:
         issue = NexusIssue().set_redmine_issue_v2(redmine_issue,
@@ -528,6 +532,21 @@ def get_issue_list_by_project(project_id, args):
     page_dict = util.get_pagination(all_issues.total_count, args['page'], args['per_page'])
     response = {'issue_list': output, 'page': page_dict}
     return response
+
+
+def get_issue_assigned_to_search(keyword, default_filters):
+    assigned_to_issue = []
+    nx_user_list = list(sum(model.User.query.filter(model.User.name.ilike(f'%{keyword}%')).with_entities('id'), ()))
+    if nx_user_list:
+        for nx_user_id in nx_user_list:
+            nx_user = model.UserPluginRelation.query.filter_by(user_id=nx_user_id).one()
+            if nx_user:
+                all_issues = redmine_lib.redmine.issue.filter(**default_filters, assigned_to_id=nx_user.plan_user_id)
+                for issue in all_issues:
+                    assigned_to_issue.append(issue.id)
+        return assigned_to_issue
+    else:
+        return []
 
 
 def get_issue_by_tree_by_project(project_id):
