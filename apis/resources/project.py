@@ -5,7 +5,7 @@ from datetime import datetime, date
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
 from kubernetes.client import ApiException
-from sqlalchemy import desc, inspect
+from sqlalchemy import desc, inspect, and_
 from sqlalchemy.orm.exc import NoResultFound
 
 import config
@@ -13,7 +13,7 @@ import model
 import nexus
 import resources.apiError as apiError
 import util as util
-from model import db
+from model import db, ProjectUserRole
 from nexus import nx_get_project_plugin_relation
 from resources.apiError import DevOpsError
 from services import redmine_lib
@@ -39,6 +39,7 @@ class NexusProject:
         self.__project_id = None
         self.__project_row = None
         self.__plugin_row = None
+        self.__project_members_dict = None
         self.__owner = None
         self.__extra_fields = {}
 
@@ -74,6 +75,19 @@ class NexusProject:
     # Owner is a NexusUser object
     def set_owner(self, owner):
         self.__owner = owner
+        return self
+
+    def set_project_members(self):
+        pj_numbers_dict = {}
+        rows = ProjectUserRole.query.filter(and_(ProjectUserRole.project_id!=-1, ProjectUserRole.role_id.in_([1,3]))).all()
+        i = 0
+        while i < len(rows):
+            if rows[i].project_id not in pj_numbers_dict:
+                pj_numbers_dict[rows[i].project_id] = 1
+            else:
+                pj_numbers_dict[rows[i].project_id] = pj_numbers_dict[rows[i].project_id]+1
+            i +=1
+        self.__project_members_dict = pj_numbers_dict
         return self
 
     def get_project_id(self):
@@ -117,6 +131,8 @@ class NexusProject:
         ret['department'] = self.get_owner().department
         for key, value in self.get_extra_fields().items():
             ret[key] = value
+        if self.__project_members_dict is not None:
+            ret['members'] = self.__project_members_dict.get(ret['id'], None)
         return ret
 
     def fill_pm_redmine_fields(self, rm_project, rm_project_issues):
@@ -186,7 +202,7 @@ class NexusProject:
         return self
 
 
-def get_pm_project_list(user_id, pj_due_start, pj_due_end):
+def get_pm_project_list(user_id, pj_due_start, pj_due_end, pj_members_count):
     rows = get_project_rows_by_user(user_id)
     rm_projects = redmine_lib.redmine.project.all()
     rm_issues = redmine_lib.redmine.issue.filter(status_id='*', filter=[])
@@ -216,11 +232,13 @@ def get_pm_project_list(user_id, pj_due_start, pj_due_end):
         nexus_project.set_plugin_row(row.ProjectPluginRelation)
         nexus_project.fill_pm_redmine_fields(rm_project_dict[redmine_project_id],
                                            rm_project_issues)
+        if pj_members_count == 'true':
+            nexus_project.set_project_members()
         ret.append(nexus_project.to_json())
     return ret
 
 
-def get_rd_project_list(user_id, pj_due_start, pj_due_end):
+def get_rd_project_list(user_id, pj_due_start, pj_due_end, pj_members_count):
     rows = get_project_rows_by_user(user_id)
     ret = []
     for row in rows:
@@ -229,15 +247,23 @@ def get_rd_project_list(user_id, pj_due_start, pj_due_end):
         if pj_due_start is not None and pj_due_end is not None and row.Project.due_date is not None:
             if row.Project.due_date < datetime.strptime(pj_due_start, "%Y-%m-%d").date() or row.Project.due_date > datetime.strptime(pj_due_end, "%Y-%m-%d").date():
                 continue
-        ret.append(NexusProject()
-                   .set_project_row(row.Project)
-                   .set_plugin_row(row.ProjectPluginRelation)
-                   .fill_rd_extra_fields(user_id)
-                   .to_json())
+        if pj_members_count == 'true':
+            ret.append(NexusProject()
+                    .set_project_row(row.Project)
+                    .set_plugin_row(row.ProjectPluginRelation)
+                    .fill_rd_extra_fields(user_id)
+                    .set_project_members()
+                    .to_json())
+        else:
+            ret.append(NexusProject()
+                    .set_project_row(row.Project)
+                    .set_plugin_row(row.ProjectPluginRelation)
+                    .fill_rd_extra_fields(user_id)
+                    .to_json())
     return ret
 
 
-def get_simple_project_list(user_id, pj_due_start, pj_due_end):
+def get_simple_project_list(user_id, pj_due_start, pj_due_end, pj_members_count):
     rows = get_project_rows_by_user(user_id)
     ret = []
     for row in rows:
@@ -246,10 +272,17 @@ def get_simple_project_list(user_id, pj_due_start, pj_due_end):
         if pj_due_start is not None and pj_due_end is not None and row.Project.due_date is not None:
             if row.Project.due_date < datetime.strptime(pj_due_start, "%Y-%m-%d").date() or row.Project.due_date > datetime.strptime(pj_due_end, "%Y-%m-%d").date():
                 continue
-        ret.append(NexusProject()
-                   .set_project_row(row.Project)
-                   .set_plugin_row(row.ProjectPluginRelation)
-                   .to_json())
+        if pj_members_count == 'true':
+            ret.append(NexusProject()
+                    .set_project_row(row.Project)
+                    .set_plugin_row(row.ProjectPluginRelation)
+                    .set_project_members()
+                    .to_json())
+        else:
+            ret.append(NexusProject()
+                    .set_project_row(row.Project)
+                    .set_plugin_row(row.ProjectPluginRelation)
+                    .to_json())
     return ret
 
 
@@ -1059,18 +1092,19 @@ class ListMyProjects(Resource):
     def get(self):
         parser = reqparse.RequestParser()
         parser.add_argument('simple', type=str)
+        parser.add_argument('pj_members_count', type=str)
         parser.add_argument('pj_due_date_start', type=str)
         parser.add_argument('pj_due_date_end', type=str)
         args = parser.parse_args()
         if args.get('simple', 'false') == 'true':
             return util.success(
-                {'project_list': get_simple_project_list(get_jwt_identity()['user_id'], args["pj_due_date_start"], args["pj_due_date_end"])})
+                {'project_list': get_simple_project_list(get_jwt_identity()['user_id'], args["pj_due_date_start"], args["pj_due_date_end"], args["pj_members_count"])})
         if role.is_role(role.RD):
             return util.success(
-                {'project_list': get_rd_project_list(get_jwt_identity()['user_id'], args["pj_due_date_start"], args["pj_due_date_end"])})
+                {'project_list': get_rd_project_list(get_jwt_identity()['user_id'], args["pj_due_date_start"], args["pj_due_date_end"], args["pj_members_count"])})
         else:
             return util.success(
-                {'project_list': get_pm_project_list(get_jwt_identity()['user_id'], args["pj_due_date_start"], args["pj_due_date_end"])})
+                {'project_list': get_pm_project_list(get_jwt_identity()['user_id'], args["pj_due_date_start"], args["pj_due_date_end"], args["pj_members_count"])})
 
 
 class ListProjectsByUser(Resource):
