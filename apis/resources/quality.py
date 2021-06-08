@@ -199,6 +199,10 @@ def qu_create_testplan_testfile_relate(project_id, issue_id, software_name,
 
 
 def qu_put_testplan_testfiles_relate(project_id, issue_id, test_files):
+    rows = model.IssueCollectionRelation.query.filter_by(project_id=project_id, issue_id=issue_id).all()
+    for row in rows:
+        db.session.delete(row)
+        db.session.commit()
     for test_file in test_files:
         qu_create_testplan_testfile_relate(project_id, issue_id, test_file["software_name"], test_file["file_name"])
 
