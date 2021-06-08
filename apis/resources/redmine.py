@@ -439,7 +439,9 @@ class RedmineFile(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('id', type=int)
         parser.add_argument('filename', type=str)
+        parser.add_argument('project_id', type=int, required=True)
         args = parser.parse_args()
+        role.require_in_project(args['project_id'], "Error while download redmine file.")
         return redmine.rm_download_attachment(args)
 
     @jwt_required
