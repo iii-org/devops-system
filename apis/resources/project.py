@@ -186,7 +186,7 @@ class NexusProject:
         return self
 
 
-def get_pm_project_list(user_id):
+def get_pm_project_list(user_id, pj_due_start, pj_due_end):
     rows = get_project_rows_by_user(user_id)
     rm_projects = redmine_lib.redmine.project.all()
     rm_issues = redmine_lib.redmine.issue.filter(status_id='*', filter=[])
@@ -203,6 +203,9 @@ def get_pm_project_list(user_id):
     for row in rows:
         if row.Project.id == -1:
             continue
+        if pj_due_start is not None and pj_due_end is not None and row.Project.due_date is not None:
+            if row.Project.due_date < datetime.strptime(pj_due_start, "%Y-%m-%d").date() or row.Project.due_date > datetime.strptime(pj_due_end, "%Y-%m-%d").date():
+                continue
         redmine_project_id = row.ProjectPluginRelation.plan_project_id
         if redmine_project_id in rm_issues_by_project:
             rm_project_issues = rm_issues_by_project[redmine_project_id]
@@ -217,12 +220,15 @@ def get_pm_project_list(user_id):
     return ret
 
 
-def get_rd_project_list(user_id):
+def get_rd_project_list(user_id, pj_due_start, pj_due_end):
     rows = get_project_rows_by_user(user_id)
     ret = []
     for row in rows:
         if row.Project.id == -1:
             continue
+        if pj_due_start is not None and pj_due_end is not None and row.Project.due_date is not None:
+            if row.Project.due_date < datetime.strptime(pj_due_start, "%Y-%m-%d").date() or row.Project.due_date > datetime.strptime(pj_due_end, "%Y-%m-%d").date():
+                continue
         ret.append(NexusProject()
                    .set_project_row(row.Project)
                    .set_plugin_row(row.ProjectPluginRelation)
@@ -231,12 +237,15 @@ def get_rd_project_list(user_id):
     return ret
 
 
-def get_simple_project_list(user_id):
+def get_simple_project_list(user_id, pj_due_start, pj_due_end):
     rows = get_project_rows_by_user(user_id)
     ret = []
     for row in rows:
         if row.Project.id == -1:
             continue
+        if pj_due_start is not None and pj_due_end is not None and row.Project.due_date is not None:
+            if row.Project.due_date < datetime.strptime(pj_due_start, "%Y-%m-%d").date() or row.Project.due_date > datetime.strptime(pj_due_end, "%Y-%m-%d").date():
+                continue
         ret.append(NexusProject()
                    .set_project_row(row.Project)
                    .set_plugin_row(row.ProjectPluginRelation)
@@ -1050,16 +1059,18 @@ class ListMyProjects(Resource):
     def get(self):
         parser = reqparse.RequestParser()
         parser.add_argument('simple', type=str)
+        parser.add_argument('pj_due_date_start', type=str)
+        parser.add_argument('pj_due_date_end', type=str)
         args = parser.parse_args()
         if args.get('simple', 'false') == 'true':
             return util.success(
-                {'project_list': get_simple_project_list(get_jwt_identity()['user_id'])})
+                {'project_list': get_simple_project_list(get_jwt_identity()['user_id'], args["pj_due_date_start"], args["pj_due_date_end"])})
         if role.is_role(role.RD):
             return util.success(
-                {'project_list': get_rd_project_list(get_jwt_identity()['user_id'])})
+                {'project_list': get_rd_project_list(get_jwt_identity()['user_id'], args["pj_due_date_start"], args["pj_due_date_end"])})
         else:
             return util.success(
-                {'project_list': get_pm_project_list(get_jwt_identity()['user_id'])})
+                {'project_list': get_pm_project_list(get_jwt_identity()['user_id'], args["pj_due_date_start"], args["pj_due_date_end"])})
 
 
 class ListProjectsByUser(Resource):
