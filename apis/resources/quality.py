@@ -198,6 +198,15 @@ def qu_create_testplan_testfile_relate(project_id, issue_id, software_name,
         return {"id": new.id}
 
 
+def qu_put_testplan_testfiles_relate(project_id, issue_id, test_files):
+    rows = model.IssueCollectionRelation.query.filter_by(project_id=project_id, issue_id=issue_id).all()
+    for row in rows:
+        db.session.delete(row)
+        db.session.commit()
+    for test_file in test_files:
+        qu_create_testplan_testfile_relate(project_id, issue_id, test_file["software_name"], test_file["file_name"])
+
+
 def qu_get_testplan_testfile_relate_list(project_id):
     rows = model.IssueCollectionRelation.query.filter_by(
         project_id=project_id).all()
@@ -261,6 +270,15 @@ class TestPlanWithTestFile(Resource):
                                                  args['software_name'],
                                                  args['file_name'])
         return util.success(out)
+
+    def put(self, project_id):
+        parser = reqparse.RequestParser()
+        parser.add_argument('issue_id', type=int, required=True)
+        parser.add_argument('test_files', type=list, location='json', required=True)
+        args = parser.parse_args()
+        qu_put_testplan_testfiles_relate(project_id, args['issue_id'],
+                                                 args['test_files'])
+        return util.success()
 
     def get(self, project_id):
         out = qu_get_testplan_testfile_relate_list(project_id)
