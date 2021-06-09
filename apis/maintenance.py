@@ -51,11 +51,20 @@ class SecretesIntoRcAll(Resource):
     @jwt_required
     def post(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('name', type=str)
-        parser.add_argument('type', type=str)
-        parser.add_argument('data')
+        parser.add_argument('name', type=str, required=True)
+        parser.add_argument('type', type=str, required=True)
+        parser.add_argument('data', type=dict, required=True)
         args = parser.parse_args()
         rancher.rc_add_secrets_into_rc_all(args)
+        return util.success()
+
+    @jwt_required
+    def put(self, secret_name):
+        parser = reqparse.RequestParser()
+        parser.add_argument('type', type=str, required=True)
+        parser.add_argument('data', type=dict, required=True)
+        args = parser.parse_args()
+        rancher.rc_put_secrets_into_rc_all(secret_name, args)
         return util.success()
 
     @jwt_required
