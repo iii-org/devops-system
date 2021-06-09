@@ -570,32 +570,33 @@ def get_custom_filters_by_args(args=None, project_id=None):
     default_filters = {'status_id': '*', 'include': 'relations'}
     if project_id:
         default_filters['project_id'] = project_id
-    if args.get('fixed_version_id', None):
-        default_filters['fixed_version_id'] = args['fixed_version_id']
-    if args.get('page', None) and args.get('per_page', None):
-        default_filters['limit'] = args['per_page']
-        # offset 從 0 開始計算
-        default_filters['offset'] = args['per_page']*(args['page']-1)
-    if args.get('search', None):
-        result = []
-        # 搜尋被分配者
-        result.extend(get_issue_assigned_to_search(args['search'], default_filters))
-        # 搜尋 issue 標題
-        search_title = redmine_lib.redmine.issue.search(args['search'], titles_only=True)
-        if search_title:
-            result.extend(list(search_title.values_list('id', flat=True)))
-        # 檢查 keyword 是否為數字
-        if args['search'].isdigit():
-            # 搜尋 issue id
-            search_issue_id = redmine_lib.redmine.issue.filter(**default_filters, issue_id=args['search'])
-            if len(search_issue_id):
-                result.extend([issue.id for issue in search_issue_id])
-        # 去除重複 id
-        set(result)
-        if result:
-            # issue filter 多個 issue_id 只接受逗號分隔的字串
-            issue_id = ','.join(str(id) for id in result)
-            default_filters['issue_id'] = issue_id
+    if args:
+        if args.get('fixed_version_id', None):
+            default_filters['fixed_version_id'] = args['fixed_version_id']
+        if args.get('page', None) and args.get('per_page', None):
+            default_filters['limit'] = args['per_page']
+            # offset 從 0 開始計算
+            default_filters['offset'] = args['per_page']*(args['page']-1)
+        if args.get('search', None):
+            result = []
+            # 搜尋被分配者
+            result.extend(get_issue_assigned_to_search(args['search'], default_filters))
+            # 搜尋 issue 標題
+            search_title = redmine_lib.redmine.issue.search(args['search'], titles_only=True)
+            if search_title:
+                result.extend(list(search_title.values_list('id', flat=True)))
+            # 檢查 keyword 是否為數字
+            if args['search'].isdigit():
+                # 搜尋 issue id
+                search_issue_id = redmine_lib.redmine.issue.filter(**default_filters, issue_id=args['search'])
+                if len(search_issue_id):
+                    result.extend([issue.id for issue in search_issue_id])
+            # 去除重複 id
+            set(result)
+            if result:
+                # issue filter 多個 issue_id 只接受逗號分隔的字串
+                issue_id = ','.join(str(id) for id in result)
+                default_filters['issue_id'] = issue_id
     return default_filters
 
 
