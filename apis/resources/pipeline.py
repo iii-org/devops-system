@@ -41,14 +41,12 @@ def pipeline_exec_list(repository_id):
         output_dict['transitioning_message'] = pipeline_output['transitioningMessage']
         stage_status = []
         for stage in pipeline_output['stages']:
-            logger.info("stage: {0}".format(stage))
             if 'state' in stage:
                 stage_status.append(stage['state'])
-        success_time = stage_status.count('Success')
-        output_dict['status'] = {'total': len(pipeline_output['stages']),
+        success_time = stage_status[1:].count('Success')
+        output_dict['status'] = {'total': len(pipeline_output['stages'])-1,
                                  'success': success_time}
         output_array.append(output_dict)
-    logger.info("ci/cd output: {0}".format(output_array))
     return output_array
 
 def pipeline_config(repository_id, args):
@@ -92,27 +90,34 @@ def pipeline_exec_action(git_repository_id, args):
     return util.success()
 
 
-def pipeline_software():
-    result = db.engine.execute(
-        "SELECT pp.name as phase_name, ps.name as software_name, "
-        "psc.detail as detail FROM public.pipeline_phase as pp, "
-        "public.pipeline_software as ps, public.pipeline_software_config as psc "
-        "WHERE psc.software_id = ps.id AND ps.phase_id = pp.id AND psc.sample = true;"
-    )
-    pipe_software = result.fetchall()
-    result.close()
-    return [dict(row) for row in pipe_software]
+def stop_and_delete_pipeline(repository_id, run): 
+    relation = nx_get_project_plugin_relation(repo_id=repository_id)
+    i = 0
+    while True:
+        pipeline_outputs = rancher.rc_get_pipeline_executions(
+            relation.ci_project_id,
+            relation.ci_pipeline_id)
+        if pipeline_outputs[0]['run'] == run or i > 50:
+            break
+        else:
+            i+=1
+    rancher.rc_delete_pipeline_executions_run(
+        relation.ci_project_id,
+        relation.ci_pipeline_id,
+        run)
+
+
+def get_pipeline_next_run(repository_id):
+    relation = nx_get_project_plugin_relation(repo_id=repository_id)
+    info_json = rancher.rc_get_pipeline_info(relation.ci_project_id, relation.ci_pipeline_id)
+    return info_json['nextRun']
 
 
 def generate_ci_yaml(args, repository_id, branch_name):
     parameter = {}
-    logger.debug("generate_ci_yaml detail: {0}".format(args['detail']))
     dict_object = json.loads(args['detail'].replace("'", '"'))
     doc = yaml.dump(dict_object)
-    logger.info("generate_ci_yaml documents: {0}".format(doc))
-    base_file = base64.b64encode(bytes(doc,
-                                       encoding='utf-8')).decode('utf-8')
-    logger.info("generate_ci_yaml base_file: {0}".format(base_file))
+    base_file = base64.b64encode(bytes(doc, encoding='utf-8')).decode('utf-8')
     parameter['branch'] = branch_name
     parameter['start_branch'] = branch_name
     parameter['encoding'] = 'base64'
@@ -220,19 +225,6 @@ class PipelineExecLogs(Resource):
         parser.add_argument('pipelines_exec_run', type=int, required=True)
         args = parser.parse_args()
         return pipeline_exec_logs(args)
-
-
-class PipelineSoftware(Resource):
-    @jwt_required
-    def get(self):
-        pipe_out_list = pipeline_software()
-        output_list = []
-        for pipe_out in pipe_out_list:
-            if 'detail' in pipe_out:
-                pipe_out['detail'] = json.loads(pipe_out['detail'].replace(
-                    "'", '"'))
-            output_list.append(pipe_out)
-        return util.success(output_list)
 
 
 class PipelineYaml(Resource):

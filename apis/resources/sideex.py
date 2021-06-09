@@ -11,9 +11,9 @@ import util
 from resources import role, gitlab
 
 
-def zap_start_scan(args):
+def sd_start_test(args):
     # Abort previous scans of the same branch
-    prev_scans = model.Zap.query.filter_by(
+    prev_scans = model.Sideex.query.filter_by(
         project_name=args['project_name'],
         branch=args['branch']).all()
     for prev in prev_scans:
@@ -21,13 +21,13 @@ def zap_start_scan(args):
             prev.status = 'Aborted'
     model.db.session.commit()
 
-    new = model.Zap(
+    new = model.Sideex(
         project_name=args['project_name'],
         branch=args['branch'],
         commit_id=args['commit_id'],
         status='Scanning',
         result=None,
-        full_log=None,
+        report=None,
         run_at=datetime.now()
     )
     model.db.session.add(new)
@@ -35,50 +35,66 @@ def zap_start_scan(args):
     return new.id
 
 
-def zap_finish_scan(args):
-    row = model.Zap.query.filter_by(
+def sd_finish_test(args):
+    row = model.Sideex.query.filter_by(
         id=args['test_id']
     ).one()
     row.status = 'Finished'
     row.result = args['result']
-    row.full_log = args['full_log']
+    row.report = args['report']
     row.finished_at = datetime.now()
     model.db.session.add(row)
     model.db.session.commit()
 
+    # Clean up old reports
+    rows = model.Sideex.query.filter(
+        model.Sideex.project_name == row.project_name,
+        model.Sideex.branch == row.branch,
+        model.Sideex.report.isnot(None)
+    ).order_by(desc(model.Sideex.id)).all()
+    for index, row in enumerate(rows):
+        if index < 5:
+            continue
+        row.report = None
+        model.db.session.commit()
 
-def zap_get_tests(project_id):
+
+def sd_get_tests(project_id):
     project_name = nexus.nx_get_project(id=project_id).name
-    rows = model.Zap.query.filter_by(project_name=project_name).all()
+    rows = model.Sideex.query.filter_by(project_name=project_name).all()
     ret = []
     for row in rows:
         ret.append(process_row(row, project_id))
     return ret
 
 
-def zap_get_latest_test(project_id):
+def sd_get_latest_test(project_id):
     project_name = nexus.nx_get_project(id=project_id).name
-    row = model.Zap.query.filter_by(
-        project_name=project_name).order_by(desc(model.Zap.id)).first()
+    row = model.Sideex.query.filter_by(
+        project_name=project_name).order_by(desc(model.Sideex.id)).first()
     if row is None:
         return {}
-    ret = process_row(row, project_id)
-    del ret['full_log']
-    return ret
+    return process_row(row, project_id)
 
 
 def process_row(row, project_id):
     if row.status == 'Scanning':
         # 12 hour timeout
-        if datetime.now() - row.run_at > timedelta(hours=12):
+        if datetime.now() - row.run_at > timedelta(hours=1):
             row.status = 'Failed'
             model.db.session.commit()
     r = json.loads(str(row))
     r['issue_link'] = gitlab.commit_id_to_url(project_id, r['commit_id'])
     return r
 
+
+def sd_get_report(test_id):
+    row = model.Sideex.query.filter_by(id=test_id).one()
+    return row.report
+
+
 # --------------------- Resources ---------------------
-class Zap(Resource):
+class Sideex(Resource):
     @jwt_required
     def post(self):
         parser = reqparse.RequestParser()
@@ -87,7 +103,7 @@ class Zap(Resource):
         parser.add_argument('commit_id', type=str)
         args = parser.parse_args()
         role.require_in_project(project_name=args['project_name'])
-        id = zap_start_scan(args)
+        id = sd_start_test(args)
         return util.success({'test_id': id})
 
     @jwt_required
@@ -95,15 +111,23 @@ class Zap(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('test_id', type=int)
         parser.add_argument('result', type=str)
-        parser.add_argument('full_log', type=str)
+        parser.add_argument('report', type=str)
         args = parser.parse_args()
         test_id = args['test_id']
-        project_name = model.Zap.query.filter_by(id=test_id).one().project_name
+        project_name = model.Sideex.query.filter_by(id=test_id).one().project_name
         role.require_in_project(project_name=project_name)
-        zap_finish_scan(args)
+        sd_finish_test(args)
         return util.success()
 
     @jwt_required
     def get(self, project_id):
         role.require_in_project(project_id=project_id)
-        return util.success(zap_get_tests(project_id))
+        return util.success(sd_get_tests(project_id))
+
+
+class SideexReport(Resource):
+    @jwt_required
+    def get(self, test_id):
+        project_name = model.Sideex.query.filter_by(id=test_id).one().project_name
+        role.require_in_project(project_name=project_name)
+        return util.success(sd_get_report(test_id))

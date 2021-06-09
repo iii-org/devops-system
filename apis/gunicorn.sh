@@ -1,2 +1,2 @@
 #!/bin/sh
-gunicorn --worker-class eventlet -w 2 'apis.api:start_prod()' --threads 2 -b 0.0.0.0:10009
+gunicorn --worker-class eventlet -w 1 'apis.api:start_prod()' --timeout 120 --threads 1 -b 0.0.0.0:10009

@@ -2,9 +2,10 @@ import ssl
 import json
 import websocket
 import base64
+import time
 from flask_restful import abort, Resource, reqparse
 from flask_jwt_extended import jwt_required
-from flask_socketio import Namespace, emit
+from flask_socketio import Namespace, emit, disconnect
 
 import config
 import resources.apiError as apiError
@@ -58,6 +59,12 @@ class Rancher(object):
                                   headers=headers, with_token=with_token,
                                   retried=retried)
 
+    def __api_put(self, path, params=None, headers=None, data=None, with_token=True,
+                   retried=False):
+        return self.__api_request('PUT', path=path, params=params, data=data,
+                                  headers=headers, with_token=with_token,
+                                  retried=retried)
+
     def __api_delete(self, path, params=None, headers=None, with_token=True):
         return self.__api_request('DELETE', path=path, params=params,
                                   headers=headers, with_token=with_token)
@@ -72,8 +79,13 @@ class Rancher(object):
                                  data=body, with_token=False, retried=True)
         return output.json()['token']
 
-    def rc_get_pipeline_executions(self, ci_project_id, ci_pipeline_id, run=None):
-        path = '/projects/{0}/pipelineexecutions'.format(ci_project_id)
+    def rc_get_pipeline_execution(self, ci_project_id, ci_pipeline_id, execution_id):
+        path = f'/projects/{ci_project_id}/pipelineExecutions/{execution_id}'
+        response = self.__api_get(path)
+        return response.json()
+
+    def rc_get_pipeline_executions(self, ci_project_id, ci_pipeline_id, run=None, execution_id=None):
+        path = f'/projects/{ci_project_id}/pipelineexecutions'
         params = {
             'order': 'desc',
             'sort': 'started',
@@ -95,6 +107,17 @@ class Rancher(object):
         response = self.__api_post(path, params=params, data='')
         return response
     
+    def rc_delete_pipeline_executions_run(self, ci_project_id, ci_pipeline_id, pipelines_exec_run):
+        path = '/project/{0}/pipelineExecutions/{1}-{2}'.format(ci_project_id, ci_pipeline_id,
+                                                                pipelines_exec_run)
+        response = self.__api_delete(path)
+
+    def rc_get_pipeline_info(self, ci_project_id, ci_pipeline_id):
+        path = f'/project/{ci_project_id}/pipelines/{ci_pipeline_id}'
+        info = self.__api_get(path)
+        return info.json()
+
+
     def rc_get_pipeline_config(self, ci_pipeline_id, pipelines_exec_run):
         output_dict = []
         self.token = self.__generate_token()
@@ -129,7 +152,6 @@ class Rancher(object):
         return output_dict[1:]
 
     def rc_get_pipe_log_websocket(self, data):
-        relation = nx_get_project_plugin_relation(repo_id=data["repository_id"])
         self.token = self.__generate_token()
         headersandtoken = "Authorization: Bearer {0}".format(self.token)
         self.rc_get_project_id()
@@ -137,23 +159,36 @@ class Rancher(object):
                 "{3}-{4}/log?stage={5}&step={6}").format(
             config.get('RANCHER_IP_PORT'), config.get('RANCHER_API_VERSION'),
             self.project_id,
-            relation.ci_pipeline_id, data["pipelines_exec_run"], data["stage_index"], data["step_index"])
+            data["ci_pipeline_id"], data["pipelines_exec_run"], data["stage_index"], data["step_index"])
         result = None
         try:
+            ws_start_time = time.time()
             ws = websocket.create_connection(url, header=[headersandtoken],
                                                 sslopt={"cert_reqs": ssl.CERT_NONE})
+            i = 0
             while True:
                 result = ws.recv()
                 emit('pipeline_log', {'data': result, 
-                                      'repository_id': data["repository_id"],
-                                      'pipelines_exec_run': data["pipelines_exec_run"],
-                                      'stage_index': data["stage_index"],
-                                      'step_index': data["step_index"]}, broadcast=True)
-                if result is None:
+                                    'ci_pipeline_id': data["ci_pipeline_id"],
+                                    'pipelines_exec_run': data["pipelines_exec_run"],
+                                    'stage_index': data["stage_index"],
+                                    'step_index': data["step_index"]})
+                #print(f"result: {result}")
+                ws_end_time = time.time() - ws_start_time
+                if result == '' or ws_end_time >= 600 or i >= 100:
+                    emit('pipeline_log', {'data': '', 
+                                    'ci_pipeline_id': data["ci_pipeline_id"],
+                                    'pipelines_exec_run': data["pipelines_exec_run"],
+                                    'stage_index': data["stage_index"],
+                                    'step_index': data["step_index"]})
                     ws.close()
+                    print(f"result: {result}, ws_end_time: {ws_end_time}, i: {i}")
                     break
+                else:
+                    i +=1
         except:
             ws.close()
+            disconnect()
 
 
     def rc_get_pipeline_executions_logs(self, ci_project_id, ci_pipeline_id,
@@ -297,7 +332,7 @@ class Rancher(object):
 
     def rc_add_secrets_into_rc_all(self, args):
         self.rc_get_project_id()
-        data = json.loads(args['data'].replace("'", '"'))
+        data = args["data"]
         for key, value in data.items():
             data[key] = base64.b64encode(bytes(value, encoding='utf-8')).decode('utf-8')
         body = {
@@ -309,6 +344,22 @@ class Rancher(object):
         url = f'/projects/{self.project_id}/secrets'
         output = self.__api_post(url, data=body)
 
+
+    def rc_put_secrets_into_rc_all(self, secret_name, args):
+        self.rc_get_project_id()
+        data = args["data"]
+        for key, value in data.items():
+            data[key] = base64.b64encode(bytes(value, encoding='utf-8')).decode('utf-8')
+        body = {
+            "type": args['type'],
+            "labels": {},
+            "name": secret_name,
+            "data": data
+        }
+        url = f'/projects/{self.project_id}/secrets/{self.project_id.split(":")[1]}:{secret_name}'
+        output = self.__api_put(url, data=body)
+
+        
     def rc_delete_secrets_into_rc_all(self, secret_name):
         self.rc_get_project_id()
         url = f'/projects/{self.project_id}/secrets/{self.project_id.split(":")[1]}:{secret_name}'

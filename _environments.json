@@ -1,5 +1,5 @@
 {
-    "SQLALCHEMY_DATABASE_URI": "postgresql://postgres:******@postgres.db.net/iii-devops",
+    "SQLALCHEMY_DATABASE_URI": "postgresql://postgres:******@postgres.db.net/devopsdb",
     "SQLALCHEMY_TRACK_MODIFICATIONS": false,
 
     "JWT_SECRET_KEY": "<your secret key>",
@@ -23,6 +23,8 @@
     "RANCHER_ADMIN_PASSWORD": "*********",
     "RANCHER_CLUSTER_NAME": "**-**-*-**-*****",
 
+    "KUBERNETES_MASTER_DOMAIN": "k8sctl.your.com",
+
     "CHECKMARX_ORIGIN": "https://checkmarx.somewhere.net/cxrestapi",
     "CHECKMARX_USERNAME": "*****",
     "CHECKMARX_PASSWORD": "***********",
@@ -36,8 +38,6 @@
     "HARBOR_EXTERNAL_BASE_URL": "https://harbor.external.domain",
     "HARBOR_ACCOUNT": "admin",
     "HARBOR_PASSWORD": "***********",
-
-    "WEBINSPECT_BASE_URL": "http://127.0.0.1:5814/webinspect",
 
     "ADMIN_INIT_LOGIN": "devops_admin",
     "ADMIN_INIT_EMAIL": "admin@devops.iii.org",
