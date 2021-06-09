@@ -277,6 +277,7 @@ socketio.on_namespace(rancher.RancherWebsocketLog('/rancher/websocket/logs'))
 
 # issue
 api.add_resource(issue.IssueByProject, '/project/<sint:project_id>/issues')
+api.add_resource(issue.IssueFamily, '/issue/<issue_id>/family')
 api.add_resource(issue.IssueListByProject, '/project/<sint:project_id>/issues_list')
 api.add_resource(issue.IssueByTreeByProject, '/project/<sint:project_id>/issues_by_tree')
 api.add_resource(issue.IssueByStatusByProject,
