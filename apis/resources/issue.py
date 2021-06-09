@@ -91,7 +91,7 @@ class NexusIssue:
             self.data['relations'] = redmine_issue['relations']
         return self
 
-    def set_redmine_issue_v2(self, redmine_issue, nx_project,
+    def set_redmine_issue_v2(self, redmine_issue, nx_project=None,
                              with_relationship=False, relationship_bool=False):
         self.data = {
             'id': redmine_issue.id,
@@ -105,11 +105,6 @@ class NexusIssue:
             'is_closed': False,
             'issue_link': redmine.rm_build_external_link(
                 '/issues/{0}'.format(redmine_issue.id)),
-            'project': {
-                'id': nx_project.id,
-                'name': nx_project.name,
-                'display': nx_project.display,
-            },
             'tracker': {
                 'id': redmine_issue.tracker.id,
                 'name': redmine_issue.tracker.name
@@ -124,6 +119,12 @@ class NexusIssue:
             },
             'relations': []
         }
+        if nx_project:
+            self.data['project'] = {
+                'id': nx_project.id,
+                'name': nx_project.name,
+                'display': nx_project.display,
+            }
         if relationship_bool:
             self.data['parent'] = False
             self.data['children'] = False
@@ -501,17 +502,21 @@ def get_issue_list_by_project(project_id, args):
                           error=apiError.project_not_found(project_id))
 
     default_filters = get_custom_filters_by_args(args, project_id=plan_id)
+    # 有 search params，但是 default_filters 沒有 issued_id，代表沒有搜尋結果
     if not default_filters.get('issue_id', None) and args['search']:
         return []
     all_issues = redmine_lib.redmine.issue.filter(**default_filters)
-
     nx_issue_params = {'nx_project': nx_project}
+    # 透過 selection params 決定是否顯示 parent & children 欄位
     if args['selection']:
         nx_issue_params['relationship_bool'] = True
+    else:
+        nx_issue_params['with_relationship'] = True
 
     for redmine_issue in all_issues:
         nx_issue_params['redmine_issue'] = redmine_issue
         issue = NexusIssue().set_redmine_issue_v2(**nx_issue_params).to_json()
+        # 如果 parent 有值，代表此 issue 是別人的 children
         if issue['parent']:
             children_issues = redmine_lib.redmine.issue.filter(parent_id=redmine_issue.id, status_id='*')
             if len(children_issues):
@@ -542,7 +547,9 @@ def get_issue_by_tree_by_project(project_id):
                                                                    nx_project=nx_project,
                                                                    with_relationship=True).to_json()
     for id in tree:
+        # 代表此 issue 有 parent 存在
         if tree[id]['parent']:
+            # 補上 parent 相關的資訊
             tree[id]['parent'] = {
                 'id': tree[tree[id]['parent']]['id'],
                 'name': tree[tree[id]['parent']]['name'],
@@ -550,12 +557,15 @@ def get_issue_by_tree_by_project(project_id):
                 'tracker': tree[tree[id]['parent']]['tracker'].copy(),
                 'assigned_to': tree[tree[id]['parent']]['assigned_to'].copy()
             }
+            # 將此 issue 移至其他 issue 的 children 中
             tree[tree[id]['parent']['id']]['children'].append(tree[id].copy())
+            # 增加 ouput 需要排除的 children issues 名單
             children_issues.append(id)
     output = [tree[id] for id in tree if id not in children_issues]
     return output
 
 
+# 依據 params 組成 redmine filters
 def get_custom_filters_by_args(args=None, project_id=None):
     default_filters = {'status_id': '*', 'include': 'relations'}
     if project_id:
@@ -574,7 +584,7 @@ def get_custom_filters_by_args(args=None, project_id=None):
         search_title = redmine_lib.redmine.issue.search(args['search'], titles_only=True)
         if search_title:
             result.extend(list(search_title.values_list('id', flat=True)))
-        # 檢查搜尋 keyword 是否為數字
+        # 檢查 keyword 是否為數字
         if args['search'].isdigit():
             # 搜尋 issue id
             search_issue_id = redmine_lib.redmine.issue.filter(**default_filters, issue_id=args['search'])
@@ -589,6 +599,7 @@ def get_custom_filters_by_args(args=None, project_id=None):
     return default_filters
 
 
+# 搜尋被分配者符合 keyword 的 issues
 def get_issue_assigned_to_search(keyword, default_filters):
     assigned_to_issue = []
     nx_user_list = db.session.query(model.UserPluginRelation).join(
@@ -597,9 +608,21 @@ def get_issue_assigned_to_search(keyword, default_filters):
         for nx_user in nx_user_list:
             all_issues = redmine_lib.redmine.issue.filter(**default_filters, assigned_to_id=nx_user.plan_user_id)
             assigned_to_issue.extend([issue.id for issue in all_issues])
-        return assigned_to_issue
-    else:
-        return nx_user_list
+    return assigned_to_issue
+
+
+# 取得 issue 相關的 parent & children 資訊
+def get_issue_family(issue_id):
+    output = {}
+    redmine_issue = redmine_lib.redmine.issue.get(issue_id, include=['children'])
+    if hasattr(redmine_issue, 'parent'):
+        parent_issue = redmine_lib.redmine.issue.get(redmine_issue.parent.id)
+        output['parent'] = NexusIssue().set_redmine_issue_v2(parent_issue).to_json()
+    if len(redmine_issue.children):
+        children_issues = redmine_lib.redmine.issue.filter(parent_id=issue_id, status='*')
+        output['children'] = [NexusIssue().set_redmine_issue_v2(redmine_issue).to_json()
+                              for redmine_issue in children_issues]
+    return output
 
 
 def get_issue_by_status_by_project(project_id):
@@ -1249,9 +1272,9 @@ class IssueByProject(Resource):
 
 
 class IssueListByProject(Resource):
-    # @jwt_required
+    @jwt_required
     def get(self, project_id):
-        # role.require_in_project(project_id, 'Error to get issue.')
+        role.require_in_project(project_id, 'Error to get issue.')
         parser = reqparse.RequestParser()
         parser.add_argument('fixed_version_id', type=int)
         parser.add_argument('page', type=int)
@@ -1303,7 +1326,8 @@ class IssuesProgressByProject(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('fixed_version_id', type=int)
         args = parser.parse_args()
-        output = get_issue_progress_or_statistics_by_project(project_id, args, progress=True)
+        output = get_issue_progress_or_statistics_by_project(project_id,
+                                                             args, progress=True)
         return util.success(output)
 
 
@@ -1314,7 +1338,8 @@ class IssuesStatisticsByProject(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('fixed_version_id', type=int)
         args = parser.parse_args()
-        output = get_issue_progress_or_statistics_by_project(project_id, args, statistics=True)
+        output = get_issue_progress_or_statistics_by_project(project_id,
+                                                             args, statistics=True)
         return util.success(output)
 
 
@@ -1334,6 +1359,14 @@ class IssueTracker(Resource):
     @jwt_required
     def get(self):
         return get_issue_trackers()
+
+
+class IssueFamily(Resource):
+    @jwt_required
+    def get(self, issue_id):
+        require_issue_visible(issue_id)
+        family = get_issue_family(issue_id)
+        return util.success(family)
 
 
 class MyIssueStatistics(Resource):
