@@ -448,12 +448,6 @@ def delete_issue(issue_id):
     return util.success()
 
 
-def get_issue_new_parser(project_id, issue_id):
-    nx_project = NexusProject().set_project_id(project_id)
-    redmine_issue = redmine.rm_get_issue(issue_id)
-    return NexusIssue().set_redmine_issue(redmine_issue, nx_project=nx_project).to_json()
-
-
 def get_issue_by_project(project_id, args):
     if util.is_dummy_project(project_id):
         return []
