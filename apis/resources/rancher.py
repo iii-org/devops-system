@@ -59,6 +59,12 @@ class Rancher(object):
                                   headers=headers, with_token=with_token,
                                   retried=retried)
 
+    def __api_put(self, path, params=None, headers=None, data=None, with_token=True,
+                   retried=False):
+        return self.__api_request('PUT', path=path, params=params, data=data,
+                                  headers=headers, with_token=with_token,
+                                  retried=retried)
+
     def __api_delete(self, path, params=None, headers=None, with_token=True):
         return self.__api_request('DELETE', path=path, params=params,
                                   headers=headers, with_token=with_token)
@@ -326,7 +332,7 @@ class Rancher(object):
 
     def rc_add_secrets_into_rc_all(self, args):
         self.rc_get_project_id()
-        data = json.loads(args['data'].replace("'", '"'))
+        data = args["data"]
         for key, value in data.items():
             data[key] = base64.b64encode(bytes(value, encoding='utf-8')).decode('utf-8')
         body = {
@@ -338,6 +344,22 @@ class Rancher(object):
         url = f'/projects/{self.project_id}/secrets'
         output = self.__api_post(url, data=body)
 
+
+    def rc_put_secrets_into_rc_all(self, secret_name, args):
+        self.rc_get_project_id()
+        data = args["data"]
+        for key, value in data.items():
+            data[key] = base64.b64encode(bytes(value, encoding='utf-8')).decode('utf-8')
+        body = {
+            "type": args['type'],
+            "labels": {},
+            "name": secret_name,
+            "data": data
+        }
+        url = f'/projects/{self.project_id}/secrets/{self.project_id.split(":")[1]}:{secret_name}'
+        output = self.__api_put(url, data=body)
+
+        
     def rc_delete_secrets_into_rc_all(self, secret_name):
         self.rc_get_project_id()
         url = f'/projects/{self.project_id}/secrets/{self.project_id.split(":")[1]}:{secret_name}'
