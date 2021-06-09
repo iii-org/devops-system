@@ -202,7 +202,7 @@ class NexusProject:
         return self
 
 
-def get_pm_project_list(user_id, pj_due_start, pj_due_end, pj_members_count):
+def get_pm_project_list(user_id, pj_due_start=None, pj_due_end=None, pj_members_count=None):
     rows = get_project_rows_by_user(user_id)
     rm_projects = redmine_lib.redmine.project.all()
     rm_issues = redmine_lib.redmine.issue.filter(status_id='*', filter=[])
@@ -238,7 +238,7 @@ def get_pm_project_list(user_id, pj_due_start, pj_due_end, pj_members_count):
     return ret
 
 
-def get_rd_project_list(user_id, pj_due_start, pj_due_end, pj_members_count):
+def get_rd_project_list(user_id, pj_due_start=None, pj_due_end=None, pj_members_count=None):
     rows = get_project_rows_by_user(user_id)
     ret = []
     for row in rows:
@@ -263,7 +263,7 @@ def get_rd_project_list(user_id, pj_due_start, pj_due_end, pj_members_count):
     return ret
 
 
-def get_simple_project_list(user_id, pj_due_start, pj_due_end, pj_members_count):
+def get_simple_project_list(user_id, pj_due_start=None, pj_due_end=None, pj_members_count=None):
     rows = get_project_rows_by_user(user_id)
     ret = []
     for row in rows:
