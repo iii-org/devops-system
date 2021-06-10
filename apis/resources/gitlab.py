@@ -39,7 +39,7 @@ def commit_id_to_url(project_id, commit_id):
 
 # May throws NoResultFound
 def get_repository_id(project_id):
-    return nexus.nx_get_project_plugin_relation(project_id).repository_id
+    return nexus.nx_get_project_plugin_relation(project_id).git_repository_id
 
 
 class GitLab(object):
