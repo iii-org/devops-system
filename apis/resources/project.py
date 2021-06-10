@@ -1,6 +1,8 @@
+import ast
 import json
 import re
 from datetime import datetime, date
+from pprint import pprint
 
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
@@ -1183,7 +1185,7 @@ class SingleProject(Resource):
         parser.add_argument('due_date', type=str, required=True)
         parser.add_argument('owner_id', type=int)
         args = parser.parse_args()
-        args['arguments'] = json.loads(args['arguments'])
+        args['arguments'] = ast.literal_eval(args['arguments'])
         check_project_args_patterns(args)
         return util.success(create_project(user_id, args))
 
