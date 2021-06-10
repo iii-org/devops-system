@@ -291,6 +291,9 @@ class Redmine:
         if 'upload_description' in args:
             ret['description'] = args['upload_description']
             del args['upload_description']
+        if 'upload_content_type' in args:
+            ret['content_type'] = args['upload_content_type']
+            del args['upload_content_type']
         return ret
 
     def rm_upload_to_project(self, plan_project_id, args):

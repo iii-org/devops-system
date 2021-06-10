@@ -418,7 +418,10 @@ def update_issue(issue_id, args, operator_id):
     args = args.copy()
     args = {k: v for k, v in args.items() if v is not None}
     if 'parent_id' in args:
-        args['parent_issue_id'] = args['parent_id']
+        if len(args['parent_id']) > 0:
+            args['parent_issue_id'] = int(args['parent_id'])
+        else:
+            args['parent_issue_id'] = None
         args.pop('parent_id', None)
     if "assigned_to_id" in args and len(args['assigned_to_id']) > 0:
         user_plugin_relation = nexus.nx_get_user_plugin_relation(
@@ -1209,6 +1212,7 @@ class SingleIssue(Resource):
             'upload_file', type=werkzeug.datastructures.FileStorage, location='files')
         parser.add_argument('upload_filename', type=str)
         parser.add_argument('upload_description', type=str)
+        parser.add_argument('upload_content_type', type=str)
 
         args = parser.parse_args()
         return create_issue(args, get_jwt_identity()['user_id'])
@@ -1223,7 +1227,7 @@ class SingleIssue(Resource):
         parser.add_argument('priority_id', type=int)
         parser.add_argument('estimated_hours', type=int)
         parser.add_argument('description', type=str)
-        parser.add_argument('parent_id', type=int)
+        parser.add_argument('parent_id', type=str)
         parser.add_argument('fixed_version_id', type=str)
         parser.add_argument('subject', type=str)
         parser.add_argument('start_date', type=str)
@@ -1236,10 +1240,11 @@ class SingleIssue(Resource):
             'upload_file', type=werkzeug.datastructures.FileStorage, location='files')
         parser.add_argument('upload_filename', type=str)
         parser.add_argument('upload_description', type=str)
+        parser.add_argument('upload_content_type', type=str)
 
         args = parser.parse_args()
         # Handle removable int parameters
-        keys_int_or_null = ['assigned_to_id', 'fixed_version_id']
+        keys_int_or_null = ['assigned_to_id', 'fixed_version_id', 'parent_id']
         for k in keys_int_or_null:
             if args[k] == 'null':
                 args[k] = ''
