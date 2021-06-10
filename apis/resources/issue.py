@@ -5,6 +5,7 @@ from datetime import datetime, date, timedelta
 import werkzeug
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
+from sqlalchemy import or_
 from sqlalchemy.orm.exc import NoResultFound
 from collections import defaultdict
 
@@ -502,16 +503,14 @@ def get_issue_list_by_project(project_id, args):
     all_issues = redmine_lib.redmine.issue.filter(**default_filters)
     nx_issue_params = {'nx_project': nx_project}
     # 透過 selection params 決定是否顯示 parent & children 欄位
-    if args['selection']:
+    if not args['selection']:
         nx_issue_params['relationship_bool'] = True
-    else:
-        nx_issue_params['with_relationship'] = True
 
     for redmine_issue in all_issues:
         nx_issue_params['redmine_issue'] = redmine_issue
         issue = NexusIssue().set_redmine_issue_v2(**nx_issue_params).to_json()
         # 如果 parent 有值，代表此 issue 是別人的 children
-        if issue['parent']:
+        if 'parent' in issue and not issue['parent']:
             children_issues = redmine_lib.redmine.issue.filter(parent_id=redmine_issue.id, status_id='*')
             if len(children_issues):
                 issue['children'] = True
@@ -562,11 +561,13 @@ def get_issue_by_tree_by_project(project_id):
 # 依據 params 組成 redmine filters
 def get_custom_filters_by_args(args=None, project_id=None):
     default_filters = {'status_id': '*', 'include': 'relations'}
+    allowed_keywords = ['fixed_version_id', 'status_id', 'tracker_id', 'assigned_to_id', 'priority_id']
     if project_id:
         default_filters['project_id'] = project_id
     if args:
-        if args.get('fixed_version_id', None):
-            default_filters['fixed_version_id'] = args['fixed_version_id']
+        for key in args:
+            if key in allowed_keywords and args.get(key, None):
+                default_filters[key] = args[key]
         if args.get('page', None) and args.get('per_page', None):
             default_filters['limit'] = args['per_page']
             # offset 從 0 開始計算
@@ -598,7 +599,10 @@ def get_custom_filters_by_args(args=None, project_id=None):
 def get_issue_assigned_to_search(keyword, default_filters):
     assigned_to_issue = []
     nx_user_list = db.session.query(model.UserPluginRelation).join(
-        model.User).filter(model.User.name.ilike(f'%{keyword}%')).all()
+        model.User).filter(or_(
+            model.User.login.ilike(f'%{keyword}%'),
+            model.User.name.ilike(f'%{keyword}%')
+        )).all()
     if nx_user_list:
         for nx_user in nx_user_list:
             all_issues = redmine_lib.redmine.issue.filter(**default_filters, assigned_to_id=nx_user.plan_user_id)
@@ -1272,6 +1276,10 @@ class IssueListByProject(Resource):
         role.require_in_project(project_id, 'Error to get issue.')
         parser = reqparse.RequestParser()
         parser.add_argument('fixed_version_id', type=int)
+        parser.add_argument('status_id', type=int)
+        parser.add_argument('tracker_id', type=int)
+        parser.add_argument('assigned_to', type=int)
+        parser.add_argument('priority_id', type=int)
         parser.add_argument('page', type=int)
         parser.add_argument('per_page', type=int)
         parser.add_argument('search', type=str)
