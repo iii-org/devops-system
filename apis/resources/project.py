@@ -1178,11 +1178,12 @@ class SingleProject(Resource):
         parser.add_argument('disabled', type=bool, required=True)
         parser.add_argument('template_id', type=int)
         parser.add_argument('tag_name', type=str)
-        parser.add_argument('arguments', type=dict)
+        parser.add_argument('arguments', type=str)
         parser.add_argument('start_date', type=str, required=True)
         parser.add_argument('due_date', type=str, required=True)
         parser.add_argument('owner_id', type=int)
         args = parser.parse_args()
+        args['arguments'] = json.loads(args['arguments'])
         check_project_args_patterns(args)
         return util.success(create_project(user_id, args))
 
