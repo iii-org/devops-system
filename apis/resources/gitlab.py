@@ -10,6 +10,7 @@ from sqlalchemy.orm.exc import NoResultFound
 
 import config
 import model
+import nexus
 from model import db, GitCommitNumberEachDays
 import util as util
 from resources import apiError, kubernetesClient, role
@@ -38,8 +39,7 @@ def commit_id_to_url(project_id, commit_id):
 
 # May throws NoResultFound
 def get_repository_id(project_id):
-    return model.ProjectPluginRelation.query.filter_by(
-        project_id=project_id).one().git_repository_id
+    return nexus.nx_get_project_plugin_relation(project_id).repository_id
 
 
 class GitLab(object):
@@ -79,7 +79,7 @@ class GitLab(object):
     def gl_get_project_id_from_url(repository_url):
         row = model.Project.query.filter_by(http_url=repository_url).one()
         project_id = row.id
-        repository_id = get_repository_id(project_id)
+        repository_id = nexus.nx_get_repository_id(project_id)
         return {'project_id': project_id, 'repository_id': repository_id}
 
     def __api_request(self,
@@ -612,12 +612,15 @@ class GitLab(object):
         f_byte = pj.files.raw(file_path=path, ref=pj.default_branch).decode()
         return f_byte
 
+    def gl_list_wiki(self, repository_id):
+        pass
+
 
 # --------------------- Resources ---------------------
 gitlab = GitLab()
 
 
-class GitRelease():
+class GitRelease:
     @jwt_required
     def check_gitlab_release(self, repository_id, tag_name):
         output = {'check': True, "info": "", "errors": {}}
