@@ -612,9 +612,6 @@ class GitLab(object):
         f_byte = pj.files.raw(file_path=path, ref=pj.default_branch).decode()
         return f_byte
 
-    def gl_list_wiki(self, repository_id):
-        pass
-
 
 # --------------------- Resources ---------------------
 gitlab = GitLab()
