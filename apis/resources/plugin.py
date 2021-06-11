@@ -7,6 +7,7 @@ import model
 from model import db
 import base64
 from resources import role
+
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
 from sqlalchemy.orm.exc import NoResultFound
@@ -25,7 +26,7 @@ def row_to_dict(row):
         value = getattr(row, key)
         if type(value) is datetime or type(value) is date:
             ret[key] = str(value)
-        elif key == "parameter":
+        elif key == "parameter" and value is not None:
             parmameters = base64.b64decode(value).decode('utf-8')
             ret[key] = json.loads(parmameters)
         else:
@@ -55,31 +56,40 @@ def get_plugin_software_by_name(plugin_name):
         first()
     return row_to_dict(plugin)
 
+
 def update_plugin_software(plugin_id, args):
     r = model.PluginSoftware.query.filter_by(id=plugin_id).first()
     if r is None:
         return {}
     r.name = args['name']
-    r.parameter = base64.b64encode(
-        bytes(json.dumps(args['parameter']), encoding='utf-8')).decode('utf-8')
+
+    if args.get('type_id') == 2:
+
+        r.parameter = None
+    else:
+        r.parameter = get_plugin_parameters(args)
     disabled = False
-    if args['disabled'] == "true":
+    if args.get('disabled') is True:
         disabled = True
     r.disabled = disabled
+    r.type_id = args.get('type_id', 1)
     r.update_at = str(datetime.now())
     db.session.commit()
     return row_to_dict(r)
 
 
 def create_plugin_software(args):
-    
-    parameters = base64.b64encode(
-        bytes(json.dumps(args['parameter']), encoding='utf-8')).decode('utf-8')
+    type_id = args.get('type_id')
+    if type_id == 2:
+        rancher.rc_add_secrets_into_rc_all(args)
+
+    parameter = get_plugin_parameters(args)
     new = model.PluginSoftware(
         name=args['name'],
-        parameter=parameters,
-        disabled=args['disabled'],
-        create_at=str(datetime.now())
+        parameter=parameter,
+        disabled=args.get('disabled'),
+        create_at=str(datetime.now()),
+        type_id=args.get('type_id', 1)
     )
     db.session.add(new)
     db.session.commit()
@@ -87,10 +97,12 @@ def create_plugin_software(args):
 
 
 def delete_plugin_software(plugin_id):
-    plugin_software = model.PluginSoftware.query.filter_by(id=plugin_id).first()
+    plugin_software = model.PluginSoftware.query.filter_by(
+        id=plugin_id).first()
     db.session.delete(plugin_software)
     db.session.commit()
     return {'plugin_id': plugin_id}
+
 
 class Plugins(Resource):
     @jwt_required
@@ -108,6 +120,7 @@ class Plugins(Resource):
         parser.add_argument('name', type=str)
         parser.add_argument('parameter', type=dict)
         parser.add_argument('disabled', type=bool)
+        parser.add_argument('type_id', type=int)
         args = parser.parse_args()
         output = create_plugin_software(args)
         return util.success(output)
@@ -130,7 +143,10 @@ class Plugin(Resource):
         parser.add_argument('name', type=str)
         parser.add_argument('parameter', type=dict)
         parser.add_argument('disabled', type=bool)
+        parser.add_argument('type_id', type=int)
         args = parser.parse_args()
+        print(type(args.get('disabled')))
+        print(args.get('disabled'))
         output = update_plugin_software(plugin_id, args)
         return util.success(output)
 
@@ -151,6 +167,3 @@ class APIPlugin():
 
 
 api_plugin = APIPlugin()
-
-
-
