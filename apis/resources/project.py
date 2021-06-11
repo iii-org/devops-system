@@ -1185,7 +1185,8 @@ class SingleProject(Resource):
         parser.add_argument('due_date', type=str, required=True)
         parser.add_argument('owner_id', type=int)
         args = parser.parse_args()
-        args['arguments'] = ast.literal_eval(args['arguments'])
+        if args['arguments'] is not None:
+            args['arguments'] = ast.literal_eval(args['arguments'])
         check_project_args_patterns(args)
         return util.success(create_project(user_id, args))
 
