@@ -564,38 +564,61 @@ def get_issue_by_tree_by_project(project_id):
 # 依據 params 組成 redmine filters
 def get_custom_filters_by_args(args=None, project_id=None):
     default_filters = {'status_id': '*', 'include': 'relations'}
-    allowed_keywords = ['fixed_version_id', 'status_id', 'tracker_id', 'assigned_to_id', 'priority_id']
     if project_id:
         default_filters['project_id'] = project_id
     if args:
-        for key in args:
-            if key in allowed_keywords and args.get(key, None):
-                default_filters[key] = args[key]
+        handle_allowed_keywords(default_filters, args)
         if args.get('page', None) and args.get('per_page', None):
             default_filters['limit'] = args['per_page']
             # offset 從 0 開始計算
             default_filters['offset'] = args['per_page']*(args['page']-1)
         if args.get('search', None):
-            result = []
-            # 搜尋被分配者
-            result.extend(get_issue_assigned_to_search(args['search'], default_filters))
-            # 搜尋 issue 標題
-            search_title = redmine_lib.redmine.issue.search(args['search'], titles_only=True)
-            if search_title:
-                result.extend(list(search_title.values_list('id', flat=True)))
-            # 檢查 keyword 是否為數字
-            if args['search'].isdigit():
-                # 搜尋 issue id
-                search_issue_id = redmine_lib.redmine.issue.filter(**default_filters, issue_id=args['search'])
-                if len(search_issue_id):
-                    result.extend([issue.id for issue in search_issue_id])
-            # 去除重複 id
-            set(result)
-            if result:
-                # issue filter 多個 issue_id 只接受逗號分隔的字串
-                issue_id = ','.join(str(id) for id in result)
-                default_filters['issue_id'] = issue_id
+            handle_search(default_filters, args)
     return default_filters
+
+
+def handle_allowed_keywords(default_filters, args):
+    allowed_keywords = ['fixed_version_id', 'status_id', 'tracker_id', 'assigned_to_id', 'priority_id']
+    for key in allowed_keywords:
+        if key == 'assigned_to_id':
+            if args.get(key, None) and args[key] == 'null':
+                default_filters[key] = '!*'
+            elif args.get(key, None):
+                try:
+                    nx_user = db.session.query(model.UserPluginRelation).join(
+                        model.User).filter_by(id=int(args[key])).one()
+                except NoResultFound:
+                    raise apiError.DevOpsError(
+                        404, 'User id {0} does not exist.'.format(int(args[key])),
+                        apiError.user_not_found(int(args[key])))
+                default_filters[key] = nx_user.plan_user_id
+        elif args.get(key, None):
+            default_filters[key] = args[key]
+
+
+def handle_search(default_filters, args):
+    result = []
+    # 搜尋被分配者
+    result.extend(get_issue_assigned_to_search(args['search'], default_filters))
+    # 搜尋 issue 標題
+    search_title = redmine_lib.redmine.search(args['search'], titles_only=True, resources=['issues'])
+    if search_title:
+        if search_title.get('issues', None):
+            result.extend(list(search_title['issues'].values_list('id', flat=True)))
+        if search_title.get('unknown', None):
+            result.extend([issue['id'] for issue in search_title['unknown']['issue-closed']])
+    # 檢查 keyword 是否為數字
+    if args['search'].isdigit():
+        # 搜尋 issue id
+        search_issue_id = redmine_lib.redmine.issue.filter(**default_filters, issue_id=args['search'])
+        if len(search_issue_id):
+            result.extend([issue.id for issue in search_issue_id])
+    # 去除重複 id
+    set(result)
+    if result:
+        # issue filter 多個 issue_id 只接受逗號分隔的字串
+        issue_id = ','.join(str(id) for id in result)
+        default_filters['issue_id'] = issue_id
 
 
 # 搜尋被分配者符合 keyword 的 issues
@@ -1186,6 +1209,7 @@ class SingleIssue(Resource):
         require_issue_visible(issue_id, issue_info)
         if 'parent_id' in issue_info:
             parent_info = get_issue(issue_info['parent_id'], with_children=False)
+            parent_info['name'] = parent_info.pop('subject', None)
             issue_info.pop('parent_id', None)
             issue_info['parent'] = parent_info
         return util.success(issue_info)
@@ -1283,7 +1307,7 @@ class IssueListByProject(Resource):
         parser.add_argument('fixed_version_id', type=int)
         parser.add_argument('status_id', type=int)
         parser.add_argument('tracker_id', type=int)
-        parser.add_argument('assigned_to', type=int)
+        parser.add_argument('assigned_to_id', type=str)
         parser.add_argument('priority_id', type=int)
         parser.add_argument('page', type=int)
         parser.add_argument('per_page', type=int)
