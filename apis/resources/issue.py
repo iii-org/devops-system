@@ -5,6 +5,7 @@ from datetime import datetime, date, timedelta
 import werkzeug
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
+from sqlalchemy import or_
 from sqlalchemy.orm.exc import NoResultFound
 from collections import defaultdict
 
@@ -417,7 +418,10 @@ def update_issue(issue_id, args, operator_id):
     args = args.copy()
     args = {k: v for k, v in args.items() if v is not None}
     if 'parent_id' in args:
-        args['parent_issue_id'] = args['parent_id']
+        if len(args['parent_id']) > 0:
+            args['parent_issue_id'] = int(args['parent_id'])
+        else:
+            args['parent_issue_id'] = None
         args.pop('parent_id', None)
     if "assigned_to_id" in args and len(args['assigned_to_id']) > 0:
         user_plugin_relation = nexus.nx_get_user_plugin_relation(
@@ -502,16 +506,14 @@ def get_issue_list_by_project(project_id, args):
     all_issues = redmine_lib.redmine.issue.filter(**default_filters)
     nx_issue_params = {'nx_project': nx_project}
     # 透過 selection params 決定是否顯示 parent & children 欄位
-    if args['selection']:
+    if not args['selection']:
         nx_issue_params['relationship_bool'] = True
-    else:
-        nx_issue_params['with_relationship'] = True
 
     for redmine_issue in all_issues:
         nx_issue_params['redmine_issue'] = redmine_issue
         issue = NexusIssue().set_redmine_issue_v2(**nx_issue_params).to_json()
         # 如果 parent 有值，代表此 issue 是別人的 children
-        if issue['parent']:
+        if 'parent' in issue and not issue['parent']:
             children_issues = redmine_lib.redmine.issue.filter(parent_id=redmine_issue.id, status_id='*')
             if len(children_issues):
                 issue['children'] = True
@@ -562,34 +564,37 @@ def get_issue_by_tree_by_project(project_id):
 # 依據 params 組成 redmine filters
 def get_custom_filters_by_args(args=None, project_id=None):
     default_filters = {'status_id': '*', 'include': 'relations'}
+    allowed_keywords = ['fixed_version_id', 'status_id', 'tracker_id', 'assigned_to_id', 'priority_id']
     if project_id:
         default_filters['project_id'] = project_id
-    if args.get('fixed_version_id', None):
-        default_filters['fixed_version_id'] = args['fixed_version_id']
-    if args.get('page', None) and args.get('per_page', None):
-        default_filters['limit'] = args['per_page']
-        # offset 從 0 開始計算
-        default_filters['offset'] = args['per_page']*(args['page']-1)
-    if args.get('search', None):
-        result = []
-        # 搜尋被分配者
-        result.extend(get_issue_assigned_to_search(args['search'], default_filters))
-        # 搜尋 issue 標題
-        search_title = redmine_lib.redmine.issue.search(args['search'], titles_only=True)
-        if search_title:
-            result.extend(list(search_title.values_list('id', flat=True)))
-        # 檢查 keyword 是否為數字
-        if args['search'].isdigit():
-            # 搜尋 issue id
-            search_issue_id = redmine_lib.redmine.issue.filter(**default_filters, issue_id=args['search'])
-            if len(search_issue_id):
-                result.extend([issue.id for issue in search_issue_id])
-        # 去除重複 id
-        set(result)
-        if result:
-            # issue filter 多個 issue_id 只接受逗號分隔的字串
-            issue_id = ','.join(str(id) for id in result)
-            default_filters['issue_id'] = issue_id
+    if args:
+        for key in args:
+            if key in allowed_keywords and args.get(key, None):
+                default_filters[key] = args[key]
+        if args.get('page', None) and args.get('per_page', None):
+            default_filters['limit'] = args['per_page']
+            # offset 從 0 開始計算
+            default_filters['offset'] = args['per_page']*(args['page']-1)
+        if args.get('search', None):
+            result = []
+            # 搜尋被分配者
+            result.extend(get_issue_assigned_to_search(args['search'], default_filters))
+            # 搜尋 issue 標題
+            search_title = redmine_lib.redmine.issue.search(args['search'], titles_only=True)
+            if search_title:
+                result.extend(list(search_title.values_list('id', flat=True)))
+            # 檢查 keyword 是否為數字
+            if args['search'].isdigit():
+                # 搜尋 issue id
+                search_issue_id = redmine_lib.redmine.issue.filter(**default_filters, issue_id=args['search'])
+                if len(search_issue_id):
+                    result.extend([issue.id for issue in search_issue_id])
+            # 去除重複 id
+            set(result)
+            if result:
+                # issue filter 多個 issue_id 只接受逗號分隔的字串
+                issue_id = ','.join(str(id) for id in result)
+                default_filters['issue_id'] = issue_id
     return default_filters
 
 
@@ -597,7 +602,10 @@ def get_custom_filters_by_args(args=None, project_id=None):
 def get_issue_assigned_to_search(keyword, default_filters):
     assigned_to_issue = []
     nx_user_list = db.session.query(model.UserPluginRelation).join(
-        model.User).filter(model.User.name.ilike(f'%{keyword}%')).all()
+        model.User).filter(or_(
+            model.User.login.ilike(f'%{keyword}%'),
+            model.User.name.ilike(f'%{keyword}%')
+        )).all()
     if nx_user_list:
         for nx_user in nx_user_list:
             all_issues = redmine_lib.redmine.issue.filter(**default_filters, assigned_to_id=nx_user.plan_user_id)
@@ -1204,6 +1212,7 @@ class SingleIssue(Resource):
             'upload_file', type=werkzeug.datastructures.FileStorage, location='files')
         parser.add_argument('upload_filename', type=str)
         parser.add_argument('upload_description', type=str)
+        parser.add_argument('upload_content_type', type=str)
 
         args = parser.parse_args()
         return create_issue(args, get_jwt_identity()['user_id'])
@@ -1218,7 +1227,7 @@ class SingleIssue(Resource):
         parser.add_argument('priority_id', type=int)
         parser.add_argument('estimated_hours', type=int)
         parser.add_argument('description', type=str)
-        parser.add_argument('parent_id', type=int)
+        parser.add_argument('parent_id', type=str)
         parser.add_argument('fixed_version_id', type=str)
         parser.add_argument('subject', type=str)
         parser.add_argument('start_date', type=str)
@@ -1231,10 +1240,11 @@ class SingleIssue(Resource):
             'upload_file', type=werkzeug.datastructures.FileStorage, location='files')
         parser.add_argument('upload_filename', type=str)
         parser.add_argument('upload_description', type=str)
+        parser.add_argument('upload_content_type', type=str)
 
         args = parser.parse_args()
         # Handle removable int parameters
-        keys_int_or_null = ['assigned_to_id', 'fixed_version_id']
+        keys_int_or_null = ['assigned_to_id', 'fixed_version_id', 'parent_id']
         for k in keys_int_or_null:
             if args[k] == 'null':
                 args[k] = ''
@@ -1271,6 +1281,10 @@ class IssueListByProject(Resource):
         role.require_in_project(project_id, 'Error to get issue.')
         parser = reqparse.RequestParser()
         parser.add_argument('fixed_version_id', type=int)
+        parser.add_argument('status_id', type=int)
+        parser.add_argument('tracker_id', type=int)
+        parser.add_argument('assigned_to', type=int)
+        parser.add_argument('priority_id', type=int)
         parser.add_argument('page', type=int)
         parser.add_argument('per_page', type=int)
         parser.add_argument('search', type=str)
