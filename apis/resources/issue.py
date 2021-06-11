@@ -1144,16 +1144,16 @@ def put_issue_relation(issue_id, issue_to_ids):
         for relation in relations:
             origin_set.add(frozenset({relation['issue_id'], relation['issue_to_id']}))
         need_del_set = origin_set - input_set
-        need_add_set = input_set - origin_set
         for need_del in list(need_del_set):
             need_del = list(need_del)
             for relation in relations:
                 if (relation['issue_id'] == need_del[0] and relation['issue_to_id'] == need_del[1]) or \
                     (relation['issue_id'] == need_del[1] and relation['issue_to_id'] == need_del[0]):
                     redmine_lib.rm_delete_relation(relation['id'])
-        for need_add in list(need_add_set):
-            need_add = list(need_add)
-            redmine_lib.rm_post_relation(need_add[0], need_add[1])
+    need_add_set = input_set - origin_set
+    for need_add in list(need_add_set):
+        need_add = list(need_add)
+        redmine_lib.rm_post_relation(need_add[0], need_add[1])
 
 
 def delete_issue_relation(relation_id):
