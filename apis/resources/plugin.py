@@ -7,7 +7,7 @@ import model
 from model import db
 import base64
 from resources import role
-
+from .rancher import rancher
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
 from sqlalchemy.orm.exc import NoResultFound
@@ -17,6 +17,36 @@ from resources.logger import logger
 invalid_plugin_id = 'Unable get plugin'
 invalid_plugin_softwares = 'Unable get plugin softwares'
 
+
+class Rancher(object):
+    def __init__(self, args):
+        self.name = args.get('name')
+        self.parameter = {            
+            'data' : args.get('parameter'),
+            'type' : 'secret'
+        }
+    def add_secrets_into_rc_all(self):
+        self.parameter['name'] = self.name
+        rancher.rc_add_secrets_into_rc_all(self.parameter)
+        return "Success"
+    
+    def put_secrets_into_rc_all(self):
+        rancher.rc_put_secrets_into_rc_all(self.name, self.parameter)
+        return "Success"
+        
+    def delete_secrets_into_rc_all(self):
+        rancher.rc_delete_secrets_into_rc_all(self.name)
+        return "Success"
+
+
+def get_plugin_parameters(args):
+    parameters = args.get('parameter')
+    if args.get('type_id',1) ==1 and parameters is not None :
+        parameters = base64.b64encode(
+            bytes(json.dumps(parameters), encoding='utf-8')).decode('utf-8')
+    else:
+        parameters = None
+    return parameters 
 
 def row_to_dict(row):
     ret = {}
@@ -47,7 +77,14 @@ def get_plugin_software_by_id(plugin_id):
     plugin = model.PluginSoftware.query.\
         filter(model.PluginSoftware.id == plugin_id).\
         first()
-    return row_to_dict(plugin)
+    
+    if plugin.type_id == 2:
+        k8s = Rancher()
+        k8s.add_secrets_into_rc_all()        
+
+    else:
+        return row_to_dict(plugin)
+    
 
 
 def get_plugin_software_by_name(plugin_name):
@@ -61,16 +98,16 @@ def update_plugin_software(plugin_id, args):
     r = model.PluginSoftware.query.filter_by(id=plugin_id).first()
     if r is None:
         return {}
-    r.name = args['name']
-
     if args.get('type_id') == 2:
-
+        k8s = Rancher(args)
+        k8s.put_secrets_into_rc_all()          
         r.parameter = None
     else:
         r.parameter = get_plugin_parameters(args)
     disabled = False
     if args.get('disabled') is True:
         disabled = True
+    r.name = args['name']
     r.disabled = disabled
     r.type_id = args.get('type_id', 1)
     r.update_at = str(datetime.now())
@@ -81,8 +118,8 @@ def update_plugin_software(plugin_id, args):
 def create_plugin_software(args):
     type_id = args.get('type_id')
     if type_id == 2:
-        rancher.rc_add_secrets_into_rc_all(args)
-
+        k8s = Rancher(args)
+        k8s.add_secrets_into_rc_all()                            
     parameter = get_plugin_parameters(args)
     new = model.PluginSoftware(
         name=args['name'],
@@ -97,9 +134,12 @@ def create_plugin_software(args):
 
 
 def delete_plugin_software(plugin_id):
-    plugin_software = model.PluginSoftware.query.filter_by(
-        id=plugin_id).first()
-    db.session.delete(plugin_software)
+    r = model.PluginSoftware.query.filter_by(
+        id=plugin_id).first()        
+    if r.type_id == 2:
+        k8s = Rancher({'name' : r.name})
+        k8s.delete_secrets_into_rc_all()               
+    db.session.delete(r)
     db.session.commit()
     return {'plugin_id': plugin_id}
 
@@ -145,8 +185,6 @@ class Plugin(Resource):
         parser.add_argument('disabled', type=bool)
         parser.add_argument('type_id', type=int)
         args = parser.parse_args()
-        print(type(args.get('disabled')))
-        print(args.get('disabled'))
         output = update_plugin_software(plugin_id, args)
         return util.success(output)
 
