@@ -127,10 +127,9 @@ class NexusIssue:
                 'display': nx_project.display,
             }
         if relationship_bool:
-            self.data['parent'] = False
-            self.data['children'] = False
+            self.data['family'] = False
             if hasattr(redmine_issue, 'parent'):
-                self.data['parent'] = True
+                self.data['family'] = True
         if with_relationship:
             self.data['parent'] = None
             self.data['children'] = []
@@ -505,18 +504,18 @@ def get_issue_list_by_project(project_id, args):
         return []
     all_issues = redmine_lib.redmine.issue.filter(**default_filters)
     nx_issue_params = {'nx_project': nx_project}
-    # 透過 selection params 決定是否顯示 parent & children 欄位
+    # 透過 selection params 決定是否顯示 family bool 欄位
     if not args['selection']:
         nx_issue_params['relationship_bool'] = True
 
     for redmine_issue in all_issues:
         nx_issue_params['redmine_issue'] = redmine_issue
         issue = NexusIssue().set_redmine_issue_v2(**nx_issue_params).to_json()
-        # 如果 parent 有值，代表此 issue 是別人的 children
-        if 'parent' in issue and not issue['parent']:
-            children_issues = redmine_lib.redmine.issue.filter(parent_id=redmine_issue.id, status_id='*')
-            if len(children_issues):
-                issue['children'] = True
+        # 如果 family 是 False，代表 issue 不是 parent，但必須另外檢查是不是有 children
+        if 'family' in issue and not issue['family']:
+            check_children = redmine_lib.redmine.issue.filter(parent_id=redmine_issue.id, status_id='*')
+            if len(check_children):
+                issue['family'] = True
         output.append(issue)
 
     if args['page'] and args['per_page']:
