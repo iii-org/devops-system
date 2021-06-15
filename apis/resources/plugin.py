@@ -30,12 +30,10 @@ class Rancher(object):
         data = rancher.rc_get_secrets_all_list()
 
         return data
-
     def add_secrets_into_rc_all(self):
         self.parameter['name'] = self.name
         rancher.rc_add_secrets_into_rc_all(self.parameter)
         return "Success"
-    
     def put_secrets_into_rc_all(self):
         rancher.rc_put_secrets_into_rc_all(self.name, self.parameter)
         return "Success"
@@ -52,7 +50,16 @@ def get_plugin_parameters(args):
             bytes(json.dumps(parameters), encoding='utf-8')).decode('utf-8')
     else:
         parameters = None
-    return parameters 
+    return parameters
+
+     
+def k8s_secrest_decode(data):
+    output = {}
+    if data is None:
+        return output
+    for k,v  in data.items():        
+        output[k] = base64.b64decode(v).decode('utf-8')
+    return output 
 
 def row_to_dict(row):
     ret = {}
@@ -91,11 +98,10 @@ def get_plugin_software_by_id(plugin_id):
         }
         k8s = Rancher(args)
         secrets = k8s.get_secret_into_rc_all()
-        print(secrets)
         for secret in secrets:
             if secret['name'] == plugin.name :
-                output['parameter'] = secret['data']
-                break                
+                output['parameter'] = k8s_secrest_decode(secret['data'])
+                break                    
     return output
 
 
