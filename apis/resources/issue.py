@@ -514,15 +514,25 @@ def get_issue_list_by_project(project_id, args):
         issue = NexusIssue().set_redmine_issue_v2(**nx_issue_params).to_json()
         # 如果 family 是 False，代表 issue 不是 parent，但必須另外檢查是不是有 children
         if 'family' in issue and not issue['family']:
-            check_children = redmine_lib.redmine.issue.filter(parent_id=redmine_issue.id, status_id='*')
+            check_children = redmine_lib.redmine.issue.filter(parent_id=redmine_issue.id,
+                                                              status_id='*')
             if len(check_children):
                 issue['family'] = True
         output.append(issue)
 
     if args['limit'] and args['offset'] is not None:
-        page_dict = util.get_pagination(all_issues.total_count, args['limit'], args['offset'])
+        page_dict = util.get_pagination(get_issue_total_count(default_filters),
+                                        args['limit'], args['offset'])
         output = {'issue_list': output, 'page': page_dict}
     return output
+
+
+def get_issue_total_count(default_filters):
+    new_filter = {
+        key: default_filters[key] for key in default_filters if key not in ['limit', 'offset']
+    }
+    total_count = len(redmine_lib.redmine.issue.filter(**new_filter))
+    return total_count
 
 
 def get_issue_by_tree_by_project(project_id):
