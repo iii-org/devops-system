@@ -127,10 +127,9 @@ class NexusIssue:
                 'display': nx_project.display,
             }
         if relationship_bool:
-            self.data['parent'] = False
-            self.data['children'] = False
+            self.data['family'] = False
             if hasattr(redmine_issue, 'parent'):
-                self.data['parent'] = True
+                self.data['family'] = True
         if with_relationship:
             self.data['parent'] = None
             self.data['children'] = []
@@ -505,22 +504,22 @@ def get_issue_list_by_project(project_id, args):
         return []
     all_issues = redmine_lib.redmine.issue.filter(**default_filters)
     nx_issue_params = {'nx_project': nx_project}
-    # 透過 selection params 決定是否顯示 parent & children 欄位
+    # 透過 selection params 決定是否顯示 family bool 欄位
     if not args['selection']:
         nx_issue_params['relationship_bool'] = True
 
     for redmine_issue in all_issues:
         nx_issue_params['redmine_issue'] = redmine_issue
         issue = NexusIssue().set_redmine_issue_v2(**nx_issue_params).to_json()
-        # 如果 parent 有值，代表此 issue 是別人的 children
-        if 'parent' in issue and not issue['parent']:
-            children_issues = redmine_lib.redmine.issue.filter(parent_id=redmine_issue.id, status_id='*')
-            if len(children_issues):
-                issue['children'] = True
+        # 如果 family 是 False，代表 issue 不是 parent，但必須另外檢查是不是有 children
+        if 'family' in issue and not issue['family']:
+            check_children = redmine_lib.redmine.issue.filter(parent_id=redmine_issue.id, status_id='*')
+            if len(check_children):
+                issue['family'] = True
         output.append(issue)
 
-    if args['page'] and args['per_page']:
-        page_dict = util.get_pagination(all_issues.total_count, args['page'], args['per_page'])
+    if args['limit'] and args['offset'] is not None:
+        page_dict = util.get_pagination(all_issues.total_count, args['limit'], args['offset'])
         output = {'issue_list': output, 'page': page_dict}
     return output
 
@@ -568,10 +567,10 @@ def get_custom_filters_by_args(args=None, project_id=None):
         default_filters['project_id'] = project_id
     if args:
         handle_allowed_keywords(default_filters, args)
-        if args.get('page', None) and args.get('per_page', None):
-            default_filters['limit'] = args['per_page']
-            # offset 從 0 開始計算
-            default_filters['offset'] = args['per_page']*(args['page']-1)
+        # offset 可能為 0
+        if args.get('limit', None) and args.get('offset') is not None:
+            default_filters['limit'] = args['limit']
+            default_filters['offset'] = args['offset']
         if args.get('search', None):
             handle_search(default_filters, args)
     return default_filters
@@ -583,7 +582,7 @@ def handle_allowed_keywords(default_filters, args):
         if key == 'assigned_to_id':
             if args.get(key, None) and args[key] == 'null':
                 default_filters[key] = '!*'
-            elif args.get(key, None):
+            elif args.get(key, None) and args[key].isdigit():
                 try:
                     nx_user = db.session.query(model.UserPluginRelation).join(
                         model.User).filter_by(id=int(args[key])).one()
@@ -637,14 +636,26 @@ def get_issue_assigned_to_search(keyword, default_filters):
 
 
 # 取得 issue 相關的 parent & children 資訊
-def get_issue_family(issue_id):
+def get_issue_family(issue_id, relation=None):
     output = {}
-    redmine_issue = redmine_lib.redmine.issue.get(issue_id, include=['children'])
+    if relation == 'true':
+        redmine_issue = redmine_lib.redmine.issue.get(issue_id, include=['children', 'relations'])
+        if hasattr(redmine_issue, 'relations') and len(redmine_issue.relations):
+            output['relations']=[]
+            for relation in redmine_issue.relations:
+                if relation.issue_id != issue_id:
+                    rel_issue_id = relation.issue_id
+                else:
+                    rel_issue_id = relation.issue_to_id
+                rel_issue = redmine_lib.redmine.issue.get(rel_issue_id)
+                output['relations'].append(NexusIssue().set_redmine_issue_v2(rel_issue).to_json())
+    else:
+        redmine_issue = redmine_lib.redmine.issue.get(issue_id, include=['children'])
     if hasattr(redmine_issue, 'parent'):
         parent_issue = redmine_lib.redmine.issue.get(redmine_issue.parent.id)
         output['parent'] = NexusIssue().set_redmine_issue_v2(parent_issue).to_json()
     if len(redmine_issue.children):
-        children_issues = redmine_lib.redmine.issue.filter(parent_id=issue_id, status='*')
+        children_issues = redmine_lib.redmine.issue.filter(parent_id=issue_id, status_id='*')
         output['children'] = [NexusIssue().set_redmine_issue_v2(redmine_issue).to_json()
                               for redmine_issue in children_issues]
     return output
@@ -1324,8 +1335,8 @@ class IssueListByProject(Resource):
         parser.add_argument('tracker_id', type=int)
         parser.add_argument('assigned_to_id', type=str)
         parser.add_argument('priority_id', type=int)
-        parser.add_argument('page', type=int)
-        parser.add_argument('per_page', type=int)
+        parser.add_argument('limit', type=int)
+        parser.add_argument('offset', type=int)
         parser.add_argument('search', type=str)
         parser.add_argument('selection', type=bool)
         args = parser.parse_args()
@@ -1412,7 +1423,10 @@ class IssueFamily(Resource):
     @jwt_required
     def get(self, issue_id):
         require_issue_visible(issue_id)
-        family = get_issue_family(issue_id)
+        parser = reqparse.RequestParser()
+        parser.add_argument('relation', type=str)
+        args = parser.parse_args()
+        family = get_issue_family(issue_id, args['relation'])
         return util.success(family)
 
 
