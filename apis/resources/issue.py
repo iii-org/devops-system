@@ -518,8 +518,8 @@ def get_issue_list_by_project(project_id, args):
                 issue['family'] = True
         output.append(issue)
 
-    if args['page'] and args['per_page']:
-        page_dict = util.get_pagination(all_issues.total_count, args['page'], args['per_page'])
+    if args['limit'] and args['offset'] is not None:
+        page_dict = util.get_pagination(all_issues.total_count, args['limit'], args['offset'])
         output = {'issue_list': output, 'page': page_dict}
     return output
 
@@ -567,10 +567,10 @@ def get_custom_filters_by_args(args=None, project_id=None):
         default_filters['project_id'] = project_id
     if args:
         handle_allowed_keywords(default_filters, args)
-        if args.get('page', None) and args.get('per_page', None):
-            default_filters['limit'] = args['per_page']
-            # offset 從 0 開始計算
-            default_filters['offset'] = args['per_page']*(args['page']-1)
+        # offset 可能為 0
+        if args.get('limit', None) and args.get('offset') is not None:
+            default_filters['limit'] = args['limit']
+            default_filters['offset'] = args['offset']
         if args.get('search', None):
             handle_search(default_filters, args)
     return default_filters
@@ -1323,8 +1323,8 @@ class IssueListByProject(Resource):
         parser.add_argument('tracker_id', type=int)
         parser.add_argument('assigned_to_id', type=str)
         parser.add_argument('priority_id', type=int)
-        parser.add_argument('page', type=int)
-        parser.add_argument('per_page', type=int)
+        parser.add_argument('limit', type=int)
+        parser.add_argument('offset', type=int)
         parser.add_argument('search', type=str)
         parser.add_argument('selection', type=bool)
         args = parser.parse_args()
