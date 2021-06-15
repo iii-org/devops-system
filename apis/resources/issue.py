@@ -636,9 +636,21 @@ def get_issue_assigned_to_search(keyword, default_filters):
 
 
 # 取得 issue 相關的 parent & children 資訊
-def get_issue_family(issue_id):
+def get_issue_family(issue_id, relation=None):
     output = {}
-    redmine_issue = redmine_lib.redmine.issue.get(issue_id, include=['children'])
+    if relation == 'true':
+        redmine_issue = redmine_lib.redmine.issue.get(issue_id, include=['children', 'relations'])
+        if hasattr(redmine_issue, 'relations') and len(redmine_issue.relations):
+            output['relations']=[]
+            for relation in redmine_issue.relations:
+                if relation.issue_id != issue_id:
+                    rel_issue_id = relation.issue_id
+                else:
+                    rel_issue_id = relation.issue_to_id
+                rel_issue = redmine_lib.redmine.issue.get(rel_issue_id)
+                output['relations'].append(NexusIssue().set_redmine_issue_v2(rel_issue).to_json())
+    else:
+        redmine_issue = redmine_lib.redmine.issue.get(issue_id, include=['children'])
     if hasattr(redmine_issue, 'parent'):
         parent_issue = redmine_lib.redmine.issue.get(redmine_issue.parent.id)
         output['parent'] = NexusIssue().set_redmine_issue_v2(parent_issue).to_json()
@@ -1411,7 +1423,10 @@ class IssueFamily(Resource):
     @jwt_required
     def get(self, issue_id):
         require_issue_visible(issue_id)
-        family = get_issue_family(issue_id)
+        parser = reqparse.RequestParser()
+        parser.add_argument('relation', type=str)
+        args = parser.parse_args()
+        family = get_issue_family(issue_id, args['relation'])
         return util.success(family)
 
 
