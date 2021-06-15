@@ -635,13 +635,12 @@ def get_issue_assigned_to_search(keyword, default_filters):
     return assigned_to_issue
 
 
-# 取得 issue 相關的 parent & children 資訊
-def get_issue_family(issue_id, relation=None):
-    output = {}
-    if relation == 'true':
+# 取得 issue 相關的 parent & children & relations 資訊
+def get_issue_family(issue_id, args):
+    output = defaultdict(list)
+    if args.get('relation', False):
         redmine_issue = redmine_lib.redmine.issue.get(issue_id, include=['children', 'relations'])
         if hasattr(redmine_issue, 'relations') and len(redmine_issue.relations):
-            output['relations']=[]
             for relation in redmine_issue.relations:
                 if relation.issue_id != issue_id:
                     rel_issue_id = relation.issue_id
@@ -1424,9 +1423,9 @@ class IssueFamily(Resource):
     def get(self, issue_id):
         require_issue_visible(issue_id)
         parser = reqparse.RequestParser()
-        parser.add_argument('relation', type=str)
+        parser.add_argument('relation', type=bool)
         args = parser.parse_args()
-        family = get_issue_family(issue_id, args['relation'])
+        family = get_issue_family(issue_id, args)
         return util.success(family)
 
 
