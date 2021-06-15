@@ -25,6 +25,12 @@ class Rancher(object):
             'data' : args.get('parameter'),
             'type' : 'secret'
         }
+    def get_secret_into_rc_all(self):
+        output = {}
+        data = rancher.rc_get_secrets_all_list()
+
+        return data
+
     def add_secrets_into_rc_all(self):
         self.parameter['name'] = self.name
         rancher.rc_add_secrets_into_rc_all(self.parameter)
@@ -74,17 +80,23 @@ def get_plugin_softwares():
 
 
 def get_plugin_software_by_id(plugin_id):
+    output = {}
     plugin = model.PluginSoftware.query.\
         filter(model.PluginSoftware.id == plugin_id).\
         first()
-    
+    output = row_to_dict(plugin)
     if plugin.type_id == 2:
-        k8s = Rancher()
-        k8s.add_secrets_into_rc_all()        
-
-    else:
-        return row_to_dict(plugin)
-    
+        args = {
+            'name' :plugin.name
+        }
+        k8s = Rancher(args)
+        secrets = k8s.get_secret_into_rc_all()
+        print(secrets)
+        for secret in secrets:
+            if secret['name'] == plugin.name :
+                output['parameter'] = secret['data']
+                break                
+    return output
 
 
 def get_plugin_software_by_name(plugin_name):
