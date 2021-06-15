@@ -409,8 +409,7 @@ def create_issue(args, operator_id):
         operator_plugin_relation = nexus.nx_get_user_plugin_relation(
             user_id=operator_id)
         plan_operator_id = operator_plugin_relation.plan_user_id
-    output = redmine.rm_create_issue(args, plan_operator_id)
-    return util.success({"issue_id": output["issue"]["id"]})
+    return redmine.rm_create_issue(args, plan_operator_id)
 
 
 def update_issue(issue_id, args, operator_id):
@@ -1264,7 +1263,8 @@ class SingleIssue(Resource):
         parser.add_argument('upload_content_type', type=str)
 
         args = parser.parse_args()
-        return create_issue(args, get_jwt_identity()['user_id'])
+        rm_output = create_issue(args, get_jwt_identity()['user_id'])
+        return util.success({"issue_id": rm_output["issue"]["id"]})
 
     @jwt_required
     def put(self, issue_id):
