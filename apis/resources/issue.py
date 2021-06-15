@@ -521,18 +521,10 @@ def get_issue_list_by_project(project_id, args):
         output.append(issue)
 
     if args['limit'] and args['offset'] is not None:
-        page_dict = util.get_pagination(get_issue_total_count(default_filters),
+        page_dict = util.get_pagination(all_issues.total_count,
                                         args['limit'], args['offset'])
         output = {'issue_list': output, 'page': page_dict}
     return output
-
-
-def get_issue_total_count(default_filters):
-    new_filter = {
-        key: default_filters[key] for key in default_filters if key not in ['limit', 'offset']
-    }
-    total_count = len(redmine_lib.redmine.issue.filter(**new_filter))
-    return total_count
 
 
 def get_issue_by_tree_by_project(project_id):
