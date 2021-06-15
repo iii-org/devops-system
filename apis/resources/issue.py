@@ -583,7 +583,7 @@ def handle_allowed_keywords(default_filters, args):
         if key == 'assigned_to_id':
             if args.get(key, None) and args[key] == 'null':
                 default_filters[key] = '!*'
-            elif args.get(key, None):
+            elif args.get(key, None) and args[key].isdigit():
                 try:
                     nx_user = db.session.query(model.UserPluginRelation).join(
                         model.User).filter_by(id=int(args[key])).one()
@@ -644,7 +644,7 @@ def get_issue_family(issue_id):
         parent_issue = redmine_lib.redmine.issue.get(redmine_issue.parent.id)
         output['parent'] = NexusIssue().set_redmine_issue_v2(parent_issue).to_json()
     if len(redmine_issue.children):
-        children_issues = redmine_lib.redmine.issue.filter(parent_id=issue_id, status='*')
+        children_issues = redmine_lib.redmine.issue.filter(parent_id=issue_id, status_id='*')
         output['children'] = [NexusIssue().set_redmine_issue_v2(redmine_issue).to_json()
                               for redmine_issue in children_issues]
     return output
