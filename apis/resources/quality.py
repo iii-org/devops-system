@@ -81,7 +81,7 @@ def qu_get_testplan_list(project_id):
 
 
 def qu_get_testplan(project_id, testplan_id):
-    issue_info = issue.get_issue_new_parser(project_id, testplan_id)
+    issue_info = issue.get_issue(testplan_id)
     test_plan_file_conn_list = qu_get_testplan_testfile_relate_list(
         project_id)
     issue_info["test_files"] = []

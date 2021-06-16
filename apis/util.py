@@ -221,14 +221,18 @@ def rows_to_list(rows):
     return out
 
 
-def get_pagination(total_count, page, per_page):
-    pages = math.ceil(float(total_count)/per_page)
+def get_pagination(total_count, limit, offset):
+    page = math.ceil(float(offset)/limit)
+    if offset % limit == 0:
+        page += 1
+    pages = math.ceil(float(total_count)/limit)
     page_dict = {
         'current': page,
         'prev': page-1 if page-1 > 0 else None,
-        'next': page+1 if page+1 < pages else None,
+        'next': page+1 if page+1 <= pages else None,
         'pages': pages,
-        'per_page': per_page,
+        'limit': limit,
+        'offset': offset,
         'total': total_count
     }
     return page_dict

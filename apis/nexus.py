@@ -104,3 +104,11 @@ def nx_update_project(project_id, args):
         setattr(project, key, args[key])
     project.update_at = str(datetime.utcnow())
     model.db.session.commit()
+
+
+def nx_get_repository_id(project_id):
+    return nx_get_project_plugin_relation(project_id).git_repository_id
+
+
+def nx_get_redmine_id(project_id):
+    return nx_get_project_plugin_relation(project_id).plan_project_id

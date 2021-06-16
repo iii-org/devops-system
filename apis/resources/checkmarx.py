@@ -11,6 +11,7 @@ from sqlalchemy import desc
 from sqlalchemy.orm.exc import NoResultFound
 
 import config
+import nexus
 from model import Checkmarx as Model
 from model import db
 from resources import apiError, gitlab
@@ -143,7 +144,7 @@ class CheckMarx(object):
     @staticmethod
     def get_latest(column, project_id):
         try:
-            repo_id = gitlab.get_repository_id(project_id)
+            repo_id = nexus.nx_get_repository_id(project_id)
         except NoResultFound:
             return -1
         row = Model.query.filter_by(repo_id=repo_id).order_by(
@@ -180,7 +181,7 @@ class CheckMarx(object):
 
     @staticmethod
     def list_scans(project_id):
-        rows = Model.query.filter_by(repo_id=gitlab.get_repository_id(project_id)).order_by(
+        rows = Model.query.filter_by(repo_id=nexus.nx_get_repository_id(project_id)).order_by(
             desc(Model.scan_id)).all()
         ret = []
         for row in rows:
