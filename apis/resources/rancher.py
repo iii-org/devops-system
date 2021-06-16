@@ -84,17 +84,21 @@ class Rancher(object):
         response = self.__api_get(path)
         return response.json()
 
-    def rc_get_pipeline_executions(self, ci_project_id, ci_pipeline_id, run=None, execution_id=None):
+    def rc_get_pipeline_executions(self, ci_project_id, ci_pipeline_id, run=None, limit=None, page_start=None):
         path = f'/projects/{ci_project_id}/pipelineexecutions'
         params = {
             'order': 'desc',
             'sort': 'started',
             'pipelineId': ci_pipeline_id
         }
+        if limit is not None:
+            params['limit']=limit
+        if  page_start is not None:
+            params['marker']=f"{ci_pipeline_id}-{page_start}"
         if run is not None:
             params['run'] = run
         response = self.__api_get(path, params=params)
-        output_array = response.json()['data']
+        output_array = response.json()
         return output_array
 
     def rc_get_pipeline_executions_action(self, ci_project_id, ci_pipeline_id, pipelines_exec_run,
@@ -125,7 +129,7 @@ class Rancher(object):
         output_executions = self.rc_get_pipeline_executions(
             self.project_id, ci_pipeline_id, run=pipelines_exec_run
         )
-        output_execution = output_executions[0]
+        output_execution = output_executions['data'][0]
         for index, stage in enumerate(
                 output_execution['pipelineConfig']['stages']):
             tmp_step_message = []
@@ -199,7 +203,7 @@ class Rancher(object):
         output_executions = self.rc_get_pipeline_executions(
             ci_project_id, ci_pipeline_id, run=pipelines_exec_run
         )
-        output_execution = output_executions[0]
+        output_execution = output_executions['data'][0]
         for index, stage in enumerate(
                 output_execution['pipelineConfig']['stages']):
             tmp_step_message = []
