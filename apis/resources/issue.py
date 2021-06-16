@@ -645,7 +645,8 @@ def get_issue_family(issue_id, args):
         redmine_issue = redmine_lib.redmine.issue.get(issue_id, include=['children', 'relations'])
         if hasattr(redmine_issue, 'relations') and len(redmine_issue.relations):
             for relation in redmine_issue.relations:
-                if relation.issue_id != issue_id:
+                rel_issue_id = 0
+                if relation.issue_id != int(issue_id):
                     rel_issue_id = relation.issue_id
                 else:
                     rel_issue_id = relation.issue_to_id
