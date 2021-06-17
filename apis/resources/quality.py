@@ -1,16 +1,20 @@
-from flask_restful import Resource, reqparse
 import json
 import urllib.parse
 
+import model
+import util as util
+import werkzeug
+from flask_restful import Resource, reqparse
+from model import db
 from nexus import nx_get_project_plugin_relation
-from .gitlab import gitlab
-from resources.redmine import redmine
+
+import resources.apiError as apiError
 import resources.pipeline as pipeline
 from resources import apiTest, sideex
+from resources.redmine import redmine
+
 from . import issue
-import util as util
-import model
-from model import db
+from .gitlab import gitlab
 
 paths = [{
     "software_name": "Postman",
@@ -219,6 +223,22 @@ def qu_del_testplan_testfile_relate_list(project_id, item_id):
         db.session.delete(row)
         db.session.commit()
 
+def qu_upload_testfile(project_id, file, software_name):
+    repository_id = nx_get_project_plugin_relation(
+        nexus_project_id=project_id).git_repository_id
+    soft_path = next(path for path in paths if path["software_name"] == software_name)
+    trees = gitlab.ql_get_collection(repository_id, soft_path['path'])
+    file_exist = next((True for tree in trees if tree["name"] == file.filename), False)
+    if file_exist:
+        raise apiError.DevOpsError(
+                409,
+                f"Test File {file.filename} already exists in git repository")
+    file_path = f"{soft_path['path']}/{file.filename}"
+    next_run = pipeline.get_pipeline_next_run(repository_id)
+    gitlab.gl_create_file(repository_id, file_path, file)
+    print(f"next_run: {next_run}")
+    pipeline.stop_and_delete_pipeline(repository_id, next_run)
+
 
 def qu_del_testfile(project_id, test_file_name):
     rows = model.IssueCollectionRelation.query.filter_by(file_name=test_file_name).all()
@@ -254,6 +274,14 @@ class TestFileList(Resource):
 
 
 class TestFile(Resource):
+    def post(self, project_id):
+        parser = reqparse.RequestParser()
+        parser.add_argument('software_name', type=str, required=True)
+        parser.add_argument('test_file', type=werkzeug.datastructures.FileStorage, location='files', required=True)
+        args = parser.parse_args()
+        qu_upload_testfile(project_id, args['test_file'], args['software_name'])
+        return util.success()
+        
     def delete(self, project_id, test_file_name):
         out = qu_del_testfile(project_id, test_file_name)
         return util.success(out)

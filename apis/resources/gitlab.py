@@ -2,6 +2,7 @@ import base64
 import json
 import shutil
 from datetime import datetime, time, timedelta
+from pathlib import Path
 
 import config
 import model
@@ -616,6 +617,21 @@ class GitLab(object):
         f_byte = pj.files.raw(file_path=path, ref=pj.default_branch).decode()
         return f_byte
 
+    def gl_create_file(self, repository_id, file_path, file):
+        pj = self.gl.projects.get(repository_id)
+        Path("pj_upload_file").mkdir(exist_ok=True)
+        shutil.rmtree(f"pj_upload_file/{file.filename}", ignore_errors=True)
+        file.save(f"pj_upload_file/{file.filename}")
+        with open(f"pj_upload_file/{file.filename}", 'r') as f:
+            content = base64.b64encode(bytes(f.read(), encoding='utf-8')).decode('utf-8')
+            pj.files.create({'file_path': file_path, 
+                            'branch': pj.default_branch, 
+                            'encoding': 'base64',
+                            'author_email': 'system@iiidevops.org.tw',
+                            'author_name': 'System',
+                            'content': content, 
+                            'commit_message': f'Add file {file_path}'})
+        shutil.rmtree(f"pj_upload_file/{file.filename}", ignore_errors=True)
 
 # --------------------- Resources ---------------------
 gitlab = GitLab()
