@@ -1,6 +1,6 @@
 import base64
 import json
-import shutil
+import os
 from datetime import datetime, time, timedelta
 from pathlib import Path
 
@@ -210,7 +210,8 @@ class GitLab(object):
         return self.__api_get(f'/users/{gitlab_user_id}/emails')
 
     def gl_delete_user_email(self, gitlab_user_id, gitlab_email_id):
-        return self.__api_delete(f'/users/{gitlab_user_id}/emails/{gitlab_email_id}')
+        return self.__api_delete(
+            f'/users/{gitlab_user_id}/emails/{gitlab_email_id}')
 
     def gl_count_branches(self, repo_id):
         output = self.__api_get(f'/projects/{repo_id}/repository/branches')
@@ -611,7 +612,7 @@ class GitLab(object):
                 404,
                 "Error when getting project repository_tree.",
                 error=apiError.gitlab_error(e))
-    
+
     def gl_get_file(self, repository_id, path):
         pj = self.gl.projects.get(repository_id)
         f_byte = pj.files.raw(file_path=path, ref=pj.default_branch).decode()
@@ -620,18 +621,24 @@ class GitLab(object):
     def gl_create_file(self, repository_id, file_path, file):
         pj = self.gl.projects.get(repository_id)
         Path("pj_upload_file").mkdir(exist_ok=True)
-        shutil.rmtree(f"pj_upload_file/{file.filename}", ignore_errors=True)
+        if os.path.isfile(f"pj_upload_file/{file.filename}"):
+            os.remove(f"pj_upload_file/{file.filename}")
         file.save(f"pj_upload_file/{file.filename}")
         with open(f"pj_upload_file/{file.filename}", 'r') as f:
-            content = base64.b64encode(bytes(f.read(), encoding='utf-8')).decode('utf-8')
-            pj.files.create({'file_path': file_path, 
-                            'branch': pj.default_branch, 
-                            'encoding': 'base64',
-                            'author_email': 'system@iiidevops.org.tw',
-                            'author_name': 'System',
-                            'content': content, 
-                            'commit_message': f'Add file {file_path}'})
-        shutil.rmtree(f"pj_upload_file/{file.filename}", ignore_errors=True)
+            content = base64.b64encode(bytes(f.read(),
+                                             encoding='utf-8')).decode('utf-8')
+            pj.files.create({
+                'file_path': file_path,
+                'branch': pj.default_branch,
+                'encoding': 'base64',
+                'author_email': 'system@iiidevops.org.tw',
+                'author_name': 'System',
+                'content': content,
+                'commit_message': f'Add file {file_path}'
+            })
+        if os.path.isfile(f"pj_upload_file/{file.filename}"):
+            os.remove(f"pj_upload_file/{file.filename}")
+
 
 # --------------------- Resources ---------------------
 gitlab = GitLab()
