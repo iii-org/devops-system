@@ -39,6 +39,8 @@
     "HARBOR_ACCOUNT": "admin",
     "HARBOR_PASSWORD": "***********",
 
+    "INGRESS_EXTERNAL_BASE": "ingress-dev.iiidevops.org",
+
     "ADMIN_INIT_LOGIN": "devops_admin",
     "ADMIN_INIT_EMAIL": "admin@devops.iii.org",
     "ADMIN_INIT_PASSWORD": "********",
