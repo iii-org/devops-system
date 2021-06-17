@@ -99,8 +99,6 @@ def qu_get_testfile_list(project_id):
         nexus_project_id=project_id).git_repository_id
     out_list = []
     issues_info = qu_get_testplan_list(project_id)
-    postman_results = apiTest.list_results(project_id)
-    sideex_results = sideex.sd_get_tests(project_id)
     for path in paths:
         trees = gitlab.ql_get_collection(repository_id, path['path'])
         for tree in trees:
@@ -125,9 +123,7 @@ def qu_get_testfile_list(project_id):
                             if row["issue_id"] == issue_info["id"]:
                                 test_plans.append(issue_info)
                                 break
-                    the_last_result = None
-                    if len(postman_results) != 0:
-                        the_last_result = postman_results[0]
+                    the_last_result = apiTest.get_the_last_result(project_id)
                     out_list.append({
                         "software_name": path["software_name"],
                         "file_name": tree["name"],
@@ -155,9 +151,7 @@ def qu_get_testfile_list(project_id):
                                     if row["issue_id"] == issue_info["id"]:
                                         test_plans.append(issue_info)
                                         break
-                            the_last_result = None
-                            if len(sideex_results) != 0:
-                                the_last_result = sideex_results[0]
+                            the_last_result = sideex.sd_get_latest_test(project_id)
                             out_list.append({
                                 "software_name":
                                 path["software_name"],
