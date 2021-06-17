@@ -40,6 +40,7 @@
     "HARBOR_PASSWORD": "***********",
 
     "INGRESS_EXTERNAL_BASE": "ingress-dev.iiidevops.org",
+	"INGRESS_EXTERNAL_TLS": "ingress-tls",
 
     "ADMIN_INIT_LOGIN": "devops_admin",
     "ADMIN_INIT_EMAIL": "admin@devops.iii.org",
