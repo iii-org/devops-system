@@ -1,5 +1,6 @@
 import json
 import urllib.parse
+from distutils.util import strtobool
 
 import model
 import util as util
@@ -84,12 +85,19 @@ def qu_get_testplan_list(project_id):
         return issue_infos
 
 
-def qu_get_testplan(project_id, testplan_id):
-    issue_info = issue.get_issue(testplan_id)
+def qu_get_testplan(project_id, testplan_id, journals=0):
+    journals = True if journals == 1 else False
+    issue_info = issue.get_issue(testplan_id, journals=journals)
     test_plan_file_conn_list = qu_get_testplan_testfile_relate_list(project_id)
     issue_info["test_files"] = []
     for test_plan_file_conn in test_plan_file_conn_list:
         if issue_info['id'] == test_plan_file_conn['issue_id']:
+            the_last_result ={}
+            if test_plan_file_conn['software_name'] == "Postman":
+                the_last_result = apiTest.get_the_last_result(project_id)
+            elif test_plan_file_conn['software_name'] == "SideeX":
+                the_last_result = sideex.sd_get_latest_test(project_id)
+            test_plan_file_conn["the_last_test_result"] = the_last_result
             issue_info["test_files"].append(test_plan_file_conn)
     return issue_info
 
@@ -269,7 +277,13 @@ class TestPlanList(Resource):
 
 class TestPlan(Resource):
     def get(self, project_id, testplan_id):
-        out = qu_get_testplan(project_id, testplan_id)
+        parser = reqparse.RequestParser()
+        parser.add_argument('journals', type=str)
+        args = parser.parse_args()
+        journals = None
+        if args['journals'] is not None:
+            journals = strtobool(args['journals'])
+        out = qu_get_testplan(project_id, testplan_id, journals)
         return util.success(out)
 
 

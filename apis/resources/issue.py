@@ -351,8 +351,8 @@ def verify_issue_user(issue_id, user_id, issue_info=None):
     return count > 0
 
 
-def get_issue(issue_id, with_children=True):
-    issue = redmine.rm_get_issue(issue_id)
+def get_issue(issue_id, with_children=True, journals=True):
+    issue = redmine.rm_get_issue(issue_id, journals)
     redmine_issue_status = redmine.rm_get_issue_status()
     closed_statuses = redmine.get_closed_status(
         redmine_issue_status['issue_statuses'])
