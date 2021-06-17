@@ -8,6 +8,7 @@ from flask_restful import Resource, reqparse
 from sqlalchemy import or_
 from sqlalchemy.orm.exc import NoResultFound
 from collections import defaultdict
+from distutils.util import strtobool
 
 import config
 import model
@@ -504,7 +505,7 @@ def get_issue_list_by_project(project_id, args):
     all_issues = redmine_lib.redmine.issue.filter(**default_filters)
     nx_issue_params = {'nx_project': nx_project}
     # 透過 selection params 決定是否顯示 family bool 欄位
-    if not args['selection']:
+    if not args['selection'] or not strtobool(args['selection']):
         nx_issue_params['relationship_bool'] = True
 
     for redmine_issue in all_issues:
@@ -512,13 +513,15 @@ def get_issue_list_by_project(project_id, args):
         issue = NexusIssue().set_redmine_issue_v2(**nx_issue_params).to_json()
         # 如果 family 是 False，代表 issue 不是 parent，但必須另外檢查是不是有 children
         if 'family' in issue and not issue['family']:
-            check_children = redmine_lib.redmine.issue.filter(parent_id=redmine_issue.id, status_id='*')
+            check_children = redmine_lib.redmine.issue.filter(parent_id=redmine_issue.id,
+                                                              status_id='*')
             if len(check_children):
                 issue['family'] = True
         output.append(issue)
 
     if args['limit'] and args['offset'] is not None:
-        page_dict = util.get_pagination(all_issues.total_count, args['limit'], args['offset'])
+        page_dict = util.get_pagination(all_issues.total_count,
+                                        args['limit'], args['offset'])
         output = {'issue_list': output, 'page': page_dict}
     return output
 
@@ -637,11 +640,12 @@ def get_issue_assigned_to_search(keyword, default_filters):
 # 取得 issue 相關的 parent & children & relations 資訊
 def get_issue_family(issue_id, args):
     output = defaultdict(list)
-    if args.get('relation', False):
+    if args.get('relation', False) and strtobool(args['relation']):
         redmine_issue = redmine_lib.redmine.issue.get(issue_id, include=['children', 'relations'])
         if hasattr(redmine_issue, 'relations') and len(redmine_issue.relations):
             for relation in redmine_issue.relations:
-                if relation.issue_id != issue_id:
+                rel_issue_id = 0
+                if relation.issue_id != int(issue_id):
                     rel_issue_id = relation.issue_id
                 else:
                     rel_issue_id = relation.issue_to_id
@@ -1337,7 +1341,7 @@ class IssueListByProject(Resource):
         parser.add_argument('limit', type=int)
         parser.add_argument('offset', type=int)
         parser.add_argument('search', type=str)
-        parser.add_argument('selection', type=bool)
+        parser.add_argument('selection', type=str)
         args = parser.parse_args()
         output = get_issue_list_by_project(project_id, args)
         return util.success(output)
@@ -1423,7 +1427,7 @@ class IssueFamily(Resource):
     def get(self, issue_id):
         require_issue_visible(issue_id)
         parser = reqparse.RequestParser()
-        parser.add_argument('relation', type=bool)
+        parser.add_argument('relation', type=str)
         args = parser.parse_args()
         family = get_issue_family(issue_id, args)
         return util.success(family)

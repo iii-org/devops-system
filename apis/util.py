@@ -223,7 +223,7 @@ def rows_to_list(rows):
 
 def get_pagination(total_count, limit, offset):
     page = math.ceil(float(offset)/limit)
-    if offset and offset % limit == 0:
+    if offset % limit == 0:
         page += 1
     pages = math.ceil(float(total_count)/limit)
     page_dict = {
