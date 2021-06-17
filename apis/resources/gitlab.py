@@ -1,21 +1,25 @@
+import base64
 import json
-import pytz
-from datetime import datetime, timedelta, time
-from dateutil import tz
-from gitlab import Gitlab
-import requests
-from flask_jwt_extended import jwt_required, get_jwt_identity
-from flask_restful import Resource, reqparse
-from sqlalchemy.orm.exc import NoResultFound
+import shutil
+from datetime import datetime, time, timedelta
 
 import config
 import model
 import nexus
-from model import db, GitCommitNumberEachDays
+import pytz
+import requests
 import util as util
+from dateutil import tz
+from flask_jwt_extended import get_jwt_identity, jwt_required
+from flask_restful import Resource, reqparse
+from model import GitCommitNumberEachDays, db
+from sqlalchemy.orm.exc import NoResultFound
+
+from gitlab import Gitlab
 from resources import apiError, kubernetesClient, role
 from resources.apiError import DevOpsError
 from resources.logger import logger
+
 from .rancher import rancher
 
 
