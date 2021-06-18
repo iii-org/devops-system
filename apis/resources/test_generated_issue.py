@@ -27,11 +27,10 @@ def _create_or_update_issue(project_id, software_name, filename, description):
             'subject': f'{filename}__測試失敗',
             'description': description
         }
-        relation_row = tgi_create_issue(args, software_name, filename)
+        tgi_create_issue(args, software_name, filename)
     else:
         issue_id = relation_row.issue_id
         iss = issue.get_issue(issue_id=issue_id, with_children=False)
-        print(iss)
         desc = iss.get('description')
         args = {
             'description': desc + '\n' + description
