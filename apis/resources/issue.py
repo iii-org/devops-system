@@ -321,6 +321,9 @@ def __deal_with_issue_redmine_output(redmine_output, closed_status=None):
             redmine_output['journals'][i]['details'] = list_details
             i += 1
     redmine_output['issue_link'] = f'{config.get("REDMINE_EXTERNAL_BASE_URL")}/issues/{redmine_output["id"]}'
+    if 'attachments' in redmine_output:
+        for attachment in redmine_output['attachments']:
+            attachment['content_url'] = f'{config.get("REDMINE_EXTERNAL_BASE_URL")}/attachments/download/{attachment["id"]}/{attachment["filename"]}'
     redmine_output['is_closed'] = False
     if redmine_output['status']['id'] in closed_status:
         redmine_output['is_closed'] = True
@@ -351,8 +354,8 @@ def verify_issue_user(issue_id, user_id, issue_info=None):
     return count > 0
 
 
-def get_issue(issue_id, with_children=True):
-    issue = redmine.rm_get_issue(issue_id)
+def get_issue(issue_id, with_children=True, journals=True):
+    issue = redmine.rm_get_issue(issue_id, journals)
     redmine_issue_status = redmine.rm_get_issue_status()
     closed_statuses = redmine.get_closed_status(
         redmine_issue_status['issue_statuses'])
@@ -569,32 +572,35 @@ def get_custom_filters_by_args(args=None, project_id=None):
         default_filters['project_id'] = project_id
     if args:
         handle_allowed_keywords(default_filters, args)
+        if args.get('search', None):
+            handle_search(default_filters, args)
         # offset 可能為 0
         if args.get('limit', None) and args.get('offset') is not None:
             default_filters['limit'] = args['limit']
             default_filters['offset'] = args['offset']
-        if args.get('search', None):
-            handle_search(default_filters, args)
     return default_filters
 
 
 def handle_allowed_keywords(default_filters, args):
     allowed_keywords = ['fixed_version_id', 'status_id', 'tracker_id', 'assigned_to_id', 'priority_id']
     for key in allowed_keywords:
-        if key == 'assigned_to_id':
-            if args.get(key, None) and args[key] == 'null':
+        if args.get(key, None):
+            if args[key] == 'null':
                 default_filters[key] = '!*'
-            elif args.get(key, None) and args[key].isdigit():
-                try:
-                    nx_user = db.session.query(model.UserPluginRelation).join(
-                        model.User).filter_by(id=int(args[key])).one()
-                except NoResultFound:
-                    raise apiError.DevOpsError(
-                        404, 'User id {0} does not exist.'.format(int(args[key])),
-                        apiError.user_not_found(int(args[key])))
-                default_filters[key] = nx_user.plan_user_id
-        elif args.get(key, None):
-            default_filters[key] = args[key]
+            elif isinstance(args[key], str) and args[key].isdigit():
+                if key == 'assigned_to_id':
+                    try:
+                        nx_user = db.session.query(model.UserPluginRelation).join(
+                            model.User).filter_by(id=int(args[key])).one()
+                    except NoResultFound:
+                        raise apiError.DevOpsError(
+                            404, 'User id {0} does not exist.'.format(int(args[key])),
+                            apiError.user_not_found(int(args[key])))
+                    default_filters[key] = nx_user.plan_user_id
+                elif key == 'fixed_version_id':
+                    default_filters[key] = int(args[key])
+            else:
+                default_filters[key] = args[key]
 
 
 def handle_search(default_filters, args):
@@ -1333,7 +1339,7 @@ class IssueListByProject(Resource):
     def get(self, project_id):
         role.require_in_project(project_id, 'Error to get issue.')
         parser = reqparse.RequestParser()
-        parser.add_argument('fixed_version_id', type=int)
+        parser.add_argument('fixed_version_id', type=str)
         parser.add_argument('status_id', type=int)
         parser.add_argument('tracker_id', type=int)
         parser.add_argument('assigned_to_id', type=str)
