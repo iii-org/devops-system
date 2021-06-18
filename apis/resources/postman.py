@@ -11,6 +11,9 @@ from resources import apiTest, role, apiError
 
 
 # noinspection PyTypeChecker
+from resources.test_generated_issue import tgi_feed_postman
+
+
 def export_to_postman(project_id, target):
     output = {
         'info': {
@@ -133,6 +136,7 @@ def pm_save_result(args):
     row.fail = args['fail']
     row.report = args['report']
     db.session.commit()
+    tgi_feed_postman(row)
 
 
 # --------------------- Resources ---------------------

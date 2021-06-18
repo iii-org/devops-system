@@ -2,7 +2,7 @@ import os
 import model
 import util
 from resources import apiError, user
-from resources.project import list_projects
+from resources.project import get_pm_project_list
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
 
@@ -33,12 +33,12 @@ def check_subadmin(user_id):
 
 
 def get_admin_projects():
-    response = list_projects(user_id=get_admin_user_id())[0]['data']['project_list']
+    data = get_pm_project_list(user_id=get_admin_user_id())
     all_projects = [
         {
             'id': context['id'],
             'name': context['display']
-        } for context in response
+        } for context in data
     ]
     return all_projects
 

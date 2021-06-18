@@ -1,3 +1,4 @@
+import datetime
 import time
 from io import BytesIO
 import yaml
@@ -13,6 +14,7 @@ import util as util
 from resources.apiError import DevOpsError
 from resources.logger import logger
 from . import kubernetesClient, role
+from services import redmine_lib
 
 
 class Redmine:
@@ -21,7 +23,7 @@ class Redmine:
         self.last_operator_id = None
         self.redmine_key = None
         self.versions = None
-        self.issues= None
+        self.issues = None
         self.closed_status = []
         self.redmine_config_name = "redmine-config"
 
@@ -68,7 +70,7 @@ class Redmine:
                                   operator_id=operator_id, resp_format=resp_format)
 
     def __api_put(self, path, params=None, headers=None, data=None,
-                  operator_id=None, resp_format='.json'):            
+                  operator_id=None, resp_format='.json'):
         return self.__api_request('PUT', path, headers=headers, data=data, params=params,
                                   operator_id=operator_id, resp_format=resp_format)
 
@@ -139,20 +141,22 @@ class Redmine:
     def rm_delete_project(self, plan_project_id):
         return self.__api_delete('/projects/{0}'.format(plan_project_id))
 
-    def rm_list_issues(self, paging = 100, params = {'status_id': '*'}):
-        return self.paging('issues', 100,  params)
+    def rm_list_issues(self, paging=100, params={'status_id': '*'}):
+        return self.paging('issues', paging, params)
 
     def rm_get_issues_by_user(self, user_id):
         params = {'assigned_to_id': user_id, 'status_id': '*'}
-        return self.paging('issues', 100,  params)
+        return self.paging('issues', 100, params)
 
     def rm_get_issues_by_project(self, plan_project_id, args=None):
         if args is not None and 'fixed_version_id' in args and args['fixed_version_id'] is not None:
             params = {'project_id': plan_project_id, 'status_id': '*',
                       'fixed_version_id': args['fixed_version_id']}
+        elif args is not None and 'tracker_id' in args and args['tracker_id'] is not None:
+            params = {'project_id': plan_project_id, 'status_id': '*', 'tracker_id': args['tracker_id'], 'include': 'relations'}
         else:
             params = {'project_id': plan_project_id, 'status_id': '*'}
-        return self.paging('issues', 100,  params)
+        return self.paging('issues', 100, params)
 
     def rm_get_issues_by_project_and_user(self, user_id, plan_project_id):
         params = {
@@ -162,9 +166,12 @@ class Redmine:
         }
         return self.paging('issues', 100, params)
 
-    def rm_get_issue(self, issue_id):
-        params = {'include': 'children,attachments,relations,changesets,journals,watchers'}
-        output = self.__api_get('/issues/{0}'.format(issue_id), params=params)      
+    def rm_get_issue(self, issue_id, journals=True):
+        if journals is False:
+            params = {'include': 'children,attachments,relations,changesets,watchers'}
+        else:
+            params = {'include': 'children,attachments,relations,changesets,journals,watchers'}
+        output = self.__api_get('/issues/{0}'.format(issue_id), params=params)
         return output.json()['issue']
 
     def rm_get_statistics(self, params):
@@ -211,7 +218,7 @@ class Redmine:
         param = {"user": {"password": new_pwd}}
         return self.__api_put('/users/{0}'.format(plan_user_id), data=param)
 
-    def rm_get_user_list(self, args):        
+    def rm_get_user_list(self, args):
         return self.__api_get('/users', params=args).json()
 
     def rm_delete_user(self, redmine_user_id):
@@ -287,6 +294,9 @@ class Redmine:
         if 'upload_description' in args:
             ret['description'] = args['upload_description']
             del args['upload_description']
+        if 'upload_content_type' in args:
+            ret['content_type'] = args['upload_content_type']
+            del args['upload_content_type']
         return ret
 
     def rm_upload_to_project(self, plan_project_id, args):
@@ -307,9 +317,9 @@ class Redmine:
             'token': token,
             'filename': filename
         }
-        if args['description']  != None:
+        if args['description'] != None:
             params['description'] = args['description']
-        if args['version_id']  !=  None:
+        if args['version_id'] != None:
             params['version_id'] = args['version_id']
         data = {'file': params}
         res = self.__api_post('/projects/%d/files' % plan_project_id, data=data)
@@ -365,34 +375,34 @@ class Redmine:
                                headers=headers,
                                data=xml_body.encode('utf-8')).json()
 
-    def rm_list_issues_by_versions_and_closed(self, plan_project_id, versions,closed_statuses):
-        self.versions  = {}               
-        for version in versions :            
-            self.versions[version] = {'id': str(version), 'name' : "", 'closed': 0 , 'unclosed': 0 , 'issues' :  [] }
-            params = {'project_id' : plan_project_id, 'fixed_version_id': version, 'status_id' : '*'}
-            issues = self.paging('issues', 100, params )
-            self.analysis_issue_type_by_versions(issues,closed_statuses)         
+    def rm_list_issues_by_versions_and_closed(self, plan_project_id, versions, closed_statuses):
+        self.versions = {}
+        for version in versions:
+            self.versions[version] = {'id': str(version), 'name': "", 'closed': 0, 'unclosed': 0, 'issues': []}
+            params = {'project_id': plan_project_id, 'fixed_version_id': version, 'status_id': '*'}
+            issues = self.paging('issues', 100, params)
+            self.analysis_issue_type_by_versions(issues, closed_statuses)
         return list(self.versions.values())
 
-    def analysis_issue_type_by_versions(self, issues,closed_statuses):         
-        for issue in issues:    
+    def analysis_issue_type_by_versions(self, issues, closed_statuses):
+        for issue in issues:
             version_id = str(issue['fixed_version']['id'])
             if version_id not in self.versions:
-                break            
+                break
             if self.versions[version_id]['name'] == "":
-                self.versions[version_id]['name'] = issue['fixed_version']['name']                
-            if issue['closed_on']  != ""  and int(issue['status']['id']) in closed_statuses:
-                self.versions[version_id]['closed'] +=1
+                self.versions[version_id]['name'] = issue['fixed_version']['name']
+            if issue['closed_on'] != "" and int(issue['status']['id']) in closed_statuses:
+                self.versions[version_id]['closed'] += 1
             else:
-                self.versions[version_id]['unclosed'] +=1
-            self.versions[version_id]['issues'].append(issue)              
-            
-    def get_closed_status(self, statuses):        
+                self.versions[version_id]['unclosed'] += 1
+            self.versions[version_id]['issues'].append(issue)
+
+    def get_closed_status(self, statuses):
         for status in statuses:
             if status['is_closed'] is True:
                 self.closed_status.append(status['id'])
         return self.closed_status
-    
+
     def rm_get_or_create_configmap(self):
         configs = kubernetesClient.list_namespace_configmap("default")
         if any(self.redmine_config_name == config.get("name") for config in configs) is False:
@@ -419,6 +429,11 @@ class Redmine:
     def rm_build_external_link(path):
         return f"{config.get('REDMINE_EXTERNAL_BASE_URL')}{path}"
 
+    def rm_update_email(self, plan_user_id, new_email):
+        user = redmine_lib.redmine.user.get(plan_user_id)
+        setattr(user, 'mail', new_email)
+        user.save()
+
 
 # --------------------- Resources ---------------------
 redmine = Redmine()
@@ -427,11 +442,12 @@ redmine = Redmine()
 class RedmineFile(Resource):
     @jwt_required
     def get(self):
-        role.require_admin()
         parser = reqparse.RequestParser()
         parser.add_argument('id', type=int)
         parser.add_argument('filename', type=str)
+        parser.add_argument('project_id', type=int, required=True)
         args = parser.parse_args()
+        role.require_in_project(args['project_id'], "Error while download redmine file.")
         return redmine.rm_download_attachment(args)
 
     @jwt_required
@@ -455,21 +471,25 @@ class RedmineMail(Resource):
         return util.success()
 
 class RedmineRelease():
-    @jwt_required    
-    def check_redemine_release(self, targets, versions, main_version =  None):
-        output = { 'check' : True,"info":"", 'errors':{},'versions' : {"pass": [], "failed": []},'failed_name' : [], 'issues':[]}       
-        for target in targets :
+    @jwt_required
+    def check_redemine_release(self, targets, versions, main_version=None):
+        output = {'check': True, "info": "", 'errors': {}, 'versions': {"pass": [], "failed": []}, 'failed_name': [],
+                  'issues': []}
+        for target in targets:
             version_id = str(target['id'])
-            if version_id  ==  main_version:
-                output['errors'] = {"id": version_id,'name':versions[version_id]['name']}
+            if version_id == main_version:
+                output['errors'] = {"id": version_id, 'name': versions[version_id]['name']}
             if target['unclosed'] != 0:
-                output['check'] = False            
-                output['versions']['failed'].append({"id": version_id,'name':versions[version_id]['name']}) 
+                output['check'] = False
+                output['versions']['failed'].append({"id": version_id, 'name': versions[version_id]['name']})
                 output['failed_name'].append(versions[version_id]['name'])
                 output['issues'] += target['issues']
             else:
-                output['versions']['pass'].append({"id": version_id,'name':versions[version_id]['name']}) 
-        if len(output['failed_name']) > 0 :
-            output['info'] = 'Issue is not closed in version {0} in redmine'.format(' '.join(map(str, output['failed_name'])))
+                output['versions']['pass'].append({"id": version_id, 'name': versions[version_id]['name']})
+        if len(output['failed_name']) > 0:
+            output['info'] = 'Issue is not closed in version {0} in redmine'.format(
+                ' '.join(map(str, output['failed_name'])))
         return output
+
+
 rm_release = RedmineRelease()

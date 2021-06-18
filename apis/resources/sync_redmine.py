@@ -4,13 +4,18 @@ import util
 from . import role
 from sqlalchemy import func
 from operator import itemgetter
-from resources.project import list_projects
+from resources.project import get_pm_project_list
 from resources.user import user_list_by_project
 from resources.issue import get_issue_by_project
 from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource
+
+STATUS_IN_PROGRESS = 'in_progress'
+STATUS_NOT_STARTED = 'not_started'
+STATUS_OVERDUE = 'overdue'
+STATUS_CLOSED = 'closed'
 
 # Get admin account from environment
 admin_account = os.environ.get('ADMIN_INIT_LOGIN')
@@ -30,10 +35,7 @@ def round_off_float(num):
 def calculate_expired_days(last):
     first_date = datetime.now().date()
     last_date = datetime.strptime(last, "%Y-%m-%d").date()
-    if first_date > last_date:
-        expired_days = None
-    else:
-        expired_days = (last_date - first_date).days
+    expired_days = (last_date - first_date).days
     return expired_days
 
 
@@ -89,16 +91,14 @@ def clear_all_tables():
 
 def sync_redmine(sync_date):
     need_to_track_issue = []
-    response = list_projects(user_id=get_admin_user_id())
-    all_projects = response[0]['data']['project_list']
+    all_projects = get_pm_project_list(user_id=get_admin_user_id())
     if all_projects:
         for project in all_projects:
-            project_status = 'Not_Started'
-            if project['total_count']:
-                project_status = 'Started'
+            project_status = project['project_status']
+            if project_status == STATUS_IN_PROGRESS:
                 need_to_track_issue.append(project['id'])
-            if check_overdue(project['due_date']):
-                project_status = 'Overdue'
+            if check_overdue(project['due_date']) and project_status != STATUS_CLOSED:
+                project_status = STATUS_OVERDUE
             member_count = insert_project_member(project['id'],
                                                  project['display'])
             insert_project(project, member_count, sync_date, project_status)
@@ -111,9 +111,9 @@ def insert_project(project, member_count, sync_date, project_status):
     new_data = {
         'project_id': project['id'],
         'project_name': project['display'],
-        'pm_user_id': project['pm_user_id'],
-        'pm_user_login': model.User.query.get(project['pm_user_id']).login,
-        'pm_user_name': project['pm_user_name'],
+        'owner_id': project['owner_id'],
+        'owner_login': model.User.query.get(project['owner_id']).login,
+        'owner_name': project['owner_name'],
         'complete_percent': get_complete_percent(project),
         'closed_issue_count': project['closed_count'],
         'unclosed_issue_count': project['total_count'] - project['closed_count'],
@@ -208,48 +208,51 @@ def get_current_sync_date_project_id_by_user():
     sync_date = get_sync_date()
     user_id = get_jwt_identity()['user_id']
     role_id = get_jwt_identity()['role_id']
+    project_id_collections = model.RedmineProject.query.with_entities(
+        model.RedmineProject.project_id).filter(
+            model.RedmineProject.sync_date == sync_date,
+            model.RedmineProject.project_status != STATUS_CLOSED)
+
     if role_id == role.ADMIN.id:
-        project_id_collections = model.RedmineProject.query.with_entities(
-            model.RedmineProject.project_id).filter_by(
-                sync_date=sync_date).order_by(
+        project_id_collections = project_id_collections.order_by(
                     model.RedmineProject.end_date).all()
     else:
         reverse_query_projects = model.ProjectUserRole.query.with_entities(
             model.ProjectUserRole.project_id).filter_by(user_id=user_id).subquery()
-        project_id_collections = model.RedmineProject.query.with_entities(
-            model.RedmineProject.project_id).filter(
-                model.RedmineProject.sync_date == sync_date,
-                model.RedmineProject.project_id.in_(reverse_query_projects)).order_by(
+
+        project_id_collections = project_id_collections.filter(
+            model.RedmineProject.project_id.in_(reverse_query_projects)).order_by(
                     model.RedmineProject.end_date).all()
     return list(sum(project_id_collections, ()))
 
 
 def get_project_by_current_sync_date(detail, own_project):
     sync_date = get_sync_date()
+    project_collections = model.RedmineProject.query.filter(
+            model.RedmineProject.sync_date == sync_date,
+            model.RedmineProject.project_status != STATUS_CLOSED,
+            model.RedmineProject.project_id.in_(own_project)).order_by(
+                model.RedmineProject.end_date)
     if detail:
-        return model.RedmineProject.query.filter(
-            model.RedmineProject.sync_date == sync_date,
-            model.RedmineProject.project_id.in_(own_project)).order_by(
-                model.RedmineProject.end_date).all()
+        return project_collections.all()
     else:
-        return model.RedmineProject.query.filter(
-            model.RedmineProject.sync_date == sync_date,
-            model.RedmineProject.project_id.in_(own_project)).order_by(
-                model.RedmineProject.end_date).limit(5).all()
+        return project_collections.limit(5).all()
 
 
 def get_user_id_by_project(own_project):
     user_id_collections = model.RedmineIssue.query.filter(
         model.RedmineIssue.project_id.in_(own_project),
+        model.RedmineProject.project_status != STATUS_CLOSED,
         model.RedmineIssue.assigned_to_id.isnot(None)).with_entities(
             model.RedmineIssue.assigned_to_id).distinct().all()
     return list(sum(user_id_collections, ()))
 
 
 def get_current_sync_date_project_by_project_id(project_id, sync_date):
-    return model.RedmineProject.query.filter_by(
-        project_id=project_id,
-        sync_date=sync_date).order_by(model.RedmineProject.end_date).first()
+    return model.RedmineProject.query.filter(
+        model.RedmineProject.project_status != STATUS_CLOSED,
+        model.RedmineProject.project_id == project_id,
+        model.RedmineProject.sync_date == sync_date).order_by(model.RedmineProject.end_date).first()
 
 
 def get_last_test_results(project_id):
@@ -281,15 +284,15 @@ def get_project_count_by_user_and_project(user_id, own_project):
 def get_current_sync_date_project_count_by_status(own_project,
                                                   sync_date,
                                                   status=None):
+    project_collections = model.RedmineProject.query.filter(
+            model.RedmineProject.project_id.in_(own_project),
+            model.RedmineProject.sync_date == sync_date)
     if status:
-        return model.RedmineProject.query.filter(
-            model.RedmineProject.project_id.in_(own_project),
-            model.RedmineProject.project_status == status,
-            model.RedmineProject.sync_date == sync_date).count()
+        return project_collections.filter(
+            model.RedmineProject.project_status == status).count()
     else:
-        return model.RedmineProject.query.filter(
-            model.RedmineProject.project_id.in_(own_project),
-            model.RedmineProject.sync_date == sync_date).count()
+        return project_collections.filter(
+            model.RedmineProject.project_status != STATUS_CLOSED).count()
 
 
 # --------------------- API Tasks ---------------------
@@ -323,9 +326,9 @@ def get_project_members_detail(own_project):
     project_member_detail = [{
         'project_id': context.project_id,
         'project_name': context.project_name,
-        'pm_user_id': context.pm_user_id,
-        'pm_user_name': context.pm_user_name,
-        'pm_user_login': context.pm_user_login,
+        'owner_id': context.owner_id,
+        'owner_name': context.owner_name,
+        'owner_login': context.owner_login,
         'member_count': context.member_count,
         'start_date': context.start_date.strftime("%Y-%m-%d"),
         'end_date': context.end_date.strftime("%Y-%m-%d"),
@@ -353,13 +356,13 @@ def get_project_overview(own_project):
     projects = get_current_sync_date_project_count_by_status(
         own_project=own_project, sync_date=sync_date)
     overdue = get_current_sync_date_project_count_by_status(
-        own_project=own_project, sync_date=sync_date, status='Overdue')
+        own_project=own_project, sync_date=sync_date, status=STATUS_OVERDUE)
     not_started = get_current_sync_date_project_count_by_status(
-        own_project=own_project, sync_date=sync_date, status='Not_Started')
+        own_project=own_project, sync_date=sync_date, status=STATUS_NOT_STARTED)
     index = {
-        'Projects': projects,
-        'Overdue': overdue,
-        'Not_Started': not_started
+        'projects': projects,
+        STATUS_OVERDUE: overdue,
+        STATUS_NOT_STARTED: not_started
     }
     project_overview = [{
         'project_status': key,
@@ -374,9 +377,9 @@ def get_redmine_projects(detail, own_project):
     redmine_projects = [{
         'project_id': context.project_id,
         'project_name': context.project_name,
-        'pm_user_id': context.pm_user_id,
-        'pm_user_login': context.pm_user_login,
-        'pm_user_name': context.pm_user_name,
+        'owner_id': context.owner_id,
+        'owner_login': context.owner_login,
+        'owner_name': context.owner_name,
         'complete_percent': context.complete_percent,
         'unclosed_issue_count': context.unclosed_issue_count,
         'closed_issue_count': context.closed_issue_count,

@@ -1,20 +1,26 @@
+import base64
 import json
-import pytz
-from datetime import datetime, timedelta, time
-from dateutil import tz
-from gitlab import Gitlab
-import requests
-from flask_jwt_extended import jwt_required, get_jwt_identity
-from flask_restful import Resource, reqparse
-from sqlalchemy.orm.exc import NoResultFound
+import os
+from datetime import datetime, time, timedelta
+from pathlib import Path
 
 import config
 import model
-from model import db, GitCommitNumberEachDays
+import nexus
+import pytz
+import requests
 import util as util
+from dateutil import tz
+from flask_jwt_extended import get_jwt_identity, jwt_required
+from flask_restful import Resource, reqparse
+from model import GitCommitNumberEachDays, db
+from sqlalchemy.orm.exc import NoResultFound
+
+from gitlab import Gitlab
 from resources import apiError, kubernetesClient, role
 from resources.apiError import DevOpsError
 from resources.logger import logger
+
 from .rancher import rancher
 
 
@@ -38,8 +44,7 @@ def commit_id_to_url(project_id, commit_id):
 
 # May throws NoResultFound
 def get_repository_id(project_id):
-    return model.ProjectPluginRelation.query.filter_by(
-        project_id=project_id).one().git_repository_id
+    return nexus.nx_get_project_plugin_relation(project_id).git_repository_id
 
 
 class GitLab(object):
@@ -79,7 +84,7 @@ class GitLab(object):
     def gl_get_project_id_from_url(repository_url):
         row = model.Project.query.filter_by(http_url=repository_url).one()
         project_id = row.id
-        repository_id = get_repository_id(project_id)
+        repository_id = nexus.nx_get_repository_id(project_id)
         return {'project_id': project_id, 'repository_id': repository_id}
 
     def __api_request(self,
@@ -177,6 +182,13 @@ class GitLab(object):
                                   "skip_reconfirmation": True
                               })
 
+    def gl_update_email(self, repository_user_id, new_email):
+        return self.__api_put(f'/users/{repository_user_id}',
+                              params={
+                                  "email": new_email,
+                                  "skip_reconfirmation": True
+                              })
+
     def gl_get_user_list(self, args):
         return self.__api_get('/users', params=args)
 
@@ -193,6 +205,13 @@ class GitLab(object):
 
     def gl_delete_user(self, gitlab_user_id):
         return self.__api_delete(f'/users/{gitlab_user_id}')
+
+    def gl_get_user_email(self, gitlab_user_id):
+        return self.__api_get(f'/users/{gitlab_user_id}/emails')
+
+    def gl_delete_user_email(self, gitlab_user_id, gitlab_email_id):
+        return self.__api_delete(
+            f'/users/{gitlab_user_id}/emails/{gitlab_email_id}')
 
     def gl_count_branches(self, repo_id):
         output = self.__api_get(f'/projects/{repo_id}/repository/branches')
@@ -352,7 +371,10 @@ class GitLab(object):
             "last_commit_id": output.json()["last_commit_id"]
         })
 
-    def gl_delete_file(self, repo_id, branch, file_path, args):
+    def gl_delete_file(self, repo_id, file_path, args, branch=None):
+        if branch is None:
+            pj = self.gl.projects.get(repo_id)
+            branch = pj.default_branch
         return self.__api_delete(
             f'/projects/{repo_id}/repository/files/{file_path}',
             params={
@@ -448,14 +470,16 @@ class GitLab(object):
 
     def gl_get_the_last_hours_commits(self,
                                       the_last_hours=None,
-                                      show_commit_rows=None, git_repository_id=None, user_id=None):
+                                      show_commit_rows=None,
+                                      git_repository_id=None,
+                                      user_id=None):
         if role.is_admin() is False:
             user_id = get_jwt_identity()["user_id"]
         if user_id is not None:
             rows = db.session.query(model.ProjectUserRole, model.ProjectPluginRelation).join(\
                 model.ProjectPluginRelation, \
                 model.ProjectPluginRelation.project_id == model.ProjectUserRole.project_id).\
-                filter(model.ProjectUserRole.user_id == user_id, 
+                filter(model.ProjectUserRole.user_id == user_id,
                         model.ProjectUserRole.project_id == model.ProjectPluginRelation.project_id).all()
         out_list = []
         if show_commit_rows is not None:
@@ -465,7 +489,9 @@ class GitLab(object):
                 pjs = []
                 if user_id is not None:
                     for row in rows:
-                        pjs.append(self.gl.projects.get(row.ProjectPluginRelation.git_repository_id))
+                        pjs.append(
+                            self.gl.projects.get(
+                                row.ProjectPluginRelation.git_repository_id))
                 elif git_repository_id is not None:
                     pjs.append(self.gl.projects.get(git_repository_id))
                 else:
@@ -510,7 +536,9 @@ class GitLab(object):
             pjs = []
             if user_id is not None:
                 for row in rows:
-                    pjs.append(self.gl.projects.get(row.ProjectPluginRelation.git_repository_id))
+                    pjs.append(
+                        self.gl.projects.get(
+                            row.ProjectPluginRelation.git_repository_id))
             elif git_repository_id is not None:
                 pjs.append(self.gl.projects.get(git_repository_id))
             else:
@@ -575,12 +603,48 @@ class GitLab(object):
                             db.session.add(one_row_data)
                             db.session.commit()
 
+    def ql_get_collection(self, repository_id, path):
+        try:
+            pj = self.gl.projects.get(repository_id)
+            return pj.repository_tree(ref=pj.default_branch, path=path)
+        except apiError.TemplateError as e:
+            raise apiError.TemplateError(
+                404,
+                "Error when getting project repository_tree.",
+                error=apiError.gitlab_error(e))
+
+    def gl_get_file(self, repository_id, path):
+        pj = self.gl.projects.get(repository_id)
+        f_byte = pj.files.raw(file_path=path, ref=pj.default_branch).decode()
+        return f_byte
+
+    def gl_create_file(self, repository_id, file_path, file):
+        pj = self.gl.projects.get(repository_id)
+        Path("pj_upload_file").mkdir(exist_ok=True)
+        if os.path.isfile(f"pj_upload_file/{file.filename}"):
+            os.remove(f"pj_upload_file/{file.filename}")
+        file.save(f"pj_upload_file/{file.filename}")
+        with open(f"pj_upload_file/{file.filename}", 'r') as f:
+            content = base64.b64encode(bytes(f.read(),
+                                             encoding='utf-8')).decode('utf-8')
+            pj.files.create({
+                'file_path': file_path,
+                'branch': pj.default_branch,
+                'encoding': 'base64',
+                'author_email': 'system@iiidevops.org.tw',
+                'author_name': 'System',
+                'content': content,
+                'commit_message': f'Add file {file_path}'
+            })
+        if os.path.isfile(f"pj_upload_file/{file.filename}"):
+            os.remove(f"pj_upload_file/{file.filename}")
+
 
 # --------------------- Resources ---------------------
 gitlab = GitLab()
 
 
-class GitRelease():
+class GitRelease:
     @jwt_required
     def check_gitlab_release(self, repository_id, tag_name):
         output = {'check': True, "info": "", "errors": {}}
@@ -680,7 +744,7 @@ class GitProjectFile(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('commit_message', type=str, required=True)
         args = parser.parse_args()
-        gitlab.gl_delete_file(repository_id, branch_name, file_path, args)
+        gitlab.gl_delete_file(repository_id, file_path, args, branch_name)
         return util.success()
 
 

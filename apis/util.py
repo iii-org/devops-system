@@ -3,7 +3,8 @@ import os
 import random
 import string
 import time
-from datetime import datetime
+import math
+from datetime import datetime, date
 from threading import Thread
 
 import requests
@@ -204,6 +205,37 @@ def get_random_alphanumeric_string(letters_count_each, digits_count):
     random.shuffle(sample_list)
     final_string = ''.join(sample_list)
     return final_string
+
+
+def rows_to_list(rows):
+    out = []
+    for row in rows:
+        ret = {}
+        for key in type(row).__table__.columns.keys():
+            value = getattr(row, key)
+            if type(value) is datetime or type(value) is date:
+                ret[key] = str(value)
+            else:
+                ret[key] = value
+        out.append(ret)
+    return out
+
+
+def get_pagination(total_count, limit, offset):
+    page = math.ceil(float(offset)/limit)
+    if offset % limit == 0:
+        page += 1
+    pages = math.ceil(float(total_count)/limit)
+    page_dict = {
+        'current': page,
+        'prev': page-1 if page-1 > 0 else None,
+        'next': page+1 if page+1 <= pages else None,
+        'pages': pages,
+        'limit': limit,
+        'offset': offset,
+        'total': total_count
+    }
+    return page_dict
 
 
 class DevOpsThread(Thread):

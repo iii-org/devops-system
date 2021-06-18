@@ -30,7 +30,7 @@ from jsonwebtoken import jsonwebtoken
 from model import db
 from resources import logger, role as role, activity, zap, sideex
 from resources import project, gitlab, issue, user, redmine, wiki, version, sonarqube, apiTest, postman, mock, harbor, \
-    webInspect, template, release, sync_redmine, plugin, kubernetesClient, ad, project_permission
+    webInspect, template, release, sync_redmine, plugin, kubernetesClient, ad, project_permission, quality
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -182,9 +182,9 @@ api.add_resource(project.GitRepoIdToCiPipeId, '/git_repo_id_to_ci_pipe_id/<repos
 
 # Projects
 api.add_resource(project.ListMyProjects, '/project/list')
+api.add_resource(project.ListProjectsByUser, '/projects_by_user/<int:user_id>')
 api.add_resource(project.SingleProject, '/project', '/project/<sint:project_id>')
 api.add_resource(project.SingleProjectByName, '/project_by_name/<project_name>')
-api.add_resource(project.ProjectsByUser, '/projects_by_user/<int:user_id>')
 api.add_resource(project.ProjectUserList, '/project/<sint:project_id>/user/list')
 api.add_resource(project.ProjectPluginUsage, '/project/<sint:project_id>/plugin/resource')
 api.add_resource(project.ProjectUserResource, '/project/<sint:project_id>/resource')
@@ -275,9 +275,10 @@ api.add_resource(pipeline.PipelineYaml,
 socketio.on_namespace(rancher.RancherWebsocketLog('/rancher/websocket/logs'))
 
 
-
 # issue
 api.add_resource(issue.IssueByProject, '/project/<sint:project_id>/issues')
+api.add_resource(issue.IssueFamily, '/issue/<issue_id>/family')
+api.add_resource(issue.IssueListByProject, '/project/<sint:project_id>/issues_list')
 api.add_resource(issue.IssueByTreeByProject, '/project/<sint:project_id>/issues_by_tree')
 api.add_resource(issue.IssueByStatusByProject,
                  '/project/<sint:project_id>/issues_by_status')
@@ -296,6 +297,8 @@ api.add_resource(issue.MyIssueStatistics, '/issues/statistics')
 api.add_resource(issue.MyOpenIssueStatistics, '/issues/open_statistics')
 api.add_resource(issue.MyIssueWeekStatistics, '/issues/week_statistics')
 api.add_resource(issue.MyIssueMonthStatistics, '/issues/month_statistics')
+api.add_resource(issue.Relation, '/issues/relation', '/issues/relation/<int:relation_id>')
+api.add_resource(issue.CheckIssueClosable, '/issues/<issue_id>/check_closable')
 
 # Release
 api.add_resource(release.Releases, '/project/<project_id>/releases')
@@ -412,6 +415,9 @@ api.add_resource(harbor.HarborRepository,
 api.add_resource(harbor.HarborArtifact,
                  '/harbor/artifacts')
 api.add_resource(harbor.HarborProject, '/harbor/projects/<int:nexus_project_id>/summary')
+api.add_resource(harbor.HarborRegistries, '/harbor/registries')
+api.add_resource(harbor.HarborReplicationPolicy, '/harbor/replication/policy')
+api.add_resource(harbor.HarborReplicationExecution, '/harbor/replication/execution')
 
 # WebInspect
 api.add_resource(webInspect.WebInspectScan, '/webinspect/create_scan',
@@ -452,6 +458,16 @@ api.add_resource(project_permission.SubadminProjects, '/project_permission/subad
 api.add_resource(project_permission.Subadmins, '/project_permission/subadmins')
 api.add_resource(project_permission.SetPermission, '/project_permission/set_permission')
 
+# Quality
+api.add_resource(quality.TestPlanList, '/quality/<int:project_id>/testplan_list')
+api.add_resource(quality.TestPlan, '/quality/<int:project_id>/testplan/<int:testplan_id>')
+api.add_resource(quality.TestFileList, '/quality/<int:project_id>/testfile_list')
+api.add_resource(quality.TestFile, '/quality/<int:project_id>/testfile', 
+                 '/quality/<int:project_id>/testfile/<test_file_name>')
+api.add_resource(quality.TestPlanWithTestFile, '/quality/<int:project_id>/testplan_with_testfile',
+                 '/quality/<int:project_id>/testplan_with_testfile/<int:item_id>')
+
+
 # System versions
 api.add_resource(NexusVersion, '/system_versions')
 
@@ -476,4 +492,4 @@ def start_prod():
 if __name__ == "__main__":
     start_prod()
     socketio.run(app, host='0.0.0.0', port=10009, debug=(config.get('DEBUG')),
-                 use_reloader=False)
+                 use_reloader=True)

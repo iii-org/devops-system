@@ -100,6 +100,7 @@ class PluginSoftware(db.Model):
     disabled = Column(Boolean)
     create_at = Column(DateTime)
     update_at = Column(DateTime)
+    type_id = Column(Integer, default = 1)  #For Server = 1, For Pipeline = 2
 
 
 class ProjectPluginRelation(db.Model):
@@ -393,9 +394,9 @@ class RedmineProject(db.Model):
     id = Column(Integer, primary_key=True)
     project_id = Column(Integer)
     project_name = Column(String)
-    pm_user_id = Column(Integer)
-    pm_user_login = Column(String)
-    pm_user_name = Column(String)
+    owner_id = Column(Integer)
+    owner_login = Column(String)
+    owner_name = Column(String)
     complete_percent = Column(Float)
     closed_issue_count = Column(Integer)
     unclosed_issue_count = Column(Integer)
@@ -433,3 +434,24 @@ class GitCommitNumberEachDays(db.Model):
     date = Column(Date)
     commit_number = Column(Integer)
     created_at = Column(DateTime)
+
+
+class Registries(db.Model):
+    registries_id = Column(Integer, primary_key=True)
+    name = Column(String)
+    user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'))
+    description = Column(String)
+    access_key = Column(String)
+    access_secret = Column(String)
+    url = Column(String)
+    type = Column(String)
+
+
+class IssueCollectionRelation(db.Model):
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
+    issue_id = Column(Integer)
+    software_name = Column(String)
+    file_name = Column(String)
+    plan_name = Column(String)
+    items = Column(JSON)
