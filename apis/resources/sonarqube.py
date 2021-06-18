@@ -107,7 +107,8 @@ def sq_get_current_measures(project_name):
     }
     j = __api_get('/measures/component', params).json()
     ret = j['component']['measures']
-    ret.append({'metric': 'run_at', 'value': j['periods'][0]['date']})
+    if 'periods' in j:
+        ret.append({'metric': 'run_at', 'value': j['periods'][0]['date']})
     return ret
 
 
