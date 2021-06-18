@@ -321,6 +321,9 @@ def __deal_with_issue_redmine_output(redmine_output, closed_status=None):
             redmine_output['journals'][i]['details'] = list_details
             i += 1
     redmine_output['issue_link'] = f'{config.get("REDMINE_EXTERNAL_BASE_URL")}/issues/{redmine_output["id"]}'
+    if 'attachments' in redmine_output:
+        for attachment in redmine_output['attachments']:
+            attachment['content_url'] = f'{config.get("REDMINE_EXTERNAL_BASE_URL")}/attachments/download/{attachment["id"]}/{attachment["filename"]}'
     redmine_output['is_closed'] = False
     if redmine_output['status']['id'] in closed_status:
         redmine_output['is_closed'] = True
