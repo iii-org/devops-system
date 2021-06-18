@@ -56,7 +56,7 @@ support_software = [{
 }]
 
 gitlab_private_token = config.get("GITLAB_PRIVATE_TOKEN")
-gl = Gitlab(config.get("GITLAB_BASE_URL"), private_token=gitlab_private_token)
+gl = Gitlab(config.get("GITLAB_BASE_URL"), private_token=gitlab_private_token, ssl_verify=False)
 
 
 def __tm_get_tag_info(pj, tag_name):
@@ -148,7 +148,13 @@ def __tm_git_clone_file(pj,
                         create_time=None,
                         branch_name=None):
     temp_http_url = pj.http_url_to_repo
-    secret_temp_http_url = temp_http_url[:
+    protocol = 'https' if temp_http_url[:5] == "https" else 'http'
+    if protocol == "https":
+        secret_temp_http_url = temp_http_url[:
+                                         8] + f"root:{gitlab_private_token}@" + temp_http_url[
+                                             8:]
+    else:
+        secret_temp_http_url = temp_http_url[:
                                          7] + f"root:{gitlab_private_token}@" + temp_http_url[
                                              7:]
     Path(f"{dest_folder_name}").mkdir(exist_ok=True)
