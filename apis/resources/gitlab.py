@@ -1,21 +1,26 @@
+import base64
 import json
-import pytz
-from datetime import datetime, timedelta, time
-from dateutil import tz
-from gitlab import Gitlab
-import requests
-from flask_jwt_extended import jwt_required, get_jwt_identity
-from flask_restful import Resource, reqparse
-from sqlalchemy.orm.exc import NoResultFound
+import os
+from datetime import datetime, time, timedelta
+from pathlib import Path
 
 import config
 import model
 import nexus
-from model import db, GitCommitNumberEachDays
+import pytz
+import requests
 import util as util
+from dateutil import tz
+from flask_jwt_extended import get_jwt_identity, jwt_required
+from flask_restful import Resource, reqparse
+from model import GitCommitNumberEachDays, db
+from sqlalchemy.orm.exc import NoResultFound
+
+from gitlab import Gitlab
 from resources import apiError, kubernetesClient, role
 from resources.apiError import DevOpsError
 from resources.logger import logger
+
 from .rancher import rancher
 
 
@@ -205,7 +210,8 @@ class GitLab(object):
         return self.__api_get(f'/users/{gitlab_user_id}/emails')
 
     def gl_delete_user_email(self, gitlab_user_id, gitlab_email_id):
-        return self.__api_delete(f'/users/{gitlab_user_id}/emails/{gitlab_email_id}')
+        return self.__api_delete(
+            f'/users/{gitlab_user_id}/emails/{gitlab_email_id}')
 
     def gl_count_branches(self, repo_id):
         output = self.__api_get(f'/projects/{repo_id}/repository/branches')
@@ -606,11 +612,32 @@ class GitLab(object):
                 404,
                 "Error when getting project repository_tree.",
                 error=apiError.gitlab_error(e))
-    
+
     def gl_get_file(self, repository_id, path):
         pj = self.gl.projects.get(repository_id)
         f_byte = pj.files.raw(file_path=path, ref=pj.default_branch).decode()
         return f_byte
+
+    def gl_create_file(self, repository_id, file_path, file):
+        pj = self.gl.projects.get(repository_id)
+        Path("pj_upload_file").mkdir(exist_ok=True)
+        if os.path.isfile(f"pj_upload_file/{file.filename}"):
+            os.remove(f"pj_upload_file/{file.filename}")
+        file.save(f"pj_upload_file/{file.filename}")
+        with open(f"pj_upload_file/{file.filename}", 'r') as f:
+            content = base64.b64encode(bytes(f.read(),
+                                             encoding='utf-8')).decode('utf-8')
+            pj.files.create({
+                'file_path': file_path,
+                'branch': pj.default_branch,
+                'encoding': 'base64',
+                'author_email': 'system@iiidevops.org.tw',
+                'author_name': 'System',
+                'content': content,
+                'commit_message': f'Add file {file_path}'
+            })
+        if os.path.isfile(f"pj_upload_file/{file.filename}"):
+            os.remove(f"pj_upload_file/{file.filename}")
 
 
 # --------------------- Resources ---------------------

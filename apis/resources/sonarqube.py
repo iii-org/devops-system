@@ -102,9 +102,13 @@ def sq_update_password(login, new_password):
 def sq_get_current_measures(project_name):
     params = {
         'metricKeys': METRICS,
-        'componentKey': project_name
+        'componentKey': project_name,
+        'additionalFields': 'periods'
     }
-    return __api_get('/measures/component', params).json()['component']['measures']
+    j = __api_get('/measures/component', params).json()
+    ret = j['component']['measures']
+    ret.append({'metric': 'run_at', 'value': j['periods'][0]['date']})
+    return ret
 
 
 def sq_get_history_measures(project_name):

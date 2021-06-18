@@ -321,6 +321,9 @@ def __deal_with_issue_redmine_output(redmine_output, closed_status=None):
             redmine_output['journals'][i]['details'] = list_details
             i += 1
     redmine_output['issue_link'] = f'{config.get("REDMINE_EXTERNAL_BASE_URL")}/issues/{redmine_output["id"]}'
+    if 'attachments' in redmine_output:
+        for attachment in redmine_output['attachments']:
+            attachment['content_url'] = f'{config.get("REDMINE_EXTERNAL_BASE_URL")}/attachments/download/{attachment["id"]}/{attachment["filename"]}'
     redmine_output['is_closed'] = False
     if redmine_output['status']['id'] in closed_status:
         redmine_output['is_closed'] = True
@@ -351,8 +354,8 @@ def verify_issue_user(issue_id, user_id, issue_info=None):
     return count > 0
 
 
-def get_issue(issue_id, with_children=True):
-    issue = redmine.rm_get_issue(issue_id)
+def get_issue(issue_id, with_children=True, journals=True):
+    issue = redmine.rm_get_issue(issue_id, journals)
     redmine_issue_status = redmine.rm_get_issue_status()
     closed_statuses = redmine.get_closed_status(
         redmine_issue_status['issue_statuses'])
@@ -410,8 +413,7 @@ def create_issue(args, operator_id):
         operator_plugin_relation = nexus.nx_get_user_plugin_relation(
             user_id=operator_id)
         plan_operator_id = operator_plugin_relation.plan_user_id
-    output = redmine.rm_create_issue(args, plan_operator_id)
-    return util.success({"issue_id": output["issue"]["id"]})
+    return redmine.rm_create_issue(args, plan_operator_id)
 
 
 def update_issue(issue_id, args, operator_id):
@@ -648,7 +650,8 @@ def get_issue_family(issue_id, args):
         redmine_issue = redmine_lib.redmine.issue.get(issue_id, include=['children', 'relations'])
         if hasattr(redmine_issue, 'relations') and len(redmine_issue.relations):
             for relation in redmine_issue.relations:
-                if relation.issue_id != issue_id:
+                rel_issue_id = 0
+                if relation.issue_id != int(issue_id):
                     rel_issue_id = relation.issue_id
                 else:
                     rel_issue_id = relation.issue_to_id
@@ -1270,7 +1273,8 @@ class SingleIssue(Resource):
         parser.add_argument('upload_content_type', type=str)
 
         args = parser.parse_args()
-        return create_issue(args, get_jwt_identity()['user_id'])
+        rm_output = create_issue(args, get_jwt_identity()['user_id'])
+        return util.success({"issue_id": rm_output["issue"]["id"]})
 
     @jwt_required
     def put(self, issue_id):

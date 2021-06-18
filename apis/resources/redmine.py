@@ -166,8 +166,11 @@ class Redmine:
         }
         return self.paging('issues', 100, params)
 
-    def rm_get_issue(self, issue_id):
-        params = {'include': 'children,attachments,relations,changesets,journals,watchers'}
+    def rm_get_issue(self, issue_id, journals=True):
+        if journals is False:
+            params = {'include': 'children,attachments,relations,changesets,watchers'}
+        else:
+            params = {'include': 'children,attachments,relations,changesets,journals,watchers'}
         output = self.__api_get('/issues/{0}'.format(issue_id), params=params)
         return output.json()['issue']
 

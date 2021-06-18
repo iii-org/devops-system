@@ -1,16 +1,21 @@
-from flask_restful import Resource, reqparse
 import json
 import urllib.parse
+from distutils.util import strtobool
 
+import model
+import util as util
+import werkzeug
+from flask_restful import Resource, reqparse
+from model import db
 from nexus import nx_get_project_plugin_relation
-from .gitlab import gitlab
-from resources.redmine import redmine
+
+import resources.apiError as apiError
 import resources.pipeline as pipeline
 from resources import apiTest, sideex
+from resources.redmine import redmine
+
 from . import issue
-import util as util
-import model
-from model import db
+from .gitlab import gitlab
 
 paths = [{
     "software_name": "Postman",
@@ -80,13 +85,19 @@ def qu_get_testplan_list(project_id):
         return issue_infos
 
 
-def qu_get_testplan(project_id, testplan_id):
-    issue_info = issue.get_issue(testplan_id)
-    test_plan_file_conn_list = qu_get_testplan_testfile_relate_list(
-        project_id)
+def qu_get_testplan(project_id, testplan_id, journals=0):
+    journals = True if journals == 1 else False
+    issue_info = issue.get_issue(testplan_id, journals=journals)
+    test_plan_file_conn_list = qu_get_testplan_testfile_relate_list(project_id)
     issue_info["test_files"] = []
     for test_plan_file_conn in test_plan_file_conn_list:
         if issue_info['id'] == test_plan_file_conn['issue_id']:
+            the_last_result ={}
+            if test_plan_file_conn['software_name'] == "Postman":
+                the_last_result = apiTest.get_the_last_result(project_id)
+            elif test_plan_file_conn['software_name'] == "SideeX":
+                the_last_result = sideex.sd_get_latest_test(project_id)
+            test_plan_file_conn["the_last_test_result"] = the_last_result
             issue_info["test_files"].append(test_plan_file_conn)
     return issue_info
 
@@ -96,12 +107,11 @@ def qu_get_testfile_list(project_id):
         nexus_project_id=project_id).git_repository_id
     out_list = []
     issues_info = qu_get_testplan_list(project_id)
-    postman_results = apiTest.list_results(project_id)
-    sideex_results = sideex.sd_get_tests(project_id)
     for path in paths:
         trees = gitlab.ql_get_collection(repository_id, path['path'])
         for tree in trees:
-            if path["file_name_key"] in tree["name"] and tree["name"][-5:]== ".json":
+            if path["file_name_key"] in tree["name"] and tree["name"][
+                    -5:] == ".json":
                 path_file = f'{path["path"]}/{tree["name"]}'
                 coll_json = json.loads(
                     gitlab.gl_get_file(repository_id, path_file))
@@ -121,9 +131,7 @@ def qu_get_testfile_list(project_id):
                             if row["issue_id"] == issue_info["id"]:
                                 test_plans.append(issue_info)
                                 break
-                    the_last_result = None
-                    if len(postman_results) != 0:
-                        the_last_result = postman_results[0]
+                    the_last_result = apiTest.get_the_last_result(project_id)
                     out_list.append({
                         "software_name": path["software_name"],
                         "file_name": tree["name"],
@@ -151,9 +159,7 @@ def qu_get_testfile_list(project_id):
                                     if row["issue_id"] == issue_info["id"]:
                                         test_plans.append(issue_info)
                                         break
-                            the_last_result = None
-                            if len(sideex_results) != 0:
-                                the_last_result = sideex_results[0]
+                            the_last_result = sideex.sd_get_latest_test(project_id)
                             out_list.append({
                                 "software_name":
                                 path["software_name"],
@@ -199,12 +205,15 @@ def qu_create_testplan_testfile_relate(project_id, issue_id, software_name,
 
 
 def qu_put_testplan_testfiles_relate(project_id, issue_id, test_files):
-    rows = model.IssueCollectionRelation.query.filter_by(project_id=project_id, issue_id=issue_id).all()
+    rows = model.IssueCollectionRelation.query.filter_by(
+        project_id=project_id, issue_id=issue_id).all()
     for row in rows:
         db.session.delete(row)
         db.session.commit()
     for test_file in test_files:
-        qu_create_testplan_testfile_relate(project_id, issue_id, test_file["software_name"], test_file["file_name"])
+        qu_create_testplan_testfile_relate(project_id, issue_id,
+                                           test_file["software_name"],
+                                           test_file["file_name"])
 
 
 def qu_get_testplan_testfile_relate_list(project_id):
@@ -220,8 +229,26 @@ def qu_del_testplan_testfile_relate_list(project_id, item_id):
         db.session.commit()
 
 
+def qu_upload_testfile(project_id, file, software_name):
+    repository_id = nx_get_project_plugin_relation(
+        nexus_project_id=project_id).git_repository_id
+    soft_path = next(path for path in paths
+                     if path["software_name"] == software_name)
+    trees = gitlab.ql_get_collection(repository_id, soft_path['path'])
+    file_exist = next(
+        (True for tree in trees if tree["name"] == file.filename), False)
+    if file_exist:
+        raise apiError.DevOpsError(
+            409, f"Test File {file.filename} already exists in git repository")
+    file_path = f"{soft_path['path']}/{file.filename}"
+    next_run = pipeline.get_pipeline_next_run(repository_id)
+    gitlab.gl_create_file(repository_id, file_path, file)
+    pipeline.stop_and_delete_pipeline(repository_id, next_run)
+
+
 def qu_del_testfile(project_id, test_file_name):
-    rows = model.IssueCollectionRelation.query.filter_by(file_name=test_file_name).all()
+    rows = model.IssueCollectionRelation.query.filter_by(
+        file_name=test_file_name).all()
     if len(rows) > 0:
         for row in rows:
             db.session.delete(row)
@@ -229,11 +256,18 @@ def qu_del_testfile(project_id, test_file_name):
     repository_id = nx_get_project_plugin_relation(
         nexus_project_id=project_id).git_repository_id
     for path in paths:
-        if path["file_name_key"] in test_file_name and test_file_name[-5:]== ".json":
-            url = urllib.parse.quote(f"{path['path']}/{test_file_name}", safe='')
-            gitlab.gl_delete_file(repository_id, url, {"commit_message": f"Delete Test file {path['path']}/{test_file_name} from UI"})
+        if path["file_name_key"] in test_file_name and test_file_name[
+                -5:] == ".json":
+            url = urllib.parse.quote(f"{path['path']}/{test_file_name}",
+                                     safe='')
+            gitlab.gl_delete_file(
+                repository_id, url, {
+                    "commit_message":
+                    f"Delete Test file {path['path']}/{test_file_name} from UI"
+                })
             next_run = pipeline.get_pipeline_next_run(repository_id)
             pipeline.stop_and_delete_pipeline(repository_id, next_run)
+
 
 class TestPlanList(Resource):
     def get(self, project_id):
@@ -243,7 +277,13 @@ class TestPlanList(Resource):
 
 class TestPlan(Resource):
     def get(self, project_id, testplan_id):
-        out = qu_get_testplan(project_id, testplan_id)
+        parser = reqparse.RequestParser()
+        parser.add_argument('journals', type=str)
+        args = parser.parse_args()
+        journals = None
+        if args['journals'] is not None:
+            journals = strtobool(args['journals'])
+        out = qu_get_testplan(project_id, testplan_id, journals)
         return util.success(out)
 
 
@@ -254,6 +294,18 @@ class TestFileList(Resource):
 
 
 class TestFile(Resource):
+    def post(self, project_id):
+        parser = reqparse.RequestParser()
+        parser.add_argument('software_name', type=str, required=True)
+        parser.add_argument('test_file',
+                            type=werkzeug.datastructures.FileStorage,
+                            location='files',
+                            required=True)
+        args = parser.parse_args()
+        qu_upload_testfile(project_id, args['test_file'],
+                           args['software_name'])
+        return util.success()
+
     def delete(self, project_id, test_file_name):
         out = qu_del_testfile(project_id, test_file_name)
         return util.success(out)
@@ -274,10 +326,13 @@ class TestPlanWithTestFile(Resource):
     def put(self, project_id):
         parser = reqparse.RequestParser()
         parser.add_argument('issue_id', type=int, required=True)
-        parser.add_argument('test_files', type=list, location='json', required=True)
+        parser.add_argument('test_files',
+                            type=list,
+                            location='json',
+                            required=True)
         args = parser.parse_args()
         qu_put_testplan_testfiles_relate(project_id, args['issue_id'],
-                                                 args['test_files'])
+                                         args['test_files'])
         return util.success()
 
     def get(self, project_id):
