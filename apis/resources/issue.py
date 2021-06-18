@@ -570,32 +570,35 @@ def get_custom_filters_by_args(args=None, project_id=None):
         default_filters['project_id'] = project_id
     if args:
         handle_allowed_keywords(default_filters, args)
+        if args.get('search', None):
+            handle_search(default_filters, args)
         # offset 可能為 0
         if args.get('limit', None) and args.get('offset') is not None:
             default_filters['limit'] = args['limit']
             default_filters['offset'] = args['offset']
-        if args.get('search', None):
-            handle_search(default_filters, args)
     return default_filters
 
 
 def handle_allowed_keywords(default_filters, args):
     allowed_keywords = ['fixed_version_id', 'status_id', 'tracker_id', 'assigned_to_id', 'priority_id']
     for key in allowed_keywords:
-        if key == 'assigned_to_id':
-            if args.get(key, None) and args[key] == 'null':
+        if args.get(key, None):
+            if args[key] == 'null':
                 default_filters[key] = '!*'
-            elif args.get(key, None) and args[key].isdigit():
-                try:
-                    nx_user = db.session.query(model.UserPluginRelation).join(
-                        model.User).filter_by(id=int(args[key])).one()
-                except NoResultFound:
-                    raise apiError.DevOpsError(
-                        404, 'User id {0} does not exist.'.format(int(args[key])),
-                        apiError.user_not_found(int(args[key])))
-                default_filters[key] = nx_user.plan_user_id
-        elif args.get(key, None):
-            default_filters[key] = args[key]
+            elif isinstance(args[key], str) and args[key].isdigit():
+                if key == 'assigned_to_id':
+                    try:
+                        nx_user = db.session.query(model.UserPluginRelation).join(
+                            model.User).filter_by(id=int(args[key])).one()
+                    except NoResultFound:
+                        raise apiError.DevOpsError(
+                            404, 'User id {0} does not exist.'.format(int(args[key])),
+                            apiError.user_not_found(int(args[key])))
+                    default_filters[key] = nx_user.plan_user_id
+                elif key == 'fixed_version_id':
+                    default_filters[key] = int(args[key])
+            else:
+                default_filters[key] = args[key]
 
 
 def handle_search(default_filters, args):
@@ -1332,7 +1335,7 @@ class IssueListByProject(Resource):
     def get(self, project_id):
         role.require_in_project(project_id, 'Error to get issue.')
         parser = reqparse.RequestParser()
-        parser.add_argument('fixed_version_id', type=int)
+        parser.add_argument('fixed_version_id', type=str)
         parser.add_argument('status_id', type=int)
         parser.add_argument('tracker_id', type=int)
         parser.add_argument('assigned_to_id', type=str)
