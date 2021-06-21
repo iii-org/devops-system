@@ -4,21 +4,23 @@ import util
 from flask_restful import Resource, reqparse
 from flask_jwt_extended import jwt_required
 from resources.rancher import rancher
-
+from resources.gitlab import gitlab
 
 def update_db_rancher_projectid_and_pipelineid():
     # get all project
     rows = db.session.query(ProjectPluginRelation, Project). \
         join(Project, ProjectPluginRelation.project_id == Project.id).all()
     rancher.rc_get_project_id()
+    now_pipe_data = rancher.rc_get_project_pipeline()
+    for now_pipe in now_pipe_data:
+        rancher.rc_disable_project_pipeline(now_pipe['projectId'], now_pipe['id'])
     for row in rows:
-        rancher.rc_disable_project_pipeline(row.ProjectPluginRelation.ci_project_id, \
-            row.ProjectPluginRelation.ci_pipeline_id)
-        rancher_pipeline_id= rancher.rc_enable_project_pipeline(row.Project.http_url)
-        ppro =ProjectPluginRelation.query.filter_by(id=row.ProjectPluginRelation.id).first()
-        ppro.ci_project_id= rancher.project_id
-        ppro.ci_pipeline_id= rancher_pipeline_id
-        db.session.commit()
+        pj_info = gitlab.gl_get_project(row.ProjectPluginRelation.git_repository_id)
+        rancher_pipeline_id= rancher.rc_enable_project_pipeline(pj_info['http_url_to_repo'])
+    ppro =ProjectPluginRelation.query.filter_by(id=row.ProjectPluginRelation.id).first()
+    ppro.ci_project_id= rancher.project_id
+    ppro.ci_pipeline_id= rancher_pipeline_id
+    db.session.commit()
 
 
 class UpdateDbRcProjectPipelineId(Resource):
@@ -27,6 +29,7 @@ class UpdateDbRcProjectPipelineId(Resource):
     def get(self):
         role.require_admin()
         update_db_rancher_projectid_and_pipelineid()
+        return util.success()
 
 class SecretesIntoRcAll(Resource):
 
