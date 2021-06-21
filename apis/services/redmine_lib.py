@@ -3,7 +3,7 @@ from redminelib import Redmine
 import config
 
 redmine = Redmine(config.get('REDMINE_INTERNAL_BASE_URL'),
-                  key=config.get('REDMINE_API_KEY'))
+                  key=config.get('REDMINE_API_KEY'), requests={'verify': False})
 
 STATUS_ID_ISSUE_CLOSED = 6
 

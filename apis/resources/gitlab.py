@@ -67,7 +67,7 @@ class GitLab(object):
         else:
             self.private_token = config.get("GITLAB_PRIVATE_TOKEN")
         self.gl = Gitlab(config.get("GITLAB_BASE_URL"),
-                         private_token=self.private_token)
+                         private_token=self.private_token, ssl_verify=False)
 
     @staticmethod
     def gl_get_nexus_project_id(repository_id):
