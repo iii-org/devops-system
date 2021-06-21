@@ -17,10 +17,10 @@ def update_db_rancher_projectid_and_pipelineid():
     for row in rows:
         pj_info = gitlab.gl_get_project(row.ProjectPluginRelation.git_repository_id)
         rancher_pipeline_id= rancher.rc_enable_project_pipeline(pj_info['http_url_to_repo'])
-    ppro =ProjectPluginRelation.query.filter_by(id=row.ProjectPluginRelation.id).first()
-    ppro.ci_project_id= rancher.project_id
-    ppro.ci_pipeline_id= rancher_pipeline_id
-    db.session.commit()
+        ppro =ProjectPluginRelation.query.filter_by(id=row.ProjectPluginRelation.id).first()
+        ppro.ci_project_id= rancher.project_id
+        ppro.ci_pipeline_id= rancher_pipeline_id
+        db.session.commit()
 
 
 class UpdateDbRcProjectPipelineId(Resource):
