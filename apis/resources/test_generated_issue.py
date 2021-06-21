@@ -12,14 +12,16 @@ def tgi_feed_postman(row):
         assertions = result.get('assertions')
         if assertions.get('failed') > 0:
             _handle_test_failed(row.project_id, 'postman',
-                                col_key, _get_postman_issue_description(row))
+                                col_key, _get_postman_issue_description(row),
+                                row.branch, row.commit_id, 'test_results', row.id)
         else:
             _handle_test_success(row.project_id, 'postman',
                                  col_key, _get_postman_issue_close_description(row))
 
 
-def _handle_test_failed(project_id, software_name, filename, description):
-    relation_row = model.IssueCollectionRelation.query.filter_by(
+def _handle_test_failed(project_id, software_name, filename, description,
+                        branch, commit_id, result_table, result_id):
+    relation_row = model.TestGeneratedIssue.query.filter_by(
         software_name='postman',
         file_name=filename
     ).first()
@@ -32,7 +34,8 @@ def _handle_test_failed(project_id, software_name, filename, description):
             'subject': f'{filename}__測試失敗',
             'description': description
         }
-        tgi_create_issue(args, software_name, filename)
+        tgi_create_issue(args, software_name, filename,
+                         branch, commit_id, result_table, result_id)
     else:
         issue_id = relation_row.issue_id
         iss = redmine_lib.redmine.issue.get(issue_id, include=['journals'])
@@ -52,7 +55,7 @@ def _handle_test_failed(project_id, software_name, filename, description):
 
 
 def _handle_test_success(project_id, software_name, filename, description):
-    relation_row = model.IssueCollectionRelation.query.filter_by(
+    relation_row = model.TestGeneratedIssue.query.filter_by(
         software_name='postman',
         file_name=filename
     ).first()
@@ -70,14 +73,18 @@ def _handle_test_success(project_id, software_name, filename, description):
     iss.save()
 
 
-def tgi_create_issue(args, software_name, file_name):
+def tgi_create_issue(args, software_name, file_name, branch, commit_id, result_table, result_id):
     rm_output = issue.create_issue(args, None)
     issue_id = rm_output.get('issue').get('id')
-    new = model.IssueCollectionRelation(
+    new = model.TestGeneratedIssue(
         project_id=args['project_id'],
         issue_id=issue_id,
         software_name=software_name,
-        file_name=file_name
+        file_name=file_name,
+        branch=branch,
+        commit_id=commit_id,
+        result_table=result_table,
+        result_id=result_id
     )
     model.db.session.add(new)
     model.db.session.commit()

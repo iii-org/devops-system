@@ -593,6 +593,8 @@ def handle_allowed_keywords(default_filters, args):
         if args.get(key, None):
             if args[key] == 'null':
                 default_filters[key] = '!*'
+            elif key == 'status_id' and args[key] == 'all':
+                default_filters[key] = '*'
             elif isinstance(args[key], str) and args[key].isdigit():
                 if key == 'assigned_to_id':
                     try:
@@ -603,7 +605,7 @@ def handle_allowed_keywords(default_filters, args):
                             404, 'User id {0} does not exist.'.format(int(args[key])),
                             apiError.user_not_found(int(args[key])))
                     default_filters[key] = nx_user.plan_user_id
-                elif key == 'fixed_version_id':
+                elif key == 'fixed_version_id' or key == 'status_id':
                     default_filters[key] = int(args[key])
             else:
                 default_filters[key] = args[key]
@@ -1346,7 +1348,7 @@ class IssueListByProject(Resource):
         role.require_in_project(project_id, 'Error to get issue.')
         parser = reqparse.RequestParser()
         parser.add_argument('fixed_version_id', type=str)
-        parser.add_argument('status_id', type=int)
+        parser.add_argument('status_id', type=str)
         parser.add_argument('tracker_id', type=int)
         parser.add_argument('assigned_to_id', type=str)
         parser.add_argument('priority_id', type=int)

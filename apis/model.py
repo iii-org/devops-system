@@ -455,3 +455,15 @@ class IssueCollectionRelation(db.Model):
     file_name = Column(String)
     plan_name = Column(String)
     items = Column(JSON)
+
+
+class TestGeneratedIssue(db.Model):
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
+    issue_id = Column(Integer)
+    software_name = Column(String)
+    file_name = Column(String)
+    branch = Column(String)
+    commit_id = Column(String)
+    result_table = Column(String, nullable=False)
+    result_id = Column(Integer, nullable=False)
