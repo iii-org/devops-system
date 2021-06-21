@@ -1,7 +1,9 @@
 import json
+from pprint import pprint
 
 import model
 from resources import issue
+from services import redmine_lib
 
 
 def tgi_feed_postman(row):
@@ -30,12 +32,17 @@ def _create_or_update_issue(project_id, software_name, filename, description):
         tgi_create_issue(args, software_name, filename)
     else:
         issue_id = relation_row.issue_id
-        iss = issue.get_issue(issue_id=issue_id, with_children=False)
-        desc = iss.get('description')
-        args = {
-            'description': desc + '\n' + description
-        }
-        issue.update_issue(issue_id, args, None)
+        iss = redmine_lib.redmine.issue.get(issue_id, include=['journals'])
+        # First check if is closed by human
+        for j in reversed(iss.journals):
+            detail = j.details[0]
+            if (detail.get('name', '') == 'status_id' and detail.get('new_value', '-1') == '6'
+                    and j.user.id != 1):  # User id 1 means Redmine admin == system operation
+                # Do nothing
+                return
+        desc = iss.description
+        iss.description = desc + '\n' + description
+        iss.save()
 
 
 def tgi_create_issue(args, software_name, file_name):
