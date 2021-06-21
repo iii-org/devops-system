@@ -7,6 +7,7 @@ from flask_restful import Resource, reqparse
 import util
 from resources.gitlab import gitlab
 from resources.redmine import redmine
+from services import redmine_lib
 from util import DevOpsThread
 
 
@@ -71,7 +72,8 @@ def mock_cm_status(status):
 
 
 def mock_sesame_get():
-    return None
+    issue = redmine_lib.redmine.issue.get(448, include='journals')
+    return list(issue)
 
 
 # ----------- Resources -----------
@@ -91,9 +93,5 @@ class MockTestResult(Resource):
 
 class MockSesame(Resource):
     def get(self):
-        args = {
-            'name': 'ro-test-token',
-            'description': ''
-        }
-        ret = gitlab.gl_create_access_token(759)
+        ret = mock_sesame_get()
         return ret
