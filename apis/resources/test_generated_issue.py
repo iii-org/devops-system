@@ -1,6 +1,5 @@
 import json
 from datetime import datetime
-from pprint import pprint
 
 import model
 from resources import issue
