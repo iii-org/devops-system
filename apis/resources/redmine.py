@@ -85,7 +85,7 @@ class Redmine:
             self.__refresh_key()
 
     def __refresh_key(self, operator_id=None):
-        protocol = 'http'
+        protocol = 'https' if config.get('REDMINE_INTERNAL_BASE_URL')[:5] == "https" else 'http'
         host = config.get('REDMINE_INTERNAL_BASE_URL')[len(protocol + '://'):]
         if operator_id is None:
             # get redmine_key

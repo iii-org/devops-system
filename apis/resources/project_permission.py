@@ -5,10 +5,10 @@ from resources import apiError, user
 from resources.project import get_pm_project_list
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
-
+import config
 
 # Get admin account from environment
-admin_account = os.environ.get('ADMIN_INIT_LOGIN')
+admin_account = config.get('ADMIN_INIT_LOGIN')
 
 
 def get_admin_user_id():
