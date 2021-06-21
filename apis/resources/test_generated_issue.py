@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 from pprint import pprint
 
 import model
@@ -85,8 +86,12 @@ def tgi_create_issue(args, software_name, file_name):
 
 
 def _get_postman_issue_description(row):
-    return f'{row.branch} #{row.commit_id} Postman 自動化測試失敗 ({row.total - row.fail}/{row.total})'
+    now = datetime.now()
+    dt_string = now.strftime("%Y-%m-%d %H:%M:%S")
+    return f'{dt_string} {row.branch} #{row.commit_id} Postman 自動化測試失敗 ({row.total - row.fail}/{row.total})'
 
 
 def _get_postman_issue_close_description(row):
-    return f'{row.branch} #{row.commit_id} Postman 自動化測試成功 ({row.total})'
+    now = datetime.now()
+    dt_string = now.strftime("%Y-%m-%d %H:%M:%S")
+    return f'{dt_string} {row.branch} #{row.commit_id} Postman 自動化測試成功 ({row.total})'
