@@ -23,13 +23,14 @@ default_role_id = 3
 allow_user_account_control = [512, 544]
 
 
-def generate_base_dn(ad_parameter, filter_by_ou = True):
+def generate_base_dn(ad_parameter, filter_by_ou=True):
     search_base = ''
     if ad_parameter.get('ou') is not None and filter_by_ou is True:
         if isinstance(ad_parameter.get('ou'), list):
             search_base += get_search_base_string('ou', ad_parameter.get('ou'))
         else:
-            search_base += get_search_base_string('ou', ad_parameter.get('ou').split(','))            
+            search_base += get_search_base_string('ou',
+                                                  ad_parameter.get('ou').split(','))
     if ad_parameter.get('domain') is not None:
         search_base += get_search_base_string('dc',
                                               ad_parameter.get('domain').split('.'))
@@ -121,7 +122,7 @@ def create_user(ad_user, login_password):
     return res
 
 
-def create_user_from_ad(ad_users, create_by=None,ad_parameter = None):
+def create_user_from_ad(ad_users, create_by=None, ad_parameter=None):
     res = {'new': [], 'old': [], 'none': []}
     users = []
     db_users = get_db_user_by_login()
@@ -134,7 +135,8 @@ def create_user_from_ad(ad_users, create_by=None,ad_parameter = None):
         #  Create user
         elif ad_user.get(create_by) is True:
 
-            new_user = create_user(ad_user,ad_parameter.get('default_password'))
+            new_user = create_user(
+                ad_user, ad_parameter.get('default_password'))
             if new_user is not None:
                 res['new'].append(new_user)
         else:
@@ -213,8 +215,22 @@ def check_ad_server_status():
     return ad_parameter
 
 
+def get_ad_servers(input_str):
+    output = []
+    if input_str is None:
+        return output
+    host_strs = input_str.split(',')
+    for host_str in host_strs:
+        if host_str == '':
+            break
+        param = host_str.split(':')
+        if len(param) == 2:
+            output.append({'ip': param[0], 'port': int(param[1])})
+    return output
+
+
 class AD(object):
-    def __init__(self, ad_parameter, filter_by_ou= False, account=None, password=None):
+    def __init__(self, ad_parameter, filter_by_ou=False, account=None, password=None):
         self.ad_info = {
             'is_pass': False,
             'login': account,
@@ -222,14 +238,11 @@ class AD(object):
         }
         self.account = None
         self.password = None
-        self.server = ServerPool(None, pool_strategy=FIRST, active=True)        
-        hosts_str = ad_parameter.get('host')
-        if  hosts_str is  not None:
-            hosts = hosts_str.split(',')
-            for host in hosts:
-                ip, port = host.split(':')
-                self.server.add(Server(host=ip, port=int(port), get_info=ALL,
-                                   connect_timeout=ad_connect_timeout))                                           
+        self.server = ServerPool(None, pool_strategy=FIRST, active=True)
+        hosts = get_ad_servers(ad_parameter.get('host'))
+        for host in hosts:
+            self.server.add(Server(host=host.get('ip'), port=host.get('port'), get_info=ALL,
+                                   connect_timeout=ad_connect_timeout))
         if account is None and password is None:
             self.account = ad_parameter['account']
             self.password = ad_parameter['password']
@@ -241,8 +254,7 @@ class AD(object):
                                password=self.password, read_only=True)
         if self.conn.bind() is True:
             self.ad_info['is_pass'] = True
-        self.active_base_dn = generate_base_dn(ad_parameter,filter_by_ou)
-
+        self.active_base_dn = generate_base_dn(ad_parameter, filter_by_ou)
 
     def get_users(self):
         res = []
@@ -345,7 +357,8 @@ class User(Resource):
             ad.conn_unbind()
             if len(res) == 1:
                 users = get_user_info_from_ad(res, args.get('ad_type'))
-                res = create_user_from_ad(users, args.get('ad_type'),ad_parameter)
+                res = create_user_from_ad(
+                    users, args.get('ad_type'), ad_parameter)
             return util.success(res)
         except NoResultFound:
             return util.respond(404, invalid_ad_server,
@@ -394,7 +407,7 @@ class Users(Resource):
                 return res
             if args.get('ou') is not None and args.get('batch') is False:
                 ad_parameter['ou'] = args.get('ou')
-                ad = AD(ad_parameter,True)
+                ad = AD(ad_parameter, True)
                 ad_users = ad.get_users()
             else:
                 ous = ad_parameter.get('ou')
@@ -403,12 +416,13 @@ class Users(Resource):
                 ad_users = []
                 for ou in ous:
                     ad_parameter['ou'] = [ou]
-                    ad = AD(ad_parameter,True)
+                    ad = AD(ad_parameter, True)
                     ad_users.extend(ad.get_users())
                     ad.conn_unbind()
-            if len(ad_users) != 0  :
+            if len(ad_users) != 0:
                 users = get_user_info_from_ad(ad_users, args.get('ad_type'))
-                res = create_user_from_ad(users, args.get('ad_type'),ad_parameter)
+                res = create_user_from_ad(
+                    users, args.get('ad_type'), ad_parameter)
             return util.success(res)
         except NoResultFound:
             return util.respond(404, invalid_ad_server,
@@ -455,7 +469,7 @@ class APIUser(object):
             ad_parameter = check_ad_server_status()
             if ad_parameter is None:
                 return output
-            ad = AD(ad_parameter,False, account, password)                        
+            ad = AD(ad_parameter, False, account, password)
             user = ad.get_user(account)
             ad.conn_unbind()
             if len(user) > 0:
@@ -531,4 +545,6 @@ class APIUser(object):
         else:
             status = 'Not allow ad Account'
         return status, token
+
+
 ad_user = APIUser()

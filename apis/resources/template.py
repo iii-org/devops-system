@@ -26,7 +26,8 @@ template_replace_dict = {
     "PLUGIN_MIRROR": config.get("HARBOR_EXTERNAL_BASE_URL"),
     "harbor.host":
     config.get("HARBOR_EXTERNAL_BASE_URL").replace("https://", ""),
-    "git.host": config.get("GITLAB_BASE_URL").replace("http://", "")
+    "git.host": config.get("GITLAB_BASE_URL").replace("http://", ""),
+    'kube.ingress.base_domain': config.get("INGRESS_EXTERNAL_BASE")
 }
 
 support_software = [{
