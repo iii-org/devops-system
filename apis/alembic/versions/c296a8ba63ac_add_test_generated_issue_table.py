@@ -31,8 +31,6 @@ def upgrade():
     sa.ForeignKeyConstraint(['project_id'], ['projects.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
-    op.add_column('registries', sa.Column('registries_id', sa.Integer(), nullable=False))
-    op.drop_column('registries', 'registires_id')
     # ### end Alembic commands ###
 
 
