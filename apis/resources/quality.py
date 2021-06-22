@@ -20,11 +20,11 @@ from .gitlab import gitlab
 paths = [{
     "software_name": "Postman",
     "path": "iiidevops/postman",
-    "file_name_key": "postman_collection.json"
+    "file_name_key": "collection"
 }, {
     "software_name": "SideeX",
     "path": "iiidevops/sideex",
-    "file_name_key": "sideex.json"
+    "file_name_key": "sideex"
 }]
 
 
@@ -115,7 +115,7 @@ def qu_get_testfile_list(project_id):
                 path_file = f'{path["path"]}/{tree["name"]}'
                 coll_json = json.loads(
                     gitlab.gl_get_file(repository_id, path_file))
-                if path["file_name_key"] == "postman_collection.json":
+                if path["file_name_key"] == "collection":
                     collection_obj = PostmanJSON(coll_json)
                     postman_info_obj = PostmanJSONInfo(collection_obj.info)
                     items = []
@@ -140,7 +140,7 @@ def qu_get_testfile_list(project_id):
                         "test_plans": test_plans,
                         "the_last_test_result": the_last_result
                     })
-                elif path["file_name_key"] == "sideex.json":
+                elif path["file_name_key"] == "sideex":
                     sideex_obj = SideeXJSON(coll_json)
                     for suite_dict in sideex_obj.suites:
                         suite_obj = SideeXJSONSuite(suite_dict)
