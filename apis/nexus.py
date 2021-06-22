@@ -8,18 +8,29 @@ from resources import apiError
 from resources.apiError import DevOpsError
 
 
-def nx_get_project_plugin_relation(nexus_project_id=None, repo_id=None):
+def nx_get_project_plugin_relation(nexus_project_id=None, rm_project_id=None,
+                                   repo_id=None, hb_project_id=None):
+    filter_params = {}
     if nexus_project_id is not None:
         it = nexus_project_id
-        query = model.ProjectPluginRelation.query.filter_by(project_id=nexus_project_id)
+        filter_params['project_id'] = nexus_project_id
+    elif rm_project_id is not None:
+        it = rm_project_id
+        filter_params['plan_project_id'] = rm_project_id
     elif repo_id is not None:
         it = repo_id
-        query = model.ProjectPluginRelation.query.filter_by(git_repository_id=repo_id)
+        filter_params['git_repository_id'] = repo_id
+    elif hb_project_id is not None:
+        it = hb_project_id
+        filter_params['harbor_project_id'] = hb_project_id
     else:
         raise apiError.DevOpsError(
-            500, 'Either nexus_project_id or repo_id needs to be indicated for nx_get_project_plugin_relation.',
+            500, 'Either nexus_project_id, rm_project_id, hb_project_id or \
+                  repo_id needs to be indicated for nx_get_project_plugin_relation.',
             error=apiError.invalid_code_path(
-                'Either nexus_project_id or repo_id needs to be indicated for nx_get_project_plugin_relation.'))
+                'Either nexus_project_id, rm_project_id, hb_project_id or \
+                 repo_id needs to be indicated for nx_get_project_plugin_relation.'))
+    query = model.ProjectPluginRelation.query.filter_by(**filter_params)
     try:
         row = query.one()
     except NoResultFound:
@@ -103,6 +114,15 @@ def nx_update_project(project_id, args):
             continue
         setattr(project, key, args[key])
     project.update_at = str(datetime.utcnow())
+    model.db.session.commit()
+
+
+def nx_update_project_relation(project_id, args):
+    project = model.ProjectPluginRelation.query.filter_by(plan_project_id=project_id).one()
+    for key in args.keys():
+        if not hasattr(project, key):
+            continue
+        setattr(project, key, args[key])
     model.db.session.commit()
 
 

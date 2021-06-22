@@ -4,34 +4,46 @@ import util
 from flask_restful import Resource, reqparse
 from flask_jwt_extended import jwt_required
 from resources.rancher import rancher
+from resources.gitlab import gitlab
 
-
-def update_db_rancher_projectid_and_pipelineid():
+def update_db_rancher_projectid_and_pipelineid(force=None):
     # get all project
     rows = db.session.query(ProjectPluginRelation, Project). \
-        join(Project).all()
-    # print(rows)
+        join(Project, ProjectPluginRelation.project_id == Project.id).all()
     rancher.rc_get_project_id()
-    # print("ci_project_id: {0}".format(rancher.project_id))
-
-    for row in rows:
-        rancher.rc_disable_project_pipeline( row.ProjectPluginRelation.ci_project_id, \
-            row.ProjectPluginRelation.ci_pipeline_id)
-        rancher_pipeline_id= rancher.rc_enable_project_pipeline(row.Project.http_url)
-        # print(row.ProjectPluginRelation.ci_pipeline_id)
-        ppro =ProjectPluginRelation.query.filter_by(id=row.ProjectPluginRelation.id).first()
-        ppro.ci_project_id= rancher.project_id
-        ppro.ci_pipeline_id= rancher_pipeline_id
-        # print("ci_pipeline_id: {0}".format(rancher_pipeline_id))
-        db.session.commit()
+    now_pipe_data = rancher.rc_get_project_pipeline()
+    if force == 'true':
+        for now_pipe in now_pipe_data:
+            rancher.rc_disable_project_pipeline(now_pipe['projectId'], now_pipe['id'])
+        for row in rows:
+            pj_info = gitlab.gl_get_project(row.ProjectPluginRelation.git_repository_id)
+            rancher_pipeline_id= rancher.rc_enable_project_pipeline(pj_info['http_url_to_repo'])
+            ppro =ProjectPluginRelation.query.filter_by(project_id=row.ProjectPluginRelation.project_id).first()
+            ppro.ci_project_id= rancher.project_id
+            ppro.ci_pipeline_id= rancher_pipeline_id
+            db.session.commit()
+    else:
+        for now_pipe in now_pipe_data:
+            for row in rows:
+                if now_pipe['repositoryUrl'].split('//')[1] == row.Project.http_url.split('//')[1] and\
+                    (now_pipe['projectId'] != row.ProjectPluginRelation.ci_project_id or \
+                    now_pipe['id'] != row.ProjectPluginRelation.ci_pipeline_id):
+                    ppro =ProjectPluginRelation.query.filter_by(project_id=row.ProjectPluginRelation.project_id).first()
+                    ppro.ci_project_id= now_pipe['projectId']
+                    ppro.ci_pipeline_id= now_pipe['id']
+                    db.session.commit()
 
 
 class UpdateDbRcProjectPipelineId(Resource):
-    
+
     @jwt_required
     def get(self):
         role.require_admin()
-        update_db_rancher_projectid_and_pipelineid()
+        parser = reqparse.RequestParser()
+        parser.add_argument('force', type=str)
+        args = parser.parse_args()
+        update_db_rancher_projectid_and_pipelineid(args['force'])
+        return util.success()
 
 class SecretesIntoRcAll(Resource):
 
