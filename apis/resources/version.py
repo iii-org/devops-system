@@ -11,7 +11,7 @@ from resources.redmine import redmine
 EMPTY_VERSIONS = {"versions": [], "total_count": 0}
 
 
-def get_version_list_by_project(project_id):
+def get_version_list_by_project(project_id, status):
     if util.is_dummy_project(project_id):
         return util.success(EMPTY_VERSIONS)
     try:
@@ -20,8 +20,13 @@ def get_version_list_by_project(project_id):
         return util.respond(404, "Error while getting versions.",
                             error=apiError.project_not_found(project_id))
     version_list = redmine.rm_get_version_list(plan_id)
+    if status is not None:
+        statuses = status.split(',')
+        version_list['versions'] = list(filter(
+            lambda x: x.get('status') in statuses, version_list['versions']))
+        version_list['total_count'] = len(version_list['versions'])
     version_list.get('versions').sort(key=lambda x: (x['due_date'], x['updated_on']))
-    return util.success(version_list)
+    return version_list
 
 
 def post_version_by_project(project_id, message_args):
@@ -63,7 +68,10 @@ class ProjectVersionList(Resource):
     @jwt_required
     def get(self, project_id):
         role.require_in_project(project_id)
-        return get_version_list_by_project(project_id)
+        root_parser = reqparse.RequestParser()
+        root_parser.add_argument('status', type=str)
+        root_args = root_parser.parse_args()
+        return util.success(get_version_list_by_project(project_id, root_args['status']))
 
 
 class ProjectVersion(Resource):
