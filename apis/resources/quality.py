@@ -127,7 +127,7 @@ def qu_get_testfile_list(project_id):
                             if row["issue_id"] == issue_info["id"]:
                                 test_plans.append(issue_info)
                                 break
-                    the_last_result = apiTest.get_the_last_result(project_id)
+                    the_last_result = apiTest.get_the_last_result(project_id, tree['name'].split('postman')[0])
                     out_list.append({
                         "software_name": path["software_name"],
                         "file_name": tree["name"],
