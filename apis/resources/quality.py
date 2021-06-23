@@ -118,10 +118,6 @@ def qu_get_testfile_list(project_id):
                 if path["file_name_key"] == "collection":
                     collection_obj = PostmanJSON(coll_json)
                     postman_info_obj = PostmanJSONInfo(collection_obj.info)
-                    items = []
-                    for item in collection_obj.item:
-                        postman_item_obj = PostmanJSONItem(item)
-                        items.append({"name": postman_item_obj.name})
                     test_plans = []
                     rows = get_test_plans_from_params(project_id,
                                                       path["software_name"],
@@ -136,7 +132,6 @@ def qu_get_testfile_list(project_id):
                         "software_name": path["software_name"],
                         "file_name": tree["name"],
                         "name": postman_info_obj.name,
-                        "items": items,
                         "test_plans": test_plans,
                         "the_last_test_result": the_last_result
                     })
@@ -144,38 +139,28 @@ def qu_get_testfile_list(project_id):
                     sideex_obj = SideeXJSON(coll_json)
                     for suite_dict in sideex_obj.suites:
                         suite_obj = SideeXJSONSuite(suite_dict)
-                        for case_dict in suite_obj.cases:
-                            records = []
-                            case_obj = SideeXJSONCase(case_dict)
-                            for record_dict in case_obj.records:
-                                record_obj = SideeXJSONRecord(record_dict)
-                                records.append({"name": record_obj.name})
-                            test_plans = []
-                            rows = get_test_plans_from_params(
-                                project_id, path["software_name"],
-                                tree["name"])
-                            for row in rows:
-                                for issue_info in issues_info:
-                                    if row["issue_id"] == issue_info["id"]:
-                                        test_plans.append(issue_info)
-                                        break
-                            the_last_result = sideex.sd_get_latest_test(project_id)
-                            out_list.append({
-                                "software_name":
-                                path["software_name"],
-                                "file_name":
-                                tree["name"],
-                                "parent_name":
-                                suite_obj.title,
-                                "name":
-                                case_obj.title,
-                                "items":
-                                records,
-                                "test_plans":
-                                test_plans,
-                                "the_last_test_result":
-                                the_last_result
-                            })
+                        test_plans = []
+                        rows = get_test_plans_from_params(
+                            project_id, path["software_name"],
+                            tree["name"])
+                        for row in rows:
+                            for issue_info in issues_info:
+                                if row["issue_id"] == issue_info["id"]:
+                                    test_plans.append(issue_info)
+                                    break
+                        the_last_result = sideex.sd_get_latest_test(project_id)
+                        out_list.append({
+                            "software_name":
+                            path["software_name"],
+                            "file_name":
+                            tree["name"],
+                            "name":
+                            suite_obj.title,
+                            "test_plans":
+                            test_plans,
+                            "the_last_test_result":
+                            the_last_result
+                        })
     return out_list
 
 
