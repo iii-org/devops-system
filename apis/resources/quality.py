@@ -233,7 +233,7 @@ def qu_upload_testfile(project_id, file, software_name):
     repository_id = nx_get_project_plugin_relation(
         nexus_project_id=project_id).git_repository_id
     soft_path = next(path for path in paths
-                     if path["software_name"] == software_name)
+                     if path["software_name"].lower() == software_name.lower())
     trees = gitlab.ql_get_collection(repository_id, soft_path['path'])
     file_exist = next(
         (True for tree in trees if tree["name"] == file.filename), False)
@@ -246,8 +246,8 @@ def qu_upload_testfile(project_id, file, software_name):
     pipeline.stop_and_delete_pipeline(repository_id, next_run)
 
 
-def qu_del_testfile(project_id, test_file_name):
-    rows = model.IssueCollectionRelation.query.filter_by(
+def qu_del_testfile(project_id, software_name, test_file_name):
+    rows = model.IssueCollectionRelation.query.filter_by(software_name=software_name.capitalize(),
         file_name=test_file_name).all()
     if len(rows) > 0:
         for row in rows:
@@ -256,14 +256,14 @@ def qu_del_testfile(project_id, test_file_name):
     repository_id = nx_get_project_plugin_relation(
         nexus_project_id=project_id).git_repository_id
     for path in paths:
-        if path["file_name_key"] in test_file_name and test_file_name[
-                -5:] == ".json":
+        if path["software_name"].lower() == software_name.lower() and \
+        path["file_name_key"] in test_file_name and test_file_name[-5:] == ".json":
             url = urllib.parse.quote(f"{path['path']}/{test_file_name}",
                                      safe='')
             gitlab.gl_delete_file(
                 repository_id, url, {
                     "commit_message":
-                    f"Delete Test file {path['path']}/{test_file_name} from UI"
+                    f"Delete {software_name} test file {path['path']}/{test_file_name} from UI"
                 })
             next_run = pipeline.get_pipeline_next_run(repository_id)
             pipeline.stop_and_delete_pipeline(repository_id, next_run)
@@ -294,20 +294,18 @@ class TestFileList(Resource):
 
 
 class TestFile(Resource):
-    def post(self, project_id):
+    def post(self, project_id, software_name):
         parser = reqparse.RequestParser()
-        parser.add_argument('software_name', type=str, required=True)
         parser.add_argument('test_file',
                             type=werkzeug.datastructures.FileStorage,
                             location='files',
                             required=True)
         args = parser.parse_args()
-        qu_upload_testfile(project_id, args['test_file'],
-                           args['software_name'])
+        qu_upload_testfile(project_id, args['test_file'], software_name)
         return util.success()
 
-    def delete(self, project_id, test_file_name):
-        out = qu_del_testfile(project_id, test_file_name)
+    def delete(self, project_id, software_name, test_file_name):
+        out = qu_del_testfile(project_id, software_name, test_file_name)
         return util.success(out)
 
 
