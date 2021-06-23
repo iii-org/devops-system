@@ -20,6 +20,7 @@ def get_version_list_by_project(project_id):
         return util.respond(404, "Error while getting versions.",
                             error=apiError.project_not_found(project_id))
     version_list = redmine.rm_get_version_list(plan_id)
+    version_list.get('versions').sort(key=lambda x: (x['due_date'], x['updated_on']))
     return util.success(version_list)
 
 
