@@ -30,7 +30,7 @@ from jsonwebtoken import jsonwebtoken
 from model import db
 from resources import logger, role as role, activity, zap, sideex
 from resources import project, gitlab, issue, user, redmine, wiki, version, sonarqube, apiTest, postman, mock, harbor, \
-    webInspect, template, release, sync_redmine, plugin, kubernetesClient, ad, project_permission, quality
+    webInspect, template, release, sync_redmine, plugin, kubernetesClient, ad, project_permission, quality, sync_project
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -471,6 +471,9 @@ api.add_resource(quality.TestPlanWithTestFile, '/quality/<int:project_id>/testpl
 # System versions
 api.add_resource(NexusVersion, '/system_versions')
 
+# Sync Projects
+api.add_resource(sync_project.SyncProject, '/sync_projects')
+
 
 def start_prod():
     try:
@@ -492,4 +495,4 @@ def start_prod():
 if __name__ == "__main__":
     start_prod()
     socketio.run(app, host='0.0.0.0', port=10009, debug=(config.get('DEBUG')),
-                 use_reloader=True)
+                 use_reloader=False)

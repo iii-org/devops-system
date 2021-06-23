@@ -606,6 +606,8 @@ class GitLab(object):
     def ql_get_collection(self, repository_id, path):
         try:
             pj = self.gl.projects.get(repository_id)
+            if pj.empty_repo:
+                return []
             return pj.repository_tree(ref=pj.default_branch, path=path)
         except apiError.TemplateError as e:
             raise apiError.TemplateError(
