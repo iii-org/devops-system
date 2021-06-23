@@ -62,6 +62,10 @@ def sq_deactivate_user(user_login):
     return __api_post(f'/users/deactivate?login={user_login}')
 
 
+def sq_list_project(page):
+    return __api_post(f'/projects/search?p={page}')
+
+
 def sq_create_project(project_name, display):
     return __api_post(f'/projects/create?name={display}&project={project_name}'
                       f'&visibility=private')

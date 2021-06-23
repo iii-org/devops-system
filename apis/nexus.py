@@ -118,7 +118,7 @@ def nx_update_project(project_id, args):
 
 
 def nx_update_project_relation(project_id, args):
-    project = model.ProjectPluginRelation.query.filter_by(plan_project_id=project_id).one()
+    project = model.ProjectPluginRelation.query.filter_by(project_id=project_id).one()
     for key in args.keys():
         if not hasattr(project, key):
             continue
