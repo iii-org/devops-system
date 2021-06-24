@@ -881,24 +881,20 @@ def identify_target_port(target_port, port):
 # Identify Service Exact External URL
 def identify_external_url(public_endpoint, node_port, service_type='', namespace='', branch=''):
     try:
-        external_url_format = '{0}:{1}'
         if service_type != 'db-server':
-            external_url_format = "http://" + external_url_format
+            if config.get('INGRESS_EXTERNAL_TLS') is not None and config.get('INGRESS_EXTERNAL_TLS') != '':
+                external_url_format = "https://"
+            else:
+                external_url_format = "http://"
 
         url = []
         if config.get('INGRESS_EXTERNAL_BASE') != '' and config.get('INGRESS_EXTERNAL_BASE') is not None:
-            if config.get('INGRESS_EXTERNAL_TLS') == 'https':
-                external_url_format = '{0}'
-                if service_type != 'db-server':
-                    external_url_format = "https://" + external_url_format
-                url.append(external_url_format.format(f"{namespace}-{branch}.{config.get('INGRESS_EXTERNAL_BASE')}"))
-            else:
-                url.append(external_url_format.format(f"{namespace}-{branch}.{config.get('INGRESS_EXTERNAL_BASE')}", node_port))
+            url.append(external_url_format+ f"{namespace}-{branch}.{config.get('INGRESS_EXTERNAL_BASE')}")
         elif 'hostname' in public_endpoint:
-            url.append(external_url_format.format(public_endpoint['hostname'], node_port))
+            url.append(external_url_format+ f"{public_endpoint['hostname']}:{node_port}")
         else:
             for address in public_endpoint['address']:
-                url.append(external_url_format.format(address, node_port))
+                url.append(external_url_format+ f"{address}:{node_port}")
         return url
     except apiError.DevOpsError as e:
         if e.status_code != 404:
