@@ -34,7 +34,7 @@ def __api_request(method, path, headers=None, params=None, data=None):
     output = util.api_request(method, url, headers, params, data,
                               auth=HTTPBasicAuth(config.get('SONARQUBE_ADMIN_TOKEN'), ''))
 
-    logger.info(f"SonarQube api {method} {url}, params={params.__str__()}, body={data},"
+    logger.debug(f"SonarQube api {method} {url}, params={params.__str__()}, body={data},"
                 f" response={output.status_code} {output.text}")
     if int(output.status_code / 100) != 2:
         raise apiError.DevOpsError(
