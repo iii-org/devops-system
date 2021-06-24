@@ -1267,7 +1267,12 @@ def check_issue_closable(issue_id):
         for id in unfinished_issues:
             # 已完成 issue_id 不需重複檢查
             if id not in finished_issues:
-                issue = redmine_lib.redmine.issue.get(id)
+                try:
+                    issue = redmine_lib.redmine.issue.get(id)
+                except redminelibError.ResourceNotFoundError:
+                    raise apiError.DevOpsError(
+                        404, 'Got non-2xx response from Redmine.',
+                        apiError.redmine_error('Error while geting issue.'))
                 # 如果 issue status 不是 Closed
                 # 如果 id 非預設 request 的 issue_id
                 if issue.status.id != 6 and id != issue_id:
