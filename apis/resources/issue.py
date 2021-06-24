@@ -17,12 +17,12 @@ import nexus
 import resources.apiError as apiError
 import resources.user as user
 import util as util
+from data.nexusProject import NexusProject
 from resources.apiError import DevOpsError
 from model import db
 from resources.logger import logger
 from resources.redmine import redmine
 from . import project as project_module, project, role
-from .project import NexusProject
 from services import redmine_lib
 
 FLOW_TYPES = {"0": "Given", "1": "When", "2": "Then", "3": "But", "4": "And"}
