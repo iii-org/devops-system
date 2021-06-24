@@ -36,7 +36,7 @@ def __api_request(method, path, headers=None, params=None, data=None):
     output = util.api_request(method, url, headers=headers,
                               params=params, data=data, auth=auth)
 
-    logger.info('Harbor api {0} {1}, params={2}, body={5}, response={3} {4}'.format(
+    logger.debug('Harbor api {0} {1}, params={2}, body={5}, response={3} {4}'.format(
         method, url, params.__str__(), output.status_code, output.text, data))
     if int(output.status_code / 100) != 2:
         raise DevOpsError(
