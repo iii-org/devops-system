@@ -19,6 +19,20 @@ def tgi_feed_postman(row):
                                  col_key, _get_postman_issue_close_description(row))
 
 
+def tgi_feed_sideex(row):
+    suites = json.loads(row.result).get('suites')
+    for col_key, result in suites.items():
+        total = result.get('total')
+        passed = result.get('passed')
+        if total - passed > 0:
+            _handle_test_failed(row.project_id, 'sideex',
+                                col_key, _get_sideex_issue_description(row, total, passed),
+                                row.branch, row.commit_id, 'test_results', row.id)
+        else:
+            _handle_test_success(row.project_id, 'sideex',
+                                 col_key, _get_sideex_issue_close_description(row, total, passed))
+
+
 def _handle_test_failed(project_id, software_name, filename, description,
                         branch, commit_id, result_table, result_id):
     relation_row = model.TestGeneratedIssue.query.filter_by(
@@ -101,3 +115,15 @@ def _get_postman_issue_close_description(row):
     now = datetime.now()
     dt_string = now.strftime("%Y-%m-%d %H:%M:%S")
     return f'{dt_string} {row.branch} #{row.commit_id} Postman 自動化測試成功 ({row.total})'
+
+
+def _get_sideex_issue_description(row, total, passed):
+    now = datetime.now()
+    dt_string = now.strftime("%Y-%m-%d %H:%M:%S")
+    return f'{dt_string} {row.branch} #{row.commit_id} Sideex 自動化測試失敗 ({passed}/{total})'
+
+
+def _get_sideex_issue_close_description(row, total, passed):
+    now = datetime.now()
+    dt_string = now.strftime("%Y-%m-%d %H:%M:%S")
+    return f'{dt_string} {row.branch} #{row.commit_id} Sideex 自動化測試成功 ({total})'
