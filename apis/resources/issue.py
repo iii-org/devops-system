@@ -9,6 +9,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm.exc import NoResultFound
 from collections import defaultdict
 from distutils.util import strtobool
+from redminelib import exceptions as redminelibError
 
 import config
 import model
@@ -185,25 +186,56 @@ class NexusIssue:
 
 
 def get_issue_attr_name(detail, value):
+    resource_not_found = {'id': None, 'name': 'NotExist'}
     # 例外處理: dev3 環境的 issue fixed_version_id 有 -1
     if not value or value == '-1':
         return value
     else:
         if detail['name'] == 'status_id':
-            return redmine_lib.redmine.issue_status.get(int(value)).name
-        elif detail['name'] == 'tracker_id':
-            return redmine_lib.redmine.tracker.get(int(value)).name
-        elif detail['name'] == 'priority_id':
-            return redmine_lib.redmine.enumeration.get(int(value), resource='issue_priorities').name
-        elif detail['name'] == 'fixed_version_id':
+            try:
+                status = redmine_lib.redmine.issue_status.get(int(value))
+            except redminelibError.ResourceNotFoundError:
+                return resource_not_found
             return {
                 'id': int(value),
-                'name': redmine_lib.redmine.version.get(int(value)).name
+                'name': status.name
+            }
+        elif detail['name'] == 'tracker_id':
+            try:
+                tracker = redmine_lib.redmine.tracker.get(int(value))
+            except redminelibError.ResourceNotFoundError:
+                return resource_not_found
+            return {
+                'id': int(value),
+                'name': tracker.name
+            }
+        elif detail['name'] == 'priority_id':
+            try:
+                priority = redmine_lib.redmine.enumeration.get(
+                    int(value), resource='issue_priorities')
+            except redminelibError.ResourceNotFoundError:
+                return resource_not_found
+            return {
+                'id': int(value),
+                'name': priority.name
+            }
+        elif detail['name'] == 'fixed_version_id':
+            try:
+                fixed_version = redmine_lib.redmine.version.get(int(value))
+            except redminelibError.ResourceNotFoundError:
+                return resource_not_found
+            return {
+                'id': int(value),
+                'name': fixed_version.name
             }
         elif detail['name'] == 'parent_id':
+            try:
+                issue = redmine_lib.redmine.issue.get(int(value))
+            except redminelibError.ResourceNotFoundError:
+                return resource_not_found
             return {
                 'id': int(value),
-                'name': redmine_lib.redmine.issue.get(int(value)).subject
+                'name': issue.subject
             }
         else:
             return value
