@@ -542,8 +542,15 @@ def get_issue_list_by_project(project_id, args):
                           error=apiError.project_not_found(project_id))
 
     default_filters = get_custom_filters_by_args(args, project_id=plan_id)
-    # 有 search params，但是 default_filters 沒有 issued_id，代表沒有搜尋結果
-    if not default_filters.get('issue_id', None) and args['search']:
+    # multiple_assigned_to = True，代表 filter 跟 assigned_to_id 為不同的 user id
+    if default_filters.get('multiple_assigned_to', None) and default_filters['multiple_assigned_to']:
+        return []
+        # 指定 assigned_to_id 又不存在 multiple_assigned_to 的情況下，
+        # default_filters 帶 search ，但沒有取得 issued_id，搜尋結果為空
+    elif args.get(
+        'search', None) and not default_filters.get(
+            'issue_id', None) and default_filters.get(
+                'assigned_to_id', None) and 'multiple_assigned_to' not in default_filters:
         return []
     all_issues = redmine_lib.redmine.issue.filter(**default_filters)
     # 透過 selection params 決定是否顯示 family bool 欄位
@@ -646,7 +653,7 @@ def handle_allowed_keywords(default_filters, args):
 def handle_search(default_filters, args):
     result = []
     # 搜尋被分配者
-    result.extend(get_issue_assigned_to_search(args['search'], default_filters))
+    result.extend(get_issue_assigned_to_search(args, default_filters))
     # 搜尋 issue 標題
     search_title = redmine_lib.redmine.search(args['search'], titles_only=True, resources=['issues'])
     if search_title:
@@ -669,15 +676,22 @@ def handle_search(default_filters, args):
 
 
 # 搜尋被分配者符合 keyword 的 issues
-def get_issue_assigned_to_search(keyword, default_filters):
+def get_issue_assigned_to_search(args, default_filters):
     assigned_to_issue = []
     nx_user_list = db.session.query(model.UserPluginRelation).join(
-        model.User).filter(or_(
-            model.User.login.ilike(f'%{keyword}%'),
-            model.User.name.ilike(f'%{keyword}%')
-        )).all()
+        model.User, model.ProjectUserRole).filter(or_(
+            model.User.login.ilike(f'%{args["search"]}%'),
+            model.User.name.ilike(f'%{args["search"]}%')
+        ), model.ProjectUserRole.role_id != 6).all()
     if nx_user_list:
         for nx_user in nx_user_list:
+            # 如果有指定 assigned_to_id，需要判斷是否跟 search 找到的 user 為相同 user_id
+            if args.get('assigned_to_id', None):
+                if nx_user.user_id != int(args['assigned_to_id']):
+                    default_filters['multiple_assigned_to'] = True
+                else:
+                    default_filters['multiple_assigned_to'] = False
+                return assigned_to_issue
             all_issues = redmine_lib.redmine.issue.filter(**default_filters, assigned_to_id=nx_user.plan_user_id)
             assigned_to_issue.extend([issue.id for issue in all_issues])
     return assigned_to_issue
