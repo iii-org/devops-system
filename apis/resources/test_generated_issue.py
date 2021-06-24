@@ -36,7 +36,8 @@ def tgi_feed_sideex(row):
 def _handle_test_failed(project_id, software_name, filename, description,
                         branch, commit_id, result_table, result_id):
     relation_row = model.TestGeneratedIssue.query.filter_by(
-        software_name='postman',
+        project_id=project_id,
+        software_name=software_name,
         file_name=filename
     ).first()
     if relation_row is None:
@@ -70,7 +71,8 @@ def _handle_test_failed(project_id, software_name, filename, description,
 
 def _handle_test_success(project_id, software_name, filename, description):
     relation_row = model.TestGeneratedIssue.query.filter_by(
-        software_name='postman',
+        project_id=project_id,
+        software_name=software_name,
         file_name=filename
     ).first()
     if relation_row is None:
