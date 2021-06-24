@@ -12,7 +12,7 @@ import model
 import nexus
 import resources.apiError as apiError
 import util as util
-from data.nexusProject import NexusProject
+from data.nexus_project import NexusProject
 from model import db
 from nexus import nx_get_project_plugin_relation
 from resources.apiError import DevOpsError

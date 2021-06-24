@@ -17,7 +17,7 @@ import nexus
 import resources.apiError as apiError
 import resources.user as user
 import util as util
-from data.nexusProject import NexusProject
+from data.nexus_project import NexusProject
 from resources.apiError import DevOpsError
 from model import db
 from resources.logger import logger
