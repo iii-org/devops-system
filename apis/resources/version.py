@@ -25,8 +25,23 @@ def get_version_list_by_project(project_id, status):
         version_list['versions'] = list(filter(
             lambda x: x.get('status') in statuses, version_list['versions']))
         version_list['total_count'] = len(version_list['versions'])
-    version_list.get('versions').sort(key=lambda x: (x.get('due_date', ''), x.get('updated_on', '')))
+    version_list.get('versions').sort(key=__compare_date_string)
     return version_list
+
+
+def __compare_date_string(a, b):
+    if a.get('due_date', '') is None:
+        return 1
+    if b.get('due_date', '') is None:
+        return -1
+    if a.get('due_date', '') != b.get('due_date', ''):
+        return a.get('due_date', '') < b.get('due_date', '')
+    if a.get('updated_on', '') is None:
+        return 1
+    if b.get('updated_on', '') is None:
+        return -1
+    if a.get('updated_on', '') != b.get('updated_on', ''):
+        return a.get('updated_on', '') < b.get('updated_on', '')
 
 
 def post_version_by_project(project_id, message_args):
