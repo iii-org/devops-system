@@ -20,7 +20,7 @@ from .gitlab import gitlab
 paths = [{
     "software_name": "Postman",
     "path": "iiidevops/postman",
-    "file_name_key": "collection"
+    "file_name_key": "postman_collection.json"
 }, {
     "software_name": "SideeX",
     "path": "iiidevops/sideex",
@@ -115,7 +115,7 @@ def qu_get_testfile_list(project_id):
                 path_file = f'{path["path"]}/{tree["name"]}'
                 coll_json = json.loads(
                     gitlab.gl_get_file(repository_id, path_file))
-                if path["file_name_key"] == "collection":
+                if path["file_name_key"] == "postman_collection.json":
                     collection_obj = PostmanJSON(coll_json)
                     postman_info_obj = PostmanJSONInfo(collection_obj.info)
                     test_plans = []
