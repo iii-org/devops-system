@@ -25,7 +25,7 @@ def get_version_list_by_project(project_id, status):
         version_list['versions'] = list(filter(
             lambda x: x.get('status') in statuses, version_list['versions']))
         version_list['total_count'] = len(version_list['versions'])
-    version_list.get('versions').sort(key=lambda x: (x['due_date'], x['updated_on']))
+    version_list.get('versions').sort(key=lambda x: (x.get('due_date', ''), x.get('updated_on', '')))
     return version_list
 
 
