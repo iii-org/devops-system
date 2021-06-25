@@ -46,7 +46,7 @@ def _handle_test_failed(project_id, software_name, filename, description,
             'tracker_id': 9,
             'status_id': 1,
             'priority_id': 1,
-            'subject': f'{filename}__測試失敗',
+            'subject': _get_issue_subject(filename, software_name),
             'description': description
         }
         tgi_create_issue(args, software_name, filename,
@@ -67,6 +67,13 @@ def _handle_test_failed(project_id, software_name, filename, description,
         desc = iss.description
         iss.description = desc + '\n' + description
         iss.save()
+
+
+def _get_issue_subject(filename, software_name):
+    if software_name == 'postman':
+        return f'{filename}.postman_collection.json__測試失敗'
+    else:
+        return f'{filename}__測試失敗'
 
 
 def _handle_test_success(project_id, software_name, filename, description):
