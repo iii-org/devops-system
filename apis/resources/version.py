@@ -29,19 +29,14 @@ def get_version_list_by_project(project_id, status):
     return version_list
 
 
-def __compare_date_string(a, b):
-    if a.get('due_date', '') is None:
-        return 1
-    if b.get('due_date', '') is None:
-        return -1
-    if a.get('due_date', '') != b.get('due_date', ''):
-        return a.get('due_date', '') < b.get('due_date', '')
-    if a.get('updated_on', '') is None:
-        return 1
-    if b.get('updated_on', '') is None:
-        return -1
-    if a.get('updated_on', '') != b.get('updated_on', ''):
-        return a.get('updated_on', '') < b.get('updated_on', '')
+def __compare_date_string(x):
+    due_date = x.get('due_date', '')
+    updated_on = x.get('updated_on', '')
+    if due_date is None:
+        due_date = 'Z'
+    if updated_on is None:
+        updated_on = 'Z'
+    return due_date, updated_on
 
 
 def post_version_by_project(project_id, message_args):
