@@ -11,7 +11,7 @@ from resources.redmine import redmine
 EMPTY_VERSIONS = {"versions": [], "total_count": 0}
 
 
-def get_version_list_by_project(project_id, status):
+def get_version_list_by_project(project_id, status, force_id):
     if util.is_dummy_project(project_id):
         return util.success(EMPTY_VERSIONS)
     try:
@@ -20,13 +20,30 @@ def get_version_list_by_project(project_id, status):
         return util.respond(404, "Error while getting versions.",
                             error=apiError.project_not_found(project_id))
     version_list = redmine.rm_get_version_list(plan_id)
+    if force_id is not None:
+        force_ids = force_id.split(',')
+    else:
+        force_ids = []
     if status is not None:
         statuses = status.split(',')
         version_list['versions'] = list(filter(
-            lambda x: x.get('status') in statuses, version_list['versions']))
+            lambda x: (str(x.get('id')) in force_ids) or
+                      (x.get('status') in statuses),
+            version_list['versions'])
+        )
         version_list['total_count'] = len(version_list['versions'])
-    version_list.get('versions').sort(key=lambda x: (x.get('due_date', ''), x.get('updated_on', '')))
+    version_list.get('versions').sort(key=__compare_date_string)
     return version_list
+
+
+def __compare_date_string(x):
+    due_date = x.get('due_date', '')
+    updated_on = x.get('updated_on', '')
+    if due_date is None:
+        due_date = 'Z'
+    if updated_on is None:
+        updated_on = 'Z'
+    return due_date, updated_on
 
 
 def post_version_by_project(project_id, message_args):
@@ -70,8 +87,10 @@ class ProjectVersionList(Resource):
         role.require_in_project(project_id)
         root_parser = reqparse.RequestParser()
         root_parser.add_argument('status', type=str)
+        root_parser.add_argument('force_id', type=str)
         root_args = root_parser.parse_args()
-        return util.success(get_version_list_by_project(project_id, root_args['status']))
+        return util.success(get_version_list_by_project(
+            project_id, root_args['status'], root_args['force_id']))
 
 
 class ProjectVersion(Resource):
