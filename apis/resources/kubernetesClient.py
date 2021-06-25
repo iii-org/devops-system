@@ -900,8 +900,12 @@ def identify_external_url(public_endpoint, node_port, service_type='', namespace
                 check_ingress_exist(namespace, branch):
             url.append(f"{external_url_format}{namespace}-{branch}.{config.get('INGRESS_EXTERNAL_BASE')}")
         elif 'hostname' in public_endpoint:
+            if service_type != 'db-server':
+                external_url_format = "http://"
             url.append(f"{external_url_format}{public_endpoint['hostname']}:{node_port}")
         else:
+            if service_type != 'db-server':
+                external_url_format = "http://"
             for address in public_endpoint['address']:
                 url.append(f"{external_url_format}{address}:{node_port}")
         return url
