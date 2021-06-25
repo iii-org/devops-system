@@ -565,6 +565,14 @@ def list_namespace_ingresses(namespace):
             raise e
 
 
+def check_ingress_exist(namespace, branch):
+    ingress_list = list_namespace_ingresses(namespace)
+    for ingress in ingress_list:
+        name = f"{namespace}-{branch}-serv-ing"
+        if f"{namespace}-{branch}-serv-ing" == ingress['name']:
+            return True
+    return False
+
 def map_ingress_with_host(rules, ip):
     try:
         info = []
@@ -888,7 +896,10 @@ def identify_external_url(public_endpoint, node_port, service_type='', namespace
                 external_url_format = "https://"
 
         url = []
-        if config.get('INGRESS_EXTERNAL_BASE') != '' and config.get('INGRESS_EXTERNAL_BASE') is not None and service_type != 'db-server':
+        ingress_exist =check_ingress_exist(namespace, branch)
+        if config.get('INGRESS_EXTERNAL_BASE') != '' and config.get('INGRESS_EXTERNAL_BASE') is not None\
+            and service_type != 'db-server' and namespace != '' and branch != '' and \
+                check_ingress_exist(namespace, branch):
             url.append(f"{external_url_format}{namespace}-{branch}.{config.get('INGRESS_EXTERNAL_BASE')}")
         elif 'hostname' in public_endpoint:
             url.append(f"{external_url_format}{public_endpoint['hostname']}:{node_port}")
