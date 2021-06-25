@@ -45,7 +45,7 @@ def _handle_test_failed(project_id, software_name, filename, description,
             'project_id': project_id,
             'tracker_id': 9,
             'status_id': 1,
-            'priority_id': 1,
+            'priority_id': 3,
             'subject': _get_issue_subject(filename, software_name),
             'description': description
         }
