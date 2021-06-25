@@ -888,7 +888,7 @@ def identify_external_url(public_endpoint, node_port, service_type='', namespace
                 external_url_format = "https://"
 
         url = []
-        if config.get('INGRESS_EXTERNAL_BASE') != '' and config.get('INGRESS_EXTERNAL_BASE') is not None:
+        if config.get('INGRESS_EXTERNAL_BASE') != '' and config.get('INGRESS_EXTERNAL_BASE') is not None and service_type != 'db-server':
             url.append(f"{external_url_format}{namespace}-{branch}.{config.get('INGRESS_EXTERNAL_BASE')}")
         elif 'hostname' in public_endpoint:
             url.append(f"{external_url_format}{public_endpoint['hostname']}:{node_port}")
