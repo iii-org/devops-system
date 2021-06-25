@@ -51,7 +51,7 @@ class Redmine:
         output = util.api_request(method, url, headers, params, data)
 
         if resp_format != '':
-            logger.info('redmine api {0} {1}, params={2}, body={5}, response={3} {4}'.format(
+            logger.debug('redmine api {0} {1}, params={2}, body={5}, response={3} {4}'.format(
                 method, url, params.__str__(), output.status_code, output.text, data))
         if int(output.status_code / 100) != 2:
             raise apiError.DevOpsError(

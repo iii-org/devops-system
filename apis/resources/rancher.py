@@ -14,6 +14,38 @@ from nexus import nx_get_project_plugin_relation
 from resources.logger import logger
 
 
+def get_ci_last_test_result(relation):
+    ret = {
+        'last_test_result': {'total': 0, 'success': 0},
+        'last_test_time': ''
+    }
+    pl = rancher.rc_get_pipeline_info(relation.ci_project_id, relation.ci_pipeline_id)
+    last_exec_id = pl.get('lastExecutionId')
+    if last_exec_id is None:
+        return ret
+    try:
+        last_run = rancher.rc_get_pipeline_execution(
+            relation.ci_project_id, relation.ci_pipeline_id, last_exec_id)
+    except apiError.DevOpsError as e:
+        if e.status_code == 404:
+            return ret
+        else:
+            raise e
+
+    ret['last_test_result']['total'] = len(last_run['stages'])
+    ret['last_test_time'] = last_run['created']
+    stage_status = []
+    for stage in last_run['stages']:
+        if 'state' in stage:
+            stage_status.append(stage['state'])
+    if 'Failed' in stage_status:
+        failed_item = stage_status.index('Failed')
+        ret['last_test_result']['success'] = failed_item
+    else:
+        ret['last_test_result']['success'] = len(last_run['stages'])
+    return ret
+
+
 class Rancher(object):
     def __init__(self):
         self.token = 'dummy string to make API returns 401'

@@ -9,6 +9,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm.exc import NoResultFound
 from collections import defaultdict
 from distutils.util import strtobool
+from redminelib import exceptions as redminelibError
 
 import config
 import model
@@ -16,12 +17,12 @@ import nexus
 import resources.apiError as apiError
 import resources.user as user
 import util as util
+from data.nexus_project import NexusProject
 from resources.apiError import DevOpsError
 from model import db
 from resources.logger import logger
 from resources.redmine import redmine
 from . import project as project_module, project, role
-from .project import NexusProject
 from services import redmine_lib
 
 FLOW_TYPES = {"0": "Given", "1": "When", "2": "Then", "3": "But", "4": "And"}
@@ -185,25 +186,56 @@ class NexusIssue:
 
 
 def get_issue_attr_name(detail, value):
+    resource_not_found = {'id': None, 'name': 'NotExist'}
     # 例外處理: dev3 環境的 issue fixed_version_id 有 -1
     if not value or value == '-1':
         return value
     else:
         if detail['name'] == 'status_id':
-            return redmine_lib.redmine.issue_status.get(int(value)).name
-        elif detail['name'] == 'tracker_id':
-            return redmine_lib.redmine.tracker.get(int(value)).name
-        elif detail['name'] == 'priority_id':
-            return redmine_lib.redmine.enumeration.get(int(value), resource='issue_priorities').name
-        elif detail['name'] == 'fixed_version_id':
+            try:
+                status = redmine_lib.redmine.issue_status.get(int(value))
+            except redminelibError.ResourceNotFoundError:
+                return resource_not_found
             return {
                 'id': int(value),
-                'name': redmine_lib.redmine.version.get(int(value)).name
+                'name': status.name
+            }
+        elif detail['name'] == 'tracker_id':
+            try:
+                tracker = redmine_lib.redmine.tracker.get(int(value))
+            except redminelibError.ResourceNotFoundError:
+                return resource_not_found
+            return {
+                'id': int(value),
+                'name': tracker.name
+            }
+        elif detail['name'] == 'priority_id':
+            try:
+                priority = redmine_lib.redmine.enumeration.get(
+                    int(value), resource='issue_priorities')
+            except redminelibError.ResourceNotFoundError:
+                return resource_not_found
+            return {
+                'id': int(value),
+                'name': priority.name
+            }
+        elif detail['name'] == 'fixed_version_id':
+            try:
+                fixed_version = redmine_lib.redmine.version.get(int(value))
+            except redminelibError.ResourceNotFoundError:
+                return resource_not_found
+            return {
+                'id': int(value),
+                'name': fixed_version.name
             }
         elif detail['name'] == 'parent_id':
+            try:
+                issue = redmine_lib.redmine.issue.get(int(value))
+            except redminelibError.ResourceNotFoundError:
+                return resource_not_found
             return {
                 'id': int(value),
-                'name': redmine_lib.redmine.issue.get(int(value)).subject
+                'name': issue.subject
             }
         else:
             return value
@@ -510,8 +542,15 @@ def get_issue_list_by_project(project_id, args):
                           error=apiError.project_not_found(project_id))
 
     default_filters = get_custom_filters_by_args(args, project_id=plan_id)
-    # 有 search params，但是 default_filters 沒有 issued_id，代表沒有搜尋結果
-    if not default_filters.get('issue_id', None) and args['search']:
+    # multiple_assigned_to = True，代表 filter 跟 assigned_to_id 為不同的 user id
+    if default_filters.get('multiple_assigned_to', None) and default_filters['multiple_assigned_to']:
+        return []
+        # 指定 assigned_to_id 又不存在 multiple_assigned_to 的情況下，
+        # default_filters 帶 search ，但沒有取得 issued_id，搜尋結果為空
+    elif args.get(
+        'search', None) and not default_filters.get(
+            'issue_id', None) and default_filters.get(
+                'assigned_to_id', None) and 'multiple_assigned_to' not in default_filters:
         return []
     all_issues = redmine_lib.redmine.issue.filter(**default_filters)
     # 透過 selection params 決定是否顯示 family bool 欄位
@@ -614,7 +653,7 @@ def handle_allowed_keywords(default_filters, args):
 def handle_search(default_filters, args):
     result = []
     # 搜尋被分配者
-    result.extend(get_issue_assigned_to_search(args['search'], default_filters))
+    result.extend(get_issue_assigned_to_search(args, default_filters))
     # 搜尋 issue 標題
     search_title = redmine_lib.redmine.search(args['search'], titles_only=True, resources=['issues'])
     if search_title:
@@ -637,15 +676,22 @@ def handle_search(default_filters, args):
 
 
 # 搜尋被分配者符合 keyword 的 issues
-def get_issue_assigned_to_search(keyword, default_filters):
+def get_issue_assigned_to_search(args, default_filters):
     assigned_to_issue = []
     nx_user_list = db.session.query(model.UserPluginRelation).join(
-        model.User).filter(or_(
-            model.User.login.ilike(f'%{keyword}%'),
-            model.User.name.ilike(f'%{keyword}%')
-        )).all()
+        model.User, model.ProjectUserRole).filter(or_(
+            model.User.login.ilike(f'%{args["search"]}%'),
+            model.User.name.ilike(f'%{args["search"]}%')
+        ), model.ProjectUserRole.role_id != 6).all()
     if nx_user_list:
         for nx_user in nx_user_list:
+            # 如果有指定 assigned_to_id，需要判斷是否跟 search 找到的 user 為相同 user_id
+            if args.get('assigned_to_id', None):
+                if nx_user.user_id != int(args['assigned_to_id']):
+                    default_filters['multiple_assigned_to'] = True
+                else:
+                    default_filters['multiple_assigned_to'] = False
+                return assigned_to_issue
             all_issues = redmine_lib.redmine.issue.filter(**default_filters, assigned_to_id=nx_user.plan_user_id)
             assigned_to_issue.extend([issue.id for issue in all_issues])
     return assigned_to_issue
@@ -1221,7 +1267,12 @@ def check_issue_closable(issue_id):
         for id in unfinished_issues:
             # 已完成 issue_id 不需重複檢查
             if id not in finished_issues:
-                issue = redmine_lib.redmine.issue.get(id)
+                try:
+                    issue = redmine_lib.redmine.issue.get(id)
+                except redminelibError.ResourceNotFoundError:
+                    raise apiError.DevOpsError(
+                        404, 'Got non-2xx response from Redmine.',
+                        apiError.redmine_error('Error while geting issue.'))
                 # 如果 issue status 不是 Closed
                 # 如果 id 非預設 request 的 issue_id
                 if issue.status.id != 6 and id != issue_id:

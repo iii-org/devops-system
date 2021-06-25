@@ -721,7 +721,9 @@ def list_namespace_services_by_iii(namespace):
                 service_info['public_endpoints'] = analysis_annotations_public_endpoint(
                     annotations['field.cattle.io/publicEndpoints'])
                 service_info['url'] = map_port_and_public_endpoint(
-                    service.spec.ports, service_info['public_endpoints'], annotations[iii_template['type']])
+                    service.spec.ports, service_info['public_endpoints'], 
+                    annotations[iii_template['type']], namespace, 
+                    list_services[environment]['branch'])
                 list_services[environment]['services'].append(service_info)
         return list_services
     except apiError.DevOpsError as e:
@@ -846,7 +848,7 @@ def analysis_annotations_public_endpoint(public_endpoints):
             raise e
 
 
-def map_port_and_public_endpoint(ports, public_endpoints, service_type=''):
+def map_port_and_public_endpoint(ports, public_endpoints, service_type='', namespace='', branch=''):
     try:
         info = []
         for port in ports:
@@ -854,7 +856,8 @@ def map_port_and_public_endpoint(ports, public_endpoints, service_type=''):
                 url_info = {}
                 url_info['port_name'] = port.name
                 url_info['target_port'], url_info['port'] = identify_target_port(port.target_port, port.port)
-                url_info['url'] = identify_external_url(public_endpoint, port.node_port, service_type)
+                url_info['url'] = identify_external_url(public_endpoint, port.node_port, 
+                                                        service_type, namespace, branch)
                 info.append(url_info)
         return info
     except apiError.DevOpsError as e:
@@ -876,20 +879,22 @@ def identify_target_port(target_port, port):
 
 
 # Identify Service Exact External URL
-def identify_external_url(public_endpoint, node_port, service_type=''):
+def identify_external_url(public_endpoint, node_port, service_type='', namespace='', branch=''):
     try:
-        external_url_format = '{0}:{1}'
+        external_url_format = ""
         if service_type != 'db-server':
-            external_url_format = "http://" + external_url_format
+            external_url_format = "http://"
+            if config.get('INGRESS_EXTERNAL_TLS') is not None and config.get('INGRESS_EXTERNAL_TLS') != '':
+                external_url_format = "https://"
 
         url = []
-        if config.get('INGRESS_EXTERNAL_BASE') != '' and config.get('INGRESS_EXTERNAL_BASE') is not None:
-            url.append(external_url_format.format(config.get('INGRESS_EXTERNAL_BASE'), node_port))
+        if config.get('INGRESS_EXTERNAL_BASE') != '' and config.get('INGRESS_EXTERNAL_BASE') is not None and service_type != 'db-server':
+            url.append(f"{external_url_format}{namespace}-{branch}.{config.get('INGRESS_EXTERNAL_BASE')}")
         elif 'hostname' in public_endpoint:
-            url.append(external_url_format.format(public_endpoint['hostname'], node_port))
+            url.append(f"{external_url_format}{public_endpoint['hostname']}:{node_port}")
         else:
             for address in public_endpoint['address']:
-                url.append(external_url_format.format(address, node_port))
+                url.append(f"{external_url_format}{address}:{node_port}")
         return url
     except apiError.DevOpsError as e:
         if e.status_code != 404:

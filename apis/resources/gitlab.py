@@ -106,7 +106,7 @@ class GitLab(object):
 
         output = util.api_request(method, url, headers, params, data)
 
-        logger.info(
+        logger.debug(
             f'gitlab api {method} {url}, params={params.__str__()}, body={data}, response={output.status_code} {output.text}'
         )
         if int(output.status_code / 100) != 2:
