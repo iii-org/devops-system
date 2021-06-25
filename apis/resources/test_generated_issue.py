@@ -71,7 +71,11 @@ def _handle_test_failed(project_id, software_name, filename, description,
 
 def _get_issue_subject(filename, software_name):
     if software_name == 'postman':
-        return f'{filename}.postman_collection.json__測試失敗'
+        if filename == '':
+            full_filename = 'postman_collection.json'
+        else:
+            full_filename = f'{filename}.postman_collection.json'
+        return f'{full_filename}__測試失敗'
     else:
         return f'{filename}__測試失敗'
 
