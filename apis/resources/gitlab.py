@@ -192,6 +192,9 @@ class GitLab(object):
     def gl_get_user_list(self, args):
         return self.__api_get('/users', params=args)
 
+    def gl_project_list_member(self, project_id, args):
+        return self.__api_get(f'/projects/{project_id}/members', params=args)
+
     def gl_project_add_member(self, project_id, user_id):
         params = {
             "user_id": user_id,
