@@ -254,8 +254,11 @@ def check_hb_pj(projects_name):
         params = {'page': page, 'page_size': page_size}
         output = harbor.__api_get('/projects', params=params)
         harbor_projects.extend([context['name'] for context in output.json()])
-        total_size = int(output.headers['x-total-count'])-(page*page_size)
-        page += 1
+        if output.headers.get('X-Total-Count', None):
+            total_size = int(output.headers['X-Total-Count'])-(page*page_size)
+            page += 1
+        else:
+            total_size = -1
     hb_pj = list(set(projects_name)-set(harbor_projects))
     nexus_pj = [nexus.nx_get_project(name=name) for name in hb_pj]
     return nexus_pj
@@ -264,11 +267,14 @@ def check_hb_pj(projects_name):
 def check_sq_pj(projects_name):
     sonarqube_projects = []
     page = 1
-    response = sonarqube.sq_list_project(page).json()
-    while response['components']:
+    page_size = 50
+    total_size = 20
+    while total_size > 0:
+        params = {'p': page, 'ps': page_size}
+        output = sonarqube.sq_list_project(params).json()
+        sonarqube_projects.extend([pj['key'] for pj in output['components']])
+        total_size = int(output['paging']['total'])-(page*page_size)
         page += 1
-        sonarqube_projects.extend([pj['key'] for pj in response['components']])
-        response = sonarqube.sq_list_project(page).json()
     sq_pj = list(set(projects_name)-set(sonarqube_projects))
     nexus_pj = [nexus.nx_get_project(name=name) for name in sq_pj]
     return nexus_pj

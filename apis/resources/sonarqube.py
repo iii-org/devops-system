@@ -66,8 +66,8 @@ def sq_list_user(params):
     return __api_get('/users/search', params=params)
 
 
-def sq_list_project(page):
-    return __api_post(f'/projects/search?p={page}')
+def sq_list_project(params):
+    return __api_post('/projects/search', params=params)
 
 
 def sq_create_project(project_name, display):
