@@ -36,7 +36,8 @@ def tgi_feed_sideex(row):
 def _handle_test_failed(project_id, software_name, filename, description,
                         branch, commit_id, result_table, result_id):
     relation_row = model.TestGeneratedIssue.query.filter_by(
-        software_name='postman',
+        project_id=project_id,
+        software_name=software_name,
         file_name=filename
     ).first()
     if relation_row is None:
@@ -44,8 +45,8 @@ def _handle_test_failed(project_id, software_name, filename, description,
             'project_id': project_id,
             'tracker_id': 9,
             'status_id': 1,
-            'priority_id': 1,
-            'subject': f'{filename}__測試失敗',
+            'priority_id': 3,
+            'subject': _get_issue_subject(filename, software_name),
             'description': description
         }
         tgi_create_issue(args, software_name, filename,
@@ -68,9 +69,21 @@ def _handle_test_failed(project_id, software_name, filename, description,
         iss.save()
 
 
+def _get_issue_subject(filename, software_name):
+    if software_name == 'postman':
+        if filename == '':
+            full_filename = 'postman_collection.json'
+        else:
+            full_filename = f'{filename}.postman_collection.json'
+        return f'{full_filename}__測試失敗'
+    else:
+        return f'{filename}__測試失敗'
+
+
 def _handle_test_success(project_id, software_name, filename, description):
     relation_row = model.TestGeneratedIssue.query.filter_by(
-        software_name='postman',
+        project_id=project_id,
+        software_name=software_name,
         file_name=filename
     ).first()
     if relation_row is None:

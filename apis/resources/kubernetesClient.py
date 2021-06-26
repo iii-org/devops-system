@@ -574,6 +574,13 @@ def list_namespace_ingresses(namespace):
             raise e
 
 
+def check_ingress_exist(namespace, branch):
+    ingress_list = list_namespace_ingresses(namespace)
+    for ingress in ingress_list:
+        if f"{namespace}-{branch}-serv-ing" == ingress['name']:
+            return True
+    return False
+
 def map_ingress_with_host(rules, ip):
     try:
         info = []
@@ -890,20 +897,26 @@ def identify_target_port(target_port, port):
 # Identify Service Exact External URL
 def identify_external_url(public_endpoint, node_port, service_type='', namespace='', branch=''):
     try:
+        external_url_format = ""
         if service_type != 'db-server':
+            external_url_format = "http://"
             if config.get('INGRESS_EXTERNAL_TLS') is not None and config.get('INGRESS_EXTERNAL_TLS') != '':
                 external_url_format = "https://"
-            else:
-                external_url_format = "http://"
 
         url = []
-        if config.get('INGRESS_EXTERNAL_BASE') != '' and config.get('INGRESS_EXTERNAL_BASE') is not None:
-            url.append(external_url_format+ f"{namespace}-{branch}.{config.get('INGRESS_EXTERNAL_BASE')}")
+        if config.get('INGRESS_EXTERNAL_BASE') != '' and config.get('INGRESS_EXTERNAL_BASE') is not None\
+            and service_type != 'db-server' and namespace != '' and branch != '' and \
+                check_ingress_exist(namespace, branch):
+            url.append(f"{external_url_format}{namespace}-{branch}.{config.get('INGRESS_EXTERNAL_BASE')}")
         elif 'hostname' in public_endpoint:
-            url.append(external_url_format+ f"{public_endpoint['hostname']}:{node_port}")
+            if service_type != 'db-server':
+                external_url_format = "http://"
+            url.append(f"{external_url_format}{public_endpoint['hostname']}:{node_port}")
         else:
+            if service_type != 'db-server':
+                external_url_format = "http://"
             for address in public_endpoint['address']:
-                url.append(external_url_format+ f"{address}:{node_port}")
+                url.append(f"{external_url_format}{address}:{node_port}")
         return url
     except apiError.DevOpsError as e:
         if e.status_code != 404:

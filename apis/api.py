@@ -84,12 +84,20 @@ def internal_error(exception):
 # noinspection PyMethodMayBeStatic
 class SystemGitCommitID(Resource):
     def get(self):
+        git_commit_id = ""
+        git_tag = ""
+        git_date = ""
         if os.path.exists("git_commit"):
             with open("git_commit") as f:
                 git_commit_id = f.read().splitlines()[0]
-                return util.success({"git_commit_id": "{0}".format(git_commit_id)})
-        else:
-            raise apiError.DevOpsError(400, "git_commit file is not exist.")
+        if os.path.exists("git_tag"):
+            with open("git_tag") as f:
+                git_tag = f.read().splitlines()[0]
+        if os.path.exists("git_date"):
+            with open("git_date") as f:
+                git_date = f.read().splitlines()[0]
+        return util.success({"git_commit_id": git_commit_id, "git_tag": git_tag, "git_date": git_date})
+
 
 
 class NexusVersion(Resource):
