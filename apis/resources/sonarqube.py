@@ -62,6 +62,10 @@ def sq_deactivate_user(user_login):
     return __api_post(f'/users/deactivate?login={user_login}')
 
 
+def sq_list_user(params):
+    return __api_get('/users/search', params=params)
+
+
 def sq_list_project(page):
     return __api_post(f'/projects/search?p={page}')
 
@@ -73,6 +77,11 @@ def sq_create_project(project_name, display):
 
 def sq_delete_project(project_name):
     return __api_post(f'/projects/delete?project={project_name}')
+
+
+def sq_list_member(project_name, params):
+    return __api_get(f'/permissions/users?projectKey={project_name}'
+                     f'&permission=codeviewer&permission=user', params=params)
 
 
 def sq_add_member(project_name, user_login):
