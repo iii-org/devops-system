@@ -142,6 +142,10 @@ def hb_create_user(args, is_admin=False):
     return res[0]['user_id']
 
 
+def hb_list_user(args):
+    return __api_get('/users', params=args)
+
+
 def hb_delete_user(user_id):
     __api_delete('/users/{0}'.format(user_id))
 
@@ -179,6 +183,10 @@ def hb_update_user_email(user_id, user_name, new_email):
             pass
         else:
             raise e
+
+
+def hb_list_member(project_id, args):
+    return __api_get('/projects/{0}/members'.format(project_id), params=args)
 
 
 def hb_add_member(project_id, user_id):
