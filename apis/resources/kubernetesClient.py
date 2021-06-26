@@ -292,6 +292,15 @@ def delete_role_in_namespace(namespace, name):
             raise e
 
 
+def list_role_binding_in_namespace(namespace):
+    try:
+        role_binding = rbac.list_namespaced_role_binding(namespace)
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+    return role_binding
+
+
 def create_role_binding(namespace, sa_name):
     # create ns RoleBinding
     role_binding = k8s_client.V1RoleBinding(
