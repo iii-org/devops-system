@@ -905,7 +905,7 @@ def identify_external_url(public_endpoint, node_port, service_type='', namespace
 
         url = []
         if config.get('INGRESS_EXTERNAL_BASE') != '' and config.get('INGRESS_EXTERNAL_BASE') is not None\
-            and service_type != 'db-server' and namespace != '' and branch != '' and \
+            and service_type not in ['db-server', 'db-gui'] and namespace != '' and branch != '' and \
                 check_ingress_exist(namespace, branch):
             url.append(f"{external_url_format}{namespace}-{branch}.{config.get('INGRESS_EXTERNAL_BASE')}")
         elif 'hostname' in public_endpoint:
