@@ -426,6 +426,11 @@ def get_issue_assign_to_detail(issue):
 
 def create_issue(args, operator_id):
     args = {k: v for k, v in args.items() if v is not None}
+    if 'fixed_version_id' in args:
+        version = redmine_lib.redmine.version.get(args['fixed_version_id'])
+        if version.status in ['locked', 'closed']:
+            raise DevOpsError(400, "Error while creating issue",
+                              error=apiError.invalid_fixed_version_id(version.name, version.status))
     if 'parent_id' in args:
         args['parent_issue_id'] = args['parent_id']
         args.pop('parent_id', None)
@@ -452,6 +457,14 @@ def create_issue(args, operator_id):
 def update_issue(issue_id, args, operator_id):
     args = args.copy()
     args = {k: v for k, v in args.items() if v is not None}
+    if 'fixed_version_id' in args:
+        issue = redmine_lib.redmine.issue.get(issue_id)
+        version = redmine_lib.redmine.version.get(args['fixed_version_id'])
+        if issue.fixed_version.id == version.id:
+            pass
+        elif version.status in ['locked', 'closed']:
+            raise DevOpsError(400, "Error while updating issue",
+                              error=apiError.invalid_fixed_version_id(version.name, version.status))
     if 'parent_id' in args:
         if len(args['parent_id']) > 0:
             args['parent_issue_id'] = int(args['parent_id'])
