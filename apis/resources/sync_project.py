@@ -354,7 +354,19 @@ def create_harbor_project(args):
     return new_hb_pj_id
 
 
+def k8s_namespace_waiter(project_name):
+    count = 0
+    while count < 30:
+        try:
+            kubernetesClient.get_namespace(project_name)
+        except Exception:
+            count += 1
+            continue
+        break
+
+
 def k8s_namespace_process(projects_name, check_bot_list):
+    rancher.rancher.rc_get_project_id()
     k8s_ns_list = kubernetesClient.list_namespace()
     non_exist_projects = list(set(projects_name)-set(k8s_ns_list))
     if non_exist_projects:
@@ -367,8 +379,10 @@ def k8s_namespace_process(projects_name, check_bot_list):
                 kubernetesClient.create_role_in_namespace(project_name)
                 kubernetesClient.create_namespace_quota(project_name)
                 kubernetesClient.create_namespace_limitrange(project_name)
+                k8s_namespace_waiter(project_name)
                 logger.logger.info('Create k8s role binding')
-                kubernetesClient.create_role_binding(pj_row.name, util.encode_k8s_sa(user_row.login))
+                kubernetesClient.create_role_binding(project_name, util.encode_k8s_sa(user_row.login))
+                rancher.rancher.rc_add_namespace_into_rc_project(project_name)
             except ApiException as e:
                 if e.status == 409:
                     logger.logger.info('Kubernetes already has this identifier.')
@@ -465,7 +479,7 @@ def bot_process(check_bot_list):
             pj = model.Project.query.get(nx_project_id)
             bot = model.User.query.filter_by(login=f'project_bot_{pj.id}').all()
             if bot:
-                logger.logger.info(f'BOT already exist, need to delete it first: {bot.name}.')
+                logger.logger.info(f'BOT already exist, need to delete it first: {bot[0].name}.')
                 project.delete_bot(pj.id)
             logger.logger.info(f'Create new BOT for project: {pj.name}.')
             project.create_bot(pj.id)

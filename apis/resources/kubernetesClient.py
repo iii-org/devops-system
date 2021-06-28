@@ -129,6 +129,15 @@ def create_namespace(project_name):
             raise e
 
 
+def get_namespace(project_name):
+    try:
+        namespace = v1.read_namespace(project_name)
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+    return namespace
+
+
 def list_namespace():
     try:
         list_namespaces = []
