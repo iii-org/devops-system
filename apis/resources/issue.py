@@ -458,13 +458,16 @@ def update_issue(issue_id, args, operator_id):
     args = args.copy()
     args = {k: v for k, v in args.items() if v is not None}
     if 'fixed_version_id' in args:
-        issue = redmine_lib.redmine.issue.get(issue_id)
-        version = redmine_lib.redmine.version.get(args['fixed_version_id'])
-        if issue.fixed_version.id == version.id:
-            pass
-        elif version.status in ['locked', 'closed']:
-            raise DevOpsError(400, "Error while updating issue",
-                              error=apiError.invalid_fixed_version_id(version.name, version.status))
+        if len(args['fixed_version_id']) > 0:
+            issue = redmine_lib.redmine.issue.get(issue_id)
+            version = redmine_lib.redmine.version.get(args['fixed_version_id'])
+            if issue.fixed_version.id == version.id:
+                pass
+            elif version.status in ['locked', 'closed']:
+                raise DevOpsError(400, "Error while updating issue",
+                                  error=apiError.invalid_fixed_version_id(version.name, version.status))
+        else:
+            args['fixed_versions_id'] = None
     if 'parent_id' in args:
         if len(args['parent_id']) > 0:
             args['parent_issue_id'] = int(args['parent_id'])
