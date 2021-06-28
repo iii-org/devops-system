@@ -440,6 +440,7 @@ api.add_resource(maintenance.SecretesIntoRcAll, '/maintenance/secretes_into_rc_a
                  '/maintenance/secretes_into_rc_all/<secret_name>')
 api.add_resource(maintenance.RegistryIntoRcAll, '/maintenance/registry_into_rc_all',
                  '/maintenance/registry_into_rc_all/<registry_name>')
+api.add_resource(maintenance.UpdatePjHttpUrl, '/maintenance/update_pj_http_url')
 
 # Rancher
 api.add_resource(rancher.Catalogs, '/rancher/catalogs')
