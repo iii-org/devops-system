@@ -461,7 +461,7 @@ def update_issue(issue_id, args, operator_id):
         if len(args['fixed_version_id']) > 0:
             issue = redmine_lib.redmine.issue.get(issue_id)
             version = redmine_lib.redmine.version.get(args['fixed_version_id'])
-            if issue.fixed_version.id == version.id:
+            if hasattr(issue, 'fixed_version') and issue.fixed_version.id == version.id:
                 pass
             elif version.status in ['locked', 'closed']:
                 raise DevOpsError(400, "Error while updating issue",
