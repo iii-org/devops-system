@@ -33,6 +33,21 @@ def update_db_rancher_projectid_and_pipelineid(force=None):
                     ppro.ci_pipeline_id= now_pipe['id']
                     db.session.commit()
 
+def update_pj_httpurl():
+    rows = db.session.query(Project, ProjectPluginRelation)\
+        .filter(ProjectPluginRelation.project_id == Project.id).all()
+    gl_pjs = gitlab.gl_get_all_project()
+    for row in rows:
+        for gl_pj in gl_pjs:
+            if row.ProjectPluginRelation.git_repository_id == gl_pj.id:
+                if row.Project.http_url != gl_pj.http_url_to_repo:
+                    row.Project.http_url = gl_pj.http_url_to_repo
+                    db.session.commit()
+                if row.Project.ssh_url != gl_pj.ssh_url_to_repo:
+                    row.Project.ssh_url = gl_pj.ssh_url_to_repo
+                    db.session.commit()
+                break
+
 
 class UpdateDbRcProjectPipelineId(Resource):
 
@@ -103,3 +118,11 @@ class RegistryIntoRcAll(Resource):
     @jwt_required
     def delete(self, registry_name):
         return util.success(rancher.rc_delete_registry_into_rc_all(registry_name))
+
+
+class UpdatePjHttpUrl(Resource):
+    @jwt_required
+    def put(self):
+        role.require_admin()
+        update_pj_httpurl()
+        return util.success()
