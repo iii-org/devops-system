@@ -356,13 +356,15 @@ def create_harbor_project(args):
 
 def k8s_namespace_waiter(project_name):
     count = 0
-    while count < 30:
+    while count <= 30:
         try:
             kubernetesClient.get_namespace(project_name)
         except Exception:
             count += 1
             continue
         break
+    if count > 30:
+        logger.logger.info(f'K8s client get namespace {project_name} error for exceeding 30 times.')
 
 
 def k8s_namespace_process(projects_name, check_bot_list):
