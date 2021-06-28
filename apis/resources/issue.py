@@ -467,7 +467,7 @@ def update_issue(issue_id, args, operator_id):
                 raise DevOpsError(400, "Error while updating issue",
                                   error=apiError.invalid_fixed_version_id(version.name, version.status))
         else:
-            args['fixed_versions_id'] = None
+            args['fixed_version_id'] = None
     if 'parent_id' in args:
         if len(args['parent_id']) > 0:
             args['parent_issue_id'] = int(args['parent_id'])
