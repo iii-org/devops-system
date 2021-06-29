@@ -4,7 +4,7 @@ COPY . .
 RUN mkdir /root/.kube
 COPY k8s_config /root/.kube/config
 RUN git rev-parse HEAD > git_commit
-RUN LOCAL_BRANCH = git rev-parse --abbrev-ref HEAD
+RUN LOCAL_BRANCH=$(git rev-parse --abbrev-ref HEAD)
 RUN if [[ "$LOCAL_BRANCH" != "master" ]] ; then git fetch origin master:master ; fi
 RUN git describe --tags `git rev-list --tags --max-count=1` > git_tag
 RUN git log -1 --date=iso8601 --format="%ad" > git_date
