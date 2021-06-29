@@ -386,6 +386,42 @@ def get_report(id):
     return util.success(json.loads(report))
 
 
+def get_the_last_result(project_id, filename_prefix=""):
+    def get_test_report_from_row(row):
+        scan = {
+            'id': row.id,
+            'branch': row.branch,
+            'commit_id': row.commit_id[0:7],
+            'commit_url': gitlab.commit_id_to_url(project_id, row.commit_id),
+            'run_at': str(row.run_at)
+        }
+        if row.total is None:
+            scan['success'] = None
+            scan['failure'] = None
+        else:
+            scan['success'] = row.total - row.fail
+            scan['failure'] = row.fail
+        return scan
+
+    rows = model.TestResults.query.filter_by(project_id=project_id).order_by(desc(
+        model.TestResults.id)).all()
+    i = 0
+    while i< len(rows):
+        report_str = json.loads(rows[i].report)['json_file']
+        if 'assertions' in report_str:
+            del report_str['assertions']
+        if 'executions' in report_str:
+            del report_str['executions']
+        if len(report_str) ==0:
+            return get_test_report_from_row(rows[i])
+        else:
+            for key, value in report_str.items():
+                if filename_prefix == key:
+                    return get_test_report_from_row(rows[i])
+        i +=1
+    return {}
+
+
 def list_results(project_id):
     rows = model.TestResults.query.filter_by(project_id=project_id).order_by(desc(
         model.TestResults.id)).all()

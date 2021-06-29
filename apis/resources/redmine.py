@@ -1,3 +1,4 @@
+import datetime
 import time
 from io import BytesIO
 import yaml
@@ -13,6 +14,7 @@ import util as util
 from resources.apiError import DevOpsError
 from resources.logger import logger
 from . import kubernetesClient, role
+from services import redmine_lib
 
 
 class Redmine:
@@ -49,7 +51,7 @@ class Redmine:
         output = util.api_request(method, url, headers, params, data)
 
         if resp_format != '':
-            logger.info('redmine api {0} {1}, params={2}, body={5}, response={3} {4}'.format(
+            logger.debug('redmine api {0} {1}, params={2}, body={5}, response={3} {4}'.format(
                 method, url, params.__str__(), output.status_code, output.text, data))
         if int(output.status_code / 100) != 2:
             raise apiError.DevOpsError(
@@ -83,7 +85,7 @@ class Redmine:
             self.__refresh_key()
 
     def __refresh_key(self, operator_id=None):
-        protocol = 'http'
+        protocol = 'https' if config.get('REDMINE_INTERNAL_BASE_URL')[:5] == "https" else 'http'
         host = config.get('REDMINE_INTERNAL_BASE_URL')[len(protocol + '://'):]
         if operator_id is None:
             # get redmine_key
@@ -140,7 +142,7 @@ class Redmine:
         return self.__api_delete('/projects/{0}'.format(plan_project_id))
 
     def rm_list_issues(self, paging=100, params={'status_id': '*'}):
-        return self.paging('issues', 100, params)
+        return self.paging('issues', paging, params)
 
     def rm_get_issues_by_user(self, user_id):
         params = {'assigned_to_id': user_id, 'status_id': '*'}
@@ -150,6 +152,8 @@ class Redmine:
         if args is not None and 'fixed_version_id' in args and args['fixed_version_id'] is not None:
             params = {'project_id': plan_project_id, 'status_id': '*',
                       'fixed_version_id': args['fixed_version_id']}
+        elif args is not None and 'tracker_id' in args and args['tracker_id'] is not None:
+            params = {'project_id': plan_project_id, 'status_id': '*', 'tracker_id': args['tracker_id'], 'include': 'relations'}
         else:
             params = {'project_id': plan_project_id, 'status_id': '*'}
         return self.paging('issues', 100, params)
@@ -162,8 +166,11 @@ class Redmine:
         }
         return self.paging('issues', 100, params)
 
-    def rm_get_issue(self, issue_id):
-        params = {'include': 'children,attachments,relations,changesets,journals,watchers'}
+    def rm_get_issue(self, issue_id, journals=True):
+        if journals is False:
+            params = {'include': 'children,attachments,relations,changesets,watchers'}
+        else:
+            params = {'include': 'children,attachments,relations,changesets,journals,watchers'}
         output = self.__api_get('/issues/{0}'.format(issue_id), params=params)
         return output.json()['issue']
 
@@ -287,6 +294,9 @@ class Redmine:
         if 'upload_description' in args:
             ret['description'] = args['upload_description']
             del args['upload_description']
+        if 'upload_content_type' in args:
+            ret['content_type'] = args['upload_content_type']
+            del args['upload_content_type']
         return ret
 
     def rm_upload_to_project(self, plan_project_id, args):
@@ -392,7 +402,7 @@ class Redmine:
             if status['is_closed'] is True:
                 self.closed_status.append(status['id'])
         return self.closed_status
-    
+
     def rm_get_or_create_configmap(self):
         configs = kubernetesClient.list_namespace_configmap("default")
         if any(self.redmine_config_name == config.get("name") for config in configs) is False:
@@ -419,6 +429,11 @@ class Redmine:
     def rm_build_external_link(path):
         return f"{config.get('REDMINE_EXTERNAL_BASE_URL')}{path}"
 
+    def rm_update_email(self, plan_user_id, new_email):
+        user = redmine_lib.redmine.user.get(plan_user_id)
+        setattr(user, 'mail', new_email)
+        user.save()
+
 
 # --------------------- Resources ---------------------
 redmine = Redmine()
@@ -427,11 +442,12 @@ redmine = Redmine()
 class RedmineFile(Resource):
     @jwt_required
     def get(self):
-        role.require_admin()
         parser = reqparse.RequestParser()
         parser.add_argument('id', type=int)
         parser.add_argument('filename', type=str)
+        parser.add_argument('project_id', type=int, required=True)
         args = parser.parse_args()
+        role.require_in_project(args['project_id'], "Error while download redmine file.")
         return redmine.rm_download_attachment(args)
 
     @jwt_required

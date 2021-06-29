@@ -30,7 +30,7 @@ from jsonwebtoken import jsonwebtoken
 from model import db
 from resources import logger, role as role, activity, zap, sideex
 from resources import project, gitlab, issue, user, redmine, wiki, version, sonarqube, apiTest, postman, mock, harbor, \
-    webInspect, template, release, sync_redmine, plugin, kubernetesClient, ad, project_permission, quality
+    webInspect, template, release, sync_redmine, plugin, kubernetesClient, ad, project_permission, quality, sync_project
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -84,12 +84,20 @@ def internal_error(exception):
 # noinspection PyMethodMayBeStatic
 class SystemGitCommitID(Resource):
     def get(self):
+        git_commit_id = ""
+        git_tag = ""
+        git_date = ""
         if os.path.exists("git_commit"):
             with open("git_commit") as f:
                 git_commit_id = f.read().splitlines()[0]
-                return util.success({"git_commit_id": "{0}".format(git_commit_id)})
-        else:
-            raise apiError.DevOpsError(400, "git_commit file is not exist.")
+        if os.path.exists("git_tag"):
+            with open("git_tag") as f:
+                git_tag = f.read().splitlines()[0]
+        if os.path.exists("git_date"):
+            with open("git_date") as f:
+                git_date = f.read().splitlines()[0]
+        return util.success({"git_commit_id": git_commit_id, "git_tag": git_tag, "git_date": git_date})
+
 
 
 class NexusVersion(Resource):
@@ -182,6 +190,7 @@ api.add_resource(project.GitRepoIdToCiPipeId, '/git_repo_id_to_ci_pipe_id/<repos
 
 # Projects
 api.add_resource(project.ListMyProjects, '/project/list')
+api.add_resource(project.ListProjectsByUser, '/projects_by_user/<int:user_id>')
 api.add_resource(project.SingleProject, '/project', '/project/<sint:project_id>')
 api.add_resource(project.SingleProjectByName, '/project_by_name/<project_name>')
 api.add_resource(project.ProjectUserList, '/project/<sint:project_id>/user/list')
@@ -274,9 +283,10 @@ api.add_resource(pipeline.PipelineYaml,
 socketio.on_namespace(rancher.RancherWebsocketLog('/rancher/websocket/logs'))
 
 
-
 # issue
 api.add_resource(issue.IssueByProject, '/project/<sint:project_id>/issues')
+api.add_resource(issue.IssueFamily, '/issue/<issue_id>/family')
+api.add_resource(issue.IssueListByProject, '/project/<sint:project_id>/issues_list')
 api.add_resource(issue.IssueByTreeByProject, '/project/<sint:project_id>/issues_by_tree')
 api.add_resource(issue.IssueByStatusByProject,
                  '/project/<sint:project_id>/issues_by_status')
@@ -295,6 +305,8 @@ api.add_resource(issue.MyIssueStatistics, '/issues/statistics')
 api.add_resource(issue.MyOpenIssueStatistics, '/issues/open_statistics')
 api.add_resource(issue.MyIssueWeekStatistics, '/issues/week_statistics')
 api.add_resource(issue.MyIssueMonthStatistics, '/issues/month_statistics')
+api.add_resource(issue.Relation, '/issues/relation', '/issues/relation/<int:relation_id>')
+api.add_resource(issue.CheckIssueClosable, '/issues/<issue_id>/check_closable')
 
 # Release
 api.add_resource(release.Releases, '/project/<project_id>/releases')
@@ -428,6 +440,7 @@ api.add_resource(maintenance.SecretesIntoRcAll, '/maintenance/secretes_into_rc_a
                  '/maintenance/secretes_into_rc_all/<secret_name>')
 api.add_resource(maintenance.RegistryIntoRcAll, '/maintenance/registry_into_rc_all',
                  '/maintenance/registry_into_rc_all/<registry_name>')
+api.add_resource(maintenance.UpdatePjHttpUrl, '/maintenance/update_pj_http_url')
 
 # Rancher
 api.add_resource(rancher.Catalogs, '/rancher/catalogs')
@@ -455,10 +468,20 @@ api.add_resource(project_permission.Subadmins, '/project_permission/subadmins')
 api.add_resource(project_permission.SetPermission, '/project_permission/set_permission')
 
 # Quality
-api.add_resource(quality.Collection, '/quality/<int:repository_id>/collection')
+api.add_resource(quality.TestPlanList, '/quality/<int:project_id>/testplan_list')
+api.add_resource(quality.TestPlan, '/quality/<int:project_id>/testplan/<int:testplan_id>')
+api.add_resource(quality.TestFileList, '/quality/<int:project_id>/testfile_list')
+api.add_resource(quality.TestFile, '/quality/<int:project_id>/testfile', 
+                 '/quality/<int:project_id>/testfile/<test_file_name>')
+api.add_resource(quality.TestPlanWithTestFile, '/quality/<int:project_id>/testplan_with_testfile',
+                 '/quality/<int:project_id>/testplan_with_testfile/<int:item_id>')
+
 
 # System versions
 api.add_resource(NexusVersion, '/system_versions')
+
+# Sync Projects
+api.add_resource(sync_project.SyncProject, '/sync_projects')
 
 
 def start_prod():
@@ -481,4 +504,4 @@ def start_prod():
 if __name__ == "__main__":
     start_prod()
     socketio.run(app, host='0.0.0.0', port=10009, debug=(config.get('DEBUG')),
-                 use_reloader=True)
+                 use_reloader=False)

@@ -26,7 +26,8 @@ template_replace_dict = {
     "PLUGIN_MIRROR": config.get("HARBOR_EXTERNAL_BASE_URL"),
     "harbor.host":
     config.get("HARBOR_EXTERNAL_BASE_URL").replace("https://", ""),
-    "git.host": config.get("GITLAB_BASE_URL").replace("http://", "")
+    "git.host": config.get("GITLAB_BASE_URL").replace("http://", ""),
+    'kube.ingress.base_domain': config.get("INGRESS_EXTERNAL_BASE")
 }
 
 support_software = [{
@@ -56,7 +57,7 @@ support_software = [{
 }]
 
 gitlab_private_token = config.get("GITLAB_PRIVATE_TOKEN")
-gl = Gitlab(config.get("GITLAB_BASE_URL"), private_token=gitlab_private_token)
+gl = Gitlab(config.get("GITLAB_BASE_URL"), private_token=gitlab_private_token, ssl_verify=False)
 
 
 def __tm_get_tag_info(pj, tag_name):
@@ -148,7 +149,13 @@ def __tm_git_clone_file(pj,
                         create_time=None,
                         branch_name=None):
     temp_http_url = pj.http_url_to_repo
-    secret_temp_http_url = temp_http_url[:
+    protocol = 'https' if temp_http_url[:5] == "https" else 'http'
+    if protocol == "https":
+        secret_temp_http_url = temp_http_url[:
+                                         8] + f"root:{gitlab_private_token}@" + temp_http_url[
+                                             8:]
+    else:
+        secret_temp_http_url = temp_http_url[:
                                          7] + f"root:{gitlab_private_token}@" + temp_http_url[
                                              7:]
     Path(f"{dest_folder_name}").mkdir(exist_ok=True)
@@ -313,9 +320,15 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id,
                                  tag_name, arguments):
     template_pj = gl.projects.get(template_repository_id)
     temp_http_url = template_pj.http_url_to_repo
-    secret_temp_http_url = temp_http_url[:
-                                         7] + f"root:{gitlab_private_token}@" + temp_http_url[
-                                             7:]
+    protocol = 'https' if temp_http_url[:5] == "https" else 'http'
+    if protocol == "https":
+        secret_temp_http_url = temp_http_url[:
+                                            8] + f"root:{gitlab_private_token}@" + temp_http_url[
+                                                8:]
+    else:
+        secret_temp_http_url = temp_http_url[:
+                                            7] + f"root:{gitlab_private_token}@" + temp_http_url[
+                                                7:]
     pipe_json = __tm_get_git_pipline_json(template_pj, tag_name=tag_name)
     tag_info_dict = __tm_get_tag_info(template_pj, tag_name)
     pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(template_pj,
@@ -324,10 +337,15 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id,
 
     pj = gl.projects.get(user_repository_id)
     pj_http_url = pj.http_url_to_repo
-    secret_pj_http_url = pj_http_url[:
-                                     7] + f"root:{gitlab_private_token}@" + pj_http_url[
-                                         7:]
-
+    protocol = 'https' if pj_http_url[:5] == "https" else 'http'
+    if protocol == "https":
+        secret_pj_http_url = pj_http_url[:
+                                        8] + f"root:{gitlab_private_token}@" + pj_http_url[
+                                            8:]
+    else:
+        secret_pj_http_url = pj_http_url[:
+                                        7] + f"root:{gitlab_private_token}@" + pj_http_url[
+                                            7:]
     Path("pj_push_template").mkdir(exist_ok=True)
     subprocess.call([
         'git', 'clone', '--branch', tag_info_dict["tag_name"],

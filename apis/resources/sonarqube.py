@@ -34,7 +34,7 @@ def __api_request(method, path, headers=None, params=None, data=None):
     output = util.api_request(method, url, headers, params, data,
                               auth=HTTPBasicAuth(config.get('SONARQUBE_ADMIN_TOKEN'), ''))
 
-    logger.info(f"SonarQube api {method} {url}, params={params.__str__()}, body={data},"
+    logger.debug(f"SonarQube api {method} {url}, params={params.__str__()}, body={data},"
                 f" response={output.status_code} {output.text}")
     if int(output.status_code / 100) != 2:
         raise apiError.DevOpsError(
@@ -62,6 +62,14 @@ def sq_deactivate_user(user_login):
     return __api_post(f'/users/deactivate?login={user_login}')
 
 
+def sq_list_user(params):
+    return __api_get('/users/search', params=params)
+
+
+def sq_list_project(params):
+    return __api_post('/projects/search', params=params)
+
+
 def sq_create_project(project_name, display):
     return __api_post(f'/projects/create?name={display}&project={project_name}'
                       f'&visibility=private')
@@ -69,6 +77,11 @@ def sq_create_project(project_name, display):
 
 def sq_delete_project(project_name):
     return __api_post(f'/projects/delete?project={project_name}')
+
+
+def sq_list_member(project_name, params):
+    return __api_get(f'/permissions/users?projectKey={project_name}'
+                     f'&permission=codeviewer&permission=user', params=params)
 
 
 def sq_add_member(project_name, user_login):
@@ -102,9 +115,14 @@ def sq_update_password(login, new_password):
 def sq_get_current_measures(project_name):
     params = {
         'metricKeys': METRICS,
-        'componentKey': project_name
+        'componentKey': project_name,
+        'additionalFields': 'periods'
     }
-    return __api_get('/measures/component', params).json()['component']['measures']
+    j = __api_get('/measures/component', params).json()
+    ret = j['component']['measures']
+    if 'periods' in j:
+        ret.append({'metric': 'run_at', 'value': j['periods'][0]['date']})
+    return ret
 
 
 def sq_get_history_measures(project_name):

@@ -48,7 +48,7 @@ class NexusUser:
 
     def set_user_row(self, user_row):
         self.__user_row = user_row
-        self.set_user_id(user_row.id)
+        self.set_user_id(user_row.id, False)
         # Mirror data model fields to this object, so it can be used like an ORM row
         inst = inspect(model.User)
         attr_names = [c_attr.key for c_attr in inst.mapper.column_attrs]
@@ -58,7 +58,7 @@ class NexusUser:
 
     def set_role_rows(self, role_rows):
         self.__role_rows = role_rows
-        self.set_user_id(role_rows[0].user_id)
+        self.set_user_id(role_rows[0].user_id, False)
         return self
 
     def get_user_id(self):
@@ -77,39 +77,12 @@ class NexusUser:
                 user_id=self.get_user_id()).all())
         return self.__role_rows
 
-    def to_json(self, with_projects=False):
+    def to_json(self):
         ret = json.loads(str(self.get_user_row()))
         ret['default_role'] = {
             'id': self.default_role_id(),
             'name': role.get_role_name(self.default_role_id())
         }
-        if with_projects:
-            if role.is_role(role.ADMIN):
-                rows = db.session. \
-                    query(model.Project, model.ProjectPluginRelation.git_repository_id). \
-                    join(model.ProjectPluginRelation). \
-                    filter(model.ProjectUserRole.project_id != -1). \
-                    all()
-            else:
-                rows = db.session. \
-                    query(model.Project, model.ProjectPluginRelation.git_repository_id). \
-                    join(model.ProjectPluginRelation). \
-                    filter(model.ProjectUserRole.user_id == self.get_user_row().id,
-                           model.ProjectUserRole.project_id != -1,
-                           model.ProjectUserRole.project_id == model.ProjectPluginRelation.project_id
-                           ).all()
-            if len(rows) > 0:
-                project_list = []
-                for row in rows:
-                    project_list.append({
-                        'id': row.Project.id,
-                        'name': row.Project.name,
-                        'display': row.Project.display,
-                        'repository_id': row.git_repository_id
-                    })
-                ret['project'] = project_list
-            else:
-                ret['project'] = []
         return ret
 
     def default_role_id(self):
@@ -278,6 +251,7 @@ def update_user(user_id, args, from_ad=False):
     if 'role_id' in args:
         update_user_role(user_id, args.get('role_id'))
 
+    new_email = None
     new_password = None
     if user.from_ad and not from_ad:
         if args.get('role_id', None) is None:
@@ -301,16 +275,21 @@ def update_user(user_id, args, from_ad=False):
             logger.exception(err)  # Don't stop change password on API server
         h = SHA256.new()
         h.update(args["password"].encode())
-        new_password = h.hexdigest()    
+        new_password = h.hexdigest()
+    if args["email"] is not None:
+        err = update_external_email(user_id, user.name, args['email'])
+        if err is not None:
+            logger.exception(err)
+        new_email = args['email']
     user = model.User.query.filter_by(id=user_id).first()
     if new_password is not None:
         user.password = new_password
+    if new_email is not None:
+        user.email = new_email
     if args["name"] is not None:
         user.name = args['name']
     if args["phone"] is not None:
         user.phone = args['phone']
-    if args["email"] is not None:
-        user.email = args['email']
     if args["title"] is not None:
         user.title = args['title']
     if args["department"] is not None:
@@ -352,6 +331,26 @@ def update_external_passwords(user_id, new_pwd, old_pwd):
     harbor.hb_update_user_password(harbor_user_id, new_pwd, old_pwd)
 
     sonarqube.sq_update_password(user_login, new_pwd)
+
+
+def update_external_email(user_id, user_name, new_email):
+    user_relation = nx_get_user_plugin_relation(user_id=user_id)
+    if user_relation is None:
+        return util.respond(400, 'Error when updating email',
+                            error=apiError.user_not_found(user_id))
+    redmine_user_id = user_relation.plan_user_id
+    redmine.rm_update_email(redmine_user_id, new_email)
+
+    gitlab_user_id = user_relation.repository_user_id
+    gitlab.gl_update_email(gitlab_user_id, new_email)
+
+    gitlab_user_email_list = gitlab.gl_get_user_email(gitlab_user_id).json()
+    need_to_delete_email = [email['id'] for email in gitlab_user_email_list if email['email'] != new_email]
+    for gitlab_email_id in need_to_delete_email:
+        gitlab.gl_delete_user_email(gitlab_user_id, gitlab_email_id)
+
+    harbor_user_id = user_relation.harbor_user_id
+    harbor.hb_update_user_email(harbor_user_id, user_name, new_email)
 
 
 def try_to_delete(delete_method, obj):
@@ -642,7 +641,7 @@ def user_list(filters):
     for row in rows:
         output_array.append(NexusUser()
                             .set_user_row(row)
-                            .to_json(with_projects=False))
+                            .to_json())
     response = {'user_list': output_array}
     if page_dict:
         response['page'] = page_dict
@@ -693,7 +692,7 @@ def user_list_by_project(project_id, args):
     arr_ret = []
     for user_role_by_project in ret_users:
         user_json = NexusUser().set_user_row(user_role_by_project.User)\
-            .to_json(with_projects=False)
+            .to_json()
         user_json['role_id'] = user_role_by_project.role_id
         user_json['role_name'] = role.get_role_name(
             user_role_by_project.role_id)
@@ -748,7 +747,7 @@ class SingleUser(Resource):
     def get(self, user_id):
         role.require_user_himself(user_id, even_pm=False,
                                   err_message="Only admin and PM can access another user's data.")
-        return util.success(NexusUser().set_user_id(user_id).to_json(with_projects=True))
+        return util.success(NexusUser().set_user_id(user_id).to_json())
 
     @jwt_required
     def put(self, user_id):

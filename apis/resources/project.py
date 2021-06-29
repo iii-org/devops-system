@@ -1,18 +1,18 @@
-import json
+import ast
 import re
-from datetime import datetime, date
-import base64
+from datetime import datetime
 
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
 from kubernetes.client import ApiException
-from sqlalchemy import desc, inspect
+from sqlalchemy import desc
 from sqlalchemy.orm.exc import NoResultFound
-import config
+
 import model
 import nexus
 import resources.apiError as apiError
 import util as util
+from data.nexus_project import NexusProject
 from model import db
 from nexus import nx_get_project_plugin_relation
 from resources.apiError import DevOpsError
@@ -22,215 +22,91 @@ from . import user, harbor, kubernetesClient, role, sonarqube, template, webInsp
 from .activity import record_activity, ActionType
 from .checkmarx import checkmarx
 from .gitlab import gitlab
-from .logger import logger
 from .rancher import rancher
 from .redmine import redmine
 
 
-# Use lazy loading to avoid redundant db queries, build up this object like:
-# NexusProject().set_project_id(4) or NexusProject().set_project_row(row)
-from .role import Role
-
-
-class NexusProject:
-    def __init__(self):
-        self.__project_id = None
-        self.__project_row = None
-        self.__plugin_row = None
-        self.__owner = None
-        self.__extra_fields = {}
-
-    # Usually for a single project query in an API flow
-    def set_project_id(self, project_id, do_query=True):
-        self.__project_id = project_id
-        if do_query:
-            self.get_project_row()
-            self.get_plugin_row()
-            self.get_owner()
-        return self
-
-    def set_plan_project_id(self, plan_project_id, do_query=True):
-        row = model.ProjectPluginRelation.query.filter_by(plan_project_id=plan_project_id).one()
-        self.set_project_id(row.project_id, do_query=do_query)
-        return self
-
-    def set_project_row(self, project_row):
-        self.__project_row = project_row
-        self.set_project_id(project_row.id)
-        # Mirror data model fields to this object, so it can be used like an ORM row
-        inst = inspect(model.Project)
-        attr_names = [c_attr.key for c_attr in inst.mapper.column_attrs]
-        for attr in attr_names:
-            setattr(self, attr, getattr(project_row, attr))
-        return self
-
-    def set_plugin_row(self, plugin_row):
-        self.__plugin_row = plugin_row
-        self.set_project_id(plugin_row.project_id)
-        return self
-
-    # Owner is a NexusUser object
-    def set_owner(self, owner):
-        self.__owner = owner
-        return self
-
-    def get_project_id(self):
-        if self.__project_id is None:
-            raise DevOpsError(500, 'Project id or row is not set!')
-        return self.__project_id
-
-    def get_project_row(self):
-        if self.__project_row is None:
-            self.set_project_row(model.Project.query.filter_by(
-                id=self.get_project_id()).one())
-        return self.__project_row
-
-    def get_plugin_row(self):
-        if self.__plugin_row is None:
-            self.set_plugin_row(model.ProjectPluginRelation.query.filter_by(
-                project_id=self.get_project_id()).one())
-        return self.__plugin_row
-
-    def get_owner(self):
-        if self.__owner is None:
-            self.__owner = user.NexusUser().set_user_id(self.get_project_row().owner_id)
-        return self.__owner
-
-    def get_extra_fields(self):
-        return self.__extra_fields
-
-    def to_json(self):
-        ret = json.loads(str(self.get_project_row()))
-        ret['git_url'] = ret['http_url']
-        del ret['http_url']
-        ret['repository_ids'] = [self.get_plugin_row().git_repository_id]
-        ret['redmine_url'] = \
-            f'{config.get("REDMINE_EXTERNAL_BASE_URL")}/projects/' \
-            f'{self.get_plugin_row().plan_project_id}'
-        ret['harbor_url'] = \
-            f'{config.get("HARBOR_EXTERNAL_BASE_URL")}/harbor/projects/' \
-            f'{self.get_plugin_row().harbor_project_id}/repositories'
-        ret['owner_id'] = self.get_owner().id
-        ret['owner_name'] = self.get_owner().name
-        ret['department'] = self.get_owner().department
-        for key, value in self.get_extra_fields().items():
-            ret[key] = value
-        return ret
-
-    def fill_pm_redmine_fields(self, redmine_projects, issues):
-        self.__extra_fields['updated_time'] = self.get_updated_time(redmine_projects)
-        issue_stats = self.get_issue_statistics(issues)
-        for key, value in issue_stats.items():
-            self.__extra_fields[key] = value
-        return self
-
-    def get_updated_time(self, redmine_projects):
-        ret = None
-        for pjt in redmine_projects:
-            if pjt['id'] == self.get_plugin_row().plan_project_id:
-                ret = pjt['updated_on']
-                del pjt
-                break
-        return ret
-
-    def get_issue_statistics(self, issues):
-        ret = {
-            'closed_count': 0,
-            'overdue_count': 0,
-            'total_count': 0,
-            'project_status': None
-        }
-        for issue in issues:
-            if issue['project']['id'] != self.get_plugin_row().plan_project_id:
-                continue
-            if issue["status"]["name"] == "Closed":
-                ret['closed_count'] += 1
-            if issue["due_date"] is not None:
-                if (datetime.utcnow() > datetime.strptime(
-                        issue["due_date"], "%Y-%m-%d")):
-                    ret['overdue_count'] += 1
-            ret['total_count'] += 1
-            del issue
-        ret['project_status'] = "進行中"
-        if ret['total_count'] == 0:
-            ret['project_status'] = "未開始"
-        if ret['closed_count'] == ret['total_count'] and ret['total_count'] != 0:
-            ret['project_status'] = "已結案"
-        return ret
-
-    def fill_rd_extra_fields(self, user_id):
-        row = self.get_project_row()
-        relation = nexus.nx_get_user_plugin_relation(user_id=user_id)
-        plan_user_id = relation.plan_user_id
-        output_dict = {
-            'name': row.name,
-            'display': row.display,
-            'project_id': row.id,
-            'git_url': row.http_url,
-            'redmine_url': f'{config.get("REDMINE_EXTERNAL_BASE_URL")}/projects/'
-                           f'{self.get_plugin_row().plan_project_id}',
-            'harbor_url': f'{config.get("HARBOR_EXTERNAL_BASE_URL")}/harbor/projects/' +
-                          f'{self.get_plugin_row().harbor_project_id}/repositories',
-            'repository_ids': [self.get_plugin_row().git_repository_id],
-            'department': user.NexusUser().set_user_id(row.owner_id).department,
-            'issues': None,
-            'next_d_time': None,
-            'last_test_time': "",
-            'last_test_result': {}
-        }
-
-        all_issues = redmine_lib.redmine.issue.filter(
-            project_id=self.get_plugin_row().plan_project_id,
-            assigned_to_id=plan_user_id,
-            status_id='*'
-        )
-        output_dict['issues'] = len(all_issues)
-
-        # get next_d_time
-        issue_due_date_list = []
-        for issue in all_issues:
-            if getattr(issue, 'due_date', None) is not None:
-                issue_due_date_list.append(issue.due_date)
-        next_d_time = None
-        if len(issue_due_date_list) != 0:
-            next_d_time = min(
-                issue_due_date_list,
-                key=lambda d: abs(d - date.today()))
-        if next_d_time is not None:
-            output_dict['next_d_time'] = next_d_time.isoformat()
-
-        output_dict.update(get_ci_last_test_result(self.get_plugin_row()))
-        self.__extra_fields = output_dict
-        return self
-
-
-def get_pm_project_list(user_id):
+def get_pm_project_list(user_id, pj_due_start=None, pj_due_end=None, pj_members_count=None):
     rows = get_project_rows_by_user(user_id)
+    rm_projects = redmine_lib.redmine.project.all()
+    rm_issues = redmine_lib.redmine.issue.filter(status_id='*', filter=[])
+    rm_issues_by_project = {}
+    rm_project_dict = {}
+    for project in rm_projects:
+        rm_project_dict[project.id] = project
+    for issue in rm_issues:
+        project_id = issue.project.id
+        if project_id not in rm_issues_by_project:
+            rm_issues_by_project[project_id] = []
+        rm_issues_by_project[project_id].append(issue)
     ret = []
-    redmine_projects = redmine.rm_list_projects()
-    issues = redmine.rm_list_issues()
     for row in rows:
         if row.Project.id == -1:
             continue
-        ret.append(NexusProject()
-                   .set_project_row(row.Project)
-                   .set_plugin_row(row.ProjectPluginRelation)
-                   .fill_pm_redmine_fields(redmine_projects, issues)
-                   .to_json())
+        if pj_due_start is not None and pj_due_end is not None and row.Project.due_date is not None:
+            if row.Project.due_date < datetime.strptime(pj_due_start, "%Y-%m-%d").date() or row.Project.due_date > datetime.strptime(pj_due_end, "%Y-%m-%d").date():
+                continue
+        redmine_project_id = row.ProjectPluginRelation.plan_project_id
+        if redmine_project_id in rm_issues_by_project:
+            rm_project_issues = rm_issues_by_project[redmine_project_id]
+        else:
+            rm_project_issues = []
+        nexus_project = NexusProject()
+        nexus_project.set_project_row(row.Project)
+        nexus_project.set_plugin_row(row.ProjectPluginRelation)
+        nexus_project.fill_pm_redmine_fields(rm_project_dict[redmine_project_id],
+                                           rm_project_issues)
+        if pj_members_count == 'true':
+            nexus_project.set_project_members()
+        ret.append(nexus_project.to_json())
     return ret
 
 
-def get_rd_project_list(user_id):
+def get_rd_project_list(user_id, pj_due_start=None, pj_due_end=None, pj_members_count=None):
     rows = get_project_rows_by_user(user_id)
     ret = []
     for row in rows:
         if row.Project.id == -1:
             continue
-        ret.append(NexusProject()
-                   .set_project_row(row.Project)
-                   .set_plugin_row(row.ProjectPluginRelation)
-                   .fill_rd_extra_fields(user_id)
-                   .to_json())
+        if pj_due_start is not None and pj_due_end is not None and row.Project.due_date is not None:
+            if row.Project.due_date < datetime.strptime(pj_due_start, "%Y-%m-%d").date() or row.Project.due_date > datetime.strptime(pj_due_end, "%Y-%m-%d").date():
+                continue
+        if pj_members_count == 'true':
+            ret.append(NexusProject()
+                    .set_project_row(row.Project)
+                    .set_plugin_row(row.ProjectPluginRelation)
+                    .fill_rd_extra_fields(user_id)
+                    .set_project_members()
+                    .to_json())
+        else:
+            ret.append(NexusProject()
+                    .set_project_row(row.Project)
+                    .set_plugin_row(row.ProjectPluginRelation)
+                    .fill_rd_extra_fields(user_id)
+                    .to_json())
+    return ret
+
+
+def get_simple_project_list(user_id, pj_due_start=None, pj_due_end=None, pj_members_count=None):
+    rows = get_project_rows_by_user(user_id)
+    ret = []
+    for row in rows:
+        if row.Project.id == -1:
+            continue
+        if pj_due_start is not None and pj_due_end is not None and row.Project.due_date is not None:
+            if row.Project.due_date < datetime.strptime(pj_due_start, "%Y-%m-%d").date() or row.Project.due_date > datetime.strptime(pj_due_end, "%Y-%m-%d").date():
+                continue
+        if pj_members_count == 'true':
+            ret.append(NexusProject()
+                    .set_project_row(row.Project)
+                    .set_plugin_row(row.ProjectPluginRelation)
+                    .set_project_members()
+                    .to_json())
+        else:
+            ret.append(NexusProject()
+                    .set_project_row(row.Project)
+                    .set_plugin_row(row.ProjectPluginRelation)
+                    .to_json())
     return ret
 
 
@@ -558,39 +434,8 @@ def delete_bot(project_id):
     user.delete_user(row.user_id)
 
 
-# 用project_id查詢db的相關table欄位資訊
-def pm_get_project(project_id):
-    # 查詢專案名稱＆專案說明＆＆專案狀態
-    try:
-        plan_project_id = get_plan_project_id(project_id)
-    except NoResultFound:
-        raise apiError.DevOpsError(404, 'Error when getting project info.',
-                                   error=apiError.project_not_found(project_id))
-    result = db.engine.execute(
-        "SELECT * FROM public.projects as pj, public.project_plugin_relation as ppr "
-        "WHERE pj.id = '{0}' AND pj.id = ppr.project_id".format(
-            project_id))
-    if result.rowcount == 0:
-        result.close()
-        raise apiError.DevOpsError(404, 'Error when getting project info.',
-                                   error=apiError.project_not_found(project_id))
-    project_info = result.fetchone()
-    result.close()
-    redmine_url = f'{config.get("REDMINE_EXTERNAL_BASE_URL")}/projects/{plan_project_id}'
-    output = {
-        "project_id": project_info["project_id"],
-        "name": project_info["name"],
-        "display": project_info["display"],
-        "description": project_info["description"],
-        "disabled": project_info["disabled"],
-        "git_url": project_info["http_url"],
-        "redmine_url": redmine_url,
-        "ssh_url": project_info["ssh_url"],
-        "repository_id": project_info["git_repository_id"],
-        "owner_id": project_info["owner_id"],
-        "owner_name": model.User.query.get(project_info["owner_id"]).name
-    }
-    return util.success(output)
+def get_project_info(project_id):
+    return NexusProject().set_project_id(project_id, do_query=True).to_json()
 
 
 @record_activity(ActionType.ADD_MEMBER)
@@ -729,38 +574,6 @@ def get_plan_project_id(project_id):
         project_id=project_id).one().plan_project_id
 
 
-def get_ci_last_test_result(relation):
-    ret = {
-        'last_test_result': {'total': 0, 'success': 0},
-        'last_test_time': ''
-    }
-    pl = rancher.rc_get_pipeline_info(relation.ci_project_id, relation.ci_pipeline_id)
-    last_exec_id = pl.get('lastExecutionId')
-    if last_exec_id is None:
-        return ret
-    try:
-        last_run = rancher.rc_get_pipeline_execution(
-            relation.ci_project_id, relation.ci_pipeline_id, last_exec_id)
-    except DevOpsError as e:
-        if e.status_code == 404:
-            return ret
-        else:
-            raise e
-
-    ret['last_test_result']['total'] = len(last_run['stages'])
-    ret['last_test_time'] = last_run['created']
-    stage_status = []
-    for stage in last_run['stages']:
-        if 'state' in stage:
-            stage_status.append(stage['state'])
-    if 'Failed' in stage_status:
-        failed_item = stage_status.index('Failed')
-        ret['last_test_result']['success'] = failed_item
-    else:
-        ret['last_test_result']['success'] = len(last_run['stages'])
-    return ret
-
-
 def get_project_by_plan_project_id(plan_project_id):
     result = db.engine.execute(
         "SELECT * FROM public.project_plugin_relation"
@@ -768,10 +581,6 @@ def get_project_by_plan_project_id(plan_project_id):
     project = result.fetchone()
     result.close()
     return project
-
-
-def get_project_info(project_id):
-    return model.Project.query.filter_by(id=project_id).first()
 
 
 def get_test_summary(project_id):
@@ -1042,7 +851,9 @@ def check_project_owner_id(new_owner_id, user_id, project_id):
     # 更動 owner_id (由 project 中 owner 的 PM 執行)
     elif origin_owner_id == user_id and new_owner_id != user_id:
         # 檢查 new_owner_id 的 role 是否為 PM
-        if not bool(model.ProjectUserRole.query.filter_by(project_id=-1, user_id=new_owner_id, role_id=3).all()):
+        if not bool(model.ProjectUserRole.query.filter_by(
+                project_id=-1, user_id=new_owner_id, role_id=3
+        ).all()):
             raise apiError.DevOpsError(400, "Error while updating project info.",
                                        error=apiError.invalid_project_owner(new_owner_id))
     # 不更動 owner_id，僅修改其他資訊 (由 project 中其他 PM 執行)
@@ -1053,16 +864,47 @@ def check_project_owner_id(new_owner_id, user_id, project_id):
         raise apiError.NotAllowedError("Error while updating project info.")
 
 
+def get_projects_by_user(user_id):
+    try:
+        model.ProjectUserRole.query.filter_by(project_id=-1, user_id=user_id).one()
+    except NoResultFound:
+        raise apiError.DevOpsError(
+            404, 'User id {0} does not exist.'.format(user_id),
+            apiError.user_not_found(user_id))
+    projects_id_list = list(sum(
+        model.ProjectUserRole.query.filter_by(
+            user_id=user_id).with_entities(model.ProjectUserRole.project_id), ()))
+    projects = [NexusProject().set_project_id(id).to_json() for id in projects_id_list if id != -1]
+    return projects
+
+
 # --------------------- Resources ---------------------
 class ListMyProjects(Resource):
     @jwt_required
     def get(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('simple', type=str)
+        parser.add_argument('pj_members_count', type=str)
+        parser.add_argument('pj_due_date_start', type=str)
+        parser.add_argument('pj_due_date_end', type=str)
+        args = parser.parse_args()
+        if args.get('simple', 'false') == 'true':
+            return util.success(
+                {'project_list': get_simple_project_list(get_jwt_identity()['user_id'], args["pj_due_date_start"], args["pj_due_date_end"], args["pj_members_count"])})
         if role.is_role(role.RD):
             return util.success(
-                {'project_list': get_rd_project_list(get_jwt_identity()['user_id'])})
+                {'project_list': get_rd_project_list(get_jwt_identity()['user_id'], args["pj_due_date_start"], args["pj_due_date_end"], args["pj_members_count"])})
         else:
             return util.success(
-                {'project_list': get_pm_project_list(get_jwt_identity()['user_id'])})
+                {'project_list': get_pm_project_list(get_jwt_identity()['user_id'], args["pj_due_date_start"], args["pj_due_date_end"], args["pj_members_count"])})
+
+
+class ListProjectsByUser(Resource):
+    @jwt_required
+    def get(self, user_id):
+        role.require_admin("Error while getting project info")
+        projects = get_projects_by_user(user_id)
+        return util.success(projects)
 
 
 class SingleProject(Resource):
@@ -1070,7 +912,7 @@ class SingleProject(Resource):
     def get(self, project_id):
         role.require_pm("Error while getting project info.")
         role.require_in_project(project_id, "Error while getting project info.")
-        return pm_get_project(project_id)
+        return util.success(get_project_info(project_id))
 
     @jwt_required
     def put(self, project_id):
@@ -1128,11 +970,13 @@ class SingleProject(Resource):
         parser.add_argument('disabled', type=bool, required=True)
         parser.add_argument('template_id', type=int)
         parser.add_argument('tag_name', type=str)
-        parser.add_argument('arguments', type=dict)
+        parser.add_argument('arguments', type=str)
         parser.add_argument('start_date', type=str, required=True)
         parser.add_argument('due_date', type=str, required=True)
         parser.add_argument('owner_id', type=int)
         args = parser.parse_args()
+        if args['arguments'] is not None:
+            args['arguments'] = ast.literal_eval(args['arguments'])
         check_project_args_patterns(args)
         return util.success(create_project(user_id, args))
 
@@ -1143,7 +987,7 @@ class SingleProjectByName(Resource):
         project_id = nexus.nx_get_project(name=project_name).id
         role.require_pm("Error while getting project info.")
         role.require_in_project(project_id, "Error while getting project info.")
-        return pm_get_project(project_id)
+        return util.success(get_project_info(project_id))
 
 
 class ProjectMember(Resource):
@@ -1283,7 +1127,6 @@ class ProjectUserResourceDeployments(Resource):
 
 
 class ProjectUserResourceDeployment(Resource):
-
     @jwt_required
     def put(self, project_id, deployment_name):
         role.require_in_project(project_id, "Error while getting project info.")
@@ -1317,7 +1160,6 @@ class ProjectUserResourceSecrets(Resource):
 
 
 class ProjectUserResourceSecret(Resource):
-
     @jwt_required
     def get(self, project_id, secret_name):
         role.require_in_project(project_id, "Error while getting project info.")

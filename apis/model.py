@@ -28,6 +28,8 @@ class AlembicVersion(db.Model):
     version_num = Column(String(32), primary_key=True)
 
 
+
+    
 class User(db.Model):
     id = Column(Integer, primary_key=True)
     name = Column(String(45))
@@ -92,6 +94,19 @@ class Project(db.Model):
                 fields[field] = str(data)
         return json.dumps(fields)
 
+class Release(db.Model):
+    id = Column(Integer, primary_key=True)
+    version_id = Column(Integer)
+    versions = Column(String)
+    issues = Column(String)
+    branch = Column(String)
+    commit = Column(String)
+    tag_name = Column(String)
+    description = Column(String)
+    creator_id = Column(Integer, ForeignKey(User.id, ondelete='SET NULL'), nullable=True)
+    create_at = Column(DateTime)
+    update_at = Column(DateTime)         
+
 
 class PluginSoftware(db.Model):
     id = Column(Integer, primary_key=True)
@@ -100,6 +115,7 @@ class PluginSoftware(db.Model):
     disabled = Column(Boolean)
     create_at = Column(DateTime)
     update_at = Column(DateTime)
+    type_id = Column(Integer, default = 1)  #For Server = 1, For Pipeline = 2
 
 
 class ProjectPluginRelation(db.Model):
@@ -435,17 +451,34 @@ class GitCommitNumberEachDays(db.Model):
     created_at = Column(DateTime)
 
 
-class CloudProvider(db.Model):
-    id = Column(Integer, primary_key=True)
-    name = Column(String)
-    user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'))
-    type = Column(String)
-    provider_info = Column(JSON)
-
-
 class Registries(db.Model):
     registries_id = Column(Integer, primary_key=True)
     name = Column(String)
     user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'))
-    provider_id = Column(Integer, ForeignKey(CloudProvider.id, ondelete='CASCADE'))
-    provider = db.relationship(CloudProvider, backref='registries')
+    description = Column(String)
+    access_key = Column(String)
+    access_secret = Column(String)
+    url = Column(String)
+    type = Column(String)
+
+
+class IssueCollectionRelation(db.Model):
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
+    issue_id = Column(Integer)
+    software_name = Column(String)
+    file_name = Column(String)
+    plan_name = Column(String)
+    items = Column(JSON)
+
+
+class TestGeneratedIssue(db.Model):
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
+    issue_id = Column(Integer)
+    software_name = Column(String)
+    file_name = Column(String)
+    branch = Column(String)
+    commit_id = Column(String)
+    result_table = Column(String, nullable=False)
+    result_id = Column(Integer, nullable=False)
