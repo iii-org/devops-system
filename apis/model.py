@@ -96,13 +96,14 @@ class Project(db.Model):
 
 class Release(db.Model):
     id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
     version_id = Column(Integer)
     versions = Column(String)
     issues = Column(String)
     branch = Column(String)
     commit = Column(String)
     tag_name = Column(String)
-    description = Column(String)
+    note = Column(String)
     creator_id = Column(Integer, ForeignKey(User.id, ondelete='SET NULL'), nullable=True)
     create_at = Column(DateTime)
     update_at = Column(DateTime)         
