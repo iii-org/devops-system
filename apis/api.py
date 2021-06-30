@@ -497,6 +497,8 @@ def start_prod():
         migrate.run()
         kubernetesClient.apply_cronjob_yamls()
         logger.logger.info('Apply k8s-yaml cronjob.')
+        template.tm_get_template_list()
+        logger.logger.info('Get the public and local template list')
         return app
     except Exception as e:
         ret = internal_error(e)
