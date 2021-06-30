@@ -226,7 +226,7 @@ def hb_list_repositories(project_name):
 
 def generate_artifacts_output(art):
     output = []
-    scan = next(iter(art['scan_overview'].values()))
+    scan = next(iter(art.get('scan_overview',None).values()))
     if (scan is None) or ('summary' not in scan) or ('total' not in scan['summary']):
         vul = ''
     else:
@@ -487,20 +487,39 @@ class HarborProject(Resource):
 
 
 class HarborRelease():
+    
     @jwt_required
     def get_list_artifacts(self, project_name, repository_name):
-        return hb_list_artifacts(project_name, repository_name)
+        return hb_list_artifacts (project_name, repository_name)
 
-    def check_harbor_release(self, artifacts, tag_name):
-        output = {'check': False, "info": "", "target": {}, "errors": {}}
-        if len(artifacts) > 0:
-            output['check'] = True
-            output['target'] = artifacts[0]
+    def check_harbor_status(self, image, tag_name):
+        output = 2
+        if image is True and tag_name is True:
+            output = 1
+        elif image is True:
+            output  = 0
+        return output 
+
+
+    def check_harbor_release(self, artifacts, tag_name, commit ):
+        output = {'check': False, 'tag': False, 'image':False ,"info": "", "target": {}, "errors": {}, "type": 2}        
+        print(tag_name)
         for art in artifacts:
+            #  Tag duplicate
             if art['name'] == tag_name:
-                output['check'] = False
+                output['tag'] = True
                 output['info'] = '{0} is exists in harbor'.format(tag_name)
-                output['errors'] = art
+                output['target']['tag'] = art
+            #  Image Find
+            if art['name'] == commit:
+                output['image'] = True
+                output['info'] = '{0} is exists in harbor'.format(commit)
+                output['target']['commit'] = art
+        output['type'] = self.check_harbor_status(output['image'], output['tag'])
+        if output['type'] == 0:
+            output['check'] = True
+        elif output['type'] == 2:
+            output['info'] = '{0} image is not exists in harbor'.format(commit)
         return output
 
     def create(self, project_name, repository_name, reference, tag_name):
