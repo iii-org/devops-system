@@ -622,7 +622,7 @@ def tm_put_pipeline_default_branch(repository_id, data):
 
 
 class TemplateList(Resource):
-    @jwt_required
+
     def get(self):
         role.require_pm("Error while getting template list.")
         parser = reqparse.RequestParser()
