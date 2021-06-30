@@ -30,7 +30,8 @@ from jsonwebtoken import jsonwebtoken
 from model import db
 from resources import logger, role as role, activity, zap, sideex
 from resources import project, gitlab, issue, user, redmine, wiki, version, sonarqube, apiTest, postman, mock, harbor, \
-    webInspect, template, release, sync_redmine, plugin, kubernetesClient, ad, project_permission, quality, sync_project
+        webInspect, template, release, sync_redmine, plugin, kubernetesClient, ad, project_permission, quality, sync_project, \
+        sync_user
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -482,6 +483,9 @@ api.add_resource(NexusVersion, '/system_versions')
 
 # Sync Projects
 api.add_resource(sync_project.SyncProject, '/sync_projects')
+
+# Sync Users
+api.add_resource(sync_user.SyncUser, '/sync_users')
 
 
 def start_prod():
