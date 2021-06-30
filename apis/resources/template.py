@@ -196,9 +196,10 @@ def __check_git_project_is_empty(pj):
 
 
 def __force_update_template_cache_table():
-    for template_list_cache in TemplateListCache.query.all():
-        db.session.delete(template_list_cache)
-        db.session.commit()
+    
+    TemplateListCache.query.delete()
+    db.session.commit()
+    
     output = [{
         "source": "Public Templates",
         "options": []
