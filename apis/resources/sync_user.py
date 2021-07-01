@@ -8,6 +8,7 @@ from resources import harbor, redmine, gitlab, kubernetesClient, \
                       logger, sonarqube
 
 
+# 新建用戶預設密碼
 DEFAULT_PASSWORD = 'IIIdevops_12345'
 
 
@@ -15,6 +16,7 @@ class ResourceUsers(object):
     def __init__(self):
         self.all_users = defaultdict(list)
 
+    # 取得 redmine, gitlab, harbor, k8s, sonarqube 個別所有使用者
     def set_all_members(self):
         for context in redmine_lib.redmine.user.all():
             self.all_users['rm_all_users'].append(context['login'])
@@ -33,21 +35,20 @@ class ResourceUsers(object):
             context['login'] for context in self.handle_sq_user_page()
         ]
 
-    def handle_gl_user_page(self, project_id=None):
+    # 處理 gitlab list user api page 參數
+    def handle_gl_user_page(self):
         gl_users = []
         page = 1
         x_total_pages = 10
         while page <= x_total_pages:
             params = {'page': page}
-            if project_id:
-                output = gitlab.gitlab.gl_project_list_member(project_id, params)
-            else:
-                output = gitlab.gitlab.gl_get_user_list(params)
+            output = gitlab.gitlab.gl_get_user_list(params)
             gl_users.extend(output.json())
             x_total_pages = int(output.headers['X-Total-Pages'])
             page += 1
         return gl_users
 
+    # 處理 harbor list user api page 參數
     def handle_hb_user_page(self):
         hb_users = []
         page = 1
@@ -64,6 +65,7 @@ class ResourceUsers(object):
                 total_size = -1
         return hb_users
 
+    # 處理 sonarqube list user api page 參數
     def handle_sq_user_page(self):
         sq_users = []
         page = 1
@@ -81,6 +83,7 @@ class ResourceUsers(object):
 rc_users = ResourceUsers()
 
 
+# 設置 create user 需要的 args
 def set_args(user_row):
     args = {
         'id': user_row.id,
@@ -99,13 +102,14 @@ def users_process(admin_users_id, all_users):
         args = set_args(user_row)
         if user_row.id in admin_users_id:
             args['is_admin'] = True
-        check_rm_members(args, rc_users.all_users['rm_all_users'], rc_users.all_users['rm_all_users_email'])
-        check_gl_members(args, rc_users.all_users['gl_all_users'], rc_users.all_users['gl_all_users_email'])
-        check_hb_members(args, rc_users.all_users['hb_all_users'])
-        check_k8s_members(args, rc_users.all_users['k8s_all_users_sa'])
-        check_sq_members(args, rc_users.all_users['sq_all_users_login'])
+        check_rm_users(args, rc_users.all_users['rm_all_users'], rc_users.all_users['rm_all_users_email'])
+        check_gl_users(args, rc_users.all_users['gl_all_users'], rc_users.all_users['gl_all_users_email'])
+        check_hb_users(args, rc_users.all_users['hb_all_users'])
+        check_k8s_users(args, rc_users.all_users['k8s_all_users_sa'])
+        check_sq_users(args, rc_users.all_users['sq_all_users_login'])
 
 
+# 檢查 user plugin relation table 有此 user_id 的資料，沒有的話則建立
 def check_user_relation(nexus_user_id):
     user_relation = model.UserPluginRelation.query.filter_by(user_id=nexus_user_id).all()
     if not user_relation:
@@ -117,7 +121,8 @@ def check_user_relation(nexus_user_id):
     return user_relation[0]
 
 
-def check_rm_members(args, rm_all_users, rm_all_users_email):
+def check_rm_users(args, rm_all_users, rm_all_users_email):
+    # 如果帳號不存在，但是 email 已被使用的話，需要特別注意
     if args['login'] not in rm_all_users and args['email'] in rm_all_users_email:
         logger.logger.info(f'Need attention: User {args["login"]} not found in redmine, '
                            f'but email {args["email"]} is used in redmin.')
@@ -139,7 +144,8 @@ def check_rm_members(args, rm_all_users, rm_all_users_email):
         model.db.session.commit()
 
 
-def check_gl_members(args, gl_all_users, gl_all_users_email):
+def check_gl_users(args, gl_all_users, gl_all_users_email):
+    # 如果帳號不存在，但是 email 已被使用的話，需要特別注意
     if args['login'] not in gl_all_users and args['email'] in gl_all_users_email:
         logger.logger.info(f'Need attention: User {args["login"]} not found in gitlab, '
                            f'but email {args["email"]} is used in gitlab.')
@@ -161,7 +167,7 @@ def check_gl_members(args, gl_all_users, gl_all_users_email):
         model.db.session.commit()
 
 
-def check_hb_members(args, hb_all_users):
+def check_hb_users(args, hb_all_users):
     if args['login'] not in hb_all_users:
         logger.logger.info(f'User {args["login"]} not found in harbor.')
         logger.logger.info(f'Create {args["login"]} harbor user.')
@@ -178,7 +184,8 @@ def check_hb_members(args, hb_all_users):
         model.db.session.commit()
 
 
-def check_k8s_members(args, k8s_all_users_sa):
+def check_k8s_users(args, k8s_all_users_sa):
+    # 從 login 加密回 k8s sa name
     login_sa_name = util.encode_k8s_sa(args['login'])
     if login_sa_name not in k8s_all_users_sa:
         logger.logger.info(f'User {args["login"]} k8s sa not found in k8s.')
@@ -196,7 +203,7 @@ def check_k8s_members(args, k8s_all_users_sa):
         model.db.session.commit()
 
 
-def check_sq_members(args, sq_all_users_login):
+def check_sq_users(args, sq_all_users_login):
     if args['login'] not in sq_all_users_login:
         logger.logger.info(f'User {args["login"]} not found in sonarqube.')
         logger.logger.info(f'Create {args["login"]} sonarqube user.')
@@ -210,8 +217,10 @@ def check_sq_members(args, sq_all_users_login):
 
 
 def main_process():
+    # 取得 admin users id list
     admin_users_id = list(sum(model.db.session.query(model.User).join(model.ProjectUserRole).filter(
             model.ProjectUserRole.project_id == -1, model.ProjectUserRole.role_id == 5).with_entities(model.User.id), ()))
+    # 取得 all_users obj，除了 BOT 以外
     all_users = model.db.session.query(model.User).join(model.ProjectUserRole).filter(
             model.ProjectUserRole.project_id == -1, model.ProjectUserRole.role_id != 6)
     logger.logger.info('Users process start.')
