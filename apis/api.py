@@ -28,7 +28,7 @@ import util
 import maintenance
 from jsonwebtoken import jsonwebtoken
 from model import db
-from resources import logger, role as role, activity, zap, sideex
+from resources import logger, role as role, activity, zap, sideex, starred_project
 from resources import project, gitlab, issue, user, redmine, wiki, version, sonarqube, apiTest, postman, mock, harbor, \
         webInspect, template, release, sync_redmine, plugin, kubernetesClient, ad, project_permission, quality, sync_project, \
         sync_user
@@ -201,6 +201,8 @@ api.add_resource(project.ProjectUserResource, '/project/<sint:project_id>/resour
 api.add_resource(project.ProjectUserResourcePods, '/project/<sint:project_id>/resource/pods')
 api.add_resource(project.ProjectUserResourcePod, '/project/<sint:project_id>/resource/pods/<pod_name>')
 api.add_resource(project.ProjectUserResourcePodLog, '/project/<sint:project_id>/resource/pods/<pod_name>/log')
+
+api.add_resource(starred_project.StarredProject, '/project/<sint:project_id>/star')
 
 # k8s Deployment
 api.add_resource(project.ProjectUserResourceDeployments, '/project/<sint:project_id>/resource/deployments')

@@ -28,8 +28,6 @@ class AlembicVersion(db.Model):
     version_num = Column(String(32), primary_key=True)
 
 
-
-    
 class User(db.Model):
     id = Column(Integer, primary_key=True)
     name = Column(String(45))
@@ -94,6 +92,7 @@ class Project(db.Model):
                 fields[field] = str(data)
         return json.dumps(fields)
 
+
 class Release(db.Model):
     id = Column(Integer, primary_key=True)
     project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
@@ -106,7 +105,7 @@ class Release(db.Model):
     note = Column(String)
     creator_id = Column(Integer, ForeignKey(User.id, ondelete='SET NULL'), nullable=True)
     create_at = Column(DateTime)
-    update_at = Column(DateTime)         
+    update_at = Column(DateTime)
 
 
 class PluginSoftware(db.Model):
@@ -116,7 +115,7 @@ class PluginSoftware(db.Model):
     disabled = Column(Boolean)
     create_at = Column(DateTime)
     update_at = Column(DateTime)
-    type_id = Column(Integer, default = 1)  #For Server = 1, For Pipeline = 2
+    type_id = Column(Integer, default=1)  # For Server = 1, For Pipeline = 2
 
 
 class ProjectPluginRelation(db.Model):
@@ -483,3 +482,9 @@ class TestGeneratedIssue(db.Model):
     commit_id = Column(String)
     result_table = Column(String, nullable=False)
     result_id = Column(Integer, nullable=False)
+
+
+class StarredProject(db.Model):
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
+    user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'), nullable=False)
