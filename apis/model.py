@@ -17,6 +17,7 @@ import json
 
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Date, Enum, JSON, Float
+from sqlalchemy.orm import relationship
 
 import util
 from enums.action_type import ActionType
@@ -47,6 +48,8 @@ class User(db.Model):
         for field in [x for x in dir(self) if
                       not x.startswith('query') and not x.startswith('_') and x != 'metadata']:
             data = self.__getattribute__(field)
+            if field == 'starred_project':
+                continue
             try:
                 json.dumps(data)  # this will fail on unencodable values, like other classes
                 if field == 'password':
@@ -79,12 +82,15 @@ class Project(db.Model):
     display = Column(String)
     owner_id = Column(Integer, ForeignKey(User.id, ondelete='SET NULL'), nullable=True)
     creator_id = Column(Integer, ForeignKey(User.id, ondelete='SET NULL'), nullable=True)
+    starred_by = relationship(User, secondary='starred_project', backref='starred_project')
 
     def __repr__(self):
         fields = {}
         for field in [x for x in dir(self) if
                       not x.startswith('query') and not x.startswith('_') and x != 'metadata']:
             data = self.__getattribute__(field)
+            if field == 'starred_by':
+                continue
             try:
                 json.dumps(data)  # this will fail on unencodable values, like other classes
                 fields[field] = data
