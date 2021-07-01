@@ -17,5 +17,5 @@ spec:
             command:
             - /bin/sh
             - -c
-            - curl --location --request GET 'http://devopsapi-service:10009/template_list?force_update=1'
+            - curl --location --request GET 'http://devopsapi-service:10009/template_list_for_cronjob?force_update=1'
           restartPolicy: OnFailure

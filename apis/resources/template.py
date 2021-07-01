@@ -631,6 +631,15 @@ class TemplateList(Resource):
         return util.success(tm_get_template_list(args["force_update"]))
 
 
+class TemplateListForCronJob(Resource):
+
+    def get(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('force_update', type=int)
+        args = parser.parse_args()
+        return util.success(tm_get_template_list(args["force_update"]))
+
+
 class SingleTemplate(Resource):
     @jwt_required
     def get(self, repository_id):
