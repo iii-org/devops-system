@@ -8,7 +8,6 @@ import config
 import nexus
 import util
 import re
-import json
 import model
 from resources import apiError, role
 from resources.apiError import DevOpsError
@@ -330,15 +329,16 @@ def get_storage_usage(project_id):
     usage_info['quota']['unit'] = ''
     return usage_info
 
+
 def hb_get_registries(registry_id=None, args=None):
     if registry_id:
-        response = __api_get('/registries/{0}'.format(registry_id))
+        registry = __api_get('/registries/{0}'.format(registry_id)).json()
     elif args:
-        response = __api_get('/registries?q={0}'.format(args))
+        registry = __api_get('/registries?q={0}'.format(args)).json()
     else:
-        response = __api_get('/registries')
-    registry = json.loads(response.content.decode('utf8'))
+        registry = __api_get('/registries').json()
     return registry
+
 
 def hb_create_registries(args):
     user_id = get_jwt_identity()['user_id']
@@ -394,21 +394,39 @@ def hb_create_replication_policy(args):
             {
                 "type": "resource",
                 "value": "image"
+            },
+            {
+                "type": "tag",
+                "value": args['tag']
             }
         ]
     }
     __api_post('/replication/policies', data=data)
 
 
-def hb_get_replication_policy():
-    response = __api_get('/replication/policies')
-    policies = json.loads(response.content.decode('utf8'))
+def hb_get_replication_policy(policy_id=None):
+    if policy_id:
+        policies = __api_get('/replication/policies/{0}'.format(policy_id)).json()
+    else:
+        policies = __api_get('/replication/policies').json()
     return policies
 
 
 def hb_execute_replication_policy(args):
     data = {"policy_id": args['policy_id']}
     __api_post('/replication/executions', data=data)
+    policies = hb_get_replication_policy(args['policy_id'])
+    name = [context['value'] for context in policies['filters'] if context['type'] == 'name'][0]
+    tag = [context['value'] for context in policies['filters'] if context['type'] == 'tag'][0]
+    registires = model.Registries.query.filter_by(registries_id=policies['dest_registry']['id']).one()
+    if registires.type == 'aws-ecr':
+        account_id = util.AWSEngine(registires.access_key, registires.access_secret).get_account_id()
+        location = registires.url.split('.')[2]
+        image_uri = f'{account_id}.dkr.ecr.{location}.amazonaws.com/{name}:{tag}'
+    elif registires.type == 'azure-acr':
+        login_server = registires.url[8:]
+        image_uri = f'{login_server}/{name}:{tag}'
+    return image_uri
 
 
 def hb_ping_registries(args):
@@ -542,7 +560,7 @@ class HarborRegistries(Resource):
                 'description': context.description,
                 'type': context.type,
                 'url': context.url,
-                'registries_id': context.registries_id,
+                'id': context.registries_id,
                 'user_id': context.user_id
             } for context in response
         ]
@@ -584,6 +602,7 @@ class HarborReplicationPolicy(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('name', type=str)
         parser.add_argument('image_name', type=str)
+        parser.add_argument('tag', type=str)
         parser.add_argument('registry_id', type=int)
         parser.add_argument('description', type=str)
         args = parser.parse_args()
@@ -597,5 +616,5 @@ class HarborReplicationExecution(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('policy_id', type=int)
         args = parser.parse_args()
-        hb_execute_replication_policy(args)
-        return util.success()
+        output = hb_execute_replication_policy(args)
+        return util.success({'image_uri': output})
