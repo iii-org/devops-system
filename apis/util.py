@@ -11,6 +11,8 @@ import requests
 from flask_restful import reqparse
 
 import resources.apiError as apiError
+import boto3
+from botocore.exceptions import ClientError
 
 
 def date_to_str(data):
@@ -281,3 +283,24 @@ class ServiceBatchOpHelper:
                 self.outputs[service] = threads[service].join_()
             except Exception as e:
                 self.errors[service] = e
+
+
+class AWSEngine():
+    def __init__(self, access_key_id, secret_access_key):
+        self.credential = boto3.Session(
+            aws_access_key_id=access_key_id,
+            aws_secret_access_key=secret_access_key,
+        )
+        self.ec2_client = self.credential.client('ec2', 'ap-northeast-1')
+        self.sts_client = self.credential.client('sts')
+
+    def get_account_id(self):
+        try:
+            account_id = self.sts_client.get_caller_identity().get('Account')
+            return account_id
+        except ClientError as e:
+            raise e
+
+    def list_regions(self):
+        response = self.ec2_client.describe_regions()
+        return [context['RegionName'] for context in response['Regions']]
