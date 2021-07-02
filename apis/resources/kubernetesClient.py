@@ -74,8 +74,11 @@ def apply_cronjob_yamls():
                                 if still_has_cj is False:
                                     break
                             for j in api_batchv1.list_namespaced_job("default").items:
-                                if cronjob_json.metadata.name in j.metadata.name:
+                                if f"{cronjob_json.metadata.name}-" in j.metadata.name:
                                     api_batchv1.delete_namespaced_job(j.metadata.name, "default")
+                            for pod in v1.list_namespaced_pod("default").items:
+                                if f"{cronjob_json.metadata.name}-" in pod.metadata.name:
+                                    pod = v1.delete_namespaced_pod(pod.metadata.name,  "default")
                 try:
                     k8s_utils.create_from_yaml(api_client, os.path.join(root, file))
                 except k8s_utils.FailToCreateError as e:

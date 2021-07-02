@@ -44,7 +44,9 @@ def get_pm_project_list(user_id, pj_due_start=None, pj_due_end=None, pj_members_
         if row.Project.id == -1:
             continue
         if pj_due_start is not None and pj_due_end is not None and row.Project.due_date is not None:
-            if row.Project.due_date < datetime.strptime(pj_due_start, "%Y-%m-%d").date() or row.Project.due_date > datetime.strptime(pj_due_end, "%Y-%m-%d").date():
+            if row.Project.due_date < datetime.strptime(pj_due_start,
+                                                        "%Y-%m-%d").date() or row.Project.due_date > datetime.strptime(
+                pj_due_end, "%Y-%m-%d").date():
                 continue
         redmine_project_id = row.ProjectPluginRelation.plan_project_id
         if redmine_project_id in rm_issues_by_project:
@@ -52,10 +54,12 @@ def get_pm_project_list(user_id, pj_due_start=None, pj_due_end=None, pj_members_
         else:
             rm_project_issues = []
         nexus_project = NexusProject()
-        nexus_project.set_project_row(row.Project)
-        nexus_project.set_plugin_row(row.ProjectPluginRelation)
-        nexus_project.fill_pm_redmine_fields(rm_project_dict[redmine_project_id],
-                                           rm_project_issues)
+        nexus_project.set_project_row(row.Project) \
+            .set_plugin_row(row.ProjectPluginRelation) \
+            .fill_pm_redmine_fields(rm_project_dict[redmine_project_id],
+                                    rm_project_issues) \
+            .set_starred_info(user_id)
+
         if pj_members_count == 'true':
             nexus_project.set_project_members()
         ret.append(nexus_project.to_json())
@@ -69,21 +73,25 @@ def get_rd_project_list(user_id, pj_due_start=None, pj_due_end=None, pj_members_
         if row.Project.id == -1:
             continue
         if pj_due_start is not None and pj_due_end is not None and row.Project.due_date is not None:
-            if row.Project.due_date < datetime.strptime(pj_due_start, "%Y-%m-%d").date() or row.Project.due_date > datetime.strptime(pj_due_end, "%Y-%m-%d").date():
+            if row.Project.due_date < datetime.strptime(pj_due_start,
+                                                        "%Y-%m-%d").date() or row.Project.due_date > datetime.strptime(
+                pj_due_end, "%Y-%m-%d").date():
                 continue
         if pj_members_count == 'true':
             ret.append(NexusProject()
-                    .set_project_row(row.Project)
-                    .set_plugin_row(row.ProjectPluginRelation)
-                    .fill_rd_extra_fields(user_id)
-                    .set_project_members()
-                    .to_json())
+                       .set_project_row(row.Project)
+                       .set_plugin_row(row.ProjectPluginRelation)
+                       .set_starred_info(user_id)
+                       .fill_rd_extra_fields(user_id)
+                       .set_project_members()
+                       .to_json())
         else:
             ret.append(NexusProject()
-                    .set_project_row(row.Project)
-                    .set_plugin_row(row.ProjectPluginRelation)
-                    .fill_rd_extra_fields(user_id)
-                    .to_json())
+                       .set_project_row(row.Project)
+                       .set_plugin_row(row.ProjectPluginRelation)
+                       .set_starred_info(user_id)
+                       .fill_rd_extra_fields(user_id)
+                       .to_json())
     return ret
 
 
@@ -94,19 +102,22 @@ def get_simple_project_list(user_id, pj_due_start=None, pj_due_end=None, pj_memb
         if row.Project.id == -1:
             continue
         if pj_due_start is not None and pj_due_end is not None and row.Project.due_date is not None:
-            if row.Project.due_date < datetime.strptime(pj_due_start, "%Y-%m-%d").date() or row.Project.due_date > datetime.strptime(pj_due_end, "%Y-%m-%d").date():
+            if row.Project.due_date < datetime.strptime(pj_due_start, "%Y-%m-%d").date() or \
+                    row.Project.due_date > datetime.strptime(pj_due_end, "%Y-%m-%d").date():
                 continue
         if pj_members_count == 'true':
             ret.append(NexusProject()
-                    .set_project_row(row.Project)
-                    .set_plugin_row(row.ProjectPluginRelation)
-                    .set_project_members()
-                    .to_json())
+                       .set_project_row(row.Project)
+                       .set_plugin_row(row.ProjectPluginRelation)
+                       .set_project_members()
+                       .set_starred_info(user_id)
+                       .to_json())
         else:
             ret.append(NexusProject()
-                    .set_project_row(row.Project)
-                    .set_plugin_row(row.ProjectPluginRelation)
-                    .to_json())
+                       .set_project_row(row.Project)
+                       .set_plugin_row(row.ProjectPluginRelation)
+                       .set_starred_info(user_id)
+                       .to_json())
     return ret
 
 
@@ -890,13 +901,16 @@ class ListMyProjects(Resource):
         args = parser.parse_args()
         if args.get('simple', 'false') == 'true':
             return util.success(
-                {'project_list': get_simple_project_list(get_jwt_identity()['user_id'], args["pj_due_date_start"], args["pj_due_date_end"], args["pj_members_count"])})
+                {'project_list': get_simple_project_list(get_jwt_identity()['user_id'], args["pj_due_date_start"],
+                                                         args["pj_due_date_end"], args["pj_members_count"])})
         if role.is_role(role.RD):
             return util.success(
-                {'project_list': get_rd_project_list(get_jwt_identity()['user_id'], args["pj_due_date_start"], args["pj_due_date_end"], args["pj_members_count"])})
+                {'project_list': get_rd_project_list(get_jwt_identity()['user_id'], args["pj_due_date_start"],
+                                                     args["pj_due_date_end"], args["pj_members_count"])})
         else:
             return util.success(
-                {'project_list': get_pm_project_list(get_jwt_identity()['user_id'], args["pj_due_date_start"], args["pj_due_date_end"], args["pj_members_count"])})
+                {'project_list': get_pm_project_list(get_jwt_identity()['user_id'], args["pj_due_date_start"],
+                                                     args["pj_due_date_end"], args["pj_members_count"])})
 
 
 class ListProjectsByUser(Resource):

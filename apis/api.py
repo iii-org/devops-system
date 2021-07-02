@@ -28,7 +28,7 @@ import util
 import maintenance
 from jsonwebtoken import jsonwebtoken
 from model import db
-from resources import logger, role as role, activity, zap, sideex
+from resources import logger, role as role, activity, zap, sideex, starred_project
 from resources import project, gitlab, issue, user, redmine, wiki, version, sonarqube, apiTest, postman, mock, harbor, \
         webInspect, template, release, sync_redmine, plugin, kubernetesClient, ad, project_permission, quality, sync_project, \
         sync_user
@@ -202,6 +202,8 @@ api.add_resource(project.ProjectUserResourcePods, '/project/<sint:project_id>/re
 api.add_resource(project.ProjectUserResourcePod, '/project/<sint:project_id>/resource/pods/<pod_name>')
 api.add_resource(project.ProjectUserResourcePodLog, '/project/<sint:project_id>/resource/pods/<pod_name>/log')
 
+api.add_resource(starred_project.StarredProject, '/project/<sint:project_id>/star')
+
 # k8s Deployment
 api.add_resource(project.ProjectUserResourceDeployments, '/project/<sint:project_id>/resource/deployments')
 api.add_resource(project.ProjectUserResourceDeployment,
@@ -232,6 +234,7 @@ api.add_resource(version.ProjectVersion, '/project/<sint:project_id>/version',
                  '/project/<sint:project_id>/version/<int:version_id>')
 api.add_resource(project.TestSummary, '/project/<sint:project_id>/test_summary')
 api.add_resource(template.TemplateList, '/template_list')
+api.add_resource(template.TemplateListForCronJob, '/template_list_for_cronjob')
 api.add_resource(template.SingleTemplate, '/template', '/template/<repository_id>')
 api.add_resource(template.ProjectPipelineBranches, '/project/<repository_id>/pipeline/branches')
 api.add_resource(template.ProjectPipelineDefaultBranch, '/project/<repository_id>/pipeline/default_branch')
@@ -510,4 +513,4 @@ def start_prod():
 if __name__ == "__main__":
     start_prod()
     socketio.run(app, host='0.0.0.0', port=10009, debug=(config.get('DEBUG')),
-                 use_reloader=False)
+                 use_reloader=True)
