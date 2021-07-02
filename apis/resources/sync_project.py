@@ -115,7 +115,7 @@ def set_args(project):
         'disabled': project.disabled,
         'display': project.display,
         'owner_id': project.owner_id,
-        'creator_id': project.creator_id
+        'creator_id': project.creator_id if project.creator_id else project.owner_id
     }
     return args
 
@@ -375,7 +375,11 @@ def k8s_namespace_process(projects_name, check_bot_list):
         logger.logger.info(f'Non-exist k8s namespaces found: {non_exist_projects}.')
         for project_name in non_exist_projects:
             pj_row = model.Project.query.filter_by(name=project_name).one()
-            user_row = model.User.query.filter_by(id=pj_row.creator_id).one()
+            if pj_row.creator_id:
+                user_id = pj_row.creator_id
+            else:
+                user_id = pj_row.owner_id
+            user_row = model.User.query.filter_by(id=user_id).one()
             try:
                 kubernetesClient.create_namespace(project_name)
                 kubernetesClient.create_role_in_namespace(project_name)
@@ -394,7 +398,7 @@ def k8s_namespace_process(projects_name, check_bot_list):
                     logger.logger.info(e)
                 break
             check_project_members(pj_row.id, user_row.id)
-            if pj_row.owner_id != pj_row.creator_id:
+            if pj_row.creator_id and pj_row.owner_id != pj_row.creator_id:
                 try:
                     project.project_add_subadmin(pj_row.id, user_row.id)
                 except Exception:
@@ -492,7 +496,11 @@ def sonarqube_process(projects_name, check_bot_list):
     if sq_pj:
         logger.logger.info(f'Non-exist sonarqube projects found: {sq_pj}.')
         for pj in sq_pj:
-            user_row = nexus.nx_get_user(id=pj.creator_id)
+            if hasattr(pj, 'creator_id'):
+                user_id = pj.creator_id
+            else:
+                user_id = pj.owner_id
+            user_row = nexus.nx_get_user(id=user_id)
             logger.logger.info(f'Create sonarqube project: {pj.name}.')
             sonarqube.sq_create_project(pj.name, pj.display)
             logger.logger.info('Create membership in harbor project')
