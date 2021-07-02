@@ -17,7 +17,7 @@ import json
 
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Date, Enum, JSON, Float
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, backref
 
 import util
 from enums.action_type import ActionType
@@ -42,14 +42,16 @@ class User(db.Model):
     from_ad = Column(Boolean, default=False)
     title = Column(String(45))
     department = Column(String(300))
+    plugin_relation = relationship('UserPluginRelation', uselist=False)
+    project_role = relationship('ProjectUserRole', back_populates='user')
 
     def __repr__(self):
         fields = {}
         for field in [x for x in dir(self) if
                       not x.startswith('query') and not x.startswith('_') and x != 'metadata']:
-            data = self.__getattribute__(field)
-            if field == 'starred_project':
+            if field in ['starred_project', 'plugin_relation', 'project_role']:
                 continue
+            data = self.__getattribute__(field)
             try:
                 json.dumps(data)  # this will fail on unencodable values, like other classes
                 if field == 'password':
@@ -83,14 +85,16 @@ class Project(db.Model):
     owner_id = Column(Integer, ForeignKey(User.id, ondelete='SET NULL'), nullable=True)
     creator_id = Column(Integer, ForeignKey(User.id, ondelete='SET NULL'), nullable=True)
     starred_by = relationship(User, secondary='starred_project', backref='starred_project')
+    plugin_relation = relationship('ProjectPluginRelation', uselist=False)
+    user_role = relationship('ProjectUserRole', back_populates='project')
 
     def __repr__(self):
         fields = {}
         for field in [x for x in dir(self) if
                       not x.startswith('query') and not x.startswith('_') and x != 'metadata']:
-            data = self.__getattribute__(field)
-            if field == 'starred_by':
+            if field in ['starred_by', 'plugin_relation', 'user_role']:
                 continue
+            data = self.__getattribute__(field)
             try:
                 json.dumps(data)  # this will fail on unencodable values, like other classes
                 fields[field] = data
@@ -157,6 +161,8 @@ class ProjectUserRole(db.Model):
     project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), primary_key=True)
     user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'), primary_key=True)
     role_id = Column(Integer, primary_key=True)
+    user = relationship('User', back_populates='project_role')
+    project = relationship('Project', back_populates='user_role')
 
 
 class Requirements(db.Model):

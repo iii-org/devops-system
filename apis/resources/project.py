@@ -6,6 +6,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
 from kubernetes.client import ApiException
 from sqlalchemy import desc
+from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.exc import NoResultFound
 
 import model
@@ -41,21 +42,20 @@ def get_pm_project_list(user_id, pj_due_start=None, pj_due_end=None, pj_members_
         rm_issues_by_project[project_id].append(issue)
     ret = []
     for row in rows:
-        if row.Project.id == -1:
+        if row.id == -1:
             continue
-        if pj_due_start is not None and pj_due_end is not None and row.Project.due_date is not None:
-            if row.Project.due_date < datetime.strptime(pj_due_start,
-                                                        "%Y-%m-%d").date() or row.Project.due_date > datetime.strptime(
-                pj_due_end, "%Y-%m-%d").date():
+        if pj_due_start is not None and pj_due_end is not None and row.due_date is not None:
+            if row.due_date < datetime.strptime(pj_due_start,
+                                                "%Y-%m-%d").date() or \
+                    row.due_date > datetime.strptime(pj_due_end, "%Y-%m-%d").date():
                 continue
-        redmine_project_id = row.ProjectPluginRelation.plan_project_id
+        redmine_project_id = row.plugin_relation.plan_project_id
         if redmine_project_id in rm_issues_by_project:
             rm_project_issues = rm_issues_by_project[redmine_project_id]
         else:
             rm_project_issues = []
         nexus_project = NexusProject()
-        nexus_project.set_project_row(row.Project) \
-            .set_plugin_row(row.ProjectPluginRelation) \
+        nexus_project.set_project_row(row) \
             .fill_pm_redmine_fields(rm_project_dict[redmine_project_id],
                                     rm_project_issues) \
             .set_starred_info(user_id)
@@ -70,25 +70,23 @@ def get_rd_project_list(user_id, pj_due_start=None, pj_due_end=None, pj_members_
     rows = get_project_rows_by_user(user_id)
     ret = []
     for row in rows:
-        if row.Project.id == -1:
+        if row.id == -1:
             continue
-        if pj_due_start is not None and pj_due_end is not None and row.Project.due_date is not None:
-            if row.Project.due_date < datetime.strptime(pj_due_start,
-                                                        "%Y-%m-%d").date() or row.Project.due_date > datetime.strptime(
-                pj_due_end, "%Y-%m-%d").date():
+        if pj_due_start is not None and pj_due_end is not None and row.due_date is not None:
+            if row.due_date < datetime.strptime(
+                    pj_due_start, "%Y-%m-%d").date() or \
+                    row.due_date > datetime.strptime(pj_due_end, "%Y-%m-%d").date():
                 continue
         if pj_members_count == 'true':
             ret.append(NexusProject()
-                       .set_project_row(row.Project)
-                       .set_plugin_row(row.ProjectPluginRelation)
+                       .set_project_row(row)
                        .set_starred_info(user_id)
                        .fill_rd_extra_fields(user_id)
                        .set_project_members()
                        .to_json())
         else:
             ret.append(NexusProject()
-                       .set_project_row(row.Project)
-                       .set_plugin_row(row.ProjectPluginRelation)
+                       .set_project_row(row)
                        .set_starred_info(user_id)
                        .fill_rd_extra_fields(user_id)
                        .to_json())
@@ -99,36 +97,34 @@ def get_simple_project_list(user_id, pj_due_start=None, pj_due_end=None, pj_memb
     rows = get_project_rows_by_user(user_id)
     ret = []
     for row in rows:
-        if row.Project.id == -1:
+        if row.id == -1:
             continue
-        if pj_due_start is not None and pj_due_end is not None and row.Project.due_date is not None:
-            if row.Project.due_date < datetime.strptime(pj_due_start, "%Y-%m-%d").date() or \
-                    row.Project.due_date > datetime.strptime(pj_due_end, "%Y-%m-%d").date():
+        if pj_due_start is not None and pj_due_end is not None and row.due_date is not None:
+            if row.due_date < datetime.strptime(pj_due_start, "%Y-%m-%d").date() or \
+                    row.due_date > datetime.strptime(pj_due_end, "%Y-%m-%d").date():
                 continue
         if pj_members_count == 'true':
             ret.append(NexusProject()
-                       .set_project_row(row.Project)
-                       .set_plugin_row(row.ProjectPluginRelation)
+                       .set_project_row(row)
                        .set_project_members()
                        .set_starred_info(user_id)
                        .to_json())
         else:
             ret.append(NexusProject()
-                       .set_project_row(row.Project)
-                       .set_plugin_row(row.ProjectPluginRelation)
+                       .set_project_row(row)
                        .set_starred_info(user_id)
                        .to_json())
     return ret
 
 
 def get_project_rows_by_user(user_id):
-    query = db.session.query(model.Project, model.ProjectPluginRelation) \
-        .join(model.ProjectPluginRelation) \
-        .join(model.ProjectUserRole,
-              model.ProjectUserRole.project_id == model.Project.id)
+    query = model.Project.query.options(
+        joinedload(model.Project.plugin_relation, innerjoin=True)).options(
+        joinedload(model.Project.user_role, innerjoin=True)
+    )
     # 如果不是admin（也就是一般RD/PM/QA），取得 user_id 有參加的 project 列表
     if user.get_role_id(user_id) != role.ADMIN.id:
-        query = query.filter(model.ProjectUserRole.user_id == user_id)
+        query = query.filter(model.Project.user_role.any(user_id=user_id))
     rows = query.order_by(desc(model.Project.id)).all()
     return rows
 
@@ -1061,7 +1057,7 @@ class ProjectUserList(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('exclude', type=int)
         args = parser.parse_args()
-        return user.user_list_by_project(project_id, args)
+        return util.success({'user_list': user.user_list_by_project(project_id, args)})
 
 
 class ProjectPluginUsage(Resource):
