@@ -153,7 +153,7 @@ class Releases(Resource):
     def delete_harbor_tag(self, branch_name):
         try:
             tag_artifact = self.valid_info['targets']['harbor'].get(
-                'tag', None)
+                'duplicate', None)
             if tag_artifact is not None:
                 hb_release.delete_harbor_tag(self.project.name, branch_name,
                                              tag_artifact)
@@ -291,9 +291,9 @@ class Releases(Resource):
                 self.plugin_relation.git_repository_id, gitlab_data)
 
             #  Create Harbor Release
-            if self.harbor_info['target'].get('image', None) is not None:
+            if self.harbor_info['target'].get('release', None) is not None:
                 hb_release.create(self.project.name, branch_name,
-                                  self.harbor_info['target']['image']['digest'], release_name)
+                                  self.harbor_info['target']['release']['digest'], release_name)
 
             create_release(
                 project_id, 
@@ -311,7 +311,6 @@ class Releases(Resource):
 
     @jwt_required
     def get(self, project_id):
-        # user_id = get_jwt_identity()["user_id"]
         self.plugin_relation = model.ProjectPluginRelation.query.filter_by(
             project_id=project_id).first()
         role.require_in_project(project_id, 'Error to get release')

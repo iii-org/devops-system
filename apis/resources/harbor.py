@@ -521,18 +521,18 @@ class HarborRelease():
 
     def check_harbor_release(self, artifacts, tag_name, commit ):
         output = {'check': False, 'tag': False, 'image':False ,"info": "", "target": {}, "errors": {}, "type": 2}        
-        print(tag_name)
+
         for art in artifacts:
             #  Tag duplicate
             if art['name'] == tag_name:
                 output['tag'] = True
                 output['info'] = '{0} is exists in harbor'.format(tag_name)
-                output['target']['tag'] = art
+                output['target']['duplicate'] = art
             #  Image Find
             if art['name'] == commit:
                 output['image'] = True
                 output['info'] = '{0} is exists in harbor'.format(commit)
-                output['target']['commit'] = art
+                output['target']['release'] = art
         output['type'] = self.check_harbor_status(output['image'], output['tag'])
         if output['type'] == 0:
             output['check'] = True
