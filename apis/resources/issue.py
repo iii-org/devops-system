@@ -588,6 +588,7 @@ def get_issue_list_by_project(project_id, args):
                                                               status_id='*')
             if len(check_children):
                 issue['has_children'] = True
+                issue['family'] = True
             else:
                 issue['has_children'] = False
         output.append(issue)
@@ -636,6 +637,7 @@ def get_issue_list_by_user(user_id, args):
                                                               status_id='*')
             if len(check_children):
                 issue['has_children'] = True
+                issue['family'] = True
             else:
                 issue['has_children'] = False
         output.append(issue)
