@@ -513,4 +513,4 @@ def start_prod():
 if __name__ == "__main__":
     start_prod()
     socketio.run(app, host='0.0.0.0', port=10009, debug=(config.get('DEBUG')),
-                 use_reloader=False)
+                 use_reloader=True)

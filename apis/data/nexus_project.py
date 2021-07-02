@@ -24,7 +24,6 @@ class NexusProject:
     def __init__(self):
         self.__project_id = None
         self.__project_row = None
-        self.__plugin_row = None
         self.__project_members_dict = None
         self.__owner = None
         self.__extra_fields = {}
@@ -34,7 +33,6 @@ class NexusProject:
         self.__project_id = project_id
         if do_query:
             self.get_project_row()
-            self.get_plugin_row()
             self.get_owner()
         return self
 
@@ -51,11 +49,6 @@ class NexusProject:
         attr_names = [c_attr.key for c_attr in inst.mapper.column_attrs]
         for attr in attr_names:
             setattr(self, attr, getattr(project_row, attr))
-        return self
-
-    def set_plugin_row(self, plugin_row):
-        self.__plugin_row = plugin_row
-        self.set_project_id(plugin_row.project_id, False)
         return self
 
     # Owner is a NexusUser object
@@ -96,12 +89,6 @@ class NexusProject:
                 id=self.get_project_id()).one())
         return self.__project_row
 
-    def get_plugin_row(self):
-        if self.__plugin_row is None:
-            self.set_plugin_row(model.ProjectPluginRelation.query.filter_by(
-                project_id=self.get_project_id()).one())
-        return self.__plugin_row
-
     def get_owner(self):
         if self.__owner is None:
             self.__owner = user.NexusUser().set_user_id(self.get_project_row().owner_id)
@@ -114,13 +101,13 @@ class NexusProject:
         ret = json.loads(str(self.get_project_row()))
         ret['git_url'] = ret['http_url']
         del ret['http_url']
-        ret['repository_ids'] = [self.get_plugin_row().git_repository_id]
+        ret['repository_ids'] = [self.get_project_row().plugin_relation.git_repository_id]
         ret['redmine_url'] = \
             f'{config.get("REDMINE_EXTERNAL_BASE_URL")}/projects/' \
-            f'{self.get_plugin_row().plan_project_id}'
+            f'{self.get_project_row().plugin_relation.plan_project_id}'
         ret['harbor_url'] = \
             f'{config.get("HARBOR_EXTERNAL_BASE_URL")}/harbor/projects/' \
-            f'{self.get_plugin_row().harbor_project_id}/repositories'
+            f'{self.get_project_row().plugin_relation.harbor_project_id}/repositories'
         ret['owner_id'] = self.get_owner().id
         ret['owner_name'] = self.get_owner().name
         ret['department'] = self.get_owner().department
@@ -173,7 +160,7 @@ class NexusProject:
             'last_test_result': {}
         }
         all_issues = redmine_lib.redmine.issue.filter(
-            project_id=self.get_plugin_row().plan_project_id,
+            project_id=self.get_project_row().plugin_relation.plan_project_id,
             assigned_to_id=plan_user_id,
             status_id='*'
         )
@@ -192,6 +179,6 @@ class NexusProject:
         if next_d_time is not None:
             extras['next_d_time'] = next_d_time.isoformat()
 
-        extras.update(get_ci_last_test_result(self.get_plugin_row()))
+        extras.update(get_ci_last_test_result(self.get_project_row().plugin_relation))
         self.__extra_fields.update(extras)
         return self

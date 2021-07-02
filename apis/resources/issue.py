@@ -538,7 +538,7 @@ def get_issue_by_project(project_id, args):
         return []
     try:
         nx_project = NexusProject().set_project_id(project_id)
-        plan_id = nx_project.get_plugin_row().plan_project_id
+        plan_id = nx_project.get_project_row().plugin_relation.plan_project_id
     except NoResultFound:
         raise DevOpsError(404, "Error while getting issues",
                           error=apiError.project_not_found(project_id))
@@ -558,7 +558,7 @@ def get_issue_list_by_project(project_id, args):
         return []
     try:
         nx_project = NexusProject().set_project_id(project_id)
-        plan_id = nx_project.get_plugin_row().plan_project_id
+        plan_id = nx_project.get_project_row().plugin_relation.plan_project_id
     except NoResultFound:
         raise DevOpsError(404, "Error while getting issues",
                           error=apiError.project_not_found(project_id))
@@ -656,7 +656,7 @@ def get_issue_by_tree_by_project(project_id):
         return []
     try:
         nx_project = NexusProject().set_project_id(project_id)
-        plan_id = nx_project.get_plugin_row().plan_project_id
+        plan_id = nx_project.get_project_row().plugin_relation.plan_project_id
     except NoResultFound:
         raise DevOpsError(404, "Error while getting issues",
                           error=apiError.project_not_found(project_id))
@@ -851,7 +851,7 @@ def get_issue_progress_or_statistics_by_project(project_id, args, progress=False
         return []
     try:
         nx_project = NexusProject().set_project_id(project_id)
-        plan_id = nx_project.get_plugin_row().plan_project_id
+        plan_id = nx_project.get_project_row().plugin_relation.plan_project_id
     except NoResultFound:
         raise DevOpsError(404, "Error while getting issues",
                           error=apiError.project_not_found(project_id))

@@ -22,6 +22,7 @@ admin_account = os.environ.get('ADMIN_INIT_LOGIN')
 if not admin_account:
     admin_account = 'sysadmin'
 
+
 # --------------------- Useful Functions ---------------------
 
 
@@ -147,9 +148,8 @@ def insert_project_member_count(project, member_count):
 
 def insert_project_member(project_id, project_name):
     members_list = []
-    response = user_list_by_project(project_id=project_id,
-                                    args={'exclude': None})
-    all_members = response[0]['data']['user_list']
+    all_members = user_list_by_project(project_id=project_id,
+                                       args={'exclude': None})
     for member in all_members:
         if int(member['role_id']) in [role.ADMIN.id, role.QA.id]:
             continue
@@ -210,29 +210,29 @@ def get_current_sync_date_project_id_by_user():
     role_id = get_jwt_identity()['role_id']
     project_id_collections = model.RedmineProject.query.with_entities(
         model.RedmineProject.project_id).filter(
-            model.RedmineProject.sync_date == sync_date,
-            model.RedmineProject.project_status != STATUS_CLOSED)
+        model.RedmineProject.sync_date == sync_date,
+        model.RedmineProject.project_status != STATUS_CLOSED)
 
     if role_id == role.ADMIN.id:
         project_id_collections = project_id_collections.order_by(
-                    model.RedmineProject.end_date).all()
+            model.RedmineProject.end_date).all()
     else:
         reverse_query_projects = model.ProjectUserRole.query.with_entities(
             model.ProjectUserRole.project_id).filter_by(user_id=user_id).subquery()
 
         project_id_collections = project_id_collections.filter(
             model.RedmineProject.project_id.in_(reverse_query_projects)).order_by(
-                    model.RedmineProject.end_date).all()
+            model.RedmineProject.end_date).all()
     return list(sum(project_id_collections, ()))
 
 
 def get_project_by_current_sync_date(detail, own_project):
     sync_date = get_sync_date()
     project_collections = model.RedmineProject.query.filter(
-            model.RedmineProject.sync_date == sync_date,
-            model.RedmineProject.project_status != STATUS_CLOSED,
-            model.RedmineProject.project_id.in_(own_project)).order_by(
-                model.RedmineProject.end_date)
+        model.RedmineProject.sync_date == sync_date,
+        model.RedmineProject.project_status != STATUS_CLOSED,
+        model.RedmineProject.project_id.in_(own_project)).order_by(
+        model.RedmineProject.end_date)
     if detail:
         return project_collections.all()
     else:
@@ -244,7 +244,7 @@ def get_user_id_by_project(own_project):
         model.RedmineIssue.project_id.in_(own_project),
         model.RedmineProject.project_status != STATUS_CLOSED,
         model.RedmineIssue.assigned_to_id.isnot(None)).with_entities(
-            model.RedmineIssue.assigned_to_id).distinct().all()
+        model.RedmineIssue.assigned_to_id).distinct().all()
     return list(sum(user_id_collections, ()))
 
 
@@ -259,7 +259,7 @@ def get_last_test_results(project_id):
     return model.TestResults.query.filter(
         model.TestResults.run_at < datetime.today(),
         model.TestResults.project_id == project_id).order_by(
-            model.TestResults.run_at.desc()).first()
+        model.TestResults.run_at.desc()).first()
 
 
 def get_test_results_count(project_id):
@@ -285,8 +285,8 @@ def get_current_sync_date_project_count_by_status(own_project,
                                                   sync_date,
                                                   status=None):
     project_collections = model.RedmineProject.query.filter(
-            model.RedmineProject.project_id.in_(own_project),
-            model.RedmineProject.sync_date == sync_date)
+        model.RedmineProject.project_id.in_(own_project),
+        model.RedmineProject.sync_date == sync_date)
     if status:
         return project_collections.filter(
             model.RedmineProject.project_status == status).count()
@@ -310,7 +310,7 @@ def init_data():
 def get_project_members_count(own_project):
     query_collections = model.ProjectMemberCount.query.filter(
         model.ProjectMemberCount.project_id.in_(own_project)).order_by(
-            model.ProjectMemberCount.member_count.desc()).limit(10).all()
+        model.ProjectMemberCount.member_count.desc()).limit(10).all()
 
     project_members_list = [{
         'id': context.project_id,
@@ -456,7 +456,7 @@ def get_postman_passing_rate(detail, own_project):
                 'fail': fail,
                 'success': success,
                 'run_at':
-                last_test_results.run_at.strftime("%Y-%m-%d %H:%M:%S"),
+                    last_test_results.run_at.strftime("%Y-%m-%d %H:%M:%S"),
                 'count': test_results_count,
                 'sync_date': response.sync_date.strftime("%Y-%m-%d")
             }
