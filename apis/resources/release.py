@@ -7,11 +7,12 @@ from sqlalchemy.orm.exc import NoResultFound
 
 import config
 import model
+from model import db
 import util as util
 from resources import apiError, kubernetesClient, role
 from resources.apiError import DevOpsError
 from resources.logger import logger
-from datetime import datetime
+from datetime import datetime, date
 import nexus
 from .issue import update_issue
 from .gitlab import gitlab, gl_release
@@ -25,6 +26,22 @@ error_gitlab_not_found = 'No such repository found in database.'
 error_release_build = 'Unable to build the release.'
 version_info_keys = ['id', 'name', 'status']
 release_info_keys = ['description', 'created_at', 'released_at']
+key_return_json = ['versions', 'issues' ]
+
+
+def row_to_dict(row):
+    ret = {}
+    if row is None:
+        return row
+    for key in type(row).__table__.columns.keys():
+        value = getattr(row, key)
+        if type(value) is datetime or type(value) is date:
+            ret[key] = str(value)
+        elif key in key_return_json and value is not None:
+            ret[key] = json.loads(value)
+        else:
+            ret[key] = value
+    return ret
 
 
 def transfer_array_to_object(targets, key):
@@ -56,6 +73,35 @@ def get_mapping_list_info(versions, releases):
     gl_key_releases = transfer_array_to_object(releases, 'tag_name')
     output = mapping_function_by_key(rm_key_versions, gl_key_releases)
     return list(output.values())
+
+
+def create_release(project_id, args, versions, issues, branch_name, release_name, user_id):
+    new = model.Release(
+        project_id= project_id,
+        version_id=args.get('main'),
+        versions=json.dumps(versions),
+        issues=json.dumps(issues),
+        branch=branch_name,
+        commit=args.get('commit'),
+        tag_name=release_name,
+        note=args.get('note'),
+        creator_id=user_id,
+        create_at=str(datetime.now())
+    )
+    db.session.add(new)
+    db.session.commit()
+
+def get_releases_by_project_id(project_id):
+    releases = model.Release.query.\
+        filter(model.Release.project_id == project_id).\
+        all()
+    output = []
+    for release in releases:
+        if releases is not None:
+            output.append(row_to_dict(release))
+    return output
+
+
 class Releases(Resource):
     def __init__(self):
         self.plugin_relation = None
@@ -68,16 +114,15 @@ class Releases(Resource):
         self.closed_statuses = None
         self.valid_info = None
 
-    def check_release_status(self, args, release_name, branch_name):
+    def check_release_status(self, args, release_name, branch_name, commit):
         issues_by_versions = redmine.rm_list_issues_by_versions_and_closed(self.plugin_relation.plan_project_id,
                                                                            args['versions'],
                                                                            self.closed_statuses)
-
         self.redmine_info = rm_release.check_redemine_release(
             issues_by_versions, self.versions_by_key, args['main'])
         self.harbor_info = hb_release.check_harbor_release(
             hb_release.get_list_artifacts(self.project.name, branch_name),
-            release_name)
+            release_name, commit)
         self.gitlab_info = gl_release.check_gitlab_release(
             self.plugin_relation.git_repository_id, release_name)
 
@@ -97,42 +142,55 @@ class Releases(Resource):
                     output['targets'][key] = checklist[key]['target']
         self.valid_info = output
 
+    def delete_gitlab_tag(self, release_name):
+        try:
+            gitlab.gl_delete_tag(
+                self.plugin_relation.git_repository_id, release_name)
+        except NoResultFound:
+            return util.respond(404, error_gitlab_not_found,
+                                error=apiError.repository_id_not_found(self.plugin_relation.git_repository_id))
+
+    def delete_harbor_tag(self, branch_name):
+        try:
+            tag_artifact = self.valid_info['targets']['harbor'].get(
+                'tag', None)
+            if tag_artifact is not None:
+                hb_release.delete_harbor_tag(self.project.name, branch_name,
+                                             tag_artifact)
+        except NoResultFound:
+            return util.respond(404, error_harbor_no_image,
+                                error=apiError.release_unable_to_build(self.plugin_relation.git_repository_id))
+
+    def closed_issues(self):
+        try:
+            issue_ids = []
+            user_id = get_jwt_identity()['user_id']
+            operator_plugin_relation = nexus.nx_get_user_plugin_relation(
+                user_id=user_id)
+            plan_operator_id = operator_plugin_relation.plan_user_id
+            for issue in self.redmine_info['issues']:
+                if int(issue['status']['id']) not in self.closed_statuses:
+                    data = {
+                        'status_id': self.closed_statuses[0]
+                    }
+                    issue_ids.append(issue['id'])
+                    redmine.rm_update_issue(
+                        issue['id'], data, plan_operator_id)
+        except NoResultFound:
+            return util.respond(404, error_redmine_issues_closed,
+                                error=apiError.redmine_unable_to_forced_closed_issues(issue_ids))
+
     def forced_close(self, release_name, branch_name):
         # Delete Gitlab Tags
         if 'gitlab' in self.valid_info['errors']:
-            try:
-                gitlab.gl_delete_tag(
-                    self.plugin_relation.git_repository_id, release_name)
-            except NoResultFound:
-                return util.respond(404, error_gitlab_not_found,
-                                    error=apiError.repository_id_not_found(self.plugin_relation.git_repository_id))
+            self.delete_gitlab_tag(release_name)
         # Delete Harbor Tags
-        if 'harbor' in self.valid_info['errors']:
-            try:
-                hb_release.delete_harbor_tag(self.project.name, branch_name,
-                                                           self.valid_info['errors']['harbor'])
-            except NoResultFound:
-                return util.respond(404, error_gitlab_not_found,
-                                    error=apiError.repository_id_not_found(self.plugin_relation.git_repository_id))
+        if self.valid_info['targets'].get('harbor', None) is not None:
+            self.delete_harbor_tag(branch_name)
+
         # Forced Closed Redmine Issues
         if 'redmine' in self.valid_info['errors']:
-            try:
-                issue_ids = []
-                user_id = get_jwt_identity()['user_id']
-                operator_plugin_relation = nexus.nx_get_user_plugin_relation(
-                    user_id=user_id)
-                plan_operator_id = operator_plugin_relation.plan_user_id
-                for issue in self.redmine_info['issues']:
-                    if int(issue['status']['id']) not in self.closed_statuses:
-                        data = {
-                            'status_id': self.closed_statuses[0]
-                        }
-                        issue_ids.append(issue['id'])
-                        redmine.rm_update_issue(
-                            issue['id'], data, plan_operator_id)
-            except NoResultFound:
-                return util.respond(404, error_redmine_issues_closed,
-                                    error=apiError.redmine_unable_to_forced_closed_issues(issue_ids))
+            self.closed_issues()
 
     @jwt_required
     def get(self, project_id):
@@ -154,8 +212,26 @@ class Releases(Resource):
         list_releases = gl_list_releases[0]
         return util.success(get_mapping_list_info(list_versions, list_releases))
 
+    def get_redmine_issue(self):
+        issue_ids = []
+        issues = self.redmine_info.get('issues', None)
+        if issues is not None:
+            for issue in issues:
+                issue_ids.append(issue['id'])
+        return issue_ids
+
+    def get_redmine_versions(self):
+        version_ids = []
+        versions = self.redmine_info.get('versions', None)
+        if len(versions) > 0:
+            for version in versions:
+                version_ids.append(version)
+        return version_ids
+
     @jwt_required
     def post(self, project_id):
+        user_id = get_jwt_identity()["user_id"]
+        role.require_in_project(project_id, 'Error to create release')
         self.plugin_relation = model.ProjectPluginRelation.query.filter_by(
             project_id=project_id).first()
         self.project = model.Project.query.filter_by(id=project_id).first()
@@ -163,50 +239,86 @@ class Releases(Resource):
         parser.add_argument('main', type=int)
         parser.add_argument('versions', action='append')
         parser.add_argument('branch', type=str)
-        parser.add_argument('description', type=str)
+        parser.add_argument('commit', type=str)
+        parser.add_argument('note', type=str)
         parser.add_argument('released_at', type=str)
         parser.add_argument('forced', action='store_true')
         args = parser.parse_args()
-        args['main'] = str(args['main'])
+        gitlab_ref = branch_name = args.get('branch')
+        if args.get('commit', None) is None:
+            args.update({'commit': 'latest'})
+        else:
+            gitlab_ref = args.get('commit')
+            # args.set('commit', 'latest')
+        args['main'] = str(args.get('main'))
         list_versions = redmine.rm_get_version_list(
             self.plugin_relation.plan_project_id)
         self.versions_by_key = transfer_array_to_object(
             list_versions['versions'], 'id')
-        branch_name = args['branch']
+
         release_name = self.versions_by_key[args['main']]['name']
         list_statuses = redmine.rm_get_issue_status()
         self.closed_statuses = redmine.get_closed_status(
             list_statuses['issue_statuses'])
-        self.check_release_status(args, release_name, branch_name)
 
+        self.check_release_status(
+            args, release_name, branch_name, args.get('commit'))
         # Verify Issues is all closed in versions
         self.check_release_states()
-
-        if args['forced'] == 'True' and self.valid_info['check'] is False:
-            self.forced_close(release_name, branch_name)
-        elif self.valid_info['check'] is False:
-            return util.respond(404, error_release_build,
-                                error=apiError.release_unable_to_build(self.valid_info))
         try:
+
+            if args['forced'] == 'True' and self.valid_info['check'] is False:
+                self.forced_close(release_name, branch_name)
+            elif self.valid_info['check'] is False:
+                return util.respond(404, error_release_build,
+                                    error=apiError.release_unable_to_build(self.valid_info))
+
+            #  Close Redmine Versions
+            for version in args['versions']:
+                params = {"version": {"status": "closed"}}
+                redmine.rm_put_version(version, params)
+
             gitlab_data = {
                 'tag_name': release_name,
-                'ref': branch_name,
-                'description': args['description']
+                'ref': gitlab_ref,
+                'description': args['note']
             }
+            #  Create Gitlab Release
             if args['released_at'] != "":
                 gitlab_data['release_at'] = args['released_at']
 
             gitlab.gl_create_release(
                 self.plugin_relation.git_repository_id, gitlab_data)
-            for version in args['versions']:
-                params = {"version": {"status": "closed"}}
-                redmine.rm_put_version(version, params)
-            hb_release.create(self.project.name, branch_name,
-                              self.harbor_info['target']['digest'], release_name)
+
+            #  Create Harbor Release
+            if self.harbor_info['target'].get('image', None) is not None:
+                hb_release.create(self.project.name, branch_name,
+                                  self.harbor_info['target']['image']['digest'], release_name)
+
+            create_release(
+                project_id, 
+                args, 
+                self.get_redmine_versions(), 
+                self.get_redmine_issue(), 
+                branch_name, 
+                release_name, 
+                user_id
+            )                        
             return util.success()
         except NoResultFound:
             return util.respond(404, error_redmine_issues_closed,
                                 error=apiError.redmine_unable_to_forced_closed_issues(args['versions']))
+
+    @jwt_required
+    def get(self, project_id):
+        # user_id = get_jwt_identity()["user_id"]
+        self.plugin_relation = model.ProjectPluginRelation.query.filter_by(
+            project_id=project_id).first()
+        role.require_in_project(project_id, 'Error to get release')
+        try:
+            return util.success({'plugin_list': get_releases_by_project_id(project_id)})
+        except NoResultFound:
+            return util.respond(404, error_redmine_issues_closed)
 
 
 class Release(Resource):

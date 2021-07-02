@@ -76,6 +76,15 @@ class NexusProject:
         self.__project_members_dict = pj_numbers_dict
         return self
 
+    def set_starred_info(self, user_id):
+        starred = False
+        for u in self.get_project_row().starred_by:
+            if u.id == user_id:
+                starred = True
+                break
+        self.__extra_fields['starred'] = starred
+        return self
+
     def get_project_id(self):
         if self.__project_id is None:
             raise DevOpsError(500, 'Project id or row is not set!')
@@ -184,5 +193,5 @@ class NexusProject:
             extras['next_d_time'] = next_d_time.isoformat()
 
         extras.update(get_ci_last_test_result(self.get_plugin_row()))
-        self.__extra_fields = extras
+        self.__extra_fields.update(extras)
         return self

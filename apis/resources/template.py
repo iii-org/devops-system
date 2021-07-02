@@ -196,9 +196,10 @@ def __check_git_project_is_empty(pj):
 
 
 def __force_update_template_cache_table():
-    for template_list_cache in TemplateListCache.query.all():
-        db.session.delete(template_list_cache)
-        db.session.commit()
+    
+    TemplateListCache.query.delete()
+    db.session.commit()
+    
     output = [{
         "source": "Public Templates",
         "options": []
@@ -624,6 +625,15 @@ class TemplateList(Resource):
     @jwt_required
     def get(self):
         role.require_pm("Error while getting template list.")
+        parser = reqparse.RequestParser()
+        parser.add_argument('force_update', type=int)
+        args = parser.parse_args()
+        return util.success(tm_get_template_list(args["force_update"]))
+
+
+class TemplateListForCronJob(Resource):
+
+    def get(self):
         parser = reqparse.RequestParser()
         parser.add_argument('force_update', type=int)
         args = parser.parse_args()

@@ -82,6 +82,11 @@ def invalid_project_owner(owner_id=None):
     return build(1011, 'Project owner role must be PM.', {'owner_id': owner_id})
 
 
+def invalid_fixed_version_id(fixed_version, fixed_version_status):
+    return build(1012, 'Fixed version status is {0}.'.format(fixed_version_status),
+                 {'fixed_version': fixed_version, 'fixed_version_status': fixed_version_status})
+
+
 # User errors
 def user_not_found(user_id):
     return build(2001, 'User not found.', {'user_id': user_id})

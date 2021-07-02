@@ -51,7 +51,8 @@ k8s_config.load_kube_config()
 v1 = k8s_client.CoreV1Api()
 rbac = k8s_client.RbacAuthorizationV1Api()
 api_client = k8s_client.ApiClient()
-api_instance = k8s_client.BatchV1beta1Api(api_client)
+api_batchv1beta1 = k8s_client.BatchV1beta1Api(api_client)
+api_batchv1 = k8s_client.BatchV1Api(api_client)
 extensions_v1beta1 = k8s_client.ExtensionsV1beta1Api()
 
 
@@ -61,17 +62,23 @@ def apply_cronjob_yamls():
             if file.endswith(".yaml") or file.endswith(".yml"):
                 with open(os.path.join(root, file)) as f:
                     json_file = yaml.safe_load(f)
-                    for cronjob_json in api_instance.list_cron_job_for_all_namespaces().items:
+                    for cronjob_json in api_batchv1beta1.list_namespaced_cron_job("default").items:
                         if cronjob_json.metadata.name == json_file["metadata"]["name"]:
-                            api_instance.delete_namespaced_cron_job(cronjob_json.metadata.name,
-                                                                    cronjob_json.metadata.namespace)
+                            api_batchv1beta1.delete_namespaced_cron_job(cronjob_json.metadata.name, 
+                                                                        "default")
                             while True:
                                 still_has_cj = False
-                                for cj in api_instance.list_namespaced_cron_job(cronjob_json.metadata.namespace).items:
+                                for cj in api_batchv1beta1.list_namespaced_cron_job("default").items:
                                     if cronjob_json.metadata.name in cj.metadata.name:
                                         still_has_cj = True
                                 if still_has_cj is False:
                                     break
+                            for j in api_batchv1.list_namespaced_job("default").items:
+                                if f"{cronjob_json.metadata.name}-" in j.metadata.name:
+                                    api_batchv1.delete_namespaced_job(j.metadata.name, "default")
+                            for pod in v1.list_namespaced_pod("default").items:
+                                if f"{cronjob_json.metadata.name}-" in pod.metadata.name:
+                                    pod = v1.delete_namespaced_pod(pod.metadata.name,  "default")
                 try:
                     k8s_utils.create_from_yaml(api_client, os.path.join(root, file))
                 except k8s_utils.FailToCreateError as e:
@@ -127,6 +134,15 @@ def create_namespace(project_name):
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
+
+
+def get_namespace(project_name):
+    try:
+        namespace = v1.read_namespace(project_name)
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+    return namespace
 
 
 def list_namespace():
@@ -290,6 +306,15 @@ def delete_role_in_namespace(namespace, name):
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
+
+
+def list_role_binding_in_namespace(namespace):
+    try:
+        role_binding = rbac.list_namespaced_role_binding(namespace)
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+    return role_binding
 
 
 def create_role_binding(namespace, sa_name):
@@ -564,6 +589,13 @@ def list_namespace_ingresses(namespace):
         if e.status_code != 404:
             raise e
 
+
+def check_ingress_exist(namespace, branch):
+    ingress_list = list_namespace_ingresses(namespace)
+    for ingress in ingress_list:
+        if f"{namespace}-{branch}-serv-ing" == ingress['name']:
+            return True
+    return False
 
 def map_ingress_with_host(rules, ip):
     try:
@@ -888,11 +920,17 @@ def identify_external_url(public_endpoint, node_port, service_type='', namespace
                 external_url_format = "https://"
 
         url = []
-        if config.get('INGRESS_EXTERNAL_BASE') != '' and config.get('INGRESS_EXTERNAL_BASE') is not None and service_type != 'db-server':
+        if config.get('INGRESS_EXTERNAL_BASE') != '' and config.get('INGRESS_EXTERNAL_BASE') is not None\
+            and service_type not in ['db-server', 'db-gui'] and namespace != '' and branch != '' and \
+                check_ingress_exist(namespace, branch):
             url.append(f"{external_url_format}{namespace}-{branch}.{config.get('INGRESS_EXTERNAL_BASE')}")
         elif 'hostname' in public_endpoint:
+            if service_type != 'db-server':
+                external_url_format = "http://"
             url.append(f"{external_url_format}{public_endpoint['hostname']}:{node_port}")
         else:
+            if service_type != 'db-server':
+                external_url_format = "http://"
             for address in public_endpoint['address']:
                 url.append(f"{external_url_format}{address}:{node_port}")
         return url

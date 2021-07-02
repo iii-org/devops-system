@@ -28,9 +28,10 @@ import util
 import maintenance
 from jsonwebtoken import jsonwebtoken
 from model import db
-from resources import logger, role as role, activity, zap, sideex
+from resources import logger, role as role, activity, zap, sideex, starred_project
 from resources import project, gitlab, issue, user, redmine, wiki, version, sonarqube, apiTest, postman, mock, harbor, \
-    webInspect, template, release, sync_redmine, plugin, kubernetesClient, ad, project_permission, quality, sync_project
+        webInspect, template, release, sync_redmine, plugin, kubernetesClient, ad, project_permission, quality, sync_project, \
+        sync_user
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -84,12 +85,20 @@ def internal_error(exception):
 # noinspection PyMethodMayBeStatic
 class SystemGitCommitID(Resource):
     def get(self):
+        git_commit_id = ""
+        git_tag = ""
+        git_date = ""
         if os.path.exists("git_commit"):
             with open("git_commit") as f:
                 git_commit_id = f.read().splitlines()[0]
-                return util.success({"git_commit_id": "{0}".format(git_commit_id)})
-        else:
-            raise apiError.DevOpsError(400, "git_commit file is not exist.")
+        if os.path.exists("git_tag"):
+            with open("git_tag") as f:
+                git_tag = f.read().splitlines()[0]
+        if os.path.exists("git_date"):
+            with open("git_date") as f:
+                git_date = f.read().splitlines()[0]
+        return util.success({"git_commit_id": git_commit_id, "git_tag": git_tag, "git_date": git_date})
+
 
 
 class NexusVersion(Resource):
@@ -193,6 +202,8 @@ api.add_resource(project.ProjectUserResourcePods, '/project/<sint:project_id>/re
 api.add_resource(project.ProjectUserResourcePod, '/project/<sint:project_id>/resource/pods/<pod_name>')
 api.add_resource(project.ProjectUserResourcePodLog, '/project/<sint:project_id>/resource/pods/<pod_name>/log')
 
+api.add_resource(starred_project.StarredProject, '/project/<sint:project_id>/star')
+
 # k8s Deployment
 api.add_resource(project.ProjectUserResourceDeployments, '/project/<sint:project_id>/resource/deployments')
 api.add_resource(project.ProjectUserResourceDeployment,
@@ -223,6 +234,7 @@ api.add_resource(version.ProjectVersion, '/project/<sint:project_id>/version',
                  '/project/<sint:project_id>/version/<int:version_id>')
 api.add_resource(project.TestSummary, '/project/<sint:project_id>/test_summary')
 api.add_resource(template.TemplateList, '/template_list')
+api.add_resource(template.TemplateListForCronJob, '/template_list_for_cronjob')
 api.add_resource(template.SingleTemplate, '/template', '/template/<repository_id>')
 api.add_resource(template.ProjectPipelineBranches, '/project/<repository_id>/pipeline/branches')
 api.add_resource(template.ProjectPipelineDefaultBranch, '/project/<repository_id>/pipeline/default_branch')
@@ -432,6 +444,7 @@ api.add_resource(maintenance.SecretesIntoRcAll, '/maintenance/secretes_into_rc_a
                  '/maintenance/secretes_into_rc_all/<secret_name>')
 api.add_resource(maintenance.RegistryIntoRcAll, '/maintenance/registry_into_rc_all',
                  '/maintenance/registry_into_rc_all/<registry_name>')
+api.add_resource(maintenance.UpdatePjHttpUrl, '/maintenance/update_pj_http_url')
 
 # Rancher
 api.add_resource(rancher.Catalogs, '/rancher/catalogs')
@@ -474,6 +487,9 @@ api.add_resource(NexusVersion, '/system_versions')
 # Sync Projects
 api.add_resource(sync_project.SyncProject, '/sync_projects')
 
+# Sync Users
+api.add_resource(sync_user.SyncUser, '/sync_users')
+
 
 def start_prod():
     try:
@@ -484,6 +500,8 @@ def start_prod():
         migrate.run()
         kubernetesClient.apply_cronjob_yamls()
         logger.logger.info('Apply k8s-yaml cronjob.')
+        template.tm_get_template_list()
+        logger.logger.info('Get the public and local template list')
         return app
     except Exception as e:
         ret = internal_error(e)
@@ -495,4 +513,4 @@ def start_prod():
 if __name__ == "__main__":
     start_prod()
     socketio.run(app, host='0.0.0.0', port=10009, debug=(config.get('DEBUG')),
-                 use_reloader=False)
+                 use_reloader=True)
