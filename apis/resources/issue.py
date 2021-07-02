@@ -690,10 +690,13 @@ def get_custom_filters_by_args(args=None, project_id=None, user_id=None):
     default_filters = {'status_id': '*', 'include': 'relations'}
     if project_id:
         default_filters['project_id'] = project_id
-    elif args:
+    if args:
         if user_id:
             if args.get('from', None) in ['author_id', 'assigned_to_id']:
                 default_filters[args['from']] = user_id
+            # 如果 from 已經指定 assigned_to_id，但是 params 又有 assigned_to_id 的時候，要從 args 刪除
+            if args.get('assigned_to_id', None) and args.get('from', None) == 'assigned_to_id':
+                args.pop('assigned_to_id', None)
         handle_allowed_keywords(default_filters, args)
         if args.get('search', None):
             handle_search(default_filters, args)
@@ -1509,6 +1512,7 @@ class IssueListByUser(Resource):
         parser.add_argument('fixed_version_id', type=str)
         parser.add_argument('status_id', type=str)
         parser.add_argument('tracker_id', type=int)
+        parser.add_argument('assigned_to_id', type=str)
         parser.add_argument('priority_id', type=int)
         parser.add_argument('limit', type=int)
         parser.add_argument('offset', type=int)
