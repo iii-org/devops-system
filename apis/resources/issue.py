@@ -615,8 +615,10 @@ def get_issue_list_by_user(user_id, args):
     # args 新增 nx_user_id，在 get_issue_assigned_to_search 需要判斷是否跟 search 結果為同一人
     args['nx_user_id'] = user_id
     default_filters = get_custom_filters_by_args(args, user_id=nx_user.plan_user_id)
+    if not args.get('from', None) or args['from'] not in ['author_id', 'assigned_to_id']:
+        return []
     # multiple_assigned_to = True，代表 filter 跟 assigned_to_id 為不同的 user id
-    if default_filters.get('multiple_assigned_to', None) and default_filters['multiple_assigned_to']:
+    elif default_filters.get('multiple_assigned_to', None) and default_filters['multiple_assigned_to']:
         return []
         # from author_id 又不存在 multiple_assigned_to 的情況下，
         # default_filters 帶 search ，但沒有取得 issued_id，搜尋結果為空
@@ -1506,7 +1508,7 @@ class IssueListByProject(Resource):
 
 
 class IssueListByUser(Resource):
-    # @jwt_required
+    @jwt_required
     def get(self, user_id):
         parser = reqparse.RequestParser()
         parser.add_argument('fixed_version_id', type=str)
