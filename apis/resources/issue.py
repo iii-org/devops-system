@@ -438,20 +438,32 @@ def get_issue_assign_to_detail(issue):
 def create_issue(args, operator_id):
     args = {k: v for k, v in args.items() if v is not None}
     if 'fixed_version_id' in args:
-        version = redmine_lib.redmine.version.get(args['fixed_version_id'])
-        if version.status in ['locked', 'closed']:
-            raise DevOpsError(400, "Error while creating issue",
-                              error=apiError.invalid_fixed_version_id(version.name, version.status))
+        if len(args['fixed_version_id']) > 0 and args['fixed_version_id'].isdigit():
+            args['fixed_version_id'] = int(args['fixed_version_id'])
+            version = redmine_lib.redmine.version.get(args['fixed_version_id'])
+            if version.status in ['locked', 'closed']:
+                raise DevOpsError(400, "Error while creating issue",
+                                  error=apiError.invalid_fixed_version_id(version.name, version.status))
+        else:
+            args['fixed_version_id'] = None
     if 'parent_id' in args:
-        args['parent_issue_id'] = args['parent_id']
-        args.pop('parent_id', None)
+        if len(args['parent_id']) > 0 and args['parent_id'].isdigit():
+            args['parent_issue_id'] = int(args['parent_id'])
+            args.pop('parent_id', None)
+        else:
+            args['parend_issue_id'] = None
+
     project_plugin_relation = nexus.nx_get_project_plugin_relation(
         nexus_project_id=args['project_id'])
     args['project_id'] = project_plugin_relation.plan_project_id
+
     if "assigned_to_id" in args:
-        user_plugin_relation = nexus.nx_get_user_plugin_relation(
-            user_id=args['assigned_to_id'])
-        args['assigned_to_id'] = user_plugin_relation.plan_user_id
+        if len(args['assigned_to_id']) > 0 and args['assigned_to_id'].isdigit():
+            user_plugin_relation = nexus.nx_get_user_plugin_relation(
+                user_id=int(args['assigned_to_id']))
+            args['assigned_to_id'] = user_plugin_relation.plan_user_id
+        else:
+            args['assigned_to_id'] = None
 
     attachment = redmine.rm_upload(args)
     if attachment is not None:
@@ -1410,9 +1422,9 @@ class SingleIssue(Resource):
         parser.add_argument('priority_id', type=int, required=True)
         parser.add_argument('subject', type=str, required=True)
         parser.add_argument('description', type=str)
-        parser.add_argument('assigned_to_id', type=int)
-        parser.add_argument('parent_id', type=int)
-        parser.add_argument('fixed_version_id', type=int)
+        parser.add_argument('assigned_to_id', type=str)
+        parser.add_argument('parent_id', type=str)
+        parser.add_argument('fixed_version_id', type=str)
         parser.add_argument('start_date', type=str)
         parser.add_argument('due_date', type=str)
         parser.add_argument('done_ratio', type=int)
@@ -1426,6 +1438,11 @@ class SingleIssue(Resource):
         parser.add_argument('upload_content_type', type=str)
 
         args = parser.parse_args()
+        # Handle removable int parameters
+        keys_int_or_null = ['assigned_to_id', 'fixed_version_id', 'parent_id']
+        for k in keys_int_or_null:
+            if args[k] == 'null':
+                args[k] = ''
         rm_output = create_issue(args, get_jwt_identity()['user_id'])
         return util.success({"issue_id": rm_output["issue"]["id"]})
 
