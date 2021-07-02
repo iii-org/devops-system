@@ -4,6 +4,7 @@ import requests
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
 from sqlalchemy.orm.exc import NoResultFound
+from urllib.parse import urlparse
 
 import config
 import model
@@ -28,7 +29,6 @@ version_info_keys = ['id', 'name', 'status']
 release_info_keys = ['description', 'created_at', 'released_at']
 key_return_json = ['versions', 'issues' ]
 
-
 def row_to_dict(row):
     ret = {}
     if row is None:
@@ -40,7 +40,7 @@ def row_to_dict(row):
         elif key in key_return_json and value is not None:
             ret[key] = json.loads(value)
         else:
-            ret[key] = value
+            ret[key] = value    
     return ret
 
 
@@ -91,14 +91,23 @@ def create_release(project_id, args, versions, issues, branch_name, release_name
     db.session.add(new)
     db.session.commit()
 
+
+
+
 def get_releases_by_project_id(project_id):
+    project = model.Project.query.filter_by(id=project_id).first()
     releases = model.Release.query.\
         filter(model.Release.project_id == project_id).\
         all()
     output = []
+    gitlab_base = f'{config.get("GITLAB_BASE_URL")}/root'
+    harbor_base = f'docker pull {urlparse(config.get("HARBOR_EXTERNAL_BASE_URL")).netloc}'
     for release in releases:
         if releases is not None:
-            output.append(row_to_dict(release))
+            ret = row_to_dict(release)
+            ret['git_url'] = f'{gitlab_base}/{project.name}/-/releases/{ret.get("tag_name")}' 
+            ret['docker'] = f'{harbor_base}/{project.name}/{ret.get("branch")}:{ret.get("tag_name")}' 
+            output.append(ret)
     return output
 
 
