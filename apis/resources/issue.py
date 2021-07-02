@@ -551,23 +551,6 @@ def get_issue_by_project(project_id, args):
     return output_array
 
 
-def get_issue_by_project_v2(project_id, args):
-    output = []
-    if util.is_dummy_project(project_id):
-        return []
-    try:
-        nx_project = NexusProject().set_project_id(project_id)
-        plan_id = nx_project.get_plugin_row().plan_project_id
-    except NoResultFound:
-        raise DevOpsError(404, "Error while getting issues",
-                          error=apiError.project_not_found(project_id))
-    default_filters = get_custom_filters_by_args(args, project_id=plan_id)
-    all_issues = redmine_lib.redmine.issue.filter(**default_filters)
-    for redmine_issue in all_issues:
-        output.append(NexusIssue().set_redmine_issue_v2(redmine_issue).to_json())
-    return output
-
-
 def get_issue_list_by_project(project_id, args):
     nx_issue_params = defaultdict()
     output = []
@@ -1498,17 +1481,6 @@ class IssueByProject(Resource):
     def get(self, project_id):
         role.require_in_project(project_id, 'Error to get issue.')
         parser = reqparse.RequestParser()
-        parser.add_argument('fixed_version_id', type=int)
-        args = parser.parse_args()
-        output = get_issue_by_project_v2(project_id, args)
-        return util.success(output)
-
-
-class IssueListByProject(Resource):
-    @jwt_required
-    def get(self, project_id):
-        role.require_in_project(project_id, 'Error to get issue.')
-        parser = reqparse.RequestParser()
         parser.add_argument('fixed_version_id', type=str)
         parser.add_argument('status_id', type=str)
         parser.add_argument('tracker_id', type=int)
@@ -1524,7 +1496,7 @@ class IssueListByProject(Resource):
         return util.success(output)
 
 
-class IssueListByUser(Resource):
+class IssueByUser(Resource):
     @jwt_required
     def get(self, user_id):
         parser = reqparse.RequestParser()
