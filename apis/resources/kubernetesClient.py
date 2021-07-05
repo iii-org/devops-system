@@ -127,6 +127,11 @@ def list_work_node():
     return list_nodes
 
 
+def create_plugin_namespace():
+    if "plugin" not in list_namespace():
+        create_namespace("plugin")
+
+
 def create_namespace(project_name):
     try:
         v1.create_namespace(k8s_client.V1Namespace(
