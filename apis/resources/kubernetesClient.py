@@ -127,9 +127,9 @@ def list_work_node():
     return list_nodes
 
 
-def create_plugin_namespace():
-    if "plugin" not in list_namespace():
-        create_namespace("plugin")
+def create_iiidevops_env_secret_namespace():
+    if "iiidevops-env-secret" not in list_namespace():
+        create_namespace("iiidevops-env-secret")
 
 
 def create_namespace(project_name):

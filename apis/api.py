@@ -498,7 +498,7 @@ def start_prod():
         jsonwebtoken.init_app(app)
         initialize(config.get('SQLALCHEMY_DATABASE_URI'))
         migrate.run()
-        kubernetesClient.create_plugin_namespace()
+        kubernetesClient.create_iiidevops_env_secret_namespace()
         kubernetesClient.apply_cronjob_yamls()
         logger.logger.info('Apply k8s-yaml cronjob.')
         template.tm_get_template_list()
