@@ -1,22 +1,16 @@
-import os
-import yaml
+import base64
 import json
 import numbers
+import os
 from datetime import datetime
 
-from kubernetes.client import ApiException
-
-import util as util
-import config
-
-import base64
+import yaml
 from kubernetes import client as k8s_client
 from kubernetes import config as k8s_config
 from kubernetes import utils as k8s_utils
-from .gitlab import gitlab
+from kubernetes.client import ApiException
 
-from flask_restful import reqparse
-
+import config
 import resources.apiError as apiError
 from resources.logger import logger
 
@@ -54,6 +48,9 @@ api_client = k8s_client.ApiClient()
 api_batchv1beta1 = k8s_client.BatchV1beta1Api(api_client)
 api_batchv1 = k8s_client.BatchV1Api(api_client)
 extensions_v1beta1 = k8s_client.ExtensionsV1beta1Api()
+
+DEFAULT_NAMESPACE = 'default'
+SYSTEM_SECRET_NAMESPACE = 'iiidevops-env-secret'
 
 
 def apply_cronjob_yamls():
@@ -467,6 +464,8 @@ def read_namespace_secret(namespace, secret_name):
     try:
         secret_data = {}
         secret = v1.read_namespaced_secret(secret_name, namespace)
+        if secret.data is None:
+            return {}
         for key, value in secret.data.items():
             secret_data[key] = str(base64.b64decode(str(value)).decode('utf-8'))
         return secret_data

@@ -21,7 +21,7 @@ import config
 import migrate
 import model
 import resources.apiError as apiError
-import resources.checkmarx as checkmarx
+import plugins.checkmarx as checkmarx
 import resources.pipeline as pipeline
 import resources.rancher as rancher
 import util
@@ -30,8 +30,9 @@ from jsonwebtoken import jsonwebtoken
 from model import db
 from resources import logger, role as role, activity, zap, sideex, starred_project
 from resources import project, gitlab, issue, user, redmine, wiki, version, sonarqube, apiTest, postman, mock, harbor, \
-        webInspect, template, release, sync_redmine, plugin, kubernetesClient, ad, project_permission, quality, sync_project, \
+    template, release, sync_redmine, plugin, kubernetesClient, ad, project_permission, quality, sync_project, \
         sync_user
+from plugins.webinspect import webInspect
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -315,8 +316,10 @@ api.add_resource(issue.CheckIssueClosable, '/issues/<issue_id>/check_closable')
 # Release
 api.add_resource(release.Releases, '/project/<project_id>/releases')
 api.add_resource(release.Release, '/project/<project_id>/releases/<release_name>')
+
+# Plugins
 api.add_resource(plugin.Plugins, '/plugins')
-api.add_resource(plugin.Plugin, '/plugins/<sint:plugin_id>')
+api.add_resource(plugin.Plugin, '/plugins/<plugin_name>')
 
 # AD Server
 api.add_resource(ad.Users, '/plugins/ad/users')

@@ -19,9 +19,10 @@ from nexus import nx_get_project_plugin_relation
 from resources.apiError import DevOpsError
 from services import redmine_lib
 from util import DevOpsThread
-from . import user, harbor, kubernetesClient, role, sonarqube, template, webInspect, zap, sideex
+from . import user, harbor, kubernetesClient, role, sonarqube, template, zap, sideex
+from plugins.webinspect import webInspect
 from .activity import record_activity, ActionType
-from .checkmarx import checkmarx
+from plugins import checkmarx
 from .gitlab import gitlab
 from .rancher import rancher
 from .redmine import redmine
