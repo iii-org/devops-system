@@ -1,6 +1,7 @@
 import json
 import urllib.parse
 from distutils.util import strtobool
+import time
 
 import model
 import util as util
@@ -16,6 +17,8 @@ from resources.redmine import redmine
 
 from . import issue
 from .gitlab import gitlab
+
+request_trace_flow={"Epic": -1, "Feature": -1, "Test Plan": -1}
 
 paths = [{
     "software_name": "Postman",
@@ -254,6 +257,17 @@ def qu_del_testfile(project_id, software_name, test_file_name):
             pipeline.stop_and_delete_pipeline(repository_id, next_run)
 
 
+def get_the_execl_report(project_id):
+    for tracker in redmine.rm_get_trackers()["trackers"]:
+        if tracker["name"] in request_trace_flow:
+            request_trace_flow[tracker["name"]]=tracker["id"]
+    for key, value in request_trace_flow.items():
+        start_time = time.time()
+        issue_infos = issue.get_issue_list_by_project(project_id, {'tracker_id': value, 'selection': "false"})
+        print("--- %s seconds ---" % (time.time() - start_time))
+        # print(issue_infos)
+
+
 class TestPlanList(Resource):
     def get(self, project_id):
         out = qu_get_testplan_list(project_id)
@@ -324,4 +338,10 @@ class TestPlanWithTestFile(Resource):
 
     def delete(self, project_id, item_id):
         qu_del_testplan_testfile_relate_list(project_id, item_id)
+        return util.success()
+
+
+class Report(Resource):
+    def get(self, project_id):
+        get_the_execl_report(project_id)
         return util.success()
