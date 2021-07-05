@@ -1,3 +1,8 @@
+# For a plugin, make a directory named as its name, then put it under this directory.
+# A plugin must have a plugin_config.json in it, and the name key must be as same as the
+# plugin directory name.
+# If the plugin only contains one module, make it __init__.py.
+
 import json
 import os
 from datetime import datetime

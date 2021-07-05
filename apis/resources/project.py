@@ -20,9 +20,8 @@ from resources.apiError import DevOpsError
 from services import redmine_lib
 from util import DevOpsThread
 from . import user, harbor, kubernetesClient, role, sonarqube, template, zap, sideex
-from plugins.webinspect import webInspect
 from .activity import record_activity, ActionType
-from plugins import checkmarx
+from plugins import checkmarx, webinspect
 from .gitlab import gitlab
 from .rancher import rancher
 from .redmine import redmine
@@ -635,7 +634,7 @@ def get_test_summary(project_id):
     ret['checkmarx'] = cm_data
 
     # webinspect
-    scans = webInspect.wi_list_scans(project_name)
+    scans = webinspect.wi_list_scans(project_name)
     wi_data = {}
     for scan in scans:
         if type(scan['stats']) is dict and scan['stats']['status'] == 'Complete':

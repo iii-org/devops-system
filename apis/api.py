@@ -14,6 +14,8 @@ from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy_utils import database_exists, create_database
 from werkzeug.routing import IntegerConverter
 
+from plugins import webinspect
+
 if f"{os.getcwd()}/apis" not in sys.path:
     sys.path.insert(1, f"{os.getcwd()}/apis")
 
@@ -32,7 +34,6 @@ from resources import logger, role as role, activity, zap, sideex, starred_proje
 from resources import project, gitlab, issue, user, redmine, wiki, version, sonarqube, apiTest, postman, mock, harbor, \
     template, release, sync_redmine, plugin, kubernetesClient, ad, project_permission, quality, sync_project, \
         sync_user
-from plugins.webinspect import webInspect
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -435,11 +436,11 @@ api.add_resource(harbor.HarborReplicationPolicy, '/harbor/replication/policy')
 api.add_resource(harbor.HarborReplicationExecution, '/harbor/replication/execution')
 
 # WebInspect
-api.add_resource(webInspect.WebInspectScan, '/webinspect/create_scan',
+api.add_resource(webinspect.WebInspectScan, '/webinspect/create_scan',
                  '/webinspect/list_scan/<project_name>')
-api.add_resource(webInspect.WebInspectScanStatus, '/webinspect/status/<scan_id>')
-api.add_resource(webInspect.WebInspectScanStatistics, '/webinspect/stats/<scan_id>')
-api.add_resource(webInspect.WebInspectReport, '/webinspect/report/<scan_id>')
+api.add_resource(webinspect.WebInspectScanStatus, '/webinspect/status/<scan_id>')
+api.add_resource(webinspect.WebInspectScanStatistics, '/webinspect/stats/<scan_id>')
+api.add_resource(webinspect.WebInspectReport, '/webinspect/report/<scan_id>')
 
 # Maintenance
 api.add_resource(maintenance.UpdateDbRcProjectPipelineId, '/maintenance/update_rc_pj_pipe_id')
@@ -517,4 +518,4 @@ def start_prod():
 if __name__ == "__main__":
     start_prod()
     socketio.run(app, host='0.0.0.0', port=10009, debug=(config.get('DEBUG')),
-                 use_reloader=True)
+                 use_reloader=False)
