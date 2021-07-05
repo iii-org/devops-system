@@ -8,6 +8,7 @@ from flask_jwt_extended import (
     create_access_token, JWTManager, jwt_required, get_jwt_identity)
 from flask_restful import Resource, reqparse
 from sqlalchemy import desc, inspect, not_, or_
+from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.exc import NoResultFound
 
 import config
@@ -37,13 +38,11 @@ class NexusUser:
     def __init__(self):
         self.__user_id = None
         self.__user_row = None
-        self.__role_rows = None
 
     def set_user_id(self, user_id, do_query=True):
         self.__user_id = user_id
         if do_query:
             self.get_user_row()
-            self.get_role_rows()
         return self
 
     def set_user_row(self, user_row):
@@ -56,11 +55,6 @@ class NexusUser:
             setattr(self, attr, getattr(user_row, attr))
         return self
 
-    def set_role_rows(self, role_rows):
-        self.__role_rows = role_rows
-        self.set_user_id(role_rows[0].user_id, False)
-        return self
-
     def get_user_id(self):
         if self.__user_id is None:
             raise DevOpsError(500, 'User id or row is not set!')
@@ -71,12 +65,6 @@ class NexusUser:
             self.set_user_row(model.User.query.filter_by(id=self.get_user_id()).one())
         return self.__user_row
 
-    def get_role_rows(self):
-        if self.__role_rows is None:
-            self.set_role_rows(model.ProjectUserRole.query.filter_by(
-                user_id=self.get_user_id()).all())
-        return self.__role_rows
-
     def to_json(self):
         ret = json.loads(str(self.get_user_row()))
         ret['default_role'] = {
@@ -86,7 +74,7 @@ class NexusUser:
         return ret
 
     def default_role_id(self):
-        for row in self.get_role_rows():
+        for row in self.get_user_row().project_role:
             if row.project_id == -1:
                 return row.role_id
         raise DevOpsError(500, 'This user does not have project -1 role.',
@@ -370,7 +358,7 @@ def delete_user(user_id):
     pj_ur_rls = db.session.query(model.Project, model.ProjectUserRole).join(model.ProjectUserRole). \
         filter(model.ProjectUserRole.user_id == user_id, model.ProjectUserRole.project_id != -1,
                model.ProjectUserRole.project_id == model.Project.id).all()
-    
+
     try_to_delete(gitlab.gl_delete_user, relation.repository_user_id)
     try_to_delete(redmine.rm_delete_user, relation.plan_user_id)
     try_to_delete(harbor.hb_delete_user, relation.harbor_user_id)
@@ -649,55 +637,48 @@ def user_list(filters):
 
 
 def user_list_by_project(project_id, args):
-    exclude_role_filter = not_(model.ProjectUserRole.role_id.in_(
-        [role.BOT.id, role.ADMIN.id, role.QA.id]
-    ))
+    excluded_roles = [role.BOT.id, role.ADMIN.id, role.QA.id]
     if args["exclude"] is not None and args["exclude"] == 1:
         # list users not in the project
-        ret_users = db.session.query(
-            model.User, model.ProjectUserRole.role_id
-        ).join(
-            model.ProjectUserRole
-        ).filter(
-            model.User.disabled == False,
-            exclude_role_filter
-        ).order_by(desc(model.User.id)).all()
-
-        project_users = db.session.query(
-            model.User
-        ).join(
-            model.ProjectUserRole
-        ).filter(
-            model.User.disabled == False,
-            model.ProjectUserRole.project_id == project_id,
-            exclude_role_filter
-        ).all()
-        i = 0
-        while i < len(ret_users):
-            for pu in project_users:
-                if ret_users[i].User.id == pu.id:
-                    del ret_users[i]
+        users = []
+        rows = model.User.query.options(joinedload(model.User.project_role)).all()
+        for u in rows:
+            for pr in u.project_role:
+                if pr.project_id < 0 and pr.role_id in excluded_roles or \
+                        pr.project_id == project_id or \
+                        pr.user.disabled:
                     break
             else:
-                i += 1
+                users.append(u)
+        users.sort(key=lambda x: x.id, reverse=True)
+        arr_ret = []
+        for user_row in users:
+            user = NexusUser().set_user_row(user_row)
+            user_json = user.to_json()
+            outer_role_id = user.default_role_id()
+            user_json['role_id'] = outer_role_id
+            user_json['role_name'] = role.get_role_name(outer_role_id)
+            arr_ret.append(user_json)
+        return arr_ret
     else:
         # list users in the project
-        ret_users = db.session.query(model.User, model.ProjectUserRole.role_id). \
-            join(model.ProjectUserRole). \
-            filter(model.User.disabled == False,
-                   model.ProjectUserRole.project_id == project_id,
-                   exclude_role_filter). \
-            order_by(desc(model.User.id)).all()
-
-    arr_ret = []
-    for user_role_by_project in ret_users:
-        user_json = NexusUser().set_user_row(user_role_by_project.User)\
-            .to_json()
-        user_json['role_id'] = user_role_by_project.role_id
-        user_json['role_name'] = role.get_role_name(
-            user_role_by_project.role_id)
-        arr_ret.append(user_json)
-    return util.success({"user_list": arr_ret})
+        project_row = model.Project.query.options(
+            joinedload(model.Project.user_role).
+            joinedload(model.ProjectUserRole.user).
+            joinedload(model.User.project_role)
+        ).filter_by(id=project_id).one()
+        users = list(filter(
+            lambda x: x.role_id not in excluded_roles and not x.user.disabled,
+            project_row.user_role))
+        users.sort(key=lambda x: x.user_id, reverse=True)
+        arr_ret = []
+        for relation_row in users:
+            user_json = NexusUser().set_user_row(relation_row.user).to_json()
+            user_json['role_id'] = relation_row.role_id
+            user_json['role_name'] = role.get_role_name(
+                relation_row.role_id)
+            arr_ret.append(user_json)
+        return arr_ret
 
 
 def user_sa_config(user_id):
