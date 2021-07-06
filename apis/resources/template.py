@@ -37,16 +37,16 @@ support_software = [{
     "key": "scan-checkmarx",
     "display": "Checkmarx"
 }, {
-    "key": "test-postman",
+    "key": "mock-plugin-postman",
     "display": "Postman"
 }, {
-    "key": "test-sideex",
+    "key": "mock-plugin-sideex",
     "display": "SideeX"
 }, {
-    "key": "test-webinspect",
+    "key": "mock-plugin-webinspect",
     "display": "WebInspect"
 }, {
-    "key": "test-zap",
+    "key": "mock-plugin-zap",
     "display": "ZAP"
 }, {
     "key": "db",

@@ -258,7 +258,7 @@ def qu_del_testfile(project_id, software_name, test_file_name):
             gitlab.gl_delete_file(
                 repository_id, url, {
                     "commit_message":
-                    f"Delete {software_name} test file {path['path']}/{test_file_name} from UI"
+                    f"Delete {software_name} mock-plugin file {path['path']}/{test_file_name} from UI"
                 })
             next_run = pipeline.get_pipeline_next_run(repository_id)
             pipeline.stop_and_delete_pipeline(repository_id, next_run)

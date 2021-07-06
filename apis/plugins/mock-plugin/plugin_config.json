@@ -1,0 +1,25 @@
+ {
+    "name": "checkmarx",
+    "keys": [
+        {
+            "key": "all",
+            "type": "string",
+            "store": "secret_all"
+        },
+        {
+            "key": "system",
+            "type": "boolean",
+            "store": "secret_system"
+        },
+        {
+            "key": "db1",
+            "type": "int",
+            "store": "db"
+        },
+        {
+            "key": "db2",
+            "type": "string",
+            "store": "db"
+        }
+    ]
+}

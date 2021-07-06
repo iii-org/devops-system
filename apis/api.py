@@ -4,6 +4,9 @@ import sys
 import traceback
 from os.path import isfile
 
+if f"{os.getcwd()}/apis" not in sys.path:
+    sys.path.insert(1, f"{os.getcwd()}/apis")
+
 import werkzeug
 from flask import Flask
 from flask_cors import CORS
@@ -14,14 +17,13 @@ from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy_utils import database_exists, create_database
 from werkzeug.routing import IntegerConverter
 
-if f"{os.getcwd()}/apis" not in sys.path:
-    sys.path.insert(1, f"{os.getcwd()}/apis")
-
+import plugins
+from plugins import webinspect
 import config
 import migrate
 import model
 import resources.apiError as apiError
-import resources.checkmarx as checkmarx
+import plugins.checkmarx as checkmarx
 import resources.pipeline as pipeline
 import resources.rancher as rancher
 import util
@@ -30,8 +32,8 @@ from jsonwebtoken import jsonwebtoken
 from model import db
 from resources import logger, role as role, activity, zap, sideex, starred_project
 from resources import project, gitlab, issue, user, redmine, wiki, version, sonarqube, apiTest, postman, mock, harbor, \
-        webInspect, template, release, sync_redmine, plugin, kubernetesClient, ad, project_permission, quality, sync_project, \
-        sync_user
+    template, release, sync_redmine, plugin, kubernetesClient, ad, project_permission, quality, sync_project, \
+    sync_user
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -98,7 +100,6 @@ class SystemGitCommitID(Resource):
             with open("git_date") as f:
                 git_date = f.read().splitlines()[0]
         return util.success({"git_commit_id": git_commit_id, "git_tag": git_tag, "git_date": git_date})
-
 
 
 class NexusVersion(Resource):
@@ -286,7 +287,6 @@ api.add_resource(pipeline.PipelineYaml,
 # Websocket
 socketio.on_namespace(rancher.RancherWebsocketLog('/rancher/websocket/logs'))
 
-
 # issue
 api.add_resource(issue.IssueFamily, '/issue/<issue_id>/family')
 api.add_resource(issue.IssueByProject, '/project/<sint:project_id>/issues')
@@ -315,8 +315,10 @@ api.add_resource(issue.CheckIssueClosable, '/issues/<issue_id>/check_closable')
 # Release
 api.add_resource(release.Releases, '/project/<project_id>/releases')
 api.add_resource(release.Release, '/project/<project_id>/releases/<release_name>')
+
+# Plugins
 api.add_resource(plugin.Plugins, '/plugins')
-api.add_resource(plugin.Plugin, '/plugins/<sint:plugin_id>')
+api.add_resource(plugin.Plugin, '/plugins/<plugin_name>')
 
 # AD Server
 api.add_resource(ad.Users, '/plugins/ad/users')
@@ -432,11 +434,11 @@ api.add_resource(harbor.HarborReplicationPolicy, '/harbor/replication/policy')
 api.add_resource(harbor.HarborReplicationExecution, '/harbor/replication/execution')
 
 # WebInspect
-api.add_resource(webInspect.WebInspectScan, '/webinspect/create_scan',
+api.add_resource(webinspect.WebInspectScan, '/webinspect/create_scan',
                  '/webinspect/list_scan/<project_name>')
-api.add_resource(webInspect.WebInspectScanStatus, '/webinspect/status/<scan_id>')
-api.add_resource(webInspect.WebInspectScanStatistics, '/webinspect/stats/<scan_id>')
-api.add_resource(webInspect.WebInspectReport, '/webinspect/report/<scan_id>')
+api.add_resource(webinspect.WebInspectScanStatus, '/webinspect/status/<scan_id>')
+api.add_resource(webinspect.WebInspectScanStatistics, '/webinspect/stats/<scan_id>')
+api.add_resource(webinspect.WebInspectReport, '/webinspect/report/<scan_id>')
 
 # Maintenance
 api.add_resource(maintenance.UpdateDbRcProjectPipelineId, '/maintenance/update_rc_pj_pipe_id')
@@ -475,7 +477,7 @@ api.add_resource(project_permission.SetPermission, '/project_permission/set_perm
 api.add_resource(quality.TestPlanList, '/quality/<int:project_id>/testplan_list')
 api.add_resource(quality.TestPlan, '/quality/<int:project_id>/testplan/<int:testplan_id>')
 api.add_resource(quality.TestFileList, '/quality/<int:project_id>/testfile_list')
-api.add_resource(quality.TestFile, '/quality/<int:project_id>/testfile', 
+api.add_resource(quality.TestFile, '/quality/<int:project_id>/testfile',
                  '/quality/<int:project_id>/testfile/<test_file_name>')
 api.add_resource(quality.TestPlanWithTestFile, '/quality/<int:project_id>/testplan_with_testfile',
                  '/quality/<int:project_id>/testplan_with_testfile/<int:item_id>')
@@ -498,10 +500,12 @@ def start_prod():
         jsonwebtoken.init_app(app)
         initialize(config.get('SQLALCHEMY_DATABASE_URI'))
         migrate.run()
+        kubernetesClient.create_iiidevops_env_secret_namespace()
         kubernetesClient.apply_cronjob_yamls()
         logger.logger.info('Apply k8s-yaml cronjob.')
         template.tm_get_template_list()
         logger.logger.info('Get the public and local template list')
+        plugins.sync_plugins_in_db_and_code()
         return app
     except Exception as e:
         ret = internal_error(e)
@@ -513,4 +517,4 @@ def start_prod():
 if __name__ == "__main__":
     start_prod()
     socketio.run(app, host='0.0.0.0', port=10009, debug=(config.get('DEBUG')),
-                 use_reloader=True)
+                 use_reloader=False)

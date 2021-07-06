@@ -2,6 +2,7 @@ import os
 
 import config
 import model
+import plugins
 import util
 from model import db, ProjectPluginRelation, Project, UserPluginRelation, User, ProjectUserRole, PluginSoftware
 from resources import harbor, kubernetesClient, role, sync_redmine
@@ -18,7 +19,7 @@ VERSIONS = ['0.9.2', '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.4', '0.9.2.5',
             '1.3.1.9', '1.3.1.10', '1.3.1.11', '1.3.1.12', '1.3.1.13', '1.3.1.14', '1.3.2.1', '1.3.2.2',
             '1.3.2.3', '1.3.2.4', '1.3.2.5', '1.3.2.6', '1.3.2.7', '1.3.2.8', '1.3.2.9', '1.4.0.0', '1.4.0.1',
             '1.4.0.2', '1.4.1.0', '1.4.1.1', '1.4.1.2', '1.5.0.0', '1.5.0.1', '1.5.0.2', '1.5.0.3', '1.6.0.1',
-            '1.6.0.2', '1.6.0.3'
+            '1.6.0.2', '1.6.0.3', '1.6.0.4'
             ]
 ONLY_UPDATE_DB_MODELS = [
     '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.5', '0.9.2.6', '0.9.2.a8',
@@ -26,7 +27,7 @@ ONLY_UPDATE_DB_MODELS = [
     '1.3.1.3', '1.3.1.4', '1.3.1.5', '1.3.1.6', '1.3.1.7', '1.3.1.8', '1.3.1.9', '1.3.1.10',
     '1.3.1.11', '1.3.1.13', '1.3.1.14', '1.3.2.1', '1.3.2.2', '1.3.2.4', '1.3.2.6', '1.3.2.7', '1.3.2.9', '1.4.0.0',
     '1.4.0.1', '1.4.0.2', '1.4.1.0', '1.4.1.1', '1.4.1.2', '1.5.0.0', '1.5.0.1', '1.5.0.2', '1.5.0.3', '1.6.0.1',
-    '1.6.0.2', '1.6.0.3'
+    '1.6.0.2', '1.6.0.3', '1.6.0.4'
 ]
 
 
@@ -59,13 +60,15 @@ def upgrade(version):
     elif version == '1.4.0.1':
         set_default_project_creator()
     elif version == '1.5.0.2':
-        set_default_plugin_software_type()    
+        set_default_plugin_software_type()
+
 
 def set_default_plugin_software_type():
     rows = db.session.query(PluginSoftware).all()
     for row in rows:
         row.type_id = 1
         db.session.commit()
+
 
 def set_default_project_creator():
     rows = db.session.query(Project). \

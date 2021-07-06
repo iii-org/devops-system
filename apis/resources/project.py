@@ -16,12 +16,13 @@ import util as util
 from data.nexus_project import NexusProject
 from model import db
 from nexus import nx_get_project_plugin_relation
+from plugins.checkmarx import checkmarx
 from resources.apiError import DevOpsError
 from services import redmine_lib
 from util import DevOpsThread
-from . import user, harbor, kubernetesClient, role, sonarqube, template, webInspect, zap, sideex
+from . import user, harbor, kubernetesClient, role, sonarqube, template, zap, sideex
 from .activity import record_activity, ActionType
-from .checkmarx import checkmarx
+from plugins import webinspect
 from .gitlab import gitlab
 from .rancher import rancher
 from .redmine import redmine
@@ -634,7 +635,7 @@ def get_test_summary(project_id):
     ret['checkmarx'] = cm_data
 
     # webinspect
-    scans = webInspect.wi_list_scans(project_name)
+    scans = webinspect.wi_list_scans(project_name)
     wi_data = {}
     for scan in scans:
         if type(scan['stats']) is dict and scan['stats']['status'] == 'Complete':

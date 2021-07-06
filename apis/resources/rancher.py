@@ -11,6 +11,7 @@ import config
 import resources.apiError as apiError
 import util as util
 from nexus import nx_get_project_plugin_relation
+from resources import kubernetesClient
 from resources.logger import logger
 
 
@@ -92,7 +93,7 @@ class Rancher(object):
                                   retried=retried)
 
     def __api_put(self, path, params=None, headers=None, data=None, with_token=True,
-                   retried=False):
+                  retried=False):
         return self.__api_request('PUT', path=path, params=params, data=data,
                                   headers=headers, with_token=with_token,
                                   retried=retried)
@@ -124,9 +125,9 @@ class Rancher(object):
             'pipelineId': ci_pipeline_id
         }
         if limit is not None:
-            params['limit']=limit
-        if  page_start is not None:
-            params['marker']=f"{ci_pipeline_id}-{page_start}"
+            params['limit'] = limit
+        if page_start is not None:
+            params['marker'] = f"{ci_pipeline_id}-{page_start}"
         if run is not None:
             params['run'] = run
         response = self.__api_get(path, params=params)
@@ -142,7 +143,7 @@ class Rancher(object):
             params = {'action': 'stop'}
         response = self.__api_post(path, params=params, data='')
         return response
-    
+
     def rc_delete_pipeline_executions_run(self, ci_project_id, ci_pipeline_id, pipelines_exec_run):
         path = '/project/{0}/pipelineExecutions/{1}-{2}'.format(ci_project_id, ci_pipeline_id,
                                                                 pipelines_exec_run)
@@ -152,7 +153,6 @@ class Rancher(object):
         path = f'/project/{ci_project_id}/pipelines/{ci_pipeline_id}'
         info = self.__api_get(path)
         return info.json()
-
 
     def rc_get_pipeline_config(self, ci_pipeline_id, pipelines_exec_run):
         output_dict = []
@@ -192,7 +192,7 @@ class Rancher(object):
         headersandtoken = "Authorization: Bearer {0}".format(self.token)
         self.rc_get_project_id()
         url = ("wss://{0}/{1}/project/{2}/pipelineExecutions/"
-                "{3}-{4}/log?stage={5}&step={6}").format(
+               "{3}-{4}/log?stage={5}&step={6}").format(
             config.get('RANCHER_IP_PORT'), config.get('RANCHER_API_VERSION'),
             self.project_id,
             data["ci_pipeline_id"], data["pipelines_exec_run"], data["stage_index"], data["step_index"])
@@ -200,32 +200,31 @@ class Rancher(object):
         try:
             ws_start_time = time.time()
             ws = websocket.create_connection(url, header=[headersandtoken],
-                                                sslopt={"cert_reqs": ssl.CERT_NONE})
+                                             sslopt={"cert_reqs": ssl.CERT_NONE})
             i = 0
             while True:
                 result = ws.recv()
-                emit('pipeline_log', {'data': result, 
-                                    'ci_pipeline_id': data["ci_pipeline_id"],
-                                    'pipelines_exec_run': data["pipelines_exec_run"],
-                                    'stage_index': data["stage_index"],
-                                    'step_index': data["step_index"]})
-                #print(f"result: {result}")
+                emit('pipeline_log', {'data': result,
+                                      'ci_pipeline_id': data["ci_pipeline_id"],
+                                      'pipelines_exec_run': data["pipelines_exec_run"],
+                                      'stage_index': data["stage_index"],
+                                      'step_index': data["step_index"]})
+                # print(f"result: {result}")
                 ws_end_time = time.time() - ws_start_time
                 if result == '' or ws_end_time >= 600 or i >= 100:
-                    emit('pipeline_log', {'data': '', 
-                                    'ci_pipeline_id': data["ci_pipeline_id"],
-                                    'pipelines_exec_run': data["pipelines_exec_run"],
-                                    'stage_index': data["stage_index"],
-                                    'step_index': data["step_index"]})
+                    emit('pipeline_log', {'data': '',
+                                          'ci_pipeline_id': data["ci_pipeline_id"],
+                                          'pipelines_exec_run': data["pipelines_exec_run"],
+                                          'stage_index': data["stage_index"],
+                                          'step_index': data["step_index"]})
                     ws.close()
                     print(f"result: {result}, ws_end_time: {ws_end_time}, i: {i}")
                     break
                 else:
-                    i +=1
+                    i += 1
         except:
             ws.close()
             disconnect()
-
 
     def rc_get_pipeline_executions_logs(self, ci_project_id, ci_pipeline_id,
                                         pipelines_exec_run):
@@ -366,6 +365,21 @@ class Rancher(object):
         output = self.__api_get(url)
         return output.json()['data']
 
+    def rc_add_secrets_to_all_namespaces(self, secret_name, content):
+        if kubernetesClient.read_namespace_secret(kubernetesClient.DEFAULT_NAMESPACE, secret_name) is None:
+            self.rc_add_secrets_into_rc_all({
+                'name': secret_name,
+                'type': 'secret',
+                'data': content
+            })
+        else:
+            self.rc_put_secrets_into_rc_all(
+                secret_name,
+                {
+                    'type': 'secret',
+                    'data': content
+                })
+
     def rc_add_secrets_into_rc_all(self, args):
         self.rc_get_project_id()
         data = args["data"]
@@ -379,7 +393,6 @@ class Rancher(object):
         }
         url = f'/projects/{self.project_id}/secrets'
         output = self.__api_post(url, data=body)
-
 
     def rc_put_secrets_into_rc_all(self, secret_name, args):
         self.rc_get_project_id()
@@ -395,7 +408,6 @@ class Rancher(object):
         url = f'/projects/{self.project_id}/secrets/{self.project_id.split(":")[1]}:{secret_name}'
         output = self.__api_put(url, data=body)
 
-        
     def rc_delete_secrets_into_rc_all(self, secret_name):
         self.rc_get_project_id()
         url = f'/projects/{self.project_id}/secrets/{self.project_id.split(":")[1]}:{secret_name}'
@@ -442,13 +454,13 @@ class Rancher(object):
         url = f'/catalogs/iii-dev-charts3'
         output = self.__api_post(url, params=params)
         return output.json()
-    
+
     def rc_get_apps_all(self):
         self.rc_get_project_id()
         url = f'/projects/{self.project_id}/apps'
         output = self.__api_get(url)
         return output.json()['data']
-    
+
     def rc_del_app(self, app_name):
         self.rc_get_project_id()
         url = f"/projects/{self.project_id}/apps/{self.project_id.split(':')[1]}:{app_name}"
@@ -459,7 +471,7 @@ class Rancher(object):
         for app in apps:
             if project_name == app["targetNamespace"]:
                 self.rc_del_app(app["name"])
-        
+
 
 rancher = Rancher()
 
@@ -480,6 +492,7 @@ class Catalogs(Resource):
         args = parser.parse_args()
         output = rancher.rc_add_catalogs(args)
         return util.success(output)
+
 
 class Catalogs_Refresh(Resource):
     @jwt_required

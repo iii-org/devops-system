@@ -2394,7 +2394,7 @@ components:
       properties:
         tag_name:
           type: string
-          example: test
+          example: mock-plugin
         ref:
           type: string
           example: master

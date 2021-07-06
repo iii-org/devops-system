@@ -91,6 +91,19 @@ def create_release(project_id, args, versions, issues, branch_name, release_name
     db.session.add(new)
     db.session.commit()
 
+def get_hb_tags(artifacts):
+    output = []
+    for artifact in artifacts:
+        output.append(artifact.get('name'))
+    return output
+
+def get_hb_branch_tags(project_name, branch_name):
+    output = []
+    artifacts = hb_release.get_list_artifacts(project_name, branch_name)
+    for artifact in artifacts:
+        output.append(artifact.get('name'))
+    return output
+
 
 
 
@@ -102,14 +115,19 @@ def get_releases_by_project_id(project_id):
     output = []
     gitlab_base = f'{config.get("GITLAB_BASE_URL")}/root'
     harbor_base = f'docker pull {urlparse(config.get("HARBOR_EXTERNAL_BASE_URL")).netloc}'
+    hb_list_tags= {}    
     for release in releases:
         if releases is not None:
-            ret = row_to_dict(release)
+            ret = row_to_dict(release)            
             ret['git_url'] = f'{gitlab_base}/{project.name}/-/releases/{ret.get("tag_name")}' 
-            ret['docker'] = f'{harbor_base}/{project.name}/{ret.get("branch")}:{ret.get("tag_name")}' 
+            # check harbor image exists
+            ret['docker'] = ''
+            if ret.get("branch") not in hb_list_tags:
+                hb_list_tags[ret.get("branch")] = get_hb_branch_tags(project.name, ret.get("branch"))                        
+            if ret.get("tag_name") in hb_list_tags[ret.get("branch")]:
+                ret['docker'] = f'{harbor_base}/{project.name}/{ret.get("branch")}:{ret.get("tag_name")}'                     
             output.append(ret)
     return output
-
 
 class Releases(Resource):
     def __init__(self):
@@ -196,7 +214,6 @@ class Releases(Resource):
         # Delete Harbor Tags
         if self.valid_info['targets'].get('harbor', None) is not None:
             self.delete_harbor_tag(branch_name)
-
         # Forced Closed Redmine Issues
         if 'redmine' in self.valid_info['errors']:
             self.closed_issues()
@@ -275,18 +292,15 @@ class Releases(Resource):
         # Verify Issues is all closed in versions
         self.check_release_states()
         try:
-
             if args['forced'] == 'True' and self.valid_info['check'] is False:
                 self.forced_close(release_name, branch_name)
             elif self.valid_info['check'] is False:
                 return util.respond(404, error_release_build,
                                     error=apiError.release_unable_to_build(self.valid_info))
-
             #  Close Redmine Versions
             for version in args['versions']:
                 params = {"version": {"status": "closed"}}
                 redmine.rm_put_version(version, params)
-
             gitlab_data = {
                 'tag_name': release_name,
                 'ref': gitlab_ref,
@@ -298,12 +312,12 @@ class Releases(Resource):
 
             gitlab.gl_create_release(
                 self.plugin_relation.git_repository_id, gitlab_data)
-
             #  Create Harbor Release
             if self.harbor_info['target'].get('release', None) is not None:
                 hb_release.create(self.project.name, branch_name,
                                   self.harbor_info['target']['release']['digest'], release_name)
-
+            else:
+                type
             create_release(
                 project_id, 
                 args, 
@@ -313,6 +327,7 @@ class Releases(Resource):
                 release_name, 
                 user_id
             )                        
+
             return util.success()
         except NoResultFound:
             return util.respond(404, error_redmine_issues_closed,

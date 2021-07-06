@@ -90,7 +90,7 @@ def export_to_postman(project_id, target):
                     if not item['is_passed']:
                         negative = '.not'
                         o_execs.append(
-                            'pm.test("value #{0}", function () {{ '
+                            'pm.mock-plugin("value #{0}", function () {{ '
                             'pm.expect(pm.response.json().{1}).to.be{2}.eql("{3}");}});'.format(
                                 value['id'], value['key'], negative, value['value']))
 
@@ -103,7 +103,7 @@ def export_to_postman(project_id, target):
                 o_item['request'] = o_request
             if len(o_execs) > 0:
                 o_item['event'] = [{
-                    'listen': 'test',
+                    'listen': 'mock-plugin',
                     'script': {
                         'type': 'text/javascript',
                         'exec': o_execs
