@@ -2,6 +2,7 @@ import os
 
 import config
 import model
+import plugins
 import util
 from model import db, ProjectPluginRelation, Project, UserPluginRelation, User, ProjectUserRole, PluginSoftware
 from resources import harbor, kubernetesClient, role, sync_redmine
@@ -59,13 +60,15 @@ def upgrade(version):
     elif version == '1.4.0.1':
         set_default_project_creator()
     elif version == '1.5.0.2':
-        set_default_plugin_software_type()    
+        set_default_plugin_software_type()
+
 
 def set_default_plugin_software_type():
     rows = db.session.query(PluginSoftware).all()
     for row in rows:
         row.type_id = 1
         db.session.commit()
+
 
 def set_default_project_creator():
     rows = db.session.query(Project). \
