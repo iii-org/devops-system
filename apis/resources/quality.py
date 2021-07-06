@@ -1,6 +1,11 @@
 import json
 import urllib.parse
 from distutils.util import strtobool
+import pandas as pd
+import numpy as np
+from io import BytesIO
+from flask import send_file
+
 import model
 import util as util
 import werkzeug
@@ -291,55 +296,79 @@ def get_the_execl_report(project_id):
     request_trace_flow["Epic"][
         "issue_infos"] = redmine_lib.redmine.issue.filter(
             project_id=plan_id,
-            tracker_id=request_trace_flow["Epic"]["tracker_id"])
+            tracker_id=request_trace_flow["Epic"]["tracker_id"],
+            status_id="*")
 
     out_list = []
-    for issue_info in request_trace_flow["Epic"]["issue_infos"]:
-        if len(issue_info.children) > 0:
-            for feature in issue_info.children:
+    for epic_issue in request_trace_flow["Epic"]["issue_infos"]:
+        if len(epic_issue.children) > 0:
+            for feature in epic_issue.children:
                 if feature.tracker.id == request_trace_flow["Feature"][
                         "tracker_id"]:
-                    if len(feature.relations) > 0:
-                        for relate in feature.relations:
-                            test_plan = redmine_lib.redmine.issue.get(
-                                get_another_issue_id_from_relate(
-                                    relate, feature.id))
-                            if test_plan.tracker.id == request_trace_flow[
-                                    "Test Plan"]["tracker_id"]:
-                                rows = model.IssueCollectionRelation.query.filter_by(
-                                    project_id=project_id,
-                                    issue_id=test_plan.id).all()
-                                if len(rows) > 0:
-                                    for row in rows:
-                                        if row.software_name == "Sideex":
-                                            the_last_result = sideex_testresult_format(
-                                                sideex.sd_get_latest_test(
-                                                    project_id))
-                                        else:
-                                            the_last_result = postman_testresult_format(
-                                                apiTest.get_the_last_result(
-                                                    project_id,
-                                                    row.file_name.split(
-                                                        'postman')[0]))
+                    features =[feature]
+                    if len(feature.children) > 0:
+                        for feature_child in feature.children:
+                            if feature_child.tracker.id == request_trace_flow["Feature"][
+                                    "tracker_id"]:
+                                features.append(feature_child)
+                    for feature in features:
+                        if len(feature.relations) > 0:
+                            for relate in feature.relations:
+                                test_plan = redmine_lib.redmine.issue.get(
+                                    get_another_issue_id_from_relate(
+                                        relate, feature.id))
+                                if test_plan.tracker.id == request_trace_flow[
+                                        "Test Plan"]["tracker_id"]:
+                                    rows = model.IssueCollectionRelation.query.filter_by(
+                                        project_id=project_id,
+                                        issue_id=test_plan.id).all()
+                                    if len(rows) > 0:
+                                        for row in rows:
+                                            if row.software_name == "Sideex":
+                                                the_last_result = sideex_testresult_format(
+                                                    sideex.sd_get_latest_test(
+                                                        project_id))
+                                            else:
+                                                the_last_result = postman_testresult_format(
+                                                    apiTest.get_the_last_result(
+                                                        project_id,
+                                                        row.file_name.split(
+                                                            'postman')[0]))
+                                            out_list.append([
+                                                issue_format(epic_issue),
+                                                issue_format(feature),
+                                                issue_format(test_plan),
+                                                row.file_name, the_last_result
+                                            ])
+                                    else:
                                         out_list.append([
-                                            issue_format(issue_info),
+                                            issue_format(epic_issue),
                                             issue_format(feature),
-                                            issue_format(test_plan),
-                                            row.file_name, the_last_result
+                                            issue_format(test_plan)
                                         ])
                                 else:
-                                    out_list.append([
-                                        issue_format(issue_info),
-                                        issue_format(feature),
-                                        issue_format(test_plan)
-                                    ])
-                    else:
-                        out_list.append(
-                            [issue_format(issue_info),
-                             issue_format(feature)])
+                                    out_list.append(
+                                        [issue_format(epic_issue),
+                                        issue_format(feature)])
+                        else:
+                            out_list.append(
+                                [issue_format(epic_issue),
+                                issue_format(feature)])
+                else:
+                    out_list.append([issue_format(epic_issue)])
         else:
-            out_list.append([issue_format(issue_info)])
-    print(out_list)
+            out_list.append([issue_format(epic_issue)])
+    bio = BytesIO()
+    writer = pd.ExcelWriter(bio, engine='xlsxwriter')
+    df = pd.DataFrame(out_list, columns=['需求規格', '功能設計', '測試計畫', '測試檔案', '測試結果'])
+    df.index = np.arange(1,len(df)+1)
+    df.to_excel(writer)
+    writer.save()
+    bio.seek(0)
+    return send_file(
+        bio,
+        attachment_filename="report.xlsx"
+    )
 
 
 class TestPlanList(Resource):
@@ -417,5 +446,4 @@ class TestPlanWithTestFile(Resource):
 
 class Report(Resource):
     def get(self, project_id):
-        get_the_execl_report(project_id)
-        return util.success()
+        return get_the_execl_report(project_id)
