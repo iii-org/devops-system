@@ -18,7 +18,7 @@ from sqlalchemy_utils import database_exists, create_database
 from werkzeug.routing import IntegerConverter
 
 import plugins
-from plugins import webinspect
+from plugins import webinspect, sideex, zap, sonarqube, postman
 import config
 import migrate
 import model
@@ -30,8 +30,8 @@ import util
 import maintenance
 from jsonwebtoken import jsonwebtoken
 from model import db
-from resources import logger, role as role, activity, zap, sideex, starred_project
-from resources import project, gitlab, issue, user, redmine, wiki, version, sonarqube, apiTest, postman, mock, harbor, \
+from resources import logger, role as role, activity, starred_project
+from resources import project, gitlab, issue, user, redmine, wiki, version, apiTest, mock, harbor, \
     template, release, sync_redmine, plugin, kubernetesClient, ad, project_permission, quality, sync_project, \
     sync_user
 

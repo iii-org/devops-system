@@ -20,9 +20,9 @@ from plugins.checkmarx import checkmarx
 from resources.apiError import DevOpsError
 from services import redmine_lib
 from util import DevOpsThread
-from . import user, harbor, kubernetesClient, role, sonarqube, template, zap, sideex
+from . import user, harbor, kubernetesClient, role, template
 from .activity import record_activity, ActionType
-from plugins import webinspect
+from plugins import webinspect, sonarqube, zap, sideex
 from .gitlab import gitlab
 from .rancher import rancher
 from .redmine import redmine
