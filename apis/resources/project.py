@@ -16,12 +16,13 @@ import util as util
 from data.nexus_project import NexusProject
 from model import db
 from nexus import nx_get_project_plugin_relation
+from plugins.checkmarx import checkmarx
 from resources.apiError import DevOpsError
 from services import redmine_lib
 from util import DevOpsThread
 from . import user, harbor, kubernetesClient, role, sonarqube, template, zap, sideex
 from .activity import record_activity, ActionType
-from plugins import checkmarx, webinspect
+from plugins import webinspect
 from .gitlab import gitlab
 from .rancher import rancher
 from .redmine import redmine
