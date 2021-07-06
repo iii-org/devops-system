@@ -1,7 +1,6 @@
 import json
 import urllib.parse
 from distutils.util import strtobool
-
 import model
 import util as util
 import werkzeug
@@ -14,9 +13,24 @@ import resources.pipeline as pipeline
 from plugins import sideex
 from resources import apiTest
 from resources.redmine import redmine
+from data.nexus_project import NexusProject
+from services import redmine_lib
+from redminelib import exceptions as redminelibError
 
 from . import issue
 from .gitlab import gitlab
+
+request_trace_flow = {
+    "Epic": {
+        "tracker_id": -1
+    },
+    "Feature": {
+        "tracker_id": -1
+    },
+    "Test Plan": {
+        "tracker_id": -1
+    }
+}
 
 paths = [{
     "software_name": "Postman",
@@ -93,7 +107,7 @@ def qu_get_testplan(project_id, testplan_id, journals=0):
     issue_info["test_files"] = []
     for test_plan_file_conn in test_plan_file_conn_list:
         if issue_info['id'] == test_plan_file_conn['issue_id']:
-            the_last_result ={}
+            the_last_result = {}
             if test_plan_file_conn['software_name'] == "Postman":
                 the_last_result = apiTest.get_the_last_result(project_id)
             elif test_plan_file_conn['software_name'] == "SideeX":
@@ -128,7 +142,8 @@ def qu_get_testfile_list(project_id):
                             if row["issue_id"] == issue_info["id"]:
                                 test_plans.append(issue_info)
                                 break
-                    the_last_result = apiTest.get_the_last_result(project_id, tree['name'].split('postman')[0])
+                    the_last_result = apiTest.get_the_last_result(
+                        project_id, tree['name'].split('postman')[0])
                     out_list.append({
                         "software_name": path["software_name"],
                         "file_name": tree["name"],
@@ -142,8 +157,7 @@ def qu_get_testfile_list(project_id):
                         suite_obj = SideeXJSONSuite(suite_dict)
                         test_plans = []
                         rows = get_test_plans_from_params(
-                            project_id, path["software_name"],
-                            tree["name"])
+                            project_id, path["software_name"], tree["name"])
                         for row in rows:
                             for issue_info in issues_info:
                                 if row["issue_id"] == issue_info["id"]:
@@ -151,16 +165,11 @@ def qu_get_testfile_list(project_id):
                                     break
                         the_last_result = sideex.sd_get_latest_test(project_id)
                         out_list.append({
-                            "software_name":
-                            path["software_name"],
-                            "file_name":
-                            tree["name"],
-                            "name":
-                            suite_obj.title,
-                            "test_plans":
-                            test_plans,
-                            "the_last_test_result":
-                            the_last_result
+                            "software_name": path["software_name"],
+                            "file_name": tree["name"],
+                            "name": suite_obj.title,
+                            "test_plans": test_plans,
+                            "the_last_test_result": the_last_result
                         })
     return out_list
 
@@ -233,7 +242,8 @@ def qu_upload_testfile(project_id, file, software_name):
 
 
 def qu_del_testfile(project_id, software_name, test_file_name):
-    rows = model.IssueCollectionRelation.query.filter_by(software_name=software_name.capitalize(),
+    rows = model.IssueCollectionRelation.query.filter_by(
+        software_name=software_name.capitalize(),
         file_name=test_file_name).all()
     if len(rows) > 0:
         for row in rows:
@@ -253,6 +263,83 @@ def qu_del_testfile(project_id, software_name, test_file_name):
                 })
             next_run = pipeline.get_pipeline_next_run(repository_id)
             pipeline.stop_and_delete_pipeline(repository_id, next_run)
+
+
+def get_the_execl_report(project_id):
+    def issue_format(one_issue):
+        return f"#{one_issue.id}-{one_issue}"
+
+    def postman_testresult_format(the_last_result):
+        return f"{the_last_result['success']}/{the_last_result['success']+the_last_result['failure']}, {the_last_result['branch']}, Commit: {the_last_result['commit_id']}"
+
+    def sideex_testresult_format(the_last_result):
+        return f"{the_last_result['casesPassed']}/{the_last_result['casesTotal']}, {the_last_result['branch']}, Commit: {the_last_result['commit_id']}"
+
+    def get_another_issue_id_from_relate(relate, issue_id):
+        if relate.issue_id == issue_id:
+            return relate.issue_to_id
+        elif relate.issue_to_id == issue_id:
+            return relate.issue_id
+        else:
+            pass
+
+    for tracker in redmine.rm_get_trackers()["trackers"]:
+        if tracker["name"] in request_trace_flow:
+            request_trace_flow[tracker["name"]]["tracker_id"] = tracker["id"]
+    nx_project = NexusProject().set_project_id(project_id)
+    plan_id = nx_project.get_project_row().plugin_relation.plan_project_id
+    request_trace_flow["Epic"][
+        "issue_infos"] = redmine_lib.redmine.issue.filter(
+            project_id=plan_id,
+            tracker_id=request_trace_flow["Epic"]["tracker_id"])
+
+    out_list = []
+    for issue_info in request_trace_flow["Epic"]["issue_infos"]:
+        if len(issue_info.children) > 0:
+            for feature in issue_info.children:
+                if feature.tracker.id == request_trace_flow["Feature"][
+                        "tracker_id"]:
+                    if len(feature.relations) > 0:
+                        for relate in feature.relations:
+                            test_plan = redmine_lib.redmine.issue.get(
+                                get_another_issue_id_from_relate(
+                                    relate, feature.id))
+                            if test_plan.tracker.id == request_trace_flow[
+                                    "Test Plan"]["tracker_id"]:
+                                rows = model.IssueCollectionRelation.query.filter_by(
+                                    project_id=project_id,
+                                    issue_id=test_plan.id).all()
+                                if len(rows) > 0:
+                                    for row in rows:
+                                        if row.software_name == "Sideex":
+                                            the_last_result = sideex_testresult_format(
+                                                sideex.sd_get_latest_test(
+                                                    project_id))
+                                        else:
+                                            the_last_result = postman_testresult_format(
+                                                apiTest.get_the_last_result(
+                                                    project_id,
+                                                    row.file_name.split(
+                                                        'postman')[0]))
+                                        out_list.append([
+                                            issue_format(issue_info),
+                                            issue_format(feature),
+                                            issue_format(test_plan),
+                                            row.file_name, the_last_result
+                                        ])
+                                else:
+                                    out_list.append([
+                                        issue_format(issue_info),
+                                        issue_format(feature),
+                                        issue_format(test_plan)
+                                    ])
+                    else:
+                        out_list.append(
+                            [issue_format(issue_info),
+                             issue_format(feature)])
+        else:
+            out_list.append([issue_format(issue_info)])
+    print(out_list)
 
 
 class TestPlanList(Resource):
@@ -325,4 +412,10 @@ class TestPlanWithTestFile(Resource):
 
     def delete(self, project_id, item_id):
         qu_del_testplan_testfile_relate_list(project_id, item_id)
+        return util.success()
+
+
+class Report(Resource):
+    def get(self, project_id):
+        get_the_execl_report(project_id)
         return util.success()

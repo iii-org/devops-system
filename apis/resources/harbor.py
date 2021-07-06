@@ -222,14 +222,22 @@ def hb_list_repositories(project_name):
         ret.append(repo)
     return ret
 
-
-def generate_artifacts_output(art):
-    output = []
-    scan = next(iter(art.get('scan_overview',None).values()))
+def check_scan_overview_exists(scan_overview):
+    vul = ''
+    if scan_overview is None:
+        return vul
+    scan = next(iter(scan_overview.values()))
     if (scan is None) or ('summary' not in scan) or ('total' not in scan['summary']):
         vul = ''
     else:
         vul = '{0} ({1})'.format(scan['severity'], scan['summary']['total'])
+    return vul
+
+
+
+def generate_artifacts_output(art):
+    output = []
+    vul = check_scan_overview_exists(art.get('scan_overview',None))
     if 'tags' in art and art['tags'] is not None:
         for tag in art['tags']:
             output.append({

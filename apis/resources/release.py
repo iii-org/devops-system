@@ -118,13 +118,14 @@ def get_releases_by_project_id(project_id):
     hb_list_tags= {}    
     for release in releases:
         if releases is not None:
-            ret = row_to_dict(release)
+            ret = row_to_dict(release)            
             ret['git_url'] = f'{gitlab_base}/{project.name}/-/releases/{ret.get("tag_name")}' 
             # check harbor image exists
+            ret['docker'] = ''
             if ret.get("branch") not in hb_list_tags:
                 hb_list_tags[ret.get("branch")] = get_hb_branch_tags(project.name, ret.get("branch"))                        
             if ret.get("tag_name") in hb_list_tags[ret.get("branch")]:
-                ret['docker'] = f'{harbor_base}/{project.name}/{ret.get("branch")}:{ret.get("tag_name")}'     
+                ret['docker'] = f'{harbor_base}/{project.name}/{ret.get("branch")}:{ret.get("tag_name")}'                     
             output.append(ret)
     return output
 
