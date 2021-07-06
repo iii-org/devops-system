@@ -18,7 +18,8 @@ import util as util
 from enums.action_type import ActionType
 from model import db
 from nexus import nx_get_user_plugin_relation, nx_get_user
-from resources import harbor, role, sonarqube
+from plugins import sonarqube
+from resources import harbor, role
 from resources import kubernetesClient
 from resources.activity import record_activity
 from resources.ad import ad_user

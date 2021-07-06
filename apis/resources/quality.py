@@ -11,7 +11,8 @@ from nexus import nx_get_project_plugin_relation
 
 import resources.apiError as apiError
 import resources.pipeline as pipeline
-from resources import apiTest, sideex
+from plugins import sideex
+from resources import apiTest
 from resources.redmine import redmine
 
 from . import issue

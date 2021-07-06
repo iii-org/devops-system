@@ -3,9 +3,11 @@ import util
 
 from collections import defaultdict
 from flask_restful import Resource
+
+from plugins import sonarqube
 from services import redmine_lib
 from resources import harbor, redmine, gitlab, kubernetesClient, \
-                      logger, sonarqube
+                      logger
 
 
 # 新建用戶預設密碼

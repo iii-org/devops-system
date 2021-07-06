@@ -9,9 +9,9 @@ from resources import harbor, kubernetesClient, role, sync_redmine
 from resources.apiError import DevOpsError
 from resources.logger import logger
 from resources.rancher import rancher
-# Each time you add a migration, add a version code here.
-from resources.sonarqube import sq_create_project, sq_create_user
+from plugins.sonarqube import sq_create_project, sq_create_user
 
+# Each time you add a migration, add a version code here.
 VERSIONS = ['0.9.2', '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.4', '0.9.2.5',
             '0.9.2.6', '0.9.2.a7', '0.9.2.a8', '0.9.2.a9', '0.9.2.a10',
             '1.0.0.1', '1.0.0.2', '1.3.0.1', '1.3.0.2', '1.3.0.3', '1.3.0.4', '1.3.1', '1.3.1.1',

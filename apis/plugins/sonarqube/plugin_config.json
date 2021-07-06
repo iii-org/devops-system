@@ -1,0 +1,10 @@
+ {
+    "name": "sonarqube",
+    "keys": [
+        {
+            "key": "sonar-url",
+            "type": "string",
+            "store": "secret_all"
+        }
+    ]
+}
