@@ -9,6 +9,8 @@ from datetime import datetime
 from enum import Enum
 from os.path import dirname, join, exists
 
+from kubernetes.client import ApiException
+
 import model
 from resources import apiError, kubernetesClient
 from resources.apiError import DevOpsError
@@ -153,8 +155,8 @@ def delete_plugin_row(plugin_name):
             raise e
     try:
         delete_namespace_secret(SYSTEM_SECRET_NAMESPACE, system_secret_name(plugin_name))
-    except kubernetesClient.apiError as e:
-        if e.status_code != 404:
+    except ApiException as e:
+        if e.status != 404:
             raise e
 
 
@@ -174,3 +176,28 @@ def insert_plugin_row(plugin_name, args):
     model.db.session.commit()
     update_plugin_config(plugin_name, args)
     return new
+
+
+def sync_plugins_in_db_and_code():
+    # Insert plugins db row
+    existed_plugins = list_plugins()
+    plugin_modules = list_plugin_modules()
+    for plugin_name in plugin_modules:
+        existed = False
+        for ep in existed_plugins:
+            if ep['name'] == plugin_name:
+                existed = True
+                break
+        if not existed:
+            insert_plugin_row(plugin_name, {
+                'arguments': {},
+                'disabled': True
+            })
+    for plugin in existed_plugins:
+        existed = False
+        for plugin_name in plugin_modules:
+            if plugin['name'] == plugin_name:
+                existed = True
+                break
+        if not existed:
+            delete_plugin_row(plugin['name'])

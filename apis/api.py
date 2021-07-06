@@ -14,6 +14,8 @@ from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy_utils import database_exists, create_database
 from werkzeug.routing import IntegerConverter
 
+import plugins
+
 if f"{os.getcwd()}/apis" not in sys.path:
     sys.path.insert(1, f"{os.getcwd()}/apis")
 
@@ -506,6 +508,7 @@ def start_prod():
         logger.logger.info('Apply k8s-yaml cronjob.')
         template.tm_get_template_list()
         logger.logger.info('Get the public and local template list')
+        plugins.sync_plugins_in_db_and_code()
         return app
     except Exception as e:
         ret = internal_error(e)
