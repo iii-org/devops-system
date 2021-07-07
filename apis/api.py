@@ -33,7 +33,7 @@ from model import db
 from resources import logger, role as role, activity, starred_project
 from resources import project, gitlab, issue, user, redmine, wiki, version, apiTest, mock, harbor, \
     template, release, sync_redmine, plugin, kubernetesClient, ad, project_permission, quality, sync_project, \
-    sync_user
+    sync_user, router
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -187,6 +187,8 @@ def initialize(db_uri):
     migrate.init()
     logger.logger.info('Server initialized.')
 
+
+api.add_resource(router.Router, '/router')
 
 api.add_resource(project.GitRepoIdToCiPipeId, '/git_repo_id_to_ci_pipe_id/<repository_id>')
 
