@@ -22,3 +22,4 @@ python-redmine == 2.3.0
 boto3==1.16.25
 pandas==1.2.5
 openpyxl==3.0.7
+xlsxwriter
