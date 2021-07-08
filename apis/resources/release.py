@@ -105,7 +105,8 @@ def get_hb_branch_tags(project_name, branch_name):
     return output
 
 
-
+def get_gitlab_base(url):    
+    return url[:url.rfind("/")]
 
 def get_releases_by_project_id(project_id):
     project = model.Project.query.filter_by(id=project_id).first()
@@ -113,7 +114,7 @@ def get_releases_by_project_id(project_id):
         filter(model.Release.project_id == project_id).\
         all()
     output = []
-    gitlab_base = f'{config.get("GITLAB_BASE_URL")}/root'
+    gitlab_base= f'{get_gitlab_base(project.http_url)}'
     harbor_base = f'docker pull {urlparse(config.get("HARBOR_EXTERNAL_BASE_URL")).netloc}'
     hb_list_tags= {}    
     for release in releases:
