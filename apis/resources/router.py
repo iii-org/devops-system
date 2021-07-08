@@ -540,6 +540,6 @@ class Router(Resource):
     def get(self):
         try:
             return util.success(default_json)
-        except NoResultFound:
+        except DevOpsError:
             return util.respond(404, get_router_error
                                 )
