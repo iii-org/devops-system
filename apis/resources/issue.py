@@ -610,7 +610,7 @@ def get_issue_list_by_user(user_id, args):
                           error=apiError.user_not_found(user_id))
     # args 新增 nx_user_id，在 get_issue_assigned_to_search 需要判斷是否跟 search 結果為同一人
     args['nx_user_id'] = user_id
-    if 'project_id' in args:
+    if args.get('project_id'):
         nx_project = NexusProject().set_project_id(args['project_id'])
         plan_id = nx_project.get_project_row().plugin_relation.plan_project_id
         default_filters = get_custom_filters_by_args(args, project_id=plan_id, user_id=nx_user.plan_user_id)
