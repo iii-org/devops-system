@@ -703,7 +703,6 @@ def put_kubernetes_namespace_deployment(project_id, name):
     if deployment_info.spec.template.metadata.annotations is not None:
         deployment_info.spec.template.metadata.annotations["iiidevops_redeploy_at"] = str(datetime.utcnow())
     project_deployment = kubernetesClient.update_namespace_deployment(project_name, name, deployment_info)
-    print(project_deployment)
     return util.success(project_deployment.metadata.name)
 
 
@@ -717,7 +716,22 @@ def get_kubernetes_namespace_dev_environment(project_id):
     project_info = model.Project.query.filter_by(id=project_id).first()
     project_deployment = kubernetesClient.list_dev_environment_by_branch(str(project_info.name),
                                                                          str(project_info.http_url))
-    return util.success(project_deployment)
+    return project_deployment
+
+
+def get_kubernetes_namespace_dev_environment_urls(project_id, branch_name):
+    ret = []
+    data = get_kubernetes_namespace_dev_environment(project_id)
+    for d in data:
+        if d['branch'] == branch_name:
+            for pod in d['pods']:
+                if pod['type'] == 'web-server':
+                    for con in pod['containers']:
+                        if con['status']['state'] == 'running':
+                            for mapping in con.get('service_port_mapping', []):
+                                for service in mapping.get('services', []):
+                                    ret.extend(service.get('url', []))
+    return ret
 
 
 def put_kubernetes_namespace_dev_environment(project_id, branch_name):
@@ -1117,7 +1131,8 @@ class ProjectEnvironment(Resource):
     @jwt_required
     def get(self, project_id):
         role.require_in_project(project_id, "Error while getting project info.")
-        return get_kubernetes_namespace_dev_environment(project_id)
+        return util.success(get_kubernetes_namespace_dev_environment(project_id))
+
 
     @jwt_required
     def put(self, project_id, branch_name):
@@ -1128,6 +1143,14 @@ class ProjectEnvironment(Resource):
     def delete(self, project_id, branch_name):
         role.require_in_project(project_id, "Error while getting project info.")
         return delete_kubernetes_namespace_dev_environment(project_id, branch_name)
+
+
+class ProjectEnvironmentUrl(Resource):
+    @jwt_required
+    def get(self, project_id, branch_name):
+        role.require_in_project(project_id, "Error while getting project info.")
+        return util.success(get_kubernetes_namespace_dev_environment_urls(
+            project_id, branch_name))
 
 
 class ProjectUserResourceDeployments(Resource):
