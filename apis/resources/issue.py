@@ -610,7 +610,12 @@ def get_issue_list_by_user(user_id, args):
                           error=apiError.user_not_found(user_id))
     # args 新增 nx_user_id，在 get_issue_assigned_to_search 需要判斷是否跟 search 結果為同一人
     args['nx_user_id'] = user_id
-    default_filters = get_custom_filters_by_args(args, user_id=nx_user.plan_user_id)
+    if args.get('project_id'):
+        nx_project = NexusProject().set_project_id(args['project_id'])
+        plan_id = nx_project.get_project_row().plugin_relation.plan_project_id
+        default_filters = get_custom_filters_by_args(args, project_id=plan_id, user_id=nx_user.plan_user_id)
+    else:
+        default_filters = get_custom_filters_by_args(args, user_id=nx_user.plan_user_id)
     if not args.get('from', None) or args['from'] not in ['author_id', 'assigned_to_id']:
         return []
     # multiple_assigned_to = True，代表 filter 跟 assigned_to_id 為不同的 user id
@@ -1502,6 +1507,7 @@ class IssueByUser(Resource):
     @jwt_required
     def get(self, user_id):
         parser = reqparse.RequestParser()
+        parser.add_argument('project_id', type=int)
         parser.add_argument('fixed_version_id', type=str)
         parser.add_argument('status_id', type=str)
         parser.add_argument('tracker_id', type=int)

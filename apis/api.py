@@ -243,6 +243,8 @@ api.add_resource(template.ProjectPipelineBranches, '/project/<repository_id>/pip
 api.add_resource(template.ProjectPipelineDefaultBranch, '/project/<repository_id>/pipeline/default_branch')
 api.add_resource(project.ProjectEnvironment, '/project/<sint:project_id>/environments',
                  '/project/<sint:project_id>/environments/branch/<branch_name>')
+api.add_resource(project.ProjectEnvironmentUrl,
+                 '/project/<sint:project_id>/environments/branch/<branch_name>/urls')
 
 # Gitlab project
 api.add_resource(gitlab.GitProjectBranches, '/repositories/<repository_id>/branches')
