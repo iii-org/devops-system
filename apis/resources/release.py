@@ -106,7 +106,7 @@ def get_hb_branch_tags(project_name, branch_name):
 
 
 def get_gitlab_base(url):    
-    return url[:url.rfind("/")]
+    return url[:-4]
 
 def get_releases_by_project_id(project_id):
     project = model.Project.query.filter_by(id=project_id).first()
@@ -114,13 +114,13 @@ def get_releases_by_project_id(project_id):
         filter(model.Release.project_id == project_id).\
         all()
     output = []
-    gitlab_base= f'{get_gitlab_base(project.http_url)}'
+    gitlab_project_url= f'{project.http_url[:-4]}'
     harbor_base = f'docker pull {urlparse(config.get("HARBOR_EXTERNAL_BASE_URL")).netloc}'
     hb_list_tags= {}    
     for release in releases:
         if releases is not None:
             ret = row_to_dict(release)            
-            ret['git_url'] = f'{gitlab_base}/{project.name}/-/releases/{ret.get("tag_name")}' 
+            ret['git_url'] = f'{gitlab_project_url}/-/releases/{ret.get("tag_name")}' 
             # check harbor image exists
             ret['docker'] = ''
             if ret.get("branch") not in hb_list_tags:
