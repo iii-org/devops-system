@@ -371,10 +371,20 @@ def get_the_execl_report(project_id):
                 test_plans.remove(test_plans[j])
                 j += 1
             i += 1
+    max_column = 0
+    for row in  out_list:
+        if len(row) >max_column:
+            max_column = len(row)
+    columns_name = ['需求規格', '功能設計', '測試計畫', '測試檔案', '測試結果']
+    if max_column > len(columns_name):
+        raise apiError.DevOpsError(
+            500, f"Report's data columns is {max_column}, over 5!")
+    elif len(out_list) == 0:
+        return 
     bio = BytesIO()
     writer = pd.ExcelWriter(bio, engine='xlsxwriter')
     df = pd.DataFrame(out_list,
-                      columns=['需求規格', '功能設計', '測試計畫', '測試檔案', '測試結果'])
+                      columns=columns_name[:max_column])
     df.index = np.arange(1, len(df) + 1)
     df.to_excel(writer)
     writer.save()
