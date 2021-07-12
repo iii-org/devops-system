@@ -1,13 +1,13 @@
+
 import datetime
 import os
 import sys
-import traceback
-from os.path import isfile
-
-from services import devops_version
 
 if f"{os.getcwd()}/apis" not in sys.path:
     sys.path.insert(1, f"{os.getcwd()}/apis")
+
+import traceback
+from os.path import isfile
 
 import werkzeug
 from flask import Flask
@@ -18,6 +18,8 @@ from flask_socketio import SocketIO
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy_utils import database_exists, create_database
 from werkzeug.routing import IntegerConverter
+
+from services import devops_version
 
 import plugins
 from plugins import webinspect, sideex, zap, sonarqube, postman
