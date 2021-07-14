@@ -68,7 +68,20 @@ def check_deployment_version():
         versions = __api_get('/current_version').json().get('data', None)
         if versions is None:
             raise DevOpsError(500, '/current_version returns no data.')
-        print(versions)
+        current_version = model.NexusVersion.query.one().deploy_version
+        if current_version != versions['version_name']:
+            update_deployment(versions)
     except DevOpsError as e:
         # Leave logs, but let the system run
         logger.exception(str(e))
+        # FIXME
+        raise e
+
+
+def update_deployment(versions):
+    version_name = versions['version_name']
+    logger.info(f'Updating deployment to {version_name}...')
+    api_image_tag = versions['api_image_tag']
+    ui_image_tag = versions['ui_image_tag']
+    model.NexusVersion.query.one().deploy_version = version_name
+    model.db.session.commit()
