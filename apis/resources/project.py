@@ -18,7 +18,7 @@ from model import db
 from nexus import nx_get_project_plugin_relation
 from plugins.checkmarx import checkmarx
 from resources.apiError import DevOpsError
-from services import redmine_lib
+from accessories import redmine_lib
 from util import DevOpsThread
 from . import user, harbor, kubernetesClient, role, template
 from .activity import record_activity, ActionType
@@ -729,7 +729,7 @@ def get_kubernetes_namespace_dev_environment_urls(project_id, branch_name):
                     for con in pod['containers']:
                         if con['status']['state'] == 'running':
                             for mapping in con.get('service_port_mapping', []):
-                                for service in mapping.get('services', []):
+                                for service in mapping.get('accessories', []):
                                     ret.extend(service.get('url', []))
     return ret
 
@@ -1096,7 +1096,7 @@ class ProjectUserResource(Resource):
         parser.add_argument('pods', type=int, required=True)
         parser.add_argument('secrets', type=int, required=True)
         parser.add_argument('configmaps', type=int, required=True)
-        parser.add_argument('services.nodeports', type=int, required=True)
+        parser.add_argument('accessories.nodeports', type=int, required=True)
         parser.add_argument('persistentvolumeclaims', type=int, required=True)
         args = parser.parse_args()
         return update_kubernetes_namespace_Quota(project_id, args)

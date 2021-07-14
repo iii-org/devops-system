@@ -7,7 +7,7 @@ from flask_restful import Resource, reqparse
 import util
 from resources.gitlab import gitlab
 from resources.redmine import redmine
-from services import redmine_lib
+from accessories import redmine_lib
 from util import DevOpsThread
 
 

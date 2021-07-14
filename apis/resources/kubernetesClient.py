@@ -235,7 +235,7 @@ def create_namespace_quota(namespace):
         resource_quota = k8s_client.V1ResourceQuota(
             spec=k8s_client.V1ResourceQuotaSpec(
                 hard={"cpu": "10", "memory": "10G", "pods": "20", "persistentvolumeclaims": "0", "configmaps": "60",
-                      "services.nodeports": "10"}))
+                      "accessories.nodeports": "10"}))
         resource_quota.metadata = k8s_client.V1ObjectMeta(
             namespace=namespace, name="project-quota")
         v1.create_namespaced_resource_quota(namespace, resource_quota)
@@ -748,7 +748,7 @@ def list_namespace_services_by_iii(namespace):
             is_iii = check_if_iii_template(service.metadata)
             if is_iii is True:
                 list_services, environment = check_iii_project_branch_key_exist(service.metadata, list_services, '',
-                                                                                'services')
+                                                                                'accessories')
                 service_info = {}
                 service_info['type'] = service.spec.type
                 service_info['name'] = service.metadata.name
@@ -760,7 +760,7 @@ def list_namespace_services_by_iii(namespace):
                     service.spec.ports, service_info['public_endpoints'], 
                     annotations[iii_template['type']], namespace, 
                     list_services[environment]['branch'])
-                list_services[environment]['services'].append(service_info)
+                list_services[environment]['accessories'].append(service_info)
         return list_services
     except apiError.DevOpsError as e:
         if e.status_code != 404:
@@ -770,7 +770,7 @@ def list_namespace_services_by_iii(namespace):
 def get_list_service_match_pods_labels(list_services, pod_labels, environment):
     namespace_services_info = []
     if environment in list_services:
-        for service in list_services[environment]['services']:
+        for service in list_services[environment]['accessories']:
             is_match = check_match_selector(
                 service['service_selector'], pod_labels)
             if is_match is True:
@@ -824,7 +824,7 @@ def map_service_to_container(container_ports, services):
         mapping_info = []
         for container_port in container_ports:
             port_info = analysis_container_port(container_port)
-            port_info['services'] = check_service_map_container(port_info, services)
+            port_info['accessories'] = check_service_map_container(port_info, services)
             mapping_info.append(port_info)
         return mapping_info
     except apiError.DevOpsError as e:

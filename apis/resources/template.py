@@ -31,7 +31,8 @@ template_replace_dict = {
 }
 
 support_software = [{
-    "key": "scan-sonarqube",
+    "chart": "scan-sonarqube",
+    "plugin": "sonarqube",
     "display": "SonarQube"
 }, {
     "key": "scan-checkmarx",
