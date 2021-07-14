@@ -219,8 +219,8 @@ api.add_resource(project.ProjectUserResourceDeployment,
                  '/project/<sint:project_id>/resource/deployments/<deployment_name>')
 
 # List k8s Services
-api.add_resource(project.ProjectUserResourceServices, '/project/<sint:project_id>/resource/accessories')
-api.add_resource(project.ProjectUserResourceService, '/project/<sint:project_id>/resource/accessories/<service_name>')
+api.add_resource(project.ProjectUserResourceServices, '/project/<sint:project_id>/resource/services')
+api.add_resource(project.ProjectUserResourceService, '/project/<sint:project_id>/resource/services/<service_name>')
 
 # k8s Secrets
 api.add_resource(project.ProjectUserResourceSecrets, '/project/<sint:project_id>/resource/secrets')
