@@ -89,7 +89,7 @@ def upgrade():
     op.alter_column('test_results', 'fail',
                     existing_type=sa.INTEGER(),
                     comment=None,
-                    existing_comment='faiue mock-plugin',
+                    existing_comment='faiue test',
                     existing_nullable=True)
     op.create_foreign_key(None, 'test_results', 'projects', ['project_id'], ['id'], ondelete='CASCADE')
     op.create_foreign_key(None, 'test_values', 'test_items', ['test_item_id'], ['id'], ondelete='CASCADE')
@@ -128,7 +128,7 @@ def downgrade():
     op.drop_constraint(None, 'test_results', type_='foreignkey')
     op.alter_column('test_results', 'fail',
                     existing_type=sa.INTEGER(),
-                    comment='faiue mock-plugin',
+                    comment='faiue test',
                     existing_nullable=True)
     op.drop_column('test_results', 'report')
     op.drop_constraint(None, 'test_items', type_='foreignkey')

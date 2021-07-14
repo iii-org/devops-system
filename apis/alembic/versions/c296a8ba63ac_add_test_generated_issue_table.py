@@ -1,4 +1,4 @@
-"""Add mock-plugin generated issue table
+"""Add test generated issue table
 
 Revision ID: c296a8ba63ac
 Revises: 987ed3077e84

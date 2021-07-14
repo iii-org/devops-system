@@ -8,3 +8,5 @@ def set_deployment_uuid():
     row = model.NexusVersion.query.first()
     row.deployment_uuid = my_uuid
     model.db.session.commit()
+
+
