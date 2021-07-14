@@ -3,7 +3,7 @@ from datetime import datetime
 
 import model
 from resources import issue
-from services import redmine_lib
+from accessories import redmine_lib
 
 
 def tgi_feed_postman(row):

@@ -14,7 +14,7 @@ import util as util
 from resources.apiError import DevOpsError
 from resources.logger import logger
 from . import kubernetesClient, role
-from services import redmine_lib
+from accessories import redmine_lib
 
 
 class Redmine:

@@ -19,7 +19,7 @@ from plugins import sideex
 from resources import apiTest
 from resources.redmine import redmine
 from data.nexus_project import NexusProject
-from services import redmine_lib
+from accessories import redmine_lib
 from redminelib import exceptions as redminelibError
 
 from . import issue

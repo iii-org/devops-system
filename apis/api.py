@@ -19,7 +19,7 @@ from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy_utils import database_exists, create_database
 from werkzeug.routing import IntegerConverter
 
-from services import devops_version
+from accessories import devops_version
 
 import plugins
 from plugins import webinspect, sideex, zap, sonarqube, postman
