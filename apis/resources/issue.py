@@ -9,6 +9,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm.exc import NoResultFound
 from collections import defaultdict
 from distutils.util import strtobool
+from redminelib import exceptions as redminelibError
 
 import config
 import model
@@ -16,13 +17,13 @@ import nexus
 import resources.apiError as apiError
 import resources.user as user
 import util as util
+from data.nexus_project import NexusProject
 from resources.apiError import DevOpsError
 from model import db
 from resources.logger import logger
 from resources.redmine import redmine
 from . import project as project_module, project, role
-from .project import NexusProject
-from services import redmine_lib
+from accessories import redmine_lib
 
 FLOW_TYPES = {"0": "Given", "1": "When", "2": "Then", "3": "But", "4": "And"}
 PARAMETER_TYPES = {'1': '文字', '2': '英數字', '3': '英文字', '4': '數字'}
@@ -98,6 +99,7 @@ class NexusIssue:
         self.data = {
             'id': redmine_issue.id,
             'name': redmine_issue.subject,
+            'project': None,
             'description': None,
             'updated_on': redmine_issue.updated_on.isoformat(),
             'start_date': {},
@@ -122,12 +124,14 @@ class NexusIssue:
             },
             'relations': []
         }
-        self.data['project'] = {
-            'id': redmine_issue.project.id,
-            'name': model.Project.query.get(nexus.nx_get_project_plugin_relation(
-                rm_project_id=redmine_issue.project.id).project_id).name,
-            'display': redmine_issue.project.name,
-        }
+        if hasattr(redmine_issue, 'project'):
+            nx_project = model.Project.query.get(nexus.nx_get_project_plugin_relation(
+                rm_project_id=redmine_issue.project.id).project_id)
+            self.data['project'] = {
+                'id': nx_project.id,
+                'name': nx_project.name,
+                'display': nx_project.display
+            }
         if relationship_bool:
             self.data['family'] = False
             if hasattr(redmine_issue, 'parent'):
@@ -137,6 +141,15 @@ class NexusIssue:
             self.data['children'] = []
             if hasattr(redmine_issue, 'parent'):
                 self.data['parent'] = redmine_issue.parent.id
+        self.data = check_issue_has_children(redmine_issue, self.data)
+        if hasattr(redmine_issue, 'author'):
+            user_info = user.get_user_id_name_by_plan_user_id(
+                redmine_issue.author.id)
+            if user_info is not None:
+                self.data['author'] = {
+                    'id': user_info.id,
+                    'name': user_info.name
+                }
         if hasattr(redmine_issue, 'description'):
             self.data['description'] = redmine_issue.description
         if hasattr(redmine_issue, 'start_date'):
@@ -185,25 +198,56 @@ class NexusIssue:
 
 
 def get_issue_attr_name(detail, value):
+    resource_not_found = {'id': None, 'name': 'NotExist'}
     # 例外處理: dev3 環境的 issue fixed_version_id 有 -1
     if not value or value == '-1':
         return value
     else:
         if detail['name'] == 'status_id':
-            return redmine_lib.redmine.issue_status.get(int(value)).name
-        elif detail['name'] == 'tracker_id':
-            return redmine_lib.redmine.tracker.get(int(value)).name
-        elif detail['name'] == 'priority_id':
-            return redmine_lib.redmine.enumeration.get(int(value), resource='issue_priorities').name
-        elif detail['name'] == 'fixed_version_id':
+            try:
+                status = redmine_lib.redmine.issue_status.get(int(value))
+            except redminelibError.ResourceNotFoundError:
+                return resource_not_found
             return {
                 'id': int(value),
-                'name': redmine_lib.redmine.version.get(int(value)).name
+                'name': status.name
+            }
+        elif detail['name'] == 'tracker_id':
+            try:
+                tracker = redmine_lib.redmine.tracker.get(int(value))
+            except redminelibError.ResourceNotFoundError:
+                return resource_not_found
+            return {
+                'id': int(value),
+                'name': tracker.name
+            }
+        elif detail['name'] == 'priority_id':
+            try:
+                priority = redmine_lib.redmine.enumeration.get(
+                    int(value), resource='issue_priorities')
+            except redminelibError.ResourceNotFoundError:
+                return resource_not_found
+            return {
+                'id': int(value),
+                'name': priority.name
+            }
+        elif detail['name'] == 'fixed_version_id':
+            try:
+                fixed_version = redmine_lib.redmine.version.get(int(value))
+            except redminelibError.ResourceNotFoundError:
+                return resource_not_found
+            return {
+                'id': int(value),
+                'name': fixed_version.name
             }
         elif detail['name'] == 'parent_id':
+            try:
+                issue = redmine_lib.redmine.issue.get(int(value))
+            except redminelibError.ResourceNotFoundError:
+                return resource_not_found
             return {
                 'id': int(value),
-                'name': redmine_lib.redmine.issue.get(int(value)).subject
+                'name': issue.subject
             }
         else:
             return value
@@ -245,6 +289,16 @@ def dump_by_issue(issue_id):
                     ele[key] = row[key]
             output[table].append(ele)
     return {'message': 'success', 'data': output}, 200
+
+
+def check_issue_has_children(issue_obj, out_dict):
+    check_children = redmine_lib.redmine.issue.filter(parent_id=issue_obj.id,
+                                                        status_id='*')
+    out_dict['has_children'] = False
+    if len(check_children):
+        out_dict['has_children'] = True
+        out_dict['family'] = True
+    return out_dict
 
 
 def __deal_with_issue_redmine_output(redmine_output, closed_status=None):
@@ -394,16 +448,33 @@ def get_issue_assign_to_detail(issue):
 
 def create_issue(args, operator_id):
     args = {k: v for k, v in args.items() if v is not None}
+    if 'fixed_version_id' in args:
+        if len(args['fixed_version_id']) > 0 and args['fixed_version_id'].isdigit():
+            args['fixed_version_id'] = int(args['fixed_version_id'])
+            version = redmine_lib.redmine.version.get(args['fixed_version_id'])
+            if version.status in ['locked', 'closed']:
+                raise DevOpsError(400, "Error while creating issue",
+                                  error=apiError.invalid_fixed_version_id(version.name, version.status))
+        else:
+            args['fixed_version_id'] = None
     if 'parent_id' in args:
-        args['parent_issue_id'] = args['parent_id']
-        args.pop('parent_id', None)
+        if len(args['parent_id']) > 0 and args['parent_id'].isdigit():
+            args['parent_issue_id'] = int(args['parent_id'])
+            args.pop('parent_id', None)
+        else:
+            args['parend_issue_id'] = None
+
     project_plugin_relation = nexus.nx_get_project_plugin_relation(
         nexus_project_id=args['project_id'])
     args['project_id'] = project_plugin_relation.plan_project_id
+
     if "assigned_to_id" in args:
-        user_plugin_relation = nexus.nx_get_user_plugin_relation(
-            user_id=args['assigned_to_id'])
-        args['assigned_to_id'] = user_plugin_relation.plan_user_id
+        if len(args['assigned_to_id']) > 0 and args['assigned_to_id'].isdigit():
+            user_plugin_relation = nexus.nx_get_user_plugin_relation(
+                user_id=int(args['assigned_to_id']))
+            args['assigned_to_id'] = user_plugin_relation.plan_user_id
+        else:
+            args['assigned_to_id'] = None
 
     attachment = redmine.rm_upload(args)
     if attachment is not None:
@@ -420,6 +491,17 @@ def create_issue(args, operator_id):
 def update_issue(issue_id, args, operator_id):
     args = args.copy()
     args = {k: v for k, v in args.items() if v is not None}
+    if 'fixed_version_id' in args:
+        if len(args['fixed_version_id']) > 0:
+            issue = redmine_lib.redmine.issue.get(issue_id)
+            version = redmine_lib.redmine.version.get(args['fixed_version_id'])
+            if hasattr(issue, 'fixed_version') and issue.fixed_version.id == version.id:
+                pass
+            elif version.status in ['locked', 'closed']:
+                raise DevOpsError(400, "Error while updating issue",
+                                  error=apiError.invalid_fixed_version_id(version.name, version.status))
+        else:
+            args['fixed_version_id'] = None
     if 'parent_id' in args:
         if len(args['parent_id']) > 0:
             args['parent_issue_id'] = int(args['parent_id'])
@@ -467,7 +549,7 @@ def get_issue_by_project(project_id, args):
         return []
     try:
         nx_project = NexusProject().set_project_id(project_id)
-        plan_id = nx_project.get_plugin_row().plan_project_id
+        plan_id = nx_project.get_project_row().plugin_relation.plan_project_id
     except NoResultFound:
         raise DevOpsError(404, "Error while getting issues",
                           error=apiError.project_not_found(project_id))
@@ -480,23 +562,6 @@ def get_issue_by_project(project_id, args):
     return output_array
 
 
-def get_issue_by_project_v2(project_id, args):
-    output = []
-    if util.is_dummy_project(project_id):
-        return []
-    try:
-        nx_project = NexusProject().set_project_id(project_id)
-        plan_id = nx_project.get_plugin_row().plan_project_id
-    except NoResultFound:
-        raise DevOpsError(404, "Error while getting issues",
-                          error=apiError.project_not_found(project_id))
-    default_filters = get_custom_filters_by_args(args, project_id=plan_id)
-    all_issues = redmine_lib.redmine.issue.filter(**default_filters)
-    for redmine_issue in all_issues:
-        output.append(NexusIssue().set_redmine_issue_v2(redmine_issue).to_json())
-    return output
-
-
 def get_issue_list_by_project(project_id, args):
     nx_issue_params = defaultdict()
     output = []
@@ -504,14 +569,21 @@ def get_issue_list_by_project(project_id, args):
         return []
     try:
         nx_project = NexusProject().set_project_id(project_id)
-        plan_id = nx_project.get_plugin_row().plan_project_id
+        plan_id = nx_project.get_project_row().plugin_relation.plan_project_id
     except NoResultFound:
         raise DevOpsError(404, "Error while getting issues",
                           error=apiError.project_not_found(project_id))
 
     default_filters = get_custom_filters_by_args(args, project_id=plan_id)
-    # 有 search params，但是 default_filters 沒有 issued_id，代表沒有搜尋結果
-    if not default_filters.get('issue_id', None) and args['search']:
+    # multiple_assigned_to = True，代表 filter 跟 assigned_to_id 為不同的 user id
+    if default_filters.get('multiple_assigned_to', None) and default_filters['multiple_assigned_to']:
+        return []
+        # 指定 assigned_to_id 又不存在 multiple_assigned_to 的情況下，
+        # default_filters 帶 search ，但沒有取得 issued_id，搜尋結果為空
+    elif args.get(
+        'search', None) and not default_filters.get(
+            'issue_id', None) and default_filters.get(
+                'assigned_to_id', None) and 'multiple_assigned_to' not in default_filters:
         return []
     all_issues = redmine_lib.redmine.issue.filter(**default_filters)
     # 透過 selection params 決定是否顯示 family bool 欄位
@@ -521,12 +593,51 @@ def get_issue_list_by_project(project_id, args):
     for redmine_issue in all_issues:
         nx_issue_params['redmine_issue'] = redmine_issue
         issue = NexusIssue().set_redmine_issue_v2(**nx_issue_params).to_json()
-        # 如果 family 是 False，代表 issue 不是 parent，但必須另外檢查是不是有 children
-        if 'family' in issue and not issue['family']:
-            check_children = redmine_lib.redmine.issue.filter(parent_id=redmine_issue.id,
-                                                              status_id='*')
-            if len(check_children):
-                issue['family'] = True
+        output.append(issue)
+
+    if args['limit'] and args['offset'] is not None:
+        page_dict = util.get_pagination(all_issues.total_count,
+                                        args['limit'], args['offset'])
+        output = {'issue_list': output, 'page': page_dict}
+    return output
+
+
+def get_issue_list_by_user(user_id, args):
+    nx_issue_params = defaultdict()
+    output = []
+    try:
+        nx_user = nexus.nx_get_user_plugin_relation(user_id=user_id)
+    except NoResultFound:
+        raise DevOpsError(404, "Error while getting issues",
+                          error=apiError.user_not_found(user_id))
+    # args 新增 nx_user_id，在 get_issue_assigned_to_search 需要判斷是否跟 search 結果為同一人
+    args['nx_user_id'] = user_id
+    if args.get('project_id'):
+        nx_project = NexusProject().set_project_id(args['project_id'])
+        plan_id = nx_project.get_project_row().plugin_relation.plan_project_id
+        default_filters = get_custom_filters_by_args(args, project_id=plan_id, user_id=nx_user.plan_user_id)
+    else:
+        default_filters = get_custom_filters_by_args(args, user_id=nx_user.plan_user_id)
+    if not args.get('from', None) or args['from'] not in ['author_id', 'assigned_to_id']:
+        return []
+    # multiple_assigned_to = True，代表 filter 跟 assigned_to_id 為不同的 user id
+    elif default_filters.get('multiple_assigned_to', None) and default_filters['multiple_assigned_to']:
+        return []
+        # from author_id 又不存在 multiple_assigned_to 的情況下，
+        # default_filters 帶 search ，但沒有取得 issued_id，搜尋結果為空
+    elif args.get(
+        'search', None) and not default_filters.get(
+            'issue_id', None) and args.get(
+                'from', None) == 'author_id' and 'multiple_assigned_to' not in default_filters:
+        return []
+    all_issues = redmine_lib.redmine.issue.filter(**default_filters)
+    # 透過 selection params 決定是否顯示 family bool 欄位
+    if not args['selection'] or not strtobool(args['selection']):
+        nx_issue_params['relationship_bool'] = True
+
+    for redmine_issue in all_issues:
+        nx_issue_params['redmine_issue'] = redmine_issue
+        issue = NexusIssue().set_redmine_issue_v2(**nx_issue_params).to_json()
         output.append(issue)
 
     if args['limit'] and args['offset'] is not None:
@@ -543,7 +654,7 @@ def get_issue_by_tree_by_project(project_id):
         return []
     try:
         nx_project = NexusProject().set_project_id(project_id)
-        plan_id = nx_project.get_plugin_row().plan_project_id
+        plan_id = nx_project.get_project_row().plugin_relation.plan_project_id
     except NoResultFound:
         raise DevOpsError(404, "Error while getting issues",
                           error=apiError.project_not_found(project_id))
@@ -572,11 +683,17 @@ def get_issue_by_tree_by_project(project_id):
 
 
 # 依據 params 組成 redmine filters
-def get_custom_filters_by_args(args=None, project_id=None):
+def get_custom_filters_by_args(args=None, project_id=None, user_id=None):
     default_filters = {'status_id': '*', 'include': 'relations'}
     if project_id:
         default_filters['project_id'] = project_id
     if args:
+        if user_id:
+            if args.get('from', None) in ['author_id', 'assigned_to_id']:
+                default_filters[args['from']] = user_id
+            # 如果 from 已經指定 assigned_to_id，但是 params 又有 assigned_to_id 的時候，要從 args 刪除
+            if args.get('assigned_to_id', None) and args.get('from', None) == 'assigned_to_id':
+                args.pop('assigned_to_id', None)
         handle_allowed_keywords(default_filters, args)
         if args.get('search', None):
             handle_search(default_filters, args)
@@ -584,6 +701,8 @@ def get_custom_filters_by_args(args=None, project_id=None):
         if args.get('limit', None) and args.get('offset') is not None:
             default_filters['limit'] = args['limit']
             default_filters['offset'] = args['offset']
+        if args.get('sort', None):
+            default_filters['sort'] = args['sort']
     return default_filters
 
 
@@ -591,11 +710,14 @@ def handle_allowed_keywords(default_filters, args):
     allowed_keywords = ['fixed_version_id', 'status_id', 'tracker_id', 'assigned_to_id', 'priority_id']
     for key in allowed_keywords:
         if args.get(key, None):
+            # 如果 keywords 值為 'null'，python-redmine filter 值為 '!*'
             if args[key] == 'null':
                 default_filters[key] = '!*'
             elif key == 'status_id' and args[key] == 'all':
                 default_filters[key] = '*'
+            # 如果 args[key] 值是 string，且可以被認知為正整數
             elif isinstance(args[key], str) and args[key].isdigit():
+                # assigned_to_id 需要另外查詢 plan_user_id
                 if key == 'assigned_to_id':
                     try:
                         nx_user = db.session.query(model.UserPluginRelation).join(
@@ -614,7 +736,7 @@ def handle_allowed_keywords(default_filters, args):
 def handle_search(default_filters, args):
     result = []
     # 搜尋被分配者
-    result.extend(get_issue_assigned_to_search(args['search'], default_filters))
+    result.extend(get_issue_assigned_to_search(default_filters, args))
     # 搜尋 issue 標題
     search_title = redmine_lib.redmine.search(args['search'], titles_only=True, resources=['issues'])
     if search_title:
@@ -637,15 +759,28 @@ def handle_search(default_filters, args):
 
 
 # 搜尋被分配者符合 keyword 的 issues
-def get_issue_assigned_to_search(keyword, default_filters):
+def get_issue_assigned_to_search(default_filters, args):
     assigned_to_issue = []
+    # 使用 ilike 同時搜尋 login 或 name 相符的 user
     nx_user_list = db.session.query(model.UserPluginRelation).join(
-        model.User).filter(or_(
-            model.User.login.ilike(f'%{keyword}%'),
-            model.User.name.ilike(f'%{keyword}%')
-        )).all()
+        model.User, model.ProjectUserRole).filter(or_(
+            model.User.login.ilike(f'%{args["search"]}%'),
+            model.User.name.ilike(f'%{args["search"]}%')
+        ), model.ProjectUserRole.role_id != 6).all()
     if nx_user_list:
         for nx_user in nx_user_list:
+            # 判斷是否多重 assigned_to 的預設值
+            default_filters['multiple_assigned_to'] = False
+            # 如果有指定 assigned_to_id，判斷是否跟 search 找到的 user 為相同 user_id
+            if args.get('assigned_to_id', None):
+                if nx_user.user_id != int(args['assigned_to_id']):
+                    default_filters['multiple_assigned_to'] = True
+                return assigned_to_issue
+            # 如果 from 使用的是 assigned_to_id，判斷 url 帶的 user_id 是否跟 search 找到的 user 為相同 user_id
+            elif args.get('from') == 'assigned_to_id':
+                if nx_user.user_id != args['nx_user_id']:
+                    default_filters['multiple_assigned_to'] = True
+                return assigned_to_issue
             all_issues = redmine_lib.redmine.issue.filter(**default_filters, assigned_to_id=nx_user.plan_user_id)
             assigned_to_issue.extend([issue.id for issue in all_issues])
     return assigned_to_issue
@@ -714,7 +849,7 @@ def get_issue_progress_or_statistics_by_project(project_id, args, progress=False
         return []
     try:
         nx_project = NexusProject().set_project_id(project_id)
-        plan_id = nx_project.get_plugin_row().plan_project_id
+        plan_id = nx_project.get_project_row().plugin_relation.plan_project_id
     except NoResultFound:
         raise DevOpsError(404, "Error while getting issues",
                           error=apiError.project_not_found(project_id))
@@ -1221,7 +1356,12 @@ def check_issue_closable(issue_id):
         for id in unfinished_issues:
             # 已完成 issue_id 不需重複檢查
             if id not in finished_issues:
-                issue = redmine_lib.redmine.issue.get(id)
+                try:
+                    issue = redmine_lib.redmine.issue.get(id)
+                except redminelibError.ResourceNotFoundError:
+                    raise apiError.DevOpsError(
+                        404, 'Got non-2xx response from Redmine.',
+                        apiError.redmine_error('Error while geting issue.'))
                 # 如果 issue status 不是 Closed
                 # 如果 id 非預設 request 的 issue_id
                 if issue.status.id != 6 and id != issue_id:
@@ -1265,9 +1405,9 @@ class SingleIssue(Resource):
         parser.add_argument('priority_id', type=int, required=True)
         parser.add_argument('subject', type=str, required=True)
         parser.add_argument('description', type=str)
-        parser.add_argument('assigned_to_id', type=int)
-        parser.add_argument('parent_id', type=int)
-        parser.add_argument('fixed_version_id', type=int)
+        parser.add_argument('assigned_to_id', type=str)
+        parser.add_argument('parent_id', type=str)
+        parser.add_argument('fixed_version_id', type=str)
         parser.add_argument('start_date', type=str)
         parser.add_argument('due_date', type=str)
         parser.add_argument('done_ratio', type=int)
@@ -1281,6 +1421,11 @@ class SingleIssue(Resource):
         parser.add_argument('upload_content_type', type=str)
 
         args = parser.parse_args()
+        # Handle removable int parameters
+        keys_int_or_null = ['assigned_to_id', 'fixed_version_id', 'parent_id']
+        for k in keys_int_or_null:
+            if args[k] == 'null':
+                args[k] = ''
         rm_output = create_issue(args, get_jwt_identity()['user_id'])
         return util.success({"issue_id": rm_output["issue"]["id"]})
 
@@ -1336,17 +1481,6 @@ class IssueByProject(Resource):
     def get(self, project_id):
         role.require_in_project(project_id, 'Error to get issue.')
         parser = reqparse.RequestParser()
-        parser.add_argument('fixed_version_id', type=int)
-        args = parser.parse_args()
-        output = get_issue_by_project_v2(project_id, args)
-        return util.success(output)
-
-
-class IssueListByProject(Resource):
-    @jwt_required
-    def get(self, project_id):
-        role.require_in_project(project_id, 'Error to get issue.')
-        parser = reqparse.RequestParser()
         parser.add_argument('fixed_version_id', type=str)
         parser.add_argument('status_id', type=str)
         parser.add_argument('tracker_id', type=int)
@@ -1356,8 +1490,30 @@ class IssueListByProject(Resource):
         parser.add_argument('offset', type=int)
         parser.add_argument('search', type=str)
         parser.add_argument('selection', type=str)
+        parser.add_argument('sort', type=str)
         args = parser.parse_args()
         output = get_issue_list_by_project(project_id, args)
+        return util.success(output)
+
+
+class IssueByUser(Resource):
+    @jwt_required
+    def get(self, user_id):
+        parser = reqparse.RequestParser()
+        parser.add_argument('project_id', type=int)
+        parser.add_argument('fixed_version_id', type=str)
+        parser.add_argument('status_id', type=str)
+        parser.add_argument('tracker_id', type=int)
+        parser.add_argument('assigned_to_id', type=str)
+        parser.add_argument('priority_id', type=int)
+        parser.add_argument('limit', type=int)
+        parser.add_argument('offset', type=int)
+        parser.add_argument('search', type=str)
+        parser.add_argument('selection', type=str)
+        parser.add_argument('from', type=str)
+        parser.add_argument('sort', type=str)
+        args = parser.parse_args()
+        output = get_issue_list_by_user(user_id, args)
         return util.success(output)
 
 

@@ -43,7 +43,7 @@ def wi_api_request(method, path, headers=None, params=None, data=None):
     url = f"{wi_base_url}{path}"
     output = util.api_request(method, url, headers, params, data)
 
-    logger.info(f"WebInspect api {method} {url}, header={str(headers)}, params={str(params)}, body={data},"
+    logger.debug(f"WebInspect api {method} {url}, header={str(headers)}, params={str(params)}, body={data},"
                 f" response={output.status_code} {output.text}")
     if int(output.status_code / 100) != 2:
         raise apiError.DevOpsError(
@@ -106,7 +106,7 @@ def wi_get_scan_status(scan_id):
         if not scan.finished:
             # This line will fill the data in db
             wi_get_scan_statistics(scan_id)
-    elif status == 'NotRunning' or status == 'Interrupted':
+    elif status == 'NotRunning' or status == 'Interrupted' or status == 'Failed':
         wi_set_scan_failed(scan_id, status)
     return status
 

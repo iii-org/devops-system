@@ -1,22 +1,16 @@
-import os
-import yaml
+import base64
 import json
 import numbers
+import os
 from datetime import datetime
 
-from kubernetes.client import ApiException
-
-import util as util
-import config
-
-import base64
+import yaml
 from kubernetes import client as k8s_client
 from kubernetes import config as k8s_config
 from kubernetes import utils as k8s_utils
-from .gitlab import gitlab
+from kubernetes.client import ApiException
 
-from flask_restful import reqparse
-
+import config
 import resources.apiError as apiError
 from resources.logger import logger
 
@@ -51,8 +45,12 @@ k8s_config.load_kube_config()
 v1 = k8s_client.CoreV1Api()
 rbac = k8s_client.RbacAuthorizationV1Api()
 api_client = k8s_client.ApiClient()
-api_instance = k8s_client.BatchV1beta1Api(api_client)
+api_batchv1beta1 = k8s_client.BatchV1beta1Api(api_client)
+api_batchv1 = k8s_client.BatchV1Api(api_client)
 extensions_v1beta1 = k8s_client.ExtensionsV1beta1Api()
+
+DEFAULT_NAMESPACE = 'default'
+SYSTEM_SECRET_NAMESPACE = 'iiidevops-env-secret'
 
 
 def apply_cronjob_yamls():
@@ -61,17 +59,23 @@ def apply_cronjob_yamls():
             if file.endswith(".yaml") or file.endswith(".yml"):
                 with open(os.path.join(root, file)) as f:
                     json_file = yaml.safe_load(f)
-                    for cronjob_json in api_instance.list_cron_job_for_all_namespaces().items:
+                    for cronjob_json in api_batchv1beta1.list_namespaced_cron_job("default").items:
                         if cronjob_json.metadata.name == json_file["metadata"]["name"]:
-                            api_instance.delete_namespaced_cron_job(cronjob_json.metadata.name,
-                                                                    cronjob_json.metadata.namespace)
+                            api_batchv1beta1.delete_namespaced_cron_job(cronjob_json.metadata.name, 
+                                                                        "default")
                             while True:
                                 still_has_cj = False
-                                for cj in api_instance.list_namespaced_cron_job(cronjob_json.metadata.namespace).items:
+                                for cj in api_batchv1beta1.list_namespaced_cron_job("default").items:
                                     if cronjob_json.metadata.name in cj.metadata.name:
                                         still_has_cj = True
                                 if still_has_cj is False:
                                     break
+                            for j in api_batchv1.list_namespaced_job("default").items:
+                                if f"{cronjob_json.metadata.name}-" in j.metadata.name:
+                                    api_batchv1.delete_namespaced_job(j.metadata.name, "default")
+                            for pod in v1.list_namespaced_pod("default").items:
+                                if f"{cronjob_json.metadata.name}-" in pod.metadata.name:
+                                    pod = v1.delete_namespaced_pod(pod.metadata.name,  "default")
                 try:
                     k8s_utils.create_from_yaml(api_client, os.path.join(root, file))
                 except k8s_utils.FailToCreateError as e:
@@ -120,6 +124,11 @@ def list_work_node():
     return list_nodes
 
 
+def create_iiidevops_env_secret_namespace():
+    if "iiidevops-env-secret" not in list_namespace():
+        create_namespace("iiidevops-env-secret")
+
+
 def create_namespace(project_name):
     try:
         v1.create_namespace(k8s_client.V1Namespace(
@@ -127,6 +136,15 @@ def create_namespace(project_name):
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
+
+
+def get_namespace(project_name):
+    try:
+        namespace = v1.read_namespace(project_name)
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+    return namespace
 
 
 def list_namespace():
@@ -292,6 +310,15 @@ def delete_role_in_namespace(namespace, name):
             raise e
 
 
+def list_role_binding_in_namespace(namespace):
+    try:
+        role_binding = rbac.list_namespaced_role_binding(namespace)
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+    return role_binding
+
+
 def create_role_binding(namespace, sa_name):
     # create ns RoleBinding
     role_binding = k8s_client.V1RoleBinding(
@@ -437,6 +464,8 @@ def read_namespace_secret(namespace, secret_name):
     try:
         secret_data = {}
         secret = v1.read_namespaced_secret(secret_name, namespace)
+        if secret.data is None:
+            return {}
         for key, value in secret.data.items():
             secret_data[key] = str(base64.b64decode(str(value)).decode('utf-8'))
         return secret_data
@@ -564,6 +593,13 @@ def list_namespace_ingresses(namespace):
         if e.status_code != 404:
             raise e
 
+
+def check_ingress_exist(namespace, branch):
+    ingress_list = list_namespace_ingresses(namespace)
+    for ingress in ingress_list:
+        if f"{namespace}-{branch}-serv-ing" == ingress['name']:
+            return True
+    return False
 
 def map_ingress_with_host(rules, ip):
     try:
@@ -721,7 +757,9 @@ def list_namespace_services_by_iii(namespace):
                 service_info['public_endpoints'] = analysis_annotations_public_endpoint(
                     annotations['field.cattle.io/publicEndpoints'])
                 service_info['url'] = map_port_and_public_endpoint(
-                    service.spec.ports, service_info['public_endpoints'], annotations[iii_template['type']])
+                    service.spec.ports, service_info['public_endpoints'], 
+                    annotations[iii_template['type']], namespace, 
+                    list_services[environment]['branch'])
                 list_services[environment]['services'].append(service_info)
         return list_services
     except apiError.DevOpsError as e:
@@ -846,7 +884,7 @@ def analysis_annotations_public_endpoint(public_endpoints):
             raise e
 
 
-def map_port_and_public_endpoint(ports, public_endpoints, service_type=''):
+def map_port_and_public_endpoint(ports, public_endpoints, service_type='', namespace='', branch=''):
     try:
         info = []
         for port in ports:
@@ -854,7 +892,8 @@ def map_port_and_public_endpoint(ports, public_endpoints, service_type=''):
                 url_info = {}
                 url_info['port_name'] = port.name
                 url_info['target_port'], url_info['port'] = identify_target_port(port.target_port, port.port)
-                url_info['url'] = identify_external_url(public_endpoint, port.node_port, service_type)
+                url_info['url'] = identify_external_url(public_endpoint, port.node_port, 
+                                                        service_type, namespace, branch)
                 info.append(url_info)
         return info
     except apiError.DevOpsError as e:
@@ -876,20 +915,28 @@ def identify_target_port(target_port, port):
 
 
 # Identify Service Exact External URL
-def identify_external_url(public_endpoint, node_port, service_type=''):
+def identify_external_url(public_endpoint, node_port, service_type='', namespace='', branch=''):
     try:
-        external_url_format = '{0}:{1}'
+        external_url_format = ""
         if service_type != 'db-server':
-            external_url_format = "http://" + external_url_format
+            external_url_format = "http://"
+            if config.get('INGRESS_EXTERNAL_TLS') is not None and config.get('INGRESS_EXTERNAL_TLS') != '':
+                external_url_format = "https://"
 
         url = []
-        if config.get('INGRESS_EXTERNAL_BASE') != '' and config.get('INGRESS_EXTERNAL_BASE') is not None:
-            url.append(external_url_format.format(config.get('INGRESS_EXTERNAL_BASE'), node_port))
+        if config.get('INGRESS_EXTERNAL_BASE') != '' and config.get('INGRESS_EXTERNAL_BASE') is not None\
+            and service_type not in ['db-server', 'db-gui'] and namespace != '' and branch != '' and \
+                check_ingress_exist(namespace, branch):
+            url.append(f"{external_url_format}{namespace}-{branch}.{config.get('INGRESS_EXTERNAL_BASE')}")
         elif 'hostname' in public_endpoint:
-            url.append(external_url_format.format(public_endpoint['hostname'], node_port))
+            if service_type != 'db-server':
+                external_url_format = "http://"
+            url.append(f"{external_url_format}{public_endpoint['hostname']}:{node_port}")
         else:
+            if service_type != 'db-server':
+                external_url_format = "http://"
             for address in public_endpoint['address']:
-                url.append(external_url_format.format(address, node_port))
+                url.append(f"{external_url_format}{address}:{node_port}")
         return url
     except apiError.DevOpsError as e:
         if e.status_code != 404:

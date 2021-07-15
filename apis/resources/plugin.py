@@ -1,18 +1,18 @@
-import json
-import numbers
-from datetime import datetime, date
-import util as util
-import config
-import model
-from model import db
 import base64
-from resources import role
-from .rancher import rancher
-from flask_jwt_extended import jwt_required, get_jwt_identity
+import json
+from datetime import datetime, date
+
+from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
 from sqlalchemy.orm.exc import NoResultFound
+
+import model
+import plugins
 import resources.apiError as apiError
-from resources.logger import logger
+import util as util
+from model import db
+from resources import role
+from .rancher import rancher
 
 invalid_plugin_id = 'Unable get plugin'
 invalid_plugin_softwares = 'Unable get plugin softwares'
@@ -77,7 +77,8 @@ def row_to_dict(row):
     return ret
 
 
-def get_plugin_softwares():
+@DeprecationWarning
+def list_plugin_software():
     plugins = model.PluginSoftware.query.all()
     output = []
     for plugin in plugins:
@@ -86,6 +87,7 @@ def get_plugin_softwares():
     return output
 
 
+@DeprecationWarning
 def get_plugin_software_by_id(plugin_id):
     output = {}
     plugin = model.PluginSoftware.query.\
@@ -165,52 +167,41 @@ def delete_plugin_software(plugin_id):
 class Plugins(Resource):
     @jwt_required
     def get(self):
-        try:
-            role.require_admin('Only admins can get plugin software.')
-            return util.success({'plugin_list': get_plugin_softwares()})
-        except NoResultFound:
-            return util.respond(404, invalid_plugin_softwares)
-
-    @jwt_required
-    def post(self):
-        role.require_admin('Only admins can create plugin software.')
-        parser = reqparse.RequestParser()
-        parser.add_argument('name', type=str)
-        parser.add_argument('parameter', type=dict)
-        parser.add_argument('disabled', type=bool)
-        parser.add_argument('type_id', type=int)
-        args = parser.parse_args()
-        output = create_plugin_software(args)
-        return util.success(output)
+        role.require_admin('Only admins can get plugin software.')
+        return util.success(plugins.list_plugins())
 
 
 class Plugin(Resource):
     @jwt_required
-    def get(self, plugin_id):
-        try:
-            role.require_admin('Only admins can get plugin software.')
-            return util.success(get_plugin_software_by_id(plugin_id))
-        except NoResultFound:
-            return util.respond(404, invalid_plugin_id,
-                                error=apiError.invalid_plugin_id(plugin_id))
+    def get(self, plugin_name):
+        role.require_admin('Only admins can get plugin software.')
+        return util.success(plugins.get_plugin_config(plugin_name))
 
     @jwt_required
-    def put(self, plugin_id):
+    def put(self, plugin_name):
         role.require_admin('Only admins can modify plugin software.')
         parser = reqparse.RequestParser()
-        parser.add_argument('name', type=str)
-        parser.add_argument('parameter', type=dict)
+        parser.add_argument('arguments', type=dict)
         parser.add_argument('disabled', type=bool)
-        parser.add_argument('type_id', type=int)
         args = parser.parse_args()
-        output = update_plugin_software(plugin_id, args)
-        return util.success(output)
+        plugins.update_plugin_config(plugin_name, args)
+        return util.respond(204)
 
     @jwt_required
-    def delete(self, plugin_id):
+    def delete(self, plugin_name):
         role.require_admin('Only admins can delete plugin software.')
-        output = delete_plugin_software(plugin_id)
-        return util.success(output)
+        plugins.delete_plugin_row(plugin_name)
+        return util.respond(204)
+
+    @jwt_required
+    def post(self, plugin_name):
+        role.require_admin('Only admins can create plugin software.')
+        parser = reqparse.RequestParser()
+        parser.add_argument('arguments', type=dict)
+        parser.add_argument('disabled', type=bool)
+        args = parser.parse_args()
+        plugins.insert_plugin_row(plugin_name, args)
+        return util.success()
 
 
 class APIPlugin():

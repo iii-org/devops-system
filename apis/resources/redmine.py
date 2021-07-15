@@ -14,7 +14,7 @@ import util as util
 from resources.apiError import DevOpsError
 from resources.logger import logger
 from . import kubernetesClient, role
-from services import redmine_lib
+from accessories import redmine_lib
 
 
 class Redmine:
@@ -51,7 +51,7 @@ class Redmine:
         output = util.api_request(method, url, headers, params, data)
 
         if resp_format != '':
-            logger.info('redmine api {0} {1}, params={2}, body={5}, response={3} {4}'.format(
+            logger.debug('redmine api {0} {1}, params={2}, body={5}, response={3} {4}'.format(
                 method, url, params.__str__(), output.status_code, output.text, data))
         if int(output.status_code / 100) != 2:
             raise apiError.DevOpsError(
@@ -473,19 +473,21 @@ class RedmineMail(Resource):
 class RedmineRelease():
     @jwt_required
     def check_redemine_release(self, targets, versions, main_version=None):
-        output = {'check': True, "info": "", 'errors': {}, 'versions': {"pass": [], "failed": []}, 'failed_name': [],
-                  'issues': []}
+        output = {'check': True, "info": "", 'errors': {}, 'versions_status': {"pass": [], "failed": []}, 'failed_name': [],
+                  'issues': [],'unclosed_issues': [],'versions': []}
         for target in targets:
             version_id = str(target['id'])
+            output['issues'] += target['issues']
+            output['versions'].append(int(target['id']))
             if version_id == main_version:
                 output['errors'] = {"id": version_id, 'name': versions[version_id]['name']}
             if target['unclosed'] != 0:
                 output['check'] = False
-                output['versions']['failed'].append({"id": version_id, 'name': versions[version_id]['name']})
+                output['versions_status']['failed'].append({"id": version_id, 'name': versions[version_id]['name']})
                 output['failed_name'].append(versions[version_id]['name'])
-                output['issues'] += target['issues']
+                output['unclosed_issues'] += target['issues']
             else:
-                output['versions']['pass'].append({"id": version_id, 'name': versions[version_id]['name']})
+                output['versions_status']['pass'].append({"id": version_id, 'name': versions[version_id]['name']})
         if len(output['failed_name']) > 0:
             output['info'] = 'Issue is not closed in version {0} in redmine'.format(
                 ' '.join(map(str, output['failed_name'])))

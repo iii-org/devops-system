@@ -106,7 +106,7 @@ class GitLab(object):
 
         output = util.api_request(method, url, headers, params, data)
 
-        logger.info(
+        logger.debug(
             f'gitlab api {method} {url}, params={params.__str__()}, body={data}, response={output.status_code} {output.text}'
         )
         if int(output.status_code / 100) != 2:
@@ -143,6 +143,9 @@ class GitLab(object):
             datetime.strptime(gl_datetime_str,
                               '%Y-%m-%dT%H:%M:%S.%f%z').astimezone(pytz.utc),
             '%Y-%m-%dT%H:%M:%S%z')
+    
+    def gl_get_all_project(self):
+        return self.gl.projects.list(all=True)
 
     def gl_create_project(self, args):
         return self.__api_post('/projects',
@@ -191,6 +194,9 @@ class GitLab(object):
 
     def gl_get_user_list(self, args):
         return self.__api_get('/users', params=args)
+
+    def gl_project_list_member(self, project_id, args):
+        return self.__api_get(f'/projects/{project_id}/members', params=args)
 
     def gl_project_add_member(self, project_id, user_id):
         params = {
@@ -242,29 +248,9 @@ class GitLab(object):
             raise DevOpsError(output.status_code,
                               "Error while getting git branches",
                               error=apiError.gitlab_error(output))
-        # get gitlab project path
-        project_detail = self.gl_get_project(repo_id)
-        # get kubernetes service nodePort url
-        k8s_service_list = kubernetesClient.list_service_all_namespaces()
-        k8s_node_list = kubernetesClient.list_work_node()
-        work_node_ip = k8s_node_list[0]['ip']
 
         branch_list = []
         for branch_info in output.json():
-            env_url_list = []
-            for k8s_service in k8s_service_list:
-                if k8s_service['type'] == 'NodePort' and \
-                        f'{project_detail["path"]}-{branch_info["name"]}' \
-                        in k8s_service['name']:
-                    port_list = []
-                    for port in k8s_service['ports']:
-                        port_list.append({
-                            "port":
-                            port['port'],
-                            "url":
-                            f"http://{work_node_ip}:{port['nodePort']}"
-                        })
-                    env_url_list.append({k8s_service['name']: port_list})
             branch = {
                 "name":
                 branch_info["name"],
@@ -277,8 +263,6 @@ class GitLab(object):
                 'commit_url':
                 commit_id_to_url(get_nexus_project_id(repo_id),
                                  branch_info['commit']['short_id']),
-                "env_url":
-                env_url_list
             }
             branch_list.append(branch)
         return branch_list

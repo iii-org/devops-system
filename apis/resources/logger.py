@@ -38,5 +38,5 @@ handler.setFormatter(logging.Formatter(
     '%Y %b %d, %a %H:%M:%S'))
 logger = logging.getLogger('devops.api')
 logger.addFilter(DevOpsFilter())
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 logger.addHandler(handler)

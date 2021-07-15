@@ -3,7 +3,7 @@ from datetime import datetime
 
 import model
 from resources import issue
-from services import redmine_lib
+from accessories import redmine_lib
 
 
 def tgi_feed_postman(row):
@@ -19,10 +19,25 @@ def tgi_feed_postman(row):
                                  col_key, _get_postman_issue_close_description(row))
 
 
+def tgi_feed_sideex(row):
+    suites = json.loads(row.result).get('suites')
+    for col_key, result in suites.items():
+        total = result.get('total')
+        passed = result.get('passed')
+        if total - passed > 0:
+            _handle_test_failed(row.project_id, 'sideex',
+                                col_key, _get_sideex_issue_description(row, total, passed),
+                                row.branch, row.commit_id, 'test_results', row.id)
+        else:
+            _handle_test_success(row.project_id, 'sideex',
+                                 col_key, _get_sideex_issue_close_description(row, total, passed))
+
+
 def _handle_test_failed(project_id, software_name, filename, description,
                         branch, commit_id, result_table, result_id):
     relation_row = model.TestGeneratedIssue.query.filter_by(
-        software_name='postman',
+        project_id=project_id,
+        software_name=software_name,
         file_name=filename
     ).first()
     if relation_row is None:
@@ -30,8 +45,8 @@ def _handle_test_failed(project_id, software_name, filename, description,
             'project_id': project_id,
             'tracker_id': 9,
             'status_id': 1,
-            'priority_id': 1,
-            'subject': f'{filename}__測試失敗',
+            'priority_id': 3,
+            'subject': _get_issue_subject(filename, software_name),
             'description': description
         }
         tgi_create_issue(args, software_name, filename,
@@ -54,9 +69,21 @@ def _handle_test_failed(project_id, software_name, filename, description,
         iss.save()
 
 
+def _get_issue_subject(filename, software_name):
+    if software_name == 'postman':
+        if filename == '':
+            full_filename = 'postman_collection.json'
+        else:
+            full_filename = f'{filename}.postman_collection.json'
+        return f'{full_filename}__測試失敗'
+    else:
+        return f'{filename}__測試失敗'
+
+
 def _handle_test_success(project_id, software_name, filename, description):
     relation_row = model.TestGeneratedIssue.query.filter_by(
-        software_name='postman',
+        project_id=project_id,
+        software_name=software_name,
         file_name=filename
     ).first()
     if relation_row is None:
@@ -101,3 +128,15 @@ def _get_postman_issue_close_description(row):
     now = datetime.now()
     dt_string = now.strftime("%Y-%m-%d %H:%M:%S")
     return f'{dt_string} {row.branch} #{row.commit_id} Postman 自動化測試成功 ({row.total})'
+
+
+def _get_sideex_issue_description(row, total, passed):
+    now = datetime.now()
+    dt_string = now.strftime("%Y-%m-%d %H:%M:%S")
+    return f'{dt_string} {row.branch} #{row.commit_id} Sideex 自動化測試失敗 ({passed}/{total})'
+
+
+def _get_sideex_issue_close_description(row, total, passed):
+    now = datetime.now()
+    dt_string = now.strftime("%Y-%m-%d %H:%M:%S")
+    return f'{dt_string} {row.branch} #{row.commit_id} Sideex 自動化測試成功 ({total})'

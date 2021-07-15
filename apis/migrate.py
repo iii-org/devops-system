@@ -2,14 +2,17 @@ import os
 
 import config
 import model
+import plugins
 import util
 from model import db, ProjectPluginRelation, Project, UserPluginRelation, User, ProjectUserRole, PluginSoftware
 from resources import harbor, kubernetesClient, role, sync_redmine
 from resources.apiError import DevOpsError
 from resources.logger import logger
 from resources.rancher import rancher
+from plugins.sonarqube import sq_create_project, sq_create_user
+
 # Each time you add a migration, add a version code here.
-from resources.sonarqube import sq_create_project, sq_create_user
+from accessories import devops_version
 
 VERSIONS = ['0.9.2', '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.4', '0.9.2.5',
             '0.9.2.6', '0.9.2.a7', '0.9.2.a8', '0.9.2.a9', '0.9.2.a10',
@@ -17,13 +20,16 @@ VERSIONS = ['0.9.2', '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.4', '0.9.2.5',
             '1.3.1.2', '1.3.1.3', '1.3.1.4', '1.3.1.5', '1.3.1.6', '1.3.1.7', '1.3.1.8',
             '1.3.1.9', '1.3.1.10', '1.3.1.11', '1.3.1.12', '1.3.1.13', '1.3.1.14', '1.3.2.1', '1.3.2.2',
             '1.3.2.3', '1.3.2.4', '1.3.2.5', '1.3.2.6', '1.3.2.7', '1.3.2.8', '1.3.2.9', '1.4.0.0', '1.4.0.1',
-            '1.4.0.2', '1.4.1.0', '1.4.1.1', '1.4.1.2', '1.5.0.0', '1.5.0.1', '1.5.0.2', '1.5.0.3']
+            '1.4.0.2', '1.4.1.0', '1.4.1.1', '1.4.1.2', '1.5.0.0', '1.5.0.1', '1.5.0.2', '1.5.0.3', '1.6.0.1',
+            '1.6.0.2', '1.6.0.3', '1.6.0.4', '1.6.0.5'
+            ]
 ONLY_UPDATE_DB_MODELS = [
     '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.5', '0.9.2.6', '0.9.2.a8',
     '1.0.0.2', '1.3.0.1', '1.3.0.2', '1.3.0.3', '1.3.0.4', '1.3.1', '1.3.1.1', '1.3.1.2',
     '1.3.1.3', '1.3.1.4', '1.3.1.5', '1.3.1.6', '1.3.1.7', '1.3.1.8', '1.3.1.9', '1.3.1.10',
     '1.3.1.11', '1.3.1.13', '1.3.1.14', '1.3.2.1', '1.3.2.2', '1.3.2.4', '1.3.2.6', '1.3.2.7', '1.3.2.9', '1.4.0.0',
-    '1.4.0.1', '1.4.0.2', '1.4.1.0', '1.4.1.1', '1.4.1.2', '1.5.0.0', '1.5.0.1', '1.5.0.2', '1.5.0.3'
+    '1.4.0.1', '1.4.0.2', '1.4.1.0', '1.4.1.1', '1.4.1.2', '1.5.0.0', '1.5.0.1', '1.5.0.2', '1.5.0.3', '1.6.0.1',
+    '1.6.0.2', '1.6.0.3', '1.6.0.4'
 ]
 
 
@@ -56,13 +62,18 @@ def upgrade(version):
     elif version == '1.4.0.1':
         set_default_project_creator()
     elif version == '1.5.0.2':
-        set_default_plugin_software_type()    
+        set_default_plugin_software_type()
+    elif version == '1.6.0.5':
+        alembic_upgrade()
+        devops_version.set_deployment_uuid()
+
 
 def set_default_plugin_software_type():
     rows = db.session.query(PluginSoftware).all()
     for row in rows:
         row.type_id = 1
         db.session.commit()
+
 
 def set_default_project_creator():
     rows = db.session.query(Project). \
@@ -331,10 +342,14 @@ def alembic_upgrade():
 
 def current_version():
     if db.engine.has_table(model.NexusVersion.__table__.name):
-        row = model.NexusVersion.query.first()
+        # Cannot write in ORM here since NexusVersion table itself may be modified
+        result = db.engine.execute('SELECT api_version FROM nexus_version')
+        row = result.fetchone()
+        result.close()
         if row is not None:
-            current = row.api_version
+            current = row['api_version']
         else:
+            # This is a new server, so NexusVersion table scheme should match the ORM
             current = '0.0.0'
             new = model.NexusVersion(api_version='0.0.0')
             db.session.add(new)
