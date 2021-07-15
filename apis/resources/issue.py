@@ -582,15 +582,13 @@ def get_issue_list_by_project(project_id, args):
     for redmine_issue in all_issues:
         nx_issue_params['redmine_issue'] = redmine_issue
         issue = NexusIssue().set_redmine_issue_v2(**nx_issue_params).to_json()
-        # 如果 family 是 False，代表 issue 不是 parent，但必須另外檢查是不是有 children
-        if 'family' in issue and not issue['family']:
-            check_children = redmine_lib.redmine.issue.filter(parent_id=redmine_issue.id,
-                                                              status_id='*')
-            if len(check_children):
-                issue['has_children'] = True
-                issue['family'] = True
-            else:
-                issue['has_children'] = False
+        check_children = redmine_lib.redmine.issue.filter(parent_id=redmine_issue.id,
+                                                            status_id='*')
+        if len(check_children):
+            issue['has_children'] = True
+            issue['family'] = True
+        else:
+            issue['has_children'] = False
         output.append(issue)
 
     if args['limit'] and args['offset'] is not None:
