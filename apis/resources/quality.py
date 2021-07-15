@@ -134,21 +134,21 @@ def qu_get_testfile_list(project_id):
                     -5:] == ".json":
                 path_file = f'{path["path"]}/{tree["name"]}'
                 coll_json = json.loads(
-                    gitlab.gl_get_file(repository_id, path_file))
+                gitlab.gl_get_file(repository_id, path_file))
+                test_plans = []
+                rows = get_test_plans_from_params(project_id ,
+                                                    path["software_name"],
+                                                    tree["name"])
+                for row in rows:
+                    for issue_info in issues_info:
+                        if row["issue_id"] == issue_info["id"]:
+                            test_plans.append(issue_info)
+                            break
+                    the_last_result = apiTest.get_the_last_result(
+                        project_id, tree['name'].split('postman')[0])
                 if path["file_name_key"] == "postman_collection.json":
                     collection_obj = PostmanJSON(coll_json)
                     postman_info_obj = PostmanJSONInfo(collection_obj.info)
-                    test_plans = []
-                    rows = get_test_plans_from_params(project_id,
-                                                      path["software_name"],
-                                                      tree["name"])
-                    for row in rows:
-                        for issue_info in issues_info:
-                            if row["issue_id"] == issue_info["id"]:
-                                test_plans.append(issue_info)
-                                break
-                    the_last_result = apiTest.get_the_last_result(
-                        project_id, tree['name'].split('postman')[0])
                     out_list.append({
                         "software_name": path["software_name"],
                         "file_name": tree["name"],
@@ -160,15 +160,6 @@ def qu_get_testfile_list(project_id):
                     sideex_obj = SideeXJSON(coll_json)
                     for suite_dict in sideex_obj.suites:
                         suite_obj = SideeXJSONSuite(suite_dict)
-                        test_plans = []
-                        rows = get_test_plans_from_params(
-                            project_id, path["software_name"], tree["name"])
-                        for row in rows:
-                            for issue_info in issues_info:
-                                if row["issue_id"] == issue_info["id"]:
-                                    test_plans.append(issue_info)
-                                    break
-                        the_last_result = sideex.sd_get_latest_test(project_id)
                         out_list.append({
                             "software_name": path["software_name"],
                             "file_name": tree["name"],
