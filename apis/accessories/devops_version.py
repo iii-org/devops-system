@@ -3,6 +3,7 @@ import uuid
 import config
 import model
 import util
+from resources import kubernetesClient
 from resources.apiError import DevOpsError
 from resources.logger import logger
 
@@ -16,7 +17,7 @@ def __get_token():
     return version_center_token
 
 
-def __api_request(method, path, headers=None, params=None, data=None, with_token=True):
+def __api_request(method, path, headers=None, params=None, data=None, with_token=True, retry=False):
     if headers is None:
         headers = {}
     if params is None:
@@ -26,6 +27,11 @@ def __api_request(method, path, headers=None, params=None, data=None, with_token
 
     url = f'{config.get("VERSION_CENTER_BASE_URL")}{path}'
     output = util.api_request(method, url, headers, params, data)
+
+    # Token expire
+    if output.status_code == 401 and not retry:
+        _login()
+        return __api_request(method, path, headers, params, data, True, True)
 
     if int(output.status_code / 100) != 2:
         raise DevOpsError(output.status_code,
@@ -83,5 +89,23 @@ def update_deployment(versions):
     logger.info(f'Updating deployment to {version_name}...')
     api_image_tag = versions['api_image_tag']
     ui_image_tag = versions['ui_image_tag']
+
+    # Update API
+    dp_api = kubernetesClient.read_namespace_deployment('default', 'devopsapi')
+    image_api = dp_api.spec.template.spec.containers[0].image
+    parts = image_api.split(':')
+    parts[-1] = api_image_tag
+    dp_api.spec.template.spec.containers[0].image = ':'.join(parts)
+    kubernetesClient.update_namespace_deployment('default', 'devopsapi', dp_api)
+
+    # Update UI
+    dp_ui = kubernetesClient.read_namespace_deployment('default', 'devopsui')
+    image_ui = dp_ui.spec.template.spec.containers[0].image
+    parts = image_ui.split(':')
+    parts[-1] = ui_image_tag
+    dp_ui.spec.template.spec.containers[0].image = ':'.join(parts)
+    kubernetesClient.update_namespace_deployment('default', 'devopsui', dp_ui)
+
+    # Record update done
     model.NexusVersion.query.one().deploy_version = version_name
     model.db.session.commit()
