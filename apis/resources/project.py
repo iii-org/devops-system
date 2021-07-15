@@ -18,7 +18,7 @@ from model import db
 from nexus import nx_get_project_plugin_relation
 from plugins.checkmarx import checkmarx
 from resources.apiError import DevOpsError
-from services import redmine_lib
+from accessories import redmine_lib
 from util import DevOpsThread
 from . import user, harbor, kubernetesClient, role, template
 from .activity import record_activity, ActionType

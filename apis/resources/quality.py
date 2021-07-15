@@ -19,7 +19,7 @@ from plugins import sideex
 from resources import apiTest
 from resources.redmine import redmine
 from data.nexus_project import NexusProject
-from services import redmine_lib
+from accessories import redmine_lib
 from redminelib import exceptions as redminelibError
 
 from . import issue
@@ -264,7 +264,7 @@ def qu_del_testfile(project_id, software_name, test_file_name):
             gitlab.gl_delete_file(
                 repository_id, url, {
                     "commit_message":
-                    f"Delete {software_name} mock-plugin file {path['path']}/{test_file_name} from UI"
+                    f"Delete {software_name} test file {path['path']}/{test_file_name} from UI"
                 })
             next_run = pipeline.get_pipeline_next_run(repository_id)
             pipeline.stop_and_delete_pipeline(repository_id, next_run)

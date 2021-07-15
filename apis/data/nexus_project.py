@@ -13,7 +13,7 @@ from model import ProjectUserRole
 from resources import user
 from resources.apiError import DevOpsError
 from resources.rancher import get_ci_last_test_result
-from services import redmine_lib
+from accessories import redmine_lib
 
 
 class NexusProject:

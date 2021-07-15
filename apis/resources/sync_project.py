@@ -6,7 +6,7 @@ from collections import defaultdict
 from flask_restful import Resource
 
 from plugins import sonarqube
-from services import redmine_lib
+from accessories import redmine_lib
 from resources import harbor, redmine, gitlab, rancher, kubernetesClient, \
                       project, logger, user
 from kubernetes.client import ApiException

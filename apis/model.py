@@ -333,6 +333,7 @@ class NexusVersion(db.Model):
     id = Column(Integer, primary_key=True)
     api_version = Column(String)
     deploy_version = Column(String)
+    deployment_uuid = Column(String)
 
 
 class Sonarqube(db.Model):

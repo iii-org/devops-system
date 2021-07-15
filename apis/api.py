@@ -1,11 +1,13 @@
+
 import datetime
 import os
 import sys
-import traceback
-from os.path import isfile
 
 if f"{os.getcwd()}/apis" not in sys.path:
     sys.path.insert(1, f"{os.getcwd()}/apis")
+
+import traceback
+from os.path import isfile
 
 import werkzeug
 from flask import Flask
@@ -16,6 +18,8 @@ from flask_socketio import SocketIO
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy_utils import database_exists, create_database
 from werkzeug.routing import IntegerConverter
+
+from accessories import devops_version
 
 import plugins
 from plugins import webinspect, sideex, zap, sonarqube, postman
@@ -184,6 +188,8 @@ def initialize(db_uri):
     }
     user.create_user(args)
     logger.logger.info('Initial admin created.')
+    my_uuid = devops_version.set_deployment_uuid()
+    logger.logger.info(f'Deployment UUID set as {my_uuid}.')
     migrate.init()
     logger.logger.info('Server initialized.')
 

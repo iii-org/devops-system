@@ -106,7 +106,7 @@ def wi_get_scan_status(scan_id):
         if not scan.finished:
             # This line will fill the data in db
             wi_get_scan_statistics(scan_id)
-    elif status == 'NotRunning' or status == 'Interrupted':
+    elif status == 'NotRunning' or status == 'Interrupted' or status == 'Failed':
         wi_set_scan_failed(scan_id, status)
     return status
 
