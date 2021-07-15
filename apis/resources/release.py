@@ -219,26 +219,6 @@ class Releases(Resource):
         if 'redmine' in self.valid_info['errors']:
             self.closed_issues()
 
-    @jwt_required
-    def get(self, project_id):
-        plugin_relation = model.ProjectPluginRelation.query.filter_by(
-            project_id=project_id).first()
-        try:
-            rm_list_versions = redmine.rm_get_version_list(
-                plugin_relation.plan_project_id)
-        except NoResultFound:
-            return util.respond(404, error_gitlab_not_found,
-                                error=apiError.redmine_project_not_found(plugin_relation.plan_project_id))
-        try:
-            gl_list_releases = gitlab.gl_list_releases(
-                plugin_relation.git_repository_id),
-        except NoResultFound:
-            return util.respond(404, error_gitlab_not_found,
-                                error=apiError.repository_id_not_found(plugin_relation.git_repository_id))
-        list_versions = rm_list_versions['versions']
-        list_releases = gl_list_releases[0]
-        return util.success(get_mapping_list_info(list_versions, list_releases))
-
     def get_redmine_issue(self):
         issue_ids = []
         issues = self.redmine_info.get('issues', None)
@@ -340,7 +320,7 @@ class Releases(Resource):
             project_id=project_id).first()
         role.require_in_project(project_id, 'Error to get release')
         try:
-            return util.success({'plugin_list': get_releases_by_project_id(project_id)})
+            return util.success({'releases': get_releases_by_project_id(project_id)})
         except NoResultFound:
             return util.respond(404, error_redmine_issues_closed)
 
