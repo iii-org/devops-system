@@ -219,6 +219,7 @@ class Releases(Resource):
         if 'redmine' in self.valid_info['errors']:
             self.closed_issues()
 
+
     def get_redmine_issue(self):
         issue_ids = []
         issues = self.redmine_info.get('issues', None)
@@ -296,9 +297,8 @@ class Releases(Resource):
             #  Create Harbor Release
             if self.harbor_info['target'].get('release', None) is not None:
                 hb_release.create(self.project.name, branch_name,
-                                  self.harbor_info['target']['release']['digest'], release_name)
-            else:
-                type
+                                  self.harbor_info['target']['release']['digest'], release_name)                                              
+            
             create_release(
                 project_id, 
                 args, 
@@ -308,7 +308,7 @@ class Releases(Resource):
                 release_name, 
                 user_id
             )                        
-
+            
             return util.success()
         except NoResultFound:
             return util.respond(404, error_redmine_issues_closed,
