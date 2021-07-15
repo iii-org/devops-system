@@ -16,7 +16,7 @@ import util
 from . import role
 import resources.apiError as apiError
 import resources.pipeline as pipeline
-from model import db, TemplateListCache
+from model import db, TemplateListCache, PluginSoftware
 from sqlalchemy import func, or_, and_
 
 from gitlab import Gitlab
@@ -31,28 +31,34 @@ template_replace_dict = {
 }
 
 support_software = [{
-    "key": "scan-sonarqube",
+    "template_key": "scan-sonarqube",
+    "plugin_key": "sonarqube",
     "display": "SonarQube"
 }, {
-    "key": "scan-checkmarx",
+    "template_key": "scan-checkmarx",
+    "plugin_key": "checkmarx",
     "display": "Checkmarx"
 }, {
-    "key": "test-postman",
+    "template_key": "test-postman",
+    "plugin_key": "postman",
     "display": "Postman"
 }, {
-    "key": "test-sideex",
+    "template_key": "test-sideex",
+    "plugin_key": "sideex",
     "display": "SideeX"
 }, {
-    "key": "test-webinspect",
+    "template_key": "test-webinspect",
+    "plugin_key": "webinspect",
     "display": "WebInspect"
 }, {
-    "key": "test-zap",
+    "template_key": "test-zap",
+    "plugin_key": "zap",
     "display": "ZAP"
 }, {
-    "key": "db",
+    "template_key": "db",
     "display": "Database"
 }, {
-    "key": "web",
+    "template_key": "web",
     "display": "Web"
 }]
 
@@ -194,11 +200,14 @@ def __check_git_project_is_empty(pj):
     if pj.default_branch is None or pj.repository_tree() is None:
         return True
 
+def __add_plugin_soft_status():
+    db_plugins = PluginSoftware.query.all()
+    for soft in support_software:
+        for db_plugin in db_plugins:
+            if soft['plugin_key'] == db_plugin['name']:
+                soft['plugin_disabled'] = db_plugin['disabled']
 
 def __force_update_template_cache_table():
-    
-    TemplateListCache.query.delete()
-    db.session.commit()
     
     output = [{
         "source": "Public Templates",
@@ -319,6 +328,7 @@ def tm_get_template(repository_id, tag_name):
 
 def tm_use_template_push_into_pj(template_repository_id, user_repository_id,
                                  tag_name, arguments):
+    __add_plugin_soft_status()
     template_pj = gl.projects.get(template_repository_id)
     temp_http_url = template_pj.http_url_to_repo
     protocol = 'https' if temp_http_url[:5] == "https" else 'http'
@@ -441,7 +451,7 @@ def tm_get_pipeline_branches(repository_id):
                 if catalogTemplate_value is not None and software[
                         "key"] == catalogTemplate_value:
                     stage_out_list["name"] = software["display"]
-                    stage_out_list["key"] = software["key"]
+                    stage_out_list["key"] = software["template_key"]
                     if "when" in stage:
                         stage_when = pipeline_yaml_OO.RancherPipelineWhen(
                             stage["when"]["branch"])
@@ -555,7 +565,7 @@ def tm_get_pipeline_default_branch(repository_id):
                 if catalogTemplate_value is not None and software[
                         "key"] == catalogTemplate_value:
                     stage_out_list["name"] = software["display"]
-                    stage_out_list["key"] = software["key"]
+                    stage_out_list["key"] = software["template_key"]
                     if "when" in stage:
                         stage_when = pipeline_yaml_OO.RancherPipelineWhen(
                             stage["when"]["branch"])
