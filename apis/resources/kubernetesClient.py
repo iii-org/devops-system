@@ -428,6 +428,15 @@ def delete_namespace_deployment(namespace, name):
             raise e
 
 
+def update_deployment_image_tag(namespace, deployment_name, new_image_tag):
+    deployment = read_namespace_deployment(namespace, deployment_name)
+    image_api = deployment.spec.template.spec.containers[0].image
+    parts = image_api.split(':')
+    parts[-1] = new_image_tag
+    deployment.spec.template.spec.containers[0].image = ':'.join(parts)
+    update_namespace_deployment(namespace, deployment_name, deployment)
+
+
 def list_namespace_services(namespace):
     try:
         list_services = []

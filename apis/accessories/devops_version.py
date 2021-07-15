@@ -89,23 +89,8 @@ def update_deployment(versions):
     logger.info(f'Updating deployment to {version_name}...')
     api_image_tag = versions['api_image_tag']
     ui_image_tag = versions['ui_image_tag']
-
-    # Update API
-    dp_api = kubernetesClient.read_namespace_deployment('default', 'devopsapi')
-    image_api = dp_api.spec.template.spec.containers[0].image
-    parts = image_api.split(':')
-    parts[-1] = api_image_tag
-    dp_api.spec.template.spec.containers[0].image = ':'.join(parts)
-    kubernetesClient.update_namespace_deployment('default', 'devopsapi', dp_api)
-
-    # Update UI
-    dp_ui = kubernetesClient.read_namespace_deployment('default', 'devopsui')
-    image_ui = dp_ui.spec.template.spec.containers[0].image
-    parts = image_ui.split(':')
-    parts[-1] = ui_image_tag
-    dp_ui.spec.template.spec.containers[0].image = ':'.join(parts)
-    kubernetesClient.update_namespace_deployment('default', 'devopsui', dp_ui)
-
+    kubernetesClient.update_deployment_image_tag('default', 'devopsapi', api_image_tag)
+    kubernetesClient.update_deployment_image_tag('default', 'devopsui', ui_image_tag)
     # Record update done
     model.NexusVersion.query.one().deploy_version = version_name
     model.db.session.commit()
