@@ -207,7 +207,7 @@ class Plugin(Resource):
 class APIPlugin():
     def get_plugin(self, plugin_name):
         try:
-            return get_plugin_software_by_name(plugin_name)
+            return plugins.get_plugin_config(plugin_name)
         except NoResultFound:
             return util.respond(404, invalid_plugin_id,
                                 error=apiError.invalid_plugin_id(plugin_name))

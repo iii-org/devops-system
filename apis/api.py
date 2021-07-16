@@ -22,7 +22,7 @@ from werkzeug.routing import IntegerConverter
 from accessories import devops_version
 
 import plugins
-from plugins import webinspect, sideex, zap, sonarqube, postman
+from plugins import webinspect, sideex, zap, sonarqube, postman, ad
 import config
 import migrate
 import model
@@ -36,7 +36,7 @@ from jsonwebtoken import jsonwebtoken
 from model import db
 from resources import logger, role as role, activity, starred_project
 from resources import project, gitlab, issue, user, redmine, wiki, version, apiTest, mock, harbor, \
-    template, release, sync_redmine, plugin, kubernetesClient, ad, project_permission, quality, sync_project, \
+    template, release, sync_redmine, plugin, kubernetesClient, project_permission, quality, sync_project, \
     sync_user, router
 
 app = Flask(__name__)
@@ -331,9 +331,9 @@ api.add_resource(plugin.Plugins, '/plugins')
 api.add_resource(plugin.Plugin, '/plugins/<plugin_name>')
 
 # AD Server
-api.add_resource(ad.Users, '/plugins/ad/users')
-api.add_resource(ad.User, '/plugins/ad/user')
-api.add_resource(ad.Organizations, '/plugins/ad/organizations')
+api.add_resource(ad.ADUsers, '/plugins/ad/users')
+api.add_resource(ad.ADUser, '/plugins/ad/user')
+api.add_resource(ad.ADOrganizations, '/plugins/ad/organizations')
 
 # dashboard
 api.add_resource(issue.DashboardIssuePriority,
