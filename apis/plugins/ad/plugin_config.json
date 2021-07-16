@@ -1,0 +1,45 @@
+ {
+    "name": "ad",
+    "keys": [
+        {
+            "key": "host",
+            "type": "string",
+            "store": "secret_system"
+        },
+        {
+            "key": "ou",
+            "type": "string",
+            "store": "secret_system"
+        },
+        {
+            "key": "domain",
+            "type": "string",
+            "store": "secret_system"
+        },
+        {
+            "key": "account",
+            "type": "string",
+            "store": "secret_system"
+        },
+        {
+            "key": "password",
+            "type": "string",
+            "store": "secret_system"
+        },
+        {
+            "key": "default_password",
+            "type": "string",
+            "store": "secret_system"
+        },
+        {
+            "key": "connect_timeout",
+            "type": "string",
+            "store": "secret_system"
+        },
+        {
+            "key": "default_role_id",
+            "type": "string",
+            "store": "secret_system"
+        }
+    ]
+}

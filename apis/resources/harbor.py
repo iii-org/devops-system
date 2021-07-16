@@ -477,18 +477,29 @@ class HarborRepository(Resource):
         return util.success()
 
 
+def check_tag_name(artifacts, tag_name):
+    output = []
+    if artifacts is None:
+        return artifacts
+    for artifact in artifacts:
+        if artifact.get('name') == tag_name:
+            output.append(artifact)
+    return output
+
 class HarborArtifact(Resource):
     @jwt_required
     def get(self):
         project_name, repository_name = extract_names()
         role.require_in_project(project_name=project_name)
         parser = reqparse.RequestParser()
+        parser.add_argument('repository_fullname', type=str)
         parser.add_argument('tag_name', type=str)
         args = parser.parse_args()
-        if args.get('tag_name', None) is not None:
-            return util.success(hb_get_artifact(project_name, repository_name, args.get('tag_name')))
+        artifacts = hb_list_artifacts(project_name, repository_name)
+        if args.get('tag_name', None) is not None:                
+            return util.success(check_tag_name(artifacts, args.get('tag_name')))
         else:
-            return util.success(hb_list_artifacts(project_name, repository_name))
+            return util.success(artifacts)
 
     @jwt_required
     def delete(self):
