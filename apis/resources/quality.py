@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 from io import BytesIO
 from flask import send_file
+import copy
 
 import model
 import util as util
@@ -147,16 +148,33 @@ def qu_get_testfile_list(project_id):
                     the_last_result = apiTest.get_the_last_result(
                         project_id, tree['name'].split('postman')[0])
                 if path["file_name_key"] == "postman_collection.json":
+                    postmane_test_plans = copy.deepcopy(test_plans)
+                    for postmane_test_plan in  postmane_test_plans:
+                        i = 0
+                        while i < len(postmane_test_plan['test_files']):
+                            if postmane_test_plan['test_files'][i]['software_name'] != path["software_name"] or\
+                                postmane_test_plan['test_files'][i]['file_name'] != tree["name"]:
+                                del(postmane_test_plan['test_files'][i])
+                            else:
+                                i += 1
                     collection_obj = PostmanJSON(coll_json)
                     postman_info_obj = PostmanJSONInfo(collection_obj.info)
                     out_list.append({
                         "software_name": path["software_name"],
                         "file_name": tree["name"],
                         "name": postman_info_obj.name,
-                        "test_plans": test_plans,
+                        "test_plans": postmane_test_plans,
                         "the_last_test_result": the_last_result
                     })
                 elif path["file_name_key"] == "sideex":
+                    for test_plan in  test_plans:
+                        i = 0
+                        while i < len(test_plan['test_files']):
+                            if test_plan['test_files'][i]['software_name'] != path["software_name"] or\
+                                test_plan['test_files'][i]['file_name'] != tree["name"]:
+                                del(test_plan['test_files'][i])
+                            else:
+                                i += 1
                     sideex_obj = SideeXJSON(coll_json)
                     for suite_dict in sideex_obj.suites:
                         suite_obj = SideeXJSONSuite(suite_dict)
