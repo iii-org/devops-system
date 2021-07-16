@@ -281,7 +281,7 @@ def tm_get_template_list(force_update=0):
     one_day_ago = datetime.fromtimestamp(datetime.utcnow().timestamp() - 86400)
     total_data = TemplateListCache.query.all()
     one_day_ago_data = TemplateListCache.query.filter(
-        TemplateListCache.update_at < one_day_ago).one()
+        TemplateListCache.update_at < one_day_ago).all()
     if force_update == 1:
         return __force_update_template_cache_table()
     elif len(total_data) == 0 or len(one_day_ago_data) > 1:
