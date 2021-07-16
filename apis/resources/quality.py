@@ -236,6 +236,9 @@ def qu_del_testplan_testfile_relate_list(project_id, item_id):
     if row is not None:
         db.session.delete(row)
         db.session.commit()
+    else:
+        raise apiError.DevOpsError(
+            400, f"Can not find relate id: {item_id}")
 
 
 def qu_upload_testfile(project_id, file, software_name):
