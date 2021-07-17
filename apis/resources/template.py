@@ -204,8 +204,8 @@ def __add_plugin_soft_status():
     db_plugins = PluginSoftware.query.all()
     for soft in support_software:
         for db_plugin in db_plugins:
-            if soft['plugin_key'] == db_plugin['name']:
-                soft['plugin_disabled'] = db_plugin['disabled']
+            if soft.get('plugin_key') == db_plugin.name:
+                soft['plugin_disabled'] = db_plugin.disabled
 
 def __force_update_template_cache_table():
     
