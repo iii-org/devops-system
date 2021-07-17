@@ -145,8 +145,6 @@ def qu_get_testfile_list(project_id):
                         if row["issue_id"] == issue_info["id"]:
                             test_plans.append(issue_info)
                             break
-                    the_last_result = apiTest.get_the_last_result(
-                        project_id, tree['name'].split('postman')[0])
                 if path["file_name_key"] == "postman_collection.json":
                     postmane_test_plans = copy.deepcopy(test_plans)
                     for postmane_test_plan in  postmane_test_plans:
@@ -159,6 +157,8 @@ def qu_get_testfile_list(project_id):
                                 i += 1
                     collection_obj = PostmanJSON(coll_json)
                     postman_info_obj = PostmanJSONInfo(collection_obj.info)
+                    the_last_result = apiTest.get_the_last_result(
+                        project_id, tree['name'].split('postman')[0])
                     out_list.append({
                         "software_name": path["software_name"],
                         "file_name": tree["name"],
@@ -176,15 +176,15 @@ def qu_get_testfile_list(project_id):
                             else:
                                 i += 1
                     sideex_obj = SideeXJSON(coll_json)
-                    for suite_dict in sideex_obj.suites:
-                        suite_obj = SideeXJSONSuite(suite_dict)
-                        out_list.append({
-                            "software_name": path["software_name"],
-                            "file_name": tree["name"],
-                            "name": suite_obj.title,
-                            "test_plans": test_plans,
-                            "the_last_test_result": the_last_result
-                        })
+                    suite_obj = SideeXJSONSuite(sideex_obj.suites[0])
+                    the_last_result = sideex.sd_get_latest_test(project_id)
+                    out_list.append({
+                        "software_name": path["software_name"],
+                        "file_name": tree["name"],
+                        "name": suite_obj.title,
+                        "test_plans": test_plans,
+                        "the_last_test_result": the_last_result
+                    })
     return out_list
 
 
