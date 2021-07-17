@@ -18,11 +18,11 @@ import util as util
 from enums.action_type import ActionType
 from model import db
 from nexus import nx_get_user_plugin_relation, nx_get_user
-from plugins import sonarqube
+from plugins import sonarqube 
 from resources import harbor, role
 from resources import kubernetesClient
 from resources.activity import record_activity
-from resources.ad import ad_user
+from plugins.ad import ad_api_user
 from resources.apiError import DevOpsError
 from resources.gitlab import gitlab
 from resources.logger import logger
@@ -123,7 +123,7 @@ def get_token_expires(role_id):
 
 def check_ad_login(account, password, ad_info={}):
     try:
-        ad_info_data = ad_user.get_user_info(account, password)
+        ad_info_data = ad_api_user.get_user_info(account, password)
         if ad_info_data is not None:
             ad_info['is_pass'] = True
             ad_info['data'] = ad_info_data
@@ -169,26 +169,11 @@ def check_db_login(user, password, output):
         logger.info("User Login failed by DB user_id: {0}".format(user.id))
     return output, user, project_user_role
 
-
-def check_ad_server():
-    ad_server = {
-        'ip_port': config.get('AD_IP_PORT'),
-        'domain': config.get('AD_DOMAIN')
-    }
-    plugin = model.PluginSoftware.query. \
-        filter(model.PluginSoftware.name == 'ad_server'). \
-        first()
-    if plugin is not None:
-        parameters = json.loads(plugin.parameter)
-        ad_server['ip_port'] = parameters['ip_port']
-        ad_server['domain'] = parameters['domain']
-    return ad_server
-
-
 def login(args):
     login_account = args['username']
     login_password = args['password']
-    ad_server = ad_user.check_ad_info()
+    ad_server = ad_api_user.check_ad_info()
+    print(ad_server)
     try:
         ad_info = {'is_pass': False,
                    'login': login_account, 'data': {}}
@@ -209,7 +194,7 @@ def login(args):
                 user, login_password, db_info)
         # Login By AD
         if ad_info['is_pass'] is True:
-            status, token = ad_user.login_by_ad(
+            status, token = ad_api_user.login_by_ad(
                 user, db_info, ad_info, login_account, login_password)
             if token is None:
                 return util.respond(401, "Error when logging in. Please contact system administrator",
