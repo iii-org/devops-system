@@ -47,6 +47,8 @@ def list_plugins():
     for row in rows:
         ret.append({
             'name': row.name,
+            'create_at':str(row.create_at),
+            'update_at':str(row.update_at),
             'disabled': row.disabled
         })
     return ret
