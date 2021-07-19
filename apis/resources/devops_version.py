@@ -1,9 +1,12 @@
 import uuid
 
+from flask_jwt_extended import jwt_required
+from flask_restful import Resource
+
 import config
 import model
 import util
-from resources import kubernetesClient
+from resources import kubernetesClient, role, apiError
 from resources.apiError import DevOpsError
 from resources.logger import logger
 
@@ -35,7 +38,8 @@ def __api_request(method, path, headers=None, params=None, data=None, with_token
 
     if int(output.status_code / 100) != 2:
         raise DevOpsError(output.status_code,
-                          'Got non-2xx response from Version center.')
+                          'Got non-2xx response from Version center.',
+                          error=apiError.error_3rd_party_api('Version Center', output))
     return output
 
 
@@ -69,19 +73,15 @@ def set_deployment_uuid():
     model.db.session.commit()
 
 
-def check_deployment_version():
-    try:
-        versions = __api_get('/current_version').json().get('data', None)
-        if versions is None:
-            raise DevOpsError(500, '/current_version returns no data.')
-        current_version = model.NexusVersion.query.one().deploy_version
-        if current_version != versions['version_name']:
-            update_deployment(versions)
-    except DevOpsError as e:
-        # Leave logs, but let the system run
-        logger.exception(str(e))
-        # FIXME
-        raise e
+def has_devops_update():
+    versions = __api_get('/current_version').json().get('data', None)
+    if versions is None:
+        raise DevOpsError(500, '/current_version returns no data.')
+    current_version = model.NexusVersion.query.one().deploy_version
+    return {
+        'has_update': current_version != versions['version_name'],
+        'latest_version': versions
+    }
 
 
 def update_deployment(versions):
@@ -94,3 +94,20 @@ def update_deployment(versions):
     # Record update done
     model.NexusVersion.query.one().deploy_version = version_name
     model.db.session.commit()
+
+
+# ------------------ Resources ------------------
+class DevOpsVersionCheck(Resource):
+    @jwt_required
+    def get(self):
+        role.require_admin()
+        return util.success(has_devops_update())
+
+
+class DevOpsVersionUpdate(Resource):
+    @jwt_required
+    def patch(self):
+        role.require_admin()
+        versions = has_devops_update()['latest_version']
+        update_deployment(versions)
+        return util.success(versions)

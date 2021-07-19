@@ -2,17 +2,15 @@ import os
 
 import config
 import model
-import plugins
 import util
 from model import db, ProjectPluginRelation, Project, UserPluginRelation, User, ProjectUserRole, PluginSoftware
-from resources import harbor, kubernetesClient, role, sync_redmine
+from resources import harbor, kubernetesClient, role, sync_redmine, devops_version
 from resources.apiError import DevOpsError
 from resources.logger import logger
 from resources.rancher import rancher
 from plugins.sonarqube import sq_create_project, sq_create_user
 
 # Each time you add a migration, add a version code here.
-from accessories import devops_version
 
 VERSIONS = ['0.9.2', '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.4', '0.9.2.5',
             '0.9.2.6', '0.9.2.a7', '0.9.2.a8', '0.9.2.a9', '0.9.2.a10',
