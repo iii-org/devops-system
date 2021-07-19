@@ -19,8 +19,6 @@ from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy_utils import database_exists, create_database
 from werkzeug.routing import IntegerConverter
 
-from accessories import devops_version
-
 import plugins
 from plugins import webinspect, sideex, zap, sonarqube, postman, ad
 import config
@@ -34,7 +32,7 @@ import util
 import maintenance
 from jsonwebtoken import jsonwebtoken
 from model import db
-from resources import logger, role as role, activity, starred_project
+from resources import logger, role as role, activity, starred_project, devops_version
 from resources import project, gitlab, issue, user, redmine, wiki, version, apiTest, mock, harbor, \
     template, release, sync_redmine, plugin, kubernetesClient, project_permission, quality, sync_project, \
     sync_user, router
@@ -501,6 +499,10 @@ api.add_resource(sync_project.SyncProject, '/sync_projects')
 
 # Sync Users
 api.add_resource(sync_user.SyncUser, '/sync_users')
+
+# Centralized version check
+api.add_resource(devops_version.DevOpsVersionCheck, '/devops_version/check')
+api.add_resource(devops_version.DevOpsVersionUpdate, '/devops_version/update')
 
 
 def start_prod():
