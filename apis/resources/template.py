@@ -208,7 +208,9 @@ def __add_plugin_soft_status():
                 soft['plugin_disabled'] = db_plugin.disabled
 
 def __force_update_template_cache_table():
-    
+    TemplateListCache.query.delete()
+    db.session.commit()
+
     output = [{
         "source": "Public Templates",
         "options": []
