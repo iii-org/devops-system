@@ -1,3 +1,4 @@
+import socket
 import uuid
 
 from flask_jwt_extended import jwt_required
@@ -62,7 +63,9 @@ def __api_delete(path, params=None, headers=None, with_token=True):
 def _login():
     global version_center_token
     dp_uuid = model.NexusVersion.query.one().deployment_uuid
-    res = __api_post('/login', params={'uuid': dp_uuid, 'name': 'Test deployment'}, with_token=False)
+    res = __api_post('/login', params={'uuid': dp_uuid,
+                                       'name': socket.gethostbyname(socket.gethostname())},
+                     with_token=False)
     version_center_token = res.json().get('data', {}).get('access_token', None)
 
 
