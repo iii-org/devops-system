@@ -11,6 +11,7 @@ from sqlalchemy.orm.exc import NoResultFound
 
 import model
 import nexus
+import plugins
 import resources.apiError as apiError
 import util as util
 from data.nexus_project import NexusProject
@@ -596,57 +597,65 @@ def get_test_summary(project_id):
     project_name = nexus.nx_get_project(id=project_id).name
 
     # newman
-    row = model.TestResults.query.filter_by(project_id=project_id).order_by(desc(
-        model.TestResults.id)).limit(1).first()
-    if row is not None:
-        test_id = row.id
-        total = row.total
-        if total is None:
-            total = 0
-            fail = 0
-            passed = 0
+    if not plugins.get_plugin_config('postman')['disabled']:
+        row = model.TestResults.query.filter_by(project_id=project_id).order_by(desc(
+            model.TestResults.id)).limit(1).first()
+        if row is not None:
+            test_id = row.id
+            total = row.total
+            if total is None:
+                total = 0
+                fail = 0
+                passed = 0
+            else:
+                fail = row.fail
+                passed = total - fail
+            run_at = str(row.run_at)
+            ret['postman'] = {
+                'id': test_id,
+                'passed': passed,
+                'failed': fail,
+                'total': total,
+                'run_at': run_at
+            }
         else:
-            fail = row.fail
-            passed = total - fail
-        run_at = str(row.run_at)
-        ret['postman'] = {
-            'id': test_id,
-            'passed': passed,
-            'failed': fail,
-            'total': total,
-            'run_at': run_at
-        }
-    else:
-        ret['postman'] = {}
+            ret['postman'] = {}
 
     # checkmarx
-    cm_json, status_code = checkmarx.get_result(project_id)
-    cm_data = {}
-    for key, value in cm_json.items():
-        if key != 'data':
-            cm_data[key] = value
-        else:
-            for k2, v2 in value.items():
-                if k2 != 'stats':
-                    cm_data[k2] = v2
-                else:
-                    for k3, v3 in v2.items():
-                        cm_data[k3] = v3
-    ret['checkmarx'] = cm_data
+    if not plugins.get_plugin_config('checkmarx')['disabled']:
+        cm_json, status_code = checkmarx.get_result(project_id)
+        cm_data = {}
+        for key, value in cm_json.items():
+            if key != 'data':
+                cm_data[key] = value
+            else:
+                for k2, v2 in value.items():
+                    if k2 != 'stats':
+                        cm_data[k2] = v2
+                    else:
+                        for k3, v3 in v2.items():
+                            cm_data[k3] = v3
+        ret['checkmarx'] = cm_data
 
     # webinspect
-    scans = webinspect.wi_list_scans(project_name)
-    wi_data = {}
-    for scan in scans:
-        if type(scan['stats']) is dict and scan['stats']['status'] == 'Complete':
-            wi_data = scan['stats']
-            wi_data['run_at'] = scan['run_at']
-            break
-    ret['webinspect'] = wi_data
+    if not plugins.get_plugin_config('webinspect')['disabled']:
+        scans = webinspect.wi_list_scans(project_name)
+        wi_data = {}
+        for scan in scans:
+            if type(scan['stats']) is dict and scan['stats']['status'] == 'Complete':
+                wi_data = scan['stats']
+                wi_data['run_at'] = scan['run_at']
+                break
+        ret['webinspect'] = wi_data
 
-    ret['sonarqube'] = sonarqube.sq_get_current_measures(project_name)
-    ret['zap'] = zap.zap_get_latest_test(project_id)
-    ret['sideex'] = sideex.sd_get_latest_test(project_id)
+    if not plugins.get_plugin_config('sonarqube')['disabled']:
+        ret['sonarqube'] = sonarqube.sq_get_current_measures(project_name)
+
+    if not plugins.get_plugin_config('zap')['disabled']:
+        ret['zap'] = zap.zap_get_latest_test(project_id)
+
+    if not plugins.get_plugin_config('sideex')['disabled']:
+        ret['sideex'] = sideex.sd_get_latest_test(project_id)
 
     return util.success({'test_results': ret})
 
