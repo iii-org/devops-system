@@ -94,6 +94,7 @@ def update_deployment(versions):
     # Record update done
     model.NexusVersion.query.one().deploy_version = version_name
     model.db.session.commit()
+    __api_post('/report_update', data={'version_name': version_name})
 
 
 # ------------------ Resources ------------------
