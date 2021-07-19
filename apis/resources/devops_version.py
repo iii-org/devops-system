@@ -80,7 +80,7 @@ def has_devops_update():
     versions = __api_get('/current_version').json().get('data', None)
     if versions is None:
         raise DevOpsError(500, '/current_version returns no data.')
-    current_version = model.NexusVersion.query.one().deploy_version
+    current_version = current_devops_version()
     return {
         'has_update': current_version != versions['version_name'],
         'latest_version': versions
@@ -100,7 +100,19 @@ def update_deployment(versions):
     __api_post('/report_update', data={'version_name': version_name})
 
 
+def current_devops_version():
+    return model.NexusVersion.query.one().deploy_version
+
+
 # ------------------ Resources ------------------
+class DevOpsVersion(Resource):
+    @jwt_required
+    def get(self):
+        return util.success({
+            'version_name': current_devops_version()
+        })
+
+
 class DevOpsVersionCheck(Resource):
     @jwt_required
     def get(self):
