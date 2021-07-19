@@ -1,4 +1,4 @@
-FROM python:3.8.5
+FROM python:3.8-slim
 WORKDIR /usr/src/app
 COPY . .
 RUN mkdir /root/.kube
