@@ -95,7 +95,7 @@ class NexusIssue:
         return self
 
     def set_redmine_issue_v2(self, redmine_issue, with_relationship=False,
-                             relationship_bool=False):
+                             relationship_bool=False, nx_project=None):
         self.data = {
             'id': redmine_issue.id,
             'name': redmine_issue.subject,
@@ -125,8 +125,9 @@ class NexusIssue:
             'relations': []
         }
         if hasattr(redmine_issue, 'project'):
-            nx_project = model.Project.query.get(nexus.nx_get_project_plugin_relation(
-                rm_project_id=redmine_issue.project.id).project_id)
+            if nx_project is None:
+                nx_project = model.Project.query.get(nexus.nx_get_project_plugin_relation(
+                    rm_project_id=redmine_issue.project.id).project_id)
             self.data['project'] = {
                 'id': nx_project.id,
                 'name': nx_project.name,
@@ -569,6 +570,7 @@ def get_issue_list_by_project(project_id, args):
         return []
     try:
         nx_project = NexusProject().set_project_id(project_id)
+        nx_issue_params['nx_project'] = nx_project
         plan_id = nx_project.get_project_row().plugin_relation.plan_project_id
     except NoResultFound:
         raise DevOpsError(404, "Error while getting issues",
@@ -614,6 +616,7 @@ def get_issue_list_by_user(user_id, args):
     args['nx_user_id'] = user_id
     if args.get('project_id'):
         nx_project = NexusProject().set_project_id(args['project_id'])
+        nx_issue_params['nx_project'] = nx_project
         plan_id = nx_project.get_project_row().plugin_relation.plan_project_id
         default_filters = get_custom_filters_by_args(args, project_id=plan_id, user_id=nx_user.plan_user_id)
     else:
@@ -652,6 +655,7 @@ def get_issue_by_tree_by_project(project_id):
     tree = defaultdict(dict)
     if util.is_dummy_project(project_id):
         return []
+    nx_project = None
     try:
         nx_project = NexusProject().set_project_id(project_id)
         plan_id = nx_project.get_project_row().plugin_relation.plan_project_id
@@ -662,7 +666,7 @@ def get_issue_by_tree_by_project(project_id):
     all_issues = redmine_lib.redmine.issue.filter(**default_filters)
     for redmine_issue in all_issues:
         tree[redmine_issue.id] = NexusIssue().set_redmine_issue_v2(redmine_issue,
-                                                                   with_relationship=True).to_json()
+                                                                   with_relationship=True, nx_project=nx_project).to_json()
     for id in tree:
         # 代表此 issue 有 parent 存在
         if tree[id]['parent']:

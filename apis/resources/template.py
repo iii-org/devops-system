@@ -583,7 +583,7 @@ def tm_get_pipeline_default_branch(repository_id):
                     ":")[1].replace("iii-dev-charts3-", "")
             for software in support_software:
                 if catalogTemplate_value is not None and software[
-                        "key"] == catalogTemplate_value:
+                        "template_key"] == catalogTemplate_value:
                     stage_out_list["name"] = software["display"]
                     stage_out_list["key"] = software["template_key"]
                     if "when" in stage:

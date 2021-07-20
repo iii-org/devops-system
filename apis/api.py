@@ -501,6 +501,7 @@ api.add_resource(sync_project.SyncProject, '/sync_projects')
 api.add_resource(sync_user.SyncUser, '/sync_users')
 
 # Centralized version check
+api.add_resource(devops_version.DevOpsVersion, '/devops_version')
 api.add_resource(devops_version.DevOpsVersionCheck, '/devops_version/check')
 api.add_resource(devops_version.DevOpsVersionUpdate, '/devops_version/update')
 
