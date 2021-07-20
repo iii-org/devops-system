@@ -178,7 +178,7 @@ class Plugin(Resource):
         return util.success(plugins.get_plugin_config(plugin_name))
 
     @jwt_required
-    def put(self, plugin_name):
+    def patch(self, plugin_name):
         role.require_admin('Only admins can modify plugin software.')
         parser = reqparse.RequestParser()
         parser.add_argument('arguments', type=dict)

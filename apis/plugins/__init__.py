@@ -126,9 +126,9 @@ def update_plugin_config(plugin_name, args):
             'store': item['store'],
             'type': item['type']
         }
-    if 'disabled' in args:
+    if args.get('disabled',None) is not None:
         db_row.disabled = bool(args['disabled'])
-    if 'arguments' in args:
+    if args.get('arguments', None) is not None:
         for argument in args['arguments']:
             if argument not in key_map:
                 raise DevOpsError(400, f'Argument {argument} is not in the argument list of plugin {plugin_name}.',
