@@ -68,7 +68,7 @@ stages:
         targetKey: password
     when:
       branch: [develope]
-  - name: Code Checkmarx test
+  - name: Code Checkmarx mock-plugin
     steps:
     - runScriptConfig:
         image: 10.50.1.63:5443/iii-org/checkmarx-runner:devops-system
@@ -106,7 +106,7 @@ stages:
     when: 
       branch: [checkmarx] 
 
-  - name: Code webinspect test
+  - name: Code webinspect mock-plugin
     steps:
     - runScriptConfig:
         image: iiiorg/webinspect-runner

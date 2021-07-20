@@ -19,3 +19,7 @@ flask-socketio == 5.0.1
 eventlet == 0.30.2
 gunicorn == 20.1.0
 python-redmine == 2.3.0
+boto3==1.16.25
+pandas==1.2.5
+openpyxl==3.0.7
+XlsxWriter==1.4.4

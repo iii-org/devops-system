@@ -16,7 +16,7 @@ import util
 from . import role
 import resources.apiError as apiError
 import resources.pipeline as pipeline
-from model import db, TemplateListCache
+from model import db, TemplateListCache, PluginSoftware
 from sqlalchemy import func, or_, and_
 
 from gitlab import Gitlab
@@ -26,37 +26,44 @@ template_replace_dict = {
     "PLUGIN_MIRROR": config.get("HARBOR_EXTERNAL_BASE_URL"),
     "harbor.host":
     config.get("HARBOR_EXTERNAL_BASE_URL").replace("https://", ""),
-    "git.host": config.get("GITLAB_BASE_URL").replace("http://", "")
+    "git.host": config.get("GITLAB_BASE_URL").replace("http://", ""),
+    'kube.ingress.base_domain': config.get("INGRESS_EXTERNAL_BASE")
 }
 
 support_software = [{
-    "key": "scan-sonarqube",
+    "template_key": "scan-sonarqube",
+    "plugin_key": "sonarqube",
     "display": "SonarQube"
 }, {
-    "key": "scan-checkmarx",
+    "template_key": "scan-checkmarx",
+    "plugin_key": "checkmarx",
     "display": "Checkmarx"
 }, {
-    "key": "test-postman",
+    "template_key": "test-postman",
+    "plugin_key": "postman",
     "display": "Postman"
 }, {
-    "key": "test-sideex",
+    "template_key": "test-sideex",
+    "plugin_key": "sideex",
     "display": "SideeX"
 }, {
-    "key": "test-webinspect",
+    "template_key": "test-webinspect",
+    "plugin_key": "webinspect",
     "display": "WebInspect"
 }, {
-    "key": "test-zap",
+    "template_key": "test-zap",
+    "plugin_key": "zap",
     "display": "ZAP"
 }, {
-    "key": "db",
+    "template_key": "db",
     "display": "Database"
 }, {
-    "key": "web",
+    "template_key": "web",
     "display": "Web"
 }]
 
 gitlab_private_token = config.get("GITLAB_PRIVATE_TOKEN")
-gl = Gitlab(config.get("GITLAB_BASE_URL"), private_token=gitlab_private_token)
+gl = Gitlab(config.get("GITLAB_BASE_URL"), private_token=gitlab_private_token, ssl_verify=False)
 
 
 def __tm_get_tag_info(pj, tag_name):
@@ -148,7 +155,13 @@ def __tm_git_clone_file(pj,
                         create_time=None,
                         branch_name=None):
     temp_http_url = pj.http_url_to_repo
-    secret_temp_http_url = temp_http_url[:
+    protocol = 'https' if temp_http_url[:5] == "https" else 'http'
+    if protocol == "https":
+        secret_temp_http_url = temp_http_url[:
+                                         8] + f"root:{gitlab_private_token}@" + temp_http_url[
+                                             8:]
+    else:
+        secret_temp_http_url = temp_http_url[:
                                          7] + f"root:{gitlab_private_token}@" + temp_http_url[
                                              7:]
     Path(f"{dest_folder_name}").mkdir(exist_ok=True)
@@ -187,11 +200,17 @@ def __check_git_project_is_empty(pj):
     if pj.default_branch is None or pj.repository_tree() is None:
         return True
 
+def __add_plugin_soft_status():
+    db_plugins = PluginSoftware.query.all()
+    for software in support_software:
+        for db_plugin in db_plugins:
+            if software.get('plugin_key') == db_plugin.name:
+                software['plugin_disabled'] = db_plugin.disabled
 
 def __force_update_template_cache_table():
-    for template_list_cache in TemplateListCache.query.all():
-        db.session.delete(template_list_cache)
-        db.session.commit()
+    TemplateListCache.query.delete()
+    db.session.commit()
+
     output = [{
         "source": "Public Templates",
         "options": []
@@ -260,14 +279,31 @@ def __force_update_template_cache_table():
     return output
 
 
+def __update_stage_when_plugin_disable(stage):
+    catalogTemplate_value = ""
+    if ("steps" in stage) and ("applyAppConfig" in stage['steps'][0]) and 'catalogTemplate' in stage['steps'][0]['applyAppConfig']:
+        catalogTemplate_value = stage['steps'][0]['applyAppConfig']['catalogTemplate'].split(
+                    ":")[1].replace("iii-dev-charts3-", "")
+    if catalogTemplate_value != '':
+        for software in support_software:
+            if software.get('template_key') == catalogTemplate_value and software.get('plugin_disabled') is True:
+                if "when" not in stage:
+                    stage["when"] = {"branch": {"include": []}}
+                stage_when = stage.get("when", {}).get(
+                    "branch", {}).get("include", {})
+                stage_when.clear()
+                stage_when.append("skip")
+    return stage
+
+
 def tm_get_template_list(force_update=0):
     one_day_ago = datetime.fromtimestamp(datetime.utcnow().timestamp() - 86400)
     total_data = TemplateListCache.query.all()
     one_day_ago_data = TemplateListCache.query.filter(
-        TemplateListCache.update_at < one_day_ago).all()
+        TemplateListCache.update_at < one_day_ago).first()
     if force_update == 1:
         return __force_update_template_cache_table()
-    elif len(total_data) == 0 or len(one_day_ago_data) > 1:
+    elif len(total_data) == 0 or one_day_ago_data:
         return __force_update_template_cache_table()
     else:
         output = [{
@@ -311,11 +347,18 @@ def tm_get_template(repository_id, tag_name):
 
 def tm_use_template_push_into_pj(template_repository_id, user_repository_id,
                                  tag_name, arguments):
+    __add_plugin_soft_status()
     template_pj = gl.projects.get(template_repository_id)
     temp_http_url = template_pj.http_url_to_repo
-    secret_temp_http_url = temp_http_url[:
-                                         7] + f"root:{gitlab_private_token}@" + temp_http_url[
-                                             7:]
+    protocol = 'https' if temp_http_url[:5] == "https" else 'http'
+    if protocol == "https":
+        secret_temp_http_url = temp_http_url[:
+                                            8] + f"root:{gitlab_private_token}@" + temp_http_url[
+                                                8:]
+    else:
+        secret_temp_http_url = temp_http_url[:
+                                            7] + f"root:{gitlab_private_token}@" + temp_http_url[
+                                                7:]
     pipe_json = __tm_get_git_pipline_json(template_pj, tag_name=tag_name)
     tag_info_dict = __tm_get_tag_info(template_pj, tag_name)
     pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(template_pj,
@@ -324,10 +367,15 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id,
 
     pj = gl.projects.get(user_repository_id)
     pj_http_url = pj.http_url_to_repo
-    secret_pj_http_url = pj_http_url[:
-                                     7] + f"root:{gitlab_private_token}@" + pj_http_url[
-                                         7:]
-
+    protocol = 'https' if pj_http_url[:5] == "https" else 'http'
+    if protocol == "https":
+        secret_pj_http_url = pj_http_url[:
+                                        8] + f"root:{gitlab_private_token}@" + pj_http_url[
+                                            8:]
+    else:
+        secret_pj_http_url = pj_http_url[:
+                                        7] + f"root:{gitlab_private_token}@" + pj_http_url[
+                                            7:]
     Path("pj_push_template").mkdir(exist_ok=True)
     subprocess.call([
         'git', 'clone', '--branch', tag_info_dict["tag_name"],
@@ -370,6 +418,7 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id,
                                     fun_value[
                                         parm_key] = template_replace_dict[
                                             parm_key]
+            stage = __update_stage_when_plugin_disable(stage)
     with open(f'pj_push_template/{pj.path}/{pipe_yaml_file_name}',
               'w') as file:
         documents = yaml.dump(pipe_json, file)
@@ -396,6 +445,7 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id,
 
 
 def tm_get_pipeline_branches(repository_id):
+    __add_plugin_soft_status()
     pj = gl.projects.get(repository_id)
     if __check_git_project_is_empty(pj):
         return {}
@@ -420,9 +470,10 @@ def tm_get_pipeline_branches(repository_id):
                     ":")[1].replace("iii-dev-charts3-", "")
             for software in support_software:
                 if catalogTemplate_value is not None and software[
-                        "key"] == catalogTemplate_value:
+                        "template_key"] == catalogTemplate_value and \
+                        software.get("plugin_disabled") is False:
                     stage_out_list["name"] = software["display"]
-                    stage_out_list["key"] = software["key"]
+                    stage_out_list["key"] = software["template_key"]
                     if "when" in stage:
                         stage_when = pipeline_yaml_OO.RancherPipelineWhen(
                             stage["when"]["branch"])
@@ -509,6 +560,7 @@ def tm_put_pipeline_branches(repository_id, data):
 
 
 def tm_get_pipeline_default_branch(repository_id):
+    __add_plugin_soft_status()
     pj = gl.projects.get(repository_id)
     if __check_git_project_is_empty(pj):
         return {}
@@ -534,9 +586,10 @@ def tm_get_pipeline_default_branch(repository_id):
                     ":")[1].replace("iii-dev-charts3-", "")
             for software in support_software:
                 if catalogTemplate_value is not None and software[
-                        "key"] == catalogTemplate_value:
+                        "template_key"] == catalogTemplate_value and \
+                        software.get("plugin_disabled") is False:
                     stage_out_list["name"] = software["display"]
-                    stage_out_list["key"] = software["key"]
+                    stage_out_list["key"] = software["template_key"]
                     if "when" in stage:
                         stage_when = pipeline_yaml_OO.RancherPipelineWhen(
                             stage["when"]["branch"])
@@ -606,6 +659,15 @@ class TemplateList(Resource):
     @jwt_required
     def get(self):
         role.require_pm("Error while getting template list.")
+        parser = reqparse.RequestParser()
+        parser.add_argument('force_update', type=int)
+        args = parser.parse_args()
+        return util.success(tm_get_template_list(args["force_update"]))
+
+
+class TemplateListForCronJob(Resource):
+
+    def get(self):
         parser = reqparse.RequestParser()
         parser.add_argument('force_update', type=int)
         args = parser.parse_args()

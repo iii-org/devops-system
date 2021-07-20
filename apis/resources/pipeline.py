@@ -17,14 +17,41 @@ from .rancher import rancher
 
 gitlab = GitLab()
 
+def __rancher_pagination(rancher_output):
 
-def pipeline_exec_list(repository_id):
+    def __url_get_marker(url):
+        key_name = 'marker'
+        for param in url.split("?",1)[1].split("&"):
+            if key_name in param:
+                return __marker_get_id(param.split("=")[1])
+
+    def __marker_get_id(marker):
+        return int(marker.split("-")[3])
+
+    pagination = {"total": rancher_output["pagination"]["total"],
+                  "limit": rancher_output["pagination"]["limit"],
+                  "start": 0, "first": 0, "next": 0, "last": 0}
+    if 'marker' in rancher_output["pagination"]:
+        pagination['start'] = __marker_get_id(rancher_output["pagination"]['marker'])
+    if 'first' in rancher_output["pagination"]:
+        pagination['first'] = __url_get_marker(rancher_output["pagination"]['first'])
+    if 'next' in rancher_output["pagination"]:
+        pagination['next'] = __url_get_marker(rancher_output["pagination"]['next'])
+    if 'last' in rancher_output["pagination"]:
+        pagination['last'] = __url_get_marker(rancher_output["pagination"]['last'])
+    return pagination
+
+
+def pipeline_exec_list(repository_id, args):
+    out = {}
     output_array = []
     relation = nx_get_project_plugin_relation(repo_id=repository_id)
     pipeline_outputs = rancher.rc_get_pipeline_executions(
         relation.ci_project_id,
-        relation.ci_pipeline_id)
-    for pipeline_output in pipeline_outputs:
+        relation.ci_pipeline_id, limit=args['limit'], page_start=args['start'])
+    pagination = __rancher_pagination(pipeline_outputs)
+    out["pagination"]=pagination
+    for pipeline_output in pipeline_outputs['data']:
         output_dict = {
             'id': pipeline_output['run'],
             'last_test_time': pipeline_output['created']
@@ -47,7 +74,8 @@ def pipeline_exec_list(repository_id):
         output_dict['status'] = {'total': len(pipeline_output['stages'])-1,
                                  'success': success_time}
         output_array.append(output_dict)
-    return output_array
+    out["pipe_execs"]= output_array
+    return out
 
 def pipeline_config(repository_id, args):
     relation = nx_get_project_plugin_relation(repo_id=repository_id)
@@ -96,8 +124,8 @@ def stop_and_delete_pipeline(repository_id, run):
     while True:
         pipeline_outputs = rancher.rc_get_pipeline_executions(
             relation.ci_project_id,
-            relation.ci_pipeline_id)
-        if pipeline_outputs[0]['run'] == run or i > 50:
+            relation.ci_pipeline_id, limit=1)
+        if pipeline_outputs['data'][0]['run'] == run or i > 50:
             break
         else:
             i+=1
@@ -203,7 +231,11 @@ def _get_rancher_pipeline_yaml(repository_id, parameter):
 class PipelineExec(Resource):
     @jwt_required
     def get(self, repository_id):
-        output_array = pipeline_exec_list(repository_id)
+        parser = reqparse.RequestParser()
+        parser.add_argument('limit', type=int)
+        parser.add_argument('start', type=int)
+        args = parser.parse_args()
+        output_array = pipeline_exec_list(repository_id, args)
         return util.success(output_array)
 
 

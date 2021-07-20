@@ -1,6 +1,11 @@
+
 import datetime
 import os
 import sys
+
+if f"{os.getcwd()}/apis" not in sys.path:
+    sys.path.insert(1, f"{os.getcwd()}/apis")
+
 import traceback
 from os.path import isfile
 
@@ -14,23 +19,23 @@ from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy_utils import database_exists, create_database
 from werkzeug.routing import IntegerConverter
 
-if f"{os.getcwd()}/apis" not in sys.path:
-    sys.path.insert(1, f"{os.getcwd()}/apis")
-
+import plugins
+from plugins import webinspect, sideex, zap, sonarqube, postman, ad
 import config
 import migrate
 import model
 import resources.apiError as apiError
-import resources.checkmarx as checkmarx
+import plugins.checkmarx as checkmarx
 import resources.pipeline as pipeline
 import resources.rancher as rancher
 import util
 import maintenance
 from jsonwebtoken import jsonwebtoken
 from model import db
-from resources import logger, role as role, activity, zap, sideex
-from resources import project, gitlab, issue, user, redmine, wiki, version, sonarqube, apiTest, postman, mock, harbor, \
-    webInspect, template, release, sync_redmine, plugin, kubernetesClient, ad, project_permission, quality
+from resources import logger, role as role, activity, starred_project, devops_version
+from resources import project, gitlab, issue, user, redmine, wiki, version, apiTest, mock, harbor, \
+    template, release, sync_redmine, plugin, kubernetesClient, project_permission, quality, sync_project, \
+    sync_user, router
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -84,12 +89,19 @@ def internal_error(exception):
 # noinspection PyMethodMayBeStatic
 class SystemGitCommitID(Resource):
     def get(self):
+        git_commit_id = ""
+        git_tag = ""
+        git_date = ""
         if os.path.exists("git_commit"):
             with open("git_commit") as f:
                 git_commit_id = f.read().splitlines()[0]
-                return util.success({"git_commit_id": "{0}".format(git_commit_id)})
-        else:
-            raise apiError.DevOpsError(400, "git_commit file is not exist.")
+        if os.path.exists("git_tag"):
+            with open("git_tag") as f:
+                git_tag = f.read().splitlines()[0]
+        if os.path.exists("git_date"):
+            with open("git_date") as f:
+                git_date = f.read().splitlines()[0]
+        return util.success({"git_commit_id": git_commit_id, "git_tag": git_tag, "git_date": git_date})
 
 
 class NexusVersion(Resource):
@@ -174,9 +186,13 @@ def initialize(db_uri):
     }
     user.create_user(args)
     logger.logger.info('Initial admin created.')
+    my_uuid = devops_version.set_deployment_uuid()
+    logger.logger.info(f'Deployment UUID set as {my_uuid}.')
     migrate.init()
     logger.logger.info('Server initialized.')
 
+
+api.add_resource(router.Router, '/router')
 
 api.add_resource(project.GitRepoIdToCiPipeId, '/git_repo_id_to_ci_pipe_id/<repository_id>')
 
@@ -192,6 +208,8 @@ api.add_resource(project.ProjectUserResource, '/project/<sint:project_id>/resour
 api.add_resource(project.ProjectUserResourcePods, '/project/<sint:project_id>/resource/pods')
 api.add_resource(project.ProjectUserResourcePod, '/project/<sint:project_id>/resource/pods/<pod_name>')
 api.add_resource(project.ProjectUserResourcePodLog, '/project/<sint:project_id>/resource/pods/<pod_name>/log')
+
+api.add_resource(starred_project.StarredProject, '/project/<sint:project_id>/star')
 
 # k8s Deployment
 api.add_resource(project.ProjectUserResourceDeployments, '/project/<sint:project_id>/resource/deployments')
@@ -223,11 +241,14 @@ api.add_resource(version.ProjectVersion, '/project/<sint:project_id>/version',
                  '/project/<sint:project_id>/version/<int:version_id>')
 api.add_resource(project.TestSummary, '/project/<sint:project_id>/test_summary')
 api.add_resource(template.TemplateList, '/template_list')
+api.add_resource(template.TemplateListForCronJob, '/template_list_for_cronjob')
 api.add_resource(template.SingleTemplate, '/template', '/template/<repository_id>')
 api.add_resource(template.ProjectPipelineBranches, '/project/<repository_id>/pipeline/branches')
 api.add_resource(template.ProjectPipelineDefaultBranch, '/project/<repository_id>/pipeline/default_branch')
 api.add_resource(project.ProjectEnvironment, '/project/<sint:project_id>/environments',
                  '/project/<sint:project_id>/environments/branch/<branch_name>')
+api.add_resource(project.ProjectEnvironmentUrl,
+                 '/project/<sint:project_id>/environments/branch/<branch_name>/urls')
 
 # Gitlab project
 api.add_resource(gitlab.GitProjectBranches, '/repositories/<repository_id>/branches')
@@ -274,10 +295,10 @@ api.add_resource(pipeline.PipelineYaml,
 # Websocket
 socketio.on_namespace(rancher.RancherWebsocketLog('/rancher/websocket/logs'))
 
-
 # issue
+api.add_resource(issue.IssueFamily, '/issue/<issue_id>/family')
 api.add_resource(issue.IssueByProject, '/project/<sint:project_id>/issues')
-api.add_resource(issue.IssueListByProject, '/project/<sint:project_id>/issues_list')
+api.add_resource(issue.IssueByUser, '/user/<sint:user_id>/issues')
 api.add_resource(issue.IssueByTreeByProject, '/project/<sint:project_id>/issues_by_tree')
 api.add_resource(issue.IssueByStatusByProject,
                  '/project/<sint:project_id>/issues_by_status')
@@ -302,13 +323,15 @@ api.add_resource(issue.CheckIssueClosable, '/issues/<issue_id>/check_closable')
 # Release
 api.add_resource(release.Releases, '/project/<project_id>/releases')
 api.add_resource(release.Release, '/project/<project_id>/releases/<release_name>')
+
+# Plugins
 api.add_resource(plugin.Plugins, '/plugins')
-api.add_resource(plugin.Plugin, '/plugins/<sint:plugin_id>')
+api.add_resource(plugin.Plugin, '/plugins/<plugin_name>')
 
 # AD Server
-api.add_resource(ad.Users, '/plugins/ad/users')
-api.add_resource(ad.User, '/plugins/ad/user')
-api.add_resource(ad.Organizations, '/plugins/ad/organizations')
+api.add_resource(ad.ADUsers, '/plugins/ad/users')
+api.add_resource(ad.ADUser, '/plugins/ad/user')
+api.add_resource(ad.ADOrganizations, '/plugins/ad/organizations')
 
 # dashboard
 api.add_resource(issue.DashboardIssuePriority,
@@ -419,11 +442,11 @@ api.add_resource(harbor.HarborReplicationPolicy, '/harbor/replication/policy')
 api.add_resource(harbor.HarborReplicationExecution, '/harbor/replication/execution')
 
 # WebInspect
-api.add_resource(webInspect.WebInspectScan, '/webinspect/create_scan',
+api.add_resource(webinspect.WebInspectScan, '/webinspect/create_scan',
                  '/webinspect/list_scan/<project_name>')
-api.add_resource(webInspect.WebInspectScanStatus, '/webinspect/status/<scan_id>')
-api.add_resource(webInspect.WebInspectScanStatistics, '/webinspect/stats/<scan_id>')
-api.add_resource(webInspect.WebInspectReport, '/webinspect/report/<scan_id>')
+api.add_resource(webinspect.WebInspectScanStatus, '/webinspect/status/<scan_id>')
+api.add_resource(webinspect.WebInspectScanStatistics, '/webinspect/stats/<scan_id>')
+api.add_resource(webinspect.WebInspectReport, '/webinspect/report/<scan_id>')
 
 # Maintenance
 api.add_resource(maintenance.UpdateDbRcProjectPipelineId, '/maintenance/update_rc_pj_pipe_id')
@@ -431,6 +454,7 @@ api.add_resource(maintenance.SecretesIntoRcAll, '/maintenance/secretes_into_rc_a
                  '/maintenance/secretes_into_rc_all/<secret_name>')
 api.add_resource(maintenance.RegistryIntoRcAll, '/maintenance/registry_into_rc_all',
                  '/maintenance/registry_into_rc_all/<registry_name>')
+api.add_resource(maintenance.UpdatePjHttpUrl, '/maintenance/update_pj_http_url')
 
 # Rancher
 api.add_resource(rancher.Catalogs, '/rancher/catalogs')
@@ -461,13 +485,25 @@ api.add_resource(project_permission.SetPermission, '/project_permission/set_perm
 api.add_resource(quality.TestPlanList, '/quality/<int:project_id>/testplan_list')
 api.add_resource(quality.TestPlan, '/quality/<int:project_id>/testplan/<int:testplan_id>')
 api.add_resource(quality.TestFileList, '/quality/<int:project_id>/testfile_list')
-api.add_resource(quality.TestFile, '/quality/<int:project_id>/testfile/<test_file_name>')
+api.add_resource(quality.TestFile, '/quality/<int:project_id>/testfile',
+                 '/quality/<int:project_id>/testfile/<test_file_name>')
 api.add_resource(quality.TestPlanWithTestFile, '/quality/<int:project_id>/testplan_with_testfile',
                  '/quality/<int:project_id>/testplan_with_testfile/<int:item_id>')
-
+api.add_resource(quality.Report, '/quality/<int:project_id>/report')
 
 # System versions
 api.add_resource(NexusVersion, '/system_versions')
+
+# Sync Projects
+api.add_resource(sync_project.SyncProject, '/sync_projects')
+
+# Sync Users
+api.add_resource(sync_user.SyncUser, '/sync_users')
+
+# Centralized version check
+api.add_resource(devops_version.DevOpsVersion, '/devops_version')
+api.add_resource(devops_version.DevOpsVersionCheck, '/devops_version/check')
+api.add_resource(devops_version.DevOpsVersionUpdate, '/devops_version/update')
 
 
 def start_prod():
@@ -477,8 +513,12 @@ def start_prod():
         jsonwebtoken.init_app(app)
         initialize(config.get('SQLALCHEMY_DATABASE_URI'))
         migrate.run()
+        kubernetesClient.create_iiidevops_env_secret_namespace()
         kubernetesClient.apply_cronjob_yamls()
         logger.logger.info('Apply k8s-yaml cronjob.')
+        template.tm_get_template_list()
+        logger.logger.info('Get the public and local template list')
+        plugins.sync_plugins_in_db_and_code()
         return app
     except Exception as e:
         ret = internal_error(e)

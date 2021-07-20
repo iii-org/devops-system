@@ -1,0 +1,25 @@
+ {
+    "name": "checkmarx",
+    "keys": [
+        {
+            "key": "client-secret",
+            "type": "string",
+            "store": "secret_all"
+        },
+        {
+            "key": "cm-url",
+            "type": "string",
+            "store": "secret_all"
+        },
+        {
+            "key": "username",
+            "type": "string",
+            "store": "secret_all"
+        },
+        {
+            "key": "password",
+            "type": "string",
+            "store": "secret_all"
+        }
+    ]
+}

@@ -9,6 +9,7 @@ import model
 import nexus
 import util
 from resources import role, gitlab
+from resources.test_generated_issue import tgi_feed_sideex
 
 
 def sd_start_test(args):
@@ -45,6 +46,7 @@ def sd_finish_test(args):
     row.finished_at = datetime.now()
     model.db.session.add(row)
     model.db.session.commit()
+    tgi_feed_sideex(row)
 
     # Clean up old reports
     rows = model.Sideex.query.filter(

@@ -14,7 +14,7 @@ import util as util
 from resources.apiError import DevOpsError
 from resources.logger import logger
 from . import kubernetesClient, role
-from services import redmine_lib
+from accessories import redmine_lib
 
 
 class Redmine:
@@ -51,7 +51,7 @@ class Redmine:
         output = util.api_request(method, url, headers, params, data)
 
         if resp_format != '':
-            logger.info('redmine api {0} {1}, params={2}, body={5}, response={3} {4}'.format(
+            logger.debug('redmine api {0} {1}, params={2}, body={5}, response={3} {4}'.format(
                 method, url, params.__str__(), output.status_code, output.text, data))
         if int(output.status_code / 100) != 2:
             raise apiError.DevOpsError(
@@ -85,7 +85,7 @@ class Redmine:
             self.__refresh_key()
 
     def __refresh_key(self, operator_id=None):
-        protocol = 'http'
+        protocol = 'https' if config.get('REDMINE_INTERNAL_BASE_URL')[:5] == "https" else 'http'
         host = config.get('REDMINE_INTERNAL_BASE_URL')[len(protocol + '://'):]
         if operator_id is None:
             # get redmine_key
@@ -166,8 +166,11 @@ class Redmine:
         }
         return self.paging('issues', 100, params)
 
-    def rm_get_issue(self, issue_id):
-        params = {'include': 'children,attachments,relations,changesets,journals,watchers'}
+    def rm_get_issue(self, issue_id, journals=True):
+        if journals is False:
+            params = {'include': 'children,attachments,relations,changesets,watchers'}
+        else:
+            params = {'include': 'children,attachments,relations,changesets,journals,watchers'}
         output = self.__api_get('/issues/{0}'.format(issue_id), params=params)
         return output.json()['issue']
 
@@ -291,6 +294,9 @@ class Redmine:
         if 'upload_description' in args:
             ret['description'] = args['upload_description']
             del args['upload_description']
+        if 'upload_content_type' in args:
+            ret['content_type'] = args['upload_content_type']
+            del args['upload_content_type']
         return ret
 
     def rm_upload_to_project(self, plan_project_id, args):
@@ -467,19 +473,21 @@ class RedmineMail(Resource):
 class RedmineRelease():
     @jwt_required
     def check_redemine_release(self, targets, versions, main_version=None):
-        output = {'check': True, "info": "", 'errors': {}, 'versions': {"pass": [], "failed": []}, 'failed_name': [],
-                  'issues': []}
+        output = {'check': True, "info": "", 'errors': {}, 'versions_status': {"pass": [], "failed": []}, 'failed_name': [],
+                  'issues': [],'unclosed_issues': [],'versions': []}
         for target in targets:
             version_id = str(target['id'])
+            output['issues'] += target['issues']
+            output['versions'].append(int(target['id']))
             if version_id == main_version:
                 output['errors'] = {"id": version_id, 'name': versions[version_id]['name']}
             if target['unclosed'] != 0:
                 output['check'] = False
-                output['versions']['failed'].append({"id": version_id, 'name': versions[version_id]['name']})
+                output['versions_status']['failed'].append({"id": version_id, 'name': versions[version_id]['name']})
                 output['failed_name'].append(versions[version_id]['name'])
-                output['issues'] += target['issues']
+                output['unclosed_issues'] += target['issues']
             else:
-                output['versions']['pass'].append({"id": version_id, 'name': versions[version_id]['name']})
+                output['versions_status']['pass'].append({"id": version_id, 'name': versions[version_id]['name']})
         if len(output['failed_name']) > 0:
             output['info'] = 'Issue is not closed in version {0} in redmine'.format(
                 ' '.join(map(str, output['failed_name'])))

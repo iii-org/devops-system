@@ -1,20 +1,26 @@
+import base64
 import json
-import pytz
-from datetime import datetime, timedelta, time
-from dateutil import tz
-from gitlab import Gitlab
-import requests
-from flask_jwt_extended import jwt_required, get_jwt_identity
-from flask_restful import Resource, reqparse
-from sqlalchemy.orm.exc import NoResultFound
+import os
+from datetime import datetime, time, timedelta
+from pathlib import Path
 
 import config
 import model
-from model import db, GitCommitNumberEachDays
+import nexus
+import pytz
+import requests
 import util as util
+from dateutil import tz
+from flask_jwt_extended import get_jwt_identity, jwt_required
+from flask_restful import Resource, reqparse
+from model import GitCommitNumberEachDays, db
+from sqlalchemy.orm.exc import NoResultFound
+
+from gitlab import Gitlab
 from resources import apiError, kubernetesClient, role
 from resources.apiError import DevOpsError
 from resources.logger import logger
+
 from .rancher import rancher
 
 
@@ -38,8 +44,7 @@ def commit_id_to_url(project_id, commit_id):
 
 # May throws NoResultFound
 def get_repository_id(project_id):
-    return model.ProjectPluginRelation.query.filter_by(
-        project_id=project_id).one().git_repository_id
+    return nexus.nx_get_project_plugin_relation(project_id).git_repository_id
 
 
 class GitLab(object):
@@ -62,7 +67,7 @@ class GitLab(object):
         else:
             self.private_token = config.get("GITLAB_PRIVATE_TOKEN")
         self.gl = Gitlab(config.get("GITLAB_BASE_URL"),
-                         private_token=self.private_token)
+                         private_token=self.private_token, ssl_verify=False)
 
     @staticmethod
     def gl_get_nexus_project_id(repository_id):
@@ -79,7 +84,7 @@ class GitLab(object):
     def gl_get_project_id_from_url(repository_url):
         row = model.Project.query.filter_by(http_url=repository_url).one()
         project_id = row.id
-        repository_id = get_repository_id(project_id)
+        repository_id = nexus.nx_get_repository_id(project_id)
         return {'project_id': project_id, 'repository_id': repository_id}
 
     def __api_request(self,
@@ -101,7 +106,7 @@ class GitLab(object):
 
         output = util.api_request(method, url, headers, params, data)
 
-        logger.info(
+        logger.debug(
             f'gitlab api {method} {url}, params={params.__str__()}, body={data}, response={output.status_code} {output.text}'
         )
         if int(output.status_code / 100) != 2:
@@ -138,6 +143,9 @@ class GitLab(object):
             datetime.strptime(gl_datetime_str,
                               '%Y-%m-%dT%H:%M:%S.%f%z').astimezone(pytz.utc),
             '%Y-%m-%dT%H:%M:%S%z')
+    
+    def gl_get_all_project(self):
+        return self.gl.projects.list(all=True)
 
     def gl_create_project(self, args):
         return self.__api_post('/projects',
@@ -187,6 +195,9 @@ class GitLab(object):
     def gl_get_user_list(self, args):
         return self.__api_get('/users', params=args)
 
+    def gl_project_list_member(self, project_id, args):
+        return self.__api_get(f'/projects/{project_id}/members', params=args)
+
     def gl_project_add_member(self, project_id, user_id):
         params = {
             "user_id": user_id,
@@ -205,7 +216,8 @@ class GitLab(object):
         return self.__api_get(f'/users/{gitlab_user_id}/emails')
 
     def gl_delete_user_email(self, gitlab_user_id, gitlab_email_id):
-        return self.__api_delete(f'/users/{gitlab_user_id}/emails/{gitlab_email_id}')
+        return self.__api_delete(
+            f'/users/{gitlab_user_id}/emails/{gitlab_email_id}')
 
     def gl_count_branches(self, repo_id):
         output = self.__api_get(f'/projects/{repo_id}/repository/branches')
@@ -236,29 +248,9 @@ class GitLab(object):
             raise DevOpsError(output.status_code,
                               "Error while getting git branches",
                               error=apiError.gitlab_error(output))
-        # get gitlab project path
-        project_detail = self.gl_get_project(repo_id)
-        # get kubernetes service nodePort url
-        k8s_service_list = kubernetesClient.list_service_all_namespaces()
-        k8s_node_list = kubernetesClient.list_work_node()
-        work_node_ip = k8s_node_list[0]['ip']
 
         branch_list = []
         for branch_info in output.json():
-            env_url_list = []
-            for k8s_service in k8s_service_list:
-                if k8s_service['type'] == 'NodePort' and \
-                        f'{project_detail["path"]}-{branch_info["name"]}' \
-                        in k8s_service['name']:
-                    port_list = []
-                    for port in k8s_service['ports']:
-                        port_list.append({
-                            "port":
-                            port['port'],
-                            "url":
-                            f"http://{work_node_ip}:{port['nodePort']}"
-                        })
-                    env_url_list.append({k8s_service['name']: port_list})
             branch = {
                 "name":
                 branch_info["name"],
@@ -271,8 +263,6 @@ class GitLab(object):
                 'commit_url':
                 commit_id_to_url(get_nexus_project_id(repo_id),
                                  branch_info['commit']['short_id']),
-                "env_url":
-                env_url_list
             }
             branch_list.append(branch)
         return branch_list
@@ -600,24 +590,47 @@ class GitLab(object):
     def ql_get_collection(self, repository_id, path):
         try:
             pj = self.gl.projects.get(repository_id)
+            if pj.empty_repo:
+                return []
             return pj.repository_tree(ref=pj.default_branch, path=path)
         except apiError.TemplateError as e:
             raise apiError.TemplateError(
                 404,
                 "Error when getting project repository_tree.",
                 error=apiError.gitlab_error(e))
-    
+
     def gl_get_file(self, repository_id, path):
         pj = self.gl.projects.get(repository_id)
         f_byte = pj.files.raw(file_path=path, ref=pj.default_branch).decode()
         return f_byte
+
+    def gl_create_file(self, repository_id, file_path, file):
+        pj = self.gl.projects.get(repository_id)
+        Path("pj_upload_file").mkdir(exist_ok=True)
+        if os.path.isfile(f"pj_upload_file/{file.filename}"):
+            os.remove(f"pj_upload_file/{file.filename}")
+        file.save(f"pj_upload_file/{file.filename}")
+        with open(f"pj_upload_file/{file.filename}", 'r') as f:
+            content = base64.b64encode(bytes(f.read(),
+                                             encoding='utf-8')).decode('utf-8')
+            pj.files.create({
+                'file_path': file_path,
+                'branch': pj.default_branch,
+                'encoding': 'base64',
+                'author_email': 'system@iiidevops.org.tw',
+                'author_name': 'System',
+                'content': content,
+                'commit_message': f'Add file {file_path}'
+            })
+        if os.path.isfile(f"pj_upload_file/{file.filename}"):
+            os.remove(f"pj_upload_file/{file.filename}")
 
 
 # --------------------- Resources ---------------------
 gitlab = GitLab()
 
 
-class GitRelease():
+class GitRelease:
     @jwt_required
     def check_gitlab_release(self, repository_id, tag_name):
         output = {'check': True, "info": "", "errors": {}}

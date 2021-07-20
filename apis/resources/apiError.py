@@ -23,7 +23,7 @@ def error_3rd_party_api(service_name, response):
                  {'service_name': service_name, 'response': resp_value})
 
 
-# Temlate errors
+# Template errors
 def template_not_found(template_id):
     return build(5001, 'Template not found.',
                  {'template_id': template_id})
@@ -80,6 +80,11 @@ def invalid_project_content(key, value):
 
 def invalid_project_owner(owner_id=None):
     return build(1011, 'Project owner role must be PM.', {'owner_id': owner_id})
+
+
+def invalid_fixed_version_id(fixed_version, fixed_version_status):
+    return build(1012, 'Fixed version status is {0}.'.format(fixed_version_status),
+                 {'fixed_version': fixed_version, 'fixed_version_status': fixed_version_status})
 
 
 # User errors
