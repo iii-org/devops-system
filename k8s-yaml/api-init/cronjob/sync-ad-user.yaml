@@ -1,7 +1,7 @@
 apiVersion: batch/v1beta1
 kind: CronJob
 metadata:
-  name: sync-redmine
+  name: sync-ad
 spec:
   schedule: "0 * * * *"
   successfulJobsHistoryLimit: 0
