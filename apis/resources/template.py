@@ -445,6 +445,7 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id,
 
 
 def tm_get_pipeline_branches(repository_id):
+    __add_plugin_soft_status()
     pj = gl.projects.get(repository_id)
     if __check_git_project_is_empty(pj):
         return {}
@@ -469,7 +470,8 @@ def tm_get_pipeline_branches(repository_id):
                     ":")[1].replace("iii-dev-charts3-", "")
             for software in support_software:
                 if catalogTemplate_value is not None and software[
-                        "template_key"] == catalogTemplate_value:
+                        "template_key"] == catalogTemplate_value and \
+                        software.get("plugin_disabled") is False:
                     stage_out_list["name"] = software["display"]
                     stage_out_list["key"] = software["template_key"]
                     if "when" in stage:
