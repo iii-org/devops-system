@@ -9,6 +9,7 @@ from datetime import datetime
 from enum import Enum
 from os.path import dirname, join, exists
 
+
 from kubernetes.client import ApiException
 
 import model
@@ -17,6 +18,7 @@ from resources.apiError import DevOpsError
 from resources.kubernetesClient import read_namespace_secret, SYSTEM_SECRET_NAMESPACE, DEFAULT_NAMESPACE, \
     create_namespace_secret, patch_namespace_secret, delete_namespace_secret
 from resources.rancher import rancher
+from resources import role
 
 SYSTEM_SECRET_PREFIX = 'system-secret-'
 
@@ -100,6 +102,12 @@ def get_plugin_config(plugin_name):
             'type': item['type'],
             'value': value
         }
+        # Add Select Option 
+        if item['type'] == 'select':            
+            o['options'] = item['options']
+            #  If Plugin is AD , get system role list
+            if plugin_name == 'ad':
+                o['options'] = role.get_user_roles()
         ret['arguments'].append(o)
     return ret
 
