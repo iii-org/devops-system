@@ -202,10 +202,10 @@ def __check_git_project_is_empty(pj):
 
 def __add_plugin_soft_status():
     db_plugins = PluginSoftware.query.all()
-    for soft in support_software:
+    for software in support_software:
         for db_plugin in db_plugins:
-            if soft.get('plugin_key') == db_plugin.name:
-                soft['plugin_disabled'] = db_plugin.disabled
+            if software.get('plugin_key') == db_plugin.name:
+                software['plugin_disabled'] = db_plugin.disabled
 
 def __force_update_template_cache_table():
     TemplateListCache.query.delete()
@@ -277,6 +277,23 @@ def __force_update_template_cache_table():
                 db.session.add(cache_temp)
                 db.session.commit()
     return output
+
+
+def __update_stage_when_plugin_disable(stage):
+    catalogTemplate_value = ""
+    if ("steps" in stage) and ("applyAppConfig" in stage['steps'][0]) and 'catalogTemplate' in stage['steps'][0]['applyAppConfig']:
+        catalogTemplate_value = stage['steps'][0]['applyAppConfig']['catalogTemplate'].split(
+                    ":")[1].replace("iii-dev-charts3-", "")
+    if catalogTemplate_value != '':
+        for software in support_software:
+            if software.get('template_key') == catalogTemplate_value and software.get('plugin_disabled') is True:
+                if "when" not in stage:
+                    stage["when"] = {"branch": {"include": []}}
+                stage_when = stage.get("when", {}).get(
+                    "branch", {}).get("include", {})
+                stage_when.clear()
+                stage_when.append("skip")
+    return stage
 
 
 def tm_get_template_list(force_update=0):
@@ -401,6 +418,7 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id,
                                     fun_value[
                                         parm_key] = template_replace_dict[
                                             parm_key]
+            stage = __update_stage_when_plugin_disable(stage)
     with open(f'pj_push_template/{pj.path}/{pipe_yaml_file_name}',
               'w') as file:
         documents = yaml.dump(pipe_json, file)
@@ -427,6 +445,7 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id,
 
 
 def tm_get_pipeline_branches(repository_id):
+    __add_plugin_soft_status()
     pj = gl.projects.get(repository_id)
     if __check_git_project_is_empty(pj):
         return {}
@@ -451,7 +470,8 @@ def tm_get_pipeline_branches(repository_id):
                     ":")[1].replace("iii-dev-charts3-", "")
             for software in support_software:
                 if catalogTemplate_value is not None and software[
-                        "key"] == catalogTemplate_value:
+                        "template_key"] == catalogTemplate_value and \
+                        software.get("plugin_disabled") is False:
                     stage_out_list["name"] = software["display"]
                     stage_out_list["key"] = software["template_key"]
                     if "when" in stage:
@@ -540,6 +560,7 @@ def tm_put_pipeline_branches(repository_id, data):
 
 
 def tm_get_pipeline_default_branch(repository_id):
+    __add_plugin_soft_status()
     pj = gl.projects.get(repository_id)
     if __check_git_project_is_empty(pj):
         return {}
@@ -565,7 +586,8 @@ def tm_get_pipeline_default_branch(repository_id):
                     ":")[1].replace("iii-dev-charts3-", "")
             for software in support_software:
                 if catalogTemplate_value is not None and software[
-                        "template_key"] == catalogTemplate_value:
+                        "template_key"] == catalogTemplate_value and \
+                        software.get("plugin_disabled") is False:
                     stage_out_list["name"] = software["display"]
                     stage_out_list["key"] = software["template_key"]
                     if "when" in stage:

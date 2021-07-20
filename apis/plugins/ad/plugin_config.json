@@ -38,7 +38,26 @@
         },
         {
             "key": "default_role_id",
-            "type": "string",
+            "type": "select",
+            "options": [                
+                {
+                    "id": 1,
+                    "name" :"Engineer"
+                },
+                {
+                    "id":3,
+                    "name" :"Project Manager"
+                },
+                {
+                    "id" : 5,
+                    "label" :"Administrator"
+                },
+                {
+
+                    "value" : 7,
+                    "name" :"QA"
+                }
+            ],
             "store": "secret_system"
         }
     ]
