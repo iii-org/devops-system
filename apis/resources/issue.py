@@ -615,6 +615,8 @@ def get_issue_list_by_project(project_id, args):
     for redmine_issue in all_issues:
         nx_issue_params['redmine_issue'] = redmine_issue
         issue = NexusIssue().set_redmine_issue_v2(**nx_issue_params).to_json()
+        if args["has_children"] and not strtobool(args['has_children']) and issue.get("has_children") is True:
+            continue
         output.append(issue)
 
     if args['limit'] and args['offset'] is not None:
@@ -1519,6 +1521,7 @@ class IssueByProject(Resource):
         parser.add_argument('search', type=str)
         parser.add_argument('selection', type=str)
         parser.add_argument('sort', type=str)
+        parser.add_argument('has_children', type=str)
         args = parser.parse_args()
         output = get_issue_list_by_project(project_id, args)
         return util.success(output)
