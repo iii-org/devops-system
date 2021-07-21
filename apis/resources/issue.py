@@ -735,7 +735,7 @@ def get_custom_filters_by_args(args=None, project_id=None, user_id=None):
 
 
 def handle_allowed_keywords(default_filters, args):
-    allowed_keywords = ['fixed_version_id', 'status_id', 'tracker_id', 'assigned_to_id', 'priority_id']
+    allowed_keywords = ['fixed_version_id', 'status_id', 'tracker_id', 'assigned_to_id', 'priority_id', 'parent_id']
     for key in allowed_keywords:
         if args.get(key, None):
             # 如果 keywords 值為 'null'，python-redmine filter 值為 '!*'
@@ -1519,6 +1519,7 @@ class IssueByProject(Resource):
         parser.add_argument('search', type=str)
         parser.add_argument('selection', type=str)
         parser.add_argument('sort', type=str)
+        parser.add_argument('parent_id', type=str)
         args = parser.parse_args()
         output = get_issue_list_by_project(project_id, args)
         return util.success(output)
