@@ -14,6 +14,8 @@ from model import db
 from resources import role
 from .rancher import rancher
 
+# These code are not used for plugins other than ad. (I don't if ad use these code)
+
 invalid_plugin_id = 'Unable get plugin'
 invalid_plugin_softwares = 'Unable get plugin softwares'
 
@@ -21,7 +23,7 @@ invalid_plugin_softwares = 'Unable get plugin softwares'
 class Rancher(object):
     def __init__(self, args):
         self.name = args.get('name')
-        self.parameter = {            
+        self.parameter = {
             'data' : args.get('parameter'),
             'type' : 'secret'
         }
@@ -37,7 +39,7 @@ class Rancher(object):
     def put_secrets_into_rc_all(self):
         rancher.rc_put_secrets_into_rc_all(self.name, self.parameter)
         return "Success"
-        
+
     def delete_secrets_into_rc_all(self):
         rancher.rc_delete_secrets_into_rc_all(self.name)
         return "Success"
@@ -52,14 +54,14 @@ def get_plugin_parameters(args):
         parameters = None
     return parameters
 
-     
+
 def k8s_secrest_decode(data):
     output = {}
     if data is None:
         return output
-    for k,v  in data.items():        
+    for k,v  in data.items():
         output[k] = base64.b64decode(v).decode('utf-8')
-    return output 
+    return output
 
 def row_to_dict(row):
     ret = {}
@@ -103,7 +105,7 @@ def get_plugin_software_by_id(plugin_id):
         for secret in secrets:
             if secret['name'] == plugin.name :
                 output['parameter'] = k8s_secrest_decode(secret['data'])
-                break                    
+                break
     return output
 
 
@@ -120,7 +122,7 @@ def update_plugin_software(plugin_id, args):
         return {}
     if args.get('type_id') == 2:
         k8s = Rancher(args)
-        k8s.put_secrets_into_rc_all()          
+        k8s.put_secrets_into_rc_all()
         r.parameter = None
     else:
         r.parameter = get_plugin_parameters(args)
@@ -139,7 +141,7 @@ def create_plugin_software(args):
     type_id = args.get('type_id')
     if type_id == 2:
         k8s = Rancher(args)
-        k8s.add_secrets_into_rc_all()                            
+        k8s.add_secrets_into_rc_all()
     parameter = get_plugin_parameters(args)
     new = model.PluginSoftware(
         name=args['name'],
@@ -155,15 +157,16 @@ def create_plugin_software(args):
 
 def delete_plugin_software(plugin_id):
     r = model.PluginSoftware.query.filter_by(
-        id=plugin_id).first()        
+        id=plugin_id).first()
     if r.type_id == 2:
         k8s = Rancher({'name' : r.name})
-        k8s.delete_secrets_into_rc_all()               
+        k8s.delete_secrets_into_rc_all()
     db.session.delete(r)
     db.session.commit()
     return {'plugin_id': plugin_id}
 
 
+# ------------------------- Resources -------------------------
 class Plugins(Resource):
     @jwt_required
     def get(self):
