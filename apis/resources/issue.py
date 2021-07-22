@@ -122,7 +122,7 @@ class NexusIssue:
                 'id': redmine_issue.status.id,
                 'name': redmine_issue.status.name
             },
-            'relations': []
+
         }
         if hasattr(redmine_issue, 'project'):
             if nx_project is None:
@@ -192,8 +192,6 @@ class NexusIssue:
             }
         if redmine_issue.status.id in NexusIssue.get_closed_statuses():
             self.data['is_closed'] = True
-        if hasattr(redmine_issue, 'relations'):
-            self.data['relations'] = list(redmine_issue.relations.values())
         return self
 
     @staticmethod
