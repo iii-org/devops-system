@@ -96,6 +96,7 @@ class NexusIssue:
 
     def set_redmine_issue_v2(self, redmine_issue, with_relationship=False,
                              relationship_bool=False, nx_project=None, users_info=None):
+        
         self.data = {
             'id': redmine_issue.id,
             'name': redmine_issue.subject,
@@ -133,16 +134,17 @@ class NexusIssue:
                 'name': nx_project.name,
                 'display': nx_project.display
             }
+        self.data['has_children'] = check_issue_has_children(redmine_issue)
         if relationship_bool:
             self.data['family'] = False
-            if hasattr(redmine_issue, 'parent') or redmine_issue.relations.total_count>0:
+            if hasattr(redmine_issue, 'parent') or redmine_issue.relations.total_count>0 \
+                or self.data['has_children']:
                 self.data['family'] = True
         if with_relationship:
             self.data['parent'] = None
             self.data['children'] = []
             if hasattr(redmine_issue, 'parent'):
                 self.data['parent'] = redmine_issue.parent.id
-        self.data = check_issue_has_children(redmine_issue, self.data)
         if hasattr(redmine_issue, 'author'):
             if users_info is not None:
                 for user_info in users_info:
@@ -309,14 +311,13 @@ def dump_by_issue(issue_id):
     return {'message': 'success', 'data': output}, 200
 
 
-def check_issue_has_children(issue_obj, out_dict):
+def check_issue_has_children(issue_obj):
     check_children = redmine_lib.redmine.issue.filter(parent_id=issue_obj.id,
-                                                        status_id='*')
-    out_dict['has_children'] = False
-    if len(check_children):
-        out_dict['has_children'] = True
-        out_dict['family'] = True
-    return out_dict
+                                                        status_id='*', limit=1)
+    has_child = False
+    if check_children.__len__()>0:
+        has_child = True
+    return has_child
 
 
 def __deal_with_issue_redmine_output(redmine_output, closed_status=None):
