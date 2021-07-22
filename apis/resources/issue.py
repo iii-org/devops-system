@@ -122,7 +122,7 @@ class NexusIssue:
                 'id': redmine_issue.status.id,
                 'name': redmine_issue.status.name
             },
-            'relations': []
+
         }
         if hasattr(redmine_issue, 'project'):
             if nx_project is None:
@@ -135,7 +135,7 @@ class NexusIssue:
             }
         if relationship_bool:
             self.data['family'] = False
-            if hasattr(redmine_issue, 'parent'):
+            if hasattr(redmine_issue, 'parent') or redmine_issue.relations.total_count>0:
                 self.data['family'] = True
         if with_relationship:
             self.data['parent'] = None
@@ -192,8 +192,6 @@ class NexusIssue:
             }
         if redmine_issue.status.id in NexusIssue.get_closed_statuses():
             self.data['is_closed'] = True
-        if hasattr(redmine_issue, 'relations'):
-            self.data['relations'] = list(redmine_issue.relations.values())
         return self
 
     @staticmethod
@@ -731,6 +729,13 @@ def get_custom_filters_by_args(args=None, project_id=None, user_id=None):
             default_filters['offset'] = args['offset']
         if args.get('sort', None):
             default_filters['sort'] = args['sort']
+        if args.get('due_date_start') or args.get('due_date_end'):
+            if args.get('due_date_start') and args.get('due_date_end'):
+                default_filters['due_date'] = f"><{args.get('due_date_start')}|{args.get('due_date_end')}"
+            elif args.get('due_date_start'):
+                default_filters['due_date'] = f">={args.get('due_date_start')}"
+            elif args.get('due_date_end'):
+                default_filters['due_date'] = f"<={args.get('due_date_end')}"
     return default_filters
 
 
@@ -815,9 +820,9 @@ def get_issue_assigned_to_search(default_filters, args):
 
 
 # 取得 issue 相關的 parent & children & relations 資訊
-def get_issue_family(issue_id, args=None):
+def get_issue_family(issue_id, relation=False):
     output = defaultdict(list)
-    if args and args.get('relation', False) and strtobool(args['relation']):
+    if relation:
         redmine_issue = redmine_lib.redmine.issue.get(issue_id, include=['children', 'relations'])
         if hasattr(redmine_issue, 'relations') and len(redmine_issue.relations):
             for relation in redmine_issue.relations:
@@ -1520,6 +1525,8 @@ class IssueByProject(Resource):
         parser.add_argument('selection', type=str)
         parser.add_argument('sort', type=str)
         parser.add_argument('parent_id', type=str)
+        parser.add_argument('due_date_start', type=str)
+        parser.add_argument('due_date_end', type=str)
         args = parser.parse_args()
         output = get_issue_list_by_project(project_id, args)
         return util.success(output)
@@ -1625,10 +1632,7 @@ class IssueFamily(Resource):
     @jwt_required
     def get(self, issue_id):
         require_issue_visible(issue_id)
-        parser = reqparse.RequestParser()
-        parser.add_argument('relation', type=str)
-        args = parser.parse_args()
-        family = get_issue_family(issue_id, args)
+        family = get_issue_family(issue_id, relation=True)
         return util.success(family)
 
 
