@@ -729,6 +729,13 @@ def get_custom_filters_by_args(args=None, project_id=None, user_id=None):
             default_filters['offset'] = args['offset']
         if args.get('sort', None):
             default_filters['sort'] = args['sort']
+        if args.get('due_date_start') or args.get('due_date_end'):
+            if args.get('due_date_start') and args.get('due_date_end'):
+                default_filters['due_date'] = f"><{args.get('due_date_start')}|{args.get('due_date_end')}"
+            elif args.get('due_date_start'):
+                default_filters['due_date'] = f">={args.get('due_date_start')}"
+            elif args.get('due_date_end'):
+                default_filters['due_date'] = f"<={args.get('due_date_end')}"
     return default_filters
 
 
@@ -1518,6 +1525,8 @@ class IssueByProject(Resource):
         parser.add_argument('selection', type=str)
         parser.add_argument('sort', type=str)
         parser.add_argument('parent_id', type=str)
+        parser.add_argument('due_date_start', type=str)
+        parser.add_argument('due_date_end', type=str)
         args = parser.parse_args()
         output = get_issue_list_by_project(project_id, args)
         return util.success(output)
