@@ -815,9 +815,9 @@ def get_issue_assigned_to_search(default_filters, args):
 
 
 # 取得 issue 相關的 parent & children & relations 資訊
-def get_issue_family(issue_id, args=None):
+def get_issue_family(issue_id, relation=False):
     output = defaultdict(list)
-    if args and args.get('relation', False) and strtobool(args['relation']):
+    if relation:
         redmine_issue = redmine_lib.redmine.issue.get(issue_id, include=['children', 'relations'])
         if hasattr(redmine_issue, 'relations') and len(redmine_issue.relations):
             for relation in redmine_issue.relations:
@@ -1625,10 +1625,7 @@ class IssueFamily(Resource):
     @jwt_required
     def get(self, issue_id):
         require_issue_visible(issue_id)
-        parser = reqparse.RequestParser()
-        parser.add_argument('relation', type=str)
-        args = parser.parse_args()
-        family = get_issue_family(issue_id, args)
+        family = get_issue_family(issue_id, relation=True)
         return util.success(family)
 
 
