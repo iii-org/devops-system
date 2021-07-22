@@ -135,7 +135,7 @@ class NexusIssue:
             }
         if relationship_bool:
             self.data['family'] = False
-            if hasattr(redmine_issue, 'parent'):
+            if hasattr(redmine_issue, 'parent') or redmine_issue.relations.total_count>0:
                 self.data['family'] = True
         if with_relationship:
             self.data['parent'] = None
