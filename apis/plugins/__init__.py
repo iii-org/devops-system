@@ -9,6 +9,7 @@ from datetime import datetime
 from enum import Enum
 from os.path import dirname, join, exists
 
+
 from kubernetes.client import ApiException
 
 import model
@@ -17,6 +18,7 @@ from resources.apiError import DevOpsError
 from resources.kubernetesClient import read_namespace_secret, SYSTEM_SECRET_NAMESPACE, DEFAULT_NAMESPACE, \
     create_namespace_secret, patch_namespace_secret, delete_namespace_secret
 from resources.rancher import rancher
+from resources import role
 
 SYSTEM_SECRET_PREFIX = 'system-secret-'
 
@@ -47,6 +49,8 @@ def list_plugins():
     for row in rows:
         ret.append({
             'name': row.name,
+            'create_at':str(row.create_at),
+            'update_at':str(row.update_at),
             'disabled': row.disabled
         })
     return ret
@@ -98,6 +102,12 @@ def get_plugin_config(plugin_name):
             'type': item['type'],
             'value': value
         }
+        # Add Select Option 
+        if item['type'] == 'select':            
+            o['options'] = item['options']
+            #  If Plugin is AD , get system role list
+            if plugin_name == 'ad':
+                o['options'] = role.get_user_roles()
         ret['arguments'].append(o)
     return ret
 
@@ -116,9 +126,9 @@ def update_plugin_config(plugin_name, args):
             'store': item['store'],
             'type': item['type']
         }
-    if 'disabled' in args:
+    if args.get('disabled',None) is not None:
         db_row.disabled = bool(args['disabled'])
-    if 'arguments' in args:
+    if args.get('arguments', None) is not None:
         for argument in args['arguments']:
             if argument not in key_map:
                 raise DevOpsError(400, f'Argument {argument} is not in the argument list of plugin {plugin_name}.',
