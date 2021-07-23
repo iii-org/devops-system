@@ -19,7 +19,7 @@ import resources.user as user
 invalid_ad_server = 'Get AD User Error'
 ad_connect_timeout = 5
 default_role_id = 3
-allow_user_account_control = [512, 544]
+allow_user_account_control = [512, 544, 66048]
 
 
 def generate_base_dn(ad_parameter, filter_by_ou=True):
