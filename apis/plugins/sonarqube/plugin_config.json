@@ -1,5 +1,6 @@
  {
     "name": "sonarqube",
+    "removeable": false,
     "keys": [
         {
             "key": "sonar-url",

@@ -95,7 +95,8 @@ class NexusIssue:
         return self
 
     def set_redmine_issue_v2(self, redmine_issue, with_relationship=False,
-                             relationship_bool=False, nx_project=None):
+                             relationship_bool=False, nx_project=None, users_info=None):
+        
         self.data = {
             'id': redmine_issue.id,
             'name': redmine_issue.subject,
@@ -122,7 +123,7 @@ class NexusIssue:
                 'id': redmine_issue.status.id,
                 'name': redmine_issue.status.name
             },
-            'relations': []
+
         }
         if hasattr(redmine_issue, 'project'):
             if nx_project is None:
@@ -133,24 +134,34 @@ class NexusIssue:
                 'name': nx_project.name,
                 'display': nx_project.display
             }
+        self.data['has_children'] = check_issue_has_children(redmine_issue)
         if relationship_bool:
             self.data['family'] = False
-            if hasattr(redmine_issue, 'parent'):
+            if hasattr(redmine_issue, 'parent') or redmine_issue.relations.total_count>0 \
+                or self.data['has_children']:
                 self.data['family'] = True
         if with_relationship:
             self.data['parent'] = None
             self.data['children'] = []
             if hasattr(redmine_issue, 'parent'):
                 self.data['parent'] = redmine_issue.parent.id
-        self.data = check_issue_has_children(redmine_issue, self.data)
         if hasattr(redmine_issue, 'author'):
-            user_info = user.get_user_id_name_by_plan_user_id(
-                redmine_issue.author.id)
-            if user_info is not None:
-                self.data['author'] = {
-                    'id': user_info.id,
-                    'name': user_info.name
-                }
+            if users_info is not None:
+                for user_info in users_info:
+                    if user_info[3] == redmine_issue.author.id:
+                        self.data['author'] = {
+                            'id': user_info[0],
+                            'name': user_info[1]
+                        }
+                        break
+            else:
+                user_info = user.get_user_id_name_by_plan_user_id(
+                    redmine_issue.author.id)
+                if user_info is not None:
+                    self.data['author'] = {
+                        'id': user_info.id,
+                        'name': user_info.name
+                    }
         if hasattr(redmine_issue, 'description'):
             self.data['description'] = redmine_issue.description
         if hasattr(redmine_issue, 'start_date'):
@@ -158,14 +169,24 @@ class NexusIssue:
         if hasattr(redmine_issue, 'due_date'):
             self.data['due_date'] = redmine_issue.due_date.isoformat()
         if hasattr(redmine_issue, 'assigned_to'):
-            user_info = user.get_user_id_name_by_plan_user_id(
-                redmine_issue.assigned_to.id)
-            if user_info is not None:
-                self.data['assigned_to'] = {
-                    'id': user_info.id,
-                    'name': user_info.name,
-                    'login': user_info.login
-                }
+            if users_info is not None:
+                for user_info in users_info:
+                    if user_info[3] == redmine_issue.assigned_to.id:
+                        self.data['assigned_to'] = {
+                            'id': user_info[0],
+                            'name': user_info[1],
+                            'login': user_info[2]
+                        }
+                        break
+            else:
+                user_info = user.get_user_id_name_by_plan_user_id(
+                    redmine_issue.assigned_to.id)
+                if user_info is not None:
+                    self.data['assigned_to'] = {
+                        'id': user_info.id,
+                        'name': user_info.name,
+                        'login': user_info.login
+                    }
         if hasattr(redmine_issue, 'fixed_version'):
             self.data['fixed_version'] = {
                 'id': redmine_issue.fixed_version.id,
@@ -173,8 +194,6 @@ class NexusIssue:
             }
         if redmine_issue.status.id in NexusIssue.get_closed_statuses():
             self.data['is_closed'] = True
-        if hasattr(redmine_issue, 'relations'):
-            self.data['relations'] = list(redmine_issue.relations.values())
         return self
 
     @staticmethod
@@ -292,14 +311,13 @@ def dump_by_issue(issue_id):
     return {'message': 'success', 'data': output}, 200
 
 
-def check_issue_has_children(issue_obj, out_dict):
+def check_issue_has_children(issue_obj):
     check_children = redmine_lib.redmine.issue.filter(parent_id=issue_obj.id,
-                                                        status_id='*')
-    out_dict['has_children'] = False
-    if len(check_children):
-        out_dict['has_children'] = True
-        out_dict['family'] = True
-    return out_dict
+                                                        status_id='*', limit=1)
+    has_child = False
+    if check_children.__len__()>0:
+        has_child = True
+    return has_child
 
 
 def __deal_with_issue_redmine_output(redmine_output, closed_status=None):
@@ -592,6 +610,7 @@ def get_issue_list_by_project(project_id, args):
     if not args['selection'] or not strtobool(args['selection']):
         nx_issue_params['relationship_bool'] = True
 
+    nx_issue_params['users_info'] = user.get_all_user_info()
     for redmine_issue in all_issues:
         nx_issue_params['redmine_issue'] = redmine_issue
         issue = NexusIssue().set_redmine_issue_v2(**nx_issue_params).to_json()
@@ -637,7 +656,8 @@ def get_issue_list_by_user(user_id, args):
     # 透過 selection params 決定是否顯示 family bool 欄位
     if not args['selection'] or not strtobool(args['selection']):
         nx_issue_params['relationship_bool'] = True
-
+    
+    nx_issue_params['users_info'] = user.get_all_user_info()
     for redmine_issue in all_issues:
         nx_issue_params['redmine_issue'] = redmine_issue
         issue = NexusIssue().set_redmine_issue_v2(**nx_issue_params).to_json()
@@ -664,9 +684,12 @@ def get_issue_by_tree_by_project(project_id):
                           error=apiError.project_not_found(project_id))
     default_filters = get_custom_filters_by_args(project_id=plan_id)
     all_issues = redmine_lib.redmine.issue.filter(**default_filters)
+    users_info = user.get_all_user_info()
     for redmine_issue in all_issues:
         tree[redmine_issue.id] = NexusIssue().set_redmine_issue_v2(redmine_issue,
-                                                                   with_relationship=True, nx_project=nx_project).to_json()
+                                                                   with_relationship=True, 
+                                                                   nx_project=nx_project, 
+                                                                   users_info=users_info).to_json()
     for id in tree:
         # 代表此 issue 有 parent 存在
         if tree[id]['parent']:
@@ -707,11 +730,18 @@ def get_custom_filters_by_args(args=None, project_id=None, user_id=None):
             default_filters['offset'] = args['offset']
         if args.get('sort', None):
             default_filters['sort'] = args['sort']
+        if args.get('due_date_start') or args.get('due_date_end'):
+            if args.get('due_date_start') and args.get('due_date_end'):
+                default_filters['due_date'] = f"><{args.get('due_date_start')}|{args.get('due_date_end')}"
+            elif args.get('due_date_start'):
+                default_filters['due_date'] = f">={args.get('due_date_start')}"
+            elif args.get('due_date_end'):
+                default_filters['due_date'] = f"<={args.get('due_date_end')}"
     return default_filters
 
 
 def handle_allowed_keywords(default_filters, args):
-    allowed_keywords = ['fixed_version_id', 'status_id', 'tracker_id', 'assigned_to_id', 'priority_id']
+    allowed_keywords = ['fixed_version_id', 'status_id', 'tracker_id', 'assigned_to_id', 'priority_id', 'parent_id']
     for key in allowed_keywords:
         if args.get(key, None):
             # 如果 keywords 值為 'null'，python-redmine filter 值為 '!*'
@@ -791,9 +821,9 @@ def get_issue_assigned_to_search(default_filters, args):
 
 
 # 取得 issue 相關的 parent & children & relations 資訊
-def get_issue_family(issue_id, args=None):
+def get_issue_family(issue_id, relation=False):
     output = defaultdict(list)
-    if args and args.get('relation', False) and strtobool(args['relation']):
+    if relation:
         redmine_issue = redmine_lib.redmine.issue.get(issue_id, include=['children', 'relations'])
         if hasattr(redmine_issue, 'relations') and len(redmine_issue.relations):
             for relation in redmine_issue.relations:
@@ -1495,6 +1525,9 @@ class IssueByProject(Resource):
         parser.add_argument('search', type=str)
         parser.add_argument('selection', type=str)
         parser.add_argument('sort', type=str)
+        parser.add_argument('parent_id', type=str)
+        parser.add_argument('due_date_start', type=str)
+        parser.add_argument('due_date_end', type=str)
         args = parser.parse_args()
         output = get_issue_list_by_project(project_id, args)
         return util.success(output)
@@ -1600,10 +1633,7 @@ class IssueFamily(Resource):
     @jwt_required
     def get(self, issue_id):
         require_issue_visible(issue_id)
-        parser = reqparse.RequestParser()
-        parser.add_argument('relation', type=str)
-        args = parser.parse_args()
-        family = get_issue_family(issue_id, args)
+        family = get_issue_family(issue_id, relation=True)
         return util.success(family)
 
 

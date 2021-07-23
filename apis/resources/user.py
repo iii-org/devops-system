@@ -92,6 +92,12 @@ def get_user_id_name_by_plan_user_id(plan_user_id):
     ).first()
 
 
+def get_all_user_info():
+    return db.session.query(model.User.id, model.User.name, model.User.login, 
+                            model.UserPluginRelation.plan_user_id).filter(
+        model.UserPluginRelation.user_id == model.User.id).all()
+
+
 def get_role_id(user_id):
     row = model.ProjectUserRole.query.filter_by(user_id=user_id).first()
     if row is not None:

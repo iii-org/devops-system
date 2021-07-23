@@ -80,7 +80,6 @@ def update_user(ad_user, db_user):
         "email": None,
         "title": None,
         "department": None,
-        "status": "disable",
         "password": None,
         "from_ad": True
     }
