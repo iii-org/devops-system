@@ -18,9 +18,8 @@ import resources.user as user
 
 invalid_ad_server = 'Get AD User Error'
 ad_connect_timeout = 5
-ad_receive_timeout = 30
 default_role_id = 3
-allow_user_account_control = [512, 544]
+allow_user_account_control = [512, 544, 66048]
 
 
 def generate_base_dn(ad_parameter, filter_by_ou=True):
@@ -79,7 +78,7 @@ def update_user(ad_user, db_user):
         "phone": None,
         "email": None,
         "title": None,
-        "department": None,
+        "department": None,        
         "password": None,
         "from_ad": True
     }
@@ -94,6 +93,12 @@ def update_user(ad_user, db_user):
             args['department'] = ad_user['department']
         if ad_user.get('whenChanged') != db_user.get('update_at'):
             args['update_at'] = str(ad_user['whenChanged'])
+        if db_user.get("disabled", None) is not None:
+            if db_user.get("disabled") is True:
+                args['status'] = "disabled"
+            else:
+                args['status'] = "enabled"
+
         user.update_user(db_user['id'], args, True)
     return db_user['id']
 

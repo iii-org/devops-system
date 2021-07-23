@@ -1,5 +1,6 @@
  {
     "name": "checkmarx",
+    "removeable": false,
     "keys": [
         {
             "key": "client-secret",
@@ -18,7 +19,7 @@
         },
         {
             "key": "password",
-            "type": "string",
+            "type": "password",
             "store": "secret_all"
         }
     ]
