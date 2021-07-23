@@ -623,19 +623,28 @@ def get_test_summary(project_id):
 
     # checkmarx
     if not plugins.get_plugin_config('checkmarx')['disabled']:
-        cm_json, status_code = checkmarx.get_result(project_id)
-        cm_data = {}
-        for key, value in cm_json.items():
-            if key != 'data':
-                cm_data[key] = value
+        try:
+            cm_json, status_code = checkmarx.get_result(project_id)
+            cm_data = {}
+            for key, value in cm_json.items():
+                if key != 'data':
+                    cm_data[key] = value
+                else:
+                    for k2, v2 in value.items():
+                        if k2 != 'stats':
+                            cm_data[k2] = v2
+                        else:
+                            for k3, v3 in v2.items():
+                                cm_data[k3] = v3
+            ret['checkmarx'] = cm_data
+        except DevOpsError as e:
+            if e.status_code == 404:
+                ret['checkmarx'] = {
+                    'message': 'The latest scan is not Found in the Checkmarx server.',
+                    'status': 6
+                }
             else:
-                for k2, v2 in value.items():
-                    if k2 != 'stats':
-                        cm_data[k2] = v2
-                    else:
-                        for k3, v3 in v2.items():
-                            cm_data[k3] = v3
-        ret['checkmarx'] = cm_data
+                raise e
 
     # webinspect
     if not plugins.get_plugin_config('webinspect')['disabled']:

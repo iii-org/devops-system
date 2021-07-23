@@ -471,7 +471,7 @@ def tm_get_pipeline_branches(repository_id):
             for software in support_software:
                 if catalogTemplate_value is not None and software[
                         "template_key"] == catalogTemplate_value and \
-                        software.get("plugin_disabled") is False:
+                        (catalogTemplate_value in ('web', 'db') or software.get("plugin_disabled") is False):
                     stage_out_list["name"] = software["display"]
                     stage_out_list["key"] = software["template_key"]
                     if "when" in stage:
@@ -587,7 +587,7 @@ def tm_get_pipeline_default_branch(repository_id):
             for software in support_software:
                 if catalogTemplate_value is not None and software[
                         "template_key"] == catalogTemplate_value and \
-                        software.get("plugin_disabled") is False:
+                        (catalogTemplate_value in ('web', 'db') or software.get("plugin_disabled") is False):
                     stage_out_list["name"] = software["display"]
                     stage_out_list["key"] = software["template_key"]
                     if "when" in stage:
