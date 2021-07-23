@@ -641,7 +641,7 @@ def get_test_summary(project_id):
             if e.status_code == 404:
                 ret['checkmarx'] = {
                     'message': 'The latest scan is not Found in the Checkmarx server.',
-                    'status': 4
+                    'status': 6
                 }
             else:
                 raise e
