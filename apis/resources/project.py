@@ -945,7 +945,7 @@ class ListMyProjects(Resource):
 class ListProjectsByUser(Resource):
     @jwt_required
     def get(self, user_id):
-        role.require_admin("Error while getting project info")
+        role.require_pm("Error while get project by user.")
         projects = get_projects_by_user(user_id)
         return util.success(projects)
 
