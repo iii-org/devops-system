@@ -77,7 +77,18 @@ def set_deployment_uuid():
 
 
 def has_devops_update():
-    versions = __api_get('/current_version').json().get('data', None)
+    try:
+        versions = __api_get('/current_version').json().get('data', None)
+    except Exception:
+        return {
+            'has_update': False,
+            'latest_version': {
+                'version_name': 'N/A',
+                'api_image_tag': 'N/A',
+                'ui_image_tag': 'N/A',
+                'create_at': '1970-01-01 00:00:00.000000'
+            }
+        }
     if versions is None:
         raise DevOpsError(500, '/current_version returns no data.')
     current_version = current_devops_version()
