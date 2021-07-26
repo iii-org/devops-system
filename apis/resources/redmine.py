@@ -299,7 +299,7 @@ class Redmine:
             del args['upload_content_type']
         return ret
 
-    def rm_upload_to_project(self, plan_project_id, args):
+    def rm_upload_to_project(self, plan_project_id, args, plan_operator_id):
         parse = reqparse.RequestParser()
         parse.add_argument('file', type=werkzeug.datastructures.FileStorage, location='files')
         f_args = parse.parse_args()
@@ -308,7 +308,7 @@ class Redmine:
             raise DevOpsError(400, 'No file is sent.',
                               error=apiError.argument_error('file'))
         headers = {'Content-Type': 'application/octet-stream'}
-        res = self.__api_post('/uploads', data=file, headers=headers)
+        res = self.__api_post('/uploads', data=file, headers=headers, operator_id=plan_operator_id)
         token = res.json().get('upload').get('token')
         filename = args['filename']
         if filename is None:
@@ -322,7 +322,7 @@ class Redmine:
         if args['version_id'] != None:
             params['version_id'] = args['version_id']
         data = {'file': params}
-        res = self.__api_post('/projects/%d/files' % plan_project_id, data=data)
+        res = self.__api_post('/projects/%d/files' % plan_project_id, data=data, operator_id=plan_operator_id)
         if res.status_code == 204:
             return util.respond(201, None)
         else:
