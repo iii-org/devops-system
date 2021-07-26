@@ -123,6 +123,22 @@ def qu_get_testplan(project_id, testplan_id, journals=0):
     return issue_info
 
 
+def qu_get_testfile_by_testplan(project_id, testplan_id):
+    test_plan_file_conn_list = qu_get_testplan_testfile_relate_list(project_id)
+    test_files = []
+    for test_plan_file_conn in test_plan_file_conn_list:
+        if testplan_id == test_plan_file_conn['issue_id']:
+            the_last_result = {}
+            if test_plan_file_conn['software_name'] == "Postman":
+                the_last_result = apiTest.get_the_last_result(project_id)
+            elif test_plan_file_conn['software_name'] == "SideeX":
+                the_last_result = sideex.sd_get_latest_test(project_id)
+            test_plan_file_conn["the_last_test_result"] = the_last_result
+            test_files.append(test_plan_file_conn)
+    return test_files
+
+
+
 def qu_get_testfile_list(project_id):
     repository_id = nx_get_project_plugin_relation(
         nexus_project_id=project_id).git_repository_id
@@ -421,6 +437,11 @@ class TestPlan(Resource):
         out = qu_get_testplan(project_id, testplan_id, journals)
         return util.success(out)
 
+
+class TestFileByTestPlan(Resource):
+    def get(self, project_id, testplan_id):
+        out = qu_get_testfile_by_testplan(project_id, testplan_id)
+        return util.success(out)
 
 class TestFileList(Resource):
     def get(self, project_id):

@@ -489,6 +489,8 @@ class Catalogs(Resource):
         parser.add_argument('branch', type=str, required=True)
         parser.add_argument('helmVersion', type=str, required=True)
         parser.add_argument('url', type=str, required=True)
+        parser.add_argument('username', type=str)
+        parser.add_argument('password', type=str)
         args = parser.parse_args()
         output = rancher.rc_add_catalogs(args)
         return util.success(output)

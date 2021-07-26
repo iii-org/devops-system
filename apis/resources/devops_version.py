@@ -64,7 +64,7 @@ def _login():
     global version_center_token
     dp_uuid = model.NexusVersion.query.one().deployment_uuid
     res = __api_post('/login', params={'uuid': dp_uuid,
-                                       'name': socket.gethostbyname(socket.gethostname())},
+                                       'name': config.get('DEPLOYMENT_NAME')},
                      with_token=False)
     version_center_token = res.json().get('data', {}).get('access_token', None)
 
@@ -104,13 +104,20 @@ def current_devops_version():
     return model.NexusVersion.query.one().deploy_version
 
 
+def get_deployment_info():
+    row = model.NexusVersion.query.one()
+    return {
+        'version_name': current_devops_version(),
+        'deployment_name': config.get('DEPLOYMENT_NAME'),
+        'deployment_uuid': row.deployment_uuid
+    }
+
+
 # ------------------ Resources ------------------
 class DevOpsVersion(Resource):
     @jwt_required
     def get(self):
-        return util.success({
-            'version_name': current_devops_version()
-        })
+        return util.success(get_deployment_info())
 
 
 class DevOpsVersionCheck(Resource):

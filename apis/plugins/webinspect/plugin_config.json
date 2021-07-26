@@ -1,5 +1,6 @@
  {
     "name": "webinspect",
+    "removeable": false,
     "keys": [
         {
             "key": "wi-type",
@@ -18,7 +19,7 @@
         },
         {
             "key": "wi-password",
-            "type": "string",
+            "type": "password",
             "store": "secret_all"
         }
     ]
