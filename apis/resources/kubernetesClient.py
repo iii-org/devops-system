@@ -61,7 +61,7 @@ def apply_cronjob_yamls():
                     json_file = yaml.safe_load(f)
                     for cronjob_json in api_batchv1beta1.list_namespaced_cron_job("default").items:
                         if cronjob_json.metadata.name == json_file["metadata"]["name"]:
-                            api_batchv1beta1.delete_namespaced_cron_job(cronjob_json.metadata.name, 
+                            api_batchv1beta1.delete_namespaced_cron_job(cronjob_json.metadata.name,
                                                                         "default")
                             while True:
                                 still_has_cj = False
@@ -75,7 +75,7 @@ def apply_cronjob_yamls():
                                     api_batchv1.delete_namespaced_job(j.metadata.name, "default")
                             for pod in v1.list_namespaced_pod("default").items:
                                 if f"{cronjob_json.metadata.name}-" in pod.metadata.name:
-                                    pod = v1.delete_namespaced_pod(pod.metadata.name,  "default")
+                                    pod = v1.delete_namespaced_pod(pod.metadata.name, "default")
                 try:
                     k8s_utils.create_from_yaml(api_client, os.path.join(root, file))
                 except k8s_utils.FailToCreateError as e:
@@ -433,8 +433,13 @@ def update_deployment_image_tag(namespace, deployment_name, new_image_tag):
     image_api = deployment.spec.template.spec.containers[0].image
     parts = image_api.split(':')
     parts[-1] = new_image_tag
-    deployment.spec.template.metadata.annotations["iiidevops_redeploy_at"] = str(
-        datetime.utcnow())
+    if deployment.spec.template.metadata.annotations is None:
+        deployment.spec.template.metadata.annotations = {
+            'iiidevops_redeploy_at': str(datetime.utcnow())
+        }
+    else:
+        deployment.spec.template.metadata.annotations["iiidevops_redeploy_at"] = str(
+            datetime.utcnow())
     deployment.spec.template.spec.containers[0].image = ':'.join(parts)
     update_namespace_deployment(namespace, deployment_name, deployment)
 
@@ -612,6 +617,7 @@ def check_ingress_exist(namespace, branch):
             return True
     return False
 
+
 def map_ingress_with_host(rules, ip):
     try:
         info = []
@@ -768,8 +774,8 @@ def list_namespace_services_by_iii(namespace):
                 service_info['public_endpoints'] = analysis_annotations_public_endpoint(
                     annotations['field.cattle.io/publicEndpoints'])
                 service_info['url'] = map_port_and_public_endpoint(
-                    service.spec.ports, service_info['public_endpoints'], 
-                    annotations[iii_template['type']], namespace, 
+                    service.spec.ports, service_info['public_endpoints'],
+                    annotations[iii_template['type']], namespace,
                     list_services[environment]['branch'])
                 list_services[environment]['services'].append(service_info)
         return list_services
@@ -903,7 +909,7 @@ def map_port_and_public_endpoint(ports, public_endpoints, service_type='', names
                 url_info = {}
                 url_info['port_name'] = port.name
                 url_info['target_port'], url_info['port'] = identify_target_port(port.target_port, port.port)
-                url_info['url'] = identify_external_url(public_endpoint, port.node_port, 
+                url_info['url'] = identify_external_url(public_endpoint, port.node_port,
                                                         service_type, namespace, branch)
                 info.append(url_info)
         return info
@@ -935,8 +941,8 @@ def identify_external_url(public_endpoint, node_port, service_type='', namespace
                 external_url_format = "https://"
 
         url = []
-        if config.get('INGRESS_EXTERNAL_BASE') != '' and config.get('INGRESS_EXTERNAL_BASE') is not None\
-            and service_type not in ['db-server', 'db-gui'] and namespace != '' and branch != '' and \
+        if config.get('INGRESS_EXTERNAL_BASE') != '' and config.get('INGRESS_EXTERNAL_BASE') is not None \
+                and service_type not in ['db-server', 'db-gui'] and namespace != '' and branch != '' and \
                 check_ingress_exist(namespace, branch):
             url.append(f"{external_url_format}{namespace}-{branch}.{config.get('INGRESS_EXTERNAL_BASE')}")
         elif 'hostname' in public_endpoint:
