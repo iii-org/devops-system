@@ -7,12 +7,15 @@ import resources.apiError as apiError
 import util as util
 from resources import role
 
+
 invalid_plugin_id = 'Unable get plugin'
 invalid_plugin_softwares = 'Unable get plugin softwares'
+
+
 class Plugins(Resource):
     @jwt_required
     def get(self):
-        role.require_admin('Only admins can get plugin software.')
+        role.require_pm('Only admin and PMs can get plugin list.')
         return util.success(plugins.list_plugins())
 
 
