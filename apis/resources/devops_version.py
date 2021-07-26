@@ -77,6 +77,7 @@ def set_deployment_uuid():
 
 
 def has_devops_update():
+    current_version = current_devops_version()
     try:
         versions = __api_get('/current_version').json().get('data', None)
     except Exception:
@@ -91,7 +92,13 @@ def has_devops_update():
         }
     if versions is None:
         raise DevOpsError(500, '/current_version returns no data.')
-    current_version = current_devops_version()
+
+    if current_version == 'develop':
+        return {
+            'has_update': True,
+            'latest_version': versions
+        }
+
     return {
         'has_update': current_version != versions['version_name'],
         'latest_version': versions
