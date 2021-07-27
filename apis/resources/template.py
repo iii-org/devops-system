@@ -525,8 +525,8 @@ def tm_put_pipeline_branches(repository_id, data):
                 if catalogTemplate_value is not None:
                     catalogTemplate_value = catalogTemplate_value.split(
                         ":")[1].replace("iii-dev-charts3-", "")
-                for input_branch, input_softwares in data.items():
-                    for input_soft_enable in input_softwares:
+                for input_branch, multi_software in data.items():
+                    for input_soft_enable in multi_software:
                         if catalogTemplate_value is not None and input_soft_enable[
                                 "key"] == catalogTemplate_value:
                             if "when" not in stage:

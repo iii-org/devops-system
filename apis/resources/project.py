@@ -945,7 +945,7 @@ class ListMyProjects(Resource):
 class ListProjectsByUser(Resource):
     @jwt_required
     def get(self, user_id):
-        role.require_admin("Error while getting project info")
+        role.require_pm("Error while get project by user.")
         projects = get_projects_by_user(user_id)
         return util.success(projects)
 
@@ -1072,7 +1072,12 @@ class ProjectFile(Resource):
         parser.add_argument('version_id', type=str)
         parser.add_argument('description', type=str)
         args = parser.parse_args()
-        return redmine.rm_upload_to_project(plan_project_id, args)
+        plan_operator_id = None
+        if get_jwt_identity()['user_id'] is not None:
+            operator_plugin_relation = nexus.nx_get_user_plugin_relation(
+                user_id=get_jwt_identity()['user_id'])
+            plan_operator_id = operator_plugin_relation.plan_user_id
+        return redmine.rm_upload_to_project(plan_project_id, args, plan_operator_id)
 
     @jwt_required
     def get(self, project_id):

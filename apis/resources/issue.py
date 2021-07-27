@@ -829,7 +829,9 @@ def get_issue_family(issue_id, relation=False):
                 else:
                     rel_issue_id = relation.issue_to_id
                 rel_issue = redmine_lib.redmine.issue.get(rel_issue_id)
-                output['relations'].append(NexusIssue().set_redmine_issue_v2(rel_issue).to_json())
+                relate_issue = NexusIssue().set_redmine_issue_v2(rel_issue).to_json()
+                relate_issue['relation_id'] = relation.id
+                output['relations'].append(relate_issue)
     else:
         redmine_issue = redmine_lib.redmine.issue.get(issue_id, include=['children'])
     if hasattr(redmine_issue, 'parent'):
