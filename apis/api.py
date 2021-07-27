@@ -486,8 +486,8 @@ api.add_resource(quality.TestPlanList, '/quality/<int:project_id>/testplan_list'
 api.add_resource(quality.TestPlan, '/quality/<int:project_id>/testplan/<int:testplan_id>')
 api.add_resource(quality.TestFileByTestPlan, '/quality/<int:project_id>/testfile_by_testplan/<int:testplan_id>')
 api.add_resource(quality.TestFileList, '/quality/<int:project_id>/testfile_list')
-api.add_resource(quality.TestFile, '/quality/<int:project_id>/testfile',
-                 '/quality/<int:project_id>/testfile/<test_file_name>')
+api.add_resource(quality.TestFile, '/quality/<int:project_id>/testfile/<software_name>',
+                 '/quality/<int:project_id>/testfile/<software_name>/<test_file_name>')
 api.add_resource(quality.TestPlanWithTestFile, '/quality/<int:project_id>/testplan_with_testfile',
                  '/quality/<int:project_id>/testplan_with_testfile/<int:item_id>')
 api.add_resource(quality.Report, '/quality/<int:project_id>/report')
