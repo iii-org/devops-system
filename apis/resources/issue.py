@@ -218,6 +218,12 @@ class NexusIssue:
     def get_tracker_name(self):
         return self.data['tracker']['name']
 
+def __get_plan_user_id(operator_id):
+    if operator_id is not None:
+        operator_plugin_relation = nexus.nx_get_user_plugin_relation(
+            user_id=operator_id)
+        return operator_plugin_relation.plan_user_id
+
 
 def get_issue_attr_name(detail, value):
     resource_not_found = {'id': None, 'name': 'NotExist'}
@@ -1346,11 +1352,13 @@ def get_requirements_by_project_id(project_id):
     return {'flow_info': output}
 
 
-def post_issue_relation(issue_id, issue_to_id):
-    return redmine_lib.rm_post_relation(issue_id, issue_to_id)
+def post_issue_relation(issue_id, issue_to_id, operator_id):
+    plan_operator_id =__get_plan_user_id(operator_id)
+    return redmine_lib.rm_post_relation(issue_id, issue_to_id, plan_operator_id)
 
 
-def put_issue_relation(issue_id, issue_to_ids):
+def put_issue_relation(issue_id, issue_to_ids, operator_id):
+    plan_operator_id =__get_plan_user_id(operator_id)
     input_set= set()
     origin_set = set()
     for issue_to_id in issue_to_ids:
@@ -1366,15 +1374,16 @@ def put_issue_relation(issue_id, issue_to_ids):
             for relation in relations:
                 if (relation['issue_id'] == need_del[0] and relation['issue_to_id'] == need_del[1]) or \
                     (relation['issue_id'] == need_del[1] and relation['issue_to_id'] == need_del[0]):
-                    redmine_lib.rm_delete_relation(relation['id'])
+                    redmine_lib.rm_delete_relation(relation['id'], plan_operator_id)
     need_add_set = input_set - origin_set
     for need_add in list(need_add_set):
         need_add = list(need_add)
-        redmine_lib.rm_post_relation(need_add[0], need_add[1])
+        redmine_lib.rm_post_relation(need_add[0], need_add[1], plan_operator_id)
 
 
-def delete_issue_relation(relation_id):
-    return redmine_lib.rm_delete_relation(relation_id)
+def delete_issue_relation(relation_id, operator_id):
+    plan_operator_id =__get_plan_user_id(operator_id)
+    return redmine_lib.rm_delete_relation(relation_id, plan_operator_id)
 
 
 def check_issue_closable(issue_id):
@@ -1870,24 +1879,27 @@ class Parameter(Resource):
 
 
 class Relation(Resource):
+    @jwt_required
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('issue_id', type=int, required=True)
         parser.add_argument('issue_to_id', type=int, required=True)
         args = parser.parse_args()
-        output = post_issue_relation(args['issue_id'], args['issue_to_id'])
+        output = post_issue_relation(args['issue_id'], args['issue_to_id'] , get_jwt_identity()['user_id'])
         return util.success(output)
 
+    @jwt_required
     def put(self):
         parser = reqparse.RequestParser()
         parser.add_argument('issue_id', type=int, required=True)
         parser.add_argument('issue_to_ids', type=list, location='json', required=True)
         args = parser.parse_args()
-        put_issue_relation(args['issue_id'], args['issue_to_ids'])
+        put_issue_relation(args['issue_id'], args['issue_to_ids'], get_jwt_identity()['user_id'])
         return util.success()
 
+    @jwt_required
     def delete(self, relation_id):
-        output = delete_issue_relation(relation_id)
+        output = delete_issue_relation(relation_id, get_jwt_identity()['user_id'])
         return util.success(output)
 
 
