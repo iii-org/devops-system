@@ -263,6 +263,9 @@ def qu_upload_testfile(project_id, file, software_name):
     soft_path = next(path for path in paths
                      if path["software_name"].lower() == software_name.lower())
     trees = gitlab.ql_get_collection(repository_id, soft_path['path'])
+    if len(trees) == 0:
+        raise apiError.DevOpsError(
+            409, f"folder {soft_path['path']} not found in git repository")
     file_exist = next(
         (True for tree in trees if tree["name"] == file.filename), False)
     if file_exist:
