@@ -134,7 +134,9 @@ class NexusIssue:
                 'name': nx_project.name,
                 'display': nx_project.display
             }
-        self.data['has_children'] = check_issue_has_children(redmine_issue)
+        self.data['has_children']=False
+        if redmine_issue.children.total_count>0:
+            self.data['has_children']=True
         if relationship_bool:
             self.data['family'] = False
             if hasattr(redmine_issue, 'parent') or redmine_issue.relations.total_count>0 \
@@ -309,15 +311,6 @@ def dump_by_issue(issue_id):
                     ele[key] = row[key]
             output[table].append(ele)
     return {'message': 'success', 'data': output}, 200
-
-
-def check_issue_has_children(issue_obj):
-    check_children = redmine_lib.redmine.issue.filter(parent_id=issue_obj.id,
-                                                        status_id='*', limit=1)
-    has_child = False
-    if check_children.__len__()>0:
-        has_child = True
-    return has_child
 
 
 def __deal_with_issue_redmine_output(redmine_output, closed_status=None):
@@ -594,7 +587,7 @@ def get_issue_list_by_project(project_id, args):
         raise DevOpsError(404, "Error while getting issues",
                           error=apiError.project_not_found(project_id))
 
-    default_filters = get_custom_filters_by_args(args, project_id=plan_id)
+    default_filters = get_custom_filters_by_args(args, project_id=plan_id, children=True)
     # multiple_assigned_to = True，代表 filter 跟 assigned_to_id 為不同的 user id
     if default_filters.get('multiple_assigned_to', None) and default_filters['multiple_assigned_to']:
         return []
@@ -710,8 +703,11 @@ def get_issue_by_tree_by_project(project_id):
 
 
 # 依據 params 組成 redmine filters
-def get_custom_filters_by_args(args=None, project_id=None, user_id=None):
-    default_filters = {'status_id': '*', 'include': 'relations'}
+def get_custom_filters_by_args(args=None, project_id=None, user_id=None, children=None):
+    if children is None:
+        default_filters = {'status_id': '*', 'include': 'relations'}
+    else:
+        default_filters = {'status_id': '*', 'include': ['relations', 'children']}
     if project_id:
         default_filters['project_id'] = project_id
     if args:
