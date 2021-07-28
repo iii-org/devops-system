@@ -179,7 +179,6 @@ def login(args):
     login_account = args['username']
     login_password = args['password']
     ad_server = ad_api_user.check_ad_info()
-    print(ad_server)
     try:
         ad_info = {'is_pass': False,
                    'login': login_account, 'data': {}}
