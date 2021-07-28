@@ -5,10 +5,11 @@ import yaml
 import requests
 import werkzeug
 from flask import send_file
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import reqparse, Resource
 
 import config
+import nexus
 import resources.apiError as apiError
 import util as util
 from resources.apiError import DevOpsError
@@ -348,8 +349,12 @@ class Redmine:
             raise DevOpsError(500, 'Error when downloading an attachment.',
                               error=apiError.uncaught_exception(e))
 
-    def rm_delete_attachment(self, attachment_id):
-        output = self.__api_delete('/attachments/{0}'.format(attachment_id))
+    def rm_delete_attachment(self, attachment_id, operator_id):
+        if operator_id is not None:
+            operator_plugin_relation = nexus.nx_get_user_plugin_relation(
+                user_id=operator_id)
+            plan_operator_id = operator_plugin_relation.plan_user_id
+        output = self.__api_delete('/attachments/{0}'.format(attachment_id), operator_id=plan_operator_id)
         status_code = output.status_code
         if status_code == 204:
             return util.success()
@@ -452,7 +457,7 @@ class RedmineFile(Resource):
 
     @jwt_required
     def delete(self, file_id):
-        return redmine.rm_delete_attachment(file_id)
+        return redmine.rm_delete_attachment(file_id, get_jwt_identity()['user_id'])
 
 
 class RedmineMail(Resource):
