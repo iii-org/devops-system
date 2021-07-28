@@ -274,8 +274,8 @@ def update_user(user_id, args, from_ad=False):
         user.title = args['title']
     if args["department"] is not None:
         user.department = args['department']
-    if args["status"] is not None:
-        if args["status"] == "disable":
+    if args.get("status",None) is not None:
+        if args.get("status",None) == "disable":
             user.disabled = True
         else:
             user.disabled = False
