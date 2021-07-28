@@ -17,7 +17,7 @@ from resources.logger import logger
 import resources.user as user
 
 invalid_ad_server = 'Get AD User Error'
-ad_connect_timeout = 5
+ad_connect_timeout = 1
 default_role_id = 3
 allow_user_account_control = [512, 544]
 
@@ -222,28 +222,32 @@ def get_k8s_key_value(parameters):
     return output
 
 
-def check_ad_server_status():
+def get_ad_server_in_db():
     ad_parameter = None
     plugin = api_plugin.get_plugin('ad')
     if plugin is not None and plugin['disabled'] is False:
         ad_parameter = get_k8s_key_value(plugin['arguments'])
-
     return ad_parameter
 
+
+
+def check_ad_server_status():
+    ad_parameter = get_ad_server_in_db()
+    hosts = get_ad_servers(ad_parameter.get('host',None))
+    return hosts, ad_parameter
 
 def get_ad_servers(input_str):
     output = []
     if input_str is None:
         return output
-    host_strs = input_str.split(',')
-    for host_str in host_strs:
-        if host_str == '':
+    hosts = input_str.split(',')
+    for host in hosts:
+        if host == '':
             break
-        param = host_str.split(':')
+        param = host.split(':')
         if len(param) == 2:
             output.append({'ip': param[0], 'port': int(param[1])})
     return output
-
 
 class AD(object):
     def __init__(self, ad_parameter, filter_by_ou=False, account=None, password=None):
@@ -254,23 +258,38 @@ class AD(object):
         }
         self.account = None
         self.password = None
+        self.server = None
         self.server = ServerPool(None, pool_strategy=FIRST, active=True)
+        
         hosts = get_ad_servers(ad_parameter.get('host'))
         for host in hosts:
             self.server.add(Server(host=host.get('ip'), port=host.get('port'), get_info=ALL,
-                                   connect_timeout=ad_connect_timeout))
+                                connect_timeout=ad_connect_timeout))          
         if account is None and password is None:
             self.account = ad_parameter['account']
             self.password = ad_parameter['password']
         else:
             self.account = account
             self.password = password
-        self.email = self.account+'@'+ad_parameter['domain']
-        self.conn = Connection(self.server, user=self.email,
-                               password=self.password, read_only=True)
-        if self.conn.bind() is True:
-            self.ad_info['is_pass'] = True
+        
         self.active_base_dn = generate_base_dn(ad_parameter, filter_by_ou)
+        self.email = self.account+'@'+ad_parameter['domain']
+        try :
+            self.conn = Connection(self.server, user=self.email,
+                            password=self.password, read_only=True,
+                            receive_timeout=3,
+                            auto_referrals=False
+                            )
+            if self.conn.bind() is True:
+                self.ad_info['is_pass'] = True
+        except NoResultFound:
+            self.ad_info['is_pass'] = False
+
+        
+
+
+    def check_ad_srever(self):
+        return self.server
 
     def get_users(self):
         res = []
@@ -339,8 +358,8 @@ class ADUser(Resource):
             parser.add_argument('ad_type', type=str)
             args = parser.parse_args()
             res = []
-            ad_parameter = check_ad_server_status()
-            if ad_parameter is None:
+            hosts, ad_parameter = check_ad_server_status()
+            if ad_parameter is None or len(hosts) == 0:
                 return res
             ad_parameter.pop('ou')
             ad = AD(ad_parameter)
@@ -363,12 +382,15 @@ class ADUser(Resource):
             parser.add_argument('ad_type', type=str)
             args = parser.parse_args()
             res = []
-            ad_parameter = check_ad_server_status()
-            if ad_parameter is None:
+            hosts, ad_parameter = check_ad_server_status()
+            if ad_parameter is None or len(hosts) == 0:
                 return res
             if 'ou' in ad_parameter:
                 ad_parameter.pop('ou')
             ad = AD(ad_parameter)
+            server = ad.check_ad_server()
+            if server is None:
+                return res
             res = ad.get_user(args['account'])
             ad.conn_unbind()
             if len(res) == 1:
@@ -394,8 +416,8 @@ class ADUsers(Resource):
             parser.add_argument('ou', action='append')
             parser.add_argument('ad_type', type=str)
             args = parser.parse_args()
-            ad_parameter = check_ad_server_status()
-            if ad_parameter is None:
+            hosts, ad_parameter = check_ad_server_status()
+            if ad_parameter is None or len(hosts) == 0:
                 return util.respond(404, invalid_ad_server,
                                     error=apiError.invalid_plugin_id(invalid_ad_server))
             if args.get('ou') is not None:
@@ -418,10 +440,11 @@ class ADUsers(Resource):
             parser.add_argument('batch', type=inputs.boolean, default=False)
             parser.add_argument('ad_type', type=str)
             args = parser.parse_args()
-            ad_parameter = check_ad_server_status()
-            ad_users = []
-            if ad_parameter is None:
+            hosts, ad_parameter = check_ad_server_status()
+            if ad_parameter is None or len(hosts) == 0:
                 return res
+
+            ad_users = []
             if args.get('ou') is not None and args.get('batch') is False:
                 ad_parameter['ou'] = args.get('ou')
                 ad = AD(ad_parameter, True)
@@ -454,8 +477,8 @@ class ADOrganizations(Resource):
     def get(self):
         try:
             res = None
-            ad_parameter = check_ad_server_status()
-            if ad_parameter is None:
+            hosts, ad_parameter = check_ad_server_status()
+            if ad_parameter is None or len(hosts) == 0:
                 return res
             ad = AD(ad_parameter)
             res = ad.get_ous()
@@ -468,14 +491,13 @@ class ADOrganizations(Resource):
 
 organizations = ADOrganizations()
 
-
 class ADAPIUser(object):
     #  check User login
     def get_user_info(self, account, password):
         try:
             output = None
-            ad_parameter = check_ad_server_status()
-            if ad_parameter is None:
+            hosts, ad_parameter = check_ad_server_status()
+            if ad_parameter is None or len(hosts) == 0:
                 return output
             ad = AD(ad_parameter, False, account, password)
             user = ad.get_user(account)
@@ -491,8 +513,8 @@ class ADAPIUser(object):
     def get_user_raw_info(self, account, password):
         try:
             output = None
-            ad_parameter = check_ad_server_status()
-            if ad_parameter is None:
+            hosts, ad_parameter = check_ad_server_status()
+            if ad_parameter is None or len(hosts) == 0:
                 return output
             ad = AD(ad_parameter, False, account, password)
             user = ad.get_user(account)
