@@ -14,11 +14,10 @@ from resources.plugin import api_plugin
 from resources.apiError import DevOpsError
 import resources.apiError as apiError
 from resources.logger import logger
-from . import user
+import resources.user as user
 
 invalid_ad_server = 'Get AD User Error'
-ad_connect_timeout = 5
-ad_receive_timeout = 30
+ad_connect_timeout = 1
 default_role_id = 3
 allow_user_account_control = [512, 544]
 
@@ -79,8 +78,7 @@ def update_user(ad_user, db_user):
         "phone": None,
         "email": None,
         "title": None,
-        "department": None,
-        "status": "disable",
+        "department": None,        
         "password": None,
         "from_ad": True
     }
@@ -95,6 +93,12 @@ def update_user(ad_user, db_user):
             args['department'] = ad_user['department']
         if ad_user.get('whenChanged') != db_user.get('update_at'):
             args['update_at'] = str(ad_user['whenChanged'])
+        if db_user.get("disabled", None) is not None:
+            if db_user.get("disabled") is True:
+                args['status'] = "disabled"
+            else:
+                args['status'] = "enabled"
+
         user.update_user(db_user['id'], args, True)
     return db_user['id']
 
@@ -134,7 +138,6 @@ def create_user_from_ad(ad_users, create_by=None, ad_parameter=None):
                 ad_user, db_users[ad_user.get('sAMAccountName')]))
         #  Create user
         elif ad_user.get(create_by) is True:
-
             new_user = create_user(
                 ad_user, ad_parameter.get('default_password'))
             if new_user is not None:
@@ -207,27 +210,44 @@ def check_update_info(db_user, db_info, ad_data):
     return need_change
 
 
-def check_ad_server_status():
+def get_k8s_key_value(parameters):
+    output = {}
+    for parameter in parameters:
+        key = parameter.get('key')
+        param_type = parameter.get('type')
+        value = parameter.get('value')
+        if param_type == 'int':
+            value = int(value)
+        output[key] = value
+    return output
+
+
+def get_ad_server_in_db():
     ad_parameter = None
-    plugin = api_plugin.get_plugin('ad_server')
+    plugin = api_plugin.get_plugin('ad')
     if plugin is not None and plugin['disabled'] is False:
-        ad_parameter = plugin['parameter']
+        ad_parameter = get_k8s_key_value(plugin['arguments'])
     return ad_parameter
 
+
+
+def check_ad_server_status():
+    ad_parameter = get_ad_server_in_db()
+    hosts = get_ad_servers(ad_parameter.get('host',None))
+    return hosts, ad_parameter
 
 def get_ad_servers(input_str):
     output = []
     if input_str is None:
         return output
-    host_strs = input_str.split(',')
-    for host_str in host_strs:
-        if host_str == '':
+    hosts = input_str.split(',')
+    for host in hosts:
+        if host == '':
             break
-        param = host_str.split(':')
+        param = host.split(':')
         if len(param) == 2:
             output.append({'ip': param[0], 'port': int(param[1])})
     return output
-
 
 class AD(object):
     def __init__(self, ad_parameter, filter_by_ou=False, account=None, password=None):
@@ -238,23 +258,38 @@ class AD(object):
         }
         self.account = None
         self.password = None
+        self.server = None
         self.server = ServerPool(None, pool_strategy=FIRST, active=True)
+        
         hosts = get_ad_servers(ad_parameter.get('host'))
         for host in hosts:
             self.server.add(Server(host=host.get('ip'), port=host.get('port'), get_info=ALL,
-                                   connect_timeout=ad_connect_timeout))
+                                connect_timeout=ad_connect_timeout))          
         if account is None and password is None:
             self.account = ad_parameter['account']
             self.password = ad_parameter['password']
         else:
             self.account = account
             self.password = password
-        self.email = self.account+'@'+ad_parameter['domain']
-        self.conn = Connection(self.server, user=self.email,
-                               password=self.password, read_only=True)
-        if self.conn.bind() is True:
-            self.ad_info['is_pass'] = True
+        
         self.active_base_dn = generate_base_dn(ad_parameter, filter_by_ou)
+        self.email = self.account+'@'+ad_parameter['domain']
+        try :
+            self.conn = Connection(self.server, user=self.email,
+                            password=self.password, read_only=True,
+                            receive_timeout=3,
+                            auto_referrals=False
+                            )
+            if self.conn.bind() is True:
+                self.ad_info['is_pass'] = True
+        except NoResultFound:
+            self.ad_info['is_pass'] = False
+
+        
+
+
+    def check_ad_srever(self):
+        return self.server
 
     def get_users(self):
         res = []
@@ -313,7 +348,7 @@ class AD(object):
         return self.conn.unbind()
 
 
-class User(Resource):
+class ADUser(Resource):
     @jwt_required
     def get(self):
         try:
@@ -323,8 +358,8 @@ class User(Resource):
             parser.add_argument('ad_type', type=str)
             args = parser.parse_args()
             res = []
-            ad_parameter = check_ad_server_status()
-            if ad_parameter is None:
+            hosts, ad_parameter = check_ad_server_status()
+            if ad_parameter is None or len(hosts) == 0:
                 return res
             ad_parameter.pop('ou')
             ad = AD(ad_parameter)
@@ -347,12 +382,15 @@ class User(Resource):
             parser.add_argument('ad_type', type=str)
             args = parser.parse_args()
             res = []
-            ad_parameter = check_ad_server_status()
-            if ad_parameter is None:
+            hosts, ad_parameter = check_ad_server_status()
+            if ad_parameter is None or len(hosts) == 0:
                 return res
             if 'ou' in ad_parameter:
                 ad_parameter.pop('ou')
             ad = AD(ad_parameter)
+            server = ad.check_ad_server()
+            if server is None:
+                return res
             res = ad.get_user(args['account'])
             ad.conn_unbind()
             if len(res) == 1:
@@ -365,7 +403,10 @@ class User(Resource):
                                 error=apiError.invalid_plugin_id(invalid_ad_server))
 
 
-class Users(Resource):
+ad_user = ADUser()
+
+
+class ADUsers(Resource):
     @jwt_required
     def get(self):
         try:
@@ -375,9 +416,10 @@ class Users(Resource):
             parser.add_argument('ou', action='append')
             parser.add_argument('ad_type', type=str)
             args = parser.parse_args()
-            ad_parameter = check_ad_server_status()
-            if ad_parameter is None:
-                return res
+            hosts, ad_parameter = check_ad_server_status()
+            if ad_parameter is None or len(hosts) == 0:
+                return util.respond(404, invalid_ad_server,
+                                    error=apiError.invalid_plugin_id(invalid_ad_server))
             if args.get('ou') is not None:
                 ad_parameter['ou'] = args.get('ou')
             ad = AD(ad_parameter, True)
@@ -390,21 +432,19 @@ class Users(Resource):
         except NoResultFound:
             return util.respond(404, invalid_ad_server,
                                 error=apiError.invalid_plugin_id(invalid_ad_server))
-
-    @jwt_required
     def post(self):
         try:
-            role.require_admin('Only admins can use ad crate user.')
             res = None
             parser = reqparse.RequestParser()
-            parser.add_argument('ou', action='append')
+            parser.add_argument('ou', action='append', default=None)
             parser.add_argument('batch', type=inputs.boolean, default=False)
             parser.add_argument('ad_type', type=str)
             args = parser.parse_args()
-            ad_parameter = check_ad_server_status()
-            ad_users = []
-            if ad_parameter is None:
+            hosts, ad_parameter = check_ad_server_status()
+            if ad_parameter is None or len(hosts) == 0:
                 return res
+
+            ad_users = []
             if args.get('ou') is not None and args.get('batch') is False:
                 ad_parameter['ou'] = args.get('ou')
                 ad = AD(ad_parameter, True)
@@ -413,7 +453,6 @@ class Users(Resource):
                 ous = ad_parameter.get('ou')
                 if isinstance(ous, str):
                     ous = ous.split(',')
-                ad_users = []
                 for ou in ous:
                     ad_parameter['ou'] = [ou]
                     ad = AD(ad_parameter, True)
@@ -429,28 +468,17 @@ class Users(Resource):
                                 error=apiError.invalid_plugin_id(invalid_ad_server))
 
 
-class Organizations(Resource):
+ad_users = ADUsers()
+
+
+class ADOrganizations(Resource):
+
     @jwt_required
     def get(self):
         try:
             res = None
-            ad_parameter = check_ad_server_status()
-            if ad_parameter is None:
-                return res
-            ad = AD(ad_parameter)
-            res = ad.get_ous()
-            ad.conn_unbind()
-            return util.success(res)
-        except NoResultFound:
-            return util.respond(404, invalid_ad_server,
-                                error=apiError.invalid_plugin_id(invalid_ad_server))
-
-    @jwt_required
-    def post(self):
-        try:
-            res = None
-            ad_parameter = check_ad_server_status()
-            if ad_parameter is None:
+            hosts, ad_parameter = check_ad_server_status()
+            if ad_parameter is None or len(hosts) == 0:
                 return res
             ad = AD(ad_parameter)
             res = ad.get_ous()
@@ -461,13 +489,15 @@ class Organizations(Resource):
                                 error=apiError.invalid_plugin_id(invalid_ad_server))
 
 
-class APIUser(object):
+organizations = ADOrganizations()
+
+class ADAPIUser(object):
     #  check User login
     def get_user_info(self, account, password):
         try:
             output = None
-            ad_parameter = check_ad_server_status()
-            if ad_parameter is None:
+            hosts, ad_parameter = check_ad_server_status()
+            if ad_parameter is None or len(hosts) == 0:
                 return output
             ad = AD(ad_parameter, False, account, password)
             user = ad.get_user(account)
@@ -483,8 +513,8 @@ class APIUser(object):
     def get_user_raw_info(self, account, password):
         try:
             output = None
-            ad_parameter = check_ad_server_status()
-            if ad_parameter is None:
+            hosts, ad_parameter = check_ad_server_status()
+            if ad_parameter is None or len(hosts) == 0:
                 return output
             ad = AD(ad_parameter, False, account, password)
             user = ad.get_user(account)
@@ -501,8 +531,9 @@ class APIUser(object):
         try:
             output = {}
             output['disabled'] = True
-            plugin = api_plugin.get_plugin('ad_server')
+            plugin = api_plugin.get_plugin('ad')
             if plugin is not None:
+                plugin['arguments'] = get_k8s_key_value(plugin['arguments'])
                 output = plugin
             return output
         except NoResultFound:
@@ -547,4 +578,4 @@ class APIUser(object):
         return status, token
 
 
-ad_user = APIUser()
+ad_api_user = ADAPIUser()

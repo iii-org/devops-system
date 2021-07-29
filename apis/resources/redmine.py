@@ -5,16 +5,17 @@ import yaml
 import requests
 import werkzeug
 from flask import send_file
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import reqparse, Resource
 
 import config
+import nexus
 import resources.apiError as apiError
 import util as util
 from resources.apiError import DevOpsError
 from resources.logger import logger
 from . import kubernetesClient, role
-from services import redmine_lib
+from accessories import redmine_lib
 
 
 class Redmine:
@@ -299,7 +300,7 @@ class Redmine:
             del args['upload_content_type']
         return ret
 
-    def rm_upload_to_project(self, plan_project_id, args):
+    def rm_upload_to_project(self, plan_project_id, args, plan_operator_id):
         parse = reqparse.RequestParser()
         parse.add_argument('file', type=werkzeug.datastructures.FileStorage, location='files')
         f_args = parse.parse_args()
@@ -308,7 +309,7 @@ class Redmine:
             raise DevOpsError(400, 'No file is sent.',
                               error=apiError.argument_error('file'))
         headers = {'Content-Type': 'application/octet-stream'}
-        res = self.__api_post('/uploads', data=file, headers=headers)
+        res = self.__api_post('/uploads', data=file, headers=headers, operator_id=plan_operator_id)
         token = res.json().get('upload').get('token')
         filename = args['filename']
         if filename is None:
@@ -322,7 +323,7 @@ class Redmine:
         if args['version_id'] != None:
             params['version_id'] = args['version_id']
         data = {'file': params}
-        res = self.__api_post('/projects/%d/files' % plan_project_id, data=data)
+        res = self.__api_post('/projects/%d/files' % plan_project_id, data=data, operator_id=plan_operator_id)
         if res.status_code == 204:
             return util.respond(201, None)
         else:
@@ -348,8 +349,12 @@ class Redmine:
             raise DevOpsError(500, 'Error when downloading an attachment.',
                               error=apiError.uncaught_exception(e))
 
-    def rm_delete_attachment(self, attachment_id):
-        output = self.__api_delete('/attachments/{0}'.format(attachment_id))
+    def rm_delete_attachment(self, attachment_id, operator_id):
+        if operator_id is not None:
+            operator_plugin_relation = nexus.nx_get_user_plugin_relation(
+                user_id=operator_id)
+            plan_operator_id = operator_plugin_relation.plan_user_id
+        output = self.__api_delete('/attachments/{0}'.format(attachment_id), operator_id=plan_operator_id)
         status_code = output.status_code
         if status_code == 204:
             return util.success()
@@ -452,7 +457,7 @@ class RedmineFile(Resource):
 
     @jwt_required
     def delete(self, file_id):
-        return redmine.rm_delete_attachment(file_id)
+        return redmine.rm_delete_attachment(file_id, get_jwt_identity()['user_id'])
 
 
 class RedmineMail(Resource):
@@ -473,19 +478,21 @@ class RedmineMail(Resource):
 class RedmineRelease():
     @jwt_required
     def check_redemine_release(self, targets, versions, main_version=None):
-        output = {'check': True, "info": "", 'errors': {}, 'versions': {"pass": [], "failed": []}, 'failed_name': [],
-                  'issues': []}
+        output = {'check': True, "info": "", 'errors': {}, 'versions_status': {"pass": [], "failed": []}, 'failed_name': [],
+                  'issues': [],'unclosed_issues': [],'versions': []}
         for target in targets:
             version_id = str(target['id'])
+            output['issues'] += target['issues']
+            output['versions'].append(int(target['id']))
             if version_id == main_version:
                 output['errors'] = {"id": version_id, 'name': versions[version_id]['name']}
             if target['unclosed'] != 0:
                 output['check'] = False
-                output['versions']['failed'].append({"id": version_id, 'name': versions[version_id]['name']})
+                output['versions_status']['failed'].append({"id": version_id, 'name': versions[version_id]['name']})
                 output['failed_name'].append(versions[version_id]['name'])
-                output['issues'] += target['issues']
+                output['unclosed_issues'] += target['issues']
             else:
-                output['versions']['pass'].append({"id": version_id, 'name': versions[version_id]['name']})
+                output['versions_status']['pass'].append({"id": version_id, 'name': versions[version_id]['name']})
         if len(output['failed_name']) > 0:
             output['info'] = 'Issue is not closed in version {0} in redmine'.format(
                 ' '.join(map(str, output['failed_name'])))

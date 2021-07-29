@@ -23,7 +23,7 @@ def error_3rd_party_api(service_name, response):
                  {'service_name': service_name, 'response': resp_value})
 
 
-# Temlate errors
+# Template errors
 def template_not_found(template_id):
     return build(5001, 'Template not found.',
                  {'template_id': template_id})

@@ -46,5 +46,8 @@
     "ADMIN_INIT_EMAIL": "admin@devops.iii.org",
     "ADMIN_INIT_PASSWORD": "********",
 
+    "VERSION_CENTER_BASE_URL": "http://127.0.0.1:10008",
+    "DEPLOYMENT_NAME": "ro-local",
+
     "DEBUG": false
 }

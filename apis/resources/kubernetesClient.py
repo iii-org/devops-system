@@ -1,22 +1,16 @@
-import os
-import yaml
+import base64
 import json
 import numbers
+import os
 from datetime import datetime
 
-from kubernetes.client import ApiException
-
-import util as util
-import config
-
-import base64
+import yaml
 from kubernetes import client as k8s_client
 from kubernetes import config as k8s_config
 from kubernetes import utils as k8s_utils
-from .gitlab import gitlab
+from kubernetes.client import ApiException
 
-from flask_restful import reqparse
-
+import config
 import resources.apiError as apiError
 from resources.logger import logger
 
@@ -51,8 +45,12 @@ k8s_config.load_kube_config()
 v1 = k8s_client.CoreV1Api()
 rbac = k8s_client.RbacAuthorizationV1Api()
 api_client = k8s_client.ApiClient()
-api_instance = k8s_client.BatchV1beta1Api(api_client)
+api_batchv1beta1 = k8s_client.BatchV1beta1Api(api_client)
+api_batchv1 = k8s_client.BatchV1Api(api_client)
 extensions_v1beta1 = k8s_client.ExtensionsV1beta1Api()
+
+DEFAULT_NAMESPACE = 'default'
+SYSTEM_SECRET_NAMESPACE = 'iiidevops-env-secret'
 
 
 def apply_cronjob_yamls():
@@ -61,17 +59,23 @@ def apply_cronjob_yamls():
             if file.endswith(".yaml") or file.endswith(".yml"):
                 with open(os.path.join(root, file)) as f:
                     json_file = yaml.safe_load(f)
-                    for cronjob_json in api_instance.list_cron_job_for_all_namespaces().items:
+                    for cronjob_json in api_batchv1beta1.list_namespaced_cron_job("default").items:
                         if cronjob_json.metadata.name == json_file["metadata"]["name"]:
-                            api_instance.delete_namespaced_cron_job(cronjob_json.metadata.name,
-                                                                    cronjob_json.metadata.namespace)
+                            api_batchv1beta1.delete_namespaced_cron_job(cronjob_json.metadata.name,
+                                                                        "default")
                             while True:
                                 still_has_cj = False
-                                for cj in api_instance.list_namespaced_cron_job(cronjob_json.metadata.namespace).items:
+                                for cj in api_batchv1beta1.list_namespaced_cron_job("default").items:
                                     if cronjob_json.metadata.name in cj.metadata.name:
                                         still_has_cj = True
                                 if still_has_cj is False:
                                     break
+                            for j in api_batchv1.list_namespaced_job("default").items:
+                                if f"{cronjob_json.metadata.name}-" in j.metadata.name:
+                                    api_batchv1.delete_namespaced_job(j.metadata.name, "default")
+                            for pod in v1.list_namespaced_pod("default").items:
+                                if f"{cronjob_json.metadata.name}-" in pod.metadata.name:
+                                    pod = v1.delete_namespaced_pod(pod.metadata.name, "default")
                 try:
                     k8s_utils.create_from_yaml(api_client, os.path.join(root, file))
                 except k8s_utils.FailToCreateError as e:
@@ -118,6 +122,11 @@ def list_work_node():
             })
     logger.info("list_worknode node_list: {0}".format(list_nodes))
     return list_nodes
+
+
+def create_iiidevops_env_secret_namespace():
+    if "iiidevops-env-secret" not in list_namespace():
+        create_namespace("iiidevops-env-secret")
 
 
 def create_namespace(project_name):
@@ -419,6 +428,22 @@ def delete_namespace_deployment(namespace, name):
             raise e
 
 
+def update_deployment_image_tag(namespace, deployment_name, new_image_tag):
+    deployment = read_namespace_deployment(namespace, deployment_name)
+    image_api = deployment.spec.template.spec.containers[0].image
+    parts = image_api.split(':')
+    parts[-1] = new_image_tag
+    if deployment.spec.template.metadata.annotations is None:
+        deployment.spec.template.metadata.annotations = {
+            'iiidevops_redeploy_at': str(datetime.utcnow())
+        }
+    else:
+        deployment.spec.template.metadata.annotations["iiidevops_redeploy_at"] = str(
+            datetime.utcnow())
+    deployment.spec.template.spec.containers[0].image = ':'.join(parts)
+    update_namespace_deployment(namespace, deployment_name, deployment)
+
+
 def list_namespace_services(namespace):
     try:
         list_services = []
@@ -455,6 +480,8 @@ def read_namespace_secret(namespace, secret_name):
     try:
         secret_data = {}
         secret = v1.read_namespaced_secret(secret_name, namespace)
+        if secret.data is None:
+            return {}
         for key, value in secret.data.items():
             secret_data[key] = str(base64.b64decode(str(value)).decode('utf-8'))
         return secret_data
@@ -589,6 +616,7 @@ def check_ingress_exist(namespace, branch):
         if f"{namespace}-{branch}-serv-ing" == ingress['name']:
             return True
     return False
+
 
 def map_ingress_with_host(rules, ip):
     try:
@@ -746,8 +774,8 @@ def list_namespace_services_by_iii(namespace):
                 service_info['public_endpoints'] = analysis_annotations_public_endpoint(
                     annotations['field.cattle.io/publicEndpoints'])
                 service_info['url'] = map_port_and_public_endpoint(
-                    service.spec.ports, service_info['public_endpoints'], 
-                    annotations[iii_template['type']], namespace, 
+                    service.spec.ports, service_info['public_endpoints'],
+                    annotations[iii_template['type']], namespace,
                     list_services[environment]['branch'])
                 list_services[environment]['services'].append(service_info)
         return list_services
@@ -881,7 +909,7 @@ def map_port_and_public_endpoint(ports, public_endpoints, service_type='', names
                 url_info = {}
                 url_info['port_name'] = port.name
                 url_info['target_port'], url_info['port'] = identify_target_port(port.target_port, port.port)
-                url_info['url'] = identify_external_url(public_endpoint, port.node_port, 
+                url_info['url'] = identify_external_url(public_endpoint, port.node_port,
                                                         service_type, namespace, branch)
                 info.append(url_info)
         return info
@@ -913,8 +941,8 @@ def identify_external_url(public_endpoint, node_port, service_type='', namespace
                 external_url_format = "https://"
 
         url = []
-        if config.get('INGRESS_EXTERNAL_BASE') != '' and config.get('INGRESS_EXTERNAL_BASE') is not None\
-            and service_type not in ['db-server', 'db-gui'] and namespace != '' and branch != '' and \
+        if config.get('INGRESS_EXTERNAL_BASE') != '' and config.get('INGRESS_EXTERNAL_BASE') is not None \
+                and service_type not in ['db-server', 'db-gui'] and namespace != '' and branch != '' and \
                 check_ingress_exist(namespace, branch):
             url.append(f"{external_url_format}{namespace}-{branch}.{config.get('INGRESS_EXTERNAL_BASE')}")
         elif 'hostname' in public_endpoint:

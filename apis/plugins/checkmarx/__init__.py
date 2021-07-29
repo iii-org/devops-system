@@ -12,10 +12,10 @@ from sqlalchemy.orm.exc import NoResultFound
 
 import config
 import nexus
+import util
 from model import Checkmarx as Model
 from model import db
 from resources import apiError, gitlab
-import util
 from resources.apiError import DevOpsError
 
 

@@ -8,7 +8,6 @@ import config
 import nexus
 import util
 import re
-import json
 import model
 from resources import apiError, role
 from resources.apiError import DevOpsError
@@ -223,14 +222,22 @@ def hb_list_repositories(project_name):
         ret.append(repo)
     return ret
 
-
-def generate_artifacts_output(art):
-    output = []
-    scan = next(iter(art['scan_overview'].values()))
+def check_scan_overview_exists(scan_overview):
+    vul = ''
+    if scan_overview is None:
+        return vul
+    scan = next(iter(scan_overview.values()))
     if (scan is None) or ('summary' not in scan) or ('total' not in scan['summary']):
         vul = ''
     else:
         vul = '{0} ({1})'.format(scan['severity'], scan['summary']['total'])
+    return vul
+
+
+
+def generate_artifacts_output(art):
+    output = []
+    vul = check_scan_overview_exists(art.get('scan_overview',None))
     if 'tags' in art and art['tags'] is not None:
         for tag in art['tags']:
             output.append({
@@ -330,15 +337,16 @@ def get_storage_usage(project_id):
     usage_info['quota']['unit'] = ''
     return usage_info
 
+
 def hb_get_registries(registry_id=None, args=None):
     if registry_id:
-        response = __api_get('/registries/{0}'.format(registry_id))
+        registry = __api_get('/registries/{0}'.format(registry_id)).json()
     elif args:
-        response = __api_get('/registries?q={0}'.format(args))
+        registry = __api_get('/registries?q={0}'.format(args)).json()
     else:
-        response = __api_get('/registries')
-    registry = json.loads(response.content.decode('utf8'))
+        registry = __api_get('/registries').json()
     return registry
+
 
 def hb_create_registries(args):
     user_id = get_jwt_identity()['user_id']
@@ -394,21 +402,39 @@ def hb_create_replication_policy(args):
             {
                 "type": "resource",
                 "value": "image"
+            },
+            {
+                "type": "tag",
+                "value": args['tag']
             }
         ]
     }
     __api_post('/replication/policies', data=data)
 
 
-def hb_get_replication_policy():
-    response = __api_get('/replication/policies')
-    policies = json.loads(response.content.decode('utf8'))
+def hb_get_replication_policy(policy_id=None):
+    if policy_id:
+        policies = __api_get('/replication/policies/{0}'.format(policy_id)).json()
+    else:
+        policies = __api_get('/replication/policies').json()
     return policies
 
 
 def hb_execute_replication_policy(args):
     data = {"policy_id": args['policy_id']}
     __api_post('/replication/executions', data=data)
+    policies = hb_get_replication_policy(args['policy_id'])
+    name = [context['value'] for context in policies['filters'] if context['type'] == 'name'][0]
+    tag = [context['value'] for context in policies['filters'] if context['type'] == 'tag'][0]
+    registires = model.Registries.query.filter_by(registries_id=policies['dest_registry']['id']).one()
+    if registires.type == 'aws-ecr':
+        account_id = util.AWSEngine(registires.access_key, registires.access_secret).get_account_id()
+        location = registires.url.split('.')[2]
+        image_uri = f'{account_id}.dkr.ecr.{location}.amazonaws.com/{name}:{tag}'
+    elif registires.type == 'azure-acr':
+        login_server = registires.url[8:]
+        image_uri = f'{login_server}/{name}:{tag}'
+    return image_uri
 
 
 def hb_ping_registries(args):
@@ -451,18 +477,29 @@ class HarborRepository(Resource):
         return util.success()
 
 
+def check_tag_name(artifacts, tag_name):
+    output = []
+    if artifacts is None:
+        return artifacts
+    for artifact in artifacts:
+        if artifact.get('name') == tag_name:
+            output.append(artifact)
+    return output
+
 class HarborArtifact(Resource):
     @jwt_required
     def get(self):
         project_name, repository_name = extract_names()
         role.require_in_project(project_name=project_name)
         parser = reqparse.RequestParser()
+        parser.add_argument('repository_fullname', type=str)
         parser.add_argument('tag_name', type=str)
         args = parser.parse_args()
-        if args.get('tag_name', None) is not None:
-            return util.success(hb_get_artifact(project_name, repository_name, args.get('tag_name')))
+        artifacts = hb_list_artifacts(project_name, repository_name)
+        if args.get('tag_name', None) is not None:                
+            return util.success(check_tag_name(artifacts, args.get('tag_name')))
         else:
-            return util.success(hb_list_artifacts(project_name, repository_name))
+            return util.success(artifacts)
 
     @jwt_required
     def delete(self):
@@ -487,20 +524,39 @@ class HarborProject(Resource):
 
 
 class HarborRelease():
+    
     @jwt_required
     def get_list_artifacts(self, project_name, repository_name):
-        return hb_list_artifacts(project_name, repository_name)
+        return hb_list_artifacts (project_name, repository_name)
 
-    def check_harbor_release(self, artifacts, tag_name):
-        output = {'check': False, "info": "", "target": {}, "errors": {}}
-        if len(artifacts) > 0:
-            output['check'] = True
-            output['target'] = artifacts[0]
+    def check_harbor_status(self, image, tag_name):
+        output = 2
+        if image is True and tag_name is True:
+            output = 1
+        elif image is True:
+            output  = 0
+        return output 
+
+
+    def check_harbor_release(self, artifacts, tag_name, commit ):
+        output = {'check': False, 'tag': False, 'image':False ,"info": "", "target": {}, "errors": {}, "type": 2}        
+
         for art in artifacts:
+            #  Tag duplicate
             if art['name'] == tag_name:
-                output['check'] = False
+                output['tag'] = True
                 output['info'] = '{0} is exists in harbor'.format(tag_name)
-                output['errors'] = art
+                output['target']['duplicate'] = art
+            #  Image Find
+            if art['name'] == commit:
+                output['image'] = True
+                output['info'] = '{0} is exists in harbor'.format(commit)
+                output['target']['release'] = art
+        output['type'] = self.check_harbor_status(output['image'], output['tag'])
+        if output['type'] == 0:
+            output['check'] = True
+        elif output['type'] == 2:
+            output['info'] = '{0} image is not exists in harbor'.format(commit)
         return output
 
     def create(self, project_name, repository_name, reference, tag_name):
@@ -523,7 +579,7 @@ class HarborRegistries(Resource):
                 'description': context.description,
                 'type': context.type,
                 'url': context.url,
-                'registries_id': context.registries_id,
+                'id': context.registries_id,
                 'user_id': context.user_id
             } for context in response
         ]
@@ -565,6 +621,7 @@ class HarborReplicationPolicy(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('name', type=str)
         parser.add_argument('image_name', type=str)
+        parser.add_argument('tag', type=str)
         parser.add_argument('registry_id', type=int)
         parser.add_argument('description', type=str)
         args = parser.parse_args()
@@ -578,5 +635,5 @@ class HarborReplicationExecution(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('policy_id', type=int)
         args = parser.parse_args()
-        hb_execute_replication_policy(args)
-        return util.success()
+        output = hb_execute_replication_policy(args)
+        return util.success({'image_uri': output})

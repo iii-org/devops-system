@@ -1,0 +1,26 @@
+ {
+    "name": "webinspect",
+    "removeable": false,
+    "keys": [
+        {
+            "key": "wi-type",
+            "type": "string",
+            "store": "secret_all"
+        },
+        {
+            "key": "wi-base-url",
+            "type": "string",
+            "store": "secret_all"
+        },
+        {
+            "key": "wi-username",
+            "type": "string",
+            "store": "secret_all"
+        },
+        {
+            "key": "wi-password",
+            "type": "password",
+            "store": "secret_all"
+        }
+    ]
+}

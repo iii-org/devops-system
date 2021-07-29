@@ -248,29 +248,9 @@ class GitLab(object):
             raise DevOpsError(output.status_code,
                               "Error while getting git branches",
                               error=apiError.gitlab_error(output))
-        # get gitlab project path
-        project_detail = self.gl_get_project(repo_id)
-        # get kubernetes service nodePort url
-        k8s_service_list = kubernetesClient.list_service_all_namespaces()
-        k8s_node_list = kubernetesClient.list_work_node()
-        work_node_ip = k8s_node_list[0]['ip']
 
         branch_list = []
         for branch_info in output.json():
-            env_url_list = []
-            for k8s_service in k8s_service_list:
-                if k8s_service['type'] == 'NodePort' and \
-                        f'{project_detail["path"]}-{branch_info["name"]}' \
-                        in k8s_service['name']:
-                    port_list = []
-                    for port in k8s_service['ports']:
-                        port_list.append({
-                            "port":
-                            port['port'],
-                            "url":
-                            f"http://{work_node_ip}:{port['nodePort']}"
-                        })
-                    env_url_list.append({k8s_service['name']: port_list})
             branch = {
                 "name":
                 branch_info["name"],
@@ -283,8 +263,6 @@ class GitLab(object):
                 'commit_url':
                 commit_id_to_url(get_nexus_project_id(repo_id),
                                  branch_info['commit']['short_id']),
-                "env_url":
-                env_url_list
             }
             branch_list.append(branch)
         return branch_list
