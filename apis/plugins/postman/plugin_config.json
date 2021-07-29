@@ -1,6 +1,6 @@
- {
-    "name": "postman",
-    "removeable": false,
-    "keys": [
-    ]
+{
+  "name": "postman",
+  "default_disabled": false,
+  "keys": [
+  ]
 }
