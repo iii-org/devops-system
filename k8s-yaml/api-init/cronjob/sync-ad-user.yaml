@@ -3,7 +3,7 @@ kind: CronJob
 metadata:
   name: sync-ad
 spec:
-  schedule: "0 11 * * *"
+  schedule: "0 1 * * *"
   successfulJobsHistoryLimit: 0
   failedJobsHistoryLimit: 0
   jobTemplate:
