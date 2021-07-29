@@ -1,6 +1,6 @@
- {
-    "name": "sideex",
-    "removeable": false,
-    "keys": [
-    ]
+{
+  "name": "sideex",
+  "default_disabled": false,
+  "keys": [
+  ]
 }

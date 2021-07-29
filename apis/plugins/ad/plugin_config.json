@@ -1,64 +1,64 @@
- {
-    "name": "ad",
-    "keys": [
+{
+  "name": "ad",
+  "default_disabled": true,
+  "keys": [
+    {
+      "key": "host",
+      "type": "string",
+      "store": "secret_system"
+    },
+    {
+      "key": "ou",
+      "type": "string",
+      "store": "secret_system"
+    },
+    {
+      "key": "domain",
+      "type": "string",
+      "store": "secret_system"
+    },
+    {
+      "key": "account",
+      "type": "string",
+      "store": "secret_system"
+    },
+    {
+      "key": "password",
+      "type": "string",
+      "store": "secret_system"
+    },
+    {
+      "key": "default_password",
+      "type": "string",
+      "store": "secret_system"
+    },
+    {
+      "key": "connect_timeout",
+      "type": "string",
+      "store": "secret_system"
+    },
+    {
+      "key": "default_role_id",
+      "type": "select",
+      "options": [
         {
-            "key": "host",
-            "type": "string",
-            "store": "secret_system"
+          "id": 1,
+          "name": "Engineer"
         },
         {
-            "key": "ou",
-            "type": "string",
-            "store": "secret_system"
+          "id": 3,
+          "name": "Project Manager"
         },
         {
-            "key": "domain",
-            "type": "string",
-            "store": "secret_system"
+          "id": 5,
+          "label": "Administrator"
         },
         {
-            "key": "account",
-            "type": "string",
-            "store": "secret_system"
-        },
-        {
-            "key": "password",
-            "type": "string",
-            "store": "secret_system"
-        },
-        {
-            "key": "default_password",
-            "type": "string",
-            "store": "secret_system"
-        },
-        {
-            "key": "connect_timeout",
-            "type": "string",
-            "store": "secret_system"
-        },
-        {
-            "key": "default_role_id",
-            "type": "select",
-            "options": [                
-                {
-                    "id": 1,
-                    "name" :"Engineer"
-                },
-                {
-                    "id":3,
-                    "name" :"Project Manager"
-                },
-                {
-                    "id" : 5,
-                    "label" :"Administrator"
-                },
-                {
-
-                    "value" : 7,
-                    "name" :"QA"
-                }
-            ],
-            "store": "secret_system"
+          "value": 7,
+          "name": "QA"
         }
-    ]
+      ],
+      "store": "secret_system"
+    }
+  ]
 }

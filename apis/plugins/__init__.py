@@ -199,9 +199,10 @@ def sync_plugins_in_db_and_code():
                 existed = True
                 break
         if not existed:
+            config = get_plugin_config_file(plugin_name)
             insert_plugin_row(plugin_name, {
                 'arguments': {},
-                'disabled': True
+                'disabled': config.get('default_disabled', True)
             })
     for plugin in existed_plugins:
         existed = False

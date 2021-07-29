@@ -1,11 +1,11 @@
- {
-    "name": "sonarqube",
-    "removeable": false,
-    "keys": [
-        {
-            "key": "sonar-url",
-            "type": "string",
-            "store": "secret_all"
-        }
-    ]
+{
+  "name": "sonarqube",
+  "default_disabled": false,
+  "keys": [
+    {
+      "key": "sonar-url",
+      "type": "string",
+      "store": "secret_all"
+    }
+  ]
 }
