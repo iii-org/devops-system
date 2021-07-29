@@ -449,6 +449,16 @@ class Rancher(object):
         output = self.__api_post(url, data=body)
         return output.json()
 
+    def rc_edit_catalogs(self, args, catalog_name):
+        body = args
+        url = f'/catalogs/{catalog_name}'
+        output = self.__api_put(url, data=body)
+        return output.json()
+
+    def rc_delete_catalogs(self, catalog_name):
+        url = f'/catalogs/{catalog_name}'
+        output = self.__api_delete(url)
+
     def rc_refresh_catalogs(self):
         params = {"action": "refresh"}
         url = f'/catalogs/iii-dev-charts3'
@@ -494,6 +504,24 @@ class Catalogs(Resource):
         args = parser.parse_args()
         output = rancher.rc_add_catalogs(args)
         return util.success(output)
+
+
+    @jwt_required
+    def put(self, catalog_name):
+        parser = reqparse.RequestParser()
+        parser.add_argument('branch', type=str)
+        parser.add_argument('url', type=str)
+        parser.add_argument('username', type=str)
+        parser.add_argument('password', type=str)
+        args = parser.parse_args()
+        output = rancher.rc_edit_catalogs(args, catalog_name)
+        return util.success(output)
+
+
+    @jwt_required
+    def delete(self, catalog_name):
+        rancher.rc_delete_catalogs(catalog_name)
+        return util.success()
 
 
 class Catalogs_Refresh(Resource):
