@@ -158,7 +158,11 @@ def issue_not_found(issue_id):
 
 
 def issue_not_all_closed(version_ids):
-    return build(4001, 'Issue in Versions not closed.', {'versions': version_ids})
+    return build(4002, 'Issue in Versions not closed.', {'versions': version_ids})
+
+
+def redmine_unable_to_relate(issue_id, issue_to_id):
+    return build(4003, 'Issues {issue_id}, {issue_to_id} can not create relations.', {'issue_ids': [issue_id, issue_to_id]})
 
 
 # General errors
