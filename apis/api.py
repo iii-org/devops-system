@@ -457,7 +457,7 @@ api.add_resource(maintenance.RegistryIntoRcAll, '/maintenance/registry_into_rc_a
 api.add_resource(maintenance.UpdatePjHttpUrl, '/maintenance/update_pj_http_url')
 
 # Rancher
-api.add_resource(rancher.Catalogs, '/rancher/catalogs')
+api.add_resource(rancher.Catalogs, '/rancher/catalogs', '/rancher/catalogs/<catalog_name>')
 api.add_resource(rancher.Catalogs_Refresh, '/rancher/catalogs_refresh')
 
 # Activity
