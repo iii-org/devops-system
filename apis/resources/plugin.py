@@ -8,8 +8,8 @@ import util as util
 from resources import role
 
 
-invalid_plugin_id = 'Unable get plugin'
-invalid_plugin_softwares = 'Unable get plugin softwares'
+invalid_plugin_name = 'Unable get plugin software'
+
 
 
 class Plugins(Resource):
@@ -57,8 +57,8 @@ class APIPlugin():
         try:
             return plugins.get_plugin_config(plugin_name)
         except NoResultFound:
-            return util.respond(404, invalid_plugin_id,
-                                error=apiError.invalid_plugin_id(plugin_name))
+            return util.respond(404, invalid_plugin_name,
+                                error=apiError.invalid_plugin_name(plugin_name))
 
 
 api_plugin = APIPlugin()

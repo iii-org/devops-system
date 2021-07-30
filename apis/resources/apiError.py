@@ -70,8 +70,8 @@ def release_unable_to_build(info=None):
     return build(1008, 'Unable to build the release.', info)
 
 
-def invalid_plugin_id(plugin_id):
-    return build(1009, 'Plugin Software not fount.', {'plugin_id': plugin_id})
+def invalid_plugin_name(plugin_name):
+    return build(1009, 'Plugin Software not found.', {'plugin_name': plugin_name})
 
 
 def invalid_project_content(key, value):
