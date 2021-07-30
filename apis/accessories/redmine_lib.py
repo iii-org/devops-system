@@ -1,7 +1,7 @@
-from redminelib import Redmine
+from redminelib import Redmine, exceptions as redminelibError
 import requests
-
 import config
+from resources import apiError
 
 redmine = Redmine(config.get('REDMINE_INTERNAL_BASE_URL'),
                   key=config.get('REDMINE_API_KEY'), requests={'verify': False})
@@ -35,8 +35,12 @@ def rm_post_relation(issue_id, issue_to_id, plan_operator_id=None):
     relation.issue_id = issue_id
     relation.issue_to_id = issue_to_id
     relation.relation_type = 'relates'
-    relation.save()
-    return {"relation_id": relation.id}
+    try:
+        relation.save()
+        return {"relation_id": relation.id}
+    except redminelibError.ValidationError as e:
+        raise apiError.DevOpsError(400, str(e),
+                                               error=apiError.redmine_unable_to_relate(issue_id, issue_to_id))
 
 
 def rm_delete_relation(relation_id, plan_operator_id=None):
