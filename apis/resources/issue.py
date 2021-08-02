@@ -18,12 +18,14 @@ import resources.apiError as apiError
 import resources.user as user
 import util as util
 from data.nexus_project import NexusProject
+from enums.action_type import ActionType
 from resources.apiError import DevOpsError
 from model import db
 from resources.logger import logger
 from resources.redmine import redmine
 from . import project as project_module, project, role
 from accessories import redmine_lib
+from .activity import record_activity
 
 FLOW_TYPES = {"0": "Given", "1": "When", "2": "Then", "3": "But", "4": "And"}
 PARAMETER_TYPES = {'1': '文字', '2': '英數字', '3': '英文字', '4': '數字'}
@@ -550,10 +552,13 @@ def update_issue(issue_id, args, operator_id):
     return output
 
 
+@record_activity(ActionType.DELETE_ISSUE)
 def delete_issue(issue_id):
     try:
+        require_issue_visible(issue_id)
         redmine.rm_delete_issue(issue_id)
     except DevOpsError as e:
+        print(e.status_code)
         if e.status_code == 404:
             # Already deleted, let it go
             pass
@@ -1506,7 +1511,6 @@ class SingleIssue(Resource):
 
     @jwt_required
     def delete(self, issue_id):
-        require_issue_visible(issue_id)
         return delete_issue(issue_id)
 
 
