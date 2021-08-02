@@ -434,6 +434,11 @@ class Redmine:
     def rm_build_external_link(path):
         return f"{config.get('REDMINE_EXTERNAL_BASE_URL')}{path}"
 
+    def rm_update_user_name(self, plan_user_id, new_name):
+        user = redmine_lib.redmine.user.get(plan_user_id)
+        setattr(user, 'lastname', new_name)
+        user.save()
+
     def rm_update_email(self, plan_user_id, new_email):
         user = redmine_lib.redmine.user.get(plan_user_id)
         setattr(user, 'mail', new_email)

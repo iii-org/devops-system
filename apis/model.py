@@ -17,7 +17,7 @@ import json
 
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Date, Enum, JSON, Float
-from sqlalchemy.orm import relationship, backref
+from sqlalchemy.orm import relationship
 
 import util
 from enums.action_type import ActionType
