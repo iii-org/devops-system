@@ -639,13 +639,18 @@ gitlab = GitLab()
 
 class GitRelease:
     @jwt_required
-    def check_gitlab_release(self, repository_id, tag_name):
-        output = {'check': True, "info": "", "errors": {}}
+    def check_gitlab_release(self, repository_id, tag_name, branch_name):
+        output = {'check': True, "info": "", "errors": ""}
+        branch = gitlab.gl_get_tags(str(repository_id), {'search': branch_name})
+        #  check branch exist
+        if len(branch) == 0:
+            output = {'check': False, "info": "Gitlab no exists commit", "errors": ""}
+            return output
         tag = gitlab.gl_get_tags(str(repository_id), {'search': tag_name})
         if len(tag) > 0:
             output['check'] = False
             output['info'] = '{0} is exists in gitlab'.format(tag_name)
-            output['errors'] = tag[0]
+            output['errors'] = tag[0]        
         return output
 
 
