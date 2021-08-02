@@ -192,6 +192,13 @@ class GitLab(object):
                                   "skip_reconfirmation": True
                               })
 
+    def gl_update_user_name(self, repository_user_id, new_name):
+        return self.__api_put(f'/users/{repository_user_id}',
+                              params={
+                                  "name": new_name,
+                                  "skip_reconfirmation": True
+                              })
+
     def gl_get_user_list(self, args):
         return self.__api_get('/users', params=args)
 
