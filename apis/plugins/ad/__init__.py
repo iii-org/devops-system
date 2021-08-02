@@ -285,12 +285,6 @@ class AD(object):
         except NoResultFound:
             self.ad_info['is_pass'] = False
 
-        
-
-
-    def check_ad_srever(self):
-        return self.server
-
     def get_users(self):
         res = []
         user_search_filter = '(&(|(objectclass=user)(objectclass=person))(!(isCriticalSystemObject=True)))'
