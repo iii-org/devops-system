@@ -112,6 +112,20 @@ def get_gitlab_base(url):
     return url[:-4]
 
 
+def analysis_release(release, hb_list_tags):
+    ret = row_to_dict(release)
+    if ret.get('branch') is not None and ret.get('commit') is not None:
+        ret['git_url'] = f'{gitlab_project_url}/-/releases/{ret.get("tag_name")}'
+        # check harbor image exists
+        ret['docker'] = ''
+        if ret.get("branch") not in hb_list_tags:
+            hb_list_tags[ret.get("branch")] = get_hb_branch_tags(
+                 project.name, ret.get("branch"))
+        if ret.get("tag_name") in hb_list_tags[ret.get("branch")]:
+            ret['docker'] = f'{harbor_base}/{project.name}/{ret.get("branch")}:{ret.get("tag_name")}'
+    return ret, hb_list_tags
+
+
 def get_releases_by_project_id(project_id):
     project = model.Project.query.filter_by(id=project_id).first()
     releases = model.Release.query.\
@@ -123,15 +137,7 @@ def get_releases_by_project_id(project_id):
     hb_list_tags = {}
     for release in releases:
         if releases is not None:
-            ret = row_to_dict(release)
-            ret['git_url'] = f'{gitlab_project_url}/-/releases/{ret.get("tag_name")}'
-            # check harbor image exists
-            ret['docker'] = ''
-            if ret.get("branch") not in hb_list_tags:
-                hb_list_tags[ret.get("branch")] = get_hb_branch_tags(
-                    project.name, ret.get("branch"))
-            if ret.get("tag_name") in hb_list_tags[ret.get("branch")]:
-                ret['docker'] = f'{harbor_base}/{project.name}/{ret.get("branch")}:{ret.get("tag_name")}'
+            ret, hb_list_tags =analysis_release(release,hb_list_tags) 
             output.append(ret)
     return output
 
@@ -262,7 +268,7 @@ class Releases(Resource):
         parser.add_argument('forced', action='store_true')
         args = parser.parse_args()
         gitlab_ref = branch_name = args.get('branch')
-        if args.get('commit', None) is None:
+        if args.get('commit', None) is None and branch_name is not None:
             args.update({'commit': 'latest'})
         else:
             gitlab_ref = args.get('commit')
