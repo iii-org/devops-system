@@ -123,7 +123,7 @@ def to_redmine_role_id(role_id):
 def get_token_expires(role_id):
     expires = datetime.timedelta(days=30)
     if role_id == 5:
-        datetime.timedelta(days=36500)
+        expires = datetime.timedelta(days=36500)
     return expires
 
 
