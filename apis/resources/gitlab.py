@@ -566,6 +566,7 @@ class GitLab(object):
                     pj_create_date = datetime.strptime(
                         pj.created_at, '%Y-%m-%dT%H:%M:%S.%f%z').astimezone(
                             tz.tzlocal()).date()
+                    print(f"datatime now:{datetime.now()}")
                     day_start = datetime.combine(
                         (datetime.now() - timedelta(days=i)), time(00, 00))
                     day_end = datetime.combine(
