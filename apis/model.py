@@ -405,6 +405,9 @@ class Cluster(db.Model):
     id = Column(Integer, primary_key=True)
     name = Column(String)
     disabled = Column(Boolean)
+    creator_id = Column(Integer, ForeignKey(User.id, ondelete='SET NULL'), nullable=True)
+    create_at = Column(DateTime)
+    update_at = Column(DateTime)
 
 class RedmineIssue(db.Model):
     issue_id = Column(Integer, primary_key=True)
