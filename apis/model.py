@@ -401,6 +401,11 @@ class Sideex(db.Model):
         return json.dumps(fields)
 
 
+class Cluster(db.Model):
+    id = Column(Integer, primary_key=True)
+    name = Column(String)
+    disabled = Column(Boolean)
+
 class RedmineIssue(db.Model):
     issue_id = Column(Integer, primary_key=True)
     project_id = Column(Integer)
