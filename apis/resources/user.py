@@ -123,7 +123,7 @@ def to_redmine_role_id(role_id):
 def get_token_expires(role_id):
     expires = datetime.timedelta(days=30)
     if role_id == 5:
-        datetime.timedelta(days=36500)
+        expires = datetime.timedelta(days=36500)
     return expires
 
 
@@ -238,6 +238,7 @@ def update_user(user_id, args, from_ad=False):
                                 error=apiError.user_from_ad(user_id))
         else:
             return util.success()
+
     if args['password'] is not None:
         if args["old_password"] == args["password"]:
             return util.respond(400, "Password is not changed.", error=apiError.wrong_password())
@@ -267,6 +268,7 @@ def update_user(user_id, args, from_ad=False):
         user.email = new_email
     if args["name"] is not None:
         user.name = args['name']
+        update_external_name(user_id, args['name'], user.login, user.email)
     if args["phone"] is not None:
         user.phone = args['phone']
     if args["title"] is not None:
@@ -274,7 +276,7 @@ def update_user(user_id, args, from_ad=False):
     if args["department"] is not None:
         user.department = args['department']
     if args.get("status",None) is not None:
-        if args.get("status",None) == "disable":
+        if args.get("status", None) == "disable":
             user.disabled = True
         else:
             user.disabled = False
@@ -330,6 +332,14 @@ def update_external_email(user_id, user_name, new_email):
 
     harbor_user_id = user_relation.harbor_user_id
     harbor.hb_update_user_email(harbor_user_id, user_name, new_email)
+
+
+def update_external_name(user_id, new_name, login, email):
+    relation = nx_get_user_plugin_relation(user_id=user_id)
+    redmine.rm_update_user_name(relation.plan_user_id, new_name)
+    gitlab.gl_update_user_name(relation.repository_user_id, new_name)
+    harbor.hb_update_user_email(relation.harbor_user_id, new_name, email)
+    sonarqube.sq_update_user_name(login, new_name)
 
 
 def try_to_delete(delete_method, obj):

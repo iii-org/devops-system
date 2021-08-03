@@ -112,6 +112,14 @@ def sq_update_password(login, new_password):
     return __api_post('/users/change_password', params=params)
 
 
+def sq_update_user_name(login, new_name):
+    params = {
+        'login': login,
+        'name': new_name
+    }
+    return __api_post('/users/update', params=params)
+
+
 def sq_get_current_measures(project_name):
     params = {
         'metricKeys': METRICS,
