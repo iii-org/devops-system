@@ -47,7 +47,6 @@ for key in ['JWT_SECRET_KEY',
     app.config[key] = config.get(key)
 
 app.config['PROPAGATE_EXCEPTIONS'] = True
-app.config['JWT_ACCESS_TOKEN_EXPIRES'] = datetime.timedelta(days=1)
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     "pool_pre_ping": True,
     "pool_recycle": 300,
