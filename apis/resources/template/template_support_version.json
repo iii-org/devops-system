@@ -1,0 +1,10 @@
+{
+    "vuejs-app-template2":{
+        "start_version": "v1.3",
+        "end_version": "v1.7.2"
+    },
+    "vuejs-app-template1":{
+        "start_version": "v1.7"
+    }
+
+}

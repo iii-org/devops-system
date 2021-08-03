@@ -13,7 +13,7 @@ import util
 import config
 import resources.yaml_OO as pipeline_yaml_OO
 import util
-from . import role
+import resources.role as role
 import resources.apiError as apiError
 import resources.pipeline as pipeline
 from model import db, TemplateListCache, PluginSoftware
