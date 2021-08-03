@@ -112,17 +112,20 @@ def get_gitlab_base(url):
     return url[:-4]
 
 
-def analysis_release(release, hb_list_tags):
+def analysis_release(release, info, hb_list_tags):
     ret = row_to_dict(release)
+    gitlab_project_url = info.get('gitlab_project_url')
+    harbor_base = info.get('harbor_base')
+    project_name = info.get('project_name')
     if ret.get('branch') is not None and ret.get('commit') is not None:
         ret['git_url'] = f'{gitlab_project_url}/-/releases/{ret.get("tag_name")}'
         # check harbor image exists
         ret['docker'] = ''
         if ret.get("branch") not in hb_list_tags:
             hb_list_tags[ret.get("branch")] = get_hb_branch_tags(
-                 project.name, ret.get("branch"))
+                 project_name, ret.get("branch"))
         if ret.get("tag_name") in hb_list_tags[ret.get("branch")]:
-            ret['docker'] = f'{harbor_base}/{project.name}/{ret.get("branch")}:{ret.get("tag_name")}'
+            ret['docker'] = f'{harbor_base}/{project_name}/{ret.get("branch")}:{ret.get("tag_name")}'
     return ret, hb_list_tags
 
 
@@ -132,12 +135,15 @@ def get_releases_by_project_id(project_id):
         filter(model.Release.project_id == project_id).\
         all()
     output = []
-    gitlab_project_url = f'{project.http_url[:-4]}'
-    harbor_base = f'docker pull {urlparse(config.get("HARBOR_EXTERNAL_BASE_URL")).netloc}'
+    info = {
+        'project_name': project.name,
+        'gitlab_project_url' : f'{project.http_url[:-4]}',
+        'harbor_base' : f'docker pull {urlparse(config.get("HARBOR_EXTERNAL_BASE_URL")).netloc}'
+    }
     hb_list_tags = {}
     for release in releases:
         if releases is not None:
-            ret, hb_list_tags =analysis_release(release,hb_list_tags) 
+            ret, hb_list_tags =analysis_release(release, info, hb_list_tags) 
             output.append(ret)
     return output
 
