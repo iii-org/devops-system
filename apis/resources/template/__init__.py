@@ -7,7 +7,7 @@ from pathlib import Path
 import json
 import yaml
 
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
 import util
 import config
@@ -17,7 +17,6 @@ import resources.role as role
 import resources.apiError as apiError
 import resources.pipeline as pipeline
 from model import db, TemplateListCache, PluginSoftware
-from sqlalchemy import func, or_, and_
 
 from gitlab import Gitlab
 
