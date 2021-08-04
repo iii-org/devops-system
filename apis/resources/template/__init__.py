@@ -1,24 +1,22 @@
-from datetime import datetime
-import dateutil.parser
-import sys
-import subprocess
-import shutil
-from pathlib import Path
 import json
-import yaml
+import shutil
+import subprocess
+import sys
+from datetime import datetime
+from pathlib import Path
 
-from flask_jwt_extended import jwt_required
-from flask_restful import Resource, reqparse
-import util
 import config
-import resources.yaml_OO as pipeline_yaml_OO
-import util
-import resources.role as role
+import dateutil.parser
 import resources.apiError as apiError
 import resources.pipeline as pipeline
-from model import db, TemplateListCache, PluginSoftware
-
+import resources.role as role
+import resources.yaml_OO as pipeline_yaml_OO
+import util
+import yaml
+from flask_jwt_extended import jwt_required
+from flask_restful import Resource, reqparse
 from gitlab import Gitlab
+from model import PluginSoftware, TemplateListCache, db
 
 template_replace_dict = {
     "registry": config.get("HARBOR_EXTERNAL_BASE_URL").replace("https://", ""),
