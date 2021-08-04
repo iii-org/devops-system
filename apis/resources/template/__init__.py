@@ -204,7 +204,48 @@ def __add_plugin_soft_status():
             if software.get('plugin_key') == db_plugin.name:
                 software['plugin_disabled'] = db_plugin.disabled
 
+
+def __compare_tag_version(tag_version, start_version, end_version=None):
+    def version_paser(version_string):
+        return version_string.replace('v','').split('.')
+    # has end 
+    tag_version_list = version_paser(tag_version)
+    tag_version_list = tag_version_list + [0]*(3 - len(tag_version_list))
+    start_version_list = version_paser(start_version)
+    start_version_list = start_version_list + [0]*(3 - len(start_version_list))
+    if end_version == "":
+        i =0
+        while i < 3: 
+            if int(tag_version_list[i]) > int(start_version_list[i]):
+                return True
+            elif int(tag_version_list[i]) < int(start_version_list[i]):
+                return False
+            elif i == 2:
+                return True
+            else:
+                i += 1
+    else:
+        # has end version
+        end_version=version_paser(end_version)
+        end_version = end_version + [0]*(3 - len(end_version))
+        i =0
+        while i < 3: 
+            if i ==2:
+                if int(tag_version_list[i]) >= int(start_version_list[i]) and int(tag_version_list[i]) <= int(end_version[i]):
+                    return True
+                else:
+                    return False
+            else:
+                if int(tag_version_list[i]) > int(start_version_list[i]) and int(tag_version_list[i]) < int(end_version[i]):
+                    return True
+                elif int(tag_version_list[i]) < int(start_version_list[i]) or int(tag_version_list[i]) > int(end_version[i]):
+                    return False
+                else:
+                    i += 1
+
+
 def __force_update_template_cache_table():
+    template_support_version = None
     TemplateListCache.query.delete()
     db.session.commit()
 
@@ -219,6 +260,8 @@ def __force_update_template_cache_table():
         "iiidevops-templates": "Public Templates",
         "local-templates": "Local Templates"
     }
+    with open(f'apis/resources/template/template_support_version.json') as file:
+        template_support_version = json.load(file)
     for group in gl.groups.list(all=True):
         if group.name in template_group_dict:
             for group_project in group.projects.list(all=True):
@@ -226,11 +269,23 @@ def __force_update_template_cache_table():
                 # get all tags
                 tag_list = []
                 for tag in pj.tags.list(all=True):
-                    tag_list.append({
-                        "name": tag.name,
-                        "commit_id": tag.commit["id"],
-                        "commit_time": tag.commit["committed_date"]
-                    })
+                    if group.name == "iiidevops-templates" and template_support_version is not None:
+                        for temp_name, temp_value in template_support_version.items():
+                            if temp_name == pj.name:
+                                status = __compare_tag_version(tag.name, temp_value.get('start_version'), temp_value.get('end_version'))
+                                if status:
+                                    tag_list.append({
+                                        "name": tag.name,
+                                        "commit_id": tag.commit["id"],
+                                        "commit_time": tag.commit["committed_date"]
+                                    })
+                                break
+                    else:
+                        tag_list.append({
+                            "name": tag.name,
+                            "commit_id": tag.commit["id"],
+                            "commit_time": tag.commit["committed_date"]
+                        })
                 pip_set_json = __tm_read_pipe_set_json(pj)
                 if group.name == "iiidevops-templates":
                     output[0]['options'].append({
