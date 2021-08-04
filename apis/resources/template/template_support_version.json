@@ -1,10 +1,114 @@
 {
-    "vuejs-app-template2":{
-        "start_version": "v1.3",
-        "end_version": "v1.7.2"
+    "asp-dotnet-core-example":{
+        "start_version": "v1.7.2",
+        "end_version": ""
+    },
+    "bootstrap-jquery-simple-web":{
+        "start_version": "v1.7.2",
+        "end_version": ""
+    },
+    "default-dev":{
+        "start_version": "v1.7.2",
+        "end_version": ""
+    },
+    "django-mariadb-todo":{
+        "start_version": "v1.7.2",
+        "end_version": ""
+    },
+    "django-postgresql-todo":{
+        "start_version": "v1.7.2",
+        "end_version": ""
+    },
+    "django-sqlite-todo-test1":{
+        "start_version": "v1.7.2",
+        "end_version": ""
+    },
+    "django-testsite":{
+        "start_version": "v1.7.2",
+        "end_version": ""
+    },
+    "flask-mariadb-todo":{
+        "start_version": "v1.7.2",
+        "end_version": ""
+    },
+    "flask-postgres-todo":{
+        "start_version": "v1.7.2",
+        "end_version": ""
+    },
+    "flask-sqlite-todo":{
+        "start_version": "v1.7.2",
+        "end_version": ""
+    },
+    "flask-webpage":{
+        "start_version": "v1.7.2",
+        "end_version": ""
+    },
+    "laravel-app-template":{
+        "start_version": "v1.7.2",
+        "end_version": ""
+    },
+    "laravel-mariadb-login":{
+        "start_version": "v1.7.2",
+        "end_version": ""
+    },
+    "laravel-postgres-login":{
+        "start_version": "v1.7.2",
+        "end_version": ""
+    },
+    "laravel-sqlite-login":{
+        "start_version": "v1.7.2",
+        "end_version": ""
+    },
+    "mariadb-dev":{
+        "start_version": "v1.7",
+        "end_version": ""
+    },
+    "mongodb-dev":{
+        "start_version": "v1.7",
+        "end_version": ""
+    },
+    "mssql-dev":{
+        "start_version": "v1.3.1",
+        "end_version": ""
+    },
+    "nodejs-express-hello":{
+        "start_version": "v1.7.2",
+        "end_version": ""
+    },
+    "nodejs-mongodb-todo":{
+        "start_version": "v1.7.2",
+        "end_version": ""
+    },
+    "php-codelgniter-simple":{
+        "start_version": "v1.7.2",
+        "end_version": ""
+    },
+    "postgres-dev":{
+        "start_version": "v1.7",
+        "end_version": ""
+    },
+    "spring-boot-gradle-hello":{
+        "start_version": "v1.7.2",
+        "end_version": ""
+    },
+    "spring-boot-mariadb-restapi":{
+        "start_version": "v1.7.2",
+        "end_version": ""
+    },
+    "spring-boot-maven-hello":{
+        "start_version": "v1.7.2",
+        "end_version": ""
+    },
+    "spring-boot-postgres-example":{
+        "start_version": "v1.7.2",
+        "end_version": ""
     },
     "vuejs-app-template1":{
-        "start_version": "v1.7"
+        "start_version": "v1.7.2",
+        "end_version": ""
+    },
+    "vuejs-app-template2":{
+        "start_version": "v1.7.2",
+        "end_version": ""
     }
-
 }
