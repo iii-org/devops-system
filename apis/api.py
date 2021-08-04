@@ -35,7 +35,7 @@ from model import db
 from resources import logger, role as role, activity, starred_project, devops_version
 from resources import project, gitlab, issue, user, redmine, wiki, version, apiTest, mock, harbor, \
     template, release, sync_redmine, plugin, kubernetesClient, project_permission, quality, sync_project, \
-    sync_user, router
+    sync_user, router, deploy
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -238,7 +238,7 @@ api.add_resource(wiki.ProjectWiki, '/project/<sint:project_id>/wiki/<wiki_name>'
 api.add_resource(version.ProjectVersionList, '/project/<sint:project_id>/version/list')
 api.add_resource(version.ProjectVersion, '/project/<sint:project_id>/version',
                  '/project/<sint:project_id>/version/<int:version_id>')
-api.add_resource(project.TestSummary, '/project/<sint:project_id>/test_summary')
+api.add_resource(project.TestSummary, '/project/<sint:project_id>/test_summary/')
 api.add_resource(template.TemplateList, '/template_list')
 api.add_resource(template.TemplateListForCronJob, '/template_list_for_cronjob')
 api.add_resource(template.SingleTemplate, '/template', '/template/<repository_id>')
@@ -505,6 +505,11 @@ api.add_resource(devops_version.DevOpsVersion, '/devops_version')
 api.add_resource(devops_version.DevOpsVersionCheck, '/devops_version/check')
 api.add_resource(devops_version.DevOpsVersionUpdate, '/devops_version/update')
 
+
+# Deploy
+api.add_resource(deploy.Clusters, '/deploy/clusters')
+# api.add_resource(deploy.Artifacts, '/deploy/artifacts')
+api.add_resource(deploy.Pods, '/deploy/pods')
 
 def start_prod():
     try:
