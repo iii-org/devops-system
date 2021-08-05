@@ -4,6 +4,7 @@ from flask_restful import Resource
 import util
 from plugins.checkmarx import CheckMarx
 from plugins.sideex import sd_get_test_by_commit
+from plugins.sonarqube import sq_get_history_by_commit
 from plugins.webinspect import wi_get_scan_by_commit
 from plugins.zap import zap_get_test_by_commit
 from resources import apiTest, role
@@ -14,12 +15,12 @@ def get_commit_summary(project_id, commit_id):
         'postman': apiTest.get_results_by_commit(project_id, commit_id),
         'checkmarx': CheckMarx.get_scan(project_id, commit_id),
         'sideex': sd_get_test_by_commit(project_id, commit_id),
+        'sonarqube': sq_get_history_by_commit(project_id, commit_id),
         'webinspect': wi_get_scan_by_commit(project_id, commit_id),
         'zap': zap_get_test_by_commit(project_id, commit_id)
     }
 
 
-    # f'{config.get("SONARQUBE_EXTERNAL_BASE_URL")}/dashboard?id={project_name}'
 # ---------------- Resources ----------------
 class CommitCicdSummary(Resource):
     @jwt_required
