@@ -287,8 +287,7 @@ def __force_update_template_cache_table():
                             "commit_time": tag.commit["committed_date"]
                         })
                 pip_set_json = __tm_read_pipe_set_json(pj)
-                if group.name == "iiidevops-templates":
-                    output[0]['options'].append({
+                template_data = {
                         "id":
                         pj.id,
                         "name":
@@ -301,22 +300,13 @@ def __force_update_template_cache_table():
                         pip_set_json["description"],
                         "version":
                         tag_list
-                    })
+                    }
+                if group.name == "iiidevops-templates" and template_support_version is None:
+                    output[0]['options'].append(template_data)
+                elif group.name == "iiidevops-templates" and template_support_version is not None and pj.name in template_support_version:
+                    output[0]['options'].append(template_data)
                 elif group.name == "local-templates":
-                    output[1]['options'].append({
-                        "id":
-                        pj.id,
-                        "name":
-                        pj.name,
-                        "path":
-                        pj.path,
-                        "display":
-                        pip_set_json["name"],
-                        "description":
-                        pip_set_json["description"],
-                        "version":
-                        tag_list
-                    })
+                    output[1]['options'].append(template_data)
                 cache_temp = TemplateListCache(
                     temp_repo_id=pj.id,
                     name=pj.name,
