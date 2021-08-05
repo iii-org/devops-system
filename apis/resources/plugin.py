@@ -1,12 +1,9 @@
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
-from sqlalchemy.orm.exc import NoResultFound
 
 import plugins
-import resources.apiError as apiError
 import util as util
 from resources import role
-
 
 invalid_plugin_name = 'Unable get plugin software'
 
@@ -32,15 +29,3 @@ class Plugin(Resource):
         args = parser.parse_args()
         plugins.update_plugin_config(plugin_name, args)
         return util.respond(204)
-
-
-class APIPlugin():
-    def get_plugin(self, plugin_name):
-        try:
-            return plugins.get_plugin_config(plugin_name)
-        except NoResultFound:
-            return util.respond(404, invalid_plugin_name,
-                                error=apiError.invalid_plugin_name(plugin_name))
-
-
-api_plugin = APIPlugin()

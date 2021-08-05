@@ -1,20 +1,18 @@
-from array import ArrayType
 import json
-import numbers
-from datetime import datetime, date
-from ldap3 import Server, ServerPool, Connection, SUBTREE, LEVEL, ALL, ALL_ATTRIBUTES, FIRST
-import util as util
-import model
-from model import db
-from flask_jwt_extended import jwt_required, get_jwt_identity
+
+from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse, inputs
+from ldap3 import Server, ServerPool, Connection, ALL, ALL_ATTRIBUTES, FIRST
 from sqlalchemy.orm.exc import NoResultFound
-from resources import role
-from resources.plugin import api_plugin
-from resources.apiError import DevOpsError
+
+import model
+import plugins
 import resources.apiError as apiError
-from resources.logger import logger
 import resources.user as user
+import util as util
+from model import db
+from resources import role
+from resources.logger import logger
 
 invalid_ad_server = 'Get AD User Error'
 ad_connect_timeout = 1
@@ -224,7 +222,7 @@ def get_k8s_key_value(parameters):
 
 def get_ad_server_in_db():
     ad_parameter = None
-    plugin = api_plugin.get_plugin('ad')
+    plugin = plugins.get_plugin_config('ad')
     if plugin is not None and plugin['disabled'] is False:
         ad_parameter = get_k8s_key_value(plugin['arguments'])
     return ad_parameter
@@ -525,7 +523,7 @@ class ADAPIUser(object):
         try:
             output = {}
             output['disabled'] = True
-            plugin = api_plugin.get_plugin('ad')
+            plugin = plugins.get_plugin_config('ad')
             if plugin is not None:
                 plugin['arguments'] = get_k8s_key_value(plugin['arguments'])
                 output = plugin

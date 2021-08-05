@@ -185,22 +185,38 @@ class CheckMarx(object):
             desc(Model.scan_id)).all()
         ret = []
         for row in rows:
-            if row.stats is None:
-                stats = None
-            else:
-                stats = json.loads(row.stats)
-            ret.append({
-                'scan_id': row.scan_id,
-                'branch': row.branch,
-                'commit_id': row.commit_id[0:7],
-                'commit_url': gitlab.commit_id_to_url(project_id, row.commit_id),
-                'status': row.scan_final_status,
-                'stats': stats,
-                'run_at': str(row.run_at),
-                'report_id': row.report_id,
-                'report_ready': row.finished is True
-            })
+            ret.append(CheckMarx.to_json(row, project_id))
         return ret
+
+    @staticmethod
+    def get_scan(project_id, commit_id):
+        row = Model.query.filter(
+            Model.repo_id == nexus.nx_get_repository_id(project_id),
+            Model.commit_id.like(f'{commit_id}%')
+        ).order_by(
+            desc(Model.scan_id)).first()
+        if row is not None:
+            return CheckMarx.to_json(row, project_id)
+        else:
+            return {}
+
+    @staticmethod
+    def to_json(row, project_id):
+        if row.stats is None:
+            stats = None
+        else:
+            stats = json.loads(row.stats)
+        return {
+            'scan_id': row.scan_id,
+            'branch': row.branch,
+            'commit_id': row.commit_id[0:7],
+            'commit_url': gitlab.commit_id_to_url(project_id, row.commit_id),
+            'status': row.scan_final_status,
+            'stats': stats,
+            'run_at': str(row.run_at),
+            'report_id': row.report_id,
+            'report_ready': row.finished is True
+        }
 
 
 checkmarx = CheckMarx()

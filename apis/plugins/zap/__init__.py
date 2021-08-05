@@ -56,6 +56,18 @@ def zap_get_tests(project_id):
     return ret
 
 
+def zap_get_test_by_commit(project_id, commit_id):
+    project_name = nexus.nx_get_project(id=project_id).name
+    row = model.Zap.query.filter(
+        model.Zap.project_name == project_name,
+        model.Zap.commit_id.like(f'{commit_id}%')
+    ).first()
+    if row is not None:
+        return process_row(row, project_id)
+    else:
+        return {}
+
+
 def zap_get_latest_test(project_id):
     project_name = nexus.nx_get_project(id=project_id).name
     row = model.Zap.query.filter_by(
