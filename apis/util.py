@@ -5,6 +5,7 @@ import time
 import math
 from datetime import datetime, date
 from threading import Thread
+import paramiko
 
 import requests
 from flask_restful import reqparse
@@ -12,6 +13,22 @@ from flask_restful import reqparse
 import resources.apiError as apiError
 import boto3
 from botocore.exceptions import ClientError
+
+
+def ssh_to_node_by_key(command, node_ip):
+    pkey = paramiko.RSAKey.from_private_key_file('./deploy-config/id_rsa')
+    client = paramiko.SSHClient()
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    client.connect(hostname=node_ip,
+                port=22,
+                username='rkeuser',
+                pkey=pkey)
+    
+    stdin, stdout, stderr = client.exec_command(command)
+    output_str = stdout.read().decode()
+    error_str = stderr.read().decode()
+    client.close()
+    return output_str, error_str
 
 
 def date_to_str(data):

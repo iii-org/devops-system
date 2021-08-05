@@ -24,6 +24,7 @@ from plugins import webinspect, sideex, zap, sonarqube, postman, ad
 import config
 import migrate
 import model
+import system
 import resources.apiError as apiError
 import plugins.checkmarx as checkmarx
 import resources.pipeline as pipeline
@@ -83,24 +84,6 @@ def internal_error(exception):
     logger.logger.exception(str(exception))
     return util.respond(500, "Unexpected internal error",
                         error=apiError.uncaught_exception(exception))
-
-
-# noinspection PyMethodMayBeStatic
-class SystemGitCommitID(Resource):
-    def get(self):
-        git_commit_id = ""
-        git_tag = ""
-        git_date = ""
-        if os.path.exists("git_commit"):
-            with open("git_commit") as f:
-                git_commit_id = f.read().splitlines()[0]
-        if os.path.exists("git_tag"):
-            with open("git_tag") as f:
-                git_tag = f.read().splitlines()[0]
-        if os.path.exists("git_date"):
-            with open("git_date") as f:
-                git_date = f.read().splitlines()[0]
-        return util.success({"git_commit_id": git_commit_id, "git_tag": git_tag, "git_date": git_date})
 
 
 class NexusVersion(Resource):
@@ -422,7 +405,8 @@ api.add_resource(redmine.RedmineFile, '/download', '/file/<int:file_id>')
 api.add_resource(redmine.RedmineMail, '/mail')
 
 # System administrations
-api.add_resource(SystemGitCommitID, '/system_git_commit_id')  # git commit
+api.add_resource(system.SystemGitCommitID, '/system_git_commit_id')  # git commit
+api.add_resource(system.SystemInfoReport, '/system_info_report') 
 
 # Mocks
 api.add_resource(mock.MockTestResult, '/mock/test_summary')

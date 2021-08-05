@@ -2,8 +2,7 @@ import base64
 import json
 import numbers
 import os
-from datetime import datetime
-
+from datetime import datetime, timezone
 import yaml
 from kubernetes import client as k8s_client
 from kubernetes import config as k8s_config
@@ -103,6 +102,18 @@ def list_service_all_namespaces():
             "ports": list_ports
         })
     return list_services
+
+
+def get_the_oldest_node():
+    the_oldest_node = ['', datetime.now(timezone.utc)]
+    for node in v1.list_node().items:
+        if node.metadata.creation_timestamp < the_oldest_node[1]:
+            for address in node.status.addresses:
+                if address.type == "InternalIP":
+                    the_oldest_node[0] = address.address
+                    the_oldest_node[1] = node.metadata.creation_timestamp
+                    break
+    return the_oldest_node
 
 
 def list_work_node():
