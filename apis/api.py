@@ -1,5 +1,3 @@
-
-import datetime
 import os
 import sys
 
@@ -32,7 +30,7 @@ import util
 import maintenance
 from jsonwebtoken import jsonwebtoken
 from model import db
-from resources import logger, role as role, activity, starred_project, devops_version
+from resources import logger, role as role, activity, starred_project, devops_version, cicd
 from resources import project, gitlab, issue, user, redmine, wiki, version, apiTest, mock, harbor, \
     template, release, sync_redmine, plugin, kubernetesClient, project_permission, quality, sync_project, \
     sync_user, router, deploy
@@ -238,7 +236,6 @@ api.add_resource(wiki.ProjectWiki, '/project/<sint:project_id>/wiki/<wiki_name>'
 api.add_resource(version.ProjectVersionList, '/project/<sint:project_id>/version/list')
 api.add_resource(version.ProjectVersion, '/project/<sint:project_id>/version',
                  '/project/<sint:project_id>/version/<int:version_id>')
-api.add_resource(project.TestSummary, '/project/<sint:project_id>/test_summary/')
 api.add_resource(template.TemplateList, '/template_list')
 api.add_resource(template.TemplateListForCronJob, '/template_list_for_cronjob')
 api.add_resource(template.SingleTemplate, '/template', '/template/<repository_id>')
@@ -386,6 +383,10 @@ api.add_resource(apiTest.GetTestValueLocation, '/testValues/support_locations')
 api.add_resource(apiTest.GetTestValueType, '/testValues/support_types')
 api.add_resource(apiTest.TestValueByTestItem, '/testValues_by_testItem/<item_id>')
 api.add_resource(apiTest.TestValue, '/testValues/<value_id>')
+
+# Integrated test results
+api.add_resource(project.TestSummary, '/project/<sint:project_id>/test_summary/')
+api.add_resource(cicd.CommitCicdSummary, '/project/<sint:project_id>/test_summary/<commit_id>')
 
 # Postman tests
 api.add_resource(postman.ExportToPostman, '/export_to_postman/<sint:project_id>')

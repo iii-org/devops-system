@@ -427,21 +427,37 @@ def list_results(project_id):
         model.TestResults.id)).all()
     ret = []
     for row in rows:
-        scan = {
-            'id': row.id,
-            'branch': row.branch,
-            'commit_id': row.commit_id[0:7],
-            'commit_url': gitlab.commit_id_to_url(project_id, row.commit_id),
-            'run_at': str(row.run_at)
-        }
-        if row.total is None:
-            scan['success'] = None
-            scan['failure'] = None
-        else:
-            scan['success'] = row.total - row.fail
-            scan['failure'] = row.fail
-        ret.append(scan)
+        ret.append(__to_json(row, project_id))
     return ret
+
+
+def get_results_by_commit(project_id, commit_id):
+    row = model.TestResults.query.filter(
+        model.TestResults.project_id == project_id,
+        model.TestResults.commit_id.like(f'{commit_id}%')
+    ).order_by(desc(
+        model.TestResults.id)).first()
+    if row is not None:
+        return __to_json(row, project_id)
+    else:
+        return {}
+
+
+def __to_json(row, project_id):
+    scan = {
+        'id': row.id,
+        'branch': row.branch,
+        'commit_id': row.commit_id[0:7],
+        'commit_url': gitlab.commit_id_to_url(project_id, row.commit_id),
+        'run_at': str(row.run_at)
+    }
+    if row.total is None:
+        scan['success'] = None
+        scan['failure'] = None
+    else:
+        scan['success'] = row.total - row.fail
+        scan['failure'] = row.fail
+    return scan
 
 
 # --------------------- Resources ---------------------

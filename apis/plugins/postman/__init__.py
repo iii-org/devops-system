@@ -9,7 +9,6 @@ import util as util
 from model import db
 from resources import apiTest, role, apiError
 
-
 # noinspection PyTypeChecker
 from resources.test_generated_issue import tgi_feed_postman
 
@@ -85,7 +84,7 @@ def export_to_postman(project_id, target):
                             'key': value['key'],
                             'value': value['value']
                         })
-                elif type_id == 2 and location_id ==2:
+                elif type_id == 2 and location_id == 2:
                     negative = ''
                     if not item['is_passed']:
                         negative = '.not'
