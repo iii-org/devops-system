@@ -1,9 +1,11 @@
 import os
 import json
+import requests
 
 from flask_restful import Resource
 import util
 import config
+import model
 import resources.apiError as apiError
 import resources.kubernetesClient as kubernetesClient
 
@@ -16,6 +18,11 @@ class SystemInfoReport(Resource):
         output_str, error_str = util.ssh_to_node_by_key("~/deploy-devops/bin/get-sysinfo.pl", deployer_node_ip)
         if not error_str:
             print(f"ssh_output_data: {json.loads(output_str)}")
+            # Sent system data to devops version center
+            # get deployment uuid
+            row = model.NexusVersion.query.first()
+            print(row.deployment_uuid)
+            #r = requests.get('https://api.github.com/user')
         else:
             raise apiError.DevOpsError(500, "Can not get deployer server response from ssh")
         
