@@ -49,5 +49,7 @@
     "VERSION_CENTER_BASE_URL": "http://127.0.0.1:10008",
     "DEPLOYMENT_NAME": "ro-local",
 
+    "DEPLOYER_NODE_IP":"",
+
     "DEBUG": false
 }
