@@ -438,7 +438,10 @@ api.add_resource(harbor.HarborArtifact,
                  '/harbor/artifacts')
 api.add_resource(harbor.HarborProject, '/harbor/projects/<int:nexus_project_id>/summary')
 api.add_resource(harbor.HarborRegistries, '/harbor/registries')
-api.add_resource(harbor.HarborReplicationPolicy, '/harbor/replication/policy')
+api.add_resource(harbor.HarborRegistry, '/harbor/registries/<sint:registry_id>')
+api.add_resource(harbor.HarborReplicationPolices, '/harbor/replication/policies')
+api.add_resource(harbor.HarborReplicationPolicy,
+                 '/harbor/replication/policies/<sint:policy_id>')
 api.add_resource(harbor.HarborReplicationExecution, '/harbor/replication/execution')
 
 # WebInspect
@@ -509,7 +512,6 @@ api.add_resource(devops_version.DevOpsVersionUpdate, '/devops_version/update')
 
 # Deploy
 api.add_resource(deploy.Clusters, '/deploy/clusters')
-# api.add_resource(deploy.Artifacts, '/deploy/artifacts')
 api.add_resource(deploy.Pods, '/deploy/pods')
 
 def start_prod():
@@ -536,4 +538,4 @@ def start_prod():
 if __name__ == "__main__":
     start_prod()
     socketio.run(app, host='0.0.0.0', port=10009, debug=(config.get('DEBUG')),
-                 use_reloader=True)
+                 use_reloader=False)

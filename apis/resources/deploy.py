@@ -17,6 +17,7 @@ from kubernetes import config as k8s_config
 from kubernetes.client.rest import ApiException
 from datetime import datetime, date
 from pathlib import Path
+from . import harbor
 import yaml
 import nexus
 
@@ -56,7 +57,7 @@ def check_cluster(server_name):
 
 def get_clusters():
     output = []
-    clusters = model.Cluster.query.all()    
+    clusters = model.Cluster.query.all()
     for cluster in clusters:
         output.append(
             {
@@ -66,9 +67,8 @@ def get_clusters():
                 "update_at": cluster.update_at,
             }
         )
-        
-    return output
 
+    return output
 
 
 def add_cluster(args, server_name, user_id):
@@ -83,13 +83,13 @@ def add_cluster(args, server_name, user_id):
     k8s_json = yaml.safe_load(content)
     cluster_name = k8s_json['cluster'][0]['name']
     cluster_host = k8s_json['cluster'][0]['cluster']['server']
-    cluster_user = k8s_json['users'][0]['name']    
-    now= str(datetime.now())
+    cluster_user = k8s_json['users'][0]['name']
+    now = str(datetime.now())
     new = model.Cluster(
         name=server_name,
-        cluster_name = cluster_name,
-        cluster_host = cluster_host,
-        cluster_user = cluster_user,
+        cluster_name=cluster_name,
+        cluster_host=cluster_host,
+        cluster_user=cluster_user,
         disabled=False,
         creator_id=user_id,
         create_at=now,
@@ -98,6 +98,7 @@ def add_cluster(args, server_name, user_id):
     db.session.add(new)
     db.session.commit()
     return filename
+
 
 class K8SClient(object):
     def __init__(self, server_name):
@@ -130,6 +131,7 @@ class Clusters(Resource):
         except NoResultFound:
             return util.respond(404, error_clusters_not_found,
                                 error=apiError.repository_id_not_found)
+
     @jwt_required
     def post(self):
         try:
@@ -150,29 +152,30 @@ class Clusters(Resource):
                                 error=apiError.repository_id_not_found)
 
 
-class Artifacts(Resource):
+class Registries(Resource):
     @jwt_required
     def get(self):
         try:
-            output = get_clusters()
+            output = {}
+            user_id = get_jwt_identity()["user_id"]
+            role.require_admin()
+            output = harbor.hb_get_registries()
             return util.success({"cluster": output})
         except NoResultFound:
             return util.respond(404, error_clusters_not_found,
                                 error=apiError.repository_id_not_found)
+
     @jwt_required
     def post(self):
         try:
             output = {}
-            user_id = get_jwt_identity()["user_id"]
-            role.require_admin()
             parser = reqparse.RequestParser()
             parser.add_argument('name', type=str)
             parser.add_argument(
                 'k8s_config_file', type=werkzeug.datastructures.FileStorage, location='files')
             args = parser.parse_args()
-            server_name = args.get('name').strip()
-            if check_cluster(server_name) is None:
-                output = add_cluster(args, server_name, user_id)
+            harbor.hb_create_registries(args)
+
             return util.success({"cluster": output})
         except NoResultFound:
             return util.respond(404, error_clusters_not_found,
@@ -194,6 +197,3 @@ class Pods(Resource):
         except NoResultFound:
             return util.respond(404, error_clusters_not_found,
                                 error=apiError.repository_id_not_found)
-    
-
-
