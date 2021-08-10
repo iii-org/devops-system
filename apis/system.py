@@ -9,22 +9,30 @@ import model
 import resources.apiError as apiError
 import resources.kubernetesClient as kubernetesClient
 
+
 class SystemInfoReport(Resource):
     def put(self):
+        version_center_url = "https://version-center.iiidevops.org"
         deployer_node_ip = config.get('DEPLOYER_NODE_IP')
         if deployer_node_ip is None:
             # get the k8s cluster the oldest node ip
             deployer_node_ip = kubernetesClient.get_the_oldest_node()[0]
         output_str, error_str = util.ssh_to_node_by_key("~/deploy-devops/bin/get-sysinfo.pl", deployer_node_ip)
         if not error_str:
-            print(f"ssh_output_data: {json.loads(output_str)}")
             # Sent system data to devops version center
-            # get deployment uuid
             row = model.NexusVersion.query.first()
-            print(row.deployment_uuid)
-            #r = requests.get('https://api.github.com/user')
+            output_str = json.loads(output_str)
+            r = requests.post(f'{version_center_url}/login', params={'uuid': row.deployment_uuid})
+            if r.status_code >= 200 and r.status_code < 300:
+                headers = {"Authorization": f"Bearer {json.loads(r.text)['data']['access_token']}",
+                           'Content-Type': 'application/json'}
+                r = requests.post(f'{version_center_url}/report_info', headers=headers,
+                                  params={'uuid': row.deployment_uuid}, data=json.dumps(output_str))
+                return util.success()
+            else:
+                raise apiError.DevOpsError(503, "Can not get version-center token")
         else:
-            raise apiError.DevOpsError(500, "Can not get deployer server response from ssh")
+            raise apiError.DevOpsError(503, "Can not get deployer server response from ssh")
         
 
 # noinspection PyMethodMayBeStatic
