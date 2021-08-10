@@ -96,7 +96,8 @@ def update_user(ad_user, db_user):
                 args['status'] = "disabled"
             else:
                 args['status'] = "enabled"
-
+        print(args)
+        print(ad_user)
         user.update_user(db_user['id'], args, True)
     return db_user['id']
 
@@ -129,6 +130,7 @@ def create_user_from_ad(ad_users, create_by=None, ad_parameter=None):
     users = []
     db_users = get_db_user_by_login()
     for ad_user in ad_users:
+        print(ad_user.get('sAMAccountName'))
         if ad_user.get('sAMAccountName') in users:
             continue
         if ad_user.get('sAMAccountName') in db_users:
@@ -156,10 +158,10 @@ def add_ad_user_info_by_iii(ad_user_info):
         list_departments = ad_user_info['department'].split(
             '/')
         iii_info['iii_name'] = ad_user_info['sn']+ad_user_info['givenName']
-        layer = 0
-        for name in list_departments:
-            iii_info[organization[layer]] = name
-            layer += 1
+        # layer = 0
+        # for name in list_departments:
+        #     iii_info[organization[layer]] = name
+        #     layer += 1
         iii_info['iii'] = True
     for attribute in need_attributes:
         if attribute in ad_user_info:
@@ -222,8 +224,6 @@ def get_k8s_key_value(parameters):
 def get_ad_server_in_db():
     ad_parameter = None
     plugin = plugins.get_plugin_config('ad')
-    print(plugin.get('disabled'))
-    print(type(plugin.get('disabled')))
     if plugin is not None and plugin['disabled'] is False:
         ad_parameter = get_k8s_key_value(plugin['arguments'])
     return ad_parameter
