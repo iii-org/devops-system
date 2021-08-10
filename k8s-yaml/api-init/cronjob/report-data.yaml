@@ -3,8 +3,8 @@ kind: CronJob
 metadata:
   name: report-data
 spec:
-  successfulJobsHistoryLimit: 0
-  failedJobsHistoryLimit: 0
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
   schedule: "30 17 * * *"
   jobTemplate:
     spec:
