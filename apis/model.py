@@ -508,3 +508,11 @@ class StarredProject(db.Model):
     id = Column(Integer, primary_key=True)
     project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
     user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'), nullable=False)
+
+
+class RancherPiplineNumberEachDays(db.Model):
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
+    date = Column(Date)
+    pipline_number = Column(Integer)
+    created_at = Column(DateTime)
