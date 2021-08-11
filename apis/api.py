@@ -426,7 +426,11 @@ api.add_resource(harbor.HarborRegistry, '/harbor/registries/<sint:registry_id>')
 api.add_resource(harbor.HarborReplicationPolices, '/harbor/replication/policies')
 api.add_resource(harbor.HarborReplicationPolicy,
                  '/harbor/replication/policies/<sint:policy_id>')
-api.add_resource(harbor.HarborReplicationExecution, '/harbor/replication/execution')
+api.add_resource(harbor.HarborReplicationExecution, '/harbor/replication/executions')
+api.add_resource(harbor.HarborReplicationExecutionTasks,
+                 '/harbor/replication/executions/<sint:execution_id>/tasks')
+api.add_resource(harbor.HarborReplicationExecutionTaskLog,
+                 '/harbor/replication/executions/<sint:execution_id>/tasks/<sint:task_id>/log')
 
 # WebInspect
 api.add_resource(webinspect.WebInspectScan, '/webinspect/create_scan',
