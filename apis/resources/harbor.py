@@ -32,10 +32,8 @@ def __api_request(method, path, headers=None, params=None, data=None):
     auth = HTTPBasicAuth(config.get('HARBOR_ACCOUNT'),
                          config.get('HARBOR_PASSWORD'))
     url = "{0}{1}".format(config.get('HARBOR_INTERNAL_BASE_URL'), path)
-
     output = util.api_request(method, url, headers=headers,
                               params=params, data=data, auth=auth)
-
     logger.debug('Harbor api {0} {1}, params={2}, body={5}, response={3} {4}'.format(
         method, url, params.__str__(), output.status_code, output.text, data))
     if int(output.status_code / 100) != 2:
@@ -47,6 +45,7 @@ def __api_request(method, path, headers=None, params=None, data=None):
 
 
 def __api_get(path, params=None, headers=None):
+    print(path)
     return __api_request('GET', path, params=params, headers=headers)
 
 
@@ -384,7 +383,6 @@ def hb_create_registries(args):
 
 
 def hb_put_registries(registry_id, args):
-    user_id = get_jwt_identity()['user_id']
     if args['type'] == 'aws-ecr':
         args['url'] = 'https://api.ecr.{location}.amazonaws.com'.format(
             location=args['location'])
@@ -394,7 +392,7 @@ def hb_put_registries(registry_id, args):
     elif args['type'] == 'harbor':
         args['url'] = '{login_server}'.format(
             login_server=args['login_server'])
-    print(__api_post('/registries/ping', data=args))
+    __api_post('/registries/ping', data=args)
     args['credential'] = {
         'access_key': args['access_key'],
         'access_secret': args['access_secret'],
@@ -471,7 +469,6 @@ def hb_create_replication_policy(args):
 
 def hb_put_replication_policy(args, policy_id):
     data = hb_get_replication_policy_data(args)
-    print(data)
     __api_put(
         f'{replication_polices_base_url}/{policy_id}', data=data)
     return policy_id
@@ -481,15 +478,10 @@ def hb_delete_replication_policy(policy_id):
         f'{replication_polices_base_url}/{policy_id}')
     return policy_id
 
-
-
-
-
-
-
 def hb_execute_replication_policy(policy_id):
     data = {"policy_id": policy_id}
-    print(__api_post('/replication/executions', data=data))
+    __api_post('/replication/executions', data=data)
+    
     policies = hb_get_replication_policy(policy_id)
     name = [context['value']
             for context in policies['filters'] if context['type'] == 'name'][0]
@@ -505,11 +497,20 @@ def hb_execute_replication_policy(policy_id):
             ).get_account_id()
         location = dest_registry.get('url').split('.')[2]
         image_uri = f'{account_id}.dkr.ecr.{location}.amazonaws.com/{name}:{tag}'
-    elif dest_registry.get('type') == 'azure-acr':
-        login_server = dest_registry.get('url')[8:]
-        image_uri = f'{login_server}/{name}:{tag}'
-    return policies
+    elif dest_registry.get('type') == 'azure-acr' or dest_registry.get('type') == 'harbor':
+        dest_server = dest_registry.get('url')[8:]
+        image_uri = f'{dest_server}/{name}:{tag}'
+    
+    return image_uri
 
+def hb_get_replication_executions(data):
+    return __api_get('/replication/executions/',params = data).json()
+
+def hb_get_replication_execution_task(execution_id):
+    return __api_get(f'/replication/executions/{execution_id}/tasks').json()
+
+def hb_get_replication_executions_tasks_log(execution_id, task_id):
+    return __api_get(f'/replication/executions/{execution_id}/tasks/{task_id}/log')
 
 def hb_ping_registries(args):
     data = {"id": args['registries_id']}
@@ -649,7 +650,6 @@ class HarborRegistry(Resource):
     @jwt_required
     def get(self, registry_id):
         role.require_admin()
-        print(registry_id)
         return util.success(hb_get_registries(registry_id))
 
     @jwt_required
@@ -762,3 +762,28 @@ class HarborReplicationExecution(Resource):
         args = parser.parse_args()
         output = hb_execute_replication_policy(args.get('policy_id'))
         return util.success({'image_uri': output})
+
+
+    @jwt_required
+    def get(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('policy_id', type=int)        
+        args = parser.parse_args()
+        output = hb_get_replication_executions(args)
+        return util.success({'executions': output})
+
+
+
+class HarborReplicationExecutionTasks(Resource):
+    @jwt_required
+    def get(self,execution_id):
+        print(execution_id)
+        output = hb_get_replication_execution_task(execution_id)
+        return util.success({'task': output})
+
+
+class HarborReplicationExecutionTaskLog(Resource):
+    @jwt_required
+    def get(self,execution_id, task_id):
+        output = hb_get_replication_executions_tasks_log(execution_id, task_id)
+        return util.success({'logs': output.text.splitlines()})
