@@ -17,5 +17,5 @@ spec:
             command:
             - /bin/sh
             - -c
-            - curl --location --request GET 'http://devopsapi-service:10009/system_info_report'
+            - curl --location --request PUT 'http://devopsapi-service:10009/system_info_report'
           restartPolicy: OnFailure
