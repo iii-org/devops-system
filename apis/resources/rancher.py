@@ -3,6 +3,8 @@ import json
 import websocket
 import base64
 import time
+from datetime import time as d_time
+from datetime import datetime, timedelta
 from flask_restful import abort, Resource, reqparse
 from flask_jwt_extended import jwt_required
 from flask_socketio import Namespace, emit, disconnect
@@ -13,7 +15,7 @@ import util as util
 from nexus import nx_get_project_plugin_relation
 from resources import kubernetesClient
 from resources.logger import logger
-
+from model import RancherPiplineNumberEachDays, ProjectPluginRelation, db
 
 def get_ci_last_test_result(relation):
     ret = {
@@ -482,6 +484,31 @@ class Rancher(object):
             if project_name == app["targetNamespace"]:
                 self.rc_del_app(app["name"])
 
+    def rc_count_each_pj_piplines_by_days(self, days=1):
+        day_start = datetime.combine((datetime.now() - timedelta(days=1)), d_time(00, 00))
+        project_plugin_relations = ProjectPluginRelation.query.with_entities(
+            ProjectPluginRelation.project_id, ProjectPluginRelation.ci_project_id, ProjectPluginRelation.ci_pipeline_id
+        )
+        for project_plugin_relation in project_plugin_relations:
+            pipline_executions = self.rc_get_pipeline_executions(
+                project_plugin_relation.ci_project_id , project_plugin_relation.ci_pipeline_id
+            )
+            pipline_number = 0 
+            if pipline_executions["data"] != []:
+                for pipline_execution in pipline_executions["data"]:
+                    if pipline_execution["createdTS"] >= day_start.timestamp():
+                        pipline_number += 1
+            
+            one_raw_data = RancherPiplineNumberEachDays(
+                project_id=project_plugin_relation.project_id,
+                date=day_start.date(),
+                pipline_number=pipline_number,
+                created_at=str(datetime.now())
+            )
+            db.session.add(one_raw_data)
+            db.session.commit()
+            time.sleep(1)
+
 
 rancher = Rancher()
 
@@ -541,3 +568,10 @@ class RancherWebsocketLog(Namespace):
     def on_get_pipe_log(self, data):
         print('get_pipe_log')
         rancher.rc_get_pipe_log_websocket(data)
+
+
+class RancherCountEachPjPiplinesByDays(Resource):
+    def get(self):
+        return util.success(rancher.rc_count_each_pj_piplines_by_days())
+        
+        
