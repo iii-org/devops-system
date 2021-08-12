@@ -38,17 +38,6 @@ iii_env_default = ['gitlab-bot',
 
 env_normal_type = ['Opaque']
 
-# con = k8s_client.Configuration()
-# con.verify_ssl = False
-# k8s_client.Configuration.set_default(con)
-# k8s_config.load_kube_config()
-# v1 = k8s_client.CoreV1Api()
-# rbac = k8s_client.RbacAuthorizationV1Api()
-# api_client = k8s_client.ApiClient()
-# api_batchv1beta1 = k8s_client.BatchV1beta1Api(api_client)
-# api_batchv1 = k8s_client.BatchV1Api(api_client)
-# extensions_v1beta1 = k8s_client.ExtensionsV1beta1Api()
-
 DEFAULT_NAMESPACE = 'default'
 SYSTEM_SECRET_NAMESPACE = 'iiidevops-env-secret'
 
@@ -410,6 +399,7 @@ class ApiK8sClient:
     def get_api_client(self):
         return self.api_k8s_client
 
+
 def apply_cronjob_yamls():
     api_k8s_client = ApiK8sClient()
     for root, dirs, files in os.walk("k8s-yaml/api-init/cronjob"):
@@ -420,7 +410,7 @@ def apply_cronjob_yamls():
                     for cronjob_json in api_k8s_client.list_namespaced_cron_job("default").items:
                         if cronjob_json.metadata.name == json_file["metadata"]["name"]:
                             api_k8s_client.delete_namespaced_cron_job(cronjob_json.metadata.name,
-                                                                        "default")
+                                                                      "default")
                             while True:
                                 still_has_cj = False
                                 for cj in api_k8s_client.list_namespaced_cron_job("default").items:
@@ -430,12 +420,15 @@ def apply_cronjob_yamls():
                                     break
                             for j in api_k8s_client.list_namespaced_job("default").items:
                                 if f"{cronjob_json.metadata.name}-" in j.metadata.name:
-                                    api_k8s_client.delete_namespaced_job(j.metadata.name, "default")
+                                    api_k8s_client.delete_namespaced_job(
+                                        j.metadata.name, "default")
                             for pod in api_k8s_client.list_namespaced_pod("default").items:
                                 if f"{cronjob_json.metadata.name}-" in pod.metadata.name:
-                                    pod = api_k8s_client.delete_namespaced_pod(pod.metadata.name, "default")
+                                    pod = api_k8s_client.delete_namespaced_pod(
+                                        pod.metadata.name, "default")
                 try:
-                    k8s_utils.create_from_yaml(api_k8s_client.get_api_client(), os.path.join(root, file))
+                    k8s_utils.create_from_yaml(
+                        api_k8s_client.get_api_client(), os.path.join(root, file))
                 except k8s_utils.FailToCreateError as e:
                     info = json.loads(e.api_exceptions[0].body)
                     if info.get('reason').lower() == 'alreadyexists':
@@ -481,7 +474,8 @@ def list_work_node():
         ip = None
         hostname = None
         if 'node-role.kubernetes.io/worker' in node.metadata.labels:
-            ip = node.metadata.annotations['projectcalico.org/IPv4Address'].split('/')[0]
+            ip = node.metadata.annotations['projectcalico.org/IPv4Address'].split('/')[
+                0]
             for address in node.status.addresses:
                 if address.type == 'Hostname':
                     hostname = address.address
@@ -497,7 +491,7 @@ def list_work_node():
 def create_iiidevops_env_secret_namespace():
     if "iiidevops-env-secret" not in list_namespace():
         create_namespace("iiidevops-env-secret")
-    
+
 
 def create_namespace(project_name):
     try:
@@ -536,7 +530,6 @@ def delete_namespace(project_name):
             raise e
 
 
-
 def create_service_account(login_sa_name):
     sa = ApiK8sClient().create_namespaced_service_account("account", k8s_client.V1ServiceAccount(
         metadata=k8s_client.V1ObjectMeta(name=login_sa_name)))
@@ -553,8 +546,6 @@ def list_service_account():
     for sa in ApiK8sClient().list_namespaced_service_account("account").items:
         list_service_accouts.append(sa.metadata.name)
     return list_service_accouts
-
-
 
 
 def get_service_account_config(sa_name):
@@ -580,7 +571,8 @@ def get_service_account_config(sa_name):
         server_ip = str(config.get("KUBERNETES_MASTER_DOMAIN"))
     else:
         server_ip = str(list_nodes[0]['ip'])
-    sa_secret = api_k8s_client.read_namespaced_secret(sa_secrets_name, "account")
+    sa_secret = api_k8s_client.read_namespaced_secret(
+        sa_secrets_name, "account")
     sa_ca = sa_secret.data['ca.crt']
     sa_token = str(base64.b64decode(
         str(sa_secret.data['token'])).decode('utf-8'))
@@ -618,7 +610,6 @@ def create_namespace_quota(namespace):
             raise e
 
 
-
 def update_namespace_quota(namespace, resource):
     try:
         api_k8s_client = ApiK8sClient()
@@ -630,6 +621,7 @@ def update_namespace_quota(namespace, resource):
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
+
 
 def create_namespace_limitrange(namespace):
     try:
@@ -778,8 +770,6 @@ def list_namespace_deployments(namespace):
             raise e
 
 
-
-
 def read_namespace_deployment(namespace, name):
     try:
         return ApiK8sClient().read_namespaced_deployment(name, namespace)
@@ -821,12 +811,12 @@ def update_deployment_image_tag(namespace, deployment_name, new_image_tag):
     update_namespace_deployment(namespace, deployment_name, deployment)
 
 
-
 def list_namespace_services(namespace):
     try:
         list_services = []
         for service in ApiK8sClient().list_namespaced_service(namespace).items:
-            list_services.append({'name': service.metadata.name, 'is_iii': check_if_iii_template(service.metadata)})
+            list_services.append(
+                {'name': service.metadata.name, 'is_iii': check_if_iii_template(service.metadata)})
         return list_services
     except apiError.DevOpsError as e:
         if e.status_code != 404:
@@ -840,7 +830,6 @@ def delete_namespace_service(namespace, name):
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
-
 
 
 # K8s Secret Usage
@@ -862,7 +851,8 @@ def read_namespace_secret(namespace, secret_name):
         if secret.data is None:
             return {}
         for key, value in secret.data.items():
-            secret_data[key] = str(base64.b64decode(str(value)).decode('utf-8'))
+            secret_data[key] = str(
+                base64.b64decode(str(value)).decode('utf-8'))
         return secret_data
     except ApiException as e:
         if e.status != 404:
@@ -901,6 +891,7 @@ def patch_namespace_secret(namespace, secret_name, secrets):
         if e.status_code != 404:
             raise e
 
+
 def delete_namespace_secret(namespace, name):
     try:
         secret = ApiK8sClient().delete_namespaced_secret(name, namespace)
@@ -910,6 +901,8 @@ def delete_namespace_secret(namespace, name):
             raise e
 
 # K8s ConfigMaps Usage
+
+
 def list_namespace_configmap(namespace):
     try:
         list_configmaps = []
@@ -919,6 +912,7 @@ def list_namespace_configmap(namespace):
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
+
 
 def read_namespace_configmap(namespace, name):
     try:
@@ -945,9 +939,6 @@ def create_namespace_configmap(namespace, name, configmaps):
             raise e
 
 
-
-
-
 def put_namespace_configmap(namespace, name, configmaps):
     try:
         body = k8s_client.V1ConfigMap(
@@ -970,17 +961,20 @@ def delete_namespace_configmap(namespace, name):
         if e.status_code != 404:
             raise e
 
+
 def list_namespace_ingresses(namespace):
     try:
         list_ingresses = []
         for ingress in ApiK8sClient().list_namespaced_ingress(namespace).items:
             ingress_info = {}
             ingress_info["name"] = ingress.metadata.name
-            ingress_info["created_time"] = str(ingress.metadata.creation_timestamp)
+            ingress_info["created_time"] = str(
+                ingress.metadata.creation_timestamp)
             ip = None
             if ingress.status.load_balancer.ingress is not None:
                 ip = ingress.status.load_balancer.ingress[0].ip
-            ingress_info["ingress_list"] = map_ingress_with_host(ingress.spec.rules, ip)
+            ingress_info["ingress_list"] = map_ingress_with_host(
+                ingress.spec.rules, ip)
             ingress_info["tls"] = ingress.spec.tls
             list_ingresses.append(ingress_info)
         return list_ingresses
@@ -1021,20 +1015,23 @@ def list_dev_environment_by_branch(namespace, git_url):
     try:
         list_services = list_namespace_services_by_iii(namespace)
         pods_info = {}
-        
+
         for pod in ApiK8sClient().list_namespaced_pod(namespace).items:
             annotations = pod.metadata.annotations
             labels = pod.metadata.labels
             is_iii = check_if_iii_template(pod.metadata)
             if is_iii is True and pod.status.container_statuses is not None:
-                pods_info, environment = check_iii_project_branch_key_exist(pod.metadata, pods_info, git_url, 'pods')
+                pods_info, environment = check_iii_project_branch_key_exist(
+                    pod.metadata, pods_info, git_url, 'pods')
                 pod_info = {}
                 pod_info['app_name'] = labels['app']
                 pod_info['pod_name'] = pod.metadata.name
                 pod_info['type'] = annotations[iii_template['type']]
                 pod_info['containers'] = []
-                namespace_services_info = get_list_service_match_pods_labels(list_services, labels, environment)
-                container_status_info = get_list_container_statuses(pod.status.container_statuses)
+                namespace_services_info = get_list_service_match_pods_labels(
+                    list_services, labels, environment)
+                container_status_info = get_list_container_statuses(
+                    pod.status.container_statuses)
                 container_info = {}
                 for container in pod.spec.containers:
                     if container.name in container_status_info:
@@ -1088,8 +1085,6 @@ def update_dev_environment_by_branch(namespace, branch_name):
             raise e
 
 
-
-
 def redeploy_deployment(namespace, deployment_name):
     try:
         deploy = read_namespace_deployment(namespace, deployment_name)
@@ -1108,7 +1103,8 @@ def get_list_container_statuses(container_statuses):
     try:
         container_status_info = {}
         for container_status in container_statuses:
-            container_status_info[container_status.name] = analysis_k8s_container_status(container_status)
+            container_status_info[container_status.name] = analysis_k8s_container_status(
+                container_status)
         return container_status_info
     except apiError.DevOpsError as e:
         if e.status_code != 404:
@@ -1118,7 +1114,8 @@ def get_list_container_statuses(container_statuses):
 def secret_info_by_iii(secret):
     try:
         info = {}
-        info['is_iii'] = check_if_iii_default(secret.metadata.name, secret.type)
+        info['is_iii'] = check_if_iii_default(
+            secret.metadata.name, secret.type)
         info['name'] = secret.metadata.name
         info['data'] = secret.data
         return info
@@ -1137,6 +1134,7 @@ def configmap_info_by_iii(configmap):
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
+
 
 def list_namespace_services_by_iii(namespace):
     try:
@@ -1163,6 +1161,7 @@ def list_namespace_services_by_iii(namespace):
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
+
 
 def get_list_service_match_pods_labels(list_services, pod_labels, environment):
     namespace_services_info = []
@@ -1221,7 +1220,8 @@ def map_service_to_container(container_ports, services):
         mapping_info = []
         for container_port in container_ports:
             port_info = analysis_container_port(container_port)
-            port_info['services'] = check_service_map_container(port_info, services)
+            port_info['services'] = check_service_map_container(
+                port_info, services)
             mapping_info.append(port_info)
         return mapping_info
     except apiError.DevOpsError as e:
@@ -1234,7 +1234,7 @@ def check_service_map_container(container_port, services):
         services_info = []
         for service in services:
             if service['port_name'] == container_port['name'] or service['target_port'] == container_port[
-                'container_port']:
+                    'container_port']:
                 services_info.append(service)
         return services_info
     except apiError.DevOpsError as e:
@@ -1288,7 +1288,8 @@ def map_port_and_public_endpoint(ports, public_endpoints, service_type='', names
             for public_endpoint in public_endpoints:
                 url_info = {}
                 url_info['port_name'] = port.name
-                url_info['target_port'], url_info['port'] = identify_target_port(port.target_port, port.port)
+                url_info['target_port'], url_info['port'] = identify_target_port(
+                    port.target_port, port.port)
                 url_info['url'] = identify_external_url(public_endpoint, port.node_port,
                                                         service_type, namespace, branch)
                 info.append(url_info)
@@ -1302,7 +1303,7 @@ def map_port_and_public_endpoint(ports, public_endpoints, service_type='', names
 def identify_target_port(target_port, port):
     try:
         output_target_port = port
-        # M Check The Direct User Target Port        
+        # M Check The Direct User Target Port
         if isinstance(target_port, numbers.Integral) is True:
             output_target_port = target_port
         return output_target_port, port
@@ -1326,11 +1327,13 @@ def identify_external_url(public_endpoint, node_port, service_type='', namespace
         if config.get('INGRESS_EXTERNAL_BASE') != '' and config.get('INGRESS_EXTERNAL_BASE') is not None \
                 and service_type not in ['db-server', 'db-gui'] and namespace != '' and branch != '' and \
                 check_ingress_exist(namespace, branch):
-            url.append(f"{external_url_format}{namespace}-{branch}.{config.get('INGRESS_EXTERNAL_BASE')}")
+            url.append(
+                f"{external_url_format}{namespace}-{branch}.{config.get('INGRESS_EXTERNAL_BASE')}")
         elif 'hostname' in public_endpoint:
             if service_type != 'db-server':
                 external_url_format = http_base
-            url.append(f"{external_url_format}{public_endpoint['hostname']}:{node_port}")
+            url.append(
+                f"{external_url_format}{public_endpoint['hostname']}:{node_port}")
         else:
             if service_type != 'db-server':
                 external_url_format = http_base
@@ -1396,7 +1399,3 @@ def check_if_iii_template(metadata):
             'app' in metadata.labels:
         is_iii = True
     return is_iii
-
-
-
-
