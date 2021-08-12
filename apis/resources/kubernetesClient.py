@@ -8,7 +8,10 @@ import yaml
 from kubernetes import client as k8s_client
 from kubernetes import config as k8s_config
 from kubernetes import utils as k8s_utils
+from kubernetes.stream import stream as k8s_stream
 from kubernetes.client import ApiException
+
+from flask_socketio import Namespace, emit
 
 import config
 import resources.apiError as apiError
@@ -753,6 +756,47 @@ def read_namespace_pod_log(namespace, name, container=None):
             raise e
 
 
+def exec_namespace_pod(commands):
+    pods = list_namespace_pods_info("default")
+    pod_name = next(
+        (pod['name'] for pod in pods if pod['name'].find('devopsapi') != -1),
+        None)
+    exec_command = ['/bin/bash']
+    resp = k8s_stream(ApiK8sClient().core_v1.connect_get_namespaced_pod_exec,
+                      pod_name,
+                      'default',
+                      command=exec_command,
+                      stderr=True, stdin=True,
+                      stdout=True, tty=False,
+                      _preload_content=False)
+
+    while resp.is_open():
+        resp.update(timeout=1)
+        if resp.peek_stdout():
+            output_mess = resp.read_stdout()
+            print("STDOUT: %s" % output_mess)
+            emit('get_cmd_response', {'output': output_mess})
+        if resp.peek_stderr():
+            output_err = resp.read_stderr()
+            print("STDERR: %s" % output_err)
+            emit('get_cmd_response', output_err)
+        if commands:
+            c = commands.pop(0)
+            print("Running command... %s\n" % c)
+            resp.write_stdin(c + "\n")
+        else:
+            break
+    '''
+    resp.write_stdin("date\n")
+    sdate = resp.readline_stdout(timeout=3)
+    print("Server date command returns: %s" % sdate)
+    resp.write_stdin("whoami\n")
+    user = resp.readline_stdout(timeout=3)
+    print("Server user is: %s" % user)
+    '''
+    resp.close()
+
+
 def list_namespace_deployments(namespace):
     try:
         list_deployments = []
@@ -1399,3 +1443,28 @@ def check_if_iii_template(metadata):
             'app' in metadata.labels:
         is_iii = True
     return is_iii
+<<<<<<< HEAD
+=======
+
+
+def get_iii_template_info(metadata):
+    template_info = {}
+    template_info['label'] = metadata.labels['app']
+    template_info['branch'] = metadata.annotations[iii_template['branch']]
+    template_info['project_name'] = metadata.annotations[iii_template['project_name']]
+    template_info['commit_id'] = metadata.annotations[iii_template['commit_id']]
+    return template_info
+
+
+class KubernetesPodExec(Namespace):
+
+    def on_connect(self):
+        print('connect')
+
+    def on_disconnect(self):
+        print('Client disconnected')
+
+    def on_pod_exec_cmd(self, cmd):
+        print('exec_namespace_pod_log')
+        exec_namespace_pod(cmd)
+>>>>>>> da7482a8bed0cb30612cb2d1e33a3cf67532fec9
