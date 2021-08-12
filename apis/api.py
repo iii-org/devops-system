@@ -462,9 +462,10 @@ api.add_resource(zap.Zap, '/zap', '/project/<sint:project_id>/zap')
 api.add_resource(sideex.Sideex, '/sideex', '/project/<sint:project_id>/sideex')
 api.add_resource(sideex.SideexReport, '/sideex_report/<int:test_id>')
 
-# Sync Redmine, Gitlab
+# Sync Redmine, Gitlab, Rancher
 api.add_resource(sync_redmine.SyncRedmine, '/sync_redmine')
 api.add_resource(gitlab.GitCountEachPjCommitsByDays, '/sync_gitlab/count_each_pj_commits_by_days')
+api.add_resource(rancher.RancherCountEachPjPiplinesByDays, '/sync_rancher/count_each_pj_piplines_by_days')
 
 # Subadmin Projects Permission
 api.add_resource(project_permission.AdminProjects, '/project_permission/admin_projects')
@@ -526,4 +527,4 @@ def start_prod():
 if __name__ == "__main__":
     start_prod()
     socketio.run(app, host='0.0.0.0', port=10009, debug=(config.get('DEBUG')),
-                 use_reloader=False)
+                 use_reloader=True)
