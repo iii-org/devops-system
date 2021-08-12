@@ -1,6 +1,6 @@
 # To run the API server
 You need a `config.py` file containing API keys or other sensitive information.
-1. Install python3.6+ and pip on your machine.
+1. Install python3.8+ and pip on your machine.
 2. `$ cd build/devops_api`
 3. `$ pip install -r requirements.txt`
 4. `$ mv _environments.json environments.json` # Or just place downloaded `environments.json` from somewhere else here
