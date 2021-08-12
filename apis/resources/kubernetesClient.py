@@ -1443,8 +1443,6 @@ def check_if_iii_template(metadata):
             'app' in metadata.labels:
         is_iii = True
     return is_iii
-<<<<<<< HEAD
-=======
 
 
 def get_iii_template_info(metadata):
@@ -1467,4 +1465,3 @@ class KubernetesPodExec(Namespace):
     def on_pod_exec_cmd(self, cmd):
         print('exec_namespace_pod_log')
         exec_namespace_pod(cmd)
->>>>>>> da7482a8bed0cb30612cb2d1e33a3cf67532fec9
