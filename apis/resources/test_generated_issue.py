@@ -4,6 +4,7 @@ from datetime import datetime
 import model
 from resources import issue
 from accessories import redmine_lib
+from resources.logger import logger
 
 
 def tgi_feed_postman(row):
@@ -20,6 +21,7 @@ def tgi_feed_postman(row):
 
 
 def tgi_feed_sideex(row):
+    logger.debug(f'Sideex result is {row.result}')
     suites = json.loads(row.result).get('suites')
     for col_key, result in suites.items():
         total = result.get('total')
