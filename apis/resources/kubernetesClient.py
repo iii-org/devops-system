@@ -197,6 +197,13 @@ class ApiK8sClient:
                 raise e
 
     # Pod
+    def list_pod_for_all_namespaces(self):
+        try:
+            return self.core_v1.list_pod_for_all_namespaces(watch=False)
+        except apiError.DevOpsError as e:
+            if e.status_code != 404:
+                raise e
+
     def list_namespaced_pod(self, namespace):
         try:
             return self.core_v1.list_namespaced_pod(namespace)
@@ -1443,9 +1450,6 @@ def check_if_iii_template(metadata):
             'app' in metadata.labels:
         is_iii = True
     return is_iii
-<<<<<<< HEAD
-=======
-
 
 def get_iii_template_info(metadata):
     template_info = {}
@@ -1454,7 +1458,6 @@ def get_iii_template_info(metadata):
     template_info['project_name'] = metadata.annotations[iii_template['project_name']]
     template_info['commit_id'] = metadata.annotations[iii_template['commit_id']]
     return template_info
-
 
 class KubernetesPodExec(Namespace):
 
@@ -1467,4 +1470,3 @@ class KubernetesPodExec(Namespace):
     def on_pod_exec_cmd(self, cmd):
         print('exec_namespace_pod_log')
         exec_namespace_pod(cmd)
->>>>>>> da7482a8bed0cb30612cb2d1e33a3cf67532fec9
