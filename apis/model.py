@@ -516,3 +516,10 @@ class RancherPiplineNumberEachDays(db.Model):
     date = Column(Date)
     pipline_number = Column(Integer)
     created_at = Column(DateTime)
+
+class Alert(db.Model):
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
+    condition = Column(String)
+    days = Column(Integer)
+    disabled = Column(Boolean)
