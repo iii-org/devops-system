@@ -644,18 +644,19 @@ def get_issue_list_by_user(user_id, args):
         default_filters = get_custom_filters_by_args(args, project_id=plan_id, user_id=nx_user.plan_user_id)
     else:
         default_filters = get_custom_filters_by_args(args, user_id=nx_user.plan_user_id)
-    if not args.get('from', None) or args['from'] not in ['author_id', 'assigned_to_id']:
-        return []
+    if args.get('from') not in ['author_id', 'assigned_to_id']:
+        return []   
     # multiple_assigned_to = True，代表 filter 跟 assigned_to_id 為不同的 user id
     elif default_filters.get('multiple_assigned_to', None) and default_filters['multiple_assigned_to']:
         return []
         # from author_id 又不存在 multiple_assigned_to 的情況下，
         # default_filters 帶 search ，但沒有取得 issued_id，搜尋結果為空
-    elif args.get(
-        'search', None) and not default_filters.get(
-            'issue_id', None) and args.get(
-                'from', None) == 'author_id' and 'multiple_assigned_to' not in default_filters:
-        return []
+    elif args.get('search') and default_filters.get('issue_id') is None:
+        if args.get('from') == 'assigned_to_id':
+            return []
+        if args.get('from') == 'author_id' and 'multiple_assigned_to' not in default_filters:
+            return []
+
     all_issues = redmine_lib.redmine.issue.filter(**default_filters)
     # 透過 selection params 決定是否顯示 family bool 欄位
     if not args['selection'] or not strtobool(args['selection']):
@@ -804,10 +805,11 @@ def get_issue_assigned_to_search(default_filters, args):
     assigned_to_issue = []
     # 使用 ilike 同時搜尋 login 或 name 相符的 user
     nx_user_list = db.session.query(model.UserPluginRelation).join(
-        model.User, model.ProjectUserRole).filter(or_(
-            model.User.login.ilike(f'%{args["search"]}%'),
-            model.User.name.ilike(f'%{args["search"]}%')
-        ), model.ProjectUserRole.role_id != 6).all()
+        model.User, model.ProjectUserRole
+    ).filter(or_(
+        model.User.login.ilike(f'%{args["search"]}%'),
+        model.User.name.ilike(f'%{args["search"]}%')
+    ), model.ProjectUserRole.role_id != 6).all()
     if nx_user_list:
         for nx_user in nx_user_list:
             # 判斷是否多重 assigned_to 的預設值
@@ -821,8 +823,11 @@ def get_issue_assigned_to_search(default_filters, args):
             elif args.get('from') == 'assigned_to_id':
                 if nx_user.user_id != args['nx_user_id']:
                     default_filters['multiple_assigned_to'] = True
-                return assigned_to_issue
-            all_issues = redmine_lib.redmine.issue.filter(**default_filters, assigned_to_id=nx_user.plan_user_id)
+                    return assigned_to_issue
+                else:
+                    all_issues = redmine_lib.redmine.issue.filter(**default_filters)
+            else:        
+                all_issues = redmine_lib.redmine.issue.filter(**default_filters, assigned_to_id=nx_user.plan_user_id)
             assigned_to_issue.extend([issue.id for issue in all_issues])
     return assigned_to_issue
 
