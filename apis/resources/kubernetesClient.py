@@ -1451,6 +1451,7 @@ def check_if_iii_template(metadata):
         is_iii = True
     return is_iii
 
+
 def get_iii_template_info(metadata):
     template_info = {}
     template_info['label'] = metadata.labels['app']
@@ -1458,6 +1459,7 @@ def get_iii_template_info(metadata):
     template_info['project_name'] = metadata.annotations[iii_template['project_name']]
     template_info['commit_id'] = metadata.annotations[iii_template['commit_id']]
     return template_info
+
 
 class KubernetesPodExec(Namespace):
 
