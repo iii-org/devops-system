@@ -44,7 +44,7 @@ def wi_api_request(method, path, headers=None, params=None, data=None):
     output = util.api_request(method, url, headers, params, data)
 
     logger.debug(f"WebInspect api {method} {url}, header={str(headers)}, params={str(params)}, body={data},"
-                f" response={output.status_code} {output.text}")
+                 f" response={output.status_code} {output.text}")
     if int(output.status_code / 100) != 2:
         raise apiError.DevOpsError(
             output.status_code,
@@ -84,6 +84,19 @@ def wi_list_scans(project_name):
         d['issue_link'] = gitlab.commit_id_to_url(project_id, d['commit_id'])
         ret.append(d)
     return ret
+
+
+def wi_get_scan_by_commit(project_id, commit_id):
+    project_name = nexus.nx_get_project(id=project_id).name
+    row = model.WebInspect.query.filter(
+        model.WebInspect.project_name == project_name,
+        model.WebInspect.commit_id.like(f'{commit_id}%')
+    ).first()
+    if row is None:
+        return {}
+    d = json.loads(str(row))
+    d['issue_link'] = gitlab.commit_id_to_url(project_id, d['commit_id'])
+    return d
 
 
 def is_wie():

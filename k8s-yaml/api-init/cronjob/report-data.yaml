@@ -1,11 +1,11 @@
 apiVersion: batch/v1beta1
 kind: CronJob
 metadata:
-  name: git-count-commits
+  name: report-data
 spec:
-  successfulJobsHistoryLimit: 0
-  failedJobsHistoryLimit: 0
-  schedule: "0 18 * * *"
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+  schedule: "30 17 * * *"
   jobTemplate:
     spec:
       template:
@@ -17,5 +17,5 @@ spec:
             command:
             - /bin/sh
             - -c
-            - curl --location --request GET 'http://devopsapi-service:10009/sync_gitlab/count_each_pj_commits_by_days'
+            - curl --location --request PUT 'http://devopsapi-service:10009/system_info_report'
           restartPolicy: OnFailure

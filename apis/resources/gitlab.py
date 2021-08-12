@@ -192,6 +192,13 @@ class GitLab(object):
                                   "skip_reconfirmation": True
                               })
 
+    def gl_update_user_name(self, repository_user_id, new_name):
+        return self.__api_put(f'/users/{repository_user_id}',
+                              params={
+                                  "name": new_name,
+                                  "skip_reconfirmation": True
+                              })
+
     def gl_get_user_list(self, args):
         return self.__api_get('/users', params=args)
 
@@ -559,6 +566,7 @@ class GitLab(object):
                     pj_create_date = datetime.strptime(
                         pj.created_at, '%Y-%m-%dT%H:%M:%S.%f%z').astimezone(
                             tz.tzlocal()).date()
+                    print(f"datatime now:{datetime.now()}")
                     day_start = datetime.combine(
                         (datetime.now() - timedelta(days=i)), time(00, 00))
                     day_end = datetime.combine(
@@ -632,13 +640,18 @@ gitlab = GitLab()
 
 class GitRelease:
     @jwt_required
-    def check_gitlab_release(self, repository_id, tag_name):
-        output = {'check': True, "info": "", "errors": {}}
+    def check_gitlab_release(self, repository_id, tag_name, branch_name):
+        output = {'check': True, "info": "", "errors": ""}
+        branch = gitlab.gl_get_tags(str(repository_id), {'search': branch_name})
+        #  check branch exist
+        if len(branch) == 0:
+            output = {'check': False, "info": "Gitlab no exists commit", "errors": ""}
+            return output
         tag = gitlab.gl_get_tags(str(repository_id), {'search': tag_name})
         if len(tag) > 0:
             output['check'] = False
             output['info'] = '{0} is exists in gitlab'.format(tag_name)
-            output['errors'] = tag[0]
+            output['errors'] = tag[0]        
         return output
 
 

@@ -1,11 +1,11 @@
 apiVersion: batch/v1beta1
 kind: CronJob
 metadata:
-  name: git-count-commits
+  name: rancher-count-piplines
 spec:
-  successfulJobsHistoryLimit: 0
-  failedJobsHistoryLimit: 0
-  schedule: "0 18 * * *"
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+  schedule: "1 0 * * *"
   jobTemplate:
     spec:
       template:
@@ -17,5 +17,5 @@ spec:
             command:
             - /bin/sh
             - -c
-            - curl --location --request GET 'http://devopsapi-service:10009/sync_gitlab/count_each_pj_commits_by_days'
+            - curl --location --request GET 'http://devopsapi-service:10009/sync_rancher/count_each_pj_piplines_by_days'
           restartPolicy: OnFailure

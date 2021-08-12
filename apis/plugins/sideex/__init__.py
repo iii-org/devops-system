@@ -70,6 +70,16 @@ def sd_get_tests(project_id):
     return ret
 
 
+def sd_get_test_by_commit(project_id, commit_id):
+    project_name = nexus.nx_get_project(id=project_id).name
+    row = model.Sideex.query.filter_by(project_name=project_name,
+                                       commit_id=commit_id).first()
+    if row is not None:
+        return process_row(row, project_id)
+    else:
+        return {}
+
+
 def sd_get_latest_test(project_id):
     project_name = nexus.nx_get_project(id=project_id).name
     row = model.Sideex.query.filter_by(

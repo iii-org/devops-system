@@ -17,7 +17,7 @@ import json
 
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Date, Enum, JSON, Float
-from sqlalchemy.orm import relationship, backref
+from sqlalchemy.orm import relationship
 
 import util
 from enums.action_type import ActionType
@@ -401,6 +401,14 @@ class Sideex(db.Model):
         return json.dumps(fields)
 
 
+class Cluster(db.Model):
+    id = Column(Integer, primary_key=True)
+    name = Column(String)
+    disabled = Column(Boolean)
+    creator_id = Column(Integer, ForeignKey(User.id, ondelete='SET NULL'), nullable=True)
+    create_at = Column(DateTime)
+    update_at = Column(DateTime)
+
 class RedmineIssue(db.Model):
     issue_id = Column(Integer, primary_key=True)
     project_id = Column(Integer)
@@ -500,3 +508,11 @@ class StarredProject(db.Model):
     id = Column(Integer, primary_key=True)
     project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
     user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'), nullable=False)
+
+
+class RancherPiplineNumberEachDays(db.Model):
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
+    date = Column(Date)
+    pipline_number = Column(Integer)
+    created_at = Column(DateTime)

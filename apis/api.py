@@ -1,5 +1,3 @@
-
-import datetime
 import os
 import sys
 
@@ -24,6 +22,7 @@ from plugins import webinspect, sideex, zap, sonarqube, postman, ad
 import config
 import migrate
 import model
+import system
 import resources.apiError as apiError
 import plugins.checkmarx as checkmarx
 import resources.pipeline as pipeline
@@ -32,10 +31,10 @@ import util
 import maintenance
 from jsonwebtoken import jsonwebtoken
 from model import db
-from resources import logger, role as role, activity, starred_project, devops_version
+from resources import logger, role as role, activity, starred_project, devops_version, cicd
 from resources import project, gitlab, issue, user, redmine, wiki, version, apiTest, mock, harbor, \
     template, release, sync_redmine, plugin, kubernetesClient, project_permission, quality, sync_project, \
-    sync_user, router
+    sync_user, router, deploy
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -47,7 +46,6 @@ for key in ['JWT_SECRET_KEY',
     app.config[key] = config.get(key)
 
 app.config['PROPAGATE_EXCEPTIONS'] = True
-app.config['JWT_ACCESS_TOKEN_EXPIRES'] = datetime.timedelta(days=1)
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     "pool_pre_ping": True,
     "pool_recycle": 300,
@@ -84,24 +82,6 @@ def internal_error(exception):
     logger.logger.exception(str(exception))
     return util.respond(500, "Unexpected internal error",
                         error=apiError.uncaught_exception(exception))
-
-
-# noinspection PyMethodMayBeStatic
-class SystemGitCommitID(Resource):
-    def get(self):
-        git_commit_id = ""
-        git_tag = ""
-        git_date = ""
-        if os.path.exists("git_commit"):
-            with open("git_commit") as f:
-                git_commit_id = f.read().splitlines()[0]
-        if os.path.exists("git_tag"):
-            with open("git_tag") as f:
-                git_tag = f.read().splitlines()[0]
-        if os.path.exists("git_date"):
-            with open("git_date") as f:
-                git_date = f.read().splitlines()[0]
-        return util.success({"git_commit_id": git_commit_id, "git_tag": git_tag, "git_date": git_date})
 
 
 class NexusVersion(Resource):
@@ -239,7 +219,6 @@ api.add_resource(wiki.ProjectWiki, '/project/<sint:project_id>/wiki/<wiki_name>'
 api.add_resource(version.ProjectVersionList, '/project/<sint:project_id>/version/list')
 api.add_resource(version.ProjectVersion, '/project/<sint:project_id>/version',
                  '/project/<sint:project_id>/version/<int:version_id>')
-api.add_resource(project.TestSummary, '/project/<sint:project_id>/test_summary')
 api.add_resource(template.TemplateList, '/template_list')
 api.add_resource(template.TemplateListForCronJob, '/template_list_for_cronjob')
 api.add_resource(template.SingleTemplate, '/template', '/template/<repository_id>')
@@ -388,6 +367,10 @@ api.add_resource(apiTest.GetTestValueType, '/testValues/support_types')
 api.add_resource(apiTest.TestValueByTestItem, '/testValues_by_testItem/<item_id>')
 api.add_resource(apiTest.TestValue, '/testValues/<value_id>')
 
+# Integrated test results
+api.add_resource(project.TestSummary, '/project/<sint:project_id>/test_summary/')
+api.add_resource(cicd.CommitCicdSummary, '/project/<sint:project_id>/test_summary/<commit_id>')
+
 # Postman tests
 api.add_resource(postman.ExportToPostman, '/export_to_postman/<sint:project_id>')
 api.add_resource(postman.PostmanResults, '/postman_results/<sint:project_id>')
@@ -423,7 +406,8 @@ api.add_resource(redmine.RedmineFile, '/download', '/file/<int:file_id>')
 api.add_resource(redmine.RedmineMail, '/mail')
 
 # System administrations
-api.add_resource(SystemGitCommitID, '/system_git_commit_id')  # git commit
+api.add_resource(system.SystemGitCommitID, '/system_git_commit_id')  # git commit
+api.add_resource(system.SystemInfoReport, '/system_info_report') 
 
 # Mocks
 api.add_resource(mock.MockTestResult, '/mock/test_summary')
@@ -438,8 +422,15 @@ api.add_resource(harbor.HarborArtifact,
                  '/harbor/artifacts')
 api.add_resource(harbor.HarborProject, '/harbor/projects/<int:nexus_project_id>/summary')
 api.add_resource(harbor.HarborRegistries, '/harbor/registries')
-api.add_resource(harbor.HarborReplicationPolicy, '/harbor/replication/policy')
-api.add_resource(harbor.HarborReplicationExecution, '/harbor/replication/execution')
+api.add_resource(harbor.HarborRegistry, '/harbor/registries/<sint:registry_id>')
+api.add_resource(harbor.HarborReplicationPolices, '/harbor/replication/policies')
+api.add_resource(harbor.HarborReplicationPolicy,
+                 '/harbor/replication/policies/<sint:policy_id>')
+api.add_resource(harbor.HarborReplicationExecution, '/harbor/replication/executions')
+api.add_resource(harbor.HarborReplicationExecutionTasks,
+                 '/harbor/replication/executions/<sint:execution_id>/tasks')
+api.add_resource(harbor.HarborReplicationExecutionTaskLog,
+                 '/harbor/replication/executions/<sint:execution_id>/tasks/<sint:task_id>/log')
 
 # WebInspect
 api.add_resource(webinspect.WebInspectScan, '/webinspect/create_scan',
@@ -471,9 +462,10 @@ api.add_resource(zap.Zap, '/zap', '/project/<sint:project_id>/zap')
 api.add_resource(sideex.Sideex, '/sideex', '/project/<sint:project_id>/sideex')
 api.add_resource(sideex.SideexReport, '/sideex_report/<int:test_id>')
 
-# Sync Redmine, Gitlab
+# Sync Redmine, Gitlab, Rancher
 api.add_resource(sync_redmine.SyncRedmine, '/sync_redmine')
 api.add_resource(gitlab.GitCountEachPjCommitsByDays, '/sync_gitlab/count_each_pj_commits_by_days')
+api.add_resource(rancher.RancherCountEachPjPiplinesByDays, '/sync_rancher/count_each_pj_piplines_by_days')
 
 # Subadmin Projects Permission
 api.add_resource(project_permission.AdminProjects, '/project_permission/admin_projects')
@@ -507,6 +499,10 @@ api.add_resource(devops_version.DevOpsVersionCheck, '/devops_version/check')
 api.add_resource(devops_version.DevOpsVersionUpdate, '/devops_version/update')
 
 
+# Deploy
+api.add_resource(deploy.Clusters, '/deploy/clusters')
+api.add_resource(deploy.Pods, '/deploy/pods')
+
 def start_prod():
     try:
         db.init_app(app)
@@ -531,4 +527,4 @@ def start_prod():
 if __name__ == "__main__":
     start_prod()
     socketio.run(app, host='0.0.0.0', port=10009, debug=(config.get('DEBUG')),
-                 use_reloader=False)
+                 use_reloader=True)

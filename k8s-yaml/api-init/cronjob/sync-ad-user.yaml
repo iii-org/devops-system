@@ -5,7 +5,7 @@ metadata:
 spec:
   schedule: "0 15 * * *"
   successfulJobsHistoryLimit: 2
-  failedJobsHistoryLimit: 0
+  failedJobsHistoryLimit: 1
   jobTemplate:
     spec:
       template:
@@ -17,5 +17,5 @@ spec:
             command:
             - /bin/sh
             - -c
-            - curl -i -F "batch=true" -F "ad_type=iii" http://devopsapi-service:10009/plugins/ad/users
+            - curl -i -F "batch=true" -F "ad_type=iii"  -X POST http://devopsapi-service:10009/plugins/ad/users
           restartPolicy: OnFailure
