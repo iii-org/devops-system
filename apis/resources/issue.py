@@ -422,7 +422,7 @@ def require_issue_visible(issue_id,
 
 def verify_issue_user(issue_id, user_id, issue_info=None):
     if issue_info is None:
-        issue_info = get_issue(issue_id)
+        issue_info = get_issue(issue_id, False, False)
     project_id = issue_info['project']['id']
     count = model.ProjectUserRole.query.filter_by(
         project_id=project_id, user_id=user_id).count()

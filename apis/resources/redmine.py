@@ -169,7 +169,7 @@ class Redmine:
 
     def rm_get_issue(self, issue_id, journals=True):
         if journals is False:
-            params = {'include': 'children,attachments,relations,changesets,watchers'}
+            params = {}
         else:
             params = {'include': 'children,attachments,relations,changesets,journals,watchers'}
         output = self.__api_get('/issues/{0}'.format(issue_id), params=params)
