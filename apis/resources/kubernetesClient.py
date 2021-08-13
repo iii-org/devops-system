@@ -763,47 +763,6 @@ def read_namespace_pod_log(namespace, name, container=None):
             raise e
 
 
-def exec_namespace_pod(commands):
-    pods = list_namespace_pods_info("default")
-    pod_name = next(
-        (pod['name'] for pod in pods if pod['name'].find('devopsapi') != -1),
-        None)
-    exec_command = ['/bin/bash']
-    resp = k8s_stream(ApiK8sClient().core_v1.connect_get_namespaced_pod_exec,
-                      pod_name,
-                      'default',
-                      command=exec_command,
-                      stderr=True, stdin=True,
-                      stdout=True, tty=False,
-                      _preload_content=False)
-
-    while resp.is_open():
-        resp.update(timeout=1)
-        if resp.peek_stdout():
-            output_mess = resp.read_stdout()
-            print("STDOUT: %s" % output_mess)
-            emit('get_cmd_response', {'output': output_mess})
-        if resp.peek_stderr():
-            output_err = resp.read_stderr()
-            print("STDERR: %s" % output_err)
-            emit('get_cmd_response', output_err)
-        if commands:
-            c = commands.pop(0)
-            print("Running command... %s\n" % c)
-            resp.write_stdin(c + "\n")
-        else:
-            break
-    '''
-    resp.write_stdin("date\n")
-    sdate = resp.readline_stdout(timeout=3)
-    print("Server date command returns: %s" % sdate)
-    resp.write_stdin("whoami\n")
-    user = resp.readline_stdout(timeout=3)
-    print("Server user is: %s" % user)
-    '''
-    resp.close()
-
-
 def list_namespace_deployments(namespace):
     try:
         list_deployments = []
@@ -1461,6 +1420,51 @@ def get_iii_template_info(metadata):
     return template_info
 
 
+class K8sPodExec(object):
+
+    def exec_namespace_pod(data):
+        pod_name = data['pod_name']
+        container_name = data.get("container_name")
+        command = data['command']
+        exec_command = ['/bin/sh']
+        if container_name is None:
+            resp = k8s_stream(ApiK8sClient().core_v1.connect_get_namespaced_pod_exec,
+                              pod_name,
+                              'default',
+                              command=exec_command,
+                              stderr=True, stdin=True,
+                              stdout=True, tty=False,
+                              _preload_content=False)
+        else:
+            resp = k8s_stream(ApiK8sClient().core_v1.connect_get_namespaced_pod_exec,
+                              pod_name,
+                              'default',
+                              command=exec_command,
+                              container=container_name,
+                              stderr=True, stdin=True,
+                              stdout=True, tty=False,
+                              _preload_content=False)
+        i = 0
+        while resp.is_open():
+            resp.update(timeout=1)
+            if resp.peek_stdout():
+                output_mess = resp.read_stdout()
+                print("STDOUT: %s" % output_mess)
+                emit('get_cmd_response', {'output': output_mess})
+            if resp.peek_stderr():
+                output_err = resp.read_stderr()
+                print("STDERR: %s" % output_err)
+                emit('get_cmd_response', output_err)
+            if command:
+                print("Running command... %s\n" % command)
+                resp.write_stdin(command + "\n")
+                command = None
+            else:
+                break
+            i += 1
+        resp.close()
+
+
 class KubernetesPodExec(Namespace):
 
     def on_connect(self):
@@ -1469,6 +1473,6 @@ class KubernetesPodExec(Namespace):
     def on_disconnect(self):
         print('Client disconnected')
 
-    def on_pod_exec_cmd(self, cmd):
+    def on_pod_exec_cmd(self, data):
         print('exec_namespace_pod_log')
-        exec_namespace_pod(cmd)
+        exec_namespace_pod(data)
