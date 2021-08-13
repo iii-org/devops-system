@@ -549,6 +549,8 @@ def update_issue(issue_id, args, operator_id):
         output['parent'] = family['parent']
     elif family.get('children', None):
         output['children'] = family['children']
+    elif family.get('relations', None):
+        output['relations'] = family['relations']
     return output
 
 
