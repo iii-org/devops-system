@@ -34,7 +34,7 @@ from model import db
 from resources import logger, role as role, activity, starred_project, devops_version, cicd
 from resources import project, gitlab, issue, user, redmine, wiki, version, apiTest, mock, harbor, \
     template, release, sync_redmine, plugin, kubernetesClient, project_permission, quality, sync_project, \
-    sync_user, router, deploy
+    sync_user, router, deploy, alert
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -482,7 +482,7 @@ api.add_resource(harbor.HarborRegistry,
 api.add_resource(harbor.HarborReplicationPolices,
                  '/harbor/replication/policies')
 api.add_resource(harbor.HarborReplicationPolicy,
-                 '/harbor/replication/policies/<sint:policy_id>')
+                 '/harbor/replication/policies/<sint:replication_policy_id>')
 api.add_resource(harbor.HarborReplicationExecution,
                  '/harbor/replication/executions')
 api.add_resource(harbor.HarborReplicationExecutionTasks,
@@ -574,8 +574,13 @@ api.add_resource(devops_version.DevOpsVersionUpdate, '/devops_version/update')
 
 # Deploy
 api.add_resource(deploy.Clusters, '/deploy/clusters')
+api.add_resource(deploy.Cluster, '/deploy/clusters/<int:cluster_id>')
 api.add_resource(deploy.Pods, '/deploy/pods')
 
+
+# Alert 
+api.add_resource(alert.ProjectAlert, '/project/<sint:project_id>/alert')
+api.add_resource(alert.ProjectAlertUpdate, '/alert/<int:alert_id>')
 
 def start_prod():
     try:
