@@ -96,6 +96,8 @@ def update_user(ad_user, db_user):
                 args['status'] = "disabled"
             else:
                 args['status'] = "enabled"
+        print(args)
+        print(ad_user)
         user.update_user(db_user['id'], args, True)
     return db_user['id']
 
@@ -128,6 +130,7 @@ def create_user_from_ad(ad_users, create_by=None, ad_parameter=None):
     users = []
     db_users = get_db_user_by_login()
     for ad_user in ad_users:
+        print(ad_user.get('sAMAccountName'))
         if ad_user.get('sAMAccountName') in users:
             continue
         if ad_user.get('sAMAccountName') in db_users:
