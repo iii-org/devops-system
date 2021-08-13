@@ -53,7 +53,8 @@ class User(db.Model):
                 continue
             data = self.__getattribute__(field)
             try:
-                json.dumps(data)  # this will fail on unencodable values, like other classes
+                # this will fail on unencodable values, like other classes
+                json.dumps(data)
                 if field == 'password':
                     continue
                 elif field == 'disabled':
@@ -82,9 +83,12 @@ class Project(db.Model):
     update_at = Column(DateTime)
     disabled = Column(Boolean)
     display = Column(String)
-    owner_id = Column(Integer, ForeignKey(User.id, ondelete='SET NULL'), nullable=True)
-    creator_id = Column(Integer, ForeignKey(User.id, ondelete='SET NULL'), nullable=True)
-    starred_by = relationship(User, secondary='starred_project', backref='starred_project')
+    owner_id = Column(Integer, ForeignKey(
+        User.id, ondelete='SET NULL'), nullable=True)
+    creator_id = Column(Integer, ForeignKey(
+        User.id, ondelete='SET NULL'), nullable=True)
+    starred_by = relationship(
+        User, secondary='starred_project', backref='starred_project')
     plugin_relation = relationship('ProjectPluginRelation', uselist=False)
     user_role = relationship('ProjectUserRole', back_populates='project')
 
@@ -96,7 +100,8 @@ class Project(db.Model):
                 continue
             data = self.__getattribute__(field)
             try:
-                json.dumps(data)  # this will fail on unencodable values, like other classes
+                # this will fail on unencodable values, like other classes
+                json.dumps(data)
                 fields[field] = data
             except TypeError:
                 fields[field] = str(data)
@@ -113,7 +118,8 @@ class Release(db.Model):
     commit = Column(String)
     tag_name = Column(String)
     note = Column(String)
-    creator_id = Column(Integer, ForeignKey(User.id, ondelete='SET NULL'), nullable=True)
+    creator_id = Column(Integer, ForeignKey(
+        User.id, ondelete='SET NULL'), nullable=True)
     create_at = Column(DateTime)
     update_at = Column(DateTime)
 
@@ -157,8 +163,10 @@ class TemplateListCache(db.Model):
 
 
 class ProjectUserRole(db.Model):
-    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), primary_key=True)
-    user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'), primary_key=True)
+    project_id = Column(Integer, ForeignKey(
+        Project.id, ondelete='CASCADE'), primary_key=True)
+    user_id = Column(Integer, ForeignKey(
+        User.id, ondelete='CASCADE'), primary_key=True)
     role_id = Column(Integer, primary_key=True)
     user = relationship('User', back_populates='project_role')
     project = relationship('Project', back_populates='user_role')
@@ -196,7 +204,8 @@ class TestCases(db.Model):
 
 class TestItems(db.Model):
     id = Column(Integer, primary_key=True)
-    test_case_id = Column(Integer, ForeignKey(TestCases.id, ondelete='CASCADE'))
+    test_case_id = Column(Integer, ForeignKey(
+        TestCases.id, ondelete='CASCADE'))
     project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
     issue_id = Column(Integer)
     name = Column(String(255))
@@ -223,8 +232,10 @@ class TestValues(db.Model):
     key = Column(String(255))
     value = Column(String)
     location_id = Column(Integer)  # Header = 1, Body = 2
-    test_item_id = Column(Integer, ForeignKey(TestItems.id, ondelete='CASCADE'))
-    test_case_id = Column(Integer, ForeignKey(TestCases.id, ondelete='CASCADE'))
+    test_item_id = Column(Integer, ForeignKey(
+        TestItems.id, ondelete='CASCADE'))
+    test_case_id = Column(Integer, ForeignKey(
+        TestCases.id, ondelete='CASCADE'))
     issue_id = Column(Integer)
     project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
     create_at = Column(DateTime)
@@ -233,7 +244,8 @@ class TestValues(db.Model):
 
 
 class UserPluginRelation(db.Model):
-    user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'), primary_key=True)
+    user_id = Column(Integer, ForeignKey(
+        User.id, ondelete='CASCADE'), primary_key=True)
     plan_user_id = Column(Integer)
     repository_user_id = Column(Integer)
     harbor_user_id = Column(Integer)
@@ -243,7 +255,8 @@ class UserPluginRelation(db.Model):
 class Checkmarx(db.Model):
     scan_id = Column(Integer, primary_key=True)
     cm_project_id = Column(Integer)
-    repo_id = Column(Integer, ForeignKey(ProjectPluginRelation.git_repository_id, ondelete='CASCADE'))
+    repo_id = Column(Integer, ForeignKey(
+        ProjectPluginRelation.git_repository_id, ondelete='CASCADE'))
     branch = Column(String)
     commit_id = Column(String)
     # -1 if report is not registered yet
@@ -264,7 +277,8 @@ class Flows(db.Model):
     id = Column(Integer, primary_key=True)
     project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
     issue_id = Column(Integer)
-    requirement_id = Column(Integer, ForeignKey(Requirements.id, ondelete='CASCADE'))
+    requirement_id = Column(Integer, ForeignKey(
+        Requirements.id, ondelete='CASCADE'))
     type_id = Column(Integer)
     name = Column(String)
     description = Column(String)
@@ -304,7 +318,8 @@ class WebInspect(db.Model):
                       not x.startswith('query') and not x.startswith('_') and x != 'metadata']:
             data = self.__getattribute__(field)
             try:
-                json.dumps(data)  # this will fail on unencodable values, like other classes
+                # this will fail on unencodable values, like other classes
+                json.dumps(data)
                 if field == 'stats':
                     fields[field] = json.loads(data)
                 else:
@@ -318,7 +333,8 @@ class Activity(db.Model):
     id = Column(Integer, primary_key=True)
     action_type = Column(Enum(ActionType), nullable=False)
     action_parts = Column(String)
-    operator_id = Column(Integer, ForeignKey(User.id, ondelete='SET NULL'), nullable=True)
+    operator_id = Column(Integer, ForeignKey(
+        User.id, ondelete='SET NULL'), nullable=True)
     operator_name = Column(String)
     object_id = Column(String)
     act_at = Column(DateTime)
@@ -361,7 +377,8 @@ class Zap(db.Model):
                       not x.startswith('query') and not x.startswith('_') and x != 'metadata']:
             data = self.__getattribute__(field)
             try:
-                json.dumps(data)  # this will fail on unencodable values, like other classes
+                # this will fail on unencodable values, like other classes
+                json.dumps(data)
                 if field == 'result':
                     fields[field] = json.loads(data)
                 else:
@@ -389,7 +406,8 @@ class Sideex(db.Model):
                       not x.startswith('query') and not x.startswith('_') and x != 'metadata']:
             data = self.__getattribute__(field)
             try:
-                json.dumps(data)  # this will fail on unencodable values, like other classes
+                # this will fail on unencodable values, like other classes
+                json.dumps(data)
                 if field == 'result':
                     fields[field] = json.loads(data)
                 elif field == 'report':
@@ -405,9 +423,11 @@ class Cluster(db.Model):
     id = Column(Integer, primary_key=True)
     name = Column(String)
     disabled = Column(Boolean)
-    creator_id = Column(Integer, ForeignKey(User.id, ondelete='SET NULL'), nullable=True)
+    creator_id = Column(Integer, ForeignKey(
+        User.id, ondelete='SET NULL'), nullable=True)
     create_at = Column(DateTime)
     update_at = Column(DateTime)
+
 
 class RedmineIssue(db.Model):
     issue_id = Column(Integer, primary_key=True)
@@ -506,20 +526,43 @@ class TestGeneratedIssue(db.Model):
 
 class StarredProject(db.Model):
     id = Column(Integer, primary_key=True)
-    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
-    user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'), nullable=False)
+    project_id = Column(Integer, ForeignKey(
+        Project.id, ondelete='CASCADE'), nullable=False)
+    user_id = Column(Integer, ForeignKey(
+        User.id, ondelete='CASCADE'), nullable=False)
 
 
 class RancherPiplineNumberEachDays(db.Model):
     id = Column(Integer, primary_key=True)
-    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
+    project_id = Column(Integer, ForeignKey(
+        Project.id, ondelete='CASCADE'), nullable=False)
     date = Column(Date)
     pipline_number = Column(Integer)
     created_at = Column(DateTime)
 
+
 class Alert(db.Model):
     id = Column(Integer, primary_key=True)
-    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
+    project_id = Column(Integer, ForeignKey(
+        Project.id, ondelete='CASCADE'), nullable=False)
     condition = Column(String)
     days = Column(Integer)
     disabled = Column(Boolean)
+
+
+class Application(db.Model):
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey(
+        Project.id, ondelete='CASCADE'), nullable=False)
+    name = Column(String)
+    cluster_id = Column(Integer, ForeignKey(Cluster.id))
+    registry_id = Column(Integer)
+    namespace = Column(String)
+    image = Column(String)
+    status = Column(String)
+    created_at = Column(DateTime)
+    update_at = Column(DateTime)
+    disabled = Column(Boolean)
+    status_id = Column(Integer)
+    release_id = Column(Integer)
+    yaml = Column(String)

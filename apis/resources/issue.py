@@ -98,7 +98,7 @@ class NexusIssue:
 
     def set_redmine_issue_v2(self, redmine_issue, with_relationship=False,
                              relationship_bool=False, nx_project=None, users_info=None):
-        
+
         self.data = {
             'id': redmine_issue.id,
             'name': redmine_issue.subject,
@@ -544,11 +544,13 @@ def update_issue(issue_id, args, operator_id):
     redmine.rm_update_issue(issue_id, args, plan_operator_id)
     issue = redmine_lib.redmine.issue.get(issue_id)
     output = NexusIssue().set_redmine_issue_v2(issue).to_json()
-    family = get_issue_family(issue_id)
+    family = get_issue_family(issue)
     if family.get('parent', None):
         output['parent'] = family['parent']
     elif family.get('children', None):
         output['children'] = family['children']
+    elif family.get('relations', None):
+        output['relations'] = family['relations']
     return output
 
 
@@ -645,7 +647,7 @@ def get_issue_list_by_user(user_id, args):
     else:
         default_filters = get_custom_filters_by_args(args, user_id=nx_user.plan_user_id)
     if args.get('from') not in ['author_id', 'assigned_to_id']:
-        return []   
+        return []
     # multiple_assigned_to = True，代表 filter 跟 assigned_to_id 為不同的 user id
     elif default_filters.get('multiple_assigned_to', None) and default_filters['multiple_assigned_to']:
         return []
@@ -661,7 +663,7 @@ def get_issue_list_by_user(user_id, args):
     # 透過 selection params 決定是否顯示 family bool 欄位
     if not args['selection'] or not strtobool(args['selection']):
         nx_issue_params['relationship_bool'] = True
-    
+
     nx_issue_params['users_info'] = user.get_all_user_info()
     for redmine_issue in all_issues:
         nx_issue_params['redmine_issue'] = redmine_issue
@@ -692,8 +694,8 @@ def get_issue_by_tree_by_project(project_id):
     users_info = user.get_all_user_info()
     for redmine_issue in all_issues:
         tree[redmine_issue.id] = NexusIssue().set_redmine_issue_v2(redmine_issue,
-                                                                   with_relationship=True, 
-                                                                   nx_project=nx_project, 
+                                                                   with_relationship=True,
+                                                                   nx_project=nx_project,
                                                                    users_info=users_info).to_json()
     for id in tree:
         # 代表此 issue 有 parent 存在
@@ -826,38 +828,42 @@ def get_issue_assigned_to_search(default_filters, args):
                     return assigned_to_issue
                 else:
                     all_issues = redmine_lib.redmine.issue.filter(**default_filters)
-            else:        
+            else:
                 all_issues = redmine_lib.redmine.issue.filter(**default_filters, assigned_to_id=nx_user.plan_user_id)
             assigned_to_issue.extend([issue.id for issue in all_issues])
     return assigned_to_issue
 
 
 # 取得 issue 相關的 parent & children & relations 資訊
-def get_issue_family(issue_id, relation=False):
+def get_issue_family(redmine_issue):
     output = defaultdict(list)
-    if relation:
-        redmine_issue = redmine_lib.redmine.issue.get(issue_id, include=['children', 'relations'])
-        if hasattr(redmine_issue, 'relations') and len(redmine_issue.relations):
-            for relation in redmine_issue.relations:
-                rel_issue_id = 0
-                if relation.issue_id != int(issue_id):
-                    rel_issue_id = relation.issue_id
-                else:
-                    rel_issue_id = relation.issue_to_id
-                rel_issue = redmine_lib.redmine.issue.get(rel_issue_id)
-                relate_issue = NexusIssue().set_redmine_issue_v2(rel_issue).to_json()
-                relate_issue['relation_id'] = relation.id
-                output['relations'].append(relate_issue)
-    else:
-        redmine_issue = redmine_lib.redmine.issue.get(issue_id, include=['children'])
     if hasattr(redmine_issue, 'parent'):
         parent_issue = redmine_lib.redmine.issue.get(redmine_issue.parent.id)
         output['parent'] = NexusIssue().set_redmine_issue_v2(parent_issue).to_json()
     if len(redmine_issue.children):
-        children_issues = redmine_lib.redmine.issue.filter(parent_id=issue_id, status_id='*')
-        output['children'] = [NexusIssue().set_redmine_issue_v2(redmine_issue).to_json()
-                              for redmine_issue in children_issues]
+        children_issue_ids = [str(child.id) for child in redmine_issue.children]
+        children_issue_ids_str = ','.join(children_issue_ids)
+        children_issues = redmine_lib.redmine.issue.filter(issue_id=children_issue_ids_str, status_id='*',
+                                                           include=['children', 'relations'])
+        output['children'] = [NexusIssue().set_redmine_issue_v2(issue).to_json()
+                              for issue in children_issues]
+    if len(redmine_issue.relations):
+        rel_issue_ids = [str(check_relations_id(redmine_issue.id, relation)) for relation in redmine_issue.relations]
+        rel_issue_ids_str = ','.join(rel_issue_ids)
+        rel_issues = redmine_lib.redmine.issue.filter(issue_id=rel_issue_ids_str, status_id='*',
+                                                      include=['children', 'relations'])
+        output['relations'] = [NexusIssue().set_redmine_issue_v2(issue).to_json()
+                               for issue in rel_issues]
     return output
+
+
+def check_relations_id(issue_id, relation):
+    rel_issue_id = 0
+    if relation.issue_id != int(issue_id):
+        rel_issue_id = relation.issue_id
+    else:
+        rel_issue_id = relation.issue_to_id
+    return rel_issue_id
 
 
 def get_issue_by_status_by_project(project_id):
@@ -1648,8 +1654,9 @@ class IssueTracker(Resource):
 class IssueFamily(Resource):
     @jwt_required
     def get(self, issue_id):
-        require_issue_visible(issue_id)
-        family = get_issue_family(issue_id, relation=True)
+        redmine_issue = redmine_lib.redmine.issue.get(issue_id, include=['children', 'relations'])
+        require_issue_visible(issue_id, issue_info=NexusIssue().set_redmine_issue_v2(redmine_issue).to_json())
+        family = get_issue_family(redmine_issue)
         return util.success(family)
 
 

@@ -409,6 +409,8 @@ def hb_delete_registries(registry_id):
     return __api_delete(f'/registries/{registry_id}')
 
 #  Replication Policy
+
+
 def hb_get_replication_policy_data(args):
     data = {}
     dest_registry = hb_get_registries(registry_id=args['registry_id'])
@@ -423,7 +425,7 @@ def hb_get_replication_policy_data(args):
         "enabled": True,
         "deletion": False,
         "override": True,
-        "dest_namespace":args.get('dest_repo_name'),
+        "dest_namespace": args.get('dest_repo_name'),
         "filters": [
             {
                 "type": "name",
@@ -444,6 +446,7 @@ def hb_get_replication_policy_data(args):
 
 replication_polices_base_url = '/replication/policies'
 
+
 def hb_get_replication_policies(args=None):
     if args.get('name', None) is not None:
         policy_name = args.get('name')
@@ -453,6 +456,7 @@ def hb_get_replication_policies(args=None):
         policies = __api_get(replication_polices_base_url).json()
     return policies
 
+
 def hb_get_replication_policy(policy_id=None):
     if policy_id:
         policies = __api_get(
@@ -461,11 +465,13 @@ def hb_get_replication_policy(policy_id=None):
         policies = __api_get(replication_polices_base_url).json()
     return policies
 
+
 def hb_create_replication_policy(args):
     data = hb_get_replication_policy_data(args)
     __api_post(replication_polices_base_url, data=data)
     output = hb_get_replication_policies({'name': args.get('policy_name')})
     return output[0].get('id')
+
 
 def hb_put_replication_policy(args, policy_id):
     data = hb_get_replication_policy_data(args)
@@ -473,44 +479,50 @@ def hb_put_replication_policy(args, policy_id):
         f'{replication_polices_base_url}/{policy_id}', data=data)
     return policy_id
 
+
 def hb_delete_replication_policy(policy_id):
     __api_delete(
         f'{replication_polices_base_url}/{policy_id}')
     return policy_id
 
+
 def hb_execute_replication_policy(policy_id):
     data = {"policy_id": policy_id}
     __api_post('/replication/executions', data=data)
-    
+
     policies = hb_get_replication_policy(policy_id)
     name = [context['value']
             for context in policies['filters'] if context['type'] == 'name'][0]
     tag = [context['value']
            for context in policies['filters'] if context['type'] == 'tag'][0]
-    
+
     dest_registry = policies.get('dest_registry')
     dest_credential = dest_registry.get('credential')
     if dest_registry.get('type') == 'aws-ecr':
         account_id = util.AWSEngine(
             dest_credential.get('access_key'),
             dest_credential.get('access_secret')
-            ).get_account_id()
+        ).get_account_id()
         location = dest_registry.get('url').split('.')[2]
         image_uri = f'{account_id}.dkr.ecr.{location}.amazonaws.com/{name}:{tag}'
     elif dest_registry.get('type') == 'azure-acr' or dest_registry.get('type') == 'harbor':
         dest_server = dest_registry.get('url')[8:]
         image_uri = f'{dest_server}/{name}:{tag}'
-    
+
     return image_uri
 
+
 def hb_get_replication_executions(data):
-    return __api_get('/replication/executions/',params = data).json()
+    return __api_get('/replication/executions/', params=data).json()
+
 
 def hb_get_replication_execution_task(execution_id):
     return __api_get(f'/replication/executions/{execution_id}/tasks').json()
 
+
 def hb_get_replication_executions_tasks_log(execution_id, task_id):
     return __api_get(f'/replication/executions/{execution_id}/tasks/{task_id}/log')
+
 
 def hb_ping_registries(args):
     data = {"id": args['registries_id']}
@@ -709,12 +721,12 @@ class HarborRegistriesPing(Resource):
 
 class HarborReplicationPolicy(Resource):
     @jwt_required
-    def get(self, policy_id):
-        policies = hb_get_replication_policy(policy_id)
+    def get(self, replication_policy_id):
+        policies = hb_get_replication_policy(replication_policy_id)
         return util.success(policies)
 
     @jwt_required
-    def put(self, policy_id):
+    def put(self, replication_policy_id):
         parser = reqparse.RequestParser()
         parser.add_argument('policy_name', type=str, required=True)
         parser.add_argument('repo_name', type=str, required=True)
@@ -724,11 +736,11 @@ class HarborReplicationPolicy(Resource):
         parser.add_argument('description', type=str, required=True)
         parser.add_argument('dest_repo_name', type=str, required=True)
         args = parser.parse_args()
-        return util.success({'policy_id': hb_put_replication_policy(args, policy_id)})
+        return util.success({'replication_policy_id': hb_put_replication_policy(args, replication_policy_id)})
 
     @jwt_required
-    def delete(self, policy_id):
-        return util.success({'policy_id': hb_delete_replication_policy(policy_id)})
+    def delete(self, replication_policy_id):
+        return util.success({'replication_policy_id': hb_delete_replication_policy(replication_policy_id)})
 
 
 class HarborReplicationPolices(Resource):
@@ -763,20 +775,18 @@ class HarborReplicationExecution(Resource):
         output = hb_execute_replication_policy(args.get('policy_id'))
         return util.success({'image_uri': output})
 
-
     @jwt_required
     def get(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('policy_id', type=int)        
+        parser.add_argument('policy_id', type=int)
         args = parser.parse_args()
         output = hb_get_replication_executions(args)
         return util.success({'executions': output})
 
 
-
 class HarborReplicationExecutionTasks(Resource):
     @jwt_required
-    def get(self,execution_id):
+    def get(self, execution_id):
         print(execution_id)
         output = hb_get_replication_execution_task(execution_id)
         return util.success({'task': output})
@@ -784,6 +794,6 @@ class HarborReplicationExecutionTasks(Resource):
 
 class HarborReplicationExecutionTaskLog(Resource):
     @jwt_required
-    def get(self,execution_id, task_id):
+    def get(self, execution_id, task_id):
         output = hb_get_replication_executions_tasks_log(execution_id, task_id)
         return util.success({'logs': output.text.splitlines()})
