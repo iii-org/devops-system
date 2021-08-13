@@ -21,7 +21,6 @@ from resources import apiTest
 from resources.redmine import redmine
 from data.nexus_project import NexusProject
 from accessories import redmine_lib
-from redminelib import exceptions as redminelibError
 
 from . import issue
 from .gitlab import gitlab
