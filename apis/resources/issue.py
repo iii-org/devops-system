@@ -544,7 +544,7 @@ def update_issue(issue_id, args, operator_id):
     redmine.rm_update_issue(issue_id, args, plan_operator_id)
     issue = redmine_lib.redmine.issue.get(issue_id)
     output = NexusIssue().set_redmine_issue_v2(issue).to_json()
-    family = get_issue_family(issue_id)
+    family = get_issue_family(issue)
     if family.get('parent', None):
         output['parent'] = family['parent']
     elif family.get('children', None):
