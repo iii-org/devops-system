@@ -143,7 +143,7 @@ class GitLab(object):
             datetime.strptime(gl_datetime_str,
                               '%Y-%m-%dT%H:%M:%S.%f%z').astimezone(pytz.utc),
             '%Y-%m-%dT%H:%M:%S%z')
-    
+
     def gl_get_all_project(self):
         return self.gl.projects.list(all=True)
 
@@ -443,10 +443,6 @@ class GitLab(object):
         return self.__api_get(
             f'/projects/{repo_id}/releases/{tag_name}').json()
 
-    def gl_get_release(self, repo_id, tag_name):
-        return self.__api_get(
-            f'/projects/{repo_id}/releases/{tag_name}').json()
-
     def gl_create_release(self, repo_id, data):
         path = f'/projects/{repo_id}/releases'
         return self.__api_post(path, params=data).json()
@@ -467,11 +463,11 @@ class GitLab(object):
         if role.is_admin() is False:
             user_id = get_jwt_identity()["user_id"]
         if user_id is not None:
-            rows = db.session.query(model.ProjectUserRole, model.ProjectPluginRelation).join(\
-                model.ProjectPluginRelation, \
+            rows = db.session.query(model.ProjectUserRole, model.ProjectPluginRelation).join(
+                model.ProjectPluginRelation,
                 model.ProjectPluginRelation.project_id == model.ProjectUserRole.project_id).\
                 filter(model.ProjectUserRole.user_id == user_id,
-                        model.ProjectUserRole.project_id == model.ProjectPluginRelation.project_id).all()
+                       model.ProjectUserRole.project_id == model.ProjectPluginRelation.project_id).all()
         out_list = []
         if show_commit_rows is not None:
             last_days_ago = None
@@ -491,7 +487,7 @@ class GitLab(object):
                     if (pj.empty_repo is False) and (
                         ("iiidevops-templates" not in pj.path_with_namespace)
                             and
-                        ("local-templates" not in pj.path_with_namespace)):
+                            ("local-templates" not in pj.path_with_namespace)):
                         for commit in pj.commits.list(since=days_ago,
                                                       until=last_days_ago):
                             out_list.append({
@@ -537,7 +533,7 @@ class GitLab(object):
             for pj in pjs:
                 if (pj.empty_repo is False) and (
                     ("iiidevops-templates" not in pj.path_with_namespace) and
-                    ("local-templates" not in pj.path_with_namespace)):
+                        ("local-templates" not in pj.path_with_namespace)):
                     for commit in pj.commits.list(since=days_ago):
                         out_list.append({
                             "pj_name":
@@ -642,16 +638,18 @@ class GitRelease:
     @jwt_required
     def check_gitlab_release(self, repository_id, tag_name, branch_name):
         output = {'check': True, "info": "", "errors": ""}
-        branch = gitlab.gl_get_tags(str(repository_id), {'search': branch_name})
+        branch = gitlab.gl_get_tags(
+            str(repository_id), {'search': branch_name})
         #  check branch exist
         if len(branch) == 0:
-            output = {'check': False, "info": "Gitlab no exists commit", "errors": ""}
+            output = {'check': False,
+                      "info": "Gitlab no exists commit", "errors": ""}
             return output
         tag = gitlab.gl_get_tags(str(repository_id), {'search': tag_name})
         if len(tag) > 0:
             output['check'] = False
             output['info'] = '{0} is exists in gitlab'.format(tag_name)
-            output['errors'] = tag[0]        
+            output['errors'] = tag[0]
         return output
 
 
