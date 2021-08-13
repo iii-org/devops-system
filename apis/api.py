@@ -482,7 +482,7 @@ api.add_resource(harbor.HarborRegistry,
 api.add_resource(harbor.HarborReplicationPolices,
                  '/harbor/replication/policies')
 api.add_resource(harbor.HarborReplicationPolicy,
-                 '/harbor/replication/policies/<sint:policy_id>')
+                 '/harbor/replication/policies/<sint:replication_policy_id>')
 api.add_resource(harbor.HarborReplicationExecution,
                  '/harbor/replication/executions')
 api.add_resource(harbor.HarborReplicationExecutionTasks,
@@ -574,6 +574,7 @@ api.add_resource(devops_version.DevOpsVersionUpdate, '/devops_version/update')
 
 # Deploy
 api.add_resource(deploy.Clusters, '/deploy/clusters')
+api.add_resource(deploy.Cluster, '/deploy/clusters/<int:cluster_id>')
 api.add_resource(deploy.Pods, '/deploy/pods')
 
 
