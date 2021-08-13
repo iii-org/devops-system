@@ -563,4 +563,6 @@ class Application(db.Model):
     created_at = Column(DateTime)
     update_at = Column(DateTime)
     disabled = Column(Boolean)
+    status_id = Column(Integer)
+    release_id = Column(Integer)
     yaml = Column(String)
