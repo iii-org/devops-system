@@ -67,7 +67,6 @@ def get_activities(query):
             'object_id': row.object_id,
             'act_at': str(row.act_at)
         })
-    print(ret)
     return ret
 
 

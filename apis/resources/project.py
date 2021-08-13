@@ -1276,7 +1276,6 @@ class ProjectUserResourceConfigMap(Resource):
         parser.add_argument('configmaps', type=dict, required=True)
         args = parser.parse_args()
         role.require_in_project(project_id, "Error while getting project info.")
-        print(args)
         return create_kubernetes_namespace_configmap(project_id, configmap_name, args['configmaps'])
 
 

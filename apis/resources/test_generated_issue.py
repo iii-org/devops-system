@@ -2,6 +2,7 @@ import json
 from datetime import datetime
 
 import model
+import nexus
 from resources import issue
 from accessories import redmine_lib
 from resources.logger import logger
@@ -21,17 +22,18 @@ def tgi_feed_postman(row):
 
 
 def tgi_feed_sideex(row):
+    project_id = nexus.nx_get_project(name=row.project_name).id
     logger.debug(f'Sideex result is {row.result}')
     suites = json.loads(row.result).get('suites')
     for col_key, result in suites.items():
         total = result.get('total')
         passed = result.get('passed')
         if total - passed > 0:
-            _handle_test_failed(row.project_id, 'sideex',
+            _handle_test_failed(project_id, 'sideex',
                                 col_key, _get_sideex_issue_description(row, total, passed),
                                 row.branch, row.commit_id, 'test_results', row.id)
         else:
-            _handle_test_success(row.project_id, 'sideex',
+            _handle_test_success(project_id, 'sideex',
                                  col_key, _get_sideex_issue_close_description(row, total, passed))
 
 

@@ -40,7 +40,6 @@ def deal_with_fetchall(data):
 
 
 def get_test_case_by_tc_id(testcase_id):
-    print(testcase_id)
     row = model.TestCases.query.filter_by(id=testcase_id).filter(
         model.TestCases.disabled.isnot(True)).one()
     return deal_with_test_case_object(row)

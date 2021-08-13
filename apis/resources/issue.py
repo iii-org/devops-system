@@ -558,7 +558,6 @@ def delete_issue(issue_id):
         require_issue_visible(issue_id)
         redmine.rm_delete_issue(issue_id)
     except DevOpsError as e:
-        print(e.status_code)
         if e.status_code == 404:
             # Already deleted, let it go
             pass
