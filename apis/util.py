@@ -20,10 +20,10 @@ def ssh_to_node_by_key(command, node_ip):
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     client.connect(hostname=node_ip,
-                port=22,
-                username='rkeuser',
-                pkey=pkey)
-    
+                   port=22,
+                   username='rkeuser',
+                   pkey=pkey)
+
     stdin, stdout, stderr = client.exec_command(command)
     output_str = stdout.read().decode()
     error_str = stderr.read().decode()
@@ -214,9 +214,12 @@ def decode_k8s_sa(string):
 
 
 def get_random_alphanumeric_string(letters_count_each, digits_count):
-    sample_str = ''.join((random.choice(string.ascii_lowercase) for _ in range(letters_count_each)))
-    sample_str += ''.join((random.choice(string.ascii_uppercase) for _ in range(letters_count_each)))
-    sample_str += ''.join((random.choice(string.digits) for _ in range(digits_count)))
+    sample_str = ''.join((random.choice(string.ascii_lowercase)
+                         for _ in range(letters_count_each)))
+    sample_str += ''.join((random.choice(string.ascii_uppercase)
+                          for _ in range(letters_count_each)))
+    sample_str += ''.join((random.choice(string.digits)
+                          for _ in range(digits_count)))
 
     # Convert string to list and shuffle it to mix letters and digits
     sample_list = list(sample_str)
