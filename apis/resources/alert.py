@@ -1,4 +1,4 @@
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
 
 import model
@@ -8,6 +8,11 @@ from model import db
 import resources.apiError as apiError 
 from resources.apiError import DevOpsError
 from sqlalchemy.orm.exc import NoResultFound
+
+def check_alert_permission(role_id, owner_id, project_id):
+    if role_id != 5 and owner_id != model.Project.query.get(project_id).owner_id:
+        raise apiError.NotAllowedError("You must be an admin or a project owner for this operation.")
+
 
 def is_project_alert_enable(project_id):
     return model.Project.query.filter_by(id=project_id).first().alert
@@ -76,6 +81,7 @@ class ProjectAlert(Resource):
 
     @jwt_required
     def post(self, project_id):
+        check_alert_permission(get_jwt_identity()["role_id"], get_jwt_identity()["user_id"], project_id)
         parser = reqparse.RequestParser()
         parser.add_argument('enable', type=bool, required=True)
         args = parser.parse_args()
@@ -85,6 +91,7 @@ class ProjectAlert(Resource):
 class ProjectAlertUpdate(Resource):
     @jwt_required
     def patch(self, alert_id):
+        check_alert_permission(get_jwt_identity()["role_id"], get_jwt_identity()["user_id"], model.Alert.query.get(alert_id).project_id)
         parser = reqparse.RequestParser()
         parser.add_argument('days', type=int)
         parser.add_argument('disabled', type=bool)
