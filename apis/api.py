@@ -582,6 +582,7 @@ api.add_resource(deploy.Pods, '/deploy/pods')
 # Alert
 api.add_resource(alert.ProjectAlert, '/project/<sint:project_id>/alert')
 api.add_resource(alert.ProjectAlertUpdate, '/alert/<int:alert_id>')
+api.add_resource(alert.DefaultALertDaysUpdate, '/alert/default_days')
 
 
 def start_prod():

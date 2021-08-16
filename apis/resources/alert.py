@@ -48,12 +48,16 @@ def create_alert(project_id, args):
 
 def update_alert(alert_id, args):
     alert = model.Alert.query.get(alert_id)
-    days = args.get("days")
-    alert.days = days if days is not None else alert.days
-    disabled = args.get("disabled")
-    alert.disabled = disabled if disabled is not None else alert.disabled
+    alert.days = args.get("days", alert.days)
+    alert.disabled = args.get("disabled", alert.disabled)
     db.session.commit()
 
+
+def update_default_alert_days(args):
+    default_alert_days = model.DefaultAlertDays.query.first()    
+    default_alert_days.unchange_days = args.get("unchange_days", default_alert_days.unchange_days)
+    default_alert_days.comming_days = args.get("comming_days", default_alert_days.comming_days)
+    db.session.commit()
 
 # --------------------- Resources ---------------------
 class ProjectAlert(Resource):
@@ -76,4 +80,16 @@ class ProjectAlertUpdate(Resource):
         parser.add_argument('days', type=int)
         parser.add_argument('disabled', type=bool)
         args = parser.parse_args()
+        args = {k: v for k, v in args.items() if v is not None}
         return util.success(update_alert(alert_id, args))
+
+
+class DefaultALertDaysUpdate(Resource):
+    @jwt_required
+    def patch(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('unchange_days', type=int)
+        parser.add_argument('comming_days', type=int)
+        args = parser.parse_args()
+        args = {k: v for k, v in args.items() if v is not None}
+        return util.success(update_default_alert_days(args))
