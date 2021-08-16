@@ -91,6 +91,7 @@ class Project(db.Model):
         User, secondary='starred_project', backref='starred_project')
     plugin_relation = relationship('ProjectPluginRelation', uselist=False)
     user_role = relationship('ProjectUserRole', back_populates='project')
+    alert = Column(Boolean)
 
     def __repr__(self):
         fields = {}
