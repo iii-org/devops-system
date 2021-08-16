@@ -68,10 +68,13 @@ def upgrade(version):
         set_default_alert_days()
 
 def set_default_alert_days():
-    rows = db.seesion.query(DefaultAlertDays).all()
-    for row in rows:
-        row.unchange_days = 30
-        row.comming_days = 7
+    row = DefaultAlertDays.query.first()
+    if row is None:
+        new = DefaultAlertDays(
+            unchange_days=30,
+            comming_days=7,
+        )
+        db.session.add(new)
         db.session.commit()
 
 def set_default_plugin_software_type():
