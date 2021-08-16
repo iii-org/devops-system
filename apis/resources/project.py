@@ -231,7 +231,8 @@ def create_project(user_id, args):
                             if gitlab_json['message']['name'][0] == 'has already been taken':
                                 raise DevOpsError(
                                     status_code, {"gitlab": gitlab_json},
-                                    error=apiError.identifier_has_been_taken(args['name'])
+                                    error=apiError.identifier_has_been_taken(
+                                        args['name'])
                                 )
                         except (KeyError, IndexError):
                             pass
@@ -321,7 +322,8 @@ def project_add_subadmin(project_id, user_id):
         raise DevOpsError(422, "Error while adding user to project.",
                           error=apiError.already_in_project(user_id, project_id))
     # insert one relationship
-    new = model.ProjectUserRole(project_id=project_id, user_id=user_id, role_id=role_id)
+    new = model.ProjectUserRole(
+        project_id=project_id, user_id=user_id, role_id=role_id)
     db.session.add(new)
     db.session.commit()
 
@@ -357,9 +359,11 @@ def create_bot(project_id):
 
 @record_activity(ActionType.UPDATE_PROJECT)
 def pm_update_project(project_id, args):
-    plugin_relation = model.ProjectPluginRelation.query.filter_by(project_id=project_id).first()
+    plugin_relation = model.ProjectPluginRelation.query.filter_by(
+        project_id=project_id).first()
     if args['description'] is not None:
-        gitlab.gl_update_project(plugin_relation.git_repository_id, args["description"])
+        gitlab.gl_update_project(
+            plugin_relation.git_repository_id, args["description"])
     redmine.rm_update_project(plugin_relation.plan_project_id, args)
     nexus.nx_update_project(project_id, args)
 
@@ -459,12 +463,14 @@ def project_add_member(project_id, user_id):
         raise DevOpsError(422, "Error while adding user to project.",
                           error=apiError.already_in_project(user_id, project_id))
     # insert one relationship
-    new = model.ProjectUserRole(project_id=project_id, user_id=user_id, role_id=role_id)
+    new = model.ProjectUserRole(
+        project_id=project_id, user_id=user_id, role_id=role_id)
     db.session.add(new)
     db.session.commit()
 
     user_relation = nexus.nx_get_user_plugin_relation(user_id=user_id)
-    project_relation = nx_get_project_plugin_relation(nexus_project_id=project_id)
+    project_relation = nx_get_project_plugin_relation(
+        nexus_project_id=project_id)
     redmine_role_id = user.to_redmine_role_id(role_id)
 
     # get project name
@@ -472,7 +478,8 @@ def project_add_member(project_id, user_id):
     # get user name
     ur_row = model.User.query.filter_by(id=user_id).one()
 
-    services = ['redmine', 'gitlab', 'harbor', 'kubernetes_role_binding', 'sonarqube']
+    services = ['redmine', 'gitlab', 'harbor',
+                'kubernetes_role_binding', 'sonarqube']
     targets = {
         'redmine': redmine.rm_create_memberships,
         'gitlab': gitlab.gl_project_add_member,
@@ -508,13 +515,15 @@ def project_remove_member(project_id, user_id):
                                    error=apiError.is_project_owner_in_project(user_id, project_id))
 
     user_relation = nexus.nx_get_user_plugin_relation(user_id=user_id)
-    project_relation = nx_get_project_plugin_relation(nexus_project_id=project_id)
+    project_relation = nx_get_project_plugin_relation(
+        nexus_project_id=project_id)
     if project_relation is None:
         raise apiError.DevOpsError(404, "Error while removing a member from the project.",
                                    error=apiError.project_not_found(project_id))
 
     # get membership id
-    memberships = redmine.rm_get_memberships_list(project_relation.plan_project_id)
+    memberships = redmine.rm_get_memberships_list(
+        project_relation.plan_project_id)
     redmine_membership_id = None
     for membership in memberships['memberships']:
         if membership['user']['id'] == user_relation.plan_user_id:
@@ -670,7 +679,8 @@ def get_test_summary(project_id):
 
 
 def get_kubernetes_namespace_Quota(project_id):
-    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
+    project_name = str(model.Project.query.filter_by(
+        id=project_id).first().name)
     project_quota = kubernetesClient.get_namespace_quota(project_name)
     deployments = kubernetesClient.list_namespace_deployments(project_name)
     ingresses = kubernetesClient.list_namespace_ingresses(project_name)
@@ -686,47 +696,61 @@ def get_kubernetes_namespace_Quota(project_id):
 
 
 def update_kubernetes_namespace_Quota(project_id, resource):
-    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
-    project_quota = kubernetesClient.update_namespace_quota(project_name, resource)
+    project_name = str(model.Project.query.filter_by(
+        id=project_id).first().name)
+    project_quota = kubernetesClient.update_namespace_quota(
+        project_name, resource)
     return util.success(project_quota)
 
 
 def get_kubernetes_namespace_pods(project_id):
-    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
+    project_name = str(model.Project.query.filter_by(
+        id=project_id).first().name)
     project_pod = kubernetesClient.list_namespace_pods_info(project_name)
     return util.success(project_pod)
 
 
 def delete_kubernetes_namespace_pod(project_id, name):
-    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
+    project_name = str(model.Project.query.filter_by(
+        id=project_id).first().name)
     project_pod = kubernetesClient.delete_namespace_pod(project_name, name)
     return util.success(project_pod)
 
 
 def get_kubernetes_namespace_pod_log(project_id, name, container_name=None):
-    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
-    pod_log = kubernetesClient.read_namespace_pod_log(project_name, name, container_name)
+    project_name = str(model.Project.query.filter_by(
+        id=project_id).first().name)
+    pod_log = kubernetesClient.read_namespace_pod_log(
+        project_name, name, container_name)
     return util.success(pod_log)
 
 
 def get_kubernetes_namespace_deployment(project_id):
-    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
-    project_deployment = kubernetesClient.list_namespace_deployments(project_name)
+    project_name = str(model.Project.query.filter_by(
+        id=project_id).first().name)
+    project_deployment = kubernetesClient.list_namespace_deployments(
+        project_name)
     return util.success(project_deployment)
 
 
 def put_kubernetes_namespace_deployment(project_id, name):
-    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
-    deployment_info = kubernetesClient.read_namespace_deployment(project_name, name)
+    project_name = str(model.Project.query.filter_by(
+        id=project_id).first().name)
+    deployment_info = kubernetesClient.read_namespace_deployment(
+        project_name, name)
     if deployment_info.spec.template.metadata.annotations is not None:
-        deployment_info.spec.template.metadata.annotations["iiidevops_redeploy_at"] = str(datetime.utcnow())
-    project_deployment = kubernetesClient.update_namespace_deployment(project_name, name, deployment_info)
+        deployment_info.spec.template.metadata.annotations["iiidevops_redeploy_at"] = str(
+            datetime.utcnow())
+    project_deployment = kubernetesClient.update_namespace_deployment(
+        project_name, name, deployment_info)
     return util.success(project_deployment.metadata.name)
 
 
 def delete_kubernetes_namespace_deployment(project_id, name):
-    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
-    project_deployment = kubernetesClient.delete_namespace_deployment(project_name, name)
+    project_name = str(model.Project.query.filter_by(
+        id=project_id).first().name)
+    project_deployment = kubernetesClient.delete_namespace_deployment(
+        project_name, name)
     return util.success(project_deployment)
 
 
@@ -754,111 +778,133 @@ def get_kubernetes_namespace_dev_environment_urls(project_id, branch_name):
 
 def put_kubernetes_namespace_dev_environment(project_id, branch_name):
     project_info = model.Project.query.filter_by(id=project_id).first()
-    update_info = kubernetesClient.update_dev_environment_by_branch(str(project_info.name), branch_name)
+    update_info = kubernetesClient.update_dev_environment_by_branch(
+        str(project_info.name), branch_name)
     return util.success(update_info)
 
 
 def delete_kubernetes_namespace_dev_environment(project_id, branch_name):
-    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
-    project_deployment = kubernetesClient.delete_dev_environment_by_branch(project_name, branch_name)
+    project_name = str(model.Project.query.filter_by(
+        id=project_id).first().name)
+    project_deployment = kubernetesClient.delete_dev_environment_by_branch(
+        project_name, branch_name)
     return util.success(project_deployment)
 
 
 def get_kubernetes_namespace_services(project_id):
-    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
+    project_name = str(model.Project.query.filter_by(
+        id=project_id).first().name)
     project_service = kubernetesClient.list_namespace_services(project_name)
     return util.success(project_service)
 
 
 def delete_kubernetes_namespace_service(project_id, name):
-    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
-    project_service = kubernetesClient.delete_namespace_service(project_name, name)
+    project_name = str(model.Project.query.filter_by(
+        id=project_id).first().name)
+    project_service = kubernetesClient.delete_namespace_service(
+        project_name, name)
     return util.success(project_service)
 
 
 def get_kubernetes_namespace_secrets(project_id):
-    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
+    project_name = str(model.Project.query.filter_by(
+        id=project_id).first().name)
     project_secret = kubernetesClient.list_namespace_secrets(project_name)
     return util.success(project_secret)
 
 
 def read_kubernetes_namespace_secret(project_id, secret_name):
-    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
-    project_secret = kubernetesClient.read_namespace_secret(project_name, secret_name)
+    project_name = str(model.Project.query.filter_by(
+        id=project_id).first().name)
+    project_secret = kubernetesClient.read_namespace_secret(
+        project_name, secret_name)
     return util.success(project_secret)
 
 
 def create_kubernetes_namespace_secret(project_id, secret_name, secrets):
-    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
-    kubernetesClient.create_namespace_secret(project_name, secret_name, secrets)
+    project_name = str(model.Project.query.filter_by(
+        id=project_id).first().name)
+    kubernetesClient.create_namespace_secret(
+        project_name, secret_name, secrets)
     return util.success()
 
 
 def put_kubernetes_namespace_secret(project_id, secret_name, secrets):
-    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
+    project_name = str(model.Project.query.filter_by(
+        id=project_id).first().name)
     kubernetesClient.patch_namespace_secret(project_name, secret_name, secrets)
     return util.success()
 
 
 def delete_kubernetes_namespace_secret(project_id, name):
-    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
-    project_secret = kubernetesClient.delete_namespace_secret(project_name, name)
+    project_name = str(model.Project.query.filter_by(
+        id=project_id).first().name)
+    project_secret = kubernetesClient.delete_namespace_secret(
+        project_name, name)
     return util.success(project_secret)
 
 
 # ConfigMap
 def get_kubernetes_namespace_configmaps(project_id):
-    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
+    project_name = str(model.Project.query.filter_by(
+        id=project_id).first().name)
     project_configmap = kubernetesClient.list_namespace_configmap(project_name)
     return util.success(project_configmap)
 
 
 def read_kubernetes_namespace_configmap(project_id, name):
-    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
-    project_configmap = kubernetesClient.read_namespace_configmap(project_name, name)
+    project_name = str(model.Project.query.filter_by(
+        id=project_id).first().name)
+    project_configmap = kubernetesClient.read_namespace_configmap(
+        project_name, name)
     return util.success(project_configmap)
 
 
 def create_kubernetes_namespace_configmap(project_id, name, configmaps):
-    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
-    project_configmap = kubernetesClient.create_namespace_configmap(project_name, name, configmaps)
-    return util.success(project_configmap)
-
-
-def create_kubernetes_namespace_configmap(project_id, name, configmaps):
-    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
-    project_configmap = kubernetesClient.create_namespace_configmap(project_name, name, configmaps)
+    project_name = str(model.Project.query.filter_by(
+        id=project_id).first().name)
+    project_configmap = kubernetesClient.create_namespace_configmap(
+        project_name, name, configmaps)
     return util.success(project_configmap)
 
 
 def put_kubernetes_namespace_configmap(project_id, name, configmaps):
-    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
-    project_configmap = kubernetesClient.put_namespace_configmap(project_name, name, configmaps)
+    project_name = str(model.Project.query.filter_by(
+        id=project_id).first().name)
+    project_configmap = kubernetesClient.put_namespace_configmap(
+        project_name, name, configmaps)
     return util.success(project_configmap)
 
 
 def delete_kubernetes_namespace_configmap(project_id, name):
-    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
-    project_configmap = kubernetesClient.delete_namespace_configmap(project_name, name)
+    project_name = str(model.Project.query.filter_by(
+        id=project_id).first().name)
+    project_configmap = kubernetesClient.delete_namespace_configmap(
+        project_name, name)
     return util.success(project_configmap)
 
 
 def get_kubernetes_namespace_ingresses(project_id):
-    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
+    project_name = str(model.Project.query.filter_by(
+        id=project_id).first().name)
     ingress_list = kubernetesClient.list_namespace_ingresses(project_name)
     return util.success(ingress_list)
 
 
 def get_plugin_usage(project_id):
-    project_plugin_relation = model.ProjectPluginRelation.query.filter_by(project_id=project_id).first()
+    project_plugin_relation = model.ProjectPluginRelation.query.filter_by(
+        project_id=project_id).first()
     plugin_info = []
-    plugin_info.append(harbor.get_storage_usage(project_plugin_relation.harbor_project_id))
-    plugin_info.append(gitlab.gl_get_storage_usage(project_plugin_relation.git_repository_id))
+    plugin_info.append(harbor.get_storage_usage(
+        project_plugin_relation.harbor_project_id))
+    plugin_info.append(gitlab.gl_get_storage_usage(
+        project_plugin_relation.git_repository_id))
     return util.success(plugin_info)
 
 
 def git_repo_id_to_ci_pipe_id(repository_id):
-    project_plugin_relation = model.ProjectPluginRelation.query.filter_by(git_repository_id=int(repository_id)).first()
+    project_plugin_relation = model.ProjectPluginRelation.query.filter_by(
+        git_repository_id=int(repository_id)).first()
     return util.success(project_plugin_relation.ci_pipeline_id)
 
 
@@ -906,7 +952,8 @@ def check_project_owner_id(new_owner_id, user_id, project_id):
 
 def get_projects_by_user(user_id):
     try:
-        model.ProjectUserRole.query.filter_by(project_id=-1, user_id=user_id).one()
+        model.ProjectUserRole.query.filter_by(
+            project_id=-1, user_id=user_id).one()
     except NoResultFound:
         raise apiError.DevOpsError(
             404, 'User id {0} does not exist.'.format(user_id),
@@ -914,7 +961,8 @@ def get_projects_by_user(user_id):
     projects_id_list = list(sum(
         model.ProjectUserRole.query.filter_by(
             user_id=user_id).with_entities(model.ProjectUserRole.project_id), ()))
-    projects = [NexusProject().set_project_id(id).to_json() for id in projects_id_list if id != -1]
+    projects = [NexusProject().set_project_id(id).to_json()
+                for id in projects_id_list if id != -1]
     return projects
 
 
@@ -954,13 +1002,15 @@ class SingleProject(Resource):
     @jwt_required
     def get(self, project_id):
         role.require_pm("Error while getting project info.")
-        role.require_in_project(project_id, "Error while getting project info.")
+        role.require_in_project(
+            project_id, "Error while getting project info.")
         return util.success(get_project_info(project_id))
 
     @jwt_required
     def put(self, project_id):
         role.require_pm("Error while updating project info.", exclude_qa=True)
-        role.require_in_project(project_id, "Error while updating project info.")
+        role.require_in_project(
+            project_id, "Error while updating project info.")
         parser = reqparse.RequestParser()
         parser.add_argument('display', type=str, required=True)
         parser.add_argument('description', type=str)
@@ -970,20 +1020,23 @@ class SingleProject(Resource):
         parser.add_argument('owner_id', type=int, required=True)
         args = parser.parse_args()
         check_project_args_patterns(args)
-        check_project_owner_id(args['owner_id'], get_jwt_identity()['user_id'], project_id)
+        check_project_owner_id(args['owner_id'], get_jwt_identity()[
+                               'user_id'], project_id)
         pm_update_project(project_id, args)
         return util.success()
 
     @jwt_required
     def patch(self, project_id):
         role.require_pm("Error while updating project info.", exclude_qa=True)
-        role.require_in_project(project_id, "Error while updating project info.")
+        role.require_in_project(
+            project_id, "Error while updating project info.")
         parser = reqparse.RequestParser()
         parser.add_argument('owner_id', type=int, required=False)
         args = parser.parse_args()
         check_project_args_patterns(args)
         if args.get('owner_id', None) is not None:
-            check_project_owner_id(args['owner_id'], get_jwt_identity()['user_id'], project_id)
+            check_project_owner_id(args['owner_id'], get_jwt_identity()[
+                                   'user_id'], project_id)
         nexus_update_project(project_id, args)
         return util.success()
 
@@ -1029,7 +1082,8 @@ class SingleProjectByName(Resource):
     def get(self, project_name):
         project_id = nexus.nx_get_project(name=project_name).id
         role.require_pm("Error while getting project info.")
-        role.require_in_project(project_id, "Error while getting project info.")
+        role.require_in_project(
+            project_id, "Error while getting project info.")
         return util.success(get_project_info(project_id))
 
 
@@ -1101,14 +1155,16 @@ class ProjectUserList(Resource):
 class ProjectPluginUsage(Resource):
     @jwt_required
     def get(self, project_id):
-        role.require_in_project(project_id, "Error while getting project info.")
+        role.require_in_project(
+            project_id, "Error while getting project info.")
         return get_plugin_usage(project_id)
 
 
 class ProjectUserResource(Resource):
     @jwt_required
     def get(self, project_id):
-        role.require_in_project(project_id, "Error while getting project info.")
+        role.require_in_project(
+            project_id, "Error while getting project info.")
         return get_kubernetes_namespace_Quota(project_id)
 
     @jwt_required
@@ -1128,7 +1184,8 @@ class ProjectUserResource(Resource):
 class ProjectUserResourcePods(Resource):
     @jwt_required
     def get(self, project_id):
-        role.require_in_project(project_id, "Error while getting project info.")
+        role.require_in_project(
+            project_id, "Error while getting project info.")
         return get_kubernetes_namespace_pods(project_id)
 
 
@@ -1136,14 +1193,16 @@ class ProjectUserResourcePod(Resource):
 
     @jwt_required
     def delete(self, project_id, pod_name):
-        role.require_in_project(project_id, "Error while getting project info.")
+        role.require_in_project(
+            project_id, "Error while getting project info.")
         return delete_kubernetes_namespace_pod(project_id, pod_name)
 
 
 class ProjectUserResourcePodLog(Resource):
     @jwt_required
     def get(self, project_id, pod_name):
-        role.require_in_project(project_id, "Error while getting project info.")
+        role.require_in_project(
+            project_id, "Error while getting project info.")
         parser = reqparse.RequestParser()
         parser.add_argument('container_name', type=str)
         args = parser.parse_args()
@@ -1153,25 +1212,28 @@ class ProjectUserResourcePodLog(Resource):
 class ProjectEnvironment(Resource):
     @jwt_required
     def get(self, project_id):
-        role.require_in_project(project_id, "Error while getting project info.")
+        role.require_in_project(
+            project_id, "Error while getting project info.")
         return util.success(get_kubernetes_namespace_dev_environment(project_id))
-
 
     @jwt_required
     def put(self, project_id, branch_name):
-        role.require_in_project(project_id, "Error while getting project info.")
+        role.require_in_project(
+            project_id, "Error while getting project info.")
         return put_kubernetes_namespace_dev_environment(project_id, branch_name)
 
     @jwt_required
     def delete(self, project_id, branch_name):
-        role.require_in_project(project_id, "Error while getting project info.")
+        role.require_in_project(
+            project_id, "Error while getting project info.")
         return delete_kubernetes_namespace_dev_environment(project_id, branch_name)
 
 
 class ProjectEnvironmentUrl(Resource):
     @jwt_required
     def get(self, project_id, branch_name):
-        role.require_in_project(project_id, "Error while getting project info.")
+        role.require_in_project(
+            project_id, "Error while getting project info.")
         return util.success(get_kubernetes_namespace_dev_environment_urls(
             project_id, branch_name))
 
@@ -1179,52 +1241,60 @@ class ProjectEnvironmentUrl(Resource):
 class ProjectUserResourceDeployments(Resource):
     @jwt_required
     def get(self, project_id):
-        role.require_in_project(project_id, "Error while getting project info.")
+        role.require_in_project(
+            project_id, "Error while getting project info.")
         return get_kubernetes_namespace_deployment(project_id)
 
 
 class ProjectUserResourceDeployment(Resource):
     @jwt_required
     def put(self, project_id, deployment_name):
-        role.require_in_project(project_id, "Error while getting project info.")
+        role.require_in_project(
+            project_id, "Error while getting project info.")
         return put_kubernetes_namespace_deployment(project_id, deployment_name)
 
     @jwt_required
     def delete(self, project_id, deployment_name):
-        role.require_in_project(project_id, "Error while getting project info.")
+        role.require_in_project(
+            project_id, "Error while getting project info.")
         return delete_kubernetes_namespace_deployment(project_id, deployment_name)
 
 
 class ProjectUserResourceServices(Resource):
     @jwt_required
     def get(self, project_id):
-        role.require_in_project(project_id, "Error while getting project info.")
+        role.require_in_project(
+            project_id, "Error while getting project info.")
         return get_kubernetes_namespace_services(project_id)
 
 
 class ProjectUserResourceService(Resource):
     @jwt_required
     def delete(self, project_id, service_name):
-        role.require_in_project(project_id, "Error while getting project info.")
+        role.require_in_project(
+            project_id, "Error while getting project info.")
         return delete_kubernetes_namespace_service(project_id, service_name)
 
 
 class ProjectUserResourceSecrets(Resource):
     @jwt_required
     def get(self, project_id):
-        role.require_in_project(project_id, "Error while getting project info.")
+        role.require_in_project(
+            project_id, "Error while getting project info.")
         return get_kubernetes_namespace_secrets(project_id)
 
 
 class ProjectUserResourceSecret(Resource):
     @jwt_required
     def get(self, project_id, secret_name):
-        role.require_in_project(project_id, "Error while getting project info.")
+        role.require_in_project(
+            project_id, "Error while getting project info.")
         return read_kubernetes_namespace_secret(project_id, secret_name)
 
     @jwt_required
     def post(self, project_id, secret_name):
-        role.require_in_project(project_id, "Error while getting project info.")
+        role.require_in_project(
+            project_id, "Error while getting project info.")
         parser = reqparse.RequestParser()
         parser.add_argument('secrets', type=dict, required=True)
         args = parser.parse_args()
@@ -1232,7 +1302,8 @@ class ProjectUserResourceSecret(Resource):
 
     @jwt_required
     def put(self, project_id, secret_name):
-        role.require_in_project(project_id, "Error while getting project info.")
+        role.require_in_project(
+            project_id, "Error while getting project info.")
         parser = reqparse.RequestParser()
         parser.add_argument('secrets', type=dict, required=True)
         args = parser.parse_args()
@@ -1240,26 +1311,30 @@ class ProjectUserResourceSecret(Resource):
 
     @jwt_required
     def delete(self, project_id, secret_name):
-        role.require_in_project(project_id, "Error while getting project info.")
+        role.require_in_project(
+            project_id, "Error while getting project info.")
         return delete_kubernetes_namespace_secret(project_id, secret_name)
 
 
 class ProjectUserResourceConfigMaps(Resource):
     @jwt_required
     def get(self, project_id):
-        role.require_in_project(project_id, "Error while getting project info.")
+        role.require_in_project(
+            project_id, "Error while getting project info.")
         return get_kubernetes_namespace_configmaps(project_id)
 
 
 class ProjectUserResourceConfigMap(Resource):
     @jwt_required
     def get(self, project_id, configmap_name):
-        role.require_in_project(project_id, "Error while getting project info.")
+        role.require_in_project(
+            project_id, "Error while getting project info.")
         return read_kubernetes_namespace_configmap(project_id, configmap_name)
 
     @jwt_required
     def delete(self, project_id, configmap_name):
-        role.require_in_project(project_id, "Error while getting project info.")
+        role.require_in_project(
+            project_id, "Error while getting project info.")
         return delete_kubernetes_namespace_configmap(project_id, configmap_name)
 
     @jwt_required
@@ -1267,7 +1342,8 @@ class ProjectUserResourceConfigMap(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('configmaps', type=dict, required=True)
         args = parser.parse_args()
-        role.require_in_project(project_id, "Error while getting project info.")
+        role.require_in_project(
+            project_id, "Error while getting project info.")
         return put_kubernetes_namespace_configmap(project_id, configmap_name, args['configmaps'])
 
     @jwt_required
@@ -1275,7 +1351,8 @@ class ProjectUserResourceConfigMap(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('configmaps', type=dict, required=True)
         args = parser.parse_args()
-        role.require_in_project(project_id, "Error while getting project info.")
+        role.require_in_project(
+            project_id, "Error while getting project info.")
         print(args)
         return create_kubernetes_namespace_configmap(project_id, configmap_name, args['configmaps'])
 
@@ -1283,7 +1360,8 @@ class ProjectUserResourceConfigMap(Resource):
 class ProjectUserResourceIngresses(Resource):
     @jwt_required
     def get(self, project_id):
-        role.require_in_project(project_id, "Error while getting project info.")
+        role.require_in_project(
+            project_id, "Error while getting project info.")
         return get_kubernetes_namespace_ingresses(project_id)
 
 
