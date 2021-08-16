@@ -575,12 +575,14 @@ api.add_resource(devops_version.DevOpsVersionUpdate, '/devops_version/update')
 # Deploy
 api.add_resource(deploy.Clusters, '/deploy/clusters')
 api.add_resource(deploy.Cluster, '/deploy/clusters/<int:cluster_id>')
+api.add_resource(deploy.Applications, '/deploy/applications')
 api.add_resource(deploy.Pods, '/deploy/pods')
 
 
-# Alert 
+# Alert
 api.add_resource(alert.ProjectAlert, '/project/<sint:project_id>/alert')
 api.add_resource(alert.ProjectAlertUpdate, '/alert/<int:alert_id>')
+
 
 def start_prod():
     try:
