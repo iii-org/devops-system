@@ -19,7 +19,6 @@ import yaml
 import nexus
 
 default_project_id = "-1"
-
 error_clusters_not_found = "No Exact Cluster Found"
 
 
@@ -75,9 +74,8 @@ def get_clusters(cluster_id=None):
     return output
 
 
-def add_cluster(args, server_name, user_id):
+def create_cluster(args, server_name, user_id):
     cluster_path = check_directory_exists(server_name)
-    print(args.get('k8s_config_file'))
     file = args.get('k8s_config_file')
     filename = secure_filename(file.filename)
     file.save(os.path.join(cluster_path, filename))
@@ -160,7 +158,7 @@ class Clusters(Resource):
             args = parser.parse_args()
             server_name = args.get('name').strip()
             if check_cluster(server_name) is None:
-                output = {"cluster_id": add_cluster(
+                output = {"cluster_id": create_cluster(
                     args, server_name, user_id)}
             return util.success(output)
         except NoResultFound:
@@ -205,6 +203,125 @@ class Cluster(Resource):
             role.require_admin()
             delete_cluster(cluster_id)
             return util.success()
+        except NoResultFound:
+            return util.respond(404, error_clusters_not_found,
+                                error=apiError.repository_id_not_found)
+
+
+def create_application_image():
+    image_uri = 1
+    return image_uri
+
+
+def create_application(args, user_id):
+
+    now = str(datetime.utcnow())
+    new = model.Application(
+        name=args.get('name'),
+        disabled=False,
+        project_id=args.get('project_id'),
+        registry_id=args.get('registry_id'),
+        cluster_id=args.get('cluster_id'),
+        release_id=args.get('release_id'),
+        namespace=args.get('namespace'),
+        created_at=now,
+        update_at=now,
+        status_id=1,
+        status="Initial Creating",
+    )
+    db.session.add(new)
+    db.session.commit()
+    return new.id
+
+
+class Applications(Resource):
+    @jwt_required
+    def get(self):
+        try:
+            output = {}
+            role.require_admin()
+            output = harbor.hb_get_registries()
+            return util.success({"cluster": output})
+        except NoResultFound:
+            return util.respond(404, error_clusters_not_found,
+                                error=apiError.repository_id_not_found)
+
+    @jwt_required
+    def post(self):
+        try:
+            output = {}
+            user_id = get_jwt_identity()['user_id']
+            parser = reqparse.RequestParser()
+            parser.add_argument('name', type=str)
+            parser.add_argument('project_id', type=int)
+            parser.add_argument('registry_id', type=int)
+            parser.add_argument('cluster_id', type=int)
+            parser.add_argument('release_id', type=int)
+            parser.add_argument('namespace', type=str)
+            parser.add_argument('resources', type=dict)
+            parser.add_argument('network', type=dict)
+            parser.add_argument('environments', type=dict)
+            args = parser.parse_args()
+            output = create_application(args, user_id)
+            return util.success({"applications": {"id": output}})
+        except NoResultFound:
+            return util.respond(404, error_clusters_not_found,
+                                error=apiError.repository_id_not_found)
+
+
+class Application(Resource):
+    @jwt_required
+    def get(self, application_id):
+        try:
+            output = {}
+            output = harbor.hb_get_registries()
+            return util.success({"cluster": output})
+        except NoResultFound:
+            return util.respond(404, error_clusters_not_found,
+                                error=apiError.repository_id_not_found)
+
+    @jwt_required
+    def put(self, application_id):
+        try:
+            output = {}
+            return util.success({"cluster": {"id": output}})
+        except NoResultFound:
+            return util.respond(404, error_clusters_not_found,
+                                error=apiError.repository_id_not_found)
+
+    @jwt_required
+    def delete(self, application_id):
+        try:
+            output = {"success"}
+            return util.success({"cluster": {"id": output}})
+        except NoResultFound:
+            return util.respond(404, error_clusters_not_found,
+                                error=apiError.repository_id_not_found)
+
+
+class Registries(Resource):
+    @jwt_required
+    def get(self):
+        try:
+            output = {}
+            role.require_admin()
+            output = harbor.hb_get_registries()
+            return util.success({"cluster": output})
+        except NoResultFound:
+            return util.respond(404, error_clusters_not_found,
+                                error=apiError.repository_id_not_found)
+
+    @jwt_required
+    def post(self):
+        try:
+            output = {}
+            parser = reqparse.RequestParser()
+            parser.add_argument('name', type=str)
+            parser.add_argument(
+                'k8s_config_file', type=werkzeug.datastructures.FileStorage, location='files')
+            args = parser.parse_args()
+            harbor.hb_create_registries(args)
+            return util.success({"cluster": {"id": output}})
         except NoResultFound:
             return util.respond(404, error_clusters_not_found,
                                 error=apiError.repository_id_not_found)
@@ -257,34 +374,6 @@ class Services(Resource):
                         "namespace": i.metadata.namespace,
                     })
             return util.success({"pod": output})
-        except NoResultFound:
-            return util.respond(404, error_clusters_not_found,
-                                error=apiError.repository_id_not_found)
-
-
-class Registries(Resource):
-    @jwt_required
-    def get(self):
-        try:
-            output = {}
-            role.require_admin()
-            output = harbor.hb_get_registries()
-            return util.success({"cluster": output})
-        except NoResultFound:
-            return util.respond(404, error_clusters_not_found,
-                                error=apiError.repository_id_not_found)
-
-    @jwt_required
-    def post(self):
-        try:
-            output = {}
-            parser = reqparse.RequestParser()
-            parser.add_argument('name', type=str)
-            parser.add_argument(
-                'k8s_config_file', type=werkzeug.datastructures.FileStorage, location='files')
-            args = parser.parse_args()
-            harbor.hb_create_registries(args)
-            return util.success({"cluster": {"id": output}})
         except NoResultFound:
             return util.respond(404, error_clusters_not_found,
                                 error=apiError.repository_id_not_found)
