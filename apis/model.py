@@ -566,3 +566,8 @@ class Application(db.Model):
     status_id = Column(Integer)
     release_id = Column(Integer)
     yaml = Column(String)
+
+class DefaultAlertDays(db.Model):
+    id = Column(Integer, primary_key=True)
+    unchange_days = Column(Integer)
+    comming_days = Column(Integer)
