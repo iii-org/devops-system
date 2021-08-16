@@ -234,6 +234,60 @@ def create_application(args, user_id):
     return new.id
 
 
+def initial_harbor_replication_image_policy(
+    app
+):
+    release, project = db.session.query(model.Release, model.Project).join(model.Project).filter(
+        model.Release.id == app.release_id,
+        model.Release.project_id == model.Project.id
+
+    ).one()
+    output = {
+        "release": row_to_dict(release),
+        "project": row_to_dict(project)
+    }
+    data = {
+        "policy_name": project.name + '-' + release.branch+'-'+release.tag_name + "-"+str(datetime.utcnow()),
+        "repo_name": project.name,
+        "image_name": release.branch,
+        "tag_name": release.tag_name,
+        "description": 'Automatate create replication policy '+project.name+" release ID" + str(release.id),
+        "registry_id": app.registry_id,
+        "dest_repo_name": app.namespace,
+    }
+    policy_id = harbor.hb_create_replication_policy(data)
+    return policy_id
+
+
+def execute_replication_policy(policy_id):
+    return harbor.hb_execute_replication_policy(policy_id)
+
+
+def check_image_process(app):
+
+    policy_id = initial_harbor_replication_image_policy(app)
+    image_uri = execute_replication_policy(policy_id)
+
+    return {
+        "policy_id": policy_id,
+        "image_uri": image_uri
+    }
+
+
+def check_application_type(application_id):
+    output = {}
+    app = model.Application.query.filter_by(id=application_id).one()
+    # Initial Harbor Replication execution
+    if app.status_id == 1:
+        output['policy_id'] = check_image_process(
+            app)
+        output['status_id'] = 2
+    # Execuation Replication
+    elif app.status_id == 2:
+        output['status_id'] = 3
+    return output
+
+
 class Applications(Resource):
     @jwt_required
     def get(self):
@@ -285,6 +339,16 @@ class Application(Resource):
         try:
             output = {}
             return util.success({"cluster": {"id": output}})
+        except NoResultFound:
+            return util.respond(404, error_clusters_not_found,
+                                error=apiError.repository_id_not_found)
+
+    @jwt_required
+    def patch(self, application_id):
+        try:
+            output = {}
+            output = check_application_type(application_id)
+            return util.success({"applications": output})
         except NoResultFound:
             return util.respond(404, error_clusters_not_found,
                                 error=apiError.repository_id_not_found)
