@@ -562,11 +562,13 @@ class Application(db.Model):
     image = Column(String)
     status = Column(String)
     created_at = Column(DateTime)
-    update_at = Column(DateTime)
+    updated_at = Column(DateTime)
     disabled = Column(Boolean)
     status_id = Column(Integer)
     release_id = Column(Integer)
-    yaml = Column(String)
+    k8s_yaml = Column(String)
+    harbor_info = Column(String)
+
 
 class DefaultAlertDays(db.Model):
     id = Column(Integer, primary_key=True)
