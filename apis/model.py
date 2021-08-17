@@ -580,5 +580,5 @@ class DefaultAlertDays(db.Model):
 class TraceOrder(db.Model):
     id = Column(Integer, primary_key=True)
     name = Column(String)
-    project_id = Column(Integer, ForeignKey(Project.id))
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
     order = Column(ARRAY(Integer))
