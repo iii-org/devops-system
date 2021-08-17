@@ -71,6 +71,7 @@ def upgrade(version):
         alembic_upgrade()
         create_alert_in_project()
     elif version == '1.8.1.1':
+        alembic_upgrade()
         set_default_trace_order()
 
 def set_default_trace_order():
