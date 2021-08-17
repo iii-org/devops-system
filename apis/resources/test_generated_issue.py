@@ -1,6 +1,7 @@
 import json
 from datetime import datetime, timedelta
 
+import pytz
 from redminelib.exceptions import ResourceNotFoundError
 
 import model
@@ -62,7 +63,7 @@ def _handle_test_failed(project_id, software_name, filename, description,
             issue_exists = False
 
     if not issue_exists:
-        description = f'詳細報告請前往[測試報告列表](/#/{project_name}/scan/sideex)\n{description}'
+        description = f'詳細報告請前往[測試報告列表](/#/{project_name}/scan/sideex)\n\n{description}'
         args = {
             'project_id': project_id,
             'tracker_id': 9,
@@ -102,12 +103,12 @@ SOFTWARE_ISSUE_TITLE = {
 def _get_issue_subject(filename, software_name):
     if software_name == 'postman':
         if filename == '':
-            full_filename = 'postman_collection.json'
+            full_filename = 'postman_collection'
         else:
-            full_filename = f'{filename}.postman_collection.json'
-        return f'[{SOFTWARE_ISSUE_TITLE[software_name]}] Script: {full_filename} _測試失敗'
+            full_filename = f'{filename}.postman_collection'
+        return f'[{SOFTWARE_ISSUE_TITLE[software_name]}] Script: {full_filename}_測試失敗'
     else:
-        return f'[{SOFTWARE_ISSUE_TITLE[software_name]}] Script: {filename} _測試失敗'
+        return f'[{SOFTWARE_ISSUE_TITLE[software_name]}] Script: {filename}_測試失敗'
 
 
 def _handle_test_success(project_id, software_name, filename, description):
@@ -153,7 +154,7 @@ def tgi_create_issue(args, software_name, file_name, branch, commit_id, result_t
 
 
 def _cst_now_string():
-    return (datetime.utcnow() + timedelta(hours=8)).strftime("%Y-%m-%d %H:%M:%S")
+    return (datetime.utcnow().replace(tzinfo=pytz.timezone('Asia/Taipei'))).strftime("%Y-%m-%d %H:%M:%S")
 
 
 def _get_postman_issue_description(row):
