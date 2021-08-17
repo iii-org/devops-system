@@ -1,13 +1,13 @@
 import json
-from datetime import datetime, timedelta
+from datetime import datetime
 
-import pytz
+from dateutil.tz import tz
 from redminelib.exceptions import ResourceNotFoundError
 
 import model
 import nexus
-from resources import issue
 from accessories import redmine_lib
+from resources import issue
 from resources.logger import logger
 
 
@@ -154,7 +154,8 @@ def tgi_create_issue(args, software_name, file_name, branch, commit_id, result_t
 
 
 def _cst_now_string():
-    return (datetime.utcnow().replace(tzinfo=pytz.timezone('Asia/Taipei'))).strftime("%Y-%m-%d %H:%M:%S")
+    return (datetime.utcnow().replace(tzinfo=tz.tzutc()).astimezone(
+        tz.gettz('Asia/Taipei'))).strftime("%Y-%m-%d %H:%M:%S")
 
 
 def _get_postman_issue_description(row):
