@@ -16,7 +16,7 @@ If you don't have the alembic.ini, copy _alembic.ini and replace the postgres ur
 import json
 
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Date, Enum, JSON, Float
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Date, Enum, JSON, Float, ARRAY
 from sqlalchemy.orm import relationship
 
 import util
@@ -92,6 +92,7 @@ class Project(db.Model):
     plugin_relation = relationship('ProjectPluginRelation', uselist=False)
     user_role = relationship('ProjectUserRole', back_populates='project')
     alert = Column(Boolean)
+    trace_order = relationship('TraceOrder', backref='project')
 
     def __repr__(self):
         fields = {}
@@ -574,3 +575,10 @@ class DefaultAlertDays(db.Model):
     id = Column(Integer, primary_key=True)
     unchange_days = Column(Integer)
     comming_days = Column(Integer)
+
+
+class TraceOrder(db.Model):
+    id = Column(Integer, primary_key=True)
+    name = Column(String)
+    project_id = Column(Integer, ForeignKey(Project.id))
+    order = Column(ARRAY(String))
