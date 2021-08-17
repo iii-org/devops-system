@@ -11,7 +11,7 @@ from sqlalchemy.orm.exc import NoResultFound
 
 def check_alert_permission(role_id, owner_id, project_id):
     if role_id != 5 and owner_id != model.Project.query.get(project_id).owner_id:
-        raise apiError.NotAllowedError("You must be an admin or a project owner for this operation.")
+        raise apiError.NotProjectOwnerError("You must be role admin or a project owner for this operation.")
 
 
 def is_project_alert_enable(project_id):

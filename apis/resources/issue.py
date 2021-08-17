@@ -508,7 +508,7 @@ def create_issue(args, operator_id):
     return redmine.rm_create_issue(args, plan_operator_id)
 
 
-def update_issue(issue_id, args, operator_id):
+def update_issue(issue_id, args, operator_id=None):
     args = args.copy()
     args = {k: v for k, v in args.items() if v is not None}
     if 'fixed_version_id' in args:
@@ -1440,7 +1440,7 @@ def check_issue_closable(issue_id):
         return True
 
 
-def execute_issue_alert(alert_mapping, operator_id):
+def execute_issue_alert(alert_mapping):
     '''
     若符合設定條件, 則會在該議題下新增留言
     條件: 1.Alert裡的condition 2.議題狀態並不是關閉
@@ -1469,7 +1469,6 @@ def execute_issue_alert(alert_mapping, operator_id):
                         update_issue(
                             issue_id, 
                             {"notes": f'本議題 #{issue_id} {issue["subject"]} {note}'}, 
-                            operator_id,
                         )
 
 # --------------------- Resources ---------------------
@@ -1959,7 +1958,6 @@ class CheckIssueClosable(Resource):
 
 
 class ExecutIssueAlert(Resource):
-    @jwt_required
     def post(self):
         alert_mapping = {}
         alerts = model.Alert.query.filter_by(disabled=False)
@@ -1968,5 +1966,5 @@ class ExecutIssueAlert(Resource):
             plan_project_id = project.get_plan_project_id(alert.project_id)
             alert_mapping.setdefault(plan_project_id, []).append(
                 {"condition": alert.condition, "days": alert.days})
-        operator_id = get_jwt_identity()['user_id']    
-        return util.success(execute_issue_alert(alert_mapping, operator_id))
+
+        return util.success(execute_issue_alert(alert_mapping))

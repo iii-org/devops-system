@@ -152,6 +152,10 @@ class NotUserHimselfError(HTTPException):
     pass
 
 
+class NotProjectOwnerError(HTTPException):
+    pass
+
+
 # Redmine Issue/Wiki/... errors
 def issue_not_found(issue_id):
     return build(4001, 'Issue not found.', {'issue_id': issue_id})
@@ -222,6 +226,10 @@ custom_errors = {
     },
     'NotUserHimselfError': {
         'error': build(3003, "You are not permitted to access another user's data."),
+        'status': 401
+    },
+    'NotProjectOwnerError': {
+        'error': build(3004, "Only PM can set it, please contact PM for assistance."),
         'status': 401
     }
 }
