@@ -581,4 +581,4 @@ class TraceOrder(db.Model):
     id = Column(Integer, primary_key=True)
     name = Column(String)
     project_id = Column(Integer, ForeignKey(Project.id))
-    order = Column(ARRAY(String))))
+    order = Column(ARRAY(String))
