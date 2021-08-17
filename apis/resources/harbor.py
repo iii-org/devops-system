@@ -3,7 +3,6 @@ from urllib.parse import quote
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
 from requests.auth import HTTPBasicAuth
-
 import config
 import nexus
 import util
@@ -359,12 +358,15 @@ def hb_create_registries(args):
         args['url'] = '{login_server}'.format(
             login_server=args['login_server'])
     __api_post('/registries/ping', data=args)
+
     args['credential'] = {
         'access_key': args['access_key'],
         'access_secret': args['access_secret'],
         'type': 'basic'
     }
     __api_post('/registries', data=args)
+    if args['type'] == 'harbor':
+        args['access_secret'] = util.base64encode(args['access_secret'])
     registries_id = hb_get_registries(
         args='name={0}'.format(args['name']))[0].get('id')
     new_registries = model.Registries(
@@ -512,7 +514,8 @@ def hb_execute_replication_policy(policy_id):
     return image_uri
 
 
-def hb_get_replication_executions(data):
+def hb_get_replication_executions(policy_id):
+    data = {"policy_id": policy_id}
     return __api_get('/replication/executions/', params=data).json()
 
 
@@ -780,7 +783,7 @@ class HarborReplicationExecution(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('policy_id', type=int)
         args = parser.parse_args()
-        output = hb_get_replication_executions(args)
+        output = hb_get_replication_executions(args.get('policy_id'))
         return util.success({'executions': output})
 
 
