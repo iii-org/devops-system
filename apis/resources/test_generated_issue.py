@@ -21,18 +21,18 @@ def tgi_feed_postman(row):
                                  col_key, _get_postman_issue_close_description(row))
 
 
-def tgi_feed_sideex(row):
+def tgi_feed_sideex(project_id, row):
     logger.debug(f'Sideex result is {row.result}')
     suites = json.loads(row.result).get('suites')
     for col_key, result in suites.items():
         total = result.get('total')
         passed = result.get('passed')
         if total - passed > 0:
-            _handle_test_failed(row.project_id, 'sideex',
+            _handle_test_failed(project_id, 'sideex',
                                 col_key, _get_sideex_issue_description(row, total, passed),
                                 row.branch, row.commit_id, 'test_results', row.id)
         else:
-            _handle_test_success(row.project_id, 'sideex',
+            _handle_test_success(project_id, 'sideex',
                                  col_key, _get_sideex_issue_close_description(row, total, passed))
 
 
@@ -44,7 +44,21 @@ def _handle_test_failed(project_id, software_name, filename, description,
         software_name=software_name,
         file_name=filename
     ).first()
+    # First check if issue exists
+    iss = None
     if relation_row is None:
+        issue_exists = False
+    else:
+        issue_id = relation_row.issue_id
+        iss = redmine_lib.redmine.issue.get(issue_id, include=['journals'])
+        if iss is None:
+            model.db.session.delete(relation_row)
+            model.db.session.commit()
+            issue_exists = False
+        else:
+            issue_exists = True
+
+    if not issue_exists:
         description = f'詳細報告請前往[測試報告列表](/#/{project_name}/scan/sideex)\n{description}'
         args = {
             'project_id': project_id,
@@ -57,9 +71,7 @@ def _handle_test_failed(project_id, software_name, filename, description,
         tgi_create_issue(args, software_name, filename,
                          branch, commit_id, result_table, result_id)
     else:
-        issue_id = relation_row.issue_id
-        iss = redmine_lib.redmine.issue.get(issue_id, include=['journals'])
-        # First check if is closed by human
+        # Check if is closed by human
         for j in reversed(iss.journals):
             detail = j.details[0]
             if (detail.get('name', '') == 'status_id' and detail.get('new_value', '-1') == '6'
