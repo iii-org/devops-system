@@ -21,7 +21,8 @@ def tgi_feed_postman(row):
                                  col_key, _get_postman_issue_close_description(row))
 
 
-def tgi_feed_sideex(project_id, row):
+def tgi_feed_sideex(row):
+    project_id = nexus.nx_get_project(name=row.project_name).id
     logger.debug(f'Sideex result is {row.result}')
     suites = json.loads(row.result).get('suites')
     for col_key, result in suites.items():
