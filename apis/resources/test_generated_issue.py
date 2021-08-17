@@ -1,6 +1,8 @@
 import json
 from datetime import datetime
 
+from redminelib.exceptions import ResourceNotFoundError
+
 import model
 import nexus
 from resources import issue
@@ -51,13 +53,13 @@ def _handle_test_failed(project_id, software_name, filename, description,
         issue_exists = False
     else:
         issue_id = relation_row.issue_id
-        iss = redmine_lib.redmine.issue.get(issue_id, include=['journals'])
-        if iss is None:
+        try:
+            iss = redmine_lib.redmine.issue.get(issue_id, include=['journals'])
+            issue_exists = True
+        except ResourceNotFoundError:
             model.db.session.delete(relation_row)
             model.db.session.commit()
             issue_exists = False
-        else:
-            issue_exists = True
 
     if not issue_exists:
         description = f'詳細報告請前往[測試報告列表](/#/{project_name}/scan/sideex)\n{description}'
@@ -118,7 +120,11 @@ def _handle_test_success(project_id, software_name, filename, description):
         # No fail issue, nothing to do
         return
     issue_id = relation_row.issue_id
-    iss = redmine_lib.redmine.issue.get(issue_id)
+    try:
+        iss = redmine_lib.redmine.issue.get(issue_id)
+    except ResourceNotFoundError:
+        # Issue is deleted, nothing to do
+        return
     if iss.status.id == 6:
         # Already closed, nothing to do
         return
