@@ -136,13 +136,13 @@ class NexusIssue:
                 'name': nx_project.name,
                 'display': nx_project.display
             }
-        self.data['has_children']=False
-        if redmine_issue.children.total_count>0:
-            self.data['has_children']=True
+        self.data['has_children'] = False
+        if redmine_issue.children.total_count > 0:
+            self.data['has_children'] = True
         if relationship_bool:
             self.data['family'] = False
-            if hasattr(redmine_issue, 'parent') or redmine_issue.relations.total_count>0 \
-                or self.data['has_children']:
+            if hasattr(redmine_issue, 'parent') or redmine_issue.relations.total_count > 0 \
+                    or self.data['has_children']:
                 self.data['family'] = True
         if with_relationship:
             self.data['parent'] = None
@@ -923,8 +923,8 @@ def get_issue_progress_or_statistics_by_project(project_id, args, progress=False
         output_values = defaultdict(
             lambda: defaultdict(
                 dict, {status: 0 for status in issue_status.values()}
-                )
             )
+        )
         output = {key: output_values.copy() for key in output_keys}
         calculate_issue_statistics(filters, issue_status, output_keys, output)
     return output
@@ -1045,7 +1045,7 @@ def get_open_issue_statistics(user_id):
     args['status_id'] = 'closed'
     closed_issue_output = redmine.rm_get_statistics(args)
     active_issue_number = total_issue_output["total_count"] - \
-                          closed_issue_output["total_count"]
+        closed_issue_output["total_count"]
     return util.success({"active_issue_number": active_issue_number})
 
 
@@ -1369,13 +1369,13 @@ def get_requirements_by_project_id(project_id):
 
 
 def post_issue_relation(issue_id, issue_to_id, operator_id):
-    plan_operator_id =__get_plan_user_id(operator_id)
+    plan_operator_id = __get_plan_user_id(operator_id)
     return redmine_lib.rm_post_relation(issue_id, issue_to_id, plan_operator_id)
 
 
 def put_issue_relation(issue_id, issue_to_ids, operator_id):
-    plan_operator_id =__get_plan_user_id(operator_id)
-    input_set= set()
+    plan_operator_id = __get_plan_user_id(operator_id)
+    input_set = set()
     origin_set = set()
     for issue_to_id in issue_to_ids:
         input_set.add(frozenset({issue_id, issue_to_id}))
@@ -1389,7 +1389,7 @@ def put_issue_relation(issue_id, issue_to_ids, operator_id):
             need_del = list(need_del)
             for relation in relations:
                 if (relation['issue_id'] == need_del[0] and relation['issue_to_id'] == need_del[1]) or \
-                    (relation['issue_id'] == need_del[1] and relation['issue_to_id'] == need_del[0]):
+                        (relation['issue_id'] == need_del[1] and relation['issue_to_id'] == need_del[0]):
                     redmine_lib.rm_delete_relation(relation['id'], plan_operator_id)
     need_add_set = input_set - origin_set
     for need_add in list(need_add_set):
@@ -1398,7 +1398,7 @@ def put_issue_relation(issue_id, issue_to_ids, operator_id):
 
 
 def delete_issue_relation(relation_id, operator_id):
-    plan_operator_id =__get_plan_user_id(operator_id)
+    plan_operator_id = __get_plan_user_id(operator_id)
     return redmine_lib.rm_delete_relation(relation_id, plan_operator_id)
 
 
@@ -1439,6 +1439,38 @@ def check_issue_closable(issue_id):
     else:
         return True
 
+
+def execute_issue_alert(alert_mapping, operator_id):
+    '''
+    若符合設定條件, 則會在該議題下新增留言
+    條件: 1.Alert裡的condition 2.議題狀態並不是關閉
+    '''
+    for plan_pj_id, alerts in alert_mapping.items():
+        issues = redmine.rm_get_issues_by_project(plan_pj_id)
+        for issue in issues:
+            if issue["status"]["id"] != 6:
+                for alert in alerts:
+                    note = None
+                    condition = alert["condition"]
+                    days = alert["days"]
+                    issue_id = issue["id"]
+                    if condition == "unchange":
+                        delta = util.get_certain_date_from_now(days) - datetime.strptime(issue["updated_on"][0:-4], "%Y-%m-%dT%H:%M")
+                        if delta.days > 0 or delta.seconds > 0:
+                            delta_days = delta.days if delta.days > 0 else 1
+                            note = f'已{delta_days + days}天未異動，敬請確認'
+                    if condition == "comming":
+                        if issue.get("due_date") is None:
+                            continue
+                        delta = util.get_certain_date_from_now(-days) - datetime.strptime(issue["due_date"], "%Y-%m-%d")
+                        if delta.days >= 0:     
+                            note = f'{days - delta.days}天即將到期，請即刻處理'
+                    if note is not None:
+                        update_issue(
+                            issue_id, 
+                            {"notes": f'本議題 #{issue_id} {issue["subject"]} {note}'}, 
+                            operator_id,
+                        )
 
 # --------------------- Resources ---------------------
 class SingleIssue(Resource):
@@ -1901,7 +1933,7 @@ class Relation(Resource):
         parser.add_argument('issue_id', type=int, required=True)
         parser.add_argument('issue_to_id', type=int, required=True)
         args = parser.parse_args()
-        output = post_issue_relation(args['issue_id'], args['issue_to_id'] , get_jwt_identity()['user_id'])
+        output = post_issue_relation(args['issue_id'], args['issue_to_id'], get_jwt_identity()['user_id'])
         return util.success(output)
 
     @jwt_required
@@ -1924,3 +1956,17 @@ class CheckIssueClosable(Resource):
     def get(self, issue_id):
         output = check_issue_closable(issue_id)
         return util.success(output)
+
+
+class ExecutIssueAlert(Resource):
+    @jwt_required
+    def post(self):
+        alert_mapping = {}
+        alerts = model.Alert.query.filter_by(disabled=False)
+        alerts = [alert for alert in alerts if model.Project.query.get(alert.project_id).alert]
+        for alert in alerts:
+            plan_project_id = project.get_plan_project_id(alert.project_id)
+            alert_mapping.setdefault(plan_project_id, []).append(
+                {"condition": alert.condition, "days": alert.days})
+        operator_id = get_jwt_identity()['user_id']    
+        return util.success(execute_issue_alert(alert_mapping, operator_id))

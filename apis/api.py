@@ -532,6 +532,7 @@ api.add_resource(gitlab.GitCountEachPjCommitsByDays,
                  '/sync_gitlab/count_each_pj_commits_by_days')
 api.add_resource(rancher.RancherCountEachPjPiplinesByDays,
                  '/sync_rancher/count_each_pj_piplines_by_days')
+api.add_resource(issue.ExecutIssueAlert, '/sync_issue_alert')
 
 # Subadmin Projects Permission
 api.add_resource(project_permission.AdminProjects,

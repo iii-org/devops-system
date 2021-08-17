@@ -3,7 +3,8 @@ import random
 import string
 import time
 import math
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
+from datetime import time as d_time
 from threading import Thread
 import paramiko
 
@@ -243,14 +244,14 @@ def rows_to_list(rows):
 
 
 def get_pagination(total_count, limit, offset):
-    page = math.ceil(float(offset)/limit)
+    page = math.ceil(float(offset) / limit)
     if offset % limit == 0:
         page += 1
-    pages = math.ceil(float(total_count)/limit)
+    pages = math.ceil(float(total_count) / limit)
     page_dict = {
         'current': page,
-        'prev': page-1 if page-1 > 0 else None,
-        'next': page+1 if page+1 <= pages else None,
+        'prev': page - 1 if page - 1 > 0 else None,
+        'next': page + 1 if page + 1 <= pages else None,
         'pages': pages,
         'limit': limit,
         'offset': offset,
@@ -323,3 +324,7 @@ class AWSEngine():
     def list_regions(self):
         response = self.ec2_client.describe_regions()
         return [context['RegionName'] for context in response['Regions']]
+
+def get_certain_date_from_now(days):
+    return datetime.combine(
+        (datetime.now() - timedelta(days=days)), d_time(00, 00))
