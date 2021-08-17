@@ -68,6 +68,7 @@ def upgrade(version):
         alembic_upgrade()
         set_default_alert_days()
     elif version == '1.8.0.8':
+        alembic_upgrade()
         create_alert_in_project()
     elif version == '1.8.1.1':
         set_default_trace_order()
