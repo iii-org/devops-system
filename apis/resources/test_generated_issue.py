@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from redminelib.exceptions import ResourceNotFoundError
 
@@ -152,25 +152,21 @@ def tgi_create_issue(args, software_name, file_name, branch, commit_id, result_t
     return new
 
 
+def _cst_now_string():
+    return (datetime.utcnow() + timedelta(hours=8)).strftime("%Y-%m-%d %H:%M:%S")
+
+
 def _get_postman_issue_description(row):
-    now = datetime.now()
-    dt_string = now.strftime("%Y-%m-%d %H:%M:%S")
-    return f'{dt_string} {row.branch} #{row.commit_id} 自動化測試失敗 ({row.total - row.fail}/{row.total})'
+    return f'{_cst_now_string()} {row.branch} #{row.commit_id} 自動化測試失敗 ({row.total - row.fail}/{row.total})'
 
 
 def _get_postman_issue_close_description(row):
-    now = datetime.now()
-    dt_string = now.strftime("%Y-%m-%d %H:%M:%S")
-    return f'{dt_string} {row.branch} #{row.commit_id} 自動化測試成功 ({row.total})'
+    return f'{_cst_now_string()} {row.branch} #{row.commit_id} 自動化測試成功 ({row.total})'
 
 
 def _get_sideex_issue_description(row, total, passed):
-    now = datetime.now()
-    dt_string = now.strftime("%Y-%m-%d %H:%M:%S")
-    return f'{dt_string} {row.branch} #{row.commit_id} 自動化測試失敗 ({passed}/{total})'
+    return f'{_cst_now_string()} {row.branch} #{row.commit_id} 自動化測試失敗 ({passed}/{total})'
 
 
 def _get_sideex_issue_close_description(row, total, passed):
-    now = datetime.now()
-    dt_string = now.strftime("%Y-%m-%d %H:%M:%S")
-    return f'{dt_string} {row.branch} #{row.commit_id} 自動化測試成功 ({total})'
+    return f'{_cst_now_string()} {row.branch} #{row.commit_id} 自動化測試成功 ({total})'
