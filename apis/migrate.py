@@ -78,7 +78,7 @@ def set_default_trace_order():
     rows = db.session.query(Project).all()
     for row in rows:
         row.trace_order = [TraceOrder(
-            name="標準檢測模組", project_id=row.id, order=[1, 3, 8])]
+            name="標準檢測模組", project_id=row.id, order=["Epic", "Feature", "Test Plan"])]
         db.session.add(row)
         db.session.commit()
 

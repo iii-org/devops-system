@@ -23,7 +23,10 @@ order_mapping
 
 def validate_order_value(order):
     validate_order_list = [
-        {"condition": not all(0 < x <= 8 for x in order), "log": "Limitation of order's elements must be in range [1, 8]"},
+        {
+            "condition": not all(x in ['Epic', 'Audit', 'Feature', 'Bug', 'Issue', 'Change Request', 'Risk', 'Test Plan'] for x in order), 
+            "log": "Order's elements must be in ['Epic', 'Audit', 'Feature', 'Bug', 'Issue', 'Change Request', 'Risk', 'Test Plan']",
+        },
         {"condition": len(order) != len(set(order)), "log": "Elements must not be duplicated"},
         {"condition": not len(order) <= 5, "log": "Numbers of order's elements must be in range [0, 5]"},
     ]
