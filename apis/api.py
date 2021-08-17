@@ -34,7 +34,7 @@ from model import db
 from resources import logger, role as role, activity, starred_project, devops_version, cicd
 from resources import project, gitlab, issue, user, redmine, wiki, version, apiTest, mock, harbor, \
     template, release, sync_redmine, plugin, kubernetesClient, project_permission, quality, sync_project, \
-    sync_user, router, deploy, alert
+    sync_user, router, deploy, alert, trace_order
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -586,6 +586,10 @@ api.add_resource(deploy.Pods, '/deploy/pods')
 api.add_resource(alert.ProjectAlert, '/project/<sint:project_id>/alert')
 api.add_resource(alert.ProjectAlertUpdate, '/alert/<int:alert_id>')
 api.add_resource(alert.DefaultAlertDaysUpdate, '/alert/default_days')
+
+# Trace Order
+api.add_resource(trace_order.ProjectTraceOrder, '/project/<sint:project_id>/trace_order')
+api.add_resource(trace_order.SingleTraceOrder, '/trace_order/<int:trace_order_id>')
 
 
 def start_prod():

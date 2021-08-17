@@ -23,8 +23,8 @@ def get_alert_by_project(project_id):
     try:
         project.get_plan_project_id(project_id)
     except NoResultFound:
-        return util.respond(404, "Error while getting alerts.",
-                            error=apiError.project_not_found(project_id))
+        raise DevOpsError(404, "Error while getting alerts.",
+                          error=apiError.project_not_found(project_id))
     if not is_project_alert_enable(project_id):
         return []                 
     rows = model.Alert.query.filter_by(project_id=project_id).all()
