@@ -1,26 +1,23 @@
-from pprint import pprint
-from xmlrpc.client import boolean
-from flask_jwt_extended import jwt_required, get_jwt_identity
-from flask_restful import Resource, reqparse
-from sqlalchemy import false
-from sqlalchemy.orm.exc import NoResultFound
-from urllib.parse import urlparse
-import werkzeug
-from werkzeug.utils import secure_filename
 import base64
 import json
-import config
-import model
 import os
-from model import db
-import util as util
-from resources import apiError, role
 from datetime import datetime, date
 from pathlib import Path
-from resources import harbor, kubernetesClient
-from kubernetes import client as k8s_client
+
+import werkzeug
 import yaml
-import nexus
+from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_restful import Resource, reqparse
+from kubernetes import client as k8s_client
+from sqlalchemy.orm.exc import NoResultFound
+from werkzeug.utils import secure_filename
+
+import config
+import model
+import util as util
+from model import db
+from resources import apiError, role
+from resources import harbor, kubernetesClient
 
 default_project_id = "-1"
 error_clusters_not_found = "No Exact Cluster Found"

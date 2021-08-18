@@ -4,14 +4,11 @@ import json
 import yaml
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
-from sqlalchemy.orm.exc import NoResultFound
-from flask_socketio import Namespace, emit, SocketIO
 
 import resources.apiError as apiError
 import util as util
-from nexus import nx_get_project_plugin_relation
 from model import db, PipelineLogsCache
-from resources.logger import logger
+from nexus import nx_get_project_plugin_relation
 from .gitlab import GitLab, commit_id_to_url
 from .rancher import rancher
 

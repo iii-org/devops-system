@@ -10,7 +10,6 @@ import model
 import util as util
 from model import db
 from resources import gitlab
-from resources.apiError import DevOpsError
 
 HTTP_TYPES = {"1": "request", "2": "response"}
 HTTP_METHODS = {"1": "GET", "2": "POST", "3": "PUT", "4": "DELETE"}

@@ -1,14 +1,7 @@
-from concurrent import futures
-from threading import Thread
-
-from flask import current_app
 from flask_restful import Resource, reqparse
 
 import util
-from resources.gitlab import gitlab
-from resources.redmine import redmine
 from accessories import redmine_lib
-from util import DevOpsThread
 
 
 def mock_cm_status(status):

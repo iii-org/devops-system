@@ -2,9 +2,8 @@ import json
 import urllib
 from datetime import timedelta
 
-import requests
 from flask_jwt_extended import jwt_required
-from flask_restful import Resource, reqparse
+from flask_restful import Resource
 from requests.auth import HTTPBasicAuth
 from sqlalchemy import desc
 
@@ -13,7 +12,7 @@ import model
 import nexus
 import util
 from model import db
-from resources import role, apiError, gitlab
+from resources import apiError, gitlab
 # ------------- Internal API methods -------------
 from resources.logger import logger
 

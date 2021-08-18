@@ -1,9 +1,9 @@
-import datetime
 import time
 from io import BytesIO
-import yaml
+
 import requests
 import werkzeug
+import yaml
 from flask import send_file
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import reqparse, Resource
@@ -12,10 +12,10 @@ import config
 import nexus
 import resources.apiError as apiError
 import util as util
+from accessories import redmine_lib
 from resources.apiError import DevOpsError
 from resources.logger import logger
 from . import kubernetesClient, role
-from accessories import redmine_lib
 
 
 class Redmine:

@@ -7,22 +7,21 @@ from Cryptodome.Hash import SHA256
 from flask_jwt_extended import (
     create_access_token, JWTManager, jwt_required, get_jwt_identity)
 from flask_restful import Resource, reqparse
-from sqlalchemy import desc, inspect, not_, or_
+from sqlalchemy import inspect, or_
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.exc import NoResultFound
 
-import config
 import model
 import resources.apiError as apiError
 import util as util
 from enums.action_type import ActionType
 from model import db
 from nexus import nx_get_user_plugin_relation, nx_get_user
-from plugins import sonarqube 
+from plugins import sonarqube
+from plugins.ad import ad_api_user
 from resources import harbor, role
 from resources import kubernetesClient
 from resources.activity import record_activity
-from plugins.ad import ad_api_user
 from resources.apiError import DevOpsError
 from resources.gitlab import gitlab
 from resources.logger import logger

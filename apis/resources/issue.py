@@ -1,15 +1,15 @@
 import calendar
 import json
+from collections import defaultdict
 from datetime import datetime, date, timedelta
+from distutils.util import strtobool
 
 import werkzeug
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
+from redminelib import exceptions as redminelibError
 from sqlalchemy import or_
 from sqlalchemy.orm.exc import NoResultFound
-from collections import defaultdict
-from distutils.util import strtobool
-from redminelib import exceptions as redminelibError
 
 import config
 import model
@@ -17,14 +17,13 @@ import nexus
 import resources.apiError as apiError
 import resources.user as user
 import util as util
+from accessories import redmine_lib
 from data.nexus_project import NexusProject
 from enums.action_type import ActionType
-from resources.apiError import DevOpsError
 from model import db
-from resources.logger import logger
+from resources.apiError import DevOpsError
 from resources.redmine import redmine
 from . import project as project_module, project, role
-from accessories import redmine_lib
 from .activity import record_activity
 
 FLOW_TYPES = {"0": "Given", "1": "When", "2": "Then", "3": "But", "4": "And"}

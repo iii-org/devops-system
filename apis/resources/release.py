@@ -1,24 +1,20 @@
 import json
+from datetime import datetime, date
+from urllib.parse import urlparse
 
-import requests
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
 from sqlalchemy.orm.exc import NoResultFound
-from urllib.parse import urlparse
 
 import config
 import model
-from model import db
-import util as util
-from resources import apiError, kubernetesClient, role
-from resources.apiError import DevOpsError
-from resources.logger import logger
-from datetime import datetime, date
 import nexus
-from .issue import update_issue
+import util as util
+from model import db
+from resources import apiError, role
 from .gitlab import gitlab, gl_release
-from .redmine import redmine, rm_release
 from .harbor import hb_release
+from .redmine import redmine, rm_release
 
 error_redmine_issues_closed = "Unable closed all issues"
 error_issue_not_all_closed = "Not All Issues are closed in Versions"

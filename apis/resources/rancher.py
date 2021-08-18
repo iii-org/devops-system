@@ -1,21 +1,21 @@
-import ssl
-import json
-import websocket
 import base64
+import ssl
 import time
-from datetime import time as d_time
 from datetime import datetime, timedelta
-from flask_restful import abort, Resource, reqparse
+from datetime import time as d_time
+
+import websocket
 from flask_jwt_extended import jwt_required
+from flask_restful import abort, Resource, reqparse
 from flask_socketio import Namespace, emit, disconnect
 
 import config
 import resources.apiError as apiError
 import util as util
-from nexus import nx_get_project_plugin_relation
+from model import RancherPiplineNumberEachDays, ProjectPluginRelation, db
 from resources import kubernetesClient
 from resources.logger import logger
-from model import RancherPiplineNumberEachDays, ProjectPluginRelation, db
+
 
 def get_ci_last_test_result(relation):
     ret = {
