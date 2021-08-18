@@ -413,7 +413,7 @@ api.add_resource(apiTest.TestValue, '/testValues/<value_id>')
 
 # Integrated test results
 api.add_resource(project.TestSummary,
-                 '/project/<sint:project_id>/test_summary/')
+                 '/project/<sint:project_id>/test_summary')
 api.add_resource(cicd.CommitCicdSummary,
                  '/project/<sint:project_id>/test_summary/<commit_id>')
 
@@ -572,7 +572,6 @@ api.add_resource(devops_version.DevOpsVersion, '/devops_version')
 api.add_resource(devops_version.DevOpsVersionCheck, '/devops_version/check')
 api.add_resource(devops_version.DevOpsVersionUpdate, '/devops_version/update')
 
-
 # Deploy
 api.add_resource(deploy.Clusters, '/deploy/clusters')
 api.add_resource(deploy.Cluster, '/deploy/clusters/<int:cluster_id>')
@@ -580,7 +579,6 @@ api.add_resource(deploy.Applications, '/deploy/applications')
 api.add_resource(deploy.Application,
                  '/deploy/applications/<int:application_id>')
 api.add_resource(deploy.Pods, '/deploy/pods')
-
 
 # Alert
 api.add_resource(alert.ProjectAlert, '/project/<sint:project_id>/alert')
@@ -615,5 +613,5 @@ def start_prod():
 
 if __name__ == "__main__":
     start_prod()
-    socketio.run(app, host='0.0.0.0', port=10009, debug=(config.get('DEBUG')),
-                 use_reloader=False)
+    socketio.run(app, host='0.0.0.0', port=10009, debug=config.get('DEBUG'),
+                 use_reloader=config.get('USE_RELOADER'))
