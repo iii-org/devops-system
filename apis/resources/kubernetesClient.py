@@ -166,11 +166,25 @@ class ApiK8sClient:
             if e.status_code != 404:
                 raise e
 
+    def create_namespaced_service(self, namespace, body):
+        try:
+            return self.core_v1.create_namespaced_service(namespace, body)
+        except apiError.DevOpsError as e:
+            if e.status_code != 404:
+                raise e
+
     #  Deployment
 
     def list_namespaced_deployment(self, namespace):
         try:
             return self.app_v1.list_namespaced_deployment(namespace)
+        except apiError.DevOpsError as e:
+            if e.status_code != 404:
+                raise e
+
+    def create_namespaced_deployment(self, namespace, body):
+        try:
+            return self.app_v1.create_namespaced_deployment(namespace, body)
         except apiError.DevOpsError as e:
             if e.status_code != 404:
                 raise e

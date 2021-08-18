@@ -497,7 +497,6 @@ def hb_execute_replication_policy(policy_id):
             for context in policies['filters'] if context['type'] == 'name'][0]
     tag = [context['value']
            for context in policies['filters'] if context['type'] == 'tag'][0]
-
     dest_registry = policies.get('dest_registry')
     dest_credential = dest_registry.get('credential')
     if dest_registry.get('type') == 'aws-ecr':
@@ -507,10 +506,14 @@ def hb_execute_replication_policy(policy_id):
         ).get_account_id()
         location = dest_registry.get('url').split('.')[2]
         image_uri = f'{account_id}.dkr.ecr.{location}.amazonaws.com/{name}:{tag}'
-    elif dest_registry.get('type') == 'azure-acr' or dest_registry.get('type') == 'harbor':
+    elif dest_registry.get('type') == 'azure-acr':
         dest_server = dest_registry.get('url')[8:]
         image_uri = f'{dest_server}/{name}:{tag}'
-
+    elif dest_registry.get('type') == 'harbor':
+        dest_server = dest_registry.get('url')[8:]
+        dest_repo = policies.get('dest_namespace')
+        project_name = name[(name.find('/')+1):]
+        image_uri = f'{dest_server}/{dest_repo}/{project_name}:{tag}'
     return image_uri
 
 
