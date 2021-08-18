@@ -318,9 +318,9 @@ class Redmine:
             'token': token,
             'filename': filename
         }
-        if args['description'] != None:
+        if args['description'] is not None:
             params['description'] = args['description']
-        if args['version_id'] != None:
+        if args['version_id'] is not None:
             params['version_id'] = args['version_id']
         data = {'file': params}
         res = self.__api_post('/projects/%d/files' % plan_project_id, data=data, operator_id=plan_operator_id)

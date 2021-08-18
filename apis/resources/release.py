@@ -167,11 +167,11 @@ class Releases(Resource):
                                                                            self.closed_statuses)
         self.redmine_info = rm_release.check_redemine_release(
             issues_by_versions, self.versions_by_key, args['main'])
-        if branch_name != None:
+        if branch_name is not None:
             self.harbor_info = hb_release.check_harbor_release(
                 hb_release.get_list_artifacts(self.project.name, branch_name),
                 release_name, commit)
-        if release_name != None:
+        if release_name is not None:
             self.gitlab_info = gl_release.check_gitlab_release(
                 self.plugin_relation.git_repository_id, release_name, branch_name)
 

@@ -238,8 +238,8 @@ class GitLab(object):
         path = f'/projects/{repo_id}/repository/files/{args["file_path"]}'
         params = {}
         for key in [
-                'branch', 'start_branch', 'encoding', 'author_email',
-                'author_name', 'content', 'commit_message'
+            'branch', 'start_branch', 'encoding', 'author_email',
+            'author_name', 'content', 'commit_message'
         ]:
             params[key] = args[key]
         return self.__api_request(method, path, params=params)
@@ -260,16 +260,16 @@ class GitLab(object):
         for branch_info in output.json():
             branch = {
                 "name":
-                branch_info["name"],
+                    branch_info["name"],
                 "last_commit_message":
-                branch_info["commit"]["message"],
+                    branch_info["commit"]["message"],
                 "last_commit_time":
-                branch_info["commit"]["committed_date"],
+                    branch_info["commit"]["committed_date"],
                 "short_id":
-                branch_info["commit"]["short_id"][0:7],
+                    branch_info["commit"]["short_id"][0:7],
                 'commit_url':
-                commit_id_to_url(get_nexus_project_id(repo_id),
-                                 branch_info['commit']['short_id']),
+                    commit_id_to_url(get_nexus_project_id(repo_id),
+                                     branch_info['commit']['short_id']),
             }
             branch_list.append(branch)
         return branch_list
@@ -299,10 +299,11 @@ class GitLab(object):
 
     def gl_get_storage_usage(self, repo_id):
         project_detail = self.gl_get_project(repo_id)
-        usage_info = {}
-        usage_info['title'] = 'GitLab'
-        usage_info['used'] = {}
-        usage_info['quota'] = {}
+        usage_info = {
+            'title': 'GitLab',
+            'used': {},
+            'quota': {}
+        }
         usage_info['used']['value'] = project_detail['statistics'][
             'storage_size']
         usage_info['used']['unit'] = ""
@@ -465,7 +466,7 @@ class GitLab(object):
         if user_id is not None:
             rows = db.session.query(model.ProjectUserRole, model.ProjectPluginRelation).join(
                 model.ProjectPluginRelation,
-                model.ProjectPluginRelation.project_id == model.ProjectUserRole.project_id).\
+                model.ProjectPluginRelation.project_id == model.ProjectUserRole.project_id). \
                 filter(model.ProjectUserRole.user_id == user_id,
                        model.ProjectUserRole.project_id == model.ProjectPluginRelation.project_id).all()
         out_list = []
@@ -485,27 +486,27 @@ class GitLab(object):
                     pjs = self.gl.projects.list(order_by="last_activity_at")
                 for pj in pjs:
                     if (pj.empty_repo is False) and (
-                        ("iiidevops-templates" not in pj.path_with_namespace)
+                            ("iiidevops-templates" not in pj.path_with_namespace)
                             and
                             ("local-templates" not in pj.path_with_namespace)):
                         for commit in pj.commits.list(since=days_ago,
                                                       until=last_days_ago):
                             out_list.append({
                                 "pj_name":
-                                pj.name,
+                                    pj.name,
                                 "author_name":
-                                commit.author_name,
+                                    commit.author_name,
                                 "author_email":
-                                commit.author_email,
+                                    commit.author_email,
                                 "commit_time":
-                                self.__gl_timezone_to_utc(
-                                    commit.committed_date),
+                                    self.__gl_timezone_to_utc(
+                                        commit.committed_date),
                                 "commit_id":
-                                commit.short_id,
+                                    commit.short_id,
                                 "commit_title":
-                                commit.title,
+                                    commit.title,
                                 "commit_message":
-                                commit.message
+                                    commit.message
                             })
                             if len(out_list) > show_commit_rows - 1:
                                 sorted(
@@ -516,7 +517,7 @@ class GitLab(object):
             sorted((out["commit_time"] for out in out_list), reverse=True)
             return out_list[:show_commit_rows]
         else:
-            if the_last_hours == None:
+            if the_last_hours is None:
                 the_last_hours = 24
             days_ago = (datetime.utcnow() -
                         timedelta(hours=the_last_hours)).isoformat()
@@ -532,24 +533,24 @@ class GitLab(object):
                 pjs = self.gl.projects.list(order_by="last_activity_at")
             for pj in pjs:
                 if (pj.empty_repo is False) and (
-                    ("iiidevops-templates" not in pj.path_with_namespace) and
+                        ("iiidevops-templates" not in pj.path_with_namespace) and
                         ("local-templates" not in pj.path_with_namespace)):
                     for commit in pj.commits.list(since=days_ago):
                         out_list.append({
                             "pj_name":
-                            pj.name,
+                                pj.name,
                             "author_name":
-                            commit.author_name,
+                                commit.author_name,
                             "author_email":
-                            commit.author_email,
+                                commit.author_email,
                             "commit_time":
-                            self.__gl_timezone_to_utc(commit.committed_date),
+                                self.__gl_timezone_to_utc(commit.committed_date),
                             "commit_id":
-                            commit.short_id,
+                                commit.short_id,
                             "commit_title":
-                            commit.title,
+                                commit.title,
                             "commit_message":
-                            commit.message
+                                commit.message
                         })
         sorted((out["commit_time"] for out in out_list), reverse=True)
         return out_list
@@ -561,7 +562,7 @@ class GitLab(object):
                 for i in range(1, days + 1):
                     pj_create_date = datetime.strptime(
                         pj.created_at, '%Y-%m-%dT%H:%M:%S.%f%z').astimezone(
-                            tz.tzlocal()).date()
+                        tz.tzlocal()).date()
                     print(f"datatime now:{datetime.now()}")
                     day_start = datetime.combine(
                         (datetime.now() - timedelta(days=i)), time(00, 00))

@@ -463,8 +463,8 @@ class TestFile(Resource):
         return util.success()
 
     def delete(self, project_id, software_name, test_file_name):
-        out = qu_del_testfile(project_id, software_name, test_file_name)
-        return util.success(out)
+        qu_del_testfile(project_id, software_name, test_file_name)
+        return util.success()
 
 
 class TestPlanWithTestFile(Resource):

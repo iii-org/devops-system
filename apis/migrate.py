@@ -111,8 +111,8 @@ def set_default_plugin_software_type():
 def set_default_project_creator():
     rows = db.session.query(Project). \
         filter(
-        Project.owner_id != None,
-        Project.creator_id == None
+        Project.owner_id is not None,
+        Project.creator_id is None
     ).all()
     check = []
     for row in rows:
@@ -125,7 +125,7 @@ def set_default_project_creator():
 def set_default_user_from_ad_column():
     rows = db.session.query(User). \
         filter(
-        User.from_ad == None,
+        User.from_ad is None,
     ).all()
     for row in rows:
         row.from_ad = False
@@ -231,7 +231,7 @@ def fill_projet_owner(id):
     rows = db.session.query(Project, ProjectUserRole). \
         join(ProjectUserRole). \
         filter(
-        Project.owner_id == None,
+        Project.owner_id is None,
         Project.id != -1,
         ProjectUserRole.role_id == id,
         ProjectUserRole.project_id == Project.id

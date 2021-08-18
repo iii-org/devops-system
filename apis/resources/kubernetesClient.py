@@ -577,7 +577,7 @@ def get_service_account_config(sa_name):
             })
     sa_secrets_name = api_k8s_client.read_namespaced_service_account(
         sa_name, "account").secrets[0].name
-    if config.get("KUBERNETES_MASTER_DOMAIN") != None:
+    if config.get("KUBERNETES_MASTER_DOMAIN") is not None:
         server_ip = str(config.get("KUBERNETES_MASTER_DOMAIN"))
     else:
         server_ip = str(list_nodes[0]['ip'])
@@ -1006,7 +1006,7 @@ def map_ingress_with_host(rules, ip):
         info = []
         for rule in rules:
             hostname = ip
-            if rule.host != None:
+            if rule.host is not None:
                 hostname = rule.host
                 for path in rule.http.paths:
                     if hostname is not None:
@@ -1098,7 +1098,7 @@ def update_dev_environment_by_branch(namespace, branch_name):
 def redeploy_deployment(namespace, deployment_name):
     try:
         deploy = read_namespace_deployment(namespace, deployment_name)
-        if deploy.spec.template.metadata.annotations == None:
+        if deploy.spec.template.metadata.annotations is None:
             deploy.spec.template.metadata.annotations = {}
         deploy.spec.template.metadata.annotations[f"{deployment_name}_redeploy_at"] = str(
             datetime.utcnow())

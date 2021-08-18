@@ -111,7 +111,7 @@ def __tm_get_pipe_yamlfile_name(pj, tag_name=None):
 
 
 def __tm_get_git_pipline_json(pj, tag_name=None):
-    if tag_name == None:
+    if tag_name is None:
         pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj)
         ref = pj.default_branch
     else:
@@ -494,7 +494,7 @@ def tm_get_pipeline_branches(repository_id):
     create_time = datetime.now().strftime("%y%m%d_%H%M%S")
     __tm_git_clone_file(pj, "pj_edit_pipe_yaml", create_time)
     pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj)
-    if pipe_yaml_file_name == None:
+    if pipe_yaml_file_name is None:
         return {}
     with open(
             f'pj_edit_pipe_yaml/{pj.path}_{create_time}/{pipe_yaml_file_name}'
@@ -555,7 +555,7 @@ def tm_put_pipeline_branches(repository_id, data):
         create_time = datetime.now().strftime("%y%m%d_%H%M%S")
         __tm_git_clone_file(pj, "pj_edit_pipe_yaml", create_time, br.name)
         pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj)
-        if pipe_yaml_file_name == None:
+        if pipe_yaml_file_name is None:
             return
         with open(
                 f'pj_edit_pipe_yaml/{pj.path}_{create_time}/{pipe_yaml_file_name}'
@@ -609,7 +609,7 @@ def tm_get_pipeline_default_branch(repository_id):
     create_time = datetime.now().strftime("%y%m%d_%H%M%S")
     __tm_git_clone_file(pj, "pj_edit_pipe_yaml", create_time)
     pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj)
-    if pipe_yaml_file_name == None:
+    if pipe_yaml_file_name is None:
         return {}
     with open(
             f'pj_edit_pipe_yaml/{pj.path}_{create_time}/{pipe_yaml_file_name}'
@@ -651,7 +651,7 @@ def tm_put_pipeline_default_branch(repository_id, data):
         create_time = datetime.now().strftime("%y%m%d_%H%M%S")
         __tm_git_clone_file(pj, "pj_edit_pipe_yaml", create_time, br.name)
         pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj)
-        if pipe_yaml_file_name == None:
+        if pipe_yaml_file_name is None:
             return
         with open(
                 f'pj_edit_pipe_yaml/{pj.path}_{create_time}/{pipe_yaml_file_name}'
