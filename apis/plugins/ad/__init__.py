@@ -153,15 +153,8 @@ def add_ad_user_info_by_iii(ad_user_info):
     need_attributes = ['displayName', 'telephoneNumber', 'physicalDeliveryOfficeName',
                        'givenName', 'sn', 'title', 'telephoneNumber', 'mail', 'userAccountControl', 'sAMAccountName', 'userPrincipalName',
                        'whenChanged', 'whenCreated', 'department', 'department']
-    organization = ['institute', 'director', 'section']
     if 'department' in ad_user_info and 'sn' in ad_user_info and 'givenName' in ad_user_info:
-        list_departments = ad_user_info['department'].split(
-            '/')
         iii_info['iii_name'] = ad_user_info['sn']+ad_user_info['givenName']
-        # layer = 0
-        # for name in list_departments:
-        #     iii_info[organization[layer]] = name
-        #     layer += 1
         iii_info['iii'] = True
     for attribute in need_attributes:
         if attribute in ad_user_info:
@@ -334,13 +327,6 @@ class AD(object):
         res = self.conn.compare(dn=dn, attribute=attr, value=value)
         return res
 
-    def get_user_by_ou(self):
-        self.conn.search(search_base=self.active_base_dn,
-                         search_filter=self.ou_search_filter, attributes=ALL_ATTRIBUTES)
-        res = self.conn.response_to_json()
-        res = json.loads(res)['entries']
-        return res
-
     def conn_unbind(self):
         return self.conn.unbind()
 
@@ -493,23 +479,6 @@ organizations = ADOrganizations()
 class ADAPIUser(object):
     #  check User login
     def get_user_info(self, account, password):
-        try:
-            output = None
-            hosts, ad_parameter = check_ad_server_status()
-            if ad_parameter is None or len(hosts) == 0:
-                return output
-            ad = AD(ad_parameter, False, account, password)
-            user = ad.get_user(account)
-            ad.conn_unbind()
-            if len(user) > 0:
-                user = user[0]
-                output = add_ad_user_info_by_iii(user['attributes'])
-            return output
-        except NoResultFound:
-            return util.respond(404, invalid_ad_server,
-                                error=apiError.invalid_plugin_name(invalid_ad_server))
-
-    def get_user_raw_info(self, account, password):
         try:
             output = None
             hosts, ad_parameter = check_ad_server_status()
