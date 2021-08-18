@@ -14,6 +14,16 @@ from flask_restful import reqparse
 import resources.apiError as apiError
 import boto3
 from botocore.exceptions import ClientError
+import base64
+
+
+def base64decode(value):
+    return str(base64.b64decode(str(value)).decode('utf-8'))
+
+
+def base64encode(value):
+    return base64.b64encode(
+        bytes(str(value), encoding='utf-8')).decode('utf-8')
 
 
 def ssh_to_node_by_key(command, node_ip):

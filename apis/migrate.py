@@ -20,7 +20,7 @@ VERSIONS = ['0.9.2', '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.4', '0.9.2.5',
             '1.3.2.3', '1.3.2.4', '1.3.2.5', '1.3.2.6', '1.3.2.7', '1.3.2.8', '1.3.2.9', '1.4.0.0', '1.4.0.1',
             '1.4.0.2', '1.4.1.0', '1.4.1.1', '1.4.1.2', '1.5.0.0', '1.5.0.1', '1.5.0.2', '1.5.0.3', '1.6.0.1',
             '1.6.0.2', '1.6.0.3', '1.6.0.4', '1.6.0.5', '1.7.0.1', '1.8.0.1', '1.8.0.2', '1.8.0.3', '1.8.0.4', "1.8.0.5", "1.8.0.6", "1.8.0.7",
-            "1.8.0.8", "1.8.0.9", "1.8.1.0", "1.8.1.1", "1.8.1.2"]
+            "1.8.0.8", "1.8.0.9", "1.8.1.0", "1.8.1.1", "1.8.1.2", '1.8.1.3', '1.8.1.4']
 ONLY_UPDATE_DB_MODELS = [
     '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.5', '0.9.2.6', '0.9.2.a8',
     '1.0.0.2', '1.3.0.1', '1.3.0.2', '1.3.0.3', '1.3.0.4', '1.3.1', '1.3.1.1', '1.3.1.2',
@@ -73,12 +73,30 @@ def upgrade(version):
     elif version == '1.8.1.1':
         alembic_upgrade()
         set_default_trace_order()
+    elif version == '1.8.1.3':
+        set_default_alert_days()
+        create_alert_in_project()
+    elif version == '1.8.1.4':
+        fix_trace_order()
+
+
+def fix_trace_order():
+    db.session.query(TraceOrder).delete()
+    db.session.commit()
+
+    rows = db.session.query(Project).all()
+    for row in rows:
+        row.trace_order = [TraceOrder(
+            name="標準檢測模組", project_id=row.id, order=["Epic", "Feature", "Test Plan"])]
+        db.session.add(row)
+        db.session.commit()
+
 
 def set_default_trace_order():
     rows = db.session.query(Project).all()
     for row in rows:
         row.trace_order = [TraceOrder(
-            name="標準檢測模組", project_id=row.id, order=[1, 3, 8])]
+            name="標準檢測模組", project_id=row.id, order=["Epic", "Feature", "Test Plan"])]
         db.session.add(row)
         db.session.commit()
 
