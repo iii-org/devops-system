@@ -27,7 +27,7 @@ DEFAULT_K8S_CONFIG_FILE = 'k8s_config'
 def is_json(myjson):
     try:
         json.loads(myjson)
-    except ValueError as e:
+    except ValueError:
         return False
     return True
 
@@ -53,7 +53,7 @@ def get_cluster_directory_path(server_name):
 
 
 def get_cluster_config_path(server_name):
-    return get_cluster_directory_path(server_name)+"/"+DEFAULT_K8S_CONFIG_FILE
+    return get_cluster_directory_path(server_name) + "/" + DEFAULT_K8S_CONFIG_FILE
 
 
 def check_directory_exists(server_name):
@@ -66,8 +66,8 @@ def check_directory_exists(server_name):
 
 
 def check_cluster(server_name):
-    return model.Cluster.query.\
-        filter(model.Cluster.name == server_name).\
+    return model.Cluster.query. \
+        filter(model.Cluster.name == server_name). \
         first()
 
 
@@ -85,15 +85,8 @@ def create_cluster(args, server_name, user_id):
     cluster_path = check_directory_exists(server_name)
     file = args.get('k8s_config_file')
     filename = secure_filename(DEFAULT_K8S_CONFIG_FILE)
-    print(filename)
     file.save(os.path.join(cluster_path, filename))
     file.seek(0)
-    content = file.read()
-    content = str(content, 'utf-8')
-    k8s_json = yaml.safe_load(content)
-    cluster_name = k8s_json['clusters'][0]['name']
-    cluster_host = k8s_json['clusters'][0]['cluster']['server']
-    cluster_user = k8s_json['users'][0]['name']
     now = str(datetime.utcnow())
     new = model.Cluster(
         name=server_name,
@@ -120,8 +113,8 @@ def update_cluster(cluster_id, args):
     filename = secure_filename(DEFAULT_K8S_CONFIG_FILE)
     file.save(os.path.join(cluster_path, filename))
     file.seek(0)
-    content = file.read()
-    content = str(content, 'utf-8')
+    # content = file.read()
+    # content = str(content, 'utf-8')
     return cluster.id
 
 
@@ -183,7 +176,6 @@ class Cluster(Resource):
     @jwt_required
     def put(self, cluster_id):
         try:
-            output = {}
             role.require_admin()
             parser = reqparse.RequestParser()
             parser.add_argument('name', type=str)
@@ -199,7 +191,6 @@ class Cluster(Resource):
     @jwt_required
     def delete(self, cluster_id):
         try:
-            output = {}
             role.require_admin()
             delete_cluster(cluster_id)
             return util.success()
@@ -215,11 +206,11 @@ def create_application_image():
 
 def create_default_harbor_data(project, release, registry_id, namespace):
     harbor_data = {
-        "policy_name": project.name + '-' + release.branch+'-'+release.tag_name + "-"+str(datetime.utcnow()),
+        "policy_name": project.name + '-' + release.branch + '-' + release.tag_name + "-" + str(datetime.utcnow()),
         "repo_name": project.name,
         "image_name": release.branch,
         "tag_name": release.tag_name,
-        "description": 'Automatate create replication policy '+project.name+" release ID" + str(release.id),
+        "description": 'Automatate create replication policy ' + project.name + " release ID" + str(release.id),
         "registry_id": registry_id,
         "dest_repo_name": namespace,
     }
@@ -236,7 +227,7 @@ def create_default_k8s_data(args):
 
 
 def initial_harbor_replication_image_policy(
-    app
+        app
 ):
     policy_id = harbor.hb_create_replication_policy(
         json.loads(app.harbor_info))
@@ -305,7 +296,7 @@ def create_registry_data(server_name, user_name, password):
             }
         }
     }
-    return{
+    return {
         ".dockerconfigjson": base64.b64encode(
             json.dumps(pay_load).encode()
         ).decode()
@@ -342,10 +333,10 @@ def create_service_object(app_name, network):
 
 
 def create_deployment_object(
-    app_name,
-    image_uri,
-    port,
-    registry_secret_name
+        app_name,
+        image_uri,
+        port,
+        registry_secret_name
 ):
     # Configureate Pod template container
     container = k8s_client.V1Container(
@@ -376,10 +367,11 @@ def create_deployment_object(
     deployment = k8s_client.V1Deployment(
         api_version="apps/v1",
         kind="Deployment",
-        metadata=k8s_client.V1ObjectMeta(name=app_name+"-dep"),
+        metadata=k8s_client.V1ObjectMeta(name=app_name + "-dep"),
         spec=spec)
     return deployment
-    
+
+
 class DeploymentProcess:
     def __init__(self, app, cluster, registry, project):
         k8s_file = get_cluster_config_path(cluster.name)
@@ -391,7 +383,10 @@ class DeploymentProcess:
         self.app = app
         self.harbor_info = json.loads(self.app.harbor_info)
         self.k8s_info = json.loads(self.app.k8s_yaml)
+        self.registry_server_url = None
+        self.registry_secret_name = None
         self.get_deployment_info()
+
 
     def create_namespace(self):
         self.api_k8s_client.create_namespace(
@@ -403,7 +398,7 @@ class DeploymentProcess:
         self.registry_server_url = self.harbor_info.get('image_uri').split(
             '/')[0]
         self.registry_secret_name = self.registry_server_url.translate(
-            str.maketrans({'.': '-', ':': '-'}))+'-harbor'
+            str.maketrans({'.': '-', ':': '-'})) + '-harbor'
 
     def create_registry_secret(self):
         secret = create_registry_secret_object(
@@ -415,9 +410,9 @@ class DeploymentProcess:
             self.app.namespace, secret)
 
     def create_service(self):
-
         self.api_k8s_client.create_namespaced_service(self.app.namespace,
-                                                      create_service_object(self.project.name, self.k8s_info.get('network')))
+                                                      create_service_object(self.project.name,
+                                                                            self.k8s_info.get('network')))
 
     def create_deployment(self):
         self.api_k8s_client.create_namespaced_deployment(
@@ -465,7 +460,7 @@ def check_application_type(application_id):
     return {'temp': output, 'database': row_to_dict(app)}
 
 
-def create_application(args, user_id):
+def create_application(args):
     release, project = db.session.query(model.Release, model.Project).join(model.Project).filter(
         model.Release.id == args.get('release_id'),
         model.Release.project_id == model.Project.id
@@ -495,7 +490,7 @@ def create_application(args, user_id):
     return new.id
 
 
-def update_application(application_id, args, user_id):
+def update_application(application_id):
     app = model.Application.query.filter_by(id=application_id).first()
     project = model.Project.query.filter_by(id=app.project_id).one()
     registry = model.Registries.query.filter_by(
@@ -513,7 +508,7 @@ def update_application(application_id, args, user_id):
 
 
 class Applications(Resource):
-    @ jwt_required
+    @jwt_required
     def get(self):
         try:
             output = {}
@@ -524,11 +519,9 @@ class Applications(Resource):
             return util.respond(404, error_clusters_not_found,
                                 error=apiError.repository_id_not_found)
 
-    @ jwt_required
+    @jwt_required
     def post(self):
         try:
-            output = {}
-            user_id = get_jwt_identity()['user_id']
             parser = reqparse.RequestParser()
             parser.add_argument('name', type=str)
             parser.add_argument('project_id', type=int)
@@ -541,7 +534,7 @@ class Applications(Resource):
             parser.add_argument('environments', type=dict)
             parser.add_argument('disabled', type=bool)
             args = parser.parse_args()
-            output = create_application(args, user_id)
+            output = create_application(args)
             return util.success({"applications": {"id": output}})
         except NoResultFound:
             return util.respond(404, error_clusters_not_found,
@@ -549,7 +542,7 @@ class Applications(Resource):
 
 
 class Application(Resource):
-    @ jwt_required
+    @jwt_required
     def get(self, application_id):
         try:
             output = {}
@@ -559,7 +552,7 @@ class Application(Resource):
             return util.respond(404, error_clusters_not_found,
                                 error=apiError.repository_id_not_found)
 
-    @ jwt_required
+    @jwt_required
     def put(self, application_id):
         try:
             output = {}
@@ -582,17 +575,16 @@ class Application(Resource):
             return util.respond(404, error_clusters_not_found,
                                 error=apiError.repository_id_not_found)
 
-    @ jwt_required
+    @jwt_required
     def patch(self, application_id):
         try:
-            output = {}
             output = check_application_type(application_id)
             return util.success({"applications": output})
         except NoResultFound:
             return util.respond(404, error_clusters_not_found,
                                 error=apiError.repository_id_not_found)
 
-    @ jwt_required
+    @jwt_required
     def delete(self, application_id):
         try:
             output = {"success"}
@@ -604,10 +596,9 @@ class Application(Resource):
 
 class Registries(Resource):
 
-    @ jwt_required
+    @jwt_required
     def get(self):
         try:
-            output = {}
             role.require_admin()
             output = harbor.hb_get_registries()
             return util.success({"cluster": output})
@@ -615,7 +606,7 @@ class Registries(Resource):
             return util.respond(404, error_clusters_not_found,
                                 error=apiError.repository_id_not_found)
 
-    @ jwt_required
+    @jwt_required
     def post(self):
         try:
             output = {}
