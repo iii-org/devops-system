@@ -142,7 +142,9 @@ class Redmine:
     def rm_delete_project(self, plan_project_id):
         return self.__api_delete('/projects/{0}'.format(plan_project_id))
 
-    def rm_list_issues(self, paging=100, params={'status_id': '*'}):
+    def rm_list_issues(self, paging=100, params=None):
+        if params is None:
+            params = {'status_id': '*'}
         return self.paging('issues', paging, params)
 
     def rm_get_issues_by_user(self, user_id):
@@ -354,6 +356,8 @@ class Redmine:
             operator_plugin_relation = nexus.nx_get_user_plugin_relation(
                 user_id=operator_id)
             plan_operator_id = operator_plugin_relation.plan_user_id
+        else:
+            plan_operator_id = None
         output = self.__api_delete('/attachments/{0}'.format(attachment_id), operator_id=plan_operator_id)
         status_code = output.status_code
         if status_code == 204:

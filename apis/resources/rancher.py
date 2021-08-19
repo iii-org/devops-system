@@ -227,7 +227,8 @@ class Rancher(object):
                 else:
                     i += 1
         except:
-            ws.close()
+            if ws is not None:
+                ws.close()
             disconnect()
 
     def rc_get_pipeline_executions_logs(self, ci_project_id, ci_pipeline_id,

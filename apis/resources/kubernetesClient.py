@@ -71,6 +71,7 @@ class ApiK8sClient:
         except apiError.DevOpsError as e:
             if e.status_code != 404:
                 raise e
+
     #  ConfigMap
 
     def list_namespaced_config_map(self, namespace):
@@ -240,6 +241,7 @@ class ApiK8sClient:
         except apiError.DevOpsError as e:
             if e.status_code != 404:
                 raise e
+
     #  RBAC
 
     def create_namespaced_role(self, namespace, role):
@@ -285,6 +287,7 @@ class ApiK8sClient:
         except apiError.DevOpsError as e:
             if e.status_code != 404:
                 raise e
+
     # namespace Quota
 
     def read_namespaced_resource_quota(self, name, namespace):
@@ -381,6 +384,7 @@ class ApiK8sClient:
         except apiError.DevOpsError as e:
             if e.status_code != 404:
                 raise e
+
     # node
 
     def list_node(self):
@@ -527,12 +531,7 @@ def create_namespace(project_name):
 
 
 def get_namespace(project_name):
-    try:
-        namespace = ApiK8sClient().read_namespace(project_name)
-    except apiError.DevOpsError as e:
-        if e.status_code != 404:
-            raise e
-    return namespace
+    return ApiK8sClient().read_namespace(project_name)
 
 
 def list_namespace():
@@ -702,12 +701,7 @@ def delete_role_in_namespace(namespace, name):
 
 
 def list_role_binding_in_namespace(namespace):
-    try:
-        role_binding = ApiK8sClient().list_namespaced_role_binding(namespace)
-    except apiError.DevOpsError as e:
-        if e.status_code != 404:
-            raise e
-    return role_binding
+    return ApiK8sClient().list_namespaced_role_binding(namespace)
 
 
 def create_role_binding(namespace, sa_name):
@@ -923,6 +917,7 @@ def delete_namespace_secret(namespace, name):
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
+
 
 # K8s ConfigMaps Usage
 
@@ -1258,7 +1253,7 @@ def check_service_map_container(container_port, services):
         services_info = []
         for service in services:
             if service['port_name'] == container_port['name'] or service['target_port'] == container_port[
-                    'container_port']:
+                'container_port']:
                 services_info.append(service)
         return services_info
     except apiError.DevOpsError as e:
@@ -1481,7 +1476,6 @@ class K8sPodExec(object):
 
 
 class KubernetesPodExec(Namespace):
-
     k8s_pod_exec = None
 
     def on_connect(self):
@@ -1489,7 +1483,6 @@ class KubernetesPodExec(Namespace):
 
     def on_disconnect(self):
         print('Client disconnected')
-        self.k8s_pod_exec is None
 
     def on_pod_exec_cmd(self, data):
         print('exec_namespace_pod_log')
