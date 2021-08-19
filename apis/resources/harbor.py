@@ -695,7 +695,7 @@ class HarborRegistry(Resource):
 class HarborRegistries(Resource):
     @jwt_required
     def get(self):
-        role.require_admin()
+        # role.require_admin()
         return util.success(hb_get_registries())
 
     @jwt_required
