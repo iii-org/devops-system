@@ -578,7 +578,6 @@ api.add_resource(deploy.Cluster, '/deploy/clusters/<int:cluster_id>')
 api.add_resource(deploy.Applications, '/deploy/applications')
 api.add_resource(deploy.Application,
                  '/deploy/applications/<int:application_id>')
-api.add_resource(deploy.Pods, '/deploy/pods')
 
 # Alert
 api.add_resource(alert.ProjectAlert, '/project/<sint:project_id>/alert')
