@@ -198,7 +198,7 @@ class Rancher(object):
             config.get('RANCHER_IP_PORT'), config.get('RANCHER_API_VERSION'),
             self.project_id,
             data["ci_pipeline_id"], data["pipelines_exec_run"], data["stage_index"], data["step_index"])
-        result = None
+        ws = None
         try:
             ws_start_time = time.time()
             ws = websocket.create_connection(url, header=[headersandtoken],
@@ -225,7 +225,8 @@ class Rancher(object):
                 else:
                     i += 1
         except:
-            ws.close()
+            if ws is not None:
+                ws.close()
             disconnect()
 
     def rc_get_pipeline_executions_logs(self, ci_project_id, ci_pipeline_id,

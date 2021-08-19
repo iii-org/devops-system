@@ -126,7 +126,9 @@ def get_token_expires(role_id):
     return expires
 
 
-def check_ad_login(account, password, ad_info={}):
+def check_ad_login(account, password, ad_info=None):
+    if ad_info is None:
+        ad_info = {}
     try:
         ad_info_data = ad_api_user.get_user_info(account, password)
         if ad_info_data is not None:

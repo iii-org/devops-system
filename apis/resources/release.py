@@ -208,8 +208,8 @@ class Releases(Resource):
                                 error=apiError.release_unable_to_build(self.plugin_relation.git_repository_id))
 
     def closed_issues(self):
+        issue_ids = []
         try:
-            issue_ids = []
             user_id = get_jwt_identity()['user_id']
             operator_plugin_relation = nexus.nx_get_user_plugin_relation(
                 user_id=user_id)

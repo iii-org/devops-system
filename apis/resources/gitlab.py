@@ -230,7 +230,9 @@ class GitLab(object):
         output = self.__api_get(f'/projects/{repo_id}/repository/branches')
         return len(output.json())
 
-    def gl_get_tags(self, repo_id, params={}):
+    def gl_get_tags(self, repo_id, params=None):
+        if params is None:
+            params = {}
         return self.__api_get(f'/projects/{repo_id}/repository/tags',
                               params).json()
 
@@ -463,6 +465,7 @@ class GitLab(object):
                                       user_id=None):
         if role.is_admin() is False:
             user_id = get_jwt_identity()["user_id"]
+        rows = []
         if user_id is not None:
             rows = db.session.query(model.ProjectUserRole, model.ProjectPluginRelation).join(
                 model.ProjectPluginRelation,
