@@ -76,7 +76,7 @@ def __tm_get_tag_info(pj, tag_name):
             for tag in tags:
                 seconds = (datetime.now() - dateutil.parser.parse(
                     tag.commit["committed_date"]).replace(tzinfo=None)
-                           ).total_seconds()
+                ).total_seconds()
                 if seconds < tag_info_dict["commit_time"]:
                     tag_info_dict["tag_name"] = tag.name
                     tag_info_dict["commit_time"] = seconds
@@ -143,7 +143,7 @@ def __tm_read_pipe_set_json(pj, tag_name=None):
                     ref=pj.default_branch)
                 pip_set_json = json.loads(f_raw.decode())
         return pip_set_json
-    except apiError.TemplateError as e:
+    except apiError.TemplateError:
         return {"description": "", "name": pj.name}
 
 
@@ -155,12 +155,12 @@ def __tm_git_clone_file(pj,
     protocol = 'https' if temp_http_url[:5] == "https" else 'http'
     if protocol == "https":
         secret_temp_http_url = temp_http_url[:
-                                         8] + f"root:{gitlab_private_token}@" + temp_http_url[
-                                             8:]
+                                             8] + f"root:{gitlab_private_token}@" + temp_http_url[
+            8:]
     else:
         secret_temp_http_url = temp_http_url[:
-                                         7] + f"root:{gitlab_private_token}@" + temp_http_url[
-                                             7:]
+                                             7] + f"root:{gitlab_private_token}@" + temp_http_url[
+            7:]
     Path(f"{dest_folder_name}").mkdir(exist_ok=True)
     if create_time is not None:
         pj_name = f"{pj.path}_{create_time}"
@@ -187,7 +187,7 @@ def __set_git_username_config(path):
         subprocess.call([
             'git', 'config', '--global', 'user.email', '"system@iiidevops.org"'
         ],
-                        cwd=path)
+            cwd=path)
     if git_user_name == "":
         subprocess.call(['git', 'config', '--global', 'user.name', '"system"'],
                         cwd=path)
@@ -196,6 +196,7 @@ def __set_git_username_config(path):
 def __check_git_project_is_empty(pj):
     if pj.default_branch is None or pj.repository_tree() is None:
         return True
+
 
 def __add_plugin_soft_status():
     db_plugins = PluginSoftware.query.all()
@@ -207,15 +208,15 @@ def __add_plugin_soft_status():
 
 def __compare_tag_version(tag_version, start_version, end_version=None):
     def version_paser(version_string):
-        return version_string.replace('v','').split('.')
-    # has end 
+        return version_string.replace('v', '').split('.')
+    # has end
     tag_version_list = version_paser(tag_version)
     tag_version_list = tag_version_list + [0]*(3 - len(tag_version_list))
     start_version_list = version_paser(start_version)
     start_version_list = start_version_list + [0]*(3 - len(start_version_list))
     if end_version == "":
-        i =0
-        while i < 3: 
+        i = 0
+        while i < 3:
             if int(tag_version_list[i]) > int(start_version_list[i]):
                 return True
             elif int(tag_version_list[i]) < int(start_version_list[i]):
@@ -226,19 +227,28 @@ def __compare_tag_version(tag_version, start_version, end_version=None):
                 i += 1
     else:
         # has end version
-        end_version=version_paser(end_version)
+        end_version = version_paser(end_version)
         end_version = end_version + [0]*(3 - len(end_version))
-        i =0
-        while i < 3: 
-            if i ==2:
-                if int(tag_version_list[i]) >= int(start_version_list[i]) and int(tag_version_list[i]) <= int(end_version[i]):
+        i = 0
+        while i < 3:
+            if i == 2:
+                if int(
+                        tag_version_list[i]) >= int(
+                        start_version_list[i]) and int(
+                        tag_version_list[i]) <= int(
+                        end_version[i]):
                     return True
                 else:
                     return False
             else:
-                if int(tag_version_list[i]) > int(start_version_list[i]) and int(tag_version_list[i]) < int(end_version[i]):
+                if int(
+                        tag_version_list[i]) > int(
+                        start_version_list[i]) and int(
+                        tag_version_list[i]) < int(
+                        end_version[i]):
                     return True
-                elif int(tag_version_list[i]) < int(start_version_list[i]) or int(tag_version_list[i]) > int(end_version[i]):
+                elif int(tag_version_list[i]) < int(start_version_list[i]) or \
+                        int(tag_version_list[i]) > int(end_version[i]):
                     return False
                 else:
                     i += 1
@@ -260,7 +270,7 @@ def __force_update_template_cache_table():
         "iiidevops-templates": "Public Templates",
         "local-templates": "Local Templates"
     }
-    with open(f'apis/resources/template/template_support_version.json') as file:
+    with open('apis/resources/template/template_support_version.json') as file:
         template_support_version = json.load(file)
     for group in gl.groups.list(all=True):
         if group.name in template_group_dict:
@@ -269,10 +279,13 @@ def __force_update_template_cache_table():
                 # get all tags
                 tag_list = []
                 for tag in pj.tags.list(all=True):
-                    if group.name == "iiidevops-templates" and template_support_version is not None:
+                    if group.name == "iiidevops-templates" and \
+                            template_support_version is not None:
                         for temp_name, temp_value in template_support_version.items():
                             if temp_name == pj.name:
-                                status = __compare_tag_version(tag.name, temp_value.get('start_version'), temp_value.get('end_version'))
+                                status = __compare_tag_version(
+                                    tag.name, temp_value.get('start_version'),
+                                    temp_value.get('end_version'))
                                 if status:
                                     tag_list.append({
                                         "name": tag.name,
@@ -288,7 +301,7 @@ def __force_update_template_cache_table():
                         })
                 pip_set_json = __tm_read_pipe_set_json(pj)
                 template_data = {
-                        "id":
+                    "id":
                         pj.id,
                         "name":
                         pj.name,
@@ -300,10 +313,11 @@ def __force_update_template_cache_table():
                         pip_set_json["description"],
                         "version":
                         tag_list
-                    }
+                }
                 if group.name == "iiidevops-templates" and template_support_version is None:
                     output[0]['options'].append(template_data)
-                elif group.name == "iiidevops-templates" and template_support_version is not None and pj.name in template_support_version:
+                elif group.name == "iiidevops-templates" and template_support_version is not None \
+                        and pj.name in template_support_version:
                     output[0]['options'].append(template_data)
                 elif group.name == "local-templates":
                     output[1]['options'].append(template_data)
@@ -323,12 +337,14 @@ def __force_update_template_cache_table():
 
 def __update_stage_when_plugin_disable(stage):
     catalogTemplate_value = ""
-    if ("steps" in stage) and ("applyAppConfig" in stage['steps'][0]) and 'catalogTemplate' in stage['steps'][0]['applyAppConfig']:
+    if ("steps" in stage) and ("applyAppConfig" in stage['steps'][0]) \
+            and 'catalogTemplate' in stage['steps'][0]['applyAppConfig']:
         catalogTemplate_value = stage['steps'][0]['applyAppConfig']['catalogTemplate'].split(
-                    ":")[1].replace("iii-dev-charts3-", "")
+            ":")[1].replace("iii-dev-charts3-", "")
     if catalogTemplate_value != '':
         for software in support_software:
-            if software.get('template_key') == catalogTemplate_value and software.get('plugin_disabled') is True:
+            if software.get('template_key') == catalogTemplate_value and software.get(
+                    'plugin_disabled') is True:
                 if "when" not in stage:
                     stage["when"] = {"branch": {"include": []}}
                 stage_when = stage.get("when", {}).get(
@@ -395,12 +411,12 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id,
     protocol = 'https' if temp_http_url[:5] == "https" else 'http'
     if protocol == "https":
         secret_temp_http_url = temp_http_url[:
-                                            8] + f"root:{gitlab_private_token}@" + temp_http_url[
-                                                8:]
+                                             8] + f"root:{gitlab_private_token}@" + temp_http_url[
+            8:]
     else:
         secret_temp_http_url = temp_http_url[:
-                                            7] + f"root:{gitlab_private_token}@" + temp_http_url[
-                                                7:]
+                                             7] + f"root:{gitlab_private_token}@" + temp_http_url[
+            7:]
     pipe_json = __tm_get_git_pipline_json(template_pj, tag_name=tag_name)
     tag_info_dict = __tm_get_tag_info(template_pj, tag_name)
     pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(template_pj,
@@ -412,12 +428,12 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id,
     protocol = 'https' if pj_http_url[:5] == "https" else 'http'
     if protocol == "https":
         secret_pj_http_url = pj_http_url[:
-                                        8] + f"root:{gitlab_private_token}@" + pj_http_url[
-                                            8:]
+                                         8] + f"root:{gitlab_private_token}@" + pj_http_url[
+            8:]
     else:
         secret_pj_http_url = pj_http_url[:
-                                        7] + f"root:{gitlab_private_token}@" + pj_http_url[
-                                            7:]
+                                         7] + f"root:{gitlab_private_token}@" + pj_http_url[
+            7:]
     Path("pj_push_template").mkdir(exist_ok=True)
     subprocess.call([
         'git', 'clone', '--branch', tag_info_dict["tag_name"],
@@ -463,7 +479,7 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id,
             stage = __update_stage_when_plugin_disable(stage)
     with open(f'pj_push_template/{pj.path}/{pipe_yaml_file_name}',
               'w') as file:
-        documents = yaml.dump(pipe_json, file)
+        yaml.dump(pipe_json, file)
     __set_git_username_config(f"pj_push_template/{pj.path}")
     subprocess.call(['git', 'branch'], cwd=f"pj_push_template/{pj.path}")
     # Too lazy to handle file deleting issue on Windows, just keep the garbage there
@@ -513,7 +529,8 @@ def tm_get_pipeline_branches(repository_id):
             for software in support_software:
                 if catalogTemplate_value is not None and software[
                         "template_key"] == catalogTemplate_value and \
-                        (catalogTemplate_value in ('web', 'db') or software.get("plugin_disabled") is False):
+                        (catalogTemplate_value in ('web', 'db')
+                            or software.get("plugin_disabled") is False):
                     stage_out_list["name"] = software["display"]
                     stage_out_list["key"] = software["template_key"]
                     if "when" in stage:
@@ -586,13 +603,13 @@ def tm_put_pipeline_branches(repository_id, data):
         with open(
                 f'pj_edit_pipe_yaml/{pj.path}_{create_time}/{pipe_yaml_file_name}',
                 'w') as file:
-            documents = yaml.dump(pipe_json, file)
+            yaml.dump(pipe_json, file)
         __set_git_username_config(f'pj_edit_pipe_yaml/{pj.path}_{create_time}')
         subprocess.call([
             'git', 'commit', '-m', '"編輯 .rancher-pipeline.yaml 啟用停用分支"',
             f'{pipe_yaml_file_name}'
         ],
-                        cwd=f"pj_edit_pipe_yaml/{pj.path}_{create_time}")
+            cwd=f"pj_edit_pipe_yaml/{pj.path}_{create_time}")
         next_run = pipeline.get_pipeline_next_run(repository_id)
         subprocess.call(['git', 'push', '-u', 'origin', f'{br.name}'],
                         cwd=f"pj_edit_pipe_yaml/{pj.path}_{create_time}")
@@ -629,7 +646,8 @@ def tm_get_pipeline_default_branch(repository_id):
             for software in support_software:
                 if catalogTemplate_value is not None and software[
                         "template_key"] == catalogTemplate_value and \
-                        (catalogTemplate_value in ('web', 'db') or software.get("plugin_disabled") is False):
+                        (catalogTemplate_value in ('web', 'db') or
+                            software.get("plugin_disabled") is False):
                     stage_out_list["name"] = software["display"]
                     stage_out_list["key"] = software["template_key"]
                     if "when" in stage:
@@ -682,13 +700,13 @@ def tm_put_pipeline_default_branch(repository_id, data):
         with open(
                 f'pj_edit_pipe_yaml/{pj.path}_{create_time}/{pipe_yaml_file_name}',
                 'w') as file:
-            documents = yaml.dump(pipe_json, file)
+            yaml.dump(pipe_json, file)
         __set_git_username_config(f'pj_edit_pipe_yaml/{pj.path}_{create_time}')
         subprocess.call([
             'git', 'commit', '-m', '"UI 編輯 .rancher-pipeline.yaml commit"',
             f'{pipe_yaml_file_name}'
         ],
-                        cwd=f"pj_edit_pipe_yaml/{pj.path}_{create_time}")
+            cwd=f"pj_edit_pipe_yaml/{pj.path}_{create_time}")
         next_run = pipeline.get_pipeline_next_run(repository_id)
         subprocess.call(['git', 'push', '-u', 'origin', f'{br.name}'],
                         cwd=f"pj_edit_pipe_yaml/{pj.path}_{create_time}")
