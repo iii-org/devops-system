@@ -164,9 +164,10 @@ class Clusters(Resource):
                 'k8s_config_file', type=werkzeug.datastructures.FileStorage, location='files')
             args = parser.parse_args()
             server_name = args.get('name').strip()
-            if check_cluster(server_name) is None:
-                output = {"cluster_id": create_cluster(
-                    args, server_name, user_id)}
+            if check_cluster(server_name) is not None:
+                return util.respond(404)
+            output = {"cluster_id": create_cluster(
+                args, server_name, user_id)}
             return util.success(output)
         except NoResultFound:
             return util.respond(404, error_clusters_not_found,
@@ -221,11 +222,11 @@ def create_application_image():
 
 def create_default_harbor_data(project, release, registry_id, namespace):
     harbor_data = {
-        "policy_name": project.name + '-' + release.branch + '-' + release.tag_name + "-" + str(datetime.utcnow()),
+        "policy_name": project.name + '-' + release.branch + '-' + release.tag_name,
         "repo_name": project.name,
         "image_name": release.branch,
         "tag_name": release.tag_name,
-        "description": 'Automatate create replication policy ' + project.name + " release ID" + str(release.id),
+        "description": 'Automatate create replication policy ' + project.name + " release ID " + str(release.id),
         "registry_id": registry_id,
         "dest_repo_name": namespace,
     }
@@ -295,11 +296,12 @@ def check_image_replication(app):
     output = False
     harbor_info = json.loads(app.harbor_info)
     tasks = get_replication_execution_task(harbor_info.get('execution_id'))
+    harbor_info['task'] = tasks
     for task in tasks:
         if task.get('id') == harbor_info.get('task_id'):
             output = check_image_replication_status(task)
             break
-    return output
+    return harbor_info, output
 
 
 def create_registry_data(server_name, user_name, password):
@@ -564,12 +566,23 @@ def check_application_type(application_id):
         db.session.commit()
     # Check Execution Replication
     elif app.status_id == 2:
-        if check_image_replication(app) is True:
+        harbor_info, status = check_image_replication(app)
+        app.harbor_info = json.dumps(harbor_info)
+        if status is True:
             app.status_id = 3
-            db.session.commit()
+        db.session.commit()
     elif app.status_id == 3:
         output = execute_k8s_deployment(app)
+        app.status_id = 4
+        app.k8s_yaml = json.dumps(output)
+        db.session.commit()
     return {'temp': output, 'database': row_to_dict(app)}
+
+
+def check_application_exists(project_id, namespace):
+    return model.Application.query. \
+        filter(model.Application.namespace == namespace, model.Application.project_id == project_id). \
+        first()
 
 
 def create_application(args):
@@ -660,6 +673,8 @@ class Applications(Resource):
             parser.add_argument('environments', type=dict)
             parser.add_argument('disabled', type=bool)
             args = parser.parse_args()
+            if check_application_exists(args.get('project_id'), args.get('namespace')) is not None:
+                return util.respond(404)
             output = create_application(args)
             return util.success({"applications": {"id": output}})
         except NoResultFound:

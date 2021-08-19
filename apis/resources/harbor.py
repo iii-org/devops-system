@@ -414,7 +414,6 @@ def hb_delete_registries(registry_id):
 
 
 def hb_get_replication_policy_data(args):
-    data = {}
     dest_registry = hb_get_registries(registry_id=args['registry_id'])
     data = {
         "name": args.get('policy_name'),
