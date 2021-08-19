@@ -151,8 +151,8 @@ def create_user_from_ad(ad_users, create_by=None, ad_parameter=None):
 def add_ad_user_info_by_iii(ad_user_info):
     iii_info = {'iii': False}
     need_attributes = ['displayName', 'telephoneNumber', 'physicalDeliveryOfficeName',
-                       'givenName', 'sn', 'title', 'telephoneNumber', 'mail', 'userAccountControl', 'sAMAccountName', 'userPrincipalName',
-                       'whenChanged', 'whenCreated', 'department', 'department']
+                       'givenName', 'sn', 'title', 'telephoneNumber', 'mail', 'userAccountControl', 'sAMAccountName',
+                       'userPrincipalName', 'whenChanged', 'whenCreated', 'department', 'department']
     if 'department' in ad_user_info and 'sn' in ad_user_info and 'givenName' in ad_user_info:
         iii_info['iii_name'] = ad_user_info['sn']+ad_user_info['givenName']
         iii_info['iii'] = True
@@ -164,14 +164,13 @@ def add_ad_user_info_by_iii(ad_user_info):
     return iii_info
 
 
-def get_user_info_from_ad(users, info='iii'):
+def get_user_info_from_ad(info_users, info='iii'):
     list_users = []
-    for user in users:
+    for info_user in info_users:
         if info == 'iii':
-            user_info = add_ad_user_info_by_iii(user.get('attributes'))
-            list_users.append(user_info)
+            list_users.append(add_ad_user_info_by_iii(info_user.get('attributes')))
         else:
-            list_users.append(user)
+            list_users.append(info_user)
     return list_users
 
 
@@ -308,11 +307,15 @@ class AD(object):
         )
         res = self.conn.response_to_json()
         res = json.loads(res)['entries']
+        print(self.ou_search_Filter)
         return res
 
     def get_user(self, account):
         output = []
-        user_search_filter = '(&(|(objectclass=user)(objectclass=person))(!(isCriticalSystemObject=True))(sAMAccountName='+account+'))'
+        target_objectclass = '(|(objectclass=user)(objectclass=person))'
+        target_status_filter = '(!(isCriticalSystemObject=True))'
+        search_target = '(sAMAccountName='+account+')'
+        user_search_filter = '(&'+target_objectclass+target_status_filter+search_target+')'
         if self.ad_info['is_pass'] is True:
             self.conn.search(search_base=self.active_base_dn,
                              search_filter=user_search_filter,
