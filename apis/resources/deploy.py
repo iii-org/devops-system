@@ -203,6 +203,7 @@ class Cluster(Resource):
         except NoResultFound:
             return util.respond(404, error_clusters_not_found,
                                 error=apiError.repository_id_not_found)
+
     @jwt_required
     def delete(self, cluster_id):
         try:
@@ -400,19 +401,16 @@ class DeploymentProcess:
         self.k8s_info = json.loads(self.app.k8s_yaml)
         self.registry_server_url = None
         self.registry_secret_name = None
-        self.get_deployment_info()
+        self.registry_server_url = self.harbor_info.get('image_uri').split(
+            '/')[0]
+        self.registry_secret_name = self.registry_server_url.translate(
+            str.maketrans({'.': '-', ':': '-'})) + '-harbor'
 
     def create_namespace(self):
         self.api_k8s_client.create_namespace(
             k8s_client.V1Namespace(
                 metadata=k8s_client.V1ObjectMeta(name=self.app.namespace))
         )
-
-    def get_deployment_info(self):
-        self.registry_server_url = self.harbor_info.get('image_uri').split(
-            '/')[0]
-        self.registry_secret_name = self.registry_server_url.translate(
-            str.maketrans({'.': '-', ':': '-'})) + '-harbor'
 
     def create_registry_secret(self):
         secret = create_registry_secret_object(
