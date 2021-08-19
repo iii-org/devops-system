@@ -279,6 +279,7 @@ class DevOpsThread(Thread):
         self.error = None
 
     def run(self):
+        # _target, _args, _kwargs are in the superclass Thread
         if self._target is not None:
             try:
                 self._return = self._target(*self._args, **self._kwargs)

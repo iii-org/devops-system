@@ -3,15 +3,14 @@ import json
 import numbers
 import os
 from datetime import datetime, timezone
-from flask_restful import Api
+
 import yaml
+from flask_socketio import Namespace, emit
 from kubernetes import client as k8s_client
 from kubernetes import config as k8s_config
 from kubernetes import utils as k8s_utils
-from kubernetes.stream import stream as k8s_stream
 from kubernetes.client import ApiException
-
-from flask_socketio import Namespace, emit
+from kubernetes.stream import stream as k8s_stream
 
 import config
 import resources.apiError as apiError
@@ -268,7 +267,7 @@ class ApiK8sClient:
     def list_namespaced_role_binding(self, namespace):
         try:
             return self.rbac_auth_v1.list_namespaced_role_binding(namespace)
-        except apiError.DevOps as e:
+        except apiError.DevOpsError as e:
             if e.status_code != 404:
                 raise e
 
@@ -276,7 +275,7 @@ class ApiK8sClient:
         try:
             return self.rbac_auth_v1.create_namespaced_role_binding(
                 namespace=namespace, body=body)
-        except apiError.DevOps as e:
+        except apiError.DevOpsError as e:
             if e.status_code != 404:
                 raise e
 

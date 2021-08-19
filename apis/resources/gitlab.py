@@ -4,24 +4,22 @@ import os
 from datetime import datetime, time, timedelta
 from pathlib import Path
 
-import config
-import model
-import nexus
 import pytz
 import requests
-import util as util
 from dateutil import tz
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from flask_restful import Resource, reqparse
-from model import GitCommitNumberEachDays, db
+from gitlab import Gitlab
 from sqlalchemy.orm.exc import NoResultFound
 
-from gitlab import Gitlab
-from resources import apiError, kubernetesClient, role
+import config
+import model
+import nexus
+import util as util
+from model import GitCommitNumberEachDays, db
+from resources import apiError, role
 from resources.apiError import DevOpsError
 from resources.logger import logger
-
-from .rancher import rancher
 
 
 def get_nexus_project_id(repo_id):

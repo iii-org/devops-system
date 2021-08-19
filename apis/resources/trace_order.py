@@ -1,18 +1,13 @@
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
+from sqlalchemy.orm.exc import NoResultFound
 
 import model
+import resources.apiError as apiError
 import resources.project as project
-import resources.issue as issue
-
-from resources.issue import NexusIssue
 import util as util
 from model import db, TraceOrder
-import resources.apiError as apiError 
 from resources.apiError import DevOpsError
-from sqlalchemy.orm.exc import NoResultFound
-from accessories import redmine_lib
-from resources.redmine import redmine
 
 '''
 order_mapping
