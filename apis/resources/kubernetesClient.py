@@ -63,14 +63,31 @@ class ApiK8sClient:
             self.api_k8s_client)
         self.batch_v1beta1 = k8s_client.BatchV1beta1Api(self.api_k8s_client)
         self.batch_v1 = k8s_client.BatchV1Api(self.api_k8s_client)
+        self.network_v1beta1 = k8s_client.NetworkingV1beta1Api(self.api_k8s_client)
 
     # Ingress
+
+    def list_ingress_for_all_namespaces(self):
+        try:
+            return self.network_v1beta1.list_ingress_for_all_namespaces()
+        except apiError.DevOpsError as e:
+            if e.status_code != 404:
+                raise e
+
+    def create_namespaced_ingress(self, namespace, body):
+        try:
+            return self.network_v1beta1.create_namespaced_ingress(namespace, body)
+        except apiError.DevOpsError as e:
+            if e.status_code != 404:
+                raise e
+
     def list_namespaced_ingress(self, namespace):
         try:
             return self.extensions_v1beta1.list_namespaced_ingress(namespace)
         except apiError.DevOpsError as e:
             if e.status_code != 404:
                 raise e
+
     #  ConfigMap
 
     def list_namespaced_config_map(self, namespace):
@@ -240,6 +257,7 @@ class ApiK8sClient:
         except apiError.DevOpsError as e:
             if e.status_code != 404:
                 raise e
+
     #  RBAC
 
     def create_namespaced_role(self, namespace, role):
@@ -266,7 +284,7 @@ class ApiK8sClient:
     def list_namespaced_role_binding(self, namespace):
         try:
             return self.rbac_auth_v1.list_namespaced_role_binding(namespace)
-        except apiError.DevOps as e:
+        except apiError.DevOpsError as e:
             if e.status_code != 404:
                 raise e
 
@@ -274,7 +292,7 @@ class ApiK8sClient:
         try:
             return self.rbac_auth_v1.create_namespaced_role_binding(
                 namespace=namespace, body=body)
-        except apiError.DevOps as e:
+        except apiError.DevOpsError as e:
             if e.status_code != 404:
                 raise e
 
@@ -285,6 +303,7 @@ class ApiK8sClient:
         except apiError.DevOpsError as e:
             if e.status_code != 404:
                 raise e
+
     # namespace Quota
 
     def read_namespaced_resource_quota(self, name, namespace):
@@ -381,6 +400,7 @@ class ApiK8sClient:
         except apiError.DevOpsError as e:
             if e.status_code != 404:
                 raise e
+
     # node
 
     def list_node(self):
@@ -924,6 +944,7 @@ def delete_namespace_secret(namespace, name):
         if e.status_code != 404:
             raise e
 
+
 # K8s ConfigMaps Usage
 
 
@@ -1258,7 +1279,7 @@ def check_service_map_container(container_port, services):
         services_info = []
         for service in services:
             if service['port_name'] == container_port['name'] or service['target_port'] == container_port[
-                    'container_port']:
+                'container_port']:
                 services_info.append(service)
         return services_info
     except apiError.DevOpsError as e:
@@ -1481,7 +1502,6 @@ class K8sPodExec(object):
 
 
 class KubernetesPodExec(Namespace):
-
     k8s_pod_exec = None
 
     def on_connect(self):
