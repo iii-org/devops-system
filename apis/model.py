@@ -429,6 +429,9 @@ class Cluster(db.Model):
         User.id, ondelete='SET NULL'), nullable=True)
     create_at = Column(DateTime)
     update_at = Column(DateTime)
+    cluster_name = Column(String)
+    cluster_host = Column(String)
+    cluster_user = Column(String)
 
 
 class RedmineIssue(db.Model):
