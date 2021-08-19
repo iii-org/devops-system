@@ -3,22 +3,27 @@ from flask_restful import Resource, reqparse
 
 import model
 import resources.project as project
+import resources.issue as issue
+
+from resources.issue import NexusIssue
 import util as util
 from model import db, TraceOrder
 import resources.apiError as apiError 
 from resources.apiError import DevOpsError
 from sqlalchemy.orm.exc import NoResultFound
+from accessories import redmine_lib
+from resources.redmine import redmine
 
 '''
 order_mapping
-1: 需求規格
-2: 合規需求
-3: 功能設計
-4: 程式錯誤
-5: 議題
-6: 變更需求
-7: 風險管理
-8: 測試計畫
+"Epic": 需求規格
+"Audit": 合規需求
+"Feature": 功能設計
+"Bug": 程式錯誤
+"Issue": 議題
+"Change Request": 變更需求
+"Risk": 風險管理
+"Test Plan": 測試計畫
 '''
 
 def validate_order_value(order):
@@ -48,7 +53,7 @@ def get_trace_order_by_project(project_id):
         {
             "id": row.id,
             "name": row.name,
-            "order": [int(order_id) for order_id in row.order],
+            "order": row.order,
         } for row in rows
     ]}
 
@@ -58,7 +63,7 @@ def create_trace_order_by_project(project_id, args):
 
     new = TraceOrder(
         name=args["name"],
-        order=sorted(order),
+        order=order,
         project_id=project_id,
     )
     db.session.add(new)
@@ -85,7 +90,7 @@ class ProjectTraceOrder(Resource):
     def post(self, project_id):
         parser = reqparse.RequestParser()
         parser.add_argument('name', type=str, required=True)
-        parser.add_argument('order', type=int, action='append', required=True)
+        parser.add_argument('order', type=str, action='append', required=True)
         args = parser.parse_args()
         return util.success(create_trace_order_by_project(project_id, args))
 
@@ -95,7 +100,7 @@ class SingleTraceOrder(Resource):
     def patch(self, trace_order_id):
         parser = reqparse.RequestParser()
         parser.add_argument('name', type=str)
-        parser.add_argument('order', type=int, action='append')
+        parser.add_argument('order', type=str, action='append')
         args = parser.parse_args()
         args = {k: v for k, v in args.items() if v is not None}
         return util.success(update_trace_order(trace_order_id, args))
