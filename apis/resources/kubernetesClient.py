@@ -62,8 +62,24 @@ class ApiK8sClient:
             self.api_k8s_client)
         self.batch_v1beta1 = k8s_client.BatchV1beta1Api(self.api_k8s_client)
         self.batch_v1 = k8s_client.BatchV1Api(self.api_k8s_client)
+        self.network_v1beta1 = k8s_client.NetworkingV1beta1Api(self.api_k8s_client)
 
     # Ingress
+
+    def list_ingress_for_all_namespaces(self):
+        try:
+            return self.network_v1beta1.list_ingress_for_all_namespaces()
+        except apiError.DevOpsError as e:
+            if e.status_code != 404:
+                raise e
+
+    def create_namespaced_ingress(self, namespace, body):
+        try:
+            return self.network_v1beta1.create_namespaced_ingress(namespace, body)
+        except apiError.DevOpsError as e:
+            if e.status_code != 404:
+                raise e
+
     def list_namespaced_ingress(self, namespace):
         try:
             return self.extensions_v1beta1.list_namespaced_ingress(namespace)

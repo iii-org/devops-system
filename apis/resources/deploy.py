@@ -11,7 +11,6 @@ from flask_restful import Resource, reqparse
 from kubernetes import client as k8s_client
 from sqlalchemy.orm.exc import NoResultFound
 from werkzeug.utils import secure_filename
-
 import config
 import model
 import util as util
@@ -329,8 +328,7 @@ def create_registry_secret_object(data, secret_name):
     )
 
 
-def create_service_object(app_name, network):
-    service_name = app_name + "-service"
+def create_service_object(app_name, service_name, network):
     return k8s_client.V1Service(
         api_version="v1",
         kind="Service",
@@ -350,6 +348,7 @@ def create_service_object(app_name, network):
 
 def create_deployment_object(
         app_name,
+        deployment_name,
         image_uri,
         port,
         registry_secret_name
@@ -383,74 +382,175 @@ def create_deployment_object(
     deployment = k8s_client.V1Deployment(
         api_version="apps/v1",
         kind="Deployment",
-        metadata=k8s_client.V1ObjectMeta(name=app_name + "-dep"),
+        metadata=k8s_client.V1ObjectMeta(name=deployment_name),
         spec=spec)
     return deployment
 
 
+def create_ingress_object(ingress_name, domain, service_name, port, path):
+    spec = k8s_client.NetworkingV1beta1IngressSpec(
+        rules=[k8s_client.NetworkingV1beta1IngressRule(
+            host=domain,
+            http=k8s_client.NetworkingV1beta1HTTPIngressRuleValue(
+                paths=[k8s_client.NetworkingV1beta1HTTPIngressPath(
+                    path=path,
+                    backend=k8s_client.NetworkingV1beta1IngressBackend(
+                        service_name=service_name,
+                        service_port=port
+                    )
+                )]
+            )
+        )])
+    metadata = k8s_client.V1ObjectMeta(
+        name=ingress_name,
+        annotations={
+            "nginx.ingress.kubernetes.io/rewrite-target": "/",
+        }
+    )
+    body = k8s_client.NetworkingV1beta1Ingress(
+        # NetworkingV1beta1Api
+        api_version="networking.k8s.io/v1beta1",
+        kind="Ingress",
+        metadata=metadata,
+        spec=spec
+    )
+    return body
+
+
 class DeploymentProcess:
-    def __init__(self, app, cluster, registry, project):
-        k8s_file = get_cluster_config_path(cluster.name)
-        self.api_k8s_client = kubernetesClient.ApiK8sClient(
-            configuration_file=k8s_file)
-        self.cluster = cluster
-        self.registry = registry
-        self.project = project
+    def __init__(self, app):
         self.app = app
-        self.harbor_info = json.loads(self.app.harbor_info)
-        self.k8s_info = json.loads(self.app.k8s_yaml)
+        self.api_k8s_client = None
+        self.cluster = None
+        self.registry = None
+        self.project = None
         self.registry_server_url = None
         self.registry_secret_name = None
-        self.registry_server_url = self.harbor_info.get('image_uri').split(
+        self.app_harbor_info = json.loads(self.app.harbor_info)
+        self.app_k8s_info = json.loads(self.app.k8s_yaml)
+        self.app_registry_server_url = self.app_harbor_info.get('image_uri').split(
             '/')[0]
-        self.registry_secret_name = self.registry_server_url.translate(
+        self.app_registry_secret_name = self.app_registry_server_url.translate(
             str.maketrans({'.': '-', ':': '-'})) + '-harbor'
+        self.app_name = None
+        self.service_name = None
+        self.deployment_name = None
+        self.ingress_name = None
+        self.namespace = None
+
+    def set_deployment_info(self):
+        self.check_project_info()
+        self.namespace = self.app.namespace
+        self.app_name = self.project.name
+        self.service_name = self.project.name + "-service"
+        self.deployment_name = self.project.name + "-dep"
+        if self.app_k8s_info.get('network').get('domain', None) is not None:
+            self.ingress_name = self.project.name + "-ingress"
+
+    def get_deployment_info(self):
+        if self.namespace is None:
+            self.set_deployment_info()
+        return {
+            "namespace": self.namespace,
+            "app_name": self.app_name,
+            "service_name": self.service_name,
+            "deployment_name": self.deployment_name,
+            "ingress_name": self.ingress_name
+        }
+
+    def check_project_info(self):
+        if self.project is None:
+            self.project = model.Project.query.filter_by(id=self.app.project_id).one()
+
+    def check_registry_info(self):
+        if self.registry is None:
+            self.registry = model.Registries.query.filter_by(
+                registries_id=self.app.registry_id).one()
+
+    def check_cluster_info(self):
+        if self.cluster is None:
+            self.cluster = model.Cluster.query.filter_by(
+                id=self.app.cluster_id).one()
+
+    def check_k8s_client(self):
+        self.check_cluster_info()
+        if self.api_k8s_client is None:
+            self.api_k8s_client = kubernetesClient.ApiK8sClient(
+                configuration_file=get_cluster_config_path(self.cluster.name))
 
     def create_namespace(self):
+        self.check_k8s_client()
         self.api_k8s_client.create_namespace(
             k8s_client.V1Namespace(
                 metadata=k8s_client.V1ObjectMeta(name=self.app.namespace))
         )
 
+    def delete_namespace(self):
+        self.check_k8s_client()
+        self.api_k8s_client.delete_namespace(self.app.namespace)
+
     def create_registry_secret(self):
+        self.check_registry_info()
         secret = create_registry_secret_object(
-            create_registry_data(self.registry_server_url, self.registry.access_key,
+            create_registry_data(self.app_registry_server_url, self.registry.access_key,
                                  util.base64decode(self.registry.access_secret)),
-            self.registry_secret_name
+            self.app_registry_secret_name
         )
+        self.check_k8s_client()
         self.api_k8s_client.create_namespaced_secret(
             self.app.namespace, secret)
 
+    def check_service(self):
+        self.check_k8s_client()
+        if self.service_name is None:
+            self.create_service()
+
     def create_service(self):
+        self.check_k8s_client()
+        self.set_deployment_info()
         self.api_k8s_client.create_namespaced_service(self.app.namespace,
-                                                      create_service_object(self.project.name,
-                                                                            self.k8s_info.get('network')))
+                                                      create_service_object(self.app_name, self.service_name,
+                                                                            self.app_k8s_info.get('network')))
 
     def create_deployment(self):
+        self.set_deployment_info()
+        self.check_k8s_client()
         self.api_k8s_client.create_namespaced_deployment(
             self.app.namespace,
             create_deployment_object(
-                self.project.name,
-                self.harbor_info.get('image_uri'),
-                self.k8s_info.get('network').get('port'),
-                self.registry_secret_name
+                self.app_name,
+                self.deployment_name,
+                self.app_harbor_info.get('image_uri'),
+                self.app_k8s_info.get('network').get('port'),
+                self.app_registry_secret_name
+            )
+        )
+
+    def create_ingress(self):
+        self.set_deployment_info()
+        self.api_k8s_client.create_namespaced_ingress(
+            self.app.namespace,
+            create_ingress_object(
+                self.ingress_name,
+                self.app_k8s_info.get('network').get('domain'),
+                self.service_name,
+                self.app_k8s_info.get('network').get('port'),
+                self.app_k8s_info.get('network').get('path')
             )
         )
 
 
 def execute_k8s_deployment(app):
-    project = model.Project.query.filter_by(id=app.project_id).one()
-    registry = model.Registries.query.filter_by(
-        registries_id=app.registry_id).one()
-    cluster = model.Cluster.query.filter_by(
-        id=app.cluster_id).one()
-    deployment_process = DeploymentProcess(app, cluster, registry, project)
+    deployment_process = DeploymentProcess(app)
+    deployment_info = deployment_process.get_deployment_info()
     deployment_process.create_namespace()
     deployment_process.create_registry_secret()
     deployment_process.create_service()
+    k8s_info = json.loads(app.k8s_yaml)
+    if k8s_info.get('network').get('domain', None) is not None:
+        deployment_process.create_ingress()
     deployment_process.create_deployment()
-    harbor_info = json.loads(app.harbor_info)
-    return harbor_info
+    return deployment_info
 
 
 def check_application_type(application_id):
@@ -503,18 +603,18 @@ def create_application(args):
 
 
 def update_application(application_id, args, user_id):
-    app = model.Application.query.filter_by(id=application_id).first()
-    project = model.Project.query.filter_by(id=app.project_id).one()
-    registry = model.Registries.query.filter_by(
-        registries_id=app.registry_id).one()
-    cluster = model.Cluster.query.filter_by(
-        id=app.cluster_id).one()
-    deployment_process = DeploymentProcess(app, cluster, registry, project)
+    app = model.Application.query.filter_by(id=application_id).one()
+    deployment_process = DeploymentProcess(app)
     deployment_process.create_namespace()
     deployment_process.create_registry_secret()
     deployment_process.create_service()
     deployment_process.create_deployment()
-    return {}
+
+
+def delete_application(application_id):
+    app = model.Application.query.filter_by(id=application_id).one()
+    deployment_process = DeploymentProcess(app)
+    deployment_process.delete_namespace()
 
 
 def get_applications(project_id=None):
@@ -532,7 +632,6 @@ class Applications(Resource):
     @jwt_required
     def get(self):
         try:
-            output = {}
             parser = reqparse.RequestParser()
             parser.add_argument('project_id', type=str)
             args = parser.parse_args()
@@ -572,9 +671,7 @@ class Application(Resource):
     @jwt_required
     def get(self, application_id):
         try:
-            output = {}
-            output = harbor.hb_get_registries()
-            return util.success({"cluster": output})
+            return util.success({"application": application_id})
         except NoResultFound:
             return util.respond(404, error_clusters_not_found,
                                 error=apiError.repository_id_not_found)
@@ -582,7 +679,6 @@ class Application(Resource):
     @jwt_required
     def put(self, application_id):
         try:
-            user_id = get_jwt_identity()['user_id']
             parser = reqparse.RequestParser()
             parser.add_argument('name', type=str)
             parser.add_argument('project_id', type=int)
@@ -595,6 +691,7 @@ class Application(Resource):
             parser.add_argument('environments', type=dict)
             parser.add_argument('disabled', type=bool)
             args = parser.parse_args()
+            user_id = get_jwt_identity()['user_id']
             output = update_application(application_id, args, user_id)
             return util.success(output)
         except NoResultFound:
@@ -613,40 +710,13 @@ class Application(Resource):
     @jwt_required
     def delete(self, application_id):
         try:
-            output = {"success"}
-            return util.success({"cluster": {"id": output}})
+            return util.success(delete_application(application_id))
         except NoResultFound:
             return util.respond(404, error_clusters_not_found,
                                 error=apiError.repository_id_not_found)
 
 
 class Pods(Resource):
-    @jwt_required
-    def get(self):
-        try:
-            output = []
-            parser = reqparse.RequestParser()
-            parser.add_argument('name', type=str)
-            args = parser.parse_args()
-            server_name = args.get('name').strip()
-            k8s_file = get_cluster_config_path(server_name)
-            api_k8s_client = kubernetesClient.ApiK8sClient(
-                configuration_file=k8s_file)
-            response = api_k8s_client.list_pod_for_all_namespaces()
-            for i in response.items:
-                output.append(
-                    {
-                        "ip": i.status.pod_ip,
-                        "name": i.metadata.name,
-                        "namespace": i.metadata.namespace,
-                    })
-            return util.success({"pod": output})
-        except NoResultFound:
-            return util.respond(404, error_clusters_not_found,
-                                error=apiError.repository_id_not_found)
-
-
-class Services(Resource):
     @jwt_required
     def get(self):
         try:
