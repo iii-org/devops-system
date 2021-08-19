@@ -87,6 +87,9 @@ def create_cluster(args, server_name, user_id):
     filename = secure_filename(DEFAULT_K8S_CONFIG_FILE)
     file.save(os.path.join(cluster_path, filename))
     file.seek(0)
+    content = file.read()
+    content = str(content, 'utf-8')
+    k8s_json = yaml.safe_load(content)
     now = str(datetime.utcnow())
     new = model.Cluster(
         name=server_name,
@@ -94,6 +97,9 @@ def create_cluster(args, server_name, user_id):
         creator_id=user_id,
         create_at=now,
         update_at=now,
+        cluster_name=k8s_json['clusters'][0]['name'],
+        cluster_host=k8s_json['clusters'][0]['cluster']['server'],
+        cluster_user=k8s_json['users'][0]['name']
     )
     db.session.add(new)
     db.session.commit()
@@ -113,8 +119,16 @@ def update_cluster(cluster_id, args):
     filename = secure_filename(DEFAULT_K8S_CONFIG_FILE)
     file.save(os.path.join(cluster_path, filename))
     file.seek(0)
-    # content = file.read()
-    # content = str(content, 'utf-8')
+    content = file.read()
+    content = str(content, 'utf-8')
+    k8s_json = yaml.safe_load(content)
+    cluster.name = args.get('name')
+    cluster.cluster_name = k8s_json['clusters'][0]['name'],
+    cluster.cluster_host = k8s_json['clusters'][0]['cluster']['server'],
+    cluster.cluster_user = k8s_json['users'][0]['name']
+    cluster.update_at = str(datetime.utcnow())
+    cluster.disabled = args.get('disabled')
+    db.session.commit()
     return cluster.id
 
 
@@ -165,10 +179,12 @@ class Cluster(Resource):
     def get(self, cluster_id):
         try:
             output = get_clusters(cluster_id)
-            k8s_config_file = open(get_cluster_config_path(output.get('name')))
-            parsed_yaml_file = yaml.load(
-                k8s_config_file, Loader=yaml.FullLoader)
-            return util.success({"cluster": output, DEFAULT_K8S_CONFIG_FILE: parsed_yaml_file})
+            if output is None:
+                return util.success()
+            # k8s_config_file = open(get_cluster_config_path(output.get('name')))
+            # parsed_yaml_file = yaml.load(
+            #     k8s_config_file, Loader=yaml.FullLoader)
+            return util.success(output)
         except NoResultFound:
             return util.respond(404, error_clusters_not_found,
                                 error=apiError.repository_id_not_found)
@@ -187,7 +203,6 @@ class Cluster(Resource):
         except NoResultFound:
             return util.respond(404, error_clusters_not_found,
                                 error=apiError.repository_id_not_found)
-
     @jwt_required
     def delete(self, cluster_id):
         try:
@@ -387,7 +402,6 @@ class DeploymentProcess:
         self.registry_secret_name = None
         self.get_deployment_info()
 
-
     def create_namespace(self):
         self.api_k8s_client.create_namespace(
             k8s_client.V1Namespace(
@@ -490,7 +504,7 @@ def create_application(args):
     return new.id
 
 
-def update_application(application_id):
+def update_application(application_id, args, user_id):
     app = model.Application.query.filter_by(id=application_id).first()
     project = model.Project.query.filter_by(id=app.project_id).one()
     registry = model.Registries.query.filter_by(
@@ -502,9 +516,18 @@ def update_application(application_id):
     deployment_process.create_registry_secret()
     deployment_process.create_service()
     deployment_process.create_deployment()
-    harbor_info = json.loads(app.harbor_info)
-
     return {}
+
+
+def get_applications(project_id=None):
+    if project_id is None:
+        apps = model.Application.query.all()
+    else:
+        apps = model.Application.query.filter_by(project_id=project_id).all()
+    output = []
+    for app in apps:
+        output.append(row_to_dict(app))
+    return output
 
 
 class Applications(Resource):
@@ -512,9 +535,15 @@ class Applications(Resource):
     def get(self):
         try:
             output = {}
-            role.require_admin()
-            output = harbor.hb_get_registries()
-            return util.success({"cluster": output})
+            parser = reqparse.RequestParser()
+            parser.add_argument('project_id', type=str)
+            args = parser.parse_args()
+            role_id = get_jwt_identity()['role_id']
+            project_id = args.get('project_id', None)
+            if role_id == 5 and project_id is None:
+                role.require_admin()
+            output = get_applications(project_id)
+            return util.success({"applications": output})
         except NoResultFound:
             return util.respond(404, error_clusters_not_found,
                                 error=apiError.repository_id_not_found)
@@ -555,7 +584,6 @@ class Application(Resource):
     @jwt_required
     def put(self, application_id):
         try:
-            output = {}
             user_id = get_jwt_identity()['user_id']
             parser = reqparse.RequestParser()
             parser.add_argument('name', type=str)
@@ -570,7 +598,7 @@ class Application(Resource):
             parser.add_argument('disabled', type=bool)
             args = parser.parse_args()
             output = update_application(application_id, args, user_id)
-
+            return util.success(output)
         except NoResultFound:
             return util.respond(404, error_clusters_not_found,
                                 error=apiError.repository_id_not_found)
@@ -588,34 +616,6 @@ class Application(Resource):
     def delete(self, application_id):
         try:
             output = {"success"}
-            return util.success({"cluster": {"id": output}})
-        except NoResultFound:
-            return util.respond(404, error_clusters_not_found,
-                                error=apiError.repository_id_not_found)
-
-
-class Registries(Resource):
-
-    @jwt_required
-    def get(self):
-        try:
-            role.require_admin()
-            output = harbor.hb_get_registries()
-            return util.success({"cluster": output})
-        except NoResultFound:
-            return util.respond(404, error_clusters_not_found,
-                                error=apiError.repository_id_not_found)
-
-    @jwt_required
-    def post(self):
-        try:
-            output = {}
-            parser = reqparse.RequestParser()
-            parser.add_argument('name', type=str)
-            parser.add_argument(
-                'k8s_config_file', type=werkzeug.datastructures.FileStorage, location='files')
-            args = parser.parse_args()
-            harbor.hb_create_registries(args)
             return util.success({"cluster": {"id": output}})
         except NoResultFound:
             return util.respond(404, error_clusters_not_found,
