@@ -1,13 +1,18 @@
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
-from sqlalchemy.orm.exc import NoResultFound
 
 import model
-import resources.apiError as apiError
 import resources.project as project
+import resources.issue as issue
+
+from resources.issue import NexusIssue
 import util as util
 from model import db, TraceOrder
+import resources.apiError as apiError 
 from resources.apiError import DevOpsError
+from sqlalchemy.orm.exc import NoResultFound
+from accessories import redmine_lib
+from resources.redmine import redmine
 
 '''
 order_mapping
@@ -35,6 +40,13 @@ def validate_order_value(order):
             raise DevOpsError(400, validate_order["log"],
                               error=apiError.argument_error('order'))
 
+def handle_default_value(project_id):
+    for trace_order in TraceOrder.query.filter_by(project_id=project_id).all():
+        if trace_order.default:
+            trace_order.default = False
+            db.session.commit()
+
+
 def get_trace_order_by_project(project_id):
     if util.is_dummy_project(project_id):
         return []
@@ -55,11 +67,16 @@ def get_trace_order_by_project(project_id):
 def create_trace_order_by_project(project_id, args):
     order = args["order"]
     validate_order_value(order)
+    default = args["default"]
+
+    if default:
+        handle_default_value(project_id)
 
     new = TraceOrder(
         name=args["name"],
         order=order,
         project_id=project_id,
+        default=default,
     )
     db.session.add(new)
     db.session.commit()
@@ -72,6 +89,12 @@ def update_trace_order(trace_order_id, args):
     if order is not None:
         validate_order_value(order)
         trace_order.order = order
+
+    default = args.get("default")
+    if default is not None:
+        if default:
+            handle_default_value(trace_order.project_id)
+        trace_order.default = default
 
     trace_order.name = args.get("name", trace_order.name)
     db.session.commit()
@@ -86,6 +109,7 @@ class ProjectTraceOrder(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('name', type=str, required=True)
         parser.add_argument('order', type=str, action='append', required=True)
+        parser.add_argument('default', type=bool, required=True)
         args = parser.parse_args()
         return util.success(create_trace_order_by_project(project_id, args))
 
@@ -96,6 +120,7 @@ class SingleTraceOrder(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('name', type=str)
         parser.add_argument('order', type=str, action='append')
+        parser.add_argument('default', type=bool)
         args = parser.parse_args()
         args = {k: v for k, v in args.items() if v is not None}
         return util.success(update_trace_order(trace_order_id, args))
