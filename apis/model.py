@@ -585,3 +585,4 @@ class TraceOrder(db.Model):
     name = Column(String)
     project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
     order = Column(ARRAY(String))
+    default = Column(Boolean)
