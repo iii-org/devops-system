@@ -313,7 +313,7 @@ class Releases(Resource):
             #  Create Harbor Release
             if self.harbor_info['target'].get('release', None) is not None:
                 hb_release.create(self.project.name, branch_name,
-                                  self.harbor_info['target']['release']['digest'], release_name)
+                                  str(self.harbor_info["target"]["release"]["digest"]), release_name)
 
             create_release(
                 project_id,

@@ -37,9 +37,9 @@ def generate_base_dn(ad_parameter, filter_by_ou=True):
 def generate_search_parameter(search_type, search_values):
     search_filter = ""
     for search_value in search_values:
-        search_filter = search_filter + '('+search_type+'='+search_value+')'
+        search_filter = search_filter + '(' + search_type + '=' + search_value + ')'
     if len(search_values) > 1:
-        search_filter = '(|'+search_filter + ')'
+        search_filter = '(|' + search_filter + ')'
     if search_filter != "":
         return search_filter
     else:
@@ -50,7 +50,7 @@ def get_search_base_string(search_type, values):
     output = ''
     for value in values:
         if value is not None:
-            output += search_type+'='+value+','
+            output += search_type + '=' + value + ','
     return output
 
 
@@ -154,7 +154,7 @@ def add_ad_user_info_by_iii(ad_user_info):
                        'givenName', 'sn', 'title', 'telephoneNumber', 'mail', 'userAccountControl', 'sAMAccountName',
                        'userPrincipalName', 'whenChanged', 'whenCreated', 'department', 'department']
     if 'department' in ad_user_info and 'sn' in ad_user_info and 'givenName' in ad_user_info:
-        iii_info['iii_name'] = ad_user_info['sn']+ad_user_info['givenName']
+        iii_info['iii_name'] = ad_user_info['sn'] + ad_user_info['givenName']
         iii_info['iii'] = True
     for attribute in need_attributes:
         if attribute in ad_user_info:
@@ -268,7 +268,7 @@ class AD(object):
             self.password = password
 
         self.active_base_dn = generate_base_dn(ad_parameter, filter_by_ou)
-        self.email = self.account+'@'+ad_parameter['domain']
+        self.email = self.account + '@' + ad_parameter['domain']
         try:
             self.conn = Connection(self.server, user=self.email,
                                    password=self.password, read_only=True,
@@ -307,15 +307,14 @@ class AD(object):
         )
         res = self.conn.response_to_json()
         res = json.loads(res)['entries']
-        print(self.ou_search_Filter)
         return res
 
     def get_user(self, account):
         output = []
         target_objectclass = '(|(objectclass=user)(objectclass=person))'
         target_status_filter = '(!(isCriticalSystemObject=True))'
-        search_target = '(sAMAccountName='+account+')'
-        user_search_filter = '(&'+target_objectclass+target_status_filter+search_target+')'
+        search_target = '(sAMAccountName=' + account + ')'
+        user_search_filter = '(&' + target_objectclass + target_status_filter + search_target + ')'
         if self.ad_info['is_pass'] is True:
             self.conn.search(search_base=self.active_base_dn,
                              search_filter=user_search_filter,
@@ -374,9 +373,6 @@ class ADUser(Resource):
             if 'ou' in ad_parameter:
                 ad_parameter.pop('ou')
             ad = AD(ad_parameter)
-            server = ad.check_ad_server()
-            if server is None:
-                return res
             res = ad.get_user(args['account'])
             ad.conn_unbind()
             if len(res) == 1:
