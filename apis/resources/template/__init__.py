@@ -207,12 +207,12 @@ def __add_plugin_soft_status():
 
 
 def __compare_tag_version(tag_version, start_version, end_version=None):
-    def version_paser(version_string):
+    def version_parser(version_string):
         return version_string.replace('v', '').split('.')
     # has end
-    tag_version_list = version_paser(tag_version)
+    tag_version_list = version_parser(tag_version)
     tag_version_list = tag_version_list + [0]*(3 - len(tag_version_list))
-    start_version_list = version_paser(start_version)
+    start_version_list = version_parser(start_version)
     start_version_list = start_version_list + [0]*(3 - len(start_version_list))
     if end_version == "":
         i = 0
@@ -227,7 +227,7 @@ def __compare_tag_version(tag_version, start_version, end_version=None):
                 i += 1
     else:
         # has end version
-        end_version = version_paser(end_version)
+        end_version = version_parser(end_version)
         end_version = end_version + [0]*(3 - len(end_version))
         i = 0
         while i < 3:
