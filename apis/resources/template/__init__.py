@@ -10,6 +10,7 @@ import dateutil.parser
 import resources.apiError as apiError
 import resources.pipeline as pipeline
 import resources.role as role
+from resources.gitlab import gitlab as rs_gitlab
 import resources.yaml_OO as pipeline_yaml_OO
 import util
 import yaml
@@ -95,13 +96,15 @@ def __tm_get_tag_info(pj, tag_name):
     return tag_info_dict
 
 
-def __tm_get_pipe_yamlfile_name(pj, tag_name=None):
+def __tm_get_pipe_yamlfile_name(pj, tag_name=None, branch_name=None):
     pipe_yaml_file_name = None
-    if tag_name is None:
+    if tag_name is None and branch_name is None:
         ref = pj.default_branch
-    else:
+    elif tag_name is not None:
         tag_info_dict = __tm_get_tag_info(pj, tag_name)
         ref = tag_info_dict["commit_id"]
+    elif branch_name is not None:
+        ref = branch_name
     for item in pj.repository_tree(ref=ref):
         if item["path"] == ".rancher-pipeline.yml":
             pipe_yaml_file_name = ".rancher-pipeline.yml"
@@ -355,6 +358,7 @@ def __update_stage_when_plugin_disable(stage):
 
 
 def tm_get_template_list(force_update=0):
+    disable_soft_branch_at_project(589, "zap")
     one_day_ago = datetime.fromtimestamp(datetime.utcnow().timestamp() - 86400)
     total_data = TemplateListCache.query.all()
     one_day_ago_data = TemplateListCache.query.filter(
@@ -713,6 +717,23 @@ def tm_put_pipeline_default_branch(repository_id, data):
         shutil.rmtree(f"pj_edit_pipe_yaml/{pj.path}_{create_time}",
                       ignore_errors=True)
         pipeline.stop_and_delete_pipeline(repository_id, next_run)
+
+
+def disable_soft_branch_at_project(repository_id, soft_name):
+    template_key = None
+    for software in support_software:
+        if software.get('plugin_key') == soft_name:
+            template_key = software.get('template_key')
+    if template_key is None:
+        return
+    pj = gl.projects.get(repository_id)
+    if pj.empty_repo:
+        return
+    for br in pj.branches.list(all=True):
+        pipe_yaml_name = __tm_get_pipe_yamlfile_name(pj, branch_name=br.name)
+        if pipe_yaml_name is None:
+            continue
+        print(rs_gitlab.gl_get_file_from_lib(repository_id, pipe_yaml_name, branch_name=br.name))
 
 
 class TemplateList(Resource):

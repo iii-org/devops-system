@@ -143,7 +143,7 @@ def qu_get_testfile_list(project_id):
     out_list = []
     issues_info = qu_get_testplan_list(project_id)
     for path in paths:
-        trees = gitlab.ql_get_collection(repository_id, path['path'])
+        trees = gitlab.ql_get_tree(repository_id, path['path'])
         for tree in trees:
             if path["file_name_key"] in tree["name"] and tree["name"][
                     -5:] == ".json":
@@ -260,7 +260,7 @@ def qu_upload_testfile(project_id, file, software_name):
         nexus_project_id=project_id).git_repository_id
     soft_path = next(path for path in paths
                      if path["software_name"].lower() == software_name.lower())
-    trees = gitlab.ql_get_collection(repository_id, soft_path['path'])
+    trees = gitlab.ql_get_tree(repository_id, soft_path['path'])
     if len(trees) == 0:
         raise apiError.DevOpsError(
             409, f"folder {soft_path['path']} not found in git repository")

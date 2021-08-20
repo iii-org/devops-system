@@ -593,21 +593,27 @@ class GitLab(object):
                             db.session.add(one_row_data)
                             db.session.commit()
 
-    def ql_get_collection(self, repository_id, path):
+    def ql_get_tree(self, repository_id, path, branch_name=None):
         try:
             pj = self.gl.projects.get(repository_id)
             if pj.empty_repo:
                 return []
-            return pj.repository_tree(ref=pj.default_branch, path=path)
+            if branch_name is None:
+                return pj.repository_tree(ref=pj.default_branch, path=path)
+            else:
+                return pj.repository_tree(ref=branch_name, path=path)
         except apiError.TemplateError as e:
             raise apiError.TemplateError(
                 404,
                 "Error when getting project repository_tree.",
                 error=apiError.gitlab_error(e))
 
-    def gl_get_file_from_lib(self, repository_id, path):
+    def gl_get_file_from_lib(self, repository_id, path, branch_name=None):
         pj = self.gl.projects.get(repository_id)
-        f_byte = pj.files.raw(file_path=path, ref=pj.default_branch).decode()
+        if branch_name is None:
+            f_byte = pj.files.raw(file_path=path, ref=pj.default_branch).decode()
+        else:
+            f_byte = pj.files.raw(file_path=path, ref=branch_name).decode()
         return f_byte
 
     def gl_create_file(self, repository_id, file_path, file):
