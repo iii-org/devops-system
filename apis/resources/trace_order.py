@@ -61,6 +61,7 @@ def get_trace_order_by_project(project_id):
             "id": row.id,
             "name": row.name,
             "order": row.order,
+            "default": row.default
         } for row in rows
     ]}
 
@@ -94,6 +95,10 @@ def update_trace_order(trace_order_id, args):
     if default is not None:
         if default:
             handle_default_value(trace_order.project_id)
+        else:
+            if trace_order.default:
+                raise DevOpsError(400, "Must not change to False, this trace_order is the only true in this project",
+                                  error=apiError.argument_error('default'))
         trace_order.default = default
 
     trace_order.name = args.get("name", trace_order.name)
