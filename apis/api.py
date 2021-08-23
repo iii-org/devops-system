@@ -575,10 +575,11 @@ api.add_resource(devops_version.DevOpsVersionUpdate, '/devops_version/update')
 # Deploy
 api.add_resource(deploy.Clusters, '/deploy/clusters')
 api.add_resource(deploy.Cluster, '/deploy/clusters/<int:cluster_id>')
+api.add_resource(deploy.Registries, '/deploy/registries')
 api.add_resource(deploy.Applications, '/deploy/applications')
 api.add_resource(deploy.Application,
                  '/deploy/applications/<int:application_id>')
-
+api.add_resource(deploy.RedeployApplication, '/deploy/application/<int:application_id>/redeploy')
 # Alert
 api.add_resource(alert.ProjectAlert, '/project/<sint:project_id>/alert')
 api.add_resource(alert.ProjectAlertUpdate, '/alert/<int:alert_id>')
