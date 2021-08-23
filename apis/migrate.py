@@ -5,11 +5,11 @@ import model
 import util
 from model import db, ProjectPluginRelation, Project, UserPluginRelation, User, ProjectUserRole, PluginSoftware, \
     DefaultAlertDays, TraceOrder
+from plugins.sonarqube import sq_create_project, sq_create_user
 from resources import harbor, kubernetesClient, role, sync_redmine, devops_version
 from resources.apiError import DevOpsError
 from resources.logger import logger
 from resources.rancher import rancher
-from plugins.sonarqube import sq_create_project, sq_create_user
 
 # Each time you add a migration, add a version code here.
 
@@ -22,7 +22,8 @@ VERSIONS = ['0.9.2', '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.4', '0.9.2.5',
             '1.4.0.2', '1.4.1.0', '1.4.1.1', '1.4.1.2', '1.5.0.0', '1.5.0.1', '1.5.0.2', '1.5.0.3', '1.6.0.1',
             '1.6.0.2', '1.6.0.3', '1.6.0.4', '1.6.0.5', '1.7.0.1', '1.8.0.1', '1.8.0.2', '1.8.0.3', '1.8.0.4',
             "1.8.0.5", "1.8.0.6", "1.8.0.7",
-            "1.8.0.8", "1.8.0.9", "1.8.1.0", "1.8.1.1", "1.8.1.2", '1.8.1.3', '1.8.1.4', '1.8.1.5', '1.8.1.6']
+            "1.8.0.8", "1.8.0.9", "1.8.1.0", "1.8.1.1", "1.8.1.2", '1.8.1.3', '1.8.1.4', '1.8.1.5', '1.8.1.6',
+            '1.8.1.7']
 ONLY_UPDATE_DB_MODELS = [
     '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.5', '0.9.2.6', '0.9.2.a8',
     '1.0.0.2', '1.3.0.1', '1.3.0.2', '1.3.0.3', '1.3.0.4', '1.3.1', '1.3.1.1', '1.3.1.2',
@@ -30,8 +31,8 @@ ONLY_UPDATE_DB_MODELS = [
     '1.3.1.11', '1.3.1.13', '1.3.1.14', '1.3.2.1', '1.3.2.2', '1.3.2.4', '1.3.2.6', '1.3.2.7', '1.3.2.9', '1.4.0.0',
     '1.4.0.1', '1.4.0.2', '1.4.1.0', '1.4.1.1', '1.4.1.2', '1.5.0.0', '1.5.0.1', '1.5.0.2', '1.5.0.3', '1.6.0.1',
     '1.6.0.2', '1.6.0.3', '1.6.0.4', '1.7.0.1', '1.8.0.1', '1.8.0.2', '1.8.0.3', '1.8.0.4', "1.8.0.5", "1.8.0.6",
-    "1.8.0.9", "1.8.1.0",
-    "1.8.1.2", '1.8.1.5']
+    "1.8.0.9", "1.8.1.0", "1.8.1.2", '1.8.1.5', '1.8.1.7'
+]
 
 
 def upgrade(version):
