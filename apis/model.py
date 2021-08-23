@@ -505,7 +505,6 @@ class Registries(db.Model):
     access_secret = Column(String)
     url = Column(String)
     type = Column(String)
-    disabled = Column(Boolean)
 
 
 class IssueCollectionRelation(db.Model):
