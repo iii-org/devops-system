@@ -1,6 +1,7 @@
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
 
+import config
 import model
 import resources.project as project
 import resources.issue as issue
@@ -34,7 +35,7 @@ def validate_order_value(order):
             "log": "Order's elements must be in ['Epic', 'Audit', 'Feature', 'Bug', 'Issue', 'Change Request', 'Risk', 'Test Plan', 'Fail Management']",
         },
         {"condition": len(order) != len(set(order)), "log": "Elements must not be duplicated"},
-        {"condition": not len(order) <= 5, "log": "Numbers of order's elements must be in range [0, 5]"},
+        {"condition": not len(order) <= 3, "log": "Numbers of order's elements must be in range [0, 3]"},
     ]
     for validate_order in validate_order_list:
         if validate_order["condition"]:
@@ -56,17 +57,34 @@ def get_trace_order_by_project(project_id):
     except NoResultFound:
         raise DevOpsError(404, "Error while getting trace_orders.",
                           error=apiError.project_not_found(project_id))
-    rows = TraceOrder.query.filter_by(project_id=project_id).all()
-    return {"trace_order_list": [
-        {
+
+    results = []
+    has_default = False
+    rows = TraceOrder.query.filter_by(project_id=project_id).order_by(TraceOrder.id).all()
+    for row in rows:
+        if row.default:
+            has_default = True
+        results.append({
             "id": row.id,
             "name": row.name,
             "order": row.order,
             "default": row.default
-        } for row in rows
-    ]}
+        })
+    default_trace_order = config.get("DEFAULT_TRACE_ORDER")
+    return [{
+        "id": -1,
+        "name": "標準檢測模組",
+        "order": default_trace_order,
+        "default": has_default is False
+    }] + results
 
 def create_trace_order_by_project(project_id, args):
+    num = TraceOrder.query.filter_by(project_id=project_id).count()
+    print(num)
+    if not num < 4:
+        raise DevOpsError(400, "Maximum number of trace_order in a project is 5.",
+                          error=apiError.no_detail())
+
     order = args["order"]
     validate_order_value(order)
     default = args["default"]
@@ -86,6 +104,9 @@ def create_trace_order_by_project(project_id, args):
 
 def update_trace_order(trace_order_id, args):
     trace_order = model.TraceOrder.query.get(trace_order_id)
+    if trace_order is None:
+        raise DevOpsError(400, "The trace_order not exist.",
+                          error=apiError.resource_not_found())
 
     order = args.get("order")
     if order is not None:
@@ -96,10 +117,6 @@ def update_trace_order(trace_order_id, args):
     if default is not None:
         if default:
             handle_default_value(trace_order.project_id)
-        else:
-            if trace_order.default:
-                raise DevOpsError(400, "Must not change to False, this trace_order is the only true in this project",
-                                  error=apiError.argument_error('default'))
         trace_order.default = default
 
     trace_order.name = args.get("name", trace_order.name)
@@ -320,13 +337,18 @@ class ProjectTraceOrder(Resource):
         trace_order = TraceOrder.query.filter_by(
             project_id=project_id, 
             default=True, 
-        ).one()
+        ).first()
+        if trace_order is not None:
+            order = trace_order.order
+        else:
+            order = config.get("DEFAULT_TRACE_ORDER")
+
         plan_project_id = project.get_plan_project_id(project_id)
 
         trackers = redmine_lib.redmine.tracker.all()
         issues = redmine_lib.redmine.issue.filter(
             project_id=plan_project_id,
-            tracker_id="|".join([str(tracker.id) for tracker in trackers if tracker.name in trace_order.order]),
+            tracker_id="|".join([str(tracker.id) for tracker in trackers if tracker.name in order]),
             status_id="*"
         )
         issues = {issue.id: {
@@ -336,7 +358,7 @@ class ProjectTraceOrder(Resource):
             "status": {"id": issue.status.id, "name": issue.status.name}, 
         } for issue in issues}
 
-        return util.success(TraceList(plan_project_id, trace_order.order, issues).execute_trace_order())
+        return util.success(TraceList(plan_project_id, order, issues).execute_trace_order())
 
 class SingleTraceOrder(Resource):
     @jwt_required
