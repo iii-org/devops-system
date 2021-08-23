@@ -17,7 +17,7 @@ import json
 
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Date, Enum, JSON, Float, ARRAY
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, backref
 
 import util
 from enums.action_type import ActionType
@@ -421,19 +421,6 @@ class Sideex(db.Model):
         return json.dumps(fields)
 
 
-class Cluster(db.Model):
-    id = Column(Integer, primary_key=True)
-    name = Column(String)
-    disabled = Column(Boolean)
-    creator_id = Column(Integer, ForeignKey(
-        User.id, ondelete='SET NULL'), nullable=True)
-    create_at = Column(DateTime)
-    update_at = Column(DateTime)
-    cluster_name = Column(String)
-    cluster_host = Column(String)
-    cluster_user = Column(String)
-
-
 class RedmineIssue(db.Model):
     issue_id = Column(Integer, primary_key=True)
     project_id = Column(Integer)
@@ -497,6 +484,7 @@ class GitCommitNumberEachDays(db.Model):
 
 
 class Registries(db.Model):
+    # __tablename__ = 'registry'
     registries_id = Column(Integer, primary_key=True)
     name = Column(String)
     user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'))
@@ -555,7 +543,38 @@ class Alert(db.Model):
     disabled = Column(Boolean)
 
 
+class Cluster(db.Model):
+    __tablename__ = 'cluster'
+    id = Column(Integer, primary_key=True)
+    name = Column(String)
+    disabled = Column(Boolean)
+    creator_id = Column(Integer, ForeignKey(
+        User.id, ondelete='SET NULL'), nullable=True)
+    create_at = Column(DateTime)
+    update_at = Column(DateTime)
+    cluster_name = Column(String)
+    cluster_host = Column(String)
+    cluster_user = Column(String)
+    application = relationship("Application", backref=backref("cluster"))
+
+    def __repr__(self):
+        fields = {}
+        for field in [x for x in dir(self) if
+                      not x.startswith('query') and not x.startswith('_') and x != 'metadata']:
+            print(field)
+            if field in ['application']:
+                continue
+            data = self.__getattribute__(field)
+            try:
+                # this will fail on unencodable values, like other classes
+                json.dumps(data)
+                fields[field] = data
+            except TypeError:
+                fields[field] = str(data)
+        return json.dumps(fields)
+
 class Application(db.Model):
+    __tablename__ = 'application'
     id = Column(Integer, primary_key=True)
     project_id = Column(Integer, ForeignKey(
         Project.id, ondelete='CASCADE'), nullable=False)
@@ -572,6 +591,9 @@ class Application(db.Model):
     release_id = Column(Integer)
     k8s_yaml = Column(String)
     harbor_info = Column(String)
+    # plication = relationship("Application", back_populates="clusters")
+    # cluster = relationship("Cluster", back_populates="applications")
+    # cluster = relationship('Cluster', back_populates='applicaion')
 
 
 class DefaultAlertDays(db.Model):
