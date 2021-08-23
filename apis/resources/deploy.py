@@ -9,7 +9,6 @@ import yaml
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
 from kubernetes import client as k8s_client
-from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.exc import NoResultFound
 from werkzeug.utils import secure_filename
 
@@ -74,20 +73,21 @@ def check_cluster(server_name):
         first()
 
 
+def mapping_clusters_and_application(cluster):
+    output = row_to_dict(cluster)
+    ret_application = []
+    for application in cluster.application:
+        ret_application.append(row_to_dict(application))
+    output['application'] = ret_application
+    return output
+
+
 def get_clusters(cluster_id=None):
     output = []
     if cluster_id is not None:
-        return row_to_dict(model.Cluster.query.filter_by(id=cluster_id).first())
-    clusters = model.Cluster.query. \
-        options(joinedload(model.Cluster.application)). \
-        all()
-    for cluster in clusters:
-        ret = row_to_dict(cluster)
-        ret_application = []
-        for application in cluster.application:
-            ret_application.append(row_to_dict(application))
-        ret['application'] = ret_application
-        output.append(ret)
+        return mapping_clusters_and_application(model.Cluster.query.filter_by(id=cluster_id).first())
+    for cluster in model.Cluster.query.filter(model.Cluster.disabled.isnot(True)).all():
+        output.append(mapping_clusters_and_application(cluster))
     return output
 
 

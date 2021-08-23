@@ -591,9 +591,6 @@ class Application(db.Model):
     release_id = Column(Integer)
     k8s_yaml = Column(String)
     harbor_info = Column(String)
-    # plication = relationship("Application", back_populates="clusters")
-    # cluster = relationship("Cluster", back_populates="applications")
-    # cluster = relationship('Cluster', back_populates='applicaion')
 
 
 class DefaultAlertDays(db.Model):
