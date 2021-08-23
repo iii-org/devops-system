@@ -573,6 +573,7 @@ class Cluster(db.Model):
                 fields[field] = str(data)
         return json.dumps(fields)
 
+
 class Application(db.Model):
     __tablename__ = 'application'
     id = Column(Integer, primary_key=True)
@@ -580,7 +581,7 @@ class Application(db.Model):
         Project.id, ondelete='CASCADE'), nullable=False)
     name = Column(String)
     cluster_id = Column(Integer, ForeignKey(Cluster.id))
-    registry_id = Column(Integer)
+    registry_id = Column(Integer, ForeignKey(Registries.registries_id))
     namespace = Column(String)
     image = Column(String)
     status = Column(String)
