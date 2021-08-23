@@ -36,6 +36,8 @@ def row_to_dict(row):
     ret = {}
     if row is None:
         return row
+    # print(type(row))
+
     for key in type(row).__table__.columns.keys():
         value = getattr(row, key)
         if type(value) is datetime or type(value) is date:
@@ -71,13 +73,21 @@ def check_cluster(server_name):
         first()
 
 
+def mapping_clusters_and_application(cluster):
+    output = row_to_dict(cluster)
+    ret_application = []
+    for application in cluster.application:
+        ret_application.append(row_to_dict(application))
+    output['application'] = ret_application
+    return output
+
+
 def get_clusters(cluster_id=None):
     output = []
     if cluster_id is not None:
-        return row_to_dict(model.Cluster.query.filter_by(id=cluster_id).first())
-    clusters = model.Cluster.query.all()
-    for cluster in clusters:
-        output.append(row_to_dict(cluster))
+        return mapping_clusters_and_application(model.Cluster.query.filter_by(id=cluster_id).first())
+    for cluster in model.Cluster.query.filter(model.Cluster.disabled.isnot(True)).all():
+        output.append(mapping_clusters_and_application(cluster))
     return output
 
 
@@ -216,20 +226,38 @@ class Cluster(Resource):
 
 
 def get_registries():
-    registries = model.Registries.query.filger_by().all()
+    rows = db.session.query(model.Registries, model.Application). \
+        outerjoin(model.Registries, model.Registries.registries_id == model.Application.registry_id). \
+        all()
+    output = []
+    for row in rows:
+        registry, application = row
+        ret = {
+            'registry': row_to_dict(registry),
+            'application': row_to_dict(application)
+        }
+        print(row)
+        print("Registry")
+        print(row_to_dict(registry))
+        print("Application")
+        print(row_to_dict(application))
+        output.append(ret)
+    # print(result.__list__)
 
+    # rows = db.session.query(ProjectPluginRelation, Project). \
+    #     join(Project, ProjectPluginRelation.project_id == Project.id).all()
+    return output
 
 
 class Registries(Resource):
     @jwt_required
     def get(self):
         try:
-            output = get_clusters()
-            return util.success({"cluster": output})
+            output = get_registries()
+            return util.success({"registries": output})
         except NoResultFound:
             return util.respond(404, error_clusters_not_found,
                                 error=apiError.repository_id_not_found)
-
 
 
 def create_application_image():
