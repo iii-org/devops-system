@@ -11,6 +11,7 @@ from flask_restful import Resource, reqparse
 from kubernetes import client as k8s_client
 from sqlalchemy.orm.exc import NoResultFound
 from werkzeug.utils import secure_filename
+
 import config
 import model
 import util as util
@@ -23,9 +24,9 @@ error_clusters_not_found = "No Exact Cluster Found"
 DEFAULT_K8S_CONFIG_FILE = 'k8s_config'
 
 
-def is_json(myjson):
+def is_json(string):
     try:
-        json.loads(myjson)
+        json.loads(string)
     except ValueError:
         return False
     return True
@@ -214,6 +215,23 @@ class Cluster(Resource):
                                 error=apiError.repository_id_not_found)
 
 
+def get_registries():
+    registries = model.Registries.query.filger_by().all()
+
+
+
+class Registries(Resource):
+    @jwt_required
+    def get(self):
+        try:
+            output = get_clusters()
+            return util.success({"cluster": output})
+        except NoResultFound:
+            return util.respond(404, error_clusters_not_found,
+                                error=apiError.repository_id_not_found)
+
+
+
 def create_application_image():
     image_uri = 1
     return image_uri
@@ -225,7 +243,7 @@ def create_default_harbor_data(project, release, registry_id, namespace):
         "repo_name": project.name,
         "image_name": release.branch,
         "tag_name": release.tag_name,
-        "description": 'Automatate create replication policy ' + project.name + " release ID " + str(release.id),
+        "description": 'Automate create replication policy ' + project.name + " release ID " + str(release.id),
         "registry_id": registry_id,
         "dest_repo_name": namespace,
     }
@@ -440,13 +458,19 @@ class DepolyK8sClient:
         if check is False:
             self.client.create_namespace(namespace)
 
-    def delete_namesapce(self, namespace):
+    def delete_namespace(self, namespace):
         check = k8s_resource_exist(
             namespace,
             self.client.list_namespace()
         )
         if check is True:
             self.client.delete_namespace(namespace)
+
+    def check_namespace(self, namespace):
+        return k8s_resource_exist(
+            namespace,
+            self.client.list_namespace()
+        )
 
     def create_namespace_secret(self, name, namespace, body):
         check = k8s_resource_exist(
@@ -456,6 +480,12 @@ class DepolyK8sClient:
         if check is False:
             self.client.create_namespaced_secret(namespace, body)
 
+    def check_namespace_secret(self, name, namespace):
+        return k8s_resource_exist(
+            name,
+            self.client.list_namespaced_secret(namespace)
+        )
+
     def create_namespace_service(self, name, namespace, body):
         check = k8s_resource_exist(
             name,
@@ -463,6 +493,12 @@ class DepolyK8sClient:
         )
         if check is True:
             self.client.create_namespaced_service(namespace, body)
+
+    def check_namespace_service(self, name, namespace):
+        return k8s_resource_exist(
+            name,
+            self.client.list_namespaced_service(namespace)
+        )
 
     def create_namespace_ingress(self, name, namespace, body):
         check = k8s_resource_exist(
@@ -472,6 +508,12 @@ class DepolyK8sClient:
         if check is False:
             self.client.create_namespaced_ingress(namespace, body)
 
+    def check_namespace_ingress(self, name, namespace):
+        return k8s_resource_exist(
+            name,
+            self.client.list_namespaced_ingress(namespace)
+        )
+
     def create_namespace_deployment(self, name, namespace, body):
         check = k8s_resource_exist(
             name,
@@ -480,28 +522,11 @@ class DepolyK8sClient:
         if check is False:
             self.client.create_namespaced_deployment(namespace, body)
 
-    def read_namespace_deployment(self, name, namespace):
-        check = k8s_resource_exist(
+    def check_namespace_deployment(self, name, namespace):
+        return k8s_resource_exist(
             name,
             self.client.list_namespaced_deployment(namespace)
         )
-        return check
-
-
-def todict(obj):
-    if hasattr(obj, 'attribute_map'):
-        result = {}
-        for k, v in getattr(obj, 'attribute_map').items():
-            val = getattr(obj, k)
-            if val is not None:
-                result[v] = todict(val)
-        return result
-    elif type(obj) == list:
-        return [todict(x) for x in obj]
-    elif type(obj) == datetime:
-        return str(obj)
-    else:
-        return obj
 
 
 class DeployNamespace:
@@ -663,16 +688,33 @@ def execute_k8s_deployment(app):
 # check Deployment exists
 def check_k8s_deployment(app):
     deploy_finish = False
+
     deploy_object = json.loads(app.k8s_yaml)
     cluster = model.Cluster.query.filter_by(id=app.cluster_id).first()
     deploy_k8s_client = DepolyK8sClient(cluster)
     if deploy_object.get("deployment") is not None:
-        deploy_exists = deploy_k8s_client.read_namespace_deployment(
+        deploy_exists = deploy_k8s_client.check_namespace_deployment(
             deploy_object.get("deployment").get("deployment_name"),
             app.namespace
         )
-        if deploy_exists is True:
-            deploy_finish = True
+
+    if deploy_object.get('ingress') is not None:
+        ingress_exists = deploy_k8s_client.check_namespace_ingress(
+            deploy_object.get('ingress').get('ingress_name'),
+            app.namespace
+        )
+
+    if deploy_object.get('service') is not None:
+        service_exists = deploy_k8s_client.check_namespace_service(
+            deploy_object.get('service').get('service_name'),
+            app.namespace
+        )
+    if deploy_object.get('registry_secret') is not None:
+        registry_secret_exists = deploy_k8s_client.check_namespace_secret(
+            deploy_object.get('registry_secret').get('registry_secret_name'),
+            app.namespace
+        )
+
     return deploy_finish
 
 
@@ -702,6 +744,9 @@ def check_application_status(application_id):
         if output is True:
             app.status_id = 5
         db.session.commit()
+    elif app.status_id == 8:
+        output = check_k8s_deployment(app)
+
     return {'output': output, 'database': row_to_dict(app)}
 
 
@@ -713,7 +758,6 @@ def check_application_exists(project_id, namespace):
 
 def k8s_resource_exist(target, response):
     check_result = False
-    print(target)
     for i in response.items:
         if str(target) == str(i.metadata.name):
             print(i.metadata.name)
@@ -775,7 +819,7 @@ def delete_application(application_id):
     delete_replication_policy(harbor_info.get('policy_id'))
     cluster = model.Cluster.query.filter_by(id=app.cluster_id).first()
     deploy_k8s_client = DepolyK8sClient(cluster)
-    deploy_k8s_client.delete_namesapce(app.namespace)
+    deploy_k8s_client.delete_namespace(app.namespace)
     app.status_id = 8
     db.session.commit()
     return app.id
