@@ -611,9 +611,9 @@ class GitLab(object):
     def gl_get_file_from_lib(self, repository_id, path, branch_name=None):
         pj = self.gl.projects.get(repository_id)
         if branch_name is None:
-            f_byte = pj.files.raw(file_path=path, ref=pj.default_branch).decode()
+            f_byte = pj.files.raw(file_path=path, ref=pj.default_branch)
         else:
-            f_byte = pj.files.raw(file_path=path, ref=branch_name).decode()
+            f_byte = pj.files.raw(file_path=path, ref=branch_name)
         return f_byte
 
     def gl_create_file(self, repository_id, file_path, file):
