@@ -21,6 +21,7 @@ from resources import harbor, kubernetesClient
 
 default_project_id = "-1"
 error_clusters_not_found = "No Exact Cluster Found"
+error_application_exists = "Application had been deployed"
 DEFAULT_K8S_CONFIG_FILE = 'k8s_config'
 
 APPLICATION_STATUS = {
@@ -438,23 +439,37 @@ def create_service_object(app_name, service_name, network):
     )
 
 
+def init_resource_requirements(resources):
+    if resources is None:
+        return k8s_client.V1ResourceRequirements()
+    else:
+        return k8s_client.V1ResourceRequirements(
+            requests={
+                'cpu': resources.get('cpu'),
+                'memory': resources.get('memory')
+            }
+        )
+
+
 def create_deployment_object(
         app_name,
         deployment_name,
         image_uri,
         port,
-        registry_secret_name
+        registry_secret_name,
+        resource=None,
+        image=None
 ):
     # Configureate Pod template container
+    default_image_policy = 'Always'
+    if image is not None and image.get('policy', None) is not None:
+        default_image_policy = image.get('policy', None)
     container = k8s_client.V1Container(
         name=app_name,
         image=image_uri,
         ports=[k8s_client.V1ContainerPort(container_port=port)],
-        resources=k8s_client.V1ResourceRequirements(
-            requests={"cpu": "100m", "memory": "200Mi"},
-            limits={"cpu": "500m", "memory": "500Mi"}
-        ),
-        image_pull_policy="Always"
+        resources=init_resource_requirements(resource),
+        image_pull_policy=default_image_policy
     )
     # Create and configurate a spec section
     template = k8s_client.V1PodTemplateSpec(
@@ -465,9 +480,12 @@ def create_deployment_object(
                 k8s_client.V1LocalObjectReference(name=registry_secret_name)]
         )
     )
+    num_replicas = 1
+    if resource is not None and resource.get('replicas', None) is not None:
+        num_replicas = resource.get('replicas', None)
     # Create the specification of deployment
     spec = k8s_client.V1DeploymentSpec(
-        replicas=3,
+        replicas=num_replicas,
         template=template,
         selector={'matchLabels': {'app': app_name}})
     # Instantiate the deployment object
@@ -560,8 +578,8 @@ class DepolyK8sClient:
             name,
             self.client.list_namespaced_service(namespace)
         )
-        if check is True:
-            self.client.create_namespaced_service(namespace, body)
+        if check is False:
+            return self.client.create_namespaced_service(namespace, body)
 
     def check_namespace_service(self, name, namespace):
         return k8s_resource_exist(
@@ -685,6 +703,7 @@ class DeployDeployment:
         self.namespace = self.app.namespace
         self.name = project.name + "-release-" + str(app.release_id)
         self.harbor_info = json.loads(app.harbor_info)
+        self.k8s_info = json.loads(app.k8s_yaml)
         self.deployment_name = project.name + "-dep"
         self.service_info = service_info
         self.registry_secret_info = registry_secret_info
@@ -700,7 +719,8 @@ class DeployDeployment:
             self.deployment_name,
             self.harbor_info.get('image_uri'),
             self.service_info.get('port'),
-            self.registry_secret_info.get('registry_secret_name')
+            self.registry_secret_info.get('registry_secret_name'),
+            self.k8s_info.get('resources')
         )
 
 
@@ -737,6 +757,8 @@ def execute_k8s_deployment(app):
             deploy_ingress.ingress_body()
         )
         output['ingress'] = deploy_ingress.get_ingress_info()
+
+    # Create Secret and Configmap
 
     # Create Deployment
     deploy_deployment = DeployDeployment(app,
@@ -895,7 +917,8 @@ def get_applications(args):
 
 def create_application(args):
     if check_application_exists(args.get('project_id'), args.get('namespace')) is not None:
-        return util.respond(404)
+        return util.respond(404, error_application_exists,
+                            error=apiError.repository_id_not_found)
     cluster = model.Cluster.query.filter_by(id=args.get('cluster_id')).first()
     release, project = db.session.query(model.Release, model.Project).join(model.Project).filter(
         model.Release.id == args.get('release_id'),
@@ -1005,7 +1028,7 @@ class Application(Resource):
     def get(self, application_id):
         try:
             args = {
-                'application_id' : application_id
+                'application_id': application_id
             }
             output = get_applications(args)
             return util.success({"application": output})
@@ -1025,33 +1048,8 @@ class Application(Resource):
     @jwt_required
     def delete(self, application_id):
         try:
-            output = delete_application(application_id)
+            output = delete_application(application_id, True)
             return util.success(output)
-        except NoResultFound:
-            return util.respond(404, error_clusters_not_found,
-                                error=apiError.repository_id_not_found)
-
-class Pods(Resource):
-    @jwt_required
-    def get(self):
-        try:
-            output = []
-            parser = reqparse.RequestParser()
-            parser.add_argument('name', type=str)
-            args = parser.parse_args()
-            server_name = args.get('name').strip()
-            k8s_file = get_cluster_config_path(server_name)
-            api_k8s_client = kubernetesClient.ApiK8sClient(
-                configuration_file=k8s_file)
-            response = api_k8s_client.list_pod_for_all_namespaces()
-            for i in response.items:
-                output.append(
-                    {
-                        "ip": i.status.pod_ip,
-                        "name": i.metadata.name,
-                        "namespace": i.metadata.namespace,
-                    })
-            return util.success({"pod": output})
         except NoResultFound:
             return util.respond(404, error_clusters_not_found,
                                 error=apiError.repository_id_not_found)
