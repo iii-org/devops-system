@@ -49,6 +49,12 @@ def handle_default_value(project_id):
             trace_order.default = False
             db.session.commit()
 
+def trace_order_is_allow_to_change(project_id):
+    allow = False
+    for trace_order in TraceOrder.query.filter_by(project_id=project_id).all():
+        if trace_order.default:
+            allow = True
+    return allow            
 
 def get_trace_order_by_project(project_id):
     if util.is_dummy_project(project_id):
@@ -79,7 +85,8 @@ def get_trace_order_by_project(project_id):
         "default": has_default is False
     }] + results
 
-def create_trace_order_by_project(project_id, args):
+def create_trace_order_by_project(args):
+    project_id = args["project_id"]
     num = TraceOrder.query.filter_by(project_id=project_id).count()
     if not num < 4:
         raise DevOpsError(400, "Maximum number of trace_order in a project is 5.",
@@ -103,9 +110,20 @@ def create_trace_order_by_project(project_id, args):
     return {"trace_order_id": new.id}
 
 def update_trace_order(trace_order_id, args):
-    # -1
+    default = args.get("default")
 
-
+    if trace_order_id == -1:
+        project = args.get("project_id")
+        if project is None:
+            raise DevOpsError(400, "Must provide project_id when trace_order_id is -1",
+                              error=apiError.argument_error('project_id')) 
+        if default:
+            handle_default_value(project)
+        else:
+            if not trace_order_is_allow_to_change(project):
+                raise DevOpsError(400, "Not allow to change default value because the trace_order default is the only True",
+                                  error=apiError.no_detail()) 
+        return 
 
     trace_order = model.TraceOrder.query.get(trace_order_id)
     if trace_order is None:
@@ -126,6 +144,13 @@ def update_trace_order(trace_order_id, args):
     trace_order.name = args.get("name", trace_order.name)
     db.session.commit()
 
+def delete_trace_order(trace_order_id):
+    trace_order = TraceOrder.query.filter_by(id=trace_order_id).one()
+    if trace_order.default:
+        raise DevOpsError(400, "Not allow to delete the trace_order because this is default",
+                          error=apiError.no_detail()) 
+    db.session.delete(trace_order)
+    db.session.commit()
 
 class TraceList:
     def __init__(self, plan_project_id, trace_order, issues):
@@ -341,22 +366,48 @@ class TraceList:
         return self.result
 
 # --------------------- Resources ---------------------
-class ProjectTraceOrder(Resource):
-    def get(self, project_id):
-        return util.success(get_trace_order_by_project(project_id))
+class TraceOrders(Resource):
+    def get(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('project_id', type=int, required=True)
+        args = parser.parse_args()
+        return util.success(get_trace_order_by_project(args["project_id"]))
 
     @jwt_required
-    def post(self, project_id):
+    def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('name', type=str, required=True)
+        parser.add_argument('project_id', type=int, required=True)
         parser.add_argument('order', type=str, action='append', required=True)
         parser.add_argument('default', type=bool, required=True)
         args = parser.parse_args()
-        return util.success(create_trace_order_by_project(project_id, args))
+        return util.success(create_trace_order_by_project(args))
 
-    # Execute_trade_order
+class SingleTraceOrder(Resource):
     @jwt_required
-    def patch(self, project_id): 
+    def patch(self, trace_order_id):
+        parser = reqparse.RequestParser()
+        parser.add_argument('name', type=str)
+        parser.add_argument('project_id', type=int)
+        parser.add_argument('order', type=str, action='append')
+        parser.add_argument('default', type=bool)
+        args = parser.parse_args()
+        args = {k: v for k, v in args.items() if v is not None}
+        return util.success(update_trace_order(trace_order_id, args))
+
+    @jwt_required
+    def delete(self, trace_order_id):
+        return util.success(delete_trace_order(trace_order_id))
+
+
+class ExecuteTraceOrder(Resource):
+    @jwt_required
+    def patch(self): 
+        parser = reqparse.RequestParser()
+        parser.add_argument('project_id', type=int, required=True)
+        args = parser.parse_args()
+        project_id = args["project_id"]
+
         trace_order = TraceOrder.query.filter_by(
             project_id=project_id, 
             default=True, 
@@ -382,21 +433,3 @@ class ProjectTraceOrder(Resource):
         } for issue in issues}
 
         return util.success(TraceList(plan_project_id, order, issues).execute_trace_order(len(order)))
-
-class SingleTraceOrder(Resource):
-    @jwt_required
-    def patch(self, trace_order_id):
-        parser = reqparse.RequestParser()
-        parser.add_argument('name', type=str)
-        parser.add_argument('order', type=str, action='append')
-        parser.add_argument('default', type=bool)
-        args = parser.parse_args()
-        args = {k: v for k, v in args.items() if v is not None}
-        return util.success(update_trace_order(trace_order_id, args))
-
-    @jwt_required
-    def delete(self, trace_order_id):
-        trace_order = TraceOrder.query.filter_by(id=trace_order_id).one()
-        db.session.delete(trace_order)
-        db.session.commit()
-        return util.success()

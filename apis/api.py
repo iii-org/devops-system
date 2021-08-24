@@ -587,8 +587,9 @@ api.add_resource(alert.ProjectAlertUpdate, '/alert/<int:alert_id>')
 api.add_resource(alert.DefaultAlertDaysUpdate, '/alert/default_days')
 
 # Trace Order
-api.add_resource(trace_order.ProjectTraceOrder, '/project/<sint:project_id>/trace_order')
-api.add_resource(trace_order.SingleTraceOrder, '/trace_order/<int:trace_order_id>')
+api.add_resource(trace_order.TraceOrders, '/trace_order')
+api.add_resource(trace_order.SingleTraceOrder, '/trace_order/<sint:trace_order_id>')
+api.add_resource(trace_order.ExecuteTraceOrder, '/trace_order/execute')
 
 
 def start_prod():
