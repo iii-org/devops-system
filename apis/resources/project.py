@@ -966,7 +966,24 @@ def get_projects_by_user(user_id):
     return projects
 
 
+def disable_all_pj_pipe_yaml_branch(plugin_name, disabled):
+    if disabled is False:
+        return
+    # Get all project repository_id
+    query = model.Project.query.options(
+        joinedload(model.Project.plugin_relation, innerjoin=True))
+    pj_objs = query.filter(model.Project.id != -1, model.Project.disabled == False).all()
+    for pj_obj in pj_objs:
+        if pj_obj.plugin_relation.git_repository_id is None:
+            continue
+        tmp_rancher = DevOpsThread(target=template.disable_soft_branch_at_project,
+                                   args=(pj_obj.plugin_relation.git_repository_id, plugin_name,))
+        tmp_rancher.start()
+
+
 # --------------------- Resources ---------------------
+
+
 class ListMyProjects(Resource):
     @jwt_required
     def get(self):

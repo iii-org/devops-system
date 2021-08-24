@@ -3,7 +3,7 @@ from flask_restful import Resource, reqparse
 
 import plugins
 import util as util
-from resources import role
+from resources import role, project
 
 invalid_plugin_name = 'Unable get plugin software'
 
@@ -28,4 +28,5 @@ class Plugin(Resource):
         parser.add_argument('disabled', type=bool)
         args = parser.parse_args()
         plugins.update_plugin_config(plugin_name, args)
+        project.disable_all_pj_pipe_yaml_branch(plugin_name, args['disabled'])
         return util.respond(204)
