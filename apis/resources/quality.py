@@ -149,7 +149,7 @@ def qu_get_testfile_list(project_id):
                     -5:] == ".json":
                 path_file = f'{path["path"]}/{tree["name"]}'
                 coll_json = json.loads(
-                    gitlab.gl_get_file_from_lib(repository_id, path_file).decode())
+                    gitlab.gl_get_raw_from_lib(repository_id, path_file).decode())
                 test_plans = []
                 rows = get_test_plans_from_params(project_id,
                                                   path["software_name"],

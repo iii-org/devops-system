@@ -358,7 +358,6 @@ def __update_stage_when_plugin_disable(stage):
 
 
 def tm_get_template_list(force_update=0):
-    disable_soft_branch_at_project(589, "zap")
     one_day_ago = datetime.fromtimestamp(datetime.utcnow().timestamp() - 86400)
     total_data = TemplateListCache.query.all()
     one_day_ago_data = TemplateListCache.query.filter(
@@ -733,8 +732,8 @@ def disable_soft_branch_at_project(repository_id, soft_name):
         pipe_yaml_name = __tm_get_pipe_yamlfile_name(pj, branch_name=br.name)
         if pipe_yaml_name is None:
             continue
-        raw_content = rs_gitlab.gl_get_file_from_lib(repository_id, pipe_yaml_name, branch_name=br.name)
-        pipe_dict = yaml.safe_load(raw_content.decode())
+        f = rs_gitlab.gl_get_file_from_lib(repository_id, pipe_yaml_name, branch_name=br.name)
+        pipe_dict = yaml.safe_load(f.decode())
         stages = pipe_dict.get("stages")
         stage_index = __get_step_index_from_pipe(stages, template_key)
         if stage_index is None:
@@ -744,12 +743,15 @@ def disable_soft_branch_at_project(repository_id, soft_name):
         stage_when = stages[stage_index].get("when",
                                              {}).get("branch",
                                                      {}).get("include", {})
+        if len(stage_when) == 1 and 'skip' in stage_when:
+            continue
         stage_when.clear()
         stage_when.append("skip")
-        f = pj.files.get(file_path=pipe_yaml_name, ref=br.name)
+        next_run = pipeline.get_pipeline_next_run(repository_id)
         f.content = yaml.dump(pipe_dict)
         f.save(branch=br.name,
-               commit_message=f'Update .rancher-pipeline.yml, remove stage {soft_name} enable branch')
+               commit_message=f'Update branch {br.name} .rancher-pipeline.yml, remove stage {soft_name} enable branch')
+        pipeline.stop_and_delete_pipeline(repository_id, next_run)
 
 
 def __get_step_index_from_pipe(stages, soft_key):
