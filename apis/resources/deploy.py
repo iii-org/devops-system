@@ -260,7 +260,7 @@ def get_registries(registry_id=None):
     if registry_id is not None:
         return get_registries_application_information(
             model.Registries.query.filter_by(registries_id=registry_id).first())
-    for cluster in model.Registries.query.all():
+    for cluster in model.Registries.query.filter(model.Registries.disabled.isnot(True)).all():
         output.append(get_registries_application_information(cluster))
 
     return output
