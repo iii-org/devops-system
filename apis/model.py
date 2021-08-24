@@ -111,6 +111,7 @@ class Project(db.Model):
 
 
 class Release(db.Model):
+    __tablename__ = 'release'
     id = Column(Integer, primary_key=True)
     project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
     version_id = Column(Integer)
@@ -483,18 +484,6 @@ class GitCommitNumberEachDays(db.Model):
     created_at = Column(DateTime)
 
 
-class Registries(db.Model):
-    # __tablename__ = 'registry'
-    registries_id = Column(Integer, primary_key=True)
-    name = Column(String)
-    user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'))
-    description = Column(String)
-    access_key = Column(String)
-    access_secret = Column(String)
-    url = Column(String)
-    type = Column(String)
-
-
 class IssueCollectionRelation(db.Model):
     id = Column(Integer, primary_key=True)
     project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
@@ -541,6 +530,19 @@ class Alert(db.Model):
     condition = Column(String)
     days = Column(Integer)
     disabled = Column(Boolean)
+
+
+class Registries(db.Model):
+    __tablename__ = 'registries'
+    registries_id = Column(Integer, primary_key=True)
+    name = Column(String)
+    user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'))
+    description = Column(String)
+    access_key = Column(String)
+    access_secret = Column(String)
+    url = Column(String)
+    type = Column(String)
+    application = relationship('Application', backref=backref("registries"))
 
 
 class Cluster(db.Model):
@@ -592,6 +594,7 @@ class Application(db.Model):
     release_id = Column(Integer)
     k8s_yaml = Column(String)
     harbor_info = Column(String)
+    project = relationship('Project', backref=backref('projects'))
 
 
 class DefaultAlertDays(db.Model):
