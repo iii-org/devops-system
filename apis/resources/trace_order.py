@@ -6,6 +6,7 @@ import model
 import resources.project as project
 import resources.issue as issue
 
+from copy import deepcopy
 from resources.issue import NexusIssue
 import util as util
 from model import db, TraceOrder
@@ -35,7 +36,7 @@ def validate_order_value(order):
             "log": "Order's elements must be in ['Epic', 'Audit', 'Feature', 'Bug', 'Issue', 'Change Request', 'Risk', 'Test Plan', 'Fail Management']",
         },
         {"condition": len(order) != len(set(order)), "log": "Elements must not be duplicated"},
-        {"condition": not len(order) <= 3, "log": "Numbers of order's elements must be in range [0, 3]"},
+        {"condition": not len(order) <= 5, "log": "Numbers of order's elements must be in range [0, 5]"},
     ]
     for validate_order in validate_order_list:
         if validate_order["condition"]:
@@ -80,7 +81,6 @@ def get_trace_order_by_project(project_id):
 
 def create_trace_order_by_project(project_id, args):
     num = TraceOrder.query.filter_by(project_id=project_id).count()
-    print(num)
     if not num < 4:
         raise DevOpsError(400, "Maximum number of trace_order in a project is 5.",
                           error=apiError.no_detail())
@@ -103,6 +103,10 @@ def create_trace_order_by_project(project_id, args):
     return {"trace_order_id": new.id}
 
 def update_trace_order(trace_order_id, args):
+    # -1
+
+
+
     trace_order = model.TraceOrder.query.get(trace_order_id)
     if trace_order is None:
         raise DevOpsError(400, "The trace_order not exist.",
@@ -126,12 +130,11 @@ def update_trace_order(trace_order_id, args):
 class TraceList:
     def __init__(self, plan_project_id, trace_order, issues):
         self.pj_id = plan_project_id
-        self.result = []
         self.trace_order = trace_order
-        self.__check_test_plan_exist()
         self.issues = issues
-        self.not_alone_mid_id_list = []
-        self.not_alone_final_id_list = []
+        self.__check_test_plan_exist()
+        self.result = []
+        self.not_alone_id_mapping = {track: [] for track in trace_order[1:]}
         self.mention_id = []
 
     def __check_test_plan_exist(self):
@@ -143,8 +146,7 @@ class TraceList:
 
     def __get_family(self, issue_id):
         redmine_issue = redmine_lib.redmine.issue.get(issue_id, include=['children', 'relations'])
-        family = issue.get_issue_family(redmine_issue)
-        return family
+        return issue.get_issue_family(redmine_issue)
 
     def __remove_id(self, id):
         if id in self.tracker_issue_list:
@@ -161,8 +163,27 @@ class TraceList:
         return [family for family in familys if family["tracker"]["name"] in trace_order]
 
     def __append_result(self, alone_issue_mapping):
-        if alone_issue_mapping not in self.result:
+        if self.result == []:
             self.result.append(alone_issue_mapping)
+        else:
+            if alone_issue_mapping not in self.result:  
+                can_append = True       
+                for result in deepcopy(self.result):
+                    same = True
+                    if len(alone_issue_mapping) >= len(result):
+                        for k, v in result.items():
+                            if k not in alone_issue_mapping or v != alone_issue_mapping[k]:
+                                same = False    
+                        if same:
+                            self.result.remove(result)                                       
+                    else:
+                        for k, v in alone_issue_mapping.items():
+                            if k not in result or v != result[k]:
+                                same = False    
+                        if same:
+                            can_append = False
+                if can_append:
+                    self.result.append(alone_issue_mapping)
 
     def __get_test_plan_content(self, test_plan_id):
         mapping = {"test_file": [], "test_result": []}
@@ -200,22 +221,20 @@ class TraceList:
         index_list = [i for i in range(len(self.trace_order)) if i != index]
         alone_issue_mapping = self.__generate_alon_issue_mapping(self.trace_order[index], id)
         familys = self.__combine_family(family, index)
-        if familys == []:
-            self.__append_result(alone_issue_mapping)
-        else:
+        if familys != []:
             for family in familys:
                 for index in index_list:
                     if family["tracker"]["name"] == self.trace_order[index]:
                         if index == self.test_plan_index:
                             alone_issue_mapping.update(self.__get_test_plan_content(family["id"]))
                         alone_issue_mapping.update({self.trace_order[index]: self.issues[family["id"]]})     
-                        self.__append_result(alone_issue_mapping)
+        self.__append_result(alone_issue_mapping)
 
     def generate_head_mapping(self):
         mapping = {}
-        self.first_track = self.trace_order[0]  
-        self.secound_track = self.trace_order[1] 
-        first_tracker_issue_list = [id for id, issue in self.issues.items() if issue["tracker"] == self.first_track]
+        self.same_track = self.trace_order[0]  
+        self.next_track = self.trace_order[1] 
+        first_tracker_issue_list = [id for id, issue in self.issues.items() if issue["tracker"] == self.same_track]
 
         for id in first_tracker_issue_list:
             value = {"same_level": [], "next_level": []}
@@ -223,9 +242,9 @@ class TraceList:
             for relation_type in ["relations", "children"]:
                 if family.get(relation_type) is not None:
                     for item in family[relation_type]:
-                        if item["tracker"]["name"] == self.first_track:
+                        if item["tracker"]["name"] == self.same_track:
                             value["same_level"].append(item["id"])
-                        if item["tracker"]["name"] == self.secound_track:
+                        if item["tracker"]["name"] == self.next_track:
                             value["next_level"].append(item["id"])              
             if value["next_level"] == []:
                 if value["same_level"] == []:
@@ -233,40 +252,40 @@ class TraceList:
                 continue
             mapping[id] = value
 
-        not_alone_mid_id_list = []
+        not_alone_next_id_list = []
         for _, value in mapping.items():
-            not_alone_mid_id_list += value.get("next_level")
-        self.not_alone_mid_id_list = not_alone_mid_id_list
+            not_alone_next_id_list += value.get("next_level")
+        self.not_alone_id_mapping[self.next_track] = not_alone_next_id_list
 
-    def generate_middle_mapping(self):          
-        self.first_track = self.trace_order[1]
-        self.secound_track = self.trace_order[2]
-        self.tracker_issue_list = [id for id, issue in self.issues.items() if issue["tracker"] == self.first_track and id not in self.not_alone_mid_id_list]
-        for id in self.not_alone_mid_id_list:
-            self.__check_middle_id(id)
+    def generate_middle_mapping(self, index):          
+        self.same_track = self.trace_order[index]
+        self.next_track = self.trace_order[index + 1]
+        self.tracker_issue_list = [id for id, issue in self.issues.items() if issue["tracker"] == self.same_track and id not in self.not_alone_id_mapping[self.same_track]]
+        for id in self.not_alone_id_mapping[self.same_track]:
+            self.__check_middle_id(id, index)
         for id in self.tracker_issue_list:
-            self.generate_output(id, self.__get_family(id), 1)
+            self.generate_output(id, self.__get_family(id), index)
 
-        for id in [id for id, issue in self.issues.items() if issue["tracker"] == self.first_track and id not in self.tracker_issue_list]:
+        for id in [id for id, issue in self.issues.items() if issue["tracker"] == self.same_track and id not in self.tracker_issue_list]:
             family = self.__get_family(id)
             for relation_type in ["relations", "children"]:
                 if family.get(relation_type) is not None:
                     for item in family[relation_type]:
-                        if item["tracker"]["name"] == self.secound_track:
-                            self.not_alone_final_id_list.append(item["id"])
+                        if item["tracker"]["name"] == self.next_track:
+                            self.not_alone_id_mapping[self.next_track].append(item["id"])
 
-        self.not_alone_final_id_list = list(set(self.not_alone_final_id_list))
+        self.not_alone_id_mapping[self.next_track] = list(set(self.not_alone_id_mapping[self.next_track]))
 
-    def __check_middle_id(self, id):
+    def __check_middle_id(self, id, index):
         self.mention_id.append(id)
         value = {"same_level": [], "next_level": []}
         family = self.__get_family(id)
         for relation_type in ["relations", "children"]:
             if family.get(relation_type) is not None:
                 for item in family[relation_type]:
-                    if item["tracker"]["name"] == self.first_track:
+                    if item["tracker"]["name"] == self.same_track:
                         value["same_level"].append(item["id"])
-                    if item["tracker"]["name"] == self.secound_track:
+                    if item["tracker"]["name"] == self.next_track:
                         value["next_level"].append(item["id"])
         if value["same_level"] != []:
             check_complete = True
@@ -275,25 +294,25 @@ class TraceList:
                     continue
                 else:
                     check_complete = False
-                    if same_id in self.not_alone_mid_id_list:
+                    if same_id in self.not_alone_id_mapping[self.same_track]:
                         continue
                     if same_id in self.tracker_issue_list:
                         self.__remove_id(same_id)
-                        self.__check_middle_id(same_id)  
+                        self.__check_middle_id(same_id, index)  
         if check_complete:
             if value["next_level"] == []:
-                self.generate_output(id, family, 1)
+                self.generate_output(id, family, index)
             else:
                 self.__remove_id(id)
-                self.not_alone_final_id_list += value.get("next_level")
+                self.not_alone_id_mapping[self.next_track] += value.get("next_level")
 
     def generate_final_mapping(self):
-        self.first_track = self.trace_order[-1]
-        self.tracker_issue_list = [id for id, issue in self.issues.items() if issue["tracker"] == self.first_track and id not in self.not_alone_final_id_list]
-        for id in self.not_alone_final_id_list:
+        self.same_track = self.trace_order[-1]
+        self.tracker_issue_list = [id for id, issue in self.issues.items() if issue["tracker"] == self.same_track and id not in self.not_alone_id_mapping[self.same_track]]
+        for id in self.not_alone_id_mapping[self.same_track]:
             self.__check_final_id(id)
         for id in self.tracker_issue_list:
-            self.generate_output(id, self.__get_family(id), 2)
+            self.generate_output(id, self.__get_family(id), len(self.trace_order) - 1)
 
     def __check_final_id(self, id):
         value = {"same_level": []}
@@ -301,20 +320,24 @@ class TraceList:
         for relation_type in ["relations", "children"]:
             if family.get(relation_type) is not None:
                 for item in family[relation_type]:
-                    if item["tracker"]["name"] == self.first_track:
+                    if item["tracker"]["name"] == self.same_track:
                         value["same_level"].append(item["id"])
         if value["same_level"] != []:
             for same_id in value["same_level"]:
-                if same_id not in self.not_alone_final_id_list:
+                if same_id not in self.not_alone_id_mapping[self.same_track]:
                     self.__remove_id(same_id)
                     if id not in self.mention_id:
                         self.mention_id.append(id)
                         self.__check_final_id(same_id)
 
-    def execute_trace_order(self):
+    def execute_trace_order(self, order_length):
         self.generate_head_mapping()
-        self.generate_middle_mapping()
+
+        for i in range(order_length - 2):
+            self.generate_middle_mapping(i + 1)
+
         self.generate_final_mapping()
+
         return self.result
 
 # --------------------- Resources ---------------------
@@ -358,7 +381,7 @@ class ProjectTraceOrder(Resource):
             "status": {"id": issue.status.id, "name": issue.status.name}, 
         } for issue in issues}
 
-        return util.success(TraceList(plan_project_id, order, issues).execute_trace_order())
+        return util.success(TraceList(plan_project_id, order, issues).execute_trace_order(len(order)))
 
 class SingleTraceOrder(Resource):
     @jwt_required
