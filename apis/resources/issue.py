@@ -1462,8 +1462,12 @@ def execute_issue_alert(alert_mapping):
                         if issue.get("due_date") is None:
                             continue
                         delta = util.get_certain_date_from_now(-days) - datetime.strptime(issue["due_date"], "%Y-%m-%d")
-                        if delta.days >= 0:     
-                            note = f'{days - delta.days}天即將到期，請即刻處理'
+                        if delta.days >= 0: 
+                            d_day = days - delta.days    
+                            if d_day >= 0:
+                                note = f'{d_day}天即將到期，請即刻處理'
+                            else:
+                                note = f'已經過期{-d_day}天，請即刻處理'
                     if note is not None:
                         update_issue(
                             issue_id, 
