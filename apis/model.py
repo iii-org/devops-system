@@ -543,6 +543,7 @@ class Registries(db.Model):
     url = Column(String)
     type = Column(String)
     application = relationship('Application', backref=backref("registries"))
+    disabled = Column(Boolean)
 
 
 class Cluster(db.Model):
