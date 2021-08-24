@@ -23,6 +23,15 @@ default_project_id = "-1"
 error_clusters_not_found = "No Exact Cluster Found"
 DEFAULT_K8S_CONFIG_FILE = 'k8s_config'
 
+APPLICATION_STATUS = {
+    1: 'Initial',
+    2: 'Start Image Replication',
+    3: 'Finish Image Replication',
+    4: 'Start Kubernetes Deploy ',
+    5: 'Finish Kubernetes Deploy ',
+    8: 'Deployment Disabled',
+}
+
 
 def is_json(string):
     try:
@@ -72,6 +81,8 @@ def check_cluster(server_name):
 
 
 def get_cluster_application_information(cluster):
+    if cluster is None:
+        return []
     output = row_to_dict(cluster)
     ret_output = []
     for application in cluster.application:
@@ -87,6 +98,7 @@ def get_cluster_application_information(cluster):
                       for context in harbor_filter if context['type'] == 'name'][0]
         app['project_name'] = image_name[0: image_name.rfind('/')]
         app['status'] = k8s_yaml.get('deploy_finish')
+        app['namespace'] = harbor_info.get('dest_repo_name')
         ret_output.append(app)
     output['application'] = ret_output
     return output
@@ -236,6 +248,8 @@ class Cluster(Resource):
 
 
 def get_registries_application_information(registry):
+    if registry is None:
+        return []
     output = row_to_dict(registry)
     ret_output = []
     for application in registry.application:
@@ -794,9 +808,11 @@ def check_application_status(application_id):
         app.harbor_info = json.dumps(harbor_info)
         db.session.commit()
     elif app.status_id == 3:
+        k8s_yaml = json.loads(app.k8s_yaml)
         output = execute_k8s_deployment(app)
+        k8s_yaml.update(output)
         app.status_id = 4
-        app.k8s_yaml = json.dumps(output)
+        app.k8s_yaml = json.dumps(k8s_yaml)
         db.session.commit()
     elif app.status_id == 4:
         k8s_yaml = json.loads(app.k8s_yaml)
@@ -825,14 +841,55 @@ def k8s_resource_exist(target, response):
     return check_result
 
 
-def get_applications(project_id=None):
-    if project_id is None:
-        apps = model.Application.query.all()
-    else:
-        apps = model.Application.query.filter_by(project_id=project_id).all()
+def get_clusters_name(cluster_id, info=None):
+    if info is None:
+        info = {}
+    cluster = model.Cluster.query.filter_by(id=cluster_id).first()
+    info[str(cluster_id)] = cluster.name
+    return info
+
+
+def get_application_information(application, cluster_info=None):
+    # output = row_to_dict(application)
+    if application is None:
+        return []
+
+    output = {
+        'id': application.id,
+        'application_name': application.name,
+        'created_at': str(application.created_at),
+        'status_id': application.status_id,
+        'status_str': APPLICATION_STATUS[application.status_id]
+    }
+    if application.harbor_info is None or application.k8s_yaml is None:
+        return output
+    harbor_info = json.loads(application.harbor_info)
+    k8s_yaml = json.loads(application.k8s_yaml)
+    if cluster_info is None:
+        cluster_info = get_clusters_name(application.cluster_id)
+    elif str(application.cluster_id) not in cluster_info:
+        cluster_info = get_clusters_name(application.cluster_id, cluster_info)
+
+    output['cluster_name'] = cluster_info[str(application.cluster_id)]
+    output['project_name'] = harbor_info.get('project')
+    output['tag_name'] = harbor_info.get('tag_name')
+    output['k8s_status'] = k8s_yaml.get('deploy_finish')
+    output['namespace'] = harbor_info.get('dest_repo_name')
+    return output, cluster_info
+
+
+def get_applications(args):
     output = []
-    for app in apps:
-        output.append(row_to_dict(app))
+    if 'application_id' in args:
+        applications = model.Application.query.filter_by(id=args.get('application_id')).all()
+    elif 'project_id' in args:
+        applications = model.Application.query.filter_by(project_id=args.get('project_id')).all()
+    else:
+        applications = model.Application.query.filter(model.Application.disabled.isnot(True)).all()
+    cluster_info = {}
+    for application in applications:
+        output_app, cluster_info = get_application_information(application, cluster_info)
+        output.append(output_app)
     return output
 
 
@@ -873,25 +930,20 @@ def create_application(args):
     return new.id
 
 
-def delete_application(application_id):
+def delete_application(application_id, delete_option=False):
     app = model.Application.query.filter_by(id=application_id).first()
     harbor_info = json.loads(app.harbor_info)
     delete_replication_policy(harbor_info.get('policy_id'))
     cluster = model.Cluster.query.filter_by(id=app.cluster_id).first()
     deploy_k8s_client = DepolyK8sClient(cluster)
     deploy_k8s_client.delete_namespace(app.namespace)
-    app.status_id = 8
-    db.session.commit()
+    if delete_option is False:
+        app.status_id = 8
+        db.session.commit()
+    elif delete_option is True:
+        db.session.delete(app)
+        db.session.commit()
     return app.id
-
-
-# def update_application(application_id, args, user_id):
-#     app = model.Application.query.filter_by(id=application_id).one()
-#     deployment_process = DeploymentProcess(app)
-#     deployment_process.create_namespace()
-#     deployment_process.create_registry_secret()
-#     deployment_process.create_service()
-#     deployment_process.create_deployment()
 
 
 class RedeployApplication(Resource):
@@ -916,7 +968,9 @@ class Applications(Resource):
             project_id = args.get('project_id', None)
             if role_id == 5 and project_id is None:
                 role.require_admin()
-            output = get_applications(project_id)
+                output = get_applications()
+            else:
+                output = get_applications(args)
             return util.success({"applications": output})
         except NoResultFound:
             return util.respond(404, error_clusters_not_found,
@@ -950,32 +1004,14 @@ class Application(Resource):
     @jwt_required
     def get(self, application_id):
         try:
-            return util.success({"application": application_id})
+            args = {
+                'application_id' : application_id
+            }
+            output = get_applications(args)
+            return util.success({"application": output})
         except NoResultFound:
             return util.respond(404, error_clusters_not_found,
                                 error=apiError.repository_id_not_found)
-
-    # @jwt_required
-    # def put(self, application_id):
-    #     try:
-    #         parser = reqparse.RequestParser()
-    #         parser.add_argument('name', type=str)
-    #         parser.add_argument('project_id', type=int)
-    #         parser.add_argument('registry_id', type=int)
-    #         parser.add_argument('cluster_id', type=int)
-    #         parser.add_argument('release_id', type=int)
-    #         parser.add_argument('namespace', type=str)
-    #         parser.add_argument('resources', type=dict)
-    #         parser.add_argument('network', type=dict)
-    #         parser.add_argument('environments', type=dict)
-    #         parser.add_argument('disabled', type=bool)
-    #         args = parser.parse_args()
-    #         user_id = get_jwt_identity()['user_id']
-    #         output = update_application(application_id, args, user_id)
-    #         return util.success()
-    #     except NoResultFound:
-    #         return util.respond(404, error_clusters_not_found,
-    #                             error=apiError.repository_id_not_found)
 
     @jwt_required
     def patch(self, application_id):
@@ -994,7 +1030,6 @@ class Application(Resource):
         except NoResultFound:
             return util.respond(404, error_clusters_not_found,
                                 error=apiError.repository_id_not_found)
-
 
 class Pods(Resource):
     @jwt_required
