@@ -302,6 +302,7 @@ class TraceList:
         self.not_alone_id_mapping[self.next_track] = list(set(self.not_alone_id_mapping[self.next_track]))
 
     def __check_middle_id(self, id, index):
+        check_complete = True
         self.mention_id.append(id)
         value = {"same_level": [], "next_level": []}
         family = self.__get_family(id)
@@ -313,7 +314,6 @@ class TraceList:
                     if item["tracker"]["name"] == self.next_track:
                         value["next_level"].append(item["id"])
         if value["same_level"] != []:
-            check_complete = True
             for same_id in value["same_level"]:
                 if same_id in self.mention_id:
                     continue
