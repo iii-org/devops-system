@@ -36,8 +36,6 @@ def row_to_dict(row):
     ret = {}
     if row is None:
         return row
-    # print(type(row))
-
     for key in type(row).__table__.columns.keys():
         value = getattr(row, key)
         if type(value) is datetime or type(value) is date:
@@ -73,21 +71,33 @@ def check_cluster(server_name):
         first()
 
 
-def mapping_clusters_and_application(cluster):
+def get_cluster_application_information(cluster):
     output = row_to_dict(cluster)
-    ret_application = []
+    ret_output = []
     for application in cluster.application:
-        ret_application.append(row_to_dict(application))
-    output['application'] = ret_application
+        if application is None or application.harbor_info is None:
+            continue
+        app = {}
+        harbor_info = json.loads(application.harbor_info)
+        k8s_yaml = json.loads(application.k8s_yaml)
+        harbor_filter = harbor_info.get('policy').get('filters')
+        app['tag'] = [context['value']
+                      for context in harbor_filter if context['type'] == 'tag'][0]
+        image_name = [context['value']
+                      for context in harbor_filter if context['type'] == 'name'][0]
+        app['project_name'] = image_name[0: image_name.rfind('/')]
+        app['status'] = k8s_yaml.get('deploy_finish')
+        ret_output.append(app)
+    output['application'] = ret_output
     return output
 
 
 def get_clusters(cluster_id=None):
     output = []
     if cluster_id is not None:
-        return mapping_clusters_and_application(model.Cluster.query.filter_by(id=cluster_id).first())
+        return get_cluster_application_information(model.Cluster.query.filter_by(id=cluster_id).first())
     for cluster in model.Cluster.query.filter(model.Cluster.disabled.isnot(True)).all():
-        output.append(mapping_clusters_and_application(cluster))
+        output.append(get_cluster_application_information(cluster))
     return output
 
 
@@ -225,27 +235,34 @@ class Cluster(Resource):
                                 error=apiError.repository_id_not_found)
 
 
-def get_registries():
-    rows = db.session.query(model.Registries, model.Application). \
-        outerjoin(model.Registries, model.Registries.registries_id == model.Application.registry_id). \
-        all()
-    output = []
-    for row in rows:
-        registry, application = row
-        ret = {
-            'registry': row_to_dict(registry),
-            'application': row_to_dict(application)
-        }
-        print(row)
-        print("Registry")
-        print(row_to_dict(registry))
-        print("Application")
-        print(row_to_dict(application))
-        output.append(ret)
-    # print(result.__list__)
+def get_registries_application_information(registry):
+    output = row_to_dict(registry)
+    ret_output = []
+    for application in registry.application:
+        if application is None or application.harbor_info is None:
+            continue
+        app = {}
+        harbor_info = json.loads(application.harbor_info)
+        harbor_filter = harbor_info.get('policy').get('filters')
+        app['tag'] = [context['value']
+                      for context in harbor_filter if context['type'] == 'tag'][0]
+        image_name = [context['value']
+                      for context in harbor_filter if context['type'] == 'name'][0]
+        app['project_name'] = image_name[0: image_name.rfind('/')]
+        app['status'] = harbor_info['task'][-1]['status']
+        ret_output.append(app)
+    output['application'] = ret_output
+    return output
 
-    # rows = db.session.query(ProjectPluginRelation, Project). \
-    #     join(Project, ProjectPluginRelation.project_id == Project.id).all()
+
+def get_registries(registry_id=None):
+    output = []
+    if registry_id is not None:
+        return get_registries_application_information(
+            model.Registries.query.filter_by(registries_id=registry_id).first())
+    for cluster in model.Registries.query.all():
+        output.append(get_registries_application_information(cluster))
+
     return output
 
 
@@ -260,20 +277,28 @@ class Registries(Resource):
                                 error=apiError.repository_id_not_found)
 
 
-def create_application_image():
-    image_uri = 1
-    return image_uri
+class Registry(Resource):
+    @jwt_required
+    def get(self, registry_id):
+        try:
+            output = get_registries(registry_id)
+            return util.success({"registries": output})
+        except NoResultFound:
+            return util.respond(404, error_clusters_not_found,
+                                error=apiError.repository_id_not_found)
 
 
 def create_default_harbor_data(project, release, registry_id, namespace):
     harbor_data = {
-        "policy_name": project.name + "-release-" + str(release.id),
+        "project": project.name,
+        "policy_name": project.name + "-release-" + str(release.id) + '-at-' + namespace,
         "repo_name": project.name,
         "image_name": release.branch,
         "tag_name": release.tag_name,
         "description": 'Automate create replication policy ' + project.name + " release ID " + str(release.id),
         "registry_id": registry_id,
         "dest_repo_name": namespace,
+        "status": 'initial'
     }
     return harbor_data
 
@@ -290,8 +315,10 @@ def create_default_k8s_data(args):
 def initial_harbor_replication_image_policy(
         app
 ):
-    policy_id = harbor.hb_create_replication_policy(
-        json.loads(app.harbor_info))
+    harbor_info = json.loads(app.harbor_info)
+    harbor_info.pop('project')
+    harbor_info.pop('status')
+    policy_id = harbor.hb_create_replication_policy(harbor_info)
     return policy_id
 
 
@@ -350,7 +377,7 @@ def check_image_replication(app):
         if task.get('id') == harbor_info.get('task_id'):
             output = check_image_replication_status(task)
             break
-    return harbor_info, output
+    return tasks, output
 
 
 def create_registry_data(server_name, user_name, password):
@@ -715,34 +742,33 @@ def execute_k8s_deployment(app):
 
 # check Deployment exists
 def check_k8s_deployment(app):
-    deploy_finish = False
+    deploy_finish = True
 
     deploy_object = json.loads(app.k8s_yaml)
     cluster = model.Cluster.query.filter_by(id=app.cluster_id).first()
     deploy_k8s_client = DepolyK8sClient(cluster)
     if deploy_object.get("deployment") is not None:
-        deploy_exists = deploy_k8s_client.check_namespace_deployment(
+        deploy_finish = deploy_k8s_client.check_namespace_deployment(
             deploy_object.get("deployment").get("deployment_name"),
             app.namespace
         )
 
     if deploy_object.get('ingress') is not None:
-        ingress_exists = deploy_k8s_client.check_namespace_ingress(
+        deploy_finish = deploy_k8s_client.check_namespace_ingress(
             deploy_object.get('ingress').get('ingress_name'),
             app.namespace
         )
 
     if deploy_object.get('service') is not None:
-        service_exists = deploy_k8s_client.check_namespace_service(
+        deploy_finish = deploy_k8s_client.check_namespace_service(
             deploy_object.get('service').get('service_name'),
             app.namespace
         )
     if deploy_object.get('registry_secret') is not None:
-        registry_secret_exists = deploy_k8s_client.check_namespace_secret(
+        deploy_finish = deploy_k8s_client.check_namespace_secret(
             deploy_object.get('registry_secret').get('registry_secret_name'),
             app.namespace
         )
-
     return deploy_finish
 
 
@@ -752,15 +778,20 @@ def check_application_status(application_id):
     # Initial Harbor Replication execution
     if app.status_id == 1:
         output = execute_image_replication(app)
-        app.harbor_info = json.dumps(output)
+        harbor_info = json.loads(app.harbor_info)
+        harbor_info.update(output)
+        app.harbor_info = json.dumps(harbor_info)
         app.status_id = 2
         db.session.commit()
     # Check Execution Replication
     elif app.status_id == 2:
-        harbor_info, status = check_image_replication(app)
-        app.harbor_info = json.dumps(harbor_info)
+        harbor_info = json.loads(app.harbor_info)
+        task, status = check_image_replication(app)
+        harbor_info['task'] = task
         if status is True:
+            harbor_info['status'] = 'Success'
             app.status_id = 3
+        app.harbor_info = json.dumps(harbor_info)
         db.session.commit()
     elif app.status_id == 3:
         output = execute_k8s_deployment(app)
@@ -768,9 +799,11 @@ def check_application_status(application_id):
         app.k8s_yaml = json.dumps(output)
         db.session.commit()
     elif app.status_id == 4:
-        output = check_k8s_deployment(app)
-        if output is True:
+        k8s_yaml = json.loads(app.k8s_yaml)
+        k8s_yaml['deploy_finish'] = check_k8s_deployment(app)
+        if k8s_yaml['deploy_finish'] is True:
             app.status_id = 5
+        app.k8s_yaml = json.dumps(k8s_yaml)
         db.session.commit()
     elif app.status_id == 8:
         output = check_k8s_deployment(app)
@@ -788,7 +821,6 @@ def k8s_resource_exist(target, response):
     check_result = False
     for i in response.items:
         if str(target) == str(i.metadata.name):
-            print(i.metadata.name)
             check_result = True
     return check_result
 

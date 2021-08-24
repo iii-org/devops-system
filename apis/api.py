@@ -576,6 +576,7 @@ api.add_resource(devops_version.DevOpsVersionUpdate, '/devops_version/update')
 api.add_resource(deploy.Clusters, '/deploy/clusters')
 api.add_resource(deploy.Cluster, '/deploy/clusters/<int:cluster_id>')
 api.add_resource(deploy.Registries, '/deploy/registries')
+api.add_resource(deploy.Registry, '/deploy/registries/<int:registry_id>')
 api.add_resource(deploy.Applications, '/deploy/applications')
 api.add_resource(deploy.Application,
                  '/deploy/applications/<int:application_id>')
@@ -586,8 +587,9 @@ api.add_resource(alert.ProjectAlertUpdate, '/alert/<int:alert_id>')
 api.add_resource(alert.DefaultAlertDaysUpdate, '/alert/default_days')
 
 # Trace Order
-api.add_resource(trace_order.ProjectTraceOrder, '/project/<sint:project_id>/trace_order')
-api.add_resource(trace_order.SingleTraceOrder, '/trace_order/<int:trace_order_id>')
+api.add_resource(trace_order.TraceOrders, '/trace_order')
+api.add_resource(trace_order.SingleTraceOrder, '/trace_order/<sint:trace_order_id>')
+api.add_resource(trace_order.ExecuteTraceOrder, '/trace_order/execute')
 
 
 def start_prod():
