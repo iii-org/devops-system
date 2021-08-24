@@ -576,6 +576,7 @@ api.add_resource(devops_version.DevOpsVersionUpdate, '/devops_version/update')
 api.add_resource(deploy.Clusters, '/deploy/clusters')
 api.add_resource(deploy.Cluster, '/deploy/clusters/<int:cluster_id>')
 api.add_resource(deploy.Registries, '/deploy/registries')
+api.add_resource(deploy.Registry, '/deploy/registries/<int:registry_id>')
 api.add_resource(deploy.Applications, '/deploy/applications')
 api.add_resource(deploy.Application,
                  '/deploy/applications/<int:application_id>')
