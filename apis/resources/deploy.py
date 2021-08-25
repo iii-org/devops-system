@@ -26,11 +26,12 @@ DEFAULT_K8S_CONFIG_FILE = 'k8s_config'
 
 APPLICATION_STATUS = {
     1: 'Initial',
-    2: 'Start Image Replication',
-    3: 'Finish Image Replication',
-    4: 'Start Kubernetes Deploy ',
-    5: 'Finish Kubernetes Deploy ',
-    8: 'Deployment Disabled',
+    2: 'Start Image replication',
+    3: 'Finish Image replication',
+    4: 'Start Kubernetes deployment ',
+    5: 'Finish Kubernetes deployment ',
+    9: 'Start Kubernetes deletion',
+    10: 'Finish Kubernetes deletion',
 }
 
 
@@ -559,13 +560,11 @@ class DepolyK8sClient:
             self.client.list_namespace()
         )
 
-    def create_namespace_secret(self, name, namespace, body):
-        check = k8s_resource_exist(
-            name,
-            self.client.list_namespaced_secret(namespace)
-        )
-        if check is False:
-            self.client.create_namespaced_secret(namespace, body)
+    def execute_namespace_secret(self, name, namespace, body):
+        if self.check_namespace_secret(name, namespace) is False:
+            return self.client.create_namespaced_secret(namespace, body)
+        else:
+            return self.client.patch_namespaced_secret(name, namespace, body)
 
     def check_namespace_secret(self, name, namespace):
         return k8s_resource_exist(
@@ -573,13 +572,11 @@ class DepolyK8sClient:
             self.client.list_namespaced_secret(namespace)
         )
 
-    def create_namespace_service(self, name, namespace, body):
-        check = k8s_resource_exist(
-            name,
-            self.client.list_namespaced_service(namespace)
-        )
-        if check is False:
+    def execute_namespace_service(self, name, namespace, body):
+        if self.check_namespace_service(name, namespace) is False:
             return self.client.create_namespaced_service(namespace, body)
+        else:
+            return self.client.patch_namespaced_service(name, namespace, body)
 
     def check_namespace_service(self, name, namespace):
         return k8s_resource_exist(
@@ -587,13 +584,11 @@ class DepolyK8sClient:
             self.client.list_namespaced_service(namespace)
         )
 
-    def create_namespace_ingress(self, name, namespace, body):
-        check = k8s_resource_exist(
-            name,
-            self.client.list_namespaced_ingress(namespace)
-        )
-        if check is False:
-            self.client.create_namespaced_ingress(namespace, body)
+    def execute_namespace_ingress(self, name, namespace, body):
+        if self.check_namespace_ingress(name, namespace) is False:
+            return self.client.create_namespaced_ingress(namespace, body)
+        else:
+            return self.client.patch_namespaced_ingress(name, namespace, body)
 
     def check_namespace_ingress(self, name, namespace):
         return k8s_resource_exist(
@@ -601,13 +596,11 @@ class DepolyK8sClient:
             self.client.list_namespaced_ingress(namespace)
         )
 
-    def create_namespace_deployment(self, name, namespace, body):
-        check = k8s_resource_exist(
-            name,
-            self.client.list_namespaced_deployment(namespace)
-        )
-        if check is False:
-            self.client.create_namespaced_deployment(namespace, body)
+    def execute_namespace_deployment(self, name, namespace, body):
+        if self.check_namespace_deployment(name, namespace) is False:
+            return self.client.create_namespaced_deployment(namespace, body)
+        else:
+            return self.client.patch_namespaced_deployment(name, namespace, body)
 
     def check_namespace_deployment(self, name, namespace):
         return k8s_resource_exist(
@@ -724,88 +717,175 @@ class DeployDeployment:
         )
 
 
-def execute_k8s_deployment(app):
-    output = {}
-    cluster = model.Cluster.query.filter_by(id=app.cluster_id).first()
-    project = model.Project.query.filter_by(id=app.project_id).first()
-    deploy_k8s_client = DepolyK8sClient(cluster)
-    registry = model.Registries.query.filter_by(registries_id=app.registry_id).first()
-    deploy_registry_secret = DeployRegistrySecret(app, registry)
-    # Create Docker Pull Registry
-    deploy_k8s_client.create_namespace_secret(
-        deploy_registry_secret.registry_secret_name,
-        app.namespace,
-        deploy_registry_secret.registry_secret_body()
-    )
-    output['registry_secret'] = deploy_registry_secret.get_registry_secret_info()
-    # Create Deployment Service
-    deploy_service = DeployService(app, project)
-    deploy_k8s_client.create_namespace_service(
-        deploy_service.service_name,
-        app.namespace,
-        deploy_service.service_body()
-    )
-    output['service'] = deploy_service.get_service_info()
+class K8sDeployment:
+    def __init__(self, app):
+        self.app = app
+        self.cluster = model.Cluster.query.filter_by(id=app.cluster_id).first()
+        self.project = model.Project.query.filter_by(id=app.project_id).first()
+        self.registry = model.Registries.query.filter_by(registries_id=app.registry_id).first()
+        self.k8s_client = DepolyK8sClient(self.cluster)
+        self.registry_secret = None
+        self.service = None
+        self.ingress = None
+        self.deployment = None
+        self.deployment_info = {}
 
-    # Create Deployment Ingress
+    def check_registry_secret(self):
+        if self.registry_secret is None:
+            self.registry_secret = DeployRegistrySecret(self.app, self.registry)
+
+    def execute_registry_secret(self):
+        self.check_registry_secret()
+        self.k8s_client.execute_namespace_secret(
+            self.registry_secret.registry_secret_name,
+            self.app.namespace,
+            self.registry_secret.registry_secret_body()
+        )
+        self.deployment_info['registry_secret'] = self.registry_secret.get_registry_secret_info()
+
+    def check_service(self):
+        if self.service is None:
+            self.service = DeployService(self.app, self.project)
+
+    def execute_service(self):
+        self.check_service()
+        self.k8s_client.execute_namespace_service(
+            self.service.service_name,
+            self.app.namespace,
+            self.service.service_body()
+        )
+        self.deployment_info['service'] = self.service.get_service_info()
+
+    def check_ingress(self):
+        if self.ingress is None:
+            self.ingress = DeployIngress(self.app, self.project)
+
+    def execute_ingress(self):
+        self.check_ingress()
+        self.k8s_client.execute_namespace_ingress(
+            self.ingress.ingress_name,
+            self.app.namespace,
+            self.ingress.ingress_body()
+        )
+        self.deployment_info['ingress'] = self.ingress.get_ingress_info()
+
+    def check_deployment(self):
+        if self.deployment is None:
+            self.check_service()
+            self.check_registry_secret()
+            self.deployment = DeployDeployment(self.app,
+                                               self.project,
+                                               self.service.get_service_info(),
+                                               self.registry_secret.get_registry_secret_info()
+                                               )
+
+    def execute_deployment(self):
+        self.check_deployment()
+        self.k8s_client.execute_namespace_deployment(
+            self.deployment.deployment_name,
+            self.app.namespace,
+            self.deployment.deployment_body()
+        )
+        self.deployment_info['deployment'] = self.deployment.get_deployment_info()
+
+    def get_deployment_information(self):
+        return self.deployment_info
+
+
+def execute_k8s_deployment(app):
+    k8s_deployment = K8sDeployment(app)
+    k8s_deployment.execute_registry_secret()
+    k8s_deployment.execute_service()
     k8s_info = json.loads(app.k8s_yaml)
     if k8s_info.get('network').get('domain', None) is not None:
-        deploy_ingress = DeployIngress(app, project)
-        deploy_k8s_client.create_namespace_ingress(
-            deploy_ingress.ingress_name,
-            app.namespace,
-            deploy_ingress.ingress_body()
-        )
-        output['ingress'] = deploy_ingress.get_ingress_info()
-
-    # Create Secret and Configmap
-
-    # Create Deployment
-    deploy_deployment = DeployDeployment(app,
-                                         project,
-                                         deploy_service.get_service_info(),
-                                         deploy_registry_secret.get_registry_secret_info()
-                                         )
-
-    deploy_k8s_client.create_namespace_deployment(
-        deploy_deployment.deployment_name,
-        app.namespace,
-        deploy_deployment.deployment_body()
-    )
-    output['deployment'] = deploy_deployment.get_deployment_info()
-    return output
+        k8s_deployment.execute_ingress()
+    k8s_deployment.execute_deployment()
+    return k8s_deployment.get_deployment_information()
 
 
-# check Deployment exists
-def check_k8s_deployment(app):
-    deploy_finish = True
+#
+# def execute_k8s_deployment(app):
+#     output = {}
+#     cluster = model.Cluster.query.filter_by(id=app.cluster_id).first()
+#     project = model.Project.query.filter_by(id=app.project_id).first()
+#     deploy_k8s_client = DepolyK8sClient(cluster)
+#     registry = model.Registries.query.filter_by(registries_id=app.registry_id).first()
+#     deploy_registry_secret = DeployRegistrySecret(app, registry)
+#     # Create Docker Pull Registry
+#     deploy_k8s_client.create_namespace_secret(
+#         deploy_registry_secret.registry_secret_name,
+#         app.namespace,
+#         deploy_registry_secret.registry_secret_body()
+#     )
+#     output['registry_secret'] = deploy_registry_secret.get_registry_secret_info()
+#     # Create Deployment Service
+#     deploy_service = DeployService(app, project)
+#     deploy_k8s_client.create_namespace_service(
+#         deploy_service.service_name,
+#         app.namespace,
+#         deploy_service.service_body()
+#     )
+#     output['service'] = deploy_service.get_service_info()
+#
+#     # Create Deployment Ingress
+#     k8s_info = json.loads(app.k8s_yaml)
+#     if k8s_info.get('network').get('domain', None) is not None:
+#         deploy_ingress = DeployIngress(app, project)
+#         deploy_k8s_client.create_namespace_ingress(
+#             deploy_ingress.ingress_name,
+#             app.namespace,
+#             deploy_ingress.ingress_body()
+#         )
+#         output['ingress'] = deploy_ingress.get_ingress_info()
+#
+#     # Create Secret and Configmap
+#
+#     # Create Deployment
+#     deploy_deployment = DeployDeployment(app,
+#                                          project,
+#                                          deploy_service.get_service_info(),
+#                                          deploy_registry_secret.get_registry_secret_info()
+#                                          )
+#
+#     deploy_k8s_client.create_namespace_deployment(
+#         deploy_deployment.deployment_name,
+#         app.namespace,
+#         deploy_deployment.deployment_body()
+#     )
+#     output['deployment'] = deploy_deployment.get_deployment_info()
+#     return output
 
+
+# check Deployment status
+def check_k8s_deployment(app, deployed=True):
+    deployed_status = []
     deploy_object = json.loads(app.k8s_yaml)
     cluster = model.Cluster.query.filter_by(id=app.cluster_id).first()
     deploy_k8s_client = DepolyK8sClient(cluster)
     if deploy_object.get("deployment") is not None:
-        deploy_finish = deploy_k8s_client.check_namespace_deployment(
+        deployed_status.append(deploy_k8s_client.check_namespace_deployment(
             deploy_object.get("deployment").get("deployment_name"),
             app.namespace
-        )
+        ))
 
     if deploy_object.get('ingress') is not None:
-        deploy_finish = deploy_k8s_client.check_namespace_ingress(
+        deployed_status.append(deploy_k8s_client.check_namespace_ingress(
             deploy_object.get('ingress').get('ingress_name'),
             app.namespace
-        )
+        ))
 
     if deploy_object.get('service') is not None:
-        deploy_finish = deploy_k8s_client.check_namespace_service(
+        deployed_status.append(deploy_k8s_client.check_namespace_service(
             deploy_object.get('service').get('service_name'),
             app.namespace
-        )
+        ))
     if deploy_object.get('registry_secret') is not None:
-        deploy_finish = deploy_k8s_client.check_namespace_secret(
+        deployed_status.append(deploy_k8s_client.check_namespace_secret(
             deploy_object.get('registry_secret').get('registry_secret_name'),
             app.namespace
-        )
-    return deploy_finish
+        ))
+
+    return deployed_status.count(deployed) == len(deployed_status)
 
 
 def check_application_status(application_id):
@@ -843,10 +923,13 @@ def check_application_status(application_id):
             app.status_id = 5
         app.k8s_yaml = json.dumps(k8s_yaml)
         db.session.commit()
-    elif app.status_id == 8:
-        output = check_k8s_deployment(app)
+    elif app.status_id == 9:
+        finished = check_k8s_deployment(app, False)
+        if finished is False:
+            app.status_id = 10
+            db.session.commit()
 
-    return {'output': output, 'database': row_to_dict(app)}
+    return {'status': APPLICATION_STATUS[app.status_id], 'output': output, 'database': row_to_dict(app)}
 
 
 def check_application_exists(project_id, namespace):
@@ -875,7 +958,6 @@ def get_application_information(application, cluster_info=None):
     # output = row_to_dict(application)
     if application is None:
         return []
-
     output = {
         'id': application.id,
         'application_name': application.name,
@@ -961,7 +1043,7 @@ def delete_application(application_id, delete_option=False):
     deploy_k8s_client = DepolyK8sClient(cluster)
     deploy_k8s_client.delete_namespace(app.namespace)
     if delete_option is False:
-        app.status_id = 8
+        app.status_id = 9
         db.session.commit()
     elif delete_option is True:
         db.session.delete(app)
@@ -969,12 +1051,20 @@ def delete_application(application_id, delete_option=False):
     return app.id
 
 
+def redeploy_application(application_id):
+    app = model.Application.query.filter_by(id=application_id).first()
+    execute_k8s_deployment(app)
+    app.status_id = 4
+    db.session.commit()
+    return app.id
+
+
 class RedeployApplication(Resource):
     @jwt_required
     def patch(self, application_id):
         try:
-
-            return util.success({"applications": application_id})
+            output = redeploy_application(application_id)
+            return util.success({"applications": output})
         except NoResultFound:
             return util.respond(404, error_clusters_not_found,
                                 error=apiError.repository_id_not_found)
@@ -1015,7 +1105,7 @@ class Applications(Resource):
             parser.add_argument('disabled', type=bool)
             args = parser.parse_args()
             if check_application_exists(args.get('project_id'), args.get('namespace')) is not None:
-                return util.respond(404)
+                return util.respond(404, error_application_exists)
             output = create_application(args)
             return util.success({"applications": {"id": output}})
         except NoResultFound:

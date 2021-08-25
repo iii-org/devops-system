@@ -80,6 +80,13 @@ class ApiK8sClient:
             if e.status_code != 404:
                 raise e
 
+    def patch_namespaced_ingress(self, name, namespace, body):
+        try:
+            return self.network_v1beta1.patch_namespaced_ingress(name, namespace, body)
+        except apiError.DevOpsError as e:
+            if e.status_code != 404:
+                raise e
+
     def list_namespaced_ingress(self, namespace):
         try:
             return self.extensions_v1beta1.list_namespaced_ingress(namespace)
@@ -185,6 +192,13 @@ class ApiK8sClient:
     def create_namespaced_service(self, namespace, body):
         try:
             return self.core_v1.create_namespaced_service(namespace, body)
+        except apiError.DevOpsError as e:
+            if e.status_code != 404:
+                raise e
+
+    def patch_namespaced_service(self, name, namespace, body):
+        try:
+            return self.core_v1.patch_namespaced_service(name, namespace, body)
         except apiError.DevOpsError as e:
             if e.status_code != 404:
                 raise e
