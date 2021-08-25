@@ -215,9 +215,6 @@ class Cluster(Resource):
             output = get_clusters(cluster_id)
             if output is None:
                 return util.success()
-            # k8s_config_file = open(get_cluster_config_path(output.get('name')))
-            # parsed_yaml_file = yaml.load(
-            #     k8s_config_file, Loader=yaml.FullLoader)
             return util.success(output)
         except NoResultFound:
             return util.respond(404, error_clusters_not_found,
@@ -306,7 +303,8 @@ class Registry(Resource):
 
 def create_default_harbor_data(project, release, registry_id, namespace):
     harbor_data = {
-        "project": project.name,
+        "project": project.display,
+        "project_id": project.name,
         "policy_name": project.name + "-release-" + str(release.id) + '-at-' + namespace,
         "repo_name": project.name,
         "image_name": release.branch,
@@ -319,8 +317,13 @@ def create_default_harbor_data(project, release, registry_id, namespace):
     return harbor_data
 
 
-def create_default_k8s_data(args):
+def create_default_k8s_data(project, release, args):
     k8s_data = {
+        "project": project.display,
+        "project_id": project.name,
+        "repo_name": project.name,
+        "image_name": release.branch,
+        "tag_name": release.tag_name,
         "resources": args.get('resources'),
         "network": args.get('network'),
         "environments": args.get('environments'),
@@ -890,7 +893,10 @@ def check_k8s_deployment(app, deployed=True):
 
 def check_application_status(application_id):
     output = {}
-    app = model.Application.query.filter_by(id=application_id).one()
+    app = model.Application.query.filter_by(id=application_id).first()
+    print(app)
+    if app is None:
+        return output
     # Initial Harbor Replication execution
     if app.status_id == 1:
         output = execute_image_replication(app)
@@ -1008,8 +1014,7 @@ def create_application(args):
     ).one()
     harbor_data = create_default_harbor_data(
         project, release, args.get('registry_id'), args.get('namespace'))
-    k8s_data = create_default_k8s_data(
-        args)
+    k8s_data = create_default_k8s_data(project, release, args)
     # check namespace
     deploy_k8s_client = DepolyK8sClient(cluster)
     deploy_namespace = DeployNamespace(args.get('namespace'))
