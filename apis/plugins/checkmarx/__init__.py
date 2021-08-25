@@ -43,7 +43,7 @@ class CheckMarx(object):
                 'client_secret': config.get('CHECKMARX_SECRET')
                 }
         self.access_token = requests.post(url, data).json().get('access_token')
-        self.expire_at = time.time() + 43700  # 0.5 day
+        self.expire_at = time.time() + 1800  # 0.5 hour
 
     def __api_request(self, method, path, headers=None, data=None):
         if data is None:
