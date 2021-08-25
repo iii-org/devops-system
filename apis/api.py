@@ -600,7 +600,9 @@ def start_prod():
         initialize(config.get('SQLALCHEMY_DATABASE_URI'))
         migrate.run()
         kubernetesClient.create_iiidevops_env_secret_namespace()
-        kubernetesClient.apply_cronjob_yamls()
+        # FIXME: Hang in infinite loop kubernetesClient.py#457
+        # FIXME: Ask the logic when the person in charge comes
+        # kubernetesClient.apply_cronjob_yamls()
         logger.logger.info('Apply k8s-yaml cronjob.')
         template.tm_get_template_list()
         logger.logger.info('Get the public and local template list')
