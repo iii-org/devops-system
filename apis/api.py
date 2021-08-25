@@ -1,5 +1,6 @@
 import os
 import sys
+import threading
 
 if f"{os.getcwd()}/apis" not in sys.path:
     sys.path.insert(1, f"{os.getcwd()}/apis")
@@ -600,9 +601,7 @@ def start_prod():
         initialize(config.get('SQLALCHEMY_DATABASE_URI'))
         migrate.run()
         kubernetesClient.create_iiidevops_env_secret_namespace()
-        # FIXME: Hang in infinite loop kubernetesClient.py#457
-        # FIXME: Ask the logic when the person in charge comes
-        # kubernetesClient.apply_cronjob_yamls()
+        threading.Thread(target=kubernetesClient.apply_cronjob_yamls).start()
         logger.logger.info('Apply k8s-yaml cronjob.')
         template.tm_get_template_list()
         logger.logger.info('Get the public and local template list')
