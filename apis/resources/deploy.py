@@ -43,6 +43,16 @@ def is_json(string):
     return True
 
 
+def get_environments_value(items, value_type):
+    out_dict = {}
+    for item in items:
+        if item.get('type') == value_type and value_type == 'configmap':
+            out_dict[item.get('key')] = item.get('value')
+        elif item.get('type') == value_type and value_type == 'secret':
+            out_dict[item.get('key')] = util.base64encode(item.get('value'))
+    return out_dict
+
+
 def row_to_dict(row):
     ret = {}
     if row is None:
@@ -92,15 +102,11 @@ def get_cluster_application_information(cluster):
             continue
         app = {}
         harbor_info = json.loads(application.harbor_info)
-        k8s_yaml = json.loads(application.k8s_yaml)
-        harbor_filter = harbor_info.get('policy').get('filters')
-        app['tag'] = [context['value']
-                      for context in harbor_filter if context['type'] == 'tag'][0]
-        image_name = [context['value']
-                      for context in harbor_filter if context['type'] == 'name'][0]
-        app['project_name'] = image_name[0: image_name.rfind('/')]
-        app['status'] = k8s_yaml.get('deploy_finish')
+        app['tag'] = harbor_info.get('tag_name')
+        app['project_name'] = harbor_info.get('project')
         app['namespace'] = harbor_info.get('dest_repo_name')
+        k8s_yaml = json.loads(application.k8s_yaml)
+        app['status'] = k8s_yaml.get('deploy_finish', 'Wait')
         ret_output.append(app)
     output['application'] = ret_output
     return output
@@ -153,8 +159,6 @@ def update_cluster(cluster_id, args):
         if not hasattr(cluster, key):
             continue
         elif args[key] is not None:
-            print(key)
-            print(args[key])
             if key == 'disabled':
                 setattr(cluster, key, check_cluster_value(args[key]))
             else:
@@ -270,13 +274,14 @@ def get_registries_application_information(registry):
             continue
         app = {}
         harbor_info = json.loads(application.harbor_info)
-        harbor_filter = harbor_info.get('policy').get('filters')
-        app['tag'] = [context['value']
-                      for context in harbor_filter if context['type'] == 'tag'][0]
-        image_name = [context['value']
-                      for context in harbor_filter if context['type'] == 'name'][0]
-        app['project_name'] = image_name[0: image_name.rfind('/')]
-        app['status'] = harbor_info['task'][-1]['status']
+        app['tag'] = harbor_info.get('tag_name')
+        app['project_name'] = harbor_info.get('project')
+        app['namespace'] = harbor_info.get('dest_repo_name')
+        if harbor_info.get('task') is None:
+            app['status'] = 'Wait'
+        else:
+            app['status'] = harbor_info['task'][-1]['status']
+
         ret_output.append(app)
     output['application'] = ret_output
     return output
@@ -302,8 +307,6 @@ class Registries(Resource):
         except NoResultFound:
             return util.respond(404, error_clusters_not_found,
                                 error=apiError.repository_id_not_found)
-
-
 
 
 class Registry(Resource):
@@ -334,6 +337,7 @@ def create_default_harbor_data(project, release, registry_id, namespace):
 
 
 def create_default_k8s_data(project, release, args):
+    print(args.get('environments'))
     k8s_data = {
         "project": project.display,
         "project_id": project.name,
@@ -367,6 +371,17 @@ def get_replication_executions(policy_id):
 
 def get_replication_execution_task(policy_id):
     return harbor.hb_get_replication_execution_task(policy_id)
+
+
+def check_replication_policy(policy_id):
+    polices = harbor.hb_get_replication_policy()
+    check = False
+    for policy in polices:
+        print(policy)
+        if policy.get('id') == policy_id:
+            check = True
+            break
+    return check
 
 
 def get_replication_policy(policy_id):
@@ -431,7 +446,7 @@ def create_registry_data(server_name, user_name, password):
     }
 
 
-def create_registry_secret_object(data, secret_name):
+def create_registry_secret_object(secret_name, data):
     return k8s_client.V1Secret(
         api_version="v1",
         data=data,
@@ -439,6 +454,28 @@ def create_registry_secret_object(data, secret_name):
         metadata=k8s_client.V1ObjectMeta(name=secret_name),
         type="kubernetes.io/dockerconfigjson"
     )
+
+
+def create_secret_object(secret_name, secret_dict):
+    body = k8s_client.V1Secret(
+        api_version='v1',
+        kind='Secret',
+        metadata=k8s_client.V1ObjectMeta(
+            name=secret_name,
+        ),
+        data=secret_dict
+    )
+    return body
+
+
+def create_configmap_object(configmap_name, configmap_dict):
+    body = k8s_client.V1ConfigMap(
+        metadata=k8s_client.V1ObjectMeta(
+            name=configmap_name,
+        ),
+        data=configmap_dict
+    )
+    return body
 
 
 def create_service_object(app_name, service_name, network):
@@ -627,6 +664,18 @@ class DepolyK8sClient:
             self.client.list_namespaced_deployment(namespace)
         )
 
+    def execute_namespace_configmap(self, name, namespace, body):
+        if self.check_namespace_configmap(name, namespace) is False:
+            return self.client.create_namespaced_config_map(namespace, body)
+        else:
+            return self.client.patch_namespaced_config_map(name, namespace, body)
+
+    def check_namespace_configmap(self, name, namespace):
+        return k8s_resource_exist(
+            name,
+            self.client.list_namespaced_config_map(namespace)
+        )
+
 
 class DeployNamespace:
     def __init__(self, namespace):
@@ -634,6 +683,58 @@ class DeployNamespace:
 
     def namespace_body(self):
         return create_namespace_object(self.namespace)
+
+
+class DeployConfigMap:
+
+    def __init__(self, app, project):
+        self.app = app
+        self.project = project
+        self.configmap_name = None
+        self.configmap_dict = None
+        self.set_configmap_data()
+
+    def get_configmap_info(self):
+        return {
+            'configmap-name': self.configmap_name
+        }
+
+    def set_configmap_data(self):
+        environments = json.loads(self.app.k8s_yaml).get('environments', None)
+        self.configmap_dict = get_environments_value(environments, 'configmap')
+        self.configmap_name = self.project.name + "-configmap"
+
+    def configmap_body(self):
+        return create_configmap_object(
+            self.configmap_name,
+            self.configmap_dict
+        )
+
+
+class DeploySecret:
+
+    def __init__(self, app, project):
+        self.app = app
+        self.project = project
+        self.secret_name = None
+        self.secret_dict = None
+        self.set_secret_data()
+
+    def get_secret_info(self):
+        return {
+            'secret-name': self.secret_name
+        }
+
+    def set_secret_data(self):
+        environments = json.loads(self.app.k8s_yaml).get('environments', None)
+        self.secret_dict = get_environments_value(environments, 'secret')
+        self.secret_name = self.project.name + "-secret"
+
+    def secret_body(self):
+        return create_secret_object(
+            self.secret_name,
+            self.secret_dict
+        )
 
 
 class DeployRegistrySecret:
@@ -659,9 +760,10 @@ class DeployRegistrySecret:
 
     def registry_secret_body(self):
         return create_registry_secret_object(
+            self.registry_secret_name,
             create_registry_data(self.registry_server_url, self.registry.access_key,
-                                 util.base64decode(self.registry.access_secret)),
-            self.registry_secret_name
+                                 util.base64decode(self.registry.access_secret))
+
         )
 
 
@@ -747,6 +849,8 @@ class K8sDeployment:
         self.service = None
         self.ingress = None
         self.deployment = None
+        self.configmap = None
+        self.secret = None
         self.deployment_info = {}
 
     def check_registry_secret(self):
@@ -807,6 +911,34 @@ class K8sDeployment:
         )
         self.deployment_info['deployment'] = self.deployment.get_deployment_info()
 
+    def check_configmap(self):
+        if self.configmap is None:
+            self.configmap = DeployConfigMap(self.app, self.project)
+
+    def execute_configmap(self):
+        self.check_configmap()
+        if self.configmap.configmap_dict != {}:
+            self.k8s_client.execute_namespace_configmap(
+                self.configmap.configmap_name,
+                self.app.namespace,
+                self.configmap.configmap_body()
+            )
+            self.deployment_info['configmap'] = self.configmap.get_configmap_info()
+
+    def check_secret(self):
+        if self.secret is None:
+            self.secret = DeploySecret(self.app, self.project)
+
+    def execute_secret(self):
+        self.check_secret()
+        if self.secret.secret_dict != {}:
+            self.k8s_client.execute_namespace_secret(
+                self.secret.secret_name,
+                self.app.namespace,
+                self.secret.secret_body()
+            )
+            self.deployment_info['secret'] = self.secret.get_secret_info()
+
     def get_deployment_information(self):
         return self.deployment_info
 
@@ -818,61 +950,10 @@ def execute_k8s_deployment(app):
     k8s_info = json.loads(app.k8s_yaml)
     if k8s_info.get('network').get('domain', None) is not None:
         k8s_deployment.execute_ingress()
+    k8s_deployment.execute_configmap()
+    k8s_deployment.execute_secret()
     k8s_deployment.execute_deployment()
     return k8s_deployment.get_deployment_information()
-
-
-#
-# def execute_k8s_deployment(app):
-#     output = {}
-#     cluster = model.Cluster.query.filter_by(id=app.cluster_id).first()
-#     project = model.Project.query.filter_by(id=app.project_id).first()
-#     deploy_k8s_client = DepolyK8sClient(cluster)
-#     registry = model.Registries.query.filter_by(registries_id=app.registry_id).first()
-#     deploy_registry_secret = DeployRegistrySecret(app, registry)
-#     # Create Docker Pull Registry
-#     deploy_k8s_client.create_namespace_secret(
-#         deploy_registry_secret.registry_secret_name,
-#         app.namespace,
-#         deploy_registry_secret.registry_secret_body()
-#     )
-#     output['registry_secret'] = deploy_registry_secret.get_registry_secret_info()
-#     # Create Deployment Service
-#     deploy_service = DeployService(app, project)
-#     deploy_k8s_client.create_namespace_service(
-#         deploy_service.service_name,
-#         app.namespace,
-#         deploy_service.service_body()
-#     )
-#     output['service'] = deploy_service.get_service_info()
-#
-#     # Create Deployment Ingress
-#     k8s_info = json.loads(app.k8s_yaml)
-#     if k8s_info.get('network').get('domain', None) is not None:
-#         deploy_ingress = DeployIngress(app, project)
-#         deploy_k8s_client.create_namespace_ingress(
-#             deploy_ingress.ingress_name,
-#             app.namespace,
-#             deploy_ingress.ingress_body()
-#         )
-#         output['ingress'] = deploy_ingress.get_ingress_info()
-#
-#     # Create Secret and Configmap
-#
-#     # Create Deployment
-#     deploy_deployment = DeployDeployment(app,
-#                                          project,
-#                                          deploy_service.get_service_info(),
-#                                          deploy_registry_secret.get_registry_secret_info()
-#                                          )
-#
-#     deploy_k8s_client.create_namespace_deployment(
-#         deploy_deployment.deployment_name,
-#         app.namespace,
-#         deploy_deployment.deployment_body()
-#     )
-#     output['deployment'] = deploy_deployment.get_deployment_info()
-#     return output
 
 
 # check Deployment status
@@ -910,7 +991,6 @@ def check_k8s_deployment(app, deployed=True):
 def check_application_status(application_id):
     output = {}
     app = model.Application.query.filter_by(id=application_id).first()
-    print(app)
     if app is None:
         return output
     # Initial Harbor Replication execution
@@ -1061,7 +1141,9 @@ def delete_application(application_id, delete_option=False):
     if app is None:
         return {}
     harbor_info = json.loads(app.harbor_info)
-    delete_replication_policy(harbor_info.get('policy_id'))
+    print(check_replication_policy(harbor_info.get('policy_id')))
+    if check_replication_policy(harbor_info.get('policy_id')) is True:
+        delete_replication_policy(harbor_info.get('policy_id'))
     cluster = model.Cluster.query.filter_by(id=app.cluster_id).first()
     deploy_k8s_client = DepolyK8sClient(cluster)
     deploy_k8s_client.delete_namespace(app.namespace)
@@ -1124,7 +1206,7 @@ class Applications(Resource):
             parser.add_argument('namespace', type=str)
             parser.add_argument('resources', type=dict)
             parser.add_argument('network', type=dict)
-            parser.add_argument('environments', type=dict)
+            parser.add_argument('environments', type=dict, action='append')
             parser.add_argument('disabled', type=bool)
             args = parser.parse_args()
             if check_application_exists(args.get('project_id'), args.get('namespace')) is not None:
