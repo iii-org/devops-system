@@ -100,7 +100,8 @@ class CheckMarx(object):
         status_name = status.get('name')
         if status_id in {7, 8, 9}:
             scan = Model.query.filter_by(scan_id=scan_id).one()
-            scan.stats = json.dumps(self.get_scan_statistics(scan_id))
+            if status_id != 9:
+                scan.stats = json.dumps(self.get_scan_statistics(scan_id))
             scan.scan_final_status = status_name
             db.session.commit()
         return status_id, status_name
