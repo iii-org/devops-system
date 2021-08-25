@@ -140,28 +140,41 @@ def create_cluster(args, server_name, user_id):
     return new.id
 
 
+def check_cluster_value(value):
+    default = True
+    if value == 'False':
+        default = False
+    return default
+
+
 def update_cluster(cluster_id, args):
     cluster = model.Cluster.query.filter_by(id=cluster_id).one()
     for key in args.keys():
         if not hasattr(cluster, key):
             continue
-        setattr(cluster, key, args[key])
+        elif args[key] is not None:
+            print(key)
+            print(args[key])
+            if key == 'disabled':
+                setattr(cluster, key, check_cluster_value(args[key]))
+            else:
+                setattr(cluster, key, args[key])
+
+    if args.get('k8s_config_file', None) is not None:
+        cluster_path = check_directory_exists(args.get('name').strip())
+        file = args.get('k8s_config_file')
+        filename = secure_filename(DEFAULT_K8S_CONFIG_FILE)
+        file.save(os.path.join(cluster_path, filename))
+        file.seek(0)
+        content = file.read()
+        content = str(content, 'utf-8')
+        k8s_json = yaml.safe_load(content)
+        cluster.name = args.get('name')
+        cluster.cluster_name = k8s_json['clusters'][0]['name'],
+        cluster.cluster_host = k8s_json['clusters'][0]['cluster']['server'],
+        cluster.cluster_user = k8s_json['users'][0]['name']
+
     cluster.update_at = str(datetime.utcnow())
-    model.db.session.commit()
-    cluster_path = check_directory_exists(args.get('name').strip())
-    file = args.get('k8s_config_file')
-    filename = secure_filename(DEFAULT_K8S_CONFIG_FILE)
-    file.save(os.path.join(cluster_path, filename))
-    file.seek(0)
-    content = file.read()
-    content = str(content, 'utf-8')
-    k8s_json = yaml.safe_load(content)
-    cluster.name = args.get('name')
-    cluster.cluster_name = k8s_json['clusters'][0]['name'],
-    cluster.cluster_host = k8s_json['clusters'][0]['cluster']['server'],
-    cluster.cluster_user = k8s_json['users'][0]['name']
-    cluster.update_at = str(datetime.utcnow())
-    cluster.disabled = args.get('disabled')
     db.session.commit()
     return cluster.id
 
@@ -195,7 +208,7 @@ class Clusters(Resource):
             parser = reqparse.RequestParser()
             parser.add_argument('name', type=str)
             parser.add_argument(
-                'k8s_config_file', type=werkzeug.datastructures.FileStorage, location='files')
+                'k8s_config_file', type=werkzeug.datastructures.FileStorage, location='files', required=True)
             args = parser.parse_args()
             server_name = args.get('name').strip()
             if check_cluster(server_name) is not None:
@@ -228,6 +241,7 @@ class Cluster(Resource):
             parser.add_argument('name', type=str)
             parser.add_argument(
                 'k8s_config_file', type=werkzeug.datastructures.FileStorage, location='files')
+            parser.add_argument('disabled', type=str)
             args = parser.parse_args()
             output = {"cluster_id": update_cluster(cluster_id, args)}
             return util.success(output)
@@ -288,6 +302,8 @@ class Registries(Resource):
         except NoResultFound:
             return util.respond(404, error_clusters_not_found,
                                 error=apiError.repository_id_not_found)
+
+
 
 
 class Registry(Resource):

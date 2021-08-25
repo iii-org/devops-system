@@ -1,5 +1,5 @@
 from urllib.parse import quote
-
+from datetime import datetime, date
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
 from requests.auth import HTTPBasicAuth
@@ -377,7 +377,8 @@ def hb_create_registries(args):
         access_key=args['access_key'],
         access_secret=args['access_secret'],
         url=args['url'],
-        type=args['type']
+        type=args['type'],
+        disabled = False
     )
     model.db.session.add(new_registries)
     model.db.session.commit()
@@ -404,6 +405,15 @@ def hb_put_registries(registry_id, args):
         f'/registries/{registry_id}', data=args)
     registries_id = hb_get_registries(
         args='name={0}'.format(args['name']))[0].get('id')
+
+    registry = model.Registries.query.filter_by(registries_id=registry_id).first()
+    for key in args.keys():
+        if not hasattr(registry, key):
+            continue
+        elif args[key] is not None:
+            setattr(registry, key, args[key])
+    registry.update_at = str(datetime.utcnow())
+    model.db.session.commit()
     return registries_id
 
 
@@ -683,6 +693,7 @@ class HarborRegistry(Resource):
         parser.add_argument('login_server', type=str, required=False)
         parser.add_argument('description', type=str)
         parser.add_argument('insecure', type=bool)
+        parser.add_argument('disabled', type=bool)
         args = parser.parse_args()
         return util.success({'registry_id': hb_put_registries(registry_id, args)})
 
