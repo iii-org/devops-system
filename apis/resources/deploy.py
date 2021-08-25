@@ -1060,13 +1060,11 @@ def get_application_information(application, cluster_info=None):
     # output = row_to_dict(application)
     if application is None:
         return []
-    output = {
-        'id': application.id,
-        'application_name': application.name,
-        'created_at': str(application.created_at),
-        'status_id': application.status_id,
-        'status_str': APPLICATION_STATUS[application.status_id]
-    }
+
+    output = row_to_dict(application)
+    output['status_str'] = APPLICATION_STATUS[application.status_id]
+    output.pop('k8s_yaml')
+    output.pop('harbor_info')
     if application.harbor_info is None or application.k8s_yaml is None:
         return output
     harbor_info = json.loads(application.harbor_info)
@@ -1075,27 +1073,36 @@ def get_application_information(application, cluster_info=None):
         cluster_info = get_clusters_name(application.cluster_id)
     elif str(application.cluster_id) not in cluster_info:
         cluster_info = get_clusters_name(application.cluster_id, cluster_info)
-
-    output['cluster_name'] = cluster_info[str(application.cluster_id)]
+    output['cluster'] = {}
+    output['cluster']['id'] = application.cluster_id
+    output['cluster']['name'] = cluster_info[str(application.cluster_id)]
+    output['registry'] = {}
+    output['registry']['id'] = application.cluster_id
     output['project_name'] = harbor_info.get('project')
     output['tag_name'] = harbor_info.get('tag_name')
     output['k8s_status'] = k8s_yaml.get('deploy_finish')
-    output['namespace'] = harbor_info.get('dest_repo_name')
+    output['resources'] = k8s_yaml.get('resources')
+    output['network'] = k8s_yaml.get('network')
+    output['environments'] = k8s_yaml.get('environments')
     return output, cluster_info
 
 
 def get_applications(args):
     output = []
+    cluster_info = {}
     if 'application_id' in args:
-        applications = model.Application.query.filter_by(id=args.get('application_id')).all()
+        applications = model.Application.query.filter_by(id=args.get('application_id')).first()
     elif 'project_id' in args:
         applications = model.Application.query.filter_by(project_id=args.get('project_id')).all()
     else:
         applications = model.Application.query.filter(model.Application.disabled.isnot(True)).all()
-    cluster_info = {}
-    for application in applications:
-        output_app, cluster_info = get_application_information(application, cluster_info)
-        output.append(output_app)
+
+    if 'application_id' in args:
+        output, cluster_info = get_application_information(applications, cluster_info)
+    else:
+        for application in applications:
+            output_app, cluster_info = get_application_information(application, cluster_info)
+            output.append(output_app)
     return output
 
 
