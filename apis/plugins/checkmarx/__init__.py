@@ -20,11 +20,14 @@ from resources.apiError import DevOpsError
 
 
 def cm_get_config(key):
-    return get_plugin_config("checkmarx")["arguments"][key]
+    for arg in get_plugin_config("checkmarx")["arguments"]:
+        if arg['key'] == key:
+            return arg['value']
+    return None
 
 
 def build_url(path):
-    return f'{cm_get_config("cm_url")}{path}'
+    return f'{cm_get_config("cm-url")}{path}'
 
 
 class CheckMarx(object):
