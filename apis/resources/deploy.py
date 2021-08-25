@@ -337,7 +337,6 @@ def create_default_harbor_data(project, release, registry_id, namespace):
 
 
 def create_default_k8s_data(project, release, args):
-    print(args.get('environments'))
     k8s_data = {
         "project": project.display,
         "project_id": project.name,
@@ -357,7 +356,13 @@ def initial_harbor_replication_image_policy(
     harbor_info = json.loads(app.harbor_info)
     harbor_info.pop('project')
     harbor_info.pop('status')
-    policy_id = harbor.hb_create_replication_policy(harbor_info)
+    query_data = {'name': harbor_info.get('policy_name')}
+    check = harbor.hb_get_replication_policies(query_data)
+    if len(check) == 0:
+        policy_id = harbor.hb_create_replication_policy(harbor_info)
+    else:
+        policy_id = check[0]['id']
+        harbor.hb_put_replication_policy(policy_id, harbor_info)
     return policy_id
 
 
@@ -377,7 +382,6 @@ def check_replication_policy(policy_id):
     polices = harbor.hb_get_replication_policy()
     check = False
     for policy in polices:
-        print(policy)
         if policy.get('id') == policy_id:
             check = True
             break
@@ -399,7 +403,10 @@ def execute_image_replication(app):
     executions = get_replication_executions(policy_id)
     execution_id = executions[-1]['id']
     tasks = get_replication_execution_task(execution_id)
-    task_id = tasks[-1]['id']
+    if len(tasks) > 0:
+        task_id = tasks[-1]['id']
+    else:
+        task_id = None
 
     return {
         "policy_id": policy_id,
@@ -988,9 +995,8 @@ def check_k8s_deployment(app, deployed=True):
     return deployed_status.count(deployed) == len(deployed_status)
 
 
-def check_application_status(application_id):
+def check_application_status(app):
     output = {}
-    app = model.Application.query.filter_by(id=application_id).first()
     if app is None:
         return output
     # Initial Harbor Replication execution
@@ -1031,7 +1037,7 @@ def check_application_status(application_id):
             app.status_id = 10
             db.session.commit()
 
-    return {'status': APPLICATION_STATUS[app.status_id], 'output': output, 'database': row_to_dict(app)}
+    return {'id': app.id, 'status': APPLICATION_STATUS[app.status_id], 'output': output, 'database': row_to_dict(app)}
 
 
 def check_application_exists(project_id, namespace):
@@ -1087,7 +1093,7 @@ def get_application_information(application, cluster_info=None):
     return output, cluster_info
 
 
-def get_applications(args):
+def get_applications(args={}):
     output = []
     cluster_info = {}
     if 'application_id' in args:
@@ -1148,7 +1154,6 @@ def delete_application(application_id, delete_option=False):
     if app is None:
         return {}
     harbor_info = json.loads(app.harbor_info)
-    print(check_replication_policy(harbor_info.get('policy_id')))
     if check_replication_policy(harbor_info.get('policy_id')) is True:
         delete_replication_policy(harbor_info.get('policy_id'))
     cluster = model.Cluster.query.filter_by(id=app.cluster_id).first()
@@ -1241,7 +1246,8 @@ class Application(Resource):
     @jwt_required
     def patch(self, application_id):
         try:
-            output = check_application_status(application_id)
+            app = model.Application.query.filter_by(id=application_id).first()
+            output = check_application_status(app)
             return util.success({"applications": output})
         except NoResultFound:
             return util.respond(404, error_clusters_not_found,
@@ -1252,6 +1258,23 @@ class Application(Resource):
         try:
             output = delete_application(application_id, True)
             return util.success(output)
+        except NoResultFound:
+            return util.respond(404, error_clusters_not_found,
+                                error=apiError.repository_id_not_found)
+
+
+class Cronjob(Resource):
+
+    @jwt_required
+    def patch(self):
+        try:
+            execute_list = []
+            check_list = [1, 2, 3, 4]
+            apps = db.session.query(model.Application).filter(model.Application.status_id.in_(check_list)).all()
+            for app in apps:
+                temp = check_application_status(app)
+                execute_list.append(temp['id'])
+            return util.success({"applications": execute_list})
         except NoResultFound:
             return util.respond(404, error_clusters_not_found,
                                 error=apiError.repository_id_not_found)
