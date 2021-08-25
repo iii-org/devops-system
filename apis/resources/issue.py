@@ -1454,10 +1454,9 @@ def execute_issue_alert(alert_mapping):
                     days = alert["days"]
                     issue_id = issue["id"]
                     if condition == "unchange":
-                        delta = util.get_certain_date_from_now(days) - datetime.strptime(issue["updated_on"][0:-4], "%Y-%m-%dT%H:%M")
-                        if delta.days > 0 or delta.seconds > 0:
-                            delta_days = delta.days if delta.days > 0 else 1
-                            note = f'已{delta_days + days}天未異動，敬請確認'
+                        delta = datetime.strptime(issue["updated_on"][0:10], "%Y-%m-%d") - util.get_certain_date_from_now(days)
+                        if delta.days >= 0:
+                            note = f'已{days - delta.days}天未異動，敬請確認'
                     if condition == "comming":
                         if issue.get("due_date") is None:
                             continue
