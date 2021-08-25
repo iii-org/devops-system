@@ -1265,8 +1265,8 @@ class Application(Resource):
 
 class Cronjob(Resource):
 
-    @jwt_required
-    def patch(self):
+    @staticmethod
+    def patch():
         try:
             execute_list = []
             check_list = [1, 2, 3, 4]
