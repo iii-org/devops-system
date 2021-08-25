@@ -16,7 +16,7 @@ If you don't have the alembic.ini, copy _alembic.ini and replace the postgres ur
 import json
 
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Date, Enum, JSON, Float, ARRAY
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Date, Enum, JSON, Float, ARRAY, PickleType
 from sqlalchemy.orm import relationship, backref
 
 import util
@@ -610,3 +610,12 @@ class TraceOrder(db.Model):
     project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
     order = Column(ARRAY(String))
     default = Column(Boolean)
+
+
+class TraceResult(db.Model):
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
+    current_num = Column(Integer)
+    current_job = Column(PickleType)
+    result = Column(ARRAY(String))
+    execute_time = Column(DateTime)
