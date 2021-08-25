@@ -67,7 +67,6 @@ class CheckMarx(object):
         return res
 
     def __api_get(self, path, headers=None):
-        print(path)
         return self.__api_request('GET', path, headers=headers)
 
     def __api_post(self, path, data=None, headers=None):

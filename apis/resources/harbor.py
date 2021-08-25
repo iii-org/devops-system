@@ -44,7 +44,6 @@ def __api_request(method, path, headers=None, params=None, data=None):
 
 
 def __api_get(path, params=None, headers=None):
-    print(path)
     return __api_request('GET', path, params=params, headers=headers)
 
 
