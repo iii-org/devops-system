@@ -617,5 +617,5 @@ class TraceResult(db.Model):
     project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
     current_num = Column(Integer)
     current_job = Column(PickleType)
-    result = Column(ARRAY(String))
+    results = Column(String)
     execute_time = Column(DateTime)
