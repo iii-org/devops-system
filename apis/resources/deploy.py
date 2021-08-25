@@ -1042,6 +1042,8 @@ def create_application(args):
 
 def delete_application(application_id, delete_option=False):
     app = model.Application.query.filter_by(id=application_id).first()
+    if app is None:
+        return {}
     harbor_info = json.loads(app.harbor_info)
     delete_replication_policy(harbor_info.get('policy_id'))
     cluster = model.Cluster.query.filter_by(id=app.cluster_id).first()
