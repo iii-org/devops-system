@@ -591,6 +591,8 @@ api.add_resource(alert.DefaultAlertDaysUpdate, '/alert/default_days')
 api.add_resource(trace_order.TraceOrders, '/trace_order')
 api.add_resource(trace_order.SingleTraceOrder, '/trace_order/<sint:trace_order_id>')
 api.add_resource(trace_order.ExecuteTraceOrder, '/trace_order/execute')
+api.add_resource(trace_order.GetTraceResult, '/trace_order/result')
+api.add_resource(trace_order.StopExecuteTraceOrder, '/trace_order/stop')
 
 
 def start_prod():

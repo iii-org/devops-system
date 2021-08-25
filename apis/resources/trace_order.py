@@ -1,6 +1,9 @@
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
 
+import json
+import dill
+import threading
 import config
 import model
 import resources.project as project
@@ -9,13 +12,14 @@ import resources.issue as issue
 from copy import deepcopy
 from resources.issue import NexusIssue
 import util as util
-from model import db, TraceOrder
+from model import db, TraceOrder, TraceResult
 import resources.apiError as apiError 
 from resources.apiError import DevOpsError
 from sqlalchemy.orm.exc import NoResultFound
 from accessories import redmine_lib
 from resources.redmine import redmine
 from resources.quality import qu_get_testfile_by_testplan
+from datetime import datetime
 '''
 order_mapping
 "Epic": 需求規格
@@ -152,9 +156,21 @@ def delete_trace_order(trace_order_id):
     db.session.delete(trace_order)
     db.session.commit()
 
+def get_order(project_id):
+    trace_order = TraceOrder.query.filter_by(
+        project_id=project_id, 
+        default=True, 
+    ).first()
+    if trace_order is not None:
+        order = trace_order.order
+    else:
+        order = config.get("DEFAULT_TRACE_ORDER")
+    return order
+
 class TraceList:
-    def __init__(self, plan_project_id, trace_order, issues):
-        self.pj_id = plan_project_id
+    def __init__(self, project_id, trace_order, issues):
+        self.project_id = project_id
+        self.pj_id = project.get_plan_project_id(project_id)
         self.trace_order = trace_order
         self.issues = issues
         self.__check_test_plan_exist()
@@ -355,15 +371,59 @@ class TraceList:
                         self.mention_id.append(id)
                         self.__check_final_id(same_id)
 
+    def update_trace_result(self, 
+                            current_num=None, current_job=None, results=None, execute_time=None):
+        query = TraceResult.query.filter_by(
+            project_id=self.project_id,
+        ).one()
+        if current_num is not None:
+            query.current_num = current_num
+        if current_job is not None:
+            query.current_job = current_job
+        if results is not None:
+            results = json.dumps(results)
+            query.results = results
+        if execute_time is not None:
+            query.execute_time = str(execute_time)
+        db.session.commit()
+
     def execute_trace_order(self, order_length):
+        current_num = 0
+        self.update_trace_result(current_num=0, execute_time=datetime.utcnow().isoformat())
+
         self.generate_head_mapping()
+        current_num += 1
+        self.update_trace_result(current_num=current_num)
 
         for i in range(order_length - 2):
             self.generate_middle_mapping(i + 1)
+            current_num += 1
+            self.update_trace_result(current_num=current_num)
 
         self.generate_final_mapping()
+        current_num += 1
+        self.update_trace_result(current_num=current_num, results=self.result)
 
         return self.result
+
+def get_trace_result(project_id):
+    trace_result = TraceResult.query.filter_by(
+        project_id=project_id,
+    ).one()
+    order = get_order(project_id)
+    if trace_result.results is not None:
+        results = json.loads(trace_result.results)
+    else:
+        results = None
+    return {
+        "project_id": project_id,
+        "total_num": len(order),
+        "current_num": trace_result.current_num,
+        "result": results,
+        "start_time": str(trace_result.execute_time),
+        "end_time": str(datetime.utcnow().isoformat()) if len(order) == trace_result.current_num else None,
+    }
+
 
 # --------------------- Resources ---------------------
 class TraceOrders(Resource):
@@ -400,6 +460,22 @@ class SingleTraceOrder(Resource):
         return util.success(delete_trace_order(trace_order_id))
 
 
+def initial_trace_result(project_id, thread):
+    current_job = thread
+    trace_result = TraceResult.query.filter_by(
+        project_id=project_id,
+    ).first()
+    if trace_result is None:
+        query = TraceResult(
+            project_id=project_id,
+            current_job=current_job,
+        )
+        db.session.add(query)
+    else:
+        trace_result.current_job = current_job
+    db.session.commit()
+
+
 class ExecuteTraceOrder(Resource):
     @jwt_required
     def patch(self): 
@@ -407,16 +483,7 @@ class ExecuteTraceOrder(Resource):
         parser.add_argument('project_id', type=int, required=True)
         args = parser.parse_args()
         project_id = args["project_id"]
-
-        trace_order = TraceOrder.query.filter_by(
-            project_id=project_id, 
-            default=True, 
-        ).first()
-        if trace_order is not None:
-            order = trace_order.order
-        else:
-            order = config.get("DEFAULT_TRACE_ORDER")
-
+        order = get_order(project_id)
         plan_project_id = project.get_plan_project_id(project_id)
 
         trackers = redmine_lib.redmine.tracker.all()
@@ -432,4 +499,35 @@ class ExecuteTraceOrder(Resource):
             "status": {"id": issue.status.id, "name": issue.status.name}, 
         } for issue in issues}
 
-        return util.success(TraceList(plan_project_id, order, issues).execute_trace_order(len(order)))
+        thread = threading.Thread(target=TraceList(project_id, order, issues).execute_trace_order, args=(len(order),))
+        b_thread = dill.dumps(thread)
+        initial_trace_result(project_id, b_thread)
+        thread.start()
+        return {"message": "success"}
+
+class GetTraceResult(Resource):
+    def get(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('project_id', type=int, required=True)
+        project_id = parser.parse_args()["project_id"]
+
+        return util.success(get_trace_result(project_id))
+
+
+class StopExecuteTraceOrder(Resource):
+    @jwt_required
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('project_id', type=int, required=True)
+        project_id = parser.parse_args()["project_id"]
+
+        ret = {"message": "success"}
+        trace_result = TraceResult.query.filter_by(
+            project_id=project_id,
+        ).one()
+        try:
+            current_job = dill.loads(trace_result.current_job)
+            current_job.join()
+        except Exception as e:
+            raise DevOpsError(500, "Error while stopping trace.",
+                              error=apiError.no_detail())
