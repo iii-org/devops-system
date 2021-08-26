@@ -270,7 +270,7 @@ def get_registries_application_information(registry):
     output = row_to_dict(registry)
     if output.get('type') == 'harbor':
         output.update({
-         'access_secret': util.base64decode(output.get('access_secret'))
+            'access_secret': util.base64decode(output.get('access_secret'))
         })
     ret_output = []
     for application in registry.application:
@@ -340,6 +340,16 @@ def create_default_harbor_data(project, release, registry_id, namespace):
     return harbor_data
 
 
+def remove_object_key_by_value(items, target=""):
+    output = {}
+    if items is None:
+        return output
+    for key in items.keys():
+        if items[key] != target:
+            output[key] = items[key]
+    return output
+
+
 def create_default_k8s_data(project, release, args):
     k8s_data = {
         "project": project.display,
@@ -347,10 +357,23 @@ def create_default_k8s_data(project, release, args):
         "repo_name": project.name,
         "image_name": release.branch,
         "tag_name": release.tag_name,
-        "resources": args.get('resources'),
-        "network": args.get('network'),
-        "environments": args.get('environments'),
+        "namespace": args.get('namespace')
     }
+    environments = []
+    for items in args.get('environments'):
+        item = remove_object_key_by_value(items)
+        if item is not None:
+            environments.append(item)
+    if len(environments) > 0:
+        k8s_data['environments'] = environments
+    resources = remove_object_key_by_value(args.get('resources', None))
+    if resources != {}:
+        k8s_data['resources'] = resources
+
+    network = remove_object_key_by_value(args.get('network', None))
+    if network != {}:
+        k8s_data['network'] = network
+
     return k8s_data
 
 
@@ -406,20 +429,17 @@ def execute_image_replication(app):
     image_uri = execute_replication_policy(policy_id)
     executions = get_replication_executions(policy_id)
     execution_id = executions[-1]['id']
-    tasks = get_replication_execution_task(execution_id)
-    if len(tasks) > 0:
-        task_id = tasks[-1]['id']
-    else:
-        task_id = None
-
-    return {
+    output = {
         "policy_id": policy_id,
         "policy": policy,
         "image_uri": image_uri,
         "execution_id": execution_id,
-        "task_id": task_id,
-        "task": tasks
     }
+    tasks = get_replication_execution_task(execution_id)
+    if len(tasks) > 0:
+        output['task_id'] = tasks[-1]['id']
+        output['task'] = tasks
+    return output
 
 
 def check_image_replication_status(task):
@@ -434,10 +454,14 @@ def check_image_replication(app):
     harbor_info = json.loads(app.harbor_info)
     tasks = get_replication_execution_task(harbor_info.get('execution_id'))
     harbor_info['task'] = tasks
-    for task in tasks:
-        if task.get('id') == harbor_info.get('task_id'):
-            output = check_image_replication_status(task)
-            break
+    task_id = harbor_info.get('task_id', None)
+    if task_id is None:
+        output = check_image_replication_status(tasks[-1])
+    else:
+        for task in tasks:
+            if task.get('id') == harbor_info.get('task_id'):
+                output = check_image_replication_status(task)
+                break
     return tasks, output
 
 
@@ -1096,22 +1120,25 @@ def get_application_information(application, cluster_info=None):
     return output, cluster_info
 
 
-def get_applications(args={}):
+def get_applications(args=None):
     output = []
     cluster_info = {}
-    if 'application_id' in args:
-        applications = model.Application.query.filter_by(id=args.get('application_id')).first()
+    app = None
+    if args is None:
+        app = model.Application.query.filter().all()
+    elif 'application_id' in args:
+        app = model.Application.query.filter_by(id=args.get('application_id')).first()
     elif 'project_id' in args:
-        applications = model.Application.query.filter_by(project_id=args.get('project_id')).all()
-    else:
-        applications = model.Application.query.filter().all()
+        app = model.Application.query.filter_by(project_id=args.get('project_id')).all()
 
-    if 'application_id' in args:
-        output, cluster_info = get_application_information(applications, cluster_info)
-    else:
-        for application in applications:
+    if app is None:
+        return output
+    elif isinstance(app, list):
+        for application in app:
             output_app, cluster_info = get_application_information(application, cluster_info)
             output.append(output_app)
+    else:
+        output, cluster_info = get_application_information(app, cluster_info)
     return output
 
 
