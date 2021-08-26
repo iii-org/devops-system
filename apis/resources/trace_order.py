@@ -53,6 +53,14 @@ def handle_default_value(project_id):
             trace_order.default = False
             db.session.commit()
 
+    trace_result = TraceResult.query.filter_by(
+        project_id=project_id,
+    ).first()
+    if trace_result is not None:
+        trace_result.result = None
+        db.session.commit()
+
+
 def trace_order_is_allow_to_change(project_id):
     allow = False
     for trace_order in TraceOrder.query.filter_by(project_id=project_id).all():
@@ -372,7 +380,7 @@ class TraceList:
                         self.__check_final_id(same_id)
 
     def update_trace_result(self, 
-                            current_num=None, current_job=None, results=None, execute_time=None):
+                            current_num=None, current_job=None, results=None, execute_time=None, exception=False):
         query = TraceResult.query.filter_by(
             project_id=self.project_id,
         ).one()
@@ -385,33 +393,37 @@ class TraceList:
             query.results = results
         if execute_time is not None:
             query.execute_time = str(execute_time)
+        if exception is not False:
+            query.exception = exception
         db.session.commit()
 
     def execute_trace_order(self, order_length):
-        current_num = 0
-        self.update_trace_result(current_num=0, execute_time=datetime.utcnow().isoformat())
+        try:
+            current_num = 0
+            self.update_trace_result(current_num=0, execute_time=datetime.utcnow().isoformat(), exception=None)
 
-        self.generate_head_mapping()
-        current_num += 1
-        self.update_trace_result(current_num=current_num)
-
-        for i in range(order_length - 2):
-            self.generate_middle_mapping(i + 1)
+            self.generate_head_mapping()
             current_num += 1
             self.update_trace_result(current_num=current_num)
 
-        self.generate_final_mapping()
-        current_num += 1
-        self.update_trace_result(current_num=current_num, results=self.result)
+            for i in range(order_length - 2):
+                self.generate_middle_mapping(i + 1)
+                current_num += 1
+                self.update_trace_result(current_num=current_num)
 
-        return self.result
+            self.generate_final_mapping()
+            current_num += 1
+            self.update_trace_result(current_num=current_num, results=self.result)
+        except Exception as e:
+            self.update_trace_result(exception=str(e))
+
 
 def get_trace_result(project_id):
     trace_result = TraceResult.query.filter_by(
         project_id=project_id,
     ).one()
     order = get_order(project_id)
-    if trace_result.results is not None:
+    if trace_result.results is not None and len(order) == trace_result.current_num:
         results = json.loads(trace_result.results)
     else:
         results = None
@@ -422,6 +434,7 @@ def get_trace_result(project_id):
         "result": results,
         "start_time": str(trace_result.execute_time),
         "end_time": str(datetime.utcnow().isoformat()) if len(order) == trace_result.current_num else None,
+        "exception": trace_result.exception
     }
 
 
@@ -526,8 +539,12 @@ class StopExecuteTraceOrder(Resource):
             project_id=project_id,
         ).one()
         try:
+            # print(threading.enumerate())
             current_job = dill.loads(trace_result.current_job)
+            # print(dir(current_job))
+            # print(current_job)
             current_job.join()
         except Exception as e:
+            # print(e)
             raise DevOpsError(500, "Error while stopping trace.",
                               error=apiError.no_detail())
