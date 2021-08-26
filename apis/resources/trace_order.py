@@ -4,6 +4,7 @@ from flask_restful import Resource, reqparse
 import json
 import dill
 import threading
+# from multiprocessing import Process
 import config
 import model
 import resources.project as project
@@ -40,7 +41,7 @@ def validate_order_value(order):
             "log": "Order's elements must be in ['Epic', 'Audit', 'Feature', 'Bug', 'Issue', 'Change Request', 'Risk', 'Test Plan', 'Fail Management']",
         },
         {"condition": len(order) != len(set(order)), "log": "Elements must not be duplicated"},
-        {"condition": not len(order) <= 5, "log": "Numbers of order's elements must be in range [0, 5]"},
+        {"condition": not 2 <= len(order) <= 5, "log": "Numbers of order's elements must be in range [2, 5]"},
     ]
     for validate_order in validate_order_list:
         if validate_order["condition"]:
@@ -178,7 +179,6 @@ def get_order(project_id):
 class TraceList:
     def __init__(self, project_id, trace_order, issues):
         self.project_id = project_id
-        self.pj_id = project.get_plan_project_id(project_id)
         self.trace_order = trace_order
         self.issues = issues
         self.__check_test_plan_exist()
@@ -235,18 +235,18 @@ class TraceList:
                     self.result.append(alone_issue_mapping)
 
     def __get_test_plan_content(self, test_plan_id):
-        mapping = {"test_file": [], "test_result": []}
-        test_files = qu_get_testfile_by_testplan(self.pj_id, test_plan_id)
+        mapping = {"TestFile": [], "TestResult": []}
+        test_files = qu_get_testfile_by_testplan(self.project_id, test_plan_id)
         if test_files == []:
             return {}
         else:
             for test_file in test_files:
-                mapping["test_file"].append({
+                mapping["TestFile"].append({
                     k: test_file[k] for k in [
                         "software_name", "file_name"]
                 })
                 test_result = {
-                    k: test_file[k] for k in [
+                    k: test_file["the_last_test_result"][k] for k in [
                         "branch", "commit_id"]
                 }
                 if test_file["the_last_test_result"].get("result") is not None:
@@ -257,7 +257,7 @@ class TraceList:
                     test_result.update({
                         "result": {k: test_file["the_last_test_result"][k] for k in ["success", "failure"]}
                     })
-                mapping["test_result"].append(test_result)
+                mapping["TestResult"].append(test_result)
         return mapping
 
     def __generate_alon_issue_mapping(self, track, id):
@@ -437,6 +437,20 @@ def get_trace_result(project_id):
         "exception": trace_result.exception
     }
 
+def initial_trace_result(project_id, thread):
+    current_job = thread
+    trace_result = TraceResult.query.filter_by(
+        project_id=project_id,
+    ).first()
+    if trace_result is None:
+        query = TraceResult(
+            project_id=project_id,
+            current_job=current_job,
+        )
+        db.session.add(query)
+    else:
+        trace_result.current_job = current_job
+    db.session.commit()
 
 # --------------------- Resources ---------------------
 class TraceOrders(Resource):
@@ -457,7 +471,7 @@ class TraceOrders(Resource):
         return util.success(create_trace_order_by_project(args))
 
 class SingleTraceOrder(Resource):
-    @jwt_required
+    # @jwt_required
     def patch(self, trace_order_id):
         parser = reqparse.RequestParser()
         parser.add_argument('name', type=str)
@@ -473,24 +487,8 @@ class SingleTraceOrder(Resource):
         return util.success(delete_trace_order(trace_order_id))
 
 
-def initial_trace_result(project_id, thread):
-    current_job = thread
-    trace_result = TraceResult.query.filter_by(
-        project_id=project_id,
-    ).first()
-    if trace_result is None:
-        query = TraceResult(
-            project_id=project_id,
-            current_job=current_job,
-        )
-        db.session.add(query)
-    else:
-        trace_result.current_job = current_job
-    db.session.commit()
-
-
 class ExecuteTraceOrder(Resource):
-    @jwt_required
+    # @jwt_required
     def patch(self): 
         parser = reqparse.RequestParser()
         parser.add_argument('project_id', type=int, required=True)
@@ -528,7 +526,7 @@ class GetTraceResult(Resource):
 
 
 class StopExecuteTraceOrder(Resource):
-    @jwt_required
+    # @jwt_required
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('project_id', type=int, required=True)
@@ -541,9 +539,11 @@ class StopExecuteTraceOrder(Resource):
         try:
             # print(threading.enumerate())
             current_job = dill.loads(trace_result.current_job)
+            # current_job.terminate()
+            # print(current_job.is_alive())
             # print(dir(current_job))
             # print(current_job)
-            current_job.join()
+
         except Exception as e:
             # print(e)
             raise DevOpsError(500, "Error while stopping trace.",
