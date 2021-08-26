@@ -1265,13 +1265,15 @@ def update_application(application_id, args):
         model.Release.id == args.get('release_id'),
         model.Release.project_id == model.Project.id
     ).one()
-
     for key in args.keys():
         if not hasattr(app, key):
             continue
         elif args[key] is not None:
             setattr(app, key, args[key])
+
+    #  Delete Application
     db_harbor_info = json.loads(app.harbor_info)
+    delete_image_replication_policy(db_harbor_info.get('policy_id'))
     db_harbor_info.update(
         create_default_harbor_data(
             project, release, args.get('registry_id'), args.get('namespace'))
@@ -1280,7 +1282,14 @@ def update_application(application_id, args):
     db_k8s_yaml.update(
         create_default_k8s_data(project, release, args)
     )
-    app.status_id = check_update_application_status(app, args)
+
+    # Delete Old K8s Info
+    delete_k8s_application(app.cluster_id, app.namespace)
+    # check namespace
+    deploy_k8s_client = DepolyK8sClient(cluster)
+    deploy_namespace = DeployNamespace(args.get('namespace'))
+    deploy_k8s_client.create_namespace(deploy_namespace.namespace_body())
+    app.status_id = 1
     app.harbor_info = json.dumps(db_harbor_info)
     app.k8s_yaml = json.dumps(db_k8s_yaml)
     app.updated_at = (datetime.utcnow())
@@ -1288,16 +1297,25 @@ def update_application(application_id, args):
     return app.id
 
 
+def delete_image_replication_policy(policy_id):
+    if policy_id is not None and check_replication_policy(policy_id) is True:
+        delete_replication_policy(policy_id)
+
+
+def delete_k8s_application(cluster_id, namespace):
+    if cluster_id is not None and namespace is not None:
+        cluster = model.Cluster.query.filter_by(id=cluster_id).first()
+        deploy_k8s_client = DepolyK8sClient(cluster)
+        deploy_k8s_client.delete_namespace(namespace)
+
+
 def delete_application(application_id, delete_db=False):
     app = model.Application.query.filter_by(id=application_id).first()
     if app is None:
         return {}
     harbor_info = json.loads(app.harbor_info)
-    if check_replication_policy(harbor_info.get('policy_id')) is True:
-        delete_replication_policy(harbor_info.get('policy_id'))
-    cluster = model.Cluster.query.filter_by(id=app.cluster_id).first()
-    deploy_k8s_client = DepolyK8sClient(cluster)
-    deploy_k8s_client.delete_namespace(app.namespace)
+    delete_image_replication_policy(harbor_info.get('policy_id'))
+    delete_k8s_application(app.cluster_id, app.namespace)
     if delete_db is False:
         app.status_id = 9
         app.status = APPLICATION_STATUS[9]
@@ -1310,8 +1328,7 @@ def delete_application(application_id, delete_db=False):
 
 def redeploy_application(application_id):
     app = model.Application.query.filter_by(id=application_id).first()
-    execute_k8s_deployment(app)
-    app.status_id = 4
+    app.status_id = 1
     app.status = APPLICATION_STATUS[4]
     db.session.commit()
     return app.id
