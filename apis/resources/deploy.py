@@ -25,7 +25,7 @@ error_application_exists = "Application had been deployed"
 DEFAULT_K8S_CONFIG_FILE = 'k8s_config'
 
 APPLICATION_STATUS = {
-    1: 'Initial',
+    1: 'Draft Deploy',
     2: 'Start Image replication',
     3: 'Finish Image replication',
     4: 'Start Kubernetes deployment ',
@@ -384,7 +384,7 @@ def initial_harbor_replication_image_policy(
     harbor_info.pop('project')
     harbor_info.pop('status')
     query_data = {'name': harbor_info.get('policy_name')}
-    check = harbor.hb_get_replication_policies(query_data)
+    check = harbor.hb_get_replication_policies(args=query_data)
     if len(check) == 0:
         policy_id = harbor.hb_create_replication_policy(harbor_info)
     else:
