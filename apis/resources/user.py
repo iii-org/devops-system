@@ -92,7 +92,7 @@ def get_user_id_name_by_plan_user_id(plan_user_id):
 
 
 def get_all_user_info():
-    return db.session.query(model.User.id, model.User.name, model.User.login, 
+    return db.session.query(model.User.id, model.User.name, model.User.login,
                             model.UserPluginRelation.plan_user_id).filter(
         model.UserPluginRelation.user_id == model.User.id).all()
 
@@ -175,6 +175,7 @@ def check_db_login(user, password, output):
     else:
         logger.info("User Login failed by DB user_id: {0}".format(user.id))
     return output, user, project_user_role
+
 
 def login(args):
     login_account = args['username']
@@ -276,7 +277,7 @@ def update_user(user_id, args, from_ad=False):
         user.title = args['title']
     if args["department"] is not None:
         user.department = args['department']
-    if args.get("status",None) is not None:
+    if args.get("status", None) is not None:
         if args.get("status", None) == "disable":
             user.disabled = True
         else:
@@ -666,8 +667,8 @@ def user_list_by_project(project_id, args):
         # list users in the project
         project_row = model.Project.query.options(
             joinedload(model.Project.user_role).
-            joinedload(model.ProjectUserRole.user).
-            joinedload(model.User.project_role)
+                joinedload(model.ProjectUserRole.user).
+                joinedload(model.User.project_role)
         ).filter_by(id=project_id).one()
         users = list(filter(
             lambda x: x.role_id not in excluded_roles and not x.user.disabled,
