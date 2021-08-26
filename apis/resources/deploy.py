@@ -466,10 +466,17 @@ def check_image_replication_status(task):
 def check_image_replication(app):
     output = False
     harbor_info = json.loads(app.harbor_info)
-    tasks = get_replication_execution_task(harbor_info.get('execution_id'))
+    # Restart Image Rplication task
+    if len(harbor_info.get('task', [])) == 0:
+        tasks = execute_replication_policy(harbor_info.get('policy_id'))
+    else:
+        tasks = get_replication_execution_task(harbor_info.get('execution_id'))
+
+    if len(tasks) == 0:
+        return tasks, False
     harbor_info['task'] = tasks
     task_id = harbor_info.get('task_id', None)
-    if task_id is None:
+    if task_id is None and len(tasks) != 0:
         output = check_image_replication_status(tasks[-1])
     else:
         for task in tasks:
