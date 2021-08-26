@@ -2,6 +2,7 @@ import base64
 import json
 import numbers
 import os
+import time
 from datetime import datetime, timezone
 
 import yaml
@@ -76,6 +77,13 @@ class ApiK8sClient:
     def create_namespaced_ingress(self, namespace, body):
         try:
             return self.network_v1beta1.create_namespaced_ingress(namespace, body)
+        except apiError.DevOpsError as e:
+            if e.status_code != 404:
+                raise e
+
+    def patch_namespaced_ingress(self, name, namespace, body):
+        try:
+            return self.network_v1beta1.patch_namespaced_ingress(name, namespace, body)
         except apiError.DevOpsError as e:
             if e.status_code != 404:
                 raise e
@@ -185,6 +193,13 @@ class ApiK8sClient:
     def create_namespaced_service(self, namespace, body):
         try:
             return self.core_v1.create_namespaced_service(namespace, body)
+        except apiError.DevOpsError as e:
+            if e.status_code != 404:
+                raise e
+
+    def patch_namespaced_service(self, name, namespace, body):
+        try:
+            return self.core_v1.patch_namespaced_service(name, namespace, body)
         except apiError.DevOpsError as e:
             if e.status_code != 404:
                 raise e
@@ -426,21 +441,16 @@ class ApiK8sClient:
 
     # Cron Job
     def list_namespaced_cron_job(self, namespace):
-        try:
-            return self.batch_v1beta1.list_namespaced_cron_job(namespace)
-        except apiError.DevOpsError as e:
-            if e.status_code != 404:
-                raise e
+        return self.batch_v1beta1.list_namespaced_cron_job(namespace)
 
     def delete_namespaced_cron_job(self, name, namespace):
-        try:
-            return self.batch_v1beta1.delete_namespaced_cron_job(name, namespace)
-        except apiError.DevOpsError as e:
-            if e.status_code != 404:
-                raise e
+        return self.batch_v1beta1.delete_namespaced_cron_job(name, namespace)
 
     def get_api_client(self):
         return self.api_k8s_client
+
+
+MAX_RETRY_APPLY_CRONJOB = 30
 
 
 def apply_cronjob_yamls():
@@ -454,13 +464,20 @@ def apply_cronjob_yamls():
                         if cronjob_json.metadata.name == json_file["metadata"]["name"]:
                             api_k8s_client.delete_namespaced_cron_job(cronjob_json.metadata.name,
                                                                       "default")
-                            while True:
+                            retry = 0
+                            while retry < MAX_RETRY_APPLY_CRONJOB:
+                                time.sleep(1)
                                 still_has_cj = False
                                 for cj in api_k8s_client.list_namespaced_cron_job("default").items:
                                     if cronjob_json.metadata.name in cj.metadata.name:
                                         still_has_cj = True
                                 if still_has_cj is False:
                                     break
+                                retry += 1
+                            if retry >= MAX_RETRY_APPLY_CRONJOB:
+                                logger.critical(f'Cannot delete existing cronjob {cronjob_json.metadata.name}!'
+                                                f' Cronjob is not applied.')
+                                return
                             for j in api_k8s_client.list_namespaced_job("default").items:
                                 if f"{cronjob_json.metadata.name}-" in j.metadata.name:
                                     api_k8s_client.delete_namespaced_job(
@@ -473,7 +490,9 @@ def apply_cronjob_yamls():
                     k8s_utils.create_from_yaml(
                         api_k8s_client.get_api_client(), os.path.join(root, file))
                 except k8s_utils.FailToCreateError as e:
+                    print('e1')
                     info = json.loads(e.api_exceptions[0].body)
+                    print(f'e2 {info}')
                     if info.get('reason').lower() == 'alreadyexists':
                         pass
                     else:
@@ -1268,7 +1287,7 @@ def check_service_map_container(container_port, services):
         services_info = []
         for service in services:
             if service['port_name'] == container_port['name'] or service['target_port'] == container_port[
-                'container_port']:
+                    'container_port']:
                 services_info.append(service)
         return services_info
     except apiError.DevOpsError as e:
@@ -1449,7 +1468,7 @@ class K8sPodExec(object):
         namespace_name = data['project_name']
         pod_name = data['pod_name']
         container_name = data.get("container_name")
-        exec_command = ['/bin/sh']
+        exec_command = ['/bin/bash']
         if container_name is None:
             self.resp = k8s_stream(ApiK8sClient().core_v1.connect_get_namespaced_pod_exec,
                                    pod_name,

@@ -10,17 +10,24 @@ from flask_restful import Resource, reqparse
 from sqlalchemy import desc
 from sqlalchemy.orm.exc import NoResultFound
 
-import config
 import nexus
 import util
 from model import Checkmarx as Model
 from model import db
+from plugins import get_plugin_config
 from resources import apiError, gitlab
 from resources.apiError import DevOpsError
 
 
+def cm_get_config(key):
+    for arg in get_plugin_config("checkmarx")["arguments"]:
+        if arg['key'] == key:
+            return arg['value']
+    return None
+
+
 def build_url(path):
-    return config.get('CHECKMARX_ORIGIN') + path
+    return f'{cm_get_config("cm-url")}{path}'
 
 
 class CheckMarx(object):
@@ -35,12 +42,12 @@ class CheckMarx(object):
 
     def login(self):
         url = build_url('/auth/identity/connect/token')
-        data = {'userName': config.get('CHECKMARX_USERNAME'),
-                'password': config.get('CHECKMARX_PASSWORD'),
+        data = {'userName': cm_get_config("username"),
+                'password': cm_get_config("password"),
                 'grant_type': 'password',
                 'scope': 'sast_rest_api',
                 'client_id': 'resource_owner_client',
-                'client_secret': config.get('CHECKMARX_SECRET')
+                'client_secret': cm_get_config("client-secret")
                 }
         self.access_token = requests.post(url, data).json().get('access_token')
         self.expire_at = time.time() + 1800  # 0.5 hour
@@ -100,7 +107,8 @@ class CheckMarx(object):
         status_name = status.get('name')
         if status_id in {7, 8, 9}:
             scan = Model.query.filter_by(scan_id=scan_id).one()
-            scan.stats = json.dumps(self.get_scan_statistics(scan_id))
+            if status_id != 9:
+                scan.stats = json.dumps(self.get_scan_statistics(scan_id))
             scan.scan_final_status = status_name
             db.session.commit()
         return status_id, status_name
