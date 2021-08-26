@@ -50,10 +50,8 @@ app.config['PROPAGATE_EXCEPTIONS'] = True
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = datetime.timedelta(days=1)
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     "pool_pre_ping": True,
-    "pool_recycle": 300,
-    'pool_timeout': 900,
-    'pool_size': 80,
-    'max_overflow': 20,
+    "pool_recycle": 60,
+    'pool_timeout': 300
 }
 
 api = Api(app, errors=apiError.custom_errors)
