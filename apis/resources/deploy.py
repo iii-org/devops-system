@@ -32,6 +32,7 @@ APPLICATION_STATUS = {
     5: 'Finish Kubernetes deployment ',
     9: 'Start Kubernetes deletion',
     10: 'Finish Kubernetes deletion',
+    11: 'No Image need to be replicated'
 }
 
 
@@ -393,8 +394,11 @@ def initial_harbor_replication_image_policy(
         app
 ):
     harbor_info = json.loads(app.harbor_info)
-    harbor_info.pop('project')
-    harbor_info.pop('status')
+    if 'project' in harbor_info:
+        harbor_info.pop('project')
+    if 'status' in harbor_info:
+        harbor_info.pop('status')
+
     query_data = {'name': harbor_info.get('policy_name')}
     check, policy_id = harbor_policy_exist(
         harbor_info.get('policy_name'),
@@ -403,7 +407,7 @@ def initial_harbor_replication_image_policy(
     if check is False:
         policy_id = harbor.hb_create_replication_policy(harbor_info)
     else:
-        harbor.hb_put_replication_policy(policy_id, harbor_info)
+        harbor.hb_put_replication_policy(harbor_info, policy_id)
     return policy_id
 
 
@@ -437,25 +441,6 @@ def delete_replication_policy(policy_id):
     return harbor.hb_delete_replication_policy(policy_id)
 
 
-def execute_image_replication(app):
-    policy_id = initial_harbor_replication_image_policy(app)
-    policy = get_replication_policy(policy_id)
-    image_uri = execute_replication_policy(policy_id)
-    executions = get_replication_executions(policy_id)
-    execution_id = executions[-1]['id']
-    output = {
-        "policy_id": policy_id,
-        "policy": policy,
-        "image_uri": image_uri,
-        "execution_id": execution_id,
-    }
-    tasks = get_replication_execution_task(execution_id)
-    if len(tasks) > 0:
-        output['task_id'] = tasks[-1]['id']
-        output['task'] = tasks
-    return output
-
-
 def check_image_replication_status(task):
     output = False
     if task.get("status") == "Succeed":
@@ -463,12 +448,77 @@ def check_image_replication_status(task):
     return output
 
 
+def execute_image_replication(app, restart=False):
+    task_info = None
+    output = {}
+    output = create_replication_policy(app)
+    execution_info = check_execute_replication_policy(output.get('policy_id'), restart)
+    output.update(execution_info)
+    if execution_info.get('status_id') == 2:
+        task_info = check_replication_execution_task(execution_info.get('execution_id'))
+    if task_info is not None:
+        output.update(task_info)
+    return output
+
+
+def create_replication_policy(app):
+    policy_id = initial_harbor_replication_image_policy(app)
+    policy = get_replication_policy(policy_id)
+    return {
+        'policy': policy,
+        'policy_id': policy_id
+    }
+
+
+def check_execute_replication_policy(policy_id, restart=False):
+    executions = get_replication_executions(policy_id)
+    output = {}
+    if len(executions) == 0 or restart is True:
+        image_uri = execute_replication_policy(policy_id)
+        executions = get_replication_executions(policy_id)
+        output = {
+            "image_uri": image_uri,
+        }
+    execution = executions[0]
+    output.update(
+        {
+            "executions": executions,
+            "execution_id": executions[0]['id'],
+            'status_id': 2
+        }
+    )
+    if execution.get('total') == 0 and execution.get('status') == "Succeed":
+        output['status'] = 'Error'
+        output['error'] = 'no resource need to be replicated'
+        output['status_id'] = 11
+    return output
+
+
+def check_replication_execution_task(execution_id):
+    output = None
+    tasks = get_replication_execution_task(execution_id)
+    if len(tasks) > 0:
+        output = {
+            'task_id': tasks[0]['id'],
+            'task': tasks,
+            'status': tasks[0]['status'],
+            'status_id': 2
+        }
+        if tasks[0]['status'] == "Succeed":
+            output['status_id'] = 3
+    return output
+
+
 def check_image_replication(app):
     output = False
     harbor_info = json.loads(app.harbor_info)
+    tasks = []
+    if harbor_info.get('execution', None) is None:
+        execute_replication_policy(harbor_info.get('policy_id'))
     # Restart Image Rplication task
     if len(harbor_info.get('task', [])) == 0:
-        tasks = execute_replication_policy(harbor_info.get('policy_id'))
+        execute_replication_policy(harbor_info.get('policy_id'))
+        return tasks, output
     else:
         tasks = get_replication_execution_task(harbor_info.get('execution_id'))
 
@@ -1048,22 +1098,20 @@ def check_application_status(app):
     output = {}
     if app is None:
         return output
-    # Initial Harbor Replication execution
-    if app.status_id == 1:
+    # Check Harbor Replication execution
+    if app.status_id == 1 or app.status_id == 2:
         output = execute_image_replication(app)
         harbor_info = json.loads(app.harbor_info)
         harbor_info.update(output)
         app.harbor_info = json.dumps(harbor_info)
-        app.status_id = 2
+        app.status_id = harbor_info.get('status_id')
         db.session.commit()
-    # Check Execution Replication
-    elif app.status_id == 2:
+    # Restart Execution Replication
+    elif app.status_id == 11:
         harbor_info = json.loads(app.harbor_info)
-        task, status = check_image_replication(app)
-        harbor_info['task'] = task
-        if status is True:
-            harbor_info['status'] = 'Success'
-            app.status_id = 3
+        output = execute_image_replication(app, True)
+        harbor_info.update(output)
+        app.status_id = harbor_info.get('status_id')
         app.harbor_info = json.dumps(harbor_info)
         db.session.commit()
     elif app.status_id == 3:
