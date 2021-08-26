@@ -422,23 +422,35 @@ class TraceList:
             self.lock.release()
 
 def get_trace_result(project_id):
+    ret = {
+        "project_id": project_id,
+        "total_num": None,
+        "current_num": None,
+        "result": None,
+        "start_time": None,
+        "finish_time": None,
+        "exception": None
+    }
+
     trace_result = TraceResult.query.filter_by(
         project_id=project_id,
-    ).one()
+    ).first()
+    if trace_result is None:
+        return ret
+
     order = get_order(project_id)
     if trace_result.results is not None and len(order) == trace_result.current_num:
-        results = json.loads(trace_result.results)
+        ret["result"] = json.loads(trace_result.results)
     else:
-        results = None
-    return {
-        "project_id": project_id,
-        "total_num": len(order),
-        "current_num": trace_result.current_num,
-        "result": results,
-        "start_time": str(trace_result.execute_time),
-        "finish_time": str(trace_result.finish_time),
-        "exception": trace_result.exception
-    }
+        ret["result"] = None
+
+    ret["total_num"] = len(order)
+    ret["current_num"] = trace_result.current_num
+    ret["start_time"] = str(trace_result.execute_time)
+    ret["finish_time"] = str(trace_result.finish_time)
+    ret["exception"] = trace_result.exception
+    ret["total_num"] = len(order)
+    return ret
 
 def initial_trace_result(project_id):
     trace_result = TraceResult.query.filter_by(
