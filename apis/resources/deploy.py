@@ -1070,9 +1070,8 @@ def get_application_information(application, cluster_info=None):
     # output = row_to_dict(application)
     if application is None:
         return []
-
     output = row_to_dict(application)
-    output['status_str'] = APPLICATION_STATUS[application.status_id]
+    output['status'] = APPLICATION_STATUS[application.status_id]
     output.pop('k8s_yaml')
     output.pop('harbor_info')
     if application.harbor_info is None or application.k8s_yaml is None:
@@ -1205,6 +1204,7 @@ def delete_application(application_id, delete_db=False):
     deploy_k8s_client.delete_namespace(app.namespace)
     if delete_db is False:
         app.status_id = 9
+        app.status = APPLICATION_STATUS[9]
         db.session.commit()
     elif delete_db is True:
         db.session.delete(app)
@@ -1216,6 +1216,7 @@ def redeploy_application(application_id):
     app = model.Application.query.filter_by(id=application_id).first()
     execute_k8s_deployment(app)
     app.status_id = 4
+    app.status = APPLICATION_STATUS[4]
     db.session.commit()
     return app.id
 
