@@ -1287,7 +1287,7 @@ def check_service_map_container(container_port, services):
         services_info = []
         for service in services:
             if service['port_name'] == container_port['name'] or service['target_port'] == container_port[
-                'container_port']:
+                    'container_port']:
                 services_info.append(service)
         return services_info
     except apiError.DevOpsError as e:
@@ -1468,7 +1468,7 @@ class K8sPodExec(object):
         namespace_name = data['project_name']
         pod_name = data['pod_name']
         container_name = data.get("container_name")
-        exec_command = ['/bin/sh']
+        exec_command = ['/bin/bash']
         if container_name is None:
             self.resp = k8s_stream(ApiK8sClient().core_v1.connect_get_namespaced_pod_exec,
                                    pod_name,
