@@ -377,6 +377,18 @@ def create_default_k8s_data(project, release, args):
     return k8s_data
 
 
+def harbor_policy_exist(target, policies):
+    check_result = False
+    policy_id = 0
+    for policy in policies:
+        if str(target) == str(policy.get('name')):
+            check_result = True
+            policy_id = policy.get('id')
+            break
+
+    return check_result, policy_id
+
+
 def initial_harbor_replication_image_policy(
         app
 ):
@@ -384,11 +396,13 @@ def initial_harbor_replication_image_policy(
     harbor_info.pop('project')
     harbor_info.pop('status')
     query_data = {'name': harbor_info.get('policy_name')}
-    check = harbor.hb_get_replication_policies(args=query_data)
-    if len(check) == 0:
+    check, policy_id = harbor_policy_exist(
+        harbor_info.get('policy_name'),
+        harbor.hb_get_replication_policies(args=query_data)
+    )
+    if check is False:
         policy_id = harbor.hb_create_replication_policy(harbor_info)
     else:
-        policy_id = check[0]['id']
         harbor.hb_put_replication_policy(policy_id, harbor_info)
     return policy_id
 
