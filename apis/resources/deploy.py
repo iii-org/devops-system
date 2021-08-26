@@ -116,7 +116,7 @@ def get_clusters(cluster_id=None):
     output = []
     if cluster_id is not None:
         return get_cluster_application_information(model.Cluster.query.filter_by(id=cluster_id).first())
-    for cluster in model.Cluster.query.filter(model.Cluster.disabled.isnot(True)).all():
+    for cluster in model.Cluster.query.all():
         output.append(get_cluster_application_information(cluster))
     return output
 
@@ -268,6 +268,10 @@ def get_registries_application_information(registry):
     if registry is None:
         return []
     output = row_to_dict(registry)
+    if output.get('type') == 'harbor':
+        output.update({
+         'access_secret': util.base64decode(output.get('access_secret'))
+        })
     ret_output = []
     for application in registry.application:
         if application is None or application.harbor_info is None:
@@ -292,7 +296,7 @@ def get_registries(registry_id=None):
     if registry_id is not None:
         return get_registries_application_information(
             model.Registries.query.filter_by(registries_id=registry_id).first())
-    for cluster in model.Registries.query.filter(model.Registries.disabled.isnot(True)).all():
+    for cluster in model.Registries.query.filter().all():
         output.append(get_registries_application_information(cluster))
 
     return output
@@ -1101,7 +1105,7 @@ def get_applications(args={}):
     elif 'project_id' in args:
         applications = model.Application.query.filter_by(project_id=args.get('project_id')).all()
     else:
-        applications = model.Application.query.filter(model.Application.disabled.isnot(True)).all()
+        applications = model.Application.query.filter().all()
 
     if 'application_id' in args:
         output, cluster_info = get_application_information(applications, cluster_info)
@@ -1149,6 +1153,16 @@ def create_application(args):
     return new.id
 
 
+def check_update_application_status(app, args):
+    status_id = 1
+    # Project Change
+    if app.cluster_id != args.get('cluster_id'):
+        delete_application(app.id)
+        status_id = 1
+
+    return status_id
+
+
 def update_application(application_id, args):
     app = model.Application.query.filter_by(id=application_id).first()
     cluster = model.Cluster.query.filter_by(id=args.get('cluster_id')).first()
@@ -1162,9 +1176,6 @@ def update_application(application_id, args):
             continue
         elif args[key] is not None:
             setattr(app, key, args[key])
-    #  Change Cluster --> Remove old service and rebuild
-    # if app.cluster_id != args.get('cluster_id'):
-    #     delete_application(application_id, False)
     db_harbor_info = json.loads(app.harbor_info)
     db_harbor_info.update(
         create_default_harbor_data(
@@ -1174,6 +1185,7 @@ def update_application(application_id, args):
     db_k8s_yaml.update(
         create_default_k8s_data(project, release, args)
     )
+    app.status_id = check_update_application_status(app, args)
     app.harbor_info = json.dumps(db_harbor_info)
     app.k8s_yaml = json.dumps(db_k8s_yaml)
     app.updated_at = (datetime.utcnow())
