@@ -619,3 +619,4 @@ class TraceResult(db.Model):
     current_job = Column(PickleType)
     results = Column(String)
     execute_time = Column(DateTime)
+    exception = Column(String)
