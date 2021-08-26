@@ -652,10 +652,10 @@ gitlab = GitLab()
 
 class GitRelease:
     @jwt_required
-    def check_gitlab_release(self, repository_id, tag_name, branch_name):
+    def check_gitlab_release(self, repository_id, tag_name, branch_name, commit):
         output = {'check': True, "info": "", "errors": ""}
-        branch = gitlab.gl_get_tags(
-            str(repository_id), {'search': branch_name})
+        branch = gitlab.gl_get_commits(
+            str(repository_id), branch_name)
         #  check branch exist
         if len(branch) == 0:
             output = {'check': False,
