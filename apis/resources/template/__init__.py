@@ -747,11 +747,13 @@ def disable_soft_branch_at_project(repository_id, soft_name):
             continue
         stage_when.clear()
         stage_when.append("skip")
+        '''
         next_run = pipeline.get_pipeline_next_run(repository_id)
         f.content = yaml.dump(pipe_dict)
         f.save(branch=br.name,
                commit_message=f'Update branch {br.name} .rancher-pipeline.yml, remove stage {soft_name} enable branch')
         pipeline.stop_and_delete_pipeline(repository_id, next_run)
+        '''
 
 
 def __get_step_index_from_pipe(stages, soft_key):
