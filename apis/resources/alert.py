@@ -27,7 +27,7 @@ def get_alert_by_project(project_id):
                           error=apiError.project_not_found(project_id))
     if not is_project_alert_enable(project_id):
         return []                 
-    rows = model.Alert.query.filter_by(project_id=project_id).all()
+    rows = model.Alert.query.filter_by(project_id=project_id).order_by(model.Alert.id).all()
     return {"alert_list": [
         {
             "id": row.id,
