@@ -1121,9 +1121,9 @@ def create_application(args):
         model.Release.id == args.get('release_id'),
         model.Release.project_id == model.Project.id
     ).one()
-    harbor_data = create_default_harbor_data(
+    harbor_info = create_default_harbor_data(
         project, release, args.get('registry_id'), args.get('namespace'))
-    k8s_data = create_default_k8s_data(project, release, args)
+    k8s_yaml = create_default_k8s_data(project, release, args)
     # check namespace
     deploy_k8s_client = DepolyK8sClient(cluster)
     deploy_namespace = DeployNamespace(args.get('namespace'))
@@ -1140,8 +1140,8 @@ def create_application(args):
         created_at=now,
         updated_at=now,
         status_id=1,
-        harbor_info=json.dumps(harbor_data),
-        k8s_yaml=json.dumps(k8s_data),
+        harbor_info=json.dumps(harbor_info),
+        k8s_yaml=json.dumps(k8s_yaml),
         status="Initial Creating",
     )
     db.session.add(new)
@@ -1149,7 +1149,39 @@ def create_application(args):
     return new.id
 
 
-def delete_application(application_id, delete_option=False):
+def update_application(application_id, args):
+    app = model.Application.query.filter_by(id=application_id).first()
+    cluster = model.Cluster.query.filter_by(id=args.get('cluster_id')).first()
+    release, project = db.session.query(model.Release, model.Project).join(model.Project).filter(
+        model.Release.id == args.get('release_id'),
+        model.Release.project_id == model.Project.id
+    ).one()
+
+    for key in args.keys():
+        if not hasattr(app, key):
+            continue
+        elif args[key] is not None:
+            setattr(app, key, args[key])
+    #  Change Cluster --> Remove old service and rebuild
+    # if app.cluster_id != args.get('cluster_id'):
+    #     delete_application(application_id, False)
+    db_harbor_info = json.loads(app.harbor_info)
+    db_harbor_info.update(
+        create_default_harbor_data(
+            project, release, args.get('registry_id'), args.get('namespace'))
+    )
+    db_k8s_yaml = json.loads(app.k8s_yaml)
+    db_k8s_yaml.update(
+        create_default_k8s_data(project, release, args)
+    )
+    app.harbor_info = json.dumps(db_harbor_info)
+    app.k8s_yaml = json.dumps(db_k8s_yaml)
+    app.updated_at = (datetime.utcnow())
+    db.session.commit()
+    return app.id
+
+
+def delete_application(application_id, delete_db=False):
     app = model.Application.query.filter_by(id=application_id).first()
     if app is None:
         return {}
@@ -1159,10 +1191,10 @@ def delete_application(application_id, delete_option=False):
     cluster = model.Cluster.query.filter_by(id=app.cluster_id).first()
     deploy_k8s_client = DepolyK8sClient(cluster)
     deploy_k8s_client.delete_namespace(app.namespace)
-    if delete_option is False:
+    if delete_db is False:
         app.status_id = 9
         db.session.commit()
-    elif delete_option is True:
+    elif delete_db is True:
         db.session.delete(app)
         db.session.commit()
     return app.id
@@ -1258,6 +1290,27 @@ class Application(Resource):
         try:
             output = delete_application(application_id, True)
             return util.success(output)
+        except NoResultFound:
+            return util.respond(404, error_clusters_not_found,
+                                error=apiError.repository_id_not_found)
+
+    @jwt_required
+    def put(self, application_id):
+        try:
+            parser = reqparse.RequestParser()
+            parser.add_argument('name', type=str)
+            parser.add_argument('project_id', type=int)
+            parser.add_argument('registry_id', type=int)
+            parser.add_argument('cluster_id', type=int)
+            parser.add_argument('release_id', type=int)
+            parser.add_argument('namespace', type=str)
+            parser.add_argument('resources', type=dict)
+            parser.add_argument('network', type=dict)
+            parser.add_argument('environments', type=dict, action='append')
+            parser.add_argument('disabled', type=bool)
+            args = parser.parse_args()
+            output = update_application(application_id, args)
+            return util.success({"applications": {"id": output}})
         except NoResultFound:
             return util.respond(404, error_clusters_not_found,
                                 error=apiError.repository_id_not_found)
