@@ -58,7 +58,7 @@ def handle_default_value(project_id):
         project_id=project_id,
     ).first()
     if trace_result is not None:
-        trace_result.result = None
+        trace_result.results = None
         db.session.commit()
 
 
@@ -471,7 +471,7 @@ class TraceOrders(Resource):
         return util.success(create_trace_order_by_project(args))
 
 class SingleTraceOrder(Resource):
-    # @jwt_required
+    @jwt_required
     def patch(self, trace_order_id):
         parser = reqparse.RequestParser()
         parser.add_argument('name', type=str)
@@ -488,7 +488,7 @@ class SingleTraceOrder(Resource):
 
 
 class ExecuteTraceOrder(Resource):
-    # @jwt_required
+    @jwt_required
     def patch(self): 
         parser = reqparse.RequestParser()
         parser.add_argument('project_id', type=int, required=True)
@@ -526,7 +526,7 @@ class GetTraceResult(Resource):
 
 
 class StopExecuteTraceOrder(Resource):
-    # @jwt_required
+    @jwt_required
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('project_id', type=int, required=True)
