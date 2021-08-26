@@ -605,11 +605,11 @@ def get_issue_list_by_project(project_id, args):
         return []
         # 指定 assigned_to_id 又不存在 multiple_assigned_to 的情況下，
         # default_filters 帶 search ，但沒有取得 issued_id，搜尋結果為空
-    elif args.get(
-        'search', None) and not default_filters.get(
-            'issue_id', None) and default_filters.get(
-                'assigned_to_id', None) and 'multiple_assigned_to' not in default_filters:
-        return []
+    elif args.get('search') is not None and default_filters.get('issue_id') is None:
+        if default_filters.get('assigned_to_id') is None:
+            return []
+        if default_filters.get('assigned_to_id') is not None and 'multiple_assigned_to' not in default_filters:
+            return []
     all_issues = redmine_lib.redmine.issue.filter(**default_filters)
     # 透過 selection params 決定是否顯示 family bool 欄位
     if not args['selection'] or not strtobool(args['selection']):
