@@ -119,7 +119,7 @@ def analysis_release(release, info, hb_list_tags):
         ret['docker'] = ''
         if ret.get("branch") not in hb_list_tags:
             hb_list_tags[ret.get("branch")] = get_hb_branch_tags(
-                 project_name, ret.get("branch"))
+                project_name, ret.get("branch"))
         if ret.get("tag_name") in hb_list_tags[ret.get("branch")]:
             ret['docker'] = f'{harbor_base}/{project_name}/{ret.get("branch")}:{ret.get("tag_name")}'
     return ret, hb_list_tags
@@ -127,19 +127,19 @@ def analysis_release(release, info, hb_list_tags):
 
 def get_releases_by_project_id(project_id):
     project = model.Project.query.filter_by(id=project_id).first()
-    releases = model.Release.query.\
-        filter(model.Release.project_id == project_id).\
+    releases = model.Release.query. \
+        filter(model.Release.project_id == project_id). \
         all()
     output = []
     info = {
         'project_name': project.name,
-        'gitlab_project_url' : f'{project.http_url[:-4]}',
-        'harbor_base' : f'docker pull {urlparse(config.get("HARBOR_EXTERNAL_BASE_URL")).netloc}'
+        'gitlab_project_url': f'{project.http_url[:-4]}',
+        'harbor_base': f'docker pull {urlparse(config.get("HARBOR_EXTERNAL_BASE_URL")).netloc}'
     }
     hb_list_tags = {}
     for release in releases:
         if releases is not None:
-            ret, hb_list_tags =analysis_release(release, info, hb_list_tags) 
+            ret, hb_list_tags = analysis_release(release, info, hb_list_tags)
             output.append(ret)
     return output
 
@@ -169,7 +169,7 @@ class Releases(Resource):
                 release_name, commit)
         if release_name is not None:
             self.gitlab_info = gl_release.check_gitlab_release(
-                self.plugin_relation.git_repository_id, release_name, branch_name)
+                self.plugin_relation.git_repository_id, release_name, branch_name, commit)
 
     def check_release_states(self):
         checklist = {'redmine': self.redmine_info,
@@ -307,7 +307,6 @@ class Releases(Resource):
                 }
                 if args['released_at'] != "":
                     gitlab_data['release_at'] = args['released_at']
-
                 gitlab.gl_create_release(
                     self.plugin_relation.git_repository_id, gitlab_data)
             #  Create Harbor Release
