@@ -2,9 +2,7 @@ from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
 
 import json
-import dill
 import threading
-# from multiprocessing import Process
 import config
 import model
 import resources.project as project
@@ -177,10 +175,11 @@ def get_order(project_id):
     return order
 
 class TraceList:
-    def __init__(self, project_id, trace_order, issues):
+    def __init__(self, project_id, trace_order, issues, lock):
         self.project_id = project_id
         self.trace_order = trace_order
         self.issues = issues
+        self.lock = lock
         self.__check_test_plan_exist()
         self.result = []
         self.not_alone_id_mapping = {track: [] for track in trace_order[1:]}
@@ -380,7 +379,7 @@ class TraceList:
                         self.__check_final_id(same_id)
 
     def update_trace_result(self, 
-                            current_num=None, current_job=None, results=None, execute_time=None, exception=False):
+                            current_num=None, current_job=None, results=None, execute_time=None, finish_time=None, exception=False):
         query = TraceResult.query.filter_by(
             project_id=self.project_id,
         ).one()
@@ -393,11 +392,14 @@ class TraceList:
             query.results = results
         if execute_time is not None:
             query.execute_time = str(execute_time)
+        if finish_time is not None:
+            query.finish_time = str(finish_time)
         if exception is not False:
             query.exception = exception
         db.session.commit()
 
     def execute_trace_order(self, order_length):
+        self.lock.acquire()
         try:
             current_num = 0
             self.update_trace_result(current_num=0, execute_time=datetime.utcnow().isoformat(), exception=None)
@@ -413,10 +415,11 @@ class TraceList:
 
             self.generate_final_mapping()
             current_num += 1
-            self.update_trace_result(current_num=current_num, results=self.result)
+            self.update_trace_result(current_num=current_num, results=self.result, finish_time=datetime.utcnow().isoformat())
         except Exception as e:
             self.update_trace_result(exception=str(e))
-
+        finally:
+            self.lock.release()
 
 def get_trace_result(project_id):
     trace_result = TraceResult.query.filter_by(
@@ -433,24 +436,20 @@ def get_trace_result(project_id):
         "current_num": trace_result.current_num,
         "result": results,
         "start_time": str(trace_result.execute_time),
-        "end_time": str(datetime.utcnow().isoformat()) if len(order) == trace_result.current_num else None,
+        "finish_time": str(trace_result.finish_time),
         "exception": trace_result.exception
     }
 
-def initial_trace_result(project_id, thread):
-    current_job = thread
+def initial_trace_result(project_id):
     trace_result = TraceResult.query.filter_by(
         project_id=project_id,
     ).first()
     if trace_result is None:
         query = TraceResult(
-            project_id=project_id,
-            current_job=current_job,
+            project_id=project_id
         )
         db.session.add(query)
-    else:
-        trace_result.current_job = current_job
-    db.session.commit()
+        db.session.commit()
 
 # --------------------- Resources ---------------------
 class TraceOrders(Resource):
@@ -510,9 +509,11 @@ class ExecuteTraceOrder(Resource):
             "status": {"id": issue.status.id, "name": issue.status.name}, 
         } for issue in issues}
 
-        thread = threading.Thread(target=TraceList(project_id, order, issues).execute_trace_order, args=(len(order),))
-        b_thread = dill.dumps(thread)
-        initial_trace_result(project_id, b_thread)
+        initial_trace_result(project_id)
+
+        lock = threading.Lock()
+
+        thread = threading.Thread(target=TraceList(project_id, order, issues, lock).execute_trace_order, args=(len(order),))
         thread.start()
         return {"message": "success"}
 
@@ -523,28 +524,3 @@ class GetTraceResult(Resource):
         project_id = parser.parse_args()["project_id"]
 
         return util.success(get_trace_result(project_id))
-
-
-class StopExecuteTraceOrder(Resource):
-    @jwt_required
-    def post(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument('project_id', type=int, required=True)
-        project_id = parser.parse_args()["project_id"]
-
-        ret = {"message": "success"}
-        trace_result = TraceResult.query.filter_by(
-            project_id=project_id,
-        ).one()
-        try:
-            # print(threading.enumerate())
-            current_job = dill.loads(trace_result.current_job)
-            # current_job.terminate()
-            # print(current_job.is_alive())
-            # print(dir(current_job))
-            # print(current_job)
-
-        except Exception as e:
-            # print(e)
-            raise DevOpsError(500, "Error while stopping trace.",
-                              error=apiError.no_detail())
