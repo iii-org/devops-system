@@ -362,7 +362,7 @@ def create_default_k8s_data(project, release, args):
         "image_name": release.branch,
         "tag_name": release.tag_name,
         "namespace": args.get('namespace'),
-        "image": args.get('image'),
+        "image": args.get('image', {"policy": "Always"}),
         "status_id": 1
     }
     resources = remove_object_key_by_value(args.get('resources', {}))
@@ -456,7 +456,6 @@ def check_image_replication_status(task):
 
 def execute_image_replication(app, restart=False):
     task_info = None
-    output = {}
     output = create_replication_policy(app)
     execution_info = check_execute_replication_policy(output.get('policy_id'), restart)
     output.update(execution_info)
@@ -1190,6 +1189,7 @@ def get_application_information(application, cluster_info=None):
     output['cluster']['name'] = cluster_info[str(application.cluster_id)]
     output['registry'] = {}
     output['registry']['id'] = application.cluster_id
+    output['image'] = k8s_yaml.get('image')
     output['project_name'] = harbor_info.get('project')
     output['tag_name'] = harbor_info.get('tag_name')
     output['k8s_status'] = k8s_yaml.get('deploy_finish')
@@ -1393,6 +1393,7 @@ class Applications(Resource):
             parser.add_argument('namespace', type=str)
             parser.add_argument('resources', type=dict)
             parser.add_argument('network', type=dict)
+            parser.add_argument('image', type=dict)
             parser.add_argument('environments', type=dict, action='append')
             parser.add_argument('disabled', type=bool)
             args = parser.parse_args()
@@ -1451,6 +1452,7 @@ class Application(Resource):
             parser.add_argument('namespace', type=str)
             parser.add_argument('resources', type=dict)
             parser.add_argument('network', type=dict)
+            parser.add_argument('image', type=dict)
             parser.add_argument('environments', type=dict, action='append')
             parser.add_argument('disabled', type=bool)
             args = parser.parse_args()
@@ -1484,30 +1486,10 @@ class UpdateApplication(Resource):
                                 error=apiError.repository_id_not_found)
 
 
-def get_application_env(release_id):
-    release = model.Release.query.filter_by(id=release_id).first()
-    # project, project_plugin_relation =
-    output = [
-        {
-            "key": "EXAMPLE_NUMBER",
-            "value": 111222,
-            "type": "configmap"
-        },
-        {
-            "key": "EXAMPLE_EMAIL",
-            "value": "example@example.com",
-            "type": "configmap"
-        }
-    ]
-
-    return output
-
-
 class ReleaseApplication(Resource):
     @jwt_required
     def get(self, release_id):
         try:
-            # env = get_application_env(release_id)
             release_file = release.ReleaseFile(release_id)
             env = release_file.get_release_env_from_file()
             return util.success({"env": env})
