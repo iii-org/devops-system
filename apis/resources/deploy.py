@@ -25,12 +25,12 @@ error_application_exists = "Application had been deployed"
 DEFAULT_K8S_CONFIG_FILE = 'k8s_config'
 
 APPLICATION_STATUS = {
-    1:  'Initializing',
-    2:  'Start Image replication',
-    3:  'Finish Image replication',
-    4:  'Start Kubernetes deployment ',
-    5:  'Finish Kubernetes deployment ',
-    9:  'Start Kubernetes deletion',
+    1: 'Initializing',
+    2: 'Start Image replication',
+    3: 'Finish Image replication',
+    4: 'Start Kubernetes deployment ',
+    5: 'Finish Kubernetes deployment ',
+    9: 'Start Kubernetes deletion',
     10: 'Finish Kubernetes deletion',
     11: 'Error, No Image need to be replicated',
     32: 'Deploy stopped'
@@ -104,11 +104,13 @@ def get_cluster_application_information(cluster):
             continue
         app = {}
         harbor_info = json.loads(application.harbor_info)
+        app['id'] = application.id
         app['tag'] = harbor_info.get('tag_name')
         app['project_name'] = harbor_info.get('project')
         app['namespace'] = harbor_info.get('dest_repo_name')
         k8s_yaml = json.loads(application.k8s_yaml)
-        app['status'] = APPLICATION_STATUS[application.status_id]
+        cluster_status_id = k8s_yaml.get('status_id', 1)
+        app['status'] = APPLICATION_STATUS[cluster_status_id]
         ret_output.append(app)
     output['application'] = ret_output
     return output
@@ -280,10 +282,12 @@ def get_registries_application_information(registry):
             continue
         app = {}
         harbor_info = json.loads(application.harbor_info)
+        app['id'] = application.id
         app['tag'] = harbor_info.get('tag_name')
         app['project_name'] = harbor_info.get('project')
         app['namespace'] = harbor_info.get('dest_repo_name')
-        app['status'] = APPLICATION_STATUS[application.status_id]
+        registry_status_id = harbor_info.get('status_id', 1)
+        app['status'] = APPLICATION_STATUS[registry_status_id]
         ret_output.append(app)
     output['application'] = ret_output
     return output
@@ -355,7 +359,8 @@ def create_default_k8s_data(project, release, args):
         "repo_name": project.name,
         "image_name": release.branch,
         "tag_name": release.tag_name,
-        "namespace": args.get('namespace')
+        "namespace": args.get('namespace'),
+        "status_id": 1
     }
     environments = []
     for items in args.get('environments'):
@@ -1027,6 +1032,7 @@ class K8sDeployment:
                 self.configmap.configmap_body()
             )
             self.deployment_info['configmap'] = self.configmap.get_configmap_info()
+            self.deployment_info['status_id'] = 4
 
     def check_secret(self):
         if self.secret is None:
@@ -1122,6 +1128,7 @@ def check_application_status(app):
         k8s_yaml = json.loads(app.k8s_yaml)
         k8s_yaml['deploy_finish'] = check_k8s_deployment(app)
         if k8s_yaml['deploy_finish'] is True:
+            k8s_yaml['status_id'] = 5
             app.status_id = 5
         app.k8s_yaml = json.dumps(k8s_yaml)
         db.session.commit()
@@ -1444,6 +1451,8 @@ class Application(Resource):
 
 
 def get_application_env(release_id):
+    release = model.Release.query.filter_by(id=release_id).first()
+    # project, project_plugin_relation =
     output = [
         {
             "key": "EXAMPLE_NUMBER",
