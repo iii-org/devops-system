@@ -108,7 +108,7 @@ def get_gitlab_base(url):
     return url[:-4]
 
 
-def analysis_release(release, info, hb_list_tags, args):
+def analysis_release(release, info, hb_list_tags, image_need):
     ret = row_to_dict(release)
     gitlab_project_url = info.get('gitlab_project_url')
     harbor_base = info.get('harbor_base')
@@ -123,7 +123,7 @@ def analysis_release(release, info, hb_list_tags, args):
         if ret.get("tag_name") in hb_list_tags[ret.get("branch")]:
             ret['docker'] = f'{harbor_base}/{project_name}/{ret.get("branch")}:{ret.get("tag_name")}'
 
-    if args.get('image') is True and ret['docker'] == '':
+    if image_need is True and ret['docker'] == '':
         ret = None
 
     return ret, hb_list_tags
@@ -143,10 +143,11 @@ def get_releases_by_project_id(project_id, args):
     hb_list_tags = {}
     for release in releases:
         if releases is not None:
-            ret, hb_list_tags = analysis_release(release, info, hb_list_tags, args)
+            ret, hb_list_tags = analysis_release(release, info, hb_list_tags, args.get('image', False))
             if ret is not None:
                 output.append(ret)
     return output
+
 
 class Releases(Resource):
     def __init__(self):
