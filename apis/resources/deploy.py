@@ -23,7 +23,7 @@ default_project_id = "-1"
 error_clusters_not_found = "No Exact Cluster Found"
 error_application_exists = "Application had been deployed"
 DEFAULT_K8S_CONFIG_FILE = 'k8s_config'
-DEFAULT_APPLICTION_STATUS = 'Something Error'
+DEFAULT_APPLICATION_STATUS = 'Something Error'
 APPLICATION_STATUS = {
     1: 'Initializing',
     2: 'Start Image replication',
@@ -111,7 +111,7 @@ def get_cluster_application_information(cluster):
         app['namespace'] = harbor_info.get('dest_repo_name')
         k8s_yaml = json.loads(application.k8s_yaml)
         cluster_status_id = k8s_yaml.get('status_id', 1)
-        app['status'] = APPLICATION_STATUS.get(cluster_status_id, DEFAULT_APPLICTION_STATUS)
+        app['status'] = APPLICATION_STATUS.get(cluster_status_id, DEFAULT_APPLICATION_STATUS)
         ret_output.append(app)
     output['application'] = ret_output
     return output
@@ -288,7 +288,7 @@ def get_registries_application_information(registry):
         app['project_name'] = harbor_info.get('project')
         app['namespace'] = harbor_info.get('dest_repo_name')
         registry_status_id = harbor_info.get('status_id', 1)
-        app['status'] = APPLICATION_STATUS.get(registry_status_id,APPLICATION_STATUS)
+        app['status'] = APPLICATION_STATUS.get(registry_status_id, DEFAULT_APPLICATION_STATUS)
         ret_output.append(app)
     output['application'] = ret_output
     return output
@@ -1139,7 +1139,7 @@ def check_application_status(app):
             app.status_id = 10
             db.session.commit()
 
-    return {'id': app.id, 'status': APPLICATION_STATUS.get(app.status_id,APPLICATION_STATUS), 'output': output, 'database': row_to_dict(app)}
+    return {'id': app.id, 'status': APPLICATION_STATUS.get(app.status_id, DEFAULT_APPLICATION_STATUS), 'output': output, 'database': row_to_dict(app)}
 
 
 def check_application_exists(project_id, namespace):
@@ -1169,7 +1169,7 @@ def get_application_information(application, cluster_info=None):
     if application is None:
         return []
     output = row_to_dict(application)
-    output['status'] = APPLICATION_STATUS.get(application.status_id,APPLICATION_STATUS)
+    output['status'] = APPLICATION_STATUS.get(application.status_id, DEFAULT_APPLICATION_STATUS)
     output.pop('k8s_yaml')
     output.pop('harbor_info')
     if application.harbor_info is None or application.k8s_yaml is None:
@@ -1327,7 +1327,7 @@ def delete_application(application_id, delete_db=False):
     delete_k8s_application(app.cluster_id, app.namespace)
     if delete_db is False:
         app.status_id = 9
-        app.status = APPLICATION_STATUS.get(9,APPLICATION_STATUS)
+        app.status = APPLICATION_STATUS.get(9, DEFAULT_APPLICATION_STATUS)
         db.session.commit()
     elif delete_db is True:
         db.session.delete(app)
@@ -1338,7 +1338,7 @@ def delete_application(application_id, delete_db=False):
 def redeploy_application(application_id):
     app = model.Application.query.filter_by(id=application_id).first()
     app.status_id = 1
-    app.status = APPLICATION_STATUS.get(4,APPLICATION_STATUS)
+    app.status = APPLICATION_STATUS.get(4, DEFAULT_APPLICATION_STATUS)
     db.session.commit()
     return app.id
 
