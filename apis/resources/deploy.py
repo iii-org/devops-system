@@ -364,21 +364,22 @@ def create_default_k8s_data(project, release, args):
         "namespace": args.get('namespace'),
         "status_id": 1
     }
-    environments = []
-    for items in args.get('environments'):
-        item = remove_object_key_by_value(items)
-        if item is not None:
-            environments.append(item)
-    if len(environments) > 0:
-        k8s_data['environments'] = environments
-    resources = remove_object_key_by_value(args.get('resources', None))
+    resources = remove_object_key_by_value(args.get('resources', {}))
     if resources != {}:
         k8s_data['resources'] = resources
 
-    network = remove_object_key_by_value(args.get('network', None))
+    network = remove_object_key_by_value(args.get('network', {}))
     if network != {}:
         k8s_data['network'] = network
-
+    environments = args.get('environments', None)
+    if environments is not None:
+        items = []
+        for env in environments:
+            item = remove_object_key_by_value(env)
+            if item is not None:
+                items.append(item)
+        if len(items) > 0:
+            k8s_data['environments'] = items
     return k8s_data
 
 
@@ -1359,7 +1360,6 @@ def redeploy_application(application_id):
     return app.id
 
 
-
 class Applications(Resource):
     @jwt_required
     def get(self):
@@ -1459,7 +1459,6 @@ class Application(Resource):
                                 error=apiError.repository_id_not_found)
 
 
-
 class RedeployApplication(Resource):
     @jwt_required
     def patch(self, application_id):
@@ -1506,10 +1505,10 @@ class ReleaseApplication(Resource):
     @jwt_required
     def get(self, release_id):
         try:
-            output = get_application_env(release_id)
-            # release_file = release.ReleaseFile(release_id)
-            # file = release_file.get_release_env_file()
-            return util.success({"env": output})
+            # env = get_application_env(release_id)
+            release_file = release.ReleaseFile(release_id)
+            env = release_file.get_release_env_from_file()
+            return util.success({"env": env})
         except NoResultFound:
             return util.respond(404, error_clusters_not_found,
                                 error=apiError.repository_id_not_found)

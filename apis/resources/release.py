@@ -370,39 +370,35 @@ class Release(Resource):
 
 #
 #
-# class ReleaseFile:
-#
-#     def __init__(self, release_id):
-#         self.release = model.Release.query.filter_by(id=release_id).first()
-#         self.project_plugin_relation = model.ProjectPluginRelation.query.filter_by(
-#             project_id=self.release.project_id).first()
-#
-#     def get_release_env_from_file(self):
-#         print(self.release.id)
-#         parameter = {
-#             'git_repository_id': self.project_plugin_relation.git_repository_id,
-#             'branch': self.release.commit,
-#             'path': 'iiidevops/app.env'
-#
-#         }
-#
-#         file = gitlab.gl_get_file_from_lib(
-#             self.project_plugin_relation.git_repository_id,
-#             'iiidevops/app.env',
-#             self.release.commit
-#
-#         )
-#         if file is not None:
-#             content = str(file.decode(), 'utf-8')
-#             lines = content.splitlines()
-#             items = []
-#             for line in lines:
-#                 key, value = line.split('=')
-#                 items.append({
-#                     'key': key,
-#                     'value': value,
-#                     'type': 'configmap'
-#                 })
-#             return items
-#         else:
-#             return None
+class ReleaseFile:
+
+    def __init__(self, release_id):
+        self.release = model.Release.query.filter_by(id=release_id).first()
+        self.project_plugin_relation = model.ProjectPluginRelation.query.filter_by(
+            project_id=self.release.project_id).first()
+
+    def get_release_env_from_file(self):
+        if self.release.commit is None or len(self.release.commit) < 6:
+            return []
+        file = gitlab.gl_get_file_from_lib(
+            self.project_plugin_relation.git_repository_id,
+            'iiidevops/app.env',
+            self.release.commit
+
+        )
+        if file is not None:
+            content = str(file.decode(), 'utf-8')
+            lines = content.splitlines()
+            items = []
+            for line in lines:
+                if line[0] == '#':
+                    continue
+                key, value = line[1:].split('=')
+                items.append({
+                    'key': key,
+                    'value': value,
+                    'type': 'configmap'
+                })
+            return items
+        else:
+            return None
