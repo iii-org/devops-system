@@ -33,8 +33,8 @@ APPLICATION_STATUS = {
     9: 'Start Kubernetes deletion',
     10: 'Finish Kubernetes deletion',
     32: 'Deploy stopped',
-    1001: 'Error, No Image need to be replicated',
-    2001: 'Error, K8s Error'
+    3001: 'Error, No Image need to be replicated',
+    5001: 'Error, K8s Error'
 }
 
 
@@ -493,7 +493,7 @@ def check_execute_replication_policy(policy_id, restart=False):
     if execution.get('total') == 0 and execution.get('status') == "Succeed":
         output['status'] = 'Error'
         output['error'] = 'no resource need to be replicated'
-        output['status_id'] = 1001
+        output['status_id'] = 3001
     return output
 
 
