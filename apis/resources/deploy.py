@@ -25,14 +25,15 @@ error_application_exists = "Application had been deployed"
 DEFAULT_K8S_CONFIG_FILE = 'k8s_config'
 
 APPLICATION_STATUS = {
-    1: 'Initializing',
-    2: 'Start Image replication',
-    3: 'Finish Image replication',
-    4: 'Start Kubernetes deployment ',
-    5: 'Finish Kubernetes deployment ',
-    9: 'Start Kubernetes deletion',
+    1:  'Initializing',
+    2:  'Start Image replication',
+    3:  'Finish Image replication',
+    4:  'Start Kubernetes deployment ',
+    5:  'Finish Kubernetes deployment ',
+    9:  'Start Kubernetes deletion',
     10: 'Finish Kubernetes deletion',
-    11: 'Error, No Image need to be replicated'
+    11: 'Error, No Image need to be replicated',
+    32: 'Deploy stopped'
 }
 
 
@@ -1286,7 +1287,10 @@ def update_application(application_id, args):
     deploy_k8s_client = DepolyK8sClient(cluster)
     deploy_namespace = DeployNamespace(args.get('namespace'))
     deploy_k8s_client.create_namespace(deploy_namespace.namespace_body())
-    app.status_id = 1
+    if args.get('disabled') is True:
+        app.status_id = 32
+    else:
+        app.status_id = 1
     app.harbor_info = json.dumps(db_harbor_info)
     app.k8s_yaml = json.dumps(db_k8s_yaml)
     app.updated_at = (datetime.utcnow())
@@ -1457,6 +1461,7 @@ def get_application_env(release_id):
 
 
 class ReleaseApplication(Resource):
+    @jwt_required
     def get(self, release_id):
         try:
             output = get_application_env(release_id)
@@ -1468,7 +1473,8 @@ class ReleaseApplication(Resource):
 
 class Cronjob(Resource):
 
-    def patch(self):
+    @staticmethod
+    def patch():
         try:
             execute_list = []
             check_list = [1, 2, 3, 4]
