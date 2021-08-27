@@ -362,6 +362,7 @@ def create_default_k8s_data(project, release, args):
         "image_name": release.branch,
         "tag_name": release.tag_name,
         "namespace": args.get('namespace'),
+        "image": args.get('image'),
         "status_id": 1
     }
     resources = remove_object_key_by_value(args.get('resources', {}))
@@ -945,7 +946,8 @@ class DeployDeployment:
             self.harbor_info.get('image_uri'),
             self.service_info.get('port'),
             self.registry_secret_info.get('registry_secret_name'),
-            self.k8s_info.get('resources')
+            self.k8s_info.get('resources'),
+            self.k8s_info.get('image')
         )
 
 
