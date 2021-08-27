@@ -108,7 +108,7 @@ def get_gitlab_base(url):
     return url[:-4]
 
 
-def analysis_release(release, info, hb_list_tags):
+def analysis_release(release, info, hb_list_tags, args):
     ret = row_to_dict(release)
     gitlab_project_url = info.get('gitlab_project_url')
     harbor_base = info.get('harbor_base')
@@ -122,10 +122,14 @@ def analysis_release(release, info, hb_list_tags):
                 project_name, ret.get("branch"))
         if ret.get("tag_name") in hb_list_tags[ret.get("branch")]:
             ret['docker'] = f'{harbor_base}/{project_name}/{ret.get("branch")}:{ret.get("tag_name")}'
+
+    if args.get('image') is True and ret['docker'] == '':
+        ret = None
+
     return ret, hb_list_tags
 
 
-def get_releases_by_project_id(project_id):
+def get_releases_by_project_id(project_id, args):
     project = model.Project.query.filter_by(id=project_id).first()
     releases = model.Release.query. \
         filter(model.Release.project_id == project_id). \
@@ -139,10 +143,10 @@ def get_releases_by_project_id(project_id):
     hb_list_tags = {}
     for release in releases:
         if releases is not None:
-            ret, hb_list_tags = analysis_release(release, info, hb_list_tags)
-            output.append(ret)
+            ret, hb_list_tags = analysis_release(release, info, hb_list_tags, args)
+            if ret is not None:
+                output.append(ret)
     return output
-
 
 class Releases(Resource):
     def __init__(self):
@@ -335,7 +339,10 @@ class Releases(Resource):
             project_id=project_id).first()
         role.require_in_project(project_id, 'Error to get release')
         try:
-            return util.success({'releases': get_releases_by_project_id(project_id)})
+            parser = reqparse.RequestParser()
+            parser.add_argument('image', type=bool)
+            args = parser.parse_args()
+            return util.success({'releases': get_releases_by_project_id(project_id, args)})
         except NoResultFound:
             return util.respond(404, error_redmine_issues_closed)
 
@@ -358,3 +365,10 @@ class Release(Resource):
         except NoResultFound:
             return util.respond(404, error_gitlab_not_found,
                                 error=apiError.repository_id_not_found(plugin_relation.git_repository_id))
+
+#
+#
+# class ReeaseFile(object):
+#
+#     def __init__(self, release_id):
+#         model.R
