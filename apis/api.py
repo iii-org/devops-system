@@ -588,6 +588,9 @@ api.add_resource(deploy.Application,
 
 api.add_resource(deploy.RedeployApplication, '/deploy/applications/<int:application_id>/redeploy')
 
+api.add_resource(deploy.UpdateApplication,
+                 '/deploy/applications/<int:application_id>/update')
+
 api.add_resource(deploy.Cronjob, '/deploy/applications/cronjob')
 # Alert
 api.add_resource(alert.ProjectAlert, '/project/<sint:project_id>/alert')

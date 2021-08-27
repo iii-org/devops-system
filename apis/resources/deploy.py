@@ -18,6 +18,7 @@ import util as util
 from model import db
 from resources import apiError, role
 from resources import harbor, kubernetesClient
+from resources import release
 
 default_project_id = "-1"
 error_clusters_not_found = "No Exact Cluster Found"
@@ -1139,7 +1140,8 @@ def check_application_status(app):
             app.status_id = 10
             db.session.commit()
 
-    return {'id': app.id, 'status': APPLICATION_STATUS.get(app.status_id, DEFAULT_APPLICATION_STATUS), 'output': output, 'database': row_to_dict(app)}
+    return {'id': app.id, 'status': APPLICATION_STATUS.get(app.status_id, DEFAULT_APPLICATION_STATUS), 'output': output,
+            'database': row_to_dict(app)}
 
 
 def check_application_exists(project_id, namespace):
@@ -1306,6 +1308,20 @@ def update_application(application_id, args):
     return app.id
 
 
+def patch_application(application_id, args):
+    app = model.Application.query.filter_by(id=application_id).first()
+    if 'disabled' in args and args.get('disabled') is True:
+        #  Delete Application
+        db_harbor_info = json.loads(app.harbor_info)
+        delete_image_replication_policy(db_harbor_info.get('policy_id'))
+
+        delete_k8s_application(app.cluster_id, app.namespace)
+        app.status_id = 32
+    app.updated_at = (datetime.utcnow())
+    db.session.commit()
+    return application_id
+
+
 def delete_image_replication_policy(policy_id):
     if policy_id is not None and check_replication_policy(policy_id) is True:
         delete_replication_policy(policy_id)
@@ -1342,16 +1358,6 @@ def redeploy_application(application_id):
     db.session.commit()
     return app.id
 
-
-class RedeployApplication(Resource):
-    @jwt_required
-    def patch(self, application_id):
-        try:
-            output = redeploy_application(application_id)
-            return util.success({"applications": output})
-        except NoResultFound:
-            return util.respond(404, error_clusters_not_found,
-                                error=apiError.repository_id_not_found)
 
 
 class Applications(Resource):
@@ -1413,8 +1419,10 @@ class Application(Resource):
     @jwt_required
     def patch(self, application_id):
         try:
-            app = model.Application.query.filter_by(id=application_id).first()
-            output = check_application_status(app)
+            parser = reqparse.RequestParser()
+            parser.add_argument('disabled', type=bool)
+            args = parser.parse_args()
+            output = patch_application(application_id, args)
             return util.success({"applications": output})
         except NoResultFound:
             return util.respond(404, error_clusters_not_found,
@@ -1451,6 +1459,30 @@ class Application(Resource):
                                 error=apiError.repository_id_not_found)
 
 
+
+class RedeployApplication(Resource):
+    @jwt_required
+    def patch(self, application_id):
+        try:
+            output = redeploy_application(application_id)
+            return util.success({"applications": output})
+        except NoResultFound:
+            return util.respond(404, error_clusters_not_found,
+                                error=apiError.repository_id_not_found)
+
+
+class UpdateApplication(Resource):
+    @jwt_required
+    def patch(self, application_id):
+        try:
+            app = model.Application.query.filter_by(id=application_id).first()
+            output = check_application_status(app)
+            return util.success({"applications": output})
+        except NoResultFound:
+            return util.respond(404, error_clusters_not_found,
+                                error=apiError.repository_id_not_found)
+
+
 def get_application_env(release_id):
     release = model.Release.query.filter_by(id=release_id).first()
     # project, project_plugin_relation =
@@ -1475,6 +1507,8 @@ class ReleaseApplication(Resource):
     def get(self, release_id):
         try:
             output = get_application_env(release_id)
+            # release_file = release.ReleaseFile(release_id)
+            # file = release_file.get_release_env_file()
             return util.success({"env": output})
         except NoResultFound:
             return util.respond(404, error_clusters_not_found,
