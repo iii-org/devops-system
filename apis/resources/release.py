@@ -123,7 +123,7 @@ def analysis_release(release, info, hb_list_tags, image_need):
         if ret.get("tag_name") in hb_list_tags[ret.get("branch")]:
             ret['docker'] = f'{harbor_base}/{project_name}/{ret.get("branch")}:{ret.get("tag_name")}'
 
-    if image_need is True and ret['docker'] == '':
+    if image_need is True and ret.get('docker') == '':
         ret = None
 
     return ret, hb_list_tags
@@ -367,9 +367,42 @@ class Release(Resource):
             return util.respond(404, error_gitlab_not_found,
                                 error=apiError.repository_id_not_found(plugin_relation.git_repository_id))
 
+
 #
 #
-# class ReeaseFile(object):
+# class ReleaseFile:
 #
 #     def __init__(self, release_id):
-#         model.R
+#         self.release = model.Release.query.filter_by(id=release_id).first()
+#         self.project_plugin_relation = model.ProjectPluginRelation.query.filter_by(
+#             project_id=self.release.project_id).first()
+#
+#     def get_release_env_from_file(self):
+#         print(self.release.id)
+#         parameter = {
+#             'git_repository_id': self.project_plugin_relation.git_repository_id,
+#             'branch': self.release.commit,
+#             'path': 'iiidevops/app.env'
+#
+#         }
+#
+#         file = gitlab.gl_get_file_from_lib(
+#             self.project_plugin_relation.git_repository_id,
+#             'iiidevops/app.env',
+#             self.release.commit
+#
+#         )
+#         if file is not None:
+#             content = str(file.decode(), 'utf-8')
+#             lines = content.splitlines()
+#             items = []
+#             for line in lines:
+#                 key, value = line.split('=')
+#                 items.append({
+#                     'key': key,
+#                     'value': value,
+#                     'type': 'configmap'
+#                 })
+#             return items
+#         else:
+#             return None
