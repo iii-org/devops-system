@@ -622,7 +622,7 @@ class TraceResult(db.Model):
     exception = Column(String)
 
 
-class AlertCommingRecord(db.Model):
+class AlertUnchangeRecord(db.Model):
     id = Column(Integer, primary_key=True)
     project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
     issue_id = Column(Integer, nullable=False)
