@@ -25,14 +25,14 @@ error_application_exists = "Application had been deployed"
 DEFAULT_K8S_CONFIG_FILE = 'k8s_config'
 
 APPLICATION_STATUS = {
-    1: 'Draft Deploy',
+    1: 'Initializing',
     2: 'Start Image replication',
     3: 'Finish Image replication',
     4: 'Start Kubernetes deployment ',
     5: 'Finish Kubernetes deployment ',
     9: 'Start Kubernetes deletion',
     10: 'Finish Kubernetes deletion',
-    11: 'No Image need to be replicated'
+    11: 'Error, No Image need to be replicated'
 }
 
 
@@ -107,7 +107,7 @@ def get_cluster_application_information(cluster):
         app['project_name'] = harbor_info.get('project')
         app['namespace'] = harbor_info.get('dest_repo_name')
         k8s_yaml = json.loads(application.k8s_yaml)
-        app['status'] = k8s_yaml.get('deploy_finish', 'Wait')
+        app['status'] = APPLICATION_STATUS[application.status_id]
         ret_output.append(app)
     output['application'] = ret_output
     return output
@@ -282,11 +282,7 @@ def get_registries_application_information(registry):
         app['tag'] = harbor_info.get('tag_name')
         app['project_name'] = harbor_info.get('project')
         app['namespace'] = harbor_info.get('dest_repo_name')
-        if harbor_info.get('task') is None:
-            app['status'] = 'Wait'
-        else:
-            app['status'] = harbor_info['task'][-1]['status']
-
+        app['status'] = APPLICATION_STATUS[application.status_id]
         ret_output.append(app)
     output['application'] = ret_output
     return output
@@ -297,8 +293,8 @@ def get_registries(registry_id=None):
     if registry_id is not None:
         return get_registries_application_information(
             model.Registries.query.filter_by(registries_id=registry_id).first())
-    for cluster in model.Registries.query.filter().all():
-        output.append(get_registries_application_information(cluster))
+    for registry in model.Registries.query.filter().all():
+        output.append(get_registries_application_information(registry))
 
     return output
 
@@ -1260,7 +1256,6 @@ def check_update_application_status(app, args):
 
 def update_application(application_id, args):
     app = model.Application.query.filter_by(id=application_id).first()
-    cluster = model.Cluster.query.filter_by(id=args.get('cluster_id')).first()
     release, project = db.session.query(model.Release, model.Project).join(model.Project).filter(
         model.Release.id == args.get('release_id'),
         model.Release.project_id == model.Project.id
@@ -1274,6 +1269,7 @@ def update_application(application_id, args):
     #  Delete Application
     db_harbor_info = json.loads(app.harbor_info)
     delete_image_replication_policy(db_harbor_info.get('policy_id'))
+
     db_harbor_info.update(
         create_default_harbor_data(
             project, release, args.get('registry_id'), args.get('namespace'))
@@ -1286,6 +1282,7 @@ def update_application(application_id, args):
     # Delete Old K8s Info
     delete_k8s_application(app.cluster_id, app.namespace)
     # check namespace
+    cluster = model.Cluster.query.filter_by(id=args.get('cluster_id')).first()
     deploy_k8s_client = DepolyK8sClient(cluster)
     deploy_namespace = DeployNamespace(args.get('namespace'))
     deploy_k8s_client.create_namespace(deploy_namespace.namespace_body())
