@@ -620,3 +620,11 @@ class TraceResult(db.Model):
     execute_time = Column(DateTime)
     finish_time = Column(DateTime)
     exception = Column(String)
+
+
+class AlertCommingRecord(db.Model):
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
+    issue_id = Column(Integer, nullable=False)
+    before_update_time = Column(DateTime)
+    after_update_time = Column(DateTime)
