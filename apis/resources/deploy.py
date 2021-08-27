@@ -1439,10 +1439,36 @@ class Application(Resource):
                                 error=apiError.repository_id_not_found)
 
 
+def get_application_env(release_id):
+    output = [
+        {
+            "key": "EXAMPLE_NUMBER",
+            "value": 111222,
+            "type": "configmap"
+        },
+        {
+            "key": "EXAMPLE_EMAIL",
+            "value": "example@example.com",
+            "type": "configmap"
+        }
+    ]
+
+    return output
+
+
+class ReleaseApplication(Resource):
+    def get(self, release_id):
+        try:
+            output = get_application_env(release_id)
+            return util.success({"env": output})
+        except NoResultFound:
+            return util.respond(404, error_clusters_not_found,
+                                error=apiError.repository_id_not_found)
+
+
 class Cronjob(Resource):
 
-    @staticmethod
-    def patch():
+    def patch(self):
         try:
             execute_list = []
             check_list = [1, 2, 3, 4]
