@@ -393,7 +393,7 @@ class ReleaseFile:
             for line in lines:
                 if line[0] == '#':
                     continue
-                key, value = line[1:].split('=')
+                key, value = line[1:].split('=', 1)
                 items.append({
                     'key': key,
                     'value': value,
