@@ -1444,8 +1444,9 @@ def execute_issue_alert(alert_mapping):
     若符合設定條件, 則會在該議題下新增留言
     條件: 1.Alert裡的condition 2.議題狀態並不是關閉
     '''
-    for plan_pj_id, alerts in alert_mapping.items():
-        issues = redmine.rm_get_issues_by_project(plan_pj_id)
+    for project_id, alerts in alert_mapping.items():
+        plan_project_id = project.get_plan_project_id(project_id)
+        issues = redmine.rm_get_issues_by_project(plan_project_id)
         for issue in issues:
             if issue["status"]["id"] != 6:
                 for alert in alerts:
@@ -1454,9 +1455,46 @@ def execute_issue_alert(alert_mapping):
                     days = alert["days"]
                     issue_id = issue["id"]
                     if condition == "unchange":
-                        delta = datetime.strptime(issue["updated_on"][0:10], "%Y-%m-%d") - util.get_certain_date_from_now(days)
-                        if delta.days >= 0:
-                            note = f'已{days - delta.days}天未異動，敬請確認'
+                        common_note = f'已超過{days}天未異動'
+                        update_time = datetime.strptime(issue["updated_on"][0:10], "%Y-%m-%d")
+                        alert_unchange_record = model.AlertUnchangeRecord.query.filter_by(
+                            project_id=project_id, issue_id=issue_id).first()
+                        if alert_unchange_record is None:
+                            delta = update_time - util.get_certain_date_from_now(days)
+                            if delta.days <= 0:
+                                note = common_note
+                                new = model.AlertUnchangeRecord(
+                                    project_id=project_id, 
+                                    issue_id=issue_id,
+                                    before_update_time=update_time,
+                                    after_update_time=util.get_certain_date_from_now(0)
+                                )
+                                db.session.add(new)
+                                db.session.commit()
+                        else:
+                            if alert_unchange_record.before_update_time is None:
+                                delta = update_time - util.get_certain_date_from_now(days)
+                                if delta.days <= 0:
+                                    note = common_note     
+                                    alert_unchange_record.before_update_time = update_time
+                                    alert_unchange_record.after_update_time = util.get_certain_date_from_now(0)
+                                    db.session.commit()
+                            else:
+                                if alert_unchange_record.after_update_time == update_time:
+                                    delta = alert_unchange_record.before_update_time - util.get_certain_date_from_now(days)
+                                    if delta.days <= 0:
+                                        note = common_note 
+                                        alert_unchange_record.after_update_time = util.get_certain_date_from_now(0)  
+                                        db.session.commit()      
+                                else:
+                                    delta = update_time - util.get_certain_date_from_now(days)
+                                    if delta.days <= 0:
+                                        note = common_note 
+                                        alert_unchange_record.before_update_time = update_time
+                                        alert_unchange_record.after_update_time = util.get_certain_date_from_now(0)
+                                    else:
+                                        alert_unchange_record.before_update_time = None
+                                    db.session.commit()  
                     if condition == "comming":
                         if issue.get("due_date") is None:
                             continue
@@ -1464,13 +1502,13 @@ def execute_issue_alert(alert_mapping):
                         if delta.days >= 0: 
                             d_day = days - delta.days    
                             if d_day >= 0:
-                                note = f'{d_day}天即將到期，請即刻處理'
+                                note = f'{d_day}天即將到期'
                             else:
-                                note = f'已經過期{-d_day}天，請即刻處理'
+                                note = f'已經過期{-d_day}天'
                     if note is not None:
                         update_issue(
                             issue_id, 
-                            {"notes": f'本議題 #{issue_id} {issue["subject"]} {note}'}, 
+                            {"notes": f'本議題 #{issue_id} {issue["subject"]} {note} ，請確認該議題是否繼續執行？或更新狀態？'}, 
                         )
 
 # --------------------- Resources ---------------------
@@ -1965,8 +2003,7 @@ class ExecutIssueAlert(Resource):
         alerts = model.Alert.query.filter_by(disabled=False)
         alerts = [alert for alert in alerts if model.Project.query.get(alert.project_id).alert]
         for alert in alerts:
-            plan_project_id = project.get_plan_project_id(alert.project_id)
-            alert_mapping.setdefault(plan_project_id, []).append(
+            alert_mapping.setdefault(alert.project_id, []).append(
                 {"condition": alert.condition, "days": alert.days})
 
         return util.success(execute_issue_alert(alert_mapping))
