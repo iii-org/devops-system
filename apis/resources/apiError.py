@@ -185,6 +185,9 @@ def resource_not_found():
 def path_not_found():
     return build(7004, 'The requested URL is not found on this server. Please check if the path is correct.')
 
+def maximum_error(object, num):
+    return build(7005, f'Maximum number of {object} is {num}.', {'object': object, 'num': num})
+
 
 # Third party service errors
 def redmine_error(response):

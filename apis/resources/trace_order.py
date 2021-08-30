@@ -101,7 +101,7 @@ def create_trace_order_by_project(args):
     num = TraceOrder.query.filter_by(project_id=project_id).count()
     if not num < 4:
         raise DevOpsError(400, "Maximum number of trace_order in a project is 5.",
-                          error=apiError.no_detail())
+                          error=apiError.maximum_error("trace_order", 5))
 
     order = args["order"]
     validate_order_value(order)
@@ -133,7 +133,7 @@ def update_trace_order(trace_order_id, args):
         else:
             if not trace_order_is_allow_to_change(project):
                 raise DevOpsError(400, "Not allow to change default value because the trace_order default is the only True",
-                                  error=apiError.no_detail()) 
+                                  error=apiError.argument_error('default')) 
         return 
 
     trace_order = model.TraceOrder.query.get(trace_order_id)
@@ -159,7 +159,7 @@ def delete_trace_order(trace_order_id):
     trace_order = TraceOrder.query.filter_by(id=trace_order_id).one()
     if trace_order.default:
         raise DevOpsError(400, "Not allow to delete the trace_order because this is default",
-                          error=apiError.no_detail()) 
+                          error=apiError.argument_error('default')) 
     db.session.delete(trace_order)
     db.session.commit()
 
