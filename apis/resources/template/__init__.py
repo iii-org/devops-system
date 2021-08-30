@@ -230,8 +230,8 @@ def __compare_tag_version(tag_version, start_version, end_version=None):
                 i += 1
     else:
         # has end version
-        end_version = version_parser(end_version)
-        end_version = end_version + [0]*(3 - len(end_version))
+        end_version_list = version_parser(end_version)
+        end_version_list = end_version_list + [0]*(3 - len(end_version_list))
         i = 0
         while i < 3:
             if i == 2:
@@ -239,7 +239,7 @@ def __compare_tag_version(tag_version, start_version, end_version=None):
                         tag_version_list[i]) >= int(
                         start_version_list[i]) and int(
                         tag_version_list[i]) <= int(
-                        end_version[i]):
+                        end_version_list[i]):
                     return True
                 else:
                     return False
@@ -248,10 +248,10 @@ def __compare_tag_version(tag_version, start_version, end_version=None):
                         tag_version_list[i]) > int(
                         start_version_list[i]) and int(
                         tag_version_list[i]) < int(
-                        end_version[i]):
+                        end_version_list[i]):
                     return True
                 elif int(tag_version_list[i]) < int(start_version_list[i]) or \
-                        int(tag_version_list[i]) > int(end_version[i]):
+                        int(tag_version_list[i]) > int(end_version_list[i]):
                     return False
                 else:
                     i += 1
