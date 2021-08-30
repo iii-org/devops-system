@@ -1443,6 +1443,8 @@ def execute_issue_alert(alert_mapping):
     '''
     若符合設定條件, 則會在該議題下新增留言
     條件: 1.Alert裡的condition 2.議題狀態並不是關閉
+    因新增提醒會將issue的update_on更新, 故另外創建AlertUnchangeRecord
+    來儲存update_on
     '''
     for project_id, alerts in alert_mapping.items():
         plan_project_id = project.get_plan_project_id(project_id)
@@ -1459,6 +1461,7 @@ def execute_issue_alert(alert_mapping):
                         update_time = datetime.strptime(issue["updated_on"][0:10], "%Y-%m-%d")
                         alert_unchange_record = model.AlertUnchangeRecord.query.filter_by(
                             project_id=project_id, issue_id=issue_id).first()
+                        # 首次新增, 儲存當下時間(after_update_time)與實際更新時間(before_update_time)
                         if alert_unchange_record is None:
                             delta = update_time - util.get_certain_date_from_now(days)
                             if delta.days <= 0:
@@ -1472,6 +1475,7 @@ def execute_issue_alert(alert_mapping):
                                 db.session.add(new)
                                 db.session.commit()
                         else:
+                            # 若before_update_time是None, 表示該issue已經重新計算
                             if alert_unchange_record.before_update_time is None:
                                 delta = update_time - util.get_certain_date_from_now(days)
                                 if delta.days <= 0:
