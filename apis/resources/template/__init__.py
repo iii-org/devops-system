@@ -212,49 +212,35 @@ def __add_plugin_soft_status():
 def __compare_tag_version(tag_version, start_version, end_version=None):
     def version_parser(version_string):
         return version_string.replace('v', '').split('.')
+
+    def ver_hight_greater_ver_low(ver_low, ver_hight):
+        i = 0
+        while i < 3:
+            if int(ver_hight[i]) > int(ver_low[i]):
+                return True
+            elif int(ver_hight[i]) < int(ver_low[i]):
+                return False
+            elif i == 2:
+                return True
+            else:
+                i += 1
     # has end
     tag_version_list = version_parser(tag_version)
     tag_version_list = tag_version_list + [0]*(3 - len(tag_version_list))
     start_version_list = version_parser(start_version)
     start_version_list = start_version_list + [0]*(3 - len(start_version_list))
     if end_version == "":
-        i = 0
-        while i < 3:
-            if int(tag_version_list[i]) > int(start_version_list[i]):
-                return True
-            elif int(tag_version_list[i]) < int(start_version_list[i]):
-                return False
-            elif i == 2:
-                return True
-            else:
-                i += 1
+        return ver_hight_greater_ver_low(start_version_list, tag_version_list)
     else:
         # has end version
         end_version_list = version_parser(end_version)
         end_version_list = end_version_list + [0]*(3 - len(end_version_list))
-        i = 0
-        while i < 3:
-            if i == 2:
-                if int(
-                        tag_version_list[i]) >= int(
-                        start_version_list[i]) and int(
-                        tag_version_list[i]) <= int(
-                        end_version_list[i]):
-                    return True
-                else:
-                    return False
-            else:
-                if int(
-                        tag_version_list[i]) > int(
-                        start_version_list[i]) and int(
-                        tag_version_list[i]) < int(
-                        end_version_list[i]):
-                    return True
-                elif int(tag_version_list[i]) < int(start_version_list[i]) or \
-                        int(tag_version_list[i]) > int(end_version_list[i]):
-                    return False
-                else:
-                    i += 1
+        over_start_ver = ver_hight_greater_ver_low(start_version_list, tag_version_list)
+        low_end_ver = ver_hight_greater_ver_low(tag_version_list, end_version_list)
+        if over_start_ver and low_end_ver:
+            return True
+        else:
+            return False
 
 
 def __force_update_template_cache_table():
