@@ -1320,6 +1320,8 @@ def patch_application(application_id, args):
 
         delete_k8s_application(app.cluster_id, app.namespace)
         app.status_id = 32
+
+    app.disabled = args.get('disabled')
     app.updated_at = (datetime.utcnow())
     db.session.commit()
     return application_id
