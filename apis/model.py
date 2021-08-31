@@ -586,7 +586,6 @@ class Application(db.Model):
     cluster_id = Column(Integer, ForeignKey(Cluster.id))
     registry_id = Column(Integer, ForeignKey(Registries.registries_id))
     namespace = Column(String)
-    image = Column(String)
     status = Column(String)
     created_at = Column(DateTime)
     updated_at = Column(DateTime)
