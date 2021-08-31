@@ -328,15 +328,15 @@ class Registry(Resource):
                                 error=apiError.repository_id_not_found)
 
 
-def create_default_harbor_data(project, release, registry_id, namespace):
+def create_default_harbor_data(project, db_release, registry_id, namespace):
     harbor_data = {
         "project": project.display,
         "project_id": project.name,
-        "policy_name": project.name + "-release-" + str(release.id) + '-at-' + namespace,
+        "policy_name": project.name + "-release-" + str(db_release.id) + '-at-' + namespace,
         "repo_name": project.name,
-        "image_name": release.branch,
-        "tag_name": release.tag_name,
-        "description": 'Automate create replication policy ' + project.name + " release ID " + str(release.id),
+        "image_name": db_release.branch,
+        "tag_name": db_release.tag_name,
+        "description": 'Automate create replication policy ' + project.name + " release ID " + str(db_release.id),
         "registry_id": registry_id,
         "dest_repo_name": namespace,
         "status": 'initial'
@@ -344,6 +344,7 @@ def create_default_harbor_data(project, release, registry_id, namespace):
     return harbor_data
 
 
+# Remove Object Key with Target
 def remove_object_key_by_value(items, target=""):
     output = {}
     if items is None:
@@ -520,7 +521,7 @@ def check_image_replication(app):
     tasks = []
     if harbor_info.get('execution', None) is None:
         execute_replication_policy(harbor_info.get('policy_id'))
-    # Restart Image Rplication task
+    # Restart Image Replication task
     if len(harbor_info.get('task', [])) == 0:
         execute_replication_policy(harbor_info.get('policy_id'))
         return tasks, output
@@ -628,7 +629,7 @@ def create_deployment_object(
         resource=None,
         image=None
 ):
-    # Configureate Pod template container
+    # Configured Pod template container
     default_image_policy = 'Always'
     if image is not None and image.get('policy', None) is not None:
         default_image_policy = image.get('policy', None)
@@ -639,7 +640,7 @@ def create_deployment_object(
         resources=init_resource_requirements(resource),
         image_pull_policy=default_image_policy
     )
-    # Create and configurate a spec section
+    # Create and configure a spec section
     template = k8s_client.V1PodTemplateSpec(
         metadata=k8s_client.V1ObjectMeta(labels={"app": app_name}),
         spec=k8s_client.V1PodSpec(
@@ -700,7 +701,7 @@ def create_namespace_object(namespace):
         metadata=k8s_client.V1ObjectMeta(name=namespace))
 
 
-class DepolyK8sClient:
+class DeployK8sClient:
     def __init__(self, cluster):
         self.client = kubernetesClient.ApiK8sClient(
             configuration_file=get_cluster_config_path(cluster.name))
@@ -964,7 +965,7 @@ class K8sDeployment:
         self.cluster = model.Cluster.query.filter_by(id=app.cluster_id).first()
         self.project = model.Project.query.filter_by(id=app.project_id).first()
         self.registry = model.Registries.query.filter_by(registries_id=app.registry_id).first()
-        self.k8s_client = DepolyK8sClient(self.cluster)
+        self.k8s_client = DeployK8sClient(self.cluster)
         self.namespace = None
         self.registry_secret = None
         self.service = None
@@ -1070,20 +1071,16 @@ class K8sDeployment:
 
 
 def execute_k8s_deployment(app):
-    cluster = model.Cluster.query.filter_by(id=app.cluster_id).first()
-    deploy_namespace = DeployNamespace(app.namespace)
     k8s_deployment = K8sDeployment(app)
     k8s_deployment.check_namespace()
     k8s_deployment.execute_registry_secret()
     k8s_deployment.execute_service()
     k8s_info = json.loads(app.k8s_yaml)
-
     if k8s_info.get('network').get('domain', None) is not None:
         k8s_deployment.execute_ingress()
     if k8s_info.get('environments', None) is not None:
         k8s_deployment.execute_configmap()
         k8s_deployment.execute_secret()
-
     k8s_deployment.execute_deployment()
     return k8s_deployment.get_deployment_information()
 
@@ -1093,7 +1090,7 @@ def check_k8s_deployment(app, deployed=True):
     deployed_status = []
     deploy_object = json.loads(app.k8s_yaml)
     cluster = model.Cluster.query.filter_by(id=app.cluster_id).first()
-    deploy_k8s_client = DepolyK8sClient(cluster)
+    deploy_k8s_client = DeployK8sClient(cluster)
 
     if deploy_object.get("deployment") is not None:
         deployed_status.append(deploy_k8s_client.check_namespace_deployment(
@@ -1180,7 +1177,7 @@ def k8s_resource_exist(target, response):
             check_result = True
             # if str(i.status.phase) == "Active":
             #     check_result = True
-            # elif str(i.stauts.phase) == "Terminating":
+            # elif str(i.status.phase) == "Terminating":
             #     check_result = True
     return check_result
 
@@ -1251,15 +1248,15 @@ def create_application(args):
         return util.respond(404, error_application_exists,
                             error=apiError.repository_id_not_found)
     cluster = model.Cluster.query.filter_by(id=args.get('cluster_id')).first()
-    release, project = db.session.query(model.Release, model.Project).join(model.Project).filter(
+    db_release, db_project = db.session.query(model.Release, model.Project).join(model.Project).filter(
         model.Release.id == args.get('release_id'),
         model.Release.project_id == model.Project.id
     ).one()
     harbor_info = create_default_harbor_data(
-        project, release, args.get('registry_id'), args.get('namespace'))
-    k8s_yaml = create_default_k8s_data(project, release, args)
+        db_project, db_release, args.get('registry_id'), args.get('namespace'))
+    k8s_yaml = create_default_k8s_data(db_project, db_release, args)
     # check namespace
-    deploy_k8s_client = DepolyK8sClient(cluster)
+    deploy_k8s_client = DeployK8sClient(cluster)
     deploy_namespace = DeployNamespace(args.get('namespace'))
     deploy_k8s_client.create_namespace(args.get('namespace'), deploy_namespace.namespace_body())
     now = str(datetime.utcnow())
@@ -1295,7 +1292,7 @@ def check_update_application_status(app, args):
 
 def update_application(application_id, args):
     app = model.Application.query.filter_by(id=application_id).first()
-    release, project = db.session.query(model.Release, model.Project).join(model.Project).filter(
+    db_release, db_project = db.session.query(model.Release, model.Project).join(model.Project).filter(
         model.Release.id == args.get('release_id'),
         model.Release.project_id == model.Project.id
     ).one()
@@ -1309,12 +1306,12 @@ def update_application(application_id, args):
     delete_image_replication_policy(db_harbor_info.get('policy_id'))
     db_harbor_info.update(
         create_default_harbor_data(
-            project, release, args.get('registry_id'), args.get('namespace'))
+            db_project, db_release, args.get('registry_id'), args.get('namespace'))
     )
     #  Change k8s Info
     db_k8s_yaml = json.loads(app.k8s_yaml)
     db_k8s_yaml.update(
-        create_default_k8s_data(project, release, args)
+        create_default_k8s_data(db_project, db_release, args)
     )
     # check namespace
     app.status_id = disable_application(
@@ -1356,7 +1353,7 @@ def patch_application(application_id, args):
             'image' in args or \
             'resources' in args or \
             'network' in args or \
-            'environements' in args or \
+            'environments' in args or \
             'release_id' in args:
         db_k8s_yaml = json.loads(app.k8s_yaml)
         db_k8s_yaml.update(
@@ -1409,15 +1406,14 @@ def delete_application(application_id, delete_db=False):
 
 
 def disable_application(disabled, namespace, cluster_id):
-    status_id = 1
     if disabled is True:
         #  Delete Application
         delete_k8s_application(cluster_id, namespace)
         status_id = 32
     else:
-        # Redploy K8s
+        # Redeploy K8s
         cluster = model.Cluster.query.filter_by(id=cluster_id).first()
-        deploy_k8s_client = DepolyK8sClient(cluster)
+        deploy_k8s_client = DeployK8sClient(cluster)
         deploy_namespace = DeployNamespace(namespace)
         deploy_k8s_client.create_namespace(namespace, deploy_namespace.namespace_body())
         status_id = 1
@@ -1432,7 +1428,7 @@ def delete_image_replication_policy(policy_id):
 def delete_k8s_application(cluster_id, namespace):
     if cluster_id is not None and namespace is not None:
         cluster = model.Cluster.query.filter_by(id=cluster_id).first()
-        deploy_k8s_client = DepolyK8sClient(cluster)
+        deploy_k8s_client = DeployK8sClient(cluster)
         deploy_k8s_client.delete_namespace(namespace)
 
 
@@ -1573,7 +1569,6 @@ class ReleaseApplication(Resource):
 
 
 class Cronjob(Resource):
-
     @staticmethod
     def patch():
         try:
