@@ -11,6 +11,9 @@ from resources import issue
 from resources.logger import logger
 
 
+TGI_TRACKER_ID = 9
+
+
 def tgi_feed_postman(row):
     collections = json.loads(row.report).get('json_file')
     for col_key, result in collections.items():
@@ -63,10 +66,10 @@ def _handle_test_failed(project_id, software_name, filename, description,
             issue_exists = False
 
     if not issue_exists:
-        description = f'詳細報告請前往[測試報告列表](/#/{project_name}/scan/sideex)\n\n{description}'
+        description = f'詳細報告請前往[測試報告列表](/#/scan/sideex)\n\n{description}'
         args = {
             'project_id': project_id,
-            'tracker_id': 9,
+            'tracker_id': TGI_TRACKER_ID,
             'status_id': 1,
             'priority_id': 3,
             'subject': _get_issue_subject(filename, software_name),
