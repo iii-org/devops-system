@@ -705,6 +705,12 @@ class DepolyK8sClient:
         self.client = kubernetesClient.ApiK8sClient(
             configuration_file=get_cluster_config_path(cluster.name))
 
+    def read_namespace(self, namespace):
+        if self.check_namespace(namespace) is True:
+            return self.client.read_namespace(namespace)
+        else:
+            return {}
+
     def create_namespace(self, namespace, body):
         check = k8s_resource_exist(
             namespace,
@@ -969,9 +975,9 @@ class K8sDeployment:
         self.deployment_info = {}
 
     def check_namespace(self):
-        if self.k8s_client.check_namespace(self.app.namespace) is not True:
-            self.namespace = DeployNamespace(self.app.namespace)
-            self.k8s_client.create_namespace(self.app.namespace, self.namespace.namespace_body())
+        self.namespace = DeployNamespace(self.app.namespace)
+        self.k8s_client.create_namespace(self.app.namespace, self.namespace.namespace_body())
+
 
     def check_registry_secret(self):
         if self.registry_secret is None:
@@ -1089,6 +1095,7 @@ def check_k8s_deployment(app, deployed=True):
     deploy_object = json.loads(app.k8s_yaml)
     cluster = model.Cluster.query.filter_by(id=app.cluster_id).first()
     deploy_k8s_client = DepolyK8sClient(cluster)
+
     if deploy_object.get("deployment") is not None:
         deployed_status.append(deploy_k8s_client.check_namespace_deployment(
             deploy_object.get("deployment").get("deployment_name"),
@@ -1250,7 +1257,7 @@ def create_application(args):
     # check namespace
     deploy_k8s_client = DepolyK8sClient(cluster)
     deploy_namespace = DeployNamespace(args.get('namespace'))
-    deploy_k8s_client.create_namespace(deploy_namespace.namespace_body())
+    deploy_k8s_client.create_namespace(args.get('namespace'),deploy_namespace.namespace_body())
     now = str(datetime.utcnow())
     new = model.Application(
         name=args.get('name'),
