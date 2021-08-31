@@ -978,7 +978,6 @@ class K8sDeployment:
         self.namespace = DeployNamespace(self.app.namespace)
         self.k8s_client.create_namespace(self.app.namespace, self.namespace.namespace_body())
 
-
     def check_registry_secret(self):
         if self.registry_secret is None:
             self.registry_secret = DeployRegistrySecret(self.app, self.registry)
@@ -1177,7 +1176,12 @@ def k8s_resource_exist(target, response):
     check_result = False
     for i in response.items:
         if str(target) == str(i.metadata.name):
+            # Start
             check_result = True
+            # if str(i.status.phase) == "Active":
+            #     check_result = True
+            # elif str(i.stauts.phase) == "Terminating":
+            #     check_result = True
     return check_result
 
 
@@ -1257,7 +1261,7 @@ def create_application(args):
     # check namespace
     deploy_k8s_client = DepolyK8sClient(cluster)
     deploy_namespace = DeployNamespace(args.get('namespace'))
-    deploy_k8s_client.create_namespace(args.get('namespace'),deploy_namespace.namespace_body())
+    deploy_k8s_client.create_namespace(args.get('namespace'), deploy_namespace.namespace_body())
     now = str(datetime.utcnow())
     new = model.Application(
         name=args.get('name'),
@@ -1313,17 +1317,11 @@ def update_application(application_id, args):
         create_default_k8s_data(project, release, args)
     )
     # check namespace
-    if args.get('disabled') is True:
-        #  Delete Application
-        delete_k8s_application(app.cluster_id, app.namespace)
-        app.status_id = 32
-    else:
-        # Redploy K8s
-        cluster = model.Cluster.query.filter_by(id=args.get('cluster_id')).first()
-        deploy_k8s_client = DepolyK8sClient(cluster)
-        deploy_namespace = DeployNamespace(args.get('namespace'))
-        deploy_k8s_client.create_namespace(args.get('namespace'), deploy_namespace.namespace_body())
-        app.status_id = 1
+    app.status_id = disable_application(
+        args.get('disabled'),
+        app.namespace,
+        app.cluster_id
+    )
 
     app.harbor_info = json.dumps(db_harbor_info)
     app.k8s_yaml = json.dumps(db_k8s_yaml)
@@ -1346,12 +1344,13 @@ def patch_application(application_id, args):
             setattr(app, key, args[key])
 
     #  Delete Application
-    if 'disabled' in args and args.get('disabled') is True:
-        #  Delete Application
-        db_harbor_info = json.loads(app.harbor_info)
-        delete_image_replication_policy(db_harbor_info.get('policy_id'))
-        delete_k8s_application(app.cluster_id, app.namespace)
-        app.status_id = 32
+    if 'disabled' in args:
+        app.status_id = disable_application(
+            args.get('disabled'),
+            args.get('namespace', app.namespace),
+            args.get('cluster_id', app.cluster_id)
+        )
+
     #  Change K8s Deploy
     if 'namespace' in args or \
             'image' in args or \
@@ -1378,21 +1377,18 @@ def patch_application(application_id, args):
             create_default_harbor_data(
                 db_project, db_release, args.get('registry_id'), args.get('namespace'))
         )
+    app.status = APPLICATION_STATUS.get(app.status_id, DEFAULT_APPLICATION_STATUS)
     app.updated_at = (datetime.utcnow())
     db.session.commit()
     return application_id
 
 
-def delete_image_replication_policy(policy_id):
-    if policy_id is not None and check_replication_policy(policy_id) is True:
-        delete_replication_policy(policy_id)
-
-
-def delete_k8s_application(cluster_id, namespace):
-    if cluster_id is not None and namespace is not None:
-        cluster = model.Cluster.query.filter_by(id=cluster_id).first()
-        deploy_k8s_client = DepolyK8sClient(cluster)
-        deploy_k8s_client.delete_namespace(namespace)
+def redeploy_application(application_id):
+    app = model.Application.query.filter_by(id=application_id).first()
+    app.status_id = 1
+    app.status = APPLICATION_STATUS.get(1, DEFAULT_APPLICATION_STATUS)
+    db.session.commit()
+    return app.id
 
 
 def delete_application(application_id, delete_db=False):
@@ -1412,12 +1408,32 @@ def delete_application(application_id, delete_db=False):
     return app.id
 
 
-def redeploy_application(application_id):
-    app = model.Application.query.filter_by(id=application_id).first()
-    app.status_id = 1
-    app.status = APPLICATION_STATUS.get(4, DEFAULT_APPLICATION_STATUS)
-    db.session.commit()
-    return app.id
+def disable_application(disabled, namespace, cluster_id):
+    status_id = 1
+    if disabled is True:
+        #  Delete Application
+        delete_k8s_application(cluster_id, namespace)
+        status_id = 32
+    else:
+        # Redploy K8s
+        cluster = model.Cluster.query.filter_by(id=cluster_id).first()
+        deploy_k8s_client = DepolyK8sClient(cluster)
+        deploy_namespace = DeployNamespace(namespace)
+        deploy_k8s_client.create_namespace(namespace, deploy_namespace.namespace_body())
+        status_id = 1
+    return status_id
+
+
+def delete_image_replication_policy(policy_id):
+    if policy_id is not None and check_replication_policy(policy_id) is True:
+        delete_replication_policy(policy_id)
+
+
+def delete_k8s_application(cluster_id, namespace):
+    if cluster_id is not None and namespace is not None:
+        cluster = model.Cluster.query.filter_by(id=cluster_id).first()
+        deploy_k8s_client = DepolyK8sClient(cluster)
+        deploy_k8s_client.delete_namespace(namespace)
 
 
 class Applications(Resource):
@@ -1562,7 +1578,7 @@ class Cronjob(Resource):
     def patch():
         try:
             execute_list = []
-            check_list = [1, 2, 3, 4]
+            check_list = [1, 2, 3, 4, 9]
             apps = db.session.query(model.Application).filter(model.Application.status_id.in_(check_list)).all()
             for app in apps:
                 temp = check_application_status(app)
