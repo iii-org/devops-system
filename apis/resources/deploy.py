@@ -1308,13 +1308,15 @@ def update_application(application_id, args):
     # Delete Old K8s Info
     delete_k8s_application(app.cluster_id, app.namespace)
     # check namespace
-    cluster = model.Cluster.query.filter_by(id=args.get('cluster_id')).first()
-    deploy_k8s_client = DepolyK8sClient(cluster)
-    deploy_namespace = DeployNamespace(args.get('namespace'))
-    deploy_k8s_client.create_namespace(deploy_namespace.namespace_body())
+
     if args.get('disabled') is True:
+        delete_k8s_application(app.cluster_id, app.namespace)
         app.status_id = 32
     else:
+        cluster = model.Cluster.query.filter_by(id=args.get('cluster_id')).first()
+        deploy_k8s_client = DepolyK8sClient(cluster)
+        deploy_namespace = DeployNamespace(args.get('namespace'))
+        deploy_k8s_client.create_namespace(deploy_namespace.namespace_body())
         app.status_id = 1
     app.harbor_info = json.dumps(db_harbor_info)
     app.k8s_yaml = json.dumps(db_k8s_yaml)
@@ -1329,7 +1331,6 @@ def patch_application(application_id, args):
         #  Delete Application
         db_harbor_info = json.loads(app.harbor_info)
         delete_image_replication_policy(db_harbor_info.get('policy_id'))
-
         delete_k8s_application(app.cluster_id, app.namespace)
         app.status_id = 32
 
