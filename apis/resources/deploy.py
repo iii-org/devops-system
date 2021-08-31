@@ -945,7 +945,7 @@ class DeployDeployment:
             self.harbor_info.get('image_uri'),
             self.service_info.get('port'),
             self.registry_secret_info.get('registry_secret_name'),
-            self.k8s_info.get('resources'),
+            self.k8s_info.get('resources',{}),
             self.k8s_info.get('image')
         )
 
@@ -957,6 +957,7 @@ class K8sDeployment:
         self.project = model.Project.query.filter_by(id=app.project_id).first()
         self.registry = model.Registries.query.filter_by(registries_id=app.registry_id).first()
         self.k8s_client = DepolyK8sClient(self.cluster)
+        self.namespace = None
         self.registry_secret = None
         self.service = None
         self.ingress = None
@@ -964,6 +965,11 @@ class K8sDeployment:
         self.configmap = None
         self.secret = None
         self.deployment_info = {}
+
+    def check_namespace(self):
+        if self.k8s_client.check_namespace(self.app.namespace) is not True:
+            self.namespace = DeployNamespace(self.app.namespace)
+            self.k8s_client.create_namespace(self.namespace.namespace_body())
 
     def check_registry_secret(self):
         if self.registry_secret is None:
@@ -1057,14 +1063,20 @@ class K8sDeployment:
 
 
 def execute_k8s_deployment(app):
+    cluster = model.Cluster.query.filter_by(id=app.cluster_id).first()
+    deploy_namespace = DeployNamespace(app.namespace)
     k8s_deployment = K8sDeployment(app)
+    k8s_deployment.check_namespace()
     k8s_deployment.execute_registry_secret()
     k8s_deployment.execute_service()
     k8s_info = json.loads(app.k8s_yaml)
+
     if k8s_info.get('network').get('domain', None) is not None:
         k8s_deployment.execute_ingress()
-    k8s_deployment.execute_configmap()
-    k8s_deployment.execute_secret()
+    if k8s_info.get('environments', None) is not None:
+        k8s_deployment.execute_configmap()
+        k8s_deployment.execute_secret()
+
     k8s_deployment.execute_deployment()
     return k8s_deployment.get_deployment_information()
 
