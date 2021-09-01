@@ -10,6 +10,7 @@ import paramiko
 
 import requests
 from flask_restful import reqparse
+from resources import logger
 
 import resources.apiError as apiError
 import boto3
@@ -116,16 +117,20 @@ def reset_ticker():
     ticker = time.time()
 
 
-def tick(message='', init=False):
+def tick(message='', init=False, use_logger=False):
     global ticker
     now = time.time()
     if init:
         if message:
             print(message)
+            if use_logger:
+                logger.logger.info(message)
         ticker = now
         return
     elapsed = now - ticker
     print('%f seconds elapsed. [%s]' % (elapsed, message))
+    if use_logger:
+        logger.logger.info('%f seconds elapsed. [%s]' % (elapsed, message))
     ticker = now
     return elapsed
 

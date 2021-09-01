@@ -7,6 +7,7 @@ import config
 import model
 import resources.project as project
 import resources.issue as issue
+from resources import logger
 
 from copy import deepcopy
 from resources.issue import NexusIssue
@@ -404,19 +405,30 @@ class TraceList:
             current_num = 0
             self.update_trace_result(current_num=0, execute_time=datetime.utcnow().isoformat(), exception=None)
 
+            # util.tick 是用來debug用的
+            util.tick(message='head_begin', init=True, use_logger=True)
             self.generate_head_mapping()
+            util.tick(message='head_end', use_logger=True)
+
             current_num += 1
             self.update_trace_result(current_num=current_num)
 
             for i in range(order_length - 2):
+                util.tick(message=f'mid{i+1}_begin', init=True, use_logger=True)
                 self.generate_middle_mapping(i + 1)
+                util.tick(message=f'mid{i+1}_end', use_logger=True)
+
                 current_num += 1
                 self.update_trace_result(current_num=current_num)
 
+            util.tick(message=f'fianl_begin', init=True, use_logger=True)
             self.generate_final_mapping()
+            util.tick(message=f'fianl_end', use_logger=True)
+
             current_num += 1
             self.update_trace_result(current_num=current_num, results=self.result, finish_time=datetime.utcnow().isoformat())
         except Exception as e:
+            logger.logger.exception(str(e))
             self.update_trace_result(exception=str(e))
         finally:
             self.lock.release()
