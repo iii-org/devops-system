@@ -1,18 +1,46 @@
 import json
-import os
 import random
 import string
 import time
 import math
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
+from datetime import time as d_time
 from threading import Thread
+import paramiko
 
 import requests
 from flask_restful import reqparse
+from resources import logger
 
 import resources.apiError as apiError
 import boto3
 from botocore.exceptions import ClientError
+import base64
+
+
+def base64decode(value):
+    return str(base64.b64decode(str(value)).decode('utf-8'))
+
+
+def base64encode(value):
+    return base64.b64encode(
+        bytes(str(value), encoding='utf-8')).decode('utf-8')
+
+
+def ssh_to_node_by_key(command, node_ip):
+    pkey = paramiko.RSAKey.from_private_key_file('./deploy-config/id_rsa')
+    client = paramiko.SSHClient()
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    client.connect(hostname=node_ip,
+                   port=22,
+                   username='rkeuser',
+                   pkey=pkey)
+
+    stdin, stdout, stderr = client.exec_command(command)
+    output_str = stdout.read().decode()
+    error_str = stderr.read().decode()
+    client.close()
+    return output_str, error_str
 
 
 def date_to_str(data):
@@ -89,16 +117,20 @@ def reset_ticker():
     ticker = time.time()
 
 
-def tick(message='', init=False):
+def tick(message='', init=False, use_logger=False):
     global ticker
     now = time.time()
     if init:
         if message:
             print(message)
+            if use_logger:
+                logger.logger.info(message)
         ticker = now
         return
     elapsed = now - ticker
     print('%f seconds elapsed. [%s]' % (elapsed, message))
+    if use_logger:
+        logger.logger.info('%f seconds elapsed. [%s]' % (elapsed, message))
     ticker = now
     return elapsed
 
@@ -198,9 +230,12 @@ def decode_k8s_sa(string):
 
 
 def get_random_alphanumeric_string(letters_count_each, digits_count):
-    sample_str = ''.join((random.choice(string.ascii_lowercase) for _ in range(letters_count_each)))
-    sample_str += ''.join((random.choice(string.ascii_uppercase) for _ in range(letters_count_each)))
-    sample_str += ''.join((random.choice(string.digits) for _ in range(digits_count)))
+    sample_str = ''.join((random.choice(string.ascii_lowercase)
+                         for _ in range(letters_count_each)))
+    sample_str += ''.join((random.choice(string.ascii_uppercase)
+                          for _ in range(letters_count_each)))
+    sample_str += ''.join((random.choice(string.digits)
+                          for _ in range(digits_count)))
 
     # Convert string to list and shuffle it to mix letters and digits
     sample_list = list(sample_str)
@@ -224,14 +259,14 @@ def rows_to_list(rows):
 
 
 def get_pagination(total_count, limit, offset):
-    page = math.ceil(float(offset)/limit)
+    page = math.ceil(float(offset) / limit)
     if offset % limit == 0:
         page += 1
-    pages = math.ceil(float(total_count)/limit)
+    pages = math.ceil(float(total_count) / limit)
     page_dict = {
         'current': page,
-        'prev': page-1 if page-1 > 0 else None,
-        'next': page+1 if page+1 <= pages else None,
+        'prev': page - 1 if page - 1 > 0 else None,
+        'next': page + 1 if page + 1 <= pages else None,
         'pages': pages,
         'limit': limit,
         'offset': offset,
@@ -249,6 +284,7 @@ class DevOpsThread(Thread):
         self.error = None
 
     def run(self):
+        # _target, _args, _kwargs are in the superclass Thread
         if self._target is not None:
             try:
                 self._return = self._target(*self._args, **self._kwargs)
@@ -304,3 +340,7 @@ class AWSEngine():
     def list_regions(self):
         response = self.ec2_client.describe_regions()
         return [context['RegionName'] for context in response['Regions']]
+
+def get_certain_date_from_now(days):
+    return datetime.combine(
+        (datetime.now() - timedelta(days=days)), d_time(00, 00))

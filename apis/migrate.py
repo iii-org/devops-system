@@ -3,12 +3,13 @@ import os
 import config
 import model
 import util
-from model import db, ProjectPluginRelation, Project, UserPluginRelation, User, ProjectUserRole, PluginSoftware
+from model import db, ProjectPluginRelation, Project, UserPluginRelation, User, ProjectUserRole, PluginSoftware, \
+    DefaultAlertDays, TraceOrder, TraceResult
+from plugins.sonarqube import sq_create_project, sq_create_user
 from resources import harbor, kubernetesClient, role, sync_redmine, devops_version
 from resources.apiError import DevOpsError
 from resources.logger import logger
 from resources.rancher import rancher
-from plugins.sonarqube import sq_create_project, sq_create_user
 
 # Each time you add a migration, add a version code here.
 
@@ -19,16 +20,21 @@ VERSIONS = ['0.9.2', '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.4', '0.9.2.5',
             '1.3.1.9', '1.3.1.10', '1.3.1.11', '1.3.1.12', '1.3.1.13', '1.3.1.14', '1.3.2.1', '1.3.2.2',
             '1.3.2.3', '1.3.2.4', '1.3.2.5', '1.3.2.6', '1.3.2.7', '1.3.2.8', '1.3.2.9', '1.4.0.0', '1.4.0.1',
             '1.4.0.2', '1.4.1.0', '1.4.1.1', '1.4.1.2', '1.5.0.0', '1.5.0.1', '1.5.0.2', '1.5.0.3', '1.6.0.1',
-            '1.6.0.2', '1.6.0.3', '1.6.0.4', '1.6.0.5'
-            ]
+            '1.6.0.2', '1.6.0.3', '1.6.0.4', '1.6.0.5', '1.7.0.1', '1.8.0.1', '1.8.0.2', '1.8.0.3', '1.8.0.4',
+            "1.8.0.5", "1.8.0.6", "1.8.0.7",
+            "1.8.0.8", "1.8.0.9", "1.8.1.0", "1.8.1.1", "1.8.1.2", '1.8.1.3', '1.8.1.4', '1.8.1.5', '1.8.1.6',
+            '1.8.1.7', '1.8.1.8', '1.8.1.9', '1.8.2.0', '1.8.2.1', '1.8.2.2', '1.8.2.3', '1.8.2.4', '1.8.2.5',
+            '1.8.2.6', '1.8.2.7']
 ONLY_UPDATE_DB_MODELS = [
     '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.5', '0.9.2.6', '0.9.2.a8',
     '1.0.0.2', '1.3.0.1', '1.3.0.2', '1.3.0.3', '1.3.0.4', '1.3.1', '1.3.1.1', '1.3.1.2',
     '1.3.1.3', '1.3.1.4', '1.3.1.5', '1.3.1.6', '1.3.1.7', '1.3.1.8', '1.3.1.9', '1.3.1.10',
     '1.3.1.11', '1.3.1.13', '1.3.1.14', '1.3.2.1', '1.3.2.2', '1.3.2.4', '1.3.2.6', '1.3.2.7', '1.3.2.9', '1.4.0.0',
     '1.4.0.1', '1.4.0.2', '1.4.1.0', '1.4.1.1', '1.4.1.2', '1.5.0.0', '1.5.0.1', '1.5.0.2', '1.5.0.3', '1.6.0.1',
-    '1.6.0.2', '1.6.0.3', '1.6.0.4'
-]
+    '1.6.0.2', '1.6.0.3', '1.6.0.4', '1.7.0.1', '1.8.0.1', '1.8.0.2', '1.8.0.3', '1.8.0.4', "1.8.0.5", "1.8.0.6",
+    "1.8.0.9", "1.8.1.0",
+    "1.8.1.2", '1.8.1.5', '1.8.1.7', '1.8.1.9', '1.8.2.0', '1.8.2.2', '1.8.2.3', '1.8.2.4', '1.8.2.5', '1.8.2.6',
+    '1.8.2.7']
 
 
 def upgrade(version):
@@ -64,6 +70,88 @@ def upgrade(version):
     elif version == '1.6.0.5':
         alembic_upgrade()
         devops_version.set_deployment_uuid()
+    elif version == '1.8.0.7':
+        alembic_upgrade()
+        set_default_alert_days()
+    elif version == '1.8.0.8':
+        alembic_upgrade()
+        create_alert_in_project()
+    elif version == '1.8.1.1':
+        alembic_upgrade()
+        set_default_trace_order()
+    elif version == '1.8.1.3':
+        set_default_alert_days()
+        create_alert_in_project()
+    elif version == '1.8.1.4':
+        fix_trace_order()
+    elif version == "1.8.1.6":
+        alembic_upgrade()
+        add_default_in_trace_order()
+    elif version == "1.8.1.8":
+        refresh_trace_order()
+    elif version == "1.8.2.1":
+        drop_trace_result()
+
+
+def drop_trace_result():
+    db.session.query(TraceResult).delete()
+    db.session.commit()
+
+
+def refresh_trace_order():
+    db.session.query(TraceOrder).delete()
+    db.session.commit()
+
+
+def add_default_in_trace_order():
+    db.session.query(TraceOrder).delete()
+    db.session.commit()
+
+    rows = db.session.query(Project).all()
+    for row in rows:
+        row.trace_order = [TraceOrder(
+            name="標準檢測模組", project_id=row.id, order=["Epic", "Feature", "Test Plan"], default=True)]
+        db.session.add(row)
+        db.session.commit()
+
+
+def fix_trace_order():
+    db.session.query(TraceOrder).delete()
+    db.session.commit()
+
+    rows = db.session.query(Project).all()
+    for row in rows:
+        row.trace_order = [TraceOrder(
+            name="標準檢測模組", project_id=row.id, order=["Epic", "Feature", "Test Plan"])]
+        db.session.add(row)
+        db.session.commit()
+
+
+def set_default_trace_order():
+    rows = db.session.query(Project).all()
+    for row in rows:
+        row.trace_order = [TraceOrder(
+            name="標準檢測模組", project_id=row.id, order=["Epic", "Feature", "Test Plan"])]
+        db.session.add(row)
+        db.session.commit()
+
+
+def create_alert_in_project():
+    rows = db.session.query(Project).all()
+    for row in rows:
+        row.alert = False
+        db.session.commit()
+
+
+def set_default_alert_days():
+    row = DefaultAlertDays.query.first()
+    if row is None:
+        new = DefaultAlertDays(
+            unchange_days=30,
+            comming_days=7,
+        )
+        db.session.add(new)
+        db.session.commit()
 
 
 def set_default_plugin_software_type():
@@ -76,8 +164,8 @@ def set_default_plugin_software_type():
 def set_default_project_creator():
     rows = db.session.query(Project). \
         filter(
-        Project.owner_id != None,
-        Project.creator_id == None
+        Project.owner_id is not None,
+        Project.creator_id is None
     ).all()
     check = []
     for row in rows:
@@ -90,7 +178,7 @@ def set_default_project_creator():
 def set_default_user_from_ad_column():
     rows = db.session.query(User). \
         filter(
-        User.from_ad == None,
+        User.from_ad is None,
     ).all()
     for row in rows:
         row.from_ad = False
@@ -196,7 +284,7 @@ def fill_projet_owner(id):
     rows = db.session.query(Project, ProjectUserRole). \
         join(ProjectUserRole). \
         filter(
-        Project.owner_id == None,
+        Project.owner_id is None,
         Project.id != -1,
         ProjectUserRole.role_id == id,
         ProjectUserRole.project_id == Project.id

@@ -1,9 +1,9 @@
-import datetime
 import time
 from io import BytesIO
-import yaml
+
 import requests
 import werkzeug
+import yaml
 from flask import send_file
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import reqparse, Resource
@@ -12,10 +12,10 @@ import config
 import nexus
 import resources.apiError as apiError
 import util as util
+from accessories import redmine_lib
 from resources.apiError import DevOpsError
 from resources.logger import logger
 from . import kubernetesClient, role
-from accessories import redmine_lib
 
 
 class Redmine:
@@ -142,7 +142,9 @@ class Redmine:
     def rm_delete_project(self, plan_project_id):
         return self.__api_delete('/projects/{0}'.format(plan_project_id))
 
-    def rm_list_issues(self, paging=100, params={'status_id': '*'}):
+    def rm_list_issues(self, paging=100, params=None):
+        if params is None:
+            params = {'status_id': '*'}
         return self.paging('issues', paging, params)
 
     def rm_get_issues_by_user(self, user_id):
@@ -169,7 +171,7 @@ class Redmine:
 
     def rm_get_issue(self, issue_id, journals=True):
         if journals is False:
-            params = {'include': 'children,attachments,relations,changesets,watchers'}
+            params = {}
         else:
             params = {'include': 'children,attachments,relations,changesets,journals,watchers'}
         output = self.__api_get('/issues/{0}'.format(issue_id), params=params)
@@ -318,9 +320,9 @@ class Redmine:
             'token': token,
             'filename': filename
         }
-        if args['description'] != None:
+        if args['description'] is not None:
             params['description'] = args['description']
-        if args['version_id'] != None:
+        if args['version_id'] is not None:
             params['version_id'] = args['version_id']
         data = {'file': params}
         res = self.__api_post('/projects/%d/files' % plan_project_id, data=data, operator_id=plan_operator_id)
@@ -354,6 +356,8 @@ class Redmine:
             operator_plugin_relation = nexus.nx_get_user_plugin_relation(
                 user_id=operator_id)
             plan_operator_id = operator_plugin_relation.plan_user_id
+        else:
+            plan_operator_id = None
         output = self.__api_delete('/attachments/{0}'.format(attachment_id), operator_id=plan_operator_id)
         status_code = output.status_code
         if status_code == 204:
@@ -433,6 +437,11 @@ class Redmine:
     @staticmethod
     def rm_build_external_link(path):
         return f"{config.get('REDMINE_EXTERNAL_BASE_URL')}{path}"
+
+    def rm_update_user_name(self, plan_user_id, new_name):
+        user = redmine_lib.redmine.user.get(plan_user_id)
+        setattr(user, 'lastname', new_name)
+        user.save()
 
     def rm_update_email(self, plan_user_id, new_email):
         user = redmine_lib.redmine.user.get(plan_user_id)

@@ -10,3 +10,4 @@ class ActionType(Enum):
     CREATE_USER = 6  # Must return a dict with key "user_id"
     UPDATE_USER = 7  # Requires argument "user_id"
     DELETE_USER = 8  # Requires argument "user_id"
+    DELETE_ISSUE = 9  # Requires argument "issue_id"

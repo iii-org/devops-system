@@ -21,7 +21,6 @@ from resources import apiTest
 from resources.redmine import redmine
 from data.nexus_project import NexusProject
 from accessories import redmine_lib
-from redminelib import exceptions as redminelibError
 
 from . import issue
 from .gitlab import gitlab
@@ -138,24 +137,23 @@ def qu_get_testfile_by_testplan(project_id, testplan_id):
     return test_files
 
 
-
 def qu_get_testfile_list(project_id):
     repository_id = nx_get_project_plugin_relation(
         nexus_project_id=project_id).git_repository_id
     out_list = []
     issues_info = qu_get_testplan_list(project_id)
     for path in paths:
-        trees = gitlab.ql_get_collection(repository_id, path['path'])
+        trees = gitlab.ql_get_tree(repository_id, path['path'])
         for tree in trees:
             if path["file_name_key"] in tree["name"] and tree["name"][
                     -5:] == ".json":
                 path_file = f'{path["path"]}/{tree["name"]}'
                 coll_json = json.loads(
-                gitlab.gl_get_file(repository_id, path_file))
+                    gitlab.gl_get_raw_from_lib(repository_id, path_file).decode())
                 test_plans = []
-                rows = get_test_plans_from_params(project_id ,
-                                                    path["software_name"],
-                                                    tree["name"])
+                rows = get_test_plans_from_params(project_id,
+                                                  path["software_name"],
+                                                  tree["name"])
                 for row in rows:
                     for issue_info in issues_info:
                         if row["issue_id"] == issue_info["id"]:
@@ -163,11 +161,11 @@ def qu_get_testfile_list(project_id):
                             break
                 if path["file_name_key"] == "postman_collection.json":
                     postmane_test_plans = copy.deepcopy(test_plans)
-                    for postmane_test_plan in  postmane_test_plans:
+                    for postmane_test_plan in postmane_test_plans:
                         i = 0
                         while i < len(postmane_test_plan['test_files']):
                             if postmane_test_plan['test_files'][i]['software_name'] != path["software_name"] or\
-                                postmane_test_plan['test_files'][i]['file_name'] != tree["name"]:
+                                    postmane_test_plan['test_files'][i]['file_name'] != tree["name"]:
                                 del(postmane_test_plan['test_files'][i])
                             else:
                                 i += 1
@@ -183,11 +181,11 @@ def qu_get_testfile_list(project_id):
                         "the_last_test_result": the_last_result
                     })
                 elif path["file_name_key"] == "sideex":
-                    for test_plan in  test_plans:
+                    for test_plan in test_plans:
                         i = 0
                         while i < len(test_plan['test_files']):
                             if test_plan['test_files'][i]['software_name'] != path["software_name"] or\
-                                test_plan['test_files'][i]['file_name'] != tree["name"]:
+                                    test_plan['test_files'][i]['file_name'] != tree["name"]:
                                 del(test_plan['test_files'][i])
                             else:
                                 i += 1
@@ -262,7 +260,7 @@ def qu_upload_testfile(project_id, file, software_name):
         nexus_project_id=project_id).git_repository_id
     soft_path = next(path for path in paths
                      if path["software_name"].lower() == software_name.lower())
-    trees = gitlab.ql_get_collection(repository_id, soft_path['path'])
+    trees = gitlab.ql_get_tree(repository_id, soft_path['path'])
     if len(trees) == 0:
         raise apiError.DevOpsError(
             409, f"folder {soft_path['path']} not found in git repository")
@@ -289,7 +287,7 @@ def qu_del_testfile(project_id, software_name, test_file_name):
         nexus_project_id=project_id).git_repository_id
     for path in paths:
         if path["software_name"].lower() == software_name.lower() and \
-        path["file_name_key"] in test_file_name and test_file_name[-5:] == ".json":
+                path["file_name_key"] in test_file_name and test_file_name[-5:] == ".json":
             url = urllib.parse.quote(f"{path['path']}/{test_file_name}",
                                      safe='')
             gitlab.gl_delete_file(
@@ -403,15 +401,15 @@ def get_the_execl_report(project_id):
                 j += 1
             i += 1
     max_column = 0
-    for row in  out_list:
-        if len(row) >max_column:
+    for row in out_list:
+        if len(row) > max_column:
             max_column = len(row)
     columns_name = ['需求規格', '功能設計', '測試計畫', '測試檔案', '測試結果']
     if max_column > len(columns_name):
         raise apiError.DevOpsError(
             500, f"Report's data columns is {max_column}, over 5!")
     elif len(out_list) == 0:
-        return 
+        return
     bio = BytesIO()
     writer = pd.ExcelWriter(bio, engine='xlsxwriter')
     df = pd.DataFrame(out_list,
@@ -446,6 +444,7 @@ class TestFileByTestPlan(Resource):
         out = qu_get_testfile_by_testplan(project_id, testplan_id)
         return util.success(out)
 
+
 class TestFileList(Resource):
     def get(self, project_id):
         out = qu_get_testfile_list(project_id)
@@ -464,8 +463,8 @@ class TestFile(Resource):
         return util.success()
 
     def delete(self, project_id, software_name, test_file_name):
-        out = qu_del_testfile(project_id, software_name, test_file_name)
-        return util.success(out)
+        qu_del_testfile(project_id, software_name, test_file_name)
+        return util.success()
 
 
 class TestPlanWithTestFile(Resource):

@@ -7,22 +7,21 @@ from Cryptodome.Hash import SHA256
 from flask_jwt_extended import (
     create_access_token, JWTManager, jwt_required, get_jwt_identity)
 from flask_restful import Resource, reqparse
-from sqlalchemy import desc, inspect, not_, or_
+from sqlalchemy import inspect, or_
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.exc import NoResultFound
 
-import config
 import model
 import resources.apiError as apiError
 import util as util
 from enums.action_type import ActionType
 from model import db
 from nexus import nx_get_user_plugin_relation, nx_get_user
-from plugins import sonarqube 
+from plugins import sonarqube
+from plugins.ad import ad_api_user
 from resources import harbor, role
 from resources import kubernetesClient
 from resources.activity import record_activity
-from plugins.ad import ad_api_user
 from resources.apiError import DevOpsError
 from resources.gitlab import gitlab
 from resources.logger import logger
@@ -93,7 +92,7 @@ def get_user_id_name_by_plan_user_id(plan_user_id):
 
 
 def get_all_user_info():
-    return db.session.query(model.User.id, model.User.name, model.User.login, 
+    return db.session.query(model.User.id, model.User.name, model.User.login,
                             model.UserPluginRelation.plan_user_id).filter(
         model.UserPluginRelation.user_id == model.User.id).all()
 
@@ -123,11 +122,13 @@ def to_redmine_role_id(role_id):
 def get_token_expires(role_id):
     expires = datetime.timedelta(days=30)
     if role_id == 5:
-        datetime.timedelta(days=36500)
+        expires = datetime.timedelta(days=36500)
     return expires
 
 
-def check_ad_login(account, password, ad_info={}):
+def check_ad_login(account, password, ad_info=None):
+    if ad_info is None:
+        ad_info = {}
     try:
         ad_info_data = ad_api_user.get_user_info(account, password)
         if ad_info_data is not None:
@@ -174,6 +175,7 @@ def check_db_login(user, password, output):
     else:
         logger.info("User Login failed by DB user_id: {0}".format(user.id))
     return output, user, project_user_role
+
 
 def login(args):
     login_account = args['username']
@@ -238,6 +240,7 @@ def update_user(user_id, args, from_ad=False):
                                 error=apiError.user_from_ad(user_id))
         else:
             return util.success()
+
     if args['password'] is not None:
         if args["old_password"] == args["password"]:
             return util.respond(400, "Password is not changed.", error=apiError.wrong_password())
@@ -267,14 +270,15 @@ def update_user(user_id, args, from_ad=False):
         user.email = new_email
     if args["name"] is not None:
         user.name = args['name']
+        update_external_name(user_id, args['name'], user.login, user.email)
     if args["phone"] is not None:
         user.phone = args['phone']
     if args["title"] is not None:
         user.title = args['title']
     if args["department"] is not None:
         user.department = args['department']
-    if args.get("status",None) is not None:
-        if args.get("status",None) == "disable":
+    if args.get("status", None) is not None:
+        if args.get("status", None) == "disable":
             user.disabled = True
         else:
             user.disabled = False
@@ -330,6 +334,14 @@ def update_external_email(user_id, user_name, new_email):
 
     harbor_user_id = user_relation.harbor_user_id
     harbor.hb_update_user_email(harbor_user_id, user_name, new_email)
+
+
+def update_external_name(user_id, new_name, login, email):
+    relation = nx_get_user_plugin_relation(user_id=user_id)
+    redmine.rm_update_user_name(relation.plan_user_id, new_name)
+    gitlab.gl_update_user_name(relation.repository_user_id, new_name)
+    harbor.hb_update_user_email(relation.harbor_user_id, new_name, email)
+    sonarqube.sq_update_user_name(login, new_name)
 
 
 def try_to_delete(delete_method, obj):
@@ -655,8 +667,8 @@ def user_list_by_project(project_id, args):
         # list users in the project
         project_row = model.Project.query.options(
             joinedload(model.Project.user_role).
-            joinedload(model.ProjectUserRole.user).
-            joinedload(model.User.project_role)
+                joinedload(model.ProjectUserRole.user).
+                joinedload(model.User.project_role)
         ).filter_by(id=project_id).one()
         users = list(filter(
             lambda x: x.role_id not in excluded_roles and not x.user.disabled,

@@ -11,3 +11,4 @@ alembic.ini
 pj_push_template
 pj_edit_pipe_yaml
 .vscode
+deploy-config

@@ -5,12 +5,10 @@ Revises: 78a808f09713
 Create Date: 2021-07-01 15:28:32.474946
 
 """
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
-from sqlalchemy.orm import relationship
 
 revision = '01a378b3cae9'
 down_revision = '78a808f09713'

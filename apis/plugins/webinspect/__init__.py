@@ -44,7 +44,7 @@ def wi_api_request(method, path, headers=None, params=None, data=None):
     output = util.api_request(method, url, headers, params, data)
 
     logger.debug(f"WebInspect api {method} {url}, header={str(headers)}, params={str(params)}, body={data},"
-                f" response={output.status_code} {output.text}")
+                 f" response={output.status_code} {output.text}")
     if int(output.status_code / 100) != 2:
         raise apiError.DevOpsError(
             output.status_code,
@@ -84,6 +84,19 @@ def wi_list_scans(project_name):
         d['issue_link'] = gitlab.commit_id_to_url(project_id, d['commit_id'])
         ret.append(d)
     return ret
+
+
+def wi_get_scan_by_commit(project_id, commit_id):
+    project_name = nexus.nx_get_project(id=project_id).name
+    row = model.WebInspect.query.filter(
+        model.WebInspect.project_name == project_name,
+        model.WebInspect.commit_id.like(f'{commit_id}%')
+    ).first()
+    if row is None:
+        return {}
+    d = json.loads(str(row))
+    d['issue_link'] = gitlab.commit_id_to_url(project_id, d['commit_id'])
+    return d
 
 
 def is_wie():
@@ -148,6 +161,13 @@ def wix_download_report(scan_id):
         return wi_download_report(scan_id)
 
 
+def wix_get_report(scan_id):
+    if is_wie():
+        return wie_instance().get_report(scan_id)
+    else:
+        return wi_get_report(scan_id)
+
+
 def wi_download_report(scan_id):
     xml = wi_api_get('/scanner/scans/{0}.xml?detailType=Full'.format(
         scan_id)).content
@@ -157,6 +177,11 @@ def wi_download_report(scan_id):
     response.headers.set(
         'Content-Disposition', 'attachment', filename='report-{0}.xml'.format(scan_id))
     return response
+
+
+def wi_get_report(scan_id):
+    return wi_api_get('/scanner/scans/{0}.xml?detailType=Full'.format(
+        scan_id)).content
 
 
 class WIE:
@@ -205,6 +230,9 @@ class WIE:
         response.headers.set(
             'Content-Disposition', 'attachment', filename='report-{0}.xml'.format(scan_id))
         return response
+
+    def get_report(self, scan_id):
+        return wi_api_get(f'/v2/scans/{scan_id}/export?type=xml', headers=self.cookie_header()).content
 
 
 # --------------------- Resources ---------------------

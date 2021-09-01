@@ -149,6 +149,15 @@ class CheckMarx(object):
             mimetype="Content-Type: application/pdf; charset={r.encoding}"
         )
 
+    def get_report_content(self, report_id):
+        row = Model.query.filter_by(report_id=report_id).one()
+        if not row.finished:
+            status, _ = self.get_report_status(report_id)
+            if status != 2:
+                return {'message': 'Report is not available yet'}, 400
+        r = self.__api_get('/reports/sastScan/{0}'.format(report_id))
+        return r.content
+
     @staticmethod
     def get_latest(column, project_id):
         try:
@@ -193,22 +202,38 @@ class CheckMarx(object):
             desc(Model.scan_id)).all()
         ret = []
         for row in rows:
-            if row.stats is None:
-                stats = None
-            else:
-                stats = json.loads(row.stats)
-            ret.append({
-                'scan_id': row.scan_id,
-                'branch': row.branch,
-                'commit_id': row.commit_id[0:7],
-                'commit_url': gitlab.commit_id_to_url(project_id, row.commit_id),
-                'status': row.scan_final_status,
-                'stats': stats,
-                'run_at': str(row.run_at),
-                'report_id': row.report_id,
-                'report_ready': row.finished is True
-            })
+            ret.append(CheckMarx.to_json(row, project_id))
         return ret
+
+    @staticmethod
+    def get_scan(project_id, commit_id):
+        row = Model.query.filter(
+            Model.repo_id == nexus.nx_get_repository_id(project_id),
+            Model.commit_id.like(f'{commit_id}%')
+        ).order_by(
+            desc(Model.scan_id)).first()
+        if row is not None:
+            return CheckMarx.to_json(row, project_id)
+        else:
+            return {}
+
+    @staticmethod
+    def to_json(row, project_id):
+        if row.stats is None:
+            stats = None
+        else:
+            stats = json.loads(row.stats)
+        return {
+            'scan_id': row.scan_id,
+            'branch': row.branch,
+            'commit_id': row.commit_id[0:7],
+            'commit_url': gitlab.commit_id_to_url(project_id, row.commit_id),
+            'status': row.scan_final_status,
+            'stats': stats,
+            'run_at': str(row.run_at),
+            'report_id': row.report_id,
+            'report_ready': row.finished is True
+        }
 
 
 checkmarx = CheckMarx()

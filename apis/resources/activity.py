@@ -13,7 +13,7 @@ import nexus
 import util
 from enums.action_type import ActionType
 from model import db
-from resources import role, apiError
+from resources import role, apiError, issue
 from resources.apiError import DevOpsError
 
 
@@ -67,6 +67,7 @@ def get_activities(query):
             'object_id': row.object_id,
             'act_at': str(row.act_at)
         })
+    print(ret)
     return ret
 
 
@@ -123,7 +124,7 @@ def build_query(args, base_query=None):
 def limit_to_project(project_id):
     query = model.Activity.query.filter(model.Activity.action_type.in_([
         ActionType.CREATE_PROJECT, ActionType.UPDATE_PROJECT, ActionType.DELETE_PROJECT,
-        ActionType.ADD_MEMBER, ActionType.REMOVE_MEMBER]
+        ActionType.ADD_MEMBER, ActionType.REMOVE_MEMBER, ActionType.DELETE_ISSUE]
     ))
     query = query.filter(or_(
         model.Activity.object_id.like(f'%@{project_id}'),
@@ -151,6 +152,8 @@ class Activity(model.Activity):
                 if sensitive_key in content:
                     content[sensitive_key] = '********'
             self.action_parts += f'@{str(content)}'
+        if self.action_type == ActionType.DELETE_ISSUE:
+            self.fill_issue(args['issue_id'])
 
     def fill_by_return_value(self, ret):
         if self.action_type == ActionType.CREATE_PROJECT:
@@ -167,6 +170,11 @@ class Activity(model.Activity):
         user = nexus.nx_get_user(id=user_id)
         self.object_id = user_id
         self.action_parts = f'{user.name}({user.login}/{user.id})'
+
+    def fill_issue(self, issue_id):
+        iss = issue.get_issue(issue_id, False, False)
+        self.object_id = iss['project']['id']
+        self.action_parts = f'{issue_id}/{iss["subject"]}({iss["project"]["name"]})'
 
 
 # --------------------- Resources ---------------------

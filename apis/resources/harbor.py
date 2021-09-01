@@ -1,3 +1,4 @@
+import re
 from urllib.parse import quote
 
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -5,10 +6,9 @@ from flask_restful import Resource, reqparse
 from requests.auth import HTTPBasicAuth
 
 import config
+import model
 import nexus
 import util
-import re
-import model
 from resources import apiError, role
 from resources.apiError import DevOpsError
 from resources.logger import logger
@@ -32,10 +32,8 @@ def __api_request(method, path, headers=None, params=None, data=None):
     auth = HTTPBasicAuth(config.get('HARBOR_ACCOUNT'),
                          config.get('HARBOR_PASSWORD'))
     url = "{0}{1}".format(config.get('HARBOR_INTERNAL_BASE_URL'), path)
-
     output = util.api_request(method, url, headers=headers,
                               params=params, data=data, auth=auth)
-
     logger.debug('Harbor api {0} {1}, params={2}, body={5}, response={3} {4}'.format(
         method, url, params.__str__(), output.status_code, output.text, data))
     if int(output.status_code / 100) != 2:
@@ -222,6 +220,7 @@ def hb_list_repositories(project_name):
         ret.append(repo)
     return ret
 
+
 def check_scan_overview_exists(scan_overview):
     vul = ''
     if scan_overview is None:
@@ -234,10 +233,9 @@ def check_scan_overview_exists(scan_overview):
     return vul
 
 
-
 def generate_artifacts_output(art):
     output = []
-    vul = check_scan_overview_exists(art.get('scan_overview',None))
+    vul = check_scan_overview_exists(art.get('scan_overview', None))
     if 'tags' in art and art['tags'] is not None:
         for tag in art['tags']:
             output.append({
@@ -277,7 +275,7 @@ def hb_list_artifacts(project_name, repository_name):
 def hb_get_artifact(project_name, repository_name, tag_name):
     artifact = __api_get(f'/projects/{project_name}/repositories'
                          f'/{__encode(repository_name)}/artifacts/'
-                         f'{__encode(tag_name)}',  params={'with_scan_overview': True}).json()
+                         f'{__encode(tag_name)}', params={'with_scan_overview': True}).json()
 
     return generate_artifacts_output(artifact)
 
@@ -351,20 +349,24 @@ def hb_get_registries(registry_id=None, args=None):
 def hb_create_registries(args):
     user_id = get_jwt_identity()['user_id']
     if args['type'] == 'aws-ecr':
-        args['insecure'] = False
         args['url'] = 'https://api.ecr.{location}.amazonaws.com'.format(
             location=args['location'])
     elif args['type'] == 'azure-acr':
-        args['insecure'] = False
         args['url'] = 'https://{login_server}'.format(
             login_server=args['login_server'])
+    elif args['type'] == 'harbor':
+        args['url'] = '{login_server}'.format(
+            login_server=args['login_server'])
     __api_post('/registries/ping', data=args)
+
     args['credential'] = {
         'access_key': args['access_key'],
         'access_secret': args['access_secret'],
         'type': 'basic'
     }
     __api_post('/registries', data=args)
+    if args['type'] == 'harbor':
+        args['access_secret'] = util.base64encode(args['access_secret'])
     registries_id = hb_get_registries(
         args='name={0}'.format(args['name']))[0].get('id')
     new_registries = model.Registries(
@@ -375,17 +377,60 @@ def hb_create_registries(args):
         access_key=args['access_key'],
         access_secret=args['access_secret'],
         url=args['url'],
-        type=args['type']
+        type=args['type'],
+        disabled=False
     )
     model.db.session.add(new_registries)
     model.db.session.commit()
+    return registries_id
 
 
-def hb_create_replication_policy(args):
+def hb_put_registries(registry_id, args):
+    if args['type'] == 'aws-ecr':
+        args['url'] = 'https://api.ecr.{location}.amazonaws.com'.format(
+            location=args['location'])
+    elif args['type'] == 'azure-acr':
+        args['url'] = 'https://{login_server}'.format(
+            login_server=args['login_server'])
+    elif args['type'] == 'harbor':
+        args['url'] = '{login_server}'.format(
+            login_server=args['login_server'])
+    __api_post('/registries/ping', data=args)
+    args['credential'] = {
+        'access_key': args['access_key'],
+        'access_secret': args['access_secret'],
+        'type': 'basic'
+    }
+    __api_put(
+        f'/registries/{registry_id}', data=args)
+
+    registries_id = hb_get_registries(
+        args='name={0}'.format(args['name']))[0].get('id')
+    if args['type'] == 'harbor':
+        args['access_secret'] = util.base64encode(args['access_secret'])
+    registry = model.Registries.query.filter_by(registries_id=registry_id).first()
+
+    for key in args.keys():
+        if not hasattr(registry, key):
+            continue
+        elif args[key] is not None:
+            setattr(registry, key, args[key])
+    model.db.session.commit()
+    return registries_id
+
+
+def hb_delete_registries(registry_id):
+    return __api_delete(f'/registries/{registry_id}')
+
+
+#  Replication Policy
+
+
+def hb_get_replication_policy_data(args):
     dest_registry = hb_get_registries(registry_id=args['registry_id'])
     data = {
-        "name": args['name'],
-        "description": args['description'],
+        "name": args.get('policy_name'),
+        "description": args.get('description'),
         "dest_registry": dest_registry,
         "trigger": {
             "type": "manual",
@@ -394,10 +439,11 @@ def hb_create_replication_policy(args):
         "enabled": True,
         "deletion": False,
         "override": True,
+        "dest_namespace": args.get('dest_repo_name'),
         "filters": [
             {
                 "type": "name",
-                "value": args['image_name']
+                "value": args.get('repo_name') + '/' + args.get('image_name')
             },
             {
                 "type": "resource",
@@ -405,36 +451,97 @@ def hb_create_replication_policy(args):
             },
             {
                 "type": "tag",
-                "value": args['tag']
+                "value": args.get('tag_name')
             }
         ]
     }
-    __api_post('/replication/policies', data=data)
+    return data
+
+
+replication_polices_base_url = '/replication/policies'
+
+
+def hb_get_replication_policies(args=None):
+    if args.get('name', None) is not None:
+        policy_name = args.get('name')
+        policies = __api_get(
+            f'{replication_polices_base_url}?name={policy_name}').json()
+    else:
+        policies = __api_get(replication_polices_base_url).json()
+    return policies
 
 
 def hb_get_replication_policy(policy_id=None):
     if policy_id:
-        policies = __api_get('/replication/policies/{0}'.format(policy_id)).json()
+        policies = __api_get(
+            f'{replication_polices_base_url}/{policy_id}').json()
     else:
-        policies = __api_get('/replication/policies').json()
+        policies = __api_get(replication_polices_base_url).json()
     return policies
 
 
-def hb_execute_replication_policy(args):
-    data = {"policy_id": args['policy_id']}
+def hb_create_replication_policy(args):
+    data = hb_get_replication_policy_data(args)
+    __api_post(replication_polices_base_url, data=data)
+    output = hb_get_replication_policies({'name': args.get('policy_name')})
+    return output[0].get('id')
+
+
+def hb_put_replication_policy(args, policy_id):
+    data = hb_get_replication_policy_data(args)
+    __api_put(
+        f'{replication_polices_base_url}/{policy_id}', data=data)
+    return policy_id
+
+
+def hb_delete_replication_policy(policy_id):
+    __api_delete(
+        f'{replication_polices_base_url}/{policy_id}')
+    return policy_id
+
+
+def hb_execute_replication_policy(policy_id):
+    data = {"policy_id": policy_id}
     __api_post('/replication/executions', data=data)
-    policies = hb_get_replication_policy(args['policy_id'])
-    name = [context['value'] for context in policies['filters'] if context['type'] == 'name'][0]
-    tag = [context['value'] for context in policies['filters'] if context['type'] == 'tag'][0]
-    registires = model.Registries.query.filter_by(registries_id=policies['dest_registry']['id']).one()
-    if registires.type == 'aws-ecr':
-        account_id = util.AWSEngine(registires.access_key, registires.access_secret).get_account_id()
-        location = registires.url.split('.')[2]
+
+    policies = hb_get_replication_policy(policy_id)
+    name = [context['value']
+            for context in policies['filters'] if context['type'] == 'name'][0]
+    tag = [context['value']
+           for context in policies['filters'] if context['type'] == 'tag'][0]
+    dest_registry = policies.get('dest_registry')
+    dest_credential = dest_registry.get('credential')
+    if dest_registry.get('type') == 'aws-ecr':
+        account_id = util.AWSEngine(
+            dest_credential.get('access_key'),
+            dest_credential.get('access_secret')
+        ).get_account_id()
+        location = dest_registry.get('url').split('.')[2]
         image_uri = f'{account_id}.dkr.ecr.{location}.amazonaws.com/{name}:{tag}'
-    elif registires.type == 'azure-acr':
-        login_server = registires.url[8:]
-        image_uri = f'{login_server}/{name}:{tag}'
+    elif dest_registry.get('type') == 'azure-acr':
+        dest_server = dest_registry.get('url')[8:]
+        image_uri = f'{dest_server}/{name}:{tag}'
+    elif dest_registry.get('type') == 'harbor':
+        dest_server = dest_registry.get('url')[8:]
+        dest_repo = policies.get('dest_namespace')
+        project_name = name[(name.find('/') + 1):]
+        image_uri = f'{dest_server}/{dest_repo}/{project_name}:{tag}'
+    else:
+        image_uri = None
     return image_uri
+
+
+def hb_get_replication_executions(policy_id):
+    data = {"policy_id": policy_id}
+    return __api_get('/replication/executions/', params=data).json()
+
+
+def hb_get_replication_execution_task(execution_id):
+    return __api_get(f'/replication/executions/{execution_id}/tasks').json()
+
+
+def hb_get_replication_executions_tasks_log(execution_id, task_id):
+    return __api_get(f'/replication/executions/{execution_id}/tasks/{task_id}/log')
 
 
 def hb_ping_registries(args):
@@ -486,6 +593,7 @@ def check_tag_name(artifacts, tag_name):
             output.append(artifact)
     return output
 
+
 class HarborArtifact(Resource):
     @jwt_required
     def get(self):
@@ -496,7 +604,7 @@ class HarborArtifact(Resource):
         parser.add_argument('tag_name', type=str)
         args = parser.parse_args()
         artifacts = hb_list_artifacts(project_name, repository_name)
-        if args.get('tag_name', None) is not None:                
+        if args.get('tag_name', None) is not None:
             return util.success(check_tag_name(artifacts, args.get('tag_name')))
         else:
             return util.success(artifacts)
@@ -524,22 +632,22 @@ class HarborProject(Resource):
 
 
 class HarborRelease():
-    
+
     @jwt_required
     def get_list_artifacts(self, project_name, repository_name):
-        return hb_list_artifacts (project_name, repository_name)
+        return hb_list_artifacts(project_name, repository_name)
 
     def check_harbor_status(self, image, tag_name):
         output = 2
         if image is True and tag_name is True:
             output = 1
         elif image is True:
-            output  = 0
-        return output 
+            output = 0
+        return output
 
-
-    def check_harbor_release(self, artifacts, tag_name, commit ):
-        output = {'check': False, 'tag': False, 'image':False ,"info": "", "target": {}, "errors": {}, "type": 2}        
+    def check_harbor_release(self, artifacts, tag_name, commit):
+        output = {'check': False, 'tag': False, 'image': False,
+                  "info": "", "target": {}, "errors": {}, "type": 2}
 
         for art in artifacts:
             #  Tag duplicate
@@ -552,7 +660,8 @@ class HarborRelease():
                 output['image'] = True
                 output['info'] = '{0} is exists in harbor'.format(commit)
                 output['target']['release'] = art
-        output['type'] = self.check_harbor_status(output['image'], output['tag'])
+        output['type'] = self.check_harbor_status(
+            output['image'], output['tag'])
         if output['type'] == 0:
             output['check'] = True
         elif output['type'] == 2:
@@ -569,24 +678,15 @@ class HarborRelease():
 hb_release = HarborRelease()
 
 
-class HarborRegistries(Resource):
+class HarborRegistry(Resource):
     @jwt_required
-    def get(self):
-        response = model.Registries.query.all()
-        registries = [
-            {
-                'name': context.name,
-                'description': context.description,
-                'type': context.type,
-                'url': context.url,
-                'id': context.registries_id,
-                'user_id': context.user_id
-            } for context in response
-        ]
-        return util.success(registries)
+    def get(self, registry_id):
+        role.require_admin()
+        return util.success(hb_get_registries(registry_id))
 
     @jwt_required
-    def post(self):
+    def put(self, registry_id):
+        role.require_admin()
         parser = reqparse.RequestParser()
         parser.add_argument('name', type=str, required=True)
         parser.add_argument('type', type=str, required=True)
@@ -595,9 +695,37 @@ class HarborRegistries(Resource):
         parser.add_argument('location', type=str, required=False)
         parser.add_argument('login_server', type=str, required=False)
         parser.add_argument('description', type=str)
+        parser.add_argument('insecure', type=bool)
+        parser.add_argument('disabled', type=bool)
         args = parser.parse_args()
-        hb_create_registries(args)
+        return util.success({'registry_id': hb_put_registries(registry_id, args)})
+
+    @jwt_required
+    def delete(self, registry_id):
+        role.require_admin()
+        hb_delete_registries(registry_id)
         return util.success()
+
+
+class HarborRegistries(Resource):
+    @jwt_required
+    def get(self):
+        return util.success(hb_get_registries())
+
+    @jwt_required
+    def post(self):
+        role.require_admin()
+        parser = reqparse.RequestParser()
+        parser.add_argument('name', type=str, required=True)
+        parser.add_argument('type', type=str, required=True)
+        parser.add_argument('access_key', type=str, required=True)
+        parser.add_argument('access_secret', type=str, required=True)
+        parser.add_argument('location', type=str, required=False)
+        parser.add_argument('login_server', type=str, required=False)
+        parser.add_argument('description', type=str)
+        parser.add_argument('insecure', type=bool)
+        args = parser.parse_args()
+        return util.success({'registry_id': hb_create_registries(args)})
 
 
 class HarborRegistriesPing(Resource):
@@ -612,21 +740,49 @@ class HarborRegistriesPing(Resource):
 
 class HarborReplicationPolicy(Resource):
     @jwt_required
+    def get(self, replication_policy_id):
+        policies = hb_get_replication_policy(replication_policy_id)
+        return util.success(policies)
+
+    @jwt_required
+    def put(self, replication_policy_id):
+        parser = reqparse.RequestParser()
+        parser.add_argument('policy_name', type=str, required=True)
+        parser.add_argument('repo_name', type=str, required=True)
+        parser.add_argument('image_name', type=str, required=True)
+        parser.add_argument('tag_name', type=str, required=True)
+        parser.add_argument('registry_id', type=int, required=True)
+        parser.add_argument('description', type=str, required=True)
+        parser.add_argument('dest_repo_name', type=str, required=True)
+        args = parser.parse_args()
+        return util.success({'replication_policy_id': hb_put_replication_policy(args, replication_policy_id)})
+
+    @jwt_required
+    def delete(self, replication_policy_id):
+        return util.success({'replication_policy_id': hb_delete_replication_policy(replication_policy_id)})
+
+
+class HarborReplicationPolices(Resource):
+    @jwt_required
     def get(self):
-        policies = hb_get_replication_policy()
+        parser = reqparse.RequestParser()
+        parser.add_argument('name', type=str)
+        args = parser.parse_args()
+        policies = hb_get_replication_policies(args)
         return util.success(policies)
 
     @jwt_required
     def post(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('name', type=str)
-        parser.add_argument('image_name', type=str)
-        parser.add_argument('tag', type=str)
-        parser.add_argument('registry_id', type=int)
-        parser.add_argument('description', type=str)
+        parser.add_argument('policy_name', type=str, required=True)
+        parser.add_argument('repo_name', type=str, required=True)
+        parser.add_argument('image_name', type=str, required=True)
+        parser.add_argument('tag_name', type=str, required=True)
+        parser.add_argument('registry_id', type=int, required=True)
+        parser.add_argument('description', type=str, required=True)
+        parser.add_argument('dest_repo_name', type=str, required=True)
         args = parser.parse_args()
-        hb_create_replication_policy(args)
-        return util.success()
+        return util.success({'policy_id': hb_create_replication_policy(args)})
 
 
 class HarborReplicationExecution(Resource):
@@ -635,5 +791,28 @@ class HarborReplicationExecution(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('policy_id', type=int)
         args = parser.parse_args()
-        output = hb_execute_replication_policy(args)
+        output = hb_execute_replication_policy(args.get('policy_id'))
         return util.success({'image_uri': output})
+
+    @jwt_required
+    def get(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('policy_id', type=int)
+        args = parser.parse_args()
+        output = hb_get_replication_executions(args.get('policy_id'))
+        return util.success({'executions': output})
+
+
+class HarborReplicationExecutionTasks(Resource):
+    @jwt_required
+    def get(self, execution_id):
+        print(execution_id)
+        output = hb_get_replication_execution_task(execution_id)
+        return util.success({'task': output})
+
+
+class HarborReplicationExecutionTaskLog(Resource):
+    @jwt_required
+    def get(self, execution_id, task_id):
+        output = hb_get_replication_executions_tasks_log(execution_id, task_id)
+        return util.success({'logs': output.text.splitlines()})

@@ -1,9 +1,17 @@
 import json
 from datetime import datetime
 
+from dateutil.tz import tz
+from redminelib.exceptions import ResourceNotFoundError
+
 import model
-from resources import issue
+import nexus
 from accessories import redmine_lib
+from resources import issue
+from resources.logger import logger
+
+
+TGI_TRACKER_ID = 9
 
 
 def tgi_feed_postman(row):
@@ -20,30 +28,48 @@ def tgi_feed_postman(row):
 
 
 def tgi_feed_sideex(row):
+    project_id = nexus.nx_get_project(name=row.project_name).id
+    logger.debug(f'Sideex result is {row.result}')
     suites = json.loads(row.result).get('suites')
     for col_key, result in suites.items():
         total = result.get('total')
         passed = result.get('passed')
         if total - passed > 0:
-            _handle_test_failed(row.project_id, 'sideex',
+            _handle_test_failed(project_id, 'sideex',
                                 col_key, _get_sideex_issue_description(row, total, passed),
                                 row.branch, row.commit_id, 'test_results', row.id)
         else:
-            _handle_test_success(row.project_id, 'sideex',
+            _handle_test_success(project_id, 'sideex',
                                  col_key, _get_sideex_issue_close_description(row, total, passed))
 
 
 def _handle_test_failed(project_id, software_name, filename, description,
                         branch, commit_id, result_table, result_id):
+    project_name = nexus.nx_get_project(id=project_id).name
     relation_row = model.TestGeneratedIssue.query.filter_by(
         project_id=project_id,
         software_name=software_name,
         file_name=filename
     ).first()
+    # First check if issue exists
+    iss = None
     if relation_row is None:
+        issue_exists = False
+    else:
+        issue_id = relation_row.issue_id
+        try:
+            iss = redmine_lib.redmine.issue.get(issue_id, include=['journals'])
+            issue_exists = True
+        except ResourceNotFoundError:
+            model.db.session.delete(relation_row)
+            model.db.session.commit()
+            issue_exists = False
+
+    if not issue_exists:
+        description = f'詳細報告請前往[測試報告列表](/#/scan/sideex)\n\n{description}'
         args = {
             'project_id': project_id,
-            'tracker_id': 9,
+            'tracker_id': TGI_TRACKER_ID,
             'status_id': 1,
             'priority_id': 3,
             'subject': _get_issue_subject(filename, software_name),
@@ -52,9 +78,7 @@ def _handle_test_failed(project_id, software_name, filename, description,
         tgi_create_issue(args, software_name, filename,
                          branch, commit_id, result_table, result_id)
     else:
-        issue_id = relation_row.issue_id
-        iss = redmine_lib.redmine.issue.get(issue_id, include=['journals'])
-        # First check if is closed by human
+        # Check if is closed by human
         for j in reversed(iss.journals):
             detail = j.details[0]
             if (detail.get('name', '') == 'status_id' and detail.get('new_value', '-1') == '6'
@@ -69,15 +93,25 @@ def _handle_test_failed(project_id, software_name, filename, description,
         iss.save()
 
 
+SOFTWARE_ISSUE_TITLE = {
+    'sideex': 'SideeX',
+    'postman': 'Postman',
+    'zap': 'Zap',
+    'webinspect': 'WebInspect',
+    'sonarqube': 'SonarQube',
+    'checkmarx': 'CheckMarx'
+}
+
+
 def _get_issue_subject(filename, software_name):
     if software_name == 'postman':
         if filename == '':
-            full_filename = 'postman_collection.json'
+            full_filename = 'postman_collection'
         else:
-            full_filename = f'{filename}.postman_collection.json'
-        return f'{full_filename}__測試失敗'
+            full_filename = f'{filename}.postman_collection'
+        return f'[{SOFTWARE_ISSUE_TITLE[software_name]}] Script: {full_filename}_測試失敗'
     else:
-        return f'{filename}__測試失敗'
+        return f'[{SOFTWARE_ISSUE_TITLE[software_name]}] Script: {filename}_測試失敗'
 
 
 def _handle_test_success(project_id, software_name, filename, description):
@@ -90,7 +124,11 @@ def _handle_test_success(project_id, software_name, filename, description):
         # No fail issue, nothing to do
         return
     issue_id = relation_row.issue_id
-    iss = redmine_lib.redmine.issue.get(issue_id)
+    try:
+        iss = redmine_lib.redmine.issue.get(issue_id)
+    except ResourceNotFoundError:
+        # Issue is deleted, nothing to do
+        return
     if iss.status.id == 6:
         # Already closed, nothing to do
         return
@@ -118,25 +156,22 @@ def tgi_create_issue(args, software_name, file_name, branch, commit_id, result_t
     return new
 
 
+def _cst_now_string():
+    return (datetime.utcnow().replace(tzinfo=tz.tzutc()).astimezone(
+        tz.gettz('Asia/Taipei'))).strftime("%Y-%m-%d %H:%M:%S")
+
+
 def _get_postman_issue_description(row):
-    now = datetime.now()
-    dt_string = now.strftime("%Y-%m-%d %H:%M:%S")
-    return f'{dt_string} {row.branch} #{row.commit_id} Postman 自動化測試失敗 ({row.total - row.fail}/{row.total})'
+    return f'{_cst_now_string()} {row.branch} #{row.commit_id} 自動化測試失敗 ({row.total - row.fail}/{row.total})'
 
 
 def _get_postman_issue_close_description(row):
-    now = datetime.now()
-    dt_string = now.strftime("%Y-%m-%d %H:%M:%S")
-    return f'{dt_string} {row.branch} #{row.commit_id} Postman 自動化測試成功 ({row.total})'
+    return f'{_cst_now_string()} {row.branch} #{row.commit_id} 自動化測試成功 ({row.total})'
 
 
 def _get_sideex_issue_description(row, total, passed):
-    now = datetime.now()
-    dt_string = now.strftime("%Y-%m-%d %H:%M:%S")
-    return f'{dt_string} {row.branch} #{row.commit_id} Sideex 自動化測試失敗 ({passed}/{total})'
+    return f'{_cst_now_string()} {row.branch} #{row.commit_id} 自動化測試失敗 ({passed}/{total})'
 
 
 def _get_sideex_issue_close_description(row, total, passed):
-    now = datetime.now()
-    dt_string = now.strftime("%Y-%m-%d %H:%M:%S")
-    return f'{dt_string} {row.branch} #{row.commit_id} Sideex 自動化測試成功 ({total})'
+    return f'{_cst_now_string()} {row.branch} #{row.commit_id} 自動化測試成功 ({total})'

@@ -1,11 +1,11 @@
-import os
+from flask_jwt_extended import jwt_required
+from flask_restful import Resource, reqparse
+
+import config
 import model
 import util
 from resources import apiError, user
 from resources.project import get_pm_project_list
-from flask_jwt_extended import jwt_required
-from flask_restful import Resource, reqparse
-import config
 
 # Get admin account from environment
 admin_account = config.get('ADMIN_INIT_LOGIN')

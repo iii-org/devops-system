@@ -70,8 +70,8 @@ def release_unable_to_build(info=None):
     return build(1008, 'Unable to build the release.', info)
 
 
-def invalid_plugin_id(plugin_id):
-    return build(1009, 'Plugin Software not fount.', {'plugin_id': plugin_id})
+def invalid_plugin_name(plugin_name):
+    return build(1009, 'Plugin Software not found.', {'plugin_name': plugin_name})
 
 
 def invalid_project_content(key, value):
@@ -152,6 +152,10 @@ class NotUserHimselfError(HTTPException):
     pass
 
 
+class NotProjectOwnerError(HTTPException):
+    pass
+
+
 # Redmine Issue/Wiki/... errors
 def issue_not_found(issue_id):
     return build(4001, 'Issue not found.', {'issue_id': issue_id})
@@ -180,6 +184,9 @@ def resource_not_found():
 
 def path_not_found():
     return build(7004, 'The requested URL is not found on this server. Please check if the path is correct.')
+
+def maximum_error(object, num):
+    return build(7005, f'Maximum number of {object} is {num}.', {'object': object, 'num': num})
 
 
 # Third party service errors
@@ -222,6 +229,10 @@ custom_errors = {
     },
     'NotUserHimselfError': {
         'error': build(3003, "You are not permitted to access another user's data."),
+        'status': 401
+    },
+    'NotProjectOwnerError': {
+        'error': build(3004, "Only PM can set it, please contact PM for assistance."),
         'status': 401
     }
 }

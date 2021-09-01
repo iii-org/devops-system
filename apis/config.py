@@ -6,7 +6,13 @@ FIXED = {
     'GITLAB_API_VERSION': 'v4',
     'RANCHER_API_VERSION': 'v3',
     'LOGGER_NAME': 'devops.api',
-    'DEBUG': True
+    'DEBUG': True,
+    'USE_RELOADER': False,
+    'DEFAULT_TRACE_ORDER': [
+        "Epic",
+        "Feature",
+        "Test Plan"
+    ]
 }
 
 in_file = {}

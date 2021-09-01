@@ -1,7 +1,6 @@
-
-import datetime
 import os
 import sys
+import threading
 
 if f"{os.getcwd()}/apis" not in sys.path:
     sys.path.insert(1, f"{os.getcwd()}/apis")
@@ -24,6 +23,7 @@ from plugins import webinspect, sideex, zap, sonarqube, postman, ad
 import config
 import migrate
 import model
+import system
 import resources.apiError as apiError
 import plugins.checkmarx as checkmarx
 import resources.pipeline as pipeline
@@ -32,10 +32,10 @@ import util
 import maintenance
 from jsonwebtoken import jsonwebtoken
 from model import db
-from resources import logger, role as role, activity, starred_project, devops_version
+from resources import logger, role as role, activity, starred_project, devops_version, cicd
 from resources import project, gitlab, issue, user, redmine, wiki, version, apiTest, mock, harbor, \
     template, release, sync_redmine, plugin, kubernetesClient, project_permission, quality, sync_project, \
-    sync_user, router
+    sync_user, router, deploy, alert, trace_order
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -47,7 +47,6 @@ for key in ['JWT_SECRET_KEY',
     app.config[key] = config.get(key)
 
 app.config['PROPAGATE_EXCEPTIONS'] = True
-app.config['JWT_ACCESS_TOKEN_EXPIRES'] = datetime.timedelta(days=1)
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     "pool_pre_ping": True,
     "pool_recycle": 60,
@@ -56,7 +55,8 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
 
 api = Api(app, errors=apiError.custom_errors)
 CORS(app)
-socketio = SocketIO(app, cors_allowed_origins="*", logger=True, engineio_logger=True, timeout=60000)
+socketio = SocketIO(app, cors_allowed_origins="*",
+                    logger=True, engineio_logger=True, timeout=60000)
 
 
 class SignedIntConverter(IntegerConverter):
@@ -82,24 +82,6 @@ def internal_error(exception):
     logger.logger.exception(str(exception))
     return util.respond(500, "Unexpected internal error",
                         error=apiError.uncaught_exception(exception))
-
-
-# noinspection PyMethodMayBeStatic
-class SystemGitCommitID(Resource):
-    def get(self):
-        git_commit_id = ""
-        git_tag = ""
-        git_date = ""
-        if os.path.exists("git_commit"):
-            with open("git_commit") as f:
-                git_commit_id = f.read().splitlines()[0]
-        if os.path.exists("git_tag"):
-            with open("git_tag") as f:
-                git_tag = f.read().splitlines()[0]
-        if os.path.exists("git_date"):
-            with open("git_date") as f:
-                git_date = f.read().splitlines()[0]
-        return util.success({"git_commit_id": git_commit_id, "git_tag": git_tag, "git_date": git_date})
 
 
 class NexusVersion(Resource):
@@ -192,64 +174,86 @@ def initialize(db_uri):
 
 api.add_resource(router.Router, '/router')
 
-api.add_resource(project.GitRepoIdToCiPipeId, '/git_repo_id_to_ci_pipe_id/<repository_id>')
+api.add_resource(project.GitRepoIdToCiPipeId,
+                 '/git_repo_id_to_ci_pipe_id/<repository_id>')
 
 # Projects
 api.add_resource(project.ListMyProjects, '/project/list')
 api.add_resource(project.ListProjectsByUser, '/projects_by_user/<int:user_id>')
-api.add_resource(project.SingleProject, '/project', '/project/<sint:project_id>')
-api.add_resource(project.SingleProjectByName, '/project_by_name/<project_name>')
-api.add_resource(project.ProjectUserList, '/project/<sint:project_id>/user/list')
-api.add_resource(project.ProjectPluginUsage, '/project/<sint:project_id>/plugin/resource')
-api.add_resource(project.ProjectUserResource, '/project/<sint:project_id>/resource')
+api.add_resource(project.SingleProject, '/project',
+                 '/project/<sint:project_id>')
+api.add_resource(project.SingleProjectByName,
+                 '/project_by_name/<project_name>')
+api.add_resource(project.ProjectUserList,
+                 '/project/<sint:project_id>/user/list')
+api.add_resource(project.ProjectPluginUsage,
+                 '/project/<sint:project_id>/plugin/resource')
+api.add_resource(project.ProjectUserResource,
+                 '/project/<sint:project_id>/resource')
 
-api.add_resource(project.ProjectUserResourcePods, '/project/<sint:project_id>/resource/pods')
-api.add_resource(project.ProjectUserResourcePod, '/project/<sint:project_id>/resource/pods/<pod_name>')
-api.add_resource(project.ProjectUserResourcePodLog, '/project/<sint:project_id>/resource/pods/<pod_name>/log')
+api.add_resource(project.ProjectUserResourcePods,
+                 '/project/<sint:project_id>/resource/pods')
+api.add_resource(project.ProjectUserResourcePod,
+                 '/project/<sint:project_id>/resource/pods/<pod_name>')
+api.add_resource(project.ProjectUserResourcePodLog,
+                 '/project/<sint:project_id>/resource/pods/<pod_name>/log')
 
-api.add_resource(starred_project.StarredProject, '/project/<sint:project_id>/star')
+api.add_resource(starred_project.StarredProject,
+                 '/project/<sint:project_id>/star')
 
 # k8s Deployment
-api.add_resource(project.ProjectUserResourceDeployments, '/project/<sint:project_id>/resource/deployments')
+api.add_resource(project.ProjectUserResourceDeployments,
+                 '/project/<sint:project_id>/resource/deployments')
 api.add_resource(project.ProjectUserResourceDeployment,
                  '/project/<sint:project_id>/resource/deployments/<deployment_name>')
 
 # List k8s Services
-api.add_resource(project.ProjectUserResourceServices, '/project/<sint:project_id>/resource/services')
-api.add_resource(project.ProjectUserResourceService, '/project/<sint:project_id>/resource/services/<service_name>')
+api.add_resource(project.ProjectUserResourceServices,
+                 '/project/<sint:project_id>/resource/services')
+api.add_resource(project.ProjectUserResourceService,
+                 '/project/<sint:project_id>/resource/services/<service_name>')
 
 # k8s Secrets
-api.add_resource(project.ProjectUserResourceSecrets, '/project/<sint:project_id>/resource/secrets')
-api.add_resource(project.ProjectUserResourceSecret, '/project/<sint:project_id>/resource/secrets/<secret_name>')
+api.add_resource(project.ProjectUserResourceSecrets,
+                 '/project/<sint:project_id>/resource/secrets')
+api.add_resource(project.ProjectUserResourceSecret,
+                 '/project/<sint:project_id>/resource/secrets/<secret_name>')
 
 # k8s ConfigMaps
-api.add_resource(project.ProjectUserResourceConfigMaps, '/project/<sint:project_id>/resource/configmaps')
+api.add_resource(project.ProjectUserResourceConfigMaps,
+                 '/project/<sint:project_id>/resource/configmaps')
 api.add_resource(project.ProjectUserResourceConfigMap,
                  '/project/<sint:project_id>/resource/configmaps/<configmap_name>')
 
 # k8s Ingress
-api.add_resource(project.ProjectUserResourceIngresses, '/project/<sint:project_id>/resource/ingresses')
+api.add_resource(project.ProjectUserResourceIngresses,
+                 '/project/<sint:project_id>/resource/ingresses')
 
 api.add_resource(project.ProjectMember, '/project/<sint:project_id>/member',
                  '/project/<sint:project_id>/member/<int:user_id>')
 api.add_resource(wiki.ProjectWikiList, '/project/<sint:project_id>/wiki')
-api.add_resource(wiki.ProjectWiki, '/project/<sint:project_id>/wiki/<wiki_name>')
-api.add_resource(version.ProjectVersionList, '/project/<sint:project_id>/version/list')
+api.add_resource(wiki.ProjectWiki,
+                 '/project/<sint:project_id>/wiki/<wiki_name>')
+api.add_resource(version.ProjectVersionList,
+                 '/project/<sint:project_id>/version/list')
 api.add_resource(version.ProjectVersion, '/project/<sint:project_id>/version',
                  '/project/<sint:project_id>/version/<int:version_id>')
-api.add_resource(project.TestSummary, '/project/<sint:project_id>/test_summary')
 api.add_resource(template.TemplateList, '/template_list')
 api.add_resource(template.TemplateListForCronJob, '/template_list_for_cronjob')
-api.add_resource(template.SingleTemplate, '/template', '/template/<repository_id>')
-api.add_resource(template.ProjectPipelineBranches, '/project/<repository_id>/pipeline/branches')
-api.add_resource(template.ProjectPipelineDefaultBranch, '/project/<repository_id>/pipeline/default_branch')
+api.add_resource(template.SingleTemplate, '/template',
+                 '/template/<repository_id>')
+api.add_resource(template.ProjectPipelineBranches,
+                 '/project/<repository_id>/pipeline/branches')
+api.add_resource(template.ProjectPipelineDefaultBranch,
+                 '/project/<repository_id>/pipeline/default_branch')
 api.add_resource(project.ProjectEnvironment, '/project/<sint:project_id>/environments',
                  '/project/<sint:project_id>/environments/branch/<branch_name>')
 api.add_resource(project.ProjectEnvironmentUrl,
                  '/project/<sint:project_id>/environments/branch/<branch_name>/urls')
 
 # Gitlab project
-api.add_resource(gitlab.GitProjectBranches, '/repositories/<repository_id>/branches')
+api.add_resource(gitlab.GitProjectBranches,
+                 '/repositories/<repository_id>/branches')
 api.add_resource(gitlab.GitProjectBranch,
                  '/repositories/<repository_id>/branch/<branch_name>')
 api.add_resource(gitlab.GitProjectRepositories,
@@ -262,7 +266,8 @@ api.add_resource(gitlab.GitProjectTag,
                  '/repositories/<repository_id>/tags')
 api.add_resource(gitlab.GitProjectBranchCommits,
                  '/repositories/<repository_id>/commits')
-api.add_resource(gitlab.GitProjectNetwork, '/repositories/<repository_id>/overview')
+api.add_resource(gitlab.GitProjectNetwork,
+                 '/repositories/<repository_id>/overview')
 api.add_resource(gitlab.GitProjectId, '/repositories/<repository_id>/id')
 api.add_resource(gitlab.GitProjectIdFromURL, '/repositories/id')
 api.add_resource(gitlab.GitProjectURLFromId, '/repositories/url')
@@ -283,7 +288,8 @@ api.add_resource(pipeline.PipelineExec,
                  '/pipelines/<repository_id>/pipelines_exec')
 api.add_resource(pipeline.PipelineConfig,
                  '/pipelines/<repository_id>/config')
-api.add_resource(pipeline.PipelineExecAction, '/pipelines/<repository_id>/pipelines_exec/action')
+api.add_resource(pipeline.PipelineExecAction,
+                 '/pipelines/<repository_id>/pipelines_exec/action')
 api.add_resource(pipeline.PipelineExecLogs, '/pipelines/logs')
 api.add_resource(pipeline.PipelinePhaseYaml,
                  '/pipelines/<repository_id>/branch/<branch_name>/phase_yaml')
@@ -292,15 +298,19 @@ api.add_resource(pipeline.PipelineYaml,
 
 # Websocket
 socketio.on_namespace(rancher.RancherWebsocketLog('/rancher/websocket/logs'))
+socketio.on_namespace(
+    kubernetesClient.KubernetesPodExec('/k8s/websocket/pod_exec'))
 
 # issue
 api.add_resource(issue.IssueFamily, '/issue/<issue_id>/family')
 api.add_resource(issue.IssueByProject, '/project/<sint:project_id>/issues')
 api.add_resource(issue.IssueByUser, '/user/<sint:user_id>/issues')
-api.add_resource(issue.IssueByTreeByProject, '/project/<sint:project_id>/issues_by_tree')
+api.add_resource(issue.IssueByTreeByProject,
+                 '/project/<sint:project_id>/issues_by_tree')
 api.add_resource(issue.IssueByStatusByProject,
                  '/project/<sint:project_id>/issues_by_status')
-api.add_resource(issue.IssueByDateByProject, '/project/<sint:project_id>/issues_by_date')
+api.add_resource(issue.IssueByDateByProject,
+                 '/project/<sint:project_id>/issues_by_date')
 api.add_resource(issue.IssuesProgressByProject,
                  '/project/<sint:project_id>/issues_progress')
 api.add_resource(issue.IssuesStatisticsByProject,
@@ -315,12 +325,14 @@ api.add_resource(issue.MyIssueStatistics, '/issues/statistics')
 api.add_resource(issue.MyOpenIssueStatistics, '/issues/open_statistics')
 api.add_resource(issue.MyIssueWeekStatistics, '/issues/week_statistics')
 api.add_resource(issue.MyIssueMonthStatistics, '/issues/month_statistics')
-api.add_resource(issue.Relation, '/issues/relation', '/issues/relation/<int:relation_id>')
+api.add_resource(issue.Relation, '/issues/relation',
+                 '/issues/relation/<int:relation_id>')
 api.add_resource(issue.CheckIssueClosable, '/issues/<issue_id>/check_closable')
 
 # Release
 api.add_resource(release.Releases, '/project/<project_id>/releases')
-api.add_resource(release.Release, '/project/<project_id>/releases/<release_name>')
+api.add_resource(
+    release.Release, '/project/<project_id>/releases/<release_name>')
 
 # Plugins
 api.add_resource(plugin.Plugins, '/plugins')
@@ -334,19 +346,27 @@ api.add_resource(ad.ADOrganizations, '/plugins/ad/organizations')
 # dashboard
 api.add_resource(issue.DashboardIssuePriority,
                  '/dashboard_issues_priority/<user_id>')
-api.add_resource(issue.DashboardIssueProject, '/dashboard_issues_project/<user_id>')
+api.add_resource(issue.DashboardIssueProject,
+                 '/dashboard_issues_project/<user_id>')
 api.add_resource(issue.DashboardIssueType, '/dashboard_issues_type/<user_id>')
-api.add_resource(gitlab.GitTheLastHoursCommits, '/dashboard/the_last_hours_commits')
-api.add_resource(sync_redmine.ProjectMembersCount, '/dashboard/project_members_count')
-api.add_resource(sync_redmine.ProjectMembersDetail, '/dashboard/project_members_detail')
-api.add_resource(sync_redmine.ProjectMembers, '/dashboard/<project_id>/project_members')
+api.add_resource(gitlab.GitTheLastHoursCommits,
+                 '/dashboard/the_last_hours_commits')
+api.add_resource(sync_redmine.ProjectMembersCount,
+                 '/dashboard/project_members_count')
+api.add_resource(sync_redmine.ProjectMembersDetail,
+                 '/dashboard/project_members_detail')
+api.add_resource(sync_redmine.ProjectMembers,
+                 '/dashboard/<project_id>/project_members')
 api.add_resource(sync_redmine.ProjectOverview, '/dashboard/project_overview')
 api.add_resource(sync_redmine.RedmineProjects, '/dashboard/redmine_projects')
-api.add_resource(sync_redmine.RedminProjectDetail, '/dashboard/redmine_projects_detail')
+api.add_resource(sync_redmine.RedminProjectDetail,
+                 '/dashboard/redmine_projects_detail')
 api.add_resource(sync_redmine.RedmineIssueRank, '/dashboard/issue_rank')
-api.add_resource(sync_redmine.UnclosedIssues, '/dashboard/<user_id>/unclosed_issues')
+api.add_resource(sync_redmine.UnclosedIssues,
+                 '/dashboard/<user_id>/unclosed_issues')
 api.add_resource(sync_redmine.PassingRate, '/dashboard/passing_rate')
-api.add_resource(sync_redmine.PassingRateDetail, '/dashboard/passing_rate_detail')
+api.add_resource(sync_redmine.PassingRateDetail,
+                 '/dashboard/passing_rate_detail')
 
 # testPhase Requirement
 api.add_resource(issue.RequirementByIssue, '/requirements_by_issue/<issue_id>')
@@ -364,17 +384,20 @@ api.add_resource(issue.ParameterType, '/parameter_types')
 
 # testPhase TestCase Support Case Type
 api.add_resource(apiTest.TestCases, '/test_cases')
-api.add_resource(apiTest.TestCase, '/test_cases/<sint:tc_id>', '/testCases/<sint:tc_id>')
+api.add_resource(apiTest.TestCase, '/test_cases/<sint:tc_id>',
+                 '/testCases/<sint:tc_id>')
 
 api.add_resource(apiTest.GetTestCaseType, '/testCases/support_type')
 
 # testPhase TestCase
 api.add_resource(apiTest.TestCaseByIssue, '/testCases_by_issue/<issue_id>')
-api.add_resource(apiTest.TestCaseByProject, '/testCases_by_project/<project_id>')
+api.add_resource(apiTest.TestCaseByProject,
+                 '/testCases_by_project/<project_id>')
 # api.add_resource(apiTest.TestCase, '/testCases/<sint:tc_id>')
 
 # testPhase TestCase Support API Method
-api.add_resource(apiTest.GetTestCaseAPIMethod, '/testCases/support_RestfulAPI_Method')
+api.add_resource(apiTest.GetTestCaseAPIMethod,
+                 '/testCases/support_RestfulAPI_Method')
 
 # testPhase TestItem Support API Method
 api.add_resource(apiTest.TestItemByTestCase, '/testItems_by_testCase/<tc_id>')
@@ -383,26 +406,42 @@ api.add_resource(apiTest.TestItem, '/testItems/<item_id>')
 # testPhase Testitem Value
 api.add_resource(apiTest.GetTestValueLocation, '/testValues/support_locations')
 api.add_resource(apiTest.GetTestValueType, '/testValues/support_types')
-api.add_resource(apiTest.TestValueByTestItem, '/testValues_by_testItem/<item_id>')
+api.add_resource(apiTest.TestValueByTestItem,
+                 '/testValues_by_testItem/<item_id>')
 api.add_resource(apiTest.TestValue, '/testValues/<value_id>')
 
+# Integrated test results
+api.add_resource(project.TestSummary,
+                 '/project/<sint:project_id>/test_summary')
+api.add_resource(project.AllReports,
+                 '/project/<sint:project_id>/test_reports')
+api.add_resource(cicd.CommitCicdSummary,
+                 '/project/<sint:project_id>/test_summary/<commit_id>')
+
 # Postman tests
-api.add_resource(postman.ExportToPostman, '/export_to_postman/<sint:project_id>')
+api.add_resource(postman.ExportToPostman,
+                 '/export_to_postman/<sint:project_id>')
 api.add_resource(postman.PostmanResults, '/postman_results/<sint:project_id>')
-api.add_resource(postman.PostmanReport, '/testResults', '/postman_report/<int:id>')
+api.add_resource(postman.PostmanReport, '/testResults',
+                 '/postman_report/<int:id>')
 
 # Checkmarx report generation
 api.add_resource(checkmarx.CreateCheckmarxScan, '/checkmarx/create_scan')
-api.add_resource(checkmarx.GetCheckmarxScans, '/checkmarx/scans/<sint:project_id>')
-api.add_resource(checkmarx.GetCheckmarxLatestScan, '/checkmarx/latest_scan/<sint:project_id>')
+api.add_resource(checkmarx.GetCheckmarxScans,
+                 '/checkmarx/scans/<sint:project_id>')
+api.add_resource(checkmarx.GetCheckmarxLatestScan,
+                 '/checkmarx/latest_scan/<sint:project_id>')
 api.add_resource(checkmarx.GetCheckmarxLatestScanStats,
                  '/checkmarx/latest_scan_stats/<sint:project_id>')
 api.add_resource(checkmarx.GetCheckmarxLatestReport,
                  '/checkmarx/latest_report/<sint:project_id>')
 api.add_resource(checkmarx.GetCheckmarxReport, '/checkmarx/report/<report_id>')
-api.add_resource(checkmarx.GetCheckmarxScanStatus, '/checkmarx/scan_status/<scan_id>')
-api.add_resource(checkmarx.GetCheckmarxScanStatistics, '/checkmarx/scan_stats/<scan_id>')
-api.add_resource(checkmarx.RegisterCheckmarxReport, '/checkmarx/report/<scan_id>')
+api.add_resource(checkmarx.GetCheckmarxScanStatus,
+                 '/checkmarx/scan_status/<scan_id>')
+api.add_resource(checkmarx.GetCheckmarxScanStatistics,
+                 '/checkmarx/scan_stats/<scan_id>')
+api.add_resource(checkmarx.RegisterCheckmarxReport,
+                 '/checkmarx/report/<scan_id>')
 api.add_resource(checkmarx.GetCheckmarxReportStatus,
                  '/checkmarx/report_status/<report_id>')
 api.add_resource(checkmarx.GetCheckmarxProject,
@@ -421,7 +460,9 @@ api.add_resource(redmine.RedmineFile, '/download', '/file/<int:file_id>')
 api.add_resource(redmine.RedmineMail, '/mail')
 
 # System administrations
-api.add_resource(SystemGitCommitID, '/system_git_commit_id')  # git commit
+api.add_resource(system.SystemGitCommitID,
+                 '/system_git_commit_id')  # git commit
+api.add_resource(system.SystemInfoReport, '/system_info_report')
 
 # Mocks
 api.add_resource(mock.MockTestResult, '/mock/test_summary')
@@ -434,33 +475,50 @@ api.add_resource(harbor.HarborRepository,
                  '/harbor/repositories')
 api.add_resource(harbor.HarborArtifact,
                  '/harbor/artifacts')
-api.add_resource(harbor.HarborProject, '/harbor/projects/<int:nexus_project_id>/summary')
+api.add_resource(harbor.HarborProject,
+                 '/harbor/projects/<int:nexus_project_id>/summary')
 api.add_resource(harbor.HarborRegistries, '/harbor/registries')
-api.add_resource(harbor.HarborReplicationPolicy, '/harbor/replication/policy')
-api.add_resource(harbor.HarborReplicationExecution, '/harbor/replication/execution')
+api.add_resource(harbor.HarborRegistry,
+                 '/harbor/registries/<sint:registry_id>')
+api.add_resource(harbor.HarborReplicationPolices,
+                 '/harbor/replication/policies')
+api.add_resource(harbor.HarborReplicationPolicy,
+                 '/harbor/replication/policies/<sint:replication_policy_id>')
+api.add_resource(harbor.HarborReplicationExecution,
+                 '/harbor/replication/executions')
+api.add_resource(harbor.HarborReplicationExecutionTasks,
+                 '/harbor/replication/executions/<sint:execution_id>/tasks')
+api.add_resource(harbor.HarborReplicationExecutionTaskLog,
+                 '/harbor/replication/executions/<sint:execution_id>/tasks/<sint:task_id>/log')
 
 # WebInspect
 api.add_resource(webinspect.WebInspectScan, '/webinspect/create_scan',
                  '/webinspect/list_scan/<project_name>')
-api.add_resource(webinspect.WebInspectScanStatus, '/webinspect/status/<scan_id>')
-api.add_resource(webinspect.WebInspectScanStatistics, '/webinspect/stats/<scan_id>')
+api.add_resource(webinspect.WebInspectScanStatus,
+                 '/webinspect/status/<scan_id>')
+api.add_resource(webinspect.WebInspectScanStatistics,
+                 '/webinspect/stats/<scan_id>')
 api.add_resource(webinspect.WebInspectReport, '/webinspect/report/<scan_id>')
 
 # Maintenance
-api.add_resource(maintenance.UpdateDbRcProjectPipelineId, '/maintenance/update_rc_pj_pipe_id')
+api.add_resource(maintenance.UpdateDbRcProjectPipelineId,
+                 '/maintenance/update_rc_pj_pipe_id')
 api.add_resource(maintenance.SecretesIntoRcAll, '/maintenance/secretes_into_rc_all',
                  '/maintenance/secretes_into_rc_all/<secret_name>')
 api.add_resource(maintenance.RegistryIntoRcAll, '/maintenance/registry_into_rc_all',
                  '/maintenance/registry_into_rc_all/<registry_name>')
-api.add_resource(maintenance.UpdatePjHttpUrl, '/maintenance/update_pj_http_url')
+api.add_resource(maintenance.UpdatePjHttpUrl,
+                 '/maintenance/update_pj_http_url')
 
 # Rancher
-api.add_resource(rancher.Catalogs, '/rancher/catalogs', '/rancher/catalogs/<catalog_name>')
+api.add_resource(rancher.Catalogs, '/rancher/catalogs',
+                 '/rancher/catalogs/<catalog_name>')
 api.add_resource(rancher.Catalogs_Refresh, '/rancher/catalogs_refresh')
 
 # Activity
 api.add_resource(activity.AllActivities, '/all_activities')
-api.add_resource(activity.ProjectActivities, '/project/<sint:project_id>/activities')
+api.add_resource(activity.ProjectActivities,
+                 '/project/<sint:project_id>/activities')
 
 # ZAP
 api.add_resource(zap.Zap, '/zap', '/project/<sint:project_id>/zap')
@@ -469,21 +527,32 @@ api.add_resource(zap.Zap, '/zap', '/project/<sint:project_id>/zap')
 api.add_resource(sideex.Sideex, '/sideex', '/project/<sint:project_id>/sideex')
 api.add_resource(sideex.SideexReport, '/sideex_report/<int:test_id>')
 
-# Sync Redmine, Gitlab
+# Sync Redmine, Gitlab, Rancher
 api.add_resource(sync_redmine.SyncRedmine, '/sync_redmine')
-api.add_resource(gitlab.GitCountEachPjCommitsByDays, '/sync_gitlab/count_each_pj_commits_by_days')
+api.add_resource(gitlab.GitCountEachPjCommitsByDays,
+                 '/sync_gitlab/count_each_pj_commits_by_days')
+api.add_resource(rancher.RancherCountEachPjPiplinesByDays,
+                 '/sync_rancher/count_each_pj_piplines_by_days')
+api.add_resource(issue.ExecutIssueAlert, '/sync_issue_alert')
 
 # Subadmin Projects Permission
-api.add_resource(project_permission.AdminProjects, '/project_permission/admin_projects')
-api.add_resource(project_permission.SubadminProjects, '/project_permission/subadmin_projects')
+api.add_resource(project_permission.AdminProjects,
+                 '/project_permission/admin_projects')
+api.add_resource(project_permission.SubadminProjects,
+                 '/project_permission/subadmin_projects')
 api.add_resource(project_permission.Subadmins, '/project_permission/subadmins')
-api.add_resource(project_permission.SetPermission, '/project_permission/set_permission')
+api.add_resource(project_permission.SetPermission,
+                 '/project_permission/set_permission')
 
 # Quality
-api.add_resource(quality.TestPlanList, '/quality/<int:project_id>/testplan_list')
-api.add_resource(quality.TestPlan, '/quality/<int:project_id>/testplan/<int:testplan_id>')
-api.add_resource(quality.TestFileByTestPlan, '/quality/<int:project_id>/testfile_by_testplan/<int:testplan_id>')
-api.add_resource(quality.TestFileList, '/quality/<int:project_id>/testfile_list')
+api.add_resource(quality.TestPlanList,
+                 '/quality/<int:project_id>/testplan_list')
+api.add_resource(quality.TestPlan,
+                 '/quality/<int:project_id>/testplan/<int:testplan_id>')
+api.add_resource(quality.TestFileByTestPlan,
+                 '/quality/<int:project_id>/testfile_by_testplan/<int:testplan_id>')
+api.add_resource(quality.TestFileList,
+                 '/quality/<int:project_id>/testfile_list')
 api.add_resource(quality.TestFile, '/quality/<int:project_id>/testfile/<software_name>',
                  '/quality/<int:project_id>/testfile/<software_name>/<test_file_name>')
 api.add_resource(quality.TestPlanWithTestFile, '/quality/<int:project_id>/testplan_with_testfile',
@@ -504,6 +573,36 @@ api.add_resource(devops_version.DevOpsVersion, '/devops_version')
 api.add_resource(devops_version.DevOpsVersionCheck, '/devops_version/check')
 api.add_resource(devops_version.DevOpsVersionUpdate, '/devops_version/update')
 
+# Deploy
+api.add_resource(deploy.Clusters, '/deploy/clusters')
+api.add_resource(deploy.Cluster, '/deploy/clusters/<int:cluster_id>')
+api.add_resource(deploy.Registries, '/deploy/registries')
+api.add_resource(deploy.Registry, '/deploy/registries/<int:registry_id>')
+
+api.add_resource(deploy.ReleaseApplication,
+                 '/deploy/release/<int:release_id>')
+
+api.add_resource(deploy.Applications, '/deploy/applications')
+api.add_resource(deploy.Application,
+                 '/deploy/applications/<int:application_id>')
+
+api.add_resource(deploy.RedeployApplication, '/deploy/applications/<int:application_id>/redeploy')
+
+api.add_resource(deploy.UpdateApplication,
+                 '/deploy/applications/<int:application_id>/update')
+
+api.add_resource(deploy.Cronjob, '/deploy/applications/cronjob')
+# Alert
+api.add_resource(alert.ProjectAlert, '/project/<sint:project_id>/alert')
+api.add_resource(alert.ProjectAlertUpdate, '/alert/<int:alert_id>')
+api.add_resource(alert.DefaultAlertDaysUpdate, '/alert/default_days')
+
+# Trace Order
+api.add_resource(trace_order.TraceOrders, '/trace_order')
+api.add_resource(trace_order.SingleTraceOrder, '/trace_order/<sint:trace_order_id>')
+api.add_resource(trace_order.ExecuteTraceOrder, '/trace_order/execute')
+api.add_resource(trace_order.GetTraceResult, '/trace_order/result')
+
 
 def start_prod():
     try:
@@ -513,7 +612,7 @@ def start_prod():
         initialize(config.get('SQLALCHEMY_DATABASE_URI'))
         migrate.run()
         kubernetesClient.create_iiidevops_env_secret_namespace()
-        kubernetesClient.apply_cronjob_yamls()
+        threading.Thread(target=kubernetesClient.apply_cronjob_yamls).start()
         logger.logger.info('Apply k8s-yaml cronjob.')
         template.tm_get_template_list()
         logger.logger.info('Get the public and local template list')
@@ -528,5 +627,5 @@ def start_prod():
 
 if __name__ == "__main__":
     start_prod()
-    socketio.run(app, host='0.0.0.0', port=10009, debug=(config.get('DEBUG')),
-                 use_reloader=False)
+    socketio.run(app, host='0.0.0.0', port=10009, debug=config.get('DEBUG'),
+                 use_reloader=config.get('USE_RELOADER'))

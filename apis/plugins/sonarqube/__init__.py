@@ -1,8 +1,9 @@
 import json
+import urllib
+from datetime import timedelta
 
-import requests
 from flask_jwt_extended import jwt_required
-from flask_restful import Resource, reqparse
+from flask_restful import Resource
 from requests.auth import HTTPBasicAuth
 from sqlalchemy import desc
 
@@ -11,7 +12,7 @@ import model
 import nexus
 import util
 from model import db
-from resources import role, apiError, gitlab
+from resources import apiError, gitlab
 # ------------- Internal API methods -------------
 from resources.logger import logger
 
@@ -112,6 +113,14 @@ def sq_update_password(login, new_password):
     return __api_post('/users/change_password', params=params)
 
 
+def sq_update_user_name(login, new_name):
+    params = {
+        'login': login,
+        'name': new_name
+    }
+    return __api_post('/users/update', params=params)
+
+
 def sq_get_current_measures(project_name):
     params = {
         'metricKeys': METRICS,
@@ -195,6 +204,27 @@ def sq_get_history_measures(project_name):
         db.session.commit()
     ret.update(fetch)
     return ret
+
+
+def sq_get_history_by_commit(project_id, commit_id):
+    project_name = nexus.nx_get_project(id=project_id).name
+    rows = model.Sonarqube.query.filter_by(project_name=project_name). \
+        order_by(desc(model.Sonarqube.date)).all()
+    if len(rows) == 0:
+        return {}
+    for row in rows:
+        measures = json.loads(row.measures)
+        if measures['commit_id'] == commit_id:
+            date = (row.date + timedelta(hours=8)).strftime(SONARQUBE_DATE_FORMAT)
+            return {
+                'link': f'{config.get("SONARQUBE_EXTERNAL_BASE_URL")}/project/activity'
+                        f'?id={project_name}'
+                        f'&selected_date={urllib.parse.quote_plus(date)}',
+                'history': {
+                    date: measures
+                }
+            }
+    return {}
 
 
 # --------------------- Resources ---------------------

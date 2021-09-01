@@ -1,14 +1,9 @@
-import json
-import requests
-import util as util
-import model
+from flask_jwt_extended import jwt_required
+from flask_restful import Resource
 
-from flask_jwt_extended import jwt_required, get_jwt_identity
-from flask_restful import Resource, reqparse
-from resources import apiError
+import model
+import util as util
 from resources.apiError import DevOpsError
-from resources.logger import logger
-from datetime import datetime, date
 
 get_router_error = "Without Router Definition"
 key_return_json = ['parameter']

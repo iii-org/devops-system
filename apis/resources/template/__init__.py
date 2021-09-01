@@ -1,25 +1,23 @@
-from datetime import datetime
-import dateutil.parser
-import sys
-import subprocess
-import shutil
-from pathlib import Path
 import json
-import yaml
+import shutil
+import subprocess
+import sys
+from datetime import datetime
+from pathlib import Path
 
-from flask_jwt_extended import jwt_required, get_jwt_identity
-from flask_restful import Resource, reqparse
-import util
 import config
-import resources.yaml_OO as pipeline_yaml_OO
-import util
-from . import role
+import dateutil.parser
 import resources.apiError as apiError
 import resources.pipeline as pipeline
-from model import db, TemplateListCache, PluginSoftware
-from sqlalchemy import func, or_, and_
-
+import resources.role as role
+from resources.gitlab import gitlab as rs_gitlab
+import resources.yaml_OO as pipeline_yaml_OO
+import util
+import yaml
+from flask_jwt_extended import jwt_required
+from flask_restful import Resource, reqparse
 from gitlab import Gitlab
+from model import PluginSoftware, TemplateListCache, db
 
 template_replace_dict = {
     "registry": config.get("HARBOR_EXTERNAL_BASE_URL").replace("https://", ""),
@@ -79,7 +77,7 @@ def __tm_get_tag_info(pj, tag_name):
             for tag in tags:
                 seconds = (datetime.now() - dateutil.parser.parse(
                     tag.commit["committed_date"]).replace(tzinfo=None)
-                           ).total_seconds()
+                ).total_seconds()
                 if seconds < tag_info_dict["commit_time"]:
                     tag_info_dict["tag_name"] = tag.name
                     tag_info_dict["commit_time"] = seconds
@@ -98,13 +96,15 @@ def __tm_get_tag_info(pj, tag_name):
     return tag_info_dict
 
 
-def __tm_get_pipe_yamlfile_name(pj, tag_name=None):
+def __tm_get_pipe_yamlfile_name(pj, tag_name=None, branch_name=None):
     pipe_yaml_file_name = None
-    if tag_name is None:
+    if tag_name is None and branch_name is None:
         ref = pj.default_branch
-    else:
+    elif tag_name is not None:
         tag_info_dict = __tm_get_tag_info(pj, tag_name)
         ref = tag_info_dict["commit_id"]
+    elif branch_name is not None:
+        ref = branch_name
     for item in pj.repository_tree(ref=ref):
         if item["path"] == ".rancher-pipeline.yml":
             pipe_yaml_file_name = ".rancher-pipeline.yml"
@@ -114,7 +114,7 @@ def __tm_get_pipe_yamlfile_name(pj, tag_name=None):
 
 
 def __tm_get_git_pipline_json(pj, tag_name=None):
-    if tag_name == None:
+    if tag_name is None:
         pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj)
         ref = pj.default_branch
     else:
@@ -146,7 +146,7 @@ def __tm_read_pipe_set_json(pj, tag_name=None):
                     ref=pj.default_branch)
                 pip_set_json = json.loads(f_raw.decode())
         return pip_set_json
-    except apiError.TemplateError as e:
+    except apiError.TemplateError:
         return {"description": "", "name": pj.name}
 
 
@@ -158,12 +158,12 @@ def __tm_git_clone_file(pj,
     protocol = 'https' if temp_http_url[:5] == "https" else 'http'
     if protocol == "https":
         secret_temp_http_url = temp_http_url[:
-                                         8] + f"root:{gitlab_private_token}@" + temp_http_url[
-                                             8:]
+                                             8] + f"root:{gitlab_private_token}@" + temp_http_url[
+            8:]
     else:
         secret_temp_http_url = temp_http_url[:
-                                         7] + f"root:{gitlab_private_token}@" + temp_http_url[
-                                             7:]
+                                             7] + f"root:{gitlab_private_token}@" + temp_http_url[
+            7:]
     Path(f"{dest_folder_name}").mkdir(exist_ok=True)
     if create_time is not None:
         pj_name = f"{pj.path}_{create_time}"
@@ -190,7 +190,7 @@ def __set_git_username_config(path):
         subprocess.call([
             'git', 'config', '--global', 'user.email', '"system@iiidevops.org"'
         ],
-                        cwd=path)
+            cwd=path)
     if git_user_name == "":
         subprocess.call(['git', 'config', '--global', 'user.name', '"system"'],
                         cwd=path)
@@ -200,6 +200,7 @@ def __check_git_project_is_empty(pj):
     if pj.default_branch is None or pj.repository_tree() is None:
         return True
 
+
 def __add_plugin_soft_status():
     db_plugins = PluginSoftware.query.all()
     for software in support_software:
@@ -207,7 +208,43 @@ def __add_plugin_soft_status():
             if software.get('plugin_key') == db_plugin.name:
                 software['plugin_disabled'] = db_plugin.disabled
 
+
+def __compare_tag_version(tag_version, start_version, end_version=None):
+    def version_parser(version_string):
+        return version_string.replace('v', '').split('.')
+
+    def ver_hight_greater_ver_low(ver_low, ver_hight):
+        i = 0
+        while i < 3:
+            if int(ver_hight[i]) > int(ver_low[i]):
+                return True
+            elif int(ver_hight[i]) < int(ver_low[i]):
+                return False
+            elif i == 2:
+                return True
+            else:
+                i += 1
+    # has end
+    tag_version_list = version_parser(tag_version)
+    tag_version_list = tag_version_list + [0]*(3 - len(tag_version_list))
+    start_version_list = version_parser(start_version)
+    start_version_list = start_version_list + [0]*(3 - len(start_version_list))
+    if end_version == "":
+        return ver_hight_greater_ver_low(start_version_list, tag_version_list)
+    else:
+        # has end version
+        end_version_list = version_parser(end_version)
+        end_version_list = end_version_list + [0]*(3 - len(end_version_list))
+        over_start_ver = ver_hight_greater_ver_low(start_version_list, tag_version_list)
+        low_end_ver = ver_hight_greater_ver_low(tag_version_list, end_version_list)
+        if over_start_ver and low_end_ver:
+            return True
+        else:
+            return False
+
+
 def __force_update_template_cache_table():
+    template_support_version = None
     TemplateListCache.query.delete()
     db.session.commit()
 
@@ -222,6 +259,8 @@ def __force_update_template_cache_table():
         "iiidevops-templates": "Public Templates",
         "local-templates": "Local Templates"
     }
+    with open('apis/resources/template/template_support_version.json') as file:
+        template_support_version = json.load(file)
     for group in gl.groups.list(all=True):
         if group.name in template_group_dict:
             for group_project in group.projects.list(all=True):
@@ -229,15 +268,29 @@ def __force_update_template_cache_table():
                 # get all tags
                 tag_list = []
                 for tag in pj.tags.list(all=True):
-                    tag_list.append({
-                        "name": tag.name,
-                        "commit_id": tag.commit["id"],
-                        "commit_time": tag.commit["committed_date"]
-                    })
+                    if group.name == "iiidevops-templates" and \
+                            template_support_version is not None:
+                        for temp_name, temp_value in template_support_version.items():
+                            if temp_name == pj.name:
+                                status = __compare_tag_version(
+                                    tag.name, temp_value.get('start_version'),
+                                    temp_value.get('end_version'))
+                                if status:
+                                    tag_list.append({
+                                        "name": tag.name,
+                                        "commit_id": tag.commit["id"],
+                                        "commit_time": tag.commit["committed_date"]
+                                    })
+                                break
+                    else:
+                        tag_list.append({
+                            "name": tag.name,
+                            "commit_id": tag.commit["id"],
+                            "commit_time": tag.commit["committed_date"]
+                        })
                 pip_set_json = __tm_read_pipe_set_json(pj)
-                if group.name == "iiidevops-templates":
-                    output[0]['options'].append({
-                        "id":
+                template_data = {
+                    "id":
                         pj.id,
                         "name":
                         pj.name,
@@ -249,22 +302,14 @@ def __force_update_template_cache_table():
                         pip_set_json["description"],
                         "version":
                         tag_list
-                    })
+                }
+                if group.name == "iiidevops-templates" and template_support_version is None:
+                    output[0]['options'].append(template_data)
+                elif group.name == "iiidevops-templates" and template_support_version is not None \
+                        and pj.name in template_support_version:
+                    output[0]['options'].append(template_data)
                 elif group.name == "local-templates":
-                    output[1]['options'].append({
-                        "id":
-                        pj.id,
-                        "name":
-                        pj.name,
-                        "path":
-                        pj.path,
-                        "display":
-                        pip_set_json["name"],
-                        "description":
-                        pip_set_json["description"],
-                        "version":
-                        tag_list
-                    })
+                    output[1]['options'].append(template_data)
                 cache_temp = TemplateListCache(
                     temp_repo_id=pj.id,
                     name=pj.name,
@@ -281,12 +326,14 @@ def __force_update_template_cache_table():
 
 def __update_stage_when_plugin_disable(stage):
     catalogTemplate_value = ""
-    if ("steps" in stage) and ("applyAppConfig" in stage['steps'][0]) and 'catalogTemplate' in stage['steps'][0]['applyAppConfig']:
+    if ("steps" in stage) and ("applyAppConfig" in stage['steps'][0]) \
+            and 'catalogTemplate' in stage['steps'][0]['applyAppConfig']:
         catalogTemplate_value = stage['steps'][0]['applyAppConfig']['catalogTemplate'].split(
-                    ":")[1].replace("iii-dev-charts3-", "")
+            ":")[1].replace("iii-dev-charts3-", "")
     if catalogTemplate_value != '':
         for software in support_software:
-            if software.get('template_key') == catalogTemplate_value and software.get('plugin_disabled') is True:
+            if software.get('template_key') == catalogTemplate_value and software.get(
+                    'plugin_disabled') is True:
                 if "when" not in stage:
                     stage["when"] = {"branch": {"include": []}}
                 stage_when = stage.get("when", {}).get(
@@ -353,12 +400,12 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id,
     protocol = 'https' if temp_http_url[:5] == "https" else 'http'
     if protocol == "https":
         secret_temp_http_url = temp_http_url[:
-                                            8] + f"root:{gitlab_private_token}@" + temp_http_url[
-                                                8:]
+                                             8] + f"root:{gitlab_private_token}@" + temp_http_url[
+            8:]
     else:
         secret_temp_http_url = temp_http_url[:
-                                            7] + f"root:{gitlab_private_token}@" + temp_http_url[
-                                                7:]
+                                             7] + f"root:{gitlab_private_token}@" + temp_http_url[
+            7:]
     pipe_json = __tm_get_git_pipline_json(template_pj, tag_name=tag_name)
     tag_info_dict = __tm_get_tag_info(template_pj, tag_name)
     pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(template_pj,
@@ -370,12 +417,12 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id,
     protocol = 'https' if pj_http_url[:5] == "https" else 'http'
     if protocol == "https":
         secret_pj_http_url = pj_http_url[:
-                                        8] + f"root:{gitlab_private_token}@" + pj_http_url[
-                                            8:]
+                                         8] + f"root:{gitlab_private_token}@" + pj_http_url[
+            8:]
     else:
         secret_pj_http_url = pj_http_url[:
-                                        7] + f"root:{gitlab_private_token}@" + pj_http_url[
-                                            7:]
+                                         7] + f"root:{gitlab_private_token}@" + pj_http_url[
+            7:]
     Path("pj_push_template").mkdir(exist_ok=True)
     subprocess.call([
         'git', 'clone', '--branch', tag_info_dict["tag_name"],
@@ -421,7 +468,7 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id,
             stage = __update_stage_when_plugin_disable(stage)
     with open(f'pj_push_template/{pj.path}/{pipe_yaml_file_name}',
               'w') as file:
-        documents = yaml.dump(pipe_json, file)
+        yaml.dump(pipe_json, file, sort_keys=False)
     __set_git_username_config(f"pj_push_template/{pj.path}")
     subprocess.call(['git', 'branch'], cwd=f"pj_push_template/{pj.path}")
     # Too lazy to handle file deleting issue on Windows, just keep the garbage there
@@ -452,7 +499,7 @@ def tm_get_pipeline_branches(repository_id):
     create_time = datetime.now().strftime("%y%m%d_%H%M%S")
     __tm_git_clone_file(pj, "pj_edit_pipe_yaml", create_time)
     pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj)
-    if pipe_yaml_file_name == None:
+    if pipe_yaml_file_name is None:
         return {}
     with open(
             f'pj_edit_pipe_yaml/{pj.path}_{create_time}/{pipe_yaml_file_name}'
@@ -471,7 +518,8 @@ def tm_get_pipeline_branches(repository_id):
             for software in support_software:
                 if catalogTemplate_value is not None and software[
                         "template_key"] == catalogTemplate_value and \
-                        (catalogTemplate_value in ('web', 'db') or software.get("plugin_disabled") is False):
+                        (catalogTemplate_value in ('web', 'db')
+                            or software.get("plugin_disabled") is False):
                     stage_out_list["name"] = software["display"]
                     stage_out_list["key"] = software["template_key"]
                     if "when" in stage:
@@ -513,7 +561,7 @@ def tm_put_pipeline_branches(repository_id, data):
         create_time = datetime.now().strftime("%y%m%d_%H%M%S")
         __tm_git_clone_file(pj, "pj_edit_pipe_yaml", create_time, br.name)
         pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj)
-        if pipe_yaml_file_name == None:
+        if pipe_yaml_file_name is None:
             return
         with open(
                 f'pj_edit_pipe_yaml/{pj.path}_{create_time}/{pipe_yaml_file_name}'
@@ -544,13 +592,13 @@ def tm_put_pipeline_branches(repository_id, data):
         with open(
                 f'pj_edit_pipe_yaml/{pj.path}_{create_time}/{pipe_yaml_file_name}',
                 'w') as file:
-            documents = yaml.dump(pipe_json, file)
+            yaml.dump(pipe_json, file, sort_keys=False)
         __set_git_username_config(f'pj_edit_pipe_yaml/{pj.path}_{create_time}')
         subprocess.call([
             'git', 'commit', '-m', '"編輯 .rancher-pipeline.yaml 啟用停用分支"',
             f'{pipe_yaml_file_name}'
         ],
-                        cwd=f"pj_edit_pipe_yaml/{pj.path}_{create_time}")
+            cwd=f"pj_edit_pipe_yaml/{pj.path}_{create_time}")
         next_run = pipeline.get_pipeline_next_run(repository_id)
         subprocess.call(['git', 'push', '-u', 'origin', f'{br.name}'],
                         cwd=f"pj_edit_pipe_yaml/{pj.path}_{create_time}")
@@ -567,7 +615,7 @@ def tm_get_pipeline_default_branch(repository_id):
     create_time = datetime.now().strftime("%y%m%d_%H%M%S")
     __tm_git_clone_file(pj, "pj_edit_pipe_yaml", create_time)
     pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj)
-    if pipe_yaml_file_name == None:
+    if pipe_yaml_file_name is None:
         return {}
     with open(
             f'pj_edit_pipe_yaml/{pj.path}_{create_time}/{pipe_yaml_file_name}'
@@ -587,7 +635,8 @@ def tm_get_pipeline_default_branch(repository_id):
             for software in support_software:
                 if catalogTemplate_value is not None and software[
                         "template_key"] == catalogTemplate_value and \
-                        (catalogTemplate_value in ('web', 'db') or software.get("plugin_disabled") is False):
+                        (catalogTemplate_value in ('web', 'db') or
+                            software.get("plugin_disabled") is False):
                     stage_out_list["name"] = software["display"]
                     stage_out_list["key"] = software["template_key"]
                     if "when" in stage:
@@ -609,12 +658,13 @@ def tm_put_pipeline_default_branch(repository_id, data):
         create_time = datetime.now().strftime("%y%m%d_%H%M%S")
         __tm_git_clone_file(pj, "pj_edit_pipe_yaml", create_time, br.name)
         pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj)
-        if pipe_yaml_file_name == None:
+        if pipe_yaml_file_name is None:
             return
         with open(
                 f'pj_edit_pipe_yaml/{pj.path}_{create_time}/{pipe_yaml_file_name}'
         ) as file:
             pipe_json = yaml.safe_load(file)
+            print()
             for stage in pipe_json["stages"]:
                 catalogTemplate_value = stage.get("steps")[0].get(
                     "applyAppConfig", {}).get("catalogTemplate")
@@ -640,19 +690,70 @@ def tm_put_pipeline_default_branch(repository_id, data):
         with open(
                 f'pj_edit_pipe_yaml/{pj.path}_{create_time}/{pipe_yaml_file_name}',
                 'w') as file:
-            documents = yaml.dump(pipe_json, file)
+            yaml.dump(pipe_json, file, sort_keys=False)
         __set_git_username_config(f'pj_edit_pipe_yaml/{pj.path}_{create_time}')
         subprocess.call([
             'git', 'commit', '-m', '"UI 編輯 .rancher-pipeline.yaml commit"',
             f'{pipe_yaml_file_name}'
         ],
-                        cwd=f"pj_edit_pipe_yaml/{pj.path}_{create_time}")
+            cwd=f"pj_edit_pipe_yaml/{pj.path}_{create_time}")
         next_run = pipeline.get_pipeline_next_run(repository_id)
         subprocess.call(['git', 'push', '-u', 'origin', f'{br.name}'],
                         cwd=f"pj_edit_pipe_yaml/{pj.path}_{create_time}")
         shutil.rmtree(f"pj_edit_pipe_yaml/{pj.path}_{create_time}",
                       ignore_errors=True)
         pipeline.stop_and_delete_pipeline(repository_id, next_run)
+
+
+def disable_soft_branch_at_project(repository_id, soft_name):
+    template_key = None
+    for software in support_software:
+        if software.get('plugin_key') == soft_name:
+            template_key = software.get('template_key')
+    if template_key is None:
+        return
+    pj = gl.projects.get(repository_id)
+    if pj.empty_repo:
+        return
+    for br in pj.branches.list(all=True):
+        pipe_yaml_name = __tm_get_pipe_yamlfile_name(pj, branch_name=br.name)
+        if pipe_yaml_name is None:
+            continue
+        f = rs_gitlab.gl_get_file_from_lib(repository_id, pipe_yaml_name, branch_name=br.name)
+        pipe_dict = yaml.safe_load(f.decode())
+        stages = pipe_dict.get("stages")
+        stage_index = __get_step_index_from_pipe(stages, template_key)
+        if stage_index is None:
+            continue
+        if "when" not in stages[stage_index]:
+            stages[stage_index]["when"] = {"branch": {"include": []}}
+        stage_when = stages[stage_index].get("when",
+                                             {}).get("branch",
+                                                     {}).get("include", {})
+        if len(stage_when) == 1 and 'skip' in stage_when:
+            continue
+        stage_when.clear()
+        stage_when.append("skip")
+        '''
+        next_run = pipeline.get_pipeline_next_run(repository_id)
+        f.content = yaml.dump(pipe_dict)
+        f.save(branch=br.name,
+               commit_message=f'Update branch {br.name} .rancher-pipeline.yml, remove stage {soft_name} enable branch')
+        pipeline.stop_and_delete_pipeline(repository_id, next_run)
+        '''
+
+
+def __get_step_index_from_pipe(stages, soft_key):
+    if stages is None:
+        return
+    for index, stage in enumerate(stages):
+        catalogTemplate_value = stage.get("steps")[0].get(
+            "applyAppConfig", {}).get("catalogTemplate")
+        if catalogTemplate_value is not None:
+            catalogTemplate_value = catalogTemplate_value.split(
+                ":")[1].replace("iii-dev-charts3-", "")
+            if catalogTemplate_value == soft_key:
+                return index
 
 
 class TemplateList(Resource):

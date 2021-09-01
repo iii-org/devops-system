@@ -1,15 +1,15 @@
 import calendar
 import json
+from collections import defaultdict
 from datetime import datetime, date, timedelta
+from distutils.util import strtobool
 
 import werkzeug
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
+from redminelib import exceptions as redminelibError
 from sqlalchemy import or_
 from sqlalchemy.orm.exc import NoResultFound
-from collections import defaultdict
-from distutils.util import strtobool
-from redminelib import exceptions as redminelibError
 
 import config
 import model
@@ -17,13 +17,14 @@ import nexus
 import resources.apiError as apiError
 import resources.user as user
 import util as util
+from accessories import redmine_lib
 from data.nexus_project import NexusProject
-from resources.apiError import DevOpsError
+from enums.action_type import ActionType
 from model import db
-from resources.logger import logger
+from resources.apiError import DevOpsError
 from resources.redmine import redmine
 from . import project as project_module, project, role
-from accessories import redmine_lib
+from .activity import record_activity
 
 FLOW_TYPES = {"0": "Given", "1": "When", "2": "Then", "3": "But", "4": "And"}
 PARAMETER_TYPES = {'1': '文字', '2': '英數字', '3': '英文字', '4': '數字'}
@@ -96,7 +97,7 @@ class NexusIssue:
 
     def set_redmine_issue_v2(self, redmine_issue, with_relationship=False,
                              relationship_bool=False, nx_project=None, users_info=None):
-        
+
         self.data = {
             'id': redmine_issue.id,
             'name': redmine_issue.subject,
@@ -134,13 +135,13 @@ class NexusIssue:
                 'name': nx_project.name,
                 'display': nx_project.display
             }
-        self.data['has_children']=False
-        if redmine_issue.children.total_count>0:
-            self.data['has_children']=True
+        self.data['has_children'] = False
+        if redmine_issue.children.total_count > 0:
+            self.data['has_children'] = True
         if relationship_bool:
             self.data['family'] = False
-            if hasattr(redmine_issue, 'parent') or redmine_issue.relations.total_count>0 \
-                or self.data['has_children']:
+            if hasattr(redmine_issue, 'parent') or redmine_issue.relations.total_count > 0 \
+                    or self.data['has_children']:
                 self.data['family'] = True
         if with_relationship:
             self.data['parent'] = None
@@ -420,7 +421,7 @@ def require_issue_visible(issue_id,
 
 def verify_issue_user(issue_id, user_id, issue_info=None):
     if issue_info is None:
-        issue_info = get_issue(issue_id)
+        issue_info = get_issue(issue_id, False, False)
     project_id = issue_info['project']['id']
     count = model.ProjectUserRole.query.filter_by(
         project_id=project_id, user_id=user_id).count()
@@ -506,7 +507,7 @@ def create_issue(args, operator_id):
     return redmine.rm_create_issue(args, plan_operator_id)
 
 
-def update_issue(issue_id, args, operator_id):
+def update_issue(issue_id, args, operator_id=None):
     args = args.copy()
     args = {k: v for k, v in args.items() if v is not None}
     if 'fixed_version_id' in args:
@@ -542,18 +543,23 @@ def update_issue(issue_id, args, operator_id):
     redmine.rm_update_issue(issue_id, args, plan_operator_id)
     issue = redmine_lib.redmine.issue.get(issue_id)
     output = NexusIssue().set_redmine_issue_v2(issue).to_json()
-    family = get_issue_family(issue_id)
+    family = get_issue_family(issue)
     if family.get('parent', None):
         output['parent'] = family['parent']
     elif family.get('children', None):
         output['children'] = family['children']
+    elif family.get('relations', None):
+        output['relations'] = family['relations']
     return output
 
 
+@record_activity(ActionType.DELETE_ISSUE)
 def delete_issue(issue_id):
     try:
+        require_issue_visible(issue_id)
         redmine.rm_delete_issue(issue_id)
     except DevOpsError as e:
+        print(e.status_code)
         if e.status_code == 404:
             # Already deleted, let it go
             pass
@@ -599,11 +605,11 @@ def get_issue_list_by_project(project_id, args):
         return []
         # 指定 assigned_to_id 又不存在 multiple_assigned_to 的情況下，
         # default_filters 帶 search ，但沒有取得 issued_id，搜尋結果為空
-    elif args.get(
-        'search', None) and not default_filters.get(
-            'issue_id', None) and default_filters.get(
-                'assigned_to_id', None) and 'multiple_assigned_to' not in default_filters:
-        return []
+    elif args.get('search') is not None and default_filters.get('issue_id') is None:
+        if default_filters.get('assigned_to_id') is None:
+            return []
+        if default_filters.get('assigned_to_id') is not None and 'multiple_assigned_to' not in default_filters:
+            return []
     all_issues = redmine_lib.redmine.issue.filter(**default_filters)
     # 透過 selection params 決定是否顯示 family bool 欄位
     if not args['selection'] or not strtobool(args['selection']):
@@ -639,23 +645,24 @@ def get_issue_list_by_user(user_id, args):
         default_filters = get_custom_filters_by_args(args, project_id=plan_id, user_id=nx_user.plan_user_id)
     else:
         default_filters = get_custom_filters_by_args(args, user_id=nx_user.plan_user_id)
-    if not args.get('from', None) or args['from'] not in ['author_id', 'assigned_to_id']:
+    if args.get('from') not in ['author_id', 'assigned_to_id']:
         return []
     # multiple_assigned_to = True，代表 filter 跟 assigned_to_id 為不同的 user id
     elif default_filters.get('multiple_assigned_to', None) and default_filters['multiple_assigned_to']:
         return []
         # from author_id 又不存在 multiple_assigned_to 的情況下，
         # default_filters 帶 search ，但沒有取得 issued_id，搜尋結果為空
-    elif args.get(
-        'search', None) and not default_filters.get(
-            'issue_id', None) and args.get(
-                'from', None) == 'author_id' and 'multiple_assigned_to' not in default_filters:
-        return []
+    elif args.get('search') and default_filters.get('issue_id') is None:
+        if args.get('from') == 'assigned_to_id':
+            return []
+        if args.get('from') == 'author_id' and 'multiple_assigned_to' not in default_filters:
+            return []
+
     all_issues = redmine_lib.redmine.issue.filter(**default_filters)
     # 透過 selection params 決定是否顯示 family bool 欄位
     if not args['selection'] or not strtobool(args['selection']):
         nx_issue_params['relationship_bool'] = True
-    
+
     nx_issue_params['users_info'] = user.get_all_user_info()
     for redmine_issue in all_issues:
         nx_issue_params['redmine_issue'] = redmine_issue
@@ -686,8 +693,8 @@ def get_issue_by_tree_by_project(project_id):
     users_info = user.get_all_user_info()
     for redmine_issue in all_issues:
         tree[redmine_issue.id] = NexusIssue().set_redmine_issue_v2(redmine_issue,
-                                                                   with_relationship=True, 
-                                                                   nx_project=nx_project, 
+                                                                   with_relationship=True,
+                                                                   nx_project=nx_project,
                                                                    users_info=users_info).to_json()
     for id in tree:
         # 代表此 issue 有 parent 存在
@@ -799,10 +806,11 @@ def get_issue_assigned_to_search(default_filters, args):
     assigned_to_issue = []
     # 使用 ilike 同時搜尋 login 或 name 相符的 user
     nx_user_list = db.session.query(model.UserPluginRelation).join(
-        model.User, model.ProjectUserRole).filter(or_(
-            model.User.login.ilike(f'%{args["search"]}%'),
-            model.User.name.ilike(f'%{args["search"]}%')
-        ), model.ProjectUserRole.role_id != 6).all()
+        model.User, model.ProjectUserRole
+    ).filter(or_(
+        model.User.login.ilike(f'%{args["search"]}%'),
+        model.User.name.ilike(f'%{args["search"]}%')
+    ), model.ProjectUserRole.role_id != 6).all()
     if nx_user_list:
         for nx_user in nx_user_list:
             # 判斷是否多重 assigned_to 的預設值
@@ -816,38 +824,45 @@ def get_issue_assigned_to_search(default_filters, args):
             elif args.get('from') == 'assigned_to_id':
                 if nx_user.user_id != args['nx_user_id']:
                     default_filters['multiple_assigned_to'] = True
-                return assigned_to_issue
-            all_issues = redmine_lib.redmine.issue.filter(**default_filters, assigned_to_id=nx_user.plan_user_id)
+                    return assigned_to_issue
+                else:
+                    all_issues = redmine_lib.redmine.issue.filter(**default_filters)
+            else:
+                all_issues = redmine_lib.redmine.issue.filter(**default_filters, assigned_to_id=nx_user.plan_user_id)
             assigned_to_issue.extend([issue.id for issue in all_issues])
     return assigned_to_issue
 
 
 # 取得 issue 相關的 parent & children & relations 資訊
-def get_issue_family(issue_id, relation=False):
+def get_issue_family(redmine_issue):
     output = defaultdict(list)
-    if relation:
-        redmine_issue = redmine_lib.redmine.issue.get(issue_id, include=['children', 'relations'])
-        if hasattr(redmine_issue, 'relations') and len(redmine_issue.relations):
-            for relation in redmine_issue.relations:
-                rel_issue_id = 0
-                if relation.issue_id != int(issue_id):
-                    rel_issue_id = relation.issue_id
-                else:
-                    rel_issue_id = relation.issue_to_id
-                rel_issue = redmine_lib.redmine.issue.get(rel_issue_id)
-                relate_issue = NexusIssue().set_redmine_issue_v2(rel_issue).to_json()
-                relate_issue['relation_id'] = relation.id
-                output['relations'].append(relate_issue)
-    else:
-        redmine_issue = redmine_lib.redmine.issue.get(issue_id, include=['children'])
     if hasattr(redmine_issue, 'parent'):
         parent_issue = redmine_lib.redmine.issue.get(redmine_issue.parent.id)
         output['parent'] = NexusIssue().set_redmine_issue_v2(parent_issue).to_json()
     if len(redmine_issue.children):
-        children_issues = redmine_lib.redmine.issue.filter(parent_id=issue_id, status_id='*')
-        output['children'] = [NexusIssue().set_redmine_issue_v2(redmine_issue).to_json()
-                              for redmine_issue in children_issues]
+        children_issue_ids = [str(child.id) for child in redmine_issue.children]
+        children_issue_ids_str = ','.join(children_issue_ids)
+        children_issues = redmine_lib.redmine.issue.filter(issue_id=children_issue_ids_str, status_id='*',
+                                                           include=['children', 'relations'])
+        output['children'] = [NexusIssue().set_redmine_issue_v2(issue).to_json()
+                              for issue in children_issues]
+    if len(redmine_issue.relations):
+        rel_issue_ids = [str(check_relations_id(redmine_issue.id, relation)) for relation in redmine_issue.relations]
+        rel_issue_ids_str = ','.join(rel_issue_ids)
+        rel_issues = redmine_lib.redmine.issue.filter(issue_id=rel_issue_ids_str, status_id='*',
+                                                      include=['children', 'relations'])
+        output['relations'] = [NexusIssue().set_redmine_issue_v2(issue).to_json()
+                               for issue in rel_issues]
     return output
+
+
+def check_relations_id(issue_id, relation):
+    rel_issue_id = 0
+    if relation.issue_id != int(issue_id):
+        rel_issue_id = relation.issue_id
+    else:
+        rel_issue_id = relation.issue_to_id
+    return rel_issue_id
 
 
 def get_issue_by_status_by_project(project_id):
@@ -907,8 +922,8 @@ def get_issue_progress_or_statistics_by_project(project_id, args, progress=False
         output_values = defaultdict(
             lambda: defaultdict(
                 dict, {status: 0 for status in issue_status.values()}
-                )
             )
+        )
         output = {key: output_values.copy() for key in output_keys}
         calculate_issue_statistics(filters, issue_status, output_keys, output)
     return output
@@ -1029,7 +1044,7 @@ def get_open_issue_statistics(user_id):
     args['status_id'] = 'closed'
     closed_issue_output = redmine.rm_get_statistics(args)
     active_issue_number = total_issue_output["total_count"] - \
-                          closed_issue_output["total_count"]
+        closed_issue_output["total_count"]
     return util.success({"active_issue_number": active_issue_number})
 
 
@@ -1353,13 +1368,13 @@ def get_requirements_by_project_id(project_id):
 
 
 def post_issue_relation(issue_id, issue_to_id, operator_id):
-    plan_operator_id =__get_plan_user_id(operator_id)
+    plan_operator_id = __get_plan_user_id(operator_id)
     return redmine_lib.rm_post_relation(issue_id, issue_to_id, plan_operator_id)
 
 
 def put_issue_relation(issue_id, issue_to_ids, operator_id):
-    plan_operator_id =__get_plan_user_id(operator_id)
-    input_set= set()
+    plan_operator_id = __get_plan_user_id(operator_id)
+    input_set = set()
     origin_set = set()
     for issue_to_id in issue_to_ids:
         input_set.add(frozenset({issue_id, issue_to_id}))
@@ -1373,7 +1388,7 @@ def put_issue_relation(issue_id, issue_to_ids, operator_id):
             need_del = list(need_del)
             for relation in relations:
                 if (relation['issue_id'] == need_del[0] and relation['issue_to_id'] == need_del[1]) or \
-                    (relation['issue_id'] == need_del[1] and relation['issue_to_id'] == need_del[0]):
+                        (relation['issue_id'] == need_del[1] and relation['issue_to_id'] == need_del[0]):
                     redmine_lib.rm_delete_relation(relation['id'], plan_operator_id)
     need_add_set = input_set - origin_set
     for need_add in list(need_add_set):
@@ -1382,7 +1397,7 @@ def put_issue_relation(issue_id, issue_to_ids, operator_id):
 
 
 def delete_issue_relation(relation_id, operator_id):
-    plan_operator_id =__get_plan_user_id(operator_id)
+    plan_operator_id = __get_plan_user_id(operator_id)
     return redmine_lib.rm_delete_relation(relation_id, plan_operator_id)
 
 
@@ -1423,6 +1438,82 @@ def check_issue_closable(issue_id):
     else:
         return True
 
+
+def execute_issue_alert(alert_mapping):
+    '''
+    若符合設定條件, 則會在該議題下新增留言
+    條件: 1.Alert裡的condition 2.議題狀態並不是關閉
+    因新增提醒會將issue的update_on更新, 故另外創建AlertUnchangeRecord
+    來儲存update_on
+    '''
+    for project_id, alerts in alert_mapping.items():
+        plan_project_id = project.get_plan_project_id(project_id)
+        issues = redmine.rm_get_issues_by_project(plan_project_id)
+        for issue in issues:
+            if issue["status"]["id"] != 6:
+                for alert in alerts:
+                    note = None
+                    condition = alert["condition"]
+                    days = alert["days"]
+                    issue_id = issue["id"]
+                    if condition == "unchange":
+                        common_note = f'已超過{days}天未異動'
+                        update_time = datetime.strptime(issue["updated_on"][0:10], "%Y-%m-%d")
+                        alert_unchange_record = model.AlertUnchangeRecord.query.filter_by(
+                            project_id=project_id, issue_id=issue_id).first()
+                        # 首次新增, 儲存當下時間(after_update_time)與實際更新時間(before_update_time)
+                        if alert_unchange_record is None:
+                            delta = update_time - util.get_certain_date_from_now(days)
+                            if delta.days <= 0:
+                                note = common_note
+                                new = model.AlertUnchangeRecord(
+                                    project_id=project_id, 
+                                    issue_id=issue_id,
+                                    before_update_time=update_time,
+                                    after_update_time=util.get_certain_date_from_now(0)
+                                )
+                                db.session.add(new)
+                                db.session.commit()
+                        else:
+                            # 若before_update_time是None, 表示該issue已經重新計算
+                            if alert_unchange_record.before_update_time is None:
+                                delta = update_time - util.get_certain_date_from_now(days)
+                                if delta.days <= 0:
+                                    note = common_note     
+                                    alert_unchange_record.before_update_time = update_time
+                                    alert_unchange_record.after_update_time = util.get_certain_date_from_now(0)
+                                    db.session.commit()
+                            else:
+                                if alert_unchange_record.after_update_time == update_time:
+                                    delta = alert_unchange_record.before_update_time - util.get_certain_date_from_now(days)
+                                    if delta.days <= 0:
+                                        note = common_note 
+                                        alert_unchange_record.after_update_time = util.get_certain_date_from_now(0)  
+                                        db.session.commit()      
+                                else:
+                                    delta = update_time - util.get_certain_date_from_now(days)
+                                    if delta.days <= 0:
+                                        note = common_note 
+                                        alert_unchange_record.before_update_time = update_time
+                                        alert_unchange_record.after_update_time = util.get_certain_date_from_now(0)
+                                    else:
+                                        alert_unchange_record.before_update_time = None
+                                    db.session.commit()  
+                    if condition == "comming":
+                        if issue.get("due_date") is None:
+                            continue
+                        delta = util.get_certain_date_from_now(-days) - datetime.strptime(issue["due_date"], "%Y-%m-%d")
+                        if delta.days >= 0: 
+                            d_day = days - delta.days    
+                            if d_day >= 0:
+                                note = f'{d_day}天即將到期'
+                            else:
+                                note = f'已經過期{-d_day}天'
+                    if note is not None:
+                        update_issue(
+                            issue_id, 
+                            {"notes": f'本議題 #{issue_id} {issue["subject"]} {note} ，請確認該議題是否繼續執行？或更新狀態？'}, 
+                        )
 
 # --------------------- Resources ---------------------
 class SingleIssue(Resource):
@@ -1506,7 +1597,6 @@ class SingleIssue(Resource):
 
     @jwt_required
     def delete(self, issue_id):
-        require_issue_visible(issue_id)
         return delete_issue(issue_id)
 
 
@@ -1639,8 +1729,9 @@ class IssueTracker(Resource):
 class IssueFamily(Resource):
     @jwt_required
     def get(self, issue_id):
-        require_issue_visible(issue_id)
-        family = get_issue_family(issue_id, relation=True)
+        redmine_issue = redmine_lib.redmine.issue.get(issue_id, include=['children', 'relations'])
+        require_issue_visible(issue_id, issue_info=NexusIssue().set_redmine_issue_v2(redmine_issue).to_json())
+        family = get_issue_family(redmine_issue)
         return util.success(family)
 
 
@@ -1885,7 +1976,7 @@ class Relation(Resource):
         parser.add_argument('issue_id', type=int, required=True)
         parser.add_argument('issue_to_id', type=int, required=True)
         args = parser.parse_args()
-        output = post_issue_relation(args['issue_id'], args['issue_to_id'] , get_jwt_identity()['user_id'])
+        output = post_issue_relation(args['issue_id'], args['issue_to_id'], get_jwt_identity()['user_id'])
         return util.success(output)
 
     @jwt_required
@@ -1908,3 +1999,15 @@ class CheckIssueClosable(Resource):
     def get(self, issue_id):
         output = check_issue_closable(issue_id)
         return util.success(output)
+
+
+class ExecutIssueAlert(Resource):
+    def post(self):
+        alert_mapping = {}
+        alerts = model.Alert.query.filter_by(disabled=False)
+        alerts = [alert for alert in alerts if model.Project.query.get(alert.project_id).alert]
+        for alert in alerts:
+            alert_mapping.setdefault(alert.project_id, []).append(
+                {"condition": alert.condition, "days": alert.days})
+
+        return util.success(execute_issue_alert(alert_mapping))
