@@ -149,6 +149,15 @@ class CheckMarx(object):
             mimetype="Content-Type: application/pdf; charset={r.encoding}"
         )
 
+    def get_report_content(self, report_id):
+        row = Model.query.filter_by(report_id=report_id).one()
+        if not row.finished:
+            status, _ = self.get_report_status(report_id)
+            if status != 2:
+                return {'message': 'Report is not available yet'}, 400
+        r = self.__api_get('/reports/sastScan/{0}'.format(report_id))
+        return r.content
+
     @staticmethod
     def get_latest(column, project_id):
         try:

@@ -7,7 +7,6 @@ import config
 import model
 import resources.project as project
 import resources.issue as issue
-from resources import logger
 
 from copy import deepcopy
 from resources.issue import NexusIssue
@@ -405,30 +404,19 @@ class TraceList:
             current_num = 0
             self.update_trace_result(current_num=0, execute_time=datetime.utcnow().isoformat(), exception=None)
 
-            # util.tick 是用來debug用的
-            util.tick(message='head_begin', init=True, use_logger=True)
             self.generate_head_mapping()
-            util.tick(message='head_end', use_logger=True)
-
             current_num += 1
             self.update_trace_result(current_num=current_num)
 
             for i in range(order_length - 2):
-                util.tick(message=f'mid{i+1}_begin', init=True, use_logger=True)
                 self.generate_middle_mapping(i + 1)
-                util.tick(message=f'mid{i+1}_end', use_logger=True)
-
                 current_num += 1
                 self.update_trace_result(current_num=current_num)
 
-            util.tick(message=f'fianl_begin', init=True, use_logger=True)
             self.generate_final_mapping()
-            util.tick(message=f'fianl_end', use_logger=True)
-
             current_num += 1
             self.update_trace_result(current_num=current_num, results=self.result, finish_time=datetime.utcnow().isoformat())
         except Exception as e:
-            logger.logger.exception(str(e))
             self.update_trace_result(exception=str(e))
         finally:
             self.lock.release()
@@ -464,7 +452,7 @@ def get_trace_result(project_id):
     ret["total_num"] = len(order)
     return ret
 
-def initial_trace_result(project_id, order_length):
+def initial_trace_result(project_id):
     trace_result = TraceResult.query.filter_by(
         project_id=project_id,
     ).first()
@@ -474,10 +462,6 @@ def initial_trace_result(project_id, order_length):
         )
         db.session.add(query)
         db.session.commit()
-
-    elif trace_result.current_num != order_length and trace_result.exception is None:
-        raise DevOpsError(400, "You can not execute trace order when the previous one is in progress.",
-                          error=apiError.no_detail()) 
 
 # --------------------- Resources ---------------------
 class TraceOrders(Resource):
@@ -523,7 +507,6 @@ class ExecuteTraceOrder(Resource):
         project_id = args["project_id"]
         order = get_order(project_id)
         plan_project_id = project.get_plan_project_id(project_id)
-        order_length = len(order)
 
         trackers = redmine_lib.redmine.tracker.all()
         issues = redmine_lib.redmine.issue.filter(
@@ -538,11 +521,11 @@ class ExecuteTraceOrder(Resource):
             "status": {"id": issue.status.id, "name": issue.status.name}, 
         } for issue in issues}
 
-        initial_trace_result(project_id, order_length)
+        initial_trace_result(project_id)
 
         lock = threading.Lock()
 
-        thread = threading.Thread(target=TraceList(project_id, order, issues, lock).execute_trace_order, args=(order_length,))
+        thread = threading.Thread(target=TraceList(project_id, order, issues, lock).execute_trace_order, args=(len(order),))
         thread.start()
         return {"message": "success"}
 

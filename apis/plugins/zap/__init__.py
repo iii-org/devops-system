@@ -79,6 +79,14 @@ def zap_get_latest_test(project_id):
     return ret
 
 
+def zap_get_latest_full_log(project_name):
+    row = model.Zap.query.filter_by(
+        project_name=project_name).order_by(desc(model.Zap.id)).first()
+    if row is None:
+        return None
+    return row.full_log
+
+
 def process_row(row, project_id):
     if row.status == 'Scanning':
         # 12 hour timeout

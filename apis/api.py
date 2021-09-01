@@ -415,6 +415,8 @@ api.add_resource(apiTest.TestValue, '/testValues/<value_id>')
 # Integrated test results
 api.add_resource(project.TestSummary,
                  '/project/<sint:project_id>/test_summary')
+api.add_resource(project.AllReports,
+                 '/project/<sint:project_id>/test_reports')
 api.add_resource(cicd.CommitCicdSummary,
                  '/project/<sint:project_id>/test_summary/<commit_id>')
 

@@ -1,7 +1,10 @@
 import ast
 import re
+import zipfile
 from datetime import datetime
+from io import BytesIO
 
+from flask import send_file
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
 from kubernetes.client import ApiException
@@ -678,6 +681,53 @@ def get_test_summary(project_id):
     return util.success({'test_results': ret})
 
 
+def get_all_reports(project_id):
+    project_name = nexus.nx_get_project(id=project_id).name
+    memory_file = BytesIO()
+    with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zf:
+        # newman
+        if not plugins.get_plugin_config('postman')['disabled']:
+            row = model.TestResults.query.filter_by(project_id=project_id).order_by(desc(
+                model.TestResults.id)).limit(1).first()
+            if row is not None:
+                zf.writestr('postman.json', row.report)
+
+        # checkmarx
+        if not plugins.get_plugin_config('checkmarx')['disabled']:
+            report_id = checkmarx.get_latest('report_id', project_id)
+            if report_id is not None:
+                zf.writestr('checkmarx.pdf', checkmarx.get_report_content(report_id))
+
+        # webinspect
+        if not plugins.get_plugin_config('webinspect')['disabled']:
+            scans = webinspect.wi_list_scans(project_name)
+            scan_id = None
+            for scan in scans:
+                if type(scan['stats']) is dict and scan['stats']['status'] == 'Complete':
+                    scan_id = scan['scan_id']
+                    break
+            if scan_id is not None:
+                xml = webinspect.wix_get_report(scan_id)
+                if xml is not None:
+                    zf.writestr('webinspect.xml', xml)
+
+        if not plugins.get_plugin_config('sonarqube')['disabled']:
+            zf.writestr('sonarqube.json', str(sonarqube.sq_get_current_measures(project_name)))
+
+        if not plugins.get_plugin_config('zap')['disabled']:
+            report = zap.zap_get_latest_full_log(project_name)
+            if report is not None:
+                zf.writestr('zap.html', report)
+
+        if not plugins.get_plugin_config('sideex')['disabled']:
+            test_id = sideex.sd_get_latest_test(project_id).get('id', None)
+            if test_id is not None:
+                zf.writestr('sideex.html', sideex.sd_get_report(test_id))
+
+    memory_file.seek(0)
+    return memory_file
+
+
 def get_kubernetes_namespace_Quota(project_id):
     project_name = str(model.Project.query.filter_by(
         id=project_id).first().name)
@@ -1127,6 +1177,15 @@ class TestSummary(Resource):
         role.require_pm()
         role.require_in_project(project_id)
         return get_test_summary(project_id)
+
+
+class AllReports(Resource):
+    @jwt_required
+    def get(self, project_id):
+        role.require_pm()
+        role.require_in_project(project_id)
+        return send_file(get_all_reports(project_id),
+                         attachment_filename='reports.zip', as_attachment=True)
 
 
 class ProjectFile(Resource):

@@ -161,6 +161,13 @@ def wix_download_report(scan_id):
         return wi_download_report(scan_id)
 
 
+def wix_get_report(scan_id):
+    if is_wie():
+        return wie_instance().get_report(scan_id)
+    else:
+        return wi_get_report(scan_id)
+
+
 def wi_download_report(scan_id):
     xml = wi_api_get('/scanner/scans/{0}.xml?detailType=Full'.format(
         scan_id)).content
@@ -170,6 +177,11 @@ def wi_download_report(scan_id):
     response.headers.set(
         'Content-Disposition', 'attachment', filename='report-{0}.xml'.format(scan_id))
     return response
+
+
+def wi_get_report(scan_id):
+    return wi_api_get('/scanner/scans/{0}.xml?detailType=Full'.format(
+        scan_id)).content
 
 
 class WIE:
@@ -218,6 +230,9 @@ class WIE:
         response.headers.set(
             'Content-Disposition', 'attachment', filename='report-{0}.xml'.format(scan_id))
         return response
+
+    def get_report(self, scan_id):
+        return wi_api_get(f'/v2/scans/{scan_id}/export?type=xml', headers=self.cookie_header()).content
 
 
 # --------------------- Resources ---------------------
