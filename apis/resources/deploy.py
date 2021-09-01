@@ -52,10 +52,10 @@ def get_environments_value(items, value_type):
     for item in items:
         #  config map
         if item.get('type') == value_type and value_type == 'configmap':
-            out_dict[item.get('key')] = str(item.get('value'))
+            out_dict[str(item.get('key')).strip()] = str(item.get('value')).strip()
         #  secret
         elif item.get('type') == value_type and value_type == 'secret':
-            out_dict[item.get('key')] = util.base64encode(item.get('value'))
+            out_dict[str(item.get('key')).strip()] = str(util.base64encode(item.get('value'))).strip()
     return out_dict
 
 
@@ -347,13 +347,19 @@ def create_default_harbor_data(project, db_release, registry_id, namespace):
 
 
 # Remove Object Key with Target
-def remove_object_key_by_value(items, target=""):
+def remove_object_key_by_value(items, target=None):
     output = {}
     if items is None:
         return output
     for key in items.keys():
-        if items[key] != target:
-            output[key] = items[key]
+        m_key = str(key).strip()
+        m_value = items[key]
+        if isinstance(items[key], int) is not True:
+            m_value = str(items[key]).strip()
+        if target is None:
+            output[m_key] = m_value
+        elif items[key] != target:
+            output[m_key] = m_value
     return output
 
 
@@ -368,21 +374,22 @@ def create_default_k8s_data(db_project, db_release, args):
         "image": args.get('image', {"policy": "Always"}),
         "status_id": 1
     }
-    resources = remove_object_key_by_value(args.get('resources', {}))
+    resources = remove_object_key_by_value(args.get('resources', {}),"")
     if resources != {}:
         k8s_data['resources'] = resources
 
-    network = remove_object_key_by_value(args.get('network', {}))
+    network = remove_object_key_by_value(args.get('network', {}),"")
     if network != {}:
         k8s_data['network'] = network
+
     environments = args.get('environments', None)
     if environments is not None:
         items = []
         for env in environments:
             items.append(env)
-            # item = remove_object_key_by_value(env)
-            # if item is not None:
-            #     items.append(item)
+            item = remove_object_key_by_value(env)
+            if item is not None:
+                items.append(item)
         if len(items) > 0:
             k8s_data['environments'] = items
     return k8s_data
