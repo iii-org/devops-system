@@ -50,8 +50,10 @@ def is_json(string):
 def get_environments_value(items, value_type):
     out_dict = {}
     for item in items:
+        #  config map
         if item.get('type') == value_type and value_type == 'configmap':
-            out_dict[item.get('key')] = item.get('value')
+            out_dict[item.get('key')] = str(item.get('value'))
+        #  secret
         elif item.get('type') == value_type and value_type == 'secret':
             out_dict[item.get('key')] = util.base64encode(item.get('value'))
     return out_dict
@@ -613,7 +615,7 @@ def init_resource_requirements(resources):
         return k8s_client.V1ResourceRequirements()
     else:
         return k8s_client.V1ResourceRequirements(
-            requests={
+            limits={
                 'cpu': resources.get('cpu'),
                 'memory': resources.get('memory')
             }
