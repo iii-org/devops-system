@@ -379,9 +379,10 @@ def create_default_k8s_data(db_project, db_release, args):
     if environments is not None:
         items = []
         for env in environments:
-            item = remove_object_key_by_value(env)
-            if item is not None:
-                items.append(item)
+            items.append(env)
+            # item = remove_object_key_by_value(env)
+            # if item is not None:
+            #     items.append(item)
         if len(items) > 0:
             k8s_data['environments'] = items
     return k8s_data
