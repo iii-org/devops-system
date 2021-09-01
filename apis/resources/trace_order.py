@@ -452,7 +452,7 @@ def get_trace_result(project_id):
     ret["total_num"] = len(order)
     return ret
 
-def initial_trace_result(project_id):
+def initial_trace_result(project_id, order_length):
     trace_result = TraceResult.query.filter_by(
         project_id=project_id,
     ).first()
@@ -462,6 +462,10 @@ def initial_trace_result(project_id):
         )
         db.session.add(query)
         db.session.commit()
+
+    elif trace_result.current_num != order_length and trace_result.exception is None:
+        raise DevOpsError(400, "You can not execute trace order when the previous one is in progress.",
+                          error=apiError.no_detail()) 
 
 # --------------------- Resources ---------------------
 class TraceOrders(Resource):
@@ -507,6 +511,7 @@ class ExecuteTraceOrder(Resource):
         project_id = args["project_id"]
         order = get_order(project_id)
         plan_project_id = project.get_plan_project_id(project_id)
+        order_length = len(order)
 
         trackers = redmine_lib.redmine.tracker.all()
         issues = redmine_lib.redmine.issue.filter(
@@ -521,11 +526,11 @@ class ExecuteTraceOrder(Resource):
             "status": {"id": issue.status.id, "name": issue.status.name}, 
         } for issue in issues}
 
-        initial_trace_result(project_id)
+        initial_trace_result(project_id, order_length)
 
         lock = threading.Lock()
 
-        thread = threading.Thread(target=TraceList(project_id, order, issues, lock).execute_trace_order, args=(len(order),))
+        thread = threading.Thread(target=TraceList(project_id, order, issues, lock).execute_trace_order, args=(order_length,))
         thread.start()
         return {"message": "success"}
 
