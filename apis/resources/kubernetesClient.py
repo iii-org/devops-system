@@ -1203,7 +1203,9 @@ def list_namespace_services_by_iii(namespace):
                 service_info['name'] = service.metadata.name
                 service_info['service_selector'] = service.spec.selector
                 service_info['service_type'] = annotations[iii_template['type']]
-                service_info['public_endpoints'] = analysis_annotations_public_endpoint(
+                # service_info['public_endpoints'] = analysis_annotations_public_endpoint(
+                #     annotations['field.cattle.io/publicEndpoints'])
+                service_info['public_endpoints'] = json.loads(
                     annotations['field.cattle.io/publicEndpoints'])
                 service_info['url'] = map_port_and_public_endpoint(
                     service.spec.ports, service_info['public_endpoints'],
@@ -1287,7 +1289,7 @@ def check_service_map_container(container_port, services):
         services_info = []
         for service in services:
             if service['port_name'] == container_port['name'] or service['target_port'] == container_port[
-                    'container_port']:
+                'container_port']:
                 services_info.append(service)
         return services_info
     except apiError.DevOpsError as e:
@@ -1317,35 +1319,21 @@ def get_spec_container_ports(ports):
         if e.status_code != 404:
             raise e
 
-
-def analysis_annotations_public_endpoint(public_endpoints):
-    try:
-        list_public_endpoints = []
-        for public_endpoint in json.loads(public_endpoints):
-            public_info = {}
-            if "hostname" in public_endpoint:
-                public_info['hostname'] = public_endpoint['hostname']
-            else:
-                public_info['address'] = public_endpoint['addresses']
-            list_public_endpoints.append(public_info)
-        return list_public_endpoints
-    except apiError.DevOpsError as e:
-        if e.status_code != 404:
-            raise e
-
-
 def map_port_and_public_endpoint(ports, public_endpoints, service_type='', namespace='', branch=''):
     try:
         info = []
         for port in ports:
             for public_endpoint in public_endpoints:
                 url_info = {}
-                url_info['port_name'] = port.name
-                url_info['target_port'], url_info['port'] = identify_target_port(
-                    port.target_port, port.port)
-                url_info['url'] = identify_external_url(public_endpoint, port.node_port,
-                                                        service_type, namespace, branch)
-                info.append(url_info)
+                if getattr(port, 'node_port') == public_endpoint.get('port'):
+                    url_info['port_name'] = getattr(port, 'name')
+                    url_info['target_port'], url_info['port'] = identify_target_port(
+                        getattr(port, 'target_port'),
+                        getattr(port, 'port')
+                    )
+                    url_info['url'] = identify_external_url(public_endpoint, port.node_port,
+                                                            service_type, namespace, branch)
+                    info.append(url_info)
         return info
     except apiError.DevOpsError as e:
         if e.status_code != 404:
@@ -1390,7 +1378,7 @@ def identify_external_url(public_endpoint, node_port, service_type='', namespace
         else:
             if service_type != 'db-server':
                 external_url_format = http_base
-            for address in public_endpoint['address']:
+            for address in public_endpoint['addresses']:
                 url.append(f"{external_url_format}{address}:{node_port}")
         return url
     except apiError.DevOpsError as e:
