@@ -600,15 +600,9 @@ def get_issue_list_by_project(project_id, args):
                           error=apiError.project_not_found(project_id))
 
     default_filters = get_custom_filters_by_args(args, project_id=plan_id, children=True)
-    # multiple_assigned_to = True，代表 filter 跟 assigned_to_id 為不同的 user id
-    if default_filters.get('multiple_assigned_to', None) and default_filters['multiple_assigned_to']:
-        return []
-        # 指定 assigned_to_id 又不存在 multiple_assigned_to 的情況下，
-        # default_filters 帶 search ，但沒有取得 issued_id，搜尋結果為空
-    elif args.get('search') is not None and default_filters.get('issue_id') is None:
-        if default_filters.get('assigned_to_id') is None:
-            return []
-        if default_filters.get('assigned_to_id') is not None and 'multiple_assigned_to' not in default_filters:
+    # default_filters 帶 search ，但沒有取得 issued_id，搜尋結果為空
+    if args.get('search') is not None and default_filters.get('issue_id') is None:
+        if args.get("assigned_to_id") is None:
             return []
     all_issues = redmine_lib.redmine.issue.filter(**default_filters)
     # 透過 selection params 決定是否顯示 family bool 欄位
@@ -647,18 +641,9 @@ def get_issue_list_by_user(user_id, args):
         default_filters = get_custom_filters_by_args(args, user_id=nx_user.plan_user_id)
     if args.get('from') not in ['author_id', 'assigned_to_id']:
         return []
-    # multiple_assigned_to = True，代表 filter 跟 assigned_to_id 為不同的 user id
-    elif default_filters.get('multiple_assigned_to', None) and default_filters['multiple_assigned_to']:
-
-        return []
-        # from author_id 又不存在 multiple_assigned_to 的情況下，
-        # default_filters 帶 search ，但沒有取得 issued_id，搜尋結果為空
+    # default_filters 帶 search ，但沒有取得 issued_id，搜尋結果為空
     elif args.get('search') and default_filters.get('issue_id') is None:
-        # return []
-        if args.get('from') == 'assigned_to_id':
-            return []
-        if args.get('from') == 'author_id' and 'multiple_assigned_to' not in default_filters:
-            return []
+        return []
 
     all_issues = redmine_lib.redmine.issue.filter(**default_filters)
     # 透過 selection params 決定是否顯示 family bool 欄位
@@ -815,21 +800,14 @@ def get_issue_assigned_to_search(default_filters, args):
     ), model.ProjectUserRole.role_id != 6).all()
     if nx_user_list:
         for nx_user in nx_user_list:
-            # 判斷是否多重 assigned_to 的預設值
-            default_filters['multiple_assigned_to'] = False
-            # 如果有指定 assigned_to_id，判斷是否跟 search 找到的 user 為相同 user_id
-            if args.get('assigned_to_id') or args.get('from') == 'assigned_to_id':
+            # 如果有指定 assigned_to_id，或from是assign_to_id, 回傳空array
+            if args.get('assigned_to_id'):
                 return assigned_to_issue
-            #     if nx_user.user_id != int(args['assigned_to_id']):
-            #         default_filters['multiple_assigned_to'] = True
-            #     return assigned_to_issue
-            # # 如果 from 使用的是 assigned_to_id，判斷 url 帶的 user_id 是否跟 search 找到的 user 為相同 user_id
-            # elif args.get('from') == 'assigned_to_id':
-            #     if nx_user.user_id != args['nx_user_id']:
-            #         default_filters['multiple_assigned_to'] = True
-            #         return assigned_to_issue
-            #     else:
-            #         all_issues = redmine_lib.redmine.issue.filter(**default_filters)
+            elif args.get('from') == 'assigned_to_id':
+                if nx_user.user_id != args['nx_user_id']:
+                    continue
+                else:
+                    all_issues = redmine_lib.redmine.issue.filter(**default_filters)
             else:
                 all_issues = redmine_lib.redmine.issue.filter(**default_filters, assigned_to_id=nx_user.plan_user_id)
             assigned_to_issue.extend([issue.id for issue in all_issues])
