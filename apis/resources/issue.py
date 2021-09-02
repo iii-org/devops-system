@@ -649,10 +649,12 @@ def get_issue_list_by_user(user_id, args):
         return []
     # multiple_assigned_to = True，代表 filter 跟 assigned_to_id 為不同的 user id
     elif default_filters.get('multiple_assigned_to', None) and default_filters['multiple_assigned_to']:
+
         return []
         # from author_id 又不存在 multiple_assigned_to 的情況下，
         # default_filters 帶 search ，但沒有取得 issued_id，搜尋結果為空
     elif args.get('search') and default_filters.get('issue_id') is None:
+        # return []
         if args.get('from') == 'assigned_to_id':
             return []
         if args.get('from') == 'author_id' and 'multiple_assigned_to' not in default_filters:
@@ -725,19 +727,19 @@ def get_custom_filters_by_args(args=None, project_id=None, user_id=None, childre
         default_filters['project_id'] = project_id
     if args:
         if user_id:
-            if args.get('from', None) in ['author_id', 'assigned_to_id']:
+            if args.get('from') in ['author_id', 'assigned_to_id']:
                 default_filters[args['from']] = user_id
             # 如果 from 已經指定 assigned_to_id，但是 params 又有 assigned_to_id 的時候，要從 args 刪除
-            if args.get('assigned_to_id', None) and args.get('from', None) == 'assigned_to_id':
-                args.pop('assigned_to_id', None)
+            if args.get('assigned_to_id') and args.get('from') == 'assigned_to_id':
+                args.pop('assigned_to_id')
         handle_allowed_keywords(default_filters, args)
-        if args.get('search', None):
+        if args.get('search'):
             handle_search(default_filters, args)
         # offset 可能為 0
-        if args.get('limit', None) and args.get('offset') is not None:
+        if args.get('limit') and args.get('offset') is not None:
             default_filters['limit'] = args['limit']
             default_filters['offset'] = args['offset']
-        if args.get('sort', None):
+        if args.get('sort'):
             default_filters['sort'] = args['sort']
         if args.get('due_date_start') or args.get('due_date_end'):
             if args.get('due_date_start') and args.get('due_date_end'):
@@ -794,7 +796,7 @@ def handle_search(default_filters, args):
         if len(search_issue_id):
             result.extend([issue.id for issue in search_issue_id])
     # 去除重複 id
-    set(result)
+    result = list(set(result))
     if result:
         # issue filter 多個 issue_id 只接受逗號分隔的字串
         issue_id = ','.join(str(id) for id in result)
@@ -816,17 +818,18 @@ def get_issue_assigned_to_search(default_filters, args):
             # 判斷是否多重 assigned_to 的預設值
             default_filters['multiple_assigned_to'] = False
             # 如果有指定 assigned_to_id，判斷是否跟 search 找到的 user 為相同 user_id
-            if args.get('assigned_to_id', None):
-                if nx_user.user_id != int(args['assigned_to_id']):
-                    default_filters['multiple_assigned_to'] = True
+            if args.get('assigned_to_id') or args.get('from') == 'assigned_to_id':
                 return assigned_to_issue
-            # 如果 from 使用的是 assigned_to_id，判斷 url 帶的 user_id 是否跟 search 找到的 user 為相同 user_id
-            elif args.get('from') == 'assigned_to_id':
-                if nx_user.user_id != args['nx_user_id']:
-                    default_filters['multiple_assigned_to'] = True
-                    return assigned_to_issue
-                else:
-                    all_issues = redmine_lib.redmine.issue.filter(**default_filters)
+            #     if nx_user.user_id != int(args['assigned_to_id']):
+            #         default_filters['multiple_assigned_to'] = True
+            #     return assigned_to_issue
+            # # 如果 from 使用的是 assigned_to_id，判斷 url 帶的 user_id 是否跟 search 找到的 user 為相同 user_id
+            # elif args.get('from') == 'assigned_to_id':
+            #     if nx_user.user_id != args['nx_user_id']:
+            #         default_filters['multiple_assigned_to'] = True
+            #         return assigned_to_issue
+            #     else:
+            #         all_issues = redmine_lib.redmine.issue.filter(**default_filters)
             else:
                 all_issues = redmine_lib.redmine.issue.filter(**default_filters, assigned_to_id=nx_user.plan_user_id)
             assigned_to_issue.extend([issue.id for issue in all_issues])

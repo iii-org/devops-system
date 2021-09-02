@@ -6,6 +6,7 @@ import numpy as np
 from io import BytesIO
 from flask import send_file
 import copy
+import re
 
 import model
 import util as util
@@ -47,6 +48,7 @@ paths = [{
     "file_name_key": "sideex"
 }]
 
+filename_validate_mapping = {"Postman": ".postman_collection.json$", "SideeX": ".sideex.json$"}
 
 class PostmanJSON:
     def __init__(self, input_dict):
@@ -256,6 +258,16 @@ def qu_del_testplan_testfile_relate_list(project_id, item_id):
 
 
 def qu_upload_testfile(project_id, file, software_name):
+    file_name = file.filename
+    if re.search(filename_validate_mapping[software_name], file_name) is None:
+        validate_form = filename_validate_mapping[software_name].split("$")[0]
+        raise apiError.DevOpsError(
+            409, f"Filename must end up with {validate_form}.", error=apiError.argument_error("test_file")
+        )
+    if re.search('[*?"< >|#}{%~&]', file_name) is not None:
+        raise apiError.DevOpsError(
+            409, 'Filename must not include special characters *?"<>|#}{%~&', error=apiError.argument_error("test_file")
+        )
     repository_id = nx_get_project_plugin_relation(
         nexus_project_id=project_id).git_repository_id
     soft_path = next(path for path in paths
@@ -263,13 +275,15 @@ def qu_upload_testfile(project_id, file, software_name):
     trees = gitlab.ql_get_tree(repository_id, soft_path['path'])
     if len(trees) == 0:
         raise apiError.DevOpsError(
-            409, f"folder {soft_path['path']} not found in git repository")
+            409, f"folder {soft_path['path']} not found in git repository", error=apiError.argument_error("test_file")
+        )
     file_exist = next(
-        (True for tree in trees if tree["name"] == file.filename), False)
+        (True for tree in trees if tree["name"] == file_name), False)
     if file_exist:
         raise apiError.DevOpsError(
-            409, f"Test File {file.filename} already exists in git repository")
-    file_path = f"{soft_path['path']}/{file.filename}"
+            409, f"Test File {file_name} already exists in git repository", error=apiError.argument_error("test_file")
+        )
+    file_path = f"{soft_path['path']}/{file_name}"
     next_run = pipeline.get_pipeline_next_run(repository_id)
     gitlab.gl_create_file(repository_id, file_path, file)
     pipeline.stop_and_delete_pipeline(repository_id, next_run)
@@ -459,8 +473,7 @@ class TestFile(Resource):
                             location='files',
                             required=True)
         args = parser.parse_args()
-        qu_upload_testfile(project_id, args['test_file'], software_name)
-        return util.success()
+        return util.success(qu_upload_testfile(project_id, args['test_file'], software_name))
 
     def delete(self, project_id, software_name, test_file_name):
         qu_del_testfile(project_id, software_name, test_file_name)
