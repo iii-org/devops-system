@@ -18,11 +18,12 @@ import resources.apiError as apiError
 from resources.logger import logger
 
 # kubernetes 抓取 III 定義 annotations 標籤
-iii_template = {}
-iii_template['project_name'] = 'iiidevops.org/project_name'
-iii_template['branch'] = 'iiidevops.org/branch'
-iii_template['commit_id'] = 'iiidevops.org/commit_id'
-iii_template['type'] = 'iiidevops.org/type'
+iii_template = {
+    'project_name': 'iiidevops.org/project_name',
+    'branch': 'iiidevops.org/branch',
+    'commit_id': 'iiidevops.org/commit_id',
+    'type': 'iiidevops.org/type'
+}
 
 iii_env_default = ['gitlab-bot',
                    'gitlab',
@@ -1019,15 +1020,15 @@ def list_namespace_ingresses(namespace):
     try:
         list_ingresses = []
         for ingress in ApiK8sClient().list_namespaced_ingress(namespace).items:
-            ingress_info = {}
-            ingress_info["name"] = ingress.metadata.name
-            ingress_info["created_time"] = str(
-                ingress.metadata.creation_timestamp)
+            ingress_info = {
+                "name": ingress.metadata.name,
+                "created_time": str(ingress.metadata.creation_timestamp)
+            }
             ip = None
             if ingress.status.load_balancer.ingress is not None:
                 ip = ingress.status.load_balancer.ingress[0].ip
             ingress_info["ingress_list"] = map_ingress_with_host(
-                ingress.spec.rules, ip)
+                ingress.spec.rules)
             ingress_info["tls"] = ingress.spec.tls
             list_ingresses.append(ingress_info)
         return list_ingresses
@@ -1044,11 +1045,10 @@ def check_ingress_exist(namespace, branch):
     return False
 
 
-def map_ingress_with_host(rules, ip):
+def map_ingress_with_host(rules):
     try:
         info = []
         for rule in rules:
-            hostname = ip
             if rule.host is not None:
                 hostname = rule.host
                 for path in rule.http.paths:
@@ -1076,11 +1076,12 @@ def list_dev_environment_by_branch(namespace, git_url):
             if is_iii is True and pod.status.container_statuses is not None:
                 pods_info, environment = check_iii_project_branch_key_exist(
                     pod.metadata, pods_info, git_url, 'pods')
-                pod_info = {}
-                pod_info['app_name'] = labels['app']
-                pod_info['pod_name'] = pod.metadata.name
-                pod_info['type'] = annotations[iii_template['type']]
-                pod_info['containers'] = []
+                pod_info = {
+                    'app_name': labels['app'],
+                    'pod_name': pod.metadata.name,
+                    'type': annotations[iii_template['type']],
+                    'containers': []
+                }
                 namespace_services_info = get_list_service_match_pods_labels(
                     list_services, labels, environment)
                 container_status_info = get_list_container_statuses(
@@ -1166,11 +1167,11 @@ def get_list_container_statuses(container_statuses):
 
 def secret_info_by_iii(secret):
     try:
-        info = {}
-        info['is_iii'] = check_if_iii_default(
-            secret.metadata.name, secret.type)
-        info['name'] = secret.metadata.name
-        info['data'] = secret.data
+        info = {
+            'is_iii': check_if_iii_default(secret.metadata.name, secret.type),
+            'name': secret.metadata.name,
+            'data': secret.data
+        }
         return info
     except apiError.DevOpsError as e:
         if e.status_code != 404:
@@ -1179,10 +1180,11 @@ def secret_info_by_iii(secret):
 
 def configmap_info_by_iii(configmap):
     try:
-        info = {}
-        info['is_iii'] = check_if_iii_default(configmap.metadata.name)
-        info['name'] = configmap.metadata.name
-        info['data'] = configmap.data
+        info = {
+            'is_iii': check_if_iii_default(configmap.metadata.name),
+            'name': configmap.metadata.name,
+            'data': configmap.data
+        }
         return info
     except apiError.DevOpsError as e:
         if e.status_code != 404:
@@ -1196,21 +1198,25 @@ def list_namespace_services_by_iii(namespace):
             annotations = service.metadata.annotations
             is_iii = check_if_iii_template(service.metadata)
             if is_iii is True:
-                list_services, environment = check_iii_project_branch_key_exist(service.metadata, list_services, '',
-                                                                                'services')
-                service_info = {}
-                service_info['type'] = service.spec.type
-                service_info['name'] = service.metadata.name
-                service_info['service_selector'] = service.spec.selector
-                service_info['service_type'] = annotations[iii_template['type']]
-                # service_info['public_endpoints'] = analysis_annotations_public_endpoint(
-                #     annotations['field.cattle.io/publicEndpoints'])
-                service_info['public_endpoints'] = json.loads(
-                    annotations['field.cattle.io/publicEndpoints'])
+                list_services, environment = check_iii_project_branch_key_exist(
+                    service.metadata,
+                    list_services,
+                    '',
+                    'services')
+                service_info = {
+                    'type': service.spec.type,
+                    'name': service.metadata.name,
+                    'service_selector': service.spec.selector,
+                    'service_type': annotations[iii_template['type']],
+                    'public_endpoints': json.loads(annotations['field.cattle.io/publicEndpoints'])
+                }
                 service_info['url'] = map_port_and_public_endpoint(
-                    service.spec.ports, service_info['public_endpoints'],
-                    annotations[iii_template['type']], namespace,
-                    list_services[environment]['branch'])
+                    service.spec.ports,
+                    service_info['public_endpoints'],
+                    annotations[iii_template['type']],
+                    namespace,
+                    list_services[environment]['branch']
+                )
                 list_services[environment]['services'].append(service_info)
         return list_services
     except apiError.DevOpsError as e:
@@ -1288,8 +1294,8 @@ def check_service_map_container(container_port, services):
     try:
         services_info = []
         for service in services:
-            if service['port_name'] == container_port['name'] or service['target_port'] == container_port[
-                'container_port']:
+            if service['port_name'] == container_port['name'] or \
+                    service['target_port'] == container_port['container_port']:
                 services_info.append(service)
         return services_info
     except apiError.DevOpsError as e:
@@ -1299,10 +1305,11 @@ def check_service_map_container(container_port, services):
 
 def analysis_container_port(port):
     try:
-        port_info = {}
-        port_info['container_port'] = port.container_port
-        port_info['name'] = port.name
-        port_info['protocol'] = port.protocol
+        port_info = {
+            'container_port': port.container_port,
+            'name': port.name,
+            'protocol': port.protocol
+        }
         return port_info
     except apiError.DevOpsError as e:
         if e.status_code != 404:
@@ -1318,6 +1325,7 @@ def get_spec_container_ports(ports):
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
+
 
 def map_port_and_public_endpoint(ports, public_endpoints, service_type='', namespace='', branch=''):
     try:
@@ -1390,9 +1398,10 @@ def get_spec_containers_image_and_name(containers):
     try:
         container_list = []
         for container in containers:
-            container_info = {}
-            container_info['image'] = container.image
-            container_info['name'] = container.name
+            container_info = {
+                'image': container.image,
+                'name': container.name
+            }
             container_list.append(container_info)
         return container_list
     except apiError.DevOpsError as e:
@@ -1403,7 +1412,6 @@ def get_spec_containers_image_and_name(containers):
 def analysis_container_status_time(container_status):
     try:
         container_status_time = {}
-        status = None
         status_time = None
         if container_status.state.running is not None:
             status = "running"
@@ -1443,11 +1451,12 @@ def check_if_iii_template(metadata):
 
 
 def get_iii_template_info(metadata):
-    template_info = {}
-    template_info['label'] = metadata.labels['app']
-    template_info['branch'] = metadata.annotations[iii_template['branch']]
-    template_info['project_name'] = metadata.annotations[iii_template['project_name']]
-    template_info['commit_id'] = metadata.annotations[iii_template['commit_id']]
+    template_info = {
+        'label': metadata.labels['app'],
+        'branch': metadata.annotations[iii_template['branch']],
+        'project_name': metadata.annotations[iii_template['project_name']],
+        'commit_id': metadata.annotations[iii_template['commit_id']]
+    }
     return template_info
 
 
