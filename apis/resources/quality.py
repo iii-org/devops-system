@@ -48,7 +48,7 @@ paths = [{
     "file_name_key": "sideex"
 }]
 
-filename_validate_mapping = {"postman": "postman_collection.json$", "sideex": "sideex.json$"}
+filename_validate_mapping = {"Postman": ".postman_collection.json$", "SideeX": ".sideex.json$"}
 
 class PostmanJSON:
     def __init__(self, input_dict):
