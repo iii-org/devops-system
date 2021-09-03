@@ -1492,11 +1492,11 @@ class K8sPodExec(object):
                 output_mess = self.resp.read_stdout()
                 print("STDOUT: %s" % output_mess)
                 emit('get_cmd_response', {'output': output_mess})
-            if self.resp.peek_stderr():
+            elif self.resp.peek_stderr():
                 output_err = self.resp.read_stderr()
                 print("STDERR: %s" % output_err)
                 emit('get_cmd_response', output_err)
-            if command:
+            elif command:
                 print("Running command... %s\n" % command)
                 self.resp.write_stdin(command + "\n")
                 command = None
