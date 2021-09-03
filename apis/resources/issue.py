@@ -1608,7 +1608,7 @@ class IssueByProject(Resource):
         parser.add_argument('due_date_end', type=str)
         args = parser.parse_args()
 
-        if len(args["search"]) < 2:
+        if args.get("search") is not None and len(args["search"]) < 2:
             output = []
         else:
             output = get_issue_list_by_project(project_id, args)
@@ -1633,7 +1633,7 @@ class IssueByUser(Resource):
         parser.add_argument('sort', type=str)
         args = parser.parse_args()
 
-        if len(args["search"]) < 2:
+        if args.get("search") is not None and len(args["search"]) < 2:
             output = []
         else:
             output = get_issue_list_by_user(user_id, args)
