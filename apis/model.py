@@ -16,7 +16,8 @@ If you don't have the alembic.ini, copy _alembic.ini and replace the postgres ur
 import json
 
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Date, Enum, JSON, Float, ARRAY, PickleType
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Date, Enum, JSON, Float, ARRAY, \
+    PickleType
 from sqlalchemy.orm import relationship, backref
 
 import util
@@ -595,6 +596,8 @@ class Application(db.Model):
     k8s_yaml = Column(String)
     harbor_info = Column(String)
     project = relationship('Project', backref=backref('projects'))
+    restart_number = Column(Integer, default=0)
+    restarted_at = Column(DateTime)
 
 
 class DefaultAlertDays(db.Model):

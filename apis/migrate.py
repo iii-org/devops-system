@@ -4,7 +4,7 @@ import config
 import model
 import util
 from model import db, ProjectPluginRelation, Project, UserPluginRelation, User, ProjectUserRole, PluginSoftware, \
-    DefaultAlertDays, TraceOrder, TraceResult
+    DefaultAlertDays, TraceOrder, TraceResult, Application
 from plugins.sonarqube import sq_create_project, sq_create_user
 from resources import harbor, kubernetesClient, role, sync_redmine, devops_version
 from resources.apiError import DevOpsError
@@ -24,7 +24,7 @@ VERSIONS = ['0.9.2', '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.4', '0.9.2.5',
             "1.8.0.5", "1.8.0.6", "1.8.0.7",
             "1.8.0.8", "1.8.0.9", "1.8.1.0", "1.8.1.1", "1.8.1.2", '1.8.1.3', '1.8.1.4', '1.8.1.5', '1.8.1.6',
             '1.8.1.7', '1.8.1.8', '1.8.1.9', '1.8.2.0', '1.8.2.1', '1.8.2.2', '1.8.2.3', '1.8.2.4', '1.8.2.5',
-            '1.8.2.6', '1.8.2.7']
+            '1.8.2.6', '1.8.2.7', '1.8.3.0']
 ONLY_UPDATE_DB_MODELS = [
     '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.5', '0.9.2.6', '0.9.2.a8',
     '1.0.0.2', '1.3.0.1', '1.3.0.2', '1.3.0.3', '1.3.0.4', '1.3.1', '1.3.1.1', '1.3.1.2',
@@ -34,7 +34,7 @@ ONLY_UPDATE_DB_MODELS = [
     '1.6.0.2', '1.6.0.3', '1.6.0.4', '1.7.0.1', '1.8.0.1', '1.8.0.2', '1.8.0.3', '1.8.0.4', "1.8.0.5", "1.8.0.6",
     "1.8.0.9", "1.8.1.0",
     "1.8.1.2", '1.8.1.5', '1.8.1.7', '1.8.1.9', '1.8.2.0', '1.8.2.2', '1.8.2.3', '1.8.2.4', '1.8.2.5', '1.8.2.6',
-    '1.8.2.7']
+    '1.8.2.7', '1.8.3.0']
 
 
 def upgrade(version):
@@ -91,6 +91,15 @@ def upgrade(version):
         refresh_trace_order()
     elif version == "1.8.2.1":
         drop_trace_result()
+    elif version == '1.8.3.0':
+        set_default_application_restart_number()
+
+
+def set_default_application_restart_number():
+    rows = db.session.query(Application).all()
+    for row in rows:
+        row.restart_number = 0
+        db.session.commit()
 
 
 def drop_trace_result():
