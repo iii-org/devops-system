@@ -26,11 +26,14 @@ def check_plugin_software_open(row, project_id, commit_id):
         return {'zap': zap_get_test_by_commit(project_id, commit_id)}
 
 
+
 def get_commit_summary(project_id, commit_id):
     output = {}
     rows = model.PluginSoftware.query.filter_by(disabled=False).all()
     for row in rows:
-        output.update(check_plugin_software_open(row, project_id, commit_id))
+        result = check_plugin_software_open(row, project_id, commit_id)
+        if result is not None:
+            output.update(result)
     return output
 
 
