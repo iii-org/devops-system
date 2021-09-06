@@ -686,7 +686,9 @@ def get_issue_list_by_project(project_id, args):
     if args.get('search') is not None and default_filters.get('issue_id') is None:
         if args.get("assigned_to_id") is None:
             return []
-    all_issues = redmine_lib.redmine.issue.filter(**default_filters).values()
+
+    issue_filter = redmine_lib.redmine.issue.filter(**default_filters)
+    all_issues = issue_filter.values()
     # 透過 selection params 決定是否顯示 family bool 欄位
     if not args['selection'] or not strtobool(args['selection']):
         nx_issue_params['relationship_bool'] = True
@@ -698,7 +700,7 @@ def get_issue_list_by_project(project_id, args):
         output.append(issue)
 
     if args['limit'] and args['offset'] is not None:
-        page_dict = util.get_pagination(len(list(all_issues)),
+        page_dict = util.get_pagination(issue_filter.total_count,
                                         args['limit'], args['offset'])
         output = {'issue_list': output, 'page': page_dict}
     return output
