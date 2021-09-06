@@ -20,6 +20,7 @@ from resources import apiError, role
 from resources import harbor, kubernetesClient
 from resources import release
 
+DEFAULT_RESTART_NUMBER = 30
 default_project_id = "-1"
 error_clusters_not_found = "No Exact Cluster Found"
 error_clusters_created = "No Exact Cluster Created or Update"
@@ -1132,11 +1133,21 @@ def check_k8s_deployment(app, deployed=True):
 
     return deployed_status.count(deployed) == len(deployed_status)
 
+def check_application_restart(app):
+    if app.restart_number is None:
+        app.restart_number = 1
+    else:
+        app.restart_number = app.restart_number + 1
+    app.restarted_at = str(datetime.utcnow())
+    db.session.commit()
 
 def check_application_status(app):
     output = {}
     if app is None:
         return output
+    application_id = app.id
+    check_application_restart(app)
+    app = model.Application.query.filter_by(id= application_id).first()
     # Check Harbor Replication execution
     if app.status_id == 1 or app.status_id == 2:
         output = execute_image_replication(app)
@@ -1144,6 +1155,8 @@ def check_application_status(app):
         harbor_info.update(output)
         app.harbor_info = json.dumps(harbor_info)
         app.status_id = harbor_info.get('status_id')
+        app.restart_number = 1
+        app.restarted_at = str(datetime.utcnow())
         db.session.commit()
     # Restart Execution Replication
     elif app.status_id == 11:
@@ -1152,6 +1165,9 @@ def check_application_status(app):
         harbor_info.update(output)
         app.status_id = harbor_info.get('status_id')
         app.harbor_info = json.dumps(harbor_info)
+        if harbor_info.get('status_id') == 3:
+            app.restart_number = 1
+            app.restarted_at = str(datetime.utcnow())
         db.session.commit()
     elif app.status_id == 3:
         k8s_yaml = json.loads(app.k8s_yaml)
@@ -1159,6 +1175,8 @@ def check_application_status(app):
         k8s_yaml.update(output)
         app.status_id = 4
         app.k8s_yaml = json.dumps(k8s_yaml)
+        app.restart_number = 1
+        app.restarted_at = str(datetime.utcnow())
         db.session.commit()
     elif app.status_id == 4:
         k8s_yaml = json.loads(app.k8s_yaml)
@@ -1166,6 +1184,8 @@ def check_application_status(app):
         if k8s_yaml['deploy_finish'] is True:
             k8s_yaml['status_id'] = 5
             app.status_id = 5
+            app.restart_number = 1
+            app.restarted_at = str(datetime.utcnow())
         app.k8s_yaml = json.dumps(k8s_yaml)
         db.session.commit()
     elif app.status_id == 9:
@@ -1398,6 +1418,8 @@ def patch_application(application_id, args):
 def redeploy_application(application_id):
     app = model.Application.query.filter_by(id=application_id).first()
     app.status_id = 1
+    app.restart_number = 1
+    app.restarted_at = str(datetime.utcnow())
     app.status = APPLICATION_STATUS.get(1, DEFAULT_APPLICATION_STATUS)
     db.session.commit()
     return app.id
@@ -1564,6 +1586,9 @@ class UpdateApplication(Resource):
     def patch(self, application_id):
         try:
             app = model.Application.query.filter_by(id=application_id).first()
+            if app.restart_number > DEFAULT_RESTART_NUMBER:
+                return util.respond(404, error_clusters_not_found,
+                                    error=apiError.repository_id_not_found)
             output = check_application_status(app)
             return util.success({"applications": output})
         except NoResultFound:
@@ -1582,7 +1607,6 @@ class ReleaseApplication(Resource):
             return util.respond(404, error_clusters_not_found,
                                 error=apiError.repository_id_not_found)
 
-
 class Cronjob(Resource):
     @staticmethod
     def patch():
@@ -1591,8 +1615,9 @@ class Cronjob(Resource):
             check_list = [1, 2, 3, 4, 9]
             apps = db.session.query(model.Application).filter(model.Application.status_id.in_(check_list)).all()
             for app in apps:
-                temp = check_application_status(app)
-                execute_list.append(temp['id'])
+                if app.restart_number < DEFAULT_RESTART_NUMBER:
+                    temp = check_application_status(app)
+                    execute_list.append(temp['id'])
             return util.success({"applications": execute_list})
         except NoResultFound:
             return util.respond(404, error_clusters_not_found,
