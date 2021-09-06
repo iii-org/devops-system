@@ -7,7 +7,7 @@ from pathlib import Path
 import werkzeug
 import yaml
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from flask_restful import Resource, reqparse
+from flask_restful import Resource, reqparse, inputs
 from kubernetes import client as k8s_client
 from sqlalchemy.orm.exc import NoResultFound
 from werkzeug.utils import secure_filename
@@ -22,6 +22,7 @@ from resources import release
 
 default_project_id = "-1"
 error_clusters_not_found = "No Exact Cluster Found"
+error_clusters_created = "No Exact Cluster Created or Update"
 error_application_exists = "Application had been deployed"
 DEFAULT_K8S_CONFIG_FILE = 'k8s_config'
 DEFAULT_APPLICATION_STATUS = 'Something Error'
@@ -129,15 +130,29 @@ def get_clusters(cluster_id=None):
     return output
 
 
-def create_cluster(args, server_name, user_id):
+def save_clusters(args, server_name):
     cluster_path = check_directory_exists(server_name)
-    file = args.get('k8s_config_file')
-    filename = secure_filename(DEFAULT_K8S_CONFIG_FILE)
-    file.save(os.path.join(cluster_path, filename))
-    file.seek(0)
-    content = file.read()
-    content = str(content, 'utf-8')
+    file_name = secure_filename(DEFAULT_K8S_CONFIG_FILE)
+    file_path = os.path.join(cluster_path, file_name)
+    if args.get('k8s_config_file') is not None:
+        file = args.get('k8s_config_file', None)
+        file.save(os.path.join(cluster_path, file_name))
+        file.seek(0)
+        content = file.read()
+        content = str(content, 'utf-8')
+    elif args.get('k8s_config_string') is not None:
+        content = util.base64decode(args.get('k8s_config_string'))
+        Path(file_path).write_text(content)
+    else:
+        return util.respond(404, error_clusters_created)
+    deploy_k8s_client = DeployK8sClient(server_name)
+    deploy_k8s_client.get_api_resources()
     k8s_json = yaml.safe_load(content)
+    return k8s_json
+
+
+def create_cluster(args, server_name, user_id):
+    k8s_json = save_clusters(args, server_name)
     now = str(datetime.utcnow())
     new = model.Cluster(
         name=server_name,
@@ -154,38 +169,19 @@ def create_cluster(args, server_name, user_id):
     return new.id
 
 
-def check_cluster_value(value):
-    default = True
-    if value == 'False':
-        default = False
-    return default
-
-
 def update_cluster(cluster_id, args):
     cluster = model.Cluster.query.filter_by(id=cluster_id).one()
     for key in args.keys():
         if not hasattr(cluster, key):
             continue
         elif args[key] is not None:
-            if key == 'disabled':
-                setattr(cluster, key, check_cluster_value(args[key]))
-            else:
-                setattr(cluster, key, args[key])
-
-    if args.get('k8s_config_file', None) is not None:
-        cluster_path = check_directory_exists(args.get('name').strip())
-        file = args.get('k8s_config_file')
-        filename = secure_filename(DEFAULT_K8S_CONFIG_FILE)
-        file.save(os.path.join(cluster_path, filename))
-        file.seek(0)
-        content = file.read()
-        content = str(content, 'utf-8')
-        k8s_json = yaml.safe_load(content)
-        cluster.name = args.get('name')
-        cluster.cluster_name = k8s_json['clusters'][0]['name'],
-        cluster.cluster_host = k8s_json['clusters'][0]['cluster']['server'],
-        cluster.cluster_user = k8s_json['users'][0]['name']
-
+            setattr(cluster, key, args[key])
+    server_name = args.get('name').strip()
+    k8s_json = save_clusters(args, server_name)
+    cluster.name = server_name
+    cluster.cluster_name = k8s_json['clusters'][0]['name'],
+    cluster.cluster_host = k8s_json['clusters'][0]['cluster']['server'],
+    cluster.cluster_user = k8s_json['users'][0]['name']
     cluster.update_at = str(datetime.utcnow())
     db.session.commit()
     return cluster.id
@@ -220,7 +216,9 @@ class Clusters(Resource):
             parser = reqparse.RequestParser()
             parser.add_argument('name', type=str)
             parser.add_argument(
-                'k8s_config_file', type=werkzeug.datastructures.FileStorage, location='files', required=True)
+                'k8s_config_file', type=werkzeug.datastructures.FileStorage, location='files')
+            parser.add_argument(
+                'k8s_config_string', type=str)
             args = parser.parse_args()
             server_name = args.get('name').strip()
             if check_cluster(server_name) is not None:
@@ -253,7 +251,9 @@ class Cluster(Resource):
             parser.add_argument('name', type=str)
             parser.add_argument(
                 'k8s_config_file', type=werkzeug.datastructures.FileStorage, location='files')
-            parser.add_argument('disabled', type=str)
+            parser.add_argument('disabled', type=inputs.boolean)
+            parser.add_argument(
+                'k8s_config_string', type=str)
             args = parser.parse_args()
             output = {"cluster_id": update_cluster(cluster_id, args)}
             return util.success(output)
@@ -374,11 +374,11 @@ def create_default_k8s_data(db_project, db_release, args):
         "image": args.get('image', {"policy": "Always"}),
         "status_id": 1
     }
-    resources = remove_object_key_by_value(args.get('resources', {}),"")
+    resources = remove_object_key_by_value(args.get('resources', {}), "")
     if resources != {}:
         k8s_data['resources'] = resources
 
-    network = remove_object_key_by_value(args.get('network', {}),"")
+    network = remove_object_key_by_value(args.get('network', {}), "")
     if network != {}:
         k8s_data['network'] = network
 
@@ -712,10 +712,15 @@ def create_namespace_object(namespace):
 
 
 class DeployK8sClient:
-    def __init__(self, cluster):
+    def __init__(self, server_name):
+        print(get_cluster_config_path(server_name))
         self.client = kubernetesClient.ApiK8sClient(
-            configuration_file=get_cluster_config_path(cluster.name))
+            configuration_file=get_cluster_config_path(server_name))
 
+    def get_api_resources(self):
+        return self.client.get_api_resources()
+
+    # namespace
     def read_namespace(self, namespace):
         if self.check_namespace(namespace) is True:
             return self.client.read_namespace(namespace)
@@ -975,7 +980,7 @@ class K8sDeployment:
         self.cluster = model.Cluster.query.filter_by(id=app.cluster_id).first()
         self.project = model.Project.query.filter_by(id=app.project_id).first()
         self.registry = model.Registries.query.filter_by(registries_id=app.registry_id).first()
-        self.k8s_client = DeployK8sClient(self.cluster)
+        self.k8s_client = DeployK8sClient(self.cluster.name)
         self.namespace = None
         self.registry_secret = None
         self.service = None
@@ -1100,7 +1105,7 @@ def check_k8s_deployment(app, deployed=True):
     deployed_status = []
     deploy_object = json.loads(app.k8s_yaml)
     cluster = model.Cluster.query.filter_by(id=app.cluster_id).first()
-    deploy_k8s_client = DeployK8sClient(cluster)
+    deploy_k8s_client = DeployK8sClient(cluster.name)
 
     if deploy_object.get("deployment") is not None:
         deployed_status.append(deploy_k8s_client.check_namespace_deployment(
@@ -1266,7 +1271,7 @@ def create_application(args):
         db_project, db_release, args.get('registry_id'), args.get('namespace'))
     k8s_yaml = create_default_k8s_data(db_project, db_release, args)
     # check namespace
-    deploy_k8s_client = DeployK8sClient(cluster)
+    deploy_k8s_client = DeployK8sClient(cluster.name)
     deploy_namespace = DeployNamespace(args.get('namespace'))
     deploy_k8s_client.create_namespace(args.get('namespace'), deploy_namespace.namespace_body())
     now = str(datetime.utcnow())
@@ -1423,7 +1428,7 @@ def disable_application(disabled, namespace, cluster_id):
     else:
         # Redeploy K8s
         cluster = model.Cluster.query.filter_by(id=cluster_id).first()
-        deploy_k8s_client = DeployK8sClient(cluster)
+        deploy_k8s_client = DeployK8sClient(cluster.name)
         deploy_namespace = DeployNamespace(namespace)
         deploy_k8s_client.create_namespace(namespace, deploy_namespace.namespace_body())
         status_id = 1
@@ -1438,7 +1443,7 @@ def delete_image_replication_policy(policy_id):
 def delete_k8s_application(cluster_id, namespace):
     if cluster_id is not None and namespace is not None:
         cluster = model.Cluster.query.filter_by(id=cluster_id).first()
-        deploy_k8s_client = DeployK8sClient(cluster)
+        deploy_k8s_client = DeployK8sClient(cluster.name)
         deploy_k8s_client.delete_namespace(namespace)
 
 
@@ -1475,7 +1480,7 @@ class Applications(Resource):
             parser.add_argument('network', type=dict)
             parser.add_argument('image', type=dict)
             parser.add_argument('environments', type=dict, action='append')
-            parser.add_argument('disabled', type=bool)
+            parser.add_argument('disabled', type=inputs.boolean)
             args = parser.parse_args()
             if check_application_exists(args.get('project_id'), args.get('namespace')) is not None:
                 return util.respond(404, error_application_exists)
@@ -1503,7 +1508,7 @@ class Application(Resource):
     def patch(self, application_id):
         try:
             parser = reqparse.RequestParser()
-            parser.add_argument('disabled', type=bool)
+            parser.add_argument('disabled', type=inputs.boolean)
             args = parser.parse_args()
             output = patch_application(application_id, args)
             return util.success({"applications": output})
@@ -1534,7 +1539,7 @@ class Application(Resource):
             parser.add_argument('network', type=dict)
             parser.add_argument('image', type=dict)
             parser.add_argument('environments', type=dict, action='append')
-            parser.add_argument('disabled', type=bool)
+            parser.add_argument('disabled', type=inputs.boolean)
             args = parser.parse_args()
             output = update_application(application_id, args)
             return util.success({"applications": {"id": output}})
