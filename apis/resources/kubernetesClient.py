@@ -66,8 +66,15 @@ class ApiK8sClient:
         self.batch_v1 = k8s_client.BatchV1Api(self.api_k8s_client)
         self.network_v1beta1 = k8s_client.NetworkingV1beta1Api(self.api_k8s_client)
 
-    # Ingress
+    # api  version
+    def get_api_resources(self):
+        try:
+            return self.core_v1.get_api_resources()
+        except apiError.DevOpsError as e:
+            if e.status_code != 404:
+                raise e
 
+    # Ingress
     def list_ingress_for_all_namespaces(self):
         try:
             return self.network_v1beta1.list_ingress_for_all_namespaces()
