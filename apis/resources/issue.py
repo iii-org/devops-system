@@ -691,13 +691,13 @@ def get_issue_list_by_project(project_id, args):
         nx_issue_params['relationship_bool'] = True
 
     nx_issue_params['users_info'] = user.get_all_user_info()
-    for redmine_issue in all_issues:
+    for redmine_issue in all_issues:  
         nx_issue_params['redmine_issue'] = redmine_issue
         issue = NexusIssue().set_redmine_issue_v3(**nx_issue_params).to_json()
         output.append(issue)
 
     if args['limit'] and args['offset'] is not None:
-        page_dict = util.get_pagination(all_issues.total_count,
+        page_dict = util.get_pagination(len(list(all_issues)),
                                         args['limit'], args['offset'])
         output = {'issue_list': output, 'page': page_dict}
     return output
