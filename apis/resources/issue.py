@@ -1591,6 +1591,8 @@ class SingleIssue(Resource):
             parent_info['name'] = parent_info.pop('subject', None)
             issue_info.pop('parent_id', None)
             issue_info['parent'] = parent_info
+
+        issue_info["name"] = issue_info.pop('subject', None)
         return util.success(issue_info)
 
     @jwt_required
@@ -1660,7 +1662,7 @@ class SingleIssue(Resource):
             if args[k] == 'null':
                 args[k] = ''
 
-        args["subject"] = args.pop("name")
+        args["subject"] = args.pop("name", None)
         output = update_issue(issue_id, args, get_jwt_identity()['user_id'])
         return util.success(output)
 
