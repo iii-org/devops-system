@@ -199,6 +199,87 @@ class NexusIssue:
             self.data['is_closed'] = True
         return self
 
+    def set_redmine_issue_v3(self, redmine_issue, with_relationship=False,
+                             relationship_bool=False, nx_project=None, users_info=None):
+        self.data = {
+            'id': redmine_issue["id"],
+            'name': redmine_issue["subject"],
+            'project': {},
+            'description': redmine_issue.get("description"),
+            'updated_on': redmine_issue.get("updated_on")[:-1] if redmine_issue.get("updated_on") is not None else None,
+            'start_date': redmine_issue.get("start_date"),
+            'assigned_to': {},
+            'fixed_version': redmine_issue.get("fixed_version", {}),
+            'due_date': redmine_issue.get("due_date"),
+            'done_ratio': redmine_issue["done_ratio"],
+            'is_closed': redmine_issue['status']['id'] in NexusIssue.get_closed_statuses(),
+            'issue_link': redmine.rm_build_external_link(
+                f'/issues/{redmine_issue["id"]}'),
+            'tracker': redmine_issue["tracker"],
+            'priority': redmine_issue["priority"],
+            'status': redmine_issue["status"],
+        }
+
+        if self.data['project'] is not None:
+            if nx_project is None:
+                nx_project = model.Project.query.get(nexus.nx_get_project_plugin_relation(
+                    rm_project_id=redmine_issue['project']['id']))
+            self.data["project"] = {
+                'id': nx_project.id,
+                'name': nx_project.name,
+                'display': nx_project.display
+            }
+
+        if 'assigned_to' in redmine_issue:
+            self.data["assigned_to"] = redmine_issue["assigned_to"]
+            if users_info is not None:
+                for user_info in users_info:
+                    if user_info[3] == redmine_issue['assigned_to']['id']:
+                        self.data['assigned_to'] = {
+                            'id': user_info[0],
+                            'name': user_info[1],
+                            'login': user_info[2]
+                        }
+                        break
+            else:
+                user_info = user.get_user_id_name_by_plan_user_id(
+                    redmine_issue['assigned_to']['id'])
+                if user_info is not None:
+                    self.data['assigned_to'] = {
+                        'id': user_info.id,
+                        'name': user_info.name,
+                        'login': user_info.login
+                    }
+
+        if relationship_bool:
+            self.data['has_children'] = len(redmine_lib.redmine.issue.filter(parent_id=self.data["id"])) > 0
+            family_bool = self.data['has_children'] is True or len(redmine_issue["relation"]) > 0 \
+                or redmine_issue.get("parent") is not None
+            self.data["family"] = family_bool
+
+        if with_relationship:
+            self.data['children'] = []
+            self.data['parent'] = redmine_issue["parent"]["id"] if 'parent' in redmine_issue else None
+
+        if redmine_issue.get("author") is not None:
+            if users_info is not None:
+                for user_info in users_info:
+                    if user_info[3] == redmine_issue['author']['id']:
+                        self.data['author'] = {
+                            'id': user_info[0],
+                            'name': user_info[1]
+                        }
+                        break
+            else:
+                user_info = user.get_user_id_name_by_plan_user_id(
+                    redmine_issue.author.id)
+                if user_info is not None:
+                    self.data['author'] = {
+                        'id': user_info.id,
+                        'name': user_info.name
+                    }
+        return self
+
     @staticmethod
     def get_closed_statuses():
         if NexusIssue.closed_statuses is None:
@@ -604,7 +685,7 @@ def get_issue_list_by_project(project_id, args):
     if args.get('search') is not None and default_filters.get('issue_id') is None:
         if args.get("assigned_to_id") is None:
             return []
-    all_issues = redmine_lib.redmine.issue.filter(**default_filters)
+    all_issues = redmine_lib.redmine.issue.filter(**default_filters).values()
     # 透過 selection params 決定是否顯示 family bool 欄位
     if not args['selection'] or not strtobool(args['selection']):
         nx_issue_params['relationship_bool'] = True
@@ -612,7 +693,7 @@ def get_issue_list_by_project(project_id, args):
     nx_issue_params['users_info'] = user.get_all_user_info()
     for redmine_issue in all_issues:
         nx_issue_params['redmine_issue'] = redmine_issue
-        issue = NexusIssue().set_redmine_issue_v2(**nx_issue_params).to_json()
+        issue = NexusIssue().set_redmine_issue_v3(**nx_issue_params).to_json()
         output.append(issue)
 
     if args['limit'] and args['offset'] is not None:
@@ -1516,7 +1597,7 @@ class SingleIssue(Resource):
         parser.add_argument('tracker_id', type=int, required=True)
         parser.add_argument('status_id', type=int, required=True)
         parser.add_argument('priority_id', type=int, required=True)
-        parser.add_argument('subject', type=str, required=True)
+        parser.add_argument('name', type=str, required=True)
         parser.add_argument('description', type=str)
         parser.add_argument('assigned_to_id', type=str)
         parser.add_argument('parent_id', type=str)
@@ -1539,6 +1620,8 @@ class SingleIssue(Resource):
         for k in keys_int_or_null:
             if args[k] == 'null':
                 args[k] = ''
+
+        args["subject"] = args.pop("name")
         rm_output = create_issue(args, get_jwt_identity()['user_id'])
         return util.success({"issue_id": rm_output["issue"]["id"]})
 
@@ -1554,7 +1637,7 @@ class SingleIssue(Resource):
         parser.add_argument('description', type=str)
         parser.add_argument('parent_id', type=str)
         parser.add_argument('fixed_version_id', type=str)
-        parser.add_argument('subject', type=str)
+        parser.add_argument('name', type=str)
         parser.add_argument('start_date', type=str)
         parser.add_argument('due_date', type=str)
         parser.add_argument('done_ratio', type=int)
@@ -1573,6 +1656,8 @@ class SingleIssue(Resource):
         for k in keys_int_or_null:
             if args[k] == 'null':
                 args[k] = ''
+
+        args["subject"] = args.pop("name")
         output = update_issue(issue_id, args, get_jwt_identity()['user_id'])
         return util.success(output)
 

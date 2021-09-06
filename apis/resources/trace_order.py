@@ -9,7 +9,6 @@ import resources.project as project
 import resources.issue as issue
 
 from copy import deepcopy
-from resources.issue import NexusIssue
 import util as util
 from model import db, TraceOrder, TraceResult
 import resources.apiError as apiError 
