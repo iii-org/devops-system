@@ -140,7 +140,7 @@ def ad_account_not_allow():
 
 
 def cluster_not_found(server_name):
-    return build(2010, 'Clusters can not attach',
+    return build(2011, 'Clusters can not attach',
                  {'server_name': server_name})
 
 
