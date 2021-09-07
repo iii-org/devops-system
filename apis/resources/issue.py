@@ -73,8 +73,8 @@ class NexusIssue:
         if 'start_date' in redmine_issue:
             self.data['start_date'] = redmine_issue['start_date']
         if 'parent' in redmine_issue:
-            get_issue_assign_to_detail(redmine_issue['parent'])
-            self.data['parent'] = redmine_issue['parent']
+            parent_issue = get_issue_assign_to_detail(redmine_issue['parent'])
+            self.data['parent'] = parent_issue
         if 'assigned_to' in redmine_issue:
             user_info = user.get_user_id_name_by_plan_user_id(
                 redmine_issue['assigned_to']['id'])
@@ -518,14 +518,17 @@ def get_issue(issue_id, with_children=True, journals=True):
     if not with_children:
         issue.pop('children', None)
     elif issue.get('children', None):
+        children_detail = []
         for children_issue in issue['children']:
-            get_issue_assign_to_detail(children_issue)
+            children_detail.append(get_issue_assign_to_detail(children_issue))
+        issue["children"] = children_detail
     return __deal_with_issue_redmine_output(issue, closed_statuses)
 
 
 def get_issue_assign_to_detail(issue):
+    issue_detail = {"id": issue['id']}
     issue_obj = redmine_lib.redmine.issue.get(issue['id'])
-    issue['status'] = {
+    issue_detail['status'] = {
         'id': issue_obj.status.id,
         'name': issue_obj.status.name
     }
@@ -533,19 +536,19 @@ def get_issue_assign_to_detail(issue):
         user_relation = nexus.nx_get_user_plugin_relation(
             plan_user_id=issue_obj.assigned_to.id)
         user = model.User.query.get(user_relation.user_id)
-        issue['assigned_to'] = {
+        issue_detail['assigned_to'] = {
             'id': user.id,
             'name': user.name,
             'login': user.login
         }
-    if not issue.get('tracker', None):
-        issue['tracker'] = {
+    if hasattr(issue_obj, 'tracker'):
+        issue_detail['tracker'] = {
             'id': issue_obj.tracker.id,
             'name': issue_obj.tracker.name
         }
-    if not issue.get('subject', None):
-        issue['name'] = issue_obj.subject
-
+    if hasattr(issue_obj, 'subject'):
+        issue_detail['name'] = issue_obj.subject
+    return issue_detail
 
 def create_issue(args, operator_id):
     args = {k: v for k, v in args.items() if v is not None}
