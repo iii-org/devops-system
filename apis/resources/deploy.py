@@ -367,9 +367,7 @@ def remove_object_key_by_value(items, target=None):
         m_value = items[key]
         if isinstance(items[key], int) is not True:
             m_value = str(items[key]).strip()
-        if target is None:
-            output[m_key] = m_value
-        elif items[key] != target:
+        if target is None or items[key] != target:
             output[m_key] = m_value
     return output
 
@@ -1220,12 +1218,7 @@ def k8s_resource_exist(target, response):
     check_result = False
     for i in response.items:
         if str(target) == str(i.metadata.name):
-            # Start
             check_result = True
-            # if str(i.status.phase) == "Active":
-            #     check_result = True
-            # elif str(i.status.phase) == "Terminating":
-            #     check_result = True
     return check_result
 
 
@@ -1238,7 +1231,6 @@ def get_clusters_name(cluster_id, info=None):
 
 
 def get_application_information(application, cluster_info=None):
-    # output = row_to_dict(application)
     if application is None:
         return []
     output = row_to_dict(application)
