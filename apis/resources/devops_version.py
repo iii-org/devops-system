@@ -9,6 +9,7 @@ import util
 from resources import kubernetesClient, role, apiError
 from resources.apiError import DevOpsError
 from resources.logger import logger
+import resources.kubernetesClient as kubernetesClient
 
 version_center_token = None
 
@@ -100,6 +101,22 @@ def has_devops_update():
 
 def update_deployment(versions):
     version_name = versions['version_name']
+    logger.info(f'Update perl on {version_name}...')
+    deployer_node_ip = config.get('DEPLOYER_NODE_IP')
+    if deployer_node_ip is None:
+        # get the k8s cluster the oldest node ip
+        deployer_node_ip = kubernetesClient.get_the_oldest_node()[0]
+    output_str, error_str = util.ssh_to_node_by_key("/home/rkeuser/deploy-devops/bin/update-perl.pl", deployer_node_ip) 
+    if error_str != "":
+        not_found_message = error_str.split(":")[-1].replace("\n", "")
+        if not_found_message != " No such file or directory":
+            if output_str != "":
+                complete_message = output_str.split("==")[-2]
+                if complete_message != "process complete": 
+                    logger.exception(f"Can not update perl on {version_name}")
+            else:
+                logger.exception(str(error_str))
+
     logger.info(f'Updating deployment to {version_name}...')
     api_image_tag = versions['api_image_tag']
     ui_image_tag = versions['ui_image_tag']
