@@ -140,7 +140,7 @@ def _handle_test_success(project_id, software_name, filename, description):
 
 def tgi_create_issue(args, software_name, file_name, branch, commit_id, result_table, result_id):
     rm_output = issue.create_issue(args, None)
-    issue_id = rm_output.get('issue').get('id')
+    issue_id = rm_output.get('id')
     new = model.TestGeneratedIssue(
         project_id=args['project_id'],
         issue_id=issue_id,
