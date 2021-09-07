@@ -25,6 +25,7 @@ default_project_id = "-1"
 error_clusters_not_found = "No Exact Cluster Found"
 error_clusters_created = "No Exact Cluster Created or Update"
 error_application_exists = "Application had been deployed"
+error_cluster_duplicate = "Cluster was previously created"
 DEFAULT_K8S_CONFIG_FILE = 'k8s_config'
 DEFAULT_APPLICATION_STATUS = 'Something Error'
 APPLICATION_STATUS = {
@@ -151,7 +152,7 @@ def save_clusters(args, server_name):
         deploy_k8s_client.get_api_resources()
     except NoResultFound:
         return util.respond(404, error_clusters_not_found,
-                            error=apiError.cluster_not_found)
+                            error=apiError.cluster_not_found(server_name))
     k8s_json = yaml.safe_load(content)
     return k8s_json
 
@@ -227,7 +228,8 @@ class Clusters(Resource):
             args = parser.parse_args()
             server_name = args.get('name').strip()
             if check_cluster(server_name) is not None:
-                return util.respond(404)
+                return util.respond(404, error_cluster_duplicate,
+                                    error=apiError.cluster_duplicated(server_name))
             output = {"cluster_id": create_cluster(
                 args, server_name, user_id)}
             return util.success(output)
@@ -260,6 +262,10 @@ class Cluster(Resource):
             parser.add_argument(
                 'k8s_config_string', type=str)
             args = parser.parse_args()
+            server_name = args.get('name').strip()
+            if check_cluster(server_name) is not None:
+                return util.respond(404, error_cluster_duplicate,
+                                    error=apiError.cluster_duplicated(server_name))
             output = {"cluster_id": update_cluster(cluster_id, args)}
             return util.success(output)
         except NoResultFound:

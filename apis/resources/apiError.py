@@ -144,6 +144,11 @@ def cluster_not_found(server_name):
                  {'server_name': server_name})
 
 
+def cluster_duplicated(server_name):
+    return build(2012, 'Clusters is duplicate',
+                 {'server_name': server_name})
+
+
 # Permission errors
 class NotAllowedError(HTTPException):
     pass
