@@ -1133,6 +1133,7 @@ def check_k8s_deployment(app, deployed=True):
 
     return deployed_status.count(deployed) == len(deployed_status)
 
+
 def check_application_restart(app):
     if app.restart_number is None:
         app.restart_number = 1
@@ -1141,13 +1142,14 @@ def check_application_restart(app):
     app.restarted_at = str(datetime.utcnow())
     db.session.commit()
 
+
 def check_application_status(app):
     output = {}
     if app is None:
         return output
     application_id = app.id
     check_application_restart(app)
-    app = model.Application.query.filter_by(id= application_id).first()
+    app = model.Application.query.filter_by(id=application_id).first()
     # Check Harbor Replication execution
     if app.status_id == 1 or app.status_id == 2:
         output = execute_image_replication(app)
@@ -1606,6 +1608,7 @@ class ReleaseApplication(Resource):
         except NoResultFound:
             return util.respond(404, error_clusters_not_found,
                                 error=apiError.repository_id_not_found)
+
 
 class Cronjob(Resource):
     @staticmethod
