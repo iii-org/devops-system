@@ -104,7 +104,7 @@ class NexusIssue:
             'project': None,
             'description': None,
             'updated_on': redmine_issue.updated_on.isoformat(),
-            'start_date': {},
+            'start_date': None,
             'assigned_to': {},
             'fixed_version': {},
             'due_date': None,
@@ -586,7 +586,18 @@ def create_issue(args, operator_id):
         operator_plugin_relation = nexus.nx_get_user_plugin_relation(
             user_id=operator_id)
         plan_operator_id = operator_plugin_relation.plan_user_id
-    return redmine.rm_create_issue(args, plan_operator_id)
+    created_issue = redmine.rm_create_issue(args, plan_operator_id)
+    created_issue_id = created_issue["issue"]["id"]
+    issue = redmine_lib.redmine.issue.get(created_issue_id)
+    output = NexusIssue().set_redmine_issue_v2(issue).to_json()
+    family = get_issue_family(issue)
+    if family.get('parent') is not None:
+        output['parent'] = family['parent']
+    elif family.get('children') is not None:
+        output['children'] = family['children']
+    elif family.get('relations') is not None:
+        output['relations'] = family['relations']
+    return output
 
 
 def update_issue(issue_id, args, operator_id=None):
@@ -1590,7 +1601,7 @@ def execute_issue_alert(alert_mapping):
 
 # --------------------- Resources ---------------------
 class SingleIssue(Resource):
-    @ jwt_required
+    @jwt_required
     def get(self, issue_id):
         issue_info = get_issue(issue_id)
         require_issue_visible(issue_id, issue_info)
@@ -1603,7 +1614,7 @@ class SingleIssue(Resource):
         issue_info["name"] = issue_info.pop('subject', None)
         return util.success(issue_info)
 
-    @ jwt_required
+    @jwt_required
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('project_id', type=int, required=True)
@@ -1635,10 +1646,10 @@ class SingleIssue(Resource):
                 args[k] = ''
 
         args["subject"] = args.pop("name")
-        rm_output = create_issue(args, get_jwt_identity()['user_id'])
-        return util.success({"issue_id": rm_output["issue"]["id"]})
+        return util.success(create_issue(args, get_jwt_identity()['user_id']))
 
-    @ jwt_required
+
+    @jwt_required
     def put(self, issue_id):
         require_issue_visible(issue_id)
         parser = reqparse.RequestParser()
@@ -1674,20 +1685,20 @@ class SingleIssue(Resource):
         output = update_issue(issue_id, args, get_jwt_identity()['user_id'])
         return util.success(output)
 
-    @ jwt_required
+    @jwt_required
     def delete(self, issue_id):
         return delete_issue(issue_id)
 
 
 class DumpByIssue(Resource):
-    @ jwt_required
+    @jwt_required
     def get(self, issue_id):
         require_issue_visible(issue_id)
         return dump_by_issue(issue_id)
 
 
 class IssueByProject(Resource):
-    @ jwt_required
+    @jwt_required
     def get(self, project_id):
         role.require_in_project(project_id, 'Error to get issue.')
         parser = reqparse.RequestParser()
@@ -1714,7 +1725,7 @@ class IssueByProject(Resource):
 
 
 class IssueByUser(Resource):
-    @ jwt_required
+    @jwt_required
     def get(self, user_id):
         parser = reqparse.RequestParser()
         parser.add_argument('project_id', type=int)
@@ -1739,7 +1750,7 @@ class IssueByUser(Resource):
 
 
 class IssueByVersion(Resource):
-    @ jwt_required
+    @jwt_required
     def get(self, project_id):
         role.require_in_project(project_id, 'Error to get issue.')
         parser = reqparse.RequestParser()
@@ -1750,7 +1761,7 @@ class IssueByVersion(Resource):
 
 
 class IssueByTreeByProject(Resource):
-    @ jwt_required
+    @jwt_required
     def get(self, project_id):
         role.require_in_project(project_id, 'Error to get issue.')
         output = get_issue_by_tree_by_project(project_id)
@@ -1758,21 +1769,21 @@ class IssueByTreeByProject(Resource):
 
 
 class IssueByStatusByProject(Resource):
-    @ jwt_required
+    @jwt_required
     def get(self, project_id):
         role.require_in_project(project_id)
         return get_issue_by_status_by_project(project_id)
 
 
 class IssueByDateByProject(Resource):
-    @ jwt_required
+    @jwt_required
     def get(self, project_id):
         role.require_in_project(project_id)
         return get_issue_by_date_by_project(project_id)
 
 
 class IssuesProgressByProject(Resource):
-    @ jwt_required
+    @jwt_required
     def get(self, project_id):
         role.require_in_project(project_id)
         parser = reqparse.RequestParser()
@@ -1784,7 +1795,7 @@ class IssuesProgressByProject(Resource):
 
 
 class IssuesStatisticsByProject(Resource):
-    @ jwt_required
+    @jwt_required
     def get(self, project_id):
         role.require_in_project(project_id)
         parser = reqparse.RequestParser()
@@ -1796,25 +1807,25 @@ class IssuesStatisticsByProject(Resource):
 
 
 class IssueStatus(Resource):
-    @ jwt_required
+    @jwt_required
     def get(self):
         return list_issue_statuses('api')
 
 
 class IssuePriority(Resource):
-    @ jwt_required
+    @jwt_required
     def get(self):
         return get_issue_priority()
 
 
 class IssueTracker(Resource):
-    @ jwt_required
+    @jwt_required
     def get(self):
         return get_issue_trackers()
 
 
 class IssueFamily(Resource):
-    @ jwt_required
+    @jwt_required
     def get(self, issue_id):
         redmine_issue = redmine_lib.redmine.issue.get(issue_id, include=['children', 'relations'])
         require_issue_visible(issue_id, issue_info=NexusIssue().set_redmine_issue_v2(redmine_issue).to_json())
@@ -1823,7 +1834,7 @@ class IssueFamily(Resource):
 
 
 class MyIssueStatistics(Resource):
-    @ jwt_required
+    @jwt_required
     def get(self):
         parser = reqparse.RequestParser()
         parser.add_argument('from_time', type=str, required=True)
@@ -1835,25 +1846,25 @@ class MyIssueStatistics(Resource):
 
 
 class MyOpenIssueStatistics(Resource):
-    @ jwt_required
+    @jwt_required
     def get(self):
         return get_open_issue_statistics(get_jwt_identity()['user_id'])
 
 
 class MyIssueWeekStatistics(Resource):
-    @ jwt_required
+    @jwt_required
     def get(self):
         return get_issue_statistics_in_period('week', get_jwt_identity()['user_id'])
 
 
 class MyIssueMonthStatistics(Resource):
-    @ jwt_required
+    @jwt_required
     def get(self):
         return get_issue_statistics_in_period('month', get_jwt_identity()['user_id'])
 
 
 class DashboardIssuePriority(Resource):
-    @ jwt_required
+    @jwt_required
     def get(self, user_id):
         if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity(
         )['role_id'] in (3, 5):
@@ -1863,7 +1874,7 @@ class DashboardIssuePriority(Resource):
 
 
 class DashboardIssueProject(Resource):
-    @ jwt_required
+    @jwt_required
     def get(self, user_id):
         if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity(
         )['role_id'] in (3, 5):
@@ -1873,7 +1884,7 @@ class DashboardIssueProject(Resource):
 
 
 class DashboardIssueType(Resource):
-    @ jwt_required
+    @jwt_required
     def get(self, user_id):
         if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity(
         )['role_id'] in (3, 5):
@@ -1885,13 +1896,13 @@ class DashboardIssueType(Resource):
 class RequirementByIssue(Resource):
 
     # 用issues ID 取得目前所有的需求清單
-    @ jwt_required
+    @jwt_required
     def get(self, issue_id):
         output = get_requirements_by_issue_id(issue_id)
         return util.success(output)
 
     # 用issues ID 新建立需求清單
-    @ jwt_required
+    @jwt_required
     def post(self, issue_id):
         parser = reqparse.RequestParser()
         parser.add_argument('project_id', type=int)
@@ -1904,19 +1915,19 @@ class RequirementByIssue(Resource):
 class Requirement(Resource):
 
     # 用requirement_id 取得目前需求流程
-    @ jwt_required
+    @jwt_required
     def get(self, requirement_id):
         output = get_requirement_by_rqmt_id(requirement_id)
         return util.success(output)
 
     # 用requirement_id 刪除目前需求流程
-    @ jwt_required
+    @jwt_required
     def delete(self, requirement_id):
         del_requirement_by_rqmt_id(requirement_id)
         return util.success()
 
     # 用requirement_id 更新目前需求流程
-    @ jwt_required
+    @jwt_required
     def put(self, requirement_id):
         parser = reqparse.RequestParser()
         parser.add_argument('flow_info', type=str)
@@ -1926,7 +1937,7 @@ class Requirement(Resource):
 
 
 class GetFlowType(Resource):
-    @ jwt_required
+    @jwt_required
     def get(self):
         output = get_flow_support_type()
         return util.success(output)
@@ -1935,7 +1946,7 @@ class GetFlowType(Resource):
 class FlowByIssue(Resource):
 
     # 用issues ID 取得目前所有的需求清單
-    @ jwt_required
+    @jwt_required
     def get(self, issue_id):
         requirement_ids = check_requirement_by_issue_id(issue_id)
         if not requirement_ids:
@@ -1951,7 +1962,7 @@ class FlowByIssue(Resource):
         return util.success(output)
 
     # 用issues ID 新建立需求清單
-    @ jwt_required
+    @jwt_required
     def post(self, issue_id):
         parser = reqparse.RequestParser()
         parser.add_argument('project_id', type=int)
@@ -1974,19 +1985,19 @@ class FlowByIssue(Resource):
 class Flow(Resource):
 
     # 用requirement_id 取得目前需求流程
-    @ jwt_required
+    @jwt_required
     def get(self, flow_id):
         output = get_flow_by_flow_id(flow_id)
         return util.success(output)
 
     # 用requirement_id 刪除目前需求流程
-    @ jwt_required
+    @jwt_required
     def delete(self, flow_id):
         output = disabled_flow_by_flow_id(flow_id)
         return util.success(output, has_date_etc=True)
 
     # 用requirement_id 更新目前需求流程
-    @ jwt_required
+    @jwt_required
     def put(self, flow_id):
         parser = reqparse.RequestParser()
         parser.add_argument('serial_id', type=int)
@@ -1999,7 +2010,7 @@ class Flow(Resource):
 
 
 class ParameterType(Resource):
-    @ jwt_required
+    @jwt_required
     def get(self):
         output = get_parameter_types()
         return util.success(output)
@@ -2008,13 +2019,13 @@ class ParameterType(Resource):
 class ParameterByIssue(Resource):
 
     # 用issues ID 取得目前所有的需求清單
-    @ jwt_required
+    @jwt_required
     def get(self, issue_id):
         output = get_parameters_by_issue_id(issue_id)
         return util.success(output)
 
     # 用issues ID 新建立需求清單
-    @ jwt_required
+    @jwt_required
     def post(self, issue_id):
         parser = reqparse.RequestParser()
         parser.add_argument('project_id', type=int)
@@ -2031,19 +2042,19 @@ class ParameterByIssue(Resource):
 class Parameter(Resource):
 
     # 用requirement_id 取得目前需求流程
-    @ jwt_required
+    @jwt_required
     def get(self, parameter_id):
         output = get_parameters_by_param_id(parameter_id)
         return util.success(output)
 
     # 用requirement_id 刪除目前需求流程
-    @ jwt_required
+    @jwt_required
     def delete(self, parameter_id):
         output = del_parameters_by_param_id(parameter_id)
         return util.success(output)
 
     # 用requirement_id 更新目前需求流程
-    @ jwt_required
+    @jwt_required
     def put(self, parameter_id):
         parser = reqparse.RequestParser()
         parser.add_argument('parameter_type_id', type=int)
@@ -2057,7 +2068,7 @@ class Parameter(Resource):
 
 
 class Relation(Resource):
-    @ jwt_required
+    @jwt_required
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('issue_id', type=int, required=True)
@@ -2066,7 +2077,7 @@ class Relation(Resource):
         output = post_issue_relation(args['issue_id'], args['issue_to_id'], get_jwt_identity()['user_id'])
         return util.success(output)
 
-    @ jwt_required
+    @jwt_required
     def put(self):
         parser = reqparse.RequestParser()
         parser.add_argument('issue_id', type=int, required=True)
@@ -2075,14 +2086,14 @@ class Relation(Resource):
         put_issue_relation(args['issue_id'], args['issue_to_ids'], get_jwt_identity()['user_id'])
         return util.success()
 
-    @ jwt_required
+    @jwt_required
     def delete(self, relation_id):
         output = delete_issue_relation(relation_id, get_jwt_identity()['user_id'])
         return util.success(output)
 
 
 class CheckIssueClosable(Resource):
-    @ jwt_required
+    @jwt_required
     def get(self, issue_id):
         output = check_issue_closable(issue_id)
         return util.success(output)
