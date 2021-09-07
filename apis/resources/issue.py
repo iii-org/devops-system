@@ -843,7 +843,7 @@ def handle_allowed_keywords(default_filters, args):
             elif key == "assigned_to_id" and isinstance(args[key], str):
                 assigned_to_ids = []
                 for id in args[key].split("|"):
-                    assigned_to_ids.append(validate_plan_user_id(int(id)))
+                    assigned_to_ids.append(str(validate_plan_user_id(int(id))))
                 default_filters[key] = "|".join(assigned_to_ids)
             # 如果 args[key] 值是 string，且可以被認知為正整數
             elif isinstance(args[key], str) and args[key].isdigit():
