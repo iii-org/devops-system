@@ -139,6 +139,11 @@ def ad_account_not_allow():
     return build(2010, 'User Account in AD is invalid in DevOps System')
 
 
+def cluster_not_found(server_name):
+    return build(2010, 'Clusters can not attach',
+                 {'server_name': server_name})
+
+
 # Permission errors
 class NotAllowedError(HTTPException):
     pass
@@ -166,7 +171,8 @@ def issue_not_all_closed(version_ids):
 
 
 def redmine_unable_to_relate(issue_id, issue_to_id):
-    return build(4003, 'Issues {issue_id}, {issue_to_id} can not create relations.', {'issue_ids': [issue_id, issue_to_id]})
+    return build(4003, 'Issues {issue_id}, {issue_to_id} can not create relations.',
+                 {'issue_ids': [issue_id, issue_to_id]})
 
 
 # General errors
@@ -184,6 +190,7 @@ def resource_not_found():
 
 def path_not_found():
     return build(7004, 'The requested URL is not found on this server. Please check if the path is correct.')
+
 
 def maximum_error(object, num):
     return build(7005, f'Maximum number of {object} is {num}.', {'object': object, 'num': num})

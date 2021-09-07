@@ -146,8 +146,12 @@ def save_clusters(args, server_name):
         Path(file_path).write_text(content)
     else:
         return util.respond(404, error_clusters_created)
-    deploy_k8s_client = DeployK8sClient(server_name)
-    deploy_k8s_client.get_api_resources()
+    try:
+        deploy_k8s_client = DeployK8sClient(server_name)
+        deploy_k8s_client.get_api_resources()
+    except NoResultFound:
+        return util.respond(404, error_clusters_not_found,
+                            error=apiError.repository_id_not_found)
     k8s_json = yaml.safe_load(content)
     return k8s_json
 
