@@ -95,10 +95,17 @@ def check_directory_exists(server_name):
         return util.respond(404, "Create Server Directory Error")
 
 
-def check_cluster(server_name):
-    return model.Cluster.query. \
-        filter(model.Cluster.name == server_name). \
-        first()
+def check_cluster(server_name, cluster_id=None):
+    if cluster_id is None:
+        return model.Cluster.query. \
+            filter(model.Cluster.name == server_name). \
+            first()
+    else:
+        return model.Cluster.query. \
+            filter(
+            model.Cluster.name == server_name,
+            model.Cluster.id != cluster_id). \
+            first()
 
 
 def get_cluster_application_information(cluster):
@@ -263,7 +270,7 @@ class Cluster(Resource):
                 'k8s_config_string', type=str)
             args = parser.parse_args()
             server_name = args.get('name').strip()
-            if check_cluster(server_name) is not None:
+            if check_cluster(server_name, cluster_id) is not None:
                 return util.respond(404, error_cluster_duplicate,
                                     error=apiError.cluster_duplicated(server_name))
             output = {"cluster_id": update_cluster(cluster_id, args)}
@@ -367,9 +374,7 @@ def remove_object_key_by_value(items, target=None):
         m_value = items[key]
         if isinstance(items[key], int) is not True:
             m_value = str(items[key]).strip()
-        if target is None:
-            output[m_key] = m_value
-        elif items[key] != target:
+        if target is None or items[key] != target:
             output[m_key] = m_value
     return output
 
@@ -1220,12 +1225,7 @@ def k8s_resource_exist(target, response):
     check_result = False
     for i in response.items:
         if str(target) == str(i.metadata.name):
-            # Start
             check_result = True
-            # if str(i.status.phase) == "Active":
-            #     check_result = True
-            # elif str(i.status.phase) == "Terminating":
-            #     check_result = True
     return check_result
 
 
@@ -1238,7 +1238,6 @@ def get_clusters_name(cluster_id, info=None):
 
 
 def get_application_information(application, cluster_info=None):
-    # output = row_to_dict(application)
     if application is None:
         return []
     output = row_to_dict(application)
