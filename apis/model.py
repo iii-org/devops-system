@@ -437,6 +437,7 @@ class RedmineIssue(db.Model):
     is_closed = Column(Boolean)
     start_date = Column(DateTime)
     sync_date = Column(DateTime)
+    point = Column(Integer)
 
 
 class RedmineProject(db.Model):
