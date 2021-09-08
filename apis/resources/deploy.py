@@ -103,8 +103,8 @@ def check_cluster(server_name, cluster_id=None):
     else:
         return model.Cluster.query. \
             filter(
-            model.Cluster.name == server_name,
-            model.Cluster.id != cluster_id). \
+                model.Cluster.name == server_name,
+                model.Cluster.id != cluster_id). \
             first()
 
 
@@ -169,7 +169,7 @@ def create_cluster(args, server_name, user_id):
     now = str(datetime.utcnow())
     new = model.Cluster(
         name=server_name,
-        disabled=False,
+        disabled=args.get('disabled', False),
         creator_id=user_id,
         create_at=now,
         update_at=now,
@@ -190,7 +190,7 @@ def update_cluster(cluster_id, args):
         elif args[key] is not None:
             setattr(cluster, key, args[key])
     server_name = args.get('name').strip()
-    if args.get('k8s_config_file') is not None or args.get('k8s_config_string') is not  None:
+    if args.get('k8s_config_file') is not None or args.get('k8s_config_string') is not None:
         k8s_json = save_clusters(args, server_name)
         cluster.cluster_name = k8s_json['clusters'][0]['name'],
         cluster.cluster_host = k8s_json['clusters'][0]['cluster']['server'],
@@ -233,7 +233,9 @@ class Clusters(Resource):
                 'k8s_config_file', type=werkzeug.datastructures.FileStorage, location='files')
             parser.add_argument(
                 'k8s_config_string', type=str)
+            parser.add_argument('disabled', type=inputs.boolean)
             args = parser.parse_args()
+
             server_name = args.get('name').strip()
             if check_cluster(server_name) is not None:
                 return util.respond(404, error_cluster_duplicate,
