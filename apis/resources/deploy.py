@@ -190,11 +190,12 @@ def update_cluster(cluster_id, args):
         elif args[key] is not None:
             setattr(cluster, key, args[key])
     server_name = args.get('name').strip()
-    k8s_json = save_clusters(args, server_name)
+    if args.get('k8s_config_file') is not None or args.get('k8s_config_string') is not  None:
+        k8s_json = save_clusters(args, server_name)
+        cluster.cluster_name = k8s_json['clusters'][0]['name'],
+        cluster.cluster_host = k8s_json['clusters'][0]['cluster']['server'],
+        cluster.cluster_user = k8s_json['users'][0]['name']
     cluster.name = server_name
-    cluster.cluster_name = k8s_json['clusters'][0]['name'],
-    cluster.cluster_host = k8s_json['clusters'][0]['cluster']['server'],
-    cluster.cluster_user = k8s_json['users'][0]['name']
     cluster.update_at = str(datetime.utcnow())
     db.session.commit()
     return cluster.id
