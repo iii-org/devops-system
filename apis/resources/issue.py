@@ -20,7 +20,7 @@ import util as util
 from accessories import redmine_lib
 from data.nexus_project import NexusProject
 from enums.action_type import ActionType
-from model import db, RedmineIssue
+from model import db, IssueExtensions
 from resources.apiError import DevOpsError
 from resources.redmine import redmine
 from . import project as project_module, project, role
@@ -306,30 +306,32 @@ class NexusIssue:
 
 
 def get_issue_point(issue_id):
-    point = None
-    issue = RedmineIssue.query.filter_by(issue_id=issue_id).first()
+    point = 0
+    issue = IssueExtensions.query.filter_by(issue_id=issue_id).first()
     if issue is not None:
         point = issue.point
+    else:
+        create_issue_extensions(issue_id, point)
     return point
 
 
-def create_db_issue(issue_id, point):
-    issue = RedmineIssue(issue_id=issue_id, point=point)
+def create_issue_extensions(issue_id, point=0):
+    issue = IssueExtensions(issue_id=issue_id, point=point)
     db.session.add(issue)
     db.session.commit()
 
 
 def update_issue_point(issue_id, point):
-    issue = RedmineIssue.query.filter_by(issue_id=issue_id).first()
+    issue = IssueExtensions.query.filter_by(issue_id=issue_id).first()
     if issue is not None:
         issue.point = point
         db.session.commit()
     else:
-        create_db_issue(issue_id, point)
+        create_issue_extensions(issue_id, point)
 
 
 def delete_db_issue(issue_id):
-    issue = RedmineIssue.query.filter_by(issue_id=issue_id).first()
+    issue = IssueExtensions.query.filter_by(issue_id=issue_id).first()
     if issue is not None:
         db.session.delete(issue)
         db.session.commit()
@@ -629,7 +631,7 @@ def create_issue(args, operator_id):
     issue = redmine_lib.redmine.issue.get(created_issue_id)
     output = NexusIssue().set_redmine_issue_v2(issue).to_json()
     if point is not None:
-        create_db_issue(output["id"], point)
+        create_issue_extensions(output["id"], point=point)
         output["point"] = point
     family = get_issue_family(issue)
     if family.get('parent') is not None:
@@ -753,7 +755,7 @@ def get_issue_list_by_project(project_id, args):
     nx_issue_params['users_info'] = user.get_all_user_info()
     for redmine_issue in all_issues:  
         nx_issue_params['redmine_issue'] = redmine_issue
-        nx_issue_params['with_point'] = True
+        nx_issue_params['with_point'] = args["with_point"]
         issue = NexusIssue().set_redmine_issue_v3(**nx_issue_params).to_json()
         output.append(issue)
 
@@ -1765,6 +1767,7 @@ class IssueByProject(Resource):
         parser.add_argument('parent_id', type=str)
         parser.add_argument('due_date_start', type=str)
         parser.add_argument('due_date_end', type=str)
+        parser.add_argument('with_point', type=bool)
         args = parser.parse_args()
 
         if args.get("search") is not None and len(args["search"]) < 2:
