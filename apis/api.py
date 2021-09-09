@@ -35,7 +35,7 @@ from model import db
 from resources import logger, role as role, activity, starred_project, devops_version, cicd
 from resources import project, gitlab, issue, user, redmine, wiki, version, apiTest, mock, harbor, \
     template, release, sync_redmine, plugin, kubernetesClient, project_permission, quality, sync_project, \
-    sync_user, router, deploy, alert, trace_order
+    sync_user, router, deploy, alert, trace_order, tag
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -200,6 +200,12 @@ api.add_resource(project.ProjectUserResourcePodLog,
 
 api.add_resource(starred_project.StarredProject,
                  '/project/<sint:project_id>/star')
+
+api.add_resource(tag.Tags,
+                 '/tags')
+
+api.add_resource(tag.Tag,
+                 '/tags/<int:tag_id>')
 
 # k8s Deployment
 api.add_resource(project.ProjectUserResourceDeployments,
