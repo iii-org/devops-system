@@ -126,14 +126,40 @@ class Redmine:
     def rm_get_project(self, plan_project_id):
         return self.__api_get('/projects/{0}'.format(plan_project_id)).json()
 
+    def rm_create_project(self, args):
+        param = {
+            'project': {
+                'name': args.get('display'),
+                'identifier': args.get('name'),
+                'description': args.get('description', ""),
+                'is_public': False
+            }
+        }
+        if args.get('parent_plan_project_id', None) is not None:
+            param['project']['parent_id'] = args.get('parent_plan_project_id')
+
+        return self.__api_post('/projects', data=param).json()
+
     def rm_update_project(self, plan_project_id, args):
-        xml_body = """<?xml version="1.0" encoding="UTF-8"?>
-                <project>
-                <name>{0}</name>
-                <description>{1}</description>
-                </project>""".format(
+        xml_body = """<?xml version="1.0" encoding="UTF-8"?>        
+                        <project>
+                        <name>{0}</name>
+                        <description>{1}</description>
+                        </project>""".format(
             args["display"],
-            args["description"])
+            args["description"],
+        )
+        if args.get('parent_plan_project_id', None) is not None:
+            xml_body = """<?xml version="1.0" encoding="UTF-8"?>        
+                            <project>
+                            <name>{0}</name>
+                            <description>{1}</description>
+                            <parent_id>{2}</parent_id>
+                            </project>""".format(
+                args["display"],
+                args["description"],
+                args["parent_plan_project_id"])
+
         headers = {'Content-Type': 'application/xml'}
         return self.__api_put('/projects/{0}'.format(plan_project_id),
                               headers=headers,
@@ -156,7 +182,8 @@ class Redmine:
             params = {'project_id': plan_project_id, 'status_id': '*',
                       'fixed_version_id': args['fixed_version_id']}
         elif args is not None and 'tracker_id' in args and args['tracker_id'] is not None:
-            params = {'project_id': plan_project_id, 'status_id': '*', 'tracker_id': args['tracker_id'], 'include': 'relations'}
+            params = {'project_id': plan_project_id, 'status_id': '*', 'tracker_id': args['tracker_id'],
+                      'include': 'relations'}
         else:
             params = {'project_id': plan_project_id, 'status_id': '*'}
         return self.paging('issues', 100, params)
@@ -368,22 +395,6 @@ class Redmine:
             raise DevOpsError(status_code, "Error while deleting attachments.",
                               error=apiError.redmine_error(output))
 
-    def rm_create_project(self, args):
-        xml_body = """<?xml version="1.0" encoding="UTF-8"?>
-                    <project>
-                    <name>{0}</name>
-                    <identifier>{1}</identifier>
-                    <description>{2}</description>
-                    <is_public>false</is_public>
-                    </project>""".format(
-            args["display"],
-            args["name"],
-            args["description"])
-        headers = {'Content-Type': 'application/xml'}
-        return self.__api_post('/projects',
-                               headers=headers,
-                               data=xml_body.encode('utf-8')).json()
-
     def rm_list_issues_by_versions_and_closed(self, plan_project_id, versions, closed_statuses):
         self.versions = {}
         for version in versions:
@@ -415,11 +426,12 @@ class Redmine:
     def rm_get_or_create_configmap(self):
         configs = kubernetesClient.list_namespace_configmap("default")
         if any(self.redmine_config_name == config.get("name") for config in configs) is False:
-            #Don't has redmine config, create one.
+            # Don't has redmine config, create one.
             with open(f'k8s-yaml/redmine-config.yaml') as file:
                 redmine_config_json = yaml.safe_load(file)['data']
                 kubernetesClient.create_namespace_configmap("default", self.redmine_config_name, redmine_config_json)
-        return yaml.safe_load(kubernetesClient.read_namespace_configmap("default", self.redmine_config_name)["configuration.yml"])
+        return yaml.safe_load(
+            kubernetesClient.read_namespace_configmap("default", self.redmine_config_name)["configuration.yml"])
 
     def rm_get_mail_setting(self):
         rm_con_json = self.rm_get_or_create_configmap()
@@ -427,8 +439,8 @@ class Redmine:
 
     def rm_put_mail_setting(self, rm_put_mail_dict):
         rm_configmap_dict = self.rm_get_or_create_configmap()
-        rm_configmap_dict["default"]["email_delivery"]["delivery_method"]= rm_put_mail_dict["delivery_method"]
-        rm_configmap_dict["default"]["email_delivery"]["smtp_settings"]= rm_put_mail_dict["smtp_settings"]
+        rm_configmap_dict["default"]["email_delivery"]["delivery_method"] = rm_put_mail_dict["delivery_method"]
+        rm_configmap_dict["default"]["email_delivery"]["smtp_settings"] = rm_put_mail_dict["smtp_settings"]
         out = {}
         out["configuration.yml"] = str(yaml.dump(rm_configmap_dict))
         kubernetesClient.put_namespace_configmap("default", self.redmine_config_name, out)
@@ -484,11 +496,13 @@ class RedmineMail(Resource):
         redmine.rm_put_mail_setting(args["redmine_mail"])
         return util.success()
 
+
 class RedmineRelease():
     @jwt_required
     def check_redemine_release(self, targets, versions, main_version=None):
-        output = {'check': True, "info": "", 'errors': {}, 'versions_status': {"pass": [], "failed": []}, 'failed_name': [],
-                  'issues': [],'unclosed_issues': [],'versions': []}
+        output = {'check': True, "info": "", 'errors': {}, 'versions_status': {"pass": [], "failed": []},
+                  'failed_name': [],
+                  'issues': [], 'unclosed_issues': [], 'versions': []}
         for target in targets:
             version_id = str(target['id'])
             output['issues'] += target['issues']

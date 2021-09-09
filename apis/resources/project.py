@@ -159,6 +159,11 @@ def create_project(user_id, args):
         kubernetesClient.delete_namespace(project_name)
         raise e
 
+    # 取得母專案資訊
+    if args.get('parent_id', None) is not None:
+        parent_plan_project_id = get_plan_project_id(args.get('parent_id'))
+        args['parent_plan_project_id'] = parent_plan_project_id
+
     # 使用 multi-thread 建立各專案
     services = ['redmine', 'gitlab', 'harbor', 'sonarqube']
     targets = {
@@ -367,6 +372,8 @@ def pm_update_project(project_id, args):
     if args['description'] is not None:
         gitlab.gl_update_project(
             plugin_relation.git_repository_id, args["description"])
+    if args.get('parent_id', None) is not None:
+        args['parent_plan_project_id'] = get_plan_project_id(args.get('parent_id'))
     redmine.rm_update_project(plugin_relation.plan_project_id, args)
     nexus.nx_update_project(project_id, args)
 
@@ -1085,10 +1092,11 @@ class SingleProject(Resource):
         parser.add_argument('start_date', type=str, required=True)
         parser.add_argument('due_date', type=str, required=True)
         parser.add_argument('owner_id', type=int, required=True)
+        parser.add_argument('parent_id', type=int)
         args = parser.parse_args()
         check_project_args_patterns(args)
         check_project_owner_id(args['owner_id'], get_jwt_identity()[
-                               'user_id'], project_id)
+            'user_id'], project_id)
         pm_update_project(project_id, args)
         return util.success()
 
@@ -1103,7 +1111,7 @@ class SingleProject(Resource):
         check_project_args_patterns(args)
         if args.get('owner_id', None) is not None:
             check_project_owner_id(args['owner_id'], get_jwt_identity()[
-                                   'user_id'], project_id)
+                'user_id'], project_id)
         nexus_update_project(project_id, args)
         return util.success()
 
@@ -1137,6 +1145,7 @@ class SingleProject(Resource):
         parser.add_argument('start_date', type=str, required=True)
         parser.add_argument('due_date', type=str, required=True)
         parser.add_argument('owner_id', type=int)
+        parser.add_argument('parent_id', type=int)
         args = parser.parse_args()
         if args['arguments'] is not None:
             args['arguments'] = ast.literal_eval(args['arguments'])
