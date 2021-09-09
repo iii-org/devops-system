@@ -645,5 +645,6 @@ class Tag(db.Model):
 
 
 class IssueTag(db.Model):
-    issue_id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key = True)
+    issue_id = Column(Integer, index=True)
     tag_id = Column(Integer, ForeignKey(Tag.id, ondelete='CASCADE'), nullable=False)
