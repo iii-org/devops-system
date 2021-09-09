@@ -706,7 +706,7 @@ def delete_issue(issue_id):
             pass
         else:
             raise e
-    return util.success()
+    return "success"
 
 
 def get_issue_by_project(project_id, args):
@@ -1739,7 +1739,7 @@ class SingleIssue(Resource):
 
     @jwt_required
     def delete(self, issue_id):
-        return delete_issue(issue_id)
+        return util.success(delete_issue(issue_id))
 
 
 class DumpByIssue(Resource):
