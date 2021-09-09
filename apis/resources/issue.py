@@ -330,7 +330,7 @@ def update_issue_point(issue_id, point):
         create_issue_extensions(issue_id, point)
 
 
-def delete_db_issue(issue_id):
+def delete_issue_extensions(issue_id):
     issue = IssueExtensions.query.filter_by(issue_id=issue_id).first()
     if issue is not None:
         db.session.delete(issue)
@@ -698,7 +698,7 @@ def delete_issue(issue_id):
     try:
         require_issue_visible(issue_id)
         redmine.rm_delete_issue(issue_id)
-        delete_db_issue(issue_id)
+        delete_issue_extensions(issue_id)
     except DevOpsError as e:
         print(e.status_code)
         if e.status_code == 404:
