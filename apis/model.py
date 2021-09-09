@@ -642,3 +642,9 @@ class Tag(db.Model):
     id = Column(Integer, primary_key=True)
     project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
     name = Column(String)
+
+
+class IssueTag(db.Model):
+    id = Column(Integer, primary_key = True)
+    issue_id = Column(Integer, index=True)
+    tag_id = Column(Integer, ForeignKey(Tag.id, ondelete='CASCADE'), nullable=False)
