@@ -4,12 +4,14 @@ import config
 import model
 import util
 from model import db, ProjectPluginRelation, Project, UserPluginRelation, User, ProjectUserRole, PluginSoftware, \
-    DefaultAlertDays, TraceOrder, TraceResult, Application
+    DefaultAlertDays, TraceOrder, TraceResult, Application, IssueExtensions
 from plugins.sonarqube import sq_create_project, sq_create_user
 from resources import harbor, kubernetesClient, role, sync_redmine, devops_version
 from resources.apiError import DevOpsError
 from resources.logger import logger
 from resources.rancher import rancher
+from resources.redmine import redmine
+from resources import project
 
 # Each time you add a migration, add a version code here.
 
@@ -24,7 +26,7 @@ VERSIONS = ['0.9.2', '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.4', '0.9.2.5',
             "1.8.0.5", "1.8.0.6", "1.8.0.7",
             "1.8.0.8", "1.8.0.9", "1.8.1.0", "1.8.1.1", "1.8.1.2", '1.8.1.3', '1.8.1.4', '1.8.1.5', '1.8.1.6',
             '1.8.1.7', '1.8.1.8', '1.8.1.9', '1.8.2.0', '1.8.2.1', '1.8.2.2', '1.8.2.3', '1.8.2.4', '1.8.2.5',
-            '1.8.2.6', '1.8.2.7', '1.8.3.0', '1.8.3.1']
+            '1.8.2.6', '1.8.2.7', '1.8.3.0', '1.8.3.1', '1.8.3.2']
 ONLY_UPDATE_DB_MODELS = [
     '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.5', '0.9.2.6', '0.9.2.a8',
     '1.0.0.2', '1.3.0.1', '1.3.0.2', '1.3.0.3', '1.3.0.4', '1.3.1', '1.3.1.1', '1.3.1.2',
@@ -93,6 +95,26 @@ def upgrade(version):
         drop_trace_result()
     elif version == '1.8.3.0':
         set_default_application_restart_number()
+    elif version == '1.8.3.2':
+        alembic_upgrade()
+        create_issue_extension()
+
+
+def create_issue_extension():
+    issue_id_list = []
+    projects = Project.query.all()
+    project_id_list = [pj.id for pj in projects]
+    project_id_list.remove(-1)
+    for pj_id in project_id_list:
+        plan_pj_id = project.get_plan_project_id(pj_id)
+        issues = redmine.rm_get_issues_by_project(plan_pj_id)
+        issue_id_list.extend([issue["id"] for issue in issues])
+
+    issue_id_list = list(set(issue_id_list))
+    for issue_id in issue_id_list:
+        issue = IssueExtensions(issue_id=issue_id, point=0)
+        db.session.add(issue)
+        db.session.commit()
 
 
 def set_default_application_restart_number():

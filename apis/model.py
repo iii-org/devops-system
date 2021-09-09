@@ -631,3 +631,8 @@ class AlertUnchangeRecord(db.Model):
     issue_id = Column(Integer, nullable=False)
     before_update_time = Column(DateTime)
     after_update_time = Column(DateTime)
+
+
+class IssueExtensions(db.Model):
+    issue_id = Column(Integer, primary_key=True)
+    point = Column(Integer)
