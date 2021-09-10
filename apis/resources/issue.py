@@ -27,6 +27,7 @@ from resources.apiError import DevOpsError
 from resources.redmine import redmine
 from . import project as project_module, project, role
 from .activity import record_activity
+from . import tag as tag_py
 
 FLOW_TYPES = {"0": "Given", "1": "When", "2": "Then", "3": "But", "4": "And"}
 PARAMETER_TYPES = {'1': '文字', '2': '英數字', '3': '英文字', '4': '數字'}
@@ -257,7 +258,7 @@ class NexusIssue:
             self.data['has_children'] = len(redmine_lib.redmine.issue.filter(parent_id=self.data["id"])) > 0
             relations = redmine_issue.get("relation")
             family_bool = self.data['has_children'] is True or (relations is not None and len(relations) > 0) \
-                or redmine_issue.get("parent") is not None
+                          or redmine_issue.get("parent") is not None
             self.data["family"] = family_bool
 
         if with_relationship:
@@ -343,8 +344,11 @@ def create_issue_tags(issue_id, tags):
 
 def update_issue_tags(issue_id, tags):
     issue_tags = model.IssueTag.query.filter_by(issue_id=issue_id).first()
+    if issue_tags is None:
+        return create_issue_tags(issue_id, tags)
     issue_tags.tag_id = check_tags_id_is_int(tags)
     db.session.commit()
+    return issue_tags.issue_id
 
 
 def delete_issue_tags(issue_id):
@@ -353,7 +357,19 @@ def delete_issue_tags(issue_id):
     db.session.commit()
 
 
-def get_issue_tags(tags):
+def get_issue_tags(issue_id):
+    issue_tags = model.IssueTag.query.filter_by(issue_id=issue_id).first()
+    tags = tag_py.get_tags_for_dict()
+    output = []
+    if len(issue_tags.tag_id) == 0:
+        return output
+    for tag_id in issue_tags.tag_id:
+        if tag_id in tags:
+            output.append(tags[tag_id])
+    return output
+
+
+def search_issue_tags_by_tags(tags):
     tags = check_tags_id_is_int(tags)
     issues = db.session.query(model.IssueTag).filter(
         or_(model.IssueTag.tag_id.any(v) for v in tags)
@@ -558,7 +574,8 @@ def __deal_with_issue_redmine_output(redmine_output, closed_status=None):
     redmine_output['issue_link'] = f'{config.get("REDMINE_EXTERNAL_BASE_URL")}/issues/{redmine_output["id"]}'
     if 'attachments' in redmine_output:
         for attachment in redmine_output['attachments']:
-            attachment['content_url'] = f'{config.get("REDMINE_EXTERNAL_BASE_URL")}/attachments/download/{attachment["id"]}/{attachment["filename"]}'
+            attachment[
+                'content_url'] = f'{config.get("REDMINE_EXTERNAL_BASE_URL")}/attachments/download/{attachment["id"]}/{attachment["filename"]}'
     redmine_output['is_closed'] = False
     if redmine_output['status']['id'] in closed_status:
         redmine_output['is_closed'] = True
@@ -725,7 +742,7 @@ def update_issue(issue_id, args, operator_id=None):
         args['assigned_to_id'] = user_plugin_relation.plan_user_id
 
     point = args.pop("point") if "point" in args else None
-    tags = args.pop("tags") if "tags" in args else None
+    tags = args.pop("tags", None)
 
     attachment = redmine.rm_upload(args)
     if attachment is not None:
@@ -1246,7 +1263,7 @@ def get_open_issue_statistics(user_id):
     args['status_id'] = 'closed'
     closed_issue_output = redmine.rm_get_statistics(args)
     active_issue_number = total_issue_output["total_count"] - \
-        closed_issue_output["total_count"]
+                          closed_issue_output["total_count"]
     return util.success({"active_issue_number": active_issue_number})
 
 
@@ -1669,7 +1686,7 @@ def execute_issue_alert(alert_mapping):
                             if delta.days <= 0:
                                 note = common_note
                                 new = model.AlertUnchangeRecord(
-                                    project_id=project_id, 
+                                    project_id=project_id,
                                     issue_id=issue_id,
                                     before_update_time=update_time,
                                     after_update_time=util.get_certain_date_from_now(0)
@@ -1681,41 +1698,43 @@ def execute_issue_alert(alert_mapping):
                             if alert_unchange_record.before_update_time is None:
                                 delta = update_time - util.get_certain_date_from_now(days)
                                 if delta.days <= 0:
-                                    note = common_note     
+                                    note = common_note
                                     alert_unchange_record.before_update_time = update_time
                                     alert_unchange_record.after_update_time = util.get_certain_date_from_now(0)
                                     db.session.commit()
                             else:
                                 if alert_unchange_record.after_update_time == update_time:
-                                    delta = alert_unchange_record.before_update_time - util.get_certain_date_from_now(days)
+                                    delta = alert_unchange_record.before_update_time - util.get_certain_date_from_now(
+                                        days)
                                     if delta.days <= 0:
-                                        note = common_note 
-                                        alert_unchange_record.after_update_time = util.get_certain_date_from_now(0)  
-                                        db.session.commit()      
+                                        note = common_note
+                                        alert_unchange_record.after_update_time = util.get_certain_date_from_now(0)
+                                        db.session.commit()
                                 else:
                                     delta = update_time - util.get_certain_date_from_now(days)
                                     if delta.days <= 0:
-                                        note = common_note 
+                                        note = common_note
                                         alert_unchange_record.before_update_time = update_time
                                         alert_unchange_record.after_update_time = util.get_certain_date_from_now(0)
                                     else:
                                         alert_unchange_record.before_update_time = None
-                                    db.session.commit()  
+                                    db.session.commit()
                     if condition == "comming":
                         if issue.get("due_date") is None:
                             continue
                         delta = util.get_certain_date_from_now(-days) - datetime.strptime(issue["due_date"], "%Y-%m-%d")
-                        if delta.days >= 0: 
-                            d_day = days - delta.days    
+                        if delta.days >= 0:
+                            d_day = days - delta.days
                             if d_day >= 0:
                                 note = f'{d_day}天即將到期'
                             else:
                                 note = f'已經過期{-d_day}天'
                     if note is not None:
                         update_issue(
-                            issue_id, 
-                            {"notes": f'本議題 #{issue_id} {issue["subject"]} {note} ，請確認該議題是否繼續執行？或更新狀態？'}, 
+                            issue_id,
+                            {"notes": f'本議題 #{issue_id} {issue["subject"]} {note} ，請確認該議題是否繼續執行？或更新狀態？'},
                         )
+
 
 # --------------------- Resources ---------------------
 class SingleIssue(Resource):
@@ -1731,6 +1750,7 @@ class SingleIssue(Resource):
 
         issue_info["name"] = issue_info.pop('subject', None)
         issue_info["point"] = get_issue_point(issue_id)
+        issue_info["tags"] = get_issue_tags(issue_id)
         return util.success(issue_info)
 
     @jwt_required
@@ -1768,7 +1788,6 @@ class SingleIssue(Resource):
 
         args["subject"] = args.pop("name")
         return util.success(create_issue(args, get_jwt_identity()['user_id']))
-
 
     @jwt_required
     def put(self, issue_id):

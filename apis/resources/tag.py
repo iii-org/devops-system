@@ -24,6 +24,17 @@ def row_to_dict(row):
         ret[key] = value
     return ret
 
+def get_tags_for_dict(project_id = None):
+    output = {}
+    if project_id is None:
+        tags = model.Tag.query.all()
+    else:
+        tags = model.Tag.query.filter_by(project_id=project_id).all()
+    for tag in tags:
+        output[int(tag.id)] = {'id': int(tag.id), 'name': tag.name}
+    return output
+
+
 
 def get_tags(project_id=None):
     output = []
