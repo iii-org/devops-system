@@ -258,7 +258,7 @@ class NexusIssue:
             self.data['has_children'] = len(redmine_lib.redmine.issue.filter(parent_id=self.data["id"])) > 0
             relations = redmine_issue.get("relation")
             family_bool = self.data['has_children'] is True or (relations is not None and len(relations) > 0) \
-                          or redmine_issue.get("parent") is not None
+                or redmine_issue.get("parent") is not None
             self.data["family"] = family_bool
 
         if with_relationship:
@@ -677,9 +677,9 @@ def create_issue(args, operator_id):
         else:
             args['assigned_to_id'] = None
 
-    point = args.pop("point") if "point" in args else None
+    point = args.pop("point", 0)
     # Get Tags ID
-    tags = args.pop("tags") if "tags" in args else None
+    tags = args.pop("tags", None)
 
     attachment = redmine.rm_upload(args)
     if attachment is not None:
@@ -695,9 +695,8 @@ def create_issue(args, operator_id):
     issue = redmine_lib.redmine.issue.get(created_issue_id)
     output = NexusIssue().set_redmine_issue_v2(issue).to_json()
 
-    if point is not None:
-        create_issue_extensions(output["id"], point=point)
-        output["point"] = point
+    create_issue_extensions(output["id"], point=point)
+    output["point"] = point
 
     if tags is not None:
         tag_ids = tags.strip().split(',')
@@ -741,7 +740,7 @@ def update_issue(issue_id, args, operator_id=None):
             user_id=int(args['assigned_to_id']))
         args['assigned_to_id'] = user_plugin_relation.plan_user_id
 
-    point = args.pop("point") if "point" in args else None
+    point = args.pop("point", None)
     tags = args.pop("tags", None)
 
     attachment = redmine.rm_upload(args)
@@ -790,7 +789,7 @@ def delete_issue(issue_id):
             pass
         else:
             raise e
-    return util.success()
+    return "success"
 
 
 def get_issue_by_project(project_id, args):
@@ -1263,7 +1262,7 @@ def get_open_issue_statistics(user_id):
     args['status_id'] = 'closed'
     closed_issue_output = redmine.rm_get_statistics(args)
     active_issue_number = total_issue_output["total_count"] - \
-                          closed_issue_output["total_count"]
+        closed_issue_output["total_count"]
     return util.success({"active_issue_number": active_issue_number})
 
 
