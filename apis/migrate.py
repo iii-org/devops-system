@@ -492,11 +492,11 @@ def run():
     try:
         for version in VERSIONS:
             if needs_upgrade(current, version):
-                logger.info('Upgrade to {0}'.format(version))
-                upgrade(version)
                 current = version
                 row = model.NexusVersion.query.first()
                 row.api_version = current
                 db.session.commit()
+                logger.info('Upgrade to {0}'.format(version))
+                upgrade(version)
     except Exception as e:
         raise e
