@@ -807,6 +807,7 @@ def update_project_rancher_pipline():
     project_id_list.remove(-1)
 
     for pj_id in project_id_list:
+        print(pj_id)
         repository_id = nexus.nx_get_repository_id(pj_id)
         pj = gl.projects.get(repository_id)
         if pj.empty_repo:
@@ -816,6 +817,7 @@ def update_project_rancher_pipline():
             f = rs_gitlab.gl_get_file_from_lib(repository_id, pipe_yaml_name, branch_name=br.name)
             pipe_dict = yaml.safe_load(f.decode())
             for info in pipe_dict["stages"]:
+                print(info["name"])
                 if info.get("iiidevops") is None:
                     if info["name"].startswith("Test--SonarQube for Java"):
                         info["iiidevops"] = "sonarqube"
@@ -838,6 +840,7 @@ def update_project_rancher_pipline():
             f.content = yaml.dump(pipe_dict)
             f.save(branch=br.name,
                    commit_message=f'Add "iiidevops" in branch {br.name} .rancher-pipeline.yml.')
+            print("Save completely")
             pipeline.stop_and_delete_pipeline(repository_id, next_run)
 
 
