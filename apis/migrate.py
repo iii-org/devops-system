@@ -1,5 +1,6 @@
 import os
 
+import threading
 import config
 import model
 import util
@@ -12,6 +13,7 @@ from resources.logger import logger
 from resources.rancher import rancher
 from resources.redmine import redmine
 from resources import project
+from resources import template
 
 # Each time you add a migration, add a version code here.
 
@@ -27,7 +29,7 @@ VERSIONS = ['0.9.2', '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.4', '0.9.2.5',
             "1.8.0.8", "1.8.0.9", "1.8.1.0", "1.8.1.1", "1.8.1.2", '1.8.1.3', '1.8.1.4', '1.8.1.5', '1.8.1.6',
             '1.8.1.7', '1.8.1.8', '1.8.1.9', '1.8.2.0', '1.8.2.1', '1.8.2.2', '1.8.2.3', '1.8.2.4', '1.8.2.5',
             '1.8.2.6', '1.8.2.7', '1.8.3.0', '1.8.3.1', '1.8.3.2',
-            '1.9.0.1', '1.9.0.2', '1.9.0.3', '1.9.0.4', '1.9.0.5', '1.9.0.6']
+            '1.9.0.1', '1.9.0.2', '1.9.0.3', '1.9.0.4', '1.9.0.5', '1.9.0.6', '1.9.0.7']
 ONLY_UPDATE_DB_MODELS = [
     '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.5', '0.9.2.6', '0.9.2.a8',
     '1.0.0.2', '1.3.0.1', '1.3.0.2', '1.3.0.3', '1.3.0.4', '1.3.1', '1.3.1.1', '1.3.1.2',
@@ -101,10 +103,10 @@ def upgrade(version):
         create_issue_extension()
     elif version == '1.9.0.4':
         pass
-        # template.update_project_rancher_pipline()
     elif version == '1.9.0.5':
         pass
-        # template.update_project_rancher_pipline()
+    elif version == '1.9.0.7':
+        threading.Thread(target=template.update_project_rancher_pipline).start()
 
 
 def create_issue_extension():
@@ -493,11 +495,11 @@ def run():
     try:
         for version in VERSIONS:
             if needs_upgrade(current, version):
+                logger.info('Upgrade to {0}'.format(version))
+                upgrade(version)
                 current = version
                 row = model.NexusVersion.query.first()
                 row.api_version = current
                 db.session.commit()
-                logger.info('Upgrade to {0}'.format(version))
-                upgrade(version)
     except Exception as e:
         raise e

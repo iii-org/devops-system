@@ -14,6 +14,7 @@ import resources.pipeline as pipeline
 import resources.role as role
 from resources.gitlab import gitlab as rs_gitlab
 import resources.yaml_OO as pipeline_yaml_OO
+from resources import logger
 import util
 import yaml
 from flask_jwt_extended import jwt_required
@@ -805,9 +806,8 @@ def update_project_rancher_pipline():
     projects = Project.query.all()
     project_id_list = [pj.id for pj in projects]
     project_id_list.remove(-1)
-
     for pj_id in project_id_list:
-        print(pj_id)
+        logger.logger.info(f'project_id : {pj_id}')
         repository_id = nexus.nx_get_repository_id(pj_id)
         pj = gl.projects.get(repository_id)
         if pj.empty_repo:
@@ -816,31 +816,42 @@ def update_project_rancher_pipline():
             pipe_yaml_name = __tm_get_pipe_yamlfile_name(pj, branch_name=br.name)
             f = rs_gitlab.gl_get_file_from_lib(repository_id, pipe_yaml_name, branch_name=br.name)
             pipe_dict = yaml.safe_load(f.decode())
+            temp_list = []
             for info in pipe_dict["stages"]:
-                print(info["name"])
+                info_name = info["name"] 
+                logger.logger.info(f'name : {info_name}')
                 if info.get("iiidevops") is None:
-                    if info["name"].startswith("Test--SonarQube for Java"):
-                        info["iiidevops"] = "sonarqube"
-                        continue
+                    temp_dict = {"name": info.pop("name")}
+                    if info_name.startswith("Test--SonarQube for Java"):
+                        temp_dict["iiidevops"] = "sonarqube"
+                        temp_dict.update(info)
+                        info = temp_dict
+                    else:    
+                        catalog_template_value = info["steps"][0].get("applyAppConfig", {}).get("catalogTemplate")
+                        if catalog_template_value is not None:
+                            catalog_template_value = catalog_template_value.split(
+                                ":")[1].replace("iii-dev-charts3-", "")
+                            if catalog_template_value == "web":
+                                catalog_template_value = "deployed-environments"  
+                            else:
+                                for prefix in ["test-", "scan-"]:
+                                    if catalog_template_value.startswith(prefix):
+                                        catalog_template_value = catalog_template_value.replace(prefix, "")
+                                        break
+                        else:
+                            catalog_template_value = "deployed-environments"
+                        temp_dict["iiidevops"] = catalog_template_value
+                        temp_dict.update(info)
+                        info = temp_dict
 
-                    catalog_template_value = info["steps"][0].get("applyAppConfig", {}).get("catalogTemplate")
-                    if catalog_template_value is not None:
-                        catalog_template_value = catalog_template_value.split(
-                            ":")[1].replace("iii-dev-charts3-", "")
-                        for prefix in ["test-", "scan-"]:
-                            if catalog_template_value.startswith(prefix):
-                                catalog_template_value = catalog_template_value.replace(prefix, "")
-                                break
-                        if catalog_template_value == "web":
-                            catalog_template_value = "deployed-environments"  
-                        info["iiidevops"] = catalog_template_value
-                    else:
-                        info["iiidevops"] = "deployed-environments"
+                temp_list.append(info)
+            pipe_dict["stages"] = temp_list
+
             next_run = pipeline.get_pipeline_next_run(repository_id)
-            f.content = yaml.dump(pipe_dict)
+            f.content = yaml.dump(pipe_dict, sort_keys=False)
             f.save(branch=br.name,
                    commit_message=f'Add "iiidevops" in branch {br.name} .rancher-pipeline.yml.')
-            print("Save completely")
+            logger.logger.info(f'{pj_id} update completely')
             pipeline.stop_and_delete_pipeline(repository_id, next_run)
 
 
