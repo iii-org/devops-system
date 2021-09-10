@@ -9,7 +9,9 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
 from redminelib import exceptions as redminelibError
 from sqlalchemy import or_
+from sqlalchemy.dialects.postgresql import Any
 from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.sql import operators
 
 import config
 import model
@@ -321,6 +323,47 @@ def create_issue_extensions(issue_id, point=0):
     db.session.commit()
 
 
+def check_tags_id_is_int(tags):
+    tag_ids = []
+    for tag in tags:
+        tag_ids.append(int(tag))
+    tag_ids.sort()
+    return tag_ids
+
+
+def create_issue_tags(issue_id, tags):
+    new = model.IssueTag(
+        issue_id=issue_id,
+        tag_id=check_tags_id_is_int(tags)
+    )
+    db.session.add(new)
+    db.session.commit()
+    return new.issue_id
+
+
+def update_issue_tags(issue_id, tags):
+    issue_tags = model.IssueTag.query.filter_by(issue_id=issue_id).first()
+    issue_tags.tag_id = check_tags_id_is_int(tags)
+    db.session.commit()
+
+
+def delete_issue_tags(issue_id):
+    issue_tags = model.IssueTag.query.filter_by(issue_id=issue_id).first()
+    db.session.delete(issue_tags)
+    db.session.commit()
+
+
+def get_issue_tags(tags):
+    tags = check_tags_id_is_int(tags)
+    issues = db.session.query(model.IssueTag).filter(
+        or_(model.IssueTag.tag_id.any(v) for v in tags)
+    ).all()
+    output = []
+    for issue in issues:
+        output.append(row_to_dict(issue))
+    return output
+
+
 def update_issue_point(issue_id, point):
     issue = IssueExtensions.query.filter_by(issue_id=issue_id).first()
     if issue is not None:
@@ -586,6 +629,7 @@ def get_issue_assign_to_detail(issue):
         issue_detail['name'] = issue_obj.subject
     return issue_detail
 
+
 def create_issue(args, operator_id):
     args = {k: v for k, v in args.items() if v is not None}
     if 'fixed_version_id' in args:
@@ -617,6 +661,9 @@ def create_issue(args, operator_id):
             args['assigned_to_id'] = None
 
     point = args.pop("point") if "point" in args else None
+    # Get Tags ID
+    tags = args.pop("tags") if "tags" in args else None
+
     attachment = redmine.rm_upload(args)
     if attachment is not None:
         args['uploads'] = [attachment]
@@ -630,9 +677,18 @@ def create_issue(args, operator_id):
     created_issue_id = created_issue["issue"]["id"]
     issue = redmine_lib.redmine.issue.get(created_issue_id)
     output = NexusIssue().set_redmine_issue_v2(issue).to_json()
+
     if point is not None:
         create_issue_extensions(output["id"], point=point)
         output["point"] = point
+
+    if tags is not None:
+        tag_ids = tags.strip().split(',')
+
+        if tags.strip() != "" and len(tag_ids) > 0:
+            issue_tags = create_issue_tags(output["id"], tag_ids)
+            output['tags'] = issue_tags
+
     family = get_issue_family(issue)
     if family.get('parent') is not None:
         output['parent'] = family['parent']
@@ -669,6 +725,8 @@ def update_issue(issue_id, args, operator_id=None):
         args['assigned_to_id'] = user_plugin_relation.plan_user_id
 
     point = args.pop("point") if "point" in args else None
+    tags = args.pop("tags") if "tags" in args else None
+
     attachment = redmine.rm_upload(args)
     if attachment is not None:
         args['uploads'] = [attachment]
@@ -685,6 +743,12 @@ def update_issue(issue_id, args, operator_id=None):
         output["point"] = point
     else:
         output["point"] = get_issue_point(output["id"])
+
+    if tags is not None:
+        tag_ids = tags.strip().split(',')
+        if tags.strip() != "" and len(tag_ids) > 0:
+            update_issue_tags(output["id"], tag_ids)
+
     family = get_issue_family(issue)
     if family.get('parent', None):
         output['parent'] = family['parent']
@@ -701,6 +765,7 @@ def delete_issue(issue_id):
         require_issue_visible(issue_id)
         redmine.rm_delete_issue(issue_id)
         delete_issue_extensions(issue_id)
+        delete_issue_tags(issue_id)
     except DevOpsError as e:
         print(e.status_code)
         if e.status_code == 404:
@@ -708,7 +773,7 @@ def delete_issue(issue_id):
             pass
         else:
             raise e
-    return "success"
+    return util.success()
 
 
 def get_issue_by_project(project_id, args):
@@ -755,7 +820,7 @@ def get_issue_list_by_project(project_id, args):
         nx_issue_params['relationship_bool'] = True
 
     nx_issue_params['users_info'] = user.get_all_user_info()
-    for redmine_issue in all_issues:  
+    for redmine_issue in all_issues:
         nx_issue_params['redmine_issue'] = redmine_issue
         nx_issue_params['with_point'] = args["with_point"]
         issue = NexusIssue().set_redmine_issue_v3(**nx_issue_params).to_json()
@@ -906,6 +971,7 @@ def handle_allowed_keywords(default_filters, args):
             else:
                 default_filters[key] = args[key]
 
+
 def validate_plan_user_id(id):
     try:
         nx_user = db.session.query(model.UserPluginRelation).join(
@@ -916,6 +982,7 @@ def validate_plan_user_id(id):
             apiError.user_not_found(id)
         )
     return nx_user.plan_user_id
+
 
 def handle_search(default_filters, args):
     result = []
@@ -1683,6 +1750,7 @@ class SingleIssue(Resource):
         parser.add_argument('done_ratio', type=int)
         parser.add_argument('estimated_hours', type=int)
         parser.add_argument('point', type=int)
+        parser.add_argument('tags', action=str)
 
         # Attachment upload
         parser.add_argument(
@@ -1720,6 +1788,7 @@ class SingleIssue(Resource):
         parser.add_argument('done_ratio', type=int)
         parser.add_argument('notes', type=str)
         parser.add_argument('point', type=int)
+        parser.add_argument('tags', type=str)
 
         # Attachment upload
         parser.add_argument(
