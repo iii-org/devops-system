@@ -258,7 +258,7 @@ class NexusIssue:
             self.data['has_children'] = len(redmine_lib.redmine.issue.filter(parent_id=self.data["id"])) > 0
             relations = redmine_issue.get("relation")
             family_bool = self.data['has_children'] is True or (relations is not None and len(relations) > 0) \
-                or redmine_issue.get("parent") is not None
+                          or redmine_issue.get("parent") is not None
             self.data["family"] = family_bool
 
         if with_relationship:
@@ -359,6 +359,8 @@ def delete_issue_tags(issue_id):
 
 def get_issue_tags(issue_id):
     issue_tags = model.IssueTag.query.filter_by(issue_id=issue_id).first()
+    if issue_tags is None:
+        return []
     tags = tag_py.get_tags_for_dict()
     output = []
     if len(issue_tags.tag_id) == 0:
@@ -1262,7 +1264,7 @@ def get_open_issue_statistics(user_id):
     args['status_id'] = 'closed'
     closed_issue_output = redmine.rm_get_statistics(args)
     active_issue_number = total_issue_output["total_count"] - \
-        closed_issue_output["total_count"]
+                          closed_issue_output["total_count"]
     return util.success({"active_issue_number": active_issue_number})
 
 
@@ -1749,7 +1751,9 @@ class SingleIssue(Resource):
 
         issue_info["name"] = issue_info.pop('subject', None)
         issue_info["point"] = get_issue_point(issue_id)
-        issue_info["tags"] = get_issue_tags(issue_id)
+        tags = get_issue_tags(issue_id)
+        if len(tags) > 0:
+            issue_info["tags"] = tags
         return util.success(issue_info)
 
     @jwt_required
