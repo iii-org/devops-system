@@ -19,6 +19,7 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Date, Enum, JSON, Float, ARRAY, \
     PickleType
 from sqlalchemy.orm import relationship, backref
+from sqlalchemy.dialects import postgresql
 
 import util
 from enums.action_type import ActionType
@@ -645,6 +646,5 @@ class Tag(db.Model):
 
 
 class IssueTag(db.Model):
-    id = Column(Integer, primary_key = True)
-    issue_id = Column(Integer, index=True)
-    tag_id = Column(Integer, ForeignKey(Tag.id, ondelete='CASCADE'), nullable=False)
+    issue_id = Column(Integer, primary_key=True)
+    tag_id = Column(postgresql.ARRAY(Integer))
