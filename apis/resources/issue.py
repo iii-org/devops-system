@@ -683,6 +683,8 @@ def update_issue(issue_id, args, operator_id=None):
     if point is not None:
         update_issue_point(output["id"], point)
         output["point"] = point
+    else:
+        output["point"] = get_issue_point(output["id"])
     family = get_issue_family(issue)
     if family.get('parent', None):
         output['parent'] = family['parent']
