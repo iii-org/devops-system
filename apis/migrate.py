@@ -101,9 +101,11 @@ def upgrade(version):
         alembic_upgrade()
         create_issue_extension()
     elif version == '1.9.0.4':
-        template.update_project_rancher_pipline()
+        pass
+        # template.update_project_rancher_pipline()
     elif version == '1.9.0.5':
-        template.update_project_rancher_pipline()
+        pass
+        # template.update_project_rancher_pipline()
 
 
 def create_issue_extension():
