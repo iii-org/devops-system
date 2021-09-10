@@ -5,6 +5,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+import nexus
+from model import Project
 import config
 import dateutil.parser
 import resources.apiError as apiError
@@ -226,15 +228,15 @@ def __compare_tag_version(tag_version, start_version, end_version=None):
                 i += 1
     # has end
     tag_version_list = version_parser(tag_version)
-    tag_version_list = tag_version_list + [0]*(3 - len(tag_version_list))
+    tag_version_list = tag_version_list + [0] * (3 - len(tag_version_list))
     start_version_list = version_parser(start_version)
-    start_version_list = start_version_list + [0]*(3 - len(start_version_list))
+    start_version_list = start_version_list + [0] * (3 - len(start_version_list))
     if end_version == "":
         return ver_hight_greater_ver_low(start_version_list, tag_version_list)
     else:
         # has end version
         end_version_list = version_parser(end_version)
-        end_version_list = end_version_list + [0]*(3 - len(end_version_list))
+        end_version_list = end_version_list + [0] * (3 - len(end_version_list))
         over_start_ver = ver_hight_greater_ver_low(start_version_list, tag_version_list)
         low_end_ver = ver_hight_greater_ver_low(tag_version_list, end_version_list)
         if over_start_ver and low_end_ver:
@@ -797,6 +799,46 @@ class ProjectPipelineBranches(Resource):
         args = parser.parse_args()
         tm_put_pipeline_branches(repository_id, args["detail"])
         return util.success()
+
+
+def update_project_rancher_pipline():
+    projects = Project.query.all()
+    project_id_list = [pj.id for pj in projects]
+    project_id_list.remove(-1)
+
+    for pj_id in project_id_list:
+        repository_id = nexus.nx_get_repository_id(pj_id)
+        pj = gl.projects.get(repository_id)
+        if pj.empty_repo:
+            continue
+        for br in pj.branches.list(all=True):
+            pipe_yaml_name = __tm_get_pipe_yamlfile_name(pj, branch_name=br.name)
+            f = rs_gitlab.gl_get_file_from_lib(repository_id, pipe_yaml_name, branch_name=br.name)
+            pipe_dict = yaml.safe_load(f.decode())
+            for info in pipe_dict["stages"]:
+                if info.get("iiidevops") is None:
+                    if info["name"].startswith("Test--SonarQube for Java"):
+                        info["iiidevops"] = "sonarqube"
+                        continue
+
+                    catalog_template_value = info["steps"][0].get("applyAppConfig", {}).get("catalogTemplate")
+                    if catalog_template_value is not None:
+                        catalog_template_value = catalog_template_value.split(
+                            ":")[1].replace("iii-dev-charts3-", "")
+                        for prefix in ["test-", "scan-"]:
+                            if catalog_template_value.startswith(prefix):
+                                catalog_template_value = catalog_template_value.replace(prefix, "")
+                                break
+                        if catalog_template_value == "web":
+                            catalog_template_value = "deployed-environments"  
+                        info["iiidevops"] = catalog_template_value
+                    else:
+                        info["iiidevops"] = "deployed-environments"
+            next_run = pipeline.get_pipeline_next_run(repository_id)
+            f.content = yaml.dump(pipe_dict)
+            f.save(branch=br.name,
+                   commit_message=f'Add "iiidevops" in branch {br.name} .rancher-pipeline.yml.')
+            pipeline.stop_and_delete_pipeline(repository_id, next_run)
 
 
 class ProjectPipelineDefaultBranch(Resource):
