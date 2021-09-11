@@ -499,64 +499,26 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id,
 
 
 def tm_get_pipeline_branches(repository_id):
-    __add_plugin_soft_status()
+    out = {}
     pj = gl.projects.get(repository_id)
-    if __check_git_project_is_empty(pj):
-        return {}
-    create_time = datetime.now().strftime("%y%m%d_%H%M%S")
-    __tm_git_clone_file(pj, "pj_edit_pipe_yaml", create_time)
-    pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj)
-    if pipe_yaml_file_name is None:
-        return {}
-    with open(
-            f'pj_edit_pipe_yaml/{pj.path}_{create_time}/{pipe_yaml_file_name}'
-    ) as file:
-        stage_list = yaml.safe_load(file)["stages"]
-        out = {}
-        stages_info = {}
-        stages_info["stages"] = []
-        for stage in stage_list:
-            stage_out_list = {}
-            catalogTemplate_value = stage.get("steps")[0].get(
-                "applyAppConfig", {}).get("catalogTemplate")
-            if catalogTemplate_value is not None:
-                catalogTemplate_value = catalogTemplate_value.split(
-                    ":")[1].replace("iii-dev-charts3-", "")
-            for software in support_software:
-                if catalogTemplate_value is not None and software[
-                        "template_key"] == catalogTemplate_value and \
-                        (catalogTemplate_value in ('web', 'db')
-                            or software.get("plugin_disabled") is False):
-                    stage_out_list["name"] = software["display"]
-                    stage_out_list["key"] = software["template_key"]
-                    if "when" in stage:
-                        stage_when = pipeline_yaml_OO.RancherPipelineWhen(
-                            stage["when"]["branch"])
-                        stage_out_list["branches"] = stage_when.branch.include
-                        if stage_out_list["key"] == "web":
-                            stages_info[
-                                "has_environment_branch_list"] = stage_out_list[
-                                    "branches"]
-                    stages_info["stages"].append(stage_out_list)
-        for br in pj.branches.list(all=True):
-            for yaml_stage in stages_info["stages"]:
-                if br.name not in out:
-                    out[br.name] = {}
-                    out[br.name]["commit_message"] = br.commit["message"]
-                    out[br.name]["commit_time"] = br.commit["created_at"]
-                    if "testing_tools" not in out[br.name]:
-                        out[br.name]["testing_tools"] = []
-                soft_key_and_status = {
-                    "key": yaml_stage["key"],
-                    "name": yaml_stage["name"],
-                    "enable": False
+    stages_info = tm_get_pipeline_default_branch(repository_id, is_default_branch=False)
+
+    for br in pj.branches.list(all=True):
+        for yaml_stage in stages_info["stages"]:
+            if br.name not in out:
+                out[br.name] = {
+                    "commit_message": br.commit["message"],
+                    "commit_time": br.commit["created_at"],
                 }
-                if "branches" in yaml_stage and br.name in yaml_stage[
-                        "branches"]:
-                    soft_key_and_status["enable"] = True
-                out[br.name]["testing_tools"].append(soft_key_and_status)
-    shutil.rmtree(f"pj_edit_pipe_yaml/{pj.path}_{create_time}",
-                  ignore_errors=True)
+                if "testing_tools" not in out[br.name]:
+                    out[br.name]["testing_tools"] = []
+            soft_key_and_status = {
+                "key": yaml_stage["key"],
+                "name": yaml_stage["name"],
+                "enable": "branches" in yaml_stage and br.name in yaml_stage["branches"]
+            }
+            out[br.name]["testing_tools"].append(soft_key_and_status)
+
     return out
 
 
@@ -614,7 +576,7 @@ def tm_put_pipeline_branches(repository_id, data):
         pipeline.stop_and_delete_pipeline(repository_id, next_run)
 
 
-def tm_get_pipeline_default_branch(repository_id):
+def tm_get_pipeline_default_branch(repository_id, is_default_branch=True):
     pj = gl.projects.get(repository_id)
     if __check_git_project_is_empty(pj):
         return {}
@@ -622,7 +584,7 @@ def tm_get_pipeline_default_branch(repository_id):
     pipe_yaml_name = __tm_get_pipe_yamlfile_name(pj, branch_name=default_branch)
     f = rs_gitlab.gl_get_file_from_lib(repository_id, pipe_yaml_name, branch_name=default_branch)
     pipe_dict = yaml.safe_load(f.decode())
-    stages_info = {"default_branch": pj.default_branch, "stages": []}
+    stages_info = {"default_branch": default_branch, "stages": []}
     for stage in pipe_dict["stages"]:
         tool = None
         stage_out_list = {"has_default_branch": False}
@@ -635,7 +597,10 @@ def tm_get_pipeline_default_branch(repository_id):
                     stage_out_list["key"] = software["template_key"]
                     if "when" in stage:
                         stage_when = pipeline_yaml_OO.RancherPipelineWhen(stage["when"]["branch"])
-                        stage_out_list["has_default_branch"] = pj.default_branch in stage_when.branch.include
+                        if is_default_branch:
+                            stage_out_list["has_default_branch"] = pj.default_branch in stage_when.branch.include
+                        else:
+                            stage_out_list["branches"] = stage_when.branch.include
                     if stage_out_list not in stages_info["stages"]:
                         stages_info["stages"].append(stage_out_list)
                     break
@@ -653,7 +618,10 @@ def tm_get_pipeline_default_branch(repository_id):
                         stage_out_list["key"] = software["template_key"]
                         if "when" in stage:
                             stage_when = pipeline_yaml_OO.RancherPipelineWhen(stage["when"]["branch"])  
-                            stage_out_list["has_default_branch"] = pj.default_branch in stage_when.branch.include
+                            if is_default_branch:
+                                stage_out_list["has_default_branch"] = pj.default_branch in stage_when.branch.include
+                            else:
+                                stage_out_list["branches"] = stage_when.branch.include
                         stages_info["stages"].append(stage_out_list)
                         break
     return stages_info
@@ -673,7 +641,6 @@ def tm_put_pipeline_default_branch(repository_id, data):
                 f'pj_edit_pipe_yaml/{pj.path}_{create_time}/{pipe_yaml_file_name}'
         ) as file:
             pipe_json = yaml.safe_load(file)
-            print()
             for stage in pipe_json["stages"]:
                 catalogTemplate_value = stage.get("steps")[0].get(
                     "applyAppConfig", {}).get("catalogTemplate")
