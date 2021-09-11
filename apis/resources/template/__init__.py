@@ -65,7 +65,7 @@ support_software = [{
 
 gitlab_private_token = config.get("GITLAB_PRIVATE_TOKEN")
 gl = Gitlab(config.get("GITLAB_BASE_URL"), private_token=gitlab_private_token, ssl_verify=False)
-
+support_software_json = util.read_json_file("apis/resources/template/supported_software.json")
 
 def __tm_get_tag_info(pj, tag_name):
     tag_info_dict = {
@@ -160,13 +160,9 @@ def __tm_git_clone_file(pj,
     temp_http_url = pj.http_url_to_repo
     protocol = 'https' if temp_http_url[:5] == "https" else 'http'
     if protocol == "https":
-        secret_temp_http_url = temp_http_url[:
-                                             8] + f"root:{gitlab_private_token}@" + temp_http_url[
-            8:]
+        secret_temp_http_url = temp_http_url[:8] + f"root:{gitlab_private_token}@" + temp_http_url[8:]
     else:
-        secret_temp_http_url = temp_http_url[:
-                                             7] + f"root:{gitlab_private_token}@" + temp_http_url[
-            7:]
+        secret_temp_http_url = temp_http_url[:7] + f"root:{gitlab_private_token}@" + temp_http_url[7:]
     Path(f"{dest_folder_name}").mkdir(exist_ok=True)
     if create_time is not None:
         pj_name = f"{pj.path}_{create_time}"
@@ -207,6 +203,14 @@ def __check_git_project_is_empty(pj):
 def __add_plugin_soft_status():
     db_plugins = PluginSoftware.query.all()
     for software in support_software:
+        for db_plugin in db_plugins:
+            if software.get('plugin_key') == db_plugin.name:
+                software['plugin_disabled'] = db_plugin.disabled
+
+
+def __add_plugin_soft_status_json():
+    db_plugins = PluginSoftware.query.all()
+    for software in support_software_json:
         for db_plugin in db_plugins:
             if software.get('plugin_key') == db_plugin.name:
                 software['plugin_disabled'] = db_plugin.disabled
@@ -495,64 +499,26 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id,
 
 
 def tm_get_pipeline_branches(repository_id):
-    __add_plugin_soft_status()
+    out = {}
     pj = gl.projects.get(repository_id)
-    if __check_git_project_is_empty(pj):
-        return {}
-    create_time = datetime.now().strftime("%y%m%d_%H%M%S")
-    __tm_git_clone_file(pj, "pj_edit_pipe_yaml", create_time)
-    pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj)
-    if pipe_yaml_file_name is None:
-        return {}
-    with open(
-            f'pj_edit_pipe_yaml/{pj.path}_{create_time}/{pipe_yaml_file_name}'
-    ) as file:
-        stage_list = yaml.safe_load(file)["stages"]
-        out = {}
-        stages_info = {}
-        stages_info["stages"] = []
-        for stage in stage_list:
-            stage_out_list = {}
-            catalogTemplate_value = stage.get("steps")[0].get(
-                "applyAppConfig", {}).get("catalogTemplate")
-            if catalogTemplate_value is not None:
-                catalogTemplate_value = catalogTemplate_value.split(
-                    ":")[1].replace("iii-dev-charts3-", "")
-            for software in support_software:
-                if catalogTemplate_value is not None and software[
-                        "template_key"] == catalogTemplate_value and \
-                        (catalogTemplate_value in ('web', 'db')
-                            or software.get("plugin_disabled") is False):
-                    stage_out_list["name"] = software["display"]
-                    stage_out_list["key"] = software["template_key"]
-                    if "when" in stage:
-                        stage_when = pipeline_yaml_OO.RancherPipelineWhen(
-                            stage["when"]["branch"])
-                        stage_out_list["branches"] = stage_when.branch.include
-                        if stage_out_list["key"] == "web":
-                            stages_info[
-                                "has_environment_branch_list"] = stage_out_list[
-                                    "branches"]
-                    stages_info["stages"].append(stage_out_list)
-        for br in pj.branches.list(all=True):
-            for yaml_stage in stages_info["stages"]:
-                if br.name not in out:
-                    out[br.name] = {}
-                    out[br.name]["commit_message"] = br.commit["message"]
-                    out[br.name]["commit_time"] = br.commit["created_at"]
-                    if "testing_tools" not in out[br.name]:
-                        out[br.name]["testing_tools"] = []
-                soft_key_and_status = {
-                    "key": yaml_stage["key"],
-                    "name": yaml_stage["name"],
-                    "enable": False
+    stages_info = tm_get_pipeline_default_branch(repository_id, is_default_branch=False)
+
+    for br in pj.branches.list(all=True):
+        for yaml_stage in stages_info["stages"]:
+            if br.name not in out:
+                out[br.name] = {
+                    "commit_message": br.commit["message"],
+                    "commit_time": br.commit["created_at"],
                 }
-                if "branches" in yaml_stage and br.name in yaml_stage[
-                        "branches"]:
-                    soft_key_and_status["enable"] = True
-                out[br.name]["testing_tools"].append(soft_key_and_status)
-    shutil.rmtree(f"pj_edit_pipe_yaml/{pj.path}_{create_time}",
-                  ignore_errors=True)
+                if "testing_tools" not in out[br.name]:
+                    out[br.name]["testing_tools"] = []
+            soft_key_and_status = {
+                "key": yaml_stage["key"],
+                "name": yaml_stage["name"],
+                "enable": "branches" in yaml_stage and br.name in yaml_stage["branches"]
+            }
+            out[br.name]["testing_tools"].append(soft_key_and_status)
+
     return out
 
 
@@ -610,46 +576,54 @@ def tm_put_pipeline_branches(repository_id, data):
         pipeline.stop_and_delete_pipeline(repository_id, next_run)
 
 
-def tm_get_pipeline_default_branch(repository_id):
-    __add_plugin_soft_status()
+def tm_get_pipeline_default_branch(repository_id, is_default_branch=True):
     pj = gl.projects.get(repository_id)
     if __check_git_project_is_empty(pj):
         return {}
-    create_time = datetime.now().strftime("%y%m%d_%H%M%S")
-    __tm_git_clone_file(pj, "pj_edit_pipe_yaml", create_time)
-    pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj)
-    if pipe_yaml_file_name is None:
-        return {}
-    with open(
-            f'pj_edit_pipe_yaml/{pj.path}_{create_time}/{pipe_yaml_file_name}'
-    ) as file:
-        stage_list = yaml.safe_load(file)["stages"]
-        stages_info = {}
-        stages_info["default_branch"] = pj.default_branch
-        stages_info["stages"] = []
-        for stage in stage_list:
-            stage_out_list = {}
-            stage_out_list["has_default_branch"] = False
+    default_branch = pj.default_branch
+    pipe_yaml_name = __tm_get_pipe_yamlfile_name(pj, branch_name=default_branch)
+    f = rs_gitlab.gl_get_file_from_lib(repository_id, pipe_yaml_name, branch_name=default_branch)
+    pipe_dict = yaml.safe_load(f.decode())
+    stages_info = {"default_branch": default_branch, "stages": []}
+    for stage in pipe_dict["stages"]:
+        tool = None
+        stage_out_list = {"has_default_branch": False}
+        if stage.get("iiidevops") is not None:
+            __add_plugin_soft_status_json()
+            tool = stage["iiidevops"]
+            for software in support_software_json:
+                if software["template_key"] == tool and (software.get("plugin_disabled") is False or tool == "deployed-environments"):
+                    stage_out_list["name"] = software["display"]
+                    stage_out_list["key"] = software["template_key"]
+                    if "when" in stage:
+                        stage_when = pipeline_yaml_OO.RancherPipelineWhen(stage["when"]["branch"])
+                        if is_default_branch:
+                            stage_out_list["has_default_branch"] = pj.default_branch in stage_when.branch.include
+                        else:
+                            stage_out_list["branches"] = stage_when.branch.include
+                    if stage_out_list not in stages_info["stages"]:
+                        stages_info["stages"].append(stage_out_list)
+                    break
+        else:
+            __add_plugin_soft_status()
             catalogTemplate_value = stage.get("steps")[0].get(
                 "applyAppConfig", {}).get("catalogTemplate")
             if catalogTemplate_value is not None:
                 catalogTemplate_value = catalogTemplate_value.split(
                     ":")[1].replace("iii-dev-charts3-", "")
-            for software in support_software:
-                if catalogTemplate_value is not None and software[
-                        "template_key"] == catalogTemplate_value and \
-                        (catalogTemplate_value in ('web', 'db') or
-                            software.get("plugin_disabled") is False):
-                    stage_out_list["name"] = software["display"]
-                    stage_out_list["key"] = software["template_key"]
-                    if "when" in stage:
-                        stage_when = pipeline_yaml_OO.RancherPipelineWhen(
-                            stage["when"]["branch"])
-                        if pj.default_branch in stage_when.branch.include:
-                            stage_out_list["has_default_branch"] = True
-                    stages_info["stages"].append(stage_out_list)
-    shutil.rmtree(f"pj_edit_pipe_yaml/{pj.path}_{create_time}",
-                  ignore_errors=True)
+                for software in support_software:
+                    if software["template_key"] == catalogTemplate_value and \
+                            (catalogTemplate_value in ('web', 'db') or software.get("plugin_disabled") is False):
+                        stage_out_list["name"] = software["display"]
+                        stage_out_list["key"] = software["template_key"]
+                        if "when" in stage:
+                            stage_when = pipeline_yaml_OO.RancherPipelineWhen(stage["when"]["branch"])  
+                            if is_default_branch:
+                                stage_out_list["has_default_branch"] = pj.default_branch in stage_when.branch.include
+                            else:
+                                stage_out_list["branches"] = stage_when.branch.include
+                        stages_info["stages"].append(stage_out_list)
+                        break
     return stages_info
 
 
@@ -667,7 +641,6 @@ def tm_put_pipeline_default_branch(repository_id, data):
                 f'pj_edit_pipe_yaml/{pj.path}_{create_time}/{pipe_yaml_file_name}'
         ) as file:
             pipe_json = yaml.safe_load(file)
-            print()
             for stage in pipe_json["stages"]:
                 catalogTemplate_value = stage.get("steps")[0].get(
                     "applyAppConfig", {}).get("catalogTemplate")
@@ -759,49 +732,6 @@ def __get_step_index_from_pipe(stages, soft_key):
                 return index
 
 
-class TemplateList(Resource):
-    @jwt_required
-    def get(self):
-        role.require_pm("Error while getting template list.")
-        parser = reqparse.RequestParser()
-        parser.add_argument('force_update', type=int)
-        args = parser.parse_args()
-        return util.success(tm_get_template_list(args["force_update"]))
-
-
-class TemplateListForCronJob(Resource):
-
-    def get(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument('force_update', type=int)
-        args = parser.parse_args()
-        return util.success(tm_get_template_list(args["force_update"]))
-
-
-class SingleTemplate(Resource):
-    @jwt_required
-    def get(self, repository_id):
-        role.require_pm("Error while getting template list.")
-        parser = reqparse.RequestParser()
-        parser.add_argument('tag_name', type=str)
-        args = parser.parse_args()
-        return util.success(tm_get_template(repository_id, args["tag_name"]))
-
-
-class ProjectPipelineBranches(Resource):
-    @jwt_required
-    def get(self, repository_id):
-        return util.success(tm_get_pipeline_branches(repository_id))
-
-    @jwt_required
-    def put(self, repository_id):
-        parser = reqparse.RequestParser()
-        parser.add_argument('detail', type=dict)
-        args = parser.parse_args()
-        tm_put_pipeline_branches(repository_id, args["detail"])
-        return util.success()
-
-
 def update_project_rancher_pipline():
     projects = Project.query.all()
     project_id_list = [pj.id for pj in projects]
@@ -857,6 +787,50 @@ def update_project_rancher_pipline():
                    commit_message=f'Add "iiidevops" in branch {br.name} .rancher-pipeline.yml.')
             logger.logger.info(f'{pj_id} update completely')
             pipeline.stop_and_delete_pipeline(repository_id, next_run)
+
+
+# --------------------- Resources ---------------------
+class TemplateList(Resource):
+    @jwt_required
+    def get(self):
+        role.require_pm("Error while getting template list.")
+        parser = reqparse.RequestParser()
+        parser.add_argument('force_update', type=int)
+        args = parser.parse_args()
+        return util.success(tm_get_template_list(args["force_update"]))
+
+
+class TemplateListForCronJob(Resource):
+
+    def get(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('force_update', type=int)
+        args = parser.parse_args()
+        return util.success(tm_get_template_list(args["force_update"]))
+
+
+class SingleTemplate(Resource):
+    @jwt_required
+    def get(self, repository_id):
+        role.require_pm("Error while getting template list.")
+        parser = reqparse.RequestParser()
+        parser.add_argument('tag_name', type=str)
+        args = parser.parse_args()
+        return util.success(tm_get_template(repository_id, args["tag_name"]))
+
+
+class ProjectPipelineBranches(Resource):
+    @jwt_required
+    def get(self, repository_id):
+        return util.success(tm_get_pipeline_branches(repository_id))
+
+    @jwt_required
+    def put(self, repository_id):
+        parser = reqparse.RequestParser()
+        parser.add_argument('detail', type=dict)
+        args = parser.parse_args()
+        tm_put_pipeline_branches(repository_id, args["detail"])
+        return util.success()
 
 
 class ProjectPipelineDefaultBranch(Resource):

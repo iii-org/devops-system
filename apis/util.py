@@ -344,3 +344,9 @@ class AWSEngine():
 def get_certain_date_from_now(days):
     return datetime.combine(
         (datetime.now() - timedelta(days=days)), d_time(00, 00))
+
+
+def read_json_file(path):
+    with open(path, "r") as f:
+        f_info = json.load(f)
+    return f_info
