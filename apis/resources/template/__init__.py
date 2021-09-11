@@ -806,7 +806,7 @@ def update_project_rancher_pipline():
     projects = Project.query.all()
     project_id_list = [pj.id for pj in projects]
     project_id_list.remove(-1)
-    for pj_id in project_id_list[project_id_list.index(456):]:
+    for pj_id in project_id_list:
         logger.logger.info(f'project_id : {pj_id}')
         repository_id = nexus.nx_get_repository_id(pj_id)
         pj = gl.projects.get(repository_id)
