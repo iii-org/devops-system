@@ -201,11 +201,10 @@ api.add_resource(project.ProjectUserResourcePodLog,
 api.add_resource(starred_project.StarredProject,
                  '/project/<sint:project_id>/star')
 
-api.add_resource(tag.Tags,
-                 '/tags')
+api.add_resource(tag.Tags, '/tags')
+api.add_resource(tag.Tag, '/tags/<int:tag_id>')
+api.add_resource(tag.UserTags, '/user/tags')
 
-api.add_resource(tag.Tag,
-                 '/tags/<int:tag_id>')
 
 # k8s Deployment
 api.add_resource(project.ProjectUserResourceDeployments,
@@ -633,5 +632,5 @@ def start_prod():
 
 if __name__ == "__main__":
     start_prod()
-    socketio.run(app, host='0.0.0.0', port=10009, debug=config.get('DEBUG'),
+    socketio.run(app, host='0.0.0.0', port=10030, debug=config.get('DEBUG'),
                  use_reloader=config.get('USE_RELOADER'))
