@@ -36,7 +36,7 @@ def tgi_feed_sideex(row):
         passed = result.get('passed')
         if total - passed > 0:
             _handle_test_failed(project_id, 'sideex',
-                                col_key, _get_sideex_issue_description(row, total, passed),
+                                col_key, _get_sideex_issue_description(col_key, row, total, passed),
                                 row.branch, row.commit_id, 'test_results', row.id, total, passed)
         else:
             _handle_test_success(project_id, 'sideex',
@@ -64,7 +64,12 @@ def _handle_test_failed(project_id, software_name, filename, description,
             model.db.session.delete(relation_row)
             model.db.session.commit()
             issue_exists = False
-    description_upper_line = '詳細報告請前往[測試報告列表](/#/scan/sideex)'
+
+    if software_name == 'sideex':
+        description_upper_line = '詳細報告請前往[測試報告列表](/#/scan/sideex)'
+    else:
+        description_upper_line = '詳細報告請前往[測試報告列表]'
+
     if not issue_exists:
         description = f'{description_upper_line}\n\n{description}'
         args = {
@@ -75,23 +80,31 @@ def _handle_test_failed(project_id, software_name, filename, description,
             'subject': _get_issue_subject(filename, software_name),
             'description': description
         }
-        tgi_create_issue(args, software_name, filename,
-                         branch, commit_id, result_table, result_id)
+        # Create Issue
+        issues = tgi_create_issue(args, software_name, filename,
+                                  branch, commit_id, result_table, result_id)
+
+        iss = redmine_lib.redmine.issue.get(issues.issue_id, include=['journals'])
+        iss.notes = f'{_cst_now_string()} {branch} #{commit_id} 自動化測試失敗 ({passed}/{total})'
+        iss.save()
+        # Update Note
+
     else:
         # Check if is closed by human
+        print("Journal")
+        print(iss.journals)
         for j in reversed(iss.journals):
-            detail = j.details[0]
-            if (detail.get('name', '') == 'status_id' and detail.get('new_value', '-1') == '6'
-                    and j.user.id != 1):  # User id 1 means Redmine admin == system operation
-                # Do nothing
-                return
+            if len(j.details) > 0:
+                detail = j.details[0]
+                if (detail.get('name', '') == 'status_id' and detail.get('new_value', '-1') == '6'
+                        and j.user.id != 1):  # User id 1 means Redmine admin == system operation
+                    # Do nothing
+                    return
         # Check if is previously closed (by the system). If so, reopen it.
         if iss.status.id == 6:
             iss.status_id = 1
-        # desc = iss.description
         iss.description = description
         iss.notes = f'{_cst_now_string()} {branch} #{commit_id} 自動化測試失敗 ({passed}/{total})'
-        # iss.description = desc + '\n' + description
         iss.save()
 
 
@@ -137,6 +150,7 @@ def _handle_test_success(project_id, software_name, filename, description):
     iss.status_id = 6
     desc = iss.description
     iss.description = desc + '\n' + description
+    iss.notes = description
     iss.save()
 
 
@@ -171,7 +185,7 @@ def _get_postman_issue_close_description(row):
     return f'{_cst_now_string()} {row.branch} #{row.commit_id} 自動化測試成功 ({row.total})'
 
 
-def _get_sideex_issue_description(row, total, passed):
+def _get_sideex_issue_description(file_name, row, total, passed):
     logger.debug(f'Sideex result is {row.result}')
     suites = json.loads(row.result).get('suites')
     line = f'{_cst_now_string()} {row.branch} #{row.commit_id} 自動化測試失敗 ({passed}/{total})'
@@ -179,6 +193,8 @@ def _get_sideex_issue_description(row, total, passed):
     suite_keys = suites.keys()
     for key in suite_keys:
         num = 1
+        if key != file_name:
+            continue
         if suites[key].get('total') == suites[key].get('passed'):
             line = line + key + '(Succeed)\n'
         else:
