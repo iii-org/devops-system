@@ -24,16 +24,20 @@ def row_to_dict(row):
         ret[key] = value
     return ret
 
-def get_tags_for_dict(project_id = None):
+
+def get_tags_for_dict(project_id=None):
     output = {}
     if project_id is None:
         tags = model.Tag.query.all()
-    else:
+    elif isinstance(project_id, int):
         tags = model.Tag.query.filter_by(project_id=project_id).all()
+    elif isinstance(project_id, list):
+        tags = model.Tag.query.filter(model.Tag.project_id.in_(project_id)).all()
+    else:
+        return output
     for tag in tags:
         output[int(tag.id)] = {'id': int(tag.id), 'name': tag.name}
     return output
-
 
 
 def get_tags(project_id=None):
@@ -79,6 +83,31 @@ def delete_tag(tag_id):
     model.Tag.query.filter_by(id=tag_id).delete()
     db.session.commit()
     return tag_id
+
+
+def get_user_project_ids(user_id):
+    output = []
+    projects = model.ProjectUserRole.query. \
+        filter_by(user_id=user_id). \
+        filter(model.ProjectUserRole.project_id != -1) \
+        .all()
+    if projects is None:
+        return output
+    for project in projects:
+        output.append(project.project_id)
+    return output
+
+
+class UserTags(Resource):
+    @jwt_required
+    def get(self):
+        try:
+            identity = get_jwt_identity()
+            user_id = identity['user_id']
+            project_id = get_user_project_ids(user_id)
+            return util.success({"tags": get_tags_for_dict(project_id)})
+        except NoResultFound:
+            return util.respond(404)
 
 
 class Tags(Resource):
