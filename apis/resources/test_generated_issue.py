@@ -37,14 +37,14 @@ def tgi_feed_sideex(row):
         if total - passed > 0:
             _handle_test_failed(project_id, 'sideex',
                                 col_key, _get_sideex_issue_description(row, total, passed),
-                                row.branch, row.commit_id, 'test_results', row.id)
+                                row.branch, row.commit_id, 'test_results', row.id, total, passed)
         else:
             _handle_test_success(project_id, 'sideex',
                                  col_key, _get_sideex_issue_close_description(row, total, passed))
 
 
 def _handle_test_failed(project_id, software_name, filename, description,
-                        branch, commit_id, result_table, result_id):
+                        branch, commit_id, result_table, result_id, total, passed):
     project_name = nexus.nx_get_project(id=project_id).name
     relation_row = model.TestGeneratedIssue.query.filter_by(
         project_id=project_id,
@@ -64,9 +64,9 @@ def _handle_test_failed(project_id, software_name, filename, description,
             model.db.session.delete(relation_row)
             model.db.session.commit()
             issue_exists = False
-
+    description_upper_line = '詳細報告請前往[測試報告列表](/#/scan/sideex)'
     if not issue_exists:
-        description = f'詳細報告請前往[測試報告列表](/#/scan/sideex)\n\n{description}'
+        description = f'{description_upper_line}\n\n{description}'
         args = {
             'project_id': project_id,
             'tracker_id': TGI_TRACKER_ID,
@@ -88,8 +88,10 @@ def _handle_test_failed(project_id, software_name, filename, description,
         # Check if is previously closed (by the system). If so, reopen it.
         if iss.status.id == 6:
             iss.status_id = 1
-        desc = iss.description
-        iss.description = desc + '\n' + description
+        # desc = iss.description
+        iss.description = description
+        iss.notes = f'{_cst_now_string()} {branch} #{commit_id} 自動化測試失敗 ({passed}/{total})'
+        # iss.description = desc + '\n' + description
         iss.save()
 
 
@@ -170,7 +172,22 @@ def _get_postman_issue_close_description(row):
 
 
 def _get_sideex_issue_description(row, total, passed):
-    return f'{_cst_now_string()} {row.branch} #{row.commit_id} 自動化測試失敗 ({passed}/{total})'
+    logger.debug(f'Sideex result is {row.result}')
+    suites = json.loads(row.result).get('suites')
+    line = f'{_cst_now_string()} {row.branch} #{row.commit_id} 自動化測試失敗 ({passed}/{total})'
+    line = line + '\n\n'
+    suite_keys = suites.keys()
+    for key in suite_keys:
+        num = 1
+        if suites[key].get('total') == suites[key].get('passed'):
+            line = line + key + '(Succeed)\n'
+        else:
+            line = line + key + '(Failed)\n'
+            for case in suites[key].get('cases'):
+                if case.get('status') == 'fail':
+                    line = line + str(num) + '.'+case.get('title') + '\n'
+                    num = num + 1
+    return line
 
 
 def _get_sideex_issue_close_description(row, total, passed):
