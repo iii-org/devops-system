@@ -10,18 +10,19 @@ from accessories import redmine_lib
 from resources import issue
 from resources.logger import logger
 
-
 TGI_TRACKER_ID = 9
 
 
 def tgi_feed_postman(row):
     collections = json.loads(row.report).get('json_file')
+    total = row.tatal
+    passed = row.total - row.fail1
     for col_key, result in collections.items():
         assertions = result.get('assertions')
         if assertions.get('failed') > 0:
             _handle_test_failed(row.project_id, 'postman',
                                 col_key, _get_postman_issue_description(row),
-                                row.branch, row.commit_id, 'test_results', row.id)
+                                row.branch, row.commit_id, 'test_results', row.id, total, passed)
         else:
             _handle_test_success(row.project_id, 'postman',
                                  col_key, _get_postman_issue_close_description(row))
@@ -40,12 +41,12 @@ def tgi_feed_sideex(row):
                                 row.branch, row.commit_id, 'test_results', row.id, total, passed)
         else:
             _handle_test_success(project_id, 'sideex',
-                                 col_key, _get_sideex_issue_close_description(row, total, passed))
+                                 col_key, _get_sideex_issue_close_description(row, total))
 
 
 def _handle_test_failed(project_id, software_name, filename, description,
                         branch, commit_id, result_table, result_id, total, passed):
-    project_name = nexus.nx_get_project(id=project_id).name
+    # project_name = nexus.nx_get_project(id=project_id).name
     relation_row = model.TestGeneratedIssue.query.filter_by(
         project_id=project_id,
         software_name=software_name,
@@ -201,10 +202,10 @@ def _get_sideex_issue_description(file_name, row, total, passed):
             line = line + key + '(Failed)\n'
             for case in suites[key].get('cases'):
                 if case.get('status') == 'fail':
-                    line = line + str(num) + '.'+case.get('title') + '\n'
+                    line = line + str(num) + '.' + case.get('title') + '\n'
                     num = num + 1
     return line
 
 
-def _get_sideex_issue_close_description(row, total, passed):
+def _get_sideex_issue_close_description(row, total):
     return f'{_cst_now_string()} {row.branch} #{row.commit_id} 自動化測試成功 ({total})'

@@ -1,8 +1,5 @@
-import base64
-import json
-
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from flask_restful import Resource, reqparse, inputs
+from flask_restful import Resource, reqparse
 from sqlalchemy.orm.exc import NoResultFound
 
 import model
@@ -10,7 +7,7 @@ import util as util
 from model import db
 from resources import apiError, role
 
-error_tagname_is_exists = "Tag Name was Created"
+error_tag_name_is_exists = "Tag Name was Created"
 
 
 def row_to_dict(row):
@@ -135,7 +132,7 @@ class Tags(Resource):
             tag_name = args.get('name')
             project_id = args.get('project_id')
             if check_tags(project_id, tag_name) > 0:
-                return util.respond(404, error_tagname_is_exists)
+                return util.respond(404, error_tag_name_is_exists)
             return util.success({"tags": {"id": create_tags(project_id, args)}})
         except NoResultFound:
             return util.respond(404)
