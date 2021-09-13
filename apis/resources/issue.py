@@ -99,7 +99,7 @@ class NexusIssue:
         return self
 
     def set_redmine_issue_v2(self, redmine_issue, with_relationship=False,
-                             relationship_bool=False, nx_project=None, users_info=None):
+                             relationship_bool=False, nx_project=None, users_info=None, with_point=False):
 
         self.data = {
             'id': redmine_issue.id,
@@ -200,6 +200,9 @@ class NexusIssue:
             }
         if redmine_issue.status.id in NexusIssue.get_closed_statuses():
             self.data['is_closed'] = True
+
+        if with_point:
+            self.data["point"] = get_issue_point(self.data["id"])
         return self
 
     def set_redmine_issue_v3(self, redmine_issue, with_relationship=False,
@@ -226,7 +229,7 @@ class NexusIssue:
         if self.data['project'] is not None:
             if nx_project is None:
                 nx_project = model.Project.query.get(nexus.nx_get_project_plugin_relation(
-                    rm_project_id=redmine_issue['project']['id']))
+                    rm_project_id=redmine_issue['project']['id']).project_id)
             self.data["project"] = {
                 'id': nx_project.id,
                 'name': nx_project.name,
@@ -276,7 +279,7 @@ class NexusIssue:
                         break
             else:
                 user_info = user.get_user_id_name_by_plan_user_id(
-                    redmine_issue.author.id)
+                    redmine_issue['author']['id'])
                 if user_info is not None:
                     self.data['author'] = {
                         'id': user_info.id,
@@ -306,22 +309,6 @@ class NexusIssue:
 
     def get_tracker_name(self):
         return self.data['tracker']['name']
-
-
-def get_issue_point(issue_id):
-    point = 0
-    issue = IssueExtensions.query.filter_by(issue_id=issue_id).first()
-    if issue is not None:
-        point = issue.point
-    else:
-        create_issue_extensions(issue_id, point)
-    return point
-
-
-def create_issue_extensions(issue_id, point=0):
-    issue = IssueExtensions(issue_id=issue_id, point=point)
-    db.session.add(issue)
-    db.session.commit()
 
 
 def check_tags_id_is_int(tags):
@@ -381,6 +368,22 @@ def search_issue_tags_by_tags(tags):
     for issue in issues:
         output.append(row_to_dict(issue))
     return output
+
+
+def get_issue_point(issue_id):
+    point = 0
+    issue = IssueExtensions.query.filter_by(issue_id=issue_id).first()
+    if issue is not None:
+        point = issue.point
+    else:
+        create_issue_extensions(issue_id, point)
+    return point
+
+
+def create_issue_extensions(issue_id, point=0):
+    issue = IssueExtensions(issue_id=issue_id, point=point)
+    db.session.add(issue)
+    db.session.commit()
 
 
 def update_issue_point(issue_id, point):
@@ -1055,25 +1058,31 @@ def get_issue_assigned_to_search(default_filters, args):
 
 
 # 取得 issue 相關的 parent & children & relations 資訊
-def get_issue_family(redmine_issue):
+def get_issue_family(redmine_issue, args):
     output = defaultdict(list)
+    is_with_point = args.get("with_point", False)
+    fixed_version_id = args.get("fixed_version_id", "*")
     if hasattr(redmine_issue, 'parent'):
-        parent_issue = redmine_lib.redmine.issue.get(redmine_issue.parent.id)
-        output['parent'] = NexusIssue().set_redmine_issue_v2(parent_issue).to_json()
+        parent_issue = redmine_lib.redmine.issue.filter(
+            issue_id=redmine_issue.parent.id, status_id='*', fixed_version_id=fixed_version_id)
+        output['parent'] = NexusIssue().set_redmine_issue_v3(parent_issue.values(), with_point=is_with_point).to_json()
     if len(redmine_issue.children):
         children_issue_ids = [str(child.id) for child in redmine_issue.children]
         children_issue_ids_str = ','.join(children_issue_ids)
-        children_issues = redmine_lib.redmine.issue.filter(issue_id=children_issue_ids_str, status_id='*',
-                                                           include=['children', 'relations'])
-        output['children'] = [NexusIssue().set_redmine_issue_v2(issue).to_json()
-                              for issue in children_issues]
+        children_issues = redmine_lib.redmine.issue.filter(
+            issue_id=children_issue_ids_str, status_id='*', fixed_version_id=fixed_version_id, include=['children'])
+        output['children'] = [NexusIssue().set_redmine_issue_v3(issue, with_point=is_with_point).to_json()
+                              for issue in children_issues.values()]
     if len(redmine_issue.relations):
         rel_issue_ids = [str(check_relations_id(redmine_issue.id, relation)) for relation in redmine_issue.relations]
         rel_issue_ids_str = ','.join(rel_issue_ids)
-        rel_issues = redmine_lib.redmine.issue.filter(issue_id=rel_issue_ids_str, status_id='*',
-                                                      include=['children', 'relations'])
-        output['relations'] = [NexusIssue().set_redmine_issue_v2(issue).to_json()
-                               for issue in rel_issues]
+        rel_issues = redmine_lib.redmine.issue.filter(
+            issue_id=rel_issue_ids_str, status_id='*', fixed_version_id=fixed_version_id, include=['relations'])
+        output['relations'] = [NexusIssue().set_redmine_issue_v3(issue, with_point=is_with_point).to_json()
+                               for issue in rel_issues.values()]    
+    for key in ["parent", "children", "relations"]:
+        if output.get(key) == []:
+            output.pop(key)
     return output
 
 
@@ -1974,9 +1983,13 @@ class IssueTracker(Resource):
 class IssueFamily(Resource):
     @jwt_required
     def get(self, issue_id):
+        parser = reqparse.RequestParser()
+        parser.add_argument('fixed_version_id', type=str)
+        parser.add_argument('with_point', type=bool)
+        args = parser.parse_args()
         redmine_issue = redmine_lib.redmine.issue.get(issue_id, include=['children', 'relations'])
         require_issue_visible(issue_id, issue_info=NexusIssue().set_redmine_issue_v2(redmine_issue).to_json())
-        family = get_issue_family(redmine_issue)
+        family = get_issue_family(redmine_issue, args)
         return util.success(family)
 
 
