@@ -15,17 +15,17 @@ TGI_TRACKER_ID = 9
 
 def tgi_feed_postman(row):
     collections = json.loads(row.report).get('json_file')
-    total = row.tatal
-    passed = row.total - row.fail1
+    total = row.total
+    passed = row.total - row.fail
     for col_key, result in collections.items():
         assertions = result.get('assertions')
         if assertions.get('failed') > 0:
             _handle_test_failed(row.project_id, 'postman',
-                                col_key, _get_postman_issue_description(row),
+                                col_key, _get_postman_issue_description(col_key, row, result),
                                 row.branch, row.commit_id, 'test_results', row.id, total, passed)
         else:
             _handle_test_success(row.project_id, 'postman',
-                                 col_key, _get_postman_issue_close_description(row))
+                                 col_key, _get_postman_issue_close_description(row, result))
 
 
 def tgi_feed_sideex(row):
@@ -46,7 +46,6 @@ def tgi_feed_sideex(row):
 
 def _handle_test_failed(project_id, software_name, filename, description,
                         branch, commit_id, result_table, result_id, total, passed):
-    # project_name = nexus.nx_get_project(id=project_id).name
     relation_row = model.TestGeneratedIssue.query.filter_by(
         project_id=project_id,
         software_name=software_name,
@@ -92,8 +91,6 @@ def _handle_test_failed(project_id, software_name, filename, description,
 
     else:
         # Check if is closed by human
-        print("Journal")
-        print(iss.journals)
         for j in reversed(iss.journals):
             if len(j.details) > 0:
                 detail = j.details[0]
@@ -149,8 +146,7 @@ def _handle_test_success(project_id, software_name, filename, description):
         # Already closed, nothing to do
         return
     iss.status_id = 6
-    desc = iss.description
-    iss.description = desc + '\n' + description
+    iss.description = description
     iss.notes = description
     iss.save()
 
@@ -178,19 +174,46 @@ def _cst_now_string():
         tz.gettz('Asia/Taipei'))).strftime("%Y-%m-%d %H:%M:%S")
 
 
-def _get_postman_issue_description(row):
-    return f'{_cst_now_string()} {row.branch} #{row.commit_id} 自動化測試失敗 ({row.total - row.fail}/{row.total})'
+def check_postman_execution_status(execution, case_num):
+    status = True
+    line = ''
+    assertions = execution.get('assertions')
+    if len(assertions) == 0:
+        return status, line
+    num = 1
+    line = str(case_num) + '-' + execution.get('name')
+    for assertion in assertions:
+        if assertion.get('error_message', None) is not None:
+            line = line+'\n\t'+str(num) + '.' + assertion.get('assertion')
+            status = False
+            num = num + 1
+    return status, line
 
 
-def _get_postman_issue_close_description(row):
-    return f'{_cst_now_string()} {row.branch} #{row.commit_id} 自動化測試成功 ({row.total})'
+def _get_postman_issue_description(col_key, row, result):
+    executions = result.get('executions')
+    assertions = result.get('assertions')
+    line = f'{_cst_now_string()} {row.branch} #{row.commit_id} 自動化測試失敗 (' + \
+        str(assertions.get('failed'))+'/'+str(assertions.get('total'))+')'
+    line = line + '\n\n' + col_key + '\n\n'
+    num_case = 1
+    for execution in executions:
+        execution_status, execution_line = check_postman_execution_status(execution, num_case)
+        if execution_status is False:
+            line = line + '\n' + execution_line
+            num_case = num_case + 1
+    return line
+
+
+def _get_postman_issue_close_description(row, result):
+    total = result.get('assertions').get('total')
+    return f'{_cst_now_string()} {row.branch} #{row.commit_id} 自動化測試成功 ({total})'
 
 
 def _get_sideex_issue_description(file_name, row, total, passed):
     logger.debug(f'Sideex result is {row.result}')
     suites = json.loads(row.result).get('suites')
-    line = f'{_cst_now_string()} {row.branch} #{row.commit_id} 自動化測試失敗 ({passed}/{total})'
-    line = line + '\n\n'
+    line = f'{_cst_now_string()} {row.branch} #{row.commit_id} 自動化測試失敗 ({passed}/{total})' + '\n\n'
     suite_keys = suites.keys()
     for key in suite_keys:
         num = 1
