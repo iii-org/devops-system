@@ -522,57 +522,60 @@ def tm_get_pipeline_branches(repository_id):
     return out
 
 
-def tm_put_pipeline_branches(repository_id, data):
+def get_tool_name(stage):
+    '''
+    It will delete when all rancher_pipline.yml has iiidevops.
+    Only updating pipline_branch will use.
+    '''
+    if stage.get("iiidevops") is not None:
+        tool_name = stage["iiidevops"]
+    else:
+        tool_name = stage.get("steps")[0].get("applyAppConfig", {}).get("catalogTemplate")
+        if tool_name is not None:
+            tool_name = tool_name.split(":")[1].replace("iii-dev-charts3-", "")
+    return tool_name
+
+
+def update_branches(stage, pipline_soft, branch, enable_key_name):
+    if get_tool_name(stage) is not None and pipline_soft["key"] == get_tool_name(stage):
+        if "when" not in stage:
+            stage["when"] = {"branch": {"include": []}}
+        stage_when = stage.get("when", {}).get("branch", {}).get("include", {})
+        if pipline_soft[enable_key_name] and branch not in stage_when:
+            stage_when.append(branch)
+        elif pipline_soft[enable_key_name] is False and branch in stage_when:
+            stage_when.remove(branch)
+
+        if len(stage_when) == 0:
+            stage_when.append("skip")
+        elif len(stage_when) > 1:
+            if "skip" in stage_when:
+                stage_when.remove("skip")
+
+
+def tm_update_pipline_branches(repository_id, data, default=True):
     pj = gl.projects.get(repository_id)
     if __check_git_project_is_empty(pj):
         return
     for br in pj.branches.list(all=True):
-        create_time = datetime.now().strftime("%y%m%d_%H%M%S")
-        __tm_git_clone_file(pj, "pj_edit_pipe_yaml", create_time, br.name)
         pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj)
         if pipe_yaml_file_name is None:
             return
-        with open(
-                f'pj_edit_pipe_yaml/{pj.path}_{create_time}/{pipe_yaml_file_name}'
-        ) as file:
-            pipe_json = yaml.safe_load(file)
-            for stage in pipe_json["stages"]:
-                catalogTemplate_value = stage.get("steps")[0].get(
-                    "applyAppConfig", {}).get("catalogTemplate")
-                if catalogTemplate_value is not None:
-                    catalogTemplate_value = catalogTemplate_value.split(
-                        ":")[1].replace("iii-dev-charts3-", "")
+        f = rs_gitlab.gl_get_file_from_lib(repository_id, pipe_yaml_file_name, branch_name=br.name)
+        pipe_json = yaml.safe_load(f.decode())
+        for stage in pipe_json["stages"]:
+            if default:
+                for put_pipe_soft in data["stages"]:
+                    update_branches(stage, put_pipe_soft, pj.default_branch, "has_default_branch")
+            else:
                 for input_branch, multi_software in data.items():
                     for input_soft_enable in multi_software:
-                        if catalogTemplate_value is not None and input_soft_enable[
-                                "key"] == catalogTemplate_value:
-                            if "when" not in stage:
-                                stage["when"] = {"branch": {"include": []}}
-                            stage_when = stage.get("when", {}).get(
-                                "branch", {}).get("include", {})
-                            if input_soft_enable[
-                                    "enable"] and input_branch not in stage_when:
-                                stage_when.append(input_branch)
-                            elif input_soft_enable[
-                                    "enable"] is False and input_branch in stage_when:
-                                stage_when.remove(input_branch)
-                            if len(stage_when) == 0:
-                                stage_when.append("skip")
-        with open(
-                f'pj_edit_pipe_yaml/{pj.path}_{create_time}/{pipe_yaml_file_name}',
-                'w') as file:
-            yaml.dump(pipe_json, file, sort_keys=False)
-        __set_git_username_config(f'pj_edit_pipe_yaml/{pj.path}_{create_time}')
-        subprocess.call([
-            'git', 'commit', '-m', '"編輯 .rancher-pipeline.yaml 啟用停用分支"',
-            f'{pipe_yaml_file_name}'
-        ],
-            cwd=f"pj_edit_pipe_yaml/{pj.path}_{create_time}")
+                        update_branches(stage, input_soft_enable, input_branch, "enable")
+
         next_run = pipeline.get_pipeline_next_run(repository_id)
-        subprocess.call(['git', 'push', '-u', 'origin', f'{br.name}'],
-                        cwd=f"pj_edit_pipe_yaml/{pj.path}_{create_time}")
-        shutil.rmtree(f"pj_edit_pipe_yaml/{pj.path}_{create_time}",
-                      ignore_errors=True)
+        f.content = yaml.dump(pipe_json, sort_keys=False)
+        f.save(branch=br.name,
+               commit_message='UI 編輯 .rancher-pipeline.yaml 啟用停用分支')
         pipeline.stop_and_delete_pipeline(repository_id, next_run)
 
 
@@ -625,46 +628,6 @@ def tm_get_pipeline_default_branch(repository_id, is_default_branch=True):
                         stages_info["stages"].append(stage_out_list)
                         break
     return stages_info
-
-
-def tm_put_pipeline_default_branch(repository_id, data):
-    pj = gl.projects.get(repository_id)
-    if __check_git_project_is_empty(pj):
-        return
-    for br in pj.branches.list(all=True):
-        pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj)
-        if pipe_yaml_file_name is None:
-            return
-        f = rs_gitlab.gl_get_file_from_lib(repository_id, pipe_yaml_file_name, branch_name=br.name)
-        pipe_json = yaml.safe_load(f.decode())
-        for stage in pipe_json["stages"]:
-            if stage.get("iiidevops") is not None:
-                catalogTemplate_value = stage["iiidevops"]
-            else:
-                catalogTemplate_value = stage.get("steps")[0].get("applyAppConfig", {}).get("catalogTemplate")
-                if catalogTemplate_value is not None:
-                    catalogTemplate_value = catalogTemplate_value.split(":")[1].replace("iii-dev-charts3-", "")
-            for put_pipe_soft in data["stages"]:
-                if catalogTemplate_value is not None and put_pipe_soft["key"] == catalogTemplate_value:
-                    if "when" not in stage:
-                        stage["when"] = {"branch": {"include": []}}
-                    stage_when = stage.get("when", {}).get("branch", {}).get("include", {})
-                    if put_pipe_soft["has_default_branch"] and pj.default_branch not in stage_when:
-                        stage_when.append(pj.default_branch)
-                    elif put_pipe_soft["has_default_branch"] is False and pj.default_branch in stage_when:
-                        stage_when.remove(pj.default_branch)
-
-                    if len(stage_when) == 0:
-                        stage_when.append("skip")
-                    else:
-                        if "skip" in stage_when:
-                            stage_when.remove("skip")
-
-        next_run = pipeline.get_pipeline_next_run(repository_id)
-        f.content = yaml.dump(pipe_json, sort_keys=False)
-        f.save(branch=br.name,
-               commit_message='UI 編輯 .rancher-pipeline.yaml commit')
-        pipeline.stop_and_delete_pipeline(repository_id, next_run)
 
 
 def disable_soft_branch_at_project(repository_id, soft_name):
@@ -815,7 +778,7 @@ class ProjectPipelineBranches(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('detail', type=dict)
         args = parser.parse_args()
-        tm_put_pipeline_branches(repository_id, args["detail"])
+        tm_update_pipline_branches(repository_id, args["detail"], default=False)
         return util.success()
 
 
@@ -829,5 +792,5 @@ class ProjectPipelineDefaultBranch(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('detail', type=dict)
         args = parser.parse_args()
-        tm_put_pipeline_default_branch(repository_id, args["detail"])
+        tm_update_pipline_branches(repository_id, args["detail"])
         return util.success()
