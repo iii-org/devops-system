@@ -556,19 +556,18 @@ class GitLab(object):
         sorted((out["commit_time"] for out in out_list), reverse=True)
         return out_list
 
-    def gl_count_each_pj_commits_by_days(self, days=30):
+    def gl_count_each_pj_commits_by_days(self, days=30, timezone_hours_number=8):
         for pj in self.gl.projects.list(all=True):
             if ("iiidevops-templates" not in pj.path_with_namespace) and (
                     "local-templates" not in pj.path_with_namespace):
                 for i in range(1, days + 1):
-                    pj_create_date = datetime.strptime(
-                        pj.created_at, '%Y-%m-%dT%H:%M:%S.%f%z').astimezone(
-                        tz.tzlocal()).date()
-                    print(f"datatime now:{datetime.now()}")
+                    pj_create_date = (datetime.strptime(
+                        pj.created_at, '%Y-%m-%dT%H:%M:%S.%f%z') + timedelta(hours=timezone_hours_number)).date()
+                    now_time = datetime.now() + timedelta(hours=timezone_hours_number)
                     day_start = datetime.combine(
-                        (datetime.now() - timedelta(days=i)), time(00, 00))
+                        (now_time - timedelta(days=i)), time(00, 00))
                     day_end = datetime.combine(
-                        (datetime.now() - timedelta(days=i)), time(23, 59))
+                        (now_time - timedelta(days=i)), time(23, 59))
                     if day_start.date() >= pj_create_date:
                         count = GitCommitNumberEachDays.query.filter(
                             GitCommitNumberEachDays.repo_id == pj.id,
@@ -589,7 +588,7 @@ class GitLab(object):
                                 repo_name=pj.name,
                                 date=day_start.date(),
                                 commit_number=commit_number,
-                                created_at=str(datetime.now()))
+                                created_at=str(now_time))
                             db.session.add(one_row_data)
                             db.session.commit()
 
