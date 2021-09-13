@@ -632,52 +632,38 @@ def tm_put_pipeline_default_branch(repository_id, data):
     if __check_git_project_is_empty(pj):
         return
     for br in pj.branches.list(all=True):
-        create_time = datetime.now().strftime("%y%m%d_%H%M%S")
-        __tm_git_clone_file(pj, "pj_edit_pipe_yaml", create_time, br.name)
         pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj)
         if pipe_yaml_file_name is None:
             return
-        with open(
-                f'pj_edit_pipe_yaml/{pj.path}_{create_time}/{pipe_yaml_file_name}'
-        ) as file:
-            pipe_json = yaml.safe_load(file)
-            for stage in pipe_json["stages"]:
-                catalogTemplate_value = stage.get("steps")[0].get(
-                    "applyAppConfig", {}).get("catalogTemplate")
+        f = rs_gitlab.gl_get_file_from_lib(repository_id, pipe_yaml_file_name, branch_name=br.name)
+        pipe_json = yaml.safe_load(f.decode())
+        for stage in pipe_json["stages"]:
+            if stage.get("iiidevops") is not None:
+                catalogTemplate_value = stage["iiidevops"]
+            else:
+                catalogTemplate_value = stage.get("steps")[0].get("applyAppConfig", {}).get("catalogTemplate")
                 if catalogTemplate_value is not None:
-                    catalogTemplate_value = catalogTemplate_value.split(
-                        ":")[1].replace("iii-dev-charts3-", "")
-                for put_pipe_soft in data["stages"]:
-                    if catalogTemplate_value is not None and put_pipe_soft[
-                            "key"] == catalogTemplate_value:
-                        if "when" not in stage:
-                            stage["when"] = {"branch": {"include": []}}
-                        stage_when = stage.get("when",
-                                               {}).get("branch",
-                                                       {}).get("include", {})
-                        if put_pipe_soft[
-                                "has_default_branch"] and pj.default_branch not in stage_when:
-                            stage_when.append(pj.default_branch)
-                        elif put_pipe_soft[
-                                "has_default_branch"] is False and pj.default_branch in stage_when:
-                            stage_when.remove(pj.default_branch)
-                        if len(stage_when) == 0:
-                            stage_when.append("skip")
-        with open(
-                f'pj_edit_pipe_yaml/{pj.path}_{create_time}/{pipe_yaml_file_name}',
-                'w') as file:
-            yaml.dump(pipe_json, file, sort_keys=False)
-        __set_git_username_config(f'pj_edit_pipe_yaml/{pj.path}_{create_time}')
-        subprocess.call([
-            'git', 'commit', '-m', '"UI 編輯 .rancher-pipeline.yaml commit"',
-            f'{pipe_yaml_file_name}'
-        ],
-            cwd=f"pj_edit_pipe_yaml/{pj.path}_{create_time}")
+                    catalogTemplate_value = catalogTemplate_value.split(":")[1].replace("iii-dev-charts3-", "")
+            for put_pipe_soft in data["stages"]:
+                if catalogTemplate_value is not None and put_pipe_soft["key"] == catalogTemplate_value:
+                    if "when" not in stage:
+                        stage["when"] = {"branch": {"include": []}}
+                    stage_when = stage.get("when", {}).get("branch", {}).get("include", {})
+                    if put_pipe_soft["has_default_branch"] and pj.default_branch not in stage_when:
+                        stage_when.append(pj.default_branch)
+                    elif put_pipe_soft["has_default_branch"] is False and pj.default_branch in stage_when:
+                        stage_when.remove(pj.default_branch)
+
+                    if len(stage_when) == 0:
+                        stage_when.append("skip")
+                    else:
+                        if "skip" in stage_when:
+                            stage_when.remove("skip")
+
         next_run = pipeline.get_pipeline_next_run(repository_id)
-        subprocess.call(['git', 'push', '-u', 'origin', f'{br.name}'],
-                        cwd=f"pj_edit_pipe_yaml/{pj.path}_{create_time}")
-        shutil.rmtree(f"pj_edit_pipe_yaml/{pj.path}_{create_time}",
-                      ignore_errors=True)
+        f.content = yaml.dump(pipe_json, sort_keys=False)
+        f.save(branch=br.name,
+               commit_message='UI 編輯 .rancher-pipeline.yaml commit')
         pipeline.stop_and_delete_pipeline(repository_id, next_run)
 
 
