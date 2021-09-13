@@ -1630,7 +1630,11 @@ class Cronjob(Resource):
             check_list = [1, 2, 3, 4, 9]
             apps = db.session.query(model.Application).filter(model.Application.status_id.in_(check_list)).all()
             for app in apps:
-                if app.restart_number < DEFAULT_RESTART_NUMBER:
+                if app.restart_number is None:
+                    restart_number = 0
+                else:
+                    restart_number = app.restart_number
+                if restart_number < DEFAULT_RESTART_NUMBER:
                     temp = check_application_status(app)
                     execute_list.append(temp['id'])
             return util.success({"applications": execute_list})
