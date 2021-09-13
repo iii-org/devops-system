@@ -258,7 +258,7 @@ class NexusIssue:
             self.data['has_children'] = len(redmine_lib.redmine.issue.filter(parent_id=self.data["id"])) > 0
             relations = redmine_issue.get("relation")
             family_bool = self.data['has_children'] is True or (relations is not None and len(relations) > 0) \
-                          or redmine_issue.get("parent") is not None
+                or redmine_issue.get("parent") is not None
             self.data["family"] = family_bool
 
         if with_relationship:
@@ -353,8 +353,9 @@ def update_issue_tags(issue_id, tags):
 
 def delete_issue_tags(issue_id):
     issue_tags = model.IssueTag.query.filter_by(issue_id=issue_id).first()
-    db.session.delete(issue_tags)
-    db.session.commit()
+    if issue_tags is not None:
+        db.session.delete(issue_tags)
+        db.session.commit()
 
 
 def get_issue_tags(issue_id):
@@ -1264,7 +1265,7 @@ def get_open_issue_statistics(user_id):
     args['status_id'] = 'closed'
     closed_issue_output = redmine.rm_get_statistics(args)
     active_issue_number = total_issue_output["total_count"] - \
-                          closed_issue_output["total_count"]
+        closed_issue_output["total_count"]
     return util.success({"active_issue_number": active_issue_number})
 
 
