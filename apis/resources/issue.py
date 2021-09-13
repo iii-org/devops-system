@@ -360,7 +360,7 @@ def get_issue_tags(issue_id):
 
 
 def search_issue_tags_by_tags(tags):
-    tags = check_tags_id_is_int(tags)
+    tags = check_tags_id_is_int(tags.split(","))
     issues = db.session.query(model.IssueTag).filter(
         or_(model.IssueTag.tag_id.any(v) for v in tags)
     ).all()
@@ -1058,14 +1058,14 @@ def get_issue_assigned_to_search(default_filters, args):
 
 
 # 取得 issue 相關的 parent & children & relations 資訊
-def get_issue_family(redmine_issue, args):
+def get_issue_family(redmine_issue, args={}):
     output = defaultdict(list)
     is_with_point = args.get("with_point", False)
-    fixed_version_id = args.get("fixed_version_id", "*")
+    fixed_version_id = args.get("fixed_version_id", "!*")
     if hasattr(redmine_issue, 'parent'):
         parent_issue = redmine_lib.redmine.issue.filter(
             issue_id=redmine_issue.parent.id, status_id='*', fixed_version_id=fixed_version_id)
-        output['parent'] = NexusIssue().set_redmine_issue_v3(parent_issue.values(), with_point=is_with_point).to_json()
+        output['parent'] = NexusIssue().set_redmine_issue_v3(list(parent_issue.values())[0], with_point=is_with_point).to_json()
     if len(redmine_issue.children):
         children_issue_ids = [str(child.id) for child in redmine_issue.children]
         children_issue_ids_str = ','.join(children_issue_ids)
