@@ -5,7 +5,7 @@ from sqlalchemy.orm.exc import NoResultFound
 import model
 import util as util
 from model import db
-from resources import apiError, role
+from resources import role
 
 error_tag_name_is_exists = "Tag Name was Created"
 
@@ -37,12 +37,19 @@ def get_tags_for_dict(project_id=None):
     return output
 
 
-def get_tags(project_id=None):
+def get_tags(project_id=None, tag_name=None):
     output = []
     if project_id is None:
+        role.require_admin()
         tags = model.Tag.query.all()
     else:
-        tags = model.Tag.query.filter_by(project_id=project_id).all()
+        role.require_in_project(project_id)
+        if tag_name is None:
+            tags = model.Tag.query.filter_by(project_id=project_id).all()
+        else:
+            search = "%{}%".format(tag_name)
+            tags = model.Tag.query.filter_by(project_id=project_id). \
+                filter(model.Tag.name.like(search)).all()
     for tag in tags:
         output.append(row_to_dict(tag))
     return output
@@ -113,11 +120,14 @@ class Tags(Resource):
         try:
             parser = reqparse.RequestParser()
             parser.add_argument('project_id', type=int)
+            parser.add_argument('tag_name', type=str)
             args = parser.parse_args()
             if args.get('project_id', None) is None:
                 return util.success({"tags": get_tags()})
             else:
-                return util.success({"tags": get_tags(args.get('project_id'))})
+                return util.success({
+                    "tags": get_tags(args.get('project_id'), args.get('tag_name', None))
+                })
         except NoResultFound:
             return util.respond(404)
 
