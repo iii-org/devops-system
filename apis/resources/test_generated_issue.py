@@ -193,9 +193,8 @@ def check_postman_execution_status(execution, case_num):
 def _get_postman_issue_description(col_key, row, result):
     executions = result.get('executions')
     assertions = result.get('assertions')
-    line = f'{_cst_now_string()} {row.branch} #{row.commit_id} 自動化測試失敗 (' + \
-        str(assertions.get('failed'))+'/'+str(assertions.get('total'))+')'
-    line = line + '\n\n' + col_key + '\n\n'
+    line = f'{_cst_now_string()} {row.branch} #{row.commit_id} 自動化測試失敗 -{col_key} -  (' + \
+        str(assertions.get('failed'))+'/'+str(assertions.get('total'))+')' + '\n\n'
     num_case = 1
     for execution in executions:
         execution_status, execution_line = check_postman_execution_status(execution, num_case)
@@ -213,15 +212,13 @@ def _get_postman_issue_close_description(row, result):
 def _get_sideex_issue_description(file_name, row, total, passed):
     logger.debug(f'Sideex result is {row.result}')
     suites = json.loads(row.result).get('suites')
-    line = f'{_cst_now_string()} {row.branch} #{row.commit_id} 自動化測試失敗 ({passed}/{total})' + '\n\n'
+    line = f'{_cst_now_string()} {row.branch} #{row.commit_id} 自動化測試失敗 - {file_name} - ({passed}/{total})' + '\n\n'
     suite_keys = suites.keys()
     for key in suite_keys:
         num = 1
         if key != file_name:
             continue
-        if suites[key].get('total') == suites[key].get('passed'):
-            line = line + key + '(Succeed)\n'
-        else:
+        if suites[key].get('total') != suites[key].get('passed'):
             line = line + key + '(Failed)\n'
             for case in suites[key].get('cases'):
                 if case.get('status') == 'fail':
