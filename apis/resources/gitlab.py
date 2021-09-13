@@ -588,7 +588,7 @@ class GitLab(object):
                                 repo_name=pj.name,
                                 date=day_start.date(),
                                 commit_number=commit_number,
-                                created_at=str(now_time))
+                                created_at=str(datetime.now()))
                             db.session.add(one_row_data)
                             db.session.commit()
 
