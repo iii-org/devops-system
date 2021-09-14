@@ -312,9 +312,9 @@ class NexusIssue:
 
 
 def check_tags_id_is_int(tags):
-    tag_ids = []
-    for tag in tags:
-        tag_ids.append(int(tag))
+    if tags == [""]:
+        return []
+    tag_ids = [int(tag) for tag in tags]
     tag_ids.sort()
     return tag_ids
 
@@ -704,7 +704,6 @@ def create_issue(args, operator_id):
 
     if tags is not None:
         tag_ids = tags.strip().split(',')
-
         if tags.strip() != "" and len(tag_ids) > 0:
             issue_tags = create_issue_tags(output["id"], tag_ids)
     output['tags'] = get_issue_tags(output["id"])
@@ -746,7 +745,6 @@ def update_issue(issue_id, args, operator_id=None):
 
     point = args.pop("point", None)
     tags = args.pop("tags", None)
-
     attachment = redmine.rm_upload(args)
     if attachment is not None:
         args['uploads'] = [attachment]
@@ -766,8 +764,7 @@ def update_issue(issue_id, args, operator_id=None):
 
     if tags is not None:
         tag_ids = tags.strip().split(',')
-        if tags.strip() != "" and len(tag_ids) > 0:
-            update_issue_tags(output["id"], tag_ids)
+        update_issue_tags(output["id"], tag_ids)
 
     output["tag"] = get_issue_tags(output["id"])
 
@@ -1773,9 +1770,8 @@ class SingleIssue(Resource):
 
         issue_info["name"] = issue_info.pop('subject', None)
         issue_info["point"] = get_issue_point(issue_id)
-        tags = get_issue_tags(issue_id)
-        if len(tags) > 0:
-            issue_info["tags"] = tags
+        issue_info["tags"] = get_issue_tags(issue_id)
+
         return util.success(issue_info)
 
     @jwt_required
@@ -1909,6 +1905,7 @@ class IssueByUser(Resource):
         parser.add_argument('selection', type=str)
         parser.add_argument('from', type=str)
         parser.add_argument('sort', type=str)
+        parser.add_argument('tags', type=str)
         args = parser.parse_args()
 
         if args.get("search") is not None and len(args["search"]) < 2:
