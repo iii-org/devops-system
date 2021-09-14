@@ -364,10 +364,8 @@ def search_issue_tags_by_tags(tags):
     issues = db.session.query(model.IssueTag).filter(
         or_(model.IssueTag.tag_id.any(v) for v in tags)
     ).all()
-    output = []
-    for issue in issues:
-        output.append(row_to_dict(issue))
-    return output
+
+    return [issue.issue_id for issue in issues] 
 
 
 def get_issue_point(issue_id):
@@ -709,7 +707,7 @@ def create_issue(args, operator_id):
 
         if tags.strip() != "" and len(tag_ids) > 0:
             issue_tags = create_issue_tags(output["id"], tag_ids)
-            output['tags'] = issue_tags
+    output['tags'] = get_issue_tags(output["id"])
 
     family = get_issue_family(issue)
     if family.get('parent') is not None:
@@ -770,6 +768,8 @@ def update_issue(issue_id, args, operator_id=None):
         tag_ids = tags.strip().split(',')
         if tags.strip() != "" and len(tag_ids) > 0:
             update_issue_tags(output["id"], tag_ids)
+
+    output["tag"] = get_issue_tags(output["id"])
 
     family = get_issue_family(issue)
     if family.get('parent', None):
@@ -966,6 +966,16 @@ def get_custom_filters_by_args(args=None, project_id=None, user_id=None, childre
                 default_filters['due_date'] = f">={args.get('due_date_start')}"
             elif args.get('due_date_end'):
                 default_filters['due_date'] = f"<={args.get('due_date_end')}"
+
+    if args.get("tags") is not None:
+        tags_issue_id_list = search_issue_tags_by_tags(args["tags"])
+        if default_filters.get("issue_id") is not None:
+            filter_issue_id_list = default_filters["issue_id"].split(",")
+            issue_list = [id for id in filter_issue_id_list if int(id) in tags_issue_id_list]
+        else:
+            issue_list = tags_issue_id_list
+        default_filters["issue_id"] = ','.join(str(id) for id in issue_list)
+
     return default_filters
 
 
@@ -1873,6 +1883,7 @@ class IssueByProject(Resource):
         parser.add_argument('due_date_start', type=str)
         parser.add_argument('due_date_end', type=str)
         parser.add_argument('with_point', type=bool)
+        parser.add_argument('tags', type=str)
         args = parser.parse_args()
 
         if args.get("search") is not None and len(args["search"]) < 2:
