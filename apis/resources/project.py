@@ -248,6 +248,7 @@ def create_project(user_id, args):
                 else:
                     raise e
     try:
+        project_id = None
         # enable rancher pipeline
         rancher.rc_get_project_id()
         t_rancher = DevOpsThread(target=rancher.rc_enable_project_pipeline,
@@ -306,6 +307,11 @@ def create_project(user_id, args):
             "harbor_project_id": harbor_pj_id
         }
     except Exception as e:
+        project = model.Project.query.filter_by(id=project_id).first()
+        if project is not None:
+            db.session.delete(project)
+            db.session.commit()
+
         redmine.rm_delete_project(redmine_pj_id)
         gitlab.gl_delete_project(gitlab_pj_id)
         harbor_param = [harbor_pj_id, project_name]
