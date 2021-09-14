@@ -1061,23 +1061,23 @@ def get_issue_assigned_to_search(default_filters, args):
 def get_issue_family(redmine_issue, args={}):
     output = defaultdict(list)
     is_with_point = args.get("with_point", False)
-    fixed_version_id = args.get("fixed_version_id", "!*")
+    # fixed_version_id = args.get("fixed_version_id", "*")
     if hasattr(redmine_issue, 'parent'):
         parent_issue = redmine_lib.redmine.issue.filter(
-            issue_id=redmine_issue.parent.id, status_id='*', fixed_version_id=fixed_version_id)
+            issue_id=redmine_issue.parent.id, status_id='*')
         output['parent'] = NexusIssue().set_redmine_issue_v3(list(parent_issue.values())[0], with_point=is_with_point).to_json()
     if len(redmine_issue.children):
         children_issue_ids = [str(child.id) for child in redmine_issue.children]
         children_issue_ids_str = ','.join(children_issue_ids)
         children_issues = redmine_lib.redmine.issue.filter(
-            issue_id=children_issue_ids_str, status_id='*', fixed_version_id=fixed_version_id, include=['children'])
+            issue_id=children_issue_ids_str, status_id='*', include=['children'])
         output['children'] = [NexusIssue().set_redmine_issue_v3(issue, with_point=is_with_point).to_json()
                               for issue in children_issues.values()]
     if len(redmine_issue.relations):
         rel_issue_ids = [str(check_relations_id(redmine_issue.id, relation)) for relation in redmine_issue.relations]
         rel_issue_ids_str = ','.join(rel_issue_ids)
         rel_issues = redmine_lib.redmine.issue.filter(
-            issue_id=rel_issue_ids_str, status_id='*', fixed_version_id=fixed_version_id, include=['relations'])
+            issue_id=rel_issue_ids_str, status_id='*', include=['relations'])
         output['relations'] = [NexusIssue().set_redmine_issue_v3(issue, with_point=is_with_point).to_json()
                                for issue in rel_issues.values()]    
     for key in ["parent", "children", "relations"]:
