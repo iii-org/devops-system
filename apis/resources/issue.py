@@ -1061,11 +1061,13 @@ def get_issue_assigned_to_search(default_filters, args):
 def get_issue_family(redmine_issue, args={}):
     output = defaultdict(list)
     is_with_point = args.get("with_point", False)
-    # fixed_version_id = args.get("fixed_version_id", "*")
     if hasattr(redmine_issue, 'parent'):
         parent_issue = redmine_lib.redmine.issue.filter(
             issue_id=redmine_issue.parent.id, status_id='*')
-        output['parent'] = NexusIssue().set_redmine_issue_v3(list(parent_issue.values())[0], with_point=is_with_point).to_json()
+        try:      
+            output['parent'] = NexusIssue().set_redmine_issue_v3(list(parent_issue.values())[0], with_point=is_with_point).to_json()
+        except:
+            output["parent"] = []
     if len(redmine_issue.children):
         children_issue_ids = [str(child.id) for child in redmine_issue.children]
         children_issue_ids_str = ','.join(children_issue_ids)
@@ -1984,7 +1986,6 @@ class IssueFamily(Resource):
     @jwt_required
     def get(self, issue_id):
         parser = reqparse.RequestParser()
-        parser.add_argument('fixed_version_id', type=str)
         parser.add_argument('with_point', type=bool)
         args = parser.parse_args()
         redmine_issue = redmine_lib.redmine.issue.get(issue_id, include=['children', 'relations'])
