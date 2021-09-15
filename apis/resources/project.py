@@ -307,11 +307,6 @@ def create_project(user_id, args):
             "harbor_project_id": harbor_pj_id
         }
     except Exception as e:
-        project = model.Project.query.filter_by(id=project_id).first()
-        if project is not None:
-            db.session.delete(project)
-            db.session.commit()
-
         redmine.rm_delete_project(redmine_pj_id)
         gitlab.gl_delete_project(gitlab_pj_id)
         harbor_param = [harbor_pj_id, project_name]
@@ -322,6 +317,18 @@ def create_project(user_id, args):
                                  args=(gitlab_pj_http_url,))
         t_rancher.start()
         kubernetesClient.delete_namespace(project_name)
+
+        if project_id is not None:
+            delete_bot(project_id)
+            db.engine.execute(
+                "DELETE FROM public.project_plugin_relation WHERE project_id = '{0}'".format(
+                    project_id))
+            db.engine.execute(
+                "DELETE FROM public.project_user_role WHERE project_id = '{0}'".format(
+                    project_id))
+            db.engine.execute(
+                "DELETE FROM public.projects WHERE id = '{0}'".format(
+                    project_id))
         raise e
 
 
