@@ -11,9 +11,11 @@ from os.path import dirname, join, exists
 
 from kubernetes.client import ApiException
 
+import threading
 import model
 from resources import apiError
 from resources import role
+from resources import template
 from resources.apiError import DevOpsError
 from resources.kubernetesClient import read_namespace_secret, SYSTEM_SECRET_NAMESPACE, DEFAULT_NAMESPACE, \
     create_namespace_secret, patch_namespace_secret, delete_namespace_secret
@@ -127,6 +129,7 @@ def update_plugin_config(plugin_name, args):
         }
     if args.get('disabled', None) is not None:
         db_row.disabled = bool(args['disabled'])
+        threading.Thread(target=template.update_pj_plugin_status, args=(plugin_name, args["disabled"],)).start()
     if args.get('arguments', None) is not None:
         for argument in args['arguments']:
             if argument not in key_map:

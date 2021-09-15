@@ -530,9 +530,21 @@ def get_tool_name(stage):
     if stage.get("iiidevops") is not None:
         tool_name = stage["iiidevops"]
     else:
-        tool_name = stage.get("steps")[0].get("applyAppConfig", {}).get("catalogTemplate")
-        if tool_name is not None:
-            tool_name = tool_name.split(":")[1].replace("iii-dev-charts3-", "")
+        if stage["name"].startswith("Test--SonarQube for Java"):
+            tool_name = "sonarqube"
+        else:
+            tool_name = stage.get("steps")[0].get("applyAppConfig", {}).get("catalogTemplate")
+            if tool_name is not None:
+                tool_name = tool_name.split(":")[1].replace("iii-dev-charts3-", "")
+                if tool_name == "web":
+                    tool_name = "deployed-environments"
+                else:
+                    for prefix in ["test-", "scan-"]:
+                        if tool_name.startswith(prefix):
+                            tool_name = tool_name.replace(prefix, "")
+                            break
+            else:
+                tool_name = "deployed-environments"
     return tool_name
 
 
@@ -737,6 +749,45 @@ def update_project_rancher_pipline():
             logger.logger.info(f'{pj_id} update completely')
             pipeline.stop_and_delete_pipeline(repository_id, next_run)
 
+
+def update_pj_plugin_status(plugin_name, disable):
+    projects = Project.query.all()
+    project_id_list = [pj.id for pj in projects]
+    project_id_list.remove(-1)
+    for pj_id in project_id_list:
+        logger.logger.info(f'project_id : {pj_id}')
+        repository_id = nexus.nx_get_repository_id(pj_id)
+        pj = gl.projects.get(repository_id)
+        if pj.empty_repo:
+            continue
+        branch_name_list = [br.name for br in pj.branches.list(all=True)]
+        for br in pj.branches.list(all=True):
+            pipe_yaml_name = __tm_get_pipe_yamlfile_name(pj, branch_name=br.name)
+            f = rs_gitlab.gl_get_file_from_lib(repository_id, pipe_yaml_name, branch_name=br.name)
+            pipe_dict = yaml.safe_load(f.decode())
+            for stage in pipe_dict["stages"]:
+                if get_tool_name(stage) == plugin_name:
+                    if "when" not in stage:
+                        stage["when"] = {"branch": {"include": []}}
+                    stage_when = stage.get("when", {}).get("branch", {}).get("include", {})
+                    if disable:
+                        stage_when.clear()
+                        stage_when.append("skip")
+                    else:
+                        for branch in branch_name_list:
+                            if branch not in stage_when:
+                                stage_when.append(branch)
+
+                    if len(stage_when) > 1:
+                        if "skip" in stage_when:
+                            stage_when.remove("skip")
+
+            next_run = pipeline.get_pipeline_next_run(repository_id)
+            f.content = yaml.dump(pipe_dict, sort_keys=False)
+            process = "啟用" if not disable else "停用"
+            f.save(branch=br.name,
+                   commit_message=f'UI 編輯 .rancher-pipeline.yaml {process} {plugin_name}.')
+            pipeline.stop_and_delete_pipeline(repository_id, next_run)
 
 # --------------------- Resources ---------------------
 class TemplateList(Resource):
