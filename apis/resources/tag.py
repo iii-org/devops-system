@@ -86,6 +86,21 @@ def update_tag(tag_id, name):
 def delete_tag(tag_id):
     model.Tag.query.filter_by(id=tag_id).delete()
     db.session.commit()
+
+    # Need to delete tag from issues which has that tag.
+    mapping = {}
+    for issue_tag in model.IssueTag.query.all():
+        tag_id_list = issue_tag.tag_id
+        if tag_id in tag_id_list:
+            tag_id_list.remove(tag_id)
+            mapping[issue_tag.issue_id] = tag_id_list
+
+    # Unable to update IssueTag in the same for loop.
+    for issue_id, tag_ids in mapping.items():
+        issue_tag = model.IssueTag.query.get(issue_id)
+        issue_tag.tag_id = tag_ids
+        db.session.commit()
+
     return tag_id
 
 

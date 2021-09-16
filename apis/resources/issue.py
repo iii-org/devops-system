@@ -19,6 +19,7 @@ import nexus
 import resources.apiError as apiError
 import resources.user as user
 import util as util
+from resources.tag import get_tag
 from accessories import redmine_lib
 from data.nexus_project import NexusProject
 from enums.action_type import ActionType
@@ -1156,12 +1157,10 @@ def get_issue_progress_or_statistics_by_project(project_id, args, progress=False
         output = defaultdict(int)
         calculate_issue_progress(filters, issue_status, output)
     elif statistics:
-        output_keys = ['assigned_to', 'priority', 'tracker']
+        output_keys = ['assigned_to', 'priority', 'tracker', 'tags']
         # output_values 格式: {'xxxx': { "Active": 0, "Assigned": 0, "InProgress": 0 ..... }}
         output_values = defaultdict(
-            lambda: defaultdict(
-                dict, {status: 0 for status in issue_status.values()}
-            )
+            lambda: defaultdict(dict, {status: 0 for status in issue_status.values()})
         )
         output = {key: output_values.copy() for key in output_keys}
         calculate_issue_statistics(filters, issue_status, output_keys, output)
@@ -1180,21 +1179,34 @@ def calculate_issue_progress(filters, issue_status, output):
 def calculate_issue_statistics(filters, issue_status, output_keys, output):
     redmine_issues = redmine_lib.redmine.issue.filter(**filters)
     for issue in redmine_issues:
+        issue_tag = model.IssueTag.query.get(issue.id)
         mappings = {
             'assigned_to': 'Unassigned',
             'priority': issue.priority.name,
-            'tracker': issue.tracker.name
+            'tracker': issue.tracker.name,
         }
+        if issue_tag is not None:
+            mappings.update({"tags": issue_tag.tag_id})
         if hasattr(issue, 'assigned_to'):
             user_id = nexus.nx_get_user_plugin_relation(plan_user_id=issue.assigned_to.id).user_id
             user_name = user.NexusUser().set_user_id(user_id).name
             mappings['assigned_to'] = user_name
 
         for key in output_keys:
-            if issue.status.id in issue_status:
-                output[key][mappings[key]][issue.status.name] += 1
+            if key == "tags":
+                if "tags" in mappings:
+                    for tag_id in mappings[key]:
+                        if tag_id != "" and tag_id is not None:
+                            tag_name = get_tag(tag_id)["name"]
+                            if issue.status.id in issue_status:
+                                output[key][tag_name][issue.status.name] += 1
+                            else:
+                                output[key][tag_name]['Unknown'] += 1
             else:
-                output[key][mappings[key]]['Unknown'] += 1
+                if issue.status.id in issue_status:
+                    output[key][mappings[key]][issue.status.name] += 1
+                else:
+                    output[key][mappings[key]]['Unknown'] += 1
 
 
 def get_issue_by_user(user_id):
