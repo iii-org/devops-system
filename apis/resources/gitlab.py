@@ -386,12 +386,21 @@ class GitLab(object):
         return self.__api_delete(
             f'/projects/{repo_id}/repository/tags/{tag_name}')
 
-    def gl_get_commits(self, project_id, branch):
-        return self.__api_get(f'/projects/{project_id}/repository/commits',
+    def gl_get_commits(self, project_id, branch, filter = None):
+        commits = self.__api_get(f'/projects/{project_id}/repository/commits',
                               params={
                                   'ref_name': branch,
                                   'per_page': 100
                               }).json()
+        if filter is None:
+            return commits
+        else:
+            output = []
+            for commit in commits:
+                if commit.get('author_name') != filter:
+                    output.append(commit)
+            return output
+
 
     # 用project_id查詢project的網路圖
     def gl_get_network(self, repo_id):
@@ -795,9 +804,10 @@ class GitProjectBranchCommits(Resource):
         role.require_in_project(project_id)
         parser = reqparse.RequestParser()
         parser.add_argument('branch', type=str, required=True)
+        parser.add_argument('filter', type=str)
         args = parser.parse_args()
         return util.success(
-            gitlab.gl_get_commits(repository_id, args['branch']))
+            gitlab.gl_get_commits(repository_id, args['branch'], args.get('filter')))
 
 
 class GitProjectNetwork(Resource):
