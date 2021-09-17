@@ -996,7 +996,7 @@ def handle_allowed_keywords(default_filters, args):
                 # assigned_to_id 需要另外查詢 plan_user_id
                 if key == 'assigned_to_id':
                     default_filters[key] = validate_plan_user_id(int(args[key]))
-                elif key == 'fixed_version_id' or key == 'status_id':
+                elif key in ['fixed_version_id', 'status_id', 'priority_id']:
                     default_filters[key] = int(args[key])
             else:
                 default_filters[key] = args[key]
@@ -1881,7 +1881,7 @@ class IssueByProject(Resource):
         parser.add_argument('status_id', type=str)
         parser.add_argument('tracker_id', type=int)
         parser.add_argument('assigned_to_id', type=str)
-        parser.add_argument('priority_id', type=int)
+        parser.add_argument('priority_id', type=str)
         parser.add_argument('limit', type=int)
         parser.add_argument('offset', type=int)
         parser.add_argument('search', type=str)
@@ -1910,7 +1910,7 @@ class IssueByUser(Resource):
         parser.add_argument('status_id', type=str)
         parser.add_argument('tracker_id', type=int)
         parser.add_argument('assigned_to_id', type=str)
-        parser.add_argument('priority_id', type=int)
+        parser.add_argument('priority_id', type=str)
         parser.add_argument('limit', type=int)
         parser.add_argument('offset', type=int)
         parser.add_argument('search', type=str)
