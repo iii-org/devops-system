@@ -35,7 +35,7 @@ from model import db
 from resources import logger, role as role, activity, starred_project, devops_version, cicd
 from resources import project, gitlab, issue, user, redmine, wiki, version, apiTest, mock, harbor, \
     template, release, sync_redmine, plugin, kubernetesClient, project_permission, quality, sync_project, \
-    sync_user, router, deploy, alert, trace_order, tag
+    sync_user, router, deploy, alert, trace_order, tag, monitoring
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -201,6 +201,7 @@ api.add_resource(project.ProjectUserResourcePodLog,
 api.add_resource(starred_project.StarredProject,
                  '/project/<sint:project_id>/star')
 
+# Tag
 api.add_resource(tag.Tags, '/tags')
 api.add_resource(tag.Tag, '/tags/<int:tag_id>')
 api.add_resource(tag.UserTags, '/user/tags')
@@ -608,6 +609,8 @@ api.add_resource(trace_order.SingleTraceOrder, '/trace_order/<sint:trace_order_i
 api.add_resource(trace_order.ExecuteTraceOrder, '/trace_order/execute')
 api.add_resource(trace_order.GetTraceResult, '/trace_order/result')
 
+# Monitoring
+api.add_resource(monitoring.ServersAlive, '/monitoring/alive')
 
 def start_prod():
     try:

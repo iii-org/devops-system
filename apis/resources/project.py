@@ -30,7 +30,7 @@ from plugins import webinspect, sonarqube, zap, sideex
 from .gitlab import gitlab
 from .rancher import rancher
 from .redmine import redmine
-
+from resources.monitoring import Monitoring 
 
 def get_pm_project_list(user_id, pj_due_start=None, pj_due_end=None, pj_members_count=None):
     rows = get_project_rows_by_user(user_id)
@@ -407,6 +407,13 @@ def try_to_delete(delete_method, argument):
 # 用project_id刪除redmine & gitlab的project並將db的相關table欄位一併刪除
 @record_activity(ActionType.DELETE_PROJECT)
 def delete_project(project_id):
+    server_alive_output = Monitoring(project_id).check_project_alive()
+    if not server_alive_output["all_alive"]:
+        not_alive_server = [
+            server.capitalize() for server, alive in server_alive_output["alive"].items() if not alive] 
+        servers = ", ".join(not_alive_server)   
+        raise apiError.DevOpsError(500, f"{servers} not alive")
+
     # 取得gitlab & redmine project_id
     relation = nx_get_project_plugin_relation(nexus_project_id=project_id)
     if relation is None:
