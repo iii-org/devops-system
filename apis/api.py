@@ -272,6 +272,8 @@ api.add_resource(gitlab.GitProjectTag,
                  '/repositories/<repository_id>/tags')
 api.add_resource(gitlab.GitProjectBranchCommits,
                  '/repositories/<repository_id>/commits')
+api.add_resource(gitlab.GitProjectMembersCommits,
+                 '/repositories/<repository_id>/members_commits')
 api.add_resource(gitlab.GitProjectNetwork,
                  '/repositories/<repository_id>/overview')
 api.add_resource(gitlab.GitProjectId, '/repositories/<repository_id>/id')

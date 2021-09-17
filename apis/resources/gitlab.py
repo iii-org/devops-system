@@ -386,23 +386,41 @@ class GitLab(object):
         return self.__api_delete(
             f'/projects/{repo_id}/repository/tags/{tag_name}')
 
-    def gl_get_commits(self, project_id, branch, filter = None):
-        commits = self.__api_get(f'/projects/{project_id}/repository/commits',
-                              params={
-                                  'ref_name': branch,
-                                  'per_page': 100
-                              }).json()
+    def gl_get_commits(self, project_id, branch):
+        return self.__api_get(
+            f'/projects/{project_id}/repository/commits',
+            params={
+                'ref_name': branch,
+                'per_page': 100
+            }).json()
+
+
+    def gl_get_commits_by_author(self, project_id, branch, filter=None):
+        commits = self.gl_get_commits(project_id, branch)
         if filter is None:
             return commits
-        else:
-            output = []
-            for commit in commits:
-                if commit.get('author_name') != filter:
-                    output.append(commit)
-            return output
+        output = []
+        for commit in commits:
+            if commit.get('author_name') != filter:
+                output.append(commit)
+        return output
+
+    def convert_login_to_mail(self, login):
+        user = model.User.query.filter_by(login=login).one()
+        return user.email
+
+    def gl_get_commits_by_members(self, project_id, branch):
+        commits = self.gl_get_commits(project_id, branch)
+        member_list = self.gl_project_list_member(project_id, {"page": 1})
+        member_email_list = [self.convert_login_to_mail(member["username"]) for member in member_list.json() if member["name"] != "Administrator" and not member["name"].startswith("專案管理機器人")]
+        output = [
+            commit for commit in commits if commit.get("author_email") in member_email_list or commit.get("committer_email") in member_email_list]
+        return output
 
 
     # 用project_id查詢project的網路圖
+
+
     def gl_get_network(self, repo_id):
         branch_commit_list = []
 
@@ -807,7 +825,19 @@ class GitProjectBranchCommits(Resource):
         parser.add_argument('filter', type=str)
         args = parser.parse_args()
         return util.success(
-            gitlab.gl_get_commits(repository_id, args['branch'], args.get('filter')))
+            gitlab.gl_get_commits_by_author(repository_id, args['branch'], args.get('filter')))
+
+
+class GitProjectMembersCommits(Resource):
+    @jwt_required
+    def get(self, repository_id):
+        project_id = get_nexus_project_id(repository_id)
+        role.require_in_project(project_id)
+        parser = reqparse.RequestParser()
+        parser.add_argument('branch', type=str, required=True)
+        args = parser.parse_args()
+        return util.success(
+            gitlab.gl_get_commits_by_members(repository_id, args['branch']))
 
 
 class GitProjectNetwork(Resource):
