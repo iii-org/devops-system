@@ -103,8 +103,8 @@ def check_cluster(server_name, cluster_id=None):
     else:
         return model.Cluster.query. \
             filter(
-                model.Cluster.name == server_name,
-                model.Cluster.id != cluster_id). \
+            model.Cluster.name == server_name,
+            model.Cluster.id != cluster_id). \
             first()
 
 
@@ -391,7 +391,8 @@ def create_default_k8s_data(db_project, db_release, args):
         "tag_name": db_release.tag_name,
         "namespace": args.get('namespace'),
         "image": args.get('image', {"policy": "Always"}),
-        "status_id": 1
+        "status_id": 1,
+        "deploy_finish": False
     }
     resources = remove_object_key_by_value(args.get('resources', {}), "")
     if resources != {}:
@@ -619,6 +620,23 @@ def create_configmap_object(configmap_name, configmap_dict):
     return body
 
 
+def create_service_port(network):
+    if network.get('expose_port') is not None:
+        servcie_port = k8s_client.V1ServicePort(
+            protocol=network.get('protocol'),
+            port=network.get('port'),
+            node_port=network.get('expose_port'),
+            target_port=network.get('port')
+        )
+    else:
+        servcie_port = k8s_client.V1ServicePort(
+            protocol=network.get('protocol'),
+            port=network.get('port'),
+            target_port=network.get('port')
+        )
+    return [servcie_port]
+
+
 def create_service_object(app_name, service_name, network):
     return k8s_client.V1Service(
         api_version="v1",
@@ -629,10 +647,7 @@ def create_service_object(app_name, service_name, network):
         spec=k8s_client.V1ServiceSpec(
             type=network.get('type'),
             selector={"app": app_name},
-            ports=[k8s_client.V1ServicePort(
-                protocol=network.get('protocol'),
-                port=network.get('port')
-            )]
+            ports=create_service_port(network)
         )
     )
 
@@ -930,10 +945,14 @@ class DeployService:
         self.service_name = self.project.name + "-service"
 
     def get_service_info(self):
-        return {
+        output = {
             'service_name': self.service_name,
-            'port': self.k8s_info.get('network').get('port')
+            'port': self.k8s_info.get('network').get('port'),
+            'container_port': self.k8s_info.get('network').get('port'),
         }
+        if self.k8s_info.get('network').get('expose_port') is not None:
+            output['expose_port'] = self.k8s_info.get('network').get('expose_port')
+        return output
 
     def service_body(self):
         return create_service_object(self.name, self.service_name,
@@ -986,7 +1005,7 @@ class DeployDeployment:
             self.name,
             self.deployment_name,
             self.harbor_info.get('image_uri'),
-            self.service_info.get('port'),
+            self.service_info.get('container_port'),
             self.registry_secret_info.get('registry_secret_name'),
             self.k8s_info.get('resources', {}),
             self.k8s_info.get('image')
@@ -1457,9 +1476,10 @@ def delete_application(application_id, delete_db=False):
 
 
 def disable_application(disabled, namespace, cluster_id):
+    #  Delete Application
+    delete_k8s_application(cluster_id, namespace)
     if disabled is True:
-        #  Delete Application
-        delete_k8s_application(cluster_id, namespace)
+        # Stop Application
         status_id = 32
     else:
         # Redeploy K8s
