@@ -29,6 +29,7 @@ from resources.redmine import redmine
 from . import project as project_module, project, role
 from .activity import record_activity
 from . import tag as tag_py
+from resources.user import user_list_by_project
 
 FLOW_TYPES = {"0": "Given", "1": "When", "2": "Then", "3": "But", "4": "And"}
 PARAMETER_TYPES = {'1': '文字', '2': '英數字', '3': '英文字', '4': '數字'}
@@ -987,19 +988,40 @@ def handle_allowed_keywords(default_filters, args):
             elif key == 'status_id' and args[key] == 'all':
                 default_filters[key] = '*'
             elif key == "assigned_to_id" and isinstance(args[key], str):
-                assigned_to_ids = []
-                for id in args[key].split("|"):
-                    assigned_to_ids.append(str(validate_plan_user_id(int(id))))
-                default_filters[key] = "|".join(assigned_to_ids)
+                if "null" in args[key]:
+                    filter_users = args[key].split("|")
+                    filter_users.remove("null")
+                    filter_users = [int(filter_user) for filter_user in filter_users]
+                    all_users = [user["id"] for user in user_list_by_project(args["project_id"], {'exclude': None})]
+                    default_filters[key] = "!" + "|".join( 
+                        [str(validate_plan_user_id(int(all_user))) for all_user in all_users if all_user not in filter_users])
+                else:
+                    assigned_to_ids = []
+                    for id in args[key].split("|"):
+                        assigned_to_ids.append(str(validate_plan_user_id(int(id))))
+                    default_filters[key] = "|".join(assigned_to_ids)
+            elif key == "fixed_version_id" and isinstance(args[key], str):
+                if "null" in args[key]:
+                    filter_versions = args[key].split("|")
+                    filter_versions.remove("null")
+                    all_versions = get_all_id(redmine_lib.redmine.project.get(default_filters["project_id"]).versions)
+                    default_filters[key] = "!" + "|".join(
+                        [all_version for all_version in all_versions if all_version not in filter_versions])
+                else:
+                    fixed_version_ids = []
+                    for id in args[key].split("|"):
+                        fixed_version_ids.append(str(id))
+                    default_filters[key] = "|".join(fixed_version_ids)
             # 如果 args[key] 值是 string，且可以被認知為正整數
             elif isinstance(args[key], str) and args[key].isdigit():
-                # assigned_to_id 需要另外查詢 plan_user_id
-                if key == 'assigned_to_id':
-                    default_filters[key] = validate_plan_user_id(int(args[key]))
-                elif key in ['fixed_version_id', 'status_id', 'priority_id']:
+                if key in ['status_id', 'priority_id']:
                     default_filters[key] = int(args[key])
             else:
                 default_filters[key] = args[key]
+
+
+def get_all_id(objects):
+    return [str(object.id) for object in objects]
 
 
 def validate_plan_user_id(id):
@@ -1770,7 +1792,7 @@ def execute_issue_alert(alert_mapping):
 
 # --------------------- Resources ---------------------
 class SingleIssue(Resource):
-    @jwt_required
+    @ jwt_required
     def get(self, issue_id):
         issue_info = get_issue(issue_id)
         require_issue_visible(issue_id, issue_info)
@@ -1786,7 +1808,7 @@ class SingleIssue(Resource):
 
         return util.success(issue_info)
 
-    @jwt_required
+    @ jwt_required
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('project_id', type=int, required=True)
@@ -1822,7 +1844,7 @@ class SingleIssue(Resource):
         args["subject"] = args.pop("name")
         return util.success(create_issue(args, get_jwt_identity()['user_id']))
 
-    @jwt_required
+    @ jwt_required
     def put(self, issue_id):
         require_issue_visible(issue_id)
         parser = reqparse.RequestParser()
@@ -1860,20 +1882,20 @@ class SingleIssue(Resource):
         output = update_issue(issue_id, args, get_jwt_identity()['user_id'])
         return util.success(output)
 
-    @jwt_required
+    @ jwt_required
     def delete(self, issue_id):
         return util.success(delete_issue(issue_id))
 
 
 class DumpByIssue(Resource):
-    @jwt_required
+    @ jwt_required
     def get(self, issue_id):
         require_issue_visible(issue_id)
         return dump_by_issue(issue_id)
 
 
 class IssueByProject(Resource):
-    @jwt_required
+    @ jwt_required
     def get(self, project_id):
         role.require_in_project(project_id, 'Error to get issue.')
         parser = reqparse.RequestParser()
@@ -1893,7 +1915,7 @@ class IssueByProject(Resource):
         parser.add_argument('with_point', type=bool)
         parser.add_argument('tags', type=str)
         args = parser.parse_args()
-
+        args["project_id"] = project_id
         if args.get("search") is not None and len(args["search"]) < 2:
             output = []
         else:
@@ -1902,7 +1924,7 @@ class IssueByProject(Resource):
 
 
 class IssueByUser(Resource):
-    @jwt_required
+    @ jwt_required
     def get(self, user_id):
         parser = reqparse.RequestParser()
         parser.add_argument('project_id', type=int)
@@ -1928,7 +1950,7 @@ class IssueByUser(Resource):
 
 
 class IssueByVersion(Resource):
-    @jwt_required
+    @ jwt_required
     def get(self, project_id):
         role.require_in_project(project_id, 'Error to get issue.')
         parser = reqparse.RequestParser()
@@ -1939,7 +1961,7 @@ class IssueByVersion(Resource):
 
 
 class IssueByTreeByProject(Resource):
-    @jwt_required
+    @ jwt_required
     def get(self, project_id):
         role.require_in_project(project_id, 'Error to get issue.')
         output = get_issue_by_tree_by_project(project_id)
@@ -1947,21 +1969,21 @@ class IssueByTreeByProject(Resource):
 
 
 class IssueByStatusByProject(Resource):
-    @jwt_required
+    @ jwt_required
     def get(self, project_id):
         role.require_in_project(project_id)
         return get_issue_by_status_by_project(project_id)
 
 
 class IssueByDateByProject(Resource):
-    @jwt_required
+    @ jwt_required
     def get(self, project_id):
         role.require_in_project(project_id)
         return get_issue_by_date_by_project(project_id)
 
 
 class IssuesProgressByProject(Resource):
-    @jwt_required
+    @ jwt_required
     def get(self, project_id):
         role.require_in_project(project_id)
         parser = reqparse.RequestParser()
@@ -1973,7 +1995,7 @@ class IssuesProgressByProject(Resource):
 
 
 class IssuesStatisticsByProject(Resource):
-    @jwt_required
+    @ jwt_required
     def get(self, project_id):
         role.require_in_project(project_id)
         parser = reqparse.RequestParser()
@@ -1985,25 +2007,25 @@ class IssuesStatisticsByProject(Resource):
 
 
 class IssueStatus(Resource):
-    @jwt_required
+    @ jwt_required
     def get(self):
         return list_issue_statuses('api')
 
 
 class IssuePriority(Resource):
-    @jwt_required
+    @ jwt_required
     def get(self):
         return get_issue_priority()
 
 
 class IssueTracker(Resource):
-    @jwt_required
+    @ jwt_required
     def get(self):
         return get_issue_trackers()
 
 
 class IssueFamily(Resource):
-    @jwt_required
+    @ jwt_required
     def get(self, issue_id):
         parser = reqparse.RequestParser()
         parser.add_argument('with_point', type=bool)
@@ -2015,7 +2037,7 @@ class IssueFamily(Resource):
 
 
 class MyIssueStatistics(Resource):
-    @jwt_required
+    @ jwt_required
     def get(self):
         parser = reqparse.RequestParser()
         parser.add_argument('from_time', type=str, required=True)
@@ -2027,25 +2049,25 @@ class MyIssueStatistics(Resource):
 
 
 class MyOpenIssueStatistics(Resource):
-    @jwt_required
+    @ jwt_required
     def get(self):
         return get_open_issue_statistics(get_jwt_identity()['user_id'])
 
 
 class MyIssueWeekStatistics(Resource):
-    @jwt_required
+    @ jwt_required
     def get(self):
         return get_issue_statistics_in_period('week', get_jwt_identity()['user_id'])
 
 
 class MyIssueMonthStatistics(Resource):
-    @jwt_required
+    @ jwt_required
     def get(self):
         return get_issue_statistics_in_period('month', get_jwt_identity()['user_id'])
 
 
 class DashboardIssuePriority(Resource):
-    @jwt_required
+    @ jwt_required
     def get(self, user_id):
         if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity(
         )['role_id'] in (3, 5):
@@ -2055,7 +2077,7 @@ class DashboardIssuePriority(Resource):
 
 
 class DashboardIssueProject(Resource):
-    @jwt_required
+    @ jwt_required
     def get(self, user_id):
         if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity(
         )['role_id'] in (3, 5):
@@ -2065,7 +2087,7 @@ class DashboardIssueProject(Resource):
 
 
 class DashboardIssueType(Resource):
-    @jwt_required
+    @ jwt_required
     def get(self, user_id):
         if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity(
         )['role_id'] in (3, 5):
@@ -2077,13 +2099,13 @@ class DashboardIssueType(Resource):
 class RequirementByIssue(Resource):
 
     # 用issues ID 取得目前所有的需求清單
-    @jwt_required
+    @ jwt_required
     def get(self, issue_id):
         output = get_requirements_by_issue_id(issue_id)
         return util.success(output)
 
     # 用issues ID 新建立需求清單
-    @jwt_required
+    @ jwt_required
     def post(self, issue_id):
         parser = reqparse.RequestParser()
         parser.add_argument('project_id', type=int)
@@ -2096,19 +2118,19 @@ class RequirementByIssue(Resource):
 class Requirement(Resource):
 
     # 用requirement_id 取得目前需求流程
-    @jwt_required
+    @ jwt_required
     def get(self, requirement_id):
         output = get_requirement_by_rqmt_id(requirement_id)
         return util.success(output)
 
     # 用requirement_id 刪除目前需求流程
-    @jwt_required
+    @ jwt_required
     def delete(self, requirement_id):
         del_requirement_by_rqmt_id(requirement_id)
         return util.success()
 
     # 用requirement_id 更新目前需求流程
-    @jwt_required
+    @ jwt_required
     def put(self, requirement_id):
         parser = reqparse.RequestParser()
         parser.add_argument('flow_info', type=str)
@@ -2118,7 +2140,7 @@ class Requirement(Resource):
 
 
 class GetFlowType(Resource):
-    @jwt_required
+    @ jwt_required
     def get(self):
         output = get_flow_support_type()
         return util.success(output)
@@ -2127,7 +2149,7 @@ class GetFlowType(Resource):
 class FlowByIssue(Resource):
 
     # 用issues ID 取得目前所有的需求清單
-    @jwt_required
+    @ jwt_required
     def get(self, issue_id):
         requirement_ids = check_requirement_by_issue_id(issue_id)
         if not requirement_ids:
@@ -2143,7 +2165,7 @@ class FlowByIssue(Resource):
         return util.success(output)
 
     # 用issues ID 新建立需求清單
-    @jwt_required
+    @ jwt_required
     def post(self, issue_id):
         parser = reqparse.RequestParser()
         parser.add_argument('project_id', type=int)
@@ -2166,19 +2188,19 @@ class FlowByIssue(Resource):
 class Flow(Resource):
 
     # 用requirement_id 取得目前需求流程
-    @jwt_required
+    @ jwt_required
     def get(self, flow_id):
         output = get_flow_by_flow_id(flow_id)
         return util.success(output)
 
     # 用requirement_id 刪除目前需求流程
-    @jwt_required
+    @ jwt_required
     def delete(self, flow_id):
         output = disabled_flow_by_flow_id(flow_id)
         return util.success(output, has_date_etc=True)
 
     # 用requirement_id 更新目前需求流程
-    @jwt_required
+    @ jwt_required
     def put(self, flow_id):
         parser = reqparse.RequestParser()
         parser.add_argument('serial_id', type=int)
@@ -2191,7 +2213,7 @@ class Flow(Resource):
 
 
 class ParameterType(Resource):
-    @jwt_required
+    @ jwt_required
     def get(self):
         output = get_parameter_types()
         return util.success(output)
@@ -2200,13 +2222,13 @@ class ParameterType(Resource):
 class ParameterByIssue(Resource):
 
     # 用issues ID 取得目前所有的需求清單
-    @jwt_required
+    @ jwt_required
     def get(self, issue_id):
         output = get_parameters_by_issue_id(issue_id)
         return util.success(output)
 
     # 用issues ID 新建立需求清單
-    @jwt_required
+    @ jwt_required
     def post(self, issue_id):
         parser = reqparse.RequestParser()
         parser.add_argument('project_id', type=int)
@@ -2223,19 +2245,19 @@ class ParameterByIssue(Resource):
 class Parameter(Resource):
 
     # 用requirement_id 取得目前需求流程
-    @jwt_required
+    @ jwt_required
     def get(self, parameter_id):
         output = get_parameters_by_param_id(parameter_id)
         return util.success(output)
 
     # 用requirement_id 刪除目前需求流程
-    @jwt_required
+    @ jwt_required
     def delete(self, parameter_id):
         output = del_parameters_by_param_id(parameter_id)
         return util.success(output)
 
     # 用requirement_id 更新目前需求流程
-    @jwt_required
+    @ jwt_required
     def put(self, parameter_id):
         parser = reqparse.RequestParser()
         parser.add_argument('parameter_type_id', type=int)
@@ -2249,7 +2271,7 @@ class Parameter(Resource):
 
 
 class Relation(Resource):
-    @jwt_required
+    @ jwt_required
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('issue_id', type=int, required=True)
@@ -2258,7 +2280,7 @@ class Relation(Resource):
         output = post_issue_relation(args['issue_id'], args['issue_to_id'], get_jwt_identity()['user_id'])
         return util.success(output)
 
-    @jwt_required
+    @ jwt_required
     def put(self):
         parser = reqparse.RequestParser()
         parser.add_argument('issue_id', type=int, required=True)
@@ -2267,14 +2289,14 @@ class Relation(Resource):
         put_issue_relation(args['issue_id'], args['issue_to_ids'], get_jwt_identity()['user_id'])
         return util.success()
 
-    @jwt_required
+    @ jwt_required
     def delete(self, relation_id):
         output = delete_issue_relation(relation_id, get_jwt_identity()['user_id'])
         return util.success(output)
 
 
 class CheckIssueClosable(Resource):
-    @jwt_required
+    @ jwt_required
     def get(self, issue_id):
         output = check_issue_closable(issue_id)
         return util.success(output)
