@@ -184,7 +184,7 @@ def check_postman_execution_status(execution, case_num):
     line = str(case_num) + '-' + execution.get('name')
     for assertion in assertions:
         if assertion.get('error_message', None) is not None:
-            line = line+'\n\t'+str(num) + '.' + assertion.get('assertion')
+            line = line+'\n\tCase '+str(case_num)+':'+str(num) + '.' + assertion.get('assertion')
             status = False
             num = num + 1
     return status, line
