@@ -835,6 +835,8 @@ def get_issue_list_by_project(project_id, args):
     if args.get('search') is not None and default_filters.get('issue_id') is None:
         if args.get("assigned_to_id") is None:
             return []
+    elif args.get("has_tag_issue", False):
+        return []
 
     issue_filter = redmine_lib.redmine.issue.filter(**default_filters)
     all_issues = issue_filter.values()
@@ -877,6 +879,8 @@ def get_issue_list_by_user(user_id, args):
         return []
     # default_filters 帶 search ，但沒有取得 issued_id，搜尋結果為空
     elif args.get('search') and default_filters.get('issue_id') is None:
+        return []
+    elif args.get("has_tag_issue", False):
         return []
 
     all_issues = redmine_lib.redmine.issue.filter(**default_filters)
@@ -975,8 +979,11 @@ def get_custom_filters_by_args(args=None, project_id=None, user_id=None, childre
                 issue_list = [id for id in filter_issue_id_list if int(id) in tags_issue_id_list]
             else:
                 issue_list = tags_issue_id_list
-            default_filters["issue_id"] = ','.join(str(id) for id in issue_list)
 
+            if issue_list != []:
+                default_filters["issue_id"] = ','.join(str(id) for id in issue_list)
+            else:
+                args["has_tag_issue"] = True    
     return default_filters
 
 
@@ -1018,7 +1025,7 @@ def handle_allowed_keywords(default_filters, args):
                     default_filters[key] = "|".join(fixed_version_ids)
             # 如果 args[key] 值是 string，且可以被認知為正整數
             elif isinstance(args[key], str) and args[key].isdigit():
-                if key in ['status_id', 'priority_id']:
+                if key in ['status_id', 'priority_id', 'tracker_id']:
                     default_filters[key] = int(args[key])
             else:
                 default_filters[key] = args[key]
@@ -1928,7 +1935,7 @@ class IssueByProject(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('fixed_version_id', type=str)
         parser.add_argument('status_id', type=str)
-        parser.add_argument('tracker_id', type=int)
+        parser.add_argument('tracker_id', type=str)
         parser.add_argument('assigned_to_id', type=str)
         parser.add_argument('priority_id', type=str)
         parser.add_argument('limit', type=int)
@@ -1957,7 +1964,7 @@ class IssueByUser(Resource):
         parser.add_argument('project_id', type=int)
         parser.add_argument('fixed_version_id', type=str)
         parser.add_argument('status_id', type=str)
-        parser.add_argument('tracker_id', type=int)
+        parser.add_argument('tracker_id', type=str)
         parser.add_argument('assigned_to_id', type=str)
         parser.add_argument('priority_id', type=str)
         parser.add_argument('limit', type=int)
