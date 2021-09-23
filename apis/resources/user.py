@@ -2,6 +2,7 @@ import datetime
 import json
 import re
 
+import nexus
 import kubernetes
 from Cryptodome.Hash import SHA256
 from flask_jwt_extended import (
@@ -26,6 +27,7 @@ from resources.apiError import DevOpsError
 from resources.gitlab import gitlab
 from resources.logger import logger
 from resources.redmine import redmine
+from resources.project import get_simple_project_list
 
 # Make a regular expression
 default_role_id = 3
@@ -356,6 +358,11 @@ def try_to_delete(delete_method, obj):
 def delete_user(user_id):
     if user_id == 1:
         raise apiError.NotAllowedError('You cannot delete the system admin.')
+    pj_list = get_simple_project_list(user_id)
+    for pj in pj_list:
+        if pj["owner_id"] == user_id:
+            nexus.nx_update_project(pj["id"], {"owner_id": 1})
+
     relation = nx_get_user_plugin_relation(user_id=user_id)
     user_login = model.User.query.filter_by(id=user_id).one().login
     pj_ur_rls = db.session.query(model.Project, model.ProjectUserRole).join(model.ProjectUserRole). \
@@ -667,8 +674,8 @@ def user_list_by_project(project_id, args):
         # list users in the project
         project_row = model.Project.query.options(
             joinedload(model.Project.user_role).
-                joinedload(model.ProjectUserRole.user).
-                joinedload(model.User.project_role)
+            joinedload(model.ProjectUserRole.user).
+            joinedload(model.User.project_role)
         ).filter_by(id=project_id).one()
         users = list(filter(
             lambda x: x.role_id not in excluded_roles and not x.user.disabled,
