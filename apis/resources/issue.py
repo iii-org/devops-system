@@ -1891,6 +1891,14 @@ class SingleIssue(Resource):
         parser.add_argument('upload_content_type', type=str)
 
         args = parser.parse_args()
+
+        # Check due_date is greater than start_date
+        if args.get("due_date") is not None:
+            issue = redmine_lib.redmine.issue.get(issue_id)
+            if args["due_date"] < str(issue.start_date):
+                raise DevOpsError(400, 'Due date must be greater than start date.',
+                                  error=apiError.argument_error("due_date"))
+
         # Handle removable int parameters
         keys_int_or_null = ['assigned_to_id', 'fixed_version_id', 'parent_id']
         for k in keys_int_or_null:
