@@ -995,8 +995,9 @@ def handle_allowed_keywords(default_filters, args):
                     filter_users.remove("null")
                     filter_users = [int(filter_user) for filter_user in filter_users]
                     all_users = [user["id"] for user in user_list_by_project(args["project_id"], {'exclude': None})]
-                    default_filters[key] = "!" + "|".join( 
-                        [str(validate_plan_user_id(int(all_user))) for all_user in all_users if all_user not in filter_users])
+                    except_users = [str(validate_plan_user_id(int(all_user))) for all_user in all_users if all_user not in filter_users]
+                    if generate_default_filter_value(except_users) is not None:
+                        default_filters[key] = generate_default_filter_value(except_users)
                 else:
                     assigned_to_ids = []
                     for id in args[key].split("|"):
@@ -1007,8 +1008,9 @@ def handle_allowed_keywords(default_filters, args):
                     filter_versions = args[key].split("|")
                     filter_versions.remove("null")
                     all_versions = get_all_id(redmine_lib.redmine.project.get(default_filters["project_id"]).versions)
-                    default_filters[key] = "!" + "|".join(
-                        [all_version for all_version in all_versions if all_version not in filter_versions])
+                    except_versions = [all_version for all_version in all_versions if all_version not in filter_versions]
+                    if generate_default_filter_value(except_versions) is not None:
+                        default_filters[key] = generate_default_filter_value(except_versions)
                 else:
                     fixed_version_ids = []
                     for id in args[key].split("|"):
@@ -1020,6 +1022,14 @@ def handle_allowed_keywords(default_filters, args):
                     default_filters[key] = int(args[key])
             else:
                 default_filters[key] = args[key]
+
+
+def generate_default_filter_value(except_values):
+    if len(except_values) == 0:
+        res = None
+    else:
+        res = "!" + "|".join(except_values)
+    return res
 
 
 def get_all_id(objects):
