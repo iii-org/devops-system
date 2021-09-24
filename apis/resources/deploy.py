@@ -103,8 +103,8 @@ def check_cluster(server_name, cluster_id=None):
     else:
         return model.Cluster.query. \
             filter(
-            model.Cluster.name == server_name,
-            model.Cluster.id != cluster_id). \
+                model.Cluster.name == server_name,
+                model.Cluster.id != cluster_id). \
             first()
 
 
