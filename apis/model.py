@@ -648,3 +648,9 @@ class Tag(db.Model):
 class IssueTag(db.Model):
     issue_id = Column(Integer, primary_key=True)
     tag_id = Column(postgresql.ARRAY(Integer))
+
+
+class SystemParameter(db.Model):
+    id = Column(Integer, primary_key=True)
+    key = Column(String)
+    value = Column(JSON)
