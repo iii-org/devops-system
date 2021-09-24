@@ -30,6 +30,7 @@ from . import project as project_module, project, role
 from .activity import record_activity
 from . import tag as tag_py
 from resources.user import user_list_by_project
+from redminelib.exceptions import ResourceAttrError
 
 FLOW_TYPES = {"0": "Given", "1": "When", "2": "Then", "3": "But", "4": "And"}
 PARAMETER_TYPES = {'1': '文字', '2': '英數字', '3': '英文字', '4': '數字'}
@@ -1906,14 +1907,30 @@ class SingleIssue(Resource):
         args = parser.parse_args()
 
         # Check due_date is greater than start_date
+        due_date = None
+        start_date = None
+
         if args.get("due_date") is not None and len(args.get("due_date")) > 0:
-            if args.get("start_date") is not None and len(args.get("start_date")) > 0:
-                start_date = args.get("start_date")
-            else:
-                start_date = redmine_lib.redmine.issue.get(issue_id).start_date
-            if args["due_date"] < str(start_date):
+            due_date = args.get("due_date")
+        else:
+            try:
+                due_date = str(redmine_lib.redmine.issue.get(issue_id).due_date) 
+            except ResourceAttrError: 
+                pass
+
+        if args.get("start_date") is not None and len(args.get("start_date")) > 0:
+            start_date = args.get("start_date")
+        else:
+            try:
+                start_date = str(redmine_lib.redmine.issue.get(issue_id).start_date)
+            except ResourceAttrError: 
+                pass   
+
+        if start_date is not None and due_date is not None:
+            if due_date < start_date:
+                arg = "due_date" if args.get("due_date") is not None and len(args.get("due_date")) > 0 else "start_date"
                 raise DevOpsError(400, 'Due date must be greater than start date.',
-                                  error=apiError.argument_error("due_date"))
+                                  error=apiError.argument_error(arg))
 
         # Handle removable int parameters
         keys_int_or_null = ['assigned_to_id', 'fixed_version_id', 'parent_id']
