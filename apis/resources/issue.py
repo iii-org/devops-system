@@ -1818,8 +1818,14 @@ class SingleIssue(Resource):
         if 'parent_id' in issue_info:
             parent_info = get_issue(issue_info['parent_id'], with_children=False)
             parent_info['name'] = parent_info.pop('subject', None)
+            parent_info['tags'] = get_issue_tags(parent_info["id"])
             issue_info.pop('parent_id', None)
             issue_info['parent'] = parent_info
+
+        for items in ["children", "relations"]:
+            if issue_info.get(items) is not None:
+                for item in issue_info[items]:
+                    item["tags"] = get_issue_tags(item["id"])
 
         issue_info["name"] = issue_info.pop('subject', None)
         issue_info["point"] = get_issue_point(issue_id)
