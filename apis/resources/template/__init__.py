@@ -591,54 +591,43 @@ def tm_update_pipline_branches(repository_id, data, default=True):
         pipeline.stop_and_delete_pipeline(repository_id, next_run)
 
 
-def tm_get_pipeline_default_branch(repository_id, is_default_branch=True):
+def initial_rancher_pipline_info(repository_id):
     pj = gl.projects.get(repository_id)
     if __check_git_project_is_empty(pj):
         return {}
     default_branch = pj.default_branch
     pipe_yaml_name = __tm_get_pipe_yamlfile_name(pj, branch_name=default_branch)
     f = rs_gitlab.gl_get_file_from_lib(repository_id, pipe_yaml_name, branch_name=default_branch)
-    pipe_dict = yaml.safe_load(f.decode())
+    return (default_branch, yaml.safe_load(f.decode()))
+
+
+def tm_get_pipeline_default_branch(repository_id, is_default_branch=True):
+    default_branch, pipe_dict = initial_rancher_pipline_info(repository_id)
     stages_info = {"default_branch": default_branch, "stages": []}
     for stage in pipe_dict["stages"]:
+        if stage.get("iiidevops") is None:
+            update_pj_rancher_pipline(repository_id)
+            _, pipe_dict = initial_rancher_pipline_info(repository_id)
+            break
+
+    for stage in pipe_dict["stages"]:
         tool = None
-        stage_out_list = {"has_default_branch": False}
-        if stage.get("iiidevops") is not None:
-            __add_plugin_soft_status_json()
-            tool = stage["iiidevops"]
-            for software in support_software_json:
-                if software["template_key"] == tool and (software.get("plugin_disabled") is False or tool == "deployed-environments"):
-                    stage_out_list["name"] = software["display"]
-                    stage_out_list["key"] = software["template_key"]
-                    if "when" in stage:
-                        stage_when = pipeline_yaml_OO.RancherPipelineWhen(stage["when"]["branch"])
-                        if is_default_branch:
-                            stage_out_list["has_default_branch"] = pj.default_branch in stage_when.branch.include
-                        else:
-                            stage_out_list["branches"] = stage_when.branch.include
-                    if stage_out_list not in stages_info["stages"]:
-                        stages_info["stages"].append(stage_out_list)
-                    break
-        else:
-            __add_plugin_soft_status()
-            catalogTemplate_value = stage.get("steps")[0].get(
-                "applyAppConfig", {}).get("catalogTemplate")
-            if catalogTemplate_value is not None:
-                catalogTemplate_value = catalogTemplate_value.split(
-                    ":")[1].replace("iii-dev-charts3-", "")
-                for software in support_software:
-                    if software["template_key"] == catalogTemplate_value and \
-                            (catalogTemplate_value in ('web', 'db') or software.get("plugin_disabled") is False):
-                        stage_out_list["name"] = software["display"]
-                        stage_out_list["key"] = software["template_key"]
-                        if "when" in stage:
-                            stage_when = pipeline_yaml_OO.RancherPipelineWhen(stage["when"]["branch"])  
-                            if is_default_branch:
-                                stage_out_list["has_default_branch"] = pj.default_branch in stage_when.branch.include
-                            else:
-                                stage_out_list["branches"] = stage_when.branch.include
-                        stages_info["stages"].append(stage_out_list)
-                        break
+        stage_out_list = {"has_default_branch": False}    
+        __add_plugin_soft_status_json()
+        tool = stage["iiidevops"]
+        for software in support_software_json:
+            if software["template_key"] == tool and (software.get("plugin_disabled") is False or tool == "deployed-environments"):
+                stage_out_list["name"] = software["display"]
+                stage_out_list["key"] = software["template_key"]
+                if "when" in stage:
+                    stage_when = pipeline_yaml_OO.RancherPipelineWhen(stage["when"]["branch"])
+                    if is_default_branch:
+                        stage_out_list["has_default_branch"] = default_branch in stage_when.branch.include
+                    else:
+                        stage_out_list["branches"] = stage_when.branch.include
+                if stage_out_list not in stages_info["stages"]:
+                    stages_info["stages"].append(stage_out_list)
+                break
     return stages_info
 
 
@@ -693,6 +682,56 @@ def __get_step_index_from_pipe(stages, soft_key):
                 return index
 
 
+def update_pj_rancher_pipline(repository_id):
+    pj = gl.projects.get(repository_id)
+    if pj.empty_repo:
+        return
+    for br in pj.branches.list(all=True):
+        try:
+            pipe_yaml_name = __tm_get_pipe_yamlfile_name(pj, branch_name=br.name)
+            f = rs_gitlab.gl_get_file_from_lib(repository_id, pipe_yaml_name, branch_name=br.name)
+            pipe_dict = yaml.safe_load(f.decode())
+            temp_list = []
+            for info in pipe_dict["stages"]:
+                info_name = info["name"] 
+                logger.logger.info(f'name : {info_name}')
+                if info.get("iiidevops") is None:
+                    temp_dict = {"name": info.pop("name")}
+                    if info_name.startswith("Test--SonarQube for Java"):
+                        temp_dict["iiidevops"] = "sonarqube"
+                        temp_dict.update(info)
+                        info = temp_dict
+                    else:    
+                        catalog_template_value = info["steps"][0].get("applyAppConfig", {}).get("catalogTemplate")
+                        if catalog_template_value is not None:
+                            catalog_template_value = catalog_template_value.split(
+                                ":")[1].replace("iii-dev-charts3-", "")
+                            if catalog_template_value == "web":
+                                catalog_template_value = "deployed-environments"  
+                            else:
+                                for prefix in ["test-", "scan-"]:
+                                    if catalog_template_value.startswith(prefix):
+                                        catalog_template_value = catalog_template_value.replace(prefix, "")
+                                        break
+                        else:
+                            catalog_template_value = "deployed-environments"
+                        temp_dict["iiidevops"] = catalog_template_value
+                        temp_dict.update(info)
+                        info = temp_dict
+
+                temp_list.append(info)
+            pipe_dict["stages"] = temp_list
+        except Exception as e:
+            logger.logger.info(str(e))
+            continue
+
+        next_run = pipeline.get_pipeline_next_run(repository_id)
+        f.content = yaml.dump(pipe_dict, sort_keys=False)
+        f.save(branch=br.name,
+               commit_message=f'Add "iiidevops" in branch {br.name} .rancher-pipeline.yml.')
+        pipeline.stop_and_delete_pipeline(repository_id, next_run)
+
+
 def update_project_rancher_pipline():
     projects = Project.query.all()
     project_id_list = [pj.id for pj in projects]
@@ -700,54 +739,8 @@ def update_project_rancher_pipline():
     for pj_id in project_id_list:
         logger.logger.info(f'project_id : {pj_id}')
         repository_id = nexus.nx_get_repository_id(pj_id)
-        pj = gl.projects.get(repository_id)
-        if pj.empty_repo:
-            continue
-        for br in pj.branches.list(all=True):
-            try:
-                pipe_yaml_name = __tm_get_pipe_yamlfile_name(pj, branch_name=br.name)
-                f = rs_gitlab.gl_get_file_from_lib(repository_id, pipe_yaml_name, branch_name=br.name)
-                pipe_dict = yaml.safe_load(f.decode())
-                temp_list = []
-                for info in pipe_dict["stages"]:
-                    info_name = info["name"] 
-                    logger.logger.info(f'name : {info_name}')
-                    if info.get("iiidevops") is None:
-                        temp_dict = {"name": info.pop("name")}
-                        if info_name.startswith("Test--SonarQube for Java"):
-                            temp_dict["iiidevops"] = "sonarqube"
-                            temp_dict.update(info)
-                            info = temp_dict
-                        else:    
-                            catalog_template_value = info["steps"][0].get("applyAppConfig", {}).get("catalogTemplate")
-                            if catalog_template_value is not None:
-                                catalog_template_value = catalog_template_value.split(
-                                    ":")[1].replace("iii-dev-charts3-", "")
-                                if catalog_template_value == "web":
-                                    catalog_template_value = "deployed-environments"  
-                                else:
-                                    for prefix in ["test-", "scan-"]:
-                                        if catalog_template_value.startswith(prefix):
-                                            catalog_template_value = catalog_template_value.replace(prefix, "")
-                                            break
-                            else:
-                                catalog_template_value = "deployed-environments"
-                            temp_dict["iiidevops"] = catalog_template_value
-                            temp_dict.update(info)
-                            info = temp_dict
-
-                    temp_list.append(info)
-                pipe_dict["stages"] = temp_list
-            except Exception as e:
-                logger.logger.info(str(e))
-                continue
-
-            next_run = pipeline.get_pipeline_next_run(repository_id)
-            f.content = yaml.dump(pipe_dict, sort_keys=False)
-            f.save(branch=br.name,
-                   commit_message=f'Add "iiidevops" in branch {br.name} .rancher-pipeline.yml.')
-            logger.logger.info(f'{pj_id} update completely')
-            pipeline.stop_and_delete_pipeline(repository_id, next_run)
+        update_pj_rancher_pipline(repository_id)
+        logger.logger.info(f'{pj_id} update completely')
 
 
 def update_pj_plugin_status(plugin_name, disable):
