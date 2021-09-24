@@ -652,5 +652,5 @@ class IssueTag(db.Model):
 
 class SystemParameter(db.Model):
     id = Column(Integer, primary_key=True)
-    key = Column(String)
+    name = Column(String)
     value = Column(JSON)
