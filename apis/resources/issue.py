@@ -770,7 +770,7 @@ def update_issue(issue_id, args, operator_id=None):
         tag_ids = tags.strip().split(',')
         update_issue_tags(output["id"], tag_ids)
 
-    output["tag"] = get_issue_tags(output["id"])
+    output["tags"] = get_issue_tags(output["id"])
 
     family = get_issue_family(issue)
     if family.get('parent', None):
@@ -1900,9 +1900,12 @@ class SingleIssue(Resource):
         args = parser.parse_args()
 
         # Check due_date is greater than start_date
-        if args.get("due_date") is not None:
-            issue = redmine_lib.redmine.issue.get(issue_id)
-            if args["due_date"] < str(issue.start_date):
+        if args.get("due_date") is not None and len(args.get("due_date")) > 0:
+            if args.get("start_date") is not None and len(args.get("start_date")) > 0:
+                start_date = args.get("start_date")
+            else:
+                start_date = redmine_lib.redmine.issue.get(issue_id).start_date
+            if args["due_date"] < str(start_date):
                 raise DevOpsError(400, 'Due date must be greater than start date.',
                                   error=apiError.argument_error("due_date"))
 
