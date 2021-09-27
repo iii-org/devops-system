@@ -502,6 +502,8 @@ def tm_get_pipeline_branches(repository_id):
     out = {}
     pj = gl.projects.get(repository_id)
     stages_info = tm_get_pipeline_default_branch(repository_id, is_default_branch=False)
+    if stages_info == {}:
+        return out
 
     for br in pj.branches.list(all=True):
         for yaml_stage in stages_info["stages"]:
@@ -590,26 +592,37 @@ def tm_update_pipline_branches(repository_id, data, default=True):
                commit_message='UI 編輯 .rancher-pipeline.yaml 啟用停用分支')
         pipeline.stop_and_delete_pipeline(repository_id, next_run)
 
-
+# It will remove if all project rancher.pipline.yml is in new type.
 def initial_rancher_pipline_info(repository_id):
     pj = gl.projects.get(repository_id)
     if __check_git_project_is_empty(pj):
         return {}
     default_branch = pj.default_branch
     pipe_yaml_name = __tm_get_pipe_yamlfile_name(pj, branch_name=default_branch)
+    if pipe_yaml_name is None:
+        return {}
     f = rs_gitlab.gl_get_file_from_lib(repository_id, pipe_yaml_name, branch_name=default_branch)
-    return (default_branch, yaml.safe_load(f.decode()))
+    return {"default_branch": default_branch, "pipe_dict": yaml.safe_load(f.decode())}
 
 
 def tm_get_pipeline_default_branch(repository_id, is_default_branch=True):
-    default_branch, pipe_dict = initial_rancher_pipline_info(repository_id)
+    initial_info = initial_rancher_pipline_info(repository_id)
+    if initial_info == {}:
+        return initial_info
+    default_branch = initial_info["default_branch"]
+    pipe_dict = initial_info["pipe_dict"]
     stages_info = {"default_branch": default_branch, "stages": []}
+
+    # It will remove if all project rancher.pipline.yml is in new type.
     for stage in pipe_dict["stages"]:
         if stage.get("iiidevops") is None:
             update_pj_rancher_pipline(repository_id)
-            _, pipe_dict = initial_rancher_pipline_info(repository_id)
             break
 
+    initial_info = initial_rancher_pipline_info(repository_id)
+    if initial_info == {}:
+        return initial_info
+    pipe_dict = initial_info["pipe_dict"]    
     for stage in pipe_dict["stages"]:
         tool = None
         stage_out_list = {"has_default_branch": False}    
