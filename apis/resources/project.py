@@ -1203,7 +1203,6 @@ class ProjectMember(Resource):
 class TestSummary(Resource):
     @jwt_required
     def get(self, project_id):
-        role.require_pm()
         role.require_in_project(project_id)
         return get_test_summary(project_id)
 
