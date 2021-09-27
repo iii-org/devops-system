@@ -41,6 +41,5 @@ def get_commit_summary(project_id, commit_id):
 class CommitCicdSummary(Resource):
     @jwt_required
     def get(self, project_id, commit_id):
-        role.require_pm()
         role.require_in_project(project_id)
         return util.success(get_commit_summary(project_id, commit_id))
