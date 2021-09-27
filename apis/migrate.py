@@ -30,7 +30,7 @@ VERSIONS = ['0.9.2', '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.4', '0.9.2.5',
             '1.8.1.7', '1.8.1.8', '1.8.1.9', '1.8.2.0', '1.8.2.1', '1.8.2.2', '1.8.2.3', '1.8.2.4', '1.8.2.5',
             '1.8.2.6', '1.8.2.7', '1.8.3.0', '1.8.3.1', '1.8.3.2',
             '1.9.0.1', '1.9.0.2', '1.9.0.3', '1.9.0.4', '1.9.0.5', '1.9.0.6', '1.9.0.7', '1.9.0.8', '1.9.0.9', '1.9.1.0', 
-            '1.9.1.1']
+            '1.9.1.1', '1.9.1.2']
 ONLY_UPDATE_DB_MODELS = [
     '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.5', '0.9.2.6', '0.9.2.a8',
     '1.0.0.2', '1.3.0.1', '1.3.0.2', '1.3.0.3', '1.3.0.4', '1.3.1', '1.3.1.1', '1.3.1.2',
@@ -110,6 +110,14 @@ def upgrade(version):
         threading.Thread(target=template.update_project_rancher_pipline).start()
     elif version == '1.9.1.1':
         insert_sync_redmine_info_in_table_lock()
+    elif version == '1.9.1.2':
+        modify_sync_redmine_info()
+
+
+def modify_sync_redmine_info():
+    redmine_info = Lock.query.filter_by(name="sync_redmine").first()
+    redmine_info.sync_date = "2000-01-01 00:00:00"
+    db.session.commit()
 
 
 def insert_sync_redmine_info_in_table_lock():

@@ -35,7 +35,7 @@ from model import db
 from resources import logger, role as role, activity, starred_project, devops_version, cicd
 from resources import project, gitlab, issue, user, redmine, wiki, version, apiTest, mock, harbor, \
     template, release, sync_redmine, plugin, kubernetesClient, project_permission, quality, sync_project, \
-    sync_user, router, deploy, alert, trace_order, tag, monitoring
+    sync_user, router, deploy, alert, trace_order, tag, monitoring, lock
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -537,6 +537,7 @@ api.add_resource(sideex.SideexReport, '/sideex_report/<int:test_id>')
 
 # Sync Redmine, Gitlab, Rancher
 api.add_resource(sync_redmine.SyncRedmine, '/sync_redmine')
+api.add_resource(sync_redmine.SyncRedmineNow, '/sync_redmine/now')
 api.add_resource(gitlab.GitCountEachPjCommitsByDays,
                  '/sync_gitlab/count_each_pj_commits_by_days')
 api.add_resource(rancher.RancherCountEachPjPiplinesByDays,
@@ -613,6 +614,10 @@ api.add_resource(trace_order.GetTraceResult, '/trace_order/result')
 
 # Monitoring
 api.add_resource(monitoring.ServersAlive, '/monitoring/alive')
+
+# Status of Sync
+api.add_resource(lock.LockStatus, '/lock')
+
 
 def start_prod():
     try:

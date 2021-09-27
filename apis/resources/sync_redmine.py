@@ -1,5 +1,6 @@
 import os
 import model
+import threading
 import util
 from . import role
 from sqlalchemy import func
@@ -11,6 +12,7 @@ from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource
+from model import db, Lock
 
 STATUS_IN_PROGRESS = 'in_progress'
 STATUS_NOT_STARTED = 'not_started'
@@ -295,16 +297,25 @@ def get_current_sync_date_project_count_by_status(own_project,
             model.RedmineProject.project_status != STATUS_CLOSED).count()
 
 
+def update_lock_redmine(is_lock, sync_date=False):
+    lock_redmine = Lock.query.filter_by(name="sync_redmine").first()
+    lock_redmine.is_lock = is_lock
+    if sync_date:
+        lock_redmine.sync_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    db.session.commit()
+
 # --------------------- API Tasks ---------------------
 
 
-def init_data():
+def init_data(now=False):
     clear_all_tables()
     sync_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     need_to_track_issue = sync_redmine(sync_date)
     if need_to_track_issue:
         for project_id in need_to_track_issue:
             insert_all_issues(project_id, sync_date)
+    if now:
+        update_lock_redmine(is_lock=False)
 
 
 def get_project_members_count(own_project):
@@ -484,6 +495,20 @@ def get_postman_passing_rate(detail, own_project):
 class SyncRedmine(Resource):
     def get(self):
         init_data()
+        return util.success()
+
+
+class SyncRedmineNow(Resource):
+    def get(self):
+        lock_redmine = Lock.query.filter_by(name="sync_redmine").first()
+        current_datetime = datetime.now()
+        caculate_time = current_datetime - lock_redmine.sync_date
+
+        if lock_redmine.is_lock and caculate_time.total_seconds() < 15 * 60:
+            return {"message": "Please wait! Previous process is still running."}
+        update_lock_redmine(is_lock=True, sync_date=True)
+
+        threading.Thread(target=init_data, kwargs={"now": True}).start()
         return util.success()
 
 
