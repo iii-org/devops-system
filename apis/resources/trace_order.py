@@ -401,7 +401,8 @@ class TraceList:
         self.lock.acquire()
         try:
             current_num = 0
-            self.update_trace_result(current_num=0, execute_time=datetime.utcnow().isoformat(), exception=None)
+            self.update_trace_result(
+                current_num=0, execute_time=datetime.utcnow().isoformat(), finish_time=None, exception=None)
 
             self.generate_head_mapping()
             current_num += 1
