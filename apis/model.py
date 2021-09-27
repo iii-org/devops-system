@@ -654,3 +654,10 @@ class SystemParameter(db.Model):
     id = Column(Integer, primary_key=True)
     name = Column(String)
     value = Column(JSON)
+
+
+class Lock(db.Model):
+    id = Column(Integer, primary_key=True)
+    name = Column(String)
+    is_lock = Column(Boolean)
+    sync_date = Column(DateTime)
