@@ -301,7 +301,7 @@ def update_lock_redmine(is_lock, sync_date=False):
     lock_redmine = Lock.query.filter_by(name="sync_redmine").first()
     lock_redmine.is_lock = is_lock
     if sync_date:
-        lock_redmine.sync_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        lock_redmine.sync_date = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
     db.session.commit()
 
 # --------------------- API Tasks ---------------------
@@ -309,7 +309,7 @@ def update_lock_redmine(is_lock, sync_date=False):
 
 def init_data(now=False):
     clear_all_tables()
-    sync_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    sync_date = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
     need_to_track_issue = sync_redmine(sync_date)
     if need_to_track_issue:
         for project_id in need_to_track_issue:
@@ -501,7 +501,7 @@ class SyncRedmine(Resource):
 class SyncRedmineNow(Resource):
     def get(self):
         lock_redmine = Lock.query.filter_by(name="sync_redmine").first()
-        current_datetime = datetime.now()
+        current_datetime = datetime.utcnow()
         caculate_time = current_datetime - lock_redmine.sync_date
 
         if lock_redmine.is_lock and caculate_time.total_seconds() < 15 * 60:
