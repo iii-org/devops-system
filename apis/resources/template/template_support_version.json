@@ -1,6 +1,6 @@
 {
     "asp-dotnet-core-example":{
-        "start_version": "v1.7.2",
+        "start_version": "v1.9.0",
         "end_version": "v1.9.9"
     },
     "bootstrap-jquery-simple-web":{
