@@ -297,11 +297,12 @@ def get_current_sync_date_project_count_by_status(own_project,
             model.RedmineProject.project_status != STATUS_CLOSED).count()
 
 
-def update_lock_redmine(is_lock, sync_date=False):
+def update_lock_redmine(is_lock=None, sync_date=None):
     lock_redmine = Lock.query.filter_by(name="sync_redmine").first()
-    lock_redmine.is_lock = is_lock
-    if sync_date:
-        lock_redmine.sync_date = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    if is_lock is not None:
+        lock_redmine.is_lock = is_lock
+    if sync_date is not None:
+        lock_redmine.sync_date = sync_date
     db.session.commit()
 
 # --------------------- API Tasks ---------------------
@@ -310,6 +311,11 @@ def update_lock_redmine(is_lock, sync_date=False):
 def init_data(now=False):
     clear_all_tables()
     sync_date = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    if now:
+        update_lock_redmine(is_lock=True, sync_date=sync_date)
+    else:
+        update_lock_redmine(sync_date=sync_date)
+
     need_to_track_issue = sync_redmine(sync_date)
     if need_to_track_issue:
         for project_id in need_to_track_issue:
@@ -494,9 +500,6 @@ def get_postman_passing_rate(detail, own_project):
 
 class SyncRedmine(Resource):
     def get(self):
-        lock_redmine = Lock.query.filter_by(name="sync_redmine").first()
-        lock_redmine.sync_date = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-        db.session.commit()
         init_data()
         return util.success()
 
@@ -509,7 +512,6 @@ class SyncRedmineNow(Resource):
 
         if lock_redmine.is_lock and caculate_time.total_seconds() < 15 * 60:
             return {"message": "Please wait! Previous process is still running."}
-        update_lock_redmine(is_lock=True, sync_date=True)
 
         threading.Thread(target=init_data, kwargs={"now": True}).start()
         return util.success()
