@@ -397,7 +397,7 @@ def get_redmine_projects(detail, own_project):
         'member_count': context.member_count,
         'expired_day': context.expired_day,
         'end_date': context.end_date.strftime("%Y-%m-%d"),
-        'sync_date': context.sync_date.strftime("%Y-%m-%d"),
+        'sync_date': context.sync_date.strftime("%Y-%m-%d %H:%M:%S"),
         'project_status': context.project_status
     } for context in query_collections]
     return redmine_projects
@@ -494,6 +494,9 @@ def get_postman_passing_rate(detail, own_project):
 
 class SyncRedmine(Resource):
     def get(self):
+        lock_redmine = Lock.query.filter_by(name="sync_redmine").first()
+        lock_redmine.sync_date = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        db.session.commit()
         init_data()
         return util.success()
 
