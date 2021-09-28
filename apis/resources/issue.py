@@ -31,6 +31,7 @@ from .activity import record_activity
 from . import tag as tag_py
 from resources.user import user_list_by_project
 from redminelib.exceptions import ResourceAttrError
+from resources import logger
 
 FLOW_TYPES = {"0": "Given", "1": "When", "2": "Then", "3": "But", "4": "And"}
 PARAMETER_TYPES = {'1': '文字', '2': '英數字', '3': '英文字', '4': '數字'}
@@ -1749,6 +1750,9 @@ def execute_issue_alert(alert_mapping):
                     condition = alert["condition"]
                     days = alert["days"]
                     issue_id = issue["id"]
+                    if issue_id == 1895:
+                        logger.logger.info("1895")
+                        logger.logger.info(issue)
                     if condition == "unchange":
                         common_note = f'已超過{days}天未異動'
                         update_time = datetime.strptime(issue["updated_on"][0:10], "%Y-%m-%d")
@@ -1795,14 +1799,23 @@ def execute_issue_alert(alert_mapping):
                                     db.session.commit()
                     if condition == "comming":
                         if issue.get("due_date") is None:
+                            if issue_id == 1895:
+                                logger.logger.info("here")
                             continue
+                        if issue_id == 1895:
+                            logger.logger.info(issue["id"])
+                            logger.logger.info(issue.get("due_date"))
                         delta = util.get_certain_date_from_now(-days) - datetime.strptime(issue["due_date"], "%Y-%m-%d")
+                        if issue_id == 1895:
+                            logger.logger.info(delta)
                         if delta.days >= 0:
                             d_day = days - delta.days
                             if d_day >= 0:
                                 note = f'{d_day}天即將到期'
                             else:
                                 note = f'已經過期{-d_day}天'
+                    if issue_id == 1895:
+                        logger.logger.info(note)
                     if note is not None:
                         update_issue(
                             issue_id,
@@ -1975,12 +1988,17 @@ class IssueByProject(Resource):
         parser.add_argument('with_point', type=bool)
         parser.add_argument('tags', type=str)
         args = parser.parse_args()
-        args["project_id"] = project_id
-        if args.get("search") is not None and len(args["search"]) < 2:
-            output = []
-        else:
-            output = get_issue_list_by_project(project_id, args)
-        return util.success(output)
+        # args["project_id"] = project_id
+        # if args.get("search") is not None and len(args["search"]) < 2:
+        #     output = []
+        # else:
+        #     output = get_issue_list_by_project(project_id, args)
+        plan_project_id = project.get_plan_project_id(561)
+        issues = redmine.rm_get_issues_by_project(plan_project_id)
+        for issue in issues:
+            if issue["id"] == 1895:
+                print(issue["due_date"])
+        return util.success({})
 
 
 class IssueByUser(Resource):
