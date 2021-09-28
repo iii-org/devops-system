@@ -264,7 +264,7 @@ class NexusIssue:
 
         if relationship_bool:
             self.data['has_children'] = len(redmine_lib.redmine.issue.filter(parent_id=self.data["id"])) > 0
-            relations = redmine_issue.get("relation")
+            relations = redmine_issue.get("relations")
             family_bool = self.data['has_children'] is True or (relations is not None and len(relations) > 0) \
                 or redmine_issue.get("parent") is not None
             self.data["family"] = family_bool
