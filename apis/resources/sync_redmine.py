@@ -310,7 +310,7 @@ def update_lock_redmine(is_lock=None, sync_date=None):
 
 def init_data(now=False):
     clear_all_tables()
-    sync_date = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    sync_date = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
     if now:
         update_lock_redmine(is_lock=True, sync_date=sync_date)
     else:
@@ -403,7 +403,7 @@ def get_redmine_projects(detail, own_project):
         'member_count': context.member_count,
         'expired_day': context.expired_day,
         'end_date': context.end_date.strftime("%Y-%m-%d"),
-        'sync_date': context.sync_date.strftime("%Y-%m-%d %H:%M:%S"),
+        'sync_date': context.sync_date.strftime("%Y-%m-%dT%H:%M:%S"),
         'project_status': context.project_status
     } for context in query_collections]
     return redmine_projects
