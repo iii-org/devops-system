@@ -273,16 +273,13 @@ def qu_upload_testfile(project_id, file, software_name):
     soft_path = next(path for path in paths
                      if path["software_name"].lower() == software_name.lower())
     trees = gitlab.ql_get_tree(repository_id, soft_path['path'])
-    if len(trees) == 0:
-        raise apiError.DevOpsError(
-            409, f"folder {soft_path['path']} not found in git repository", error=apiError.argument_error("test_file")
-        )
-    file_exist = next(
-        (True for tree in trees if tree["name"] == file_name), False)
-    if file_exist:
-        raise apiError.DevOpsError(
-            409, f"Test File {file_name} already exists in git repository", error=apiError.argument_error("test_file")
-        )
+    if len(trees) != 0:
+        file_exist = next(
+            (True for tree in trees if tree["name"] == file_name), False)
+        if file_exist:
+            raise apiError.DevOpsError(
+                409, f"Test File {file_name} already exists in git repository", error=apiError.argument_error("test_file")
+            )
     file_path = f"{soft_path['path']}/{file_name}"
     next_run = pipeline.get_pipeline_next_run(repository_id)
     gitlab.gl_create_file(repository_id, file_path, file)
