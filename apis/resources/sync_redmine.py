@@ -391,7 +391,6 @@ def get_project_overview(own_project):
 def get_redmine_projects(detail, own_project):
     query_collections = get_project_by_current_sync_date(
         detail=detail, own_project=own_project)
-    print(query_collections)
     redmine_projects = [{
         'project_id': context.project_id,
         'project_name': context.project_name,
@@ -407,7 +406,6 @@ def get_redmine_projects(detail, own_project):
         'sync_date': context.sync_date.strftime("%Y-%m-%dT%H:%M:%S"),
         'project_status': context.project_status
     } for context in query_collections]
-    print(redmine_projects)
     return redmine_projects
 
 
@@ -556,7 +554,6 @@ class RedmineProjects(Resource):
     @jwt_required
     def get(self):
         own_project = get_current_sync_date_project_id_by_user()
-        print(own_project)
         redmine_projects = get_redmine_projects(detail=False,
                                                 own_project=own_project)
         return util.success(redmine_projects)
