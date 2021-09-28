@@ -1988,17 +1988,13 @@ class IssueByProject(Resource):
         parser.add_argument('with_point', type=bool)
         parser.add_argument('tags', type=str)
         args = parser.parse_args()
-        # args["project_id"] = project_id
-        # if args.get("search") is not None and len(args["search"]) < 2:
-        #     output = []
-        # else:
-        #     output = get_issue_list_by_project(project_id, args)
-        plan_project_id = project.get_plan_project_id(561)
-        issues = redmine.rm_get_issues_by_project(plan_project_id)
-        for issue in issues:
-            if issue["id"] == 1895:
-                print(issue["due_date"])
-        return util.success({})
+        args["project_id"] = project_id
+        if args.get("search") is not None and len(args["search"]) < 2:
+            output = []
+        else:
+            output = get_issue_list_by_project(project_id, args)
+        return util.success(output)
+
 
 
 class IssueByUser(Resource):
