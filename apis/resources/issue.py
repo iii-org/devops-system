@@ -211,7 +211,7 @@ class NexusIssue:
         return self
 
     def set_redmine_issue_v3(self, redmine_issue, with_relationship=False,
-                             relationship_bool=False, nx_project=None, users_info=None, with_point=False):
+                             relationship_bool=False, nx_project=None, users_info=None, with_point=False, relation_id=False):
         self.data = {
             'id': redmine_issue["id"],
             'name': redmine_issue["subject"],
@@ -294,6 +294,9 @@ class NexusIssue:
 
         if with_point:
             self.data["point"] = get_issue_point(self.data["id"])
+
+        if relation_id:
+            self.data["relation_id"] = relation_id
         return self
 
     @staticmethod
@@ -1127,12 +1130,12 @@ def get_issue_family(redmine_issue, args={}):
         output['children'] = [NexusIssue().set_redmine_issue_v3(issue, with_point=is_with_point, relationship_bool=is_with_point).to_json()
                               for issue in children_issues.values()]
     if len(redmine_issue.relations) and not is_with_point:
-        rel_issue_ids = [str(check_relations_id(redmine_issue.id, relation)) for relation in redmine_issue.relations]
-        rel_issue_ids_str = ','.join(rel_issue_ids)
+        rel_issue_ids = [check_relations_id(redmine_issue.id, relation) for relation in redmine_issue.relations]
+        rel_issue_ids_str = ','.join([str(issue["issue_id"]) for issue in rel_issue_ids])
         rel_issues = redmine_lib.redmine.issue.filter(
             issue_id=rel_issue_ids_str, status_id='*', include=['relations'])
-        output['relations'] = [NexusIssue().set_redmine_issue_v3(issue).to_json()
-                               for issue in rel_issues.values()]    
+        output['relations'] = [NexusIssue().set_redmine_issue_v3(issue, relation_id=list(filter(lambda relation:relation['issue_id'] == issue["id"], rel_issue_ids))[0]['relation_id']).to_json()
+                               for issue in rel_issues.values()]
     for key in ["parent", "children", "relations"]:
         if output.get(key) == []:
             output.pop(key)
@@ -1145,7 +1148,7 @@ def check_relations_id(issue_id, relation):
         rel_issue_id = relation.issue_id
     else:
         rel_issue_id = relation.issue_to_id
-    return rel_issue_id
+    return {"issue_id": rel_issue_id, "relation_id": relation.id}
 
 
 def get_issue_by_status_by_project(project_id):
