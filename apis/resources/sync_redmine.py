@@ -347,8 +347,8 @@ def get_project_members_detail(own_project):
         'owner_name': context.owner_name,
         'owner_login': context.owner_login,
         'member_count': context.member_count,
-        'start_date': context.start_date.strftime("%Y-%m-%d"),
-        'end_date': context.end_date.strftime("%Y-%m-%d"),
+        'start_date': context.start_date.strftime("%Y-%m-%d") if context.start_date is not None else None,
+        'end_date': context.end_date.strftime("%Y-%m-%d") if context.end_date is not None else None,
         'sync_date': context.sync_date.strftime("%Y-%m-%d")
     } for context in query_collections]
     return sorted(project_member_detail, key=itemgetter('project_id'))
@@ -402,7 +402,7 @@ def get_redmine_projects(detail, own_project):
         'closed_issue_count': context.closed_issue_count,
         'member_count': context.member_count,
         'expired_day': context.expired_day,
-        'end_date': context.end_date.strftime("%Y-%m-%d"),
+        'end_date': context.end_date.strftime("%Y-%m-%d") if context.end_date is not None else None,
         'sync_date': context.sync_date.strftime("%Y-%m-%dT%H:%M:%S"),
         'project_status': context.project_status
     } for context in query_collections]
@@ -444,7 +444,7 @@ def get_unclosed_issues_by_user(user_id):
         'status_id': context.status_id,
         'status': context.status,
         'is_closed': context.is_closed,
-        'start_date': context.start_date.strftime("%Y-%m-%d"),
+        'start_date': context.start_date.strftime("%Y-%m-%d") if context.start_date is not None else None,
         'sync_date': context.sync_date.strftime("%Y-%m-%d")
     } for context in query_collections]
     return sorted(unclosed_issues, key=itemgetter('project_id'))
