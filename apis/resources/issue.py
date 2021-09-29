@@ -1922,13 +1922,13 @@ class SingleIssue(Resource):
 
         args = parser.parse_args()
 
-        redmine_issue = redmine_lib.redmine.issue.get(issue_id, include=['children'])
-        has_children = redmine_issue.children.total_count > 0
-        if has_children:
-            for invalidate_field in ["priority_id", "start_date", "due_date"]:
-                if args[invalidate_field] is not None:
-                    raise DevOpsError(400, f'{invalidate_field.capitalize()} can not be alerted when children issue exist.',
-                                      error=apiError.argument_error(invalidate_field))
+        # redmine_issue = redmine_lib.redmine.issue.get(issue_id, include=['children'])
+        # has_children = redmine_issue.children.total_count > 0
+        # if has_children:
+        #     for invalidate_field in ["priority_id", "start_date", "due_date"]:
+        #         if args[invalidate_field] is not None:
+        #             raise DevOpsError(400, f'{invalidate_field.capitalize()} can not be alerted when children issue exist.',
+        #                               error=apiError.argument_error(invalidate_field))
 
         # Check due_date is greater than start_date
         due_date = None
