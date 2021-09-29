@@ -661,3 +661,10 @@ class Lock(db.Model):
     name = Column(String)
     is_lock = Column(Boolean)
     sync_date = Column(DateTime)
+
+
+class WBSCache(db.Model):
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'), nullable=False)
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
+    display_field = Column(ARRAY(String))
