@@ -456,6 +456,12 @@ def delete_project(project_id):
     # delete kubernetes namespace
     try_to_delete(kubernetesClient.delete_namespace, project_name)
 
+    redmine_pj = model.RedmineProject.query.filter_by(project_id=project_id).first()
+    if redmine_pj is not None:
+        db.engine.execute(
+            "DELETE FROM public.redmine_project WHERE project_id = '{0}'".format(
+                project_id))
+
     # 如果gitlab & redmine project都成功被刪除則繼續刪除db內相關tables欄位
     db.engine.execute(
         "DELETE FROM public.project_plugin_relation WHERE project_id = '{0}'".format(

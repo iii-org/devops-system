@@ -211,7 +211,7 @@ class NexusIssue:
         return self
 
     def set_redmine_issue_v3(self, redmine_issue, with_relationship=False,
-                             relationship_bool=False, nx_project=None, users_info=None, with_point=False, relation_id=False):
+                             relationship_bool=False, nx_project=None, users_info=None, with_point=False, relation_id=None):
         self.data = {
             'id': redmine_issue["id"],
             'name': redmine_issue["subject"],
@@ -295,7 +295,7 @@ class NexusIssue:
         if with_point:
             self.data["point"] = get_issue_point(self.data["id"])
 
-        if relation_id:
+        if relation_id is not None:
             self.data["relation_id"] = relation_id
         return self
 
