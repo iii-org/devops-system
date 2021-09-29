@@ -410,11 +410,9 @@ class GitLab(object):
         return user.email
 
     def gl_get_commits_by_members(self, project_id, branch):
-        commits = self.gl_get_commits(project_id, branch)
-        member_list = self.gl_project_list_member(project_id, {"page": 1})
-        member_email_list = [self.convert_login_to_mail(member["username"]) for member in member_list.json() if member["name"] != "Administrator" and not member["name"].startswith("專案管理機器人")]
+        commits = self.gl_get_commits(project_id, branch)        
         output = [
-            commit for commit in commits if commit.get("author_email") in member_email_list or commit.get("committer_email") in member_email_list]
+            commit for commit in commits if (commit.get("author_name") != "Administrator" and not commit.get("author_name", "").startswith("專案管理機器人")) or (commit.get("committer_name") != "Administrator" and not commit.get("committer_name", "").startswith("專案管理機器人"))]
         return output
 
 
