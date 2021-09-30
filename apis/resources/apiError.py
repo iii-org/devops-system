@@ -201,6 +201,10 @@ def maximum_error(object, num):
     return build(7005, f'Maximum number of {object} is {num}.', {'object': object, 'num': num})
 
 
+def redmine_argument_error(arg_name):
+    return build(7006, f'Argument {arg_name} can not be alerted when children issue exist.')
+
+
 # Third party service errors
 def redmine_error(response):
     return error_3rd_party_api('Redmine', response)
