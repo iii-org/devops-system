@@ -668,3 +668,18 @@ class WBSCache(db.Model):
     user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'), nullable=False)
     project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
     display_field = Column(ARRAY(String))
+
+
+class ServerType(db.Model):
+    id = Column(Integer, primary_key=True)
+    server = Column(String)
+    type = Column(String)
+
+
+# class ServerDataCollection(db.Model):
+#     id = Column(Integer, primary_key=True)
+#     type_id = Column(Integer, ForeignKey(ServerType.id, ondelete='CASCADE'), nullable=False)
+#     project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
+#     detail = Column(JSON)
+#     value = Column(JSON)
+#     create_at = Column(DateTime)
