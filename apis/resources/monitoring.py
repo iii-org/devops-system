@@ -109,3 +109,9 @@ class ServersAlive(Resource):
 
         monitoring = Monitoring(pj_id) if pj_id is not None else Monitoring()
         return util.success(monitoring.check_project_alive())
+
+
+class RancherDefaultName(Resource):
+    def get(self):
+        rancher.rc_get_cluster_id()
+        return {"default_cluster_name": rancher.cluster_id is not None}

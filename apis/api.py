@@ -617,6 +617,8 @@ api.add_resource(trace_order.GetTraceResult, '/trace_order/result')
 
 # Monitoring
 api.add_resource(monitoring.ServersAlive, '/monitoring/alive')
+api.add_resource(monitoring.RancherDefaultName, '/monitoring/rancher/default_name')
+
 
 # Status of Sync
 api.add_resource(lock.LockStatus, '/lock')
