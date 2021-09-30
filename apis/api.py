@@ -35,7 +35,7 @@ from model import db
 from resources import logger, role as role, activity, starred_project, devops_version, cicd
 from resources import project, gitlab, issue, user, redmine, wiki, version, apiTest, mock, harbor, \
     template, release, sync_redmine, plugin, kubernetesClient, project_permission, quality, sync_project, \
-    sync_user, router, deploy, alert, trace_order, tag, monitoring, lock
+    sync_user, router, deploy, alert, trace_order, tag, monitoring, lock, wbs_cache
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -337,6 +337,9 @@ api.add_resource(issue.Relation, '/issues/relation',
                  '/issues/relation/<int:relation_id>')
 api.add_resource(issue.CheckIssueClosable, '/issues/<issue_id>/check_closable')
 
+# WBS cache
+api.add_resource(wbs_cache.WbsCache, '/wbs_cache')
+
 # Release
 api.add_resource(release.Releases, '/project/<project_id>/releases')
 api.add_resource(
@@ -614,6 +617,8 @@ api.add_resource(trace_order.GetTraceResult, '/trace_order/result')
 
 # Monitoring
 api.add_resource(monitoring.ServersAlive, '/monitoring/alive')
+api.add_resource(monitoring.RancherDefaultName, '/monitoring/rancher/default_name')
+
 
 # Status of Sync
 api.add_resource(lock.LockStatus, '/lock')

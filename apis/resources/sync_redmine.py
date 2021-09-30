@@ -110,7 +110,6 @@ def sync_redmine(sync_date):
 
 
 def insert_project(project, member_count, sync_date, project_status):
-    date_of_sync_date = sync_date.split(' ')[0]
     new_data = {
         'project_id': project['id'],
         'project_name': project['display'],
@@ -123,8 +122,8 @@ def insert_project(project, member_count, sync_date, project_status):
         'total_issue_count': project['total_count'],
         'member_count': member_count,
         'expired_day': get_expired_days(project),
-        'start_date': project['start_date'] if project['start_date'] is not None else '1970-01-01',
-        'end_date': project['due_date'] if project['due_date'] is not None else '1970-01-01',
+        'start_date': project.get('start_date'),
+        'end_date': project.get('due_date'),
         'sync_date': sync_date,
         'project_status': project_status
     }
@@ -132,7 +131,7 @@ def insert_project(project, member_count, sync_date, project_status):
     exist_data = model.RedmineProject.query.filter(
         model.RedmineProject.project_id == project['id'],
         func.DATE(
-            model.RedmineProject.sync_date) == date_of_sync_date).first()
+            model.RedmineProject.sync_date) == sync_date).first()
     if bool(exist_data):
         model.RedmineProject.query.filter_by(id=exist_data.id).update(new_data)
     else:
@@ -198,7 +197,7 @@ def insert_all_issues(project_id, sync_date):
 
 
 def get_sync_date():
-    default_sync_date = datetime.now().strftime("%Y-%m-%d")
+    default_sync_date = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
     response = model.RedmineProject.query.order_by(
         model.RedmineProject.sync_date.desc()).distinct().first()
     if response:

@@ -211,7 +211,7 @@ class NexusIssue:
         return self
 
     def set_redmine_issue_v3(self, redmine_issue, with_relationship=False,
-                             relationship_bool=False, nx_project=None, users_info=None, with_point=False, relation_id=False):
+                             relationship_bool=False, nx_project=None, users_info=None, with_point=False, relation_id=None):
         self.data = {
             'id': redmine_issue["id"],
             'name': redmine_issue["subject"],
@@ -295,7 +295,7 @@ class NexusIssue:
         if with_point:
             self.data["point"] = get_issue_point(self.data["id"])
 
-        if relation_id:
+        if relation_id is not None:
             self.data["relation_id"] = relation_id
         return self
 
@@ -1921,6 +1921,14 @@ class SingleIssue(Resource):
         parser.add_argument('upload_content_type', type=str)
 
         args = parser.parse_args()
+
+        # redmine_issue = redmine_lib.redmine.issue.get(issue_id, include=['children'])
+        # has_children = redmine_issue.children.total_count > 0
+        # if has_children:
+        #     for invalidate_field in ["priority_id", "start_date", "due_date"]:
+        #         if args[invalidate_field] is not None:
+        #             raise DevOpsError(400, f'{invalidate_field.capitalize()} can not be alerted when children issue exist.',
+        #                               error=apiError.argument_error(invalidate_field))
 
         # Check due_date is greater than start_date
         due_date = None
