@@ -122,6 +122,8 @@ class CollectPodRestartTime(Resource):
     def get(self):
         for pj in Project.query.all():
             project_pods = list_namespace_pods_info(pj.name)
+            if project_pods == []:
+                continue
             for project_pod in project_pods:
                 for container in project_pod["containers"]:
                     row = ServerDataCollection(
