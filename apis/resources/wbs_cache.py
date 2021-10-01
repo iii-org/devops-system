@@ -1,4 +1,5 @@
 from flask_restful import Resource, reqparse
+from flask_jwt_extended import jwt_required, get_jwt_identity
 from model import WBSCache, db
 import util
 
@@ -26,24 +27,26 @@ def put_wbs_cache(user_id, pj_id, display_field):
     else:
         lock_info.display_field = display_field
         db.session.commit()
+    return {"project_id": pj_id, "display_fields": display_field}
 
 
 # --------------------- Resources ---------------------
 class WbsCache(Resource):
+    @jwt_required
     def get(self):
+        user_id = get_jwt_identity()['user_id']
         parser = reqparse.RequestParser()
-        parser.add_argument('user_id', type=int, required=True)
         parser.add_argument('project_id', type=int, required=True)
         args = parser.parse_args()
 
-        return util.success(get_wbs_cache(args["user_id"], args["project_id"]))
+        return util.success(get_wbs_cache(user_id, args["project_id"]))
 
-
+    @jwt_required
     def put(self):
+        user_id = get_jwt_identity()['user_id']
         parser = reqparse.RequestParser()
-        parser.add_argument('user_id', type=int, required=True)
         parser.add_argument('project_id', type=int, required=True)
-        parser.add_argument('display_field', type=str, action='append', required=True)
+        parser.add_argument('display_fields', type=str, action='append', required=True)
         args = parser.parse_args()
 
-        return util.success(put_wbs_cache(args["user_id"], args["project_id"], args["display_field"]))
+        return util.success(put_wbs_cache(user_id, args["project_id"], args["display_fields"]))
