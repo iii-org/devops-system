@@ -129,10 +129,8 @@ def insert_project(project, member_count, sync_date, project_status):
     }
     new_project = model.RedmineProject(**new_data)
     exist_data = model.RedmineProject.query.filter(
-        model.RedmineProject.project_id == project['id'],
-        func.DATE(
-            model.RedmineProject.sync_date) == sync_date).first()
-    if bool(exist_data):
+        model.RedmineProject.project_id == project['id']).first()
+    if exist_data is not None:
         model.RedmineProject.query.filter_by(id=exist_data.id).update(new_data)
     else:
         model.db.session.add(new_project)
