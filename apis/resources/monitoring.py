@@ -11,7 +11,7 @@ from resources.rancher import rancher
 from resources import logger
 from resources.kubernetesClient import ApiK8sClient as k8s_client
 from resources.kubernetesClient import list_namespace_services, list_namespace_pods_info
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 class Monitoring:
@@ -138,3 +138,8 @@ class CollectPodRestartTime(Resource):
                     )
                     db.session.add(row)
                     db.session.commit()
+
+    def delete(self):
+        expired_date = datetime.utcnow() - timedelta(days=30)
+        ServerDataCollection.query.filter_by(type_id=1).filter(ServerDataCollection.create_at <= expired_date).delete()
+        db.session.commit()
