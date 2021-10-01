@@ -27,7 +27,7 @@ def put_wbs_cache(user_id, pj_id, display_field):
     else:
         lock_info.display_field = display_field
         db.session.commit()
-    return {"project_id": pj_id, "display_fields": display_field}
+    return display_field
 
 
 # --------------------- Resources ---------------------
