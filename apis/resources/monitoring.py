@@ -1,7 +1,7 @@
 from flask_restful import Resource, reqparse
 from nexus import nx_get_project_plugin_relation
 import util
-from model import Project
+from model import Project, db, ServerDataCollection
 
 from plugins.sonarqube import sq_get_current_measures, sq_list_project
 from resources.harbor import hb_get_project_summary, hb_get_registries
@@ -10,7 +10,8 @@ from resources.gitlab import gitlab
 from resources.rancher import rancher
 from resources import logger
 from resources.kubernetesClient import ApiK8sClient as k8s_client
-from resources.kubernetesClient import list_namespace_services
+from resources.kubernetesClient import list_namespace_services, list_namespace_pods_info
+from datetime import datetime
 
 
 class Monitoring:
@@ -48,7 +49,7 @@ class Monitoring:
         return pj.name if pj is not None else None
 
     def __has_pj_id(self):
-        return True if self.pj_id is not None else False
+        return self.pj_id is not None
 
     def __update_all_alive(self, alive):
         if not alive:
@@ -115,3 +116,23 @@ class RancherDefaultName(Resource):
     def get(self):
         rancher.rc_get_cluster_id()
         return {"default_cluster_name": rancher.cluster_id is not None}
+
+
+class CollectPodRestartTime(Resource):
+    def get(self):
+        for pj in Project.query.all():
+            project_pods = list_namespace_pods_info(pj.name)
+            for project_pod in project_pods:
+                for container in project_pod["containers"]:
+                    row = ServerDataCollection(
+                        type_id=1,
+                        project_id=pj.id,
+                        detail={
+                            "pod_name": project_pod["name"],
+                            "containers_name": container["name"],
+                        },
+                        value={"value": container["restart"]},
+                        create_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+                    )
+                    db.session.add(row)
+                    db.session.commit()
