@@ -676,10 +676,10 @@ class ServerType(db.Model):
     type = Column(String)
 
 
-# class ServerDataCollection(db.Model):
-#     id = Column(Integer, primary_key=True)
-#     type_id = Column(Integer, ForeignKey(ServerType.id, ondelete='CASCADE'), nullable=False)
-#     project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
-#     detail = Column(JSON)
-#     value = Column(JSON)
-#     create_at = Column(DateTime)
+class ServerDataCollection(db.Model):
+    id = Column(Integer, primary_key=True)
+    type_id = Column(Integer, ForeignKey(ServerType.id, ondelete='CASCADE'), nullable=False)
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
+    detail = Column(JSON)
+    value = Column(JSON)
+    create_at = Column(DateTime)
