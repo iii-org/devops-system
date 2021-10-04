@@ -107,7 +107,7 @@ def upgrade(version):
     elif version == '1.9.0.5':
         pass
     elif version == '1.9.0.7':
-        threading.Thread(target=template.update_project_rancher_pipline).start()
+        pass
     elif version == '1.9.1.1':
         insert_sync_redmine_info_in_table_lock()
     elif version == '1.9.1.2':
