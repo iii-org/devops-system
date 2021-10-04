@@ -617,7 +617,13 @@ api.add_resource(trace_order.GetTraceResult, '/trace_order/result')
 
 # Monitoring
 api.add_resource(monitoring.ServersAlive, '/monitoring/alive')
+api.add_resource(monitoring.RedmineAlive, '/monitoring/redmine/alive')
+api.add_resource(monitoring.GitlabAlive, '/monitoring/gitlab/alive')
+api.add_resource(monitoring.HarborAlive, '/monitoring/harbor/alive')
+api.add_resource(monitoring.SonarQubeAlive, '/monitoring/sonarqube/alive')
+api.add_resource(monitoring.RancherAlive, '/monitoring/rancher/alive')
 api.add_resource(monitoring.RancherDefaultName, '/monitoring/rancher/default_name')
+api.add_resource(monitoring.K8sAlive, '/monitoring/k8s/alive')
 api.add_resource(monitoring.CollectPodRestartTime, '/monitoring/k8s/collect_pod_restart_times_by_hour')
 
 # Status of Sync

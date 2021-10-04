@@ -19,6 +19,7 @@ class Monitoring:
         self.pj_id = project_id
         self.all_alive = True
         self.__init_ids()
+        self.error_message = None
 
     def __init_ids(self):
         self.plan_pj_id = None
@@ -42,6 +43,7 @@ class Monitoring:
             return True
         except Exception as e:
             logger.logger.info(f'{func.__name__} : {str(e)}')
+            self.error_message = str(e)
             return False
 
     def __get_project_name(self):
@@ -100,6 +102,24 @@ class Monitoring:
             "all_alive": self.all_alive
         }
 
+def generate_alive_response(name):
+    monitoring = Monitoring()
+    alive_mapping = {
+        "redmine": monitoring.redmine_alive,
+        "gitlab": monitoring.gitlab_alive,
+        "harbor": monitoring.harbor_alive,
+        "kubernetes": monitoring.k8s_alive,
+        "sonarQube": monitoring.sonarqube_alive,
+        "rancher": monitoring.rancher_alive,
+    }
+    return {
+        "name": name.capitalize(),
+        "status": alive_mapping[name](),
+        "message": monitoring.error_message,
+        "datetime": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+    }
+
+
 # --------------------- Resources ---------------------
 class ServersAlive(Resource):
     def get(self):
@@ -112,10 +132,46 @@ class ServersAlive(Resource):
         return util.success(monitoring.check_project_alive())
 
 
+# redmine
+class RedmineAlive(Resource):
+    def get(self):
+        return generate_alive_response("redmine")
+
+
+# gitlab
+class GitlabAlive(Resource):
+    def get(self):
+        return generate_alive_response("gitlab")
+
+
+# harbor
+class HarborAlive(Resource):
+    def get(self):
+        return generate_alive_response("harbor")
+
+
+# sonarQube
+class SonarQubeAlive(Resource):
+    def get(self):
+        return generate_alive_response("sonarQube")
+
+
+# rancher
+class RancherAlive(Resource):
+    def get(self):
+        return generate_alive_response("rancher")
+
+
 class RancherDefaultName(Resource):
     def get(self):
         rancher.rc_get_cluster_id()
         return {"default_cluster_name": rancher.cluster_id is not None}
+
+
+# k8s
+class K8sAlive(Resource):
+    def get(self):
+        return generate_alive_response("kubernetes")
 
 
 class CollectPodRestartTime(Resource):
