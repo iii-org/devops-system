@@ -323,7 +323,7 @@ class NexusIssue:
 def check_tags_id_is_int(tags):
     if tags == [""]:
         return []
-    tag_ids = [int(tag) for tag in tags]
+    tag_ids = list(set([int(tag) for tag in tags]))
     tag_ids.sort()
     return tag_ids
 
