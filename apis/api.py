@@ -625,6 +625,8 @@ api.add_resource(monitoring.RancherAlive, '/monitoring/rancher/alive')
 api.add_resource(monitoring.RancherDefaultName, '/monitoring/rancher/default_name')
 api.add_resource(monitoring.K8sAlive, '/monitoring/k8s/alive')
 api.add_resource(monitoring.CollectPodRestartTime, '/monitoring/k8s/collect_pod_restart_times_by_hour')
+api.add_resource(monitoring.PodAlert, '/monitoring/k8s/pod_alert')
+
 
 # Status of Sync
 api.add_resource(lock.LockStatus, '/lock')

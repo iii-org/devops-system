@@ -1,7 +1,7 @@
 from flask_restful import Resource, reqparse
 from nexus import nx_get_project_plugin_relation
 import util
-from model import Project, db, ServerDataCollection, SystemParameter
+from model import Project, db, ServerDataCollection, SystemParameter, AlertMessage, Project
 
 from plugins.sonarqube import sq_get_current_measures, sq_list_project
 from resources.harbor import hb_get_project_summary, hb_get_registries
@@ -12,6 +12,8 @@ from resources import logger
 from resources.kubernetesClient import ApiK8sClient as k8s_client
 from resources.kubernetesClient import list_namespace_services, list_namespace_pods_info
 from datetime import datetime, timedelta
+from datetime import time as d_time
+from sqlalchemy import desc
 
 
 class Monitoring:
@@ -201,11 +203,39 @@ class CollectPodRestartTime(Resource):
         db.session.commit()
 
 
-# class AlertMessagePod(Resource):
-#     def post(self):
-#         condition = SystemParameter.query.filter_by(name="k8s_pod_restart_times_limit").one()
-#         limit_times = condition.value["limit_times"]
+class PodAlert(Resource):
+    def post(self):
+        condition = SystemParameter.query.filter_by(name="k8s_pod_restart_times_limit").one()
+        limit_times = condition.value["limit_times"]
+        datetime_now = datetime.utcnow().strftime("%Y-%m-%d %H:%M")
 
-#         ServerDataCollection.query.filter_by(
-#             type_id=1, 
-#         )
+        limit_hour = datetime.utcnow() - timedelta(hours=1)
+        limit_hour = limit_hour.strftime("%Y-%m-%d %H:00")
+        data_collections = ServerDataCollection.query.filter_by(
+            type_id=1).filter(ServerDataCollection.create_at >= limit_hour)
+
+        mapping = {}
+        for data_collection in data_collections:
+            detail = data_collection.detail
+            restart_times = data_collection.value["value"]
+            mapping.setdefault(f'{data_collection.project_id}=={detail["pod_name"]}=={detail["containers_name"]}', []).append(restart_times)
+
+        for detail, times in mapping.items():
+            if len(times) >= 2 and (max(times) - min(times)) > limit_times:
+                total_restart_times = max(times) - min(times)
+                details = detail.split("==")
+                row = AlertMessage(
+                    resource_type="k8s", 
+                    detail={"project_name": Project.query.filter_by(id=details[0]).one().name},
+                    alert_code=10001,
+                    message=f"Restart times of pod({details[1]}) belong in container({details[2]}) has surpassed 20 times({total_restart_times}) in 1 hour.",
+                    create_at=datetime_now
+                )
+                db.session.add(row)
+                db.session.commit()
+
+    def delete(self):
+        expired_date = datetime.utcnow() - timedelta(days=30)
+        AlertMessage.query.filter_by(
+            resource_type="k8s", alert_code=10001).filter(AlertMessage.create_at <= expired_date).delete()
+        db.session.commit()
