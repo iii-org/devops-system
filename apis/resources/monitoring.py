@@ -1,7 +1,7 @@
 from flask_restful import Resource, reqparse
 from nexus import nx_get_project_plugin_relation
 import util
-from model import Project, db, ServerDataCollection
+from model import Project, db, ServerDataCollection, SystemParameter
 
 from plugins.sonarqube import sq_get_current_measures, sq_list_project
 from resources.harbor import hb_get_project_summary, hb_get_registries
@@ -190,7 +190,7 @@ class CollectPodRestartTime(Resource):
                             "containers_name": container["name"],
                         },
                         value={"value": container["restart"]},
-                        create_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+                        create_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M")
                     )
                     db.session.add(row)
                     db.session.commit()
@@ -199,3 +199,13 @@ class CollectPodRestartTime(Resource):
         expired_date = datetime.utcnow() - timedelta(days=30)
         ServerDataCollection.query.filter_by(type_id=1).filter(ServerDataCollection.create_at <= expired_date).delete()
         db.session.commit()
+
+
+# class AlertMessagePod(Resource):
+#     def post(self):
+#         condition = SystemParameter.query.filter_by(name="k8s_pod_restart_times_limit").one()
+#         limit_times = condition.value["limit_times"]
+
+#         ServerDataCollection.query.filter_by(
+#             type_id=1, 
+#         )
