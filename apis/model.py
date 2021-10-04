@@ -18,7 +18,7 @@ import json
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Date, Enum, JSON, Float, ARRAY, \
     PickleType
-from sqlalchemy.orm import relationship, backref
+from sqlalchemy.orm import relationship, backref, validates
 from sqlalchemy.dialects import postgresql
 
 import util
@@ -683,3 +683,20 @@ class ServerDataCollection(db.Model):
     detail = Column(JSON)
     value = Column(JSON)
     create_at = Column(DateTime)
+
+
+class AlertMessage(db.Model):
+    id = Column(Integer, primary_key=True)
+    resource_type = Column(String)
+    # response name not id
+    detail = Column(JSON)
+    alert_code = Column(Integer)
+    message = Column(String) 
+    create_at = Column(DateTime)
+
+    @validates("resource_type")
+    def validate_resource_type(self, key, resource_type):
+        if resource_type is not None:
+            if resource_type not in ["system", "k8s", "redmine", "gitlab", "harbor", "sonarqube", "rancher"]:
+                raise AssertionError("Resource_type must in system / k8s / redmine / gitlab / harbor / sonarqube / rancher.")
+        return resource_type
