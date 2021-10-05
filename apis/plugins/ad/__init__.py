@@ -119,7 +119,8 @@ def create_user(ad_user, login_password):
             'title': ad_user.get('title'),
             'department': ad_user['department'],
             'update_at': ad_user['whenChanged'],
-            'from_ad': True
+            'from_ad': True,
+            'force': True
         }
         res = user.create_user(args)
     return res
