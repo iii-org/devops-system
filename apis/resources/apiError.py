@@ -202,7 +202,7 @@ def maximum_error(object, num):
 
 
 def redmine_argument_error(arg_name):
-    return build(7006, f'Argument {arg_name} can not be alerted when children issue exist.')
+    return build(7006, f'Argument {arg_name} can not be alerted when children issue exist.', {'arg': arg_name})
 
 
 # Third party service errors

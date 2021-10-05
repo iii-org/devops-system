@@ -1927,8 +1927,8 @@ class SingleIssue(Resource):
         if has_children:
             validate_field_mapping = {
                 "priority_id": redmine_issue.priority.id if hasattr(redmine_issue, 'priority') else None,
-                "start_date": redmine_issue.start_date.isoformat() if hasattr(redmine_issue, 'start_date') else None,
-                "due_date": redmine_issue.due_date.isoformat() if hasattr(redmine_issue, 'due_date') else None,
+                "start_date": redmine_issue.start_date.isoformat() if hasattr(redmine_issue, 'start_date') else "",
+                "due_date": redmine_issue.due_date.isoformat() if hasattr(redmine_issue, 'due_date') else "",
             }
             for invalidate_field in ["priority_id", "start_date", "due_date"]:
                 if args[invalidate_field] is not None and args[invalidate_field] != validate_field_mapping[invalidate_field]:
