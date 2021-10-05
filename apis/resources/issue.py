@@ -1923,13 +1923,13 @@ class SingleIssue(Resource):
         args = parser.parse_args()
 
         redmine_issue = redmine_lib.redmine.issue.get(issue_id, include=['children'])
-        validate_field_mapping = {
-            "priority_id": redmine_issue.priority.id,
-            "start_date": redmine_issue.start_date,
-            "due_date": redmine_issue.due_date,
-        }
         has_children = redmine_issue.children.total_count > 0
         if has_children:
+            validate_field_mapping = {
+                "priority_id": redmine_issue.priority.id,
+                "start_date": redmine_issue.start_date,
+                "due_date": redmine_issue.due_date,
+            }
             for invalidate_field in ["priority_id", "start_date", "due_date"]:
                 if args[invalidate_field] is not None and args[invalidate_field] != validate_field_mapping[invalidate_field]:
                     raise DevOpsError(400, f'Argument {invalidate_field} can not be alerted when children issue exist.',
