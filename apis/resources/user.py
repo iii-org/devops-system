@@ -416,6 +416,7 @@ def create_user(args):
     logger.info('Creating user...')
     # Check if name is valid
     login_name = args['login']
+    force = args["force"] is not None
     if re.fullmatch(r'^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,58}[a-zA-Z0-9]$', login_name) is None:
         raise apiError.DevOpsError(400, "Error when creating new user",
                                    error=apiError.invalid_user_name(login_name))
@@ -448,6 +449,7 @@ def create_user(args):
     is_admin = args['role_id'] == role.ADMIN.id
     logger.info(f'is_admin is {is_admin}')
 
+    # Check Redmine has this login, email, if has, raise error(if force remove it.)
     offset = 0
     limit = 25
     total_count = 1
@@ -457,12 +459,16 @@ def create_user(args):
         total_count = user_list_output['total_count']
         for user in user_list_output['users']:
             if user['login'] == args['login'] or user['mail'] == args['email']:
-                raise DevOpsError(422, "Redmine already has this account or email.",
-                                  error=apiError.already_used())
+                if force:
+                    redmine.rm_delete_user(user["id"])
+                    logger.info('Force is True, so delete this Redmine account.')
+                else:
+                    raise DevOpsError(422, "Redmine already has this account or email.",
+                                      error=apiError.already_used())
         offset += limit
-    logger.info('Account name not used in Redmine.')
+    logger.info('Account name not used in Redmine or force is True.')
 
-    # Check Gitlab has this login, email, if has, raise error
+    # Check Gitlab has this login, email, if has, raise error(if force remove it.)
     page = 1
     x_total_pages = 10
     while page <= x_total_pages:
@@ -471,18 +477,67 @@ def create_user(args):
         x_total_pages = int(user_list_output.headers['X-Total-Pages'])
         for user in user_list_output.json():
             if user['name'] == args['login'] or user['email'] == args['email']:
-                raise DevOpsError(422, "Gitlab already has this account or email.",
-                                  error=apiError.already_used())
+                if force:
+                    gitlab.gl_delete_user(user["id"])
+                    logger.info('Force is True, so delete this Gitlab account.')
+                else:
+                    raise DevOpsError(422, "Gitlab already has this account or email.",
+                                      error=apiError.already_used())
         page += 1
-    logger.info('Account name not used in Gitlab.')
+    logger.info('Account name not used in Gitlab or force is True.')
 
-    # Check Kubernetes has this Service Account (login), if has, return error 400
+    # Check Kubernetes has this Service Account (login), if has, return error 400(if force remove it.)
     sa_list = kubernetesClient.list_service_account()
     login_sa_name = util.encode_k8s_sa(login_name)
     if login_sa_name in sa_list:
-        raise DevOpsError(422, "Kubernetes already has this service account.",
-                          error=apiError.already_used())
-    logger.info('Account name not used in kubernetes.')
+        if force:
+            kubernetesClient.delete_service_account(login_sa_name)
+            logger.info('Force is True, so delete this kubernetes account.')
+        else:
+            raise DevOpsError(422, "Kubernetes already has this Kubernetes account.",
+                              error=apiError.already_used())
+    logger.info('Account name not used in kubernetes or force is True.')
+
+    # Check Harbour has this login, email, if has, raise error(if force remove it.)
+    page = 1
+    page_size = 10
+    total_size = 20
+    while total_size > 0:
+        params = {'page': page, 'page_size': page_size}
+        output = harbor.hb_list_user(params)
+        for user in output.json():
+            if user['username'] == args['login'] or user['email'] == args['email']:
+                if force:
+                    harbor.hb_delete_user(user["user_id"])
+                    logger.info('Force is True, so delete this Harbour account.')
+                else:
+                    raise DevOpsError(422, "Harbour already has this account or email.",
+                                      error=apiError.already_used())
+        if output.headers.get('X-Total-Count', None):
+            total_size = int(output.headers['X-Total-Count']) - (page * page_size)
+            page += 1
+        else:
+            total_size = -1
+    logger.info('Account name not used in Harbour or force is True.')
+
+    # Check SonarQube has this login, if has, raise error(if force deactivate it.)
+    page = 1
+    page_size = 50
+    total_size = 20
+    while total_size > 0:
+        params = {'p': page, 'ps': page_size}
+        output = sonarqube.sq_list_user(params).json()
+        for user in output["users"]:
+            if user["login"] == args['login']:
+                if force:
+                    sonarqube.sq_deactivate_user(args["login"])
+                    logger.info('Force is True, so deactivate this SonarQube account.')
+                else:
+                    raise DevOpsError(422, "SonarQube already has this account.",
+                                      error=apiError.already_used())
+        total_size = int(output['paging']['total']) - (page * page_size)
+        page += 1
+    logger.info('Account name not used in SonarQube or force is True.')
 
     # plan software user create
     red_user = redmine.rm_create_user(
@@ -773,6 +828,7 @@ class SingleUser(Resource):
         parser.add_argument('password', type=str, required=True)
         parser.add_argument('role_id', type=int, required=True)
         parser.add_argument('status', type=str)
+        parser.add_argument('force', type=bool)
         args = parser.parse_args()
         return util.success(create_user(args))
 
