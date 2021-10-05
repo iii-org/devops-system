@@ -1,0 +1,21 @@
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: remove-k8s-pods-data
+spec:
+  successfulJobsHistoryLimit: 0
+  failedJobsHistoryLimit: 1
+  schedule: "0 0 1 * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: curl
+            image: curlimages/curl:7.76.1
+            imagePullPolicy: IfNotPresent
+            command:
+            - /bin/sh
+            - -c
+            - curl --location --request DELETE 'http://devopsapi-service:10009/monitoring/k8s/pod_alert'
+          restartPolicy: OnFailure

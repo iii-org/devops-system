@@ -178,6 +178,7 @@ class K8sAlive(Resource):
 
 class CollectPodRestartTime(Resource):
     def get(self):
+        collect_at = datetime.utcnow().strftime("%Y-%m-%d %H:00:00")
         for pj in Project.query.all():
             project_pods = list_namespace_pods_info(pj.name)
             if project_pods == []:
@@ -192,7 +193,8 @@ class CollectPodRestartTime(Resource):
                             "containers_name": container["name"],
                         },
                         value={"value": container["restart"]},
-                        create_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M")
+                        create_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+                        collect_at=collect_at
                     )
                     db.session.add(row)
                     db.session.commit()
@@ -210,9 +212,9 @@ class PodAlert(Resource):
         datetime_now = datetime.utcnow().strftime("%Y-%m-%d %H:%M")
 
         limit_hour = datetime.utcnow() - timedelta(hours=1)
-        limit_hour = limit_hour.strftime("%Y-%m-%d %H:00")
+        limit_hour = limit_hour.strftime("%Y-%m-%d %H:00:00")
         data_collections = ServerDataCollection.query.filter_by(
-            type_id=1).filter(ServerDataCollection.create_at >= limit_hour)
+            type_id=1).filter(ServerDataCollection.collect_at >= limit_hour)
 
         mapping = {}
         for data_collection in data_collections:
