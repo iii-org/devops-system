@@ -17,5 +17,5 @@ spec:
             command:
             - /bin/sh
             - -c
-            - curl --location --request GET 'http://devopsapi-service:10009/monitoring/k8s/collect_pod_restart_times_by_hour'
+            - curl --location --request POST 'http://devopsapi-service:10009/monitoring/k8s/collect_pod_restart_times_by_hour'
           restartPolicy: OnFailure

@@ -177,7 +177,7 @@ class K8sAlive(Resource):
 
 
 class CollectPodRestartTime(Resource):
-    def get(self):
+    def post(self):
         collect_at = datetime.utcnow().strftime("%Y-%m-%d %H:00:00")
         for pj in Project.query.all():
             project_pods = list_namespace_pods_info(pj.name)
