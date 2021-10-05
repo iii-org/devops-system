@@ -683,6 +683,7 @@ class ServerDataCollection(db.Model):
     detail = Column(JSON)
     value = Column(JSON)
     create_at = Column(DateTime)
+    collect_at = Column(DateTime)
 
 
 class AlertMessage(db.Model):
