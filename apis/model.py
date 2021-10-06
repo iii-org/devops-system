@@ -708,8 +708,8 @@ class IssueTagHistory(db.Model):
     id = Column(Integer, primary_key=True)
     issue_id = Column(Integer)
     '''
-    history: {user_name: {before:[], after:[]}, ....., .....}
-    And the max length of history is 10, latest update_history will replace the final index.
+    history: [{user_name: {before:[], after:[]}, ....., .....]
+    And the max length of historys is 10, use FIFO order.
     '''
-    history = Column(JSONB)
+    historys = Column(ARRAY(JSONB))
     create_at = Column(DateTime)
