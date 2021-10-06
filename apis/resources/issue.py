@@ -1812,9 +1812,6 @@ def execute_issue_alert(alert_mapping):
                     condition = alert["condition"]
                     days = alert["days"]
                     issue_id = issue["id"]
-                    if issue_id == 1895:
-                        logger.logger.info("1895")
-                        logger.logger.info(issue)
                     if condition == "unchange":
                         common_note = f'已超過{days}天未異動'
                         update_time = datetime.strptime(issue["updated_on"][0:10], "%Y-%m-%d")
@@ -1861,23 +1858,14 @@ def execute_issue_alert(alert_mapping):
                                     db.session.commit()
                     if condition == "comming":
                         if issue.get("due_date") is None:
-                            if issue_id == 1895:
-                                logger.logger.info("here")
                             continue
-                        if issue_id == 1895:
-                            logger.logger.info(issue["id"])
-                            logger.logger.info(issue.get("due_date"))
                         delta = util.get_certain_date_from_now(-days) - datetime.strptime(issue["due_date"], "%Y-%m-%d")
-                        if issue_id == 1895:
-                            logger.logger.info(delta)
                         if delta.days >= 0:
                             d_day = days - delta.days
                             if d_day >= 0:
                                 note = f'{d_day}天即將到期'
                             else:
                                 note = f'已經過期{-d_day}天'
-                    if issue_id == 1895:
-                        logger.logger.info(note)
                     if note is not None:
                         update_issue(
                             issue_id,
