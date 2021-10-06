@@ -453,6 +453,8 @@ def delete_project(project_id):
 
     # delete rancher app
     try_to_delete(rancher.rc_del_app_when_devops_del_pj, project_name)
+    # delete rancher pod execution
+    try_to_delete(rancher.remove_executions, project_id)
     # delete kubernetes namespace
     try_to_delete(kubernetesClient.delete_namespace, project_name)
 

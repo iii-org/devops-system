@@ -12,7 +12,8 @@ from flask_socketio import Namespace, emit, disconnect
 import config
 import resources.apiError as apiError
 import util as util
-from model import RancherPiplineNumberEachDays, ProjectPluginRelation, db
+from nexus import nx_get_project_plugin_relation
+from model import RancherPiplineNumberEachDays, ProjectPluginRelation, db, Project
 from resources import kubernetesClient
 from resources.logger import logger
 
@@ -526,6 +527,23 @@ class Rancher(object):
 rancher = Rancher()
 
 
+def remove_executions(pj_id):
+    relation = nx_get_project_plugin_relation(nexus_project_id=pj_id)
+    pj_executions = rancher.rc_get_pipeline_executions(
+        relation.ci_project_id,
+        relation.ci_pipeline_id
+    )
+    for data in pj_executions["data"]:
+        try:
+            rancher.rc_delete_pipeline_executions_run(
+                relation.ci_project_id,
+                relation.ci_pipeline_id,
+                data["run"])
+        except:
+            pass
+
+
+# --------------------- Resources ---------------------
 class Catalogs(Resource):
     @jwt_required
     def get(self):
@@ -584,3 +602,11 @@ class RancherWebsocketLog(Namespace):
 class RancherCountEachPjPiplinesByDays(Resource):
     def get(self):
         return util.success(rancher.rc_count_each_pj_piplines_by_days())
+
+
+# class RancherRemoveProjectExecution(Resource):
+#     def post(self):
+#         parser = reqparse.RequestParser()
+#         parser.add_argument('project_id', type=int)
+#         args = parser.parse_args()
+#         return util.success(remove_executions(args["project_id"]))
