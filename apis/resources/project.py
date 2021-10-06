@@ -803,6 +803,9 @@ def delete_kubernetes_namespace_pod(project_id, name):
 def get_kubernetes_namespace_pod_log(project_id, name, container_name=None):
     project_name = str(model.Project.query.filter_by(
         id=project_id).first().name)
+    pod_status = kubernetesClient.read_namespaced_pod_status(name, project_name)
+    if pod_status.status.phase == "Waiting":
+        return util.success()
     pod_log = kubernetesClient.read_namespace_pod_log(
         project_name, name, container_name)
     return util.success(pod_log)

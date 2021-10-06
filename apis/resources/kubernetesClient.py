@@ -278,8 +278,15 @@ class ApiK8sClient:
                 name, namespace, container=container)
         except apiError.DevOpsError as e:
             if e.status_code != 404:
-                raise e
+                raise apiError.error_3rd_party_api('kubernetes', e)
 
+    def read_namespaced_pod_status(self, name, namespace):
+        try:
+            return self.core_v1.read_namespaced_pod_status(
+                name, namespace)
+        except apiError.DevOpsError as e:
+            if e.status_code != 404:
+                raise e
     #  RBAC
 
     def create_namespaced_role(self, namespace, role):
@@ -808,6 +815,16 @@ def read_namespace_pod_log(namespace, name, container=None):
         pod_log = ApiK8sClient().read_namespaced_pod_log(
             name, namespace, container)
         return pod_log
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+
+
+def read_namespaced_pod_status(name, namespace):
+    try:
+        pod_status = ApiK8sClient().read_namespaced_pod_status(
+            name, namespace)
+        return pod_status
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
