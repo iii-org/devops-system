@@ -59,7 +59,10 @@ def require_pm(err_message='You must be a PM for this operation.', exclude_admin
 def require_in_project(project_id=None,
                        err_message='You need to be in the project for this operation.',
                        even_admin=False,
-                       project_name=None):
+                       project_name=None,
+                       repository_id=None):
+    if repository_id is not None:
+        project_id = nexus.nx_get_project_plugin_relation(repo_id=repository_id).project_id
     if project_id is None:
         if project_name is not None:
             project_id = nexus.nx_get_project(name=project_name).id

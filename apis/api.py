@@ -292,6 +292,8 @@ api.add_resource(user.UserSaConfig, '/user/<int:user_id>/config')
 api.add_resource(role.RoleList, '/user/role/list')
 
 # pipeline
+api.add_resource(pipeline.Pipeline,
+                 '/pipelines/<repository_id>/pipelines')
 api.add_resource(pipeline.PipelineExec,
                  '/pipelines/<repository_id>/pipelines_exec')
 api.add_resource(pipeline.PipelineConfig,

@@ -9,6 +9,7 @@ import resources.apiError as apiError
 import util as util
 from model import db, PipelineLogsCache
 from nexus import nx_get_project_plugin_relation
+from resources import role
 from .gitlab import GitLab, commit_id_to_url
 from .rancher import rancher
 
@@ -38,6 +39,11 @@ def __rancher_pagination(rancher_output):
     if 'last' in rancher_output["pagination"]:
         pagination['last'] = __url_get_marker(rancher_output["pagination"]['last'])
     return pagination
+
+
+def pipeline_action(repository_id, args):
+    relation = nx_get_project_plugin_relation(repo_id=repository_id)
+    rancher.rc_run_pipeline(relation.ci_project_id, relation.ci_pipeline_id, args['branch'])
 
 
 def pipeline_exec_list(repository_id, args):
@@ -285,3 +291,14 @@ class PipelineConfig(Resource):
         parser.add_argument('pipelines_exec_run', type=int, required=True)
         args = parser.parse_args()
         return pipeline_config(repository_id, args)
+
+
+class Pipeline(Resource):
+    @jwt_required
+    def post(self, repository_id):
+        role.require_in_project(repository_id=repository_id)
+        parser = reqparse.RequestParser()
+        parser.add_argument('branch', type=str, required=True)
+        args = parser.parse_args()
+        pipeline_action(repository_id, args)
+        return util.success()

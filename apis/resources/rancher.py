@@ -157,6 +157,13 @@ class Rancher(object):
         info = self.__api_get(path)
         return info.json()
 
+    def rc_run_pipeline(self, ci_project_id, ci_pipeline_id, branch):
+        path = f'/project/{ci_project_id}/pipelines/{ci_pipeline_id}'
+        params = {'action': 'run'}
+        data = {"branch": branch}
+        response = self.__api_post(path, params=params, data=data)
+        return response.json()
+
     def rc_get_pipeline_config(self, ci_pipeline_id, pipelines_exec_run):
         output_dict = []
         self.token = self.__generate_token()
