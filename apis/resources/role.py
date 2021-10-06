@@ -104,6 +104,7 @@ def verify_project_user(project_id, user_id):
         project_id=project_id, user_id=user_id).count()
     return count > 0
 
+
 def get_user_roles():
     output_array = []
     for r in ALL_ROLES:
@@ -113,7 +114,8 @@ def get_user_roles():
         output_array.append(role_info)
     return output_array
 
-def get_role_list():    
+
+def get_role_list():
     return util.success({"role_list": get_user_roles()})
 
 
