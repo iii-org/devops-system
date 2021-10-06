@@ -20,6 +20,7 @@ from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, D
     PickleType
 from sqlalchemy.orm import relationship, backref, validates
 from sqlalchemy.dialects import postgresql
+from sqlalchemy.dialects.postgresql import JSONB
 
 import util
 from enums.action_type import ActionType
@@ -701,3 +702,14 @@ class AlertMessage(db.Model):
             if resource_type not in ["system", "k8s", "redmine", "gitlab", "harbor", "sonarqube", "rancher"]:
                 raise AssertionError("Resource_type must in system / k8s / redmine / gitlab / harbor / sonarqube / rancher.")
         return resource_type
+
+
+class IssueTagHistory(db.Model):
+    id = Column(Integer, primary_key=True)
+    issue_id = Column(Integer)
+    '''
+    history: {user_name: {before:[], after:[]}, ....., .....}
+    And the max length of history is 10, latest update_history will replace the final index.
+    '''
+    history = Column(JSONB)
+    create_at = Column(DateTime)
