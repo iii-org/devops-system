@@ -527,7 +527,7 @@ class Rancher(object):
 rancher = Rancher()
 
 
-def remove_executions(pj_id):
+def remove_pj_executions(pj_id):
     relation = nx_get_project_plugin_relation(nexus_project_id=pj_id)
     pj_executions = rancher.rc_get_pipeline_executions(
         relation.ci_project_id,
@@ -541,6 +541,28 @@ def remove_executions(pj_id):
                 data["run"])
         except:
             pass
+
+
+def remove_executions():
+    # Get ci_project_id(All are the same) and ci_pipline_ids
+    logger.info("Start to remove pipline_executions which project not exist.")
+    ci_project_id = None
+    ci_pipeline_id = []
+    for relation in ProjectPluginRelation.query.all():
+        ci_project_id = relation.ci_project_id if ci_project_id is None else ci_project_id
+        ci_pipeline_id.append(relation.ci_pipeline_id)
+
+    pj_executions = rancher.rc_get_pipeline_executions(ci_project_id, None)
+    for data in pj_executions["data"]:
+        if data["pipelineId"] not in ci_pipeline_id:
+            try:
+                rancher.rc_delete_pipeline_executions_run(
+                    ci_project_id,
+                    data["pipelineId"],
+                    data["run"])
+                logger.info(f'{ci_project_id}/{data["pipelineId"]}-{data["run"]} has been removed.')
+            except Exception as e:
+                logger.exception(str(e))
 
 
 # --------------------- Resources ---------------------
@@ -602,11 +624,3 @@ class RancherWebsocketLog(Namespace):
 class RancherCountEachPjPiplinesByDays(Resource):
     def get(self):
         return util.success(rancher.rc_count_each_pj_piplines_by_days())
-
-
-# class RancherRemoveProjectExecution(Resource):
-#     def post(self):
-#         parser = reqparse.RequestParser()
-#         parser.add_argument('project_id', type=int)
-#         args = parser.parse_args()
-#         return util.success(remove_executions(args["project_id"]))
