@@ -67,6 +67,7 @@ gitlab_private_token = config.get("GITLAB_PRIVATE_TOKEN")
 gl = Gitlab(config.get("GITLAB_BASE_URL"), private_token=gitlab_private_token, ssl_verify=False)
 support_software_json = util.read_json_file("apis/resources/template/supported_software.json")
 
+
 def __tm_get_tag_info(pj, tag_name):
     tag_info_dict = {
         "tag_name": None,
@@ -567,7 +568,7 @@ def update_branches(stage, pipline_soft, branch, enable_key_name):
                 stage_when.remove("skip")
 
 
-def tm_update_pipline_branches(repository_id, data, default=True):
+def tm_update_pipline_branches(repository_id, data, default=True, run=False):
     pj = gl.projects.get(repository_id)
     if __check_git_project_is_empty(pj):
         return
@@ -585,14 +586,17 @@ def tm_update_pipline_branches(repository_id, data, default=True):
                 for input_branch, multi_software in data.items():
                     for input_soft_enable in multi_software:
                         update_branches(stage, input_soft_enable, input_branch, "enable")
-
-        next_run = pipeline.get_pipeline_next_run(repository_id)
+        if run is False:
+            next_run = pipeline.get_pipeline_next_run(repository_id)
         f.content = yaml.dump(pipe_json, sort_keys=False)
         f.save(branch=br.name,
                commit_message='UI 編輯 .rancher-pipeline.yaml 啟用停用分支')
-        pipeline.stop_and_delete_pipeline(repository_id, next_run)
+        if run is False:
+            pipeline.stop_and_delete_pipeline(repository_id, next_run)
 
 # It will remove if all project rancher.pipline.yml is in new type.
+
+
 def initial_rancher_pipline_info(repository_id):
     pj = gl.projects.get(repository_id)
     if __check_git_project_is_empty(pj):
@@ -622,10 +626,10 @@ def tm_get_pipeline_default_branch(repository_id, is_default_branch=True):
     initial_info = initial_rancher_pipline_info(repository_id)
     if initial_info == {}:
         return initial_info
-    pipe_dict = initial_info["pipe_dict"]    
+    pipe_dict = initial_info["pipe_dict"]
     for stage in pipe_dict["stages"]:
         tool = None
-        stage_out_list = {"has_default_branch": False}    
+        stage_out_list = {"has_default_branch": False}
         __add_plugin_soft_status_json()
         tool = stage["iiidevops"]
         for software in support_software_json:
@@ -706,7 +710,7 @@ def update_pj_rancher_pipline(repository_id):
             pipe_dict = yaml.safe_load(f.decode())
             temp_list = []
             for info in pipe_dict["stages"]:
-                info_name = info["name"] 
+                info_name = info["name"]
                 logger.logger.info(f'name : {info_name}')
                 if info.get("iiidevops") is None:
                     temp_dict = {"name": info.pop("name")}
@@ -714,13 +718,13 @@ def update_pj_rancher_pipline(repository_id):
                         temp_dict["iiidevops"] = "sonarqube"
                         temp_dict.update(info)
                         info = temp_dict
-                    else:    
+                    else:
                         catalog_template_value = info["steps"][0].get("applyAppConfig", {}).get("catalogTemplate")
                         if catalog_template_value is not None:
                             catalog_template_value = catalog_template_value.split(
                                 ":")[1].replace("iii-dev-charts3-", "")
                             if catalog_template_value == "web":
-                                catalog_template_value = "deployed-environments"  
+                                catalog_template_value = "deployed-environments"
                             else:
                                 for prefix in ["test-", "scan-"]:
                                     if catalog_template_value.startswith(prefix):
@@ -796,6 +800,8 @@ def update_pj_plugin_status(plugin_name, disable):
             pipeline.stop_and_delete_pipeline(repository_id, next_run)
 
 # --------------------- Resources ---------------------
+
+
 class TemplateList(Resource):
     @jwt_required
     def get(self):
@@ -834,8 +840,9 @@ class ProjectPipelineBranches(Resource):
     def put(self, repository_id):
         parser = reqparse.RequestParser()
         parser.add_argument('detail', type=dict)
+        parser.add_argument('run', type=bool)
         args = parser.parse_args()
-        tm_update_pipline_branches(repository_id, args["detail"], default=False)
+        tm_update_pipline_branches(repository_id, args["detail"], default=False, run=True)
         return util.success()
 
 
