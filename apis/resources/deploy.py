@@ -61,6 +61,13 @@ def get_environments_value(items, value_type):
             out_dict[str(item.get('key')).strip()] = str(util.base64encode(item.get('value'))).strip()
     return out_dict
 
+def is_json(string):
+    try:
+        json.loads(string)
+    except ValueError:
+        return False
+    return True
+
 
 def row_to_dict(row):
     ret = {}
