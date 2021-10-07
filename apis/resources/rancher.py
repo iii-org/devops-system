@@ -336,7 +336,7 @@ class Rancher(object):
             "repositoryUrl": repository_url,
             "triggerWebhookPr": True,
             "triggerWebhookPush": True,
-            "triggerWebhookTag": True
+            "triggerWebhookTag": False,
         }
         output = self.__api_post(
             '/projects/{0}/pipelines'.format(self.project_id), data=parameter)
@@ -363,6 +363,10 @@ class Rancher(object):
         self.rc_get_project_id()
         output = self.__api_get('/projects/{0}/pipelines'.format(self.project_id))
         return output.json()['data']
+
+    def rc_update_project_pipline(self, project_id, pipeline_id, data):
+        self.__api_put(
+            f'/projects/{project_id}/pipelines/{pipeline_id}', data=data)
 
     def rc_add_namespace_into_rc_project(self, project_name):
         self.rc_get_project_id()
@@ -565,6 +569,18 @@ def remove_executions():
                 logger.exception(str(e))
 
 
+def turn_tags_off():
+    logger.info("Start to turn tags off.")
+    data = {"triggerWebhookTag": False}
+    for relation in ProjectPluginRelation.query.all(): 
+        try:
+            rancher.rc_update_project_pipline(
+                relation.ci_project_id, relation.ci_pipeline_id, data)
+        except Exception as e:
+            logger.exception(str(e))
+    logger.info("Finish turn tags off.")
+
+
 # --------------------- Resources ---------------------
 class Catalogs(Resource):
     @jwt_required
@@ -609,7 +625,6 @@ class Catalogs_Refresh(Resource):
 
 
 class RancherWebsocketLog(Namespace):
-
     def on_connect(self):
         print('connect')
 
