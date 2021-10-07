@@ -321,7 +321,7 @@ class NexusIssue:
 
 
 def convert_list_tag_id_to_name(tag_list):
-    if tag_list == []:
+    if tag_list == [""]:
         return tag_list
     return[model.Tag.query.get(int(id)).name for id in sorted(tag_list)]
 
