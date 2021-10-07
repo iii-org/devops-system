@@ -416,7 +416,7 @@ def create_user(args):
     logger.info('Creating user...')
     # Check if name is valid
     login_name = args['login']
-    force = args.get("force", None)
+    force = args.get("force", False)
     if re.fullmatch(r'^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,58}[a-zA-Z0-9]$', login_name) is None:
         raise apiError.DevOpsError(400, "Error when creating new user",
                                    error=apiError.invalid_user_name(login_name))
