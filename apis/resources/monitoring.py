@@ -208,6 +208,8 @@ class CollectPodRestartTime(Resource):
 class PodAlert(Resource):
     def post(self):
         condition = SystemParameter.query.filter_by(name="k8s_pod_restart_times_limit").one()
+        if not condition.active or condition.active is None:
+            return
         limit_times = condition.value["limit_times"]
         datetime_now = datetime.utcnow().strftime("%Y-%m-%d %H:%M")
 

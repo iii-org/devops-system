@@ -573,6 +573,8 @@ def remove_extra_executions():
     logger.info("Start to remove pipline_executions which out of limit.")
 
     condition = SystemParameter.query.filter_by(name="k8s_pipline_executions_remain_limit").one()
+    if not condition.active or condition.active is None:
+        return
     limit_pods = int(condition.value["limit_pods"])
     for relation in ProjectPluginRelation.query.all():
         pj_executions = rancher.rc_get_pipeline_executions(relation.ci_project_id, relation.ci_pipeline_id)
