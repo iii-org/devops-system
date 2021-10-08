@@ -1,11 +1,12 @@
 from flask_restful import Resource, reqparse
 from github import Github
 
+import config
 import json
 import model
 import util as util
 from model import db, SystemParameter
-from resources import apiError
+from resources import apiError, kubernetesClient
 
 
 def row_to_dict(row):
@@ -24,19 +25,29 @@ def verify_github_info(value):
         raise apiError.DevOpsError(
             400,
             'Token is invalid.',
-            apiError.error_3rd_party_api('GitHub', 'Token is invalid.'))
+            apiError.error_with_alert_code(90001, 'Token is invalid.'))
 
     if login != account:
         raise apiError.DevOpsError(
             400,
             'Token is not belong to this account.',
-            apiError.error_3rd_party_api('GitHub', 'Token is not belong to this account.'))
+            apiError.error_with_alert_code(90002, 'Token is not belong to this account.'))
 
     if len([repo for repo in g.search_repositories(query='iiidevops in:name')]) == 0:
         raise apiError.DevOpsError(
             400,
-            'Token is not belong to project(iiidevops).',
-            apiError.error_3rd_party_api('GitHub', 'Token is not belong to our project(iiidevops).'))
+            'Token is not belong to this project(iiidevops).',
+            apiError.error_with_alert_code(90003, 'Token is not belong to this project(iiidevops).'))
+
+
+# def execute_modify_cron(args):
+#     deployer_node_ip = config.get('DEPLOYER_NODE_IP')
+#     if deployer_node_ip is None:
+#         # get the k8s cluster the oldest node ip
+#         deployer_node_ip = kubernetesClient.get_the_oldest_node()[0]
+#     cmd = f"/home/rkeuser/deploy-devops/bin/modify-cron.pl {args}"
+#     output_str, error_str = util.ssh_to_node_by_key(cmd, deployer_node_ip) 
+#     return output_str, error_str
 
 
 def get_system_parameter():
