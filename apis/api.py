@@ -35,7 +35,7 @@ from model import db
 from resources import logger, role as role, activity, starred_project, devops_version, cicd
 from resources import project, gitlab, issue, user, redmine, wiki, version, apiTest, mock, harbor, \
     template, release, sync_redmine, plugin, kubernetesClient, project_permission, quality, sync_project, \
-    sync_user, router, deploy, alert, trace_order, tag, monitoring, lock, wbs_cache
+    sync_user, router, deploy, alert, trace_order, tag, monitoring, lock, wbs_cache, github, system_parameter
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -630,6 +630,8 @@ api.add_resource(monitoring.K8sAlive, '/monitoring/k8s/alive')
 api.add_resource(monitoring.CollectPodRestartTime, '/monitoring/k8s/collect_pod_restart_times_by_hour')
 api.add_resource(monitoring.PodAlert, '/monitoring/k8s/pod_alert')
 
+# System parameter
+api.add_resource(system_parameter.SystemParameters, '/system_parameter', '/system_parameter/<int:param_id>')
 
 # Status of Sync
 api.add_resource(lock.LockStatus, '/lock')
