@@ -655,6 +655,7 @@ class SystemParameter(db.Model):
     id = Column(Integer, primary_key=True)
     name = Column(String)
     value = Column(JSON)
+    active = Column(Boolean)
 
 
 class Lock(db.Model):
