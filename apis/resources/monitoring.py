@@ -7,7 +7,7 @@ from plugins.sonarqube import sq_get_current_measures, sq_list_project
 from resources.harbor import hb_get_project_summary, hb_get_registries
 from resources.redmine import redmine
 from resources.gitlab import gitlab
-from resources.rancher import rancher
+from resources.rancher import rancher, remove_extra_executions
 from resources import logger
 from resources.kubernetesClient import ApiK8sClient as k8s_client
 from resources.kubernetesClient import list_namespace_services, list_namespace_pods_info
@@ -241,3 +241,8 @@ class PodAlert(Resource):
         AlertMessage.query.filter_by(
             resource_type="k8s", alert_code=10001).filter(AlertMessage.create_at <= expired_date).delete()
         db.session.commit()
+
+
+class RemoveExtraExecutions(Resource):
+    def post(self):
+        remove_extra_executions()

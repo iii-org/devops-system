@@ -13,7 +13,7 @@ import config
 import resources.apiError as apiError
 import util as util
 from nexus import nx_get_project_plugin_relation
-from model import RancherPiplineNumberEachDays, ProjectPluginRelation, db, Project
+from model import RancherPiplineNumberEachDays, ProjectPluginRelation, db, Project, SystemParameter
 from resources import kubernetesClient
 from resources.logger import logger
 
@@ -567,6 +567,25 @@ def remove_executions():
                 logger.info(f'{ci_project_id}/{data["pipelineId"]}-{data["run"]} has been removed.')
             except Exception as e:
                 logger.exception(str(e))
+
+
+def remove_extra_executions():
+    logger.info("Start to remove pipline_executions which out of limit.")
+
+    condition = SystemParameter.query.filter_by(name="k8s_pipline_executions_remain_limit").one()
+    limit_pods = int(condition.value["limit_pods"])
+    for relation in ProjectPluginRelation.query.all():
+        pj_executions = rancher.rc_get_pipeline_executions(relation.ci_project_id, relation.ci_pipeline_id)
+        if len(pj_executions["data"]) > limit_pods:
+            for data in pj_executions["data"][limit_pods::]:
+                try:
+                    rancher.rc_delete_pipeline_executions_run(
+                        relation.ci_project_id,
+                        relation.ci_pipeline_id,
+                        data["run"])
+                    logger.info(f'{relation.ci_project_id}/{relation.ci_pipeline_id}-{data["run"]} has been removed.')
+                except Exception as e:
+                    logger.exception(str(e))
 
 
 def turn_tags_off():

@@ -629,6 +629,7 @@ api.add_resource(monitoring.RancherDefaultName, '/monitoring/rancher/default_nam
 api.add_resource(monitoring.K8sAlive, '/monitoring/k8s/alive')
 api.add_resource(monitoring.CollectPodRestartTime, '/monitoring/k8s/collect_pod_restart_times_by_hour')
 api.add_resource(monitoring.PodAlert, '/monitoring/k8s/pod_alert')
+api.add_resource(monitoring.RemoveExtraExecutions, '/monitoring/k8s/remove_extra_executions')
 
 # System parameter
 api.add_resource(system_parameter.SystemParameters, '/system_parameter', '/system_parameter/<int:param_id>')
