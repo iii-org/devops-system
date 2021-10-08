@@ -157,7 +157,7 @@ class Tags(Resource):
             tag_name = args.get('name')
             project_id = args.get('project_id')
             if check_tags(project_id, tag_name) > 0:
-                return util.respond(404, error_tag_name_is_exists)
+                return util.respond(403, error_tag_name_is_exists)
             return util.success({"tags": {"id": create_tags(project_id, args)}})
         except NoResultFound:
             return util.respond(404)
