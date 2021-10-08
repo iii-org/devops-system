@@ -31,7 +31,7 @@ VERSIONS = ['0.9.2', '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.4', '0.9.2.5',
             '1.8.2.6', '1.8.2.7', '1.8.3.0', '1.8.3.1', '1.8.3.2',
             '1.9.0.1', '1.9.0.2', '1.9.0.3', '1.9.0.4', '1.9.0.5', '1.9.0.6', '1.9.0.7', '1.9.0.8', '1.9.0.9', '1.9.1.0', 
             '1.9.1.1', '1.9.1.2', '1.9.1.3', '1.9.1.4', '1.9.1.5', '1.9.1.6', '1.9.1.7', '1.9.1.8', '1.9.1.9', '1.10.0.1',
-            '1.10.0.2', '1.10.0.3', '1.10.0.4', '1.10.0.5', '1.10.0.6']
+            '1.10.0.2', '1.10.0.3', '1.10.0.4', '1.10.0.5', '1.10.0.6', '1.10.0.7']
 ONLY_UPDATE_DB_MODELS = [
     '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.5', '0.9.2.6', '0.9.2.a8',
     '1.0.0.2', '1.3.0.1', '1.3.0.2', '1.3.0.3', '1.3.0.4', '1.3.1', '1.3.1.1', '1.3.1.2',
@@ -133,6 +133,18 @@ def upgrade(version):
     elif version == '1.10.0.6':
         alembic_upgrade()
         insert_default_value_in_module()
+    elif version == '1.10.0.7':
+        insert_pipline_remain_limit_in_system_parameter()
+
+
+def insert_pipline_remain_limit_in_system_parameter():
+    row = SystemParameter(
+        name="k8s_pipline_executions_remain_limit",
+        value={"limit_pods": 5},
+        active=True
+    )
+    db.session.add(row)
+    db.session.commit()
 
 
 def insert_default_value_in_module():
