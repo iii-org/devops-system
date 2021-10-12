@@ -1190,7 +1190,7 @@ def get_issue_family(redmine_issue, args={}):
         children_issue_ids_str = ','.join(children_issue_ids)
         children_issues = redmine_lib.redmine.issue.filter(
             issue_id=children_issue_ids_str, status_id='*', include=['children'])
-        output['children'] = [NexusIssue().set_redmine_issue_v3(issue, with_point=is_with_point, relationship_bool=is_with_point).to_json()
+        output['children'] = [NexusIssue().set_redmine_issue_v3(issue, with_point=is_with_point, relationship_bool=True).to_json()
                               for issue in children_issues.values()]
     if len(redmine_issue.relations) and not is_with_point:
         rel_issue_ids = [check_relations_id(redmine_issue.id, relation) for relation in redmine_issue.relations]
