@@ -40,14 +40,18 @@ def verify_github_info(value):
             apiError.error_with_alert_code("github", 20003, 'Token is not belong to this project(iiidevops).'))
 
 
-# def execute_modify_cron(args):
-#     deployer_node_ip = config.get('DEPLOYER_NODE_IP')
-#     if deployer_node_ip is None:
-#         # get the k8s cluster the oldest node ip
-#         deployer_node_ip = kubernetesClient.get_the_oldest_node()[0]
-#     cmd = f"/home/rkeuser/deploy-devops/bin/modify-cron.pl {args}"
-#     output_str, error_str = util.ssh_to_node_by_key(cmd, deployer_node_ip) 
-#     return output_str, error_str
+def execute_modify_cron(args):
+    deployer_node_ip = config.get('DEPLOYER_NODE_IP')
+    if deployer_node_ip is None:
+        # get the k8s cluster the oldest node ip
+        deployer_node_ip = kubernetesClient.get_the_oldest_node()[0]
+
+    cmd = f"perl /home/rkeuser/deploy-devops/bin/modify-cron.pl {args}"
+    output_str, error_str = util.ssh_to_node_by_key(cmd, deployer_node_ip) 
+    output_str = output_str.replace("\n", "")
+    if output_str.startswith("Error:"):
+        raise Exception(output_str)
+    return output_str
 
 
 def get_system_parameter():
@@ -65,9 +69,13 @@ def update_system_parameter(id, args):
         id_mapping[id](value)
 
     system_parameter = SystemParameter.query.get(id)
-    system_parameter.value = value
     if args.get("active") is not None:
+        if args["active"]:
+            execute_modify_cron('sync_tmpl on "* 16 * * *" mygithubid:ghp_m9FxxxxxxxxxxxxxxxxxxxxmBh2NwD1jwRWw')
+        else:
+            execute_modify_cron('sync_tmpl off')
         system_parameter.active = args["active"]
+    system_parameter.value = value
     db.session.commit()
 
 

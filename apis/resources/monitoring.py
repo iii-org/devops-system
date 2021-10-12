@@ -8,6 +8,7 @@ from resources.harbor import hb_get_project_summary, hb_get_registries
 from resources.redmine import redmine
 from resources.gitlab import gitlab
 from resources.rancher import rancher, remove_extra_executions
+from resources.system_parameter import verify_github_info, row_to_dict
 from resources import logger
 from resources.kubernetesClient import ApiK8sClient as k8s_client
 from resources.kubernetesClient import list_namespace_services, list_namespace_pods_info
@@ -248,3 +249,9 @@ class PodAlert(Resource):
 class RemoveExtraExecutions(Resource):
     def post(self):
         remove_extra_executions()
+
+# GitHub
+class GithubTokenVerify(Resource):
+    def post(self):
+        value = row_to_dict(SystemParameter.query.get(2))["value"]
+        return util.success(verify_github_info(value))
