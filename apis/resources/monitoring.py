@@ -2,19 +2,20 @@ from flask_restful import Resource, reqparse
 from nexus import nx_get_project_plugin_relation
 import util
 from model import Project, db, ServerDataCollection, SystemParameter, AlertMessage, Project
+from github import Github
 
 from plugins.sonarqube import sq_get_current_measures, sq_list_project
 from resources.harbor import hb_get_project_summary, hb_get_registries
 from resources.redmine import redmine
 from resources.gitlab import gitlab
 from resources.rancher import rancher, remove_extra_executions
-from resources.system_parameter import verify_github_info, row_to_dict
 from resources import logger
 from resources.kubernetesClient import ApiK8sClient as k8s_client
 from resources.kubernetesClient import list_namespace_services, list_namespace_pods_info
 from datetime import datetime, timedelta
 from datetime import time as d_time
 from sqlalchemy import desc
+from resources import apiError
 
 
 class Monitoring:
@@ -121,6 +122,35 @@ def generate_alive_response(name):
         "message": monitoring.error_message,
         "datetime": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
     }
+
+def row_to_dict(row):
+    if row is None:
+        return row
+    return {key: getattr(row, key) for key in type(row).__table__.columns.keys()}
+
+def verify_github_info(value):
+    account = value["account"]
+    token = value["token"]
+    g = Github(login_or_token=token)
+    try:
+        login = g.get_user().login
+    except:
+        raise apiError.DevOpsError(
+            400,
+            'Token is invalid.',
+            apiError.error_with_alert_code("github", 20001, 'Token is invalid.', value))
+
+    if login != account:
+        raise apiError.DevOpsError(
+            400,
+            'Token is not belong to this account.',
+            apiError.error_with_alert_code("github", 20002, 'Token is not belong to this account.', value))
+
+    if len([repo for repo in g.search_repositories(query='iiidevops in:name')]) == 0:
+        raise apiError.DevOpsError(
+            400,
+            'Token is not belong to this project(iiidevops).',
+            apiError.error_with_alert_code("github", 20003, 'Token is not belong to this project(iiidevops).', value))
 
 
 # --------------------- Resources ---------------------

@@ -7,37 +7,13 @@ import model
 import util as util
 from model import db, SystemParameter
 from resources import apiError, kubernetesClient
+from resources.monitoring import verify_github_info
 
 
 def row_to_dict(row):
     if row is None:
         return row
     return {key: getattr(row, key) for key in type(row).__table__.columns.keys()}
-
-
-def verify_github_info(value):
-    account = value["account"]
-    token = value["token"]
-    g = Github(login_or_token=token)
-    try:
-        login = g.get_user().login
-    except:
-        raise apiError.DevOpsError(
-            400,
-            'Token is invalid.',
-            apiError.error_with_alert_code("github", 20001, 'Token is invalid.'))
-
-    if login != account:
-        raise apiError.DevOpsError(
-            400,
-            'Token is not belong to this account.',
-            apiError.error_with_alert_code("github", 20002, 'Token is not belong to this account.'))
-
-    if len([repo for repo in g.search_repositories(query='iiidevops in:name')]) == 0:
-        raise apiError.DevOpsError(
-            400,
-            'Token is not belong to this project(iiidevops).',
-            apiError.error_with_alert_code("github", 20003, 'Token is not belong to this project(iiidevops).'))
 
 
 def execute_modify_cron(args):
@@ -61,19 +37,24 @@ def get_system_parameter():
 
 def update_system_parameter(id, args):
     id_mapping = {
-        2: verify_github_info
+        2: {
+            "execute_func": verify_github_info,
+            "active_args": 'sync_tmpl on "* 16 * * *" mygithubid:ghp_m9FxxxxxxxxxxxxxxxxxxxxmBh2NwD1jwRWw',
+            "deactive_args": 'sync_tmpl off',
+        },
     }
     value = args["value"]
     active = args.get("active") 
     if id in id_mapping:
-        id_mapping[id](value)
+        id_mapping[id]["execute_func"](value)
+        if args.get("active") is not None:
+            if args["active"]:
+                execute_modify_cron(id_mapping[id]["active_args"])
+            else:
+                execute_modify_cron(id_mapping[id]["deactive_args"])
 
     system_parameter = SystemParameter.query.get(id)
     if args.get("active") is not None:
-        if args["active"]:
-            execute_modify_cron('sync_tmpl on "* 16 * * *" mygithubid:ghp_m9FxxxxxxxxxxxxxxxxxxxxmBh2NwD1jwRWw')
-        else:
-            execute_modify_cron('sync_tmpl off')
         system_parameter.active = args["active"]
     system_parameter.value = value
     db.session.commit()

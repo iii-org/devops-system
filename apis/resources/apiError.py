@@ -205,8 +205,10 @@ def redmine_argument_error(arg_name):
     return build(7006, f'Argument {arg_name} can not be alerted when children issue exist.', {'arg': arg_name})
 
 
-def error_with_alert_code(resource_type, alert_code, message):
-    return build(7007, f'{message}', {"alert_code": alert_code, "resource_type": resource_type})
+def error_with_alert_code(resource_type, alert_code, message, detail):
+    return {
+        "alert_code": alert_code, "resource_type": resource_type, "message": message, "detail": detail
+    }    
 
 
 # Third party service errors
