@@ -25,19 +25,19 @@ def verify_github_info(value):
         raise apiError.DevOpsError(
             400,
             'Token is invalid.',
-            apiError.error_with_alert_code(90001, 'Token is invalid.'))
+            apiError.error_with_alert_code("github", 20001, 'Token is invalid.'))
 
     if login != account:
         raise apiError.DevOpsError(
             400,
             'Token is not belong to this account.',
-            apiError.error_with_alert_code(90002, 'Token is not belong to this account.'))
+            apiError.error_with_alert_code("github", 20002, 'Token is not belong to this account.'))
 
     if len([repo for repo in g.search_repositories(query='iiidevops in:name')]) == 0:
         raise apiError.DevOpsError(
             400,
             'Token is not belong to this project(iiidevops).',
-            apiError.error_with_alert_code(90003, 'Token is not belong to this project(iiidevops).'))
+            apiError.error_with_alert_code("github", 20003, 'Token is not belong to this project(iiidevops).'))
 
 
 # def execute_modify_cron(args):
