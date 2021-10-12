@@ -201,14 +201,6 @@ def __check_git_project_is_empty(pj):
         return True
 
 
-def __add_plugin_soft_status():
-    db_plugins = PluginSoftware.query.all()
-    for software in support_software:
-        for db_plugin in db_plugins:
-            if software.get('plugin_key') == db_plugin.name:
-                software['plugin_disabled'] = db_plugin.disabled
-
-
 def __add_plugin_soft_status_json():
     db_plugins = PluginSoftware.query.all()
     for software in support_software_json:
@@ -402,7 +394,7 @@ def tm_get_template(repository_id, tag_name):
 
 def tm_use_template_push_into_pj(template_repository_id, user_repository_id,
                                  tag_name, arguments):
-    __add_plugin_soft_status()
+    __add_plugin_soft_status_json()
     template_pj = gl.projects.get(template_repository_id)
     temp_http_url = template_pj.http_url_to_repo
     protocol = 'https' if temp_http_url[:5] == "https" else 'http'
@@ -646,57 +638,6 @@ def tm_get_pipeline_default_branch(repository_id, is_default_branch=True):
                     stages_info["stages"].append(stage_out_list)
                 break
     return stages_info
-
-
-def disable_soft_branch_at_project(repository_id, soft_name):
-    template_key = None
-    for software in support_software:
-        if software.get('plugin_key') == soft_name:
-            template_key = software.get('template_key')
-    if template_key is None:
-        return
-    pj = gl.projects.get(repository_id)
-    if pj.empty_repo:
-        return
-    for br in pj.branches.list(all=True):
-        pipe_yaml_name = __tm_get_pipe_yamlfile_name(pj, branch_name=br.name)
-        if pipe_yaml_name is None:
-            continue
-        f = rs_gitlab.gl_get_file_from_lib(repository_id, pipe_yaml_name, branch_name=br.name)
-        pipe_dict = yaml.safe_load(f.decode())
-        stages = pipe_dict.get("stages")
-        stage_index = __get_step_index_from_pipe(stages, template_key)
-        if stage_index is None:
-            continue
-        if "when" not in stages[stage_index]:
-            stages[stage_index]["when"] = {"branch": {"include": []}}
-        stage_when = stages[stage_index].get("when",
-                                             {}).get("branch",
-                                                     {}).get("include", {})
-        if len(stage_when) == 1 and 'skip' in stage_when:
-            continue
-        stage_when.clear()
-        stage_when.append("skip")
-        '''
-        next_run = pipeline.get_pipeline_next_run(repository_id)
-        f.content = yaml.dump(pipe_dict)
-        f.save(branch=br.name,
-               commit_message=f'Update branch {br.name} .rancher-pipeline.yml, remove stage {soft_name} enable branch')
-        pipeline.stop_and_delete_pipeline(repository_id, next_run)
-        '''
-
-
-def __get_step_index_from_pipe(stages, soft_key):
-    if stages is None:
-        return
-    for index, stage in enumerate(stages):
-        catalogTemplate_value = stage.get("steps")[0].get(
-            "applyAppConfig", {}).get("catalogTemplate")
-        if catalogTemplate_value is not None:
-            catalogTemplate_value = catalogTemplate_value.split(
-                ":")[1].replace("iii-dev-charts3-", "")
-            if catalogTemplate_value == soft_key:
-                return index
 
 
 def update_pj_rancher_pipline(repository_id):
