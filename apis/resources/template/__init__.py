@@ -154,29 +154,6 @@ def __tm_read_pipe_set_json(pj, tag_name=None):
         return {"description": "", "name": pj.name}
 
 
-def __tm_git_clone_file(pj,
-                        dest_folder_name,
-                        create_time=None,
-                        branch_name=None):
-    temp_http_url = pj.http_url_to_repo
-    protocol = 'https' if temp_http_url[:5] == "https" else 'http'
-    if protocol == "https":
-        secret_temp_http_url = temp_http_url[:8] + f"root:{gitlab_private_token}@" + temp_http_url[8:]
-    else:
-        secret_temp_http_url = temp_http_url[:7] + f"root:{gitlab_private_token}@" + temp_http_url[7:]
-    Path(f"{dest_folder_name}").mkdir(exist_ok=True)
-    if create_time is not None:
-        pj_name = f"{pj.path}_{create_time}"
-    else:
-        pj_name = f"{pj.path}"
-    if branch_name is None:
-        branch_name = pj.default_branch
-    subprocess.call([
-        'git', 'clone', '-b', branch_name, secret_temp_http_url,
-        f"{dest_folder_name}/{pj_name}"
-    ])
-
-
 def __set_git_username_config(path):
     git_user_email_proc = subprocess.Popen(['git', 'config', 'user.email'],
                                            stdout=subprocess.PIPE,
