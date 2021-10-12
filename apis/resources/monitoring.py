@@ -3,6 +3,8 @@ from nexus import nx_get_project_plugin_relation
 import util
 from model import Project, db, ServerDataCollection, SystemParameter, AlertMessage, Project
 from github import Github
+from flask_jwt_extended import jwt_required
+from resources import role
 
 from plugins.sonarqube import sq_get_current_measures, sq_list_project
 from resources.harbor import hb_get_project_summary, hb_get_registries
@@ -282,6 +284,8 @@ class RemoveExtraExecutions(Resource):
 
 # GitHub
 class GithubTokenVerify(Resource):
+    @jwt_required
     def post(self):
+        role.require_admin()
         value = row_to_dict(SystemParameter.query.get(2))["value"]
         return util.success(verify_github_info(value))
