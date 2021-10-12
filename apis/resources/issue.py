@@ -322,7 +322,7 @@ class NexusIssue:
 
 def convert_list_tag_id_to_name(tag_list):
     if tag_list == [""]:
-        return tag_list
+        return []
     return[model.Tag.query.get(int(id)).name for id in sorted(tag_list)]
 
 
@@ -363,6 +363,8 @@ def update_issue_tags_history(issue_id, tags, user_id):
             "after": convert_list_tag_id_to_name(tags),
         }
     }]
+    if history[0][user_name]["before"] == history[0][user_name]["after"]:
+        return
     before_histroy = issue_tag_history.historys
     if len(before_histroy) == 10:
         before_histroy.pop()
