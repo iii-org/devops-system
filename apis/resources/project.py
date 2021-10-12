@@ -32,7 +32,7 @@ from .rancher import rancher, remove_pj_executions
 from .redmine import redmine
 from resources.monitoring import Monitoring 
 
-def get_pm_project_list(user_id, pj_due_start=None, pj_due_end=None, pj_members_count=None):
+def get_pm_project_list(user_id, pj_due_start=None, pj_due_end=None, pj_members_count=None, disable=None):
     rows = get_project_rows_by_user(user_id)
     rm_projects = redmine_lib.redmine.project.all()
     rm_issues = redmine_lib.redmine.issue.filter(status_id='*', filter=[])
@@ -48,6 +48,8 @@ def get_pm_project_list(user_id, pj_due_start=None, pj_due_end=None, pj_members_
     ret = []
     for row in rows:
         if row.id == -1:
+            continue
+        if disable is not None and row.disabled != disable:
             continue
         if pj_due_start is not None and pj_due_end is not None and row.due_date is not None:
             if row.due_date < datetime.strptime(pj_due_start,
@@ -71,11 +73,13 @@ def get_pm_project_list(user_id, pj_due_start=None, pj_due_end=None, pj_members_
     return ret
 
 
-def get_rd_project_list(user_id, pj_due_start=None, pj_due_end=None, pj_members_count=None):
+def get_rd_project_list(user_id, pj_due_start=None, pj_due_end=None, pj_members_count=None, disable=None):
     rows = get_project_rows_by_user(user_id)
     ret = []
     for row in rows:
         if row.id == -1:
+            continue
+        if disable is not None and row.disabled != disable:
             continue
         if pj_due_start is not None and pj_due_end is not None and row.due_date is not None:
             if row.due_date < datetime.strptime(
@@ -98,11 +102,13 @@ def get_rd_project_list(user_id, pj_due_start=None, pj_due_end=None, pj_members_
     return ret
 
 
-def get_simple_project_list(user_id, pj_due_start=None, pj_due_end=None, pj_members_count=None):
+def get_simple_project_list(user_id, pj_due_start=None, pj_due_end=None, pj_members_count=None, disable=None):
     rows = get_project_rows_by_user(user_id)
     ret = []
     for row in rows:
         if row.id == -1:
+            continue
+        if disable is not None and row.disabled != disable:
             continue
         if pj_due_start is not None and pj_due_end is not None and row.due_date is not None:
             if row.due_date < datetime.strptime(pj_due_start, "%Y-%m-%d").date() or \
@@ -1065,19 +1071,20 @@ class ListMyProjects(Resource):
         parser.add_argument('pj_members_count', type=str)
         parser.add_argument('pj_due_date_start', type=str)
         parser.add_argument('pj_due_date_end', type=str)
+        parser.add_argument('disable', type=bool)
         args = parser.parse_args()
         if args.get('simple', 'false') == 'true':
             return util.success(
                 {'project_list': get_simple_project_list(get_jwt_identity()['user_id'], args["pj_due_date_start"],
-                                                         args["pj_due_date_end"], args["pj_members_count"])})
+                                                         args["pj_due_date_end"], args["pj_members_count"], args["disable"])})
         if role.is_role(role.RD):
             return util.success(
                 {'project_list': get_rd_project_list(get_jwt_identity()['user_id'], args["pj_due_date_start"],
-                                                     args["pj_due_date_end"], args["pj_members_count"])})
+                                                     args["pj_due_date_end"], args["pj_members_count"], args["disable"])})
         else:
             return util.success(
                 {'project_list': get_pm_project_list(get_jwt_identity()['user_id'], args["pj_due_date_start"],
-                                                     args["pj_due_date_end"], args["pj_members_count"])})
+                                                     args["pj_due_date_end"], args["pj_members_count"], args["disable"])})
 
 
 class ListProjectsByUser(Resource):
