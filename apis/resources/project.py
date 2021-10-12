@@ -1071,20 +1071,23 @@ class ListMyProjects(Resource):
         parser.add_argument('pj_members_count', type=str)
         parser.add_argument('pj_due_date_start', type=str)
         parser.add_argument('pj_due_date_end', type=str)
-        parser.add_argument('disable', type=bool)
+        parser.add_argument('disabled', type=int)
         args = parser.parse_args()
+        disabled = None
+        if args["disabled"] is not None:
+            disabled = args["disabled"] == 1 
         if args.get('simple', 'false') == 'true':
             return util.success(
                 {'project_list': get_simple_project_list(get_jwt_identity()['user_id'], args["pj_due_date_start"],
-                                                         args["pj_due_date_end"], args["pj_members_count"], args["disable"])})
+                                                         args["pj_due_date_end"], args["pj_members_count"], args["disabled"])})
         if role.is_role(role.RD):
             return util.success(
                 {'project_list': get_rd_project_list(get_jwt_identity()['user_id'], args["pj_due_date_start"],
-                                                     args["pj_due_date_end"], args["pj_members_count"], args["disable"])})
+                                                     args["pj_due_date_end"], args["pj_members_count"], args["disabled"])})
         else:
             return util.success(
                 {'project_list': get_pm_project_list(get_jwt_identity()['user_id'], args["pj_due_date_start"],
-                                                     args["pj_due_date_end"], args["pj_members_count"], args["disable"])})
+                                                     args["pj_due_date_end"], args["pj_members_count"], args["disabled"])})
 
 
 class ListProjectsByUser(Resource):
