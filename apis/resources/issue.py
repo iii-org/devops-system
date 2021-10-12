@@ -328,6 +328,8 @@ def convert_list_tag_id_to_name(tag_list):
 
 def get_issue_tags_history(issue_id):
     issue_tag_history = model.IssueTagHistory.query.filter_by(issue_id=issue_id).first()
+    if issue_tag_history is None: 
+        return {}
     return row_to_dict(issue_tag_history)
 
 
