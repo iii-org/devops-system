@@ -31,38 +31,6 @@ template_replace_dict = {
     'kube.ingress.base_domain': config.get("INGRESS_EXTERNAL_BASE")
 }
 
-support_software = [{
-    "template_key": "scan-sonarqube",
-    "plugin_key": "sonarqube",
-    "display": "SonarQube"
-}, {
-    "template_key": "scan-checkmarx",
-    "plugin_key": "checkmarx",
-    "display": "Checkmarx"
-}, {
-    "template_key": "test-postman",
-    "plugin_key": "postman",
-    "display": "Postman"
-}, {
-    "template_key": "test-sideex",
-    "plugin_key": "sideex",
-    "display": "SideeX"
-}, {
-    "template_key": "test-webinspect",
-    "plugin_key": "webinspect",
-    "display": "WebInspect"
-}, {
-    "template_key": "test-zap",
-    "plugin_key": "zap",
-    "display": "ZAP"
-}, {
-    "template_key": "db",
-    "display": "Database"
-}, {
-    "template_key": "web",
-    "display": "Web"
-}]
-
 gitlab_private_token = config.get("GITLAB_PRIVATE_TOKEN")
 gl = Gitlab(config.get("GITLAB_BASE_URL"), private_token=gitlab_private_token, ssl_verify=False)
 support_software_json = util.read_json_file("apis/resources/template/supported_software.json")
@@ -302,14 +270,9 @@ def __force_update_template_cache_table():
 
 
 def __update_stage_when_plugin_disable(stage):
-    catalogTemplate_value = ""
-    if ("steps" in stage) and ("applyAppConfig" in stage['steps'][0]) \
-            and 'catalogTemplate' in stage['steps'][0]['applyAppConfig']:
-        catalogTemplate_value = stage['steps'][0]['applyAppConfig']['catalogTemplate'].split(
-            ":")[1].replace("iii-dev-charts3-", "")
-    if catalogTemplate_value != '':
-        for software in support_software:
-            if software.get('template_key') == catalogTemplate_value and software.get(
+    if stage.get("iiidevops") is not None:
+        for software in support_software_json:
+            if software.get('template_key') == stage.get("iiidevops") and software.get(
                     'plugin_disabled') is True:
                 if "when" not in stage:
                     stage["when"] = {"branch": {"include": []}}
