@@ -150,8 +150,13 @@ def qu_get_testfile_list(project_id):
             if path["file_name_key"] in tree["name"] and tree["name"][
                     -5:] == ".json":
                 path_file = f'{path["path"]}/{tree["name"]}'
-                coll_json = json.loads(
-                    gitlab.gl_get_raw_from_lib(repository_id, path_file).decode())
+                gl_raw_lib = gitlab.gl_get_raw_from_lib(repository_id, path_file).decode()
+                if gl_raw_lib is None:
+                    raise apiError.DevOpsError(500,
+                                               "Error when decoding gitlab file.",
+                                               error=apiError.gitlab_error(
+                                                   f"repository_id: {repository_id}, path_file: {path_file}"))
+                coll_json = json.loads(gl_raw_lib)
                 test_plans = []
                 rows = get_test_plans_from_params(project_id,
                                                   path["software_name"],
