@@ -30,34 +30,48 @@ def execute_modify_cron(args):
     return output_str
 
 
+def execute_pre_func(obj, args):
+    if obj is None:
+        return
+    if args is None:
+        obj()
+    else:
+        obj(args)
+
+
 def get_system_parameter():
     return [
         row_to_dict(system_parameter) for system_parameter in SystemParameter.query.all()]
 
 
 def update_system_parameter(id, args):
+    system_parameter = SystemParameter.query.get(id)
+    value, active = args.get("value"), args.get("active") 
     id_mapping = {
         2: {
             "execute_func": verify_github_info,
+            "func_args": value,
             "cron_name": "sync_tmpl",
             "time": '"* 16 * * *"',
-            "args": f'{args["value"].get("account")}:{args["value"].get("token")}'
+            "cron_args": f'{value.get("account")}:{value.get("token")}' if value is not None else ""
         },
     }
-    value = args["value"]
-    active = args.get("active") 
     if id in id_mapping:
-        id_mapping[id]["execute_func"](value)
-        if args.get("active") is not None:
-            if args["active"]:
-                args = f'{id_mapping[id]["cron_name"]} on {id_mapping[id]["time"]} {id_mapping[id].get("args", "")}'  
+        id_info = id_mapping[id]
+        if active is not None and not active:
+            args = f'{id_info["cron_name"]} off' 
+        else:
+            if value is not None:
+                execute_pre_func(id_info.get("execute_func"), id_info.get("func_args"))
+                args = f'{id_info["cron_name"]} on {id_info["time"]} {id_info.get("cron_args", "")}'
             else:
-                args = f'{id_mapping[id]["cron_name"]} off' 
-            execute_modify_cron(args)
-    system_parameter = SystemParameter.query.get(id)
-    if args.get("active") is not None:
-        system_parameter.active = args["active"]
-    system_parameter.value = value
+                args = f'{id_info["cron_name"]} on {id_info["time"]} {system_parameter.value["account"]}:{system_parameter.value["token"]}'
+        execute_modify_cron(args)
+
+    if active is not None:
+        system_parameter.active = active
+    if value is not None:
+        system_parameter.value = value
     db.session.commit()
 
 
@@ -70,8 +84,9 @@ class SystemParameters(Resource):
 
     def put(self, param_id):
         parser = reqparse.RequestParser()
-        parser.add_argument('value', type=str, location='json', required=True)
+        parser.add_argument('value', type=str, location='json')
         parser.add_argument('active', type=bool)
         args = parser.parse_args()
-        args["value"] = json.loads(args["value"].replace("\'", "\""))
+        if args.get("value") is not None:
+            args["value"] = json.loads(args["value"].replace("\'", "\""))
         return util.success(update_system_parameter(param_id, args))
