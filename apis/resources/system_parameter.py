@@ -39,8 +39,9 @@ def update_system_parameter(id, args):
     id_mapping = {
         2: {
             "execute_func": verify_github_info,
-            "active_args": 'sync_tmpl on "* 16 * * *" mygithubid:ghp_m9FxxxxxxxxxxxxxxxxxxxxmBh2NwD1jwRWw',
-            "deactive_args": 'sync_tmpl off',
+            "cron_name": "sync_tmpl",
+            "time": '"* 16 * * *"',
+            "args": f'{args["value"].get("account")}:{args["value"].get("token")}'
         },
     }
     value = args["value"]
@@ -49,10 +50,10 @@ def update_system_parameter(id, args):
         id_mapping[id]["execute_func"](value)
         if args.get("active") is not None:
             if args["active"]:
-                execute_modify_cron(id_mapping[id]["active_args"])
+                args = f'{id_mapping[id]["cron_name"]} on {id_mapping[id]["time"]} {id_mapping[id].get("args", "")}'  
             else:
-                execute_modify_cron(id_mapping[id]["deactive_args"])
-
+                args = f'{id_mapping[id]["cron_name"]} off' 
+            execute_modify_cron(args)
     system_parameter = SystemParameter.query.get(id)
     if args.get("active") is not None:
         system_parameter.active = args["active"]
