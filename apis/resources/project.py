@@ -30,7 +30,8 @@ from plugins import webinspect, sonarqube, zap, sideex
 from .gitlab import gitlab
 from .rancher import rancher, remove_pj_executions
 from .redmine import redmine
-from resources.monitoring import Monitoring 
+from resources.monitoring import Monitoring
+
 
 def get_pm_project_list(user_id, pj_due_start=None, pj_due_end=None, pj_members_count=None, disable=None):
     rows = get_project_rows_by_user(user_id)
@@ -416,8 +417,8 @@ def delete_project(project_id):
     server_alive_output = Monitoring(project_id).check_project_alive()
     if not server_alive_output["all_alive"]:
         not_alive_server = [
-            server.capitalize() for server, alive in server_alive_output["alive"].items() if not alive] 
-        servers = ", ".join(not_alive_server)   
+            server.capitalize() for server, alive in server_alive_output["alive"].items() if not alive]
+        servers = ", ".join(not_alive_server)
         raise apiError.DevOpsError(500, f"{servers} not alive")
 
     # 取得gitlab & redmine project_id
@@ -1032,7 +1033,7 @@ def check_project_owner_id(new_owner_id, user_id, project_id):
     elif origin_owner_id == user_id and new_owner_id != user_id:
         # 檢查 new_owner_id 的 role 是否為 PM
         if not bool(model.ProjectUserRole.query.filter_by(
-                project_id=-1, user_id=new_owner_id, role_id=3
+                project_id=project_id, user_id=new_owner_id, role_id=3
         ).all()):
             raise apiError.DevOpsError(400, "Error while updating project info.",
                                        error=apiError.invalid_project_owner(new_owner_id))
@@ -1075,7 +1076,7 @@ class ListMyProjects(Resource):
         args = parser.parse_args()
         disabled = None
         if args["disabled"] is not None:
-            disabled = args["disabled"] == 1 
+            disabled = args["disabled"] == 1
         if args.get('simple', 'false') == 'true':
             return util.success(
                 {'project_list': get_simple_project_list(get_jwt_identity()['user_id'], args["pj_due_date_start"],
