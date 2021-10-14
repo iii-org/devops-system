@@ -701,7 +701,7 @@ class AlertMessage(db.Model):
     def validate_resource_type(self, key, resource_type):
         if resource_type is not None:
             if resource_type not in ["system", "k8s", "redmine", "gitlab", "harbor", "sonarqube", "rancher", "github"]:
-                raise AssertionError("Resource_type must in system / k8s / redmine / gitlab / harbor / sonarqube / rancher.")
+                raise AssertionError("Resource_type must in system / k8s / redmine / gitlab / harbor / sonarqube / rancher / github.")
         return resource_type
 
 

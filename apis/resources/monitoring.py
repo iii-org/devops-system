@@ -287,5 +287,5 @@ class GithubTokenVerify(Resource):
     @jwt_required
     def post(self):
         role.require_admin()
-        value = row_to_dict(SystemParameter.query.get(2))["value"]
+        value = row_to_dict(SystemParameter.query.filter_by(name="github_verify_info").one())["value"]
         return util.success(verify_github_info(value))

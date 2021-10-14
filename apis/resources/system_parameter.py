@@ -46,9 +46,10 @@ def get_system_parameter():
 
 def update_system_parameter(id, args):
     system_parameter = SystemParameter.query.get(id)
+    system_param_name = system_parameter.name
     value, active = args.get("value"), args.get("active") 
     id_mapping = {
-        2: {
+        "github_verify_info": {
             "execute_func": verify_github_info,
             "func_args": value,
             "cron_name": "sync_tmpl",
@@ -56,8 +57,8 @@ def update_system_parameter(id, args):
             "cron_args": f'{value.get("account")}:{value.get("token")}' if value is not None else ""
         },
     }
-    if id in id_mapping:
-        id_info = id_mapping[id]
+    if system_param_name in id_mapping:
+        id_info = id_mapping[system_param_name]
         if active is not None and not active:
             args = f'{id_info["cron_name"]} off' 
         else:
