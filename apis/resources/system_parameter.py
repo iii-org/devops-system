@@ -92,5 +92,5 @@ class SystemParameters(Resource):
             args["value"] = json.loads(args["value"].replace("\'", "\""))
             if not args["value"].get("token", "").startswith("ghp"):
                 raise apiError.DevOpsError(400, "Token must start with 'ghp'",
-                                           error=apiError.argument_error("due_date"))
+                                           error=apiError.argument_error("value"))
         return util.success(update_system_parameter(param_id, args))
