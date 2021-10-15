@@ -693,7 +693,7 @@ class AlertMessage(db.Model):
     resource_type = Column(String)
     # response name not id
     detail = Column(JSON)
-    alert_code = Column(Integer)
+    code = Column(Integer)
     message = Column(String) 
     create_at = Column(DateTime)
 

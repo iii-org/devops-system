@@ -207,7 +207,7 @@ def redmine_argument_error(arg_name):
 
 def error_with_alert_code(resource_type, alert_code, message, detail):
     return {
-        "alert_code": alert_code, "resource_type": resource_type, "message": message, "detail": detail
+        "code": alert_code, "resource_type": resource_type, "message": message, "detail": detail
     }    
 
 def github_token_error(arg_name):

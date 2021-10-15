@@ -11,7 +11,7 @@ from datetime import datetime
 def create_alert_messages(args):
     row = AlertMessage(
         resource_type=args["resource_type"],
-        alert_code=args["alert_code"],
+        code=args["code"],
         message=args["message"],
         detail=args.get("detail"),
         create_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
@@ -24,7 +24,7 @@ class AlertMessages(Resource):
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('resource_type', type=str, required=True)
-        parser.add_argument('alert_code', type=int, required=True)
+        parser.add_argument('code', type=int, required=True)
         parser.add_argument('message', type=str, required=True)
         parser.add_argument('detail', type=str, location='json')
         args = parser.parse_args()
