@@ -54,19 +54,19 @@ def update_system_parameter(id, args):
             "func_args": value,
             "cron_name": "sync_tmpl",
             "time": '"* 16 * * *"',
-            "cron_args": f'{value.get("account")}:{value.get("token")}' if value is not None else ""
+            "cron_args": 
+                f'{value.get("account")}:{value.get("token")}' if value is not None else f'{system_parameter.value["account"]}:{system_parameter.value["token"]}'
         },
     }
     if system_param_name in id_mapping:
         id_info = id_mapping[system_param_name]
+        if value is not None:
+            execute_pre_func(id_info.get("execute_func"), id_info.get("func_args"))
+
         if active is not None and not active:
             args = f'{id_info["cron_name"]} off' 
         else:
-            if value is not None:
-                execute_pre_func(id_info.get("execute_func"), id_info.get("func_args"))
-                args = f'{id_info["cron_name"]} on {id_info["time"]} {id_info.get("cron_args", "")}'
-            else:
-                args = f'{id_info["cron_name"]} on {id_info["time"]} {system_parameter.value["account"]}:{system_parameter.value["token"]}'
+            args = f'{id_info["cron_name"]} on {id_info["time"]} {id_info.get("cron_args", "")}'
         execute_modify_cron(args)
 
     if active is not None:
