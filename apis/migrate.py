@@ -31,7 +31,7 @@ VERSIONS = ['0.9.2', '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.4', '0.9.2.5',
             '1.8.2.6', '1.8.2.7', '1.8.3.0', '1.8.3.1', '1.8.3.2',
             '1.9.0.1', '1.9.0.2', '1.9.0.3', '1.9.0.4', '1.9.0.5', '1.9.0.6', '1.9.0.7', '1.9.0.8', '1.9.0.9', '1.9.1.0', 
             '1.9.1.1', '1.9.1.2', '1.9.1.3', '1.9.1.4', '1.9.1.5', '1.9.1.6', '1.9.1.7', '1.9.1.8', '1.9.1.9', '1.10.0.1',
-            '1.10.0.2', '1.10.0.3', '1.10.0.4', '1.10.0.5', '1.10.0.6', '1.10.0.7', '1.10.0.8']
+            '1.10.0.2', '1.10.0.3', '1.10.0.4', '1.10.0.5', '1.10.0.6', '1.10.0.7', '1.10.0.8', '1.10.0.9']
 ONLY_UPDATE_DB_MODELS = [
     '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.5', '0.9.2.6', '0.9.2.a8',
     '1.0.0.2', '1.3.0.1', '1.3.0.2', '1.3.0.3', '1.3.0.4', '1.3.1', '1.3.1.1', '1.3.1.2',
@@ -137,6 +137,14 @@ def upgrade(version):
         insert_pipline_remain_limit_in_system_parameter()
     elif version == '1.10.0.8':
         fix_uninsert_data_in_system_parameter()
+    elif version == '1.10.0.9':
+        change_default_value_to_empty_string_in_system_parameter()
+
+
+def change_default_value_to_empty_string_in_system_parameter():
+    github_verify_info = SystemParameter.query.filter_by(name="github_verify_info").first()
+    github_verify_info.value = {"token": "", "account": ""}
+    db.session.commit()
 
 
 def fix_uninsert_data_in_system_parameter():
