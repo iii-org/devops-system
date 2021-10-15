@@ -28,6 +28,7 @@ class AlertMessages(Resource):
         parser.add_argument('message', type=str, required=True)
         parser.add_argument('detail', type=str, location='json')
         args = parser.parse_args()
-        args["detail"] = json.loads(args["detail"].replace("\'", "\""))
+        if args.get("value") is not None:
+            args["detail"] = json.loads(args["detail"].replace("\'", "\""))
 
         return util.success(create_alert_messages(args))

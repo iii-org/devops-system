@@ -210,6 +210,9 @@ def error_with_alert_code(resource_type, alert_code, message, detail):
         "alert_code": alert_code, "resource_type": resource_type, "message": message, "detail": detail
     }    
 
+def github_token_error(arg_name):
+    return build(7007, f"{arg_name} should begin with 'ghp_'.", {'arg': arg_name}) 
+
 
 # Third party service errors
 def redmine_error(response):
