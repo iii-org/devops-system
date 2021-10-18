@@ -30,7 +30,7 @@ def execute_modify_cron(args):
     return output_str
 
 
-def execute_pre_func(obj, args):
+def execute_pre_func(obj, args=None):
     if obj is None:
         return
     if args is None:
@@ -53,7 +53,7 @@ def update_system_parameter(id, args):
             "execute_func": verify_github_info,
             "func_args": value,
             "cron_name": "sync_tmpl",
-            "time": '"* 16 * * *"',
+            "time": '"15 0 * * *"',
             "cron_args": 
                 f'{value.get("account")}:{value.get("token")}' if value is not None else f'{system_parameter.value["account"]}:{system_parameter.value["token"]}'
         },
@@ -68,7 +68,6 @@ def update_system_parameter(id, args):
         else:
             args = f'{id_info["cron_name"]} on {id_info["time"]} {id_info.get("cron_args", "")}'
         execute_modify_cron(args)
-
     if active is not None:
         system_parameter.active = active
     if value is not None:
