@@ -209,8 +209,7 @@ def get_current_sync_date_project_id_by_user():
     role_id = get_jwt_identity()['role_id']
     project_id_collections = model.RedmineProject.query.with_entities(
         model.RedmineProject.project_id).filter(
-        model.RedmineProject.sync_date == sync_date,
-        model.RedmineProject.project_status != STATUS_CLOSED)
+        model.RedmineProject.sync_date == sync_date)
 
     if role_id == role.ADMIN.id:
         project_id_collections = project_id_collections.order_by(
@@ -229,7 +228,6 @@ def get_project_by_current_sync_date(detail, own_project):
     sync_date = get_sync_date()
     project_collections = model.RedmineProject.query.filter(
         model.RedmineProject.sync_date == sync_date,
-        model.RedmineProject.project_status != STATUS_CLOSED,
         model.RedmineProject.project_id.in_(own_project)).order_by(
         model.RedmineProject.end_date)
     if detail:
@@ -241,7 +239,6 @@ def get_project_by_current_sync_date(detail, own_project):
 def get_user_id_by_project(own_project):
     user_id_collections = model.RedmineIssue.query.filter(
         model.RedmineIssue.project_id.in_(own_project),
-        model.RedmineProject.project_status != STATUS_CLOSED,
         model.RedmineIssue.assigned_to_id.isnot(None)).with_entities(
         model.RedmineIssue.assigned_to_id).distinct().all()
     return list(sum(user_id_collections, ()))
@@ -249,7 +246,6 @@ def get_user_id_by_project(own_project):
 
 def get_current_sync_date_project_by_project_id(project_id, sync_date):
     return model.RedmineProject.query.filter(
-        model.RedmineProject.project_status != STATUS_CLOSED,
         model.RedmineProject.project_id == project_id,
         model.RedmineProject.sync_date == sync_date).order_by(model.RedmineProject.end_date).first()
 
@@ -290,8 +286,7 @@ def get_current_sync_date_project_count_by_status(own_project,
         return project_collections.filter(
             model.RedmineProject.project_status == status).count()
     else:
-        return project_collections.filter(
-            model.RedmineProject.project_status != STATUS_CLOSED).count()
+        return project_collections.count()
 
 
 def update_lock_redmine(is_lock=None, sync_date=None):
