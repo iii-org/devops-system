@@ -417,7 +417,7 @@ def get_redmine_issue_rank(own_project):
             'unclosed_count': unclosed_issue_count,
             'project_count': project_count
         })
-    return sorted(issue_rank, key=itemgetter('unclosed_count'),
+    return sorted(issue_rank, key=lambda x: (x["unclosed_count"], x["project_count"]),
                   reverse=True)
 
 
