@@ -418,7 +418,7 @@ def get_redmine_issue_rank(own_project):
             'project_count': project_count
         })
     return sorted(issue_rank, key=itemgetter('unclosed_count'),
-                  reverse=True)[:5]
+                  reverse=True)
 
 
 def get_unclosed_issues_by_user(user_id):
