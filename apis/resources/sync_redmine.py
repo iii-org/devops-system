@@ -11,7 +11,7 @@ from resources.issue import get_issue_by_project
 from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from flask_restful import Resource
+from flask_restful import Resource, reqparse
 from model import db, Lock
 
 STATUS_IN_PROGRESS = 'in_progress'
@@ -401,7 +401,7 @@ def get_redmine_projects(detail, own_project):
     return redmine_projects
 
 
-def get_redmine_issue_rank(own_project):
+def get_redmine_issue_rank(own_project, all=False):
     issue_rank = []
     project_user = get_user_id_by_project(own_project)
     for user_id in project_user:
@@ -417,8 +417,9 @@ def get_redmine_issue_rank(own_project):
             'unclosed_count': unclosed_issue_count,
             'project_count': project_count
         })
-    return sorted(issue_rank, key=itemgetter('unclosed_count'),
-                  reverse=True)[:5]
+    if not all:
+        return sorted(issue_rank, key=itemgetter('unclosed_count'), reverse=True)[:5]
+    return sorted(issue_rank, key=lambda x: (x["unclosed_count"], x["project_count"]), reverse=True)
 
 
 def get_unclosed_issues_by_user(user_id):
@@ -563,8 +564,13 @@ class RedminProjectDetail(Resource):
 class RedmineIssueRank(Resource):
     @jwt_required
     def get(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('all', type=bool)
+        args = parser.parse_args()
+        all = args.get("all") is not None
+
         own_project = get_current_sync_date_project_id_by_user()
-        issue_rank = get_redmine_issue_rank(own_project=own_project)
+        issue_rank = get_redmine_issue_rank(own_project=own_project, all=all)
         return util.success(issue_rank)
 
 
