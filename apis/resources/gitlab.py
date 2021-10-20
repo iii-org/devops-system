@@ -394,7 +394,6 @@ class GitLab(object):
                 'per_page': 100
             }).json()
 
-
     def gl_get_commits_by_author(self, project_id, branch, filter=None):
         commits = self.gl_get_commits(project_id, branch)
         if filter is None:
@@ -410,7 +409,7 @@ class GitLab(object):
         return user.email
 
     def gl_get_commits_by_members(self, project_id, branch):
-        commits = self.gl_get_commits(project_id, branch)   
+        commits = self.gl_get_commits(project_id, branch)
         output = []
         for commit in commits:
             if commit.get("author_name") != "Administrator" and commit.get("committer_name") != "Administrator":
@@ -419,9 +418,7 @@ class GitLab(object):
 
         return output
 
-
     # 用project_id查詢project的網路圖
-
 
     def gl_get_network(self, repo_id):
         branch_commit_list = []
@@ -589,37 +586,29 @@ class GitLab(object):
         for pj in self.gl.projects.list(all=True):
             if ("iiidevops-templates" not in pj.path_with_namespace) and (
                     "local-templates" not in pj.path_with_namespace):
-                for i in range(1, days + 1):
-                    pj_create_date = (datetime.strptime(
-                        pj.created_at, '%Y-%m-%dT%H:%M:%S.%f%z') + timedelta(hours=timezone_hours_number)).date()
-                    now_time = datetime.now() + timedelta(hours=timezone_hours_number)
-                    day_start = datetime.combine(
-                        (now_time - timedelta(days=i)), time(00, 00))
-                    day_end = datetime.combine(
-                        (now_time - timedelta(days=i)), time(23, 59))
-                    if day_start.date() >= pj_create_date:
-                        count = GitCommitNumberEachDays.query.filter(
-                            GitCommitNumberEachDays.repo_id == pj.id,
-                            GitCommitNumberEachDays.date ==
-                            day_start.date()).count()
-                        if count == 0:
-                            if (pj.empty_repo is True):
-                                commit_number = 0
-                            else:
-                                commit_number = len(
-                                    pj.commits.list(all=True,
-                                                    query_parameters={
-                                                        'since': day_start,
-                                                        'until': day_end
-                                                    }))
-                            one_row_data = GitCommitNumberEachDays(
-                                repo_id=pj.id,
-                                repo_name=pj.name,
-                                date=day_start.date(),
-                                commit_number=commit_number,
-                                created_at=str(datetime.now()))
-                            db.session.add(one_row_data)
-                            db.session.commit()
+                commit_number = 0
+                total_commit_number = 0
+                the_last_time_total_commit_number = 0
+                if (pj.empty_repo is False):
+                    try:
+                        the_last_data = GitCommitNumberEachDays.query.filter(
+                            GitCommitNumberEachDays.repo_id == pj.id).order_by(GitCommitNumberEachDays.id.desc()).first()
+                        if the_last_data.total_commit_number is not None:
+                            the_last_time_total_commit_number = the_last_data.total_commit_number
+                    except NoResultFound:
+                        pass
+                    total_commit_number = len(pj.commits.list(all=True))
+                    commit_number = total_commit_number - the_last_time_total_commit_number
+                now_time = datetime.now() + timedelta(hours=timezone_hours_number)
+                one_row_data = GitCommitNumberEachDays(
+                    repo_id=pj.id,
+                    repo_name=pj.name,
+                    date=now_time.date(),
+                    commit_number=commit_number,
+                    total_commit_number=total_commit_number,
+                    created_at=str(datetime.now()))
+                db.session.add(one_row_data)
+                db.session.commit()
 
     def ql_get_tree(self, repository_id, path, branch_name=None):
         try:
