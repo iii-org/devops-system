@@ -485,6 +485,7 @@ class GitCommitNumberEachDays(db.Model):
     repo_name = Column(String)
     date = Column(Date)
     commit_number = Column(Integer)
+    total_commit_number = Column(Integer, default=0)
     created_at = Column(DateTime)
 
 
@@ -694,14 +695,15 @@ class AlertMessage(db.Model):
     # response name not id
     detail = Column(JSON)
     code = Column(Integer)
-    message = Column(String) 
+    message = Column(String)
     create_at = Column(DateTime)
 
     @validates("resource_type")
     def validate_resource_type(self, key, resource_type):
         if resource_type is not None:
             if resource_type not in ["system", "k8s", "redmine", "gitlab", "harbor", "sonarqube", "rancher", "github"]:
-                raise AssertionError("Resource_type must in system / k8s / redmine / gitlab / harbor / sonarqube / rancher / github.")
+                raise AssertionError(
+                    "Resource_type must in system / k8s / redmine / gitlab / harbor / sonarqube / rancher / github.")
         return resource_type
 
 
