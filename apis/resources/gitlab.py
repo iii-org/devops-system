@@ -590,7 +590,7 @@ class GitLab(object):
                     try:
                         the_last_data = GitCommitNumberEachDays.query.filter(
                             GitCommitNumberEachDays.repo_id == pj.id).order_by(GitCommitNumberEachDays.id.desc()).first()
-                        if the_last_data.total_commit_number is not None:
+                        if the_last_data is not None and the_last_data.total_commit_number is not None:
                             the_last_time_total_commit_number = the_last_data.total_commit_number
                     except NoResultFound:
                         pass
