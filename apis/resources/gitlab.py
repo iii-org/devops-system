@@ -22,6 +22,9 @@ from resources.apiError import DevOpsError
 from resources.logger import logger
 
 
+iiidevops_system_group = ["iiidevops-templates", "local-templates", "iiidevops-catalog"]
+
+
 def get_nexus_project_id(repo_id):
     row = model.ProjectPluginRelation.query.filter_by(
         git_repository_id=repo_id).first()
@@ -512,10 +515,7 @@ class GitLab(object):
                 else:
                     pjs = self.gl.projects.list(order_by="last_activity_at")
                 for pj in pjs:
-                    if (pj.empty_repo is False) and (
-                            ("iiidevops-templates" not in pj.path_with_namespace)
-                            and
-                            ("local-templates" not in pj.path_with_namespace)):
+                    if (pj.empty_repo is False) and (pj.path_with_namespace.split('/')[0] not in iiidevops_system_group):
                         for commit in pj.commits.list(since=days_ago,
                                                       until=last_days_ago):
                             out_list.append({
@@ -559,9 +559,7 @@ class GitLab(object):
             else:
                 pjs = self.gl.projects.list(order_by="last_activity_at")
             for pj in pjs:
-                if (pj.empty_repo is False) and (
-                        ("iiidevops-templates" not in pj.path_with_namespace) and
-                        ("local-templates" not in pj.path_with_namespace)):
+                if (pj.empty_repo is False) and pj.path_with_namespace.split('/')[0] not in iiidevops_system_group:
                     for commit in pj.commits.list(since=days_ago):
                         out_list.append({
                             "pj_name":
@@ -584,8 +582,7 @@ class GitLab(object):
 
     def gl_count_each_pj_commits_by_days(self, days=30, timezone_hours_number=8):
         for pj in self.gl.projects.list(all=True):
-            if ("iiidevops-templates" not in pj.path_with_namespace) and (
-                    "local-templates" not in pj.path_with_namespace):
+            if pj.path_with_namespace.split('/')[0] not in iiidevops_system_group:
                 commit_number = 0
                 total_commit_number = 0
                 the_last_time_total_commit_number = 0
