@@ -16,7 +16,7 @@ import config
 import model
 import nexus
 import util as util
-from model import GitCommitNumberEachDays, db
+from model import GitCommitNumberEachDays, db, SystemParameter
 from resources import apiError, role
 from resources.apiError import DevOpsError
 from resources.logger import logger
@@ -659,6 +659,46 @@ class GitLab(object):
         if os.path.isfile(f"pj_upload_file/{file.filename}"):
             os.remove(f"pj_upload_file/{file.filename}")
 
+    def list_pj_commits_and_wirte_in_file(self):
+        # Check this process is active or not 
+        git_commit_history = SystemParameter.query.filter_by(name="git_commit_history").one()
+        if not git_commit_history.active:
+            return 
+
+        # Initialize varialbe
+        base_path = "logs/git_commit_history"
+        datetime_now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
+        date = datetime_now[:10]
+        keep_days = git_commit_history.value["keep_days"]
+
+        # Check git_commit_history folder exists, if not create it
+        util.check_folder_exist(base_path, create=True)
+
+        # Remove existed more than files
+        for pj_folder in os.listdir(base_path):
+            for commit_file in os.listdir(f"{base_path}/{pj_folder}"):
+                if commit_file.split(".")[0] < str(util.get_certain_date_from_now(keep_days))[:10]:
+                    os.remove(f"{base_path}/{pj_folder}/{commit_file}")
+            if os.listdir(f"{base_path}/{pj_folder}") == []:
+                os.rmdir(f"{base_path}/{pj_folder}")
+
+        # List all pjs' commits, write into json file and names it by date.
+        projects = self.gl_get_all_project()
+        for pj in projects:
+            util.check_folder_exist(f"{base_path}/{pj.id}", create=True)
+            result = {"repo_name": pj.name, "create_at": datetime_now, "commits": {}}
+            for commit in pj.commits.list():
+                result["commits"][commit.id[:4]] = {
+                    "author_name": commit.author_name,
+                    "parent_ids": commit.parent_ids,
+                    "title": commit.title,
+                    "message": commit.message.replace("\n", ""),
+                    "author_email": commit.author_email,
+                    "commit_date": commit.committed_date,
+                    "commit_id": commit.id,
+                }
+            util.write_json_file(f"{base_path}/{pj.id}/{date}.json", result)
+
 
 # --------------------- Resources ---------------------
 gitlab = GitLab()
@@ -893,4 +933,6 @@ class GitTheLastHoursCommits(Resource):
 
 class GitCountEachPjCommitsByDays(Resource):
     def get(self):
-        return util.success(gitlab.gl_count_each_pj_commits_by_days())
+        gitlab.gl_count_each_pj_commits_by_days()
+        gitlab.list_pj_commits_and_wirte_in_file()
+        return util.success()

@@ -1,4 +1,5 @@
 import json
+import os
 import random
 import string
 import time
@@ -350,3 +351,15 @@ def read_json_file(path):
     with open(path, "r") as f:
         f_info = json.load(f)
     return f_info
+
+
+def write_json_file(path, data):
+    with open(path, "w", encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)
+
+
+def check_folder_exist(path, create=False):
+    exist = os.path.isdir(path)
+    if not exist and create:
+        os.makedirs(path)
+    return exist
