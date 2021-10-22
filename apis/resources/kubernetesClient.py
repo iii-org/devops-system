@@ -96,6 +96,13 @@ class ApiK8sClient:
             if e.status_code != 404:
                 raise e
 
+    def delete_namespaced_ingress(self, name, namespace):
+        try:
+            return self.network_v1beta1.delete_namespaced_ingress(name, namespace)
+        except apiError.DevOpsError as e:
+            if e.status_code != 404:
+                raise e
+
     def list_namespaced_ingress(self, namespace):
         try:
             return self.extensions_v1beta1.list_namespaced_ingress(namespace)
