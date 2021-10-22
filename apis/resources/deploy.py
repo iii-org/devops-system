@@ -20,15 +20,15 @@ from resources import apiError, role
 from resources import harbor, kubernetesClient
 from resources import release
 
-DEFAULT_RESTART_NUMBER = 30
-default_project_id = "-1"
-error_clusters_not_found = "No Exact Cluster Found"
+_DEFAULT_RESTART_NUMBER = 30
+DEFAULT_PROJECT_ID = "-1"
+_ERROR_CLUSTERS_NOT_FOUND = "No Exact Cluster Found"
 error_clusters_created = "No Exact Cluster Created or Update"
 error_application_exists = "Application had been deployed"
 error_cluster_duplicate = "Cluster was previously created"
-DEFAULT_K8S_CONFIG_FILE = 'k8s_config'
-DEFAULT_APPLICATION_STATUS = 'Something Error'
-APPLICATION_STATUS = {
+_DEFAULT_K8S_CONFIG_FILE = 'k8s_config'
+_DEFAULT__APPLICATION_STATUS = 'Something Error'
+_APPLICATION_STATUS = {
     1: 'Initializing',
     2: 'Start Image replication',
     3: 'Finish Image replication',
@@ -55,18 +55,13 @@ def get_environments_value(items, value_type):
     for item in items:
         #  config map
         if item.get('type') == value_type and value_type == 'configmap':
-            out_dict[str(item.get('key')).strip()] = str(item.get('value')).strip()
+            out_dict[str(item.get('key')).strip()] = str(
+                item.get('value')).strip()
         #  secret
         elif item.get('type') == value_type and value_type == 'secret':
-            out_dict[str(item.get('key')).strip()] = str(util.base64encode(item.get('value'))).strip()
+            out_dict[str(item.get('key')).strip()] = str(
+                util.base64encode(item.get('value'))).strip()
     return out_dict
-
-def is_json(string):
-    try:
-        json.loads(string)
-    except ValueError:
-        return False
-    return True
 
 
 def row_to_dict(row):
@@ -77,7 +72,7 @@ def row_to_dict(row):
         value = getattr(row, key)
         if type(value) is datetime or type(value) is date:
             ret[key] = str(value)
-        elif isinstance(value, str) and is_json(value) is True:
+        elif isinstance(value, str) and is_json(value):
             ret[key] = json.loads(value)
         else:
             ret[key] = value
@@ -90,7 +85,8 @@ def get_cluster_directory_path(server_name):
 
 
 def get_cluster_config_path(server_name):
-    return get_cluster_directory_path(server_name) + "/" + DEFAULT_K8S_CONFIG_FILE
+    return get_cluster_directory_path(
+        server_name) + "/" + _DEFAULT_K8S_CONFIG_FILE
 
 
 def check_directory_exists(server_name):
@@ -131,7 +127,8 @@ def get_cluster_application_information(cluster):
         app['namespace'] = harbor_info.get('dest_repo_name')
         k8s_yaml = json.loads(application.k8s_yaml)
         cluster_status_id = k8s_yaml.get('status_id', 1)
-        app['status'] = APPLICATION_STATUS.get(cluster_status_id, DEFAULT_APPLICATION_STATUS)
+        app['status'] = _APPLICATION_STATUS.get(cluster_status_id,
+                                                _DEFAULT__APPLICATION_STATUS)
         ret_output.append(app)
     output['application'] = ret_output
     return output
@@ -140,7 +137,8 @@ def get_cluster_application_information(cluster):
 def get_clusters(cluster_id=None):
     output = []
     if cluster_id is not None:
-        return get_cluster_application_information(model.Cluster.query.filter_by(id=cluster_id).first())
+        return get_cluster_application_information(
+            model.Cluster.query.filter_by(id=cluster_id).first())
     for cluster in model.Cluster.query.all():
         output.append(get_cluster_application_information(cluster))
     return output
@@ -148,7 +146,7 @@ def get_clusters(cluster_id=None):
 
 def save_clusters(args, server_name):
     cluster_path = check_directory_exists(server_name)
-    file_name = secure_filename(DEFAULT_K8S_CONFIG_FILE)
+    file_name = secure_filename(_DEFAULT_K8S_CONFIG_FILE)
     file_path = os.path.join(cluster_path, file_name)
     if args.get('k8s_config_file') is not None:
         file = args.get('k8s_config_file', None)
@@ -165,7 +163,8 @@ def save_clusters(args, server_name):
         deploy_k8s_client = DeployK8sClient(server_name)
         deploy_k8s_client.get_api_resources()
     except NoResultFound:
-        return util.respond(404, error_clusters_not_found,
+        return util.respond(404,
+                            _ERROR_CLUSTERS_NOT_FOUND,
                             error=apiError.cluster_not_found(server_name))
     k8s_json = yaml.safe_load(content)
     return k8s_json
@@ -182,8 +181,7 @@ def create_cluster(args, server_name, user_id):
         update_at=now,
         cluster_name=k8s_json['clusters'][0]['name'],
         cluster_host=k8s_json['clusters'][0]['cluster']['server'],
-        cluster_user=k8s_json['users'][0]['name']
-    )
+        cluster_user=k8s_json['users'][0]['name'])
     db.session.add(new)
     db.session.commit()
     return new.id
@@ -197,7 +195,8 @@ def update_cluster(cluster_id, args):
         elif args[key] is not None:
             setattr(cluster, key, args[key])
     server_name = args.get('name').strip()
-    if args.get('k8s_config_file') is not None or args.get('k8s_config_string') is not None:
+    if args.get('k8s_config_file') is not None or args.get(
+            'k8s_config_string') is not None:
         k8s_json = save_clusters(args, server_name)
         cluster.cluster_name = k8s_json['clusters'][0]['name'],
         cluster.cluster_host = k8s_json['clusters'][0]['cluster']['server'],
@@ -226,7 +225,8 @@ class Clusters(Resource):
             output = get_clusters()
             return util.success({"cluster": output})
         except NoResultFound:
-            return util.respond(404, error_clusters_not_found,
+            return util.respond(404,
+                                _ERROR_CLUSTERS_NOT_FOUND,
                                 error=apiError.repository_id_not_found)
 
     @jwt_required
@@ -236,22 +236,24 @@ class Clusters(Resource):
             role.require_admin()
             parser = reqparse.RequestParser()
             parser.add_argument('name', type=str)
-            parser.add_argument(
-                'k8s_config_file', type=werkzeug.datastructures.FileStorage, location='files')
-            parser.add_argument(
-                'k8s_config_string', type=str)
+            parser.add_argument('k8s_config_file',
+                                type=werkzeug.datastructures.FileStorage,
+                                location='files')
+            parser.add_argument('k8s_config_string', type=str)
             parser.add_argument('disabled', type=inputs.boolean)
             args = parser.parse_args()
 
             server_name = args.get('name').strip()
             if check_cluster(server_name) is not None:
-                return util.respond(404, error_cluster_duplicate,
-                                    error=apiError.cluster_duplicated(server_name))
-            output = {"cluster_id": create_cluster(
-                args, server_name, user_id)}
+                return util.respond(
+                    404,
+                    error_cluster_duplicate,
+                    error=apiError.cluster_duplicated(server_name))
+            output = {"cluster_id": create_cluster(args, server_name, user_id)}
             return util.success(output)
         except NoResultFound:
-            return util.respond(404, error_clusters_not_found,
+            return util.respond(404,
+                                _ERROR_CLUSTERS_NOT_FOUND,
                                 error=apiError.repository_id_not_found)
 
 
@@ -264,7 +266,8 @@ class Cluster(Resource):
                 return util.success()
             return util.success(output)
         except NoResultFound:
-            return util.respond(404, error_clusters_not_found,
+            return util.respond(404,
+                                _ERROR_CLUSTERS_NOT_FOUND,
                                 error=apiError.repository_id_not_found)
 
     @jwt_required
@@ -273,20 +276,23 @@ class Cluster(Resource):
             role.require_admin()
             parser = reqparse.RequestParser()
             parser.add_argument('name', type=str)
-            parser.add_argument(
-                'k8s_config_file', type=werkzeug.datastructures.FileStorage, location='files')
+            parser.add_argument('k8s_config_file',
+                                type=werkzeug.datastructures.FileStorage,
+                                location='files')
             parser.add_argument('disabled', type=inputs.boolean)
-            parser.add_argument(
-                'k8s_config_string', type=str)
+            parser.add_argument('k8s_config_string', type=str)
             args = parser.parse_args()
             server_name = args.get('name').strip()
             if check_cluster(server_name, cluster_id) is not None:
-                return util.respond(404, error_cluster_duplicate,
-                                    error=apiError.cluster_duplicated(server_name))
+                return util.respond(
+                    404,
+                    error_cluster_duplicate,
+                    error=apiError.cluster_duplicated(server_name))
             output = {"cluster_id": update_cluster(cluster_id, args)}
             return util.success(output)
         except NoResultFound:
-            return util.respond(404, error_clusters_not_found,
+            return util.respond(404,
+                                _ERROR_CLUSTERS_NOT_FOUND,
                                 error=apiError.repository_id_not_found)
 
     @jwt_required
@@ -296,7 +302,8 @@ class Cluster(Resource):
             delete_cluster(cluster_id)
             return util.success()
         except NoResultFound:
-            return util.respond(404, error_clusters_not_found,
+            return util.respond(404,
+                                _ERROR_CLUSTERS_NOT_FOUND,
                                 error=apiError.repository_id_not_found)
 
 
@@ -305,9 +312,8 @@ def get_registries_application_information(registry):
         return []
     output = row_to_dict(registry)
     if output.get('type') == 'harbor':
-        output.update({
-            'access_secret': util.base64decode(output.get('access_secret'))
-        })
+        output.update(
+            {'access_secret': util.base64decode(output.get('access_secret'))})
     ret_output = []
     for application in registry.application:
         if application is None or application.harbor_info is None:
@@ -319,7 +325,8 @@ def get_registries_application_information(registry):
         app['project_name'] = harbor_info.get('project')
         app['namespace'] = harbor_info.get('dest_repo_name')
         registry_status_id = harbor_info.get('status_id', 1)
-        app['status'] = APPLICATION_STATUS.get(registry_status_id, DEFAULT_APPLICATION_STATUS)
+        app['status'] = _APPLICATION_STATUS.get(registry_status_id,
+                                                _DEFAULT__APPLICATION_STATUS)
         ret_output.append(app)
     output['application'] = ret_output
     return output
@@ -329,7 +336,8 @@ def get_registries(registry_id=None):
     output = []
     if registry_id is not None:
         return get_registries_application_information(
-            model.Registries.query.filter_by(registries_id=registry_id).first())
+            model.Registries.query.filter_by(
+                registries_id=registry_id).first())
     for registry in model.Registries.query.filter().all():
         output.append(get_registries_application_information(registry))
 
@@ -343,7 +351,8 @@ class Registries(Resource):
             output = get_registries()
             return util.success({"registries": output})
         except NoResultFound:
-            return util.respond(404, error_clusters_not_found,
+            return util.respond(404,
+                                _ERROR_CLUSTERS_NOT_FOUND,
                                 error=apiError.repository_id_not_found)
 
 
@@ -354,22 +363,34 @@ class Registry(Resource):
             output = get_registries(registry_id)
             return util.success({"registries": output})
         except NoResultFound:
-            return util.respond(404, error_clusters_not_found,
+            return util.respond(404,
+                                _ERROR_CLUSTERS_NOT_FOUND,
                                 error=apiError.repository_id_not_found)
 
 
 def create_default_harbor_data(project, db_release, registry_id, namespace):
     harbor_data = {
-        "project": project.display,
-        "project_id": project.name,
-        "policy_name": project.name + "-release-" + str(db_release.id) + '-at-' + namespace,
-        "repo_name": project.name,
-        "image_name": db_release.branch,
-        "tag_name": db_release.tag_name,
-        "description": 'Automate create replication policy ' + project.name + " release ID " + str(db_release.id),
-        "registry_id": registry_id,
-        "dest_repo_name": namespace,
-        "status": 'initial'
+        "project":
+        project.display,
+        "project_id":
+        project.name,
+        "policy_name":
+        project.name + "-release-" + str(db_release.id) + '-at-' + namespace,
+        "repo_name":
+        project.name,
+        "image_name":
+        db_release.branch,
+        "tag_name":
+        db_release.tag_name,
+        "description":
+        'Automate create replication policy ' + project.name + " release ID " +
+        str(db_release.id),
+        "registry_id":
+        registry_id,
+        "dest_repo_name":
+        namespace,
+        "status":
+        'initial'
     }
     return harbor_data
 
@@ -434,9 +455,7 @@ def harbor_policy_exist(target, policies):
     return check_result, policy_id
 
 
-def initial_harbor_replication_image_policy(
-        app
-):
+def initial_harbor_replication_image_policy(app):
     harbor_info = json.loads(app.harbor_info)
     if 'project' in harbor_info:
         harbor_info.pop('project')
@@ -446,9 +465,8 @@ def initial_harbor_replication_image_policy(
     query_data = {'name': harbor_info.get('policy_name')}
     check, policy_id = harbor_policy_exist(
         harbor_info.get('policy_name'),
-        harbor.hb_get_replication_policies(args=query_data)
-    )
-    if check is False:
+        harbor.hb_get_replication_policies(args=query_data))
+    if not check:
         policy_id = harbor.hb_create_replication_policy(harbor_info)
     else:
         harbor.hb_put_replication_policy(harbor_info, policy_id)
@@ -495,10 +513,12 @@ def check_image_replication_status(task):
 def execute_image_replication(app, restart=False):
     task_info = None
     output = create_replication_policy(app)
-    execution_info = check_execute_replication_policy(output.get('policy_id'), restart)
+    execution_info = check_execute_replication_policy(output.get('policy_id'),
+                                                      restart)
     output.update(execution_info)
     if execution_info.get('status_id') == 2:
-        task_info = check_replication_execution_task(execution_info.get('execution_id'))
+        task_info = check_replication_execution_task(
+            execution_info.get('execution_id'))
     if task_info is not None:
         output.update(task_info)
     return output
@@ -507,29 +527,26 @@ def execute_image_replication(app, restart=False):
 def create_replication_policy(app):
     policy_id = initial_harbor_replication_image_policy(app)
     policy = get_replication_policy(policy_id)
-    return {
-        'policy': policy,
-        'policy_id': policy_id
-    }
+    return {'policy': policy, 'policy_id': policy_id}
 
 
 def check_execute_replication_policy(policy_id, restart=False):
     executions = get_replication_executions(policy_id)
     output = {}
-    if len(executions) == 0 or restart is True:
+    print(restart)
+    if not executions or restart:
         image_uri = execute_replication_policy(policy_id)
         executions = get_replication_executions(policy_id)
         output = {
             "image_uri": image_uri,
         }
+        print("OUTPUT")
     execution = executions[0]
-    output.update(
-        {
-            "executions": executions,
-            "execution_id": executions[0]['id'],
-            'status_id': 2
-        }
-    )
+    output.update({
+        "executions": executions,
+        "execution_id": executions[0]['id'],
+        'status_id': 2
+    })
     if execution.get('total') == 0 and execution.get('status') == "Succeed":
         output['status'] = 'Error'
         output['error'] = 'no resource need to be replicated'
@@ -589,9 +606,8 @@ def create_registry_data(server_name, user_name, password):
         }
     }
     return {
-        ".dockerconfigjson": base64.b64encode(
-            json.dumps(pay_load).encode()
-        ).decode()
+        ".dockerconfigjson":
+        base64.b64encode(json.dumps(pay_load).encode()).decode()
     }
 
 
@@ -601,62 +617,48 @@ def create_registry_secret_object(secret_name, data):
         data=data,
         kind="Secret",
         metadata=k8s_client.V1ObjectMeta(name=secret_name),
-        type="kubernetes.io/dockerconfigjson"
-    )
+        type="kubernetes.io/dockerconfigjson")
 
 
 def create_secret_object(secret_name, secret_dict):
-    body = k8s_client.V1Secret(
-        api_version='v1',
-        kind='Secret',
-        metadata=k8s_client.V1ObjectMeta(
-            name=secret_name,
-        ),
-        data=secret_dict
-    )
+    body = k8s_client.V1Secret(api_version='v1',
+                               kind='Secret',
+                               metadata=k8s_client.V1ObjectMeta(
+                                   name=secret_name, ),
+                               data=secret_dict)
     return body
 
 
 def create_configmap_object(configmap_name, configmap_dict):
-    body = k8s_client.V1ConfigMap(
-        metadata=k8s_client.V1ObjectMeta(
-            name=configmap_name,
-        ),
-        data=configmap_dict
-    )
+    body = k8s_client.V1ConfigMap(metadata=k8s_client.V1ObjectMeta(
+        name=configmap_name, ),
+        data=configmap_dict)
     return body
 
 
 def create_service_port(network):
     if network.get('expose_port') is not None:
-        servcie_port = k8s_client.V1ServicePort(
+        service_port = k8s_client.V1ServicePort(
             protocol=network.get('protocol'),
             port=network.get('port'),
             node_port=network.get('expose_port'),
-            target_port=network.get('port')
-        )
+            target_port=network.get('port'))
     else:
-        servcie_port = k8s_client.V1ServicePort(
+        service_port = k8s_client.V1ServicePort(
             protocol=network.get('protocol'),
             port=network.get('port'),
-            target_port=network.get('port')
-        )
-    return [servcie_port]
+            target_port=network.get('port'))
+    return [service_port]
 
 
 def create_service_object(app_name, service_name, network):
     return k8s_client.V1Service(
         api_version="v1",
         kind="Service",
-        metadata=k8s_client.V1ObjectMeta(
-            name=service_name
-        ),
-        spec=k8s_client.V1ServiceSpec(
-            type=network.get('type'),
-            selector={"app": app_name},
-            ports=create_service_port(network)
-        )
-    )
+        metadata=k8s_client.V1ObjectMeta(name=service_name),
+        spec=k8s_client.V1ServiceSpec(type=network.get('type'),
+                                      selector={"app": app_name},
+                                      ports=create_service_port(network)))
 
 
 def init_resource_requirements(resources):
@@ -667,19 +669,16 @@ def init_resource_requirements(resources):
             limits={
                 'cpu': resources.get('cpu'),
                 'memory': resources.get('memory')
-            }
-        )
+            })
 
 
-def create_deployment_object(
-        app_name,
-        deployment_name,
-        image_uri,
-        port,
-        registry_secret_name,
-        resource=None,
-        image=None
-):
+def create_deployment_object(app_name,
+                             deployment_name,
+                             image_uri,
+                             port,
+                             registry_secret_name,
+                             resource=None,
+                             image=None):
     # Configured Pod template container
     default_image_policy = 'Always'
     if image is not None and image.get('policy', None) is not None:
@@ -689,17 +688,15 @@ def create_deployment_object(
         image=image_uri,
         ports=[k8s_client.V1ContainerPort(container_port=port)],
         resources=init_resource_requirements(resource),
-        image_pull_policy=default_image_policy
-    )
+        image_pull_policy=default_image_policy)
     # Create and configure a spec section
     template = k8s_client.V1PodTemplateSpec(
         metadata=k8s_client.V1ObjectMeta(labels={"app": app_name}),
         spec=k8s_client.V1PodSpec(
             containers=[container],
             image_pull_secrets=[
-                k8s_client.V1LocalObjectReference(name=registry_secret_name)]
-        )
-    )
+                k8s_client.V1LocalObjectReference(name=registry_secret_name)
+            ]))
     num_replicas = 1
     if resource is not None and resource.get('replicas', None) is not None:
         num_replicas = resource.get('replicas', None)
@@ -707,49 +704,47 @@ def create_deployment_object(
     spec = k8s_client.V1DeploymentSpec(
         replicas=num_replicas,
         template=template,
-        selector={'matchLabels': {'app': app_name}})
+        selector={'matchLabels': {
+            'app': app_name
+        }})
     # Instantiate the deployment object
     deployment = k8s_client.V1Deployment(
         api_version="apps/v1",
         kind="Deployment",
         metadata=k8s_client.V1ObjectMeta(name=deployment_name),
         spec=spec)
+    print(deployment)
     return deployment
 
 
 def create_ingress_object(ingress_name, domain, service_name, port, path):
-    spec = k8s_client.NetworkingV1beta1IngressSpec(
-        rules=[k8s_client.NetworkingV1beta1IngressRule(
+    spec = k8s_client.NetworkingV1beta1IngressSpec(rules=[
+        k8s_client.NetworkingV1beta1IngressRule(
             host=domain,
-            http=k8s_client.NetworkingV1beta1HTTPIngressRuleValue(
-                paths=[k8s_client.NetworkingV1beta1HTTPIngressPath(
+            http=k8s_client.NetworkingV1beta1HTTPIngressRuleValue(paths=[
+                k8s_client.NetworkingV1beta1HTTPIngressPath(
                     path=path,
                     backend=k8s_client.NetworkingV1beta1IngressBackend(
-                        service_name=service_name,
-                        service_port=port
-                    )
-                )]
-            )
-        )])
+                        service_name=service_name, service_port=port))
+            ]))
+    ])
     metadata = k8s_client.V1ObjectMeta(
         name=ingress_name,
         annotations={
             "nginx.ingress.kubernetes.io/rewrite-target": "/",
-        }
-    )
+        })
     body = k8s_client.NetworkingV1beta1Ingress(
         # NetworkingV1beta1Api
         api_version="networking.k8s.io/v1beta1",
         kind="Ingress",
         metadata=metadata,
-        spec=spec
-    )
+        spec=spec)
     return body
 
 
 def create_namespace_object(namespace):
-    return k8s_client.V1Namespace(
-        metadata=k8s_client.V1ObjectMeta(name=namespace))
+    return k8s_client.V1Namespace(metadata=k8s_client.V1ObjectMeta(
+        name=namespace))
 
 
 class DeployK8sClient:
@@ -761,96 +756,117 @@ class DeployK8sClient:
     def get_api_resources(self):
         return self.client.get_api_resources()
 
+    def k8s_resource_exist(self, target, response):
+        check_result = False
+        for i in response.items:
+            if str(target) == str(i.metadata.name):
+                check_result = True
+        return check_result
+
     # namespace
     def read_namespace(self, namespace):
-        if self.check_namespace(namespace) is True:
+        if self.check_namespace(namespace):
             return self.client.read_namespace(namespace)
         else:
             return {}
 
     def create_namespace(self, namespace, body):
-        check = k8s_resource_exist(
-            namespace,
-            self.client.list_namespace()
-        )
-        if check is False:
-            self.client.create_namespace(
-                body
-            )
+        if not self.check_namespace(namespace):
+            return self.client.create_namespace(body)
 
     def delete_namespace(self, namespace):
-        check = k8s_resource_exist(
-            namespace,
-            self.client.list_namespace()
-        )
-        if check is True:
-            self.client.delete_namespace(namespace)
+        if self.check_namespace(namespace):
+            return self.client.delete_namespace(namespace)
 
     def check_namespace(self, namespace):
-        return k8s_resource_exist(
-            namespace,
-            self.client.list_namespace()
-        )
+        return self.k8s_resource_exist(namespace, self.client.list_namespace())
 
     def execute_namespace_secret(self, name, namespace, body):
-        if self.check_namespace_secret(name, namespace) is False:
+        if not self.check_namespace_secret(name, namespace):
             return self.client.create_namespaced_secret(namespace, body)
         else:
             return self.client.patch_namespaced_secret(name, namespace, body)
 
+    def delete_namespace_secret(self, name, namespace):
+        if self.check_namespace_secret(name, namespace):
+            return self.client.delete_namespaced_secret(name, namespace)
+
     def check_namespace_secret(self, name, namespace):
-        return k8s_resource_exist(
-            name,
-            self.client.list_namespaced_secret(namespace)
-        )
+        return self.k8s_resource_exist(
+            name, self.client.list_namespaced_secret(namespace))
+
+    def read_namespace_service(self, name, namespace):
+        if self.check_namespace_service(name, namespace):
+            return self.client.read_namespaced_service(name, namespace)
+        return None
 
     def execute_namespace_service(self, name, namespace, body):
-        if self.check_namespace_service(name, namespace) is False:
+        if not self.check_namespace_service(name, namespace):
             return self.client.create_namespaced_service(namespace, body)
         else:
             return self.client.patch_namespaced_service(name, namespace, body)
 
+    def delete_namespace_service(self, name, namespace):
+        if self.check_namespace_service(name, namespace):
+            return self.client.delete_namespaced_service(name, namespace)
+
     def check_namespace_service(self, name, namespace):
-        return k8s_resource_exist(
-            name,
-            self.client.list_namespaced_service(namespace)
-        )
+        return self.k8s_resource_exist(
+            name, self.client.list_namespaced_service(namespace))
+
+    def read_namespace_ingress(self, name, namespace):
+        if self.check_namespace_ingress(name, namespace):
+            return self.client.read_namespaced_ingress(name, namespace)
+        return None
 
     def execute_namespace_ingress(self, name, namespace, body):
-        if self.check_namespace_ingress(name, namespace) is False:
+        if not self.check_namespace_ingress(name, namespace):
             return self.client.create_namespaced_ingress(namespace, body)
         else:
             return self.client.patch_namespaced_ingress(name, namespace, body)
 
+    def delete_namespace_ingress(self, name, namespace):
+        if self.check_namespace_ingress(name, namespace):
+            return self.client.delete_namespaced_ingress(name, namespace)
+
     def check_namespace_ingress(self, name, namespace):
-        return k8s_resource_exist(
-            name,
-            self.client.list_namespaced_ingress(namespace)
-        )
+        return self.k8s_resource_exist(
+            name, self.client.list_namespaced_ingress(namespace))
+
+    def read_namespace_deployment(self, name, namespace):
+        if self.check_namespace_deployment(name, namespace):
+            return self.client.read_namespaced_deployment(name, namespace)
+        return None
 
     def execute_namespace_deployment(self, name, namespace, body):
-        if self.check_namespace_deployment(name, namespace) is False:
+        if not self.check_namespace_deployment(name, namespace):
             return self.client.create_namespaced_deployment(namespace, body)
         else:
-            return self.client.patch_namespaced_deployment(name, namespace, body)
+            return self.client.patch_namespaced_deployment(
+                name, namespace, body)
+
+    def delete_namespace_deployment(self, name, namespace):
+        if self.check_namespace_deployment(name, namespace):
+            return self.client.delete_namespaced_deployment(name, namespace)
 
     def check_namespace_deployment(self, name, namespace):
-        return k8s_resource_exist(
-            name,
-            self.client.list_namespaced_deployment(namespace)
-        )
+        return self.k8s_resource_exist(
+            name, self.client.list_namespaced_deployment(namespace))
 
     def execute_namespace_configmap(self, name, namespace, body):
-        if self.check_namespace_configmap(name, namespace) is False:
+        if not self.check_namespace_configmap(name, namespace):
             return self.client.create_namespaced_config_map(namespace, body)
         else:
-            return self.client.patch_namespaced_config_map(name, namespace, body)
+            return self.client.patch_namespaced_config_map(
+                name, namespace, body)
+
+    def delete_namespace_configmap(self, name, namespace):
+        if self.check_namespace_configmap(name, namespace):
+            return self.client.delete_namespaced_configmap(name, namespace)
 
     def check_namespace_configmap(self, name, namespace):
-        return k8s_resource_exist(
-            name,
-            self.client.list_namespaced_config_map(namespace)
-        )
+        return self.k8s_resource_exist(
+            name, self.client.list_namespaced_config_map(namespace))
 
 
 class DeployNamespace:
@@ -862,7 +878,6 @@ class DeployNamespace:
 
 
 class DeployConfigMap:
-
     def __init__(self, app, project):
         self.app = app
         self.project = project
@@ -871,9 +886,7 @@ class DeployConfigMap:
         self.set_configmap_data()
 
     def get_configmap_info(self):
-        return {
-            'configmap-name': self.configmap_name
-        }
+        return {'configmap_name': self.configmap_name}
 
     def set_configmap_data(self):
         environments = json.loads(self.app.k8s_yaml).get('environments', None)
@@ -881,14 +894,11 @@ class DeployConfigMap:
         self.configmap_name = self.project.name + "-configmap"
 
     def configmap_body(self):
-        return create_configmap_object(
-            self.configmap_name,
-            self.configmap_dict
-        )
+        return create_configmap_object(self.configmap_name,
+                                       self.configmap_dict)
 
 
 class DeploySecret:
-
     def __init__(self, app, project):
         self.app = app
         self.project = project
@@ -897,9 +907,7 @@ class DeploySecret:
         self.set_secret_data()
 
     def get_secret_info(self):
-        return {
-            'secret-name': self.secret_name
-        }
+        return {'secret_name': self.secret_name}
 
     def set_secret_data(self):
         environments = json.loads(self.app.k8s_yaml).get('environments', None)
@@ -907,10 +915,7 @@ class DeploySecret:
         self.secret_name = self.project.name + "-secret"
 
     def secret_body(self):
-        return create_secret_object(
-            self.secret_name,
-            self.secret_dict
-        )
+        return create_secret_object(self.secret_name, self.secret_dict)
 
 
 class DeployRegistrySecret:
@@ -923,24 +928,25 @@ class DeployRegistrySecret:
 
     def set_registry_secret_info(self):
         harbor_info = json.loads(self.app.harbor_info)
-        self.registry_server_url = harbor_info.get('image_uri').split(
-            '/')[0]
+        self.registry_server_url = harbor_info.get('image_uri').split('/')[0]
         self.registry_secret_name = self.registry_server_url.translate(
-            str.maketrans({'.': '-', ':': '-'})) + '-harbor'
+            str.maketrans({
+                '.': '-',
+                ':': '-'
+            })) + '-harbor'
 
     def get_registry_secret_info(self):
         return {
-            'registry_server_url': self.registry_server_url,
+            'registry_secret_url': self.registry_server_url,
             'registry_secret_name': self.registry_secret_name
         }
 
     def registry_secret_body(self):
         return create_registry_secret_object(
             self.registry_secret_name,
-            create_registry_data(self.registry_server_url, self.registry.access_key,
-                                 util.base64decode(self.registry.access_secret))
-
-        )
+            create_registry_data(
+                self.registry_server_url, self.registry.access_key,
+                util.base64decode(self.registry.access_secret)))
 
 
 class DeployService:
@@ -958,7 +964,8 @@ class DeployService:
             'container_port': self.k8s_info.get('network').get('port'),
         }
         if self.k8s_info.get('network').get('expose_port') is not None:
-            output['expose_port'] = self.k8s_info.get('network').get('expose_port')
+            output['expose_port'] = self.k8s_info.get('network').get(
+                'expose_port')
         return output
 
     def service_body(self):
@@ -984,11 +991,9 @@ class DeployIngress:
     def ingress_body(self):
         return create_ingress_object(
             self.ingress_name,
-            self.k8s_info.get('network').get('domain'),
-            self.service_name,
+            self.k8s_info.get('network').get('domain'), self.service_name,
             self.k8s_info.get('network').get('port'),
-            self.k8s_info.get('network').get('path')
-        )
+            self.k8s_info.get('network').get('path'))
 
 
 class DeployDeployment:
@@ -1003,20 +1008,19 @@ class DeployDeployment:
         self.registry_secret_info = registry_secret_info
 
     def get_deployment_info(self):
-        return {
-            'deployment_name': self.deployment_name
-        }
+        return {'deployment_name': self.deployment_name}
 
     def deployment_body(self):
+        print(self.harbor_info.get('image_uri'))
+        print(self.service_info.get('container_port'))
+        print(self.registry_secret_info.get('registry_secret_name'))
+        print(self.k8s_info.get('resources'))
+        print(self.k8s_info.get('image'))
         return create_deployment_object(
-            self.name,
-            self.deployment_name,
-            self.harbor_info.get('image_uri'),
+            self.name, self.deployment_name, self.harbor_info.get('image_uri'),
             self.service_info.get('container_port'),
             self.registry_secret_info.get('registry_secret_name'),
-            self.k8s_info.get('resources', {}),
-            self.k8s_info.get('image')
-        )
+            self.k8s_info.get('resources'), self.k8s_info.get('image'))
 
 
 class K8sDeployment:
@@ -1024,7 +1028,8 @@ class K8sDeployment:
         self.app = app
         self.cluster = model.Cluster.query.filter_by(id=app.cluster_id).first()
         self.project = model.Project.query.filter_by(id=app.project_id).first()
-        self.registry = model.Registries.query.filter_by(registries_id=app.registry_id).first()
+        self.registry = model.Registries.query.filter_by(
+            registries_id=app.registry_id).first()
         self.k8s_client = DeployK8sClient(self.cluster.name)
         self.namespace = None
         self.registry_secret = None
@@ -1037,20 +1042,22 @@ class K8sDeployment:
 
     def check_namespace(self):
         self.namespace = DeployNamespace(self.app.namespace)
-        self.k8s_client.create_namespace(self.app.namespace, self.namespace.namespace_body())
+        self.k8s_client.create_namespace(self.app.namespace,
+                                         self.namespace.namespace_body())
 
     def check_registry_secret(self):
         if self.registry_secret is None:
-            self.registry_secret = DeployRegistrySecret(self.app, self.registry)
+            self.registry_secret = DeployRegistrySecret(
+                self.app, self.registry)
 
     def execute_registry_secret(self):
         self.check_registry_secret()
         self.k8s_client.execute_namespace_secret(
-            self.registry_secret.registry_secret_name,
-            self.app.namespace,
-            self.registry_secret.registry_secret_body()
+            self.registry_secret.registry_secret_name, self.app.namespace,
+            self.registry_secret.registry_secret_body())
+        self.deployment_info[
+            'registry_secret'] = self.registry_secret.get_registry_secret_info(
         )
-        self.deployment_info['registry_secret'] = self.registry_secret.get_registry_secret_info()
 
     def check_service(self):
         if self.service is None:
@@ -1058,11 +1065,9 @@ class K8sDeployment:
 
     def execute_service(self):
         self.check_service()
-        self.k8s_client.execute_namespace_service(
-            self.service.service_name,
-            self.app.namespace,
-            self.service.service_body()
-        )
+        self.k8s_client.execute_namespace_service(self.service.service_name,
+                                                  self.app.namespace,
+                                                  self.service.service_body())
         self.deployment_info['service'] = self.service.get_service_info()
 
     def check_ingress(self):
@@ -1071,31 +1076,26 @@ class K8sDeployment:
 
     def execute_ingress(self):
         self.check_ingress()
-        self.k8s_client.execute_namespace_ingress(
-            self.ingress.ingress_name,
-            self.app.namespace,
-            self.ingress.ingress_body()
-        )
+        self.k8s_client.execute_namespace_ingress(self.ingress.ingress_name,
+                                                  self.app.namespace,
+                                                  self.ingress.ingress_body())
         self.deployment_info['ingress'] = self.ingress.get_ingress_info()
 
     def check_deployment(self):
         if self.deployment is None:
             self.check_service()
             self.check_registry_secret()
-            self.deployment = DeployDeployment(self.app,
-                                               self.project,
-                                               self.service.get_service_info(),
-                                               self.registry_secret.get_registry_secret_info()
-                                               )
+            self.deployment = DeployDeployment(
+                self.app, self.project, self.service.get_service_info(),
+                self.registry_secret.get_registry_secret_info())
 
     def execute_deployment(self):
         self.check_deployment()
         self.k8s_client.execute_namespace_deployment(
-            self.deployment.deployment_name,
-            self.app.namespace,
-            self.deployment.deployment_body()
-        )
-        self.deployment_info['deployment'] = self.deployment.get_deployment_info()
+            self.deployment.deployment_name, self.app.namespace,
+            self.deployment.deployment_body())
+        self.deployment_info[
+            'deployment'] = self.deployment.get_deployment_info()
 
     def check_configmap(self):
         if self.configmap is None:
@@ -1105,12 +1105,10 @@ class K8sDeployment:
         self.check_configmap()
         if self.configmap.configmap_dict != {}:
             self.k8s_client.execute_namespace_configmap(
-                self.configmap.configmap_name,
-                self.app.namespace,
-                self.configmap.configmap_body()
-            )
-            self.deployment_info['configmap'] = self.configmap.get_configmap_info()
-            self.deployment_info['status_id'] = 4
+                self.configmap.configmap_name, self.app.namespace,
+                self.configmap.configmap_body())
+            self.deployment_info[
+                'configmap'] = self.configmap.get_configmap_info()
 
     def check_secret(self):
         if self.secret is None:
@@ -1119,11 +1117,9 @@ class K8sDeployment:
     def execute_secret(self):
         self.check_secret()
         if self.secret.secret_dict != {}:
-            self.k8s_client.execute_namespace_secret(
-                self.secret.secret_name,
-                self.app.namespace,
-                self.secret.secret_body()
-            )
+            self.k8s_client.execute_namespace_secret(self.secret.secret_name,
+                                                     self.app.namespace,
+                                                     self.secret.secret_body())
             self.deployment_info['secret'] = self.secret.get_secret_info()
 
     def get_deployment_information(self):
@@ -1153,34 +1149,40 @@ def check_k8s_deployment(app, deployed=True):
     deploy_k8s_client = DeployK8sClient(cluster.name)
 
     if deploy_object.get("deployment") is not None:
-        deployed_status.append(deploy_k8s_client.check_namespace_deployment(
-            deploy_object.get("deployment").get("deployment_name"),
-            app.namespace
-        ))
+        deployed_status.append(
+            deploy_k8s_client.check_namespace_deployment(
+                deploy_object.get("deployment").get("deployment_name"),
+                app.namespace))
 
     if deploy_object.get('ingress') is not None:
-        deployed_status.append(deploy_k8s_client.check_namespace_ingress(
-            deploy_object.get('ingress').get('ingress_name'),
-            app.namespace
-        ))
+        deployed_status.append(
+            deploy_k8s_client.check_namespace_ingress(
+                deploy_object.get('ingress').get('ingress_name'),
+                app.namespace))
 
     if deploy_object.get('service') is not None:
-        deployed_status.append(deploy_k8s_client.check_namespace_service(
-            deploy_object.get('service').get('service_name'),
-            app.namespace
-        ))
+        deployed_status.append(
+            deploy_k8s_client.check_namespace_service(
+                deploy_object.get('service').get('service_name'),
+                app.namespace))
     if deploy_object.get('registry_secret') is not None:
-        deployed_status.append(deploy_k8s_client.check_namespace_secret(
-            deploy_object.get('registry_secret').get('registry_secret_name'),
-            app.namespace
-        ))
+        deployed_status.append(
+            deploy_k8s_client.check_namespace_secret(
+                deploy_object.get('registry_secret').get(
+                    'registry_secret_name'), app.namespace))
 
     return deployed_status.count(deployed) == len(deployed_status)
 
 
+def reset_restart_number(app):
+    app.restart_number = 1
+    app.restarted_at = str(datetime.utcnow())
+    return app
+
+
 def check_application_restart(app):
     if app.restart_number is None:
-        app.restart_number = 1
+        app = reset_restart_number(app)
     else:
         app.restart_number = app.restart_number + 1
     app.restarted_at = str(datetime.utcnow())
@@ -1201,8 +1203,7 @@ def check_application_status(app):
         harbor_info.update(output)
         app.harbor_info = json.dumps(harbor_info)
         app.status_id = harbor_info.get('status_id')
-        app.restart_number = 1
-        app.restarted_at = str(datetime.utcnow())
+        app = reset_restart_number(app)
         db.session.commit()
     # Restart Execution Replication
     elif app.status_id == 11:
@@ -1212,8 +1213,7 @@ def check_application_status(app):
         app.status_id = harbor_info.get('status_id')
         app.harbor_info = json.dumps(harbor_info)
         if harbor_info.get('status_id') == 3:
-            app.restart_number = 1
-            app.restarted_at = str(datetime.utcnow())
+            app = reset_restart_number(app)
         db.session.commit()
     elif app.status_id == 3:
         k8s_yaml = json.loads(app.k8s_yaml)
@@ -1221,41 +1221,43 @@ def check_application_status(app):
         k8s_yaml.update(output)
         app.status_id = 4
         app.k8s_yaml = json.dumps(k8s_yaml)
-        app.restart_number = 1
-        app.restarted_at = str(datetime.utcnow())
+        app = reset_restart_number(app)
+        # app.restart_number = 1
+        # app.restarted_at = str(datetime.utcnow())
         db.session.commit()
     elif app.status_id == 4:
         k8s_yaml = json.loads(app.k8s_yaml)
         k8s_yaml['deploy_finish'] = check_k8s_deployment(app)
-        if k8s_yaml['deploy_finish'] is True:
+        if k8s_yaml['deploy_finish']:
             k8s_yaml['status_id'] = 5
             app.status_id = 5
-            app.restart_number = 1
-            app.restarted_at = str(datetime.utcnow())
-        app.k8s_yaml = json.dumps(k8s_yaml)
-        db.session.commit()
+            # app.restart_number = 1
+            # app.restarted_at = str(datetime.utcnow())
+            app = reset_restart_number(app)
+            app.k8s_yaml = json.dumps(k8s_yaml)
+            db.session.commit()
     elif app.status_id == 9:
         finished = check_k8s_deployment(app, False)
-        if finished is False:
+        if not finished:
             app.status_id = 10
             db.session.commit()
 
-    return {'id': app.id, 'status': APPLICATION_STATUS.get(app.status_id, DEFAULT_APPLICATION_STATUS), 'output': output,
-            'database': row_to_dict(app)}
+    return {
+        'id':
+        app.id,
+        'status':
+        _APPLICATION_STATUS.get(app.status_id, _DEFAULT__APPLICATION_STATUS),
+        'output':
+        output,
+        'database':
+        row_to_dict(app)
+    }
 
 
 def check_application_exists(project_id, namespace):
     return model.Application.query. \
         filter(model.Application.namespace == namespace, model.Application.project_id == project_id). \
         first()
-
-
-def k8s_resource_exist(target, response):
-    check_result = False
-    for i in response.items:
-        if str(target) == str(i.metadata.name):
-            check_result = True
-    return check_result
 
 
 def get_clusters_name(cluster_id, info=None):
@@ -1266,11 +1268,47 @@ def get_clusters_name(cluster_id, info=None):
     return info
 
 
+def get_deployment_info(cluster_name, k8s_yaml):
+    deployment_info = None
+    service_info = None
+    ingress_info = None
+    namespace = k8s_yaml.get('namespace')
+    deploy_k8s_client = DeployK8sClient(cluster_name)
+    if k8s_yaml.get('deployment').get('deployment_name'):
+        deployment = deploy_k8s_client.read_namespace_deployment(
+            k8s_yaml.get('deployment').get('deployment_name'), namespace)
+        deployment_info = {}
+        deployment_info = kubernetesClient.get_deployments_info(deployment)
+
+    if k8s_yaml.get('service').get('service_name'):
+        service = deploy_k8s_client.read_namespace_service(
+            k8s_yaml.get('service').get('service_name'), namespace)
+        service_info = json.loads(service.metadata.annotations[
+            'field.cattle.io/publicEndpoints'])
+
+    if k8s_yaml.get('ingress') and k8s_yaml.get('ingress').get('ingress_name'):
+        ingress = deploy_k8s_client.read_namespace_ingress(
+            k8s_yaml.get('ingress').get('ingress_name'), namespace)
+        ingress_info = json.loads(ingress.metadata.annotations[
+            'field.cattle.io/publicEndpoints'])
+    if ingress_info:
+        ingress = ingress_info[0]
+        url = ingress.get('protocol') + '://' + ingress.get(
+            'hostname') + ':' + str(ingress.get('port')) + ingress.get('path')
+    else:
+        service = service_info[0]
+        url = 'http://' + service.get(
+            'addresses')[0] + ':' + str(service.get('port'))
+
+    return deployment_info, url
+
+
 def get_application_information(application, cluster_info=None):
     if application is None:
         return []
     output = row_to_dict(application)
-    output['status'] = APPLICATION_STATUS.get(application.status_id, DEFAULT_APPLICATION_STATUS)
+    output['status'] = _APPLICATION_STATUS.get(application.status_id,
+                                               _DEFAULT__APPLICATION_STATUS)
     output.pop('k8s_yaml')
     output.pop('harbor_info')
     if application.harbor_info is None or application.k8s_yaml is None:
@@ -1281,6 +1319,13 @@ def get_application_information(application, cluster_info=None):
         cluster_info = get_clusters_name(application.cluster_id)
     elif str(application.cluster_id) not in cluster_info:
         cluster_info = get_clusters_name(application.cluster_id, cluster_info)
+    deployment_info = None
+    if k8s_yaml.get('deploy_finish'):
+        deployment_info, url = get_deployment_info(
+            cluster_info[str(application.cluster_id)], k8s_yaml)
+
+    output['deployment'] = deployment_info
+    output['public_endpoint'] = url
     output['cluster'] = {}
     output['cluster']['id'] = application.cluster_id
     output['cluster']['name'] = cluster_info[str(application.cluster_id)]
@@ -1303,15 +1348,18 @@ def get_applications(args=None):
     if args is None:
         app = model.Application.query.filter().all()
     elif 'application_id' in args:
-        app = model.Application.query.filter_by(id=args.get('application_id')).first()
+        app = model.Application.query.filter_by(
+            id=args.get('application_id')).first()
     elif 'project_id' in args:
-        app = model.Application.query.filter_by(project_id=args.get('project_id')).all()
+        app = model.Application.query.filter_by(
+            project_id=args.get('project_id')).all()
 
     if app is None:
         return output
     elif isinstance(app, list):
         for application in app:
-            output_app, cluster_info = get_application_information(application, cluster_info)
+            output_app, cluster_info = get_application_information(
+                application, cluster_info)
             output.append(output_app)
     else:
         output, cluster_info = get_application_information(app, cluster_info)
@@ -1319,21 +1367,25 @@ def get_applications(args=None):
 
 
 def create_application(args):
-    if check_application_exists(args.get('project_id'), args.get('namespace')) is not None:
-        return util.respond(404, error_application_exists,
+    if check_application_exists(args.get('project_id'),
+                                args.get('namespace')) is not None:
+        return util.respond(404,
+                            error_application_exists,
                             error=apiError.repository_id_not_found)
     cluster = model.Cluster.query.filter_by(id=args.get('cluster_id')).first()
-    db_release, db_project = db.session.query(model.Release, model.Project).join(model.Project).filter(
-        model.Release.id == args.get('release_id'),
-        model.Release.project_id == model.Project.id
-    ).one()
-    harbor_info = create_default_harbor_data(
-        db_project, db_release, args.get('registry_id'), args.get('namespace'))
+    db_release, db_project = db.session.query(
+        model.Release, model.Project).join(model.Project).filter(
+            model.Release.id == args.get('release_id'),
+            model.Release.project_id == model.Project.id).one()
+    harbor_info = create_default_harbor_data(db_project, db_release,
+                                             args.get('registry_id'),
+                                             args.get('namespace'))
     k8s_yaml = create_default_k8s_data(db_project, db_release, args)
     # check namespace
     deploy_k8s_client = DeployK8sClient(cluster.name)
     deploy_namespace = DeployNamespace(args.get('namespace'))
-    deploy_k8s_client.create_namespace(args.get('namespace'), deploy_namespace.namespace_body())
+    deploy_k8s_client.create_namespace(args.get('namespace'),
+                                       deploy_namespace.namespace_body())
     now = str(datetime.utcnow())
     new = model.Application(
         name=args.get('name'),
@@ -1367,10 +1419,10 @@ def check_update_application_status(app, args):
 
 def update_application(application_id, args):
     app = model.Application.query.filter_by(id=application_id).first()
-    db_release, db_project = db.session.query(model.Release, model.Project).join(model.Project).filter(
-        model.Release.id == args.get('release_id'),
-        model.Release.project_id == model.Project.id
-    ).one()
+    db_release, db_project = db.session.query(
+        model.Release, model.Project).join(model.Project).filter(
+            model.Release.id == args.get('release_id'),
+            model.Release.project_id == model.Project.id).one()
     for key in args.keys():
         if not hasattr(app, key):
             continue
@@ -1380,20 +1432,14 @@ def update_application(application_id, args):
     db_harbor_info = json.loads(app.harbor_info)
     delete_image_replication_policy(db_harbor_info.get('policy_id'))
     db_harbor_info.update(
-        create_default_harbor_data(
-            db_project, db_release, args.get('registry_id'), args.get('namespace'))
-    )
+        create_default_harbor_data(db_project, db_release,
+                                   args.get('registry_id'),
+                                   args.get('namespace')))
     #  Change k8s Info
     db_k8s_yaml = json.loads(app.k8s_yaml)
-    db_k8s_yaml.update(
-        create_default_k8s_data(db_project, db_release, args)
-    )
+    db_k8s_yaml.update(create_default_k8s_data(db_project, db_release, args))
     # check namespace
-    app.status_id = disable_application(
-        args.get('disabled'),
-        app.namespace,
-        app.cluster_id
-    )
+    app.status_id = disable_application(args.get('disabled'), app)
 
     app.harbor_info = json.dumps(db_harbor_info)
     app.k8s_yaml = json.dumps(db_k8s_yaml)
@@ -1405,10 +1451,10 @@ def update_application(application_id, args):
 def patch_application(application_id, args):
     app = model.Application.query.filter_by(id=application_id).first()
     release_id = args.get('release_id', app.release_id)
-    db_release, db_project = db.session.query(model.Release, model.Project).join(model.Project).filter(
-        model.Release.id == release_id,
-        model.Project.id == model.Release.project_id
-    ).one()
+    db_release, db_project = db.session.query(
+        model.Release, model.Project).join(model.Project).filter(
+            model.Release.id == release_id,
+            model.Project.id == model.Release.project_id).one()
     for key in args.keys():
         if not hasattr(app, key):
             continue
@@ -1417,11 +1463,7 @@ def patch_application(application_id, args):
 
     #  Delete Application
     if 'disabled' in args:
-        app.status_id = disable_application(
-            args.get('disabled'),
-            args.get('namespace', app.namespace),
-            args.get('cluster_id', app.cluster_id)
-        )
+        app.status_id = disable_application(args.get('disabled'), app)
 
     #  Change K8s Deploy
     if 'namespace' in args or \
@@ -1432,8 +1474,7 @@ def patch_application(application_id, args):
             'release_id' in args:
         db_k8s_yaml = json.loads(app.k8s_yaml)
         db_k8s_yaml.update(
-            create_default_k8s_data(db_project, db_release, args)
-        )
+            create_default_k8s_data(db_project, db_release, args))
         app.k8s_yaml = json.dumps(db_k8s_yaml)
     #  Change harbor_info Deploy
     if 'namespace' in args or \
@@ -1441,15 +1482,16 @@ def patch_application(application_id, args):
             'release_id' in args:
         db_harbor_info = json.loads(app.harbor_info)
         delete_image_replication_policy(db_harbor_info.get('policy_id'))
-        db_release, db_project = db.session.query(model.Release, model.Project).join(model.Project).filter(
-            model.Release.id == release_id,
-            model.Project.id == model.Release.project_id
-        ).one()
+        db_release, db_project = db.session.query(
+            model.Release, model.Project).join(model.Project).filter(
+                model.Release.id == release_id,
+                model.Project.id == model.Release.project_id).one()
         db_harbor_info.update(
-            create_default_harbor_data(
-                db_project, db_release, args.get('registry_id'), args.get('namespace'))
-        )
-    app.status = APPLICATION_STATUS.get(app.status_id, DEFAULT_APPLICATION_STATUS)
+            create_default_harbor_data(db_project, db_release,
+                                       args.get('registry_id'),
+                                       args.get('namespace')))
+    app.status = _APPLICATION_STATUS.get(app.status_id,
+                                         _DEFAULT__APPLICATION_STATUS)
     app.updated_at = (datetime.utcnow())
     db.session.commit()
     return application_id
@@ -1457,10 +1499,10 @@ def patch_application(application_id, args):
 
 def redeploy_application(application_id):
     app = model.Application.query.filter_by(id=application_id).first()
-    app.status_id = 1
+    app.status_id = 11
     app.restart_number = 1
     app.restarted_at = str(datetime.utcnow())
-    app.status = APPLICATION_STATUS.get(1, DEFAULT_APPLICATION_STATUS)
+    app.status = _APPLICATION_STATUS.get(1, _DEFAULT__APPLICATION_STATUS)
     db.session.commit()
     return app.id
 
@@ -1471,43 +1513,74 @@ def delete_application(application_id, delete_db=False):
         return {}
     harbor_info = json.loads(app.harbor_info)
     delete_image_replication_policy(harbor_info.get('policy_id'))
-    delete_k8s_application(app.cluster_id, app.namespace)
+    delete_k8s_application(app)
+
     if delete_db is False:
         app.status_id = 9
-        app.status = APPLICATION_STATUS.get(9, DEFAULT_APPLICATION_STATUS)
+        app.status = _APPLICATION_STATUS.get(9, _DEFAULT__APPLICATION_STATUS)
         db.session.commit()
     elif delete_db is True:
         db.session.delete(app)
         db.session.commit()
+
     return app.id
 
 
-def disable_application(disabled, namespace, cluster_id):
-    #  Delete Application
-    delete_k8s_application(cluster_id, namespace)
-    if disabled is True:
+def disable_application(disabled, app):
+    #  Delete Application retain namespace
+    delete_k8s_application(app)
+    if disabled:
         # Stop Application
         status_id = 32
     else:
         # Redeploy K8s
-        cluster = model.Cluster.query.filter_by(id=cluster_id).first()
+        cluster = model.Cluster.query.filter_by(id=app.cluster_id).first()
         deploy_k8s_client = DeployK8sClient(cluster.name)
-        deploy_namespace = DeployNamespace(namespace)
-        deploy_k8s_client.create_namespace(namespace, deploy_namespace.namespace_body())
+        deploy_namespace = DeployNamespace(app.namespace)
+        deploy_k8s_client.create_namespace(app.namespace,
+                                           deploy_namespace.namespace_body())
         status_id = 1
     return status_id
 
 
 def delete_image_replication_policy(policy_id):
-    if policy_id is not None and check_replication_policy(policy_id) is True:
+    if policy_id is not None and check_replication_policy(policy_id):
         delete_replication_policy(policy_id)
 
 
-def delete_k8s_application(cluster_id, namespace):
-    if cluster_id is not None and namespace is not None:
-        cluster = model.Cluster.query.filter_by(id=cluster_id).first()
+def delete_k8s_application(app):
+    if app.cluster_id is not None and app.namespace is not None:
+        cluster = model.Cluster.query.filter_by(id=app.cluster_id).first()
         deploy_k8s_client = DeployK8sClient(cluster.name)
-        deploy_k8s_client.delete_namespace(namespace)
+        deploy_object = json.loads(app.k8s_yaml)
+        if deploy_object.get("deployment") is not None:
+            deploy_k8s_client.delete_namespace_deployment(
+                deploy_object.get("deployment").get('deployment_name'),
+                app.namespace)
+
+        if deploy_object.get('ingress') is not None:
+            deploy_k8s_client.delete_namespace_ingress(
+                deploy_object.get("ingress").get('ingress_name'),
+                app.namespace)
+
+        if deploy_object.get('service') is not None:
+            deploy_k8s_client.delete_namespace_service(
+                deploy_object.get("service").get('service_name'),
+                app.namespace)
+
+        if deploy_object.get('registry_secret') is not None:
+            deploy_k8s_client.delete_namespace_secret(
+                deploy_object.get("registry_secret").get(
+                    'registry_secret_name'), app.namespace)
+
+        if deploy_object.get('secret') is not None:
+            deploy_k8s_client.delete_namespace_secret(
+                deploy_object.get("secret").get('secret_name'), app.namespace)
+
+        if deploy_object.get('configmap') is not None:
+            deploy_k8s_client.delete_namespace_configmap(
+                deploy_object.get("configmap").get('configmap_name'),
+                app.namespace)
 
 
 class Applications(Resource):
@@ -1526,7 +1599,8 @@ class Applications(Resource):
                 output = get_applications(args)
             return util.success({"applications": output})
         except NoResultFound:
-            return util.respond(404, error_clusters_not_found,
+            return util.respond(404,
+                                _ERROR_CLUSTERS_NOT_FOUND,
                                 error=apiError.repository_id_not_found)
 
     @jwt_required
@@ -1545,12 +1619,14 @@ class Applications(Resource):
             parser.add_argument('environments', type=dict, action='append')
             parser.add_argument('disabled', type=inputs.boolean)
             args = parser.parse_args()
-            if check_application_exists(args.get('project_id'), args.get('namespace')) is not None:
+            if check_application_exists(args.get('project_id'),
+                                        args.get('namespace')) is not None:
                 return util.respond(404, error_application_exists)
             output = create_application(args)
             return util.success({"applications": {"id": output}})
         except NoResultFound:
-            return util.respond(404, error_clusters_not_found,
+            return util.respond(404,
+                                _ERROR_CLUSTERS_NOT_FOUND,
                                 error=apiError.repository_id_not_found)
 
 
@@ -1558,13 +1634,12 @@ class Application(Resource):
     @jwt_required
     def get(self, application_id):
         try:
-            args = {
-                'application_id': application_id
-            }
+            args = {'application_id': application_id}
             output = get_applications(args)
             return util.success({"application": output})
         except NoResultFound:
-            return util.respond(404, error_clusters_not_found,
+            return util.respond(404,
+                                _ERROR_CLUSTERS_NOT_FOUND,
                                 error=apiError.repository_id_not_found)
 
     @jwt_required
@@ -1576,7 +1651,8 @@ class Application(Resource):
             output = patch_application(application_id, args)
             return util.success({"applications": output})
         except NoResultFound:
-            return util.respond(404, error_clusters_not_found,
+            return util.respond(404,
+                                _ERROR_CLUSTERS_NOT_FOUND,
                                 error=apiError.repository_id_not_found)
 
     @jwt_required
@@ -1585,7 +1661,8 @@ class Application(Resource):
             output = delete_application(application_id, True)
             return util.success(output)
         except NoResultFound:
-            return util.respond(404, error_clusters_not_found,
+            return util.respond(404,
+                                _ERROR_CLUSTERS_NOT_FOUND,
                                 error=apiError.repository_id_not_found)
 
     @jwt_required
@@ -1607,7 +1684,8 @@ class Application(Resource):
             output = update_application(application_id, args)
             return util.success({"applications": {"id": output}})
         except NoResultFound:
-            return util.respond(404, error_clusters_not_found,
+            return util.respond(404,
+                                _ERROR_CLUSTERS_NOT_FOUND,
                                 error=apiError.repository_id_not_found)
 
 
@@ -1618,7 +1696,8 @@ class RedeployApplication(Resource):
             output = redeploy_application(application_id)
             return util.success({"applications": output})
         except NoResultFound:
-            return util.respond(404, error_clusters_not_found,
+            return util.respond(404,
+                                _ERROR_CLUSTERS_NOT_FOUND,
                                 error=apiError.repository_id_not_found)
 
 
@@ -1627,13 +1706,15 @@ class UpdateApplication(Resource):
     def patch(self, application_id):
         try:
             app = model.Application.query.filter_by(id=application_id).first()
-            if app.restart_number > DEFAULT_RESTART_NUMBER:
-                return util.respond(404, error_clusters_not_found,
+            if app.restart_number > _DEFAULT_RESTART_NUMBER:
+                return util.respond(404,
+                                    _ERROR_CLUSTERS_NOT_FOUND,
                                     error=apiError.repository_id_not_found)
             output = check_application_status(app)
             return util.success({"applications": output})
         except NoResultFound:
-            return util.respond(404, error_clusters_not_found,
+            return util.respond(404,
+                                _ERROR_CLUSTERS_NOT_FOUND,
                                 error=apiError.repository_id_not_found)
 
 
@@ -1645,7 +1726,8 @@ class ReleaseApplication(Resource):
             env = release_file.get_release_env_from_file()
             return util.success({"env": env})
         except NoResultFound:
-            return util.respond(404, error_clusters_not_found,
+            return util.respond(404,
+                                _ERROR_CLUSTERS_NOT_FOUND,
                                 error=apiError.repository_id_not_found)
 
 
@@ -1655,16 +1737,18 @@ class Cronjob(Resource):
         try:
             execute_list = []
             check_list = [1, 2, 3, 4, 9]
-            apps = db.session.query(model.Application).filter(model.Application.status_id.in_(check_list)).all()
+            apps = db.session.query(model.Application).filter(
+                model.Application.status_id.in_(check_list)).all()
             for app in apps:
                 if app.restart_number is None:
                     restart_number = 0
                 else:
                     restart_number = app.restart_number
-                if restart_number < DEFAULT_RESTART_NUMBER:
+                if restart_number < _DEFAULT_RESTART_NUMBER:
                     temp = check_application_status(app)
                     execute_list.append(temp['id'])
             return util.success({"applications": execute_list})
         except NoResultFound:
-            return util.respond(404, error_clusters_not_found,
+            return util.respond(404,
+                                _ERROR_CLUSTERS_NOT_FOUND,
                                 error=apiError.repository_id_not_found)
