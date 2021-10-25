@@ -1222,8 +1222,6 @@ def check_application_status(app):
         app.status_id = 4
         app.k8s_yaml = json.dumps(k8s_yaml)
         app = reset_restart_number(app)
-        # app.restart_number = 1
-        # app.restarted_at = str(datetime.utcnow())
         db.session.commit()
     elif app.status_id == 4:
         k8s_yaml = json.loads(app.k8s_yaml)
@@ -1231,8 +1229,6 @@ def check_application_status(app):
         if k8s_yaml['deploy_finish']:
             k8s_yaml['status_id'] = 5
             app.status_id = 5
-            # app.restart_number = 1
-            # app.restarted_at = str(datetime.utcnow())
             app = reset_restart_number(app)
             app.k8s_yaml = json.dumps(k8s_yaml)
             db.session.commit()
