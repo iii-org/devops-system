@@ -121,7 +121,7 @@ class Rancher(object):
         return response.json()
 
     def rc_get_pipeline_executions(self, ci_project_id, ci_pipeline_id, run=None, limit=None,
-                                   page_start=None):
+                                   page_start=None, branch=None):
         path = f'/projects/{ci_project_id}/pipelineexecutions'
         params = {
             'order': 'desc',
@@ -132,8 +132,11 @@ class Rancher(object):
             params['limit'] = limit
         if page_start is not None:
             params['marker'] = f"{ci_pipeline_id}-{page_start}"
-        if run is not None:
+        if branch is not None:
+            params['branch'] = branch
+        elif run is not None:
             params['run'] = run
+
         response = self.__api_get(path, params=params)
         output_array = response.json()
         return output_array
@@ -593,7 +596,7 @@ def remove_extra_executions():
 def turn_tags_off():
     logger.info("Start to turn tags off.")
     data = {"triggerWebhookTag": False}
-    for relation in ProjectPluginRelation.query.all(): 
+    for relation in ProjectPluginRelation.query.all():
         try:
             rancher.rc_update_project_pipline(
                 relation.ci_project_id, relation.ci_pipeline_id, data)

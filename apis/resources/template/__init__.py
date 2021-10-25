@@ -522,11 +522,12 @@ def tm_update_pipline_branches(repository_id, data, default=True, run=False):
                         update_branches(stage, input_soft_enable, input_branch, "enable")
         if run is False or (run is True and br.name != list(data.keys())[0]):
             next_run = pipeline.get_pipeline_next_run(repository_id)
+            print(f"next_run: {next_run}")
         f.content = yaml.dump(pipe_json, sort_keys=False)
         f.save(branch=br.name,
                commit_message='UI 編輯 .rancher-pipeline.yaml 啟用停用分支')
         if run is False or (run is True and br.name != list(data.keys())[0]):
-            pipeline.stop_and_delete_pipeline(repository_id, next_run)
+            pipeline.stop_and_delete_pipeline(repository_id, next_run, branch=br.name)
 
 # It will remove if all project rancher.pipline.yml is in new type.
 

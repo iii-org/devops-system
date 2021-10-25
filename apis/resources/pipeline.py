@@ -124,21 +124,31 @@ def pipeline_exec_action(git_repository_id, args):
     return util.success()
 
 
-def stop_and_delete_pipeline(repository_id, run):
+def stop_and_delete_pipeline(repository_id, run, branch=None):
     relation = nx_get_project_plugin_relation(repo_id=repository_id)
     i = 0
+    get_run_number = 0
     while True:
-        pipeline_outputs = rancher.rc_get_pipeline_executions(
-            relation.ci_project_id,
-            relation.ci_pipeline_id, limit=1)
-        if pipeline_outputs['data'][0]['run'] == run or i > 50:
+        if branch:
+            pipeline_outputs = rancher.rc_get_pipeline_executions(
+                relation.ci_project_id,
+                relation.ci_pipeline_id, limit=1, branch=branch)
+        else:
+            pipeline_outputs = rancher.rc_get_pipeline_executions(
+                relation.ci_project_id,
+                relation.ci_pipeline_id, limit=1)
+        get_run_number = pipeline_outputs['data'][0]['run']
+        get_branch = pipeline_outputs['data'][0]['branch']
+        if get_run_number >= run or i > 50:
             break
         else:
             i += 1
-    rancher.rc_delete_pipeline_executions_run(
-        relation.ci_project_id,
-        relation.ci_pipeline_id,
-        run)
+    if get_run_number >= run:
+        print(f"get_run_number: {get_run_number}, branch: {get_branch}")
+        rancher.rc_delete_pipeline_executions_run(
+            relation.ci_project_id,
+            relation.ci_pipeline_id,
+            get_run_number)
 
 
 def get_pipeline_next_run(repository_id):
