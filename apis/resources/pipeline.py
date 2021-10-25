@@ -138,7 +138,9 @@ def stop_and_delete_pipeline(repository_id, run, branch=None):
             pipeline_outputs = rancher.rc_get_pipeline_executions(
                 relation.ci_project_id,
                 relation.ci_pipeline_id, limit=1)
-        if get_run_number >= run or i > 50:
+        if i > 50:
+            break
+        elif len(pipeline_outputs['data']) > 0:
             get_run_number = pipeline_outputs['data'][0]['run']
             get_branch = pipeline_outputs['data'][0]['branch']
             break
