@@ -501,6 +501,8 @@ def update_branches(stage, pipline_soft, branch, enable_key_name):
 
 
 def tm_update_pipline_branches(repository_id, data, default=True, run=False):
+    if run is None:
+        run = False
     pj = gl.projects.get(repository_id)
     if __check_git_project_is_empty(pj):
         return
@@ -723,7 +725,7 @@ class ProjectPipelineBranches(Resource):
         parser.add_argument('detail', type=dict)
         parser.add_argument('run', type=bool)
         args = parser.parse_args()
-        tm_update_pipline_branches(repository_id, args["detail"], default=False, run=True)
+        tm_update_pipline_branches(repository_id, args["detail"], default=False, run=args["run"])
         return util.success()
 
 
