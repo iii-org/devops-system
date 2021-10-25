@@ -1306,29 +1306,33 @@ def get_deployment_info(cluster_name, k8s_yaml):
 def get_application_information(application, cluster_info=None):
     if application is None:
         return []
+    check_application_status(application)
+    app = model.Application.query.filter_by(
+        id=application.id).first()
     output = row_to_dict(application)
-    output['status'] = _APPLICATION_STATUS.get(application.status_id,
+    output['status'] = _APPLICATION_STATUS.get(app.status_id,
                                                _DEFAULT__APPLICATION_STATUS)
     output.pop('k8s_yaml')
     output.pop('harbor_info')
-    if application.harbor_info is None or application.k8s_yaml is None:
+    if app.harbor_info is None or app.k8s_yaml is None:
         return output
-    harbor_info = json.loads(application.harbor_info)
-    k8s_yaml = json.loads(application.k8s_yaml)
+    harbor_info = json.loads(app.harbor_info)
+    k8s_yaml = json.loads(app.k8s_yaml)
     if cluster_info is None:
-        cluster_info = get_clusters_name(application.cluster_id)
-    elif str(application.cluster_id) not in cluster_info:
-        cluster_info = get_clusters_name(application.cluster_id, cluster_info)
+        cluster_info = get_clusters_name(app.cluster_id)
+    elif str(app.cluster_id) not in cluster_info:
+        cluster_info = get_clusters_name(app.cluster_id, cluster_info)
     deployment_info = None
+    url = None
     if k8s_yaml.get('deploy_finish'):
         deployment_info, url = get_deployment_info(
-            cluster_info[str(application.cluster_id)], k8s_yaml)
+            cluster_info[str(app.cluster_id)], k8s_yaml)
 
     output['deployment'] = deployment_info
     output['public_endpoint'] = url
     output['cluster'] = {}
     output['cluster']['id'] = application.cluster_id
-    output['cluster']['name'] = cluster_info[str(application.cluster_id)]
+    output['cluster']['name'] = cluster_info[str(app.cluster_id)]
     output['registry'] = {}
     output['registry']['id'] = application.cluster_id
     output['image'] = k8s_yaml.get('image')
