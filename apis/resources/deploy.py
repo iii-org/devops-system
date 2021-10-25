@@ -40,6 +40,7 @@ _APPLICATION_STATUS = {
     3001: 'Error, No Image need to be replicated',
     5001: 'Error, K8s Error'
 }
+_NEED_UPDATE_APPPLICATION_STATUS = [1, 2, 3, 4, 9]
 
 
 def is_json(string):
@@ -533,14 +534,12 @@ def create_replication_policy(app):
 def check_execute_replication_policy(policy_id, restart=False):
     executions = get_replication_executions(policy_id)
     output = {}
-    print(restart)
     if not executions or restart:
         image_uri = execute_replication_policy(policy_id)
         executions = get_replication_executions(policy_id)
         output = {
             "image_uri": image_uri,
         }
-        print("OUTPUT")
     execution = executions[0]
     output.update({
         "executions": executions,
@@ -713,7 +712,6 @@ def create_deployment_object(app_name,
         kind="Deployment",
         metadata=k8s_client.V1ObjectMeta(name=deployment_name),
         spec=spec)
-    print(deployment)
     return deployment
 
 
@@ -749,7 +747,6 @@ def create_namespace_object(namespace):
 
 class DeployK8sClient:
     def __init__(self, server_name):
-        print(get_cluster_config_path(server_name))
         self.client = kubernetesClient.ApiK8sClient(
             configuration_file=get_cluster_config_path(server_name))
 
@@ -1011,11 +1008,6 @@ class DeployDeployment:
         return {'deployment_name': self.deployment_name}
 
     def deployment_body(self):
-        print(self.harbor_info.get('image_uri'))
-        print(self.service_info.get('container_port'))
-        print(self.registry_secret_info.get('registry_secret_name'))
-        print(self.k8s_info.get('resources'))
-        print(self.k8s_info.get('image'))
         return create_deployment_object(
             self.name, self.deployment_name, self.harbor_info.get('image_uri'),
             self.service_info.get('container_port'),
@@ -1302,9 +1294,12 @@ def get_deployment_info(cluster_name, k8s_yaml):
 def get_application_information(application, cluster_info=None):
     if application is None:
         return []
-    check_application_status(application)
-    app = model.Application.query.filter_by(
-        id=application.id).first()
+    if application.status_id in _NEED_UPDATE_APPPLICATION_STATUS:
+        check_application_status(application)
+        app = model.Application.query.filter_by(
+            id=application.id).first()
+    else:
+        app = application
     output = row_to_dict(application)
     output['status'] = _APPLICATION_STATUS.get(app.status_id,
                                                _DEFAULT__APPLICATION_STATUS)
@@ -1736,9 +1731,8 @@ class Cronjob(Resource):
     def patch():
         try:
             execute_list = []
-            check_list = [1, 2, 3, 4, 9]
             apps = db.session.query(model.Application).filter(
-                model.Application.status_id.in_(check_list)).all()
+                model.Application.status_id.in_(_NEED_UPDATE_APPPLICATION_STATUS)).all()
             for app in apps:
                 if app.restart_number is None:
                     restart_number = 0
