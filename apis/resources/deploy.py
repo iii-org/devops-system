@@ -1494,7 +1494,7 @@ def patch_application(application_id, args):
 
 def redeploy_application(application_id):
     app = model.Application.query.filter_by(id=application_id).first()
-    app.status_id = 11
+    app.status_id = 1
     app.restart_number = 1
     app.restarted_at = str(datetime.utcnow())
     app.status = _APPLICATION_STATUS.get(1, _DEFAULT__APPLICATION_STATUS)
