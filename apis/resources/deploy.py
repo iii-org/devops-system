@@ -532,14 +532,12 @@ def create_replication_policy(app):
 
 
 def check_execute_replication_policy(policy_id, restart=False):
-    executions = get_replication_executions(policy_id)
     output = {}
-    if not executions or restart:
-        image_uri = execute_replication_policy(policy_id)
-        executions = get_replication_executions(policy_id)
-        output = {
-            "image_uri": image_uri,
-        }
+    image_uri = execute_replication_policy(policy_id)
+    executions = get_replication_executions(policy_id)
+    output = {
+        "image_uri": image_uri,
+    }
     execution = executions[0]
     output.update({
         "executions": executions,
