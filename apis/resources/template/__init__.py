@@ -15,6 +15,7 @@ import resources.role as role
 from resources.gitlab import gitlab as rs_gitlab
 import resources.yaml_OO as pipeline_yaml_OO
 from resources import logger
+from flask import request
 import util
 import yaml
 from flask_jwt_extended import jwt_required
@@ -720,10 +721,9 @@ class SingleTemplate(Resource):
 class ProjectPipelineBranches(Resource):
     @jwt_required
     def get(self, repository_id):
-        parser = reqparse.RequestParser()
-        parser.add_argument('all_data', type=bool)
-        args = parser.parse_args()
-        all_data = args.get("all_data") is not None
+        # Refactot this in V11
+        all_data = request.args.get("all_data")
+        all_data = all_data if all_data is not None else False
 
         return util.success(tm_get_pipeline_branches(repository_id, all_data=all_data))
 
