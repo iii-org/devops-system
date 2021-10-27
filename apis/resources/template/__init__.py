@@ -452,7 +452,8 @@ def tm_get_pipeline_branches(repository_id):
                 "name": yaml_stage["name"],
                 "enable": "branches" in yaml_stage and br.name in yaml_stage["branches"]
             }
-            out[br.name]["testing_tools"].append(soft_key_and_status)
+            if soft_key_and_status not in out[br.name]["testing_tools"]:
+                out[br.name]["testing_tools"].append(soft_key_and_status)
 
     return out
 
@@ -530,8 +531,6 @@ def tm_update_pipline_branches(repository_id, data, default=True, run=False):
         if run is False or (run is True and br.name != branch_name_in_data):
             pipeline.stop_and_delete_pipeline(repository_id, next_run, branch=br.name)
 
-# It will remove if all project rancher.pipline.yml is in new type.
-
 
 def initial_rancher_pipline_info(repository_id):
     pj = gl.projects.get(repository_id)
@@ -553,15 +552,15 @@ def tm_get_pipeline_default_branch(repository_id, is_default_branch=True):
     pipe_dict = initial_info["pipe_dict"]
     stages_info = {"default_branch": default_branch, "stages": []}
 
-    # It will remove if all project rancher.pipline.yml is in new type.
+    # It will be removed if all project rancher.pipline.yml is in new type.
     for stage in pipe_dict["stages"]:
         if stage.get("iiidevops") is None:
             update_pj_rancher_pipline(repository_id)
             break
-
     initial_info = initial_rancher_pipline_info(repository_id)
     if initial_info == {}:
         return initial_info
+
     pipe_dict = initial_info["pipe_dict"]
     for stage in pipe_dict["stages"]:
         tool = None
@@ -727,6 +726,10 @@ class ProjectPipelineBranches(Resource):
         parser.add_argument('detail', type=dict)
         parser.add_argument('run', type=bool)
         args = parser.parse_args()
+
+        # Remove duplicate args
+        for branch, pip_info in args["detail"].items():
+            args["detail"][branch] = [dict(t) for t in {tuple(d.items()) for d in pip_info}]
         tm_update_pipline_branches(repository_id, args["detail"], default=False, run=args["run"])
         return util.success()
 
@@ -741,5 +744,8 @@ class ProjectPipelineDefaultBranch(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('detail', type=dict)
         args = parser.parse_args()
+
+        # Remove duplicate args
+        args["detail"]["stages"] = [dict(t) for t in {tuple(d.items()) for d in args["detail"]["stages"]}]
         tm_update_pipline_branches(repository_id, args["detail"])
         return util.success()
