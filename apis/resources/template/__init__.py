@@ -431,7 +431,7 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id,
         pass
 
 
-def tm_get_pipeline_branches(repository_id):
+def tm_get_pipeline_branches(repository_id, all_data=False):
     out = {}
     pj = gl.projects.get(repository_id)
     stages_info = tm_get_pipeline_default_branch(repository_id, is_default_branch=False)
@@ -452,7 +452,9 @@ def tm_get_pipeline_branches(repository_id):
                 "name": yaml_stage["name"],
                 "enable": "branches" in yaml_stage and br.name in yaml_stage["branches"]
             }
-            if soft_key_and_status not in out[br.name]["testing_tools"]:
+            if all_data:
+                out[br.name]["testing_tools"].append(soft_key_and_status)
+            elif not all_data and soft_key_and_status not in out[br.name]["testing_tools"]:
                 out[br.name]["testing_tools"].append(soft_key_and_status)
 
     return out
@@ -718,7 +720,12 @@ class SingleTemplate(Resource):
 class ProjectPipelineBranches(Resource):
     @jwt_required
     def get(self, repository_id):
-        return util.success(tm_get_pipeline_branches(repository_id))
+        parser = reqparse.RequestParser()
+        parser.add_argument('all_data', type=bool)
+        args = parser.parse_args()
+        all_data = args.get("all_data") is not None
+
+        return util.success(tm_get_pipeline_branches(repository_id, all_data=all_data))
 
     @jwt_required
     def put(self, repository_id):
