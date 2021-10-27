@@ -6,7 +6,7 @@ RUN git rev-parse HEAD > git_commit
 #RUN if [ -z "$LOCAL_BRANCH" ] ; then git remote add origin https://github.com/iii-org/devops-system.git; fi
 #RUN if [ -z "$LOCAL_BRANCH" ] ; then git fetch origin master:master ; fi
 #RUN git describe --tags `git rev-list --tags --max-count=1` > git_tag
-RUN echo "V1.9.2" > git_tag
+RUN echo "V1.10" > git_tag
 RUN git log -1 --date=iso8601 --format="%ad" > git_date
 RUN pip install --no-cache-dir -r requirements.txt 
 #CMD [ "python", "apis/api.py"]
