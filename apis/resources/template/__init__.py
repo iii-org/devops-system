@@ -433,6 +433,7 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id,
 
 def tm_get_pipeline_branches(repository_id, all_data=False):
     out = {}
+    first_time = True
     pj = gl.projects.get(repository_id)
     stages_info = tm_get_pipeline_default_branch(repository_id, is_default_branch=False)
     if stages_info == {}:
@@ -451,11 +452,13 @@ def tm_get_pipeline_branches(repository_id, all_data=False):
                 "key": yaml_stage["key"],
                 "name": yaml_stage["name"],
                 "enable": "branches" in yaml_stage and br.name in yaml_stage["branches"]
-            }
-            if all_data:
+            }       
+            if soft_key_and_status not in out[br.name]["testing_tools"]:
                 out[br.name]["testing_tools"].append(soft_key_and_status)
-            elif not all_data and soft_key_and_status not in out[br.name]["testing_tools"]:
-                out[br.name]["testing_tools"].append(soft_key_and_status)
+            else:
+                if all_data and first_time:
+                    first_time = False
+                    out[br.name]["testing_tools"].append(soft_key_and_status)
 
     return out
 
