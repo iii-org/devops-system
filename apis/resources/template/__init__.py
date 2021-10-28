@@ -433,13 +433,13 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id,
 
 def tm_get_pipeline_branches(repository_id, all_data=False):
     out = {}
-    first_time = True
     pj = gl.projects.get(repository_id)
     stages_info = tm_get_pipeline_default_branch(repository_id, is_default_branch=False)
     if stages_info == {}:
         return out
 
     for br in pj.branches.list(all=True):
+        first_time = True
         for yaml_stage in stages_info["stages"]:
             if br.name not in out:
                 out[br.name] = {
