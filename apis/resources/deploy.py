@@ -36,6 +36,7 @@ _APPLICATION_STATUS = {
     5: 'Finish Kubernetes deployment',
     9: 'Start Kubernetes deletion',
     10: 'Finish Kubernetes deletion',
+    11: 'Initializing',
     32: 'Deploy stopped',
     3001: 'Error, No Image need to be replicated',
     5001: 'Error, K8s Error'
