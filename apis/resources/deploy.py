@@ -550,16 +550,18 @@ def check_execute_replication_policy(policy_id, harbor_info, restart=False):
     output = {
         "image_uri": image_uri,
     }
-    execution = executions[0]
-    output.update({
-        "executions": executions,
-        "execution_id": executions[0]['id'],
-        'status_id': 2
-    })
-    if execution.get('total') == 0 and execution.get('status') == "Succeed":
-        output['status'] = 'Error'
-        output['error'] = 'no resource need to be replicated'
-        output['status_id'] = 3001
+    if executions:
+        execution = executions[0]
+        output.update({
+            "executions": executions,
+            "execution_id": executions[0]['id'],
+            'status_id': 2
+        })
+        if execution.get('total') == 0 and execution.get('status') == "Succeed":
+            output['status'] = 'Error'
+            output['error'] = 'no resource need to be replicated'
+            output['status_id'] = 3001
+
     return output
 
 
@@ -1177,7 +1179,7 @@ def check_application_status(app):
         harbor_info = json.loads(app.harbor_info)
         harbor_info.update(output)
         app.harbor_info = json.dumps(harbor_info)
-        app.status_id = harbor_info.get('status_id')
+        app.status_id = harbor_info.get('status_id', app.status_id)
         app = reset_restart_number(app)
         db.session.commit()
     # Restart Execution Replication
@@ -1185,7 +1187,7 @@ def check_application_status(app):
         harbor_info = json.loads(app.harbor_info)
         output = execute_image_replication(app, True)
         harbor_info.update(output)
-        app.status_id = harbor_info.get('status_id')
+        app.status_id = harbor_info.get('status_id', app.status_id)
         app.harbor_info = json.dumps(harbor_info)
         if harbor_info.get('status_id') == 3:
             app = reset_restart_number(app)
@@ -1415,13 +1417,13 @@ def update_application(application_id, args):
     #  Change Harbor Info
     db_harbor_info = json.loads(app.harbor_info)
     delete_image_replication_policy(db_harbor_info.get('policy_id'))
-    db_harbor_info.update(
-        create_default_harbor_data(db_project, db_release,
-                                   args.get('registry_id'),
-                                   args.get('namespace')))
+
+    db_harbor_info = create_default_harbor_data(db_project, db_release,
+                                                args.get('registry_id'),
+                                                args.get('namespace'))
     #  Change k8s Info
-    db_k8s_yaml = json.loads(app.k8s_yaml)
-    db_k8s_yaml.update(create_default_k8s_data(db_project, db_release, args))
+    # db_k8s_yaml = json.loads(app.k8s_yaml)
+    db_k8s_yaml = create_default_k8s_data(db_project, db_release, args)
     # check namespace
     app.status_id = disable_application(args.get('disabled'), app)
 
