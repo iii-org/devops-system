@@ -1607,9 +1607,6 @@ class Applications(Resource):
             parser.add_argument('environments', type=dict, action='append')
             parser.add_argument('disabled', type=inputs.boolean)
             args = parser.parse_args()
-            if check_application_exists(args.get('project_id'),
-                                        args.get('namespace')) is not None:
-                return util.respond(404, error_application_exists)
             output = create_application(args)
             return util.success({"applications": {"id": output}})
         except NoResultFound:
