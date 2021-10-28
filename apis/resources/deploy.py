@@ -1306,7 +1306,7 @@ def get_application_information(application, cluster_info=None):
         'total_pod_number': 0
     }
     url = None
-    if k8s_yaml.get('deploy_finish'):
+    if k8s_yaml.get('deploy_finish') and app.status_id == 5:
         deployment_info, url = get_deployment_info(
             cluster_info[str(app.cluster_id)], k8s_yaml)
 
