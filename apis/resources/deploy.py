@@ -1309,7 +1309,6 @@ def get_application_information(application, cluster_info=None):
     if k8s_yaml.get('deploy_finish') and app.status_id == 5:
         deployment_info, url = get_deployment_info(
             cluster_info[str(app.cluster_id)], k8s_yaml)
-
     output['deployment'] = deployment_info
     output['public_endpoint'] = url
     output['cluster'] = {}
@@ -1450,6 +1449,8 @@ def patch_application(application_id, args):
     #  Delete Application
     if 'disabled' in args:
         app.status_id = disable_application(args.get('disabled'), app)
+    else:
+        app.status_id = 11
 
     #  Change K8s Deploy
     if 'namespace' in args or \
@@ -1478,6 +1479,7 @@ def patch_application(application_id, args):
                                        args.get('namespace')))
     app.status = _APPLICATION_STATUS.get(app.status_id,
                                          _DEFAULT__APPLICATION_STATUS)
+    app.restart_number = 1
     app.updated_at = (datetime.utcnow())
     db.session.commit()
     return application_id
