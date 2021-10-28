@@ -433,6 +433,8 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id,
 
 def tm_get_pipeline_branches(repository_id, all_data=False):
     out = {}
+    duplicate_tools = {}
+    all_branch = []
     pj = gl.projects.get(repository_id)
     stages_info = tm_get_pipeline_default_branch(repository_id, is_default_branch=False)
     if stages_info == {}:
@@ -440,6 +442,7 @@ def tm_get_pipeline_branches(repository_id, all_data=False):
 
     for br in pj.branches.list(all=True):
         first_time = True
+        all_branch.append(br.name)
         for yaml_stage in stages_info["stages"]:
             if br.name not in out:
                 out[br.name] = {
@@ -452,14 +455,44 @@ def tm_get_pipeline_branches(repository_id, all_data=False):
                 "key": yaml_stage["key"],
                 "name": yaml_stage["name"],
                 "enable": "branches" in yaml_stage and br.name in yaml_stage["branches"]
-            }       
+            }
             if soft_key_and_status not in out[br.name]["testing_tools"]:
+                if all_data:
+                    tem_soft_key_and_status = soft_key_and_status.copy()
+                    tem_soft_key_and_status["enable"] = not tem_soft_key_and_status["enable"]
+                    if tem_soft_key_and_status in out[br.name]["testing_tools"]:
+                        duplicate_tools.setdefault(f'{yaml_stage["key"]},{yaml_stage["name"]}', []).append(br.name)
                 out[br.name]["testing_tools"].append(soft_key_and_status)
-            else:
-                if all_data and first_time:
-                    first_time = False
-                    out[br.name]["testing_tools"].append(soft_key_and_status)
 
+    # It will be optimized in V11
+    for key, branch_list in duplicate_tools.items():
+        if sorted(all_branch) == sorted(branch_list):
+            continue
+        positive_temp_tool = {
+            "key": key.split(",")[0],
+            "name": key.split(",")[1],
+            "enable": True
+        }
+        negative_temp_tool = {
+            "key": key.split(",")[0],
+            "name": key.split(",")[1],
+            "enable": False
+        }
+        for branch in all_branch:
+            if branch in branch_list:
+                out[branch]["testing_tools"].remove(positive_temp_tool) 
+                out[branch]["testing_tools"].remove(negative_temp_tool) 
+                out[branch]["testing_tools"].append(positive_temp_tool)
+                out[branch]["testing_tools"].append(negative_temp_tool)
+            else:
+                if positive_temp_tool in out[branch]["testing_tools"]:
+                    out[branch]["testing_tools"].remove(positive_temp_tool) 
+                    out[branch]["testing_tools"].append(positive_temp_tool)
+                    out[branch]["testing_tools"].append(positive_temp_tool)
+                elif negative_temp_tool in out[branch]["testing_tools"]:
+                    out[branch]["testing_tools"].remove(negative_temp_tool) 
+                    out[branch]["testing_tools"].append(negative_temp_tool)
+                    out[branch]["testing_tools"].append(negative_temp_tool)
     return out
 
 
