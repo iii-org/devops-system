@@ -41,7 +41,7 @@ _APPLICATION_STATUS = {
     3001: 'Error, No Image need to be replicated',
     5001: 'Error, K8s Error'
 }
-_NEED_UPDATE_APPPLICATION_STATUS = [1, 2, 3, 4, 9]
+_NEED_UPDATE_APPPLICATION_STATUS = [1, 2, 3, 4, 9, 11]
 
 
 def is_json(string):
