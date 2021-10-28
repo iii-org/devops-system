@@ -513,9 +513,14 @@ def check_image_replication_status(task):
 
 def execute_image_replication(app, restart=False):
     task_info = None
-    output = create_replication_policy(app)
-    execution_info = check_execute_replication_policy(output.get('policy_id'),
-                                                      restart)
+    harbor_info = json.loads(app.harbor_info)
+    if not restart or harbor_info.get('policy') is None or harbor_info.get('image_uri'):
+        output = create_replication_policy(app)
+        policy_id = output.get('policy_id')
+    else:
+        policy_id = harbor_info.get('policy').get('id')
+
+    execution_info = check_execute_replication_policy(policy_id, harbor_info, restart)
     output.update(execution_info)
     if execution_info.get('status_id') == 2:
         task_info = check_replication_execution_task(
@@ -531,10 +536,13 @@ def create_replication_policy(app):
     return {'policy': policy, 'policy_id': policy_id}
 
 
-def check_execute_replication_policy(policy_id, restart=False):
+def check_execute_replication_policy(policy_id, harbor_info, restart=False):
     output = {}
-    image_uri = execute_replication_policy(policy_id)
     executions = get_replication_executions(policy_id)
+    if not executions or restart:
+        image_uri = execute_replication_policy(policy_id)
+    else:
+        image_uri = harbor_info.get('image_uri')
     output = {
         "image_uri": image_uri,
     }
@@ -564,33 +572,6 @@ def check_replication_execution_task(execution_id):
         if tasks[0]['status'] == "Succeed":
             output['status_id'] = 3
     return output
-
-
-def check_image_replication(app):
-    output = False
-    harbor_info = json.loads(app.harbor_info)
-    tasks = []
-    if harbor_info.get('execution', None) is None:
-        execute_replication_policy(harbor_info.get('policy_id'))
-    # Restart Image Replication task
-    if len(harbor_info.get('task', [])) == 0:
-        execute_replication_policy(harbor_info.get('policy_id'))
-        return tasks, output
-    else:
-        tasks = get_replication_execution_task(harbor_info.get('execution_id'))
-
-    if len(tasks) == 0:
-        return tasks, False
-    harbor_info['task'] = tasks
-    task_id = harbor_info.get('task_id', None)
-    if task_id is None and len(tasks) != 0:
-        output = check_image_replication_status(tasks[-1])
-    else:
-        for task in tasks:
-            if task.get('id') == harbor_info.get('task_id'):
-                output = check_image_replication_status(task)
-                break
-    return tasks, output
 
 
 def create_registry_data(server_name, user_name, password):
@@ -1187,7 +1168,7 @@ def check_application_status(app):
     check_application_restart(app)
     app = model.Application.query.filter_by(id=application_id).first()
     # Check Harbor Replication execution
-    if app.status_id == 1 or app.status_id == 2:
+    if app.status_id == 1:
         output = execute_image_replication(app)
         harbor_info = json.loads(app.harbor_info)
         harbor_info.update(output)
@@ -1196,7 +1177,7 @@ def check_application_status(app):
         app = reset_restart_number(app)
         db.session.commit()
     # Restart Execution Replication
-    elif app.status_id == 11:
+    elif app.status_id == 11 or app.status_id == 2:
         harbor_info = json.loads(app.harbor_info)
         output = execute_image_replication(app, True)
         harbor_info.update(output)
@@ -1498,7 +1479,7 @@ def patch_application(application_id, args):
 
 def redeploy_application(application_id):
     app = model.Application.query.filter_by(id=application_id).first()
-    app.status_id = 1
+    app.status_id = 11
     app.restart_number = 1
     app.restarted_at = str(datetime.utcnow())
     app.status = _APPLICATION_STATUS.get(1, _DEFAULT__APPLICATION_STATUS)
