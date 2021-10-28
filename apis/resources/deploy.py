@@ -519,6 +519,10 @@ def execute_image_replication(app, restart=False):
         policy_id = output.get('policy_id')
     else:
         policy_id = harbor_info.get('policy').get('id')
+        output = {
+            'policy': harbor_info.get('policy'),
+            'policy_id': harbor_info.get('policy_id')
+        }
 
     execution_info = check_execute_replication_policy(policy_id, harbor_info, restart)
     output.update(execution_info)
