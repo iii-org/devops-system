@@ -1311,7 +1311,13 @@ def get_application_information(application, cluster_info=None):
         cluster_info = get_clusters_name(app.cluster_id)
     elif str(app.cluster_id) not in cluster_info:
         cluster_info = get_clusters_name(app.cluster_id, cluster_info)
-    deployment_info = None
+    deployment_info = {
+        'available_pod_number': 0,
+        'containers': [],
+        'create_time': None,
+        'name': None,
+        'total_pod_number': 0
+    }
     url = None
     if k8s_yaml.get('deploy_finish'):
         deployment_info, url = get_deployment_info(
