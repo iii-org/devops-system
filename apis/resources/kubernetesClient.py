@@ -1692,6 +1692,8 @@ class KubernetesPodExec(Namespace):
 
     def on_pod_exec_cmd(self, data):
         print('exec_namespace_pod_log')
-        if self.k8s_pod_exec is None:
+        if self.k8s_pod_exec is None or (self.k8s_pod_exec.namespace_name != data['project_name']
+                                         or self.k8s_pod_exec.pod_name != data['pod_name']
+                                         or self.k8s_pod_exec.container_name != data.get("container_name")):
             self.k8s_pod_exec = K8sPodExec(data)
         self.k8s_pod_exec.exec_namespace_pod(data)
