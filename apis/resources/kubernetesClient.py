@@ -1631,16 +1631,16 @@ def get_iii_template_info(metadata):
 
 class K8sPodExec(object):
     def __init__(self, data):
-        namespace_name = data['project_name']
-        pod_name = data['pod_name']
-        container_name = data.get("container_name")
-        exec_command = ['/bin/bash']
-        if container_name is None:
+        self.namespace_name = data['project_name']
+        self.pod_name = data['pod_name']
+        self.container_name = data.get("container_name")
+        self.exec_command = ['/bin/bash']
+        if self.container_name is None:
             self.resp = k8s_stream(
                 ApiK8sClient().core_v1.connect_get_namespaced_pod_exec,
-                pod_name,
-                namespace_name,
-                command=exec_command,
+                self.pod_name,
+                self.namespace_name,
+                command=self.exec_command,
                 stderr=True,
                 stdin=True,
                 stdout=True,
@@ -1649,10 +1649,10 @@ class K8sPodExec(object):
         else:
             self.resp = k8s_stream(
                 ApiK8sClient().core_v1.connect_get_namespaced_pod_exec,
-                pod_name,
-                namespace_name,
-                command=exec_command,
-                container=container_name,
+                self.pod_name,
+                self.namespace_name,
+                command=self.exec_command,
+                container=self.container_name,
                 stderr=True,
                 stdin=True,
                 stdout=True,
