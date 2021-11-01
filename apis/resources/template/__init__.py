@@ -441,7 +441,6 @@ def tm_get_pipeline_branches(repository_id, all_data=False):
         return out
 
     for br in pj.branches.list(all=True):
-        first_time = True
         all_branch.append(br.name)
         for yaml_stage in stages_info["stages"]:
             if br.name not in out:
@@ -464,36 +463,32 @@ def tm_get_pipeline_branches(repository_id, all_data=False):
                         duplicate_tools.setdefault(f'{yaml_stage["key"]},{yaml_stage["name"]}', []).append(br.name)
                 out[br.name]["testing_tools"].append(soft_key_and_status)
 
-    # It will be optimized in V11
+    # Put duplicate tools to the end of the list(FrontEnd needs right order and same length)
     for key, branch_list in duplicate_tools.items():
         if sorted(all_branch) == sorted(branch_list):
             continue
-        positive_temp_tool = {
-            "key": key.split(",")[0],
-            "name": key.split(",")[1],
-            "enable": True
-        }
-        negative_temp_tool = {
-            "key": key.split(",")[0],
-            "name": key.split(",")[1],
-            "enable": False
-        }
+
+        positive_temp_tool = generate_temp_pipline_tool(key, True)
+        negative_temp_tool = generate_temp_pipline_tool(key, False)
+
         for branch in all_branch:
-            if branch in branch_list:
-                out[branch]["testing_tools"].remove(positive_temp_tool) 
-                out[branch]["testing_tools"].remove(negative_temp_tool) 
-                out[branch]["testing_tools"].append(positive_temp_tool)
-                out[branch]["testing_tools"].append(negative_temp_tool)
-            else:
-                if positive_temp_tool in out[branch]["testing_tools"]:
-                    out[branch]["testing_tools"].remove(positive_temp_tool) 
-                    out[branch]["testing_tools"].append(positive_temp_tool)
-                    out[branch]["testing_tools"].append(positive_temp_tool)
-                elif negative_temp_tool in out[branch]["testing_tools"]:
-                    out[branch]["testing_tools"].remove(negative_temp_tool) 
-                    out[branch]["testing_tools"].append(negative_temp_tool)
-                    out[branch]["testing_tools"].append(negative_temp_tool)
+            for temp_tool in [positive_temp_tool, negative_temp_tool]:
+                if branch in branch_list:
+                    out[branch]["testing_tools"].remove(temp_tool) 
+                    out[branch]["testing_tools"].append(temp_tool)
+                elif temp_tool in out[branch]["testing_tools"]:
+                    out[branch]["testing_tools"].remove(temp_tool) 
+                    out[branch]["testing_tools"].append(temp_tool)
+                    out[branch]["testing_tools"].append(temp_tool)
     return out
+
+
+def generate_temp_pipline_tool(tool_name, enable):
+    return {
+        "key": tool_name.split(",")[0],
+        "name": tool_name.split(",")[1],
+        "enable": enable
+    }
 
 
 def get_tool_name(stage):
