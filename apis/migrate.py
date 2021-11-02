@@ -154,6 +154,7 @@ def upgrade(version):
 def remove_duplicate_data_from_upgarde():
     ServerType.query.filter(ServerType.type == "pod_restart_times", ServerType.id != 1).delete()
     Lock.query.filter(Lock.name == "sync_redmine", Lock.id != 1).delete()
+    db.session.commit()
 
 
 def insert_git_commit_history_in_system_parameter():
