@@ -32,7 +32,7 @@ VERSIONS = ['0.9.2', '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.4', '0.9.2.5',
             '1.9.0.1', '1.9.0.2', '1.9.0.3', '1.9.0.4', '1.9.0.5', '1.9.0.6', '1.9.0.7', '1.9.0.8', '1.9.0.9', '1.9.1.0',
             '1.9.1.1', '1.9.1.2', '1.9.1.3', '1.9.1.4', '1.9.1.5', '1.9.1.6', '1.9.1.7', '1.9.1.8', '1.9.1.9', '1.10.0.1',
             '1.10.0.2', '1.10.0.3', '1.10.0.4', '1.10.0.5', '1.10.0.6', '1.10.0.7', '1.10.0.8', '1.10.0.9', '1.10.0.10',
-            '1.10.0.11', '1.10.0.12', '1.11.0.1']
+            '1.10.0.11', '1.10.0.12', '1.11.0.1', '1.11.0.2']
 ONLY_UPDATE_DB_MODELS = [
     '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.5', '0.9.2.6', '0.9.2.a8',
     '1.0.0.2', '1.3.0.1', '1.3.0.2', '1.3.0.3', '1.3.0.4', '1.3.1', '1.3.1.1', '1.3.1.2',
@@ -47,6 +47,11 @@ ONLY_UPDATE_DB_MODELS = [
 
 
 def upgrade(version):
+    '''
+    Upgraded function need to check it can handle multi calls situation, 
+    just in case multi pods will call it several times.
+    ex. Insert data need to check data has already existed or not.
+    '''
     if version in ONLY_UPDATE_DB_MODELS:
         alembic_upgrade()
     elif version == '0.9.2':
@@ -142,16 +147,24 @@ def upgrade(version):
         change_default_value_to_empty_string_in_system_parameter()
     elif version == '1.10.0.12':
         insert_git_commit_history_in_system_parameter()
+    elif version == '1.11.0.2':
+        remove_duplicate_data_from_upgarde()
+
+
+def remove_duplicate_data_from_upgarde():
+    ServerType.query.filter(ServerType.type == "pod_restart_times", ServerType.id != 1).delete()
+    Lock.query.filter(Lock.name == "sync_redmine", Lock.id != 1).delete()
 
 
 def insert_git_commit_history_in_system_parameter():
-    row = SystemParameter(
-        name="git_commit_history",
-        value={"keep_days": 30},
-        active=False
-    )
-    db.session.add(row)
-    db.session.commit()
+    if SystemParameter.query.filter_by(name="git_commit_history").first() is None:
+        row = SystemParameter(
+            name="git_commit_history",
+            value={"keep_days": 30},
+            active=False
+        )
+        db.session.add(row)
+        db.session.commit()
 
 
 def change_default_value_to_empty_string_in_system_parameter():
@@ -176,13 +189,14 @@ def fix_uninsert_data_in_system_parameter():
 
 
 def insert_pipline_remain_limit_in_system_parameter():
-    row = SystemParameter(
-        name="k8s_pipline_executions_remain_limit",
-        value={"limit_pods": 5},
-        active=True
-    )
-    db.session.add(row)
-    db.session.commit()
+    if SystemParameter.query.filter_by(name="k8s_pipline_executions_remain_limit").first() is None:
+        row = SystemParameter(
+            name="k8s_pipline_executions_remain_limit",
+            value={"limit_pods": 5},
+            active=True
+        )
+        db.session.add(row)
+        db.session.commit()
 
 
 def insert_default_value_in_module():
@@ -194,30 +208,33 @@ def insert_default_value_in_module():
 
 
 def insert_github_verify_info_in_system_parameter():
-    row = SystemParameter(
-        name="github_verify_info",
-        value={"token": None, "account": None},
-    )
-    db.session.add(row)
-    db.session.commit()
+    if SystemParameter.query.filter_by(name="github_verify_info").first() is None:
+        row = SystemParameter(
+            name="github_verify_info",
+            value={"token": None, "account": None},
+        )
+        db.session.add(row)
+        db.session.commit()
 
 
 def insert_pod_restart_limit_in_system_parameter():
-    row = SystemParameter(
-        name="k8s_pod_restart_times_limit",
-        value={"limit_times": 20},
-    )
-    db.session.add(row)
-    db.session.commit()
+    if SystemParameter.query.filter_by(name="k8s_pod_restart_times_limit").first() is None:
+        row = SystemParameter(
+            name="k8s_pod_restart_times_limit",
+            value={"limit_times": 20},
+        )
+        db.session.add(row)
+        db.session.commit()
 
 
 def insert_pod_restart_times_in_system_type():
-    row = ServerType(
-        server="k8s",
-        type="pod_restart_times",
-    )
-    db.session.add(row)
-    db.session.commit()
+    if ServerType.query.filter_by(type="pod_restart_times").first() is None:
+        row = ServerType(
+            server="k8s",
+            type="pod_restart_times",
+        )
+        db.session.add(row)
+        db.session.commit()
 
 
 def delete_table_redmine_project():
@@ -235,9 +252,10 @@ def modify_sync_redmine_info():
 
 
 def insert_sync_redmine_info_in_table_lock():
-    redmine_info = Lock(name="sync_redmine", is_lock=False)
-    db.session.add(redmine_info)
-    db.session.commit()
+    if Lock.query.filter_by(name="sync_redmine").first() is None:
+        redmine_info = Lock(name="sync_redmine", is_lock=False)
+        db.session.add(redmine_info)
+        db.session.commit()
 
 
 def create_issue_extension():
