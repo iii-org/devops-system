@@ -716,3 +716,20 @@ class IssueTagHistory(db.Model):
     '''
     historys = Column(ARRAY(JSONB))
     create_at = Column(DateTime)
+
+
+class CustomIssueFilter(db.Model):
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'), nullable=False)
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
+    name = Column(String)
+    type = Column(String)
+    custom_filter = Column(JSON)
+
+    @validates("custom_filter")
+    def validate_custom_filter(self, key, custom_filter):
+        custom_filter_keys = sorted(list(custom_filter.keys()))
+        expected_keys = ['assigned_to_id', 'fixed_version_id', 'priority_id', 'status_id', 'tags', 'tracker_id']
+        if custom_filter_keys != expected_keys:
+            raise AssertionError(f"Custom filter keys must be the same as {expected_keys}.")
+        return custom_filter
