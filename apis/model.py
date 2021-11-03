@@ -733,3 +733,11 @@ class CustomIssueFilter(db.Model):
         if custom_filter_keys != expected_keys:
             raise AssertionError(f"Custom filter keys must be the same as {expected_keys}.")
         return custom_filter
+
+    @validates("type")
+    def validate_type(self, key, type):
+        if type is not None:
+            if type not in ["issue_list"]:
+                raise AssertionError(
+                    "Type must in issue_list / .")
+        return type

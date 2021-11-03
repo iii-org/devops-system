@@ -23,7 +23,7 @@ from resources.tag import get_tag
 from accessories import redmine_lib
 from data.nexus_project import NexusProject
 from enums.action_type import ActionType
-from model import db, IssueExtensions
+from model import db, IssueExtensions, CustomIssueFilter
 from resources.apiError import DevOpsError
 from resources.redmine import redmine
 from . import project as project_module, project, role
@@ -1877,6 +1877,33 @@ def execute_issue_alert(alert_mapping):
                             {"notes": f'本議題 #{issue_id} {issue["subject"]} {note} ，請確認該議題是否繼續執行？或更新狀態？'},
                         )
 
+def get_custom_issue_filter(user_id, project_id):
+    custom_issue_filters = CustomIssueFilter.query.filter_by(user_id=user_id, project_id=project_id).all()
+    return [row_to_dict(custom_issue_filter) for custom_issue_filter in custom_issue_filters]
+
+
+def create_custom_issue_filter(user_id, project_id, args):
+    row = CustomIssueFilter(
+        user_id=user_id, project_id=project_id, name=args.pop("name"), type=args.pop("type"), custom_filter=args
+    )
+    db.session.add(row)
+    db.session.commit()
+
+    return {"custom_filter_id": row.id}
+
+
+def put_custom_issue_filter(custom_filter_id, project_id, args):
+    result = {
+        "id": custom_filter_id, "name": args.pop("name"), "type": args.pop("type"), "project_id": project_id, "custom_filter": args}
+
+    custom_issue_filter = CustomIssueFilter.query.get(custom_filter_id)
+    custom_issue_filter.name = result["name"]
+    custom_issue_filter.type = result["type"]
+    custom_issue_filter.project_id = project_id
+    custom_issue_filter.custom_filter = args
+    db.session.commit()
+
+    return result
 
 # --------------------- Resources ---------------------
 class SingleIssue(Resource):
@@ -2459,3 +2486,45 @@ class ExecutIssueAlert(Resource):
 class GetIssueTagHistory(Resource):
     def get(self, issue_id):
         return util.success(get_issue_tags_history(issue_id))
+
+
+class IssueFilterByProject(Resource):
+    @jwt_required
+    def get(self, project_id):
+        return util.success(get_custom_issue_filter(get_jwt_identity()['user_id'], project_id))
+
+    @jwt_required
+    def post(self, project_id):
+        user_id = get_jwt_identity()['user_id']
+        parser = reqparse.RequestParser()
+        parser.add_argument('name', type=str, required=True)
+        parser.add_argument('type', type=str, required=True)
+        parser.add_argument('assigned_to_id', type=str)
+        parser.add_argument('fixed_version_id', type=str)
+        parser.add_argument('priority_id', type=str)
+        parser.add_argument('status_id', type=str)
+        parser.add_argument('tags', type=str)
+        parser.add_argument('tracker_id', type=str)
+        args = parser.parse_args()
+
+        return util.success(create_custom_issue_filter(user_id, project_id, args))
+
+    @jwt_required
+    def put(self, project_id, custom_filter_id):
+        parser = reqparse.RequestParser()
+        parser.add_argument('name', type=str, required=True)
+        parser.add_argument('type', type=str, required=True)
+        parser.add_argument('assigned_to_id', type=str)
+        parser.add_argument('fixed_version_id', type=str)
+        parser.add_argument('priority_id', type=str)
+        parser.add_argument('status_id', type=str)
+        parser.add_argument('tags', type=str)
+        parser.add_argument('tracker_id', type=str)
+        args = parser.parse_args()
+
+        return util.success(put_custom_issue_filter(custom_filter_id, project_id, args))
+
+    @jwt_required
+    def delete(self, project_id, custom_filter_id):
+        CustomIssueFilter.query.filter_by(id=custom_filter_id).delete()
+        db.session.commit()

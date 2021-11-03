@@ -325,6 +325,9 @@ api.add_resource(issue.IssuesProgressByProject,
                  '/project/<sint:project_id>/issues_progress')
 api.add_resource(issue.IssuesStatisticsByProject,
                  '/project/<sint:project_id>/issues_statistics')
+api.add_resource(issue.IssueFilterByProject, '/project/<sint:project_id>/issue_filter',
+                 '/project/<sint:project_id>/issue_filter/<custom_filter_id>')
+
 
 api.add_resource(issue.IssueByVersion, '/issues_by_versions')
 api.add_resource(issue.SingleIssue, '/issues', '/issues/<issue_id>')
