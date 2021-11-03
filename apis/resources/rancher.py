@@ -504,21 +504,21 @@ class Rancher(object):
             if project_name == app["targetNamespace"]:
                 self.rc_del_app(app["name"])
 
-    def rc_count_each_pj_piplines_by_days(self, days=1):
+    def rc_count_each_pj_piplines_by_days(self):
         day_start = datetime.combine((datetime.now() - timedelta(days=1)), d_time(00, 00))
         project_plugin_relations = ProjectPluginRelation.query.with_entities(
             ProjectPluginRelation.project_id, ProjectPluginRelation.ci_project_id,
             ProjectPluginRelation.ci_pipeline_id
         )
         for project_plugin_relation in project_plugin_relations:
+            if project_plugin_relation.project_id is None:
+                continue
             pipline_executions = self.rc_get_pipeline_executions(
                 project_plugin_relation.ci_project_id, project_plugin_relation.ci_pipeline_id
             )
             pipline_number = 0
             if pipline_executions["data"] != []:
-                for pipline_execution in pipline_executions["data"]:
-                    if pipline_execution["createdTS"] >= day_start.timestamp():
-                        pipline_number += 1
+                pipline_number = pipline_executions["data"][0]["run"]
 
             one_raw_data = RancherPiplineNumberEachDays(
                 project_id=project_plugin_relation.project_id,
