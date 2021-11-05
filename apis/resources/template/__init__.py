@@ -631,7 +631,7 @@ def update_pj_rancher_pipline(repository_id):
                 logger.logger.info(f'name : {info_name}')
                 if info.get("iiidevops") is None:
                     temp_dict = {"name": info.pop("name")}
-                    if info_name.startswith("Test--SonarQube for Java"):
+                    if info_name.startswith("Test--SonarQube"):
                         temp_dict["iiidevops"] = "sonarqube"
                         temp_dict.update(info)
                         info = temp_dict
