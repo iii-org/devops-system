@@ -54,21 +54,24 @@ def record_activity(action_type):
     return decorator
 
 
-def get_activities(query):
-    ret = []
-    rows = query.all()
-    for row in rows:
-        ret.append({
-            'id': row.id,
-            'action_type': row.action_type.name,
-            'action_parts': row.action_parts,
-            'operator_id': row.operator_id,
-            'operator_name': row.operator_name,
-            'object_id': row.object_id,
-            'act_at': str(row.act_at)
-        })
-    print(ret)
-    return ret
+def get_activities(args, query):
+    offset = args.get("offset")
+    limit = args.get("limit")
+    total = query.count()
+    pagination_dict = util.get_pagination(total, limit, offset)
+
+    rows = query.offset(offset).limit(limit).all()
+    result = [{
+        'id': row.id,
+        'action_type': row.action_type.name,
+        'action_parts': row.action_parts,
+        'operator_id': row.operator_id,
+        'operator_name': row.operator_name,
+        'object_id': row.object_id,
+        'act_at': str(row.act_at)
+    } for row in rows]
+
+    return {"activities_list": result, "page": pagination_dict}
 
 
 def build_query(args, base_query=None):
@@ -114,9 +117,6 @@ def build_query(args, base_query=None):
         to_date += timedelta(days=1)
         query = query.filter(model.Activity.act_at < to_date)
 
-    limit = args['limit']
-    page = args['page']
-    query = query.offset(limit * page).limit(limit)
 
     return query
 
@@ -183,8 +183,8 @@ class AllActivities(Resource):
     def get(self):
         role.require_admin()
         parser = reqparse.RequestParser()
-        parser.add_argument('limit', type=int, default=100)
-        parser.add_argument('page', type=int, default=0)
+        parser.add_argument('limit', type=int, default=10)
+        parser.add_argument('offset', type=int, default=0)
         parser.add_argument('from_date', type=str)
         parser.add_argument('to_date', type=str)
         parser.add_argument('actions', type=str)
@@ -192,7 +192,7 @@ class AllActivities(Resource):
         parser.add_argument('parts_search', type=str)
         args = parser.parse_args()
         query = build_query(args)
-        return util.success(get_activities(query))
+        return util.success(get_activities(args, query))
 
 
 class ProjectActivities(Resource):
@@ -201,8 +201,8 @@ class ProjectActivities(Resource):
         role.require_pm()
         role.require_in_project(project_id)
         parser = reqparse.RequestParser()
-        parser.add_argument('limit', type=int, default=100)
-        parser.add_argument('page', type=int, default=0)
+        parser.add_argument('limit', type=int, default=10)
+        parser.add_argument('offset', type=int, default=0)
         parser.add_argument('from_date', type=str)
         parser.add_argument('to_date', type=str)
         parser.add_argument('actions', type=str)
@@ -210,4 +210,4 @@ class ProjectActivities(Resource):
         parser.add_argument('parts_search', type=str)
         args = parser.parse_args()
         query = build_query(args, base_query=limit_to_project(project_id))
-        return util.success(get_activities(query))
+        return util.success(get_activities(args, query))
