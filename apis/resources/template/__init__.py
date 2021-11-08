@@ -210,6 +210,8 @@ def __force_update_template_cache_table():
         if group.name in template_group_dict:
             for group_project in group.projects.list(all=True):
                 pj = gl.projects.get(group_project.id)
+                if pj.empty_repo:
+                    continue
                 # get all tags
                 tag_list = []
                 for tag in pj.tags.list(all=True):
@@ -439,7 +441,6 @@ def tm_get_pipeline_branches(repository_id, all_data=False):
     stages_info = tm_get_pipeline_default_branch(repository_id, is_default_branch=False)
     if stages_info == {}:
         return out
-
     for br in pj.branches.list(all=True):
         all_branch.append(br.name)
         for yaml_stage in stages_info["stages"]:
@@ -474,10 +475,10 @@ def tm_get_pipeline_branches(repository_id, all_data=False):
         for branch in all_branch:
             for temp_tool in [positive_temp_tool, negative_temp_tool]:
                 if branch in branch_list:
-                    out[branch]["testing_tools"].remove(temp_tool) 
+                    out[branch]["testing_tools"].remove(temp_tool)
                     out[branch]["testing_tools"].append(temp_tool)
                 elif temp_tool in out[branch]["testing_tools"]:
-                    out[branch]["testing_tools"].remove(temp_tool) 
+                    out[branch]["testing_tools"].remove(temp_tool)
                     out[branch]["testing_tools"].append(temp_tool)
                     out[branch]["testing_tools"].append(temp_tool)
     return out
