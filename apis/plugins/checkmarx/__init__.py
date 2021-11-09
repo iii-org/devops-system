@@ -117,7 +117,7 @@ class CheckMarx(object):
         status_name = status.get('name')
         if status_id in {3, 7, 8, 9}:
             scan = Model.query.filter_by(scan_id=scan_id).one()
-            if status_id != 9 and status_id != 3:
+            if status_id == 7:
                 scan.stats = json.dumps(self.get_scan_statistics(scan_id))
             scan.scan_final_status = status_name
             db.session.commit()
@@ -361,4 +361,6 @@ class GetCheckmarxScanStatistics(Resource):
 class CancelCheckmarxScan(Resource):
     @jwt_required
     def post(self, scan_id):
-        return {"status": checkmarx.cancel_scan(scan_id) == 200, "status_code": checkmarx.cancel_scan(scan_id)}
+        status_code = checkmarx.cancel_scan(scan_id)
+        status = "success" if status_code == 200 else "failure"
+        return {"status": status, "status_code": status_code}
