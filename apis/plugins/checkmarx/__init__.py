@@ -86,6 +86,16 @@ class CheckMarx(object):
         res = requests.post(url, headers=headers, data=data, allow_redirects=True)
         return res
 
+    def __api_patch(self, path, data=None, headers=None):
+        if data is None:
+            data = {}
+        if headers is None:
+            headers = {}
+        url = build_url(path)
+        headers['Authorization'] = 'Bearer ' + self.token()
+        res = requests.patch(url, headers=headers, data=data, allow_redirects=True)
+        return res
+
     @staticmethod
     def create_scan(args):
         new = Model(
@@ -105,9 +115,9 @@ class CheckMarx(object):
         status = self.__api_get('/sast/scans/{0}'.format(scan_id)).json().get('status')
         status_id = status.get('id')
         status_name = status.get('name')
-        if status_id in {7, 8, 9}:
+        if status_id in {3, 7, 8, 9}:
             scan = Model.query.filter_by(scan_id=scan_id).one()
-            if status_id != 9:
+            if status_id != 9 and status_id != 3:
                 scan.stats = json.dumps(self.get_scan_statistics(scan_id))
             scan.scan_final_status = status_name
             db.session.commit()
@@ -158,6 +168,15 @@ class CheckMarx(object):
         r = self.__api_get('/reports/sastScan/{0}'.format(report_id))
         return r.content
 
+    def get_queue_scan_position(self, scan_id):
+        res = self.__api_get(f'/sast/scansQueue/{scan_id}').json()
+        return res.get("queuePosition")
+
+    def cancel_scan(self, scan_id):
+        data = {"status": "Canceled"}
+        res = self.__api_patch(f'/sast/scansQueue/{scan_id}', data=data)
+        return res.status_code 
+
     @staticmethod
     def get_latest(column, project_id):
         try:
@@ -202,7 +221,10 @@ class CheckMarx(object):
             desc(Model.scan_id)).all()
         ret = []
         for row in rows:
-            ret.append(CheckMarx.to_json(row, project_id))
+            mapping = CheckMarx.to_json(row, project_id)
+            if row.scan_final_status == "Queued":
+                mapping.update({"queue_position": CheckMarx().get_queue_scan_position(row.scan_id)})
+            ret.append(mapping)
         return ret
 
     @staticmethod
@@ -308,7 +330,10 @@ class GetCheckmarxScanStatus(Resource):
     @jwt_required
     def get(self, scan_id):
         status_id, name = checkmarx.get_scan_status(scan_id)
-        return util.success({'id': status_id, 'name': name})
+        result = {'id': status_id, 'name': name}
+        if status_id in [2, 3, 4]:
+            result.update({"queue_position": checkmarx.get_queue_scan_position(scan_id)})
+        return util.success(result)
 
 
 class RegisterCheckmarxReport(Resource):
@@ -332,3 +357,8 @@ class GetCheckmarxScanStatistics(Resource):
             return util.success(stats)
         else:
             raise DevOpsError(400, stats)
+
+class CancelCheckmarxScan(Resource):
+    @jwt_required
+    def post(self, scan_id):
+        return {"status": checkmarx.cancel_scan(scan_id) == 200, "status_code": checkmarx.cancel_scan(scan_id)}

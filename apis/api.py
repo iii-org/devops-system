@@ -463,6 +463,8 @@ api.add_resource(checkmarx.GetCheckmarxReportStatus,
                  '/checkmarx/report_status/<report_id>')
 api.add_resource(checkmarx.GetCheckmarxProject,
                  '/checkmarx/get_cm_project_id/<sint:project_id>')
+api.add_resource(checkmarx.CancelCheckmarxScan,
+                 '/checkmarx/scan/<scan_id>/cancel')
 
 # Get everything by issue_id
 api.add_resource(issue.DumpByIssue, '/dump_by_issue/<issue_id>')
