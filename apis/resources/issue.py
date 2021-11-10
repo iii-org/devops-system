@@ -5,6 +5,7 @@ from datetime import datetime, date, timedelta
 from distutils.util import strtobool
 
 import werkzeug
+from flask_socketio import Namespace, emit, join_room, leave_room
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
 from redminelib import exceptions as redminelibError
@@ -167,7 +168,7 @@ class NexusIssue:
         }
         if hasattr(redmine_issue, 'project'):
             project_id = nexus.nx_get_project_plugin_relation(
-                    rm_project_id=redmine_issue['project']['id']).project_id
+                    rm_project_id=redmine_issue.project.id).project_id
             if nx_project is None or project_has_child(project_id) or project_has_parent(project_id):
                 nx_project = model.Project.query.get(project_id)
             self.data['project'] = {
@@ -481,7 +482,7 @@ def search_issue_tags_by_tags(tags):
         or_(model.IssueTag.tag_id.any(v) for v in tags)
     ).all()
 
-    return [issue.issue_id for issue in issues] 
+    return [issue.issue_id for issue in issues]
 
 
 def get_issue_point(issue_id):
@@ -832,6 +833,7 @@ def create_issue(args, operator_id):
         output['children'] = family['children']
     elif family.get('relations') is not None:
         output['relations'] = family['relations']
+    emit("add_issue", output, namespace="/issues/websocket", to=output['project']['id'], broadcast=True)
     return output
 
 
@@ -891,6 +893,7 @@ def update_issue(issue_id, args, operator_id=None):
         output['children'] = family['children']
     elif family.get('relations', None):
         output['relations'] = family['relations']
+    emit("update_issue", output, namespace="/issues/websocket", to=output['project']['id'], broadcast=True)
     return output
 
 
@@ -898,9 +901,12 @@ def update_issue(issue_id, args, operator_id=None):
 def delete_issue(issue_id):
     try:
         require_issue_visible(issue_id)
+        project_id = nexus.nx_get_project_plugin_relation(
+                    rm_project_id=redmine_lib.redmine.issue.get(issue_id).project.id).project_id
         redmine.rm_delete_issue(issue_id)
         delete_issue_extensions(issue_id)
         delete_issue_tags(issue_id)
+        emit("delete_issue", {"id": issue_id}, namespace="/issues/websocket", to=project_id, broadcast=True)
     except DevOpsError as e:
         print(e.status_code)
         if e.status_code == 404:
@@ -2246,8 +2252,8 @@ class SingleIssue(Resource):
             due_date = args.get("due_date")
         else:
             try:
-                due_date = str(redmine_lib.redmine.issue.get(issue_id).due_date) 
-            except ResourceAttrError: 
+                due_date = str(redmine_lib.redmine.issue.get(issue_id).due_date)
+            except ResourceAttrError:
                 pass
 
         if args.get("start_date") is not None and len(args.get("start_date")) > 0:
@@ -2255,8 +2261,8 @@ class SingleIssue(Resource):
         else:
             try:
                 start_date = str(redmine_lib.redmine.issue.get(issue_id).start_date)
-            except ResourceAttrError: 
-                pass   
+            except ResourceAttrError:
+                pass
 
         if start_date is not None and due_date is not None:
             if due_date < start_date:
@@ -2716,6 +2722,23 @@ class ExecutIssueAlert(Resource):
                 {"condition": alert.condition, "days": alert.days})
 
         return util.success(execute_issue_alert(alert_mapping))
+
+
+class IssueSocket(Namespace):
+    def on_connect(self):
+        print('connect')
+
+
+    def on_disconnect(self):
+        print('Client disconnected')
+
+    def on_join(self, data):
+        join_room(data['project_id'])
+        print('join', data['project_id'])
+
+    def on_leave(self, data):
+        leave_room(data['project_id'])
+        print('leave', data['project_id'])
 
 
 class IssueFilterByProject(Resource):
