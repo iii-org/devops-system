@@ -115,7 +115,7 @@ class CheckMarx(object):
         status = self.__api_get('/sast/scans/{0}'.format(scan_id)).json().get('status')
         status_id = status.get('id')
         status_name = status.get('name')
-        if status_id in {3, 7, 8, 9}:
+        if status_id in {7, 8, 9}:
             scan = Model.query.filter_by(scan_id=scan_id).one()
             if status_id == 7:
                 scan.stats = json.dumps(self.get_scan_statistics(scan_id))
@@ -222,8 +222,6 @@ class CheckMarx(object):
         ret = []
         for row in rows:
             mapping = CheckMarx.to_json(row, project_id)
-            if row.scan_final_status == "Queued":
-                mapping.update({"queue_position": CheckMarx().get_queue_scan_position(row.scan_id)})
             ret.append(mapping)
         return ret
 
