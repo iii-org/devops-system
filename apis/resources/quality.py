@@ -20,6 +20,7 @@ import resources.pipeline as pipeline
 from plugins import sideex
 from resources import apiTest
 from resources.redmine import redmine
+from resources.issue import get_issue_tags
 from data.nexus_project import NexusProject
 from accessories import redmine_lib
 
@@ -164,6 +165,7 @@ def qu_get_testfile_list(project_id):
                 for row in rows:
                     for issue_info in issues_info:
                         if row["issue_id"] == issue_info["id"]:
+                            issue_info.update({"tags": get_issue_tags(issue_info["id"])})
                             test_plans.append(issue_info)
                             break
                 if path["file_name_key"] == "postman_collection.json":
