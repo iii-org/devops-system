@@ -81,31 +81,15 @@ def build_query(args, base_query=None):
         query = model.Activity.query
     query = query.order_by(desc(model.Activity.act_at))
 
-    a_actions = args['actions']
-    if a_actions is not None:
-        ors = []
-        for s_action in [x.strip() for x in a_actions.split(',')]:
-            try:
-                action = ActionType[s_action.upper()]
-            except KeyError:
-                raise DevOpsError(400, 'unknown action',
-                                  error=apiError.invalid_code_path(
-                                      f'unknown action type:{s_action}'))
-            ors.append(model.Activity.action_type == action)
-        query = query.filter(or_(*ors))
-
-    object_id = args['object_id']
-    if object_id is not None:
-        if object_id[0] == '@':
-            query = query.filter(model.Activity.object_id.like(f'%{object_id}'))
-        elif object_id[-1] == '@':
-            query = query.filter(model.Activity.object_id.like(f'{object_id}%'))
+    search = args['search']
+    if search is not None:
+        if search.upper() in dir(ActionType)[:9]:
+            query = query.filter(model.Activity.action_type == ActionType[search.upper()])
         else:
-            query = query.filter(model.Activity.object_id == str(object_id))
-
-    parts_search = args['parts_search']
-    if parts_search is not None:
-        query = query.filter(model.Activity.action_parts.like(f'%{parts_search}%'))
+            query = query.filter(or_(
+                model.Activity.action_parts.like(f'%{search}%'),
+                model.Activity.operator_name.like(f'%{search}%'),
+            ))
 
     a_from_date = args['from_date']
     a_to_date = args['to_date']
@@ -116,7 +100,6 @@ def build_query(args, base_query=None):
         to_date = datetime.fromtimestamp(mktime(strptime(a_to_date, '%Y-%m-%d')))
         to_date += timedelta(days=1)
         query = query.filter(model.Activity.act_at < to_date)
-
 
     return query
 
@@ -179,7 +162,7 @@ class Activity(model.Activity):
 
 # --------------------- Resources ---------------------
 class AllActivities(Resource):
-    @jwt_required
+    @ jwt_required
     def get(self):
         role.require_admin()
         parser = reqparse.RequestParser()
@@ -187,16 +170,14 @@ class AllActivities(Resource):
         parser.add_argument('offset', type=int, default=0)
         parser.add_argument('from_date', type=str)
         parser.add_argument('to_date', type=str)
-        parser.add_argument('actions', type=str)
-        parser.add_argument('object_id', type=str)
-        parser.add_argument('parts_search', type=str)
+        parser.add_argument('search', type=str)
         args = parser.parse_args()
         query = build_query(args)
         return util.success(get_activities(args, query))
 
 
 class ProjectActivities(Resource):
-    @jwt_required
+    @ jwt_required
     def get(self, project_id):
         role.require_pm()
         role.require_in_project(project_id)
@@ -205,9 +186,7 @@ class ProjectActivities(Resource):
         parser.add_argument('offset', type=int, default=0)
         parser.add_argument('from_date', type=str)
         parser.add_argument('to_date', type=str)
-        parser.add_argument('actions', type=str)
-        parser.add_argument('object_id', type=str)
-        parser.add_argument('parts_search', type=str)
+        parser.add_argument('search', type=str)
         args = parser.parse_args()
         query = build_query(args, base_query=limit_to_project(project_id))
         return util.success(get_activities(args, query))
