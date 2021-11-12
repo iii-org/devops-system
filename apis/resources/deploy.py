@@ -1268,7 +1268,7 @@ def get_deployment_info(cluster_name, k8s_yaml):
         if ingress is not None:
             ingress_info = json.loads(ingress.metadata.annotations[
                 'field.cattle.io/publicEndpoints'])
-
+    url = ''
     if ingress_info:
         ingress = ingress_info[0]
         url = ingress.get('protocol') + '://' + ingress.get(
@@ -1277,8 +1277,6 @@ def get_deployment_info(cluster_name, k8s_yaml):
         service = service_info[0]
         url = 'http://' + service.get(
             'addresses')[0] + ':' + str(service.get('port'))
-    else:
-        url = ''
 
     return deployment_info, url
 
