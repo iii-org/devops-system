@@ -1251,28 +1251,34 @@ def get_deployment_info(cluster_name, k8s_yaml):
     if k8s_yaml.get('deployment').get('deployment_name'):
         deployment = deploy_k8s_client.read_namespace_deployment(
             k8s_yaml.get('deployment').get('deployment_name'), namespace)
-        deployment_info = {}
         deployment_info = kubernetesClient.get_deployments_info(deployment)
 
     if k8s_yaml.get('service').get('service_name'):
         service = deploy_k8s_client.read_namespace_service(
             k8s_yaml.get('service').get('service_name'), namespace)
-        service_info = json.loads(service.metadata.annotations[
-            'field.cattle.io/publicEndpoints'])
+        service_info = {}
+        if service is not None:
+            service_info = json.loads(service.metadata.annotations[
+                'field.cattle.io/publicEndpoints'])
 
     if k8s_yaml.get('ingress') and k8s_yaml.get('ingress').get('ingress_name'):
         ingress = deploy_k8s_client.read_namespace_ingress(
             k8s_yaml.get('ingress').get('ingress_name'), namespace)
-        ingress_info = json.loads(ingress.metadata.annotations[
-            'field.cattle.io/publicEndpoints'])
+        ingress_info = {}
+        if ingress is not None:
+            ingress_info = json.loads(ingress.metadata.annotations[
+                'field.cattle.io/publicEndpoints'])
+
     if ingress_info:
         ingress = ingress_info[0]
         url = ingress.get('protocol') + '://' + ingress.get(
             'hostname') + ':' + str(ingress.get('port')) + ingress.get('path')
-    else:
+    elif service_info:
         service = service_info[0]
         url = 'http://' + service.get(
             'addresses')[0] + ':' + str(service.get('port'))
+    else:
+        url = ''
 
     return deployment_info, url
 

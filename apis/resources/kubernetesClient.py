@@ -918,6 +918,15 @@ def read_namespaced_pod_status(name, namespace):
 
 
 def get_deployments_info(deployment):
+    output = {
+        "name": None,
+        "available_pod_number": None,
+        "total_pod_number": None,
+        "created_time": None,
+        "containers": None
+    }
+    if deployment is None:
+        return output
     return {
         "name":
         deployment.metadata.name,
