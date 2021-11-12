@@ -41,7 +41,7 @@ _APPLICATION_STATUS = {
     3001: 'Error, No Image need to be replicated',
     5001: 'Error, K8s Error'
 }
-_NEED_UPDATE_APPPLICATION_STATUS = [1, 2, 3, 4, 9, 11]
+_NEED_UPDATE_APPLICATION_STATUS = [1, 2, 3, 4, 9, 11]
 
 
 def is_json(string):
@@ -542,7 +542,6 @@ def create_replication_policy(app):
 
 
 def check_execute_replication_policy(policy_id, harbor_info, restart=False):
-    output = {}
     executions = get_replication_executions(policy_id)
     if not executions or restart:
         image_uri = execute_replication_policy(policy_id)
@@ -731,6 +730,14 @@ def create_namespace_object(namespace):
         name=namespace))
 
 
+def k8s_resource_exist(target, response):
+    check_result = False
+    for i in response.items:
+        if str(target) == str(i.metadata.name):
+            check_result = True
+    return check_result
+
+
 class DeployK8sClient:
     def __init__(self, server_name):
         self.client = kubernetesClient.ApiK8sClient(
@@ -738,13 +745,6 @@ class DeployK8sClient:
 
     def get_api_resources(self):
         return self.client.get_api_resources()
-
-    def k8s_resource_exist(self, target, response):
-        check_result = False
-        for i in response.items:
-            if str(target) == str(i.metadata.name):
-                check_result = True
-        return check_result
 
     # namespace
     def read_namespace(self, namespace):
@@ -762,7 +762,7 @@ class DeployK8sClient:
             return self.client.delete_namespace(namespace)
 
     def check_namespace(self, namespace):
-        return self.k8s_resource_exist(namespace, self.client.list_namespace())
+        return k8s_resource_exist(namespace, self.client.list_namespace())
 
     def execute_namespace_secret(self, name, namespace, body):
         if not self.check_namespace_secret(name, namespace):
@@ -775,7 +775,7 @@ class DeployK8sClient:
             return self.client.delete_namespaced_secret(name, namespace)
 
     def check_namespace_secret(self, name, namespace):
-        return self.k8s_resource_exist(
+        return k8s_resource_exist(
             name, self.client.list_namespaced_secret(namespace))
 
     def read_namespace_service(self, name, namespace):
@@ -794,7 +794,7 @@ class DeployK8sClient:
             return self.client.delete_namespaced_service(name, namespace)
 
     def check_namespace_service(self, name, namespace):
-        return self.k8s_resource_exist(
+        return k8s_resource_exist(
             name, self.client.list_namespaced_service(namespace))
 
     def read_namespace_ingress(self, name, namespace):
@@ -813,7 +813,7 @@ class DeployK8sClient:
             return self.client.delete_namespaced_ingress(name, namespace)
 
     def check_namespace_ingress(self, name, namespace):
-        return self.k8s_resource_exist(
+        return k8s_resource_exist(
             name, self.client.list_namespaced_ingress(namespace))
 
     def read_namespace_deployment(self, name, namespace):
@@ -833,7 +833,7 @@ class DeployK8sClient:
             return self.client.delete_namespaced_deployment(name, namespace)
 
     def check_namespace_deployment(self, name, namespace):
-        return self.k8s_resource_exist(
+        return k8s_resource_exist(
             name, self.client.list_namespaced_deployment(namespace))
 
     def execute_namespace_configmap(self, name, namespace, body):
@@ -848,7 +848,7 @@ class DeployK8sClient:
             return self.client.delete_namespaced_configmap(name, namespace)
 
     def check_namespace_configmap(self, name, namespace):
-        return self.k8s_resource_exist(
+        return k8s_resource_exist(
             name, self.client.list_namespaced_config_map(namespace))
 
 
@@ -1286,7 +1286,7 @@ def get_deployment_info(cluster_name, k8s_yaml):
 def get_application_information(application, cluster_info=None):
     if application is None:
         return []
-    if application.status_id in _NEED_UPDATE_APPPLICATION_STATUS:
+    if application.status_id in _NEED_UPDATE_APPLICATION_STATUS:
         check_application_status(application)
         app = model.Application.query.filter_by(
             id=application.id).first()
@@ -1729,7 +1729,7 @@ class Cronjob(Resource):
         try:
             execute_list = []
             apps = db.session.query(model.Application).filter(
-                model.Application.status_id.in_(_NEED_UPDATE_APPPLICATION_STATUS)).all()
+                model.Application.status_id.in_(_NEED_UPDATE_APPLICATION_STATUS)).all()
             for app in apps:
                 if app.restart_number is None:
                     restart_number = 0
