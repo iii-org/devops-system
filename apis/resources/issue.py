@@ -2052,6 +2052,15 @@ class SingleIssue(Resource):
 
     @ jwt_required
     def delete(self, issue_id):
+        parser = reqparse.RequestParser()
+        parser.add_argument('force', type=bool)
+        args = parser.parse_args()
+        if args["force"] is None or not args["force"]:
+            redmine_issue = redmine_lib.redmine.issue.get(issue_id, include=['children'])
+            children = get_issue_family(redmine_issue).get("children")
+            if children is not None:
+                raise DevOpsError(400, 'Unable to delete issue with children issue, unless parameter "force" is True.',
+                                  error=apiError.unable_to_delete_issue_has_children(children))
         return util.success(delete_issue(issue_id))
 
 
