@@ -329,7 +329,7 @@ class GetCheckmarxScanStatus(Resource):
     def get(self, scan_id):
         status_id, name = checkmarx.get_scan_status(scan_id)
         result = {'id': status_id, 'name': name}
-        if status_id in [2, 3, 4]:
+        if status_id in [1, 2, 3]:
             result.update({"queue_position": checkmarx.get_queue_scan_position(scan_id)})
         return util.success(result)
 
