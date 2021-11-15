@@ -87,7 +87,8 @@ def invalid_fixed_version_id(fixed_version, fixed_version_status):
                  {'fixed_version': fixed_version, 'fixed_version_status': fixed_version_status})
 
 def unable_to_delete_issue_has_children(childen_info):
-    return build(1013, 'Warning ! The issue with children issues cannot be deleted, please re-confirm it if you insist.', childen_info)
+    return build(
+        1013, 'Warning ! The issue with children issues cannot be deleted, please re-confirm it if you insist and all of children issue will be deleted at the same time.', childen_info)
 
 # User errors
 def user_not_found(user_id):
