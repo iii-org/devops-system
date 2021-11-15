@@ -328,6 +328,11 @@ class GetCheckmarxScanStatus(Resource):
     @jwt_required
     def get(self, scan_id):
         status_id, name = checkmarx.get_scan_status(scan_id)
+
+        # Merge id 2 and 10 as same status
+        if status_id == 10:
+            status_id, name = 2, "PreScan"
+
         result = {'id': status_id, 'name': name}
         if status_id in [1, 2, 3]:
             result.update({"queue_position": checkmarx.get_queue_scan_position(scan_id)})
