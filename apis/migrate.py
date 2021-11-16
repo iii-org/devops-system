@@ -32,7 +32,7 @@ VERSIONS = ['0.9.2', '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.4', '0.9.2.5',
             '1.9.0.1', '1.9.0.2', '1.9.0.3', '1.9.0.4', '1.9.0.5', '1.9.0.6', '1.9.0.7', '1.9.0.8', '1.9.0.9', '1.9.1.0',
             '1.9.1.1', '1.9.1.2', '1.9.1.3', '1.9.1.4', '1.9.1.5', '1.9.1.6', '1.9.1.7', '1.9.1.8', '1.9.1.9', '1.10.0.1',
             '1.10.0.2', '1.10.0.3', '1.10.0.4', '1.10.0.5', '1.10.0.6', '1.10.0.7', '1.10.0.8', '1.10.0.9', '1.10.0.10',
-            '1.10.0.11', '1.10.0.12', '1.11.0.1', '1.11.0.2']
+            '1.10.0.11', '1.10.0.12', '1.11.0.1', '1.11.0.2', '1.11.0.3']
 ONLY_UPDATE_DB_MODELS = [
     '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.5', '0.9.2.6', '0.9.2.a8',
     '1.0.0.2', '1.3.0.1', '1.3.0.2', '1.3.0.3', '1.3.0.4', '1.3.1', '1.3.1.1', '1.3.1.2',
@@ -149,6 +149,19 @@ def upgrade(version):
         insert_git_commit_history_in_system_parameter()
     elif version == '1.11.0.2':
         remove_duplicate_data_from_upgarde()
+    elif version == '1.11.0.3':
+        insert_download_issues_in_lock()
+
+
+
+def insert_download_issues_in_lock():
+    if Lock.query.filter_by(name="download_pj_issues").first() is None:
+        row = Lock(
+            name="download_pj_issues",
+            is_lock=False,
+        )
+        db.session.add(row)
+        db.session.commit()
 
 
 def remove_duplicate_data_from_upgarde():
