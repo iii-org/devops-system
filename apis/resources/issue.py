@@ -13,6 +13,10 @@ from sqlalchemy.dialects.postgresql import Any
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.sql import operators
 
+import threading
+import os
+from flask import send_file
+from pathlib import Path
 import config
 import model
 import nexus
@@ -32,9 +36,34 @@ from . import tag as tag_py
 from resources.user import user_list_by_project
 from redminelib.exceptions import ResourceAttrError
 from resources import logger
+from resources.lock import get_lock_status
 
 FLOW_TYPES = {"0": "Given", "1": "When", "2": "Then", "3": "But", "4": "And"}
 PARAMETER_TYPES = {'1': '文字', '2': '英數字', '3': '英文字', '4': '數字'}
+STATUS_TRANSLATE = {
+    "Active": '已開立',
+    "Assigned": '已分派',
+    "InProgress": '進行中',
+    "Solved": '已解決',
+    "Verified": '已確認',
+    "Closed": '已關閉',
+    "Responded": '已回應',
+    "Finished": '已完成',
+}
+PRIORITY_TRANSLATE = {"Low": '低', "Normal": '一般', "High": '高', "Immediate": '緊急'}
+TRACKER_TRANSLATE = {
+    "Document": '文件',
+    "Research": '研究',
+    "Epic": '需求規格',
+    "Audit": '情境故事',
+    "Feature": '功能設計',
+    "Bug": '程式錯誤',
+    "Issue": '議題',
+    "Change Request": '變更請求',
+    "Risk": '風險管理',
+    "Test Plan": '測試計畫',
+    "Fail Management": '異常管理',
+}
 
 
 class NexusIssue:
@@ -886,7 +915,7 @@ def get_issue_by_project(project_id, args):
     return output_array
 
 
-def get_issue_list_by_project(project_id, args):
+def get_issue_list_by_project(project_id, args, download=False):
     nx_issue_params = defaultdict()
     output = []
     if util.is_dummy_project(project_id):
@@ -919,6 +948,9 @@ def get_issue_list_by_project(project_id, args):
         nx_issue_params['with_point'] = args["with_point"]
         issue = NexusIssue().set_redmine_issue_v3(**nx_issue_params).to_json()
         output.append(issue)
+
+    if download:
+        return output
 
     if args['limit'] and args['offset'] is not None:
         page_dict = util.get_pagination(issue_filter.total_count,
@@ -1902,8 +1934,99 @@ def put_custom_issue_filter(custom_filter_id, project_id, args):
     custom_issue_filter.project_id = project_id
     custom_issue_filter.custom_filter = args
     db.session.commit()
-
     return result
+
+
+def pj_download_file_is_exist(project_id):
+    file_exist = os.path.isfile(f"./logs/project_excel_file/{project_id}.xlsx")
+    create_at = get_lock_status("download_pj_issues")["sync_date"] if file_exist else None
+    return {"file_exist": file_exist, "create_at": create_at}
+
+
+class DownloadIssueAsExcel():
+    def __init__(self, args, priority_id):
+        self.result = []
+        self.levels = args.pop("levels")
+        self.deploy_column = args.pop("deploy_column")
+        args["with_point"] = "點數" in self.deploy_column
+        self.project_id = priority_id
+        self.args = args
+
+
+    def execute(self):
+        if get_lock_status("download_pj_issues")["is_lock"]:
+            return 
+        try:
+            logger.logger.info("Start writing issues into excel.")
+            self.__update_lock_download_issues(is_lock=True, sync_date=self.__now_time()) 
+            self.__append_main_issue()
+            self.__update_lock_download_issues(is_lock=False, sync_date=self.__now_time()) 
+            logger.logger.info("Writing complete")
+        except Exception as e:
+            logger.logger.exception(str(e))
+            self.__update_lock_download_issues(is_lock=False, sync_date=None)
+
+
+    def __now_time(self):
+        return datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+
+
+    def __append_main_issue(self):
+        self.args["tracker_id"] = "1"
+
+        output = get_issue_list_by_project(self.project_id, self.args, download=True) 
+        for index, value in enumerate(output):
+            row = {"項次": str(index + 1)}
+            row.update(self.__generate_row_issue_for_excel(value, self.deploy_column))
+            self.result.append(row)
+            self.__append_children(index + 1, value, 1)
+
+        self.__download_as_excel()
+
+
+    def __append_children(self, super_index, value, level):
+        if not value["has_children"] or self.levels == level:
+            return 
+        redmine_issue = redmine_lib.redmine.issue.get(value["id"], include=['children'])
+        children = get_issue_family(redmine_issue, {'with_point': True})["children"]
+        for index, child in enumerate(children):
+            row = {"項次": f"{super_index}_{index+1}"}
+            row.update(self.__generate_row_issue_for_excel(child, self.deploy_column))
+            self.result.append(row)
+            self.__append_children(f"{super_index}_{index+1}", child, level + 1)
+
+
+    def __generate_row_issue_for_excel(self, value, deploy_column):
+        deploy_column = ["議題名稱", "種類", "狀態", "版本", "開始日期", "結束日期", "優先權", "受分配者", "完成比率", "點數"]
+        result = {
+            "議題名稱": value['name'],
+            "種類": TRACKER_TRANSLATE[value['tracker']["name"]],
+            "狀態": STATUS_TRANSLATE[value['status']['name']],
+            "版本": value['fixed_version']["name"] if value['fixed_version'] != {} else "",
+            "開始日期": value['start_date'],
+            "結束日期": value['due_date'],
+            "優先權": PRIORITY_TRANSLATE[value['priority']["name"]],
+            "受分配者": value['assigned_to']['name'] if value['assigned_to'] != {} else "",
+            "完成比率": value['done_ratio'],
+            "點數": value.get('point', 0),
+        }
+        return {k: v for k, v in result.items() if k in deploy_column}
+
+
+    def __download_as_excel(self):
+        if not os.path.isdir("./logs/project_excel_file"):
+            os.makedirs("./logs/project_excel_file", exist_ok=True)
+        util.write_in_excel(f"logs/project_excel_file/{self.project_id}.xlsx", self.result)
+
+
+    def __update_lock_download_issues(self, is_lock=None, sync_date=None):
+        lock_redmine = model.Lock.query.filter_by(name="download_pj_issues").first()
+        if is_lock is not None:
+            lock_redmine.is_lock = is_lock
+        if sync_date is not None:
+            lock_redmine.sync_date = sync_date
+        db.session.commit()
+
 
 # --------------------- Resources ---------------------
 class SingleIssue(Resource):
@@ -2537,3 +2660,41 @@ class IssueFilterByProject(Resource):
     def delete(self, project_id, custom_filter_id):
         CustomIssueFilter.query.filter_by(id=custom_filter_id).delete()
         db.session.commit()
+
+
+class DownloadProject(Resource):
+    # download/execute
+    @jwt_required
+    def post(self, project_id):
+        parser = reqparse.RequestParser()
+        parser.add_argument('fixed_version_id', type=str)
+        parser.add_argument('status_id', type=str)
+        parser.add_argument('assigned_to_id', type=str)
+        parser.add_argument('priority_id', type=str)
+        parser.add_argument('search', type=str)
+        parser.add_argument('selection', type=str)
+        parser.add_argument('sort', type=str)
+        parser.add_argument('parent_id', type=str)
+        parser.add_argument('due_date_start', type=str)
+        parser.add_argument('due_date_end', type=str)
+        parser.add_argument('levels', type=int, required=True)
+        parser.add_argument('deploy_column', type=str, action='append', required=True)
+        args = parser.parse_args()
+
+        download_issue_excel = DownloadIssueAsExcel(args, project_id)
+        threading.Thread(target=download_issue_excel.execute).start()
+        return util.success()
+
+    # download/is_exist
+    def get(self, project_id):
+        return util.success(pj_download_file_is_exist(project_id))
+
+    # download/execute
+    @jwt_required    
+    def patch(self, project_id):
+        if not pj_download_file_is_exist(project_id)["file_exist"]:
+            raise apiError.DevOpsError(
+                404, 'This file can not be downloaded because it is not exist.',
+                apiError.project_issue_file_not_exits(project_id))
+
+        return send_file(f"../logs/project_excel_file/{project_id}.xlsx")

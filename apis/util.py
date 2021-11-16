@@ -17,7 +17,7 @@ import resources.apiError as apiError
 import boto3
 from botocore.exceptions import ClientError
 import base64
-
+import pandas as pd
 
 def base64decode(value):
     return str(base64.b64decode(str(value)).decode('utf-8'))
@@ -363,3 +363,7 @@ def check_folder_exist(path, create=False):
     if not exist and create:
         os.makedirs(path)
     return exist
+
+def write_in_excel(file_path, content):
+    df = pd.DataFrame(content)
+    df.to_excel(file_path, index=False)

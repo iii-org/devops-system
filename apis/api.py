@@ -201,6 +201,11 @@ api.add_resource(project.ProjectUserResourcePodLog,
 api.add_resource(starred_project.StarredProject,
                  '/project/<sint:project_id>/star')
 
+api.add_resource(issue.DownloadProject,
+                 '/project/<sint:project_id>/download/execute', 
+                 '/project/<sint:project_id>/download/is_exist',
+                 '/project/<sint:project_id>/download')
+
 # Tag
 api.add_resource(tag.Tags, '/tags')
 api.add_resource(tag.Tag, '/tags/<int:tag_id>')

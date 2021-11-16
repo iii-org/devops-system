@@ -90,6 +90,10 @@ def unable_to_delete_issue_has_children(childen_info):
     return build(
         1013, 'Warning ! The issue with children issues cannot be deleted, please re-confirm it if you insist and all of children issue will be deleted at the same time.', childen_info)
 
+def project_issue_file_not_exits(project_id):
+    return build(
+        1014, 'File is not exist. Please ensure you have downloaded it before.', {"project_id": project_id})
+
 # User errors
 def user_not_found(user_id):
     return build(2001, 'User not found.', {'user_id': user_id})
