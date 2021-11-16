@@ -1019,7 +1019,6 @@ def get_issue_by_tree_by_project(project_id):
     users_info = user.get_all_user_info()
     for redmine_issue in all_issues:
         tree[redmine_issue.id] = NexusIssue().set_redmine_issue_v2(redmine_issue,
-                                                                   relationship_bool=True,
                                                                    with_relationship=True,
                                                                    nx_project=nx_project,
                                                                    users_info=users_info).to_json()
