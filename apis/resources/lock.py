@@ -11,7 +11,7 @@ def get_lock_status(name):
     return {
         "name": lock_info.name,
         "is_lock": lock_info.is_lock,
-        "sync_date": lock_info.sync_date.strftime("%Y-%m-%dT%H:%M:%S"),
+        "sync_date": lock_info.sync_date.strftime("%Y-%m-%dT%H:%M:%S") if lock_info.sync_date is not None else None,
     }
 
 # --------------------- Resources ---------------------

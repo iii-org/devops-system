@@ -1954,8 +1954,6 @@ class DownloadIssueAsExcel():
 
 
     def execute(self):
-        if get_lock_status("download_pj_issues")["is_lock"]:
-            return 
         try:
             logger.logger.info("Start writing issues into excel.")
             self.__update_lock_download_issues(is_lock=True, sync_date=self.__now_time()) 
@@ -2680,6 +2678,9 @@ class DownloadProject(Resource):
         parser.add_argument('levels', type=int, required=True)
         parser.add_argument('deploy_column', type=str, action='append', required=True)
         args = parser.parse_args()
+
+        if get_lock_status("download_pj_issues")["is_lock"]:
+            return util.success("previous is still running")
 
         download_issue_excel = DownloadIssueAsExcel(args, project_id)
         threading.Thread(target=download_issue_excel.execute).start()
