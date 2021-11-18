@@ -11,6 +11,7 @@ from flask_restful import Resource, reqparse, inputs
 from kubernetes import client as k8s_client
 from sqlalchemy.orm.exc import NoResultFound
 from werkzeug.utils import secure_filename
+from urllib3.exceptions import MaxRetryError
 
 import config
 import model
@@ -18,7 +19,10 @@ import util as util
 from model import db
 from resources import apiError, role
 from resources import harbor, kubernetesClient
+from kubernetes import utils as k8s_utils
 from resources import release
+
+from resources.logger import logger
 
 _DEFAULT_RESTART_NUMBER = 30
 DEFAULT_PROJECT_ID = "-1"
@@ -1299,26 +1303,33 @@ def get_application_information(application, cluster_info=None):
         return output
     harbor_info = json.loads(app.harbor_info)
     k8s_yaml = json.loads(app.k8s_yaml)
+    cluster_id = str(app.cluster_id)
     if cluster_info is None:
         cluster_info = get_clusters_name(app.cluster_id)
-    elif str(app.cluster_id) not in cluster_info:
+    elif cluster_id not in cluster_info:
         cluster_info = get_clusters_name(app.cluster_id, cluster_info)
-    deployment_info = {
-        'available_pod_number': 0,
-        'containers': [],
-        'create_time': None,
-        'name': None,
-        'total_pod_number': 0
-    }
     url = None
+    deployment_info = {
+        "name": None,
+        "available_pod_number": None,
+        "total_pod_number": None,
+        "created_time": None,
+        "containers": None
+    }
+
     if k8s_yaml.get('deploy_finish') and app.status_id == 5:
-        deployment_info, url = get_deployment_info(
-            cluster_info[str(app.cluster_id)], k8s_yaml)
+        try:
+            deployment_info, url = get_deployment_info(
+                cluster_info[cluster_id], k8s_yaml)
+        except MaxRetryError as ex:
+            print("Error Deployment")
+            logger.info(f'No Route To Host {cluster_id}!')
+            logger.error(ex)
     output['deployment'] = deployment_info
     output['public_endpoint'] = url
     output['cluster'] = {}
     output['cluster']['id'] = application.cluster_id
-    output['cluster']['name'] = cluster_info[str(app.cluster_id)]
+    output['cluster']['name'] = cluster_info[cluster_id]
     output['registry'] = {}
     output['registry']['id'] = application.cluster_id
     output['image'] = k8s_yaml.get('image')
