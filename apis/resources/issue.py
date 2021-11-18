@@ -1948,9 +1948,9 @@ class DownloadIssueAsExcel():
         self.result = []
         self.levels = args.pop("levels")
         self.deploy_column = args.pop("deploy_column")
-        args["with_point"] = "點數" in self.deploy_column
-        self.project_id = priority_id
+        args["with_point"] = self.__check_with_point_bool()
         self.args = args
+        self.project_id = priority_id
 
 
     def execute(self):
@@ -1965,6 +1965,15 @@ class DownloadIssueAsExcel():
             self.__update_lock_download_issues(is_lock=False, sync_date=None)
 
 
+    def __check_with_point_bool(self):
+        withpoint = False
+        for column in self.deploy_column:
+            if column['field'] == "point":
+                withpoint = True
+                break 
+        return withpoint
+
+
     def __now_time(self):
         return datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -1975,7 +1984,7 @@ class DownloadIssueAsExcel():
         output = get_issue_list_by_project(self.project_id, self.args, download=True) 
         for index, value in enumerate(output):
             row = {"項次": str(index + 1)}
-            row.update(self.__generate_row_issue_for_excel(value, self.deploy_column))
+            row.update(self.__generate_row_issue_for_excel(value))
             self.result.append(row)
             self.__append_children(index + 1, value, 1)
 
@@ -1989,26 +1998,35 @@ class DownloadIssueAsExcel():
         children = get_issue_family(redmine_issue, {'with_point': True})["children"]
         for index, child in enumerate(children):
             row = {"項次": f"{super_index}_{index+1}"}
-            row.update(self.__generate_row_issue_for_excel(child, self.deploy_column))
+            row.update(self.__generate_row_issue_for_excel(child))
             self.result.append(row)
             self.__append_children(f"{super_index}_{index+1}", child, level + 1)
 
 
-    def __generate_row_issue_for_excel(self, value, deploy_column):
-        deploy_column = ["議題名稱", "種類", "狀態", "版本", "開始日期", "結束日期", "優先權", "受分配者", "完成比率", "點數"]
-        result = {
-            "議題名稱": value['name'],
-            "種類": TRACKER_TRANSLATE[value['tracker']["name"]],
-            "狀態": STATUS_TRANSLATE[value['status']['name']],
-            "版本": value['fixed_version']["name"] if value['fixed_version'] != {} else "",
-            "開始日期": value['start_date'],
-            "結束日期": value['due_date'],
-            "優先權": PRIORITY_TRANSLATE[value['priority']["name"]],
-            "受分配者": value['assigned_to']['name'] if value['assigned_to'] != {} else "",
-            "完成比率": value['done_ratio'],
-            "點數": value.get('point', 0),
-        }
-        return {k: v for k, v in result.items() if k in deploy_column}
+    def __generate_row_issue_for_excel(self, value):
+        result = {}
+        for column in self.deploy_column:
+            if column['field'] == 'name':
+                result.update({column['display']: value['name']})
+            if column['field'] == 'tracker':
+                result.update({column['display']: TRACKER_TRANSLATE[value['tracker']["name"]]})
+            if column['field'] == 'status':
+                result.update({column['display']: STATUS_TRANSLATE[value['status']['name']]})
+            if column['field'] == 'fixed_version':
+                result.update({column['display']: value['fixed_version']["name"] if value['fixed_version'] != {} else ""})
+            if column['field'] == 'start_date':
+                result.update({column['display']: value['start_date']})
+            if column['field'] == 'due_date':
+                result.update({column['display']: value['due_date']})
+            if column['field'] == 'priority':
+                result.update({column['display']: PRIORITY_TRANSLATE[value['priority']["name"]]})
+            if column['field'] == 'assigned_to':
+                result.update({column['display']: value['assigned_to']['name'] if value['assigned_to'] != {} else ""})
+            if column['field'] == 'done_ratio':
+                result.update({column['display']: value['done_ratio']})
+            if column['field'] == 'point':
+                result.update({column['display']: value.get('point', 0)})
+        return result
 
 
     def __download_as_excel(self):
@@ -2619,11 +2637,11 @@ class GetIssueTagHistory(Resource):
 
 
 class IssueFilterByProject(Resource):
-    @jwt_required
+    @ jwt_required
     def get(self, project_id):
         return util.success(get_custom_issue_filter(get_jwt_identity()['user_id'], project_id))
 
-    @jwt_required
+    @ jwt_required
     def post(self, project_id):
         user_id = get_jwt_identity()['user_id']
         parser = reqparse.RequestParser()
@@ -2639,7 +2657,7 @@ class IssueFilterByProject(Resource):
 
         return util.success(create_custom_issue_filter(user_id, project_id, args))
 
-    @jwt_required
+    @ jwt_required
     def put(self, project_id, custom_filter_id):
         parser = reqparse.RequestParser()
         parser.add_argument('name', type=str, required=True)
@@ -2654,7 +2672,7 @@ class IssueFilterByProject(Resource):
 
         return util.success(put_custom_issue_filter(custom_filter_id, project_id, args))
 
-    @jwt_required
+    @ jwt_required
     def delete(self, project_id, custom_filter_id):
         CustomIssueFilter.query.filter_by(id=custom_filter_id).delete()
         db.session.commit()
@@ -2662,7 +2680,7 @@ class IssueFilterByProject(Resource):
 
 class DownloadProject(Resource):
     # download/execute
-    @jwt_required
+    @ jwt_required
     def post(self, project_id):
         parser = reqparse.RequestParser()
         parser.add_argument('fixed_version_id', type=str)
@@ -2675,8 +2693,8 @@ class DownloadProject(Resource):
         parser.add_argument('parent_id', type=str)
         parser.add_argument('due_date_start', type=str)
         parser.add_argument('due_date_end', type=str)
-        parser.add_argument('levels', type=int, required=True)
-        parser.add_argument('deploy_column', type=str, action='append', required=True)
+        parser.add_argument('levels', type=int, default=3)
+        parser.add_argument('deploy_column', type=dict, action='append', required=True)
         args = parser.parse_args()
 
         if get_lock_status("download_pj_issues")["is_lock"]:
@@ -2691,7 +2709,7 @@ class DownloadProject(Resource):
         return util.success(pj_download_file_is_exist(project_id))
 
     # download/execute
-    @jwt_required    
+    @ jwt_required    
     def patch(self, project_id):
         if not pj_download_file_is_exist(project_id)["file_exist"]:
             raise apiError.DevOpsError(
