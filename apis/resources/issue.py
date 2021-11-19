@@ -13,6 +13,7 @@ from sqlalchemy.dialects.postgresql import Any
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.sql import operators
 
+import re
 import threading
 import os
 from flask import send_file
@@ -2004,22 +2005,33 @@ class DownloadIssueAsExcel():
 
 
     def __generate_row_issue_for_excel(self, value):
+        english = len(re.findall(r'[\u4e00-\u9fff]+', self.deploy_column[0]["display"])) == 0
         result = {}
         for column in self.deploy_column:
             if column['field'] == 'name':
                 result.update({column['display']: value['name']})
-            if column['field'] == 'tracker':
+
+            if column['field'] == 'tracker' and not english:
                 result.update({column['display']: TRACKER_TRANSLATE[value['tracker']["name"]]})
-            if column['field'] == 'status':
+            elif column['field'] == 'tracker' and english:
+                result.update({column['display']: value['tracker']["name"]})
+
+            if column['field'] == 'status' and not english:
                 result.update({column['display']: STATUS_TRANSLATE[value['status']['name']]})
+            elif column['field'] == 'status' and english:
+                result.update({column['display']: value['status']['name']})
+
             if column['field'] == 'fixed_version':
                 result.update({column['display']: value['fixed_version']["name"] if value['fixed_version'] != {} else ""})
             if column['field'] == 'start_date':
                 result.update({column['display']: value['start_date']})
             if column['field'] == 'due_date':
                 result.update({column['display']: value['due_date']})
-            if column['field'] == 'priority':
+            if column['field'] == 'priority' and not english:
                 result.update({column['display']: PRIORITY_TRANSLATE[value['priority']["name"]]})
+            elif column['field'] == 'priority' and english:
+                result.update({column['display']: value['priority']["name"]})
+
             if column['field'] == 'assigned_to':
                 result.update({column['display']: value['assigned_to']['name'] if value['assigned_to'] != {} else ""})
             if column['field'] == 'done_ratio':
