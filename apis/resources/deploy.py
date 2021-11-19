@@ -19,7 +19,6 @@ import util as util
 from model import db
 from resources import apiError, role
 from resources import harbor, kubernetesClient
-from kubernetes import utils as k8s_utils
 from resources import release
 
 from resources.logger import logger
@@ -1305,9 +1304,9 @@ def get_application_information(application, cluster_info=None):
     k8s_yaml = json.loads(app.k8s_yaml)
     cluster_id = str(app.cluster_id)
     if cluster_info is None:
-        cluster_info = get_clusters_name(app.cluster_id)
+        cluster_info = get_clusters_name(cluster_id)
     elif cluster_id not in cluster_info:
-        cluster_info = get_clusters_name(app.cluster_id, cluster_info)
+        cluster_info = get_clusters_name(cluster_id, cluster_info)
     url = None
     deployment_info = {
         "name": None,
@@ -1316,7 +1315,6 @@ def get_application_information(application, cluster_info=None):
         "created_time": None,
         "containers": None
     }
-
     if k8s_yaml.get('deploy_finish') and app.status_id == 5:
         try:
             deployment_info, url = get_deployment_info(
@@ -1328,10 +1326,10 @@ def get_application_information(application, cluster_info=None):
     output['deployment'] = deployment_info
     output['public_endpoint'] = url
     output['cluster'] = {}
-    output['cluster']['id'] = application.cluster_id
+    output['cluster']['id'] = app.cluster_id
     output['cluster']['name'] = cluster_info[cluster_id]
     output['registry'] = {}
-    output['registry']['id'] = application.cluster_id
+    output['registry']['id'] = app.registry_id
     output['image'] = k8s_yaml.get('image')
     output['project_name'] = harbor_info.get('project')
     output['tag_name'] = harbor_info.get('tag_name')
@@ -1342,9 +1340,24 @@ def get_application_information(application, cluster_info=None):
     return output, cluster_info
 
 
+def generate_multithreads(app):
+    cluster_info = {}
+    clusters = model.Cluster.query.with_entities(model.Cluster.id, model.Cluster.name).all()
+    for cluster in clusters:
+        cluster_info[str(cluster.id)] = cluster.name
+    services = []
+    service_args = {}
+    targets = {}
+    for application in app:
+        application_id = str(application.id)
+        services.append(application_id)
+        targets[application_id] = get_application_information
+        service_args[application_id] = (application, cluster_info,)
+    return services, targets, service_args
+
+
 def get_applications(args=None):
     output = []
-    cluster_info = {}
     app = None
     if args is None:
         app = model.Application.query.filter().all()
@@ -1358,12 +1371,14 @@ def get_applications(args=None):
     if app is None:
         return output
     elif isinstance(app, list):
-        for application in app:
-            output_app, cluster_info = get_application_information(
-                application, cluster_info)
-            output.append(output_app)
+        services, targets, service_args = generate_multithreads(app)
+        helper = util.ServiceBatchOpHelper(services, targets, service_args)
+        helper.run()
+        for service in services:
+            if helper.errors[service] is None:
+                output.append(helper.outputs[service])
     else:
-        output, cluster_info = get_application_information(app, cluster_info)
+        output = get_application_information(app)
     return output
 
 
