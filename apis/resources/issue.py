@@ -379,9 +379,33 @@ def update_issue_tags(issue_id, tags):
     issue_tags = model.IssueTag.query.filter_by(issue_id=issue_id).first()
     if issue_tags is None:
         return create_issue_tags(issue_id, tags)
-    issue_tags.tag_id = check_tags_id_is_int(tags)
-    db.session.commit()
+
+    new_tag_list = sorted(check_tags_id_is_int(tags))
+    origin_tag_list = sorted(issue_tags.tag_id)
+
+    if new_tag_list != origin_tag_list:
+        issue_tags.tag_id = new_tag_list
+        db.session.commit()
+        args = {"notes": ""}
+        add_tags = check_tags_diff(new_tag_list, origin_tag_list)
+        if add_tags != "":
+            args["notes"] = f"[標籤新增] {add_tags}"
+
+        delete_tags = check_tags_diff(origin_tag_list, new_tag_list)
+        if delete_tags != "":
+            desciption = f"[標籤刪除] {delete_tags}"
+            if args["notes"] != "":
+                args["notes"] += f" ， {desciption}"
+            else:
+                args["notes"] = desciption
+        redmine.rm_update_issue(
+            issue_id, args, None)
     return issue_tags.issue_id
+
+def check_tags_diff(fir_tags, sec_tags):
+    diff_tags = [
+        model.Tag.query.get(int(item)).name for item in fir_tags if item not in sec_tags]
+    return "、".join(diff_tags)
 
 
 def delete_issue_tags(issue_id):
@@ -810,7 +834,6 @@ def update_issue(issue_id, args, operator_id=None):
     if tags is not None:
         tag_ids = tags.strip().split(',')
         update_issue_tags(output["id"], tag_ids)
-
     output["tags"] = get_issue_tags(output["id"])
 
     family = get_issue_family(issue)
