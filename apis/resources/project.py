@@ -1319,7 +1319,6 @@ class ProjectUserResourcePodLog(Resource):
         args = parser.parse_args()
         return get_kubernetes_namespace_pod_log(project_id, pod_name, args['container_name'])
 
-
 class ProjectEnvironment(Resource):
     @jwt_required
     def get(self, project_id):

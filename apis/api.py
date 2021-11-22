@@ -346,7 +346,6 @@ api.add_resource(issue.MyIssueMonthStatistics, '/issues/month_statistics')
 api.add_resource(issue.Relation, '/issues/relation',
                  '/issues/relation/<int:relation_id>')
 api.add_resource(issue.CheckIssueClosable, '/issues/<issue_id>/check_closable')
-api.add_resource(issue.GetIssueTagHistory, '/issues/<issue_id>/tag_history')
 
 # WBS cache
 api.add_resource(wbs_cache.WbsCache, '/wbs_cache')

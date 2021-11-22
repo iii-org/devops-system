@@ -357,61 +357,6 @@ def convert_list_tag_id_to_name(tag_list):
     return[model.Tag.query.get(int(id)).name for id in sorted(tag_list)]
 
 
-def get_issue_tags_history(issue_id):
-    issue_tag_history = model.IssueTagHistory.query.filter_by(issue_id=issue_id).first()
-    if issue_tag_history is None: 
-        return {}
-    return row_to_dict(issue_tag_history)
-
-
-def create_issue_tags_history(issue_id, tags, user_id, pre_tags=None):
-    user_name = model.User.query.get(user_id).name
-    pre_tag_list = pre_tags if pre_tags is not None else []
-    historys = [{
-        user_name: {
-            "before": convert_list_tag_id_to_name(pre_tag_list), 
-            "after": convert_list_tag_id_to_name(tags),
-        }
-    }]
-    new = model.IssueTagHistory(
-        issue_id=issue_id,
-        historys=historys,
-        create_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-    )
-    db.session.add(new)
-    db.session.commit()
-
-
-def update_issue_tags_history(issue_id, tags, user_id):
-    issue_tags = model.IssueTag.query.filter_by(issue_id=issue_id).first()
-    issue_tag_history = model.IssueTagHistory.query.filter_by(issue_id=issue_id).first()
-    if issue_tags is None or issue_tag_history is None:
-        return create_issue_tags_history(issue_id, tags, user_id, pre_tags=issue_tags.tag_id if issue_tags is not None else None)
-    pre_tags = issue_tags.tag_id 
-
-    user_name = model.User.query.get(user_id).name
-    history = [{
-        user_name: {
-            "before": convert_list_tag_id_to_name(pre_tags), 
-            "after": convert_list_tag_id_to_name(tags),
-        }
-    }]
-    if history[0][user_name]["before"] == history[0][user_name]["after"]:
-        return
-    before_histroy = issue_tag_history.historys
-    if len(before_histroy) == 10:
-        before_histroy.pop()
-    issue_tag_history.historys = history + before_histroy
-    db.session.commit()
-
-
-def delete_issue_tags_history(issue_id):
-    issue_tag_history = model.IssueTagHistory.query.filter_by(issue_id=issue_id).first()
-    if issue_tag_history is not None:
-        db.session.delete(issue_tag_history)
-        db.session.commit()
-
-
 def check_tags_id_is_int(tags):
     if tags == [""]:
         return []
@@ -806,7 +751,6 @@ def create_issue(args, operator_id):
         tag_ids = tags.strip().split(',')
         if tags.strip() != "" and len(tag_ids) > 0:
             issue_tags = create_issue_tags(output["id"], tag_ids)
-            create_issue_tags_history(output["id"], tag_ids, operator_id)
     output['tags'] = get_issue_tags(output["id"])
 
     family = get_issue_family(issue)
@@ -865,7 +809,6 @@ def update_issue(issue_id, args, operator_id=None):
 
     if tags is not None:
         tag_ids = tags.strip().split(',')
-        update_issue_tags_history(output["id"], tag_ids, operator_id)
         update_issue_tags(output["id"], tag_ids)
 
     output["tags"] = get_issue_tags(output["id"])
@@ -887,7 +830,6 @@ def delete_issue(issue_id):
         redmine.rm_delete_issue(issue_id)
         delete_issue_extensions(issue_id)
         delete_issue_tags(issue_id)
-        delete_issue_tags_history(issue_id)
     except DevOpsError as e:
         print(e.status_code)
         if e.status_code == 404:
@@ -2641,11 +2583,6 @@ class ExecutIssueAlert(Resource):
                 {"condition": alert.condition, "days": alert.days})
 
         return util.success(execute_issue_alert(alert_mapping))
-
-
-class GetIssueTagHistory(Resource):
-    def get(self, issue_id):
-        return util.success(get_issue_tags_history(issue_id))
 
 
 class IssueFilterByProject(Resource):

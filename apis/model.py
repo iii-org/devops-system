@@ -707,17 +707,6 @@ class AlertMessage(db.Model):
         return resource_type
 
 
-class IssueTagHistory(db.Model):
-    id = Column(Integer, primary_key=True)
-    issue_id = Column(Integer)
-    '''
-    history: [{user_name: {before:[], after:[]}, ....., .....]
-    And the max length of historys is 10, use FIFO order.
-    '''
-    historys = Column(ARRAY(JSONB))
-    create_at = Column(DateTime)
-
-
 class CustomIssueFilter(db.Model):
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'), nullable=False)
