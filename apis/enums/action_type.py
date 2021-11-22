@@ -11,3 +11,5 @@ class ActionType(Enum):
     UPDATE_USER = 7  # Requires argument "user_id"
     DELETE_USER = 8  # Requires argument "user_id"
     DELETE_ISSUE = 9  # Requires argument "issue_id"
+    ADD_TAG = 10  # Requires argument "project_id"
+    DELETE_TAG = 11  # Requires argument "project_id"
