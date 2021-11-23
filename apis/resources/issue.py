@@ -1949,8 +1949,7 @@ class DownloadIssueAsExcel():
 
         output = get_issue_list_by_project(self.project_id, self.args, download=True) 
         for index, value in enumerate(output):
-            row = {"項次": str(index + 1)}
-            row.update(self.__generate_row_issue_for_excel(value))
+            row = self.__generate_row_issue_for_excel(str(index + 1), value)
             self.result.append(row)
             self.__append_children(index + 1, value, 1)
 
@@ -1963,19 +1962,17 @@ class DownloadIssueAsExcel():
         redmine_issue = redmine_lib.redmine.issue.get(value["id"], include=['children'])
         children = get_issue_family(redmine_issue, {'with_point': True})["children"]
         for index, child in enumerate(children):
-            row = {"項次": f"{super_index}_{index+1}"}
-            row.update(self.__generate_row_issue_for_excel(child))
+            row = self.__generate_row_issue_for_excel(f"{super_index}_{index + 1}", child)
             self.result.append(row)
             self.__append_children(f"{super_index}_{index+1}", child, level + 1)
 
 
-    def __generate_row_issue_for_excel(self, value):
+    def __generate_row_issue_for_excel(self, index, value):
         english = len(re.findall(r'[\u4e00-\u9fff]+', self.deploy_column[0]["display"])) == 0
-        result = {}
+        result = {"index": index} if english else {"項次": index}
         for column in self.deploy_column:
             if column['field'] == 'name':
                 result.update({column['display']: value['name']})
-
             if column['field'] == 'tracker' and not english:
                 result.update({column['display']: TRACKER_TRANSLATE[value['tracker']["name"]]})
             elif column['field'] == 'tracker' and english:
