@@ -365,21 +365,28 @@ def check_tags_id_is_int(tags):
     return tag_ids
 
 
-def create_issue_tags(issue_id, tags):
+def create_issue_tags(issue_id, tags, plan_operator_id):
+    new_tag_list = sorted(check_tags_id_is_int(tags))
     new = model.IssueTag(
         issue_id=issue_id,
-        tag_id=check_tags_id_is_int(tags)
+        tag_id=new_tag_list
     )
     db.session.add(new)
     db.session.commit()
+
+    # Record issue_tags changes in notes
+    add_tags = check_tags_diff(new_tag_list, [])
+    redmine.rm_update_issue(
+        issue_id, {"notes": f"[標籤新增] {add_tags}"}, plan_operator_id)
     return new.issue_id
 
 
 def update_issue_tags(issue_id, tags, plan_operator_id):
     issue_tags = model.IssueTag.query.filter_by(issue_id=issue_id).first()
     if issue_tags is None:
-        return create_issue_tags(issue_id, tags)
+        return create_issue_tags(issue_id, tags, plan_operator_id)
 
+    # Record issue_tags changes in notes
     new_tag_list = sorted(check_tags_id_is_int(tags))
     origin_tag_list = sorted(issue_tags.tag_id)
 
@@ -774,7 +781,7 @@ def create_issue(args, operator_id):
     if tags is not None:
         tag_ids = tags.strip().split(',')
         if tags.strip() != "" and len(tag_ids) > 0:
-            issue_tags = create_issue_tags(output["id"], tag_ids)
+            issue_tags = create_issue_tags(output["id"], tag_ids, plan_operator_id)
     output['tags'] = get_issue_tags(output["id"])
 
     family = get_issue_family(issue)
