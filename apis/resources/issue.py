@@ -375,7 +375,7 @@ def create_issue_tags(issue_id, tags):
     return new.issue_id
 
 
-def update_issue_tags(issue_id, tags):
+def update_issue_tags(issue_id, tags, plan_operator_id):
     issue_tags = model.IssueTag.query.filter_by(issue_id=issue_id).first()
     if issue_tags is None:
         return create_issue_tags(issue_id, tags)
@@ -399,7 +399,7 @@ def update_issue_tags(issue_id, tags):
             else:
                 args["notes"] = desciption
         redmine.rm_update_issue(
-            issue_id, args, None)
+            issue_id, args, plan_operator_id)
     return issue_tags.issue_id
 
 def check_tags_diff(fir_tags, sec_tags):
@@ -833,7 +833,7 @@ def update_issue(issue_id, args, operator_id=None):
 
     if tags is not None:
         tag_ids = tags.strip().split(',')
-        update_issue_tags(output["id"], tag_ids)
+        update_issue_tags(output["id"], tag_ids, plan_operator_id)
     output["tags"] = get_issue_tags(output["id"])
 
     family = get_issue_family(issue)
