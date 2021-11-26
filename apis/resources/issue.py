@@ -376,8 +376,9 @@ def create_issue_tags(issue_id, tags, plan_operator_id):
 
     # Record issue_tags changes in notes
     add_tags = check_tags_diff(new_tag_list, [])
-    redmine.rm_update_issue(
-        issue_id, {"notes": f"[標籤新增] {add_tags}"}, plan_operator_id)
+    if add_tags != "":
+        redmine.rm_update_issue(
+            issue_id, {"notes": f"[標籤新增] {add_tags}"}, plan_operator_id)
     return new.issue_id
 
 

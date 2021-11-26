@@ -66,7 +66,7 @@ def check_tags(project_id, tag_name):
     return model.Tag.query.filter_by(project_id=project_id, name=tag_name).count()
 
 
-@record_activity(ActionType.ADD_TAG)
+# @record_activity(ActionType.ADD_TAG)
 def create_tags(project_id, args):
     if args.get('name', None) is None:
         return None
@@ -85,7 +85,7 @@ def update_tag(tag_id, name):
     db.session.commit()
     return tag.id
 
-@record_activity(ActionType.DELETE_TAG)
+# @record_activity(ActionType.DELETE_TAG)
 def delete_tag(tag_id):
     model.Tag.query.filter_by(id=tag_id).delete()
     db.session.commit()
