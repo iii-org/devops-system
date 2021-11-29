@@ -1,4 +1,6 @@
 import ast
+import os
+import shutil
 import re
 import zipfile
 from datetime import datetime
@@ -307,6 +309,10 @@ def create_project(user_id, args):
             template.tm_use_template_push_into_pj(args["template_id"], gitlab_pj_id,
                                                   args["tag_name"], args["arguments"])
 
+        project_nfs_file_path = f"./project-data/{project_id}"
+        os.makedirs(project_nfs_file_path, exist_ok=True)
+        os.chmod(project_nfs_file_path, 0o777)
+
         return {
             "project_id": project_id,
             "plan_project_id": redmine_pj_id,
@@ -481,6 +487,10 @@ def delete_project(project_id):
     db.engine.execute(
         "DELETE FROM public.projects WHERE id = '{0}'".format(
             project_id))
+
+    project_nfs_file_path = f"./project-data/{project_id}"
+    if os.path.isdir(project_nfs_file_path):
+        shutil.rmtree(project_nfs_file_path)
     return util.success()
 
 
