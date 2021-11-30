@@ -309,7 +309,8 @@ def create_project(user_id, args):
             template.tm_use_template_push_into_pj(args["template_id"], gitlab_pj_id,
                                                   args["tag_name"], args["arguments"])
 
-        project_nfs_file_path = f"./project-data/{project_id}"
+        # Create project NFS folder
+        project_nfs_file_path = f"./project-data/{gitlab_pj_name}"
         os.makedirs(project_nfs_file_path, exist_ok=True)
         os.chmod(project_nfs_file_path, 0o777)
 
@@ -420,6 +421,10 @@ def try_to_delete(delete_method, argument):
 # 用project_id刪除redmine & gitlab的project並將db的相關table欄位一併刪除
 @record_activity(ActionType.DELETE_PROJECT)
 def delete_project(project_id):
+    # Get project name(for remove its NFS folder)
+    project_name = model.Project.query.get(project_id).name
+
+    # Check server is all alive
     server_alive_output = Monitoring(project_id).check_project_alive()
     if not server_alive_output["all_alive"]:
         not_alive_server = [
@@ -488,7 +493,8 @@ def delete_project(project_id):
         "DELETE FROM public.projects WHERE id = '{0}'".format(
             project_id))
 
-    project_nfs_file_path = f"./project-data/{project_id}"
+    # Delete project NFS folder
+    project_nfs_file_path = f"./project-data/{project_name}"
     if os.path.isdir(project_nfs_file_path):
         shutil.rmtree(project_nfs_file_path)
     return util.success()

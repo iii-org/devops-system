@@ -1,5 +1,6 @@
 import os
 
+import shutil
 import threading
 import config
 import model
@@ -32,7 +33,7 @@ VERSIONS = ['0.9.2', '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.4', '0.9.2.5',
             '1.9.0.1', '1.9.0.2', '1.9.0.3', '1.9.0.4', '1.9.0.5', '1.9.0.6', '1.9.0.7', '1.9.0.8', '1.9.0.9', '1.9.1.0',
             '1.9.1.1', '1.9.1.2', '1.9.1.3', '1.9.1.4', '1.9.1.5', '1.9.1.6', '1.9.1.7', '1.9.1.8', '1.9.1.9', '1.10.0.1',
             '1.10.0.2', '1.10.0.3', '1.10.0.4', '1.10.0.5', '1.10.0.6', '1.10.0.7', '1.10.0.8', '1.10.0.9', '1.10.0.10',
-            '1.10.0.11', '1.10.0.12', '1.11.0.1', '1.11.0.2', '1.11.0.3', '1.11.0.4', '1.11.0.5', '1.11.0.6', '1.11.0.7']
+            '1.10.0.11', '1.10.0.12', '1.11.0.1', '1.11.0.2', '1.11.0.3', '1.11.0.4', '1.11.0.5', '1.11.0.6', '1.11.0.7', '1.11.0.8']
 ONLY_UPDATE_DB_MODELS = [
     '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.5', '0.9.2.6', '0.9.2.a8',
     '1.0.0.2', '1.3.0.1', '1.3.0.2', '1.3.0.3', '1.3.0.4', '1.3.1', '1.3.1.1', '1.3.1.2',
@@ -152,7 +153,21 @@ def upgrade(version):
     elif version == '1.11.0.3':
         insert_download_issues_in_lock()
     elif version == '1.11.0.7':
-        add_project_nfs_path()
+        pass
+    elif version == '1.11.0.8':
+        add_project_nfs_path_real()
+
+
+def add_project_nfs_path_real():
+    for pj in Project.query.all():
+        project_nfs_file_path = f"./project-data/{pj.name}"
+        os.makedirs(project_nfs_file_path, exist_ok=True)
+        os.chmod(project_nfs_file_path, 0o777)
+
+        fake_project_nfs_file_path = f"./project-data/{pj.id}"
+        if os.path.isdir(fake_project_nfs_file_path):
+            shutil.rmtree(fake_project_nfs_file_path)
+
 
 
 def add_project_nfs_path():
