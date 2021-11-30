@@ -730,3 +730,41 @@ class CustomIssueFilter(db.Model):
                 raise AssertionError(
                     "Type must in issue_list / issue_board.")
         return type
+
+
+class CMAS(db.Model):
+    task_id = Column(String, primary_key=True)
+    cm_project_id = Column(Integer)
+    repo_id = Column(Integer, ForeignKey(
+        ProjectPluginRelation.git_repository_id, ondelete='CASCADE'))
+    branch = Column(String)
+    commit_id = Column(String)
+    run_at = Column(DateTime)  # The time scan registered
+    '''
+    Store if a final status (Finished, Failed, Cancelled) is checked
+    Null if scan is in non-final status
+    '''
+    scan_final_status = Column(String, nullable=True)
+    stats = Column(String)
+    finished_at = Column(DateTime)  # The time report is generated
+    finished = Column(Boolean)  # True only if report is available
+
+    filename = Column(String)
+    upload_id = Column(Integer)
+    sha256 = Column(String)
+    '''
+    24 (Android 7.1 Root 版本)
+    34 (iOS 11 iPad 越獄版本)
+    '''
+    a_mode = Column(Integer)
+
+    '''
+    0 (OWASP only)
+    1 (工業局行動App規範only)
+    2 (OWASP + 工業局規範)
+    4 (MSTG(Mobile Security Testing Guide))
+    5 (OWASP + MSTG)
+    6 (MSTG + 工業局基準)
+    7 (OWASP + 工業局基準 + MSTG)
+    '''
+    a_report_type = Column(Integer)
