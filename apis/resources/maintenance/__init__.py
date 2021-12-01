@@ -1,10 +1,30 @@
 from model import db, ProjectPluginRelation, Project
 from resources import rancher, role
 import util
+import resources.apiError as apiError
+from resources.apiError import DevOpsError
 from flask_restful import Resource, reqparse
 from flask_jwt_extended import jwt_required
 from resources.rancher import rancher
 from resources.gitlab import gitlab
+import util
+
+
+def get_system_parameter():
+    return util.read_json_file("apis/resources/maintenance/system_parameter.json")
+
+
+def check_name_duplicate(name, type):
+    system_parameter = get_system_parameter()
+    if name in system_parameter[type]:
+        raise apiError.DevOpsError(
+            404, 'Name must not be duplicate', apiError.argument_error("name"))
+
+
+def add_system_tag(system_list, type):
+    system_parameter = get_system_parameter()
+    for system in system_list:
+        system["system"] = system["name"] in system_parameter[type]
 
 
 def update_db_rancher_projectid_and_pipelineid(force=None):
@@ -53,7 +73,6 @@ def update_pj_httpurl():
 
 
 class UpdateDbRcProjectPipelineId(Resource):
-
     @jwt_required
     def get(self):
         role.require_admin()
@@ -65,7 +84,6 @@ class UpdateDbRcProjectPipelineId(Resource):
 
 
 class SecretesIntoRcAll(Resource):
-
     @jwt_required
     def get(self):
         secret_list = rancher.rc_get_secrets_all_list()
@@ -77,6 +95,8 @@ class SecretesIntoRcAll(Resource):
                     del secret_list[i]
                     break
             i += 1
+
+        add_system_tag(secret_list, "secret")
         return util.success(secret_list)
 
     @jwt_required
@@ -86,6 +106,9 @@ class SecretesIntoRcAll(Resource):
         parser.add_argument('type', type=str, required=True)
         parser.add_argument('data', type=dict, required=True)
         args = parser.parse_args()
+
+        check_name_duplicate(args["name"], "secret")
+
         rancher.rc_add_secrets_into_rc_all(args)
         return util.success()
 
@@ -104,19 +127,22 @@ class SecretesIntoRcAll(Resource):
 
 
 class RegistryIntoRcAll(Resource):
-
     @jwt_required
     def get(self):
-        return util.success(rancher.rc_get_registry_into_rc_all())
+        registry_list = rancher.rc_get_registry_into_rc_all()
+        add_system_tag(registry_list, "registry")
+        return util.success(registry_list)
 
     @jwt_required
     def post(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('name')
-        parser.add_argument('url')
-        parser.add_argument('username')
-        parser.add_argument('password')
+        parser.add_argument('name', required=True)
+        parser.add_argument('url', required=True)
+        parser.add_argument('username', required=True)
+        parser.add_argument('password', required=True)
         args = parser.parse_args()
+
+        check_name_duplicate(args["name"], "registry")
         rancher.rc_add_registry_into_rc_all(args)
         return util.success()
 
