@@ -12,6 +12,7 @@ from kubernetes import config as k8s_config
 from kubernetes import utils as k8s_utils
 from kubernetes.client import ApiException
 from kubernetes.stream import stream as k8s_stream
+from util import read_json_file
 
 import config
 import resources.apiError as apiError
@@ -25,11 +26,8 @@ iii_template = {
     'type': 'iiidevops.org/type'
 }
 
-iii_env_default = [
-    'gitlab-bot', 'gitlab', 'nexus-bot', 'nexus', 'sonar-bot', 'checkmarx',
-    'harbor', 'harbor-local', 'pipeline-docker-registry', 'rancher',
-    'sonarqube', 'sonar-bot', 'webinspect'
-]
+system_parameter = read_json_file("apis/resources/maintenance/system_parameter.json")
+iii_env_default = system_parameter["secret"] + system_parameter["registry"]
 
 env_normal_type = ['Opaque']
 
