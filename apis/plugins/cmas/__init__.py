@@ -71,12 +71,12 @@ class CMAS(object):
                 'a_ert': (None, 90),
             },
         ).json()
-        if ret["stauts"] == "SUCCESS":
+        if ret["status"] == "SUCCESS":
             return {
                 "status": True,
                 "sha256": ret["AppCheckSum-sha256"], 
-                "upload_id": str(ret["uploadId"]),
-                "report_id": str(ret["reportId"]),
+                "upload_id": ret["uploadId"],
+                "report_id": ret["reportId"],
             }
         else:
             return {
@@ -89,34 +89,40 @@ class CMAS(object):
             '/M3AS-REST/api/query/report', 
             data={
                 'authKey': self.authKey,
-                'uploadId': str(self.task.upload_id),
+                'uploadId': self.task.upload_id,
                 'sha256': self.task.sha256,
                 'taskId': self.task.task_id,
             },
         ).json()
+        if ret.get("Pdf-link-list") is not None:
+            filename = ""
+            for filename in ret["Pdf-link-list"]:
+                if "cht" in filename:
+                    filename = filename.replace("/M3AS-REST/api/report/pdf?filename=", "")
+                    break
 
-        if ret["status"] == "SUCCESS":
-            self.task.scan_final_status = ret["status"]
+            self.task.scan_final_status = "SUCCESS"
             self.task.finished = True
             self.task.finished_at = datetime.datetime.utcnow()
+            self.task.filename = filename
             db.session.commit()
+            ret["status"] = "SUCCESS"
             return ret
         else:
             ret["status"] = ret["status"].replace("APP_", "")
             return ret
 
-
     def download_report(self):
         ret = self.__api_get(
             '/M3AS-REST/api/report/pdf',
             params=(
-                ('filename', f"{self.task.filename}.pdf")
+                ('filename', self.task.filename),
             )
         )
-        with open(f"/logs/cmas/{self.task.task_id}/{self.task.filename}.pdf", "wb") as f:
+        with open(f"./logs/cmas/{self.task.task_id}/{self.task.task_id}.pdf", "wb") as f:
             f.write(ret.content)
 
-        return send_file(f"../logs/cmas/{self.task.task_id}/{self.task.filename}.pdf")
+        return send_file(f"../logs/cmas/{self.task.task_id}/{self.task.task_id}.pdf")
 
 
 def check_cmas_exist(task_id):
@@ -144,7 +150,7 @@ def get_tasks(repository_id):
 
 
 def create_task(args, repository_id):
-    filename = f"{args['task_id']}-app-debug.apk"
+    filename = "app-debug.apk"
 
     new = Model(
         task_id=args['task_id'],
@@ -155,10 +161,9 @@ def create_task(args, repository_id):
         scan_final_status=None,
         finished=False,
         filename=filename,
-        # size=args['size'],
-        # sha256=args['sha256'],
         a_mode=args['a_mode'],
         a_report_type=args['a_report_type'],
+        a_ert=args['a_ert'],
     )
     db.session.add(new)
     db.session.commit()
@@ -186,6 +191,7 @@ class CMASTask(Resource):
         parser.add_argument('commit_id', type=str, required=True)
         parser.add_argument('a_mode', type=int, required=True)
         parser.add_argument('a_report_type', type=int, required=True)
+        parser.add_argument('a_ert', type=int, required=True)
         args = parser.parse_args()
         return create_task(args, repository_id)
 
