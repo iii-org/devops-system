@@ -748,16 +748,15 @@ class CMAS(db.Model):
     stats = Column(String)
     finished_at = Column(DateTime)  # The time report is generated
     finished = Column(Boolean)  # True only if report is available
-
     filename = Column(String)
     upload_id = Column(Integer)
+    size = Column(Integer)
     sha256 = Column(String)
     '''
     24 (Android 7.1 Root 版本)
     34 (iOS 11 iPad 越獄版本)
     '''
     a_mode = Column(Integer)
-
     '''
     0 (OWASP only)
     1 (工業局行動App規範only)
