@@ -3,6 +3,7 @@ import json
 import time
 from io import BytesIO
 import os
+import hashlib
 import werkzeug
 import requests
 from flask import send_file
@@ -54,7 +55,7 @@ class CMAS(object):
         res = requests.post(url, headers=headers, data=data, params=params, files=files, verify=False)
         return res
 
-    def upload_task(self, task_id):
+    def upload_task(self):
         ret = self.__api_post(
             '/M3AS-REST/api/csf/task/upload', 
             params=( 
@@ -63,24 +64,29 @@ class CMAS(object):
             files={
                 'sampleFile': open(f"./logs/cmas/{self.task.task_id}/app-debug.apk", "rb"),
                 'fileName': (None, self.task.filename),
-                'sha256': (None, self.task.sha256),
-                'size': (None, self.task.size),
+                'sha256': (None, get_file_sha256(self.task.task_id)),
+                'size': (None, get_file_size(self.task.task_id)),
                 'taskId': (None, self.task.task_id),
                 'a_mode': (None, self.task.a_mode),
                 'a_reportType': (None, self.task.a_report_type),
-                'a_ert': (None, 90),
+                'a_ert': (None, self.task.a_ert),
             },
         ).json()
         if ret["status"] == "SUCCESS":
+            self.task.sha256 = ret["AppCheckSum-sha256"]
+            self.task.size = get_file_size(self.task.task_id)
+            self.task.upload_id = ret["uploadId"]
+            db.session.commit()
+
             return {
-                "status": True,
+                "status": "SUCCESS",
                 "sha256": ret["AppCheckSum-sha256"], 
                 "upload_id": ret["uploadId"],
                 "report_id": ret["reportId"],
             }
         else:
             return {
-                "status": False,
+                "status": "FAIL",
                 "message": ret["message"]
             }
 
@@ -124,6 +130,16 @@ class CMAS(object):
 
         return send_file(f"../logs/cmas/{self.task.task_id}/{self.task.task_id}.pdf")
 
+def get_file_sha256(task_id):
+    sha256_hash = hashlib.sha256()
+    with open(f"./logs/cmas/{task_id}/app-debug.apk", "rb") as f:
+        # Read and update hash string value in blocks of 4K
+        for byte_block in iter(lambda: f.read(4096), b""):
+            sha256_hash.update(byte_block)
+        return sha256_hash.hexdigest()
+
+def get_file_size(task_id):
+    return os.path.getsize(f"./logs/cmas/{task_id}/app-debug.apk")
 
 def check_cmas_exist(task_id):
     task = Model.query.filter_by(task_id=task_id).first()
@@ -139,6 +155,7 @@ def get_tasks(repository_id):
         "commit_id": task.commit_id,
         "run_at": str(task.run_at),
         "status": task.scan_final_status,
+        "finished_at": str(task.finished_at),
         "filename": task.filename,
         "upload_id": task.upload_id,
         "size": task.size,
@@ -146,7 +163,7 @@ def get_tasks(repository_id):
         "a_mode": task.a_mode,
         "a_report_type": task.a_report_type,
         "a_ert": task.a_ert,
-    } for task in Model.query.filter_by(repo_id=repository_id).all()]
+    } for task in Model.query.filter_by(repo_id=repository_id).order_by(Model.run_at).all()]
 
 
 def create_task(args, repository_id):
