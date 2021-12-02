@@ -19,7 +19,7 @@ from sqlalchemy_utils import database_exists, create_database
 from werkzeug.routing import IntegerConverter
 
 import plugins
-from plugins import webinspect, sideex, zap, sonarqube, postman, ad
+from plugins import webinspect, sideex, zap, sonarqube, postman, ad, cmas
 import config
 import migrate
 import model
@@ -651,8 +651,8 @@ api.add_resource(lock.LockStatus, '/lock')
 api.add_resource(alert_message.AlertMessages, '/alert_message')
 
 # CMAS
-# api.add_resource(cmas.CMASTask, '/cmas', '/project/<sint:project_id>/cmas')
-# api.add_resource(cmas.CMASRemote, '/cmas/<string:task_id>')
+api.add_resource(cmas.CMASTask, '/cmas', '/repo_project/<sint:repository_id>/cmas')
+api.add_resource(cmas.CMASRemote, '/cmas/<string:task_id>')
 
 
 def start_prod():

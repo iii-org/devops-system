@@ -767,3 +767,4 @@ class CMAS(db.Model):
     7 (OWASP + 工業局基準 + MSTG)
     '''
     a_report_type = Column(Integer)
+    a_ert = Column(Integer)
