@@ -1651,7 +1651,7 @@ class K8sPodExec(object):
                 stderr=True,
                 stdin=True,
                 stdout=True,
-                tty=False,
+                tty=True,
                 _preload_content=False)
         else:
             self.resp = k8s_stream(
@@ -1663,7 +1663,7 @@ class K8sPodExec(object):
                 stderr=True,
                 stdin=True,
                 stdout=True,
-                tty=False,
+                tty=True,
                 _preload_content=False)
 
     def exec_namespace_pod(self, data):
