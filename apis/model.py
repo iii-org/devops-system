@@ -726,9 +726,9 @@ class CustomIssueFilter(db.Model):
     @validates("type")
     def validate_type(self, key, type):
         if type is not None:
-            if type not in ["issue_list", "issue_board"]:
+            if type not in ["issue_list", "issue_board", "my_work"]:
                 raise AssertionError(
-                    "Type must in issue_list / issue_board.")
+                    "Type must in issue_list / issue_board / my_work.")
         return type
 
 
