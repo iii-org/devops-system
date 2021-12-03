@@ -1,6 +1,7 @@
 from flask_restful import Resource, reqparse
 from model import Lock
 import util
+from flask_jwt_extended import jwt_required
 
 
 
@@ -16,6 +17,7 @@ def get_lock_status(name):
 
 # --------------------- Resources ---------------------
 class LockStatus(Resource):
+    @jwt_required
     def get(self):
         parser = reqparse.RequestParser()
         parser.add_argument('name', type=str, required=True)

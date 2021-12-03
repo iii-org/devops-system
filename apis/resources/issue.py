@@ -2614,11 +2614,11 @@ class ExecutIssueAlert(Resource):
 
 
 class IssueFilterByProject(Resource):
-    @ jwt_required
+    @jwt_required
     def get(self, project_id):
         return util.success(get_custom_issue_filter(get_jwt_identity()['user_id'], project_id))
 
-    @ jwt_required
+    @jwt_required
     def post(self, project_id):
         user_id = get_jwt_identity()['user_id']
         parser = reqparse.RequestParser()
@@ -2634,7 +2634,7 @@ class IssueFilterByProject(Resource):
 
         return util.success(create_custom_issue_filter(user_id, project_id, args))
 
-    @ jwt_required
+    @jwt_required
     def put(self, project_id, custom_filter_id):
         parser = reqparse.RequestParser()
         parser.add_argument('name', type=str, required=True)
@@ -2649,7 +2649,7 @@ class IssueFilterByProject(Resource):
 
         return util.success(put_custom_issue_filter(custom_filter_id, project_id, args))
 
-    @ jwt_required
+    @jwt_required
     def delete(self, project_id, custom_filter_id):
         CustomIssueFilter.query.filter_by(id=custom_filter_id).delete()
         db.session.commit()
@@ -2657,7 +2657,7 @@ class IssueFilterByProject(Resource):
 
 class DownloadProject(Resource):
     # download/execute
-    @ jwt_required
+    @jwt_required
     def post(self, project_id):
         parser = reqparse.RequestParser()
         parser.add_argument('fixed_version_id', type=str)
@@ -2682,11 +2682,12 @@ class DownloadProject(Resource):
         return util.success()
 
     # download/is_exist
+    @jwt_required 
     def get(self, project_id):
         return util.success(pj_download_file_is_exist(project_id))
 
     # download/execute
-    @ jwt_required    
+    @jwt_required    
     def patch(self, project_id):
         if not pj_download_file_is_exist(project_id)["file_exist"]:
             raise apiError.DevOpsError(

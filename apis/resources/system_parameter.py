@@ -1,6 +1,6 @@
 from flask_restful import Resource, reqparse
 from github import Github
-
+from flask_jwt_extended import jwt_required
 import config
 import json
 import model
@@ -79,9 +79,11 @@ def update_system_parameter(id, args):
 
 
 class SystemParameters(Resource):
+    @jwt_required
     def get(self):
         return util.success(get_system_parameter())
 
+    @jwt_required
     def put(self, param_id):
         parser = reqparse.RequestParser()
         parser.add_argument('value', type=str, location='json')

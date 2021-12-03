@@ -194,6 +194,7 @@ def create_task(args, repository_id):
 # --------------------- Resources ---------------------
 class CMASTask(Resource):
     # Get all tasks
+    @jwt_required
     def get(self, repository_id):
         return util.success(get_tasks(repository_id))
 
@@ -220,6 +221,7 @@ class CMASRemote(Resource):
         return util.success(CMAS(task_id).query_report_task())
 
     # upload file
+    @jwt_required
     def post(self, task_id):
         return util.success(CMAS(task_id).upload_task())
 

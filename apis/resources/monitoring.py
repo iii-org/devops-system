@@ -157,6 +157,7 @@ def verify_github_info(value):
 
 # --------------------- Resources ---------------------
 class ServersAlive(Resource):
+    @jwt_required
     def get(self):
         parser = reqparse.RequestParser()
         parser.add_argument('project_id', type=int)
@@ -169,35 +170,41 @@ class ServersAlive(Resource):
 
 # redmine
 class RedmineAlive(Resource):
+    @jwt_required
     def get(self):
         return generate_alive_response("redmine")
 
 
 # gitlab
 class GitlabAlive(Resource):
+    @jwt_required
     def get(self):
         return generate_alive_response("gitlab")
 
 
 # harbor
 class HarborAlive(Resource):
+    @jwt_required
     def get(self):
         return generate_alive_response("harbor")
 
 
 # sonarQube
 class SonarQubeAlive(Resource):
+    @jwt_required
     def get(self):
         return generate_alive_response("sonarQube")
 
 
 # rancher
 class RancherAlive(Resource):
+    @jwt_required
     def get(self):
         return generate_alive_response("rancher")
 
 
 class RancherDefaultName(Resource):
+    @jwt_required
     def get(self):
         rancher.rc_get_cluster_id()
         return {"default_cluster_name": rancher.cluster_id is not None}
@@ -205,6 +212,7 @@ class RancherDefaultName(Resource):
 
 # k8s
 class K8sAlive(Resource):
+    @jwt_required
     def get(self):
         return generate_alive_response("kubernetes")
 

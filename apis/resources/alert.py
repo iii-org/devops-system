@@ -76,6 +76,7 @@ def update_default_alert_days(args):
 
 # --------------------- Resources ---------------------
 class ProjectAlert(Resource):
+    @jwt_required
     def get(self, project_id):
         return util.success(get_alert_by_project(project_id))
 

@@ -530,6 +530,7 @@ class ExecuteTraceOrder(Resource):
         return {"message": "success"}
 
 class GetTraceResult(Resource):
+    @jwt_required
     def get(self):
         parser = reqparse.RequestParser()
         parser.add_argument('project_id', type=int, required=True)
