@@ -1,15 +1,17 @@
 import json
+import ssl
 
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse, inputs
-from ldap3 import Server, ServerPool, Connection, ALL, ALL_ATTRIBUTES, FIRST
+from ldap3 import Server, ServerPool, Connection, ALL_ATTRIBUTES, FIRST, Tls
 from sqlalchemy.orm.exc import NoResultFound
 
+import config
 import model
 import plugins
+import util as util
 import resources.apiError as apiError
 import resources.user as user
-import util as util
 from model import db
 from resources import role
 from resources.logger import logger
@@ -96,8 +98,6 @@ def update_user(ad_user, db_user):
                 args['status'] = "disabled"
             else:
                 args['status'] = "enabled"
-        print(args)
-        print(ad_user)
         user.update_user(db_user['id'], args, True)
     return db_user['id']
 
@@ -258,12 +258,25 @@ class AD(object):
         self.server = ServerPool(None, pool_strategy=FIRST, active=True)
 
         hosts = get_ad_servers(ad_parameter.get('host'))
+        is_ssl = ad_parameter.get('ssl', False)
+        if is_ssl == 'True':
+            is_ssl = True
+        else:
+            is_ssl = False
+
         for host in hosts:
-            self.server.add(Server(host=host.get('ip'), port=host.get('port'), get_info=ALL,
-                                   connect_timeout=ad_connect_timeout))
+            if is_ssl:
+                ca_string = util.base64decode(ad_parameter.get('ca_certs_data'))
+                tls = Tls(validate=ssl.CERT_NONE, version=ssl.PROTOCOL_TLSv1_2,
+                          ca_certs_data=ca_string)
+                self.server.add(Server(host=host.get('ip'), port=host.get('port'), use_ssl=True, tls=tls,
+                                       connect_timeout=ad_connect_timeout))
+            else:
+                self.server.add(Server(host=host.get('ip'), port=host.get('port'), connect_timeout=ad_connect_timeout))
+
         if account is None and password is None:
-            self.account = ad_parameter['account']
-            self.password = ad_parameter['password']
+            self.account = ad_parameter.get('account')
+            self.password = ad_parameter.get('password')
         else:
             self.account = account
             self.password = password
@@ -335,7 +348,7 @@ class AD(object):
 
 
 class ADUser(Resource):
-    @jwt_required
+    @ jwt_required
     def get(self):
         try:
             role.require_admin('Only admins can get ad user information.')
@@ -359,7 +372,7 @@ class ADUser(Resource):
             return util.respond(404, invalid_ad_server,
                                 error=apiError.invalid_plugin_name(invalid_ad_server))
 
-    @jwt_required
+    @ jwt_required
     def post(self):
         try:
             role.require_admin('Only admins can Add ad user.')
@@ -390,7 +403,7 @@ ad_user = ADUser()
 
 
 class ADUsers(Resource):
-    @jwt_required
+    @ jwt_required
     def get(self):
         try:
             res = None
@@ -457,7 +470,7 @@ ad_users = ADUsers()
 
 class ADOrganizations(Resource):
 
-    @jwt_required
+    @ jwt_required
     def get(self):
         try:
             res = None

@@ -59,6 +59,45 @@
         }
       ],
       "store": "secret_system"
+    },
+    {
+      "key": "ssl",
+      "type": "select",
+      "options": [
+        {
+          "value": true,
+          "name": "True"
+        },
+        {
+          "value": false,
+          "name": "False"
+        }
+      ],
+      "store": "secret_system"
+    },
+    {
+      "key": "ssl_validate",
+      "type": "select",
+      "options": [
+        {
+          "value": "CERT_NONE",
+          "name": "certificates are ignored"
+        },
+        {
+          "value": "CERT_OPTIONAL",
+          "name": "certificate not required, but validated if provided"
+        },
+        {
+          "value": "CERT_REQUIRED",
+          "name": "required and validated"
+        }
+      ],
+      "store": "secret_system"
+    },
+    {
+      "key": "ca_certs_data",
+      "type": "string",
+      "store": "secret_system"
     }
   ]
 }
