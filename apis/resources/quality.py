@@ -503,17 +503,18 @@ class TestPlanWithTestFile(Resource):
                                                  args['file_name'])
         return util.success(out)
 
-    # def put(self, project_id):
-    #     parser = reqparse.RequestParser()
-    #     parser.add_argument('issue_id', type=int, required=True)
-    #     parser.add_argument('test_files',
-    #                         type=list,
-    #                         location='json',
-    #                         required=True)
-    #     args = parser.parse_args()
-    #     qu_put_testplan_testfiles_relate(project_id, args['issue_id'],
-    #                                      args['test_files'])
-    #     return util.success()
+    @jwt_required
+    def put(self, project_id):
+        parser = reqparse.RequestParser()
+        parser.add_argument('issue_id', type=int, required=True)
+        parser.add_argument('test_files',
+                            type=list,
+                            location='json',
+                            required=True)
+        args = parser.parse_args()
+        qu_put_testplan_testfiles_relate(project_id, args['issue_id'],
+                                         args['test_files'])
+        return util.success()
 
     # def get(self, project_id):
     #     out = qu_get_testplan_testfile_relate_list(project_id)
