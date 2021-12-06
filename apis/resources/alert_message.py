@@ -1,4 +1,5 @@
 from flask_restful import Resource, reqparse
+from flask_jwt_extended import jwt_required
 
 import model
 import json
@@ -21,6 +22,7 @@ def create_alert_messages(args):
 
 # --------------------- Resources ---------------------
 class AlertMessages(Resource):
+    @jwt_required
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('resource_type', type=str, required=True)

@@ -767,15 +767,15 @@ class Login(Resource):
         return login(args)
 
 
-class UserForgetPassword(Resource):
-    # noinspection PyMethodMayBeStatic
-    def post(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument('mail', type=str, required=True)
-        parser.add_argument('user_account', type=str, required=True)
-        args = parser.parse_args()
-        status = user_forgot_password(args)
-        return util.success(status)
+# class UserForgetPassword(Resource):
+#     # noinspection PyMethodMayBeStatic
+#     def post(self):
+#         parser = reqparse.RequestParser()
+#         parser.add_argument('mail', type=str, required=True)
+#         parser.add_argument('user_account', type=str, required=True)
+#         args = parser.parse_args()
+#         status = user_forgot_password(args)
+#         return util.success(status)
 
 
 class UserStatus(Resource):

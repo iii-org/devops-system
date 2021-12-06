@@ -1,4 +1,4 @@
-from flask_jwt_extended import get_jwt_identity
+from flask_jwt_extended import get_jwt_identity, jwt_required
 from flask_restful import Resource
 
 import nexus
@@ -146,5 +146,6 @@ def is_admin():
 # --------------------- Resources ---------------------
 class RoleList(Resource):
     # noinspection PyMethodMayBeStatic
+    @jwt_required
     def get(self):
         return get_role_list()

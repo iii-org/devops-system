@@ -287,7 +287,7 @@ api.add_resource(gitlab.GitProjectURLFromId, '/repositories/url')
 
 # User
 api.add_resource(user.Login, '/user/login')
-api.add_resource(user.UserForgetPassword, '/user/forgetPassword')
+# api.add_resource(user.UserForgetPassword, '/user/forgetPassword')
 api.add_resource(user.UserStatus, '/user/<int:user_id>/status')
 api.add_resource(user.SingleUser, '/user', '/user/<int:user_id>')
 api.add_resource(user.UserList, '/user/list')
@@ -488,8 +488,8 @@ api.add_resource(system.SystemGitCommitID,
 api.add_resource(system.SystemInfoReport, '/system_info_report')
 
 # Mocks
-api.add_resource(mock.MockTestResult, '/mock/test_summary')
-api.add_resource(mock.MockSesame, '/mock/sesame')
+# api.add_resource(mock.MockTestResult, '/mock/test_summary')
+# api.add_resource(mock.MockSesame, '/mock/sesame')
 # api.add_resource(mock.UserDefaultFromAd, '/mock/userdefaultad')
 
 # Harbor
@@ -571,8 +571,8 @@ api.add_resource(project_permission.SetPermission,
 # Quality
 api.add_resource(quality.TestPlanList,
                  '/quality/<int:project_id>/testplan_list')
-api.add_resource(quality.TestPlan,
-                 '/quality/<int:project_id>/testplan/<int:testplan_id>')
+# api.add_resource(quality.TestPlan,
+#                  '/quality/<int:project_id>/testplan/<int:testplan_id>')
 api.add_resource(quality.TestFileByTestPlan,
                  '/quality/<int:project_id>/testfile_by_testplan/<int:testplan_id>')
 api.add_resource(quality.TestFileList,
