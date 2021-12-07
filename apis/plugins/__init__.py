@@ -127,9 +127,11 @@ def update_plugin_config(plugin_name, args):
             'store': item['store'],
             'type': item['type']
         }
-    if args.get('disabled', None) is not None and bool(config.get('is_pipeline', True)):
+    if args.get('disabled', None) is not None:
         db_row.disabled = bool(args['disabled'])
-        threading.Thread(target=template.update_pj_plugin_status, args=(plugin_name, args["disabled"],)).start()
+        #  Update Project Plugin Status
+        if bool(config.get('is_pipeline', True)):
+            threading.Thread(target=template.update_pj_plugin_status, args=(plugin_name, args["disabled"],)).start()
 
     if args.get('arguments', None) is not None:
         for argument in args['arguments']:
