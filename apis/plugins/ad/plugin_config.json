@@ -1,6 +1,7 @@
 {
   "name": "ad",
   "default_disabled": true,
+  "is_pipeline": false,
   "keys": [
     {
       "key": "host",
@@ -81,15 +82,15 @@
       "options": [
         {
           "value": "CERT_NONE",
-          "name": "certificates are ignored"
+          "name": "Certificate Not Validated"
         },
         {
           "value": "CERT_OPTIONAL",
-          "name": "certificate not required, but validated if provided"
+          "name": "Certificate not required, but validated if provided"
         },
         {
-          "value": "CERT_REQUIRED",
-          "name": "required and validated"
+          "value": "REQUIRED",
+          "name": "Certificate Required and Validated"
         }
       ],
       "store": "secret_system"

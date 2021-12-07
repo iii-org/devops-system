@@ -103,7 +103,7 @@ def get_plugin_config(plugin_name):
             'type': item['type'],
             'value': value
         }
-        # Add Select Option 
+        # Add Select Option
         if item['type'] == 'select':
             o['options'] = item['options']
             #  If Plugin is AD , get system role list
@@ -127,9 +127,10 @@ def update_plugin_config(plugin_name, args):
             'store': item['store'],
             'type': item['type']
         }
-    if args.get('disabled', None) is not None:
+    if args.get('disabled', None) is not None and bool(config.get('is_pipeline', True)):
         db_row.disabled = bool(args['disabled'])
         threading.Thread(target=template.update_pj_plugin_status, args=(plugin_name, args["disabled"],)).start()
+
     if args.get('arguments', None) is not None:
         for argument in args['arguments']:
             if argument not in key_map:
