@@ -298,6 +298,16 @@ def update_lock_redmine(is_lock=None, sync_date=None):
     db.session.commit()
 
 # --------------------- API Tasks ---------------------
+def init_data_first_time():
+    '''
+    Use for the first time to sync redmine(Alembic migratation)
+    '''
+    clear_all_tables()
+    sync_date = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    need_to_track_issue = sync_redmine(sync_date)
+    if need_to_track_issue:
+        for project_id in need_to_track_issue:
+            insert_all_issues(project_id, sync_date)
 
 
 def init_data(now=False):

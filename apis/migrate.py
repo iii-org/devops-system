@@ -611,7 +611,7 @@ def cleanup_change_to_orm():
 
 
 def init_sync_redmine():
-    sync_redmine.init_data()
+    sync_redmine.init_data_first_time()
 
 
 def init():
