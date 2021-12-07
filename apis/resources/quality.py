@@ -7,6 +7,8 @@ from io import BytesIO
 from flask import send_file
 import copy
 import re
+from pathlib import Path
+import os
 
 import model
 import util as util
@@ -51,6 +53,7 @@ paths = [{
 }]
 
 filename_validate_mapping = {"Postman": ".postman_collection.json$", "SideeX": ".sideex.json$"}
+
 
 class PostmanJSON:
     def __init__(self, input_dict):
@@ -265,6 +268,18 @@ def qu_del_testplan_testfile_relate_list(project_id, item_id):
             400, f"Can not find relate id: {item_id}")
 
 
+def save_file_to_local(local_file_path, file):
+    Path(local_file_path).mkdir(parents=True, exist_ok=True)
+    if os.path.isfile(f"{local_file_path}/{file.filename}"):
+        os.remove(f"{local_file_path}/{file.filename}")
+    file.save(f"{local_file_path}/{file.filename}")
+
+
+def remove_file_from_local(local_file_path, file_name):
+    if os.path.isfile(f"{local_file_path}/{file_name}"):
+        os.remove(f"{local_file_path}/{file_name}")
+
+
 def qu_upload_testfile(project_id, file, software_name):
     file_name = file.filename
     if re.search(filename_validate_mapping[software_name], file_name) is None:
@@ -289,9 +304,15 @@ def qu_upload_testfile(project_id, file, software_name):
                 409, f"Test File {file_name} already exists in git repository", error=apiError.argument_error("test_file")
             )
     file_path = f"{soft_path['path']}/{file_name}"
-    next_run = pipeline.get_pipeline_next_run(repository_id)
-    gitlab.gl_create_file(repository_id, file_path, file)
-    pipeline.stop_and_delete_pipeline(repository_id, next_run)
+    pj = gitlab.gl.projects.get(repository_id)
+    local_file_path = f"pj_upload_file/{pj.id}"
+    save_file_to_local(local_file_path, file)
+    for br in gitlab.gl_get_branches(repository_id):
+        next_run = pipeline.get_pipeline_next_run(repository_id)
+        gitlab.gl_create_file(pj, file_path, file, local_file_path, branch=br['name'])
+        pipeline.stop_and_delete_pipeline(repository_id, next_run, branch=br['name'])
+    print(f"file_name: {file_name}")
+    remove_file_from_local(local_file_path, file_name)
 
 
 def qu_del_testfile(project_id, software_name, test_file_name):

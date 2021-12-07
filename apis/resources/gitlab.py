@@ -638,32 +638,26 @@ class GitLab(object):
             f_byte = pj.files.get(file_path=path, ref=branch_name)
         return f_byte
 
-    def gl_create_file(self, repository_id, file_path, file):
-        pj = self.gl.projects.get(repository_id)
-        Path("pj_upload_file").mkdir(exist_ok=True)
-        if os.path.isfile(f"pj_upload_file/{file.filename}"):
-            os.remove(f"pj_upload_file/{file.filename}")
-        file.save(f"pj_upload_file/{file.filename}")
-        with open(f"pj_upload_file/{file.filename}", 'r') as f:
+    def gl_create_file(self, pj, file_path, file, local_file_path, branch=""):
+        branch = branch if branch else pj.default_branch
+        with open(f"{local_file_path}/{file.filename}", 'r') as f:
             content = base64.b64encode(bytes(f.read(),
                                              encoding='utf-8')).decode('utf-8')
             pj.files.create({
                 'file_path': file_path,
-                'branch': pj.default_branch,
+                'branch': branch,
                 'encoding': 'base64',
                 'author_email': 'system@iiidevops.org.tw',
                 'author_name': 'System',
                 'content': content,
                 'commit_message': f'Add file {file_path}'
             })
-        if os.path.isfile(f"pj_upload_file/{file.filename}"):
-            os.remove(f"pj_upload_file/{file.filename}")
 
     def list_pj_commits_and_wirte_in_file(self):
-        # Check this process is active or not 
+        # Check this process is active or not
         git_commit_history = SystemParameter.query.filter_by(name="git_commit_history").one()
         if not git_commit_history.active:
-            return 
+            return
 
         # Initialize varialbe
         base_path = "logs/git_commit_history"
