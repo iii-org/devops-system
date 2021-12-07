@@ -6,7 +6,6 @@ from flask_restful import Resource, reqparse, inputs
 from ldap3 import Server, ServerPool, Connection, ALL_ATTRIBUTES, FIRST, Tls
 from sqlalchemy.orm.exc import NoResultFound
 
-import config
 import model
 import plugins
 import util as util
@@ -72,7 +71,7 @@ def get_db_user_by_login():
     return output
 
 
-def update_user(ad_user, db_user):
+def information_modified_by_ad(ad_user, db_user):
     args = {
         "name": None,
         "phone": None,
@@ -82,23 +81,34 @@ def update_user(ad_user, db_user):
         "password": None,
         "from_ad": True
     }
+    # Modify User Name
+    if ad_user.get('iii_name') != db_user.get('name'):
+        args['name'] = ad_user.get('iii_name')
+    # Modify Telephone Number
+    if ad_user.get("telephoneNumber") != db_user.get('phone'):
+        args['phone'] = ad_user.get('telephoneNumber')
+    # Modify Job Title
+    if ad_user.get("title") != db_user.get('title'):
+        args['title'] = ad_user.get('title')
+    # Modify Department
+    if ad_user.get("department") != db_user.get('department'):
+        args['department'] = ad_user['department']
+    # Modify Update Time
+    if ad_user.get('whenChanged') != db_user.get('update_at'):
+        args['update_at'] = str(ad_user['whenChanged'])
+    # Modify Disabled Status
+    if db_user.get("disabled", None) is not None:
+        if db_user.get("disabled") is True:
+            args['status'] = "disabled"
+        else:
+            args['status'] = "enabled"
+    return args
+
+
+# Update User Info
+def update_user_info(ad_user, db_user):
     if ad_user.get('iii') is True and ad_user.get('userPrincipalName') == db_user.get('email'):
-        if ad_user.get('iii_name') != db_user.get('name'):
-            args['name'] = ad_user.get('iii_name')
-        if ad_user.get("telephoneNumber") != db_user.get('phone'):
-            args['phone'] = ad_user.get('telephoneNumber')
-        if ad_user.get("title") != db_user.get('title'):
-            args['title'] = ad_user.get('title')
-        if ad_user.get("department") != db_user.get('department'):
-            args['department'] = ad_user['department']
-        if ad_user.get('whenChanged') != db_user.get('update_at'):
-            args['update_at'] = str(ad_user['whenChanged'])
-        if db_user.get("disabled", None) is not None:
-            if db_user.get("disabled") is True:
-                args['status'] = "disabled"
-            else:
-                args['status'] = "enabled"
-        user.update_user(db_user['id'], args, True)
+        user.update_user(db_user['id'], information_modified_by_ad(ad_user, db_user), True)
     return db_user['id']
 
 
@@ -131,11 +141,10 @@ def create_user_from_ad(ad_users, create_by=None, ad_parameter=None):
     users = []
     db_users = get_db_user_by_login()
     for ad_user in ad_users:
-        print(ad_user.get('sAMAccountName'))
         if ad_user.get('sAMAccountName') in users:
             continue
         if ad_user.get('sAMAccountName') in db_users:
-            res['old'].append(update_user(
+            res['old'].append(update_user_info(
                 ad_user, db_users[ad_user.get('sAMAccountName')]))
         #  Create user
         elif ad_user.get(create_by) is True:
@@ -241,7 +250,7 @@ def get_ad_servers(input_str):
             break
         param = host.split(':')
         if len(param) == 2:
-            output.append({'ip': param[0], 'port': int(param[1])})
+            output.append({'hostname': param[0], 'port': int(param[1])})
     return output
 
 
@@ -258,21 +267,18 @@ class AD(object):
         self.server = ServerPool(None, pool_strategy=FIRST, active=True)
 
         hosts = get_ad_servers(ad_parameter.get('host'))
-        is_ssl = ad_parameter.get('ssl', False)
-        if is_ssl == 'True':
-            is_ssl = True
-        else:
-            is_ssl = False
-
+        is_ssl = bool(ad_parameter.get('ssl', False))
+        # Add TLS Object
+        if is_ssl:
+            tls = Tls(validate=ssl.CERT_REQUIRED, version=ssl.PROTOCOL_TLSv1_2,
+                      ca_certs_data=util.base64decode(ad_parameter.get('ca_certs_data')))
         for host in hosts:
             if is_ssl:
-                ca_string = util.base64decode(ad_parameter.get('ca_certs_data'))
-                tls = Tls(validate=ssl.CERT_NONE, version=ssl.PROTOCOL_TLSv1_2,
-                          ca_certs_data=ca_string)
-                self.server.add(Server(host=host.get('ip'), port=host.get('port'), use_ssl=True, tls=tls,
+                self.server.add(Server(host=host.get('hostname'), port=host.get('port'), use_ssl=True, tls=tls,
                                        connect_timeout=ad_connect_timeout))
             else:
-                self.server.add(Server(host=host.get('ip'), port=host.get('port'), connect_timeout=ad_connect_timeout))
+                self.server.add(Server(host=host.get('hostname'), port=host.get(
+                    'port'), connect_timeout=ad_connect_timeout))
 
         if account is None and password is None:
             self.account = ad_parameter.get('account')
