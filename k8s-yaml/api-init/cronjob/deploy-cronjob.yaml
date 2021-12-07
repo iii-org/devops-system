@@ -3,7 +3,7 @@ kind: CronJob
 metadata:
   name: deploy-cronjob
 spec:
-  schedule: "1 */1 * * *"
+  schedule: "30 * * * *"
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 1
   jobTemplate:
