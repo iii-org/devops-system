@@ -268,9 +268,18 @@ class AD(object):
 
         hosts = get_ad_servers(ad_parameter.get('host'))
         is_ssl = bool(ad_parameter.get('ssl', False))
+        # [ssl.CERT_NONE, ssl.CERT_OPTIONAL, ssl.CERT_REQUIRED]:
+        ssl_validate_str = ad_parameter.get('ssl_validate', 'REQUIRED')
+        if ssl_validate_str == 'REQUIRED':
+            ssl_validate = ssl.CERT_REQUIRED
+        elif ssl_validate_str == 'OPTIONAL':
+            ssl_validate = ssl.CERT_OPTIONAL
+        else:
+            ssl_validate = ssl.CERT_NONE
+
         # Add TLS Object
         if is_ssl:
-            tls = Tls(validate=ssl.CERT_REQUIRED, version=ssl.PROTOCOL_TLSv1_2,
+            tls = Tls(validate=ssl_validate, version=ssl.PROTOCOL_TLSv1_2,
                       ca_certs_data=util.base64decode(ad_parameter.get('ca_certs_data')))
         for host in hosts:
             if is_ssl:

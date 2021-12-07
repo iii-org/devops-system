@@ -81,11 +81,11 @@
       "type": "select",
       "options": [
         {
-          "value": "CERT_NONE",
+          "value": "NONE",
           "name": "Certificate Not Validated"
         },
         {
-          "value": "CERT_OPTIONAL",
+          "value": "OPTIONAL",
           "name": "Certificate not required, but validated if provided"
         },
         {
