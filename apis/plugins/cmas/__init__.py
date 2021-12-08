@@ -190,9 +190,17 @@ def create_task(args, repository_id):
 
 def update_task(args, task_id):
     task = check_cmas_exist(task_id)
-    task.upload_id = args["upload_id"]
-    task.size = args["size"]
-    task.sha256 = args["sha256"]
+    if args.get("upload_id") is not None:
+        task.upload_id = args["upload_id"]
+    if args.get("size") is not None:
+        task.size = args["size"]
+    if args.get("sha256") is not None:
+        task.sha256 = args["sha256"]
+    if args.get("stats") is not None:
+        task.stats = args["stats"]
+    if args.get("scan_final_status") is not None:
+        task.scan_final_status = args["scan_final_status"]
+
     db.session.commit()
 
     # --------------------- Resources ---------------------
@@ -218,9 +226,12 @@ class CMASTask(Resource):
     def put(self):
         parser = reqparse.RequestParser()
         parser.add_argument('task_id', type=str, required=True)
-        parser.add_argument('upload_id', type=int, required=True)
-        parser.add_argument('size', type=int, required=True)
-        parser.add_argument('sha256', type=str, required=True)
+        parser.add_argument('upload_id', type=int)
+        parser.add_argument('size', type=int)
+        parser.add_argument('sha256', type=str)
+        parser.add_argument('stats', type=str)
+        parser.add_argument('scan_final_status', type=str)
+
         args = parser.parse_args()
         return update_task(args, args.pop("task_id"))
 
