@@ -167,8 +167,6 @@ def get_tasks(repository_id):
 
 
 def create_task(args, repository_id):
-    filename = "app-debug.apk"
-
     new = Model(
         task_id=args['task_id'],
         repo_id=repository_id,
@@ -177,7 +175,7 @@ def create_task(args, repository_id):
         run_at=datetime.datetime.utcnow(),
         scan_final_status=None,
         finished=False,
-        filename=filename,
+        filename="app-debug.apk",
         a_mode=args['a_mode'],
         a_report_type=args['a_report_type'],
         a_ert=args['a_ert'],
@@ -187,11 +185,17 @@ def create_task(args, repository_id):
 
     if not os.path.isdir(f"./logs/cmas/{new.task_id}"):
         os.makedirs(f"./logs/cmas/{new.task_id}", exist_ok=True)
-    args["sample_file"].save(os.path.join(f"logs/cmas/{new.task_id}", filename))
     return util.success()
 
 
-# --------------------- Resources ---------------------
+def update_task(args, task_id):
+    task = check_cmas_exist(task_id)
+    task.upload_id = args["upload_id"]
+    task.size = args["size"]
+    task.sha256 = args["sha256"]
+    db.session.commit()
+
+    # --------------------- Resources ---------------------
 class CMASTask(Resource):
     # Get all tasks
     @jwt_required
@@ -202,8 +206,6 @@ class CMASTask(Resource):
     @jwt_required
     def post(self, repository_id):
         parser = reqparse.RequestParser()
-        parser.add_argument(
-            'sample_file', type=werkzeug.datastructures.FileStorage, location='files', required=True)
         parser.add_argument('task_id', type=str, required=True)
         parser.add_argument('branch', type=str, required=True)
         parser.add_argument('commit_id', type=str, required=True)
@@ -212,6 +214,15 @@ class CMASTask(Resource):
         parser.add_argument('a_ert', type=int, required=True)
         args = parser.parse_args()
         return create_task(args, repository_id)
+
+    def put(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('task_id', type=str, required=True)
+        parser.add_argument('upload_id', type=int, required=True)
+        parser.add_argument('size', type=int, required=True)
+        parser.add_argument('sha256', type=str, required=True)
+        args = parser.parse_args()
+        return update_task(args, args.pop("task_id"))
 
 
 class CMASRemote(Resource):
