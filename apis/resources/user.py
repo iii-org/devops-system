@@ -182,20 +182,22 @@ def check_db_login(user, password, output):
 def login(args):
     login_account = args['username']
     login_password = args['password']
-    ad_server = ad_api_user.check_ad_info()
+    user = db.session.query(model.User).filter(
+        model.User.login == login_account).first()
     try:
         ad_info = {'is_pass': False,
                    'login': login_account, 'data': {}}
 
         # Check Ad server exists
-        if ad_server['disabled'] is False:
-            ad_info = check_ad_login(login_account, login_password, ad_info)
+        if (user is not None and user.from_ad is True) or user is None:
+            ad_server = ad_api_user.check_ad_info()
+            if ad_server['disabled'] is False:
+                ad_info = check_ad_login(login_account, login_password, ad_info)
+
         db_info = {'connect': False,
                    'login': login_account,
                    'is_pass': False,
                    'User': {}, 'ProjectUserRole': {}}
-        user = db.session.query(model.User).filter(
-            model.User.login == login_account).first()
         # Check User in DB
         if user is not None:
             db_info['connect'] = True
