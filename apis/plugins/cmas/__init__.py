@@ -55,41 +55,6 @@ class CMAS(object):
         res = requests.post(url, headers=headers, data=data, params=params, files=files, verify=False)
         return res
 
-    def upload_task(self):
-        ret = self.__api_post(
-            '/M3AS-REST/api/csf/task/upload', 
-            params=( 
-                ('authKey', self.authKey),
-            ),
-            files={
-                'sampleFile': open(f"./logs/cmas/{self.task.task_id}/app-debug.apk", "rb"),
-                'fileName': (None, self.task.filename),
-                'sha256': (None, get_file_sha256(self.task.task_id)),
-                'size': (None, get_file_size(self.task.task_id)),
-                'taskId': (None, self.task.task_id),
-                'a_mode': (None, self.task.a_mode),
-                'a_reportType': (None, self.task.a_report_type),
-                'a_ert': (None, self.task.a_ert),
-            },
-        ).json()
-        if ret["status"] == "SUCCESS":
-            self.task.sha256 = ret["AppCheckSum-sha256"]
-            self.task.size = get_file_size(self.task.task_id)
-            self.task.upload_id = ret["uploadId"]
-            db.session.commit()
-
-            return {
-                "status": "SUCCESS",
-                "sha256": ret["AppCheckSum-sha256"], 
-                "upload_id": ret["uploadId"],
-                "report_id": ret["reportId"],
-            }
-        else:
-            return {
-                "status": "FAIL",
-                "message": ret["message"]
-            }
-
     def query_report_task(self):
         ret = self.__api_post(
             '/M3AS-REST/api/query/report', 
@@ -130,16 +95,6 @@ class CMAS(object):
 
         return send_file(f"../logs/cmas/{self.task.task_id}/{self.task.task_id}.pdf")
 
-def get_file_sha256(task_id):
-    sha256_hash = hashlib.sha256()
-    with open(f"./logs/cmas/{task_id}/app-debug.apk", "rb") as f:
-        # Read and update hash string value in blocks of 4K
-        for byte_block in iter(lambda: f.read(4096), b""):
-            sha256_hash.update(byte_block)
-        return sha256_hash.hexdigest()
-
-def get_file_size(task_id):
-    return os.path.getsize(f"./logs/cmas/{task_id}/app-debug.apk")
 
 def check_cmas_exist(task_id):
     task = Model.query.filter_by(task_id=task_id).first()
@@ -241,11 +196,6 @@ class CMASRemote(Resource):
     @jwt_required
     def get(self, task_id):
         return util.success(CMAS(task_id).query_report_task())
-
-    # upload file
-    @jwt_required
-    def post(self, task_id):
-        return util.success(CMAS(task_id).upload_task())
 
     # Download reports
     @jwt_required
