@@ -106,6 +106,7 @@ def update_deployment(versions):
     if deployer_node_ip is None:
         # get the k8s cluster the oldest node ip
         deployer_node_ip = kubernetesClient.get_the_oldest_node()[0]
+    pass_update_perl = False
     output_str, error_str = util.ssh_to_node_by_key("/home/rkeuser/deploy-devops/bin/update-perl.pl", deployer_node_ip) 
     if error_str != "":
         not_found_message = error_str.split(":")[-1].replace("\n", "")
@@ -114,8 +115,20 @@ def update_deployment(versions):
                 complete_message = output_str.split("==")[-2]
                 if complete_message != "process complete": 
                     logger.exception(f"Can not update perl on {version_name}")
+                else:
+                    pass_update_perl = False
             else:
                 logger.exception(str(error_str))
+
+    if pass_update_perl:
+        logger.info(f'Patch perl on {version_name}...')
+        output_str, error_str = util.ssh_to_node_by_key("/home/rkeuser/deploy-devops/bin/patch/p000.pl", deployer_node_ip)   
+        if output_str != "":
+            complete_message = output_str.split("==")[-2]
+            if complete_message != "process complete": 
+                logger.exception(f"Can not patch perl on {version_name}")
+        else:
+            logger.exception(str(error_str))
 
     logger.info(f'Updating deployment to {version_name}...')
     api_image_tag = versions['api_image_tag']
