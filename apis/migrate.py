@@ -157,9 +157,9 @@ def upgrade(version):
     elif version == '1.11.0.7':
         pass
     elif version == '1.11.0.8':
-        add_project_nfs_path_real()
+        pass
 
-
+# Do it in next version(1.12), create and delete nfs folder as well
 def add_project_nfs_path_real():
     for pj in Project.query.all():
         project_nfs_file_path = f"./project-data/{pj.name}"

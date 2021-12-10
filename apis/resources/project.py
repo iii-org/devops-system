@@ -309,10 +309,10 @@ def create_project(user_id, args):
             template.tm_use_template_push_into_pj(args["template_id"], gitlab_pj_id,
                                                   args["tag_name"], args["arguments"])
 
-        # Create project NFS folder
-        project_nfs_file_path = f"./project-data/{gitlab_pj_name}"
-        os.makedirs(project_nfs_file_path, exist_ok=True)
-        os.chmod(project_nfs_file_path, 0o777)
+        # # Create project NFS folder
+        # project_nfs_file_path = f"./project-data/{gitlab_pj_name}"
+        # os.makedirs(project_nfs_file_path, exist_ok=True)
+        # os.chmod(project_nfs_file_path, 0o777)
 
         return {
             "project_id": project_id,
@@ -493,10 +493,10 @@ def delete_project(project_id):
         "DELETE FROM public.projects WHERE id = '{0}'".format(
             project_id))
 
-    # Delete project NFS folder
-    project_nfs_file_path = f"./project-data/{project_name}"
-    if os.path.isdir(project_nfs_file_path):
-        shutil.rmtree(project_nfs_file_path)
+    # # Delete project NFS folder
+    # project_nfs_file_path = f"./project-data/{project_name}"
+    # if os.path.isdir(project_nfs_file_path):
+    #     shutil.rmtree(project_nfs_file_path)
     return util.success()
 
 
