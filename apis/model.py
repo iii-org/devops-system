@@ -770,3 +770,22 @@ class CMAS(db.Model):
     '''
     a_report_type = Column(Integer)
     a_ert = Column(Integer)
+
+
+class IssueGitLabRelation(db.Model):
+    commit_id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
+    issue_id = Column(Integer)
+    commit_message = (String)
+    commit_time = (DateTime)
+    branch = Column(String)
+    web_url = Column(String)
+    created_at = Column(DateTime)
+    updated_at = Column(DateTime)
+
+
+class ProjectCommitEndpoint(db.Model):
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
+    commit_id = Column(Integer, unique=True)
+    updated_at = Column(DateTime)
