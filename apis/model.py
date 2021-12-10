@@ -718,7 +718,7 @@ class CustomIssueFilter(db.Model):
     @validates("custom_filter")
     def validate_custom_filter(self, key, custom_filter):
         custom_filter_keys = sorted(list(custom_filter.keys()))
-        expected_keys = ['assigned_to_id', 'fixed_version_id', 'priority_id', 'status_id', 'tags', 'tracker_id']
+        expected_keys = ['assigned_to_id', 'fixed_version_id', 'priority_id', 'show_closed_isssues', 'show_closed_versions', 'status_id', 'tags', 'tracker_id']
         if custom_filter_keys != expected_keys:
             raise AssertionError(f"Custom filter keys must be the same as {expected_keys}.")
         return custom_filter
