@@ -773,7 +773,7 @@ class CMAS(db.Model):
 
 
 class IssueGitLabRelation(db.Model):
-    commit_id = Column(Integer, primary_key=True)
+    id = Column(String, primary_key=True)
     project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
     issue_id = Column(Integer)
     commit_message = (String)
