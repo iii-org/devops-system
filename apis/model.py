@@ -776,8 +776,8 @@ class IssueGitLabRelation(db.Model):
     commit_id = Column(String, primary_key=True)
     project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
     issue_id = Column(Integer)
-    commit_message = (String)
-    commit_time = (DateTime)
+    commit_message = Column(String)
+    commit_time = Column(DateTime)
     branch = Column(String)
     web_url = Column(String)
     created_at = Column(DateTime)
@@ -786,6 +786,7 @@ class IssueGitLabRelation(db.Model):
 
 class ProjectCommitEndpoint(db.Model):
     id = Column(Integer, primary_key=True)
+    commit_id = Column(String, unique=True)
     project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
     updated_at = Column(DateTime)
 
