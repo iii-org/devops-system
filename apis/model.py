@@ -772,7 +772,7 @@ class CMAS(db.Model):
     a_ert = Column(Integer)
 
 
-class IssueGitLabRelation(db.Model):
+class IssueCommitRelation(db.Model):
     commit_id = Column(String, primary_key=True)
     project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
     issue_id = Column(Integer)
