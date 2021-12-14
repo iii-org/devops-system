@@ -700,9 +700,9 @@ class GitLab(object):
             util.write_json_file(f"{base_path}/{pj.id}/{date}.json", result)
 
 
-def get_commit_issues_relation(project_id, issue_id):
+def get_commit_issues_relation(project_id, issue_id, limit):
     commit_issues_relations = model.IssueCommitRelation.query.filter_by(project_id=project_id). \
-        filter_by(issue_id=issue_id).order_by(desc(model.IssueCommitRelation.commit_time)).all()
+        filter_by(issue_id=issue_id).order_by(desc(model.IssueCommitRelation.commit_time)).limit(limit).all()
     return [{
         "commit_id": commit_issues_relation.commit_id,
         "project_id": commit_issues_relation.project_id,
@@ -1011,7 +1011,10 @@ class GitCountEachPjCommitsByDays(Resource):
 class SyncGitCommitIssueRelation(Resource):
     @jwt_required
     def get(self, project_id, issue_id):
-        return util.success(get_commit_issues_relation(project_id, issue_id))
+        parser = reqparse.RequestParser()
+        parser.add_argument('limit', type=int, default=10)
+        args = parser.parse_args()
+        return util.success(get_commit_issues_relation(project_id, issue_id, args["limit"]))
 
     @jwt_required
     def post(self, project_id):
