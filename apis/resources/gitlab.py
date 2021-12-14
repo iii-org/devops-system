@@ -11,6 +11,9 @@ from flask_jwt_extended import get_jwt_identity, jwt_required
 from flask_restful import Resource, reqparse
 from gitlab import Gitlab
 from sqlalchemy.orm.exc import NoResultFound
+from accessories.redmine_lib import redmine
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy import desc
 
 import config
 import model
@@ -270,6 +273,8 @@ class GitLab(object):
                     branch_info["commit"]["committed_date"],
                 "short_id":
                     branch_info["commit"]["short_id"][0:7],
+                "id":
+                    branch_info["commit"]["id"],
                 'commit_url':
                     commit_id_to_url(get_nexus_project_id(repo_id),
                                      branch_info['commit']['short_id']),
@@ -389,12 +394,13 @@ class GitLab(object):
         return self.__api_delete(
             f'/projects/{repo_id}/repository/tags/{tag_name}')
 
-    def gl_get_commits(self, project_id, branch):
+    def gl_get_commits(self, project_id, branch, per_page=100, since=None):
         return self.__api_get(
             f'/projects/{project_id}/repository/commits',
             params={
                 'ref_name': branch,
-                'per_page': 100
+                'per_page': per_page,
+                'since': since
             }).json()
 
     def gl_get_commits_by_author(self, project_id, branch, filter=None):
@@ -668,7 +674,7 @@ class GitLab(object):
         # Check git_commit_history folder exists, if not create it
         util.check_folder_exist(base_path, create=True)
 
-        # Remove existed more than files
+        # Remove existed more than keep days' files
         for pj_folder in os.listdir(base_path):
             for commit_file in os.listdir(f"{base_path}/{pj_folder}"):
                 if commit_file.split(".")[0] < str(util.get_certain_date_from_now(keep_days))[:10]:
@@ -694,7 +700,78 @@ class GitLab(object):
             util.write_json_file(f"{base_path}/{pj.id}/{date}.json", result)
 
 
-# --------------------- Resources ---------------------
+def get_commit_issues_relation(project_id, issue_id):
+    commit_issues_relations = model.IssueCommitRelation.query.filter_by(project_id=project_id). \
+        filter_by(issue_id=issue_id).order_by(desc(model.IssueCommitRelation.commit_time)).all()
+    return [{
+        "commit_id": commit_issues_relation.commit_id,
+        "project_id": commit_issues_relation.project_id,
+        "issue_id": commit_issues_relation.issue_id,
+        "commit_message": commit_issues_relation.commit_message,
+        "commit_time": str(commit_issues_relation.commit_time),
+        "branch": commit_issues_relation.branch,
+        "web_url": commit_issues_relation.web_url,
+        "created_at": str(commit_issues_relation.created_at),
+        "updated_at": str(commit_issues_relation.updated_at),
+    } for commit_issues_relation in commit_issues_relations]
+
+
+def get_project_plugin_object(project_id):
+    return model.ProjectPluginRelation.query.get(project_id)
+
+
+def get_project_commit_endpoint_object(project_id):
+    project_commit_endpoint = model.ProjectCommitEndpoint.query.filter_by(project_id=project_id).first()
+    if project_commit_endpoint is None:
+        new = model.ProjectCommitEndpoint(
+            project_id=project_id,
+            commit_id=None,
+            updated_at=None
+        )
+        model.db.session.add(new)
+        model.db.session.commit()
+        return model.ProjectCommitEndpoint.query.filter_by(project_id=project_id).first()
+    return project_commit_endpoint
+
+
+def sync_commit_issues_relation(project_id):
+    pulgin_project_object = get_project_plugin_object(project_id)
+    issue_list = [issue.id for issue in redmine.project.get(pulgin_project_object.plan_project_id).issues]
+
+    for branch in gitlab.gl_get_branches(pulgin_project_object.git_repository_id):
+        project_commit_endpoint = get_project_commit_endpoint_object(project_id)
+        end_point = str(project_commit_endpoint.updated_at) if project_commit_endpoint.updated_at is not None else None
+
+        commits = gitlab.gl_get_commits(pulgin_project_object.git_repository_id, branch["name"], per_page=5000, since=end_point)
+        for commit in commits:
+            commit_title = commit["title"].split(" ")[0]
+            if commit_title.startswith("#") and int(commit_title.replace("#", "")) in issue_list:
+                # Just in case it stores duplicated commit.
+                try:
+                    new = model.IssueCommitRelation(
+                        commit_id=commit["id"],
+                        project_id=project_id,
+                        issue_id=int(commit_title.replace("#", "")),
+                        commit_message=commit["title"],
+                        commit_time=commit["committed_date"],
+                        branch=branch["name"],
+                        web_url=commit["web_url"],
+                        created_at=datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S"),
+                        updated_at=datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S"),
+                    )
+                    model.db.session.add(new)
+                    model.db.session.commit()
+                except IntegrityError:
+                    model.db.session.rollback()
+                    continue
+
+        if end_point is None or branch["last_commit_time"] > "T".join(end_point.split(" ")):
+            project_commit_endpoint.updated_at = branch["last_commit_time"]
+            project_commit_endpoint.commit_id = branch["id"]
+            model.db.session.commit()
+
+
+    # --------------------- Resources ---------------------
 gitlab = GitLab()
 
 
@@ -929,4 +1006,14 @@ class GitCountEachPjCommitsByDays(Resource):
     def get(self):
         gitlab.gl_count_each_pj_commits_by_days()
         gitlab.list_pj_commits_and_wirte_in_file()
+        return util.success()
+
+class SyncGitCommitIssueRelation(Resource):
+    @jwt_required
+    def get(self, project_id, issue_id):
+        return util.success(get_commit_issues_relation(project_id, issue_id))
+
+    @jwt_required
+    def post(self, project_id):
+        sync_commit_issues_relation(project_id)
         return util.success()

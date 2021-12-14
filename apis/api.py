@@ -206,6 +206,11 @@ api.add_resource(issue.DownloadProject,
                  '/project/<sint:project_id>/download/is_exist',
                  '/project/<sint:project_id>/download')
 
+api.add_resource(gitlab.SyncGitCommitIssueRelation,
+                 '/project/<sint:project_id>/issues_commit',
+                 '/project/<sint:project_id>/issues_commit/<issue_id>',
+                 )
+
 # Tag
 api.add_resource(tag.Tags, '/tags')
 api.add_resource(tag.Tag, '/tags/<int:tag_id>')
