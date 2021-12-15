@@ -705,9 +705,11 @@ def get_commit_issues_relation(project_id, issue_id, limit):
         filter_by(issue_id=issue_id).order_by(desc(model.IssueCommitRelation.commit_time)).limit(limit).all()
     return [{
         "commit_id": commit_issues_relation.commit_id,
-        "project_id": commit_issues_relation.project_id,
+        "project_name": model.Project.query.get(commit_issues_relation.project_id).name,
         "issue_id": commit_issues_relation.issue_id,
+        "author_name": commit_issues_relation.author_name,
         "commit_message": commit_issues_relation.commit_message,
+        "commit_title": commit_issues_relation.commit_title,
         "commit_time": str(commit_issues_relation.commit_time),
         "branch": commit_issues_relation.branch,
         "web_url": commit_issues_relation.web_url,
@@ -753,7 +755,9 @@ def sync_commit_issues_relation(project_id):
                         commit_id=commit["id"],
                         project_id=project_id,
                         issue_id=int(commit_title.replace("#", "")),
-                        commit_message=commit["title"],
+                        author_name=commit["author_name"],
+                        commit_message=commit["message"],
+                        commit_title=commit["title"],
                         commit_time=commit["committed_date"],
                         branch=branch["name"],
                         web_url=commit["web_url"],
