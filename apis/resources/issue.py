@@ -2660,6 +2660,8 @@ class IssueFilterByProject(Resource):
         parser.add_argument('type', type=str, required=True)
         parser.add_argument('assigned_to_id', type=str)
         parser.add_argument('fixed_version_id', type=str)
+        parser.add_argument('focus_tab', type=str)
+        parser.add_argument('group_by', type=dict)
         parser.add_argument('priority_id', type=str)
         parser.add_argument('show_closed_issues', type=bool)
         parser.add_argument('show_closed_versions', type=bool)
@@ -2667,6 +2669,13 @@ class IssueFilterByProject(Resource):
         parser.add_argument('tags', type=str)
         parser.add_argument('tracker_id', type=str)
         args = parser.parse_args()
+
+        if args["type"] != "issue_board" and args.get("group_by") is not None:
+            raise DevOpsError(400, "Column group_by is only available when type is issue_board",
+                              error=apiError.argument_error("group_by"))
+        if args["type"] != "my_work" and args.get("focus_tab") is not None:
+            raise DevOpsError(400, "Column focus_tab is only available when type is my_work",
+                              error=apiError.argument_error("focus_tab"))
 
         return util.success(create_custom_issue_filter(user_id, project_id, args))
 
@@ -2677,6 +2686,8 @@ class IssueFilterByProject(Resource):
         parser.add_argument('type', type=str, required=True)
         parser.add_argument('assigned_to_id', type=str)
         parser.add_argument('fixed_version_id', type=str)
+        parser.add_argument('focus_tab', type=str)
+        parser.add_argument('group_by', type=dict)
         parser.add_argument('priority_id', type=str)
         parser.add_argument('show_closed_issues', type=bool)
         parser.add_argument('show_closed_versions', type=bool)
@@ -2684,6 +2695,13 @@ class IssueFilterByProject(Resource):
         parser.add_argument('tags', type=str)
         parser.add_argument('tracker_id', type=str)
         args = parser.parse_args()
+
+        if args["type"] != "issue_board" and args.get("group_by") is not None:
+            raise DevOpsError(400, "Column group_by is only available when type is issue_board",
+                              error=apiError.argument_error("group_by"))
+        if args["type"] != "my_work" and args.get("focus_tab") is not None:
+            raise DevOpsError(400, "Column focus_tab is only available when type is my_work",
+                              error=apiError.argument_error("focus_tab"))
 
         return util.success(put_custom_issue_filter(custom_filter_id, project_id, args))
 
