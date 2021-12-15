@@ -775,7 +775,7 @@ class CMAS(db.Model):
 class IssueCommitRelation(db.Model):
     commit_id = Column(String, primary_key=True)
     project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
-    issue_id = Column(Integer)
+    issue_ids = Column(postgresql.ARRAY(Integer))
     author_name = Column(String)
     commit_title = Column(String)
     commit_message = Column(String)
