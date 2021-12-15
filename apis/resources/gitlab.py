@@ -19,7 +19,7 @@ import config
 import model
 import nexus
 import util as util
-from model import GitCommitNumberEachDays, db, SystemParameter
+from model import GitCommitNumberEachDays, db, SystemParameter, Project
 from resources import apiError, role
 from resources.apiError import DevOpsError
 from resources.logger import logger
@@ -742,7 +742,8 @@ def sync_commit_issues_relation(project_id):
         project_commit_endpoint = get_project_commit_endpoint_object(project_id)
         end_point = str(project_commit_endpoint.updated_at) if project_commit_endpoint.updated_at is not None else None
 
-        commits = gitlab.gl_get_commits(pulgin_project_object.git_repository_id, branch["name"], per_page=5000, since=end_point)
+        commits = gitlab.gl_get_commits(pulgin_project_object.git_repository_id,
+                                        branch["name"], per_page=5000, since=end_point)
         for commit in commits:
             commit_title = commit["title"].split(" ")[0]
             if commit_title.startswith("#") and int(commit_title.replace("#", "")) in issue_list:
@@ -1008,6 +1009,7 @@ class GitCountEachPjCommitsByDays(Resource):
         gitlab.list_pj_commits_and_wirte_in_file()
         return util.success()
 
+
 class SyncGitCommitIssueRelation(Resource):
     @jwt_required
     def get(self, project_id, issue_id):
@@ -1019,4 +1021,22 @@ class SyncGitCommitIssueRelation(Resource):
     @jwt_required
     def post(self, project_id):
         sync_commit_issues_relation(project_id)
+        return util.success()
+
+
+class SyncGitCommitIssueRelationByPjName(Resource):
+
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('project_name', type=str, required=True)
+        args = parser.parse_args()
+        try:
+            project = Project.query.filter_by(name=args['project_name']).first()
+        except NoResultFound:
+            return util.respond(404,
+                                'No such repository found in database.',
+                                error=apiError.project_name_not_found(
+                                    args['project_name']))
+
+        sync_commit_issues_relation(project.id)
         return util.success()

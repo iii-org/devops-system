@@ -202,7 +202,7 @@ api.add_resource(starred_project.StarredProject,
                  '/project/<sint:project_id>/star')
 
 api.add_resource(issue.DownloadProject,
-                 '/project/<sint:project_id>/download/execute', 
+                 '/project/<sint:project_id>/download/execute',
                  '/project/<sint:project_id>/download/is_exist',
                  '/project/<sint:project_id>/download')
 
@@ -210,6 +210,11 @@ api.add_resource(gitlab.SyncGitCommitIssueRelation,
                  '/project/<sint:project_id>/issues_commit',
                  '/project/<sint:project_id>/issues_commit/<issue_id>',
                  )
+
+api.add_resource(gitlab.SyncGitCommitIssueRelationByPjName,
+                 '/project/issues_commit_by_name',
+                 )
+
 
 # Tag
 api.add_resource(tag.Tags, '/tags')

@@ -86,15 +86,23 @@ def invalid_fixed_version_id(fixed_version, fixed_version_status):
     return build(1012, 'Fixed version status is {0}.'.format(fixed_version_status),
                  {'fixed_version': fixed_version, 'fixed_version_status': fixed_version_status})
 
+
 def unable_to_delete_issue_has_children(childen_info):
     return build(
         1013, 'Warning ! The issue with children issues cannot be deleted, please re-confirm it if you insist and all of children issue will be deleted at the same time.', childen_info)
+
 
 def project_issue_file_not_exits(project_id):
     return build(
         1014, 'File is not exist. Please ensure you have downloaded it before.', {"project_id": project_id})
 
+
+def project_name_not_found(project_name=None):
+    return build(1015, 'project_name not found.', {'project_name': project_name})
+
 # User errors
+
+
 def user_not_found(user_id):
     return build(2001, 'User not found.', {'user_id': user_id})
 
@@ -215,10 +223,11 @@ def redmine_argument_error(arg_name):
 def error_with_alert_code(resource_type, alert_code, message, detail):
     return {
         "code": alert_code, "resource_type": resource_type, "message": message, "detail": detail
-    }    
+    }
+
 
 def github_token_error(arg_name):
-    return build(7007, f"{arg_name} should begin with 'ghp_'.", {'arg': arg_name}) 
+    return build(7007, f"{arg_name} should begin with 'ghp_'.", {'arg': arg_name})
 
 
 # Third party service errors
