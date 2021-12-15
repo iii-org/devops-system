@@ -719,7 +719,7 @@ class CustomIssueFilter(db.Model):
     @validates("custom_filter")
     def validate_custom_filter(self, key, custom_filter):
         custom_filter_keys = sorted(list(custom_filter.keys()))
-        expected_keys = ['assigned_to_id', 'fixed_version_id', 'priority_id',
+        expected_keys = ['assigned_to_id', 'fixed_version_id', 'focus_tab', 'group_by', 'priority_id',
                          'show_closed_issues', 'show_closed_versions', 'status_id', 'tags', 'tracker_id']
         if custom_filter_keys != expected_keys:
             raise AssertionError(f"Custom filter keys must be the same as {expected_keys}.")
@@ -776,6 +776,8 @@ class IssueCommitRelation(db.Model):
     commit_id = Column(String, primary_key=True)
     project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
     issue_id = Column(Integer)
+    author_name = Column(String)
+    commit_title = Column(String)
     commit_message = Column(String)
     commit_time = Column(DateTime)
     branch = Column(String)
