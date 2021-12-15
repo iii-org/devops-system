@@ -702,11 +702,12 @@ class GitLab(object):
 
 def get_commit_issues_relation(project_id, issue_id, limit):
     commit_issues_relations = model.IssueCommitRelation.query.filter_by(project_id=project_id). \
-        filter_by(issue_id=issue_id).order_by(desc(model.IssueCommitRelation.commit_time)).limit(limit).all()
+        filter(model.IssueCommitRelation.issue_ids.contains([int(issue_id)])).order_by(desc(model.IssueCommitRelation.commit_time)).limit(limit).all()
+
     return [{
         "commit_id": commit_issues_relation.commit_id,
         "project_name": model.Project.query.get(commit_issues_relation.project_id).name,
-        "issue_id": commit_issues_relation.issue_id,
+        "issue_id": issue_id,
         "author_name": commit_issues_relation.author_name,
         "commit_message": commit_issues_relation.commit_message,
         "commit_title": commit_issues_relation.commit_title,
@@ -738,7 +739,7 @@ def get_project_commit_endpoint_object(project_id):
 
 def sync_commit_issues_relation(project_id):
     pulgin_project_object = get_project_plugin_object(project_id)
-    issue_list = [issue.id for issue in redmine.project.get(pulgin_project_object.plan_project_id).issues]
+    issue_list = [str(issue.id) for issue in redmine.project.get(pulgin_project_object.plan_project_id).issues]
 
     for branch in gitlab.gl_get_branches(pulgin_project_object.git_repository_id):
         project_commit_endpoint = get_project_commit_endpoint_object(project_id)
@@ -747,14 +748,18 @@ def sync_commit_issues_relation(project_id):
         commits = gitlab.gl_get_commits(pulgin_project_object.git_repository_id,
                                         branch["name"], per_page=5000, since=end_point)
         for commit in commits:
-            commit_title = commit["title"].split(" ")[0]
-            if commit_title.startswith("#") and int(commit_title.replace("#", "")) in issue_list:
+            commit_issue_id_list = []
+            for commit_title in commit["title"].split(" "):
+                if commit_title.startswith("#") and commit_title.replace('#', '') in issue_list:
+                    commit_issue_id_list.append(int(commit_title.replace("#", "")))
+
+            if commit_issue_id_list != []:
                 # Just in case it stores duplicated commit.
                 try:
                     new = model.IssueCommitRelation(
                         commit_id=commit["id"],
                         project_id=project_id,
-                        issue_id=int(commit_title.replace("#", "")),
+                        issue_ids=commit_issue_id_list,
                         author_name=commit["author_name"],
                         commit_message=commit["message"],
                         commit_title=commit["title"],
