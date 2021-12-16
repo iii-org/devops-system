@@ -744,8 +744,7 @@ def sync_commit_issues_relation(project_id):
 
     for branch in gitlab.gl_get_branches(pulgin_project_object.git_repository_id):
         project_commit_endpoint = get_project_commit_endpoint_object(project_id)
-        end_point = str(project_commit_endpoint.updated_at) if project_commit_endpoint.updated_at is not None else None
-
+        end_point = str(project_commit_endpoint.updated_at - timedelta(days=1)) if project_commit_endpoint.updated_at is not None else None
         commits = gitlab.gl_get_commits(pulgin_project_object.git_repository_id,
                                         branch["name"], per_page=5000, since=end_point)
         for commit in commits:
