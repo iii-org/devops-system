@@ -702,7 +702,8 @@ class GitLab(object):
 
 def get_commit_issues_relation(project_id, issue_id, limit):
     commit_issues_relations = model.IssueCommitRelation.query.filter_by(project_id=project_id). \
-        filter(model.IssueCommitRelation.issue_ids.contains([int(issue_id)])).order_by(desc(model.IssueCommitRelation.commit_time)).limit(limit).all()
+        filter(model.IssueCommitRelation.issue_ids.contains([int(issue_id)])).order_by(
+            desc(model.IssueCommitRelation.commit_time)).limit(limit).all()
 
     return [{
         "commit_id": commit_issues_relation.commit_id,
@@ -720,7 +721,7 @@ def get_commit_issues_relation(project_id, issue_id, limit):
 
 
 def get_project_plugin_object(project_id):
-    return model.ProjectPluginRelation.query.get(project_id)
+    return model.ProjectPluginRelation.query.filter_by(project_id=project_id).first()
 
 
 def get_project_commit_endpoint_object(project_id):
@@ -779,7 +780,6 @@ def sync_commit_issues_relation(project_id):
             project_commit_endpoint.updated_at = branch["last_commit_time"]
             project_commit_endpoint.commit_id = branch["id"]
             model.db.session.commit()
-
 
     # --------------------- Resources ---------------------
 gitlab = GitLab()
