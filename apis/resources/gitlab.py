@@ -707,7 +707,7 @@ def get_commit_issues_relation(project_id, issue_id, limit):
 
     return [{
         "commit_id": commit_issues_relation.commit_id,
-        "project_name": model.Project.query.get(commit_issues_relation.project_id).name,
+        "pj_name": model.Project.query.get(commit_issues_relation.project_id).name,
         "issue_id": issue_id,
         "author_name": commit_issues_relation.author_name,
         "commit_message": commit_issues_relation.commit_message,
@@ -779,6 +779,7 @@ def sync_commit_issues_relation(project_id):
             project_commit_endpoint.updated_at = branch["last_commit_time"]
             project_commit_endpoint.commit_id = branch["id"]
             model.db.session.commit()
+
 
     # --------------------- Resources ---------------------
 gitlab = GitLab()
