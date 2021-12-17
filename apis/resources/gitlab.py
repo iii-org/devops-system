@@ -742,7 +742,7 @@ def sync_commit_issues_relation(project_id):
                         author_name=commit["author_name"],
                         commit_message=commit["message"],
                         commit_title=commit["title"],
-                        commit_time=commit["committed_date"],
+                        commit_time=datetime.strptime(commit["committed_date"], "%Y-%m-%dT%H:%M:%S.%f%z"),
                         branch=branch["name"],
                         web_url=commit["web_url"],
                         created_at=datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S"),
