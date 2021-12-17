@@ -22,3 +22,5 @@ You need a `config.py` file containing API keys or other sensitive information.
 3. API/migrate?to=0.9.2
 
 Mirror harbor image to docker hub
+
+Mirror local Image To Docker Hub iiorg/devops-api:develop
