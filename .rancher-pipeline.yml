@@ -97,7 +97,6 @@ stages:
     branch:
       include:
       - master
-      - develope
 - name: Build--Push docker image(develop)
   iiidevops: deployed-environments
   steps:
@@ -112,6 +111,7 @@ stages:
       dockerfilePath: ./Dockerfile
       pushRemote: true
       registry: harbor-dev3.iiidevops.org
+      tag: ${CICD_GIT_REPO_NAME}/${CICD_GIT_BRANCH}:${CICD_GIT_COMMIT}
       tag: ${CICD_GIT_REPO_NAME}/${CICD_GIT_BRANCH}:develop
   when:
     branch:

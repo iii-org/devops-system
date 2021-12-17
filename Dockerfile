@@ -1,4 +1,6 @@
 FROM dockerhub/library/python:3.8.5
+WORKDIR /root/.kube
+COPY iiidevops/k8s_config .
 WORKDIR /usr/src/app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt 
