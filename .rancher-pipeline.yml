@@ -150,7 +150,7 @@ stages:
             harbor.host: harbor-dev3.iiidevops.org
             kube.ingress.base_domain: ingress-dev3.iiidevops.org
             pipeline.sequence: ${CICD_EXECUTION_SEQUENCE}
-            web.imageTag: ${CICD_GIT_REPO_NAME}/${CICD_GIT_BRANCH}:${CICD_GIT_COMMIT}
+            web.imageTag: ${CICD_GIT_REPO_NAME}/${CICD_GIT_REPO_NAME}:${CICD_GIT_BRANCH}
             web.port: 10009
           catalogTemplate: cattle-global-data:iii-dev-charts3-web
           name: ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}-serv
