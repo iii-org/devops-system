@@ -21,3 +21,4 @@ You need a `config.py` file containing API keys or other sensitive information.
 2. Update database with `alembic upgrade head`
 3. API/migrate?to=0.9.2
 
+Mirror harbor image to docker hub
