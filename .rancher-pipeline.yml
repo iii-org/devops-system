@@ -1,136 +1,146 @@
 stages:
-  - name: Create K8s config
-    steps:
-    - runScriptConfig:
-        image: ubuntu:18.04
-        shellScript: echo $kubeconfig > k8s_config;echo $api_env > environments.json
-      envFrom:
-      - sourceName: iiidevops
-        sourceKey: kubeconfig
-        targetKey: kubeconfig
-      - sourceName: iiidevops
-        sourceKey: api-env
-        targetKey: api_env
-    when:
-      branch: [develope]
-
-  - name: Publish iiidevops-api image
-    steps:
-    - publishImageConfig:
-        dockerfilePath: ./Dockerfile
-        buildContext: .
-        tag: iiidevops/${CICD_GIT_REPO_NAME}:${CICD_GIT_BRANCH}-${CICD_GIT_COMMIT}
-        pushRemote: true
-        registry: 10.50.1.63:5443
-      env:
-        PLUGIN_MTU: 1450
-        PLUGIN_INSECURE: true
-    when:
-      branch: [develope] 
-
-  - name: deploy iiidevops-api environment
-    steps:
-    - applyYamlConfig:
-        path: ./k8s-yaml/devopsapi-dev-deployment.yaml
-    - applyYamlConfig:
-        path: ./k8s-yaml/devopsapi-dev-service.yaml
-    when:
-      branch: [develope]
-
-  - name: Test--API Server
-    steps: 
-    - runScriptConfig:
-        image: 10.50.1.63:5443/iii-org/ubuntu:18.04
-        shellScript: sleep 60
-    when:
-      branch: [develope]
-      
-  - name: Test--Newman
-    steps: 
-    - runScriptConfig:
-        image: 10.50.1.63:5443/iii-org/newman-runner:devops-system
-        shellScript: ln -s "$(pwd)" /usr/src/app/repo; cd /usr/src/app; node /usr/src/app/app.js
-      env:
-        git_url: ${CICD_GIT_URL}
-        git_branch: ${CICD_GIT_BRANCH}
-        git_commit_id: ${CICD_GIT_COMMIT}
-        test_origin: 'http://${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}:10009'
-        verbose: true
-      envFrom:
-      - sourceName: iiidevops
-        sourceKey: api-origin
-        targetKey: api_origin
-      - sourceName: iiidevops
-        sourceKey: api-username
-        targetKey: username
-      - sourceName: iiidevops
-        sourceKey: api-password
-        targetKey: password
-    when:
-      branch: [develope]
-  - name: Code Checkmarx mock-plugin
-    steps:
-    - runScriptConfig:
-        image: 10.50.1.63:5443/iii-org/checkmarx-runner:devops-system
-        shellScript: ln -s "$(pwd)" /usr/src/app/repo; cd /usr/src/app; ls; echo ${api_orign};node app.js;
-      env:
-        git_url: ${CICD_GIT_URL}
-        git_branch: ${CICD_GIT_BRANCH}
-        git_commit_id: ${CICD_GIT_COMMIT}
-        verbose: true
-      envFrom:
-      - sourceName: iiidevops
-        sourceKey: api-origin
-        targetKey: api_origin
-      - sourceName: iiidevops
-        sourceKey: api-username
-        targetKey: api_username
-      - sourceName: iiidevops
-        sourceKey: api-password
-        targetKey: api_password
-      - sourceName: checkmarx-secret
-        sourceKey: username
-        targetKey: username
-      - sourceName: checkmarx-secret
-        sourceKey: password
-        targetKey: password
-      - sourceName: checkmarx-secret
-        sourceKey: check-interval
-        targetKey: check_interval
-      - sourceName: checkmarx-secret
-        sourceKey: client-secret
-        targetKey: client_secret
-      - sourceName: checkmarx-secret
-        sourceKey: cm-url
-        targetKey: cm_url
-    when: 
-      branch: [checkmarx] 
-
-  - name: Code webinspect mock-plugin
-    steps:
-    - runScriptConfig:
-        image: iiiorg/webinspect-runner
-        shellScript: ln -s "$(pwd)" /usr/src/app/repo; cd /usr/src/app; node /usr/src/app/app.js
-      env:
-        project_name: ${CICD_GIT_REPO_NAME}
-        git_branch: ${CICD_GIT_BRANCH}
-        git_commit_id: ${CICD_GIT_COMMIT}
-        verbose: true
-      envFrom:
-      - sourceName: iiidevops
-        sourceKey: api-origin
-        targetKey: api_origin
-      - sourceName: iiidevops
-        sourceKey: api-username
-        targetKey: api_username
-      - sourceName: iiidevops
-        sourceKey: api-password
-        targetKey: api_password
-      - sourceName: webinspect
-        sourceKey: webinspect-url
-        targetKey: wi_base_url
-      - sourceName: webinspect
-        sourceKey: inspect-url
-        targetKey: inspect_url
-    when: 
-      branch: [webinspect] 
+- name: Create K8s config
+  iiidevops: deployed-environments
+  steps:
+  - runScriptConfig:
+      image: ubuntu:18.04
+      shellScript: echo $kubeconfig > k8s_config;echo $api_env > environments.json
+    envFrom:
+    - sourceName: iiidevops
+      sourceKey: kubeconfig
+      targetKey: kubeconfig
+    - sourceName: iiidevops
+      sourceKey: api-env
+      targetKey: api_env
+  when:
+    branch:
+    - develope
+- name: Publish iiidevops-api image
+  iiidevops: deployed-environments
+  steps:
+  - publishImageConfig:
+      dockerfilePath: ./Dockerfile
+      buildContext: .
+      tag: iiidevops/${CICD_GIT_REPO_NAME}:${CICD_GIT_BRANCH}-${CICD_GIT_COMMIT}
+      pushRemote: true
+      registry: 10.50.1.63:5443
+    env:
+      PLUGIN_MTU: 1450
+      PLUGIN_INSECURE: true
+  when:
+    branch:
+    - develope
+- name: deploy iiidevops-api environment
+  iiidevops: deployed-environments
+  steps:
+  - applyYamlConfig:
+      path: ./k8s-yaml/devopsapi-dev-deployment.yaml
+  - applyYamlConfig:
+      path: ./k8s-yaml/devopsapi-dev-service.yaml
+  when:
+    branch:
+    - develope
+- name: Test--API Server
+  iiidevops: deployed-environments
+  steps:
+  - runScriptConfig:
+      image: 10.50.1.63:5443/iii-org/ubuntu:18.04
+      shellScript: sleep 60
+  when:
+    branch:
+    - develope
+- name: Test--Newman
+  iiidevops: deployed-environments
+  steps:
+  - runScriptConfig:
+      image: 10.50.1.63:5443/iii-org/newman-runner:devops-system
+      shellScript: ln -s "$(pwd)" /usr/src/app/repo; cd /usr/src/app; node /usr/src/app/app.js
+    env:
+      git_url: ${CICD_GIT_URL}
+      git_branch: ${CICD_GIT_BRANCH}
+      git_commit_id: ${CICD_GIT_COMMIT}
+      test_origin: http://${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}:10009
+      verbose: true
+    envFrom:
+    - sourceName: iiidevops
+      sourceKey: api-origin
+      targetKey: api_origin
+    - sourceName: iiidevops
+      sourceKey: api-username
+      targetKey: username
+    - sourceName: iiidevops
+      sourceKey: api-password
+      targetKey: password
+  when:
+    branch:
+    - develope
+- name: Code Checkmarx mock-plugin
+  iiidevops: deployed-environments
+  steps:
+  - runScriptConfig:
+      image: 10.50.1.63:5443/iii-org/checkmarx-runner:devops-system
+      shellScript: ln -s "$(pwd)" /usr/src/app/repo; cd /usr/src/app; ls; echo ${api_orign};node
+        app.js;
+    env:
+      git_url: ${CICD_GIT_URL}
+      git_branch: ${CICD_GIT_BRANCH}
+      git_commit_id: ${CICD_GIT_COMMIT}
+      verbose: true
+    envFrom:
+    - sourceName: iiidevops
+      sourceKey: api-origin
+      targetKey: api_origin
+    - sourceName: iiidevops
+      sourceKey: api-username
+      targetKey: api_username
+    - sourceName: iiidevops
+      sourceKey: api-password
+      targetKey: api_password
+    - sourceName: checkmarx-secret
+      sourceKey: username
+      targetKey: username
+    - sourceName: checkmarx-secret
+      sourceKey: password
+      targetKey: password
+    - sourceName: checkmarx-secret
+      sourceKey: check-interval
+      targetKey: check_interval
+    - sourceName: checkmarx-secret
+      sourceKey: client-secret
+      targetKey: client_secret
+    - sourceName: checkmarx-secret
+      sourceKey: cm-url
+      targetKey: cm_url
+  when:
+    branch:
+    - checkmarx
+- name: Code webinspect mock-plugin
+  iiidevops: deployed-environments
+  steps:
+  - runScriptConfig:
+      image: iiiorg/webinspect-runner
+      shellScript: ln -s "$(pwd)" /usr/src/app/repo; cd /usr/src/app; node /usr/src/app/app.js
+    env:
+      project_name: ${CICD_GIT_REPO_NAME}
+      git_branch: ${CICD_GIT_BRANCH}
+      git_commit_id: ${CICD_GIT_COMMIT}
+      verbose: true
+    envFrom:
+    - sourceName: iiidevops
+      sourceKey: api-origin
+      targetKey: api_origin
+    - sourceName: iiidevops
+      sourceKey: api-username
+      targetKey: api_username
+    - sourceName: iiidevops
+      sourceKey: api-password
+      targetKey: api_password
+    - sourceName: webinspect
+      sourceKey: webinspect-url
+      targetKey: wi_base_url
+    - sourceName: webinspect
+      sourceKey: inspect-url
+      targetKey: inspect_url
+  when:
+    branch:
+    - webinspect
