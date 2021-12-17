@@ -736,7 +736,6 @@ class CustomIssueFilter(db.Model):
 
 class CMAS(db.Model):
     task_id = Column(String, primary_key=True)
-    cm_project_id = Column(Integer)
     repo_id = Column(Integer, ForeignKey(
         ProjectPluginRelation.git_repository_id, ondelete='CASCADE'))
     branch = Column(String)
@@ -750,7 +749,7 @@ class CMAS(db.Model):
     stats = Column(String)
     finished_at = Column(DateTime)  # The time report is generated
     finished = Column(Boolean)  # True only if report is available
-    filename = Column(String)
+    filenames = Column(JSON)
     upload_id = Column(Integer)
     size = Column(Integer)
     sha256 = Column(String)
