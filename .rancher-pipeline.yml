@@ -92,12 +92,13 @@ stages:
       dockerfilePath: ./Dockerfile
       pushRemote: true
       registry: harbor-dev3.iiidevops.org
-      tag: ${CICD_GIT_REPO_NAME}/${CICD_GIT_BRANCH}:${CICD_GIT_COMMIT}
+      tag: ${CICD_GIT_REPO_NAME}/${CICD_GIT_BRANCH}:latest
   when:
     branch:
       include:
       - master
-- name: Build--Push docker image(develop)
+      - develope
+- name: Build--Push image with git commit tag(develop)
   iiidevops: deployed-environments
   steps:
   - env:
@@ -108,15 +109,33 @@ stages:
       PLUGIN_MTU: '1000'
     publishImageConfig:
       buildContext: .
-      dockerfilePath: ./Dockerfile
+      dockerfilePath: ./Dockerfile.develop.dev3
       pushRemote: true
       registry: harbor-dev3.iiidevops.org
       tag: ${CICD_GIT_REPO_NAME}/${CICD_GIT_BRANCH}:${CICD_GIT_COMMIT}
-      tag: ${CICD_GIT_REPO_NAME}/${CICD_GIT_BRANCH}:develop
   when:
     branch:
       include:
       - develope
+- name: Build--Push image with git commit tag(master)
+  iiidevops: deployed-environments
+  steps:
+  - env:
+      PLUGIN_BUILD_ARGS: --progress=tty --network=host
+      PLUGIN_DEBUG: 'true'
+      PLUGIN_INSECURE: 'true'
+      PLUGIN_MIRROR: https://harbor-dev3.iiidevops.org
+      PLUGIN_MTU: '1000'
+    publishImageConfig:
+      buildContext: .
+      dockerfilePath: ./Dockerfile.master.dev3
+      pushRemote: true
+      registry: harbor-dev3.iiidevops.org
+      tag: ${CICD_GIT_REPO_NAME}/${CICD_GIT_BRANCH}:${CICD_GIT_COMMIT}
+  when:
+    branch:
+      include:
+      - master
 - name: Deploy--Web
   iiidevops: deployed-environments
   steps:
