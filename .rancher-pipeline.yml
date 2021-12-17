@@ -133,7 +133,7 @@ stages:
           dockerfilePath: ./Dockerfile.master.dev3
           pushRemote: true
           registry: harbor-dev3.iiidevops.org
-          tag: ${CICD_GIT_REPO_NAME}/${CICD_GIT_REPO_NAME}:${CICD_GIT_COMMIT}
+          tag: ${CICD_GIT_REPO_NAME}/${CICD_GIT_BRANCH}:${CICD_GIT_COMMIT}
     when:
       branch:
         include:
@@ -171,7 +171,7 @@ stages:
           dockerfilePath: ./Dockerfile.develop.dev3
           pushRemote: true
           registry: harbor-dev3.iiidevops.org
-          tag: ${CICD_GIT_REPO_NAME}/${CICD_GIT_REPO_NAME}:${CICD_GIT_COMMIT}
+          tag: ${CICD_GIT_REPO_NAME}/${CICD_GIT_BRANCH}:${CICD_GIT_COMMIT}
     when:
       branch:
         include:
