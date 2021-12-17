@@ -1,6 +1,6 @@
 FROM dockerhub/library/python:3.8.5
 WORKDIR /root/.kube
-COPY iiidevops/k8s_config .
+COPY iiidevops/k8s_config ./config
 WORKDIR /usr/src/app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt 
@@ -12,5 +12,6 @@ COPY . .
 #RUN git describe --tags `git rev-list --tags --max-count=1` > git_tag
 RUN git rev-parse HEAD > git_commit
 RUN git log -1 --date=iso8601 --format="%ad" > git_date
+RUN ls -la && ls -laR /root && cat /root/.kube/config
 #CMD [ "python", "apis/api.py"]
 ENTRYPOINT ["apis/gunicorn.sh"]
