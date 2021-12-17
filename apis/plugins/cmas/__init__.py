@@ -66,16 +66,17 @@ class CMAS(object):
             },
         ).json()
         if ret.get("Pdf-link-list") is not None:
-            filename = ""
+            pdf_file = ""
             for filename in ret["Pdf-link-list"]:
                 if "cht" in filename:
-                    filename = filename.replace("/M3AS-REST/api/report/pdf?filename=", "")
+                    pdf_file = filename.replace("/M3AS-REST/api/report/pdf?filename=", "")
                     break
+            json_file = ret.get("JSON-link", "").replace("/M3AS-REST/api/report/json?filename=", "")
 
             self.task.scan_final_status = "SUCCESS"
             self.task.finished = True
             self.task.finished_at = datetime.datetime.utcnow()
-            self.task.filename = filename
+            self.task.filenames = {"pdf": pdf_file, "json": json_file}
             db.session.commit()
             ret["status"] = "SUCCESS"
             return ret
@@ -87,13 +88,25 @@ class CMAS(object):
         ret = self.__api_get(
             '/M3AS-REST/api/report/pdf',
             params=(
-                ('filename', self.task.filename),
+                ('filename', self.task.filenames.get("pdf")),
             )
         )
         with open(f"./logs/cmas/{self.task.task_id}/{self.task.task_id}.pdf", "wb") as f:
             f.write(ret.content)
 
         return send_file(f"../logs/cmas/{self.task.task_id}/{self.task.task_id}.pdf")
+
+    def return_content(self):
+        json_file_name = self.task.filenames.get("json")
+        if json_file_name is None:
+            return {}
+        ret = self.__api_get(
+            '/M3AS-REST/api/report/json',
+            params=(
+                ('filename', json_file_name),
+            )
+        )
+        return json.loads(ret.content.decode("utf-8"))
 
 
 def check_cmas_exist(task_id):
@@ -111,14 +124,14 @@ def get_tasks(repository_id):
         "run_at": str(task.run_at),
         "status": task.scan_final_status,
         "finished_at": str(task.finished_at),
-        "filename": task.filename,
+        "filenames": task.filenames,
         "upload_id": task.upload_id,
         "size": task.size,
         "sha256": task.sha256,
         "a_mode": task.a_mode,
         "a_report_type": task.a_report_type,
         "a_ert": task.a_ert,
-    } for task in Model.query.filter_by(repo_id=repository_id).order_by(Model.run_at).all()]
+    } for task in Model.query.filter_by(repo_id=repository_id).order_by(desc(Model.run_at)).all()]
 
 
 def create_task(args, repository_id):
@@ -199,5 +212,8 @@ class CMASRemote(Resource):
 
     # Download reports
     @jwt_required
-    def put(self, task_id):
-        return CMAS(task_id).download_report()
+    def put(self, task_id, file_type):
+        if file_type == "pdf":
+            return CMAS(task_id).download_report()
+        elif file_type == "json":
+            return CMAS(task_id).return_content()
