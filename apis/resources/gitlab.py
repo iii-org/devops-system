@@ -491,62 +491,67 @@ class GitLab(object):
         path = f'/projects/{repo_id}/releases/{tag_name}'
         return self.__api_delete(path).json()
 
-    def gl_get_the_last_hours_commits(self,
-                                      the_last_hours=None,
-                                      show_commit_rows=None,
-                                      git_repository_id=None,
-                                      user_id=None):
-        if role.is_admin() is False:
-            user_id = get_jwt_identity()["user_id"]
-        rows = []
-        if user_id is not None:
+    def __get_projects_commit(self, pjs, out_list, branch_name, days_ago):
+        for pj in pjs:
+            if (pj.empty_repo is False) and pj.path_with_namespace.split('/')[0] not in iiidevops_system_group:
+                if branch_name is None:
+                    pj_commits = pj.commits.list(since=days_ago)
+                else:
+                    pj_commits = pj.commits.list(ref_name=branch_name, since=days_ago)
+                for commit in pj_commits:
+                    out_list.append({
+                        "pj_name":
+                            pj.name,
+                        "author_name":
+                            commit.author_name,
+                        "author_email":
+                            commit.author_email,
+                        "commit_time":
+                            self.__gl_timezone_to_utc(commit.committed_date),
+                        "commit_id":
+                            commit.short_id,
+                        "commit_title":
+                            commit.title,
+                        "commit_message":
+                            commit.message
+                    })
+        return out_list
+
+    def __get_projects_by_repo_or_by_user(self, git_repository_id, user_id):
+        pjs = []
+        if git_repository_id is not None:
+            pjs.append(self.gl.projects.get(git_repository_id))
+        elif user_id is not None:
             rows = db.session.query(model.ProjectUserRole, model.ProjectPluginRelation).join(
                 model.ProjectPluginRelation,
                 model.ProjectPluginRelation.project_id == model.ProjectUserRole.project_id). \
                 filter(model.ProjectUserRole.user_id == user_id,
                        model.ProjectUserRole.project_id == model.ProjectPluginRelation.project_id).all()
+            for row in rows:
+                pjs.append(
+                    self.gl.projects.get(
+                        row.ProjectPluginRelation.git_repository_id))
+        else:
+            pjs = self.gl.projects.list(order_by="last_activity_at")
+        return pjs
+
+    def gl_get_the_last_hours_commits(self,
+                                      the_last_hours=None,
+                                      show_commit_rows=None,
+                                      git_repository_id=None,
+                                      branch_name=None,
+                                      user_id=None):
+        if role.is_admin() is False:
+            user_id = get_jwt_identity()["user_id"]
         out_list = []
         if show_commit_rows is not None:
-            last_days_ago = None
             for x in range(12, 169, 12):
                 days_ago = (datetime.utcnow() - timedelta(days=x)).isoformat()
-                pjs = []
-                if user_id is not None:
-                    for row in rows:
-                        pjs.append(
-                            self.gl.projects.get(
-                                row.ProjectPluginRelation.git_repository_id))
-                elif git_repository_id is not None:
-                    pjs.append(self.gl.projects.get(git_repository_id))
-                else:
-                    pjs = self.gl.projects.list(order_by="last_activity_at")
-                for pj in pjs:
-                    if (pj.empty_repo is False) and (pj.path_with_namespace.split('/')[0] not in iiidevops_system_group):
-                        for commit in pj.commits.list(since=days_ago,
-                                                      until=last_days_ago):
-                            out_list.append({
-                                "pj_name":
-                                    pj.name,
-                                "author_name":
-                                    commit.author_name,
-                                "author_email":
-                                    commit.author_email,
-                                "commit_time":
-                                    self.__gl_timezone_to_utc(
-                                        commit.committed_date),
-                                "commit_id":
-                                    commit.short_id,
-                                "commit_title":
-                                    commit.title,
-                                "commit_message":
-                                    commit.message
-                            })
-                            if len(out_list) > show_commit_rows - 1:
-                                sorted(
-                                    (out["commit_time"] for out in out_list),
-                                    reverse=True)
-                                return out_list[:show_commit_rows]
-                last_days_ago = days_ago
+                pjs = self.__get_projects_by_repo_or_by_user(git_repository_id, user_id)
+                out_list = self.__get_projects_commit(pjs, out_list, branch_name, days_ago)
+                if len(out_list) > show_commit_rows - 1:
+                    sorted((out["commit_time"] for out in out_list), reverse=True)
+                    return out_list[:show_commit_rows]
             sorted((out["commit_time"] for out in out_list), reverse=True)
             return out_list[:show_commit_rows]
         else:
@@ -554,35 +559,8 @@ class GitLab(object):
                 the_last_hours = 24
             days_ago = (datetime.utcnow() -
                         timedelta(hours=the_last_hours)).isoformat()
-            pjs = []
-            if user_id is not None:
-                for row in rows:
-                    pjs.append(
-                        self.gl.projects.get(
-                            row.ProjectPluginRelation.git_repository_id))
-            elif git_repository_id is not None:
-                pjs.append(self.gl.projects.get(git_repository_id))
-            else:
-                pjs = self.gl.projects.list(order_by="last_activity_at")
-            for pj in pjs:
-                if (pj.empty_repo is False) and pj.path_with_namespace.split('/')[0] not in iiidevops_system_group:
-                    for commit in pj.commits.list(since=days_ago):
-                        out_list.append({
-                            "pj_name":
-                                pj.name,
-                            "author_name":
-                                commit.author_name,
-                            "author_email":
-                                commit.author_email,
-                            "commit_time":
-                                self.__gl_timezone_to_utc(commit.committed_date),
-                            "commit_id":
-                                commit.short_id,
-                            "commit_title":
-                                commit.title,
-                            "commit_message":
-                                commit.message
-                        })
+            pjs = self.__get_projects_by_repo_or_by_user(git_repository_id, user_id)
+            out_list = self.__get_projects_commit(pjs, out_list, branch_name, days_ago)
         sorted((out["commit_time"] for out in out_list), reverse=True)
         return out_list
 
@@ -744,7 +722,8 @@ def sync_commit_issues_relation(project_id):
 
     for branch in gitlab.gl_get_branches(pulgin_project_object.git_repository_id):
         project_commit_endpoint = get_project_commit_endpoint_object(project_id)
-        end_point = str(project_commit_endpoint.updated_at - timedelta(days=1)) if project_commit_endpoint.updated_at is not None else None
+        end_point = str(project_commit_endpoint.updated_at - timedelta(days=1)
+                        ) if project_commit_endpoint.updated_at is not None else None
         commits = gitlab.gl_get_commits(pulgin_project_object.git_repository_id,
                                         branch["name"], per_page=5000, since=end_point)
         for commit in commits:
@@ -779,7 +758,6 @@ def sync_commit_issues_relation(project_id):
             project_commit_endpoint.updated_at = branch["last_commit_time"]
             project_commit_endpoint.commit_id = branch["id"]
             model.db.session.commit()
-
 
     # --------------------- Resources ---------------------
 gitlab = GitLab()
@@ -1003,12 +981,14 @@ class GitTheLastHoursCommits(Resource):
         parser.add_argument('the_last_hours', type=int)
         parser.add_argument('show_commit_rows', type=int)
         parser.add_argument('git_repository_id', type=int)
+        parser.add_argument('branch_name', type=str)
         parser.add_argument('user_id', type=int)
         args = parser.parse_args()
         return util.success(
             gitlab.gl_get_the_last_hours_commits(args["the_last_hours"],
                                                  args["show_commit_rows"],
                                                  args["git_repository_id"],
+                                                 args["branch_name"],
                                                  args["user_id"]))
 
 
