@@ -1,7 +1,6 @@
 FROM dockerhub/library/python:3.8.5
 WORKDIR /usr/src/app
 COPY requirements.txt .
-COPY iiidevops/k8s_config .
 RUN pip install --no-cache-dir -r requirements.txt 
 RUN echo "V1.12.0-dev" > git_tag
 COPY . .
