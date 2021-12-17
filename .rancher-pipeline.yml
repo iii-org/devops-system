@@ -1,146 +1,225 @@
 stages:
-- name: Create K8s config
-  iiidevops: deployed-environments
+- name: Integration--Issue and git hook
+  iiidevops: git-hook
   steps:
-  - runScriptConfig:
-      image: ubuntu:18.04
-      shellScript: echo $kubeconfig > k8s_config;echo $api_env > environments.json
-    envFrom:
-    - sourceName: iiidevops
-      sourceKey: kubeconfig
-      targetKey: kubeconfig
-    - sourceName: iiidevops
-      sourceKey: api-env
-      targetKey: api_env
+  - envFrom:
+    - sourceKey: api-origin
+      sourceName: nexus
+      targetKey: api_origin
+    runScriptConfig:
+      image: iiiorg/rancher-cli:v2.4.6
+      shellScript: curl --location --request POST ${api_origin}/project/issues_commit_by_name
+        --form project_name=${CICD_GIT_REPO_NAME}
   when:
     branch:
-    - develope
-- name: Publish iiidevops-api image
+      include:
+      - master
+      - develope
+- name: Test--SonarQube source code scan
+  iiidevops: sonarqube
+  steps:
+  - applyAppConfig:
+      answers:
+        git.branch: ${CICD_GIT_BRANCH}
+        git.commitID: ${CICD_GIT_COMMIT}
+        git.repoName: ${CICD_GIT_REPO_NAME}
+        git.url: ${CICD_GIT_URL}
+        pipeline.sequence: ${CICD_EXECUTION_SEQUENCE}
+      catalogTemplate: cattle-global-data:iii-dev-charts3-scan-sonarqube
+      name: ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}-sq
+      targetNamespace: ${CICD_GIT_REPO_NAME}
+      version: 0.2.1
+  when:
+    branch:
+      include:
+      - master
+      - develope
+- name: Test--Checkmarx source code scan
+  iiidevops: checkmarx
+  steps:
+  - applyAppConfig:
+      answers:
+        git.branch: ${CICD_GIT_BRANCH}
+        git.commitID: ${CICD_GIT_COMMIT}
+        git.repoName: ${CICD_GIT_REPO_NAME}
+        git.url: ${CICD_GIT_URL}
+        pipeline.sequence: ${CICD_EXECUTION_SEQUENCE}
+      catalogTemplate: cattle-global-data:iii-dev-charts3-scan-checkmarx
+      name: ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}-cmx
+      targetNamespace: ${CICD_GIT_REPO_NAME}
+      version: 0.2.0
+  when:
+    branch:
+      include:
+      - master
+      - develope
+- name: Deploy--Set Web environment variables
   iiidevops: deployed-environments
   steps:
-  - publishImageConfig:
-      dockerfilePath: ./Dockerfile
+  - envFrom:
+    - sourceKey: API_TOKEN
+      sourceName: pipeline-api-key
+      targetKey: rancher_api_token
+    - sourceKey: rancher-url
+      sourceName: rancher
+      targetKey: rancher_url
+    runScriptConfig:
+      image: iiiorg/rancher-cli:v2.4.6
+      shellScript: rancher login ${rancher_url} -t ${rancher_api_token} --skip-verify
+        && rancher kubectl delete configmap -n ${CICD_GIT_REPO_NAME} ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}-env
+        --ignore-not-found=true && perl iiidevops/bin/chk-app-env.pl && rancher kubectl
+        create configmap -n ${CICD_GIT_REPO_NAME} ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}-env
+        --from-env-file=iiidevops/app.env && rancher kubectl annotate configmap -n
+        ${CICD_GIT_REPO_NAME} ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}-env iiidevops.org/project_name=${CICD_GIT_REPO_NAME}
+        iiidevops.org/branch=${CICD_GIT_BRANCH} iiidevops.org/commit_id=${CICD_GIT_COMMIT}
+        iiidevops.org/type=appenv
+  when:
+    branch:
+      include:
+      - master
+      - develope
+- name: Build--Build and push docker image
+  iiidevops: deployed-environments
+  steps:
+  - env:
+      PLUGIN_BUILD_ARGS: --progress=tty --network=host
+      PLUGIN_DEBUG: 'true'
+      PLUGIN_INSECURE: 'true'
+      PLUGIN_MIRROR: https://harbor-dev3.iiidevops.org
+      PLUGIN_MTU: '1000'
+    publishImageConfig:
       buildContext: .
-      tag: iiidevops/${CICD_GIT_REPO_NAME}:${CICD_GIT_BRANCH}-${CICD_GIT_COMMIT}
+      dockerfilePath: ./Dockerfile
       pushRemote: true
-      registry: 10.50.1.63:5443
-    env:
-      PLUGIN_MTU: 1450
-      PLUGIN_INSECURE: true
+      registry: harbor-dev3.iiidevops.org
+      tag: ${CICD_GIT_REPO_NAME}/${CICD_GIT_BRANCH}:${CICD_GIT_COMMIT}
   when:
     branch:
-    - develope
-- name: deploy iiidevops-api environment
+      include:
+      - master
+      - develope
+- name: Deploy--Web
   iiidevops: deployed-environments
   steps:
-  - applyYamlConfig:
-      path: ./k8s-yaml/devopsapi-dev-deployment.yaml
-  - applyYamlConfig:
-      path: ./k8s-yaml/devopsapi-dev-service.yaml
+  - applyAppConfig:
+      answers:
+        git.branch: ${CICD_GIT_BRANCH}
+        git.commitID: ${CICD_GIT_COMMIT}
+        git.repoName: ${CICD_GIT_REPO_NAME}
+        git.url: ${CICD_GIT_URL}
+        harbor.host: harbor-dev3.iiidevops.org
+        kube.ingress.base_domain: ingress-dev3.iiidevops.org
+        pipeline.sequence: ${CICD_EXECUTION_SEQUENCE}
+        web.imageTag: ${CICD_GIT_REPO_NAME}/${CICD_GIT_BRANCH}:${CICD_GIT_COMMIT}
+        web.port: 10009
+      catalogTemplate: cattle-global-data:iii-dev-charts3-web
+      name: ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}-serv
+      targetNamespace: ${CICD_GIT_REPO_NAME}
+      version: 0.5.3
   when:
     branch:
-    - develope
-- name: Test--API Server
+      include:
+      - master
+      - develope
+- name: Deploy--Wait Web deployment
   iiidevops: deployed-environments
   steps:
-  - runScriptConfig:
-      image: 10.50.1.63:5443/iii-org/ubuntu:18.04
-      shellScript: sleep 60
-  when:
-    branch:
-    - develope
-- name: Test--Newman
-  iiidevops: deployed-environments
-  steps:
-  - runScriptConfig:
-      image: 10.50.1.63:5443/iii-org/newman-runner:devops-system
-      shellScript: ln -s "$(pwd)" /usr/src/app/repo; cd /usr/src/app; node /usr/src/app/app.js
-    env:
-      git_url: ${CICD_GIT_URL}
-      git_branch: ${CICD_GIT_BRANCH}
-      git_commit_id: ${CICD_GIT_COMMIT}
-      test_origin: http://${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}:10009
-      verbose: true
+  - env:
+      deploy_name: ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}-serv
+      max_wait: 128
+      namespace: ${CICD_GIT_REPO_NAME}
     envFrom:
-    - sourceName: iiidevops
-      sourceKey: api-origin
-      targetKey: api_origin
-    - sourceName: iiidevops
-      sourceKey: api-username
-      targetKey: username
-    - sourceName: iiidevops
-      sourceKey: api-password
-      targetKey: password
+    - sourceKey: API_TOKEN
+      sourceName: pipeline-api-key
+      targetKey: rancher_api_token
+    - sourceKey: rancher-url
+      sourceName: rancher
+      targetKey: rancher_url
+    runScriptConfig:
+      image: iiiorg/deployment-waiter:0.0.2
+      shellScript: rancher login ${rancher_url} -t ${rancher_api_token} --skip-verify;
+        bash /app/run.sh
   when:
     branch:
-    - develope
-- name: Code Checkmarx mock-plugin
-  iiidevops: deployed-environments
+      include:
+      - master
+      - develope
+- name: Test--ZAP
+  iiidevops: zap
   steps:
-  - runScriptConfig:
-      image: 10.50.1.63:5443/iii-org/checkmarx-runner:devops-system
-      shellScript: ln -s "$(pwd)" /usr/src/app/repo; cd /usr/src/app; ls; echo ${api_orign};node
-        app.js;
-    env:
-      git_url: ${CICD_GIT_URL}
-      git_branch: ${CICD_GIT_BRANCH}
-      git_commit_id: ${CICD_GIT_COMMIT}
-      verbose: true
-    envFrom:
-    - sourceName: iiidevops
-      sourceKey: api-origin
-      targetKey: api_origin
-    - sourceName: iiidevops
-      sourceKey: api-username
-      targetKey: api_username
-    - sourceName: iiidevops
-      sourceKey: api-password
-      targetKey: api_password
-    - sourceName: checkmarx-secret
-      sourceKey: username
-      targetKey: username
-    - sourceName: checkmarx-secret
-      sourceKey: password
-      targetKey: password
-    - sourceName: checkmarx-secret
-      sourceKey: check-interval
-      targetKey: check_interval
-    - sourceName: checkmarx-secret
-      sourceKey: client-secret
-      targetKey: client_secret
-    - sourceName: checkmarx-secret
-      sourceKey: cm-url
-      targetKey: cm_url
+  - applyAppConfig:
+      answers:
+        git.branch: ${CICD_GIT_BRANCH}
+        git.commitID: ${CICD_GIT_COMMIT}
+        git.repoName: ${CICD_GIT_REPO_NAME}
+        git.url: ${CICD_GIT_URL}
+        pipeline.sequence: ${CICD_EXECUTION_SEQUENCE}
+        web.deployName: ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}-serv
+        web.port: 10009
+      catalogTemplate: cattle-global-data:iii-dev-charts3-test-zap
+      name: ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}-zap
+      targetNamespace: ${CICD_GIT_REPO_NAME}
+      version: 0.2.0
   when:
     branch:
-    - checkmarx
-- name: Code webinspect mock-plugin
-  iiidevops: deployed-environments
+      include:
+      - skip
+- name: Test--WebInspect
+  iiidevops: webinspect
   steps:
-  - runScriptConfig:
-      image: iiiorg/webinspect-runner
-      shellScript: ln -s "$(pwd)" /usr/src/app/repo; cd /usr/src/app; node /usr/src/app/app.js
-    env:
-      project_name: ${CICD_GIT_REPO_NAME}
-      git_branch: ${CICD_GIT_BRANCH}
-      git_commit_id: ${CICD_GIT_COMMIT}
-      verbose: true
-    envFrom:
-    - sourceName: iiidevops
-      sourceKey: api-origin
-      targetKey: api_origin
-    - sourceName: iiidevops
-      sourceKey: api-username
-      targetKey: api_username
-    - sourceName: iiidevops
-      sourceKey: api-password
-      targetKey: api_password
-    - sourceName: webinspect
-      sourceKey: webinspect-url
-      targetKey: wi_base_url
-    - sourceName: webinspect
-      sourceKey: inspect-url
-      targetKey: inspect_url
+  - applyAppConfig:
+      answers:
+        git.branch: ${CICD_GIT_BRANCH}
+        git.commitID: ${CICD_GIT_COMMIT}
+        git.repoName: ${CICD_GIT_REPO_NAME}
+        git.url: ${CICD_GIT_URL}
+        pipeline.sequence: ${CICD_EXECUTION_SEQUENCE}
+        web.deployName: ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}-serv
+      catalogTemplate: cattle-global-data:iii-dev-charts3-test-webinspect
+      name: ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}-wi
+      targetNamespace: ${CICD_GIT_REPO_NAME}
+      version: 0.2.0
   when:
     branch:
-    - webinspect
+      include:
+      - skip
+- name: Test--Postman
+  iiidevops: postman
+  steps:
+  - applyAppConfig:
+      answers:
+        git.branch: ${CICD_GIT_BRANCH}
+        git.commitID: ${CICD_GIT_COMMIT}
+        git.repoName: ${CICD_GIT_REPO_NAME}
+        git.url: ${CICD_GIT_URL}
+        pipeline.sequence: ${CICD_EXECUTION_SEQUENCE}
+        web.deployName: ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}-serv
+        web.port: 10009
+      catalogTemplate: cattle-global-data:iii-dev-charts3-test-postman
+      name: ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}-pm
+      targetNamespace: ${CICD_GIT_REPO_NAME}
+      version: 0.3.0
+  when:
+    branch:
+      include:
+      - skip
+- name: Test--SideeX
+  iiidevops: sideex
+  steps:
+  - applyAppConfig:
+      answers:
+        git.branch: ${CICD_GIT_BRANCH}
+        git.commitID: ${CICD_GIT_COMMIT}
+        git.repoName: ${CICD_GIT_REPO_NAME}
+        git.url: ${CICD_GIT_URL}
+        pipeline.sequence: ${CICD_EXECUTION_SEQUENCE}
+        web.deployName: ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}-serv
+        web.port: 10009
+      catalogTemplate: cattle-global-data:iii-dev-charts3-test-sideex
+      name: ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}-sdx
+      targetNamespace: ${CICD_GIT_REPO_NAME}
+      version: 0.3.1
+  when:
+    branch:
+      include:
+      - skip

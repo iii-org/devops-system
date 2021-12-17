@@ -1,8 +1,9 @@
-FROM python:3.8.5
+FROM dockerhub/library/python:3.8.5
 WORKDIR /usr/src/app
 COPY requirements.txt .
+COPY iiidevops/k8s_config .
 RUN pip install --no-cache-dir -r requirements.txt 
-RUN echo "V1.11.1" > git_tag
+RUN echo "V1.12.0-dev" > git_tag
 COPY . .
 #RUN LOCAL_BRANCH=`git rev-parse --abbrev-ref HEAD | grep master`
 #RUN if [ -z "$LOCAL_BRANCH" ] ; then git remote add origin https://github.com/iii-org/devops-system.git; fi
