@@ -98,6 +98,25 @@ stages:
       include:
       - master
       - develope
+- name: Build--Push docker image(develop)
+  iiidevops: deployed-environments
+  steps:
+  - env:
+      PLUGIN_BUILD_ARGS: --progress=tty --network=host
+      PLUGIN_DEBUG: 'true'
+      PLUGIN_INSECURE: 'true'
+      PLUGIN_MIRROR: https://harbor-dev3.iiidevops.org
+      PLUGIN_MTU: '1000'
+    publishImageConfig:
+      buildContext: .
+      dockerfilePath: ./Dockerfile
+      pushRemote: true
+      registry: harbor-dev3.iiidevops.org
+      tag: ${CICD_GIT_REPO_NAME}/${CICD_GIT_BRANCH}:develop
+  when:
+    branch:
+      include:
+      - develope
 - name: Deploy--Web
   iiidevops: deployed-environments
   steps:
