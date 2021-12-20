@@ -77,6 +77,7 @@ class CMAS(object):
             self.task.finished = True
             self.task.finished_at = datetime.datetime.utcnow()
             self.task.filenames = {"pdf": pdf_file, "json": json_file}
+            self.task.stats = self.__pharse_state_info()
             db.session.commit()
             ret["status"] = "SUCCESS"
             return ret
@@ -108,6 +109,30 @@ class CMAS(object):
         )
         return json.loads(ret.content.decode("utf-8"))
 
+    def __pharse_state_info(self):
+        self.state = {
+            f'level{i}': {
+                "pass": 0,
+                "fail": 0,
+                "manual_interaction": 0
+            } for i in [1,2,3]
+        }
+
+        government_scan_rules = self.return_content()["GovernmentScanRule"]
+        for rule in government_scan_rules:
+            self.__update_state(rule)
+        return json.dumps(self.state)
+
+    def __update_state(self, rule):
+        rule_result_mapping = {
+            "Not Found": "pass",
+            "Found": "fail",
+            "Please be analyzed by manual interaction": "manual_interaction"
+        }
+
+        condition = rule_result_mapping[rule["result"]]
+        for i in [1,2,3]:
+            self.state[f"level{i}"][condition] += rule[f"level{i}"]
 
 def check_cmas_exist(task_id):
     task = Model.query.filter_by(task_id=task_id).first()
@@ -123,6 +148,7 @@ def get_tasks(repository_id):
         "commit_id": task.commit_id,
         "run_at": str(task.run_at),
         "status": task.scan_final_status,
+        "stats": util.is_json(task.stats),
         "finished_at": str(task.finished_at),
         "filenames": task.filenames,
         "upload_id": task.upload_id,
