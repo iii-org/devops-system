@@ -1287,7 +1287,7 @@ def get_deployment_info(cluster_name, k8s_yaml):
 def get_application_information(application, cluster_info=None):
     if application is None:
         return []
-    if application.status_id in _NEED_UPDATE_APPLICATION_STATUS:
+    if str(application.status_id) in _NEED_UPDATE_APPLICATION_STATUS:
         check_application_status(application)
         app = model.Application.query.filter_by(
             id=application.id).first()
@@ -1320,7 +1320,6 @@ def get_application_information(application, cluster_info=None):
             deployment_info, url = get_deployment_info(
                 cluster_info[cluster_id], k8s_yaml)
         except MaxRetryError as ex:
-            print("Error Deployment")
             logger.info(f'No Route To Host {cluster_id}!')
             logger.error(ex)
     output['deployment'] = deployment_info
@@ -1337,8 +1336,10 @@ def get_application_information(application, cluster_info=None):
     output['resources'] = k8s_yaml.get('resources')
     output['network'] = k8s_yaml.get('network')
     output['environments'] = k8s_yaml.get('environments')
-    print(type(output))
-    return output, cluster_info
+    if cluster_info:
+        return output, cluster_info
+    else:
+        return output
 
 
 def generate_multithreads(app):
@@ -1368,7 +1369,6 @@ def get_applications(args=None):
     elif 'project_id' in args:
         app = model.Application.query.filter_by(
             project_id=args.get('project_id')).all()
-
     if app is None:
         return output
     elif isinstance(app, list):
@@ -1379,7 +1379,7 @@ def get_applications(args=None):
             if helper.errors[service] is None:
                 output.append(helper.outputs[service])
     else:
-        output, cluster_info = get_application_information(app)
+        output = get_application_information(app)
     return output
 
 
