@@ -1337,6 +1337,7 @@ def get_application_information(application, cluster_info=None):
     output['resources'] = k8s_yaml.get('resources')
     output['network'] = k8s_yaml.get('network')
     output['environments'] = k8s_yaml.get('environments')
+    print(type(output))
     return output, cluster_info
 
 
@@ -1378,7 +1379,7 @@ def get_applications(args=None):
             if helper.errors[service] is None:
                 output.append(helper.outputs[service])
     else:
-        output = get_application_information(app)
+        output, cluster_info = get_application_information(app)
     return output
 
 
