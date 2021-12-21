@@ -12,12 +12,11 @@ from flask_restful import Resource, reqparse
 from sqlalchemy import desc
 from sqlalchemy.orm.exc import NoResultFound
 
-import nexus
 import util
 from model import CMAS as Model
-from model import db
+from model import db, ProjectPluginRelation
 from plugins import get_plugin_config
-from resources import apiError, gitlab
+from resources import apiError
 from resources.apiError import DevOpsError
 
 
@@ -110,29 +109,40 @@ class CMAS(object):
         return json.loads(ret.content.decode("utf-8"))
 
     def __pharse_state_info(self):
+        self.json_content = self.return_content()
         self.state = {
-            f'level{i}': {
-                "pass": 0,
-                "fail": 0,
-                "manual_interaction": 0
-            } for i in [1,2,3]
+            key : {level: 0 for level in ["High", "Medium", "Low"]} for key in ["OWASP", "MOEA"]
         }
+        self.__update_state_summary()
+        self.__update_state_owasp()
+        self.__update_state_moea()
 
-        government_scan_rules = self.return_content()["GovernmentScanRule"]
-        for rule in government_scan_rules:
-            self.__update_state(rule)
         return json.dumps(self.state)
 
-    def __update_state(self, rule):
-        rule_result_mapping = {
-            "Not Found": "pass",
-            "Found": "fail",
-            "Please be analyzed by manual interaction": "manual_interaction"
-        }
+    def __update_state_summary(self):
+        for summary_type in ["MOEA", "OWASP"]:
+            self.state[summary_type]["summary"] = self.__state_summary_pharse(
+                self.json_content["Summary"]["VulSummaryTotalRecord"][f"{summary_type.lower()}Summary"])
+    
+    def __state_summary_pharse(self, content):
+        return content.split(":")[0].rstrip()
 
-        condition = rule_result_mapping[rule["result"]]
-        for i in [1,2,3]:
-            self.state[f"level{i}"][condition] += rule[f"level{i}"]
+    def __update_state_owasp(self):
+        for owasp in self.json_content["OWASPRuleReport"]:
+            if owasp["result"] == "Find" and owasp["level"] in ["High", "Medium", "Low"]:
+                self.state["OWASP"][owasp["level"]] += 1
+
+    def __update_state_moea(self):
+        level_mapping = {
+            "level1": "Low",
+            "level2": "Medium",
+            "level3": "High",
+        }
+        for moea in self.json_content["GovernmentScanRule"]:
+            if moea["result"] == "Find":
+                for level in level_mapping:
+                    self.state["MOEA"][level_mapping[level]] += moea[level]
+
 
 def check_cmas_exist(task_id):
     task = Model.query.filter_by(task_id=task_id).first()
@@ -158,6 +168,19 @@ def get_tasks(repository_id):
         "a_report_type": task.a_report_type,
         "a_ert": task.a_ert,
     } for task in Model.query.filter_by(repo_id=repository_id).order_by(desc(Model.run_at)).all()]
+
+
+def get_task_state(project_id, commit_id=None):
+    repo_id = ProjectPluginRelation.query.filter_by(project_id=project_id).first().git_repository_id
+
+    if commit_id is None: #Get latest project test if commit_id is None
+        cmas_test = Model.query.filter_by(repo_id=repo_id).filter_by(finished=True).order_by(desc(Model.run_at)).first()
+    else:
+        cmas_test = Model.query.filter_by(repo_id=repo_id).filter_by(commit_id=commit_id).first()
+    
+    if cmas_test is not None:
+        return util.is_json(cmas_test.stats)
+    return ""
 
 
 def create_task(args, repository_id):

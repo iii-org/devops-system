@@ -1,8 +1,6 @@
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
 from sqlalchemy.orm.exc import NoResultFound
-from enums.action_type import ActionType
-from .activity import record_activity
 
 import model
 import util as util
@@ -66,7 +64,6 @@ def check_tags(project_id, tag_name):
     return model.Tag.query.filter_by(project_id=project_id, name=tag_name).count()
 
 
-# @record_activity(ActionType.ADD_TAG)
 def create_tags(project_id, args):
     if args.get('name', None) is None:
         return None
@@ -85,7 +82,6 @@ def update_tag(tag_id, name):
     db.session.commit()
     return tag.id
 
-# @record_activity(ActionType.DELETE_TAG)
 def delete_tag(tag_id):
     model.Tag.query.filter_by(id=tag_id).delete()
     db.session.commit()

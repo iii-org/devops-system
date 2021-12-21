@@ -28,7 +28,7 @@ from accessories import redmine_lib
 from util import DevOpsThread
 from . import user, harbor, kubernetesClient, role, template
 from .activity import record_activity, ActionType
-from plugins import webinspect, sonarqube, zap, sideex
+from plugins import webinspect, sonarqube, zap, sideex, cmas
 from .gitlab import gitlab
 from .rancher import rancher, remove_pj_executions
 from .redmine import redmine
@@ -735,7 +735,14 @@ def get_test_summary(project_id):
 
     if not plugins.get_plugin_config('sideex')['disabled']:
         ret['sideex'] = sideex.sd_get_latest_test(project_id)
-
+    if not plugins.get_plugin_config('cmas')['disabled']:
+        cmas_content = cmas.get_task_state(project_id)
+        if not isinstance(cmas_content, dict):
+            cmas_content = {}
+        else:
+            cmas_content = {key: {"summary": value["summary"]} for key, value in cmas_content.items()}
+                
+        ret['cmas'] = cmas_content
     return util.success({'test_results': ret})
 
 

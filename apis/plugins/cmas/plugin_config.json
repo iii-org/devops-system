@@ -1,9 +1,9 @@
 {
     "name": "cmas",
-    "default_disabled": true,
+    "default_disabled": false,
     "keys": [
         {
-            "key": "client-secret",
+            "key": "authKey",
             "type": "string",
             "store": "secret_all"
         },
@@ -13,13 +13,8 @@
             "store": "secret_all"
         },
         {
-            "key": "username",
+            "key": "a_report_type",
             "type": "string",
-            "store": "secret_all"
-        },
-        {
-            "key": "password",
-            "type": "password",
             "store": "secret_all"
         }
     ]
