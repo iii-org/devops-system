@@ -1402,7 +1402,7 @@ def create_application(args):
                                 args.get('cluster_id')) is not None:
         raise apiError.DevOpsError(404,
                                    _ERROR_APPLICATION_EXISTS,
-                                   error=apiError.duplicated_application_in_cluster(
+                                   error=apiError.create_deploy_application_failed(
                                        cluster.name, args.get('namespace'), args.get('name'))
                                    )
 
