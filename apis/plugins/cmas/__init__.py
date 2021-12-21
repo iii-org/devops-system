@@ -207,7 +207,6 @@ def create_task(args, repository_id):
         run_at=datetime.datetime.utcnow(),
         scan_final_status=None,
         finished=False,
-        filename="app-debug.apk",
         a_mode=args['a_mode'],
         a_report_type=cm_get_config("a-report-type"),
         a_ert=args['a_ert'],
