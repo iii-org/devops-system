@@ -12,6 +12,8 @@ from kubernetes import config as k8s_config
 from kubernetes import utils as k8s_utils
 from kubernetes.client import ApiException
 from kubernetes.stream import stream as k8s_stream
+from flask_jwt_extended import create_access_token
+from datetime import timedelta
 from util import read_json_file
 
 import config
@@ -1704,3 +1706,9 @@ class KubernetesPodExec(Namespace):
                                          or self.k8s_pod_exec.container_name != data.get("container_name")):
             self.k8s_pod_exec = K8sPodExec(data)
         self.k8s_pod_exec.exec_namespace_pod(data)
+
+def create_cron_secret():
+    if read_namespace_secret("default", "cornjob-bot") is None:
+        token = create_access_token(identity={"type": "cornjob_token"}, expires_delta=timedelta(days=36500))
+        create_namespace_secret(
+            "default", "cornjob-bot", {'cornjob-token': token})

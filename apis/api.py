@@ -678,6 +678,8 @@ def start_prod():
         template.tm_get_template_list()
         logger.logger.info('Get the public and local template list')
         plugins.sync_plugins_in_db_and_code()
+        with app.app_context(): # Prevent error appear(Working outside of application context.)
+            kubernetesClient.create_cron_secret()
         return app
     except Exception as e:
         ret = internal_error(e)
