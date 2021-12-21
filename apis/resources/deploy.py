@@ -24,11 +24,25 @@ from resources import release
 from resources.logger import logger
 
 _DEFAULT_RESTART_NUMBER = 30
-DEFAULT_PROJECT_ID = "-1"
-_ERROR_CLUSTERS_NOT_FOUND = "No Exact Cluster Found"
-error_clusters_created = "No Exact Cluster Created or Update"
-error_application_exists = "Application had been deployed"
-error_cluster_duplicate = "Cluster was previously created"
+_DEFAULT_PROJECT_ID = "-1"
+
+_ERROR_GET_REGISTRIES = 'Get registries failed'
+
+_ERROR_GET_CLUSTERS = 'Get clusters failed'
+_ERROR_CREATE_CLUSTERS = 'Create clusters failed'
+_ERROR_UPDATE_CLUSTERS = 'Update clusters failed'
+_ERROR_DELETE_CLUSTERS = 'Delete clusters failed'
+
+
+_ERROR_GET_DEPLOY_APPLICATION = 'Get deploy application failed'
+_ERROR_CREATE_DEPLOY_APPLICATION = 'Create deploy application failed'
+_ERROR_UPDATE_DEPLOY_APPLICATION = 'Update deploy application failed'
+_ERROR_DELETE_DEPLOY_APPLICATION = 'Delete deploy application failed'
+_ERROR_APPLICATION_EXISTS = "Deploy application had been deployed"
+_ERROR_RESTART_DEPLOY_APPLICATION = "Deploy application had reached retry number limit"
+_ERROR_RELEASE_APPLICATION = "Deploy application not found at gitlab"
+
+_NEED_UPDATE_APPLICATION_STATUS = [1, 2, 3, 4, 9, 11]
 _DEFAULT_K8S_CONFIG_FILE = 'k8s_config'
 _DEFAULT__APPLICATION_STATUS = 'Something Error'
 _APPLICATION_STATUS = {
@@ -44,7 +58,6 @@ _APPLICATION_STATUS = {
     3001: 'Error, No Image need to be replicated',
     5001: 'Error, K8s Error'
 }
-_NEED_UPDATE_APPLICATION_STATUS = [1, 2, 3, 4, 9, 11]
 
 
 def is_json(string):
@@ -163,14 +176,14 @@ def save_clusters(args, server_name):
         content = util.base64decode(args.get('k8s_config_string'))
         Path(file_path).write_text(content)
     else:
-        return util.respond(404, error_clusters_created)
+        raise apiError.DevOpsError(404, 'Cluster config file cannot found')
     try:
         deploy_k8s_client = DeployK8sClient(server_name)
         deploy_k8s_client.get_api_resources()
     except NoResultFound:
         return util.respond(404,
-                            _ERROR_CLUSTERS_NOT_FOUND,
-                            error=apiError.cluster_not_found(server_name))
+                            _ERROR_CREATE_CLUSTERS,
+                            error=apiError.create_cluster_failed(server_name))
     k8s_json = yaml.safe_load(content)
     return k8s_json
 
@@ -231,8 +244,8 @@ class Clusters(Resource):
             return util.success({"cluster": output})
         except NoResultFound:
             return util.respond(404,
-                                _ERROR_CLUSTERS_NOT_FOUND,
-                                error=apiError.repository_id_not_found)
+                                _ERROR_GET_CLUSTERS,
+                                error=apiError.get_clusters_failed())
 
     @jwt_required
     def post(self):
@@ -247,19 +260,19 @@ class Clusters(Resource):
             parser.add_argument('k8s_config_string', type=str)
             parser.add_argument('disabled', type=inputs.boolean)
             args = parser.parse_args()
-
             server_name = args.get('name').strip()
             if check_cluster(server_name) is not None:
-                return util.respond(
+                raise apiError.DevOpsError(
                     404,
-                    error_cluster_duplicate,
-                    error=apiError.cluster_duplicated(server_name))
+                    _ERROR_CREATE_CLUSTERS,
+                    error=apiError.create_cluster_failed(server_name)
+                )
             output = {"cluster_id": create_cluster(args, server_name, user_id)}
             return util.success(output)
         except NoResultFound:
             return util.respond(404,
-                                _ERROR_CLUSTERS_NOT_FOUND,
-                                error=apiError.repository_id_not_found)
+                                _ERROR_CREATE_CLUSTERS,
+                                error=apiError.create_cluster_failed)
 
 
 class Cluster(Resource):
@@ -272,8 +285,8 @@ class Cluster(Resource):
             return util.success(output)
         except NoResultFound:
             return util.respond(404,
-                                _ERROR_CLUSTERS_NOT_FOUND,
-                                error=apiError.repository_id_not_found)
+                                _ERROR_GET_CLUSTERS,
+                                error=apiError.get_clusters_failed())
 
     @jwt_required
     def put(self, cluster_id):
@@ -291,14 +304,14 @@ class Cluster(Resource):
             if check_cluster(server_name, cluster_id) is not None:
                 return util.respond(
                     404,
-                    error_cluster_duplicate,
-                    error=apiError.cluster_duplicated(server_name))
+                    _ERROR_UPDATE_CLUSTERS,
+                    error=apiError.update_cluster_failed(server_name))
             output = {"cluster_id": update_cluster(cluster_id, args)}
             return util.success(output)
         except NoResultFound:
             return util.respond(404,
-                                _ERROR_CLUSTERS_NOT_FOUND,
-                                error=apiError.repository_id_not_found)
+                                _ERROR_UPDATE_CLUSTERS,
+                                error=apiError.update_cluster_failed())
 
     @jwt_required
     def delete(self, cluster_id):
@@ -308,8 +321,8 @@ class Cluster(Resource):
             return util.success()
         except NoResultFound:
             return util.respond(404,
-                                _ERROR_CLUSTERS_NOT_FOUND,
-                                error=apiError.repository_id_not_found)
+                                _ERROR_DELETE_CLUSTERS,
+                                error=apiError.delete_cluster_failed())
 
 
 def get_registries_application_information(registry):
@@ -357,8 +370,8 @@ class Registries(Resource):
             return util.success({"registries": output})
         except NoResultFound:
             return util.respond(404,
-                                _ERROR_CLUSTERS_NOT_FOUND,
-                                error=apiError.repository_id_not_found)
+                                _ERROR_GET_REGISTRIES,
+                                error=apiError.get_registry_failed())
 
 
 class Registry(Resource):
@@ -369,18 +382,19 @@ class Registry(Resource):
             return util.success({"registries": output})
         except NoResultFound:
             return util.respond(404,
-                                _ERROR_CLUSTERS_NOT_FOUND,
-                                error=apiError.repository_id_not_found)
+                                _ERROR_GET_REGISTRIES,
+                                error=apiError.get_registry_failed(registry_id))
 
 
 def create_default_harbor_data(project, db_release, registry_id, namespace):
+    db_release_id = str(db_release.id)
     harbor_data = {
         "project":
         project.display,
         "project_id":
         project.name,
         "policy_name":
-        project.name + "-release-" + str(db_release.id) + '-at-' + namespace,
+        project.name + "-release-" + db_release_id + '-at-' + namespace,
         "repo_name":
         project.name,
         "image_name":
@@ -389,7 +403,7 @@ def create_default_harbor_data(project, db_release, registry_id, namespace):
         db_release.tag_name,
         "description":
         'Automate create replication policy ' + project.name + " release ID " +
-        str(db_release.id),
+        db_release_id,
         "registry_id":
         registry_id,
         "dest_repo_name":
@@ -456,7 +470,6 @@ def harbor_policy_exist(target, policies):
             check_result = True
             policy_id = policy.get('id')
             break
-
     return check_result, policy_id
 
 
@@ -1231,9 +1244,11 @@ def check_application_status(app):
     }
 
 
-def check_application_exists(project_id, namespace):
+def check_application_exists(name, namespace, cluster_id):
     return model.Application.query. \
-        filter(model.Application.namespace == namespace, model.Application.project_id == project_id). \
+        filter(model.Application.namespace == namespace,
+               model.Application.name == name,
+               model.Application.cluster_id == cluster_id). \
         first()
 
 
@@ -1303,10 +1318,10 @@ def get_application_information(application, cluster_info=None):
     harbor_info = json.loads(app.harbor_info)
     k8s_yaml = json.loads(app.k8s_yaml)
     cluster_id = str(app.cluster_id)
+    # single cluster get single cluster name
     if cluster_info is None:
         cluster_info = get_clusters_name(cluster_id)
-    elif cluster_id not in cluster_info:
-        cluster_info = get_clusters_name(cluster_id, cluster_info)
+
     url = None
     deployment_info = {
         "name": None,
@@ -1336,10 +1351,7 @@ def get_application_information(application, cluster_info=None):
     output['resources'] = k8s_yaml.get('resources')
     output['network'] = k8s_yaml.get('network')
     output['environments'] = k8s_yaml.get('environments')
-    if cluster_info:
-        return output, cluster_info
-    else:
-        return output
+    return output
 
 
 def generate_multithreads(app):
@@ -1384,12 +1396,16 @@ def get_applications(args=None):
 
 
 def create_application(args):
-    if check_application_exists(args.get('project_id'),
-                                args.get('namespace')) is not None:
-        return util.respond(404,
-                            error_application_exists,
-                            error=apiError.repository_id_not_found)
     cluster = model.Cluster.query.filter_by(id=args.get('cluster_id')).first()
+    if check_application_exists(args.get('name'),
+                                args.get('namespace'),
+                                args.get('cluster_id')) is not None:
+        raise apiError.DevOpsError(404,
+                                   _ERROR_APPLICATION_EXISTS,
+                                   error=apiError.duplicated_application_in_cluster(
+                                       cluster.name, args.get('namespace'), args.get('name'))
+                                   )
+
     db_release, db_project = db.session.query(
         model.Release, model.Project).join(model.Project).filter(
             model.Release.id == args.get('release_id'),
@@ -1457,7 +1473,6 @@ def update_application(application_id, args):
     db_k8s_yaml = create_default_k8s_data(db_project, db_release, args)
     # check namespace
     app.status_id = disable_application(args.get('disabled'), app)
-
     app.harbor_info = json.dumps(db_harbor_info)
     app.k8s_yaml = json.dumps(db_k8s_yaml)
     app.updated_at = (datetime.utcnow())
@@ -1534,7 +1549,6 @@ def delete_application(application_id, delete_db=False):
     harbor_info = json.loads(app.harbor_info)
     delete_image_replication_policy(harbor_info.get('policy_id'))
     delete_k8s_application(app)
-
     if delete_db is False:
         app.status_id = 9
         app.status = _APPLICATION_STATUS.get(9, _DEFAULT__APPLICATION_STATUS)
@@ -1542,7 +1556,6 @@ def delete_application(application_id, delete_db=False):
     elif delete_db is True:
         db.session.delete(app)
         db.session.commit()
-
     return app.id
 
 
@@ -1620,8 +1633,8 @@ class Applications(Resource):
             return util.success({"applications": output})
         except NoResultFound:
             return util.respond(404,
-                                _ERROR_CLUSTERS_NOT_FOUND,
-                                error=apiError.repository_id_not_found)
+                                _ERROR_GET_DEPLOY_APPLICATION,
+                                error=apiError.get_deploy_application_failed(project_id=args.get('project_id')))
 
     @jwt_required
     def post(self):
@@ -1642,13 +1655,11 @@ class Applications(Resource):
             output = create_application(args)
             return util.success({"applications": {"id": output}})
         except NoResultFound:
-            return util.respond(404,
-                                _ERROR_CLUSTERS_NOT_FOUND,
-                                error=apiError.repository_id_not_found)
+            return util.respond(404, _ERROR_CREATE_DEPLOY_APPLICATION)
 
 
 class Application(Resource):
-    @jwt_required
+    @ jwt_required
     def get(self, application_id):
         try:
             args = {'application_id': application_id}
@@ -1656,10 +1667,10 @@ class Application(Resource):
             return util.success({"application": output})
         except NoResultFound:
             return util.respond(404,
-                                _ERROR_CLUSTERS_NOT_FOUND,
-                                error=apiError.repository_id_not_found)
+                                _ERROR_GET_DEPLOY_APPLICATION,
+                                error=apiError.get_deploy_application_failed(project_id=args.get('project_id')))
 
-    @jwt_required
+    @ jwt_required
     def patch(self, application_id):
         try:
             parser = reqparse.RequestParser()
@@ -1669,20 +1680,20 @@ class Application(Resource):
             return util.success({"applications": output})
         except NoResultFound:
             return util.respond(404,
-                                _ERROR_CLUSTERS_NOT_FOUND,
-                                error=apiError.repository_id_not_found)
+                                _ERROR_UPDATE_DEPLOY_APPLICATION,
+                                error=apiError.update_deploy_application_failed(application_id=application_id))
 
-    @jwt_required
+    @ jwt_required
     def delete(self, application_id):
         try:
             output = delete_application(application_id, True)
             return util.success(output)
         except NoResultFound:
             return util.respond(404,
-                                _ERROR_CLUSTERS_NOT_FOUND,
-                                error=apiError.repository_id_not_found)
+                                _ERROR_DELETE_DEPLOY_APPLICATION,
+                                error=apiError.delete_deploy_application_failed(application_id))
 
-    @jwt_required
+    @ jwt_required
     def put(self, application_id):
         try:
             parser = reqparse.RequestParser()
@@ -1702,54 +1713,52 @@ class Application(Resource):
             return util.success({"applications": {"id": output}})
         except NoResultFound:
             return util.respond(404,
-                                _ERROR_CLUSTERS_NOT_FOUND,
-                                error=apiError.repository_id_not_found)
+                                _ERROR_UPDATE_DEPLOY_APPLICATION,
+                                error=apiError.update_deploy_application_failed(application_id=application_id))
 
 
 class RedeployApplication(Resource):
-    @jwt_required
+    @ jwt_required
     def patch(self, application_id):
         try:
             output = redeploy_application(application_id)
             return util.success({"applications": output})
         except NoResultFound:
             return util.respond(404,
-                                _ERROR_CLUSTERS_NOT_FOUND,
-                                error=apiError.repository_id_not_found)
+                                _ERROR_UPDATE_DEPLOY_APPLICATION,
+                                error=apiError.update_deploy_application_failed(application_id=application_id))
 
 
 class UpdateApplication(Resource):
-    @jwt_required
+    @ jwt_required
     def patch(self, application_id):
         try:
             app = model.Application.query.filter_by(id=application_id).first()
             if app.restart_number > _DEFAULT_RESTART_NUMBER:
                 return util.respond(404,
-                                    _ERROR_CLUSTERS_NOT_FOUND,
-                                    error=apiError.repository_id_not_found)
+                                    _ERROR_RESTART_DEPLOY_APPLICATION,
+                                    error=apiError.re_deploy_application_failed(str(app.name)))
             output = check_application_status(app)
             return util.success({"applications": output})
         except NoResultFound:
             return util.respond(404,
-                                _ERROR_CLUSTERS_NOT_FOUND,
-                                error=apiError.repository_id_not_found)
+                                _ERROR_UPDATE_DEPLOY_APPLICATION,
+                                error=apiError.update_deploy_application_failed(application_id=application_id))
 
 
 class ReleaseApplication(Resource):
-    @jwt_required
+    @ jwt_required
     def get(self, release_id):
         try:
             release_file = release.ReleaseFile(release_id)
             env = release_file.get_release_env_from_file()
             return util.success({"env": env})
         except NoResultFound:
-            return util.respond(404,
-                                _ERROR_CLUSTERS_NOT_FOUND,
-                                error=apiError.repository_id_not_found)
+            return util.respond(404, _ERROR_RELEASE_APPLICATION)
 
 
 class Cronjob(Resource):
-    @staticmethod
+    @ staticmethod
     def patch():
         try:
             execute_list = []
@@ -1766,5 +1775,5 @@ class Cronjob(Resource):
             return util.success({"applications": execute_list})
         except NoResultFound:
             return util.respond(404,
-                                _ERROR_CLUSTERS_NOT_FOUND,
-                                error=apiError.repository_id_not_found)
+                                _ERROR_UPDATE_DEPLOY_APPLICATION,
+                                error=apiError.update_deploy_application_failed())
