@@ -250,7 +250,6 @@ class CMASTask(Resource):
         parser.add_argument('branch', type=str, required=True)
         parser.add_argument('commit_id', type=str, required=True)
         parser.add_argument('a_mode', type=int, required=True)
-        parser.add_argument('a_report_type', type=int, required=True)
         parser.add_argument('a_ert', type=int, required=True)
         args = parser.parse_args()
         return create_task(args, repository_id)
