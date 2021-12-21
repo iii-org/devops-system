@@ -20,14 +20,21 @@ from resources import apiError
 from resources.apiError import DevOpsError
 
 
+def cm_get_config(key):
+    for arg in get_plugin_config("cmas")["arguments"]:
+        if arg['key'] == key:
+            return arg['value']
+    return None
+ 
+
 def build_url(path):
-    return f'https://61.216.83.38:8443{path}'
+    return f'{cm_get_config("cm-url")}{path}'
 
 
 class CMAS(object):
     def __init__(self, task_id):
         self.task = check_cmas_exist(task_id)
-        self.authKey = "00000000000000000000000000000000"
+        self.authKey = cm_get_config("authKey")
 
 
     def __api_request(self, method, path, headers={}, params=(), data={}):
@@ -144,6 +151,14 @@ class CMAS(object):
                     self.state["MOEA"][level_mapping[level]] += moea[level]
 
 
+def get_secrets():
+    return {
+        "auth_key": cm_get_config("authKey"),
+        "cm_url": cm_get_config("cm-url"),
+        "a_report_type": cm_get_config("a_report_type"),
+    }
+
+
 def check_cmas_exist(task_id):
     task = Model.query.filter_by(task_id=task_id).first()
     if task is None:
@@ -194,7 +209,7 @@ def create_task(args, repository_id):
         finished=False,
         filename="app-debug.apk",
         a_mode=args['a_mode'],
-        a_report_type=args['a_report_type'],
+        a_report_type=cm_get_config("a-report-type"),
         a_ert=args['a_ert'],
     )
     db.session.add(new)
@@ -266,3 +281,9 @@ class CMASRemote(Resource):
             return CMAS(task_id).download_report()
         elif file_type == "json":
             return CMAS(task_id).return_content()
+
+
+class CMASSecret(Resource):
+    @jwt_required
+    def get(self):
+        return get_secrets()

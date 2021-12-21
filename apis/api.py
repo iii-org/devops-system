@@ -663,6 +663,7 @@ api.add_resource(alert_message.AlertMessages, '/alert_message')
 # CMAS
 api.add_resource(cmas.CMASTask, '/cmas', '/repo_project/<sint:repository_id>/cmas')
 api.add_resource(cmas.CMASRemote, '/cmas/<string:task_id>', '/cmas/<string:task_id>/<string:file_type>')
+api.add_resource(cmas.CMASSecret, '/cmas/secret')
 
 
 def start_prod():
