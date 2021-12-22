@@ -208,7 +208,7 @@ def create_task(args, repository_id):
         scan_final_status=None,
         finished=False,
         a_mode=args['a_mode'],
-        a_report_type=cm_get_config("a-report-type"),
+        a_report_type=cm_get_config("a_report_type"),
         a_ert=args['a_ert'],
     )
     db.session.add(new)
