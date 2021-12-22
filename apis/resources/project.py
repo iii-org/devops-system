@@ -739,8 +739,6 @@ def get_test_summary(project_id):
         cmas_content = cmas.get_task_state(project_id)
         if not isinstance(cmas_content, dict):
             cmas_content = {}
-        else:
-            cmas_content = {key: {"summary": value["summary"]} for key, value in cmas_content.items()}
                 
         ret['cmas'] = cmas_content
     return util.success({'test_results': ret})
