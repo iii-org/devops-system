@@ -16,7 +16,7 @@ import util
 from model import CMAS as Model
 from model import db, ProjectPluginRelation
 from plugins import get_plugin_config
-from resources import apiError
+from resources import apiError, gitlab
 from resources.apiError import DevOpsError
 
 
@@ -163,6 +163,9 @@ def get_secrets():
         "a_report_type": cm_get_config("a_report_type"),
     }
 
+def convert_repo_to_project_id(repo_id):
+    return ProjectPluginRelation.query.filter_by(git_repository_id=repo_id).first().project_id
+
 
 def check_cmas_exist(task_id):
     task = Model.query.filter_by(task_id=task_id).first()
@@ -176,6 +179,7 @@ def get_tasks(repository_id):
         "task_id": task.task_id,
         "branch": task.branch,
         "commit_id": task.commit_id,
+        'commit_url': gitlab.commit_id_to_url(convert_repo_to_project_id(repository_id), task.commit_id),
         "run_at": str(task.run_at),
         "status": task.scan_final_status,
         "stats": util.is_json(task.stats),

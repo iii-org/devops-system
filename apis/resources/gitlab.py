@@ -70,7 +70,8 @@ class GitLab(object):
             self.private_token = output.json()['private_token']
         else:
             self.private_token = config.get("GITLAB_PRIVATE_TOKEN")
-        self.gl = self.gl = Gitlab(config.get("GITLAB_BASE_URL"),
+        logger.info(config.get("GITLAB_BASE_URL"))
+        self.gl = Gitlab(config.get("GITLAB_BASE_URL"),
                          private_token=self.private_token, ssl_verify=False)
 
     @staticmethod
@@ -149,6 +150,7 @@ class GitLab(object):
             '%Y-%m-%dT%H:%M:%S%z')
 
     def gl_get_all_project(self):
+
         return self.gl.projects.list(all=True)
 
     def gl_create_project(self, args):
