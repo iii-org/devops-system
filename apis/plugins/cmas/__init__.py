@@ -101,7 +101,11 @@ class CMAS(object):
         with open(f"./logs/cmas/{self.task.task_id}/{self.task.task_id}.pdf", "wb") as f:
             f.write(ret.content)
 
-        return send_file(f"../logs/cmas/{self.task.task_id}/{self.task.task_id}.pdf")
+        return send_file(
+            f"../logs/cmas/{self.task.task_id}/{self.task.task_id}.pdf", 
+            mimetype="Content-Type: application/pdf",
+            attachment_filename=f"{self.task.task_id}/{self.task.task_id}.pdf"
+        )
 
     def return_content(self):
         json_file_name = self.task.filenames.get("json")
