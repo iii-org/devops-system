@@ -98,12 +98,13 @@ class CMAS(object):
                 ('filename', self.task.filenames.get("pdf")),
             )
         )
-        with open(f"./logs/cmas/{self.task.task_id}/{self.task.task_id}.pdf", "wb") as f:
-            f.write(ret.content)
+        # with open(f"./logs/cmas/{self.task.task_id}/{self.task.task_id}.pdf", "wb") as f:
+        #     f.write(ret.content)
 
         return send_file(
-            f"../logs/cmas/{self.task.task_id}/{self.task.task_id}.pdf", 
-            mimetype="Content-Type: application/pdf",
+            # f"../logs/cmas/{self.task.task_id}/{self.task.task_id}.pdf", 
+            BytesIO(ret.content),
+            mimetype=f"Content-Type: application/pdf; charset={ret.encoding}",
             attachment_filename=f"{self.task.task_id}/{self.task.task_id}.pdf"
         )
 
