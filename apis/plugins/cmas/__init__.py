@@ -104,7 +104,7 @@ class CMAS(object):
         return send_file(
             # f"../logs/cmas/{self.task.task_id}/{self.task.task_id}.pdf", 
             BytesIO(ret.content),
-            mimetype=f"Content-Type: application/pdf; charset={ret.encoding}",
+            mimetype="Content-Type: application/pdf; charset={r.encoding}",
             attachment_filename=f"{self.task.task_id}/{self.task.task_id}.pdf"
         )
 
