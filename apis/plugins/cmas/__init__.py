@@ -205,7 +205,10 @@ def get_task_state(project_id, commit_id=None):
         cmas_test = Model.query.filter_by(repo_id=repo_id).filter_by(commit_id=commit_id).first()
     
     if cmas_test is not None:
-        return util.is_json(cmas_test.stats)
+        stats = util.is_json(cmas_test.stats)
+        if isinstance(stats, dict):
+            stats["run_at"] = str(cmas_test.run_at)
+        return stats
     return ""
 
 
