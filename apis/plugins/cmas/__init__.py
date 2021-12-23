@@ -284,9 +284,10 @@ class CMASRemote(Resource):
     def get(self, task_id):
         return util.success(CMAS(task_id).query_report_task())
 
+class CMASDonwload(Resource):
     # Download reports
     @jwt_required
-    def put(self, task_id, file_type):
+    def get(self, task_id, file_type):
         if file_type == "pdf":
             return CMAS(task_id).download_report()
         elif file_type == "json":
