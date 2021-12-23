@@ -150,8 +150,7 @@ class GitLab(object):
             '%Y-%m-%dT%H:%M:%S%z')
 
     def gl_get_all_project(self):
-
-        return self.gl.projects.list(all=True)
+        return self.gl.projects.list()
 
     def gl_create_project(self, args):
         return self.__api_post('/projects',
