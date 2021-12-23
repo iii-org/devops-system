@@ -1,6 +1,6 @@
 {
   "name": "postman",
   "default_disabled": false,
-  "keys": [
-  ]
+  "is_pipeline": true,
+  "keys": []
 }

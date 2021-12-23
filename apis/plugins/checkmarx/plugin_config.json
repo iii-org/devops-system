@@ -1,6 +1,7 @@
 {
   "name": "checkmarx",
   "default_disabled": true,
+  "is_pipeline": true,
   "keys": [
     {
       "key": "client-secret",
