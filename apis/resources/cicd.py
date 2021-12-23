@@ -29,9 +29,6 @@ def check_plugin_software_open(row, project_id, commit_id):
         cmas_content = get_task_state(project_id, commit_id)
         if not isinstance(cmas_content, dict):
             cmas_content = {}
-        else:
-            for _, value in cmas_content.items():
-                value.pop("summary")
         return {"cmas": cmas_content}
 
 
