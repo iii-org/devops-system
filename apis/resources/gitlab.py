@@ -56,6 +56,16 @@ class GitLab(object):
     private_token = None
 
     def __init__(self):
+        # Wirte gitlab domain to /etc/host
+        if config.get("GITLAB_DOMAIN_NAME") is not None:
+            cluster_ip = ""
+            namespaces = ApiK8sClient().list_namespaced_service("default")
+            for nsp in namespaces.items:
+                if nsp.metadata.name == "gitlab-service":
+                    cluster_ip = nsp.spec.cluster_ip
+            cmd = f'sed -i "/$GITLAB_DOMAIN_NAME/d" /etc/hosts; echo "{cluster_ip} $GITLAB_DOMAIN_NAME" >> /etc/hosts'
+            os.system(cmd)
+
         if config.get("GITLAB_API_VERSION") == "v3":
             # get gitlab admin token
             url = f'{config.get("GITLAB_BASE_URL")}/api/v3/session'
@@ -74,22 +84,6 @@ class GitLab(object):
         logger.info(config.get("GITLAB_BASE_URL"))
         self.gl = Gitlab(config.get("GITLAB_BASE_URL"),
                          private_token=self.private_token, ssl_verify=False)
-        self.__gl_set_host_domain()
-
-    def __gl_set_host_domain(self):
-        try:
-            self.gl.projects.list(all=True)
-        except:
-            # Get gitlab custer_ip
-            cluster_ip = ""
-            namespaces = ApiK8sClient().list_namespaced_service("default")
-            for nsp in namespaces.items:
-                if nsp.metadata.name == "gitlab-service":
-                    cluster_ip = nsp.spec.get("cluster_ip", "")
-
-            # Execute cmd line to add gitlab domain on etc/host
-            cmd = f'sed -i "/$GITLAB_DOMAIN_NAME/d" /etc/hosts; echo "{cluster_ip} $GITLAB_DOMAIN_NAME" >> /etc/hosts'
-            os.system(cmd)          
 
     @staticmethod
     def gl_get_nexus_project_id(repository_id):
