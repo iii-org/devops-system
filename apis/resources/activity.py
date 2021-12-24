@@ -83,13 +83,12 @@ def build_query(args, base_query=None):
 
     search = args['search']
     if search is not None:
-        if search.upper() in dir(ActionType)[:9]:
-            query = query.filter(model.Activity.action_type == ActionType[search.upper()])
-        else:
-            query = query.filter(or_(
-                model.Activity.action_parts.like(f'%{search}%'),
-                model.Activity.operator_name.like(f'%{search}%'),
-            ))
+        action_types = [ActionType[action_type] for action_type in dir(ActionType)[:9] if search.upper() in action_type]
+        query = query.filter(or_(
+            model.Activity.action_type.in_(action_types),
+            model.Activity.action_parts.like(f'%{search}%'),
+            model.Activity.operator_name.like(f'%{search}%'),
+        ))
 
     a_from_date = args['from_date']
     a_to_date = args['to_date']
