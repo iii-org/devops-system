@@ -63,7 +63,7 @@ class GitLab(object):
             for nsp in namespaces.items:
                 if nsp.metadata.name == "gitlab-service":
                     cluster_ip = nsp.spec.cluster_ip
-            cmd = f'sed -i "/$GITLAB_DOMAIN_NAME/d" /etc/hosts; echo "{cluster_ip} $GITLAB_DOMAIN_NAME" >> /etc/hosts'
+            cmd = f'echo "$(sed /$GITLAB_DOMAIN_NAME/d /etc/hosts)" > /etc/hosts; echo "{cluster_ip} $GITLAB_DOMAIN_NAME" >> /etc/hosts'
             os.system(cmd)
 
         if config.get("GITLAB_API_VERSION") == "v3":
