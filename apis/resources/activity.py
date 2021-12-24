@@ -80,10 +80,9 @@ def build_query(args, base_query=None):
     else:
         query = model.Activity.query
     query = query.order_by(desc(model.Activity.act_at))
-
     search = args['search']
     if search is not None:
-        action_types = [ActionType[action_type] for action_type in dir(ActionType)[:9] if search.upper() in action_type]
+        action_types = [ActionType[action_type] for action_type in dir(ActionType)[:-4] if search.upper() in action_type]
         query = query.filter(or_(
             model.Activity.action_type.in_(action_types),
             model.Activity.action_parts.like(f'%{search}%'),
