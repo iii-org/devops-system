@@ -558,6 +558,7 @@ class GitLab(object):
         out_list = []
         if show_commit_rows is not None:
             for x in range(12, 169, 12):
+                out_list = []
                 days_ago = (datetime.utcnow() - timedelta(days=x)).isoformat()
                 pjs = self.__get_projects_by_repo_or_by_user(git_repository_id, user_id)
                 out_list = self.__get_projects_commit(pjs, out_list, branch_name, days_ago)
