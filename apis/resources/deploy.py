@@ -1132,7 +1132,6 @@ def execute_k8s_deployment(app):
         k8s_deployment.execute_configmap()
         k8s_deployment.execute_secret()
     k8s_deployment.execute_deployment()
-    print(k8s_deployment.get_deployment_information())
     return k8s_deployment.get_deployment_information()
 
 
@@ -1303,9 +1302,7 @@ def get_deployment_info(cluster_name, k8s_yaml):
 def get_application_information(application, cluster_info=None):
     if application is None:
         return []
-    print(type(application.status_id))
     if application.status_id in _NEED_UPDATE_APPLICATION_STATUS:
-        print(f'Check Application Stauts {application.id} {application.status_id}')
         check_application_status(application)
         app = model.Application.query.filter_by(
             id=application.id).first()
@@ -1377,14 +1374,13 @@ def get_applications(args=None):
     output = []
     app = None
     if args is None:
-        app = model.Application.query.filter().all()
+        app = model.Application.query.filter().order_by(model.Application.id.desc()).all()
     elif 'application_id' in args:
         app = model.Application.query.filter_by(
-            id=args.get('application_id')).first()
+            id=args.get('application_id')).order_by(model.Application.id.desc()).first()
     elif 'project_id' in args:
         app = model.Application.query.filter_by(
-            project_id=args.get('project_id')).all()
-    print(isinstance(app, list))
+            project_id=args.get('project_id')).order_by(model.Application.id.desc()).all()
     if app is None:
         return output
     elif isinstance(app, list):
@@ -1395,7 +1391,6 @@ def get_applications(args=None):
             if helper.errors[service] is None:
                 output.append(helper.outputs[service])
     else:
-        print("Single Update Application")
         output = get_application_information(app)
     return output
 
