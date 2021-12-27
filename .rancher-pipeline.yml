@@ -1,4 +1,20 @@
 stages:
+- name: Integration--initial pipeline
+  iiidevops: intgr-initial-pipeline
+  steps:
+  - envFrom:
+    - sourceKey: api-origin
+      sourceName: nexus
+      targetKey: api_origin
+    runScriptConfig:
+      image: iiiorg/rancher-cli:v2.4.6
+      shellScript: curl --location --request POST ${api_origin}/rancher/delete_app
+        --form project_name=${CICD_GIT_REPO_NAME} --form branch_name=${CICD_GIT_BRANCH}
+  when:
+    branch:
+      include:
+      - master
+      - develop
 - name: Integration--plan and code
   iiidevops: intgr-plan-code
   steps:
