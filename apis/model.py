@@ -792,7 +792,7 @@ class ProjectCommitEndpoint(db.Model):
     updated_at = Column(DateTime)
 
 
-class Message(db.Model):
+class NotificationMessage(db.Model):
     id = Column(Integer, primary_key=True)
     message = Column(String, nullable=False)
     type_id = Column(Integer, nullable=False)
@@ -803,9 +803,23 @@ class Message(db.Model):
     created_at = Column(DateTime)
     updated_at = Column(DateTime)
 
+    def __repr__(self):
+        fields = {}
+        for field in [x for x in dir(self) if
+                      not x.startswith('query') and not x.startswith('_') and x != 'metadata']:
+            print(field)
+            data = self.__getattribute__(field)
+            try:
+                # this will fail on unencodable values, like other classes
+                json.dumps(data)
+                fields[field] = data
+            except TypeError:
+                fields[field] = str(data)
+        return json.dumps(fields)
 
-class MessageReplySlip(db.Model):
+
+class NotificationMessageReplySlip(db.Model):
     id = Column(Integer, primary_key=True)
-    message_id = Column(Integer, ForeignKey(Message.id, ondelete='CASCADE'))
+    message_id = Column(Integer, ForeignKey(NotificationMessage.id, ondelete='CASCADE'))
     user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'))
     created_at = Column(DateTime)
