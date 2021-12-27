@@ -35,7 +35,7 @@ from resources import logger, role as role, activity, starred_project, devops_ve
 from resources import project, gitlab, issue, user, redmine, wiki, version, apiTest, mock, harbor, \
     template, release, sync_redmine, plugin, kubernetesClient, project_permission, quality, sync_project, \
     sync_user, router, deploy, alert, trace_order, tag, monitoring, lock, wbs_cache, system_parameter, alert_message, \
-    maintenance
+    maintenance, notification_message
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -661,6 +661,9 @@ api.add_resource(lock.LockStatus, '/lock')
 # Alert message
 api.add_resource(alert_message.AlertMessages, '/alert_message')
 
+# message
+api.add_resource(notification_message.Message, '/message', '/message/<int:message_id>')
+
 # CMAS
 api.add_resource(cmas.CMASTask, '/cmas', '/repo_project/<sint:repository_id>/cmas')
 api.add_resource(cmas.CMASRemote, '/cmas/<string:task_id>')
@@ -681,7 +684,7 @@ def start_prod():
         template.tm_get_template_list()
         logger.logger.info('Get the public and local template list')
         plugins.sync_plugins_in_db_and_code()
-        with app.app_context(): # Prevent error appear(Working outside of application context.)
+        with app.app_context():  # Prevent error appear(Working outside of application context.)
             kubernetesClient.create_cron_secret()
         return app
     except Exception as e:
