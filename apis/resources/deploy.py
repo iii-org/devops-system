@@ -1383,13 +1383,13 @@ def get_applications(args=None):
             project_id=args.get('project_id')).order_by(model.Application.id.desc()).all()
     if app is None:
         return output
-    elif isinstance(app, list):
-        services, targets, service_args = generate_multithreads(app)
-        helper = util.ServiceBatchOpHelper(services, targets, service_args)
-        helper.run()
-        for service in services:
-            if helper.errors[service] is None:
-                output.append(helper.outputs[service])
+    # elif isinstance(app, list):
+    #     services, targets, service_args = generate_multithreads(app)
+    #     helper = util.ServiceBatchOpHelper(services, targets, service_args)
+    #     helper.run()
+    #     for service in services:
+    #         if helper.errors[service] is None:
+    #             output.append(helper.outputs[service])
     else:
         output = get_application_information(app)
     return output
