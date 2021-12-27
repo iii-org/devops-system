@@ -1,6 +1,6 @@
 {
     "name": "cmas",
-    "default_disabled": false,
+    "default_disabled": true,
     "is_pipeline": true,
     "keys": [
         {
