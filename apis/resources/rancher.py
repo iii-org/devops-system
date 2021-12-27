@@ -518,7 +518,7 @@ class Rancher(object):
         self.__check_app_deleted(delete_app_list)
     
     def __check_app_deleted(self, delete_app_list):
-        now_time = datetime.utcnow() + timedelta(seconds=1)
+        now_time = datetime.utcnow() + timedelta(minutes=1)
         for name in delete_app_list:
             data = self.rc_get_app_by_name(name)
             while data != []:
