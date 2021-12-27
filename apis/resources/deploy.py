@@ -1299,16 +1299,18 @@ def get_deployment_info(cluster_name, k8s_yaml):
     return deployment_info, url
 
 
-def get_application_information(application, cluster_info=None):
+def get_application_information(application, need_update=True, cluster_info=None):
     if application is None:
         return []
-    if str(application.status_id) in _NEED_UPDATE_APPLICATION_STATUS:
+    if application.status_id in _NEED_UPDATE_APPLICATION_STATUS and need_update:
         check_application_status(application)
         app = model.Application.query.filter_by(
             id=application.id).first()
     else:
         app = application
+
     output = row_to_dict(application)
+
     output['status'] = _APPLICATION_STATUS.get(app.status_id,
                                                _DEFAULT__APPLICATION_STATUS)
     output.pop('k8s_yaml')
@@ -1374,22 +1376,28 @@ def get_applications(args=None):
     output = []
     app = None
     if args is None:
-        app = model.Application.query.filter().all()
+        app = model.Application.query.filter().order_by(model.Application.id.desc()).all()
     elif 'application_id' in args:
         app = model.Application.query.filter_by(
-            id=args.get('application_id')).first()
+            id=args.get('application_id')).order_by(model.Application.id.desc()).first()
     elif 'project_id' in args:
         app = model.Application.query.filter_by(
-            project_id=args.get('project_id')).all()
+            project_id=args.get('project_id')).order_by(model.Application.id.desc()).all()
     if app is None:
         return output
     elif isinstance(app, list):
-        services, targets, service_args = generate_multithreads(app)
-        helper = util.ServiceBatchOpHelper(services, targets, service_args)
-        helper.run()
-        for service in services:
-            if helper.errors[service] is None:
-                output.append(helper.outputs[service])
+        # services, targets, service_args = generate_multithreads(app)
+        # helper = util.ServiceBatchOpHelper(services, targets, service_args)
+        # helper.run()
+        # for service in services:
+        #     if helper.errors[service] is None:
+        #         output.append(helper.outputs[service])
+        cluster_info = {}
+        clusters = model.Cluster.query.with_entities(model.Cluster.id, model.Cluster.name).all()
+        for cluster in clusters:
+            cluster_info[str(cluster.id)] = cluster.name
+        for application in app:
+            output.append(get_application_information(application, False, cluster_info))
     else:
         output = get_application_information(app)
     return output

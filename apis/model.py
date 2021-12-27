@@ -792,7 +792,7 @@ class ProjectCommitEndpoint(db.Model):
     updated_at = Column(DateTime)
 
 
-class Message(db.Model):
+class NotificationMessage(db.Model):
     id = Column(Integer, primary_key=True)
     message = Column(String, nullable=False)
     type_id = Column(Integer, nullable=False)
@@ -818,8 +818,8 @@ class Message(db.Model):
         return json.dumps(fields)
 
 
-class MessageReplySlip(db.Model):
+class NotificationMessageReplySlip(db.Model):
     id = Column(Integer, primary_key=True)
-    message_id = Column(Integer, ForeignKey(Message.id, ondelete='CASCADE'))
+    message_id = Column(Integer, ForeignKey(NotificationMessage.id, ondelete='CASCADE'))
     user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'))
     created_at = Column(DateTime)
