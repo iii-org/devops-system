@@ -1,6 +1,7 @@
 {
   "name": "sonarqube",
   "default_disabled": false,
+  "is_pipeline": true,
   "keys": [
     {
       "key": "sonar-url",

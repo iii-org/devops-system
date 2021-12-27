@@ -364,6 +364,44 @@ def check_tags_id_is_int(tags):
     tag_ids.sort()
     return tag_ids
 
+def tags_note_json(id, name, add=True):
+    if add:
+        note = {
+            'details': [
+                {
+                    'name': 'tag',
+                    'property': 'attr',
+                    'old_value': {
+                        'id': None,
+                        'name': None,
+                    },
+                    'new_value': {
+                        'id': id,
+                        'name': name,
+                    }
+                }
+            ]
+        }
+    else:
+        note = {
+            'details': [
+                {
+                    'name': 'tag',
+                    'property': 'attr',
+                    'old_value': {
+                        'id': id,
+                        'name': name,
+                    },
+                    'new_value': {
+                        'id': None,
+                        'name': None,
+                    }
+                }
+            ]
+        }
+    return json.dumps(note, ensure_ascii=False)
+    # return note
+
 
 def create_issue_tags(issue_id, tags, plan_operator_id):
     new_tag_list = sorted(check_tags_id_is_int(tags))
@@ -376,9 +414,10 @@ def create_issue_tags(issue_id, tags, plan_operator_id):
 
     # Record issue_tags changes in notes
     add_tags = check_tags_diff(new_tag_list, [])
-    if add_tags != "":
-        redmine.rm_update_issue(
-            issue_id, {"notes": f"[標籤新增] {add_tags}"}, plan_operator_id)
+    if add_tags != {}:
+        for tag_id, tag_name in add_tags.items():
+            redmine.rm_update_issue(
+                issue_id, {"notes": tags_note_json(tag_id, tag_name)}, plan_operator_id)
     return new.issue_id
 
 
@@ -396,24 +435,20 @@ def update_issue_tags(issue_id, tags, plan_operator_id):
         db.session.commit()
         args = {"notes": ""}
         add_tags = check_tags_diff(new_tag_list, origin_tag_list)
-        if add_tags != "":
-            args["notes"] = f"[標籤新增] {add_tags}"
+        if add_tags != {}:
+            for tag_id, tag_name in add_tags.items():
+                redmine.rm_update_issue(
+                    issue_id, {"notes": tags_note_json(tag_id, tag_name)}, plan_operator_id)
 
         delete_tags = check_tags_diff(origin_tag_list, new_tag_list)
-        if delete_tags != "":
-            desciption = f"[標籤刪除] {delete_tags}"
-            if args["notes"] != "":
-                args["notes"] += f" ， {desciption}"
-            else:
-                args["notes"] = desciption
-        redmine.rm_update_issue(
-            issue_id, args, plan_operator_id)
+        if delete_tags != {}:
+            for tag_id, tag_name in delete_tags.items():
+                redmine.rm_update_issue(
+                    issue_id, {"notes": tags_note_json(tag_id, tag_name, add=False)}, plan_operator_id)
     return issue_tags.issue_id
 
 def check_tags_diff(fir_tags, sec_tags):
-    diff_tags = [
-        model.Tag.query.get(int(item)).name for item in fir_tags if item not in sec_tags]
-    return "、".join(diff_tags)
+    return {int(item): model.Tag.query.get(int(item)).name for item in fir_tags if item not in sec_tags} 
 
 
 def delete_issue_tags(issue_id):
@@ -2043,7 +2078,6 @@ class SingleIssue(Resource):
             if issue_info.get(items) is not None:
                 for item in issue_info[items]:
                     item["tags"] = get_issue_tags(item["id"])
-
         issue_info["name"] = issue_info.pop('subject', None)
         issue_info["point"] = get_issue_point(issue_id)
         issue_info["tags"] = get_issue_tags(issue_id)
@@ -2626,13 +2660,22 @@ class IssueFilterByProject(Resource):
         parser.add_argument('type', type=str, required=True)
         parser.add_argument('assigned_to_id', type=str)
         parser.add_argument('fixed_version_id', type=str)
+        parser.add_argument('focus_tab', type=str)
+        parser.add_argument('group_by', type=dict)
         parser.add_argument('priority_id', type=str)
-        parser.add_argument('show_closed_isssues', type=bool)
+        parser.add_argument('show_closed_issues', type=bool)
         parser.add_argument('show_closed_versions', type=bool)
         parser.add_argument('status_id', type=str)
         parser.add_argument('tags', type=str)
         parser.add_argument('tracker_id', type=str)
         args = parser.parse_args()
+
+        if args["type"] != "issue_board" and args.get("group_by") is not None:
+            raise DevOpsError(400, "Column group_by is only available when type is issue_board",
+                              error=apiError.argument_error("group_by"))
+        if args["type"] != "my_work" and args.get("focus_tab") is not None:
+            raise DevOpsError(400, "Column focus_tab is only available when type is my_work",
+                              error=apiError.argument_error("focus_tab"))
 
         return util.success(create_custom_issue_filter(user_id, project_id, args))
 
@@ -2643,13 +2686,22 @@ class IssueFilterByProject(Resource):
         parser.add_argument('type', type=str, required=True)
         parser.add_argument('assigned_to_id', type=str)
         parser.add_argument('fixed_version_id', type=str)
+        parser.add_argument('focus_tab', type=str)
+        parser.add_argument('group_by', type=dict)
         parser.add_argument('priority_id', type=str)
-        parser.add_argument('show_closed_isssues', type=bool)
+        parser.add_argument('show_closed_issues', type=bool)
         parser.add_argument('show_closed_versions', type=bool)
         parser.add_argument('status_id', type=str)
         parser.add_argument('tags', type=str)
         parser.add_argument('tracker_id', type=str)
         args = parser.parse_args()
+
+        if args["type"] != "issue_board" and args.get("group_by") is not None:
+            raise DevOpsError(400, "Column group_by is only available when type is issue_board",
+                              error=apiError.argument_error("group_by"))
+        if args["type"] != "my_work" and args.get("focus_tab") is not None:
+            raise DevOpsError(400, "Column focus_tab is only available when type is my_work",
+                              error=apiError.argument_error("focus_tab"))
 
         return util.success(put_custom_issue_filter(custom_filter_id, project_id, args))
 

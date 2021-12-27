@@ -367,3 +367,11 @@ def check_folder_exist(path, create=False):
 def write_in_excel(file_path, content):
     df = pd.DataFrame(content)
     df.to_excel(file_path, index=False)
+
+def is_json(content):  
+    try:
+        return json.loads(content)
+    except ValueError:
+        return content
+    except TypeError:
+        return None

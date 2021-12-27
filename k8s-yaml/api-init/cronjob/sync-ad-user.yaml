@@ -11,11 +11,11 @@ spec:
       template:
         spec:
           containers:
-          - name: curl
-            image: curlimages/curl:7.76.1
-            imagePullPolicy: IfNotPresent
-            command:
-            - /bin/sh
-            - -c
-            - curl -i -F "batch=true" -F "ad_type=iii"  -X POST http://devopsapi-service:10009/plugins/ad/users
+            - name: curl
+              image: curlimages/curl:7.76.1
+              imagePullPolicy: IfNotPresent
+              command:
+                - /bin/sh
+                - -c
+                - curl -i -F "batch=true" -F "ad_type=iii"  -X POST http://devopsapi-service:10009/plugins/ad/users
           restartPolicy: OnFailure

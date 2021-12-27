@@ -1,6 +1,6 @@
 {
   "name": "sideex",
   "default_disabled": false,
-  "keys": [
-  ]
+  "is_pipeline": true,
+  "keys": []
 }

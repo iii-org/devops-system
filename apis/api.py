@@ -202,9 +202,19 @@ api.add_resource(starred_project.StarredProject,
                  '/project/<sint:project_id>/star')
 
 api.add_resource(issue.DownloadProject,
-                 '/project/<sint:project_id>/download/execute', 
+                 '/project/<sint:project_id>/download/execute',
                  '/project/<sint:project_id>/download/is_exist',
                  '/project/<sint:project_id>/download')
+
+api.add_resource(gitlab.SyncGitCommitIssueRelation,
+                 '/project/<sint:project_id>/issues_commit',
+                 '/project/<sint:project_id>/issues_commit/<issue_id>',
+                 )
+
+api.add_resource(gitlab.SyncGitCommitIssueRelationByPjName,
+                 '/project/issues_commit_by_name',
+                 )
+
 
 # Tag
 api.add_resource(tag.Tags, '/tags')
@@ -537,6 +547,7 @@ api.add_resource(maintenance.UpdatePjHttpUrl,
 api.add_resource(rancher.Catalogs, '/rancher/catalogs',
                  '/rancher/catalogs/<catalog_name>')
 api.add_resource(rancher.Catalogs_Refresh, '/rancher/catalogs_refresh')
+api.add_resource(rancher.RancherDeleteAPP, '/rancher/delete_app')
 
 # Activity
 api.add_resource(activity.AllActivities, '/all_activities')
@@ -653,6 +664,8 @@ api.add_resource(alert_message.AlertMessages, '/alert_message')
 # CMAS
 api.add_resource(cmas.CMASTask, '/cmas', '/repo_project/<sint:repository_id>/cmas')
 api.add_resource(cmas.CMASRemote, '/cmas/<string:task_id>')
+api.add_resource(cmas.CMASDonwload, '/cmas/<string:task_id>/<string:file_type>')
+api.add_resource(cmas.CMASSecret, '/cmas/secret')
 
 
 def start_prod():
@@ -668,6 +681,8 @@ def start_prod():
         template.tm_get_template_list()
         logger.logger.info('Get the public and local template list')
         plugins.sync_plugins_in_db_and_code()
+        with app.app_context(): # Prevent error appear(Working outside of application context.)
+            kubernetesClient.create_cron_secret()
         return app
     except Exception as e:
         ret = internal_error(e)

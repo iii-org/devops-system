@@ -11,12 +11,16 @@ from flask_jwt_extended import get_jwt_identity, jwt_required
 from flask_restful import Resource, reqparse
 from gitlab import Gitlab
 from sqlalchemy.orm.exc import NoResultFound
+from accessories.redmine_lib import redmine
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy import desc
+from resources.kubernetesClient import ApiK8sClient
 
 import config
 import model
 import nexus
 import util as util
-from model import GitCommitNumberEachDays, db, SystemParameter
+from model import GitCommitNumberEachDays, db, SystemParameter, Project
 from resources import apiError, role
 from resources.apiError import DevOpsError
 from resources.logger import logger
@@ -52,6 +56,16 @@ class GitLab(object):
     private_token = None
 
     def __init__(self):
+        # Wirte gitlab domain to /etc/host
+        if config.get("GITLAB_DOMAIN_NAME") is not None:
+            cluster_ip = ""
+            namespaces = ApiK8sClient().list_namespaced_service("default")
+            for nsp in namespaces.items:
+                if nsp.metadata.name == "gitlab-service":
+                    cluster_ip = nsp.spec.cluster_ip
+            cmd = f'echo "$(sed /$GITLAB_DOMAIN_NAME/d /etc/hosts)" > /etc/hosts; echo "{cluster_ip} $GITLAB_DOMAIN_NAME" >> /etc/hosts'
+            os.system(cmd)
+
         if config.get("GITLAB_API_VERSION") == "v3":
             # get gitlab admin token
             url = f'{config.get("GITLAB_BASE_URL")}/api/v3/session'
@@ -67,6 +81,7 @@ class GitLab(object):
             self.private_token = output.json()['private_token']
         else:
             self.private_token = config.get("GITLAB_PRIVATE_TOKEN")
+        logger.info(config.get("GITLAB_BASE_URL"))
         self.gl = Gitlab(config.get("GITLAB_BASE_URL"),
                          private_token=self.private_token, ssl_verify=False)
 
@@ -270,6 +285,8 @@ class GitLab(object):
                     branch_info["commit"]["committed_date"],
                 "short_id":
                     branch_info["commit"]["short_id"][0:7],
+                "id":
+                    branch_info["commit"]["id"],
                 'commit_url':
                     commit_id_to_url(get_nexus_project_id(repo_id),
                                      branch_info['commit']['short_id']),
@@ -389,12 +406,13 @@ class GitLab(object):
         return self.__api_delete(
             f'/projects/{repo_id}/repository/tags/{tag_name}')
 
-    def gl_get_commits(self, project_id, branch):
+    def gl_get_commits(self, project_id, branch, per_page=100, since=None):
         return self.__api_get(
             f'/projects/{project_id}/repository/commits',
             params={
                 'ref_name': branch,
-                'per_page': 100
+                'per_page': per_page,
+                'since': since
             }).json()
 
     def gl_get_commits_by_author(self, project_id, branch, filter=None):
@@ -485,62 +503,67 @@ class GitLab(object):
         path = f'/projects/{repo_id}/releases/{tag_name}'
         return self.__api_delete(path).json()
 
-    def gl_get_the_last_hours_commits(self,
-                                      the_last_hours=None,
-                                      show_commit_rows=None,
-                                      git_repository_id=None,
-                                      user_id=None):
-        if role.is_admin() is False:
-            user_id = get_jwt_identity()["user_id"]
-        rows = []
-        if user_id is not None:
+    def __get_projects_commit(self, pjs, out_list, branch_name, days_ago):
+        for pj in pjs:
+            if (pj.empty_repo is False) and pj.path_with_namespace.split('/')[0] not in iiidevops_system_group:
+                if branch_name is None:
+                    pj_commits = pj.commits.list(since=days_ago)
+                else:
+                    pj_commits = pj.commits.list(ref_name=branch_name, since=days_ago)
+                for commit in pj_commits:
+                    out_list.append({
+                        "pj_name":
+                            pj.name,
+                        "author_name":
+                            commit.author_name,
+                        "author_email":
+                            commit.author_email,
+                        "commit_time":
+                            self.__gl_timezone_to_utc(commit.committed_date),
+                        "commit_id":
+                            commit.short_id,
+                        "commit_title":
+                            commit.title,
+                        "commit_message":
+                            commit.message
+                    })
+        return out_list
+
+    def __get_projects_by_repo_or_by_user(self, git_repository_id, user_id):
+        pjs = []
+        if git_repository_id is not None:
+            pjs.append(self.gl.projects.get(git_repository_id))
+        elif user_id is not None:
             rows = db.session.query(model.ProjectUserRole, model.ProjectPluginRelation).join(
                 model.ProjectPluginRelation,
                 model.ProjectPluginRelation.project_id == model.ProjectUserRole.project_id). \
                 filter(model.ProjectUserRole.user_id == user_id,
                        model.ProjectUserRole.project_id == model.ProjectPluginRelation.project_id).all()
+            for row in rows:
+                pjs.append(
+                    self.gl.projects.get(
+                        row.ProjectPluginRelation.git_repository_id))
+        else:
+            pjs = self.gl.projects.list(order_by="last_activity_at")
+        return pjs
+
+    def gl_get_the_last_hours_commits(self,
+                                      the_last_hours=None,
+                                      show_commit_rows=None,
+                                      git_repository_id=None,
+                                      branch_name=None,
+                                      user_id=None):
+        if role.is_admin() is False:
+            user_id = get_jwt_identity()["user_id"]
         out_list = []
         if show_commit_rows is not None:
-            last_days_ago = None
             for x in range(12, 169, 12):
                 days_ago = (datetime.utcnow() - timedelta(days=x)).isoformat()
-                pjs = []
-                if user_id is not None:
-                    for row in rows:
-                        pjs.append(
-                            self.gl.projects.get(
-                                row.ProjectPluginRelation.git_repository_id))
-                elif git_repository_id is not None:
-                    pjs.append(self.gl.projects.get(git_repository_id))
-                else:
-                    pjs = self.gl.projects.list(order_by="last_activity_at")
-                for pj in pjs:
-                    if (pj.empty_repo is False) and (pj.path_with_namespace.split('/')[0] not in iiidevops_system_group):
-                        for commit in pj.commits.list(since=days_ago,
-                                                      until=last_days_ago):
-                            out_list.append({
-                                "pj_name":
-                                    pj.name,
-                                "author_name":
-                                    commit.author_name,
-                                "author_email":
-                                    commit.author_email,
-                                "commit_time":
-                                    self.__gl_timezone_to_utc(
-                                        commit.committed_date),
-                                "commit_id":
-                                    commit.short_id,
-                                "commit_title":
-                                    commit.title,
-                                "commit_message":
-                                    commit.message
-                            })
-                            if len(out_list) > show_commit_rows - 1:
-                                sorted(
-                                    (out["commit_time"] for out in out_list),
-                                    reverse=True)
-                                return out_list[:show_commit_rows]
-                last_days_ago = days_ago
+                pjs = self.__get_projects_by_repo_or_by_user(git_repository_id, user_id)
+                out_list = self.__get_projects_commit(pjs, out_list, branch_name, days_ago)
+                if len(out_list) > show_commit_rows - 1:
+                    sorted((out["commit_time"] for out in out_list), reverse=True)
+                    return out_list[:show_commit_rows]
             sorted((out["commit_time"] for out in out_list), reverse=True)
             return out_list[:show_commit_rows]
         else:
@@ -548,35 +571,8 @@ class GitLab(object):
                 the_last_hours = 24
             days_ago = (datetime.utcnow() -
                         timedelta(hours=the_last_hours)).isoformat()
-            pjs = []
-            if user_id is not None:
-                for row in rows:
-                    pjs.append(
-                        self.gl.projects.get(
-                            row.ProjectPluginRelation.git_repository_id))
-            elif git_repository_id is not None:
-                pjs.append(self.gl.projects.get(git_repository_id))
-            else:
-                pjs = self.gl.projects.list(order_by="last_activity_at")
-            for pj in pjs:
-                if (pj.empty_repo is False) and pj.path_with_namespace.split('/')[0] not in iiidevops_system_group:
-                    for commit in pj.commits.list(since=days_ago):
-                        out_list.append({
-                            "pj_name":
-                                pj.name,
-                            "author_name":
-                                commit.author_name,
-                            "author_email":
-                                commit.author_email,
-                            "commit_time":
-                                self.__gl_timezone_to_utc(commit.committed_date),
-                            "commit_id":
-                                commit.short_id,
-                            "commit_title":
-                                commit.title,
-                            "commit_message":
-                                commit.message
-                        })
+            pjs = self.__get_projects_by_repo_or_by_user(git_repository_id, user_id)
+            out_list = self.__get_projects_commit(pjs, out_list, branch_name, days_ago)
         sorted((out["commit_time"] for out in out_list), reverse=True)
         return out_list
 
@@ -668,7 +664,7 @@ class GitLab(object):
         # Check git_commit_history folder exists, if not create it
         util.check_folder_exist(base_path, create=True)
 
-        # Remove existed more than files
+        # Remove existed more than keep days' files
         for pj_folder in os.listdir(base_path):
             for commit_file in os.listdir(f"{base_path}/{pj_folder}"):
                 if commit_file.split(".")[0] < str(util.get_certain_date_from_now(keep_days))[:10]:
@@ -694,7 +690,88 @@ class GitLab(object):
             util.write_json_file(f"{base_path}/{pj.id}/{date}.json", result)
 
 
-# --------------------- Resources ---------------------
+def get_commit_issues_relation(project_id, issue_id, limit):
+    commit_issues_relations = model.IssueCommitRelation.query.filter_by(project_id=project_id). \
+        filter(model.IssueCommitRelation.issue_ids.contains([int(issue_id)])).order_by(
+            desc(model.IssueCommitRelation.commit_time)).limit(limit).all()
+
+    return [{
+        "commit_id": commit_issues_relation.commit_id,
+        "pj_name": model.Project.query.get(commit_issues_relation.project_id).name,
+        "issue_id": issue_id,
+        "author_name": commit_issues_relation.author_name,
+        "commit_message": commit_issues_relation.commit_message,
+        "commit_title": commit_issues_relation.commit_title,
+        "commit_time": str(commit_issues_relation.commit_time),
+        "branch": commit_issues_relation.branch,
+        "web_url": commit_issues_relation.web_url,
+        "created_at": str(commit_issues_relation.created_at),
+        "updated_at": str(commit_issues_relation.updated_at),
+    } for commit_issues_relation in commit_issues_relations]
+
+
+def get_project_plugin_object(project_id):
+    return model.ProjectPluginRelation.query.filter_by(project_id=project_id).first()
+
+
+def get_project_commit_endpoint_object(project_id):
+    project_commit_endpoint = model.ProjectCommitEndpoint.query.filter_by(project_id=project_id).first()
+    if project_commit_endpoint is None:
+        new = model.ProjectCommitEndpoint(
+            project_id=project_id,
+            commit_id=None,
+            updated_at=None
+        )
+        model.db.session.add(new)
+        model.db.session.commit()
+        return model.ProjectCommitEndpoint.query.filter_by(project_id=project_id).first()
+    return project_commit_endpoint
+
+
+def sync_commit_issues_relation(project_id):
+    pulgin_project_object = get_project_plugin_object(project_id)
+    issue_list = [str(issue.id) for issue in redmine.project.get(pulgin_project_object.plan_project_id).issues]
+
+    for branch in gitlab.gl_get_branches(pulgin_project_object.git_repository_id):
+        project_commit_endpoint = get_project_commit_endpoint_object(project_id)
+        end_point = str(project_commit_endpoint.updated_at - timedelta(days=1)
+                        ) if project_commit_endpoint.updated_at is not None else None
+        commits = gitlab.gl_get_commits(pulgin_project_object.git_repository_id,
+                                        branch["name"], per_page=5000, since=end_point)
+        for commit in commits:
+            commit_issue_id_list = []
+            for commit_title in commit["title"].split(" "):
+                if commit_title.startswith("#") and commit_title.replace('#', '') in issue_list:
+                    commit_issue_id_list.append(int(commit_title.replace("#", "")))
+
+            if commit_issue_id_list != []:
+                # Just in case it stores duplicated commit.
+                try:
+                    new = model.IssueCommitRelation(
+                        commit_id=commit["id"],
+                        project_id=project_id,
+                        issue_ids=commit_issue_id_list,
+                        author_name=commit["author_name"],
+                        commit_message=commit["message"],
+                        commit_title=commit["title"],
+                        commit_time=datetime.strptime(commit["committed_date"], "%Y-%m-%dT%H:%M:%S.%f%z"),
+                        branch=branch["name"],
+                        web_url=commit["web_url"],
+                        created_at=datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S"),
+                        updated_at=datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S"),
+                    )
+                    model.db.session.add(new)
+                    model.db.session.commit()
+                except IntegrityError:
+                    model.db.session.rollback()
+                    continue
+
+        if end_point is None or branch["last_commit_time"] > "T".join(end_point.split(" ")):
+            project_commit_endpoint.updated_at = branch["last_commit_time"]
+            project_commit_endpoint.commit_id = branch["id"]
+            model.db.session.commit()
+
+    # --------------------- Resources ---------------------
 gitlab = GitLab()
 
 
@@ -916,12 +993,14 @@ class GitTheLastHoursCommits(Resource):
         parser.add_argument('the_last_hours', type=int)
         parser.add_argument('show_commit_rows', type=int)
         parser.add_argument('git_repository_id', type=int)
+        parser.add_argument('branch_name', type=str)
         parser.add_argument('user_id', type=int)
         args = parser.parse_args()
         return util.success(
             gitlab.gl_get_the_last_hours_commits(args["the_last_hours"],
                                                  args["show_commit_rows"],
                                                  args["git_repository_id"],
+                                                 args["branch_name"],
                                                  args["user_id"]))
 
 
@@ -929,4 +1008,36 @@ class GitCountEachPjCommitsByDays(Resource):
     def get(self):
         gitlab.gl_count_each_pj_commits_by_days()
         gitlab.list_pj_commits_and_wirte_in_file()
+        return util.success()
+
+
+class SyncGitCommitIssueRelation(Resource):
+    @jwt_required
+    def get(self, project_id, issue_id):
+        parser = reqparse.RequestParser()
+        parser.add_argument('limit', type=int, default=10)
+        args = parser.parse_args()
+        return util.success(get_commit_issues_relation(project_id, issue_id, args["limit"]))
+
+    @jwt_required
+    def post(self, project_id):
+        sync_commit_issues_relation(project_id)
+        return util.success()
+
+
+class SyncGitCommitIssueRelationByPjName(Resource):
+
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('project_name', type=str, required=True)
+        args = parser.parse_args()
+        try:
+            project = Project.query.filter_by(name=args['project_name']).first()
+        except NoResultFound:
+            return util.respond(404,
+                                'No such repository found in database.',
+                                error=apiError.project_name_not_found(
+                                    args['project_name']))
+
+        sync_commit_issues_relation(project.id)
         return util.success()

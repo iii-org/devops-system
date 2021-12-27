@@ -107,7 +107,7 @@ class SecretesIntoRcAll(Resource):
         parser.add_argument('data', type=dict, required=True)
         args = parser.parse_args()
 
-        check_name_duplicate(args["name"], "secret")
+        # check_name_duplicate(args["name"], "secret")
 
         rancher.rc_add_secrets_into_rc_all(args)
         return util.success()
@@ -136,13 +136,13 @@ class RegistryIntoRcAll(Resource):
     @jwt_required
     def post(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('name', required=True)
-        parser.add_argument('url', required=True)
-        parser.add_argument('username', required=True)
-        parser.add_argument('password', required=True)
+        parser.add_argument('name')
+        parser.add_argument('url')
+        parser.add_argument('username')
+        parser.add_argument('password')
         args = parser.parse_args()
 
-        check_name_duplicate(args["name"], "registry")
+        # check_name_duplicate(args["name"], "registry")
         rancher.rc_add_registry_into_rc_all(args)
         return util.success()
 

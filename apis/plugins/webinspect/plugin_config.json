@@ -2,6 +2,7 @@
   "name": "webinspect",
   "removable": false,
   "default_disabled": true,
+  "is_pipeline": true,
   "keys": [
     {
       "key": "wi-type",
