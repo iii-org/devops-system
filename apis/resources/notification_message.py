@@ -3,12 +3,12 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 import json
 import util
 import datetime
-from model import db, Message, MessageReplySlip
+from model import db, NotificationMessage, NotificationMessageReplySlip
 from resources import role
 
 
 def create_notification_message(args):
-    row = Message(
+    row = NotificationMessage(
         message=args['message'],
         type_id=args['type_id'],
         type_parameter=args['type_parameter'],
@@ -23,11 +23,11 @@ def create_notification_message(args):
 
 
 def get_notification_message(message_id):
-    return Message.query.filter_by(id=message_id).first()
+    return NotificationMessage.query.filter_by(id=message_id).first()
 
 
 def delete_notification_message(message_id):
-    row = Message.query.filter_by(id=message_id).first()
+    row = NotificationMessage.query.filter_by(id=message_id).first()
     db.session.delete(row)
     db.session.commit()
 

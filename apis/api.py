@@ -662,7 +662,7 @@ api.add_resource(lock.LockStatus, '/lock')
 api.add_resource(alert_message.AlertMessages, '/alert_message')
 
 # message
-api.add_resource(notification_message.Message, '/message', '/message/<int:message_id>')
+api.add_resource(notification_message.Message, '/notification_message', '/notification_message/<int:message_id>')
 
 # CMAS
 api.add_resource(cmas.CMASTask, '/cmas', '/repo_project/<sint:repository_id>/cmas')
