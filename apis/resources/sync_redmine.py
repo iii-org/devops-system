@@ -502,6 +502,7 @@ def get_postman_passing_rate(detail, own_project):
 
 
 class SyncRedmine(Resource):
+    @jwt_required
     def get(self):
         init_data()
         return util.success()

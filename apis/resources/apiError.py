@@ -86,15 +86,25 @@ def invalid_fixed_version_id(fixed_version, fixed_version_status):
     return build(1012, 'Fixed version status is {0}.'.format(fixed_version_status),
                  {'fixed_version': fixed_version, 'fixed_version_status': fixed_version_status})
 
-def unable_to_delete_issue_has_children(childen_info):
-    return build(
-        1013, 'Warning ! The issue with children issues cannot be deleted, please re-confirm it if you insist and all of children issue will be deleted at the same time.', childen_info)
+
+def unable_to_delete_issue_has_children(children_info):
+    return build(1013,
+                 'Warning ! The issue with children issues cannot be deleted, \
+                     please re-confirm it if you insist and all of children issue will be deleted at the same time.',
+                 children_info)
+
 
 def project_issue_file_not_exits(project_id):
     return build(
         1014, 'File is not exist. Please ensure you have downloaded it before.', {"project_id": project_id})
 
+
+def project_name_not_found(project_name=None):
+    return build(1015, 'project_name not found.', {'project_name': project_name})
+
 # User errors
+
+
 def user_not_found(user_id):
     return build(2001, 'User not found.', {'user_id': user_id})
 
@@ -146,17 +156,100 @@ def ad_account_not_allow():
     return build(2010, 'User Account in AD is invalid in DevOps System')
 
 
-def cluster_not_found(server_name):
-    return build(2011, 'Clusters can not attach',
+def get_clusters_failed(server_name=None):
+    _FAILED_GET_CLUSTERS = 'Get clusters error'
+    if server_name is None:
+        return build(2011, _FAILED_GET_CLUSTERS)
+    return build(2011, _FAILED_GET_CLUSTERS,
                  {'server_name': server_name})
 
 
-def cluster_duplicated(server_name):
-    return build(2012, 'Clusters is duplicate',
+def create_cluster_failed(server_name=None):
+    _FAILED_CREATE_CLUSTERS = 'Create clusters error'
+    if server_name is None:
+        return build(2012, _FAILED_CREATE_CLUSTERS)
+    return build(2012, _FAILED_CREATE_CLUSTERS,
                  {'server_name': server_name})
 
+
+def update_cluster_failed(server_name=None):
+    _FAILED_UPDATE_CLUSTERS = 'Update clusters error'
+    if server_name is None:
+        return build(2013, _FAILED_UPDATE_CLUSTERS)
+    return build(2013, _FAILED_UPDATE_CLUSTERS,
+                 {'server_name': server_name})
+
+
+def delete_cluster_failed():
+    return build(2014, 'Delete clusters error')
+
+
+def get_registry_failed(registry_id=None):
+    _FAILED_GET_REGISTRIES = 'Get registry error'
+    if registry_id is None:
+        return build(2015, _FAILED_GET_REGISTRIES)
+    return build(2015, _FAILED_GET_REGISTRIES,
+                 {'registry_id': registry_id})
+
+
+def create_registry_failed(registry_name=None):
+    _FAILED_CREATE_REGISTRIES = 'Create registry error'
+    if registry_name is None:
+        return build(2016, _FAILED_CREATE_REGISTRIES)
+    return build(2016, _FAILED_CREATE_REGISTRIES,
+                 {'registry_name': registry_name})
+
+
+def update_registry_failed(registry_name=None):
+    _FAILED_UPDATE_REGISTRIES = 'Update registry error'
+    if registry_name is None:
+        return build(2017, _FAILED_UPDATE_REGISTRIES)
+    return build(2017, _FAILED_UPDATE_REGISTRIES,
+                 {'registry_name': registry_name})
+
+
+def delete_registry_failed():
+    return build(2018, 'Delete registry error')
+
+
+def create_deploy_application_failed(cluster_name=None, namespace=None, application_name=None):
+    _FAILED_CREATE_DEPLOY_APPLICATION = 'Create deploy application failed'
+    if cluster_name is None or namespace is None or application_name is None:
+        return build(2019, _FAILED_CREATE_DEPLOY_APPLICATION)
+    else:
+        return build(2019, _FAILED_CREATE_DEPLOY_APPLICATION, {
+            'cluster_name': cluster_name,
+            'application_name': application_name,
+            'namespace': namespace
+        })
+
+
+def get_deploy_application_failed(**kwargs):
+    _FAILED_GET_DEPLOY_APPLICATION = 'Get deploy application failed'
+    if len(kwargs) != 0:
+        return build(2020, _FAILED_GET_DEPLOY_APPLICATION, kwargs)
+    else:
+        return build(2020, _FAILED_GET_DEPLOY_APPLICATION)
+
+
+def update_deploy_application_failed(**kwargs):
+    _FAILED_GET_DEPLOY_APPLICATION = 'Get deploy application failed'
+    if len(kwargs) != 0:
+        return build(2021, _FAILED_GET_DEPLOY_APPLICATION, kwargs)
+    else:
+        return build(2021, _FAILED_GET_DEPLOY_APPLICATION)
+
+
+def re_deploy_application_failed(application_name):
+    return build(2022, 'Deploy application had reached retry number limit', {'application_name': application_name})
+
+
+def delete_deploy_application_failed(application_id):
+    return build(2023, 'Delete deploy application failed', {'application_id', application_id})
 
 # Permission errors
+
+
 class NotAllowedError(HTTPException):
     pass
 
@@ -215,10 +308,11 @@ def redmine_argument_error(arg_name):
 def error_with_alert_code(resource_type, alert_code, message, detail):
     return {
         "code": alert_code, "resource_type": resource_type, "message": message, "detail": detail
-    }    
+    }
+
 
 def github_token_error(arg_name):
-    return build(7007, f"{arg_name} should begin with 'ghp_'.", {'arg': arg_name}) 
+    return build(7007, f"{arg_name} should begin with 'ghp_'.", {'arg': arg_name})
 
 
 # Third party service errors

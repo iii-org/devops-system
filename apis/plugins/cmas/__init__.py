@@ -12,23 +12,29 @@ from flask_restful import Resource, reqparse
 from sqlalchemy import desc
 from sqlalchemy.orm.exc import NoResultFound
 
-import nexus
 import util
 from model import CMAS as Model
-from model import db
+from model import db, ProjectPluginRelation
 from plugins import get_plugin_config
 from resources import apiError, gitlab
 from resources.apiError import DevOpsError
 
 
+def cm_get_config(key):
+    for arg in get_plugin_config("cmas")["arguments"]:
+        if arg['key'] == key:
+            return arg['value']
+    return None
+ 
+
 def build_url(path):
-    return f'https://61.216.83.38:8443{path}'
+    return f'{cm_get_config("cm-url")}{path}'
 
 
 class CMAS(object):
     def __init__(self, task_id):
         self.task = check_cmas_exist(task_id)
-        self.authKey = "00000000000000000000000000000000"
+        self.authKey = cm_get_config("authKey")
 
 
     def __api_request(self, method, path, headers={}, params=(), data={}):
@@ -66,16 +72,18 @@ class CMAS(object):
             },
         ).json()
         if ret.get("Pdf-link-list") is not None:
-            filename = ""
+            pdf_file = ""
             for filename in ret["Pdf-link-list"]:
                 if "cht" in filename:
-                    filename = filename.replace("/M3AS-REST/api/report/pdf?filename=", "")
+                    pdf_file = filename.replace("/M3AS-REST/api/report/pdf?filename=", "")
                     break
+            json_file = ret.get("JSON-link", "").replace("/M3AS-REST/api/report/json?filename=", "")
 
             self.task.scan_final_status = "SUCCESS"
             self.task.finished = True
             self.task.finished_at = datetime.datetime.utcnow()
-            self.task.filename = filename
+            self.task.filenames = {"pdf": pdf_file, "json": json_file}
+            self.task.stats = self.__pharse_state_info()
             db.session.commit()
             ret["status"] = "SUCCESS"
             return ret
@@ -87,13 +95,76 @@ class CMAS(object):
         ret = self.__api_get(
             '/M3AS-REST/api/report/pdf',
             params=(
-                ('filename', self.task.filename),
+                ('filename', self.task.filenames.get("pdf")),
             )
         )
-        with open(f"./logs/cmas/{self.task.task_id}/{self.task.task_id}.pdf", "wb") as f:
-            f.write(ret.content)
+        # with open(f"./logs/cmas/{self.task.task_id}/{self.task.task_id}.pdf", "wb") as f:
+        #     f.write(ret.content)
 
-        return send_file(f"../logs/cmas/{self.task.task_id}/{self.task.task_id}.pdf")
+        return send_file(
+            # f"../logs/cmas/{self.task.task_id}/{self.task.task_id}.pdf", 
+            BytesIO(ret.content),
+            mimetype="application/pdf",
+            attachment_filename=f"{self.task.task_id}/{self.task.task_id}.pdf"
+        )
+
+    def return_content(self):
+        json_file_name = self.task.filenames.get("json")
+        if json_file_name is None:
+            return {}
+        ret = self.__api_get(
+            '/M3AS-REST/api/report/json',
+            params=(
+                ('filename', json_file_name),
+            )
+        )
+        return json.loads(ret.content.decode("utf-8"))
+
+    def __pharse_state_info(self):
+        self.json_content = self.return_content()
+        self.state = {
+            key : {level: 0 for level in ["High", "Medium", "Low"]} for key in ["OWASP", "MOEA"]
+        }
+        self.__update_state_summary()
+        self.__update_state_owasp()
+        self.__update_state_moea()
+
+        return json.dumps(self.state)
+
+    def __update_state_summary(self):
+        for summary_type in ["MOEA", "OWASP"]:
+            self.state[summary_type]["summary"] = self.__state_summary_pharse(
+                self.json_content["Summary"]["VulSummaryTotalRecord"][f"{summary_type.lower()}Summary"])
+    
+    def __state_summary_pharse(self, content):
+        return content.split(":")[0].rstrip()
+
+    def __update_state_owasp(self):
+        for owasp in self.json_content["OWASPRuleReport"]:
+            if owasp["result"] == "Find" and owasp["level"] in ["High", "Medium", "Low"]:
+                self.state["OWASP"][owasp["level"]] += 1
+
+    def __update_state_moea(self):
+        level_mapping = {
+            "level1": "Low",
+            "level2": "Medium",
+            "level3": "High",
+        }
+        for moea in self.json_content["GovernmentScanRule"]:
+            if moea["result"] == "Find":
+                for level in level_mapping:
+                    self.state["MOEA"][level_mapping[level]] += moea[level]
+
+
+def get_secrets():
+    return {
+        "auth_key": cm_get_config("authKey"),
+        "cm_url": cm_get_config("cm-url"),
+        "a_report_type": cm_get_config("a_report_type"),
+    }
+
+def convert_repo_to_project_id(repo_id):
+    return ProjectPluginRelation.query.filter_by(git_repository_id=repo_id).first().project_id
 
 
 def check_cmas_exist(task_id):
@@ -108,17 +179,35 @@ def get_tasks(repository_id):
         "task_id": task.task_id,
         "branch": task.branch,
         "commit_id": task.commit_id,
+        'commit_url': gitlab.commit_id_to_url(convert_repo_to_project_id(repository_id), task.commit_id),
         "run_at": str(task.run_at),
         "status": task.scan_final_status,
+        "stats": util.is_json(task.stats),
         "finished_at": str(task.finished_at),
-        "filename": task.filename,
+        "filenames": task.filenames,
         "upload_id": task.upload_id,
         "size": task.size,
         "sha256": task.sha256,
         "a_mode": task.a_mode,
         "a_report_type": task.a_report_type,
         "a_ert": task.a_ert,
-    } for task in Model.query.filter_by(repo_id=repository_id).order_by(Model.run_at).all()]
+    } for task in Model.query.filter_by(repo_id=repository_id).order_by(desc(Model.run_at)).all()]
+
+
+def get_task_state(project_id, commit_id=None):
+    repo_id = ProjectPluginRelation.query.filter_by(project_id=project_id).first().git_repository_id
+
+    if commit_id is None: #Get latest project test if commit_id is None
+        cmas_test = Model.query.filter_by(repo_id=repo_id).filter_by(finished=True).order_by(desc(Model.run_at)).first()
+    else:
+        cmas_test = Model.query.filter_by(repo_id=repo_id).filter_by(commit_id=commit_id).first()
+    
+    if cmas_test is not None:
+        stats = util.is_json(cmas_test.stats)
+        if isinstance(stats, dict):
+            stats["run_at"] = str(cmas_test.run_at)
+        return stats
+    return ""
 
 
 def create_task(args, repository_id):
@@ -130,9 +219,8 @@ def create_task(args, repository_id):
         run_at=datetime.datetime.utcnow(),
         scan_final_status=None,
         finished=False,
-        filename="app-debug.apk",
         a_mode=args['a_mode'],
-        a_report_type=args['a_report_type'],
+        a_report_type=cm_get_config("a_report_type"),
         a_ert=args['a_ert'],
     )
     db.session.add(new)
@@ -173,7 +261,6 @@ class CMASTask(Resource):
         parser.add_argument('branch', type=str, required=True)
         parser.add_argument('commit_id', type=str, required=True)
         parser.add_argument('a_mode', type=int, required=True)
-        parser.add_argument('a_report_type', type=int, required=True)
         parser.add_argument('a_ert', type=int, required=True)
         args = parser.parse_args()
         return create_task(args, repository_id)
@@ -197,7 +284,17 @@ class CMASRemote(Resource):
     def get(self, task_id):
         return util.success(CMAS(task_id).query_report_task())
 
+class CMASDonwload(Resource):
     # Download reports
     @jwt_required
-    def put(self, task_id):
-        return CMAS(task_id).download_report()
+    def get(self, task_id, file_type):
+        if file_type == "pdf":
+            return CMAS(task_id).download_report()
+        elif file_type == "json":
+            return CMAS(task_id).return_content()
+
+
+class CMASSecret(Resource):
+    @jwt_required
+    def get(self):
+        return get_secrets()

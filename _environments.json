@@ -9,6 +9,7 @@
     "REDMINE_ADMIN_ACCOUNT": "admin",
     "REDMINE_ADMIN_PASSWORD": "********",
     "REDMINE_API_KEY": "***********",
+    "GITLAB_DOMAIN_NAME": "gitlab.ingress.k8s",
     "GITLAB_BASE_URL": "http://gitlab.ingress.k8s:7087",
     "GITLAB_ADMIN_ACCOUNT": "root",
     "GITLAB_ADMIN_PASSWORD": "**********",

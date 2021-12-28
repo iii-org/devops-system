@@ -719,8 +719,8 @@ class CustomIssueFilter(db.Model):
     @validates("custom_filter")
     def validate_custom_filter(self, key, custom_filter):
         custom_filter_keys = sorted(list(custom_filter.keys()))
-        expected_keys = ['assigned_to_id', 'fixed_version_id', 'priority_id',
-                         'show_closed_isssues', 'show_closed_versions', 'status_id', 'tags', 'tracker_id']
+        expected_keys = ['assigned_to_id', 'fixed_version_id', 'focus_tab', 'group_by', 'priority_id',
+                         'show_closed_issues', 'show_closed_versions', 'status_id', 'tags', 'tracker_id']
         if custom_filter_keys != expected_keys:
             raise AssertionError(f"Custom filter keys must be the same as {expected_keys}.")
         return custom_filter
@@ -736,7 +736,6 @@ class CustomIssueFilter(db.Model):
 
 class CMAS(db.Model):
     task_id = Column(String, primary_key=True)
-    cm_project_id = Column(Integer)
     repo_id = Column(Integer, ForeignKey(
         ProjectPluginRelation.git_repository_id, ondelete='CASCADE'))
     branch = Column(String)
@@ -750,7 +749,7 @@ class CMAS(db.Model):
     stats = Column(String)
     finished_at = Column(DateTime)  # The time report is generated
     finished = Column(Boolean)  # True only if report is available
-    filename = Column(String)
+    filenames = Column(JSON)
     upload_id = Column(Integer)
     size = Column(Integer)
     sha256 = Column(String)
@@ -770,3 +769,57 @@ class CMAS(db.Model):
     '''
     a_report_type = Column(Integer)
     a_ert = Column(Integer)
+
+
+class IssueCommitRelation(db.Model):
+    commit_id = Column(String, primary_key=True)
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
+    issue_ids = Column(postgresql.ARRAY(Integer))
+    author_name = Column(String)
+    commit_title = Column(String)
+    commit_message = Column(String)
+    commit_time = Column(DateTime)
+    branch = Column(String)
+    web_url = Column(String)
+    created_at = Column(DateTime)
+    updated_at = Column(DateTime)
+
+
+class ProjectCommitEndpoint(db.Model):
+    id = Column(Integer, primary_key=True)
+    commit_id = Column(String, unique=True)
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
+    updated_at = Column(DateTime)
+
+
+class NotificationMessage(db.Model):
+    id = Column(Integer, primary_key=True)
+    message = Column(String, nullable=False)
+    type_id = Column(Integer, nullable=False)
+    type_parameter = Column(JSON)
+    no_deadline = Column(Boolean, nullable=False)
+    due_datetime = Column(DateTime)
+    creator_id = Column(Integer, ForeignKey(User.id, ondelete='SET NULL'), nullable=True)
+    created_at = Column(DateTime)
+    updated_at = Column(DateTime)
+
+    def __repr__(self):
+        fields = {}
+        for field in [x for x in dir(self) if
+                      not x.startswith('query') and not x.startswith('_') and x != 'metadata']:
+            print(field)
+            data = self.__getattribute__(field)
+            try:
+                # this will fail on unencodable values, like other classes
+                json.dumps(data)
+                fields[field] = data
+            except TypeError:
+                fields[field] = str(data)
+        return json.dumps(fields)
+
+
+class NotificationMessageReplySlip(db.Model):
+    id = Column(Integer, primary_key=True)
+    message_id = Column(Integer, ForeignKey(NotificationMessage.id, ondelete='CASCADE'))
+    user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'))
+    created_at = Column(DateTime)

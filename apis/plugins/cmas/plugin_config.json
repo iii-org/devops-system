@@ -1,0 +1,22 @@
+{
+    "name": "cmas",
+    "default_disabled": true,
+    "is_pipeline": true,
+    "keys": [
+        {
+            "key": "authKey",
+            "type": "string",
+            "store": "secret_all"
+        },
+        {
+            "key": "cm-url",
+            "type": "string",
+            "store": "secret_all"
+        },
+        {
+            "key": "a_report_type",
+            "type": "string",
+            "store": "secret_all"
+        }
+    ]
+}

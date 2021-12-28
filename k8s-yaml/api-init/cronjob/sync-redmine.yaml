@@ -14,8 +14,12 @@ spec:
           - name: curl
             image: curlimages/curl:7.76.1
             imagePullPolicy: IfNotPresent
-            command:
-            - /bin/sh
-            - -c
-            - curl --location --request GET 'http://devopsapi-service:10009/sync_redmine'
+            env: 
+              - name: TOKEN
+                valueFrom:
+                  secretKeyRef:
+                    name: cornjob-bot
+                    key: cornjob-token
+            command: ["/bin/sh"]
+            args: ["-c", "curl -H \"Authorization: Bearer $TOKEN\" --location --request GET 'http://devopsapi-service:10009/sync_redmine'"]
           restartPolicy: OnFailure

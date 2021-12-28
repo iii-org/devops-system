@@ -493,6 +493,12 @@ class Rancher(object):
         output = self.__api_get(url)
         return output.json()['data']
 
+    def rc_get_app_by_name(self, name):
+        self.rc_get_project_id()
+        url = f'/projects/{self.project_id}/apps?name={name}'
+        output = self.__api_get(url)
+        return output.json()['data']
+
     def rc_del_app(self, app_name):
         self.rc_get_project_id()
         url = f"/projects/{self.project_id}/apps/{self.project_id.split(':')[1]}:{app_name}"
@@ -504,6 +510,22 @@ class Rancher(object):
             if project_name == app["targetNamespace"]:
                 self.rc_del_app(app["name"])
 
+    def rc_del_app_with_prefix(self, prefix):
+        all_apps = self.rc_get_apps_all()
+        delete_app_list = [app["name"] for app in all_apps if app["name"].startswith(prefix)]
+        for name in delete_app_list:
+            self.rc_del_app(name)
+        self.__check_app_deleted(delete_app_list)
+    
+    def __check_app_deleted(self, delete_app_list):
+        now_time = datetime.utcnow() + timedelta(minutes=1)
+        for name in delete_app_list:
+            data = self.rc_get_app_by_name(name)
+            while data != []:
+                if now_time <= datetime.utcnow():
+                    raise TimeoutError("end in time.")
+                data = self.rc_get_app_by_name(name)
+    
     def rc_count_each_pj_piplines_by_days(self):
         day_start = datetime.combine((datetime.now() - timedelta(days=1)), d_time(00, 00))
         project_plugin_relations = ProjectPluginRelation.query.with_entities(
@@ -663,3 +685,13 @@ class RancherWebsocketLog(Namespace):
 class RancherCountEachPjPiplinesByDays(Resource):
     def get(self):
         return util.success(rancher.rc_count_each_pj_piplines_by_days())
+
+class RancherDeleteAPP(Resource):
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('project_name', type=str, required=True)
+        parser.add_argument('branch_name', type=str, required=True)
+        args = parser.parse_args()
+        prefix = f'{args["project_name"]}-{args["branch_name"]}'
+        rancher.rc_del_app_with_prefix(prefix)
+        return util.success()
