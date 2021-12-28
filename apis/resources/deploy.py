@@ -431,6 +431,7 @@ def remove_object_key_by_value(items, target=None):
 
 def create_default_k8s_data(db_project, db_release, args):
     k8s_data = {
+        "app_name": args.get('name'),
         "project": db_project.display,
         "project_id": db_project.name,
         "repo_name": db_project.name,
@@ -953,8 +954,9 @@ class DeployService:
         self.app = app
         self.project = project
         self.k8s_info = json.loads(app.k8s_yaml)
-        self.name = project.name + "-release-" + str(app.release_id)
-        self.service_name = self.project.name + "-service"
+        self.name = f'{project.name}-release-{str(app.release_id)}-{app.name}'
+        # self.name = project.name + "-release-" + str(app.release_id)
+        self.service_name = f'{self.project.name}-service-{app.name}'
 
     def get_service_info(self):
         output = {
@@ -997,12 +999,13 @@ class DeployIngress:
 
 class DeployDeployment:
     def __init__(self, app, project, service_info, registry_secret_info):
+
         self.app = app
         self.namespace = self.app.namespace
-        self.name = project.name + "-release-" + str(app.release_id)
+        self.name = f'{project.name}-release-{str(app.release_id)}-{app.name}'
         self.harbor_info = json.loads(app.harbor_info)
         self.k8s_info = json.loads(app.k8s_yaml)
-        self.deployment_name = project.name + "-dep"
+        self.deployment_name = f'{project.name}-dep-{app.name}'
         self.service_info = service_info
         self.registry_secret_info = registry_secret_info
 
@@ -1477,7 +1480,8 @@ def update_application(application_id, args):
 
     db_harbor_info = create_default_harbor_data(db_project, db_release,
                                                 args.get('registry_id'),
-                                                args.get('namespace'))
+                                                args.get('namespace'),
+                                                args.get('name'))
     #  Change k8s Info
     # db_k8s_yaml = json.loads(app.k8s_yaml)
     db_k8s_yaml = create_default_k8s_data(db_project, db_release, args)
@@ -1523,7 +1527,8 @@ def patch_application(application_id, args):
     #  Change harbor_info Deploy
     if 'namespace' in args or \
             'registry_id' in args or \
-            'release_id' in args:
+            'release_id' in args or \
+            'name' in args:
         db_harbor_info = json.loads(app.harbor_info)
         delete_image_replication_policy(db_harbor_info.get('policy_id'))
         db_release, db_project = db.session.query(
@@ -1532,8 +1537,9 @@ def patch_application(application_id, args):
                 model.Project.id == model.Release.project_id).one()
         db_harbor_info.update(
             create_default_harbor_data(db_project, db_release,
-                                       args.get('registry_id'),
-                                       args.get('namespace')))
+                                       args.get('registry_id', app.registry_id),
+                                       args.get('namespace', app.namespace),
+                                       args.get('name', app.name)))
     app.status = _APPLICATION_STATUS.get(app.status_id,
                                          _DEFAULT__APPLICATION_STATUS)
     app.restart_number = 1
