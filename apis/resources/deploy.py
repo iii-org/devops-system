@@ -951,12 +951,12 @@ class DeployRegistrySecret:
 
 class DeployService:
     def __init__(self, app, project):
+        release_id = str(app.release_id)
         self.app = app
         self.project = project
         self.k8s_info = json.loads(app.k8s_yaml)
-        self.name = f'{project.name}-release-{str(app.release_id)}-{app.name}'
-        # self.name = project.name + "-release-" + str(app.release_id)
-        self.service_name = f'{self.project.name}-service-{app.name}'
+        self.name = f'{project.name}-release-{release_id}-{app.name}'
+        self.service_name = f'{self.project.name}-service-{release_id}-{app.name}'
 
     def get_service_info(self):
         output = {
@@ -976,10 +976,11 @@ class DeployService:
 
 class DeployIngress:
     def __init__(self, app, project):
+        release_id = str(app.release_id)
         self.app = app
         self.k8s_info = json.loads(app.k8s_yaml)
-        self.service_name = project.name + "-service"
-        self.ingress_name = project.name + "-ingress"
+        self.service_name = f'{self.project.name}-service-{release_id}-{app.name}'
+        self.ingress_name = f'{self.project.name}-ingress-{release_id}-{app.name}'
 
     def get_ingress_info(self):
         return {
