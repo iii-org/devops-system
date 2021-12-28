@@ -386,7 +386,7 @@ class Registry(Resource):
                                 error=apiError.get_registry_failed(registry_id))
 
 
-def create_default_harbor_data(project, db_release, registry_id, namespace):
+def create_default_harbor_data(project, db_release, registry_id, namespace, app_name):
     db_release_id = str(db_release.id)
     harbor_data = {
         "project":
@@ -394,7 +394,7 @@ def create_default_harbor_data(project, db_release, registry_id, namespace):
         "project_id":
         project.name,
         "policy_name":
-        project.name + "-release-" + db_release_id + '-at-' + namespace,
+        f'{project.name}-release-{db_release_id}-at-{namespace}-{app_name}',
         "repo_name":
         project.name,
         "image_name":
@@ -431,6 +431,7 @@ def remove_object_key_by_value(items, target=None):
 
 def create_default_k8s_data(db_project, db_release, args):
     k8s_data = {
+        "app_name": args.get('name'),
         "project": db_project.display,
         "project_id": db_project.name,
         "repo_name": db_project.name,
@@ -950,11 +951,12 @@ class DeployRegistrySecret:
 
 class DeployService:
     def __init__(self, app, project):
+        release_id = str(app.release_id)
         self.app = app
         self.project = project
         self.k8s_info = json.loads(app.k8s_yaml)
-        self.name = project.name + "-release-" + str(app.release_id)
-        self.service_name = self.project.name + "-service"
+        self.name = f'{project.name}-release-{release_id}-{app.name}'
+        self.service_name = f'{self.project.name}-service-{release_id}-{app.name}'
 
     def get_service_info(self):
         output = {
@@ -974,10 +976,11 @@ class DeployService:
 
 class DeployIngress:
     def __init__(self, app, project):
+        release_id = str(app.release_id)
         self.app = app
         self.k8s_info = json.loads(app.k8s_yaml)
-        self.service_name = project.name + "-service"
-        self.ingress_name = project.name + "-ingress"
+        self.service_name = f'{self.project.name}-service-{release_id}-{app.name}'
+        self.ingress_name = f'{self.project.name}-ingress-{release_id}-{app.name}'
 
     def get_ingress_info(self):
         return {
@@ -997,12 +1000,13 @@ class DeployIngress:
 
 class DeployDeployment:
     def __init__(self, app, project, service_info, registry_secret_info):
+
         self.app = app
         self.namespace = self.app.namespace
-        self.name = project.name + "-release-" + str(app.release_id)
+        self.name = f'{project.name}-release-{str(app.release_id)}-{app.name}'
         self.harbor_info = json.loads(app.harbor_info)
         self.k8s_info = json.loads(app.k8s_yaml)
-        self.deployment_name = project.name + "-dep"
+        self.deployment_name = f'{project.name}-dep-{app.name}'
         self.service_info = service_info
         self.registry_secret_info = registry_secret_info
 
@@ -1188,7 +1192,7 @@ def check_application_status(app):
     if app is None:
         return output
     application_id = app.id
-    check_application_restart(app)
+    # check_application_restart(app)
     app = model.Application.query.filter_by(id=application_id).first()
     # Check Harbor Replication execution
     if app.status_id == 1:
@@ -1230,6 +1234,7 @@ def check_application_status(app):
         finished = check_k8s_deployment(app, False)
         if not finished:
             app.status_id = 10
+            app = reset_restart_number(app)
             db.session.commit()
 
     return {
@@ -1368,7 +1373,7 @@ def generate_multithreads(app):
         application_id = str(application.id)
         services.append(application_id)
         targets[application_id] = get_application_information
-        service_args[application_id] = (application, cluster_info,)
+        service_args[application_id] = (application, False, cluster_info,)
     return services, targets, service_args
 
 
@@ -1386,18 +1391,18 @@ def get_applications(args=None):
     if app is None:
         return output
     elif isinstance(app, list):
-        # services, targets, service_args = generate_multithreads(app)
-        # helper = util.ServiceBatchOpHelper(services, targets, service_args)
-        # helper.run()
-        # for service in services:
-        #     if helper.errors[service] is None:
-        #         output.append(helper.outputs[service])
-        cluster_info = {}
-        clusters = model.Cluster.query.with_entities(model.Cluster.id, model.Cluster.name).all()
-        for cluster in clusters:
-            cluster_info[str(cluster.id)] = cluster.name
-        for application in app:
-            output.append(get_application_information(application, False, cluster_info))
+        services, targets, service_args = generate_multithreads(app)
+        helper = util.ServiceBatchOpHelper(services, targets, service_args)
+        helper.run()
+        for service in services:
+            if helper.errors[service] is None:
+                output.append(helper.outputs[service])
+        # cluster_info = {}
+        # clusters = model.Cluster.query.with_entities(model.Cluster.id, model.Cluster.name).all()
+        # for cluster in clusters:
+        #     cluster_info[str(cluster.id)] = cluster.name
+        # for application in app:
+        #     output.append(get_application_information(application, False, cluster_info))
     else:
         output = get_application_information(app)
     return output
@@ -1420,7 +1425,8 @@ def create_application(args):
             model.Release.project_id == model.Project.id).one()
     harbor_info = create_default_harbor_data(db_project, db_release,
                                              args.get('registry_id'),
-                                             args.get('namespace'))
+                                             args.get('namespace'),
+                                             args.get('name'))
     k8s_yaml = create_default_k8s_data(db_project, db_release, args)
     # check namespace
     deploy_k8s_client = DeployK8sClient(cluster.name)
@@ -1475,7 +1481,8 @@ def update_application(application_id, args):
 
     db_harbor_info = create_default_harbor_data(db_project, db_release,
                                                 args.get('registry_id'),
-                                                args.get('namespace'))
+                                                args.get('namespace'),
+                                                args.get('name'))
     #  Change k8s Info
     # db_k8s_yaml = json.loads(app.k8s_yaml)
     db_k8s_yaml = create_default_k8s_data(db_project, db_release, args)
@@ -1521,7 +1528,8 @@ def patch_application(application_id, args):
     #  Change harbor_info Deploy
     if 'namespace' in args or \
             'registry_id' in args or \
-            'release_id' in args:
+            'release_id' in args or \
+            'name' in args:
         db_harbor_info = json.loads(app.harbor_info)
         delete_image_replication_policy(db_harbor_info.get('policy_id'))
         db_release, db_project = db.session.query(
@@ -1530,8 +1538,9 @@ def patch_application(application_id, args):
                 model.Project.id == model.Release.project_id).one()
         db_harbor_info.update(
             create_default_harbor_data(db_project, db_release,
-                                       args.get('registry_id'),
-                                       args.get('namespace')))
+                                       args.get('registry_id', app.registry_id),
+                                       args.get('namespace', app.namespace),
+                                       args.get('name', app.name)))
     app.status = _APPLICATION_STATUS.get(app.status_id,
                                          _DEFAULT__APPLICATION_STATUS)
     app.restart_number = 1
