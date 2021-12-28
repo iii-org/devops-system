@@ -386,7 +386,7 @@ class Registry(Resource):
                                 error=apiError.get_registry_failed(registry_id))
 
 
-def create_default_harbor_data(project, db_release, registry_id, namespace):
+def create_default_harbor_data(project, db_release, registry_id, namespace, app_name):
     db_release_id = str(db_release.id)
     harbor_data = {
         "project":
@@ -394,7 +394,7 @@ def create_default_harbor_data(project, db_release, registry_id, namespace):
         "project_id":
         project.name,
         "policy_name":
-        project.name + "-release-" + db_release_id + '-at-' + namespace,
+        f'{project.name}-release-{db_release_id}-at-{namespace}-{app_name}',
         "repo_name":
         project.name,
         "image_name":
@@ -1188,7 +1188,7 @@ def check_application_status(app):
     if app is None:
         return output
     application_id = app.id
-    check_application_restart(app)
+    # check_application_restart(app)
     app = model.Application.query.filter_by(id=application_id).first()
     # Check Harbor Replication execution
     if app.status_id == 1:
@@ -1230,6 +1230,7 @@ def check_application_status(app):
         finished = check_k8s_deployment(app, False)
         if not finished:
             app.status_id = 10
+            app = reset_restart_number(app)
             db.session.commit()
 
     return {
@@ -1368,7 +1369,7 @@ def generate_multithreads(app):
         application_id = str(application.id)
         services.append(application_id)
         targets[application_id] = get_application_information
-        service_args[application_id] = (application, cluster_info,)
+        service_args[application_id] = (application, False, cluster_info,)
     return services, targets, service_args
 
 
@@ -1386,18 +1387,18 @@ def get_applications(args=None):
     if app is None:
         return output
     elif isinstance(app, list):
-        # services, targets, service_args = generate_multithreads(app)
-        # helper = util.ServiceBatchOpHelper(services, targets, service_args)
-        # helper.run()
-        # for service in services:
-        #     if helper.errors[service] is None:
-        #         output.append(helper.outputs[service])
-        cluster_info = {}
-        clusters = model.Cluster.query.with_entities(model.Cluster.id, model.Cluster.name).all()
-        for cluster in clusters:
-            cluster_info[str(cluster.id)] = cluster.name
-        for application in app:
-            output.append(get_application_information(application, False, cluster_info))
+        services, targets, service_args = generate_multithreads(app)
+        helper = util.ServiceBatchOpHelper(services, targets, service_args)
+        helper.run()
+        for service in services:
+            if helper.errors[service] is None:
+                output.append(helper.outputs[service])
+        # cluster_info = {}
+        # clusters = model.Cluster.query.with_entities(model.Cluster.id, model.Cluster.name).all()
+        # for cluster in clusters:
+        #     cluster_info[str(cluster.id)] = cluster.name
+        # for application in app:
+        #     output.append(get_application_information(application, False, cluster_info))
     else:
         output = get_application_information(app)
     return output
@@ -1420,7 +1421,8 @@ def create_application(args):
             model.Release.project_id == model.Project.id).one()
     harbor_info = create_default_harbor_data(db_project, db_release,
                                              args.get('registry_id'),
-                                             args.get('namespace'))
+                                             args.get('namespace'),
+                                             args.get('name'))
     k8s_yaml = create_default_k8s_data(db_project, db_release, args)
     # check namespace
     deploy_k8s_client = DeployK8sClient(cluster.name)
