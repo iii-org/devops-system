@@ -1,9 +1,12 @@
 import base64
 import json
+from sqlalchemy.sql.operators import exists
 
+import werkzeug
 import yaml
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
+from flask import send_file
 
 import resources.apiError as apiError
 import util as util
@@ -12,6 +15,8 @@ from nexus import nx_get_project_plugin_relation
 from resources import role
 from .gitlab import GitLab, commit_id_to_url
 from .rancher import rancher
+from os import listdir, remove, makedirs
+from shutil import rmtree
 
 gitlab = GitLab()
 
@@ -244,6 +249,30 @@ def _get_rancher_pipeline_yaml(repository_id, parameter):
             yml_file_can_not_find = True
     return yaml_file_can_not_find, yml_file_can_not_find, get_yaml_data
 
+def check_pipeline_folder_exist(file_name, path):
+    if file_name not in listdir(path):
+        raise apiError.DevOpsError(
+                404, 'The file is not found in provided path.',
+                apiError.file_not_found(file_name, path)) 
+
+def list_pipeline_file(project_name):
+    project_folder_path = f"devops-data/project-data/{project_name}/pipeline"
+    return {folder: listdir(f"{project_folder_path}/{folder}") for folder in listdir(project_folder_path)}
+
+def upload_pipeline_file(project_name, folder_name, file):
+    file_path = f"devops-data/project-data/{project_name}/pipeline/{folder_name}"
+    makedirs(file_path, exist_ok=True)
+    file.save(f"{file_path}/{file.filename}")
+
+def download_pipeline_file(project_name, folder_name, file_name):
+    file_path = f"devops-data/project-data/{project_name}/pipeline/{folder_name}"
+    check_pipeline_folder_exist(file_name, file_path)
+    return send_file(f"../{file_path}/{file_name}")
+
+def delete_pipeline_file(project_name, folder_name, file_name):
+    file_path = f"devops-data/project-data/{project_name}/pipeline/{folder_name}"
+    check_pipeline_folder_exist(file_name, file_path)
+    remove(f"{file_path}/{file_name}")
 
 # --------------------- Resources ---------------------
 class PipelineExec(Resource):
@@ -314,3 +343,39 @@ class Pipeline(Resource):
         args = parser.parse_args()
         pipeline_action(repository_id, args)
         return util.success()
+
+class PipelineFile(Resource):
+    @jwt_required
+    def get(self, project_name):
+        return util.success(list_pipeline_file(project_name))
+
+    # Upload 
+    @jwt_required
+    def post(self, project_name):
+        parser = reqparse.RequestParser()
+        parser.add_argument('commit_short_id', type=str, required=True)
+        parser.add_argument('sequence', type=int, required=True)
+        parser.add_argument(
+            'upload_file', type=werkzeug.datastructures.FileStorage, location='files')
+        args = parser.parse_args()
+        folder_name = f'{args["commit_short_id"]}-{args["sequence"]}'
+        return upload_pipeline_file(project_name, folder_name, args["upload_file"])
+    
+    # Download 
+    @jwt_required
+    def patch(self, project_name):
+        parser = reqparse.RequestParser()
+        parser.add_argument('commit_short_id', type=str, required=True)
+        parser.add_argument('sequence', type=int, required=True)
+        parser.add_argument('file_name', type=str, required=True)
+        args = parser.parse_args()
+        folder_name = f'{args["commit_short_id"]}-{args["sequence"]}'
+        return download_pipeline_file(project_name, folder_name, args["file_name"])
+
+    @jwt_required
+    def delete(self, project_name):
+        parser = reqparse.RequestParser()
+        parser.add_argument('folder_name', type=str, required=True)
+        parser.add_argument('file_name', type=str, required=True)
+        args = parser.parse_args()
+        return util.success(delete_pipeline_file(project_name, args["folder_name"], args["file_name"]))
