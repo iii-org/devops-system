@@ -75,6 +75,22 @@ def update_system_parameter(id, args):
     db.session.commit()
 
 
+def execute_system_parameter_by_perl(name):
+    name_perl_mapping = {"github_verify_info": "/home/rkeuser/deploy-devops/bin/sync-github-templ.pl"}
+    if name not in name_perl_mapping:
+        return
+    if name == "github_verify_info":
+        deployer_node_ip = config.get('DEPLOYER_NODE_IP')
+        if deployer_node_ip is None:
+            # get the k8s cluster the oldest node ip
+            deployer_node_ip = kubernetesClient.get_the_oldest_node()[0]
+
+        value = SystemParameter.query.filter_by(name=name).first().value
+        args = f'{value["account"]}:{value["token"]}'
+        cmd = f"perl {name_perl_mapping[name]} {args}"
+        output_str, error_str = util.ssh_to_node_by_key(cmd, deployer_node_ip)
+
+
 # --------------------- Resources ---------------------
 
 
@@ -82,6 +98,13 @@ class SystemParameters(Resource):
     @jwt_required
     def get(self):
         return util.success(get_system_parameter())
+
+    @jwt_required
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('name', type=str)
+        args = parser.parse_args()
+        return util.success(execute_system_parameter_by_perl(args["name"]))
 
     @jwt_required
     def put(self, param_id):
