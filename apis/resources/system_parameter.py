@@ -4,6 +4,7 @@ from flask_jwt_extended import jwt_required
 import config
 import json
 import model
+import threading
 import util as util
 from model import db, SystemParameter
 from resources import apiError, kubernetesClient
@@ -88,7 +89,8 @@ def execute_system_parameter_by_perl(name):
         value = SystemParameter.query.filter_by(name=name).first().value
         args = f'{value["account"]}:{value["token"]}'
         cmd = f"perl {name_perl_mapping[name]} {args}"
-        output_str, error_str = util.ssh_to_node_by_key(cmd, deployer_node_ip)
+        thread = threading.Thread(target=util.ssh_to_node_by_key, args=(cmd, deployer_node_ip, ))
+        thread.start()
 
 
 # --------------------- Resources ---------------------

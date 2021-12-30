@@ -215,6 +215,8 @@ api.add_resource(gitlab.SyncGitCommitIssueRelationByPjName,
                  '/project/issues_commit_by_name',
                  )
 
+api.add_resource(pipeline.PipelineFile, '/project/<string:project_name>/pipeline_file')
+
 
 # Tag
 api.add_resource(tag.Tags, '/tags')
@@ -643,6 +645,8 @@ api.add_resource(monitoring.ServersAlive, '/monitoring/alive')
 api.add_resource(monitoring.RedmineAlive, '/monitoring/redmine/alive')
 api.add_resource(monitoring.GitlabAlive, '/monitoring/gitlab/alive')
 api.add_resource(monitoring.HarborAlive, '/monitoring/harbor/alive')
+api.add_resource(monitoring.HarborUsage, '/monitoring/harbor/usage')
+api.add_resource(monitoring.HarborProxy, '/monitoring/harbor/limit')
 api.add_resource(monitoring.SonarQubeAlive, '/monitoring/sonarqube/alive')
 api.add_resource(monitoring.RancherAlive, '/monitoring/rancher/alive')
 api.add_resource(monitoring.RancherDefaultName, '/monitoring/rancher/default_name')
