@@ -19,7 +19,7 @@ from nexus import nx_get_project_plugin_relation
 
 import resources.apiError as apiError
 import resources.pipeline as pipeline
-from plugins import sideex
+from plugins.sideex import sideex_main as sideex
 from resources import apiTest
 from resources.redmine import redmine
 from resources.issue import get_issue_tags

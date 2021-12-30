@@ -5,10 +5,10 @@ import nexus
 from collections import defaultdict
 from flask_restful import Resource
 
-from plugins import sonarqube
+from plugins.sonarqube import sonarqube_main as sonarqube
 from accessories import redmine_lib
 from resources import harbor, redmine, gitlab, rancher, kubernetesClient, \
-                      project, logger, user
+    project, logger, user
 from kubernetes.client import ApiException
 
 
@@ -36,11 +36,11 @@ class ResourceMembers(object):
         self.project_members['rm_members_id'] = [
             context['user']['id'] for context in redmine.redmine.rm_get_memberships_list(
                 pj_relation.plan_project_id)['memberships']
-            ]
+        ]
         self.project_members['gl_members_id'] = [
             context['id'] for context in self.handle_gl_user_page(
                 pj_relation.git_repository_id)
-            ]
+        ]
         self.project_members['hb_members_id'] = [
             context['entity_id'] for context in self.handle_hb_user_page(
                 pj_relation.harbor_project_id)
@@ -437,7 +437,7 @@ def gitlab_process(projects_name, check_bot_list):
             nexus.nx_update_project(pj.id, {
                 'ssh_url': new_gl_repo_attr['ssh_url'],
                 'http_url': new_gl_repo_attr['http_url']
-                }
+            }
             )
             check_bot_list.append(pj.id)
 
@@ -458,8 +458,8 @@ def harbor_process(projects_name, check_bot_list):
 
 def pipeline_process(check_bot_list):
     project_git_http_url = list(sum(model.Project.query.filter(
-                                      model.Project.id != -1).with_entities(
-                                      model.Project.http_url).all(), ()))
+        model.Project.id != -1).with_entities(
+        model.Project.http_url).all(), ()))
     rancher.rancher.rc_get_project_id()
     pipeline_list = [pipeline['repositoryUrl'] for pipeline in rancher.rancher.rc_get_project_pipeline()]
     non_exist_pipeline = list(set(project_git_http_url)-set(pipeline_list))
@@ -516,7 +516,7 @@ def sonarqube_process(projects_name, check_bot_list):
 def main_process():
     check_bot_list = []
     projects_name = list(sum(model.Project.query.filter(
-                            model.Project.id != -1).with_entities(model.Project.name).all(), ()))
+        model.Project.id != -1).with_entities(model.Project.name).all(), ()))
     logger.logger.info('Kubernetes namespaces start.')
     k8s_namespace_process(projects_name, check_bot_list)
     logger.logger.info('Redmine projects start.')

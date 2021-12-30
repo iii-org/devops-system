@@ -4,10 +4,10 @@ import util
 from collections import defaultdict
 from flask_restful import Resource
 
-from plugins import sonarqube
+from plugins.sonarqube import sonarqube_main as sonarqube
 from accessories import redmine_lib
 from resources import harbor, redmine, gitlab, kubernetesClient, \
-                      logger
+    logger
 
 
 # 新建用戶預設密碼
@@ -221,10 +221,10 @@ def check_sq_users(args, sq_all_users_login):
 def main_process():
     # 取得 admin users id list
     admin_users_id = list(sum(model.db.session.query(model.User).join(model.ProjectUserRole).filter(
-            model.ProjectUserRole.project_id == -1, model.ProjectUserRole.role_id == 5).with_entities(model.User.id), ()))
+        model.ProjectUserRole.project_id == -1, model.ProjectUserRole.role_id == 5).with_entities(model.User.id), ()))
     # 取得 all_users obj，除了 BOT 以外
     all_users = model.db.session.query(model.User).join(model.ProjectUserRole).filter(
-            model.ProjectUserRole.project_id == -1, model.ProjectUserRole.role_id != 6)
+        model.ProjectUserRole.project_id == -1, model.ProjectUserRole.role_id != 6)
     logger.logger.info('Users process start.')
     users_process(admin_users_id, all_users)
     logger.logger.info('All done.')

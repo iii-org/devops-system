@@ -22,13 +22,17 @@ import util as util
 from data.nexus_project import NexusProject
 from model import db
 from nexus import nx_get_project_plugin_relation
-from plugins.checkmarx import checkmarx
+from plugins.checkmarx.checkmarx_main import checkmarx
 from resources.apiError import DevOpsError
 from accessories import redmine_lib
 from util import DevOpsThread
 from . import user, harbor, kubernetesClient, role, template
 from .activity import record_activity, ActionType
-from plugins import webinspect, sonarqube, zap, sideex, cmas
+from plugins.webinspect import webinspect_main as webinspect
+from plugins.sonarqube import sonarqube_main as sonarqube
+from plugins.zap import zap_main as zap
+from plugins.sideex import sideex_main as sideex
+from plugins.cmas import cmas_main as cmas
 from .gitlab import gitlab
 from .rancher import rancher, remove_pj_executions
 from .redmine import redmine
@@ -739,7 +743,7 @@ def get_test_summary(project_id):
         cmas_content = cmas.get_task_state(project_id)
         if not isinstance(cmas_content, dict):
             cmas_content = {}
-                
+
         ret['cmas'] = cmas_content
     return util.success({'test_results': ret})
 
@@ -1339,6 +1343,7 @@ class ProjectUserResourcePodLog(Resource):
         parser.add_argument('container_name', type=str)
         args = parser.parse_args()
         return get_kubernetes_namespace_pod_log(project_id, pod_name, args['container_name'])
+
 
 class ProjectEnvironment(Resource):
     @jwt_required

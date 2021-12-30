@@ -6,7 +6,7 @@ from github import Github
 from flask_jwt_extended import jwt_required
 from resources import role
 
-from plugins.sonarqube import sq_get_current_measures, sq_list_project
+from plugins.sonarqube.sonarqube_main import sq_get_current_measures, sq_list_project
 from resources.harbor import hb_get_project_summary, hb_get_registries
 from resources.redmine import redmine
 from resources.gitlab import gitlab
@@ -41,7 +41,6 @@ class Monitoring:
             self.hr_pj_id = relation.harbor_project_id
             self.ci_pj_id = relation.ci_project_id
             self.ci_pipeline_id = relation.ci_pipeline_id
-
 
     def __is_server_alive(self, func, *args, **kwargs):
         try:
@@ -108,6 +107,7 @@ class Monitoring:
             "all_alive": self.all_alive
         }
 
+
 def generate_alive_response(name):
     monitoring = Monitoring()
     alive_mapping = {
@@ -125,10 +125,12 @@ def generate_alive_response(name):
         "datetime": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
     }
 
+
 def row_to_dict(row):
     if row is None:
         return row
     return {key: getattr(row, key) for key in type(row).__table__.columns.keys()}
+
 
 def verify_github_info(value):
     account = value["account"]
@@ -263,14 +265,15 @@ class PodAlert(Resource):
         for data_collection in data_collections:
             detail = data_collection.detail
             restart_times = data_collection.value["value"]
-            mapping.setdefault(f'{data_collection.project_id}=={detail["pod_name"]}=={detail["containers_name"]}', []).append(restart_times)
+            mapping.setdefault(
+                f'{data_collection.project_id}=={detail["pod_name"]}=={detail["containers_name"]}', []).append(restart_times)
 
         for detail, times in mapping.items():
             if len(times) >= 2 and (max(times) - min(times)) > limit_times:
                 total_restart_times = max(times) - min(times)
                 details = detail.split("==")
                 row = AlertMessage(
-                    resource_type="k8s", 
+                    resource_type="k8s",
                     detail={"project_name": Project.query.filter_by(id=details[0]).one().name},
                     alert_code=10001,
                     message=f"Restart times of pod({details[1]}) belong in container({details[2]}) has surpassed 20 times({total_restart_times}) in 1 hour.",
@@ -291,6 +294,8 @@ class RemoveExtraExecutions(Resource):
         remove_extra_executions()
 
 # GitHub
+
+
 class GithubTokenVerify(Resource):
     @jwt_required
     def post(self):

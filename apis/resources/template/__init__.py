@@ -717,7 +717,7 @@ def update_pj_plugin_status(plugin_name, disable):
                 f.content = yaml.dump(pipe_dict, sort_keys=False)
                 process = "啟用" if not disable else "停用"
                 f.save(branch=br.name,
-                    commit_message=f'UI 編輯 .rancher-pipeline.yaml {process} {plugin_name}.')
+                       commit_message=f'UI 編輯 .rancher-pipeline.yaml {process} {plugin_name}.')
                 pipeline.stop_and_delete_pipeline(repository_id, next_run)
 
 # --------------------- Resources ---------------------

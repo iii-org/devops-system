@@ -7,7 +7,7 @@ import model
 import util
 from model import db, ProjectPluginRelation, Project, UserPluginRelation, User, ProjectUserRole, PluginSoftware, \
     DefaultAlertDays, TraceOrder, TraceResult, Application, IssueExtensions, Lock, RedmineProject, ServerType, SystemParameter
-from plugins.sonarqube import sq_create_project, sq_create_user
+from plugins.sonarqube.sonarqube_main import sq_create_project, sq_create_user
 from resources import harbor, kubernetesClient, role, sync_redmine, devops_version
 from resources.apiError import DevOpsError
 from resources.logger import logger
