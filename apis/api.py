@@ -19,13 +19,11 @@ from sqlalchemy_utils import database_exists, create_database
 from werkzeug.routing import IntegerConverter
 
 import plugins
-from plugins import webinspect, sideex, zap, sonarqube, postman, ad, cmas
 import config
 import migrate
 import model
 import system
 import resources.apiError as apiError
-import plugins.checkmarx as checkmarx
 import resources.pipeline as pipeline
 import resources.rancher as rancher
 import util
@@ -369,11 +367,6 @@ api.add_resource(
 api.add_resource(plugin.Plugins, '/plugins')
 api.add_resource(plugin.Plugin, '/plugins/<plugin_name>')
 
-# AD Server
-api.add_resource(ad.ADUsers, '/plugins/ad/users')
-api.add_resource(ad.ADUser, '/plugins/ad/user')
-api.add_resource(ad.ADOrganizations, '/plugins/ad/organizations')
-
 # dashboard
 api.add_resource(issue.DashboardIssuePriority,
                  '/dashboard_issues_priority/<user_id>')
@@ -449,42 +442,10 @@ api.add_resource(project.AllReports,
 api.add_resource(cicd.CommitCicdSummary,
                  '/project/<sint:project_id>/test_summary/<commit_id>')
 
-# Postman tests
-api.add_resource(postman.ExportToPostman,
-                 '/export_to_postman/<sint:project_id>')
-api.add_resource(postman.PostmanResults, '/postman_results/<sint:project_id>')
-api.add_resource(postman.PostmanReport, '/testResults',
-                 '/postman_report/<int:id>')
-
-# Checkmarx report generation
-api.add_resource(checkmarx.CreateCheckmarxScan, '/checkmarx/create_scan')
-api.add_resource(checkmarx.GetCheckmarxScans,
-                 '/checkmarx/scans/<sint:project_id>')
-api.add_resource(checkmarx.GetCheckmarxLatestScan,
-                 '/checkmarx/latest_scan/<sint:project_id>')
-api.add_resource(checkmarx.GetCheckmarxLatestScanStats,
-                 '/checkmarx/latest_scan_stats/<sint:project_id>')
-api.add_resource(checkmarx.GetCheckmarxLatestReport,
-                 '/checkmarx/latest_report/<sint:project_id>')
-api.add_resource(checkmarx.GetCheckmarxReport, '/checkmarx/report/<report_id>')
-api.add_resource(checkmarx.GetCheckmarxScanStatus,
-                 '/checkmarx/scan_status/<scan_id>')
-api.add_resource(checkmarx.GetCheckmarxScanStatistics,
-                 '/checkmarx/scan_stats/<scan_id>')
-api.add_resource(checkmarx.RegisterCheckmarxReport,
-                 '/checkmarx/report/<scan_id>')
-api.add_resource(checkmarx.GetCheckmarxReportStatus,
-                 '/checkmarx/report_status/<report_id>')
-api.add_resource(checkmarx.GetCheckmarxProject,
-                 '/checkmarx/get_cm_project_id/<sint:project_id>')
-api.add_resource(checkmarx.CancelCheckmarxScan,
-                 '/checkmarx/scan/<scan_id>/cancel')
 
 # Get everything by issue_id
 api.add_resource(issue.DumpByIssue, '/dump_by_issue/<issue_id>')
 
-# Sonarqube
-api.add_resource(sonarqube.SonarqubeHistory, '/sonarqube/<project_name>')
 
 # Files
 api.add_resource(project.ProjectFile, '/project/<sint:project_id>/file')
@@ -524,15 +485,6 @@ api.add_resource(harbor.HarborReplicationExecutionTasks,
 api.add_resource(harbor.HarborReplicationExecutionTaskLog,
                  '/harbor/replication/executions/<sint:execution_id>/tasks/<sint:task_id>/log')
 
-# WebInspect
-api.add_resource(webinspect.WebInspectScan, '/webinspect/create_scan',
-                 '/webinspect/list_scan/<project_name>')
-api.add_resource(webinspect.WebInspectScanStatus,
-                 '/webinspect/status/<scan_id>')
-api.add_resource(webinspect.WebInspectScanStatistics,
-                 '/webinspect/stats/<scan_id>')
-api.add_resource(webinspect.WebInspectReport, '/webinspect/report/<scan_id>')
-
 # Maintenance
 api.add_resource(maintenance.UpdateDbRcProjectPipelineId,
                  '/maintenance/update_rc_pj_pipe_id')
@@ -554,12 +506,6 @@ api.add_resource(activity.AllActivities, '/all_activities')
 api.add_resource(activity.ProjectActivities,
                  '/project/<sint:project_id>/activities')
 
-# ZAP
-api.add_resource(zap.Zap, '/zap', '/project/<sint:project_id>/zap')
-
-# Sideex
-api.add_resource(sideex.Sideex, '/sideex', '/project/<sint:project_id>/sideex')
-api.add_resource(sideex.SideexReport, '/sideex_report/<int:test_id>')
 
 # Sync Redmine, Gitlab, Rancher
 api.add_resource(sync_redmine.SyncRedmine, '/sync_redmine')
@@ -661,12 +607,6 @@ api.add_resource(lock.LockStatus, '/lock')
 # Alert message
 api.add_resource(alert_message.AlertMessages, '/alert_message')
 
-# CMAS
-api.add_resource(cmas.CMASTask, '/cmas', '/repo_project/<sint:repository_id>/cmas')
-api.add_resource(cmas.CMASRemote, '/cmas/<string:task_id>')
-api.add_resource(cmas.CMASDonwload, '/cmas/<string:task_id>/<string:file_type>')
-api.add_resource(cmas.CMASSecret, '/cmas/secret')
-
 
 def start_prod():
     try:
@@ -680,8 +620,9 @@ def start_prod():
         logger.logger.info('Apply k8s-yaml cronjob.')
         template.tm_get_template_list()
         logger.logger.info('Get the public and local template list')
+        plugins.create_plugins_api_router(api)
         plugins.sync_plugins_in_db_and_code()
-        with app.app_context(): # Prevent error appear(Working outside of application context.)
+        with app.app_context():  # Prevent error appear(Working outside of application context.)
             kubernetesClient.create_cron_secret()
         return app
     except Exception as e:

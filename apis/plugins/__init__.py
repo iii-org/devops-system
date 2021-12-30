@@ -21,6 +21,8 @@ from resources.kubernetesClient import read_namespace_secret, SYSTEM_SECRET_NAME
     create_namespace_secret, patch_namespace_secret, delete_namespace_secret
 from resources.rancher import rancher
 
+from plugins import *
+
 SYSTEM_SECRET_PREFIX = 'system-secret-'
 
 
@@ -217,3 +219,14 @@ def sync_plugins_in_db_and_code():
                 break
         if not existed:
             delete_plugin_row(plugin['name'])
+
+
+def create_plugins_api_router(api):
+    ad.router(api)
+    checkmarx.router(api)
+    cmas.router(api)
+    postman.router(api)
+    sideex.router(api)
+    sonarqube.router(api)
+    webinspect.router(api)
+    zap.router(api)
