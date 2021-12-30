@@ -1,4 +1,4 @@
-import . import ad_main
+from . import ad_main
 
 # --------------------- API router ---------------------
 
