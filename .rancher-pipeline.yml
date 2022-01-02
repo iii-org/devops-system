@@ -1,6 +1,6 @@
 stages:
 - name: Integration--initial pipeline
-  iiidevops: intgr-initial-pipeline
+  iiidevops: initial-pipeline
   steps:
   - envFrom:
     - sourceKey: api-origin
@@ -8,23 +8,9 @@ stages:
       targetKey: api_origin
     runScriptConfig:
       image: iiiorg/rancher-cli:v2.4.6
-      shellScript: curl --location --request POST ${api_origin}/rancher/delete_app
+      shellScript: curl --location -s --request POST ${api_origin}/rancher/delete_app
         --form project_name=${CICD_GIT_REPO_NAME} --form branch_name=${CICD_GIT_BRANCH}
-  when:
-    branch:
-      include:
-      - master
-      - develop
-- name: Integration--plan and code
-  iiidevops: intgr-plan-code
-  steps:
-  - envFrom:
-    - sourceKey: api-origin
-      sourceName: nexus
-      targetKey: api_origin
-    runScriptConfig:
-      image: iiiorg/rancher-cli:v2.4.6
-      shellScript: curl --location --request POST ${api_origin}/project/issues_commit_by_name
+        && curl --location -s --request POST ${api_origin}/project/issues_commit_by_name
         --form project_name=${CICD_GIT_REPO_NAME}
   when:
     branch:
