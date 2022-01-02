@@ -19,6 +19,7 @@ from sqlalchemy_utils import database_exists, create_database
 from werkzeug.routing import IntegerConverter
 
 import plugins
+from plugins import sideex, postman
 import config
 import migrate
 import model
