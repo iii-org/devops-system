@@ -9,7 +9,8 @@ import util as util
 from model import db, SystemParameter
 from resources import apiError, kubernetesClient
 from resources.monitoring import verify_github_info
-
+from resources.lock import get_lock_status, update_lock_status
+from datetime import datetime, timedelta
 
 def row_to_dict(row):
     if row is None:
@@ -76,7 +77,37 @@ def update_system_parameter(id, args):
     db.session.commit()
 
 
+def get_github_verify_execute_status():
+    ret = get_lock_status("execute_sync_templ")
+
+    sync_date = ret["sync_date"] + timedelta(hours=8)
+    
+    # Get log info
+    with open("logs/sync-github-templ-api.log", "r") as f:
+        output = f.read()
+    output_list = output.split("----------------------------------------")
+
+    run_time = output_list[1].split("\n")[1]
+    if run_time is not None:
+        run_time = datetime.strptime(run_time[:-4], '%a %d %b %Y %I:%M:%S %p')
+        delta = run_time - sync_date
+
+        # Check the log is previous run
+        if delta.total_seconds() < 90:
+            ret["status"] = {"first_stage": False, "second_stage": False}
+        
+            # Check the first stage is done
+            ret["status"]["first_stage"] = output_list[-2].replace("\n", "").endswith("SUCCESS")
+
+            # Check the second stage is done
+            ret["status"]["second_stage"] = output_list[-1].replace("\n", "").endswith("SUCCESS")
+
+    ret["sync_date"] = str(ret["sync_date"])
+    return ret
+
+
 def execute_sync_template_by_perl(cmd, name):
+    update_lock_status("execute_sync_templ", is_lock=True, sync_date=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"))
     deployer_node_ip = config.get('DEPLOYER_NODE_IP')
     if deployer_node_ip is None:
         # get the k8s cluster the oldest node ip
@@ -84,8 +115,9 @@ def execute_sync_template_by_perl(cmd, name):
 
     value = SystemParameter.query.filter_by(name=name).first().value
     args = f'{value["account"]}:{value["token"]}'
-    cmd = f"perl {cmd} {args} > /tmp/sync-github-templ-api.log 2>&1"
+    cmd = f"perl {cmd} {args} > /iiidevopsNFS/api-logs/sync-github-templ-api.log 2>&1"
     util.ssh_to_node_by_key(cmd, deployer_node_ip)
+    update_lock_status("execute_sync_templ", is_lock=False, sync_date=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"))
 
 
 def execute_system_parameter_by_perl(name):
@@ -125,3 +157,8 @@ class SystemParameters(Resource):
                 raise apiError.DevOpsError(400, "Token should begin with 'ghp_'.",
                                            error=apiError.github_token_error("Token"))
         return util.success(update_system_parameter(param_id, args))
+
+class ParameterGithubVerifyExecuteStatus(Resource):
+    @jwt_required
+    def get(self):
+        return util.success(get_github_verify_execute_status())

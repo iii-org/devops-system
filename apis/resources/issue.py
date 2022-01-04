@@ -1949,7 +1949,7 @@ def put_custom_issue_filter(custom_filter_id, project_id, args):
 def pj_download_file_is_exist(project_id):
     file_exist = os.path.isfile(f"./logs/project_excel_file/{project_id}.xlsx")
     create_at = get_lock_status("download_pj_issues")["sync_date"] if file_exist else None
-    return {"file_exist": file_exist, "create_at": create_at}
+    return {"file_exist": file_exist, "create_at": str(create_at)}
 
 
 class DownloadIssueAsExcel():
