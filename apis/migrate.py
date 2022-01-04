@@ -35,7 +35,7 @@ VERSIONS = ['0.9.2', '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.4', '0.9.2.5',
             '1.10.0.2', '1.10.0.3', '1.10.0.4', '1.10.0.5', '1.10.0.6', '1.10.0.7', '1.10.0.8', '1.10.0.9', '1.10.0.10',
             '1.10.0.11', '1.10.0.12', '1.11.0.1', '1.11.0.2', '1.11.0.3', '1.11.0.4', '1.11.0.5', '1.11.0.6', '1.11.0.7', '1.11.0.8',
             '1.12.0.1', '1.12.0.2', '1.12.0.3', '1.12.0.4', '1.12.0.5', '1.12.0.6', '1.12.0.7', '1.12.0.8', '1.12.0.9', '1.12.1.0', '1.12.1.1',
-            '1.12.1.2', '1.12.1.3', '1.13.0.1']
+            '1.12.1.2', '1.12.1.3', '1.13.0.1', '1.13.0.2']
 ONLY_UPDATE_DB_MODELS = [
     '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.5', '0.9.2.6', '0.9.2.a8',
     '1.0.0.2', '1.3.0.1', '1.3.0.2', '1.3.0.3', '1.3.0.4', '1.3.1', '1.3.1.1', '1.3.1.2',
@@ -161,8 +161,16 @@ def upgrade(version):
         pass
     elif version == '1.13.0.1':
         add_project_nfs_path_real()
+    elif version == '1.13.0.2':
+        insert_execute_sync_templ_in_table_lock()
+    
 
-# Do it in next version(1.12), create and delete nfs folder as well
+
+def insert_execute_sync_templ_in_table_lock():
+    if Lock.query.filter_by(name="execute_sync_templ").first() is None:
+        redmine_info = Lock(name="execute_sync_templ", is_lock=False)
+        db.session.add(redmine_info)
+        db.session.commit()
 
 
 def add_project_nfs_path_real():

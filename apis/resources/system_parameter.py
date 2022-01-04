@@ -76,20 +76,25 @@ def update_system_parameter(id, args):
     db.session.commit()
 
 
+def execute_sync_template_by_perl(cmd, name):
+    deployer_node_ip = config.get('DEPLOYER_NODE_IP')
+    if deployer_node_ip is None:
+        # get the k8s cluster the oldest node ip
+        deployer_node_ip = kubernetesClient.get_the_oldest_node()[0]
+
+    value = SystemParameter.query.filter_by(name=name).first().value
+    args = f'{value["account"]}:{value["token"]}'
+    cmd = f"perl {cmd} {args} > /tmp/sync-github-templ-api.log 2>&1"
+    util.ssh_to_node_by_key(cmd, deployer_node_ip)
+
+
 def execute_system_parameter_by_perl(name):
     name_perl_mapping = {"github_verify_info": "/home/rkeuser/deploy-devops/bin/sync-github-templ.pl"}
     if name not in name_perl_mapping:
         return
     if name == "github_verify_info":
-        deployer_node_ip = config.get('DEPLOYER_NODE_IP')
-        if deployer_node_ip is None:
-            # get the k8s cluster the oldest node ip
-            deployer_node_ip = kubernetesClient.get_the_oldest_node()[0]
-
-        value = SystemParameter.query.filter_by(name=name).first().value
-        args = f'{value["account"]}:{value["token"]}'
-        cmd = f"perl {name_perl_mapping[name]} {args}"
-        thread = threading.Thread(target=util.ssh_to_node_by_key, args=(cmd, deployer_node_ip, ))
+        cmd = name_perl_mapping[name]
+        thread = threading.Thread(target=execute_sync_template_by_perl, args=(cmd, name, ))
         thread.start()
 
 
