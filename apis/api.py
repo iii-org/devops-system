@@ -34,7 +34,7 @@ from resources import logger, role as role, activity, starred_project, devops_ve
 from resources import project, gitlab, issue, user, redmine, wiki, version, apiTest, mock, harbor, \
     template, release, sync_redmine, plugin, kubernetesClient, project_permission, quality, sync_project, \
     sync_user, router, deploy, alert, trace_order, tag, monitoring, lock, wbs_cache, system_parameter, alert_message, \
-    maintenance
+    maintenance, issue_display_field
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -361,6 +361,9 @@ api.add_resource(issue.CheckIssueClosable, '/issues/<issue_id>/check_closable')
 # WBS cache
 api.add_resource(wbs_cache.WbsCache, '/wbs_cache')
 
+# Issue Field Display
+api.add_resource(issue_display_field.IssueFieldDisplay, '/issue_field_display')
+
 # Release
 api.add_resource(release.Releases, '/project/<project_id>/releases')
 api.add_resource(
@@ -605,6 +608,7 @@ api.add_resource(monitoring.GithubTokenVerify, '/monitoring/github/validate_toke
 
 # System parameter
 api.add_resource(system_parameter.SystemParameters, '/system_parameter', '/system_parameter/<int:param_id>')
+api.add_resource(system_parameter.ParameterGithubVerifyExecuteStatus, '/system_parameter/github_verify/status')
 
 # Status of Sync
 api.add_resource(lock.LockStatus, '/lock')

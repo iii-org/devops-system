@@ -681,6 +681,14 @@ class IssueDisplayField(db.Model):
     display_field = Column(ARRAY(String))
     type = Column(String)
 
+    @validates("type")
+    def validate_type(self, key, type):
+        if type is not None:
+            if type not in ["wbs_cache", "issue_list"]:
+                raise AssertionError(
+                    "Type must in wbs_cache / issue_list.")
+        return type    
+
 class ServerType(db.Model):
     id = Column(Integer, primary_key=True)
     server = Column(String)
