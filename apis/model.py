@@ -674,6 +674,13 @@ class WBSCache(db.Model):
     display_field = Column(ARRAY(String))
 
 
+class IssueDisplayField(db.Model):
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'), nullable=False)
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
+    display_field = Column(ARRAY(String))
+    type = Column(String)
+
 class ServerType(db.Model):
     id = Column(Integer, primary_key=True)
     server = Column(String)
