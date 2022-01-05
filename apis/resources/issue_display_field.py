@@ -3,8 +3,9 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from model import IssueDisplayField, db
 import util
 
+DEFAULT_DISPLAY_FIELD = ["name", "tracker", "status", "priority", "assigned_to"]
 
-def create_issue_display_field(user_id, pj_id, field_type, display_field=[]):
+def create_issue_display_field(user_id, pj_id, field_type, display_field=DEFAULT_DISPLAY_FIELD):
     wbs_cache = IssueDisplayField(
         user_id=user_id, project_id=pj_id, type=field_type, display_field=display_field)
     db.session.add(wbs_cache)
@@ -15,7 +16,7 @@ def get_issue_display_field(user_id, pj_id, field_type):
     lock_info = IssueDisplayField.query.filter_by(user_id=user_id, project_id=pj_id, type=field_type).first()
     if lock_info is None:
         create_issue_display_field(user_id, pj_id, field_type)
-        return []
+        return DEFAULT_DISPLAY_FIELD
 
     return lock_info.display_field
 
