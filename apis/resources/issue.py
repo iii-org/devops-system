@@ -671,15 +671,17 @@ def __deal_with_issue_redmine_output(redmine_output, closed_status=None):
                         if detail['old_value'] is not None:
                             user_info = user.get_user_id_name_by_plan_user_id(
                                 detail['old_value'])
-                            detail_info['old_value'] = {
-                                'user': {'id': user_info.id, 'name': user_info.name}}
+                            if user_info is not None:
+                                detail_info['old_value'] = {
+                                    'user': {'id': user_info.id, 'name': user_info.name}}
                         else:
                             detail_info['old_value'] = detail['old_value']
                         if detail['new_value'] is not None:
                             user_info = user.get_user_id_name_by_plan_user_id(
                                 detail['new_value'])
-                            detail_info['new_value'] = {
-                                'user': {'id': user_info.id, 'name': user_info.name}}
+                            if user_info is not None:
+                                detail_info['new_value'] = {
+                                    'user': {'id': user_info.id, 'name': user_info.name}}
                         else:
                             detail_info['new_value'] = detail['new_value']
                     else:
