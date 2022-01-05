@@ -324,6 +324,7 @@ api.add_resource(pipeline.PipelineYaml,
 
 # Websocket
 socketio.on_namespace(rancher.RancherWebsocketLog('/rancher/websocket/logs'))
+socketio.on_namespace(system_parameter.SyncTemplateWebsocketLog('/sync_template/websocket/logs'))
 socketio.on_namespace(
     kubernetesClient.KubernetesPodExec('/k8s/websocket/pod_exec'))
 

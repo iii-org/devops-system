@@ -3,6 +3,7 @@ from github import Github
 from flask_jwt_extended import jwt_required
 import config
 import json
+import time
 import model
 import threading
 import util as util
@@ -11,6 +12,7 @@ from resources import apiError, kubernetesClient
 from resources.monitoring import verify_github_info
 from resources.lock import get_lock_status, update_lock_status
 from datetime import datetime, timedelta
+from flask_socketio import Namespace, emit, disconnect
 
 def row_to_dict(row):
     if row is None:
@@ -130,6 +132,20 @@ def execute_system_parameter_by_perl(name):
         thread.start()
 
 
+def get_github_verify_log():
+    with open("logs/sync-github-templ-api.log", "r") as f:
+        output = f.read()
+
+def get_github_verify_log_websocket():
+    ws_start_time = time.time()
+    while (time.time() - ws_start_time) <= 900:
+        output = get_github_verify_log()
+        emit("sync_templ_log", output)
+        status = get_github_verify_execute_status()
+        if status.get("status", {}).get("second_stage", False):
+            break
+    
+
 # --------------------- Resources ---------------------
 
 
@@ -162,3 +178,15 @@ class ParameterGithubVerifyExecuteStatus(Resource):
     @jwt_required
     def get(self):
         return util.success(get_github_verify_execute_status())
+
+class SyncTemplateWebsocketLog(Namespace):
+    def on_connect(self):
+        print('Connect')
+
+    def on_disconnect(self):
+        print('Disconnect')
+
+    def on_get_perl_log(self, data):
+        print('get_perl_log')
+        get_github_verify_log_websocket()
+        
