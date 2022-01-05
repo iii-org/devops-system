@@ -135,6 +135,7 @@ def execute_system_parameter_by_perl(name):
 def get_github_verify_log():
     with open("logs/sync-github-templ-api.log", "r") as f:
         output = f.read()
+    return output
 
 def get_github_verify_log_websocket():
     ws_start_time = time.time()
