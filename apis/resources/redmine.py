@@ -438,8 +438,12 @@ class Redmine:
         return rm_con_json["default"]["email_delivery"]
 
     def rm_put_mail_setting(self, rm_put_mail_dict):
+        optional_parameters = ["ssl", "user_name", "password"]
         rm_configmap_dict = self.rm_get_or_create_configmap()
-        rm_configmap_dict["default"]["email_delivery"]["delivery_method"] = rm_put_mail_dict["delivery_method"]
+        if "openssl_verify_mode" in rm_put_mail_dict and rm_put_mail_dict["openssl_verify_mode"] != "":
+            rm_configmap_dict["default"]["email_delivery"]["openssl_verify_mode"] = rm_put_mail_dict["openssl_verify_mode"]
+        rm_put_mail_dict["smtp_settings"] = {
+            k: v for k, v in rm_put_mail_dict["smtp_settings"].items() if k not in optional_parameters or v != ""}
         rm_configmap_dict["default"]["email_delivery"]["smtp_settings"] = rm_put_mail_dict["smtp_settings"]
         out = {}
         out["configuration.yml"] = str(yaml.dump(rm_configmap_dict))
