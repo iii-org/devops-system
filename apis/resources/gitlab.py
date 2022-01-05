@@ -732,6 +732,7 @@ def get_project_commit_endpoint_object(project_id):
 def sync_commit_issues_relation(project_id):
     pulgin_project_object = get_project_plugin_object(project_id)
     issue_list = [str(issue.id) for issue in redmine.project.get(pulgin_project_object.plan_project_id).issues]
+    member_list = [member["username"] for member in gitlab.gl_project_list_member(pulgin_project_object.git_repository_id, {}).json()]
 
     for branch in gitlab.gl_get_branches(pulgin_project_object.git_repository_id):
         project_commit_endpoint = get_project_commit_endpoint_object(project_id)
@@ -741,23 +742,28 @@ def sync_commit_issues_relation(project_id):
                                         branch["name"], per_page=5000, since=end_point)
         for commit in commits:
             commit_issue_id_list = []
+            # Support one commit connects multi issues
             for commit_title in commit["title"].split(" "):
                 if commit_title.startswith("#") and commit_title.replace('#', '') in issue_list:
                     commit_issue_id_list.append(int(commit_title.replace("#", "")))
 
             if commit_issue_id_list != []:
+                # Check the author is project member, if not, do not save web_url
+                author_name = commit["author_name"]
+                web_url = None if author_name not in member_list else commit["web_url"]
+                    
                 # Just in case it stores duplicated commit.
                 try:
                     new = model.IssueCommitRelation(
                         commit_id=commit["id"],
                         project_id=project_id,
                         issue_ids=commit_issue_id_list,
-                        author_name=commit["author_name"],
+                        author_name=author_name,
                         commit_message=commit["message"],
                         commit_title=commit["title"],
                         commit_time=datetime.strptime(commit["committed_date"], "%Y-%m-%dT%H:%M:%S.%f%z"),
                         branch=branch["name"],
-                        web_url=commit["web_url"],
+                        web_url=web_url,
                         created_at=datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S"),
                         updated_at=datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S"),
                     )
@@ -1027,7 +1033,6 @@ class SyncGitCommitIssueRelation(Resource):
 
 
 class SyncGitCommitIssueRelationByPjName(Resource):
-
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('project_name', type=str, required=True)
