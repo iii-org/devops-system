@@ -18,6 +18,7 @@ from resources.logger import logger
 from . import kubernetesClient, role
 import json
 
+
 class Redmine:
     def __init__(self):
         self.key_generated = 0.0
@@ -435,6 +436,7 @@ class Redmine:
 
     def rm_get_mail_setting(self):
         rm_con_json = self.rm_get_or_create_configmap()
+        del (rm_con_json["default"]["email_delivery"]["delivery_method"])
         return rm_con_json["default"]["email_delivery"]
 
     def rm_put_mail_setting(self, rm_put_mail_dict):
@@ -444,6 +446,7 @@ class Redmine:
             rm_configmap_dict["default"]["email_delivery"]["openssl_verify_mode"] = rm_put_mail_dict["openssl_verify_mode"]
         rm_put_mail_dict["smtp_settings"] = {
             k: v for k, v in rm_put_mail_dict["smtp_settings"].items() if k not in optional_parameters or v != ""}
+        rm_configmap_dict["default"]["email_delivery"]["delivery_method"] = ":smtp"
         rm_configmap_dict["default"]["email_delivery"]["smtp_settings"] = rm_put_mail_dict["smtp_settings"]
         out = {}
         out["configuration.yml"] = str(yaml.dump(rm_configmap_dict))
