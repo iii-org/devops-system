@@ -86,8 +86,11 @@ def get_github_verify_execute_status():
     sync_date = ret["sync_date"] + timedelta(hours=8)
     
     # Get log info
-    with open("logs/sync-github-templ-api.log", "r") as f:
-        output = f.read()
+    output = get_github_verify_log()
+    if output is None:
+        ret["sync_date"] = str(ret["sync_date"])
+        return ret
+
     output_list = output.split("----------------------------------------")
 
     run_time = output_list[1].split("\n")[1]
