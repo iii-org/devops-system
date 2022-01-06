@@ -137,15 +137,18 @@ def get_github_verify_log():
         output = f.read()
     return output
 
-def get_github_verify_log_websocket():
-    ws_start_time = time.time()
-    while (time.time() - ws_start_time) <= 900:
-        output = get_github_verify_log()
-        emit("sync_templ_log", output)
-        status = get_github_verify_execute_status()
-        if status.get("status", {}).get("second_stage", False):
-            break
-    
+def get_github_verify_log_websocket(data):
+    if data == "get":
+        ws_start_time = time.time()
+        current_num = 0
+        while (time.time() - ws_start_time) <= 900:
+            outputs = get_github_verify_log().split("\n")
+            max_index = len(outputs)
+            emit("sync_templ_log", outputs[current_num:max_index])
+            status = get_github_verify_execute_status()
+            if status.get("status", {}).get("second_stage", False):
+                break
+            current_num = max_index
 
 # --------------------- Resources ---------------------
 
@@ -189,5 +192,5 @@ class SyncTemplateWebsocketLog(Namespace):
 
     def on_get_perl_log(self, data):
         print('get_perl_log')
-        get_github_verify_log_websocket()
+        get_github_verify_log_websocket(data)
         
