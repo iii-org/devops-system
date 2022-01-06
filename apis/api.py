@@ -33,7 +33,7 @@ from model import db
 from resources import logger, role as role, activity, starred_project, devops_version, cicd
 from resources import project, gitlab, issue, user, redmine, wiki, version, apiTest, mock, harbor, \
     template, release, sync_redmine, plugin, kubernetesClient, project_permission, quality, sync_project, \
-    sync_user, router, deploy, alert, trace_order, tag, monitoring, lock, wbs_cache, system_parameter, alert_message, \
+    sync_user, router, deploy, alert, trace_order, tag, monitoring, lock, system_parameter, alert_message, \
     maintenance, issue_display_field
 
 app = Flask(__name__)
@@ -359,8 +359,6 @@ api.add_resource(issue.Relation, '/issues/relation',
                  '/issues/relation/<int:relation_id>')
 api.add_resource(issue.CheckIssueClosable, '/issues/<issue_id>/check_closable')
 
-# WBS cache
-api.add_resource(wbs_cache.WbsCache, '/wbs_cache')
 
 # Issue Field Display
 api.add_resource(issue_display_field.IssueFieldDisplay, '/issue_field_display')
