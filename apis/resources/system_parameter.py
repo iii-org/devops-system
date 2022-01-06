@@ -144,7 +144,8 @@ def get_github_verify_log_websocket(data):
         while (time.time() - ws_start_time) <= 900:
             outputs = get_github_verify_log().split("\n")
             max_index = len(outputs)
-            emit("sync_templ_log", outputs[current_num:max_index])
+            output = "\n".join(outputs[current_num:max_index])
+            emit("sync_templ_log", output)
             status = get_github_verify_execute_status()
             if status.get("status", {}).get("second_stage", False):
                 break
