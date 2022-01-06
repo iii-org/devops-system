@@ -13,6 +13,7 @@ from resources.monitoring import verify_github_info
 from resources.lock import get_lock_status, update_lock_status
 from datetime import datetime, timedelta
 from flask_socketio import Namespace, emit, disconnect
+import os
 
 def row_to_dict(row):
     if row is None:
@@ -133,7 +134,10 @@ def execute_system_parameter_by_perl(name):
 
 
 def get_github_verify_log():
-    with open("logs/sync-github-templ-api.log", "r") as f:
+    file_path = "logs/sync-github-templ-api.log"
+    if not os.path.isfile(file_path):
+        return None
+    with open(file_path, "r") as f:
         output = f.read()
     return output
 
@@ -142,9 +146,12 @@ def get_github_verify_log_websocket(data):
         ws_start_time = time.time()
         current_num = 0
         while (time.time() - ws_start_time) <= 900:
-            outputs = get_github_verify_log().split("\n")
-            max_index = len(outputs)
-            output = "\n".join(outputs[current_num:max_index])
+            if get_github_verify_log() is None:
+                output = "Log is unavailable."
+            else:
+                outputs = get_github_verify_log().split("\n")
+                max_index = len(outputs)
+                output = "\n".join(outputs[current_num:max_index])
             emit("sync_templ_log", output)
             status = get_github_verify_execute_status()
             if status.get("status", {}).get("second_stage", False):
