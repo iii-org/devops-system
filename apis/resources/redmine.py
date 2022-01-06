@@ -475,7 +475,7 @@ class Redmine:
 
         if rm_emission_email_address is not None:
             bs4 = util.base64encode(rm_emission_email_address)
-            pl = "~/deploy-devops/redmine/redmine-tools.pl mail_from %s" %bs4
+            pl = f"~/deploy-devops/redmine/redmine-tools.pl mail_from {bs4}"
         else:
             pl = "~/deploy-devops/redmine/redmine-tools.pl mail_from"
 
