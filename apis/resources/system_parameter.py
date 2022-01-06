@@ -148,6 +148,7 @@ def get_github_verify_log_websocket(data):
         while (time.time() - ws_start_time) <= 900:
             if get_github_verify_log() is None:
                 output = "Log is unavailable."
+                continue
             else:
                 outputs = get_github_verify_log().split("\n")
                 max_index = len(outputs)

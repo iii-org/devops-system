@@ -666,14 +666,6 @@ class Lock(db.Model):
     is_lock = Column(Boolean)
     sync_date = Column(DateTime)
 
-
-class WBSCache(db.Model):
-    id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'), nullable=False)
-    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
-    display_field = Column(ARRAY(String))
-
-
 class IssueDisplayField(db.Model):
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'), nullable=False)
@@ -838,3 +830,9 @@ class NotificationMessageReplySlip(db.Model):
     message_id = Column(Integer, ForeignKey(NotificationMessage.id, ondelete='CASCADE'))
     user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'))
     created_at = Column(DateTime)
+
+
+class ProjectParentSonRelation(db.Model):
+    id = Column(Integer, primary_key=True)
+    parent_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
+    son_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
