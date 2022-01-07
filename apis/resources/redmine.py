@@ -442,8 +442,6 @@ class Redmine:
     def rm_put_mail_setting(self, rm_put_mail_dict):
         optional_parameters = ["ssl", "user_name", "password"]
         rm_configmap_dict = self.rm_get_or_create_configmap()
-        if "openssl_verify_mode" in rm_put_mail_dict and rm_put_mail_dict["openssl_verify_mode"] != "":
-            rm_configmap_dict["default"]["email_delivery"]["openssl_verify_mode"] = rm_put_mail_dict["openssl_verify_mode"]
         rm_put_mail_dict["smtp_settings"] = {
             k: v for k, v in rm_put_mail_dict["smtp_settings"].items() if k not in optional_parameters or v != ""}
         rm_configmap_dict["default"]["email_delivery"]["delivery_method"] = ":smtp"
@@ -480,8 +478,9 @@ class Redmine:
             pl = "~/deploy-devops/redmine/redmine-tools.pl mail_from"
 
         output_str, error_str = util.ssh_to_node_by_key(pl, deployer_node_ip)
-        if not error_str:   
-            return json.loads(output_str) 
+        if not error_str:
+            return json.loads(output_str)
+
 
 # --------------------- Resources ---------------------
 redmine = Redmine()
