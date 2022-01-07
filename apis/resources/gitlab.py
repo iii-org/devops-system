@@ -715,6 +715,14 @@ def get_project_plugin_object(project_id):
     return model.ProjectPluginRelation.query.filter_by(project_id=project_id).first()
 
 
+def get_root_project_id(project_id):
+    parent_son_relations_object = model.ProjectParentSonRelation.query.filter_by(son_id=project_id).first()
+    if parent_son_relations_object is None:
+        return project_id
+    parent_id = parent_son_relations_object.parent_id
+    return get_root_project_id(parent_id)
+
+
 def get_project_commit_endpoint_object(project_id):
     project_commit_endpoint = model.ProjectCommitEndpoint.query.filter_by(project_id=project_id).first()
     if project_commit_endpoint is None:
@@ -731,9 +739,13 @@ def get_project_commit_endpoint_object(project_id):
 
 def sync_commit_issues_relation(project_id):
     pulgin_project_object = get_project_plugin_object(project_id)
-    issue_list = [str(issue.id) for issue in redmine.project.get(pulgin_project_object.plan_project_id).issues]
     member_list = [member["username"] for member in gitlab.gl_project_list_member(pulgin_project_object.git_repository_id, {}).json()]
 
+    # Find root project to get all related issues
+    root_project_id = get_root_project_id(project_id)
+    root_plan_project_id = get_project_plugin_object(root_project_id).plan_project_id
+    issue_list = [str(issue.id) for issue in redmine.project.get(root_plan_project_id).issues]
+    
     for branch in gitlab.gl_get_branches(pulgin_project_object.git_repository_id):
         project_commit_endpoint = get_project_commit_endpoint_object(project_id)
         end_point = str(project_commit_endpoint.updated_at - timedelta(days=1)

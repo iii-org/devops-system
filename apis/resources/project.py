@@ -457,6 +457,15 @@ def try_to_delete(delete_method, argument):
             raise e
 
 
+def get_all_fathers_project(project_id, father_id_list):
+    parent_son_relations_object = model.ProjectParentSonRelation.query.filter_by(son_id=project_id).first()
+    if parent_son_relations_object is None:
+        return father_id_list
+    parent_id = parent_son_relations_object.parent_id
+    father_id_list.append(parent_id)
+    return get_all_fathers_project(parent_id, father_id_list)
+
+
 def get_all_sons_project(project_id, son_id_list):
     parent_son_relations_object = model.ProjectParentSonRelation.query.filter_by(parent_id=project_id).all()
     son_ids = [relation.son_id for relation in parent_son_relations_object]
