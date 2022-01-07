@@ -124,7 +124,7 @@ def sq_update_user_name(login, new_name):
 def sq_get_current_measures(project_name):
     params = {
         'metricKeys': METRICS,
-        'componentKey': project_name,
+        'component': project_name,
         'additionalFields': 'periods'
     }
     j = __api_get('/measures/component', params).json()
