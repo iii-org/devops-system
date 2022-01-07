@@ -3,12 +3,12 @@ from flask_restful import Resource
 
 import model
 import util
-from plugins.checkmarx import CheckMarx
-from plugins.sideex import sd_get_test_by_commit
-from plugins.sonarqube import sq_get_history_by_commit
-from plugins.webinspect import wi_get_scan_by_commit
-from plugins.zap import zap_get_test_by_commit
-from plugins.cmas import get_task_state
+from plugins.checkmarx.checkmarx_main import CheckMarx
+from plugins.sideex.sideex_main import sd_get_test_by_commit
+from plugins.sonarqube.sonarqube_main import sq_get_history_by_commit
+from plugins.webinspect.webinspect_main import wi_get_scan_by_commit
+from plugins.zap.zap_main import zap_get_test_by_commit
+from plugins.cmas.cmas_main import get_task_state
 from resources import apiTest, role
 
 
@@ -30,7 +30,6 @@ def check_plugin_software_open(row, project_id, commit_id):
         if not isinstance(cmas_content, dict):
             cmas_content = {}
         return {"cmas": cmas_content}
-
 
 
 def get_commit_summary(project_id, commit_id):

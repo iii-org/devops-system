@@ -16,6 +16,7 @@ from accessories import redmine_lib
 from resources.apiError import DevOpsError
 from resources.logger import logger
 from . import kubernetesClient, role
+import json
 
 
 class Redmine:
@@ -435,11 +436,15 @@ class Redmine:
 
     def rm_get_mail_setting(self):
         rm_con_json = self.rm_get_or_create_configmap()
+        del (rm_con_json["default"]["email_delivery"]["delivery_method"])
         return rm_con_json["default"]["email_delivery"]
 
     def rm_put_mail_setting(self, rm_put_mail_dict):
+        optional_parameters = ["ssl", "user_name", "password"]
         rm_configmap_dict = self.rm_get_or_create_configmap()
-        rm_configmap_dict["default"]["email_delivery"]["delivery_method"] = rm_put_mail_dict["delivery_method"]
+        rm_put_mail_dict["smtp_settings"] = {
+            k: v for k, v in rm_put_mail_dict["smtp_settings"].items() if k not in optional_parameters or v != ""}
+        rm_configmap_dict["default"]["email_delivery"]["delivery_method"] = ":smtp"
         rm_configmap_dict["default"]["email_delivery"]["smtp_settings"] = rm_put_mail_dict["smtp_settings"]
         out = {}
         out["configuration.yml"] = str(yaml.dump(rm_configmap_dict))
@@ -459,6 +464,22 @@ class Redmine:
         user = redmine_lib.redmine.user.get(plan_user_id)
         setattr(user, 'mail', new_email)
         user.save()
+
+    def rm_get_or_set_emission_email_address(self, rm_emission_email_address):
+        deployer_node_ip = config.get('DEPLOYER_NODE_IP')
+        if deployer_node_ip is None:
+            # get the k8s cluster the oldest node ip
+            deployer_node_ip = kubernetesClient.get_the_oldest_node()[0]
+
+        if rm_emission_email_address is not None:
+            bs4 = util.base64encode(rm_emission_email_address)
+            pl = f"~/deploy-devops/redmine/redmine-tools.pl mail_from {bs4}"
+        else:
+            pl = "~/deploy-devops/redmine/redmine-tools.pl mail_from"
+
+        output_str, error_str = util.ssh_to_node_by_key(pl, deployer_node_ip)
+        if not error_str:
+            return json.loads(output_str)
 
 
 # --------------------- Resources ---------------------
@@ -485,15 +506,22 @@ class RedmineMail(Resource):
     @jwt_required
     def get(self):
         role.require_admin()
-        return util.success(redmine.rm_get_mail_setting())
+        mail_setting = redmine.rm_get_mail_setting()
+        email_address = redmine.rm_get_or_set_emission_email_address(None)
+        mail_setting["emission_email_address"] = email_address["message"]
+        return util.success(mail_setting)
 
     @jwt_required
     def put(self):
         role.require_admin()
         parser = reqparse.RequestParser()
         parser.add_argument('redmine_mail', type=dict)
+        parser.add_argument('emission_email_address', type=str)
         args = parser.parse_args()
-        redmine.rm_put_mail_setting(args["redmine_mail"])
+        if args["emission_email_address"] is not None:
+            redmine.rm_get_or_set_emission_email_address(args["emission_email_address"])
+        if args["redmine_mail"] is not None:
+            redmine.rm_put_mail_setting(args["redmine_mail"])
         return util.success()
 
 

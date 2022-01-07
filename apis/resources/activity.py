@@ -13,8 +13,7 @@ import nexus
 import util
 from enums.action_type import ActionType
 from model import db
-from resources import role, apiError, issue
-from resources.apiError import DevOpsError
+from resources import role, issue
 
 
 def record_activity(action_type):
@@ -106,7 +105,7 @@ def limit_to_project(project_id):
     query = model.Activity.query.filter(model.Activity.action_type.in_([
         ActionType.CREATE_PROJECT, ActionType.UPDATE_PROJECT, ActionType.DELETE_PROJECT,
         ActionType.ADD_MEMBER, ActionType.REMOVE_MEMBER, ActionType.DELETE_ISSUE, ActionType.ADD_TAG,
-        ActionType.DELETE_TAG]
+        ActionType.DELETE_TAG, ActionType.MODIFY_HOOK]
     ))
     query = query.filter(or_(
         model.Activity.object_id.like(f'%@{project_id}'),
@@ -136,13 +135,19 @@ class Activity(model.Activity):
             self.action_parts += f'@{str(content)}'
         if self.action_type == ActionType.DELETE_ISSUE:
             self.fill_issue(args['issue_id'])
-        if self.action_type == ActionType.ADD_TAG:
-            self.object_id = str(args["project_id"])
-            self.action_parts = args["args"]["name"]
-        if self.action_type == ActionType.DELETE_TAG:
-            tag = model.Tag.query.get(args["tag_id"])
-            self.object_id = str(tag.project_id)
-            self.action_parts = tag.name
+        # if self.action_type == ActionType.ADD_TAG:
+        #     self.object_id = str(args["project_id"])
+        #     self.action_parts = args["args"]["name"]
+        # if self.action_type == ActionType.DELETE_TAG:
+        #     tag = model.Tag.query.get(args["tag_id"])
+        #     self.object_id = str(tag.project_id)
+        #     self.action_parts = tag.name
+        if self.action_type == ActionType.MODIFY_HOOK:
+            issue_commit_relation = model.IssueCommitRelation.query.get(args["args"]["commit_id"])
+            action_parts = f"{issue_commit_relation.commit_id[:8]} \
+                {issue_commit_relation.author_name} {issue_commit_relation.commit_message} is modified the relation from \
+                {issue_commit_relation.issue_ids} to {args['args']['issue_ids']}"
+            self.action_parts = action_parts
 
 
     def fill_by_return_value(self, ret):

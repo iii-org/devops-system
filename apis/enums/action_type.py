@@ -13,3 +13,4 @@ class ActionType(Enum):
     DELETE_ISSUE = 9  # Requires argument "issue_id"
     ADD_TAG = 10  # Requires argument "project_id"
     DELETE_TAG = 11  # Requires argument "project_id"
+    MODIFY_HOOK = 12 # Requires argument "issue_id"

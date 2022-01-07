@@ -693,8 +693,10 @@ def update_pj_plugin_status(plugin_name, disable):
             pipe_yaml_name = __tm_get_pipe_yamlfile_name(pj, branch_name=br.name)
             f = rs_gitlab.gl_get_file_from_lib(repository_id, pipe_yaml_name, branch_name=br.name)
             pipe_dict = yaml.safe_load(f.decode())
+            match = False
             for stage in pipe_dict["stages"]:
                 if get_tool_name(stage) == plugin_name:
+                    match = True
                     if "when" not in stage:
                         stage["when"] = {"branch": {"include": []}}
                     stage_when = stage.get("when", {}).get("branch", {}).get("include", {})
@@ -709,13 +711,14 @@ def update_pj_plugin_status(plugin_name, disable):
                     if len(stage_when) > 1:
                         if "skip" in stage_when:
                             stage_when.remove("skip")
-
-            next_run = pipeline.get_pipeline_next_run(repository_id)
-            f.content = yaml.dump(pipe_dict, sort_keys=False)
-            process = "啟用" if not disable else "停用"
-            f.save(branch=br.name,
-                   commit_message=f'UI 編輯 .rancher-pipeline.yaml {process} {plugin_name}.')
-            pipeline.stop_and_delete_pipeline(repository_id, next_run)
+            # Do not commit if plugin_name has not match any stage.
+            if match:
+                next_run = pipeline.get_pipeline_next_run(repository_id)
+                f.content = yaml.dump(pipe_dict, sort_keys=False)
+                process = "啟用" if not disable else "停用"
+                f.save(branch=br.name,
+                       commit_message=f'UI 編輯 .rancher-pipeline.yaml {process} {plugin_name}.')
+                pipeline.stop_and_delete_pipeline(repository_id, next_run)
 
 # --------------------- Resources ---------------------
 

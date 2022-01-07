@@ -671,15 +671,17 @@ def __deal_with_issue_redmine_output(redmine_output, closed_status=None):
                         if detail['old_value'] is not None:
                             user_info = user.get_user_id_name_by_plan_user_id(
                                 detail['old_value'])
-                            detail_info['old_value'] = {
-                                'user': {'id': user_info.id, 'name': user_info.name}}
+                            if user_info is not None:
+                                detail_info['old_value'] = {
+                                    'user': {'id': user_info.id, 'name': user_info.name}}
                         else:
                             detail_info['old_value'] = detail['old_value']
                         if detail['new_value'] is not None:
                             user_info = user.get_user_id_name_by_plan_user_id(
                                 detail['new_value'])
-                            detail_info['new_value'] = {
-                                'user': {'id': user_info.id, 'name': user_info.name}}
+                            if user_info is not None:
+                                detail_info['new_value'] = {
+                                    'user': {'id': user_info.id, 'name': user_info.name}}
                         else:
                             detail_info['new_value'] = detail['new_value']
                     else:
@@ -1949,7 +1951,7 @@ def put_custom_issue_filter(custom_filter_id, project_id, args):
 def pj_download_file_is_exist(project_id):
     file_exist = os.path.isfile(f"./logs/project_excel_file/{project_id}.xlsx")
     create_at = get_lock_status("download_pj_issues")["sync_date"] if file_exist else None
-    return {"file_exist": file_exist, "create_at": create_at}
+    return {"file_exist": file_exist, "create_at": str(create_at)}
 
 
 class DownloadIssueAsExcel():
@@ -2060,6 +2062,11 @@ class DownloadIssueAsExcel():
             lock_redmine.sync_date = sync_date
         db.session.commit()
 
+@record_activity(ActionType.MODIFY_HOOK)
+def modify_hook(args):
+    relation = model.IssueCommitRelation.query.get(args["commit_id"])
+    relation.issue_ids = args.issue_ids
+    db.session.commit()
 
 # --------------------- Resources ---------------------
 class SingleIssue(Resource):
@@ -2751,3 +2758,12 @@ class DownloadProject(Resource):
                 apiError.project_issue_file_not_exits(project_id))
 
         return send_file(f"../logs/project_excel_file/{project_id}.xlsx")
+
+class ModifyCommitIssueHook(Resource):
+    @jwt_required
+    def patch(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('commit_id', type=str, required=True)
+        parser.add_argument('issue_ids', type=int, action='append', required=True)
+        args = parser.parse_args()
+        return util.success(modify_hook(args))

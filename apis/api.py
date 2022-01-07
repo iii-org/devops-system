@@ -19,13 +19,12 @@ from sqlalchemy_utils import database_exists, create_database
 from werkzeug.routing import IntegerConverter
 
 import plugins
-from plugins import webinspect, sideex, zap, sonarqube, postman, ad, cmas
+from plugins import sideex, postman
 import config
 import migrate
 import model
 import system
 import resources.apiError as apiError
-import plugins.checkmarx as checkmarx
 import resources.pipeline as pipeline
 import resources.rancher as rancher
 import util
@@ -34,8 +33,8 @@ from model import db
 from resources import logger, role as role, activity, starred_project, devops_version, cicd
 from resources import project, gitlab, issue, user, redmine, wiki, version, apiTest, mock, harbor, \
     template, release, sync_redmine, plugin, kubernetesClient, project_permission, quality, sync_project, \
-    sync_user, router, deploy, alert, trace_order, tag, monitoring, lock, wbs_cache, system_parameter, alert_message, \
-    maintenance, notification_message
+    sync_user, router, deploy, alert, trace_order, tag, monitoring, lock, system_parameter, alert_message, \
+    maintenance, issue_display_field, notification_message
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -215,6 +214,8 @@ api.add_resource(gitlab.SyncGitCommitIssueRelationByPjName,
                  '/project/issues_commit_by_name',
                  )
 
+api.add_resource(pipeline.PipelineFile, '/project/<string:project_name>/pipeline_file')
+api.add_resource(project.CheckhasSonProject, '/project/<sint:project_id>/has_son')
 
 # Tag
 api.add_resource(tag.Tags, '/tags')
@@ -323,6 +324,7 @@ api.add_resource(pipeline.PipelineYaml,
 
 # Websocket
 socketio.on_namespace(rancher.RancherWebsocketLog('/rancher/websocket/logs'))
+socketio.on_namespace(system_parameter.SyncTemplateWebsocketLog('/sync_template/websocket/logs'))
 socketio.on_namespace(
     kubernetesClient.KubernetesPodExec('/k8s/websocket/pod_exec'))
 
@@ -356,9 +358,11 @@ api.add_resource(issue.MyIssueMonthStatistics, '/issues/month_statistics')
 api.add_resource(issue.Relation, '/issues/relation',
                  '/issues/relation/<int:relation_id>')
 api.add_resource(issue.CheckIssueClosable, '/issues/<issue_id>/check_closable')
+api.add_resource(issue.ModifyCommitIssueHook, '/modify_issue_hook')
 
-# WBS cache
-api.add_resource(wbs_cache.WbsCache, '/wbs_cache')
+
+# Issue Field Display
+api.add_resource(issue_display_field.IssueFieldDisplay, '/issue_field_display')
 
 # Release
 api.add_resource(release.Releases, '/project/<project_id>/releases')
@@ -368,11 +372,6 @@ api.add_resource(
 # Plugins
 api.add_resource(plugin.Plugins, '/plugins')
 api.add_resource(plugin.Plugin, '/plugins/<plugin_name>')
-
-# AD Server
-api.add_resource(ad.ADUsers, '/plugins/ad/users')
-api.add_resource(ad.ADUser, '/plugins/ad/user')
-api.add_resource(ad.ADOrganizations, '/plugins/ad/organizations')
 
 # dashboard
 api.add_resource(issue.DashboardIssuePriority,
@@ -449,42 +448,10 @@ api.add_resource(project.AllReports,
 api.add_resource(cicd.CommitCicdSummary,
                  '/project/<sint:project_id>/test_summary/<commit_id>')
 
-# Postman tests
-api.add_resource(postman.ExportToPostman,
-                 '/export_to_postman/<sint:project_id>')
-api.add_resource(postman.PostmanResults, '/postman_results/<sint:project_id>')
-api.add_resource(postman.PostmanReport, '/testResults',
-                 '/postman_report/<int:id>')
-
-# Checkmarx report generation
-api.add_resource(checkmarx.CreateCheckmarxScan, '/checkmarx/create_scan')
-api.add_resource(checkmarx.GetCheckmarxScans,
-                 '/checkmarx/scans/<sint:project_id>')
-api.add_resource(checkmarx.GetCheckmarxLatestScan,
-                 '/checkmarx/latest_scan/<sint:project_id>')
-api.add_resource(checkmarx.GetCheckmarxLatestScanStats,
-                 '/checkmarx/latest_scan_stats/<sint:project_id>')
-api.add_resource(checkmarx.GetCheckmarxLatestReport,
-                 '/checkmarx/latest_report/<sint:project_id>')
-api.add_resource(checkmarx.GetCheckmarxReport, '/checkmarx/report/<report_id>')
-api.add_resource(checkmarx.GetCheckmarxScanStatus,
-                 '/checkmarx/scan_status/<scan_id>')
-api.add_resource(checkmarx.GetCheckmarxScanStatistics,
-                 '/checkmarx/scan_stats/<scan_id>')
-api.add_resource(checkmarx.RegisterCheckmarxReport,
-                 '/checkmarx/report/<scan_id>')
-api.add_resource(checkmarx.GetCheckmarxReportStatus,
-                 '/checkmarx/report_status/<report_id>')
-api.add_resource(checkmarx.GetCheckmarxProject,
-                 '/checkmarx/get_cm_project_id/<sint:project_id>')
-api.add_resource(checkmarx.CancelCheckmarxScan,
-                 '/checkmarx/scan/<scan_id>/cancel')
 
 # Get everything by issue_id
 api.add_resource(issue.DumpByIssue, '/dump_by_issue/<issue_id>')
 
-# Sonarqube
-api.add_resource(sonarqube.SonarqubeHistory, '/sonarqube/<project_name>')
 
 # Files
 api.add_resource(project.ProjectFile, '/project/<sint:project_id>/file')
@@ -524,15 +491,6 @@ api.add_resource(harbor.HarborReplicationExecutionTasks,
 api.add_resource(harbor.HarborReplicationExecutionTaskLog,
                  '/harbor/replication/executions/<sint:execution_id>/tasks/<sint:task_id>/log')
 
-# WebInspect
-api.add_resource(webinspect.WebInspectScan, '/webinspect/create_scan',
-                 '/webinspect/list_scan/<project_name>')
-api.add_resource(webinspect.WebInspectScanStatus,
-                 '/webinspect/status/<scan_id>')
-api.add_resource(webinspect.WebInspectScanStatistics,
-                 '/webinspect/stats/<scan_id>')
-api.add_resource(webinspect.WebInspectReport, '/webinspect/report/<scan_id>')
-
 # Maintenance
 api.add_resource(maintenance.UpdateDbRcProjectPipelineId,
                  '/maintenance/update_rc_pj_pipe_id')
@@ -554,12 +512,6 @@ api.add_resource(activity.AllActivities, '/all_activities')
 api.add_resource(activity.ProjectActivities,
                  '/project/<sint:project_id>/activities')
 
-# ZAP
-api.add_resource(zap.Zap, '/zap', '/project/<sint:project_id>/zap')
-
-# Sideex
-api.add_resource(sideex.Sideex, '/sideex', '/project/<sint:project_id>/sideex')
-api.add_resource(sideex.SideexReport, '/sideex_report/<int:test_id>')
 
 # Sync Redmine, Gitlab, Rancher
 api.add_resource(sync_redmine.SyncRedmine, '/sync_redmine')
@@ -643,6 +595,8 @@ api.add_resource(monitoring.ServersAlive, '/monitoring/alive')
 api.add_resource(monitoring.RedmineAlive, '/monitoring/redmine/alive')
 api.add_resource(monitoring.GitlabAlive, '/monitoring/gitlab/alive')
 api.add_resource(monitoring.HarborAlive, '/monitoring/harbor/alive')
+# api.add_resource(monitoring.HarborUsage, '/monitoring/harbor/usage')
+# api.add_resource(monitoring.HarborProxy, '/monitoring/harbor/limit')
 api.add_resource(monitoring.SonarQubeAlive, '/monitoring/sonarqube/alive')
 api.add_resource(monitoring.RancherAlive, '/monitoring/rancher/alive')
 api.add_resource(monitoring.RancherDefaultName, '/monitoring/rancher/default_name')
@@ -654,6 +608,7 @@ api.add_resource(monitoring.GithubTokenVerify, '/monitoring/github/validate_toke
 
 # System parameter
 api.add_resource(system_parameter.SystemParameters, '/system_parameter', '/system_parameter/<int:param_id>')
+api.add_resource(system_parameter.ParameterGithubVerifyExecuteStatus, '/system_parameter/github_verify/status')
 
 # Status of Sync
 api.add_resource(lock.LockStatus, '/lock')
@@ -663,12 +618,6 @@ api.add_resource(alert_message.AlertMessages, '/alert_message')
 
 # message
 api.add_resource(notification_message.Message, '/notification_message', '/notification_message/<int:message_id>')
-
-# CMAS
-api.add_resource(cmas.CMASTask, '/cmas', '/repo_project/<sint:repository_id>/cmas')
-api.add_resource(cmas.CMASRemote, '/cmas/<string:task_id>')
-api.add_resource(cmas.CMASDonwload, '/cmas/<string:task_id>/<string:file_type>')
-api.add_resource(cmas.CMASSecret, '/cmas/secret')
 
 
 def start_prod():
@@ -683,6 +632,7 @@ def start_prod():
         logger.logger.info('Apply k8s-yaml cronjob.')
         template.tm_get_template_list()
         logger.logger.info('Get the public and local template list')
+        plugins.create_plugins_api_router(api)
         plugins.sync_plugins_in_db_and_code()
         with app.app_context():  # Prevent error appear(Working outside of application context.)
             kubernetesClient.create_cron_secret()
