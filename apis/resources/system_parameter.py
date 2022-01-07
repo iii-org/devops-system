@@ -152,14 +152,17 @@ def get_github_verify_log_websocket(data):
             if get_github_verify_log() is None:
                 output = "Log is unavailable."
                 emit("sync_templ_log", output)
-                continue
-            outputs = get_github_verify_log().split("\n")
+                break
             
+            # Call twice to prevent time lag.
             status = get_github_verify_execute_status()
-            if status.get("status", {}).get("second_stage", False):     
+            if status.get("status", {}).get("second_stage", False):    
+                outputs = get_github_verify_log().split("\n") 
                 output = "\n".join(outputs[current_num:])
                 emit("sync_templ_log", output)
                 break
+
+            outputs = get_github_verify_log().split("\n")
             max_index = len(outputs)
             output = "\n".join(outputs[current_num:max_index])            
             emit("sync_templ_log", output)
