@@ -746,6 +746,11 @@ def sync_commit_issues_relation(project_id):
     root_plan_project_id = get_project_plugin_object(root_project_id).plan_project_id
     issue_list = [str(issue.id) for issue in redmine.project.get(root_plan_project_id).issues]
     
+    # Find root project to get all related issues
+    root_project_id = get_root_project_id(project_id)
+    root_plan_project_id = get_project_plugin_object(root_project_id).plan_project_id
+    issue_list = [str(issue.id) for issue in redmine.project.get(root_plan_project_id).issues]
+    
     pj = gitlab.gl.projects.get(pulgin_project_object.git_repository_id)
     for br in pj.branches.list(all=True):
         project_commit_endpoint = get_project_commit_endpoint_object(project_id)
