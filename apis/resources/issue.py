@@ -2062,6 +2062,11 @@ class DownloadIssueAsExcel():
             lock_redmine.sync_date = sync_date
         db.session.commit()
 
+@record_activity(ActionType.MODIFY_HOOK)
+def modify_hook(args):
+    relation = model.IssueCommitRelation.query.get(args["commit_id"])
+    relation.issue_ids = args.issue_ids
+    db.session.commit()
 
 # --------------------- Resources ---------------------
 class SingleIssue(Resource):
@@ -2753,3 +2758,12 @@ class DownloadProject(Resource):
                 apiError.project_issue_file_not_exits(project_id))
 
         return send_file(f"../logs/project_excel_file/{project_id}.xlsx")
+
+class ModifyCommitIssueHook(Resource):
+    @jwt_required
+    def patch(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('commit_id', type=str, required=True)
+        parser.add_argument('issue_ids', type=int, action='append', required=True)
+        args = parser.parse_args()
+        return util.success(modify_hook(args))
