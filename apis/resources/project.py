@@ -150,6 +150,7 @@ def get_project_rows_by_user(user_id):
 # 新增redmine & gitlab的project並將db相關table新增資訊
 @record_activity(ActionType.CREATE_PROJECT)
 def create_project(user_id, args):
+    is_inherit_members = args.pop("is_inherit_members", False)
     if args["description"] is None:
         args["description"] = ""
     if args['display'] is None:
@@ -302,21 +303,37 @@ def create_project(user_id, args):
         db.session.add(new_relation)
         db.session.commit()
 
+        # 若有父專案, 加關聯進ProjectParentSonRelation
+        if args.get('parent_plan_project_id') is not None:
+            new_father_son_relation = model.ProjectParentSonRelation(
+                parent_id=args.get('parent_id'),
+                son_id=project_id
+            )
+            db.session.add(new_father_son_relation)
+            db.session.commit()
+
         # 加關聯project_user_role
         project_add_member(project_id, owner_id)
         if owner_id != user_id:
             project_add_subadmin(project_id, user_id)
         create_bot(project_id)
 
+        # 若要繼承父專案成員, 加剩餘成員加關聯project_user_role
+        if is_inherit_members and args.get('parent_plan_project_id') is not None:
+            for user in model.ProjectUserRole.query.filter_by(project_id=args.get('parent_id')).all():
+                if user.user_id != owner_id:
+                    project_add_member(project_id, user.user_id)
+
+
         # Commit and push file by template , if template env is not None
         if args["template_id"] is not None:
             template.tm_use_template_push_into_pj(args["template_id"], gitlab_pj_id,
                                                   args["tag_name"], args["arguments"])
 
-        # # Create project NFS folder
-        # project_nfs_file_path = f"./project-data/{gitlab_pj_name}"
-        # os.makedirs(project_nfs_file_path, exist_ok=True)
-        # os.chmod(project_nfs_file_path, 0o777)
+        # Create project NFS folder
+        project_nfs_file_path = f"./devops-data/project-data/{gitlab_pj_name}/pipeline"
+        os.makedirs(project_nfs_file_path, exist_ok=True)
+        os.chmod(project_nfs_file_path, 0o777)
 
         return {
             "project_id": project_id,
@@ -398,6 +415,8 @@ def create_bot(project_id):
 
 @record_activity(ActionType.UPDATE_PROJECT)
 def pm_update_project(project_id, args):
+    is_inherit_members = args.pop("is_inherit_members", False)
+
     plugin_relation = model.ProjectPluginRelation.query.filter_by(
         project_id=project_id).first()
     if args['description'] is not None:
@@ -407,6 +426,22 @@ def pm_update_project(project_id, args):
         args['parent_plan_project_id'] = get_plan_project_id(args.get('parent_id'))
     redmine.rm_update_project(plugin_relation.plan_project_id, args)
     nexus.nx_update_project(project_id, args)
+
+    # 若有父專案, 加關聯進ProjectParentSonRelation, 須等redmine更新完再寫入
+    if args.get('parent_plan_project_id') is not None and model.ProjectParentSonRelation. \
+        query.filter_by(parent_id=args.get('parent_id'), son_id=project_id).first() is None:
+        new_father_son_relation = model.ProjectParentSonRelation(
+            parent_id=args.get('parent_id'),
+            son_id=project_id
+        )
+        db.session.add(new_father_son_relation)
+        db.session.commit()
+    
+    # 若要繼承父專案成員, 加剩餘成員加關聯project_user_role
+    if is_inherit_members and args.get('parent_plan_project_id') is not None:
+        for user in model.ProjectUserRole.query.filter_by(project_id=args.get('parent_id')).all():
+            if model.ProjectUserRole.query.filter_by(project_id=project_id, user_id=user.user_id).first() is None :
+                project_add_member(project_id, user.user_id)
 
 
 @record_activity(ActionType.UPDATE_PROJECT)
@@ -422,19 +457,39 @@ def try_to_delete(delete_method, argument):
             raise e
 
 
+def get_all_sons_project(project_id, son_id_list):
+    parent_son_relations_object = model.ProjectParentSonRelation.query.filter_by(parent_id=project_id).all()
+    son_ids = [relation.son_id for relation in parent_son_relations_object]
+    son_id_list += son_ids
+    for id in son_ids:
+        get_all_sons_project(id, son_id_list)
+    return son_id_list
+    
+
+def delete_project(project_id):
+    # Check project has son project and get all ids
+    son_id_list = get_all_sons_project(project_id, [])
+    delete_id_list = [project_id] + son_id_list
+
+    # Check all porjects' servers are alive frist, 
+    # because redmine delete all sons projects at the same time.
+    for project_id in delete_id_list:
+        server_alive_output = Monitoring(project_id).check_project_alive()
+        if not server_alive_output["all_alive"]:
+            not_alive_server = [
+                server.capitalize() for server, alive in server_alive_output["alive"].items() if not alive]
+            servers = ", ".join(not_alive_server)
+            raise apiError.DevOpsError(500, f"{servers} not alive")
+    
+    for project_id in delete_id_list:
+        delete_project_helper(project_id)
+    return util.success()
+
 # 用project_id刪除redmine & gitlab的project並將db的相關table欄位一併刪除
 @record_activity(ActionType.DELETE_PROJECT)
-def delete_project(project_id):
+def delete_project_helper(project_id):
     # Get project name(for remove its NFS folder)
     project_name = model.Project.query.get(project_id).name
-
-    # Check server is all alive
-    server_alive_output = Monitoring(project_id).check_project_alive()
-    if not server_alive_output["all_alive"]:
-        not_alive_server = [
-            server.capitalize() for server, alive in server_alive_output["alive"].items() if not alive]
-        servers = ", ".join(not_alive_server)
-        raise apiError.DevOpsError(500, f"{servers} not alive")
 
     # 取得gitlab & redmine project_id
     relation = nx_get_project_plugin_relation(nexus_project_id=project_id)
@@ -497,11 +552,10 @@ def delete_project(project_id):
         "DELETE FROM public.projects WHERE id = '{0}'".format(
             project_id))
 
-    # # Delete project NFS folder
-    # project_nfs_file_path = f"./project-data/{project_name}"
-    # if os.path.isdir(project_nfs_file_path):
-    #     shutil.rmtree(project_nfs_file_path)
-    return util.success()
+    # Delete project NFS folder
+    project_nfs_file_path = f"./devops-data/project-data/{project_name}"
+    if os.path.isdir(project_nfs_file_path):
+        shutil.rmtree(project_nfs_file_path)
 
 
 def delete_bot(project_id):
@@ -1086,6 +1140,17 @@ def get_projects_by_user(user_id):
     return projects
 
 
+# def get_relation_list(project_id):
+#     son_project_ids = [relation.son_id for relation in model.ProjectParentSonRelation.query. \
+#         filter_by(parent_id=project_id).all()]
+
+#     project_parent_relation = model.ProjectParentSonRelation.query.filter_by(son_id=project_id).first()    
+#     parent_project_id = project_parent_relation.parent_id if project_parent_relation is not None else None
+#     return {
+#         "son_projects": son_project_ids,
+#         "parent_project": parent_project_id
+#     }
+
 # --------------------- Resources ---------------------
 
 
@@ -1145,6 +1210,7 @@ class SingleProject(Resource):
         parser.add_argument('due_date', type=str, required=True)
         parser.add_argument('owner_id', type=int, required=True)
         parser.add_argument('parent_id', type=int)
+        parser.add_argument('is_inherit_members', type=bool)
         args = parser.parse_args()
         check_project_args_patterns(args)
         check_project_owner_id(args['owner_id'], get_jwt_identity()[
@@ -1198,6 +1264,7 @@ class SingleProject(Resource):
         parser.add_argument('due_date', type=str, required=True)
         parser.add_argument('owner_id', type=int)
         parser.add_argument('parent_id', type=int)
+        parser.add_argument('is_inherit_members', type=bool)
         args = parser.parse_args()
         if args['arguments'] is not None:
             args['arguments'] = ast.literal_eval(args['arguments'])
@@ -1504,3 +1571,16 @@ class GitRepoIdToCiPipeId(Resource):
     @jwt_required
     def get(self, repository_id):
         return git_repo_id_to_ci_pipe_id(repository_id)
+
+
+class CheckhasSonProject(Resource):
+    @jwt_required
+    def get(self, project_id):
+        return {
+            "has_child": model.ProjectParentSonRelation.query.filter_by(parent_id=project_id) is not None
+        }
+    
+# class ProjectParentSonProject(Resource):
+#     @jwt_required
+#     def get(self, project_id):
+#         return get_relation_list(project_id)
