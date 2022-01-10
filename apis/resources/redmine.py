@@ -49,7 +49,7 @@ class Redmine:
                 self.last_operator_id = None
                 self.__refresh_key()
         params['key'] = self.redmine_key
-
+        print(data)
         output = util.api_request(method, url, headers, params, data)
 
         if resp_format != '':
@@ -244,6 +244,10 @@ class Redmine:
         if is_admin:
             params['user']['admin'] = True
         return self.__api_post('/users', data=params).json()
+
+    def rm_update_user_active(self, plan_user_id, status_id):
+        param = {"user": {"status": status_id}}
+        return self.__api_put(f'/users/{plan_user_id}', data=param)
 
     def rm_update_password(self, plan_user_id, new_pwd):
         param = {"user": {"password": new_pwd}}

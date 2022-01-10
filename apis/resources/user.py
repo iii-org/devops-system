@@ -284,8 +284,11 @@ def update_user(user_id, args, from_ad=False):
     if args.get("status", None) is not None:
         if args.get("status", None) == "disable":
             user.disabled = True
+            block_external_user(user_id)
         else:
             user.disabled = False
+            unblock_external_user(user_id)
+
     if 'from_ad' in args and args['from_ad'] is True:
         user.update_at = args['update_at']
     else:
@@ -346,6 +349,18 @@ def update_external_name(user_id, new_name, login, email):
     gitlab.gl_update_user_name(relation.repository_user_id, new_name)
     harbor.hb_update_user_email(relation.harbor_user_id, new_name, email)
     sonarqube.sq_update_user_name(login, new_name)
+
+
+def block_external_user(user_id):
+    relation = nx_get_user_plugin_relation(user_id=user_id)
+    redmine.rm_update_user_active(relation.plan_user_id, 3)
+    gitlab.gl_update_user_state(relation.repository_user_id, True)
+
+
+def unblock_external_user(user_id):
+    relation = nx_get_user_plugin_relation(user_id=user_id)
+    redmine.rm_update_user_active(relation.plan_user_id, 1)
+    gitlab.gl_update_user_state(relation.repository_user_id, False)
 
 
 def try_to_delete(delete_method, obj):
@@ -809,7 +824,6 @@ class SingleUser(Resource):
         parser.add_argument('status', type=str)
         parser.add_argument('department', type=str)
         parser.add_argument('title', type=str)
-        parser.add_argument('status', type=str)
         parser.add_argument('role_id', type=int)
         args = parser.parse_args()
         return update_user(user_id, args)

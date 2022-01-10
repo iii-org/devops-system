@@ -215,6 +215,19 @@ class GitLab(object):
                                   "skip_reconfirmation": True
                               })
 
+    def gl_update_user_state(self, repository_user_id, block_status):
+        if block_status:
+            return self.__api_post(f'/users/{repository_user_id}/block')
+        else:
+            return self.__api_post(f'/users/{repository_user_id}/unblock')
+
+    def gl_update_user_name(self, repository_user_id, new_name):
+        return self.__api_put(f'/users/{repository_user_id}',
+                              params={
+                                  "name": new_name,
+                                  "skip_reconfirmation": True
+                              })
+
     def gl_get_user_list(self, args):
         return self.__api_get('/users', params=args)
 
@@ -739,13 +752,14 @@ def get_project_commit_endpoint_object(project_id):
 
 def sync_commit_issues_relation(project_id):
     pulgin_project_object = get_project_plugin_object(project_id)
-    member_list = [member["username"] for member in gitlab.gl_project_list_member(pulgin_project_object.git_repository_id, {}).json()]
+    member_list = [member["username"]
+                   for member in gitlab.gl_project_list_member(pulgin_project_object.git_repository_id, {}).json()]
 
     # Find root project to get all related issues
     root_project_id = get_root_project_id(project_id)
     root_plan_project_id = get_project_plugin_object(root_project_id).plan_project_id
     issue_list = [str(issue.id) for issue in redmine.project.get(root_plan_project_id).issues]
-    
+
     for branch in gitlab.gl_get_branches(pulgin_project_object.git_repository_id):
         project_commit_endpoint = get_project_commit_endpoint_object(project_id)
         end_point = str(project_commit_endpoint.updated_at - timedelta(days=1)
@@ -763,7 +777,7 @@ def sync_commit_issues_relation(project_id):
                 # Check the author is project member, if not, do not save web_url
                 author_name = commit["author_name"]
                 web_url = None if author_name not in member_list else commit["web_url"]
-                    
+
                 # Just in case it stores duplicated commit.
                 try:
                     new = model.IssueCommitRelation(
