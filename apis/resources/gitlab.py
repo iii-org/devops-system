@@ -760,12 +760,13 @@ def sync_commit_issues_relation(project_id):
     root_plan_project_id = get_project_plugin_object(root_project_id).plan_project_id
     issue_list = [str(issue.id) for issue in redmine.project.get(root_plan_project_id).issues]
 
-    for branch in gitlab.gl_get_branches(pulgin_project_object.git_repository_id):
+    pj = gitlab.gl.projects.get(pulgin_project_object.git_repository_id)
+    for br in pj.branches.list(all=True):
         project_commit_endpoint = get_project_commit_endpoint_object(project_id)
         end_point = str(project_commit_endpoint.updated_at - timedelta(days=1)
                         ) if project_commit_endpoint.updated_at is not None else None
         commits = gitlab.gl_get_commits(pulgin_project_object.git_repository_id,
-                                        branch["name"], per_page=5000, since=end_point)
+                                        br.name, per_page=5000, since=end_point)
         for commit in commits:
             commit_issue_id_list = []
             # Support one commit connects multi issues
@@ -788,8 +789,8 @@ def sync_commit_issues_relation(project_id):
                         commit_message=commit["message"],
                         commit_title=commit["title"],
                         commit_time=datetime.strptime(commit["committed_date"], "%Y-%m-%dT%H:%M:%S.%f%z"),
-                        branch=branch["name"],
                         web_url=web_url,
+                        branch=br.name,
                         created_at=datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S"),
                         updated_at=datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S"),
                     )
@@ -799,9 +800,9 @@ def sync_commit_issues_relation(project_id):
                     model.db.session.rollback()
                     continue
 
-        if end_point is None or branch["last_commit_time"] > "T".join(end_point.split(" ")):
-            project_commit_endpoint.updated_at = branch["last_commit_time"]
-            project_commit_endpoint.commit_id = branch["id"]
+        if end_point is None or br.commit["committed_date"] > "T".join(end_point.split(" ")):
+            project_commit_endpoint.updated_at = br.commit["committed_date"]
+            project_commit_endpoint.commit_id = br.commit["id"]
             model.db.session.commit()
 
     # --------------------- Resources ---------------------
