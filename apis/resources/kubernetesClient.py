@@ -2,6 +2,7 @@ import base64
 import json
 import numbers
 import os
+from re import I
 import time
 from datetime import datetime, timezone
 
@@ -1279,6 +1280,11 @@ def delete_dev_environment_by_branch(namespace, branch_name):
                 info.append(
                     delete_namespace_deployment(namespace,
                                                 deployment.metadata.name))
+            else:
+                if check_if_k8s_iii_template(deployment.metadata, branch_name):
+                    info.append(
+                    delete_namespace_deployment(namespace,
+                                                deployment.metadata.name))
         return info
     except apiError.DevOpsError as e:
         if e.status_code != 404:
@@ -1625,7 +1631,27 @@ def check_if_iii_template(metadata):
             iii_template['commit_id'] in metadata.annotations and \
             'app' in metadata.labels:
         is_iii = True
+    
     return is_iii
+
+def check_if_k8s_iii_template(metadata, branch_name):
+    is_iii = False
+    try:
+        template_info = ""
+        for i, j in metadata.annotations.items():
+            if i == "kubectl.kubernetes.io/last-applied-configuration":
+                template_info = json.loads(j)
+        metadata = template_info["spec"]["template"]["metadata"]
+        if metadata.get("annotations") is not None and \
+            iii_template['project_name'] in metadata["annotations"] and \
+            metadata["annotations"].get(iii_template['branch']) == branch_name and \
+            iii_template['commit_id'] in metadata["annotations"] and \
+            metadata.get("labels") is not None:
+            is_iii = True
+    except:
+        is_iii = False
+    finally:
+        return is_iii
 
 
 def get_iii_template_info(metadata):
