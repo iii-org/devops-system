@@ -43,15 +43,15 @@
       "type": "select",
       "options": [
         {
-          "id": 1,
+          "value": 1,
           "name": "Engineer"
         },
         {
-          "id": 3,
+          "value": 3,
           "name": "Project Manager"
         },
         {
-          "id": 5,
+          "value": 5,
           "label": "Administrator"
         },
         {
