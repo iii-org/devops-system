@@ -1,6 +1,7 @@
 import base64
 import json
 import os
+import re
 from datetime import datetime, time, timedelta
 from pathlib import Path
 
@@ -768,11 +769,10 @@ def sync_commit_issues_relation(project_id):
         commits = gitlab.gl_get_commits(pulgin_project_object.git_repository_id,
                                         br.name, per_page=5000, since=end_point)
         for commit in commits:
-            commit_issue_id_list = []
-            # Support one commit connects multi issues
-            for commit_title in commit["title"].split(" "):
-                if commit_title.startswith("#") and commit_title.replace('#', '') in issue_list:
-                    commit_issue_id_list.append(int(commit_title.replace("#", "")))
+            # Find all issue_id startswith '#'
+            regex = re.compile(r'#(\d+)')
+            commit_issue_id_list = regex.findall(commit["title"])
+            commit_issue_id_list = [int(issue_id) for issue_id in commit_issue_id_list if issue_id in issue_list]
 
             if commit_issue_id_list != []:
                 # Check the author is project member, if not, do not save web_url
