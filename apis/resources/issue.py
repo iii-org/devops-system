@@ -166,9 +166,10 @@ class NexusIssue:
 
         }
         if hasattr(redmine_issue, 'project'):
-            if nx_project is None:
-                nx_project = model.Project.query.get(nexus.nx_get_project_plugin_relation(
-                    rm_project_id=redmine_issue.project.id).project_id)
+            project_id = nexus.nx_get_project_plugin_relation(
+                    rm_project_id=redmine_issue['project']['id']).project_id
+            if nx_project is None or project_has_child(project_id) or project_has_parent(project_id):
+                nx_project = model.Project.query.get(project_id)
             self.data['project'] = {
                 'id': nx_project.id,
                 'name': nx_project.name,
@@ -267,8 +268,7 @@ class NexusIssue:
             project_id = nexus.nx_get_project_plugin_relation(
                     rm_project_id=redmine_issue['project']['id']).project_id
             if nx_project is None or project_has_child(project_id) or project_has_parent(project_id):
-                nx_project = model.Project.query.get(nexus.nx_get_project_plugin_relation(
-                    rm_project_id=redmine_issue['project']['id']).project_id)
+                nx_project = model.Project.query.get(project_id)
             self.data["project"] = {
                 'id': nx_project.id,
                 'name': nx_project.name,
