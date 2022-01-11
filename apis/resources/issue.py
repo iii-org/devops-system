@@ -38,6 +38,7 @@ from resources.user import user_list_by_project
 from redminelib.exceptions import ResourceAttrError
 from resources import logger
 from resources.lock import get_lock_status
+from resources.project_relation import project_has_child, project_has_parent
 
 FLOW_TYPES = {"0": "Given", "1": "When", "2": "Then", "3": "But", "4": "And"}
 PARAMETER_TYPES = {'1': '文字', '2': '英數字', '3': '英文字', '4': '數字'}
@@ -263,7 +264,9 @@ class NexusIssue:
         }
 
         if self.data['project'] is not None:
-            if nx_project is None:
+            project_id = nexus.nx_get_project_plugin_relation(
+                    rm_project_id=redmine_issue['project']['id']).project_id
+            if nx_project is None or project_has_child(project_id) or project_has_parent(project_id):
                 nx_project = model.Project.query.get(nexus.nx_get_project_plugin_relation(
                     rm_project_id=redmine_issue['project']['id']).project_id)
             self.data["project"] = {

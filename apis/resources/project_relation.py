@@ -21,7 +21,12 @@ def get_all_sons_project(project_id, son_id_list):
         get_all_sons_project(id, son_id_list)
     return son_id_list
 
+def project_has_child(project_id):
+    return model.ProjectParentSonRelation.query.filter_by(parent_id=project_id).first() is not None
 
+def project_has_parent(project_id):
+    return model.ProjectParentSonRelation.query.filter_by(son_id=project_id).first() is not None
+    
 # def get_relation_list(project_id):
 #     son_project_ids = [relation.son_id for relation in model.ProjectParentSonRelation.query. \
 #         filter_by(parent_id=project_id).all()]
@@ -38,7 +43,7 @@ class CheckhasSonProject(Resource):
     @jwt_required
     def get(self, project_id):
         return {
-            "has_child": model.ProjectParentSonRelation.query.filter_by(parent_id=project_id).first() is not None
+            "has_child": project_has_child(project_id)
         }
     
 # class ProjectParentSonProject(Resource):
