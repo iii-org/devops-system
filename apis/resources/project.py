@@ -37,6 +37,7 @@ from .gitlab import gitlab
 from .rancher import rancher, remove_pj_executions
 from .redmine import redmine
 from resources.monitoring import Monitoring
+from resources.project_relation import get_all_sons_project
 
 
 def get_pm_project_list(user_id, pj_due_start=None, pj_due_end=None, pj_members_count=None, disable=None):
@@ -455,25 +456,6 @@ def try_to_delete(delete_method, argument):
     except DevOpsError as e:
         if e.status_code != 404:
             raise e
-
-
-def get_all_fathers_project(project_id, father_id_list):
-    parent_son_relations_object = model.ProjectParentSonRelation.query.filter_by(son_id=project_id).first()
-    if parent_son_relations_object is None:
-        return father_id_list
-    parent_id = parent_son_relations_object.parent_id
-    father_id_list.append(parent_id)
-    return get_all_fathers_project(parent_id, father_id_list)
-
-
-def get_all_sons_project(project_id, son_id_list):
-    parent_son_relations_object = model.ProjectParentSonRelation.query.filter_by(parent_id=project_id).all()
-    son_ids = [relation.son_id for relation in parent_son_relations_object]
-    son_id_list += son_ids
-    for id in son_ids:
-        get_all_sons_project(id, son_id_list)
-    return son_id_list
-    
 
 def delete_project(project_id):
     # Check project has son project and get all ids
@@ -1149,16 +1131,6 @@ def get_projects_by_user(user_id):
     return projects
 
 
-# def get_relation_list(project_id):
-#     son_project_ids = [relation.son_id for relation in model.ProjectParentSonRelation.query. \
-#         filter_by(parent_id=project_id).all()]
-
-#     project_parent_relation = model.ProjectParentSonRelation.query.filter_by(son_id=project_id).first()    
-#     parent_project_id = project_parent_relation.parent_id if project_parent_relation is not None else None
-#     return {
-#         "son_projects": son_project_ids,
-#         "parent_project": parent_project_id
-#     }
 
 # --------------------- Resources ---------------------
 
@@ -1581,15 +1553,3 @@ class GitRepoIdToCiPipeId(Resource):
     def get(self, repository_id):
         return git_repo_id_to_ci_pipe_id(repository_id)
 
-
-class CheckhasSonProject(Resource):
-    @jwt_required
-    def get(self, project_id):
-        return {
-            "has_child": model.ProjectParentSonRelation.query.filter_by(parent_id=project_id) is not None
-        }
-    
-# class ProjectParentSonProject(Resource):
-#     @jwt_required
-#     def get(self, project_id):
-#         return get_relation_list(project_id)

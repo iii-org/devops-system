@@ -34,7 +34,7 @@ from resources import logger, role as role, activity, starred_project, devops_ve
 from resources import project, gitlab, issue, user, redmine, wiki, version, apiTest, mock, harbor, \
     template, release, sync_redmine, plugin, kubernetesClient, project_permission, quality, sync_project, \
     sync_user, router, deploy, alert, trace_order, tag, monitoring, lock, system_parameter, alert_message, \
-    maintenance, issue_display_field
+    maintenance, issue_display_field, project_relation
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -215,7 +215,7 @@ api.add_resource(gitlab.SyncGitCommitIssueRelationByPjName,
                  )
 
 api.add_resource(pipeline.PipelineFile, '/project/<string:project_name>/pipeline_file')
-api.add_resource(project.CheckhasSonProject, '/project/<sint:project_id>/has_son')
+api.add_resource(project_relation.CheckhasSonProject, '/project/<sint:project_id>/has_son')
 
 # Tag
 api.add_resource(tag.Tags, '/tags')

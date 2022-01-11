@@ -25,6 +25,7 @@ from model import GitCommitNumberEachDays, db, SystemParameter, Project
 from resources import apiError, role
 from resources.apiError import DevOpsError
 from resources.logger import logger
+from resources.project_relation import get_all_fathers_project, get_all_sons_project
 
 
 iiidevops_system_group = ["iiidevops-templates", "local-templates", "iiidevops-catalog"]
@@ -706,7 +707,9 @@ class GitLab(object):
 
 
 def get_commit_issues_relation(project_id, issue_id, limit):
-    commit_issues_relations = model.IssueCommitRelation.query.filter_by(project_id=project_id). \
+    relation_project_list = [project_id] + get_all_fathers_project(project_id, []) + get_all_sons_project(project_id, [])
+    
+    commit_issues_relations = model.IssueCommitRelation.query.filter(model.IssueCommitRelation.project_id.in_(tuple(relation_project_list))). \
         filter(model.IssueCommitRelation.issue_ids.contains([int(issue_id)])).order_by(
             desc(model.IssueCommitRelation.commit_time)).limit(limit).all()
 
