@@ -25,7 +25,7 @@
     },
     {
       "key": "password",
-      "type": "string",
+      "type": "password",
       "store": "secret_system"
     },
     {
@@ -59,7 +59,8 @@
           "name": "QA"
         }
       ],
-      "store": "secret_system"
+      "store": "secret_system",
+      "placeholder": "Please Select default role ID"
     },
     {
       "key": "ssl",
@@ -97,7 +98,7 @@
     },
     {
       "key": "ca_certs_data",
-      "type": "string",
+      "type": "password",
       "store": "secret_system"
     }
   ]
