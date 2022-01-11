@@ -25,7 +25,7 @@ from model import GitCommitNumberEachDays, db, SystemParameter, Project
 from resources import apiError, role
 from resources.apiError import DevOpsError
 from resources.logger import logger
-from resources.project_relation import get_all_fathers_project, get_all_sons_project
+from resources.project_relation import get_all_fathers_project, get_all_sons_project, get_root_project_id
 
 
 iiidevops_system_group = ["iiidevops-templates", "local-templates", "iiidevops-catalog"]
@@ -730,14 +730,6 @@ def get_commit_issues_relation(project_id, issue_id, limit):
 
 def get_project_plugin_object(project_id):
     return model.ProjectPluginRelation.query.filter_by(project_id=project_id).first()
-
-
-def get_root_project_id(project_id):
-    parent_son_relations_object = model.ProjectParentSonRelation.query.filter_by(son_id=project_id).first()
-    if parent_son_relations_object is None:
-        return project_id
-    parent_id = parent_son_relations_object.parent_id
-    return get_root_project_id(parent_id)
 
 
 def get_project_commit_endpoint_object(project_id):

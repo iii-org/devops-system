@@ -216,6 +216,7 @@ api.add_resource(gitlab.SyncGitCommitIssueRelationByPjName,
 
 api.add_resource(pipeline.PipelineFile, '/project/<string:project_name>/pipeline_file')
 api.add_resource(project_relation.CheckhasSonProject, '/project/<sint:project_id>/has_son')
+api.add_resource(project_relation.GetProjectRootID, '/project/<sint:project_id>/root_project')
 api.add_resource(project.ProjectRelation, '/project/<sint:project_id>/relation')
 
 # Tag

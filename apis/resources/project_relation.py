@@ -21,6 +21,13 @@ def get_all_sons_project(project_id, son_id_list):
         get_all_sons_project(id, son_id_list)
     return son_id_list
 
+def get_root_project_id(project_id):
+    parent_son_relations_object = model.ProjectParentSonRelation.query.filter_by(son_id=project_id).first()
+    if parent_son_relations_object is None:
+        return project_id
+    parent_id = parent_son_relations_object.parent_id
+    return get_root_project_id(parent_id)
+
 def project_has_child(project_id):
     return model.ProjectParentSonRelation.query.filter_by(parent_id=project_id).first() is not None
 
@@ -46,6 +53,11 @@ class CheckhasSonProject(Resource):
             "has_child": project_has_child(project_id)
         }
     
+class GetProjectRootID(Resource):
+    @jwt_required
+    def get(self, project_id):
+        return {"root_project_id": get_root_project_id(project_id)}
+
 # class ProjectParentSonProject(Resource):
 #     @jwt_required
 #     def get(self, project_id):
