@@ -15,7 +15,7 @@ from nexus import nx_get_project_plugin_relation
 from resources import role
 from .gitlab import GitLab, commit_id_to_url
 from .rancher import rancher
-from os import listdir, remove, makedirs
+from os import listdir, makedirs
 from shutil import rmtree
 
 gitlab = GitLab()
@@ -272,7 +272,7 @@ def download_pipeline_file(project_name, folder_name, file_name):
 def delete_pipeline_file(project_name, folder_name, file_name):
     file_path = f"devops-data/project-data/{project_name}/pipeline/{folder_name}"
     check_pipeline_folder_exist(file_name, file_path)
-    remove(f"{file_path}/{file_name}")
+    rmtree(file_path)
 
 # --------------------- Resources ---------------------
 class PipelineExec(Resource):

@@ -109,8 +109,8 @@ def get_plugin_config(plugin_name):
         if item['type'] == 'select':
             o['options'] = item['options']
             #  If Plugin is AD , get system role list
-            if plugin_name == 'ad':
-                o['options'] = role.get_user_roles()
+            if plugin_name == 'ad' and item['key'] == 'default_role_id':
+                o['options'] = role.get_user_roles(True)
         ret['arguments'].append(o)
     return ret
 

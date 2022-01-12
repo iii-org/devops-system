@@ -519,20 +519,24 @@ def get_tool_name(stage):
 
 
 def update_branches(stage, pipline_soft, branch, enable_key_name):
+    had_update_branche = False
     if get_tool_name(stage) is not None and pipline_soft["key"] == get_tool_name(stage):
         if "when" not in stage:
             stage["when"] = {"branch": {"include": []}}
         stage_when = stage.get("when", {}).get("branch", {}).get("include", {})
         if pipline_soft[enable_key_name] and branch not in stage_when:
             stage_when.append(branch)
+            had_update_branche = True
         elif pipline_soft[enable_key_name] is False and branch in stage_when:
             stage_when.remove(branch)
-
+            had_update_branche = True
         if len(stage_when) == 0:
             stage_when.append("skip")
-        elif len(stage_when) > 1:
-            if "skip" in stage_when:
-                stage_when.remove("skip")
+            had_update_branche = True
+        elif len(stage_when) > 1 and "skip" in stage_when:
+            stage_when.remove("skip")
+            had_update_branche = True
+    return had_update_branche
 
 
 def tm_update_pipline_branches(repository_id, data, default=True, run=False):
@@ -542,6 +546,7 @@ def tm_update_pipline_branches(repository_id, data, default=True, run=False):
     if __check_git_project_is_empty(pj):
         return
     for br in pj.branches.list(all=True):
+        had_update_branche = False
         pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj)
         if pipe_yaml_file_name is None:
             return
@@ -550,20 +555,21 @@ def tm_update_pipline_branches(repository_id, data, default=True, run=False):
         for stage in pipe_json["stages"]:
             if default:
                 for put_pipe_soft in data["stages"]:
-                    update_branches(stage, put_pipe_soft, pj.default_branch, "has_default_branch")
+                    had_update_branche |= update_branches(stage, put_pipe_soft, pj.default_branch, "has_default_branch")
             else:
                 for input_branch, multi_software in data.items():
                     for input_soft_enable in multi_software:
-                        update_branches(stage, input_soft_enable, input_branch, "enable")
-        branch_name_in_data = list(data.keys())[0]
-        if run is False or (run is True and br.name != branch_name_in_data):
-            next_run = pipeline.get_pipeline_next_run(repository_id)
-            print(f"next_run: {next_run}")
-        f.content = yaml.dump(pipe_json, sort_keys=False)
-        f.save(branch=br.name,
-               commit_message='UI 編輯 .rancher-pipeline.yaml 啟用停用分支')
-        if run is False or (run is True and br.name != branch_name_in_data):
-            pipeline.stop_and_delete_pipeline(repository_id, next_run, branch=br.name)
+                        had_update_branche |= update_branches(stage, input_soft_enable, input_branch, "enable")
+        if had_update_branche is True:
+            branch_name_in_data = list(data.keys())[0]
+            if run is False or (run is True and br.name != branch_name_in_data):
+                next_run = pipeline.get_pipeline_next_run(repository_id)
+                print(f"next_run: {next_run}")
+            f.content = yaml.dump(pipe_json, sort_keys=False)
+            f.save(branch=br.name,
+                   commit_message='UI 編輯 .rancher-pipeline.yaml 啟用停用分支')
+            if run is False or (run is True and br.name != branch_name_in_data):
+                pipeline.stop_and_delete_pipeline(repository_id, next_run, branch=br.name)
 
 
 def initial_rancher_pipline_info(repository_id):

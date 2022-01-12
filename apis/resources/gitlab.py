@@ -1,6 +1,7 @@
 import base64
 import json
 import os
+import re
 from datetime import datetime, time, timedelta
 from pathlib import Path
 
@@ -15,7 +16,7 @@ from accessories.redmine_lib import redmine
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import desc
 from resources.kubernetesClient import ApiK8sClient
-
+from sqlalchemy.orm import joinedload
 import config
 import model
 import nexus
@@ -24,6 +25,7 @@ from model import GitCommitNumberEachDays, db, SystemParameter, Project
 from resources import apiError, role
 from resources.apiError import DevOpsError
 from resources.logger import logger
+from resources.project_relation import get_all_fathers_project, get_all_sons_project, get_root_project_id
 
 
 iiidevops_system_group = ["iiidevops-templates", "local-templates", "iiidevops-catalog"]
@@ -704,8 +706,26 @@ class GitLab(object):
             util.write_json_file(f"{base_path}/{pj.id}/{date}.json", result)
 
 
+def get_all_repo_members(self, project_id=None):
+    gl_users = []
+    page = 1
+    x_total_pages = 10
+    while page <= x_total_pages:
+        params = {'page': page}
+        if project_id:
+            output = gitlab.gl_project_list_member(project_id, params)
+        else:
+            output = gitlab.gl_get_user_list(params)
+        gl_users.extend(output.json())
+        x_total_pages = int(output.headers['X-Total-Pages'])
+        page += 1
+    return gl_users
+
+
 def get_commit_issues_relation(project_id, issue_id, limit):
-    commit_issues_relations = model.IssueCommitRelation.query.filter_by(project_id=project_id). \
+    relation_project_list = [project_id] + get_all_fathers_project(project_id, []) + get_all_sons_project(project_id, [])
+    
+    commit_issues_relations = model.IssueCommitRelation.query.filter(model.IssueCommitRelation.project_id.in_(tuple(relation_project_list))). \
         filter(model.IssueCommitRelation.issue_ids.contains([int(issue_id)])).order_by(
             desc(model.IssueCommitRelation.commit_time)).limit(limit).all()
 
@@ -728,14 +748,6 @@ def get_project_plugin_object(project_id):
     return model.ProjectPluginRelation.query.filter_by(project_id=project_id).first()
 
 
-def get_root_project_id(project_id):
-    parent_son_relations_object = model.ProjectParentSonRelation.query.filter_by(son_id=project_id).first()
-    if parent_son_relations_object is None:
-        return project_id
-    parent_id = parent_son_relations_object.parent_id
-    return get_root_project_id(parent_id)
-
-
 def get_project_commit_endpoint_object(project_id):
     project_commit_endpoint = model.ProjectCommitEndpoint.query.filter_by(project_id=project_id).first()
     if project_commit_endpoint is None:
@@ -752,8 +764,7 @@ def get_project_commit_endpoint_object(project_id):
 
 def sync_commit_issues_relation(project_id):
     pulgin_project_object = get_project_plugin_object(project_id)
-    member_list = [member["username"]
-                   for member in gitlab.gl_project_list_member(pulgin_project_object.git_repository_id, {}).json()]
+    member_list =  [member["username"] for member in get_all_repo_members(project_id) if not member["username"].startswith("project_bot")]
 
     # Find root project to get all related issues
     root_project_id = get_root_project_id(project_id)
@@ -768,11 +779,10 @@ def sync_commit_issues_relation(project_id):
         commits = gitlab.gl_get_commits(pulgin_project_object.git_repository_id,
                                         br.name, per_page=5000, since=end_point)
         for commit in commits:
-            commit_issue_id_list = []
-            # Support one commit connects multi issues
-            for commit_title in commit["title"].split(" "):
-                if commit_title.startswith("#") and commit_title.replace('#', '') in issue_list:
-                    commit_issue_id_list.append(int(commit_title.replace("#", "")))
+            # Find all issue_id startswith '#'
+            regex = re.compile(r'#(\d+)')
+            commit_issue_id_list = regex.findall(commit["title"])
+            commit_issue_id_list = [int(issue_id) for issue_id in commit_issue_id_list if issue_id in issue_list]
 
             if commit_issue_id_list != []:
                 # Check the author is project member, if not, do not save web_url
@@ -804,6 +814,48 @@ def sync_commit_issues_relation(project_id):
             project_commit_endpoint.updated_at = br.commit["committed_date"]
             project_commit_endpoint.commit_id = br.commit["id"]
             model.db.session.commit()
+
+
+def get_commit_issues_hook_by_branch(project_id, branch_name, limit):
+    ret_list = []
+    account = get_jwt_identity()["user_account"]
+    repo_id = get_project_plugin_object(project_id).git_repository_id 
+    gitlab_account_list =  [member["username"] for member in get_all_repo_members(project_id) if not member["username"].startswith("project_bot")]
+
+    # list users in the project
+    project_row = model.Project.query.options(
+        joinedload(model.Project.user_role).
+        joinedload(model.ProjectUserRole.user).
+        joinedload(model.User.project_role)
+    ).filter_by(id=project_id).one()
+    users = list(filter(lambda x: not x.user.disabled, project_row.user_role))
+    account_list = ["sysadmin"] + [
+        model.User.query.get(user.user_id).login for user in users if not model.User.query.get(user.user_id).login.startswith("project_bot")] 
+    
+    # Find root project to get all related issues
+    root_project_id = get_root_project_id(project_id)
+    root_plan_project_id = get_project_plugin_object(root_project_id).plan_project_id
+    issue_list = [str(issue.id) for issue in redmine.project.get(root_plan_project_id).issues]
+
+    commits = gitlab.gl_get_commits(repo_id, branch_name, per_page=limit)
+    for commit in commits:
+        ret = {"issue_hook": {}}
+        # Find all issue_id startswith '#'
+        regex = re.compile(r'#(\d+)')
+        commit_issue_id_list = regex.findall(commit["title"])
+        for issue_id in commit_issue_id_list:
+            if issue_id in issue_list:
+                ret["issue_hook"][int(issue_id)] = account in account_list
+
+        ret["commit_id"] = commit["id"]
+        ret["author_name"] = commit["author_name"]
+        ret["commit_title"] = commit["title"]
+        ret["commit_time"] = str(datetime.strptime(commit["committed_date"], "%Y-%m-%dT%H:%M:%S.%f%z"))
+        ret["gitlab_url"] = None if account not in gitlab_account_list else commit["web_url"]
+
+        ret_list.append(ret)
+
+    return ret_list
 
     # --------------------- Resources ---------------------
 gitlab = GitLab()
@@ -1074,3 +1126,13 @@ class SyncGitCommitIssueRelationByPjName(Resource):
 
         sync_commit_issues_relation(project.id)
         return util.success()
+
+
+class GetCommitIssueHookByBranch(Resource):
+    @jwt_required
+    def get(self, project_id):
+        parser = reqparse.RequestParser()
+        parser.add_argument('limit', type=int, default=10)
+        parser.add_argument('branch_name', type=str, required=True)
+        args = parser.parse_args()
+        return util.success(get_commit_issues_hook_by_branch(project_id, args["branch_name"], args["limit"]))

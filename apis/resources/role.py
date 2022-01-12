@@ -108,12 +108,15 @@ def verify_project_user(project_id, user_id):
     return count > 0
 
 
-def get_user_roles():
+def get_user_roles(is_option=False):
     output_array = []
     for r in ALL_ROLES:
         if r is BOT:
             continue
-        role_info = {"id": r.id, "name": r.name}
+        if is_option:
+            role_info = {"value": r.id, "name": r.name}
+        else:
+            role_info = {"id": r.id, "name": r.name}
         output_array.append(role_info)
     return output_array
 

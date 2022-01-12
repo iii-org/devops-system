@@ -83,8 +83,8 @@ def update_system_parameter(id, args):
 def get_github_verify_execute_status():
     ret = get_lock_status("execute_sync_templ")
 
-    sync_date = ret["sync_date"] + timedelta(hours=8)
-    
+    sync_date = ret["sync_date"] if ret["sync_date"] is None else ret["sync_date"] + timedelta(hours=8)
+
     # Get log info
     output = get_github_verify_log()
     if output is None:
