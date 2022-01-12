@@ -1,5 +1,5 @@
 import model
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource
 import util
 
@@ -38,12 +38,22 @@ def project_has_parent(project_id):
 def get_relation_list(project_id, ret):
     son_project_ids = [relation.son_id for relation in model.ProjectParentSonRelation.query. \
         filter_by(parent_id=project_id).all()]
+    son_pj_ids = []
     if son_project_ids != []:
+        # Check user is project's member
+        if get_jwt_identity()["role_id"] == 5:
+            son_pj_ids = son_project_ids
+        else:
+            user_id = get_jwt_identity()["user_id"]
+            son_pj_ids = [
+                son_pj_id for son_pj_id in son_project_ids if model.ProjectUserRole.query. \
+                    filter_by(user_id=user_id, project_id=project_id).first() is not None]
+        
         ret.append({
             "parent": project_id,
-            "child": son_project_ids
+            "child": son_pj_ids
         })
-    for pj_id in son_project_ids:
+    for pj_id in son_pj_ids:
         get_relation_list(pj_id, ret)
     return ret
 

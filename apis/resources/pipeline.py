@@ -359,7 +359,8 @@ class PipelineFile(Resource):
             'upload_file', type=werkzeug.datastructures.FileStorage, location='files')
         args = parser.parse_args()
         folder_name = f'{args["commit_short_id"]}-{args["sequence"]}'
-        return upload_pipeline_file(project_name, folder_name, args["upload_file"])
+        upload_pipeline_file(project_name, folder_name, args["upload_file"])
+        return util.success()
     
     # Download 
     @jwt_required
@@ -370,7 +371,8 @@ class PipelineFile(Resource):
         parser.add_argument('file_name', type=str, required=True)
         args = parser.parse_args()
         folder_name = f'{args["commit_short_id"]}-{args["sequence"]}'
-        return download_pipeline_file(project_name, folder_name, args["file_name"])
+        download_pipeline_file(project_name, folder_name, args["file_name"])
+        return util.success()
 
     @jwt_required
     def delete(self, project_name):
