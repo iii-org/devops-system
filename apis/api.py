@@ -205,19 +205,23 @@ api.add_resource(issue.DownloadProject,
                  '/project/<sint:project_id>/download/is_exist',
                  '/project/<sint:project_id>/download')
 
-api.add_resource(gitlab.SyncGitCommitIssueRelation,
-                 '/project/<sint:project_id>/issues_commit',
-                 '/project/<sint:project_id>/issues_commit/<issue_id>',
-                 )
 
 api.add_resource(gitlab.SyncGitCommitIssueRelationByPjName,
                  '/project/issues_commit_by_name',
                  )
-
 api.add_resource(pipeline.PipelineFile, '/project/<string:project_name>/pipeline_file')
+
+
+# Project son relation
+api.add_resource(gitlab.SyncGitCommitIssueRelation,
+                 '/project/<sint:project_id>/issues_commit',
+                 '/project/<sint:project_id>/issues_commit/<issue_id>',
+                 )
+api.add_resource(gitlab.GetCommitIssueHookByBranch, '/project/<sint:project_id>/issues_commit/by_branch')
 api.add_resource(project_relation.CheckhasSonProject, '/project/<sint:project_id>/has_son')
 api.add_resource(project_relation.GetProjectRootID, '/project/<sint:project_id>/root_project')
 api.add_resource(project.ProjectRelation, '/project/<sint:project_id>/relation')
+
 
 # Tag
 api.add_resource(tag.Tags, '/tags')
