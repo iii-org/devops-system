@@ -2768,7 +2768,17 @@ class DownloadProject(Resource):
 
         return send_file(f"../logs/project_excel_file/{project_id}.xlsx")
 
-class ModifyCommitIssueHook(Resource):
+class IssueCommitRelation(Resource):    
+    @jwt_required
+    def get(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('commit_id', type=str, required=True)
+        args = parser.parse_args()
+
+        issue_commit_relation = model.IssueCommitRelation.query.filter_by(commit_id=args["commit_id"]).first()
+        connect_issues = issue_commit_relation.issue_ids if issue_commit_relation is not None else None
+        return util.success({"issue_ids": connect_issues})
+
     @jwt_required
     def patch(self):
         parser = reqparse.RequestParser()
