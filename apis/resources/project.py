@@ -38,7 +38,7 @@ from .gitlab import gitlab
 from .rancher import rancher, remove_pj_executions
 from .redmine import redmine
 from resources.monitoring import Monitoring
-from resources.project_relation import get_all_sons_project
+from resources.project_relation import get_all_sons_project, get_relation_list
 
 
 def get_pm_project_list(user_id, pj_due_start=None, pj_due_end=None, pj_members_count=None, disable=None):
@@ -1564,6 +1564,10 @@ class GitRepoIdToCiPipeId(Resource):
 
 
 class ProjectRelation(Resource):
+    @jwt_required
+    def get(self, project_id):
+        return util.success(get_relation_list(project_id, []))
+
     @jwt_required
     def delete(self, project_id):
         parser = reqparse.RequestParser()

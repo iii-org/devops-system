@@ -1,6 +1,7 @@
 import model
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource
+import util
 
 
 
@@ -34,16 +35,17 @@ def project_has_child(project_id):
 def project_has_parent(project_id):
     return model.ProjectParentSonRelation.query.filter_by(son_id=project_id).first() is not None
     
-# def get_relation_list(project_id):
-#     son_project_ids = [relation.son_id for relation in model.ProjectParentSonRelation.query. \
-#         filter_by(parent_id=project_id).all()]
-
-#     project_parent_relation = model.ProjectParentSonRelation.query.filter_by(son_id=project_id).first()    
-#     parent_project_id = project_parent_relation.parent_id if project_parent_relation is not None else None
-#     return {
-#         "son_projects": son_project_ids,
-#         "parent_project": parent_project_id
-#     }
+def get_relation_list(project_id, ret):
+    son_project_ids = [relation.son_id for relation in model.ProjectParentSonRelation.query. \
+        filter_by(parent_id=project_id).all()]
+    if son_project_ids != []:
+        ret.append({
+            "parent": project_id,
+            "child": son_project_ids
+        })
+    for pj_id in son_project_ids:
+        get_relation_list(pj_id, ret)
+    return ret
 
 
 class CheckhasSonProject(Resource):
@@ -57,8 +59,3 @@ class GetProjectRootID(Resource):
     @jwt_required
     def get(self, project_id):
         return {"root_project_id": get_root_project_id(project_id)}
-
-# class ProjectParentSonProject(Resource):
-#     @jwt_required
-#     def get(self, project_id):
-#         return get_relation_list(project_id)
