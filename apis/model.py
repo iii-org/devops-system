@@ -570,7 +570,6 @@ class Cluster(db.Model):
         fields = {}
         for field in [x for x in dir(self) if
                       not x.startswith('query') and not x.startswith('_') and x != 'metadata']:
-            print(field)
             if field in ['application']:
                 continue
             data = self.__getattribute__(field)
@@ -666,6 +665,7 @@ class Lock(db.Model):
     is_lock = Column(Boolean)
     sync_date = Column(DateTime)
 
+
 class IssueDisplayField(db.Model):
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'), nullable=False)
@@ -679,7 +679,8 @@ class IssueDisplayField(db.Model):
             if type not in ["wbs_cache", "issue_list"]:
                 raise AssertionError(
                     "Type must in wbs_cache / issue_list.")
-        return type    
+        return type
+
 
 class ServerType(db.Model):
     id = Column(Integer, primary_key=True)
@@ -810,11 +811,12 @@ class NotificationMessage(db.Model):
     created_at = Column(DateTime)
     updated_at = Column(DateTime)
 
+    __mapper_args__ = {"order_by": id.desc()}
+
     def __repr__(self):
         fields = {}
         for field in [x for x in dir(self) if
                       not x.startswith('query') and not x.startswith('_') and x != 'metadata']:
-            print(field)
             data = self.__getattribute__(field)
             try:
                 # this will fail on unencodable values, like other classes

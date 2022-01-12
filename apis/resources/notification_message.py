@@ -7,6 +7,13 @@ from model import db, NotificationMessage, NotificationMessageReplySlip
 from resources import role
 
 
+def get_notification_message_list():
+    out = []
+    for message in NotificationMessage.query.all():
+        out.append(json.loads(str(message)))
+    return out
+
+
 def create_notification_message(args):
     row = NotificationMessage(
         message=args['message'],
@@ -23,7 +30,7 @@ def create_notification_message(args):
 
 
 def get_notification_message(message_id):
-    return NotificationMessage.query.filter_by(id=message_id).first()
+    return json.loads(str(NotificationMessage.query.filter_by(id=message_id).first()))
 
 
 def delete_notification_message(message_id):
@@ -50,12 +57,22 @@ class Message(Resource):
 
     @ jwt_required
     def get(self, message_id):
+        role.require_admin()
         return util.success(get_notification_message(message_id))
 
     @ jwt_required
     def patch(self, message_id):
-        pass
+        role.require_admin()
 
     @ jwt_required
     def delete(self, message_id):
+        role.require_admin()
         return util.success(delete_notification_message(message_id))
+
+
+class Message_list(Resource):
+
+    @ jwt_required
+    def get(self):
+        role.require_admin()
+        return util.success(get_notification_message_list())
