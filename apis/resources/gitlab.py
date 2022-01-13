@@ -815,13 +815,7 @@ def sync_commit_issues_relation(project_id):
             project_commit_endpoint.commit_id = br.commit["id"]
             model.db.session.commit()
 
-
-def get_commit_issues_hook_by_branch(project_id, branch_name, limit):
-    ret_list = []
-    account = get_jwt_identity()["user_account"]
-    repo_id = get_project_plugin_object(project_id).git_repository_id 
-    gitlab_account_list =  [member["username"] for member in get_all_repo_members(project_id) if not member["username"].startswith("project_bot")]
-
+def get_project_members(project_id):
     # list users in the project
     project_row = model.Project.query.options(
         joinedload(model.Project.user_role).
@@ -831,6 +825,14 @@ def get_commit_issues_hook_by_branch(project_id, branch_name, limit):
     users = list(filter(lambda x: not x.user.disabled, project_row.user_role))
     account_list = ["sysadmin"] + [
         model.User.query.get(user.user_id).login for user in users if not model.User.query.get(user.user_id).login.startswith("project_bot")] 
+    print(account_list)
+    return account_list
+
+def get_commit_issues_hook_by_branch(project_id, branch_name, limit):
+    ret_list = []
+    account = get_jwt_identity()["user_account"]
+    repo_id = get_project_plugin_object(project_id).git_repository_id 
+    gitlab_account_list =  [member["username"] for member in get_all_repo_members(project_id) if not member["username"].startswith("project_bot")]
     
     # Find root project to get all related issues
     root_project_id = get_root_project_id(project_id)
@@ -845,9 +847,12 @@ def get_commit_issues_hook_by_branch(project_id, branch_name, limit):
         commit_issue_id_list = regex.findall(commit["title"])
         for issue_id in commit_issue_id_list:
             if issue_id in issue_list:
-                ret["issue_hook"][int(issue_id)] = account in account_list
+                issue = redmine.issue.get(issue_id)
+                project_id = model.ProjectPluginRelation.query.filter_by(plan_project_id=issue.project.id).first().project_id
+                ret["issue_hook"][int(issue_id)] = account in get_project_members(project_id)
 
         ret["commit_id"] = commit["id"]
+        ret["commit_short_id"] = commit["id"][:7]
         ret["author_name"] = commit["author_name"]
         ret["commit_title"] = commit["title"]
         ret["commit_time"] = str(datetime.strptime(commit["committed_date"], "%Y-%m-%dT%H:%M:%S.%f%z"))

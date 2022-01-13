@@ -47,7 +47,7 @@ def get_relation_list(project_id, ret):
             user_id = get_jwt_identity()["user_id"]
             son_pj_ids = [
                 son_pj_id for son_pj_id in son_project_ids if model.ProjectUserRole.query. \
-                    filter_by(user_id=user_id, project_id=project_id).first() is not None]
+                    filter_by(user_id=user_id, project_id=son_pj_id).first() is not None]
         
         ret.append({
             "parent": project_id,
