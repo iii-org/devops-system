@@ -659,8 +659,8 @@ class GitLab(object):
                 'file_path': file_path,
                 'branch': branch,
                 'encoding': 'base64',
-                'author_email': 'system@iiidevops.org.tw',
-                'author_name': 'System',
+                'author_email': 'admin@example.com',
+                'author_name': 'Administrator',
                 'content': content,
                 'commit_message': f'Add file {file_path}'
             })

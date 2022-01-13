@@ -371,8 +371,7 @@ class PipelineFile(Resource):
         parser.add_argument('file_name', type=str, required=True)
         args = parser.parse_args()
         folder_name = f'{args["commit_short_id"]}-{args["sequence"]}'
-        download_pipeline_file(project_name, folder_name, args["file_name"])
-        return util.success()
+        return download_pipeline_file(project_name, folder_name, args["file_name"])
 
     @jwt_required
     def delete(self, project_name):
