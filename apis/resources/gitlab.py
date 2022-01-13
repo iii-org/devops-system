@@ -825,7 +825,6 @@ def get_project_members(project_id):
     users = list(filter(lambda x: not x.user.disabled, project_row.user_role))
     account_list = ["sysadmin"] + [
         model.User.query.get(user.user_id).login for user in users if not model.User.query.get(user.user_id).login.startswith("project_bot")] 
-    print(account_list)
     return account_list
 
 def get_commit_issues_hook_by_branch(project_id, branch_name, limit):
