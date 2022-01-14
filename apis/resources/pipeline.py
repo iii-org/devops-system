@@ -173,8 +173,8 @@ def generate_ci_yaml(args, repository_id, branch_name):
     parameter['start_branch'] = branch_name
     parameter['encoding'] = 'base64'
     parameter['content'] = base_file
-    parameter['author_email'] = "admin@example.com"
-    parameter['author_name'] = "admin"
+    parameter['author_email'] = "system@iiidevops.org.tw"
+    parameter['author_name'] = "System"
     yaml_file_can_not_find, yml_file_can_not_find, get_yaml_data = \
         _get_rancher_pipeline_yaml(repository_id, parameter)
     if yaml_file_can_not_find and yml_file_can_not_find:

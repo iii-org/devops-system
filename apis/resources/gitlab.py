@@ -407,6 +407,8 @@ class GitLab(object):
             f'/projects/{repo_id}/repository/files/{file_path}',
             params={
                 'branch': branch,
+                'author_email': 'system@iiidevops.org.tw',
+                'author_name': 'System',
                 'commit_message': args['commit_message']
             })
 
@@ -660,8 +662,8 @@ class GitLab(object):
                 'file_path': file_path,
                 'branch': branch,
                 'encoding': 'base64',
-                'author_email': 'admin@example.com',
-                'author_name': 'Administrator',
+                'author_email': 'system@iiidevops.org.tw',
+                'author_name': 'System',
                 'content': content,
                 'commit_message': f'Add file {file_path}'
             })
