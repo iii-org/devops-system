@@ -5,6 +5,7 @@ import re
 from datetime import datetime, time, timedelta
 from pathlib import Path
 
+import ipaddress
 import pytz
 import requests
 from dateutil import tz
@@ -15,7 +16,7 @@ from sqlalchemy.orm.exc import NoResultFound
 from accessories.redmine_lib import redmine
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import desc
-from resources.kubernetesClient import ApiK8sClient
+from resources.kubernetesClient import ApiK8sClient, gitlab_connection
 from sqlalchemy.orm import joinedload
 import config
 import model
@@ -861,6 +862,13 @@ def get_commit_issues_hook_by_branch(project_id, branch_name, limit):
 
     return ret_list
 
+def gitlab_domain_connection(action):
+    if action not in ["open", "close"]:
+        return
+    body = gitlab_connection(action)
+    ApiK8sClient().patch_namespaced_ingress(name="gitlab-ing", body=body, namespace="default")
+
+
     # --------------------- Resources ---------------------
 gitlab = GitLab()
 
@@ -1140,3 +1148,21 @@ class GetCommitIssueHookByBranch(Resource):
         parser.add_argument('branch_name', type=str, required=True)
         args = parser.parse_args()
         return util.success(get_commit_issues_hook_by_branch(project_id, args["branch_name"], args["limit"]))
+
+class GitlabDomainConnection(Resource):
+    @jwt_required
+    def get(self):
+        try:
+            ipaddress.ip_address(config.get("GITLAB_DOMAIN_NAME"))
+            is_ip = True
+        except ValueError:
+            is_ip =  False
+        return {"is_ip": is_ip}
+
+    @jwt_required
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('action', type=str)
+        args = parser.parse_args()
+        return util.success(gitlab_domain_connection(args["action"]))
+   
