@@ -29,6 +29,13 @@ def create_notification_message(args):
     db.session.commit()
 
 
+def update_notification_message(message_id, args):
+    message = NotificationMessage.query.filter_by(id=message_id).first()
+    for k, v in args.items():
+        setattr(message, k, v)
+    db.session.commit()
+
+
 def get_notification_message(message_id):
     return json.loads(str(NotificationMessage.query.filter_by(id=message_id).first()))
 
@@ -46,7 +53,7 @@ class Message(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('message', type=str, required=True)
         parser.add_argument('type_id', type=int, required=True)
-        parser.add_argument('type_parameter', type=str, location='json')
+        parser.add_argument('type_parameter', type=str)
         parser.add_argument('no_deadline', type=bool, required=True)
         parser.add_argument('due_datetime', type=str)
         args = parser.parse_args()
@@ -63,6 +70,18 @@ class Message(Resource):
     @ jwt_required
     def patch(self, message_id):
         role.require_admin()
+        parser = reqparse.RequestParser()
+        parser.add_argument('message', type=str)
+        parser.add_argument('type_id', type=int)
+        parser.add_argument('type_parameter', type=str)
+        parser.add_argument('no_deadline', type=bool)
+        parser.add_argument('due_datetime', type=str)
+        args = parser.parse_args()
+        args = {k: v for k, v in args.items() if v is not None}
+        if args.get("type_parameter") is not None:
+            args["type_parameter"] = json.loads(args["type_parameter"].replace("\'", "\""))
+        update_notification_message(message_id, args)
+        return util.success()
 
     @ jwt_required
     def delete(self, message_id):
