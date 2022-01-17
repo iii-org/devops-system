@@ -566,8 +566,11 @@ def tm_update_pipline_branches(repository_id, data, default=True, run=False):
                 next_run = pipeline.get_pipeline_next_run(repository_id)
                 print(f"next_run: {next_run}")
             f.content = yaml.dump(pipe_json, sort_keys=False)
-            f.save(branch=br.name,
-                   commit_message='UI 編輯 .rancher-pipeline.yaml 啟用停用分支')
+            f.save(
+                branch=br.name,
+                author_email='system@iiidevops.org.tw',
+                author_name='System',
+                commit_message='UI 編輯 .rancher-pipeline.yaml 啟用停用分支')
             if run is False or (run is True and br.name != branch_name_in_data):
                 pipeline.stop_and_delete_pipeline(repository_id, next_run, branch=br.name)
 
@@ -668,8 +671,11 @@ def update_pj_rancher_pipline(repository_id):
 
         next_run = pipeline.get_pipeline_next_run(repository_id)
         f.content = yaml.dump(pipe_dict, sort_keys=False)
-        f.save(branch=br.name,
-               commit_message=f'Add "iiidevops" in branch {br.name} .rancher-pipeline.yml.')
+        f.save(
+            branch=br.name,
+            author_email='system@iiidevops.org.tw',
+            author_name='System',
+            commit_message=f'Add "iiidevops" in branch {br.name} .rancher-pipeline.yml.')
         pipeline.stop_and_delete_pipeline(repository_id, next_run)
 
 
@@ -722,8 +728,11 @@ def update_pj_plugin_status(plugin_name, disable):
                 next_run = pipeline.get_pipeline_next_run(repository_id)
                 f.content = yaml.dump(pipe_dict, sort_keys=False)
                 process = "啟用" if not disable else "停用"
-                f.save(branch=br.name,
-                       commit_message=f'UI 編輯 .rancher-pipeline.yaml {process} {plugin_name}.')
+                f.save(
+                    branch=br.name,
+                    author_email='system@iiidevops.org.tw',
+                    author_name='System',
+                    commit_message=f'UI 編輯 .rancher-pipeline.yaml {process} {plugin_name}.')
                 pipeline.stop_and_delete_pipeline(repository_id, next_run)
 
 # --------------------- Resources ---------------------

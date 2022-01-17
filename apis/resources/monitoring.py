@@ -76,7 +76,7 @@ class Monitoring:
 
     def gitlab_alive(self):
         return self.__check_server_alive(
-            gitlab.gl_get_project, gitlab.gl_get_all_project, self.gl_pj_id)
+            gitlab.gl_get_project, gitlab.gl_get_user_list, self.gl_pj_id, args={})
 
     def harbor_alive(self):
         return self.__check_server_alive(

@@ -30,8 +30,10 @@ def rm_impersonate(user_name):
                    impersonate=user_name)
 
 
-def rm_post_relation(issue_id, issue_to_id, plan_operator_id=None):
-    relation = __refresh_redmine_by_key(plan_operator_id).issue_relation.new()
+def rm_post_relation(issue_id, issue_to_id, user_account=None):
+    if user_account is not None:
+        redmine = rm_impersonate(user_account)
+    relation = redmine.issue_relation.new()
     relation.issue_id = issue_id
     relation.issue_to_id = issue_to_id
     relation.relation_type = 'relates'
@@ -43,5 +45,7 @@ def rm_post_relation(issue_id, issue_to_id, plan_operator_id=None):
                                                error=apiError.redmine_unable_to_relate(issue_id, issue_to_id))
 
 
-def rm_delete_relation(relation_id, plan_operator_id=None):
-    __refresh_redmine_by_key(plan_operator_id).issue_relation.delete(relation_id)
+def rm_delete_relation(relation_id, user_account=None):
+    if user_account is not None:
+        redmine = rm_impersonate(user_account)
+    redmine.issue_relation.delete(relation_id)

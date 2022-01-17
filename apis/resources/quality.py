@@ -152,8 +152,7 @@ def qu_get_testfile_list(project_id):
     for path in paths:
         trees = gitlab.ql_get_tree(repository_id, path['path'])
         for tree in trees:
-            if path["file_name_key"] in tree["name"] and tree["name"][
-                    -5:] == ".json":
+            if path["file_name_key"] in tree["name"] and tree["name"][-5:] == ".json":
                 path_file = f'{path["path"]}/{tree["name"]}'
                 gl_raw_lib = gitlab.gl_get_raw_from_lib(repository_id, path_file).decode()
                 if gl_raw_lib is None:
@@ -185,7 +184,7 @@ def qu_get_testfile_list(project_id):
                     collection_obj = PostmanJSON(coll_json)
                     postman_info_obj = PostmanJSONInfo(collection_obj.info)
                     the_last_result = apiTest.get_the_last_result(
-                        project_id, tree['name'].split('postman')[0])
+                        project_id, tree['name'].split('postman')[0].replace(".", ""))
                     out_list.append({
                         "software_name": path["software_name"],
                         "file_name": tree["name"],
@@ -279,7 +278,7 @@ def remove_file_from_local(local_file_path, file_name):
     if os.path.isfile(f"{local_file_path}/{file_name}"):
         os.remove(f"{local_file_path}/{file_name}")
 
-
+#here
 def qu_upload_testfile(project_id, file, software_name):
     file_name = file.filename
     if re.search(filename_validate_mapping[software_name], file_name) is None:

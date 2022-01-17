@@ -950,7 +950,8 @@ def get_issue_list_by_project(project_id, args, download=False):
     elif args.get("has_tag_issue", False):
         return []
 
-    issue_filter = redmine_lib.redmine.issue.filter(**default_filters)
+    user_name = get_jwt_identity()["user_account"]
+    issue_filter = redmine_lib.rm_impersonate(user_name).issue.filter(**default_filters)
     all_issues = issue_filter.values()
     # 透過 selection params 決定是否顯示 family bool 欄位
     if not args['selection'] or not strtobool(args['selection']):
@@ -998,7 +999,8 @@ def get_issue_list_by_user(user_id, args):
     elif args.get("has_tag_issue", False):
         return []
 
-    all_issues = redmine_lib.redmine.issue.filter(**default_filters)
+    user_name = get_jwt_identity()["user_account"]
+    all_issues = redmine_lib.rm_impersonate(user_name).issue.filter(**default_filters)
     # 透過 selection params 決定是否顯示 family bool 欄位
     if not args['selection'] or not strtobool(args['selection']):
         nx_issue_params['relationship_bool'] = True
@@ -1778,13 +1780,11 @@ def get_requirements_by_project_id(project_id):
     return {'flow_info': output}
 
 
-def post_issue_relation(issue_id, issue_to_id, operator_id):
-    plan_operator_id = __get_plan_user_id(operator_id)
-    return redmine_lib.rm_post_relation(issue_id, issue_to_id, plan_operator_id)
+def post_issue_relation(issue_id, issue_to_id, user_account):
+    return redmine_lib.rm_post_relation(issue_id, issue_to_id, user_account)
 
 
-def put_issue_relation(issue_id, issue_to_ids, operator_id):
-    plan_operator_id = __get_plan_user_id(operator_id)
+def put_issue_relation(issue_id, issue_to_ids, user_account):
     input_set = set()
     origin_set = set()
     for issue_to_id in issue_to_ids:
@@ -1800,16 +1800,15 @@ def put_issue_relation(issue_id, issue_to_ids, operator_id):
             for relation in relations:
                 if (relation['issue_id'] == need_del[0] and relation['issue_to_id'] == need_del[1]) or \
                         (relation['issue_id'] == need_del[1] and relation['issue_to_id'] == need_del[0]):
-                    redmine_lib.rm_delete_relation(relation['id'], plan_operator_id)
+                    redmine_lib.rm_delete_relation(relation['id'], user_account)
     need_add_set = input_set - origin_set
     for need_add in list(need_add_set):
         need_add = list(need_add)
-        redmine_lib.rm_post_relation(need_add[0], need_add[1], plan_operator_id)
+        redmine_lib.rm_post_relation(need_add[0], need_add[1], user_account)
 
 
-def delete_issue_relation(relation_id, operator_id):
-    plan_operator_id = __get_plan_user_id(operator_id)
-    return redmine_lib.rm_delete_relation(relation_id, plan_operator_id)
+def delete_issue_relation(relation_id, user_account):
+    return redmine_lib.rm_delete_relation(relation_id, user_account)
 
 
 def check_issue_closable(issue_id):
@@ -2626,7 +2625,7 @@ class Relation(Resource):
         parser.add_argument('issue_id', type=int, required=True)
         parser.add_argument('issue_to_id', type=int, required=True)
         args = parser.parse_args()
-        output = post_issue_relation(args['issue_id'], args['issue_to_id'], get_jwt_identity()['user_id'])
+        output = post_issue_relation(args['issue_id'], args['issue_to_id'], get_jwt_identity()['user_account'])
         return util.success(output)
 
     @ jwt_required
@@ -2635,12 +2634,12 @@ class Relation(Resource):
         parser.add_argument('issue_id', type=int, required=True)
         parser.add_argument('issue_to_ids', type=list, location='json', required=True)
         args = parser.parse_args()
-        put_issue_relation(args['issue_id'], args['issue_to_ids'], get_jwt_identity()['user_id'])
+        put_issue_relation(args['issue_id'], args['issue_to_ids'], get_jwt_identity()['user_account'])
         return util.success()
 
     @ jwt_required
     def delete(self, relation_id):
-        output = delete_issue_relation(relation_id, get_jwt_identity()['user_id'])
+        output = delete_issue_relation(relation_id, get_jwt_identity()['user_account'])
         return util.success(output)
 
 
@@ -2768,7 +2767,17 @@ class DownloadProject(Resource):
 
         return send_file(f"../logs/project_excel_file/{project_id}.xlsx")
 
-class ModifyCommitIssueHook(Resource):
+class IssueCommitRelation(Resource):    
+    @jwt_required
+    def get(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('commit_id', type=str, required=True)
+        args = parser.parse_args()
+
+        issue_commit_relation = model.IssueCommitRelation.query.filter_by(commit_id=args["commit_id"]).first()
+        connect_issues = issue_commit_relation.issue_ids if issue_commit_relation is not None else None
+        return util.success({"issue_ids": connect_issues})
+
     @jwt_required
     def patch(self):
         parser = reqparse.RequestParser()

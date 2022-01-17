@@ -1715,3 +1715,59 @@ def create_cron_secret():
         token = create_access_token(identity={"type": "cornjob_token"}, expires_delta=timedelta(days=36500))
         create_namespace_secret(
             "default", "cornjob-bot", {'cornjob-token': token})
+
+# gitlab ingress body
+def gitlab_connection(action):
+    if action == "open":
+        paths = [
+            k8s_client.NetworkingV1beta1HTTPIngressPath(
+            path="/",
+            backend=k8s_client.NetworkingV1beta1IngressBackend(
+                service_name="gitlab-service", service_port=80
+                )
+        )]
+    if action == "close":
+        paths = [
+            k8s_client.NetworkingV1beta1HTTPIngressPath(
+            path="/",
+            backend=k8s_client.NetworkingV1beta1IngressBackend(
+                service_name="gitlab-service", service_port=80
+                )
+            ),
+            k8s_client.NetworkingV1beta1HTTPIngressPath(
+            path="/api/v3",
+            backend=k8s_client.NetworkingV1beta1IngressBackend(
+                service_name="gitlab-service", service_port=30080
+                )
+            ),
+            k8s_client.NetworkingV1beta1HTTPIngressPath(
+            path="/api/v4",
+            backend=k8s_client.NetworkingV1beta1IngressBackend(
+                service_name="gitlab-service", service_port=30080
+                )
+            ),
+        ]
+
+    return k8s_client.NetworkingV1beta1Ingress(
+        api_version = "networking.k8s.io/v1beta1",
+        kind = "Ingress",
+        metadata = k8s_client.V1ObjectMeta(
+            name="gitlab-ing", 
+            annotations={
+                "nginx.ingress.kubernetes.io/force-ssl-redirect": "false",
+                "nginx.ingress.kubernetes.io/proxy-body-size": "1g",
+                "nginx.ingress.kubernetes.io/proxy-read-timeout": "600",
+                "nginx.ingress.kubernetes.io/proxy-send-timeout": "600"
+            }   
+        ),
+        spec=k8s_client.NetworkingV1beta1IngressSpec(
+            rules=[
+                k8s_client.NetworkingV1beta1IngressRule(
+                    host=config.get("GITLAB_DOMAIN_NAME"),
+                    http=k8s_client.NetworkingV1beta1HTTPIngressRuleValue(
+                        paths=paths
+                    )
+                )
+            ]
+        )
+    )

@@ -173,8 +173,8 @@ def generate_ci_yaml(args, repository_id, branch_name):
     parameter['start_branch'] = branch_name
     parameter['encoding'] = 'base64'
     parameter['content'] = base_file
-    parameter['author_email'] = "admin@example.com"
-    parameter['author_name'] = "admin"
+    parameter['author_email'] = "system@iiidevops.org.tw"
+    parameter['author_name'] = "System"
     yaml_file_can_not_find, yml_file_can_not_find, get_yaml_data = \
         _get_rancher_pipeline_yaml(repository_id, parameter)
     if yaml_file_can_not_find and yml_file_can_not_find:
@@ -359,7 +359,8 @@ class PipelineFile(Resource):
             'upload_file', type=werkzeug.datastructures.FileStorage, location='files')
         args = parser.parse_args()
         folder_name = f'{args["commit_short_id"]}-{args["sequence"]}'
-        return upload_pipeline_file(project_name, folder_name, args["upload_file"])
+        upload_pipeline_file(project_name, folder_name, args["upload_file"])
+        return util.success()
     
     # Download 
     @jwt_required
