@@ -18,7 +18,9 @@ from datetime import datetime, timedelta
 from datetime import time as d_time
 from sqlalchemy import desc
 from resources import apiError
-
+import subprocess
+import os
+import re
 
 class Monitoring:
     def __init__(self, project_id=None):
@@ -78,6 +80,7 @@ class Monitoring:
         return self.__check_server_alive(
             gitlab.gl_get_project, gitlab.gl_get_user_list, self.gl_pj_id, args={})
 
+    # Harbor
     def harbor_alive(self):
         return self.__check_server_alive(
             hb_get_project_summary, hb_get_registries, self.hr_pj_id)
@@ -157,6 +160,35 @@ def verify_github_info(value):
             apiError.error_with_alert_code("github", 20003, 'Token is not belong to this project(iiidevops).', value))
 
 
+def docker_image_pull_limit_alert():
+    limit = ""
+    os.chmod('/home/john/devops-api/apis/resources/monitoring/docker_hub_remain_limit.sh', 0o777)
+    results = subprocess.run(
+        '/home/john/devops-api/apis/resources/monitoring/docker_hub_remain_limit.sh', stdout=subprocess.PIPE).stdout.decode('utf-8')
+    for result in results.split("\n"):
+        if result.startswith("ratelimit-remaining:"):
+            regex = re.compile(r'ratelimit-remaining:(.\d+)')
+            limit = regex.search(result).group(1).strip()
+    
+    if not limit.isdigit():
+        status, message = False, "Can not get number of ratelimit-remaining!"
+    elif int(limit) <= 30:
+        limit = int(limit)
+        status, message = False, "Pull remain time close to the limit(30 times)."
+    else:
+        limit = int(limit)
+        status, message = True, None
+
+    return {
+        "name": "Harbor proxy remain limit",
+        "status": status,
+        "remain_limit": limit,
+        "message": message,
+        "datetime": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+    }
+
+
+
 # --------------------- Resources ---------------------
 class ServersAlive(Resource):
     @jwt_required
@@ -190,6 +222,10 @@ class HarborAlive(Resource):
     def get(self):
         return generate_alive_response("harbor")
 
+class HarborProxy(Resource):
+    @jwt_required
+    def get(self):
+        return docker_image_pull_limit_alert()
 
 # sonarQube
 class SonarQubeAlive(Resource):
@@ -293,9 +329,8 @@ class RemoveExtraExecutions(Resource):
     def post(self):
         remove_extra_executions()
 
+
 # GitHub
-
-
 class GithubTokenVerify(Resource):
     @jwt_required
     def post(self):
