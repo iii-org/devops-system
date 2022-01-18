@@ -162,22 +162,21 @@ def verify_github_info(value):
 
 def docker_image_pull_limit_alert():
     limit = ""
-    os.chmod('/home/john/devops-api/apis/resources/monitoring/docker_hub_remain_limit.sh', 0o777)
+    os.chmod('./apis/resources/monitoring/docker_hub_remain_limit.sh', 0o777)
     results = subprocess.run(
-        '/home/john/devops-api/apis/resources/monitoring/docker_hub_remain_limit.sh', stdout=subprocess.PIPE).stdout.decode('utf-8')
+        './apis/resources/monitoring/docker_hub_remain_limit.sh', stdout=subprocess.PIPE).stdout.decode('utf-8')
     for result in results.split("\n"):
         if result.startswith("ratelimit-remaining:"):
             regex = re.compile(r'ratelimit-remaining:(.\d+)')
             limit = regex.search(result).group(1).strip()
-    
-    if not limit.isdigit():
+            break
+
+    if limit == "":
         status, message = False, "Can not get number of ratelimit-remaining!"
-    elif int(limit) <= 30:
-        limit = int(limit)
-        status, message = False, "Pull remain time close to the limit(30 times)."
     else:
         limit = int(limit)
-        status, message = True, None
+        status = limit > 30
+        message = None if status else "Pull remain time close to the limit(30 times)."
 
     return {
         "name": "Harbor proxy remain limit",
@@ -187,6 +186,9 @@ def docker_image_pull_limit_alert():
         "datetime": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
     }
 
+
+def harbor_nfs_storage_remain_limit():
+    pass
 
 
 # --------------------- Resources ---------------------
@@ -226,6 +228,11 @@ class HarborProxy(Resource):
     @jwt_required
     def get(self):
         return docker_image_pull_limit_alert()
+
+class HarborStorage(Resource):
+    @jwt_required
+    def get(self):
+        return harbor_nfs_storage_remain_limit()
 
 # sonarQube
 class SonarQubeAlive(Resource):
