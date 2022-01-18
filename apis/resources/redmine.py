@@ -49,7 +49,6 @@ class Redmine:
                 self.last_operator_id = None
                 self.__refresh_key()
         params['key'] = self.redmine_key
-        print(data)
         output = util.api_request(method, url, headers, params, data)
 
         if resp_format != '':

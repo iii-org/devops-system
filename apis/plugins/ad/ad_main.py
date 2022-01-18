@@ -81,41 +81,7 @@ def get_db_user_by_login(login=None):
     return output
 
 
-# def information_modified_by_ad(ad_user, db_user):
-#     need_change = False
-#     args = {
-#         "name": None,
-#         "phone": None,
-#         "email": None,
-#         "title": None,
-#         "department": None,
-#         "password": None,
-#         "from_ad": True
-#     }
-#     # Modify User Name
-#     if ad_user.get('iii_name') != db_user.get('name'):
-#         args['name'] = ad_user.get('iii_name')
-#     # Modify Telephone Number
-#     if ad_user.get("telephoneNumber") != db_user.get('phone'):
-#         args['phone'] = ad_user.get('telephoneNumber')
-#     # Modify Job Title
-#     if ad_user.get("title") != db_user.get('title'):
-#         args['title'] = ad_user.get('title')
-#     # Modify Department
-#     if ad_user.get("department") != db_user.get('department'):
-#         args['department'] = ad_user['department']
-#     # Modify Update Time
-#     if ad_user.get('whenChanged') != db_user.get('update_at'):
-#         args['update_at'] = str(ad_user['whenChanged'])
-#     # Modify Disabled Status
-#     if db_user.get("disabled", None) is not None:
-#         if db_user.get("disabled") is True:
-#             args['status'] = "disabled"
-#         else:
-#             args['status'] = "enabled"
-#     return need_change, args
-
-
+# Check is need update user from III ad user
 def check_update_info_by_ad(ad_user, db_user):
     data = {
         "name": None,
@@ -144,10 +110,12 @@ def check_update_info_by_ad(ad_user, db_user):
     if ad_user.get("department") != db_user.get('department'):
         data['department'] = ad_user['department']
         need_change = True
+
     # Modify Job Title
     if ad_user.get("title") != db_user.get('title'):
         data['title'] = ad_user.get('title')
         need_change = True
+
     # Modify Update Time by time ojbect
     db_update = {}
     if db_user.get('update_at') is not None:
@@ -224,20 +192,19 @@ def create_user(ad_user, login_password):
 
 
 def check_user_by_ad(ad_users, db_users,  create_by=None, ldap_parameter=None):
-    res = {'new': [], 'update': [], 'delete': [], 'no_update': [], 'none': []}
+    res = {'new': [], 'update': [], 'delete': [], 'nothing': [], 'none': []}
     users = []
     for ad_user in ad_users:
         login = ad_user.get('sAMAccountName')
         if login in users:
             continue
-
         elif login in db_users:
             is_update, update_data = check_update_info_by_ad(ad_user, db_users.get(login))
             if is_update:
                 user.update_user(db_users.get(login).get('id'), update_data, True)
-                res['update'] = login
+                res['update'].append(login)
             else:
-                res['no_update'].append(login)
+                res['nothing'].append(login)
             db_users.pop(login)
         #  Create user
         elif ad_user.get(create_by) is True:
@@ -248,6 +215,7 @@ def check_user_by_ad(ad_users, db_users,  create_by=None, ldap_parameter=None):
         else:
             res['none'].append(login)
         users.append(login)
+
     # Auto Delete User from ad and not in AD
     res['delete'] = remove_user_in_db_not_in_ad(db_users)
     return res
@@ -260,12 +228,12 @@ def remove_user_in_db_not_in_ad(db_users):
         return res
     ldap_parameter.pop('ou')
     ad = AD(ldap_parameter)
-    for key in db_users.keys():
-        if not db_users.get(key).get('from_ad'):
+    for key, item in db_users.items():
+        if not item.get('from_ad'):
             continue
         res_ad = ad.get_user(key)
         if len(res_ad) == 0:
-            user.delete_user(db_users.get(key).get('id'))
+            user.delete_user(item.get('id'))
             res.append(key)
     return res
 

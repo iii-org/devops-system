@@ -75,7 +75,8 @@
           "name": "False"
         }
       ],
-      "store": "secret_system"
+      "store": "secret_system",
+      "value": false
     },
     {
       "key": "ssl_validate",
