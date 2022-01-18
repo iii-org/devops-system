@@ -733,10 +733,16 @@ def get_all_repo_members(project_id=None):
     return gl_users
 
 
+def account_is_gitlab_project_memeber(project_id, account):
+    for member in get_all_repo_members(project_id):
+        if account == member["username"] or account == "Administrator":
+            return True
+    return False
+    
+
 def get_commit_issues_relation(project_id, issue_id, limit):
     account = get_jwt_identity()["user_account"]
     relation_project_list = [project_id] + get_all_fathers_project(project_id, []) + get_all_sons_project(project_id, [])
-    gitlab_account_list =  [member["username"] for member in get_all_repo_members(project_id) if not member["username"].startswith("project_bot")]
     commit_issues_relations = model.IssueCommitRelation.query.filter(model.IssueCommitRelation.project_id.in_(tuple(relation_project_list))). \
         filter(model.IssueCommitRelation.issue_ids.contains([int(issue_id)])).order_by(
             desc(model.IssueCommitRelation.commit_time)).limit(limit).all()
@@ -750,7 +756,7 @@ def get_commit_issues_relation(project_id, issue_id, limit):
         "commit_title": commit_issues_relation.commit_title,
         "commit_time": str(commit_issues_relation.commit_time),
         "branch": commit_issues_relation.branch,
-        "web_url": commit_issues_relation.web_url if account in gitlab_account_list else None,
+        "web_url": commit_issues_relation.web_url if account_is_gitlab_project_memeber(commit_issues_relation.project_id, account) else None,
         "created_at": str(commit_issues_relation.created_at),
         "updated_at": str(commit_issues_relation.updated_at),
     } for commit_issues_relation in commit_issues_relations]
@@ -837,8 +843,7 @@ def get_commit_issues_hook_by_branch(project_id, branch_name, limit):
     ret_list = []
     account = get_jwt_identity()["user_account"]
     repo_id = get_project_plugin_object(project_id).git_repository_id 
-    gitlab_account_list =  [member["username"] for member in get_all_repo_members(project_id) if not member["username"].startswith("project_bot")]
-    
+    show_url = account in [member["username"] for member in get_all_repo_members(project_id) if not member["username"].startswith("project_bot")]
     # Find root project to get all related issues
     root_project_id = get_root_project_id(project_id)
     root_plan_project_id = get_project_plugin_object(root_project_id).plan_project_id
@@ -861,7 +866,7 @@ def get_commit_issues_hook_by_branch(project_id, branch_name, limit):
         ret["author_name"] = commit["author_name"]
         ret["commit_title"] = commit["title"]
         ret["commit_time"] = str(datetime.strptime(commit["committed_date"], "%Y-%m-%dT%H:%M:%S.%f%z"))
-        ret["gitlab_url"] = None if account not in gitlab_account_list else commit["web_url"]
+        ret["gitlab_url"] = commit["web_url"] if show_url else None
 
         ret_list.append(ret)
 
