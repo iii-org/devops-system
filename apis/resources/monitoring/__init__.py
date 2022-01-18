@@ -20,6 +20,8 @@ from sqlalchemy import desc
 from resources import apiError
 import subprocess
 import os
+import config
+import pandas as pd
 import re
 
 class Monitoring:
@@ -188,8 +190,38 @@ def docker_image_pull_limit_alert():
 
 
 def harbor_nfs_storage_remain_limit():
-    pass
-
+    try:
+        output_str, _ = util.ssh_to_node_by_key(
+            'cd /iiidevopsNFS/ ; df -h' ,config.get("DEPLOYER_NODE_IP"))
+        
+        contents = output_str.split("\n")
+        data_frame_contents = [
+            list(filter(lambda a: a != "", content.split(" "))) for content in contents]
+        df = pd.DataFrame(data_frame_contents[1:], columns = data_frame_contents[0][:-1])
+        out_df = df[df.loc[:,"Mounted"] == "/"]
+        ret = out_df.to_dict("records")[0]
+        
+        status = int(ret["Use%"].replace("%", "")) < 80
+        return {
+            "name": "Harbor nfs folder storage remain.",
+            "status": status,
+            "total_size": ret["Size"],
+            "used": ret["Used"],
+            "avail": ret["Avail"],
+            "message": "Nfs Folder Used percentage exceeded 80%!" if not status else None,
+            "datetime": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+        }
+    except Exception as e:
+        return {
+            "name": "Harbor nfs folder storage remain.",
+            "status": False,
+            "total_size": None,
+            "used": None,
+            "avail": None,
+            "message": str(e),
+            "datetime": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+        }
+    
 
 # --------------------- Resources ---------------------
 class ServersAlive(Resource):
