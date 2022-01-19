@@ -2084,6 +2084,8 @@ def modify_hook(args):
 
 
 def get_commit_hook_issues_helper(issue_id):
+    if get_jwt_identity()["role_id"] == 5:
+        return True
     pj_id = get_issue(issue_id, with_children=False, journals=False)["project"]["id"]
     user_id = get_jwt_identity()["user_id"]
     return model.ProjectUserRole.query.filter_by(project_id=pj_id, user_id=user_id).first() is not None
