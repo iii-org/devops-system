@@ -17,6 +17,7 @@ from resources.apiError import DevOpsError
 from resources.logger import logger
 from . import kubernetesClient, role
 import json
+from urllib.parse import quote_plus
 
 
 class Redmine:
@@ -91,12 +92,12 @@ class Redmine:
         if operator_id is None:
             # get redmine_key
             url = f"{protocol}://{config.get('REDMINE_ADMIN_ACCOUNT')}" \
-                  f":{config.get('REDMINE_ADMIN_PASSWORD')}" \
+                  f":{quote_plus(config.get('REDMINE_ADMIN_PASSWORD'))}" \
                   f"@{host}/users/current.json"
             self.key_generated = time.time()
         else:
             url = f"{protocol}://{config.get('REDMINE_ADMIN_ACCOUNT')}" \
-                  f":{config.get('REDMINE_ADMIN_PASSWORD')}" \
+                  f":{quote_plus(config.get('REDMINE_ADMIN_PASSWORD'))}" \
                   f"@{host}/users/{operator_id}.json"
         output = requests.get(url, headers={'Content-Type': 'application/json'}, verify=False)
         self.redmine_key = output.json()['user']['api_key']
