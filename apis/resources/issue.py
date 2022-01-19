@@ -950,8 +950,12 @@ def get_issue_list_by_project(project_id, args, download=False):
     elif args.get("has_tag_issue", False):
         return []
 
-    user_name = get_jwt_identity()["user_account"]
-    issue_filter = redmine_lib.rm_impersonate(user_name).issue.filter(**default_filters)
+    if get_jwt_identity()["role_id"] != 7:
+        user_name = get_jwt_identity()["user_account"]
+        issue_filter = redmine_lib.rm_impersonate(user_name).issue.filter(**default_filters)
+    else:
+        issue_filter = redmine_lib.redmine.issue.filter(**default_filters)
+
     all_issues = issue_filter.values()
     # 透過 selection params 決定是否顯示 family bool 欄位
     if not args['selection'] or not strtobool(args['selection']):
@@ -999,8 +1003,12 @@ def get_issue_list_by_user(user_id, args):
     elif args.get("has_tag_issue", False):
         return []
 
-    user_name = get_jwt_identity()["user_account"]
-    all_issues = redmine_lib.rm_impersonate(user_name).issue.filter(**default_filters)
+    if get_jwt_identity()["role_id"] != 7:
+        user_name = get_jwt_identity()["user_account"]
+        all_issues = redmine_lib.rm_impersonate(user_name).issue.filter(**default_filters)
+    else:
+        all_issues = redmine_lib.redmine.issue.filter(**default_filters)
+    
     # 透過 selection params 決定是否顯示 family bool 欄位
     if not args['selection'] or not strtobool(args['selection']):
         nx_issue_params['relationship_bool'] = True
