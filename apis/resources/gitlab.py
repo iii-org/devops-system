@@ -416,7 +416,7 @@ class GitLab(object):
             params={
                 'branch': branch,
                 'author_email': 'system@iiidevops.org.tw',
-                'author_name': 'System',
+                'author_name': 'iiidevops',
                 'commit_message': args['commit_message']
             })
 
@@ -671,7 +671,7 @@ class GitLab(object):
                 'branch': branch,
                 'encoding': 'base64',
                 'author_email': 'system@iiidevops.org.tw',
-                'author_name': 'System',
+                'author_name': 'iiidevops',
                 'content': content,
                 'commit_message': f'Add file {file_path}'
             })
