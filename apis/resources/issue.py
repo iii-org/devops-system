@@ -2082,6 +2082,19 @@ def modify_hook(args):
     relation.issue_ids = args.issue_ids
     db.session.commit()
 
+
+def get_commit_hook_issues_helper(issue_id):
+    pj_id = get_issue(issue_id, with_children=False, journals=False)["project"]["id"]
+    user_id = get_jwt_identity()["user_id"]
+    return model.ProjectUserRole.query.filter_by(project_id=pj_id, user_id=user_id).first() is not None
+
+
+def get_commit_hook_issues(commit_id):   
+    issue_commit_relation = model.IssueCommitRelation.query.filter_by(commit_id=commit_id).first()
+    connect_issues = list(filter(get_commit_hook_issues_helper, issue_commit_relation.issue_ids)) if issue_commit_relation is not None else None
+    return {"issue_ids": connect_issues}
+
+
 # --------------------- Resources ---------------------
 class SingleIssue(Resource):
     @ jwt_required
@@ -2781,10 +2794,7 @@ class IssueCommitRelation(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('commit_id', type=str, required=True)
         args = parser.parse_args()
-
-        issue_commit_relation = model.IssueCommitRelation.query.filter_by(commit_id=args["commit_id"]).first()
-        connect_issues = issue_commit_relation.issue_ids if issue_commit_relation is not None else None
-        return util.success({"issue_ids": connect_issues})
+        return util.success(get_commit_hook_issues(commit_id=args["commit_id"]))
 
     @jwt_required
     def patch(self):
