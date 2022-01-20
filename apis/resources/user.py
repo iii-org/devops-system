@@ -19,7 +19,7 @@ from enums.action_type import ActionType
 from model import db
 from nexus import nx_get_user_plugin_relation, nx_get_user
 from plugins.sonarqube import sonarqube_main as sonarqube
-from plugins.ad.ad_main import ad_api_user
+from plugins.ad.ad_main import ldap_api
 from resources import harbor, role
 from resources import kubernetesClient
 from resources.activity import record_activity
@@ -132,7 +132,7 @@ def check_ad_login(account, password, ad_info=None):
     if ad_info is None:
         ad_info = {}
     try:
-        ad_info_data = ad_api_user.get_user_info(account, password)
+        ad_info_data = ldap_api.get_user_info(account, password)
         if ad_info_data is not None:
             ad_info['is_pass'] = True
             ad_info['data'] = ad_info_data
@@ -190,7 +190,7 @@ def login(args):
 
         # Check Ad server exists
         if (user is not None and user.from_ad is True) or user is None:
-            ad_server = ad_api_user.check_ad_info()
+            ad_server = ldap_api.check_ad_info()
             if ad_server['disabled'] is False:
                 ad_info = check_ad_login(login_account, login_password, ad_info)
 
@@ -205,7 +205,7 @@ def login(args):
                 user, login_password, db_info)
         # Login By AD
         if ad_info['is_pass'] is True:
-            status, token = ad_api_user.login_by_ad(
+            status, token = ldap_api.login_by_ad(
                 user, db_info, ad_info, login_account, login_password)
             if token is None:
                 return util.respond(401, "Error when logging in. Please contact system administrator",

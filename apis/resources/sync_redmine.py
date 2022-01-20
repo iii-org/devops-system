@@ -13,6 +13,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
 from model import db, Lock
+from sqlalchemy.exc import IntegrityError
 
 STATUS_IN_PROGRESS = 'in_progress'
 STATUS_NOT_STARTED = 'not_started'
@@ -167,28 +168,34 @@ def insert_project_member(project_id, project_name):
 
 
 def insert_all_issues(project_id, sync_date):
-    issues_list = []
+    # issues_list = []
     all_issues = get_issue_by_project(project_id=project_id, args=None)
     for issue in all_issues:
         if 'id' in issue['assigned_to']:
             issue['assigned_to']['login'] = model.User.query.get(issue['assigned_to']['id']).login
-        new_issue = model.RedmineIssue(
-            issue_id=issue['id'],
-            project_id=issue['project']['id'],
-            project_name=issue['project']['display'],
-            assigned_to=issue['assigned_to'].get('name', None),
-            assigned_to_id=issue['assigned_to'].get('id', None),
-            assigned_to_login=issue['assigned_to'].get('login', None),
-            issue_type=issue['tracker']['name'],
-            issue_name=issue['name'],
-            status_id=issue['status']['id'],
-            status=issue['status']['name'],
-            is_closed=issue['is_closed'],
-            start_date=issue['start_date'],
-            sync_date=sync_date)
-        issues_list.append(new_issue)
-    model.db.session.add_all(issues_list)
-    model.db.session.commit()
+        try:
+            new_issue = model.RedmineIssue(
+                issue_id=issue['id'],
+                project_id=issue['project']['id'],
+                project_name=issue['project']['display'],
+                assigned_to=issue['assigned_to'].get('name', None),
+                assigned_to_id=issue['assigned_to'].get('id', None),
+                assigned_to_login=issue['assigned_to'].get('login', None),
+                issue_type=issue['tracker']['name'],
+                issue_name=issue['name'],
+                status_id=issue['status']['id'],
+                status=issue['status']['name'],
+                is_closed=issue['is_closed'],
+                start_date=issue['start_date'],
+                sync_date=sync_date)
+            model.db.session.add(new_issue)
+            model.db.session.commit()
+        except IntegrityError:
+            model.db.session.rollback()
+            continue
+    # issues_list.append(new_issue)
+    # model.db.session.add_all(issues_list)
+    # model.db.session.commit()
 
 
 # --------------------- Complicated Query ---------------------

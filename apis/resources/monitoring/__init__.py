@@ -18,7 +18,11 @@ from datetime import datetime, timedelta
 from datetime import time as d_time
 from sqlalchemy import desc
 from resources import apiError
-
+import subprocess
+import os
+import config
+import pandas as pd
+import re
 
 class Monitoring:
     def __init__(self, project_id=None):
@@ -78,6 +82,7 @@ class Monitoring:
         return self.__check_server_alive(
             gitlab.gl_get_project, gitlab.gl_get_user_list, self.gl_pj_id, args={})
 
+    # Harbor
     def harbor_alive(self):
         return self.__check_server_alive(
             hb_get_project_summary, hb_get_registries, self.hr_pj_id)
@@ -157,6 +162,67 @@ def verify_github_info(value):
             apiError.error_with_alert_code("github", 20003, 'Token is not belong to this project(iiidevops).', value))
 
 
+def docker_image_pull_limit_alert():
+    limit = ""
+    os.chmod('./apis/resources/monitoring/docker_hub_remain_limit.sh', 0o777)
+    results = subprocess.run(
+        './apis/resources/monitoring/docker_hub_remain_limit.sh', stdout=subprocess.PIPE).stdout.decode('utf-8')
+    for result in results.split("\n"):
+        if result.startswith("ratelimit-remaining:"):
+            regex = re.compile(r'ratelimit-remaining:(.\d+)')
+            limit = regex.search(result).group(1).strip()
+            break
+
+    if limit == "":
+        status, message = False, "Can not get number of ratelimit-remaining!"
+    else:
+        limit = int(limit)
+        status = limit > 30
+        message = None if status else "Pull remain time close to the limit(30 times)."
+
+    return {
+        "name": "Harbor proxy remain limit",
+        "status": status,
+        "remain_limit": limit,
+        "message": message,
+        "datetime": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+    }
+
+
+def harbor_nfs_storage_remain_limit():
+    try:
+        output_str, _ = util.ssh_to_node_by_key(
+            'cd /iiidevopsNFS/ ; df -h' ,config.get("DEPLOYER_NODE_IP"))
+        
+        contents = output_str.split("\n")
+        data_frame_contents = [
+            list(filter(lambda a: a != "", content.split(" "))) for content in contents]
+        df = pd.DataFrame(data_frame_contents[1:], columns = data_frame_contents[0][:-1])
+        out_df = df[df.loc[:,"Mounted"] == "/"]
+        ret = out_df.to_dict("records")[0]
+        
+        status = int(ret["Use%"].replace("%", "")) < 80
+        return {
+            "name": "Harbor nfs folder storage remain.",
+            "status": status,
+            "total_size": ret["Size"],
+            "used": ret["Used"],
+            "avail": ret["Avail"],
+            "message": "Nfs Folder Used percentage exceeded 80%!" if not status else None,
+            "datetime": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+        }
+    except Exception as e:
+        return {
+            "name": "Harbor nfs folder storage remain.",
+            "status": False,
+            "total_size": None,
+            "used": None,
+            "avail": None,
+            "message": str(e),
+            "datetime": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+        }
+    
+
 # --------------------- Resources ---------------------
 class ServersAlive(Resource):
     @jwt_required
@@ -190,6 +256,15 @@ class HarborAlive(Resource):
     def get(self):
         return generate_alive_response("harbor")
 
+class HarborProxy(Resource):
+    @jwt_required
+    def get(self):
+        return docker_image_pull_limit_alert()
+
+class HarborStorage(Resource):
+    @jwt_required
+    def get(self):
+        return harbor_nfs_storage_remain_limit()
 
 # sonarQube
 class SonarQubeAlive(Resource):
@@ -293,9 +368,8 @@ class RemoveExtraExecutions(Resource):
     def post(self):
         remove_extra_executions()
 
+
 # GitHub
-
-
 class GithubTokenVerify(Resource):
     @jwt_required
     def post(self):
