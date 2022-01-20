@@ -2,7 +2,27 @@ import model
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource
 import util
+from datetime import datetime
+from accessories import redmine_lib
+from threading import Thread
 
+
+def get_plan_id(project_id):
+    row = model.ProjectPluginRelation.query.filter_by(
+        project_id=project_id).first()
+    if row:
+        return row.plan_project_id
+    else:
+        return -1
+
+
+def get_project_id(plan_id):
+    row = model.ProjectPluginRelation.query.filter_by(
+        plan_project_id=plan_id).first()
+    if row:
+        return row.project_id
+    else:
+        return -1
 
 
 def get_all_fathers_project(project_id, father_id_list):
@@ -58,6 +78,28 @@ def get_relation_list(project_id, ret):
     return ret
 
 
+def sync_project_relation():
+    default_sync_date = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    project_relations = []
+    for project in model.Project.query.all():
+        if project.id != -1:
+            plan_object = redmine_lib.redmine.project.get(get_plan_id(project.id))
+            if "parent" in dir(plan_object):
+                project_relation = model.ProjectParentSonRelation(
+                    parent_id=get_project_id(plan_object.parent.id), 
+                    son_id=project.id,
+                    created_at=default_sync_date
+                )
+                project_relations.append(project_relation)
+    model.db.session.add_all(project_relations)
+    model.db.session.commit()
+
+    for project_relation in model.ProjectParentSonRelation.query.all():
+        if str(project_relation.created_at) != default_sync_date: 
+            model.db.session.delete(project_relation)
+    model.db.session.commit()
+
+
 class CheckhasSonProject(Resource):
     @jwt_required
     def get(self, project_id):
@@ -69,3 +111,10 @@ class GetProjectRootID(Resource):
     @jwt_required
     def get(self, project_id):
         return {"root_project_id": get_root_project_id(project_id)}
+
+
+class SyncProjectRelation(Resource):
+    @jwt_required
+    def post(self):
+        Thread(target=sync_project_relation).start()
+        return util.success()

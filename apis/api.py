@@ -222,6 +222,7 @@ api.add_resource(project_relation.CheckhasSonProject, '/project/<sint:project_id
 api.add_resource(project_relation.GetProjectRootID, '/project/<sint:project_id>/root_project')
 api.add_resource(project.ProjectRelation, '/project/<sint:project_id>/relation')
 api.add_resource(issue.IssueCommitRelation, '/issue/relation')
+api.add_resource(project_relation.SyncProjectRelation, '/project/sync_project_relation')
 
 
 # Tag
