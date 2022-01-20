@@ -627,6 +627,7 @@ api.add_resource(alert_message.AlertMessages, '/alert_message')
 # message
 api.add_resource(notification_message.Message_list, '/notification_message_list')
 api.add_resource(notification_message.Message, '/notification_message', '/notification_message/<int:message_id>')
+socketio.on_namespace(notification_message.GetNotificationMessage('/get_notification_message'))
 
 
 def start_prod():
