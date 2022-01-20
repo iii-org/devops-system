@@ -30,7 +30,7 @@
     },
     {
       "key": "default_password",
-      "type": "string",
+      "type": "password",
       "store": "secret_system"
     },
     {
@@ -95,6 +95,7 @@
           "name": "Certificate Required and Validated"
         }
       ],
+      "value": "NONE",
       "store": "secret_system"
     },
     {
