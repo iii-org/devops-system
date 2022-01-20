@@ -836,3 +836,4 @@ class ProjectParentSonRelation(db.Model):
     id = Column(Integer, primary_key=True)
     parent_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
     son_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
+    created_at = Column(DateTime)
