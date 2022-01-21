@@ -158,7 +158,7 @@ class Activity(model.Activity):
     def __get_issue_project_id(self, issue_id):
         row = model.ProjectPluginRelation.query.filter_by(
         plan_project_id=redmine.issue.get(issue_id).project.id).first()
-        return str(row.plan_project_id) if row is not None else "-1"
+        return str(row.project_id) if row is not None else "-1"
         
     def fill_modify_hook(self, short_issue_ids, long_issue_ids):
         copy_short_issue_ids = short_issue_ids.copy()
