@@ -2,6 +2,7 @@ import inspect
 from datetime import datetime, timedelta
 from functools import wraps
 from time import strptime, mktime
+from accessories.redmine_lib import redmine
 
 from flask import has_request_context
 from flask_jwt_extended import get_jwt_identity, jwt_required
@@ -108,7 +109,7 @@ def limit_to_project(project_id):
         ActionType.DELETE_TAG, ActionType.MODIFY_HOOK]
     ))
     query = query.filter(or_(
-        model.Activity.object_id.like(f'%@{project_id}'),
+        model.Activity.object_id.like(f'%@{project_id}%'),
         model.Activity.object_id == str(project_id)
     ))
     return query
@@ -149,6 +150,26 @@ class Activity(model.Activity):
                 {issue_commit_relation.issue_ids} to {args['args']['issue_ids']}"
             self.action_parts = action_parts
 
+            if len(issue_commit_relation.issue_ids) <= len(args['args']['issue_ids']):
+                self.fill_modify_hook(issue_commit_relation.issue_ids, args['args']['issue_ids'])
+            else:
+                self.fill_modify_hook(args['args']['issue_ids'], issue_commit_relation.issue_ids)
+
+    def __get_issue_project_id(self, issue_id):
+        row = model.ProjectPluginRelation.query.filter_by(
+        plan_project_id=redmine.issue.get(issue_id).project.id).first()
+        return str(row.plan_project_id) if row is not None else "-1"
+        
+    def fill_modify_hook(self, short_issue_ids, long_issue_ids):
+        copy_short_issue_ids = short_issue_ids.copy()
+        copy_long_issue_ids = long_issue_ids.copy()
+        for issue_id in short_issue_ids:
+            if issue_id in long_issue_ids:
+                copy_short_issue_ids.remove(issue_id)
+                copy_long_issue_ids.remove(issue_id)
+    
+        self.object_id = "@" +  "@".join(list(map(self.__get_issue_project_id, copy_short_issue_ids+copy_long_issue_ids)))
+    
 
     def fill_by_return_value(self, ret):
         if self.action_type == ActionType.CREATE_PROJECT:

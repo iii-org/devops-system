@@ -2079,7 +2079,7 @@ class DownloadIssueAsExcel():
 @record_activity(ActionType.MODIFY_HOOK)
 def modify_hook(args):
     relation = model.IssueCommitRelation.query.get(args["commit_id"])
-    relation.issue_ids = args.issue_ids
+    relation.issue_ids = args["issue_ids"]
     db.session.commit()
 
 
@@ -2094,6 +2094,8 @@ def get_commit_hook_issues_helper(issue_id):
 def get_commit_hook_issues(commit_id):   
     issue_commit_relation = model.IssueCommitRelation.query.filter_by(commit_id=commit_id).first()
     connect_issues = list(filter(get_commit_hook_issues_helper, issue_commit_relation.issue_ids)) if issue_commit_relation is not None else None
+    # connect_issues = {
+    #     issue_id:  get_commit_hook_issues_helper(issue_id) for issue_id in issue_commit_relation.issue_ids} if issue_commit_relation is not None else None
     return {"issue_ids": connect_issues}
 
 
