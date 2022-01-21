@@ -32,5 +32,10 @@
     {
         "template_key": "deployed-environments",
         "display": "Web"
+    },
+    {
+        "template_key": "cmas",
+        "plugin_key": "cmas",
+        "display": "CMAS"
     }
 ]
