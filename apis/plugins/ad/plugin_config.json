@@ -101,7 +101,8 @@
     {
       "key": "ca_certs_data",
       "type": "password",
-      "store": "secret_system"
+      "store": "secret_system",
+      "value": ""
     }
   ]
 }
