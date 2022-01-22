@@ -1,7 +1,7 @@
 apiVersion: batch/v1beta1
 kind: CronJob
 metadata:
-  name: sync_redmine_pj_relation
+  name: sync-redmine-pj-relation
 spec:
   schedule: "0 * * * *"
   successfulJobsHistoryLimit: 0

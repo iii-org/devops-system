@@ -499,6 +499,7 @@ api.add_resource(harbor.HarborReplicationExecutionTasks,
                  '/harbor/replication/executions/<sint:execution_id>/tasks')
 api.add_resource(harbor.HarborReplicationExecutionTaskLog,
                  '/harbor/replication/executions/<sint:execution_id>/tasks/<sint:task_id>/log')
+api.add_resource(harbor.HarborCopyImageRetage, '/harbor/handle_image')
 
 # Maintenance
 api.add_resource(maintenance.UpdateDbRcProjectPipelineId,
