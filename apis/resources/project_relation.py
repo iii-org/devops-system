@@ -79,7 +79,16 @@ def get_relation_list(project_id, ret):
 
 
 def sync_project_relation():
-    default_sync_date = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    # Check current hour is same as regular running hour that user set.
+    hours = int(model.SystemParameter.query.filter_by(name="sync_redmine_project_relation").one().value["hours"])
+    if hours == 0:
+        return
+    default_sync_date = datetime.utcnow()
+    current_hour = default_sync_date.hour
+    if current_hour % hours != 0:
+        return 
+
+    default_sync_date = default_sync_date.strftime("%Y-%m-%d %H:%M:%S")
     project_relations = []
     for project in model.Project.query.all():
         if project.id != -1:
