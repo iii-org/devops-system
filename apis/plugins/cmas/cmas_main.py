@@ -243,6 +243,8 @@ def update_task(args, task_id):
         task.stats = args["stats"]
     if args.get("scan_final_status") is not None:
         task.scan_final_status = args["scan_final_status"]
+    if args.get("logs") is not None:
+        task.logs = args["logs"]
 
     db.session.commit()
 
@@ -275,6 +277,7 @@ class CMASTask(Resource):
         parser.add_argument('sha256', type=str)
         parser.add_argument('stats', type=str)
         parser.add_argument('scan_final_status', type=str)
+        parser.add_argument('logs', type=str)
 
         args = parser.parse_args()
         return update_task(args, args.pop("task_id"))
