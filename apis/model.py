@@ -776,6 +776,7 @@ class CMAS(db.Model):
     '''
     a_report_type = Column(Integer)
     a_ert = Column(Integer)
+    logs = Column(String)
 
 
 class IssueCommitRelation(db.Model):
