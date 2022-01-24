@@ -5,6 +5,9 @@ import util
 from datetime import datetime
 from accessories import redmine_lib
 from threading import Thread
+from sqlalchemy.orm import joinedload
+from resources import role
+# from resources.user import NexusUser
 
 
 def get_plan_id(project_id):
@@ -42,9 +45,14 @@ def get_all_sons_project(project_id, son_id_list):
         get_all_sons_project(id, son_id_list)
     return son_id_list
 
+def is_user_in_project(project_id):
+    if get_jwt_identity()["role_id"] == 5:
+        return True
+    return model.ProjectUserRole.query.filter_by(project_id=project_id, user_id=get_jwt_identity()["user_id"]).first() is not None
+
 def get_root_project_id(project_id):
     parent_son_relations_object = model.ProjectParentSonRelation.query.filter_by(son_id=project_id).first()
-    if parent_son_relations_object is None:
+    if parent_son_relations_object is None or not is_user_in_project(parent_son_relations_object.parent_id):
         return project_id
     parent_id = parent_son_relations_object.parent_id
     return get_root_project_id(parent_id)
@@ -109,6 +117,48 @@ def sync_project_relation():
     model.db.session.commit()
 
 
+# def get_project_family_members_by_user_helper(project_id):
+#     if get_jwt_identity()["role_id"] == 5:
+#         return True
+#     user_id = get_jwt_identity()["user_id"]
+#     return model.ProjectUserRole.query.filter(project_id=project_id, user_id=user_id).first() is not None
+
+
+# def get_project_family_members_by_user(project_id):
+    # admin_role = get_jwt_identity()["role_id"] == 5
+    # user_id = get_jwt_identity()["user_id"]
+    # for project_id in get_all_sons_project(project_id, []):
+    #     project_role = model.ProjectUserRole.query.filter(project_id=project_id, user_id=user_id).first()
+    #     if project_role is None and not admin_role:
+    #         continue
+
+    # son_project_id_list = list(filter(get_project_family_members_by_user_helper, get_all_sons_project(project_id, [])))
+    # user_list = []
+    # for project_id in son_project_id_list:
+    #     project_row = model.Project.query.options(
+    #         joinedload(model.Project.user_role).
+    #         joinedload(model.ProjectUserRole.user).
+    #         joinedload(model.User.project_role)
+    #     ).filter_by(id=project_id).one()
+    #     for user in project_row.user_role:
+    #         if user.role_id not in [role.BOT.id, role.ADMIN.id, role.QA.id] and not user.user.disabled \
+    #             and user not in user_list:
+    #             user_list.append(user)
+        
+    # user_list.sort(key=lambda x: x.user_id, reverse=True)
+    # print(user_list)
+    # arr_ret = []
+    # for relation_row in user_list:
+    #     user_json = NexusUser().set_user_row(relation_row.user).to_json()
+    #     user_json['role_id'] = relation_row.role_id
+    #     user_json['role_name'] = role.get_role_name(
+    #         relation_row.role_id)
+    #     arr_ret.append(user_json)
+    # return arr_ret
+
+
+
+
 class CheckhasSonProject(Resource):
     @jwt_required
     def get(self, project_id):
@@ -127,3 +177,9 @@ class SyncProjectRelation(Resource):
     def post(self):
         Thread(target=sync_project_relation).start()
         return util.success()
+
+
+# class GetProjectFamilymembersByUser(Resource):
+#     @jwt_required
+#     def get(self, project_id):
+#         return util.success(get_project_family_members_by_user(project_id))
