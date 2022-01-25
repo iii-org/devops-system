@@ -958,7 +958,7 @@ def get_issue_list_by_project(project_id, args, download=False):
     elif args.get("has_tag_issue", False):
         return []
     
-    if len(default_filters['issue_id'].split(",")) > 200:
+    if len(default_filters.get('issue_id',"").split(",")) > 200:
         issue_ids = default_filters.pop('issue_id').split(",")
         default_filters_list = handle_exceed_limit_length_default_filter(default_filters, issue_ids, [])
     else:
@@ -1024,7 +1024,7 @@ def get_issue_list_by_user(user_id, args):
     elif args.get("has_tag_issue", False):
         return []
 
-    if len(default_filters['issue_id'].split(",")) > 200:
+    if len(default_filters.get('issue_id', "").split(",")) > 200:
         issue_ids = default_filters.pop('issue_id').split(",")
         default_filters_list = handle_exceed_limit_length_default_filter(default_filters, issue_ids, [])
     else:
