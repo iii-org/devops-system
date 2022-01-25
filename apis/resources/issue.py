@@ -950,11 +950,14 @@ def get_issue_list_by_project(project_id, args, download=False):
     elif args.get("has_tag_issue", False):
         return []
 
-    if get_jwt_identity()["role_id"] != 7:
-        user_name = get_jwt_identity()["user_account"]
-        issue_filter = redmine_lib.rm_impersonate(user_name).issue.filter(**default_filters)
-    else:
+    if download:
         issue_filter = redmine_lib.redmine.issue.filter(**default_filters)
+    else:
+        if get_jwt_identity()["role_id"] != 7:
+            user_name = get_jwt_identity()["user_account"]
+            issue_filter = redmine_lib.rm_impersonate(user_name).issue.filter(**default_filters)
+        else:
+            issue_filter = redmine_lib.redmine.issue.filter(**default_filters)
 
     all_issues = issue_filter.values()
     # 透過 selection params 決定是否顯示 family bool 欄位
@@ -2772,7 +2775,6 @@ class DownloadProject(Resource):
 
         if get_lock_status("download_pj_issues")["is_lock"]:
             return util.success("previous is still running")
-
         download_issue_excel = DownloadIssueAsExcel(args, project_id)
         threading.Thread(target=download_issue_excel.execute).start()
         return util.success()
