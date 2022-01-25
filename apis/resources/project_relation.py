@@ -45,17 +45,19 @@ def get_all_sons_project(project_id, son_id_list):
         get_all_sons_project(id, son_id_list)
     return son_id_list
 
-def is_user_in_project(project_id):
+def is_user_in_project(project_id, force):
+    if force:
+        return True
     if get_jwt_identity()["role_id"] == 5:
         return True
     return model.ProjectUserRole.query.filter_by(project_id=project_id, user_id=get_jwt_identity()["user_id"]).first() is not None
 
-def get_root_project_id(project_id):
+def get_root_project_id(project_id, force=False):
     parent_son_relations_object = model.ProjectParentSonRelation.query.filter_by(son_id=project_id).first()
-    if parent_son_relations_object is None or not is_user_in_project(parent_son_relations_object.parent_id):
+    if parent_son_relations_object is None or not is_user_in_project(parent_son_relations_object.parent_id, force):
         return project_id
     parent_id = parent_son_relations_object.parent_id
-    return get_root_project_id(parent_id)
+    return get_root_project_id(parent_id, force)
 
 def project_has_child(project_id):
     return model.ProjectParentSonRelation.query.filter_by(parent_id=project_id).first() is not None
