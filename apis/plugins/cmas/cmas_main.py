@@ -196,6 +196,7 @@ def get_tasks(repository_id):
         "a_mode": task.a_mode,
         "a_report_type": task.a_report_type,
         "a_ert": task.a_ert,
+        "logs": task.logs
     } for task in Model.query.filter_by(repo_id=repository_id).order_by(desc(Model.run_at)).all()]
 
 
