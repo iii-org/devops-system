@@ -1,5 +1,6 @@
 from flask_restful import Resource, reqparse
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_socketio import Namespace, emit, send, join_room, leave_room
 import json
 import util
 import datetime
@@ -44,6 +45,36 @@ def delete_notification_message(message_id):
     row = NotificationMessage.query.filter_by(id=message_id).first()
     db.session.delete(row)
     db.session.commit()
+
+
+class NotificationRoom(object):
+
+    def get_message(self, data):
+
+        rows = NotificationMessage.query.order_by(NotificationMessage.id.desc()).all()
+        for row in rows:
+            print(str(row))
+            emit("system_message", str(row), namespace="/get_notification_message", to=data["room"])
+
+
+class GetNotificationMessage(Namespace):
+
+    def on_connect(self):
+        print('Connect')
+
+    def on_disconnect(self):
+        print('Client disconnected')
+
+    def on_join_room(self, data):
+        print('Join room')
+        join_room(data['room'])
+
+    def on_leave_room(self, data):
+        print('Leave room')
+        leave_room(data['room'])
+
+    def on_get_message(self, data):
+        notification_room.get_message(data)
 
 
 class Message(Resource):
@@ -95,3 +126,6 @@ class Message_list(Resource):
     def get(self):
         role.require_admin()
         return util.success(get_notification_message_list())
+
+
+notification_room = NotificationRoom()
