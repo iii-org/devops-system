@@ -569,7 +569,7 @@ def tm_update_pipline_branches(repository_id, data, default=True, run=False):
             f.save(
                 branch=br.name,
                 author_email='system@iiidevops.org.tw',
-                author_name='System',
+                author_name='iiidevops',
                 commit_message='UI 編輯 .rancher-pipeline.yaml 啟用停用分支')
             if run is False or (run is True and br.name != branch_name_in_data):
                 pipeline.stop_and_delete_pipeline(repository_id, next_run, branch=br.name)
@@ -674,7 +674,7 @@ def update_pj_rancher_pipline(repository_id):
         f.save(
             branch=br.name,
             author_email='system@iiidevops.org.tw',
-            author_name='System',
+            author_name='iiidevops',
             commit_message=f'Add "iiidevops" in branch {br.name} .rancher-pipeline.yml.')
         pipeline.stop_and_delete_pipeline(repository_id, next_run)
 
@@ -731,7 +731,7 @@ def update_pj_plugin_status(plugin_name, disable):
                 f.save(
                     branch=br.name,
                     author_email='system@iiidevops.org.tw',
-                    author_name='System',
+                    author_name='iiidevops',
                     commit_message=f'UI 編輯 .rancher-pipeline.yaml {process} {plugin_name}.')
                 pipeline.stop_and_delete_pipeline(repository_id, next_run)
 

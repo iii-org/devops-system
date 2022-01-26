@@ -90,7 +90,9 @@ def get_plugin_config(plugin_name):
         global_secrets = {}
     for item in config['keys']:
         key = item['key']
+        item_value = item.get('value')
         store = PluginKeyStore(item['store'])
+        value = None
         if store == PluginKeyStore.DB:
             value = db_arguments.get(key, None)
         elif store == PluginKeyStore.SECRET_SYSTEM:
@@ -99,12 +101,17 @@ def get_plugin_config(plugin_name):
             value = global_secrets.get(key, None)
         else:
             value = f'Wrong store location: {item["store"]}'
+        # if value is not assign, assign default value
+        if value is None and item_value is not None:
+            value = item_value
+
         o = {
             'key': key,
             'title': item['key'].replace('-', '_'),
             'type': item['type'],
             'value': value
         }
+
         # Add Select Option
         if item['type'] == 'select':
             o['options'] = item['options']

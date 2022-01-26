@@ -777,6 +777,7 @@ class CMAS(db.Model):
     '''
     a_report_type = Column(Integer)
     a_ert = Column(Integer)
+    logs = Column(String)
 
 
 class IssueCommitRelation(db.Model):
@@ -838,3 +839,4 @@ class ProjectParentSonRelation(db.Model):
     id = Column(Integer, primary_key=True)
     parent_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
     son_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
+    created_at = Column(DateTime)

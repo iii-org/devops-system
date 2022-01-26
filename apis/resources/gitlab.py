@@ -416,7 +416,7 @@ class GitLab(object):
             params={
                 'branch': branch,
                 'author_email': 'system@iiidevops.org.tw',
-                'author_name': 'System',
+                'author_name': 'iiidevops',
                 'commit_message': args['commit_message']
             })
 
@@ -671,7 +671,7 @@ class GitLab(object):
                 'branch': branch,
                 'encoding': 'base64',
                 'author_email': 'system@iiidevops.org.tw',
-                'author_name': 'System',
+                'author_name': 'iiidevops',
                 'content': content,
                 'commit_message': f'Add file {file_path}'
             })
@@ -783,7 +783,7 @@ def get_project_commit_endpoint_object(project_id):
 def sync_commit_issues_relation(project_id):
     pulgin_project_object = get_project_plugin_object(project_id)
     # Find root project to get all related issues
-    root_project_id = get_root_project_id(project_id)
+    root_project_id = get_root_project_id(project_id, force=True)
     root_plan_project_id = get_project_plugin_object(root_project_id).plan_project_id
     issue_list = [str(issue.id) for issue in redmine.project.get(root_plan_project_id).issues]
 
@@ -847,19 +847,18 @@ def get_commit_issues_hook_by_branch(project_id, branch_name, limit):
     # Find root project to get all related issues
     root_project_id = get_root_project_id(project_id)
     root_plan_project_id = get_project_plugin_object(root_project_id).plan_project_id
-    issue_list = [str(issue.id) for issue in redmine.project.get(root_plan_project_id).issues]
+    issue_list = [int(issue.id) for issue in redmine.project.get(root_plan_project_id).issues]
 
     commits = gitlab.gl_get_commits(repo_id, branch_name, per_page=limit)
     for commit in commits:
         ret = {"issue_hook": {}}
-        # Find all issue_id startswith '#'
-        regex = re.compile(r'#(\d+)')
-        commit_issue_id_list = regex.findall(commit["title"])
+        issue_commit_relation = model.IssueCommitRelation.query.filter_by(commit_id=commit["id"]).first() 
+        commit_issue_id_list = issue_commit_relation.issue_ids if issue_commit_relation is not None else []
         for issue_id in commit_issue_id_list:
             if issue_id in issue_list:
                 issue = redmine.issue.get(issue_id)
                 project_id = model.ProjectPluginRelation.query.filter_by(plan_project_id=issue.project.id).first().project_id
-                ret["issue_hook"][int(issue_id)] = account in get_project_members(project_id)
+                ret["issue_hook"][issue_id] = account in get_project_members(project_id)
 
         ret["commit_id"] = commit["id"]
         ret["commit_short_id"] = commit["id"][:7]

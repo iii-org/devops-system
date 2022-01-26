@@ -372,7 +372,10 @@ class AD(object):
                                    )
             if self.conn.bind() is True:
                 self.ad_info['is_pass'] = True
+            else:
+                logger.info(f'User Login Error by AD  :{self.account}')
         except NoResultFound:
+            logger.info(f'User Login Unexpected Error by AD  :{self.account}')
             self.ad_info['is_pass'] = False
 
     def get_users(self):
@@ -581,6 +584,8 @@ class LDAP(object):
             if len(user) > 0:
                 user = user[0]
                 output = add_ad_user_info_by_iii(user['attributes'])
+            else:
+                logger.info(f'User Login Error by AD by Account: {account}')
             return output
         except NoResultFound:
             return util.respond(404, invalid_ad_server,

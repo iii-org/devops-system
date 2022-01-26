@@ -222,6 +222,8 @@ api.add_resource(project_relation.CheckhasSonProject, '/project/<sint:project_id
 api.add_resource(project_relation.GetProjectRootID, '/project/<sint:project_id>/root_project')
 api.add_resource(project.ProjectRelation, '/project/<sint:project_id>/relation')
 api.add_resource(issue.IssueCommitRelation, '/issue/relation')
+api.add_resource(project_relation.SyncProjectRelation, '/project/sync_project_relation')
+api.add_resource(project_relation.GetProjectFamilymembersByUser, '/project/<sint:project_id>/members')
 
 
 # Tag
@@ -498,6 +500,7 @@ api.add_resource(harbor.HarborReplicationExecutionTasks,
                  '/harbor/replication/executions/<sint:execution_id>/tasks')
 api.add_resource(harbor.HarborReplicationExecutionTaskLog,
                  '/harbor/replication/executions/<sint:execution_id>/tasks/<sint:task_id>/log')
+api.add_resource(harbor.HarborCopyImageRetage, '/harbor/handle_image')
 
 # Maintenance
 api.add_resource(maintenance.UpdateDbRcProjectPipelineId,

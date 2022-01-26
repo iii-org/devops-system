@@ -928,6 +928,14 @@ def get_issue_by_project(project_id, args):
             NexusIssue().set_redmine_issue(redmine_issue, nx_project=nx_project).to_json())
     return output_array
 
+def handle_exceed_limit_length_default_filter(default_filters, issue_ids, default_filters_list):
+    if issue_ids == []:
+        return default_filters_list
+    default_filters_copy = default_filters.copy()
+    default_filters_copy["issue_id"] = ",".join(issue_ids[:200])   
+    default_filters_list.append(default_filters_copy)
+    return handle_exceed_limit_length_default_filter(default_filters, issue_ids[200:], default_filters_list)
+
 
 def get_issue_list_by_project(project_id, args, download=False):
     nx_issue_params = defaultdict()
@@ -949,30 +957,43 @@ def get_issue_list_by_project(project_id, args, download=False):
             return []
     elif args.get("has_tag_issue", False):
         return []
-
-    if get_jwt_identity()["role_id"] != 7:
-        user_name = get_jwt_identity()["user_account"]
-        issue_filter = redmine_lib.rm_impersonate(user_name).issue.filter(**default_filters)
+    
+    if len(default_filters.get('issue_id',"").split(",")) > 200:
+        issue_ids = default_filters.pop('issue_id').split(",")
+        default_filters_list = handle_exceed_limit_length_default_filter(default_filters, issue_ids, [])
     else:
-        issue_filter = redmine_lib.redmine.issue.filter(**default_filters)
+        default_filters_list = [default_filters]
 
-    all_issues = issue_filter.values()
-    # 透過 selection params 決定是否顯示 family bool 欄位
-    if not args['selection'] or not strtobool(args['selection']):
-        nx_issue_params['relationship_bool'] = True
+    total_count = 0
+    for default_filters in default_filters_list:
+        if download:
+            issue_filter = redmine_lib.redmine.issue.filter(**default_filters)
+        else:
+            if get_jwt_identity()["role_id"] != 7:
+                user_name = get_jwt_identity()["user_account"]
+                issue_filter = redmine_lib.rm_impersonate(user_name).issue.filter(**default_filters)
+            else:
+                issue_filter = redmine_lib.redmine.issue.filter(**default_filters)
 
-    nx_issue_params['users_info'] = user.get_all_user_info()
-    for redmine_issue in all_issues:
-        nx_issue_params['redmine_issue'] = redmine_issue
-        nx_issue_params['with_point'] = args["with_point"]
-        issue = NexusIssue().set_redmine_issue_v3(**nx_issue_params).to_json()
-        output.append(issue)
+        all_issues = issue_filter.values()
+        # 透過 selection params 決定是否顯示 family bool 欄位
+        if not args['selection'] or not strtobool(args['selection']):
+            nx_issue_params['relationship_bool'] = True
+
+        nx_issue_params['users_info'] = user.get_all_user_info()
+        for redmine_issue in all_issues:
+            nx_issue_params['redmine_issue'] = redmine_issue
+            nx_issue_params['with_point'] = args["with_point"]
+            issue = NexusIssue().set_redmine_issue_v3(**nx_issue_params).to_json()
+            output.append(issue)
+        
+        total_count += issue_filter.total_count
 
     if download:
         return output
 
     if args['limit'] and args['offset'] is not None:
-        page_dict = util.get_pagination(issue_filter.total_count,
+        page_dict = util.get_pagination(total_count,
                                         args['limit'], args['offset'])
         output = {'issue_list': output, 'page': page_dict}
     return output
@@ -1003,24 +1024,34 @@ def get_issue_list_by_user(user_id, args):
     elif args.get("has_tag_issue", False):
         return []
 
-    if get_jwt_identity()["role_id"] != 7:
-        user_name = get_jwt_identity()["user_account"]
-        all_issues = redmine_lib.rm_impersonate(user_name).issue.filter(**default_filters)
+    if len(default_filters.get('issue_id', "").split(",")) > 200:
+        issue_ids = default_filters.pop('issue_id').split(",")
+        default_filters_list = handle_exceed_limit_length_default_filter(default_filters, issue_ids, [])
     else:
-        all_issues = redmine_lib.redmine.issue.filter(**default_filters)
-    
-    # 透過 selection params 決定是否顯示 family bool 欄位
-    if not args['selection'] or not strtobool(args['selection']):
-        nx_issue_params['relationship_bool'] = True
+        default_filters_list = [default_filters]
 
-    nx_issue_params['users_info'] = user.get_all_user_info()
-    for redmine_issue in all_issues:
-        nx_issue_params['redmine_issue'] = redmine_issue
-        issue = NexusIssue().set_redmine_issue_v2(**nx_issue_params).to_json()
-        output.append(issue)
+    total_count = 0
+    for default_filters in default_filters_list:
+        if get_jwt_identity()["role_id"] != 7:
+            user_name = get_jwt_identity()["user_account"]
+            all_issues = redmine_lib.rm_impersonate(user_name).issue.filter(**default_filters)
+        else:
+            all_issues = redmine_lib.redmine.issue.filter(**default_filters)
+        
+        # 透過 selection params 決定是否顯示 family bool 欄位
+        if not args['selection'] or not strtobool(args['selection']):
+            nx_issue_params['relationship_bool'] = True
+
+        nx_issue_params['users_info'] = user.get_all_user_info()
+        for redmine_issue in all_issues:
+            nx_issue_params['redmine_issue'] = redmine_issue
+            issue = NexusIssue().set_redmine_issue_v2(**nx_issue_params).to_json()
+            output.append(issue)
+        
+        total_count += all_issues.total_count
 
     if args['limit'] and args['offset'] is not None:
-        page_dict = util.get_pagination(all_issues.total_count,
+        page_dict = util.get_pagination(total_count,
                                         args['limit'], args['offset'])
         output = {'issue_list': output, 'page': page_dict}
     return output
@@ -2079,7 +2110,7 @@ class DownloadIssueAsExcel():
 @record_activity(ActionType.MODIFY_HOOK)
 def modify_hook(args):
     relation = model.IssueCommitRelation.query.get(args["commit_id"])
-    relation.issue_ids = args.issue_ids
+    relation.issue_ids = args["issue_ids"]
     db.session.commit()
 
 
@@ -2093,7 +2124,9 @@ def get_commit_hook_issues_helper(issue_id):
 
 def get_commit_hook_issues(commit_id):   
     issue_commit_relation = model.IssueCommitRelation.query.filter_by(commit_id=commit_id).first()
-    connect_issues = list(filter(get_commit_hook_issues_helper, issue_commit_relation.issue_ids)) if issue_commit_relation is not None else None
+    # connect_issues = list(filter(get_commit_hook_issues_helper, issue_commit_relation.issue_ids)) if issue_commit_relation is not None else None
+    connect_issues = {
+        issue_id:  get_commit_hook_issues_helper(issue_id) for issue_id in issue_commit_relation.issue_ids} if issue_commit_relation is not None else None
     return {"issue_ids": connect_issues}
 
 
@@ -2770,7 +2803,6 @@ class DownloadProject(Resource):
 
         if get_lock_status("download_pj_issues")["is_lock"]:
             return util.success("previous is still running")
-
         download_issue_excel = DownloadIssueAsExcel(args, project_id)
         threading.Thread(target=download_issue_excel.execute).start()
         return util.success()

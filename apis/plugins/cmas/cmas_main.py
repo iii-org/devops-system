@@ -61,34 +61,39 @@ class CMAS(object):
         return res
 
     def query_report_task(self):
-        ret = self.__api_post(
-            '/M3AS-REST/api/query/report',
-            data={
-                'authKey': self.authKey,
-                'uploadId': self.task.upload_id,
-                'sha256': self.task.sha256,
-                'taskId': self.task.task_id,
-            },
-        ).json()
-        if ret.get("Pdf-link-list") is not None:
-            pdf_file = ""
-            for filename in ret["Pdf-link-list"]:
-                if "cht" in filename:
-                    pdf_file = filename.replace("/M3AS-REST/api/report/pdf?filename=", "")
-                    break
-            json_file = ret.get("JSON-link", "").replace("/M3AS-REST/api/report/json?filename=", "")
+        try:
+            ret = self.__api_post(
+                '/M3AS-REST/api/query/report',
+                data={
+                    'authKey': self.authKey,
+                    'uploadId': self.task.upload_id,
+                    'sha256': self.task.sha256,
+                    'taskId': self.task.task_id,
+                },
+            ).json()
+            if ret.get("Pdf-link-list") is not None:
+                pdf_file = ""
+                for filename in ret["Pdf-link-list"]:
+                    if "cht" in filename:
+                        pdf_file = filename.replace("/M3AS-REST/api/report/pdf?filename=", "")
+                        break
+                json_file = ret.get("JSON-link", "").replace("/M3AS-REST/api/report/json?filename=", "")
 
-            self.task.scan_final_status = "SUCCESS"
-            self.task.finished = True
-            self.task.finished_at = datetime.datetime.utcnow()
-            self.task.filenames = {"pdf": pdf_file, "json": json_file}
-            self.task.stats = self.__pharse_state_info()
+                self.task.scan_final_status = "SUCCESS"
+                self.task.finished = True
+                self.task.finished_at = datetime.datetime.utcnow()
+                self.task.filenames = {"pdf": pdf_file, "json": json_file}
+                self.task.stats = self.__pharse_state_info()
+                db.session.commit()
+                ret["status"] = "SUCCESS"
+                return ret
+            else:
+                ret["status"] = ret["status"].replace("APP_", "")
+                return ret
+        except Exception as e:
+            self.task.scan_final_status = "FAIL"
+            self.task.logs = str(e)
             db.session.commit()
-            ret["status"] = "SUCCESS"
-            return ret
-        else:
-            ret["status"] = ret["status"].replace("APP_", "")
-            return ret
 
     def download_report(self):
         ret = self.__api_get(
@@ -191,6 +196,7 @@ def get_tasks(repository_id):
         "a_mode": task.a_mode,
         "a_report_type": task.a_report_type,
         "a_ert": task.a_ert,
+        "logs": task.logs
     } for task in Model.query.filter_by(repo_id=repository_id).order_by(desc(Model.run_at)).all()]
 
 
@@ -243,6 +249,8 @@ def update_task(args, task_id):
         task.stats = args["stats"]
     if args.get("scan_final_status") is not None:
         task.scan_final_status = args["scan_final_status"]
+    if args.get("logs") is not None:
+        task.logs = args["logs"]
 
     db.session.commit()
 
@@ -275,6 +283,7 @@ class CMASTask(Resource):
         parser.add_argument('sha256', type=str)
         parser.add_argument('stats', type=str)
         parser.add_argument('scan_final_status', type=str)
+        parser.add_argument('logs', type=str)
 
         args = parser.parse_args()
         return update_task(args, args.pop("task_id"))

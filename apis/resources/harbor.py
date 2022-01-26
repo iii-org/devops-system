@@ -1,10 +1,10 @@
 import re
-from urllib.parse import quote
+from urllib.parse import quote, quote_plus
 
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
 from requests.auth import HTTPBasicAuth
-
+from time import sleep
 import config
 import model
 import nexus
@@ -280,6 +280,20 @@ def hb_get_artifact(project_name, repository_name, tag_name):
     return generate_artifacts_output(artifact)
 
 
+def hb_copy_artifact(project_name, repository_name, from_image):
+    url = f"/projects/{project_name}/repositories/{repository_name}/artifacts?from={quote_plus(from_image)}"
+    return __api_post(url)
+
+
+def hb_copy_artifact_and_retage(project_name, target_repository_name, form_repo_name, digest, tag_name):
+    from_image = f'{project_name}/{form_repo_name}@{digest}'
+    hb_copy_artifact(project_name, target_repository_name, from_image)
+    
+    for tag in hb_list_tags(project_name, target_repository_name, digest):
+        hb_delete_artifact_tag(project_name, target_repository_name, digest, tag["name"], keep=True)
+    hb_create_artifact_tag(project_name, target_repository_name, digest, tag_name)
+
+
 def hb_get_repository_info(project_name, repository_name):
     return __api_get(f'/projects/{project_name}/repositories/{__encode(repository_name)}').json()
 
@@ -308,10 +322,10 @@ def hb_create_artifact_tag(project_name, repository_name, reference, tag_name):
                       f'/artifacts/{reference}/tags', data={'name': tag_name})
 
 
-def hb_delete_artifact_tag(project_name, repository_name, reference, tag_name):
+def hb_delete_artifact_tag(project_name, repository_name, reference, tag_name, keep=False):
     __api_delete(f'/projects/{project_name}/repositories/{__encode(repository_name)}'
                  f'/artifacts/{reference}/tags/{tag_name}')
-    if len(hb_list_tags(project_name, repository_name, reference)) == 0:
+    if len(hb_list_tags(project_name, repository_name, reference)) == 0 and not keep:
         hb_delete_artifact(project_name, repository_name, reference)
 
 
@@ -816,3 +830,18 @@ class HarborReplicationExecutionTaskLog(Resource):
     def get(self, execution_id, task_id):
         output = hb_get_replication_executions_tasks_log(execution_id, task_id)
         return util.success({'logs': output.text.splitlines()})
+
+class HarborCopyImageRetage(Resource):
+    @jwt_required
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('project_name', type=str, required=True)
+        parser.add_argument('target_repo_name', type=str, required=True)
+        parser.add_argument('form_repo_name', type=str, required=True)
+        parser.add_argument('digest', type=str, required=True)
+        parser.add_argument('tag_name', type=str, required=True)
+        args = parser.parse_args()
+
+        return util.success(
+            hb_copy_artifact_and_retage(
+                args["project_name"], args["target_repo_name"], args["form_repo_name"], args["digest"], args["tag_name"]))

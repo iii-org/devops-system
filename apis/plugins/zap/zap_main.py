@@ -61,7 +61,7 @@ def zap_get_test_by_commit(project_id, commit_id):
     row = model.Zap.query.filter(
         model.Zap.project_name == project_name,
         model.Zap.commit_id.like(f'{commit_id}%')
-    ).first()
+    ).order_by(desc(model.Zap.id)).first()
     if row is not None:
         return process_row(row, project_id)
     else:
