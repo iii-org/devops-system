@@ -973,15 +973,14 @@ def get_issue_list_by_project(project_id, args, download=False):
     total_count = 0
     for default_filters in default_filters_list:
         if download:
-            issue_filter = redmine_lib.redmine.issue.filter(**default_filters)
+            all_issues = redmine_lib.redmine.issue.filter(**default_filters)
         else:
             if get_jwt_identity()["role_id"] != 7:
                 user_name = get_jwt_identity()["user_account"]
-                issue_filter = redmine_lib.rm_impersonate(user_name).issue.filter(**default_filters)
+                all_issues = redmine_lib.rm_impersonate(user_name).issue.filter(**default_filters)
             else:
-                issue_filter = redmine_lib.redmine.issue.filter(**default_filters)
+                all_issues = redmine_lib.redmine.issue.filter(**default_filters)
 
-        all_issues = issue_filter.values()
         # 透過 selection params 決定是否顯示 family bool 欄位
         if not args['selection'] or not strtobool(args['selection']):
             nx_issue_params['relationship_bool'] = True
@@ -990,10 +989,10 @@ def get_issue_list_by_project(project_id, args, download=False):
         for redmine_issue in all_issues:
             nx_issue_params['redmine_issue'] = redmine_issue
             nx_issue_params['with_point'] = args["with_point"]
-            issue = NexusIssue().set_redmine_issue_v3(**nx_issue_params).to_json()
+            issue = NexusIssue().set_redmine_issue_v2(**nx_issue_params).to_json()
             output.append(issue)
         
-        total_count += issue_filter.total_count
+        total_count += all_issues.total_count
 
     if download:
         return output
