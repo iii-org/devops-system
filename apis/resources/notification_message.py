@@ -1,11 +1,25 @@
 from flask_restful import Resource, reqparse
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from flask_socketio import Namespace, emit, send, join_room, leave_room
+from flask_socketio import Namespace, emit, join_room, leave_room
 import json
 import util
 import datetime
 from model import db, NotificationMessage, NotificationMessageReplySlip
 from resources import role
+
+'''
+websocket parameters:
+{"user_id"=234}
+
+Notification type:
+1: All {}
+2: By project {
+    "project_id": 3
+}
+3: By user {
+    "user_id": 314
+}
+'''
 
 
 def get_notification_message_list():
@@ -64,10 +78,10 @@ class NotificationRoom(object):
 
     def get_message(self, data):
 
-        rows = NotificationMessage.query.order_by(NotificationMessage.id.desc()).all()
+        rows = NotificationMessage.query.filter_by().all()
         for row in rows:
             print(str(row))
-            emit("system_message", str(row), namespace="/get_notification_message", to=data["room"])
+            emit("system_message", str(row), namespace="/get_notification_message", to=f"user/{data['user_id']}")
 
 
 class GetNotificationMessage(Namespace):
@@ -79,12 +93,16 @@ class GetNotificationMessage(Namespace):
         print('Client disconnected')
 
     def on_join_room(self, data):
+        # verify jwt token
+        # verify user_id
+        if "user_id" not in data:
+            return
         print('Join room')
-        join_room(data['room'])
+        join_room(f"user/{data['user_id']}")
 
     def on_leave_room(self, data):
         print('Leave room')
-        leave_room(data['room'])
+        leave_room(f"user/{data['user_id']}")
 
     def on_get_message(self, data):
         notification_room.get_message(data)
