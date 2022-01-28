@@ -47,6 +47,19 @@ def delete_notification_message(message_id):
     db.session.commit()
 
 
+def create_notification_message_reply_slip(user_id, args):
+    row_list = []
+    for message_id in args["message_ids"]:
+        row = NotificationMessageReplySlip(
+            message_id=message_id,
+            user_id=user_id,
+            created_at=datetime.datetime.utcnow(),
+        )
+        row_list.append(row)
+    db.session.add_all(row_list)
+    db.session.commit()
+
+
 class NotificationRoom(object):
 
     def get_message(self, data):
@@ -120,12 +133,22 @@ class Message(Resource):
         return util.success(delete_notification_message(message_id))
 
 
-class Message_list(Resource):
+class MessageList(Resource):
 
     @ jwt_required
     def get(self):
         role.require_admin()
         return util.success(get_notification_message_list())
+
+
+class MessageReply(Resource):
+    @ jwt_required
+    def post(self, user_id):
+        role.require_user_himself(user_id, even_admin=True)
+        parser = reqparse.RequestParser()
+        parser.add_argument('message_ids', type=list, location='json', required=True)
+        args = parser.parse_args()
+        return util.success(create_notification_message_reply_slip(user_id, args))
 
 
 notification_room = NotificationRoom()
