@@ -666,6 +666,7 @@ class Lock(db.Model):
     is_lock = Column(Boolean)
     sync_date = Column(DateTime)
 
+
 class IssueDisplayField(db.Model):
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'), nullable=False)
@@ -679,7 +680,8 @@ class IssueDisplayField(db.Model):
             if type not in ["wbs_cache", "issue_list"]:
                 raise AssertionError(
                     "Type must in wbs_cache / issue_list.")
-        return type    
+        return type
+
 
 class ServerType(db.Model):
     id = Column(Integer, primary_key=True)
@@ -831,6 +833,7 @@ class NotificationMessageReplySlip(db.Model):
     message_id = Column(Integer, ForeignKey(NotificationMessage.id, ondelete='CASCADE'))
     user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'))
     created_at = Column(DateTime)
+    message = relationship('NotificationMessage', backref='message_reply_slip')
 
 
 class ProjectParentSonRelation(db.Model):
