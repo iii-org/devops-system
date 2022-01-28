@@ -40,6 +40,7 @@ def get_nexus_project_id(repo_id):
     else:
         return -1
 
+
 def get_nexus_repo_id(project_id):
     row = model.ProjectPluginRelation.query.filter_by(
         project_id=project_id).first()
@@ -738,11 +739,12 @@ def account_is_gitlab_project_memeber(project_id, account):
         if account == member["username"] or account == "Administrator":
             return True
     return False
-    
+
 
 def get_commit_issues_relation(project_id, issue_id, limit):
     account = get_jwt_identity()["user_account"]
-    relation_project_list = [project_id] + get_all_fathers_project(project_id, []) + get_all_sons_project(project_id, [])
+    relation_project_list = [project_id] + \
+        get_all_fathers_project(project_id, []) + get_all_sons_project(project_id, [])
     commit_issues_relations = model.IssueCommitRelation.query.filter(model.IssueCommitRelation.project_id.in_(tuple(relation_project_list))). \
         filter(model.IssueCommitRelation.issue_ids.contains([int(issue_id)])).order_by(
             desc(model.IssueCommitRelation.commit_time)).limit(limit).all()
@@ -827,6 +829,7 @@ def sync_commit_issues_relation(project_id):
             project_commit_endpoint.commit_id = br.commit["id"]
             model.db.session.commit()
 
+
 def get_project_members(project_id):
     # list users in the project
     project_row = model.Project.query.options(
@@ -836,14 +839,16 @@ def get_project_members(project_id):
     ).filter_by(id=project_id).one()
     users = list(filter(lambda x: not x.user.disabled, project_row.user_role))
     account_list = ["sysadmin"] + [
-        model.User.query.get(user.user_id).login for user in users if not model.User.query.get(user.user_id).login.startswith("project_bot")] 
+        model.User.query.get(user.user_id).login for user in users if not model.User.query.get(user.user_id).login.startswith("project_bot")]
     return account_list
+
 
 def get_commit_issues_hook_by_branch(project_id, branch_name, limit):
     ret_list = []
     account = get_jwt_identity()["user_account"]
-    repo_id = get_project_plugin_object(project_id).git_repository_id 
-    show_url = account in [member["username"] for member in get_all_repo_members(project_id) if not member["username"].startswith("project_bot")]
+    repo_id = get_project_plugin_object(project_id).git_repository_id
+    show_url = account in [member["username"] for member in get_all_repo_members(
+        project_id) if not member["username"].startswith("project_bot")]
     # Find root project to get all related issues
     root_project_id = get_root_project_id(project_id)
     root_plan_project_id = get_project_plugin_object(root_project_id).plan_project_id
@@ -852,12 +857,13 @@ def get_commit_issues_hook_by_branch(project_id, branch_name, limit):
     commits = gitlab.gl_get_commits(repo_id, branch_name, per_page=limit)
     for commit in commits:
         ret = {"issue_hook": {}}
-        issue_commit_relation = model.IssueCommitRelation.query.filter_by(commit_id=commit["id"]).first() 
+        issue_commit_relation = model.IssueCommitRelation.query.filter_by(commit_id=commit["id"]).first()
         commit_issue_id_list = issue_commit_relation.issue_ids if issue_commit_relation is not None else []
         for issue_id in commit_issue_id_list:
             if issue_id in issue_list:
                 issue = redmine.issue.get(issue_id)
-                project_id = model.ProjectPluginRelation.query.filter_by(plan_project_id=issue.project.id).first().project_id
+                project_id = model.ProjectPluginRelation.query.filter_by(
+                    plan_project_id=issue.project.id).first().project_id
                 ret["issue_hook"][issue_id] = account in get_project_members(project_id)
 
         ret["commit_id"] = commit["id"]
@@ -870,6 +876,7 @@ def get_commit_issues_hook_by_branch(project_id, branch_name, limit):
         ret_list.append(ret)
 
     return ret_list
+
 
 def gitlab_domain_connection(action):
     if action not in ["open", "close"]:
@@ -1158,6 +1165,7 @@ class GetCommitIssueHookByBranch(Resource):
         args = parser.parse_args()
         return util.success(get_commit_issues_hook_by_branch(project_id, args["branch_name"], args["limit"]))
 
+
 class GitlabDomainConnection(Resource):
     @jwt_required
     def get(self):
@@ -1165,7 +1173,7 @@ class GitlabDomainConnection(Resource):
             ipaddress.ip_address(config.get("GITLAB_DOMAIN_NAME"))
             is_ip = True
         except ValueError:
-            is_ip =  False
+            is_ip = False
         return {"is_ip": is_ip}
 
     @jwt_required
@@ -1174,4 +1182,3 @@ class GitlabDomainConnection(Resource):
         parser.add_argument('action', type=str)
         args = parser.parse_args()
         return util.success(gitlab_domain_connection(args["action"]))
-   

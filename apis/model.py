@@ -833,6 +833,7 @@ class NotificationMessageReplySlip(db.Model):
     message_id = Column(Integer, ForeignKey(NotificationMessage.id, ondelete='CASCADE'))
     user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'))
     created_at = Column(DateTime)
+    message = relationship('NotificationMessage', backref='message_reply_slip')
 
 
 class ProjectParentSonRelation(db.Model):

@@ -62,9 +62,10 @@ class Redmine:
                 apiError.redmine_error(output))
         return output
 
-    def __api_get(self, path, params=None, headers=None,
+    def __api_get(self, path, params=None, headers=None, operator_id=None,
                   resp_format='.json'):
-        return self.__api_request('GET', path, params=params, headers=headers, resp_format=resp_format)
+        return self.__api_request('GET', path, params=params, headers=headers, 
+                                  operator_id=operator_id, resp_format=resp_format)
 
     def __api_post(self, path, params=None, headers=None, data=None,
                    operator_id=None, resp_format='.json'):
@@ -104,7 +105,7 @@ class Redmine:
 
     # --------------- Normal methods ---------------
 
-    def paging(self, key, page=100, params=None):
+    def paging(self, key, page=100, params=None, operator_id=None):
         if params is None:
             params = {}
         offset = 0
@@ -112,7 +113,7 @@ class Redmine:
         path = '/{0}'.format(key)
         params['limit'] = page
         while True:
-            res = self.__api_get(path=path, params=params).json().get(key)
+            res = self.__api_get(path=path, params=params, operator_id=operator_id).json().get(key)
             ret.extend(res)
             if len(res) == 100:
                 offset += 100
@@ -169,10 +170,12 @@ class Redmine:
     def rm_delete_project(self, plan_project_id):
         return self.__api_delete('/projects/{0}'.format(plan_project_id))
 
-    def rm_list_issues(self, paging=100, params=None):
+    def rm_list_issues(self, paging=100, params=None, operator_id=None):
         if params is None:
             params = {'status_id': '*'}
-        return self.paging('issues', paging, params)
+        if params.get("limit") is not None:
+            return self.__api_get('/issues', params=params, operator_id=operator_id).json().get("issues")
+        return self.paging('issues', paging, params, operator_id)
 
     def rm_get_issues_by_user(self, user_id):
         params = {'assigned_to_id': user_id, 'status_id': '*'}

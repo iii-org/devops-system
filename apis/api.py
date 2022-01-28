@@ -338,6 +338,7 @@ socketio.on_namespace(rancher.RancherWebsocketLog('/rancher/websocket/logs'))
 socketio.on_namespace(system_parameter.SyncTemplateWebsocketLog('/sync_template/websocket/logs'))
 socketio.on_namespace(
     kubernetesClient.KubernetesPodExec('/k8s/websocket/pod_exec'))
+socketio.on_namespace(issue.IssueSocket('/issues/websocket'))
 
 # issue
 api.add_resource(issue.IssueFamily, '/issue/<issue_id>/family')
