@@ -1062,7 +1062,11 @@ def get_issue_list_by_project_helper(project_id, args, download=False):
             has_family_issues.append(issue["id"])
     
     for issue in output:
+        issue.pop("parent")
         issue["name"] = issue.pop("subject")
+
+        if issue.get("fixed_version") is None:
+            issue["fixed_version"] = {}
 
         project_id = nexus.nx_get_project_plugin_relation(
             rm_project_id=issue['project']['id']).project_id
