@@ -173,6 +173,8 @@ class Redmine:
     def rm_list_issues(self, paging=100, params=None, operator_id=None):
         if params is None:
             params = {'status_id': '*'}
+        if params.get("limit") is not None:
+            return self.__api_get('/issues', params=params, operator_id=operator_id).json().get("issues")
         return self.paging('issues', paging, params, operator_id)
 
     def rm_get_issues_by_user(self, user_id):

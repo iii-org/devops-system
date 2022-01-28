@@ -1047,11 +1047,6 @@ def get_issue_list_by_project_helper(project_id, args, download=False):
         if not args['selection'] or not strtobool(args['selection']):
             nx_issue_params['relationship_bool'] = True
 
-        
-        # for redmine_issue in all_issues:
-        #     nx_issue_params['redmine_issue'] = redmine_issue
-        #     nx_issue_params['with_point'] = args["with_point"]
-        #     issue = NexusIssue().set_redmine_issue_v2(**nx_issue_params).to_json()
         output += all_issues
         total_count += len(all_issues)
 
@@ -1092,7 +1087,7 @@ def get_issue_list_by_project_helper(project_id, args, download=False):
         issue["is_closed"] = issue['status']['id'] in NexusIssue.get_closed_statuses()
         issue['issue_link'] = redmine.rm_build_external_link(
                 f'/issues/{issue["id"]}'),
-        issue["has_family"] = issue["id"] in has_family_issues
+        issue["family"] = issue["id"] in has_family_issues
         
         if args["with_point"]:
             issue["point"] = get_issue_point(issue["id"])
