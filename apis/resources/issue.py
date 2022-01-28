@@ -1050,10 +1050,12 @@ def get_issue_list_by_project_helper(project_id, args, download=False):
         output += all_issues
 
     has_family_issues = []
+    has_children = []
     for issue in output:
-        if issue["id"] in has_family_issues:
-            continue
+        # if issue["id"] in has_family_issues:
+        #     continue
         if issue.get("parent") is not None:
+            has_children.append(issue["parent"]["id"])
             has_family_issues += [issue["parent"]["id"], issue["id"]]
             continue
         if issue["relations"] != []:
@@ -1087,6 +1089,7 @@ def get_issue_list_by_project_helper(project_id, args, download=False):
         issue['issue_link'] = redmine.rm_build_external_link(
                 f'/issues/{issue["id"]}'),
         issue["family"] = issue["id"] in has_family_issues
+        issue["has_children"] = issue["id"] in has_children
         
         if args["with_point"]:
             issue["point"] = get_issue_point(issue["id"])
