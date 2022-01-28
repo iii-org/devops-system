@@ -1062,7 +1062,6 @@ def get_issue_list_by_project_helper(project_id, args, download=False):
             has_family_issues.append(issue["id"])
     
     for issue in output:
-        issue.pop("parent", "")
         issue["name"] = issue.pop("subject")
 
         if issue.get("fixed_version") is None:
@@ -1078,16 +1077,26 @@ def get_issue_list_by_project_helper(project_id, args, download=False):
             'display': nx_project.display
         }
 
-        for field in ["assigned_to", "author"]:
-            if issue.get(field) is not None:
-                for user_info in users_info:
-                    if user_info[3] == issue[field]["id"]:
-                        issue[field] = {
-                            'id': user_info[0],
-                            'name': user_info[1],
-                        }
-            else:
-                issue[field] = {}
+        if issue.get("assigned_to") is not None:
+            for user_info in users_info:
+                if user_info[3] == issue["assigned_to"]["id"]:
+                    issue["assigned_to"] = {
+                        'id': user_info[0],
+                        'name': user_info[1],
+                        'login': user_info[2]
+                    }
+        else:
+            issue["assigned_to"] = {}
+
+        if issue.get("author") is not None:
+            for user_info in users_info:
+                if user_info[3] == issue["author"]["id"]:
+                    issue["author"] = {
+                        'id': user_info[0],
+                        'name': user_info[1]
+                    }
+        else:
+            issue["author"] = {}
 
         issue["is_closed"] = issue['status']['id'] in NexusIssue.get_closed_statuses()
         issue['issue_link'] = redmine.rm_build_external_link(
@@ -1098,6 +1107,7 @@ def get_issue_list_by_project_helper(project_id, args, download=False):
         if args["with_point"]:
             issue["point"] = get_issue_point(issue["id"])
         issue["tags"] = get_issue_tags(issue["id"])
+        issue.pop("parent", "")
 
     if download:
         return output
