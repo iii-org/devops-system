@@ -1034,21 +1034,20 @@ def get_issue_list_by_project_helper(project_id, args, download=False):
     for default_filters in default_filters_list:
         default_filters["include"] = "relations"
         if download:
-            all_issues = redmine.rm_list_issues(params=default_filters)
+            all_issues, _ = redmine.rm_list_issues(params=default_filters)
         else:
             if get_jwt_identity()["role_id"] != 7:
                 operator_id = model.UserPluginRelation.query. \
                     filter_by(user_id=get_jwt_identity()["user_id"]).one().plan_user_id
-                all_issues = redmine.rm_list_issues(params=default_filters, operator_id=operator_id)
+                all_issues, total_count = redmine.rm_list_issues(params=default_filters, operator_id=operator_id)
             else:
-                all_issues = redmine.rm_list_issues(params=default_filters)
+                all_issues, total_count = redmine.rm_list_issues(params=default_filters)
 
         # 透過 selection params 決定是否顯示 family bool 欄位
         if not args['selection'] or not strtobool(args['selection']):
             nx_issue_params['relationship_bool'] = True
 
         output += all_issues
-        total_count += len(all_issues)
 
     has_family_issues = []
     for issue in output:
