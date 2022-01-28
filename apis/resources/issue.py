@@ -1062,7 +1062,7 @@ def get_issue_list_by_project_helper(project_id, args, download=False):
             has_family_issues.append(issue["id"])
     
     for issue in output:
-        issue.pop("parent")
+        issue.pop("parent", "")
         issue["name"] = issue.pop("subject")
 
         if issue.get("fixed_version") is None:
