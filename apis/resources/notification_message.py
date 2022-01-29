@@ -34,8 +34,6 @@ def create_notification_message(args):
         message=args['message'],
         type_id=args['type_id'],
         type_parameter=args['type_parameter'],
-        no_deadline=args['no_deadline'],
-        due_datetime=args['due_datetime'],
         creator_id=get_jwt_identity()['user_id'],
         created_at=datetime.datetime.utcnow(),
         updated_at=datetime.datetime.utcnow()
@@ -116,8 +114,6 @@ class Message(Resource):
         parser.add_argument('message', type=str, required=True)
         parser.add_argument('type_id', type=int, required=True)
         parser.add_argument('type_parameter', type=str)
-        parser.add_argument('no_deadline', type=bool, required=True)
-        parser.add_argument('due_datetime', type=str)
         args = parser.parse_args()
         if args.get("type_parameter") is not None:
             args["type_parameter"] = json.loads(args["type_parameter"].replace("\'", "\""))
@@ -136,8 +132,6 @@ class Message(Resource):
         parser.add_argument('message', type=str)
         parser.add_argument('type_id', type=int)
         parser.add_argument('type_parameter', type=str)
-        parser.add_argument('no_deadline', type=bool)
-        parser.add_argument('due_datetime', type=str)
         args = parser.parse_args()
         args = {k: v for k, v in args.items() if v is not None}
         if args.get("type_parameter") is not None:
