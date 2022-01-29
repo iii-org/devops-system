@@ -1034,27 +1034,28 @@ def get_issue_list_by_project_helper(project_id, args, download=False):
     for default_filters in default_filters_list:
         default_filters["include"] = "relations"
         if download:
-            all_issues = redmine.rm_list_issues(params=default_filters)
+            all_issues, _ = redmine.rm_list_issues(params=default_filters)
         else:
             if get_jwt_identity()["role_id"] != 7:
                 operator_id = model.UserPluginRelation.query. \
                     filter_by(user_id=get_jwt_identity()["user_id"]).one().plan_user_id
-                all_issues = redmine.rm_list_issues(params=default_filters, operator_id=operator_id)
+                all_issues, total_count = redmine.rm_list_issues(params=default_filters, operator_id=operator_id)
             else:
-                all_issues = redmine.rm_list_issues(params=default_filters)
+                all_issues, total_count = redmine.rm_list_issues(params=default_filters)
 
         # 透過 selection params 決定是否顯示 family bool 欄位
         if not args['selection'] or not strtobool(args['selection']):
             nx_issue_params['relationship_bool'] = True
 
         output += all_issues
-        total_count += len(all_issues)
 
     has_family_issues = []
+    has_children = []
     for issue in output:
-        if issue["id"] in has_family_issues:
-            continue
+        # if issue["id"] in has_family_issues:
+        #     continue
         if issue.get("parent") is not None:
+            has_children.append(issue["parent"]["id"])
             has_family_issues += [issue["parent"]["id"], issue["id"]]
             continue
         if issue["relations"] != []:
@@ -1062,6 +1063,9 @@ def get_issue_list_by_project_helper(project_id, args, download=False):
     
     for issue in output:
         issue["name"] = issue.pop("subject")
+
+        if issue.get("fixed_version") is None:
+            issue["fixed_version"] = {}
 
         project_id = nexus.nx_get_project_plugin_relation(
             rm_project_id=issue['project']['id']).project_id
@@ -1073,25 +1077,37 @@ def get_issue_list_by_project_helper(project_id, args, download=False):
             'display': nx_project.display
         }
 
-        for field in ["assigned_to", "author"]:
-            if issue.get(field) is not None:
-                for user_info in users_info:
-                    if user_info[3] == issue[field]["id"]:
-                        issue[field] = {
-                            'id': user_info[0],
-                            'name': user_info[1],
-                        }
-            else:
-                issue[field] = {}
+        if issue.get("assigned_to") is not None:
+            for user_info in users_info:
+                if user_info[3] == issue["assigned_to"]["id"]:
+                    issue["assigned_to"] = {
+                        'id': user_info[0],
+                        'name': user_info[1],
+                        'login': user_info[2]
+                    }
+        else:
+            issue["assigned_to"] = {}
+
+        if issue.get("author") is not None:
+            for user_info in users_info:
+                if user_info[3] == issue["author"]["id"]:
+                    issue["author"] = {
+                        'id': user_info[0],
+                        'name': user_info[1]
+                    }
+        else:
+            issue["author"] = {}
 
         issue["is_closed"] = issue['status']['id'] in NexusIssue.get_closed_statuses()
         issue['issue_link'] = redmine.rm_build_external_link(
                 f'/issues/{issue["id"]}'),
         issue["family"] = issue["id"] in has_family_issues
+        issue["has_children"] = issue["id"] in has_children
         
         if args["with_point"]:
             issue["point"] = get_issue_point(issue["id"])
         issue["tags"] = get_issue_tags(issue["id"])
+        issue.pop("parent", "")
 
     if download:
         return output

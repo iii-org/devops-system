@@ -105,7 +105,7 @@ class Redmine:
 
     # --------------- Normal methods ---------------
 
-    def paging(self, key, page=100, params=None, operator_id=None):
+    def paging(self, key, page=100, params=None, operator_id=None, with_total_count=False):
         if params is None:
             params = {}
         offset = 0
@@ -113,14 +113,18 @@ class Redmine:
         path = '/{0}'.format(key)
         params['limit'] = page
         while True:
-            res = self.__api_get(path=path, params=params, operator_id=operator_id).json().get(key)
+            issue_json = self.__api_get(path=path, params=params, operator_id=operator_id).json()
+            total_count = issue_json["total_count"]
+            res = issue_json.get(key)
             ret.extend(res)
             if len(res) == 100:
                 offset += 100
                 params['offset'] = offset
             else:
                 break
-        return ret
+        if not with_total_count:
+            return ret
+        return ret, total_count
 
     def rm_list_projects(self):
         return self.paging('projects')
@@ -174,8 +178,10 @@ class Redmine:
         if params is None:
             params = {'status_id': '*'}
         if params.get("limit") is not None:
-            return self.__api_get('/issues', params=params, operator_id=operator_id).json().get("issues")
-        return self.paging('issues', paging, params, operator_id)
+            issue_info = self.__api_get('/issues', params=params, operator_id=operator_id).json()
+            return issue_info["issues"], issue_info["total_count"]
+        issues, total_count = self.paging('issues', paging, params, operator_id, with_total_count=True)
+        return issues, total_count
 
     def rm_get_issues_by_user(self, user_id):
         params = {'assigned_to_id': user_id, 'status_id': '*'}
