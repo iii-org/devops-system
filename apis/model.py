@@ -807,8 +807,6 @@ class NotificationMessage(db.Model):
     message = Column(String, nullable=False)
     type_id = Column(Integer, nullable=False)
     type_parameter = Column(JSON)
-    no_deadline = Column(Boolean, nullable=False)
-    due_datetime = Column(DateTime)
     creator_id = Column(Integer, ForeignKey(User.id, ondelete='SET NULL'), nullable=True)
     created_at = Column(DateTime)
     updated_at = Column(DateTime)
@@ -833,7 +831,6 @@ class NotificationMessageReplySlip(db.Model):
     message_id = Column(Integer, ForeignKey(NotificationMessage.id, ondelete='CASCADE'))
     user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'))
     created_at = Column(DateTime)
-    message = relationship('NotificationMessage', backref='message_reply_slip')
 
 
 class ProjectParentSonRelation(db.Model):
