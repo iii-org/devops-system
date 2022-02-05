@@ -5,7 +5,7 @@ from sqlalchemy.sql import and_
 import json
 import util
 import datetime
-from model import db, NotificationMessage, NotificationMessageReplySlip, ProjectUserRole
+from model import db, NotificationMessage, NotificationMessageReplySlip, ProjectUserRole, User
 from resources import role
 
 '''
@@ -13,11 +13,11 @@ websocket parameters:
 {"user_id"=234}
 
 Notification type:
-1: All {}
-2: By project {
+type_id=1(All):  {}
+type_id=2(By project) {
     "project_id": 3
 }
-3: By user {
+type_id=3(By user) {
     "user_id": 314
 }
 '''
@@ -41,6 +41,7 @@ def create_notification_message(args):
     )
     db.session.add(row)
     db.session.commit()
+    notification_room.send_message_to_all(row.id)
 
 
 def update_notification_message(message_id, args):
@@ -78,6 +79,29 @@ def create_notification_message_reply_slip(user_id, args):
 
 
 class NotificationRoom(object):
+
+    def send_message_to_all(self, message_id):
+        message_row = NotificationMessage.query.filter_by(id=message_id).first()
+        if message_row.type_id == 1:
+            # Send message to all
+            # Get all user list
+            user_rows = User.query.all()
+            # Send message
+            for user_row in user_rows:
+                emit("system_message", str(message_row), namespace="/get_notification_message",
+                     to=f"user/{user_row.id}")
+        elif message_row.type_id == 2:
+            # Send message to user in project
+            # Get all user list in projects
+            user_rows = ProjectUserRole.query.filter_by(project_id=message_row.type_parameter['project_id']).all()
+            # Send message
+            for user_row in user_rows:
+                emit("system_message", str(message_row), namespace="/get_notification_message",
+                     to=f"user/{user_row.user_id}")
+        elif message_row.type_id == 3:
+            # Send message to the user
+            emit("system_message", str(message_row), namespace="/get_notification_message",
+                 to=f"user/{message_row.type_parameter['user_id']}")
 
     def get_message(self, data):
         rows = db.session.query(NotificationMessage).outerjoin(
