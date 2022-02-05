@@ -34,6 +34,12 @@ def template_file_not_found(template_id, template_name):
                  {'template_id': template_id, 'template_name': template_name})
 
 
+# Notification message error
+def not_enough_authorization(message_id, user_id):
+    return build(6001, 'Not enough authorization to get message.',
+                 {'message_id': message_id, 'user_id': user_id})
+
+
 # Project errors
 def identifier_has_been_taken(identifier):
     return build(1001, 'Project identifier has been taken.', {'identifier': identifier})
@@ -313,6 +319,7 @@ def error_with_alert_code(resource_type, alert_code, message, detail):
 
 def github_token_error(arg_name):
     return build(7007, f"{arg_name} should begin with 'ghp_'.", {'arg': arg_name})
+
 
 def file_not_found(file_name, path):
     return build(7008, f"The file is not found in provided path.", {'file_name': file_name, "path": path})

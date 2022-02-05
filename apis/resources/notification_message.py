@@ -7,6 +7,7 @@ import util
 import datetime
 from model import db, NotificationMessage, NotificationMessageReplySlip, ProjectUserRole, User
 from resources import role
+from resources.apiError import resource_not_found, not_enough_authorization
 
 '''
 websocket parameters:
@@ -76,9 +77,9 @@ def get_notification_message(message_id):
             if row.type_id == 2 and (row.type_parameter["project_id"],) in projects:
                 return json.loads(str(row))
             else:
-                return
+                return not_enough_authorization(message_id, get_jwt_identity()["user_id"])
     else:
-        return
+        return resource_not_found()
 
 
 def delete_notification_message(message_id):
