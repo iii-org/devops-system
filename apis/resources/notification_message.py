@@ -51,7 +51,11 @@ def update_notification_message(message_id, args):
 
 
 def get_notification_message(message_id):
-    return json.loads(str(NotificationMessage.query.filter_by(id=message_id).first()))
+    row = NotificationMessage.query.filter_by(id=message_id).first()
+    if row:
+        return json.loads(str(row))
+    else:
+        return
 
 
 def delete_notification_message(message_id):
