@@ -88,10 +88,10 @@ class NotificationRoom(object):
         projects = db.session.query(ProjectUserRole.project_id).filter(and_(
             ProjectUserRole.user_id == data['user_id'], ProjectUserRole.project_id != -1)).all()
         for row in rows:
-            if row.type_id == 2 and row.type_parameter['project_id'] not in projects:
-                break
+            if row.type_id == 2 and (row.type_parameter['project_id'],) not in projects:
+                continue
             if row.type_id == 3 and row.type_parameter['user_id'] != data['user_id']:
-                break
+                continue
             emit("system_message", str(row), namespace="/get_notification_message", to=f"user/{data['user_id']}")
 
 
