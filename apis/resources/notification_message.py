@@ -25,8 +25,21 @@ type_id=3(By user) {
 
 def get_notification_message_list():
     out = []
-    for message in NotificationMessage.query.all():
-        out.append(json.loads(str(message)))
+    rows = NotificationMessage.query.all()
+
+    if get_jwt_identity()["role_id"] == 5:
+        for row in rows:
+            out.append(json.loads(str(row)))
+    else:
+        projects = db.session.query(ProjectUserRole.project_id).filter(and_(
+            ProjectUserRole.user_id == get_jwt_identity()["user_id"], ProjectUserRole.project_id != -1)).all()
+        for row in rows:
+            if row.type_id == 2 and (row.type_parameter['project_id'],) not in projects:
+                continue
+            elif row.type_id == 3 and row.type_parameter['user_id'] != get_jwt_identity()["user_id"]:
+                continue
+            else:
+                out.append(json.loads(str(row)))
     return out
 
 
@@ -54,7 +67,16 @@ def update_notification_message(message_id, args):
 def get_notification_message(message_id):
     row = NotificationMessage.query.filter_by(id=message_id).first()
     if row:
-        return json.loads(str(row))
+        if get_jwt_identity()['role_id'] == 5 or row.type_id == 1 or \
+                (row.type_id == 3 and row.type_parameter["user_id"] == get_jwt_identity()['user_id']):
+            return json.loads(str(row))
+        else:
+            projects = db.session.query(ProjectUserRole.project_id).filter(and_(
+                ProjectUserRole.user_id == get_jwt_identity()["user_id"], ProjectUserRole.project_id != -1)).all()
+            if row.type_id == 2 and (row.type_parameter["project_id"],) in projects:
+                return json.loads(str(row))
+            else:
+                return
     else:
         return
 
@@ -159,7 +181,6 @@ class Message(Resource):
 
     @ jwt_required
     def get(self, message_id):
-        role.require_admin()
         return util.success(get_notification_message(message_id))
 
     @ jwt_required
@@ -186,7 +207,6 @@ class MessageList(Resource):
 
     @ jwt_required
     def get(self):
-        role.require_admin()
         return util.success(get_notification_message_list())
 
 
