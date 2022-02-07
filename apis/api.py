@@ -54,7 +54,7 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
 
 api = Api(app, errors=apiError.custom_errors)
 CORS(app)
-socketio = SocketIO(app, cors_allowed_origins="*",
+socketio = SocketIO(app, message_queue='redis://devops-redis-service:6379', cors_allowed_origins="*",
                     logger=True, engineio_logger=True, timeout=60000)
 
 
