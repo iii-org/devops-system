@@ -1066,6 +1066,9 @@ def get_issue_list_by_project_helper(project_id, args, download=False):
 
         if issue.get("fixed_version") is None:
             issue["fixed_version"] = {}
+        
+        if issue.get("updated_on") is not None:
+            issue["updated_on"] = issue["updated_on"][:-1]
 
         project_id = nexus.nx_get_project_plugin_relation(
             rm_project_id=issue['project']['id']).project_id
@@ -1099,15 +1102,17 @@ def get_issue_list_by_project_helper(project_id, args, download=False):
             issue["author"] = {}
 
         issue["is_closed"] = issue['status']['id'] in NexusIssue.get_closed_statuses()
-        issue['issue_link'] = redmine.rm_build_external_link(
-                f'/issues/{issue["id"]}'),
+        issue['issue_link'] = f"{config.get('REDMINE_EXTERNAL_BASE_URL')}/issues/{issue['id']}"
         issue["family"] = issue["id"] in has_family_issues
         issue["has_children"] = issue["id"] in has_children
         
         if args["with_point"]:
             issue["point"] = get_issue_point(issue["id"])
         issue["tags"] = get_issue_tags(issue["id"])
+        
         issue.pop("parent", "")
+        issue.pop("relations", "")
+        issue.pop("created_on", "")
 
     if download:
         return output
@@ -2441,8 +2446,8 @@ class IssueByProject(Resource):
         if args.get("search") is not None and len(args["search"]) < 2:
             output = []
         else:
-            output = get_issue_list_by_project(project_id, args)
-            # output = get_issue_list_by_project_helper(project_id, args)
+            # output = get_issue_list_by_project(project_id, args)
+            output = get_issue_list_by_project_helper(project_id, args)
         return util.success(output)
 
 
