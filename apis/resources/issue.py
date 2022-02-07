@@ -1089,6 +1089,7 @@ def get_issue_list_by_project_helper(project_id, args, download=False):
                         'name': user_info[1],
                         'login': user_info[2]
                     }
+                    break
         else:
             issue["assigned_to"] = {}
 
