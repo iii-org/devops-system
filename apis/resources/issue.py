@@ -1049,11 +1049,11 @@ def get_issue_list_by_project_helper(project_id, args, download=False):
 
         output += all_issues
 
+    # Get all project issues to check each issue has relation or children issue
     has_family_issues = []
     has_children = []
-    for issue in output:
-        # if issue["id"] in has_family_issues:
-        #     continue
+    all_issues, _ = redmine.rm_list_issues(params={"project_id": plan_id, "include": "relations"})
+    for issue in all_issues:
         if issue.get("parent") is not None:
             has_children.append(issue["parent"]["id"])
             has_family_issues += [issue["parent"]["id"], issue["id"]]
@@ -1061,6 +1061,7 @@ def get_issue_list_by_project_helper(project_id, args, download=False):
         if issue["relations"] != []:
             has_family_issues.append(issue["id"])
     
+    # Parse filter_issues
     for issue in output:
         issue["name"] = issue.pop("subject")
 
