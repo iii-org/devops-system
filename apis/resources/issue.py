@@ -1099,6 +1099,7 @@ def get_issue_list_by_project_helper(project_id, args, download=False):
                         'id': user_info[0],
                         'name': user_info[1]
                     }
+                    break
         else:
             issue["author"] = {}
 
@@ -2163,7 +2164,7 @@ class DownloadIssueAsExcel():
     def __append_main_issue(self):
         self.args["tracker_id"] = "1"
 
-        output = get_issue_list_by_project(self.project_id, self.args, download=True) 
+        output = get_issue_list_by_project_helper(self.project_id, self.args, download=True) 
         for index, value in enumerate(output):
             row = self.__generate_row_issue_for_excel(str(index + 1), value)
             self.result.append(row)
