@@ -2441,8 +2441,8 @@ class IssueByProject(Resource):
         if args.get("search") is not None and len(args["search"]) < 2:
             output = []
         else:
-            # output = get_issue_list_by_project(project_id, args)
-            output = get_issue_list_by_project_helper(project_id, args)
+            output = get_issue_list_by_project(project_id, args)
+            # output = get_issue_list_by_project_helper(project_id, args)
         return util.success(output)
 
 
