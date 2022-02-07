@@ -28,4 +28,5 @@ botocore~=1.19.63
 python-dateutil~=2.8.1
 pytz~=2020.5
 numpy~=1.21.0
-PyGithub==1.54.1  
+PyGithub==1.54.1
+redis
