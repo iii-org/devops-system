@@ -803,6 +803,7 @@ class ProjectCommitEndpoint(db.Model):
 
 class NotificationMessage(db.Model):
     id = Column(Integer, primary_key=True)
+    alert_level = Column(Integer, nullable=False)
     message = Column(String, nullable=False)
     type_id = Column(Integer, nullable=False)
     type_parameter = Column(JSON)
