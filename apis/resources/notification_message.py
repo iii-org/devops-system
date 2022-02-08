@@ -24,9 +24,13 @@ type_id=3(By user) {
 '''
 
 
-def get_notification_message_list():
+def get_notification_message_list(args):
     out = []
-    rows = NotificationMessage.query.all()
+    page_dict = None
+    base_query = NotificationMessage.query
+    if args['limit'] is not None or args['offset'] is not None:
+        base_query, page_dict = util.orm_pagination(base_query, args['limit'], args['offset'])
+    rows = base_query.all()
 
     if get_jwt_identity()["role_id"] == 5:
         for row in rows:
@@ -41,7 +45,10 @@ def get_notification_message_list():
                 continue
             else:
                 out.append(json.loads(str(row)))
-    return out
+    out_dict = {'notification_message_list': out}
+    if page_dict:
+        out_dict['page'] = page_dict
+    return out_dict
 
 
 def create_notification_message(args):
@@ -211,7 +218,11 @@ class MessageList(Resource):
 
     @ jwt_required
     def get(self):
-        return util.success(get_notification_message_list())
+        parser = reqparse.RequestParser()
+        parser.add_argument('limit', type=int, default=10)
+        parser.add_argument('offset', type=int, default=0)
+        args = parser.parse_args()
+        return util.success(get_notification_message_list(args))
 
 
 class MessageReply(Resource):
