@@ -46,6 +46,7 @@ def get_notification_message_list():
 
 def create_notification_message(args):
     row = NotificationMessage(
+        alert_level=args['alert_level'],
         message=args['message'],
         type_id=args['type_id'],
         type_parameter=args['type_parameter'],
@@ -171,6 +172,7 @@ class Message(Resource):
     def post(self):
         role.require_admin()
         parser = reqparse.RequestParser()
+        parser.add_argument('alert_level', type=int, required=True)
         parser.add_argument('message', type=str, required=True)
         parser.add_argument('type_id', type=int, required=True)
         parser.add_argument('type_parameter', type=str)
@@ -188,6 +190,7 @@ class Message(Resource):
     def patch(self, message_id):
         role.require_admin()
         parser = reqparse.RequestParser()
+        parser.add_argument('alert_level', type=int, required=True)
         parser.add_argument('message', type=str)
         parser.add_argument('type_id', type=int)
         parser.add_argument('type_parameter', type=str)
