@@ -17,6 +17,7 @@ from flask_socketio import SocketIO
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy_utils import database_exists, create_database
 from werkzeug.routing import IntegerConverter
+from flasgger import Swagger
 
 import plugins
 from plugins import sideex, postman
@@ -634,6 +635,34 @@ api.add_resource(notification_message.Message, '/notification_message', '/notifi
 api.add_resource(notification_message.MessageReply, '/notification_message_reply/<int:user_id>')
 socketio.on_namespace(notification_message.GetNotificationMessage('/get_notification_message'))
 
+swagger_config = {
+    "headers": [
+    ],
+    "specs": [
+        {
+            "endpoint": 'apispec_1',
+            "route": '/apispec_1.json',
+            "rule_filter": lambda rule: True,  # all in
+            "model_filter": lambda tag: True,  # all in
+        },
+        {
+            "title": "Api v2",
+            "description": 'This is the version 2 of our API',
+            "endpoint": 'v2_spec',
+            "route": '/v2/spec',
+            "rule_filter": lambda rule: rule.endpoint.startswith(
+                'v2'
+            )
+        }
+    ],
+    "static_url_path": "/flasgger_static",
+    # "static_folder": "static",  # must be set by user
+    "swagger_ui": True,
+    "specs_route": "/apidocs/"
+}
+swagger = Swagger(app,config=swagger_config)
+# test login api
+api.add_resource(user.v2_Login, '/v2/user/login')
 
 def start_prod():
     try:

@@ -28,6 +28,7 @@ from resources.gitlab import gitlab
 from resources.logger import logger
 from resources.redmine import redmine
 from resources.project import get_simple_project_list
+from flasgger.utils import swag_from
 
 # Make a regular expression
 default_role_id = 3
@@ -783,8 +784,17 @@ class Login(Resource):
         args = parser.parse_args()
         return login(args)
 
+class v2_Login(Resource):
+    @swag_from('../../docs/swagger_document/username.yml')
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('username', type=str, required=True)
+        parser.add_argument('password', type=str, required=True)
+        args = parser.parse_args()
+        return login(args)
 
-# class UserForgetPassword(Resource):
+
+# class UserForgetPassword(Resource):``
 #     # noinspection PyMethodMayBeStatic
 #     def post(self):
 #         parser = reqparse.RequestParser()
