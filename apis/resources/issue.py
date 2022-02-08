@@ -1003,7 +1003,7 @@ def get_issue_list_by_project(project_id, args, download=False):
         output = {'issue_list': output, 'page': page_dict}
     return output
 
-def get_issue_list_by_project_helper(project_id, args, download=False):
+def get_issue_list_by_project_helper(project_id, args, download=False, operator_id=None):
     nx_issue_params = defaultdict()
     output = []
     if util.is_dummy_project(project_id):
@@ -1034,7 +1034,7 @@ def get_issue_list_by_project_helper(project_id, args, download=False):
     for default_filters in default_filters_list:
         default_filters["include"] = "relations"
         if download:
-            all_issues, _ = redmine.rm_list_issues(params=default_filters)
+            all_issues, _ = redmine.rm_list_issues(params=default_filters, operator_id=operator_id)
         else:
             if get_jwt_identity()["role_id"] != 7:
                 operator_id = model.UserPluginRelation.query. \
@@ -2142,15 +2142,19 @@ def pj_download_file_is_exist(project_id):
 
 
 class DownloadIssueAsExcel():
-    def __init__(self, args, priority_id, user_name):
+    def __init__(self, args, priority_id, user_id):
         self.result = []
         self.levels = args.pop("levels")
         self.deploy_column = args.pop("deploy_column")
         args["with_point"] = self.__check_with_point_bool()
         self.args = args
         self.project_id = priority_id
-        self.user_name = user_name
-
+        self.__get_operator_id(user_id)
+    
+    def __get_operator_id(self, user_id):
+        self.operator_id = model.UserPluginRelation.query. \
+                    filter_by(user_id=user_id).one().plan_user_id
+        self.user_name = model.User.query.get(int(user_id)).login
 
     def execute(self):
         try:
@@ -2180,7 +2184,7 @@ class DownloadIssueAsExcel():
     def __append_main_issue(self):
         self.args["tracker_id"] = "1"
 
-        output = get_issue_list_by_project_helper(self.project_id, self.args, download=True) 
+        output = get_issue_list_by_project_helper(self.project_id, self.args, download=True, operator_id=self.operator_id)
         for index, value in enumerate(output):
             row = self.__generate_row_issue_for_excel(str(index + 1), value)
             self.result.append(row)
@@ -2192,7 +2196,7 @@ class DownloadIssueAsExcel():
     def __append_children(self, super_index, value, level):
         if not value["has_children"] or self.levels == level:
             return 
-        redmine_issue = redmine_lib.redmine.issue.get(value["id"], include=['children'])
+        redmine_issue = redmine_lib.rm_impersonate(self.user_name).issue.get(value["id"], include=['children'])
         children = get_issue_family(redmine_issue, args={'with_point': True}, user_name=self.user_name)["children"]
         for index, child in enumerate(children):
             row = self.__generate_row_issue_for_excel(f"{super_index}_{index + 1}", child)
@@ -2964,7 +2968,8 @@ class DownloadProject(Resource):
 
         if get_lock_status("download_pj_issues")["is_lock"]:
             return util.success("previous is still running")
-        download_issue_excel = DownloadIssueAsExcel(args, project_id, get_jwt_identity()["user_account"])
+        print(get_jwt_identity()["user_id"])
+        download_issue_excel = DownloadIssueAsExcel(args, project_id, get_jwt_identity()["user_id"])
         threading.Thread(target=download_issue_excel.execute).start()
         return util.success()
 
