@@ -713,10 +713,16 @@ def get_project_by_plan_project_id(plan_project_id):
 
 
 def get_test_summary(project_id):
+    '''
+    -1: fail
+    0: No lastest
+    1: success 
+    2: running
+    '''
     ret = {}
     project_name = nexus.nx_get_project(id=project_id).name
 
-    # newman
+    # newman ..
     if not plugins.get_plugin_config('postman')['disabled']:
         row = model.TestResults.query.filter_by(project_id=project_id).order_by(desc(
             model.TestResults.id)).limit(1).first()
@@ -732,65 +738,182 @@ def get_test_summary(project_id):
                 passed = total - fail
             run_at = str(row.run_at)
             ret['postman'] = {
+                'message': 'success',
+                'status': 1,
                 'id': test_id,
-                'passed': passed,
-                'failed': fail,
-                'total': total,
+                'result': {
+                    'passed': passed,
+                    'failed': fail,
+                    'total': total,
+                },
                 'run_at': run_at
             }
         else:
-            ret['postman'] = {}
+            ret['postman'] = {
+                'message': 'The latest scan is not Found in the Postman server.',
+                'status': 0,
+                'result': {},
+                'run_at': None,
+            }
 
     # checkmarx
     if not plugins.get_plugin_config('checkmarx')['disabled']:
         try:
-            cm_json, status_code = checkmarx.get_result(project_id)
-            cm_data = {}
-            for key, value in cm_json.items():
-                if key != 'data':
-                    cm_data[key] = value
-                else:
-                    for k2, v2 in value.items():
-                        if k2 != 'stats':
-                            cm_data[k2] = v2
-                        else:
-                            for k3, v3 in v2.items():
-                                cm_data[k3] = v3
-            ret['checkmarx'] = cm_data
+            ret['checkmarx'] = checkmarx.get_result(project_id)
         except DevOpsError as e:
             if e.status_code == 404:
                 ret['checkmarx'] = {
                     'message': 'The latest scan is not Found in the Checkmarx server.',
-                    'status': 6
+                    'status': 0,
+                    'result': {},
+                    "run_at": None,
                 }
             else:
                 raise e
 
-    # webinspect
+    # webinspect ..
     if not plugins.get_plugin_config('webinspect')['disabled']:
-        scans = webinspect.wi_list_scans(project_name)
-        wi_data = {}
-        for scan in scans:
+        scan = webinspect.get_latest_scans(project_name)
+        if scan is not None:
             if type(scan['stats']) is dict and scan['stats']['status'] == 'Complete':
-                wi_data = scan['stats']
-                wi_data['run_at'] = scan['run_at']
-                break
-        ret['webinspect'] = wi_data
+                ret['webinspect'] = {
+                    'message': 'It is not finished yet.',
+                    'status': 1,
+                    'result': scan['stats'],
+                    "run_at": scan['run_at'],
+                }
+            else:
+                ret['webinspect'] = {
+                    'message': 'It is not finished yet.',
+                    'status': 2,
+                    'result': {},
+                    "run_at": None,
+                }
+        else:
+            ret['webinspect'] = {
+                'message': 'The latest scan is not Found in the Webinspect server.',
+                'status': 0,
+                'result': {},
+                "run_at": None,
+            }
 
+    # sonarqube ..
     if not plugins.get_plugin_config('sonarqube')['disabled']:
-        ret['sonarqube'] = sonarqube.sq_get_current_measures(project_name)
+        items = sonarqube.sq_get_current_measures(project_name)
+        if items == []:
+            ret['sonarqube'] = {
+                'message': 'The latest scan is not Found in the Sonarqube server.',
+                'status': 0,
+                'result': {},
+                "run_at": None,
+            }
+        else:
+            sonar_result = {
+                "result": {item["metric"]: item["value"] for item in items if item["metric"] != "run_at"}} 
+            
+            sonar_result.update({
+                "message": "success",
+                "status": 1,
+                "run_at": items[-1]["value"] if items[-1]["metric"] == "run_at" else None
+            })
+            ret['sonarqube'] = sonar_result
 
+    # zap ..
     if not plugins.get_plugin_config('zap')['disabled']:
-        ret['zap'] = zap.zap_get_latest_test(project_id)
+        result = zap.zap_get_latest_test(project_id)
+        if result != {}:
+            if result["status"] in ["Aborted", "Failed"]:
+                ret['zap'] = {
+                    'message': 'failed',
+                    'status': -1,
+                    'result': {},
+                    "run_at": None,
+                }
+            elif result["status"] == "Finished":
+                result.update({
+                    "message": "success",
+                    "status": 1,
+                })
+                ret['zap'] = result 
+            else:
+                result.update({
+                    "message": "scanning",
+                    "status": 2,
+                })
+                ret['zap'] = result
+        else:
+            ret['zap'] = {
+                'message': 'The latest scan is not Found in the Zap server.',
+                'status': 0,
+                'result': {},
+                "run_at": None,
+            }
 
+    # sideex
     if not plugins.get_plugin_config('sideex')['disabled']:
-        ret['sideex'] = sideex.sd_get_latest_test(project_id)
+        result = sideex.sd_get_latest_test(project_id)
+        if result != {}:
+            if result["status"] in ["Aborted", "Failed"]:
+                ret['sideex'] = {
+                    'message': 'failed',
+                    'status': -1,
+                    'result': {},
+                    "run_at": None,
+                }
+            elif result["status"] == "Finished":
+                result.update({
+                    "message": "success",
+                    "status": 1,
+                })
+                ret['sideex'] = result 
+            else:
+                result.update({
+                    "message": "scanning",
+                    "status": 2,
+                })
+                ret['sideex'] = result
+        else:
+            ret['sideex'] = {
+                'message': 'The latest scan is not Found in the Sideex server.',
+                'status': 0,
+                'result': {},
+                "run_at": None,
+            }
+    
+    # cmas ..
     if not plugins.get_plugin_config('cmas')['disabled']:
         cmas_content = cmas.get_task_state(project_id)
-        if not isinstance(cmas_content, dict):
-            cmas_content = {}
-
-        ret['cmas'] = cmas_content
+        if isinstance(cmas_content, dict):
+            if cmas_content["scan_final_status"] == "FAIL":
+                ret['cmas'] = {
+                    'message': cmas_content["logs"],
+                    'status': -1,
+                    'result': {},
+                    "run_at": None,
+                }
+            elif cmas_content["scan_final_status"] == "SUCCESS":
+                cmas_content["result"] = {
+                "MOEA": cmas_content.pop("MOEA", ""),
+                "OWASP": cmas_content.pop("OWASP", ""),
+                }
+                cmas_content.update({
+                    "message": "success",
+                    "status": 1,
+                })
+                ret['cmas'] = cmas_content
+            else:
+                cmas_content.update({
+                    "message": "scanning",
+                    "status": 2,
+                })
+                ret['cmas'] = cmas_content
+        else:
+            ret['cmas'] = {
+                'message': 'The latest scan is not Found in the Cmas server.',
+                'status': 0,
+                'result': {},
+                "run_at": None,
+            }
     return util.success({'test_results': ret})
 
 
@@ -865,6 +988,17 @@ def update_kubernetes_namespace_Quota(project_id, resource):
         project_name, resource)
     return util.success(project_quota)
 
+
+# def get_kubernetes_plugin_pods(project_id, plugin_name):
+#     pods = get_kubernetes_namespace_pods(project_id)
+#     for pod in pods["data"]:
+#         if pod["containers"][0]["name"].startswith(plugin_name):
+#             return {
+#                 "name": pod["containers"][0]["name"], 
+#                 "state": pod["containers"][0]["state"]
+#             } 
+#     return {}  
+            
 
 def get_kubernetes_namespace_pods(project_id):
     project_name = str(model.Project.query.filter_by(
@@ -1374,6 +1508,16 @@ class ProjectUserResource(Resource):
         return update_kubernetes_namespace_Quota(project_id, args)
 
 
+# class ProjectPluginPod(Resource):
+#     @jwt_required
+#     def get(self, project_id):
+#         role.require_in_project(
+#             project_id, "Error while getting project info.")
+#         parser = reqparse.RequestParser()
+#         parser.add_argument('plugin_name', type=str)
+#         args = parser.parse_args()
+#         return get_kubernetes_plugin_pods(project_id, args.get("plugin_name"))
+
 class ProjectUserResourcePods(Resource):
     @jwt_required
     def get(self, project_id):
@@ -1383,7 +1527,6 @@ class ProjectUserResourcePods(Resource):
 
 
 class ProjectUserResourcePod(Resource):
-
     @jwt_required
     def delete(self, project_id, pod_name):
         role.require_in_project(
