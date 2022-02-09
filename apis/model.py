@@ -827,7 +827,7 @@ class NotificationMessage(db.Model):
         return json.dumps(fields)
 
 
-class NotificationMessageReplySlip(db.Model):
+class NotificationMessageReply(db.Model):
     message_id = Column(Integer, ForeignKey(NotificationMessage.id, ondelete='CASCADE'), primary_key=True)
     user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'), primary_key=True)
     created_at = Column(DateTime)

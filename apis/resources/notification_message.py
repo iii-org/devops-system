@@ -5,7 +5,7 @@ from sqlalchemy.sql import and_
 import json
 import util
 import datetime
-from model import db, NotificationMessage, NotificationMessageReplySlip, ProjectUserRole, User
+from model import db, NotificationMessage, NotificationMessageReply, ProjectUserRole, User
 from resources import role
 from resources.apiError import DevOpsError, resource_not_found, not_enough_authorization, argument_error
 
@@ -114,7 +114,7 @@ def delete_notification_message(message_id):
 def create_notification_message_reply_slip(user_id, args):
     row_list = []
     for message_id in args["message_ids"]:
-        row = NotificationMessageReplySlip(
+        row = NotificationMessageReply(
             message_id=message_id,
             user_id=user_id,
             created_at=datetime.datetime.utcnow(),
@@ -151,9 +151,9 @@ class NotificationRoom(object):
 
     def get_message(self, data):
         rows = db.session.query(NotificationMessage).outerjoin(
-            NotificationMessageReplySlip, and_(NotificationMessageReplySlip.user_id == data['user_id'],
-                                               NotificationMessage.id == NotificationMessageReplySlip.message_id)
-        ).filter(NotificationMessageReplySlip.id == None).all()
+            NotificationMessageReply, and_(NotificationMessageReply.user_id == data['user_id'],
+                                           NotificationMessage.id == NotificationMessageReply.message_id)
+        ).filter(NotificationMessageReply.id == None).all()
 
         projects = db.session.query(ProjectUserRole.project_id).filter(and_(
             ProjectUserRole.user_id == data['user_id'], ProjectUserRole.project_id != -1)).all()
