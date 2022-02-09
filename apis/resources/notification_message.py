@@ -7,7 +7,7 @@ import util
 import datetime
 from model import db, NotificationMessage, NotificationMessageReplySlip, ProjectUserRole, User
 from resources import role
-from resources.apiError import resource_not_found, not_enough_authorization
+from resources.apiError import DevOpsError, resource_not_found, not_enough_authorization, argument_error
 
 '''
 websocket parameters:
@@ -24,9 +24,28 @@ type_id=3(By user) {
 '''
 
 
-def get_notification_message_list():
+def parameter_check(args):
+    if args.get("alert_level") not in (1, 2, 3, 4):
+        raise DevOpsError(400, 'Argument alert_level not in (1, 2, 3, 4).',
+                          error=argument_error('alert_level'))
+    elif args.get("type_id") not in (1, 2, 3):
+        raise DevOpsError(400, 'Argument type_id not in (1,2,3).',
+                          error=argument_error('type_id'))
+    elif args.get("type_id") == 2 and 'project_id' not in json.loads(args["type_parameter"]):
+        raise DevOpsError(400, 'Argument project_id not exist in type_parameter.',
+                          error=argument_error('project_id'))
+    elif args.get("type_id") == 3 and 'user_id' not in json.loads(args["type_parameter"]):
+        raise DevOpsError(400, 'Argument user_id not exist in type_parameter.',
+                          error=argument_error('user_id'))
+
+
+def get_notification_message_list(args):
     out = []
-    rows = NotificationMessage.query.all()
+    page_dict = None
+    base_query = NotificationMessage.query
+    if args['limit'] is not None or args['offset'] is not None:
+        base_query, page_dict = util.orm_pagination(base_query, args['limit'], args['offset'])
+    rows = base_query.all()
 
     if get_jwt_identity()["role_id"] == 5:
         for row in rows:
@@ -41,11 +60,15 @@ def get_notification_message_list():
                 continue
             else:
                 out.append(json.loads(str(row)))
-    return out
+    out_dict = {'notification_message_list': out}
+    if page_dict:
+        out_dict['page'] = page_dict
+    return out_dict
 
 
 def create_notification_message(args):
     row = NotificationMessage(
+        alert_level=args['alert_level'],
         message=args['message'],
         type_id=args['type_id'],
         type_parameter=args['type_parameter'],
@@ -171,10 +194,12 @@ class Message(Resource):
     def post(self):
         role.require_admin()
         parser = reqparse.RequestParser()
+        parser.add_argument('alert_level', type=int, required=True)
         parser.add_argument('message', type=str, required=True)
         parser.add_argument('type_id', type=int, required=True)
         parser.add_argument('type_parameter', type=str)
         args = parser.parse_args()
+        parameter_check(args)
         if args.get("type_parameter") is not None:
             args["type_parameter"] = json.loads(args["type_parameter"].replace("\'", "\""))
 
@@ -188,11 +213,13 @@ class Message(Resource):
     def patch(self, message_id):
         role.require_admin()
         parser = reqparse.RequestParser()
+        parser.add_argument('alert_level', type=int, required=True)
         parser.add_argument('message', type=str)
         parser.add_argument('type_id', type=int)
         parser.add_argument('type_parameter', type=str)
         args = parser.parse_args()
         args = {k: v for k, v in args.items() if v is not None}
+        parameter_check(args)
         if args.get("type_parameter") is not None:
             args["type_parameter"] = json.loads(args["type_parameter"].replace("\'", "\""))
         update_notification_message(message_id, args)
@@ -208,7 +235,11 @@ class MessageList(Resource):
 
     @ jwt_required
     def get(self):
-        return util.success(get_notification_message_list())
+        parser = reqparse.RequestParser()
+        parser.add_argument('limit', type=int, default=10)
+        parser.add_argument('offset', type=int, default=0)
+        args = parser.parse_args()
+        return util.success(get_notification_message_list(args))
 
 
 class MessageReply(Resource):
