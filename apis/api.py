@@ -186,6 +186,8 @@ api.add_resource(project.SingleProjectByName,
                  '/project_by_name/<project_name>')
 api.add_resource(project.ProjectUserList,
                  '/project/<sint:project_id>/user/list')
+api.add_resource(project.ProjectPluginPod,
+                 '/project/<sint:project_id>/plugin')
 api.add_resource(project.ProjectPluginUsage,
                  '/project/<sint:project_id>/plugin/resource')
 api.add_resource(project.ProjectUserResource,

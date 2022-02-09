@@ -964,15 +964,14 @@ def update_kubernetes_namespace_Quota(project_id, resource):
     return util.success(project_quota)
 
 
-# def get_kubernetes_plugin_pods(project_id, plugin_name):
-#     pods = get_kubernetes_namespace_pods(project_id)
-#     for pod in pods["data"]:
-#         if pod["containers"][0]["name"].startswith(plugin_name):
-#             return {
-#                 "name": pod["containers"][0]["name"], 
-#                 "state": pod["containers"][0]["state"]
-#             } 
-#     return {}  
+def get_kubernetes_plugin_pods(project_id, plugin_name):
+    pods, _ = get_kubernetes_namespace_pods(project_id)
+    ret = {}
+    for pod in pods["data"]:
+        if pod["containers"][0]["name"].startswith(plugin_name):
+            ret["name"] = pod["containers"][0]["name"]
+    ret["has_pod"] = ret.get("name") is not None         
+    return util.success(ret)
             
 
 def get_kubernetes_namespace_pods(project_id):
@@ -1483,15 +1482,15 @@ class ProjectUserResource(Resource):
         return update_kubernetes_namespace_Quota(project_id, args)
 
 
-# class ProjectPluginPod(Resource):
-#     @jwt_required
-#     def get(self, project_id):
-#         role.require_in_project(
-#             project_id, "Error while getting project info.")
-#         parser = reqparse.RequestParser()
-#         parser.add_argument('plugin_name', type=str)
-#         args = parser.parse_args()
-#         return get_kubernetes_plugin_pods(project_id, args.get("plugin_name"))
+class ProjectPluginPod(Resource):
+    @jwt_required
+    def get(self, project_id):
+        role.require_in_project(
+            project_id, "Error while getting project info.")
+        parser = reqparse.RequestParser()
+        parser.add_argument('plugin_name', type=str)
+        args = parser.parse_args()
+        return get_kubernetes_plugin_pods(project_id, args.get("plugin_name"))
 
 class ProjectUserResourcePods(Resource):
     @jwt_required
