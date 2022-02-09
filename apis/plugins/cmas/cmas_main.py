@@ -3,8 +3,6 @@ import json
 import time
 from io import BytesIO
 import os
-import hashlib
-import werkzeug
 import requests
 from flask import send_file
 from flask_jwt_extended import jwt_required
@@ -102,11 +100,8 @@ class CMAS(object):
                 ('filename', self.task.filenames.get("pdf")),
             )
         )
-        # with open(f"./logs/cmas/{self.task.task_id}/{self.task.task_id}.pdf", "wb") as f:
-        #     f.write(ret.content)
 
         return send_file(
-            # f"../logs/cmas/{self.task.task_id}/{self.task.task_id}.pdf",
             BytesIO(ret.content),
             mimetype="application/pdf",
             attachment_filename=f"{self.task.task_id}/{self.task.task_id}.pdf"
@@ -200,13 +195,9 @@ def get_tasks(repository_id):
     } for task in Model.query.filter_by(repo_id=repository_id).order_by(desc(Model.run_at)).all()]
 
 
-def get_task_state(project_id, commit_id=None):
+def get_task_state(project_id, commit_id):
     repo_id = ProjectPluginRelation.query.filter_by(project_id=project_id).first().git_repository_id
-
-    if commit_id is None:  # Get latest project test if commit_id is None
-        cmas_test = Model.query.filter_by(repo_id=repo_id).filter_by(finished=True).order_by(desc(Model.run_at)).first()
-    else:
-        cmas_test = Model.query.filter_by(repo_id=repo_id).filter_by(commit_id=commit_id).first()
+    cmas_test = Model.query.filter_by(repo_id=repo_id).filter_by(commit_id=commit_id).first()
 
     if cmas_test is not None:
         stats = util.is_json(cmas_test.stats)
@@ -215,6 +206,21 @@ def get_task_state(project_id, commit_id=None):
         return stats
     return ""
 
+
+def get_latest_state(project_id):
+    repo_id = ProjectPluginRelation.query.filter_by(project_id=project_id).first().git_repository_id
+    cmas_test = Model.query.filter_by(repo_id=repo_id).order_by(desc(Model.run_at)).first()
+    if cmas_test is not None:
+        return {
+            "logs": cmas_test.logs,
+            "stats": util.is_json(cmas_test.stats),
+            "status": cmas_test.scan_final_status,
+            "run_at": str(cmas_test.run_at),
+            "finished_at": str(cmas_test.finished_at),
+        }
+    else:
+        return ""
+    
 
 def create_task(args, repository_id):
     new = Model(

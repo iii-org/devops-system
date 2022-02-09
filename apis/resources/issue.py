@@ -1003,7 +1003,7 @@ def get_issue_list_by_project(project_id, args, download=False):
         output = {'issue_list': output, 'page': page_dict}
     return output
 
-def get_issue_list_by_project_helper(project_id, args, download=False):
+def get_issue_list_by_project_helper(project_id, args, download=False, operator_id=None):
     nx_issue_params = defaultdict()
     output = []
     if util.is_dummy_project(project_id):
@@ -1034,7 +1034,7 @@ def get_issue_list_by_project_helper(project_id, args, download=False):
     for default_filters in default_filters_list:
         default_filters["include"] = "relations"
         if download:
-            all_issues, _ = redmine.rm_list_issues(params=default_filters)
+            all_issues, _ = redmine.rm_list_issues(params=default_filters, operator_id=operator_id)
         else:
             if get_jwt_identity()["role_id"] != 7:
                 operator_id = model.UserPluginRelation.query. \
@@ -1395,28 +1395,42 @@ def get_issue_assigned_to_search(default_filters, args):
 
 
 # 取得 issue 相關的 parent & children & relations 資訊
-def get_issue_family(redmine_issue, args={}):
+def get_issue_family(redmine_issue, args={}, all=False, user_name=None):
     output = defaultdict(list)
     is_with_point = args.get("with_point", False)
+    if user_name is None:
+        user_name = get_jwt_identity()["user_account"]
     if hasattr(redmine_issue, 'parent') and not is_with_point:
-        parent_issue = redmine_lib.redmine.issue.filter(
-            issue_id=redmine_issue.parent.id, status_id='*')
+        if not all:
+            parent_issue = redmine_lib.rm_impersonate(user_name).issue.filter(
+                issue_id=redmine_issue.parent.id, status_id='*')
+        else:
+            parent_issue = redmine_lib.redmine.issue.filter(
+                issue_id=redmine_issue.parent.id, status_id='*')
         try:
             output['parent'] = NexusIssue().set_redmine_issue_v3(list(parent_issue.values())[0]).to_json()
         except IndexError:
             output["parent"] = []
     if len(redmine_issue.children):
         children_issue_ids = [str(child.id) for child in redmine_issue.children]
-        children_issue_ids_str = ','.join(children_issue_ids)
-        children_issues = redmine_lib.redmine.issue.filter(
-            issue_id=children_issue_ids_str, status_id='*', include=['children'])
+        children_issue_ids_str = ','.join(children_issue_ids)   
+        if not all:
+            children_issues = redmine_lib.rm_impersonate(user_name).issue.filter(
+                issue_id=children_issue_ids_str, status_id='*', include=['children'])
+        else:
+            children_issues = redmine_lib.redmine.issue.filter(
+                issue_id=children_issue_ids_str, status_id='*', include=['children'])
         output['children'] = [NexusIssue().set_redmine_issue_v3(issue, with_point=is_with_point, relationship_bool=True).to_json()
                               for issue in children_issues.values()]
     if len(redmine_issue.relations) and not is_with_point:
         rel_issue_ids = [check_relations_id(redmine_issue.id, relation) for relation in redmine_issue.relations]
         rel_issue_ids_str = ','.join([str(issue["issue_id"]) for issue in rel_issue_ids])
-        rel_issues = redmine_lib.redmine.issue.filter(
-            issue_id=rel_issue_ids_str, status_id='*', include=['relations'])
+        if not all:
+            rel_issues = redmine_lib.rm_impersonate(user_name).issue.filter(
+                issue_id=rel_issue_ids_str, status_id='*', include=['relations'])
+        else:
+            rel_issues = redmine_lib.redmine.issue.filter(
+                issue_id=rel_issue_ids_str, status_id='*', include=['relations'])
         output['relations'] = [NexusIssue().set_redmine_issue_v3(issue, relation_id=list(filter(lambda relation:relation['issue_id'] == issue["id"], rel_issue_ids))[0]['relation_id']).to_json()
                                for issue in rel_issues.values()]
     for key in ["parent", "children", "relations"]:
@@ -2128,14 +2142,18 @@ def pj_download_file_is_exist(project_id):
 
 
 class DownloadIssueAsExcel():
-    def __init__(self, args, priority_id):
+    def __init__(self, args, priority_id, user_id):
         self.result = []
         self.levels = args.pop("levels")
         self.deploy_column = args.pop("deploy_column")
-        args["with_point"] = self.__check_with_point_bool()
         self.args = args
         self.project_id = priority_id
-
+        self.__get_operator_id(user_id)
+    
+    def __get_operator_id(self, user_id):
+        self.operator_id = model.UserPluginRelation.query. \
+                    filter_by(user_id=user_id).one().plan_user_id
+        self.user_name = model.User.query.get(int(user_id)).login
 
     def execute(self):
         try:
@@ -2149,23 +2167,13 @@ class DownloadIssueAsExcel():
             self.__update_lock_download_issues(is_lock=False, sync_date=None)
 
 
-    def __check_with_point_bool(self):
-        withpoint = False
-        for column in self.deploy_column:
-            if column['field'] == "point":
-                withpoint = True
-                break 
-        return withpoint
-
-
     def __now_time(self):
         return datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
 
 
     def __append_main_issue(self):
-        self.args["tracker_id"] = "1"
-
-        output = get_issue_list_by_project_helper(self.project_id, self.args, download=True) 
+        print(self.args)
+        output = get_issue_list_by_project_helper(self.project_id, self.args, download=True, operator_id=self.operator_id)
         for index, value in enumerate(output):
             row = self.__generate_row_issue_for_excel(str(index + 1), value)
             self.result.append(row)
@@ -2177,8 +2185,8 @@ class DownloadIssueAsExcel():
     def __append_children(self, super_index, value, level):
         if not value["has_children"] or self.levels == level:
             return 
-        redmine_issue = redmine_lib.redmine.issue.get(value["id"], include=['children'])
-        children = get_issue_family(redmine_issue, {'with_point': True})["children"]
+        redmine_issue = redmine_lib.rm_impersonate(self.user_name).issue.get(value["id"], include=['children'])
+        children = get_issue_family(redmine_issue, args={'with_point': True}, user_name=self.user_name)["children"]
         for index, child in enumerate(children):
             row = self.__generate_row_issue_for_excel(f"{super_index}_{index + 1}", child)
             self.result.append(row)
@@ -2409,7 +2417,7 @@ class SingleIssue(Resource):
         args = parser.parse_args()
         if args["force"] is None or not args["force"]:
             redmine_issue = redmine_lib.redmine.issue.get(issue_id, include=['children'])
-            children = get_issue_family(redmine_issue).get("children")
+            children = get_issue_family(redmine_issue, all=True).get("children")
             if children is not None:
                 raise DevOpsError(400, 'Unable to delete issue with children issue, unless parameter "force" is True.',
                                   error=apiError.unable_to_delete_issue_has_children(children))
@@ -2935,6 +2943,7 @@ class DownloadProject(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('fixed_version_id', type=str)
         parser.add_argument('status_id', type=str)
+        parser.add_argument('tracker_id', type=str)
         parser.add_argument('assigned_to_id', type=str)
         parser.add_argument('priority_id', type=str)
         parser.add_argument('search', type=str)
@@ -2943,13 +2952,14 @@ class DownloadProject(Resource):
         parser.add_argument('parent_id', type=str)
         parser.add_argument('due_date_start', type=str)
         parser.add_argument('due_date_end', type=str)
+        parser.add_argument('with_point', type=bool, default=True)
         parser.add_argument('levels', type=int, default=3)
         parser.add_argument('deploy_column', type=dict, action='append', required=True)
         args = parser.parse_args()
 
         if get_lock_status("download_pj_issues")["is_lock"]:
             return util.success("previous is still running")
-        download_issue_excel = DownloadIssueAsExcel(args, project_id)
+        download_issue_excel = DownloadIssueAsExcel(args, project_id, get_jwt_identity()["user_id"])
         threading.Thread(target=download_issue_excel.execute).start()
         return util.success()
 

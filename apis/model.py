@@ -828,9 +828,8 @@ class NotificationMessage(db.Model):
 
 
 class NotificationMessageReplySlip(db.Model):
-    id = Column(Integer, primary_key=True)
-    message_id = Column(Integer, ForeignKey(NotificationMessage.id, ondelete='CASCADE'))
-    user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'))
+    message_id = Column(Integer, ForeignKey(NotificationMessage.id, ondelete='CASCADE'), primary_key=True)
+    user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'), primary_key=True)
     created_at = Column(DateTime)
 
 
