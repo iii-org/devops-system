@@ -7,7 +7,7 @@ import util
 import datetime
 from model import db, NotificationMessage, NotificationMessageReplySlip, ProjectUserRole, User
 from resources import role
-from resources.apiError import resource_not_found, not_enough_authorization
+from resources.apiError import DevOpsError, resource_not_found, not_enough_authorization, argument_error
 
 '''
 websocket parameters:
