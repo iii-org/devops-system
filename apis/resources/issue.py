@@ -2146,7 +2146,6 @@ class DownloadIssueAsExcel():
         self.result = []
         self.levels = args.pop("levels")
         self.deploy_column = args.pop("deploy_column")
-        args["with_point"] = self.__check_with_point_bool()
         self.args = args
         self.project_id = priority_id
         self.__get_operator_id(user_id)
@@ -2168,22 +2167,11 @@ class DownloadIssueAsExcel():
             self.__update_lock_download_issues(is_lock=False, sync_date=None)
 
 
-    def __check_with_point_bool(self):
-        withpoint = False
-        for column in self.deploy_column:
-            if column['field'] == "point":
-                withpoint = True
-                break 
-        return withpoint
-
-
     def __now_time(self):
         return datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
 
 
     def __append_main_issue(self):
-        self.args["tracker_id"] = "1"
-
         output = get_issue_list_by_project_helper(self.project_id, self.args, download=True, operator_id=self.operator_id)
         for index, value in enumerate(output):
             row = self.__generate_row_issue_for_excel(str(index + 1), value)
@@ -2962,6 +2950,7 @@ class DownloadProject(Resource):
         parser.add_argument('parent_id', type=str)
         parser.add_argument('due_date_start', type=str)
         parser.add_argument('due_date_end', type=str)
+        parser.add_argument('with_point', type=bool, default=True)
         parser.add_argument('levels', type=int, default=3)
         parser.add_argument('deploy_column', type=dict, action='append', required=True)
         args = parser.parse_args()
