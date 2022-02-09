@@ -2172,6 +2172,7 @@ class DownloadIssueAsExcel():
 
 
     def __append_main_issue(self):
+        print(self.args)
         output = get_issue_list_by_project_helper(self.project_id, self.args, download=True, operator_id=self.operator_id)
         for index, value in enumerate(output):
             row = self.__generate_row_issue_for_excel(str(index + 1), value)
@@ -2942,6 +2943,7 @@ class DownloadProject(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('fixed_version_id', type=str)
         parser.add_argument('status_id', type=str)
+        parser.add_argument('tracker_id', type=str)
         parser.add_argument('assigned_to_id', type=str)
         parser.add_argument('priority_id', type=str)
         parser.add_argument('search', type=str)
