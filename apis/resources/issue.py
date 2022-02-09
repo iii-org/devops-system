@@ -2968,7 +2968,6 @@ class DownloadProject(Resource):
 
         if get_lock_status("download_pj_issues")["is_lock"]:
             return util.success("previous is still running")
-        print(get_jwt_identity()["user_id"])
         download_issue_excel = DownloadIssueAsExcel(args, project_id, get_jwt_identity()["user_id"])
         threading.Thread(target=download_issue_excel.execute).start()
         return util.success()

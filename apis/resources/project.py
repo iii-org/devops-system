@@ -720,41 +720,40 @@ def get_test_summary(project_id):
     2: running
     '''
     ret = {}
-    project_name = nexus.nx_get_project(id=project_id).name
+    project_name = nexus.nx_get_project(id=project_id).name 
+    not_found_ret = {
+        'message': '',
+        'status': 0,
+        'result': {},
+        'run_at': None,
+    }
+    not_found_ret_message = lambda plugin : f"The latest scan is not Found in the {plugin} server"
 
     # newman ..
     if not plugins.get_plugin_config('postman')['disabled']:
         row = model.TestResults.query.filter_by(project_id=project_id).order_by(desc(
             model.TestResults.id)).limit(1).first()
         if row is not None:
-            test_id = row.id
             total = row.total
             if total is None:
-                total = 0
-                fail = 0
-                passed = 0
+                total = fail = passed = 0
             else:
                 fail = row.fail
                 passed = total - fail
-            run_at = str(row.run_at)
             ret['postman'] = {
                 'message': 'success',
                 'status': 1,
-                'id': test_id,
+                'id': row.id,
                 'result': {
                     'passed': passed,
                     'failed': fail,
                     'total': total,
                 },
-                'run_at': run_at
+                'run_at': str(row.run_at)
             }
         else:
-            ret['postman'] = {
-                'message': 'The latest scan is not Found in the Postman server.',
-                'status': 0,
-                'result': {},
-                'run_at': None,
-            }
+            not_found_ret['message'] = not_found_ret_message("postman")
+            ret['postman'] = not_found_ret.copy()
 
     # checkmarx
     if not plugins.get_plugin_config('checkmarx')['disabled']:
@@ -762,12 +761,8 @@ def get_test_summary(project_id):
             ret['checkmarx'] = checkmarx.get_result(project_id)
         except DevOpsError as e:
             if e.status_code == 404:
-                ret['checkmarx'] = {
-                    'message': 'The latest scan is not Found in the Checkmarx server.',
-                    'status': 0,
-                    'result': {},
-                    "run_at": None,
-                }
+                not_found_ret['message'] = not_found_ret_message("checkmarx")
+                ret['checkmarx'] = not_found_ret.copy()
             else:
                 raise e
 
@@ -777,7 +772,7 @@ def get_test_summary(project_id):
         if scan is not None:
             if type(scan['stats']) is dict and scan['stats']['status'] == 'Complete':
                 ret['webinspect'] = {
-                    'message': 'It is not finished yet.',
+                    'message': 'success',
                     'status': 1,
                     'result': scan['stats'],
                     "run_at": scan['run_at'],
@@ -790,24 +785,13 @@ def get_test_summary(project_id):
                     "run_at": None,
                 }
         else:
-            ret['webinspect'] = {
-                'message': 'The latest scan is not Found in the Webinspect server.',
-                'status': 0,
-                'result': {},
-                "run_at": None,
-            }
+            not_found_ret['message'] = not_found_ret_message("webinspect")
+            ret['webinspect'] = not_found_ret.copy()
 
     # sonarqube ..
     if not plugins.get_plugin_config('sonarqube')['disabled']:
         items = sonarqube.sq_get_current_measures(project_name)
-        if items == []:
-            ret['sonarqube'] = {
-                'message': 'The latest scan is not Found in the Sonarqube server.',
-                'status': 0,
-                'result': {},
-                "run_at": None,
-            }
-        else:
+        if items != []:
             sonar_result = {
                 "result": {item["metric"]: item["value"] for item in items if item["metric"] != "run_at"}} 
             
@@ -816,7 +800,10 @@ def get_test_summary(project_id):
                 "status": 1,
                 "run_at": items[-1]["value"] if items[-1]["metric"] == "run_at" else None
             })
-            ret['sonarqube'] = sonar_result
+            ret['sonarqube'] = sonar_result   
+        else:
+            not_found_ret['message'] = not_found_ret_message("sonarqube")
+            ret['sonarqube'] = not_found_ret.copy()
 
     # zap ..
     if not plugins.get_plugin_config('zap')['disabled']:
@@ -842,12 +829,8 @@ def get_test_summary(project_id):
                 })
                 ret['zap'] = result
         else:
-            ret['zap'] = {
-                'message': 'The latest scan is not Found in the Zap server.',
-                'status': 0,
-                'result': {},
-                "run_at": None,
-            }
+            not_found_ret['message'] = not_found_ret_message("zap")
+            ret['zap'] = not_found_ret.copy()
 
     # sideex
     if not plugins.get_plugin_config('sideex')['disabled']:
@@ -873,25 +856,21 @@ def get_test_summary(project_id):
                 })
                 ret['sideex'] = result
         else:
-            ret['sideex'] = {
-                'message': 'The latest scan is not Found in the Sideex server.',
-                'status': 0,
-                'result': {},
-                "run_at": None,
-            }
+            not_found_ret['message'] = not_found_ret_message("sideex")
+            ret['sideex'] = not_found_ret.copy()
     
     # cmas ..
     if not plugins.get_plugin_config('cmas')['disabled']:
-        cmas_content = cmas.get_task_state(project_id)
+        cmas_content = cmas.get_latest_state(project_id)
         if isinstance(cmas_content, dict):
-            if cmas_content["scan_final_status"] == "FAIL":
+            if cmas_content["status"] == "FAIL":
                 ret['cmas'] = {
                     'message': cmas_content["logs"],
                     'status': -1,
                     'result': {},
                     "run_at": None,
                 }
-            elif cmas_content["scan_final_status"] == "SUCCESS":
+            elif cmas_content["status"] == "SUCCESS":
                 cmas_content["result"] = {
                 "MOEA": cmas_content.pop("MOEA", ""),
                 "OWASP": cmas_content.pop("OWASP", ""),
@@ -908,12 +887,8 @@ def get_test_summary(project_id):
                 })
                 ret['cmas'] = cmas_content
         else:
-            ret['cmas'] = {
-                'message': 'The latest scan is not Found in the Cmas server.',
-                'status': 0,
-                'result': {},
-                "run_at": None,
-            }
+            not_found_ret['message'] = not_found_ret_message("cmas")
+            ret['cmas'] = not_found_ret.copy()
     return util.success({'test_results': ret})
 
 
