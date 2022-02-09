@@ -24,6 +24,21 @@ type_id=3(By user) {
 '''
 
 
+def parameter_check(args):
+    if args.get("alert_level") not in (1, 2, 3, 4):
+        raise DevOpsError(400, 'Argument alert_level not in (1, 2, 3, 4).',
+                          error=argument_error('alert_level'))
+    elif args.get("type_id") not in (1, 2, 3):
+        raise DevOpsError(400, 'Argument type_id not in (1,2,3).',
+                          error=argument_error('type_id'))
+    elif args.get("type_id") == 2 and 'project_id' not in json.loads(args["type_parameter"]):
+        raise DevOpsError(400, 'Argument project_id not exist in type_parameter.',
+                          error=argument_error('project_id'))
+    elif args.get("type_id") == 3 and 'user_id' not in json.loads(args["type_parameter"]):
+        raise DevOpsError(400, 'Argument user_id not exist in type_parameter.',
+                          error=argument_error('user_id'))
+
+
 def get_notification_message_list(args):
     out = []
     page_dict = None
@@ -184,6 +199,7 @@ class Message(Resource):
         parser.add_argument('type_id', type=int, required=True)
         parser.add_argument('type_parameter', type=str)
         args = parser.parse_args()
+        parameter_check(args)
         if args.get("type_parameter") is not None:
             args["type_parameter"] = json.loads(args["type_parameter"].replace("\'", "\""))
 
@@ -203,6 +219,7 @@ class Message(Resource):
         parser.add_argument('type_parameter', type=str)
         args = parser.parse_args()
         args = {k: v for k, v in args.items() if v is not None}
+        parameter_check(args)
         if args.get("type_parameter") is not None:
             args["type_parameter"] = json.loads(args["type_parameter"].replace("\'", "\""))
         update_notification_message(message_id, args)
