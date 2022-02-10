@@ -214,7 +214,7 @@ def harbor_nfs_storage_remain_limit():
             "total_size": ret["Size"],
             "used": ret["Used"],
             "avail": ret["Avail"],
-            "message": "Nfs Folder Used percentage exceeded 80%!" if not status else None,
+            "message": "Nfs Folder Used percentage exceeded 75%!" if not status else None,
             "datetime": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
         }
     except Exception as e:
