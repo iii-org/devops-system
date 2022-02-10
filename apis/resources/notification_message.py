@@ -165,7 +165,7 @@ class NotificationRoom(object):
         rows = db.session.query(NotificationMessage).outerjoin(
             NotificationMessageReply, and_(NotificationMessageReply.user_id == data['user_id'],
                                            NotificationMessage.id == NotificationMessageReply.message_id)
-        ).filter(NotificationMessageReply.id == None).all()
+        ).filter(NotificationMessageReply.message_id == None).all()
 
         projects = db.session.query(ProjectUserRole.project_id).filter(and_(
             ProjectUserRole.user_id == data['user_id'], ProjectUserRole.project_id != -1)).all()
