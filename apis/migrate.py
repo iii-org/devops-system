@@ -36,7 +36,7 @@ VERSIONS = ['0.9.2', '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.4', '0.9.2.5',
             '1.10.0.11', '1.10.0.12', '1.11.0.1', '1.11.0.2', '1.11.0.3', '1.11.0.4', '1.11.0.5', '1.11.0.6', '1.11.0.7', '1.11.0.8',
             '1.12.0.1', '1.12.0.2', '1.12.0.3', '1.12.0.4', '1.12.0.5', '1.12.0.6', '1.12.0.7', '1.12.0.8', '1.12.0.9', '1.12.1.0', '1.12.1.1',
             '1.12.1.2', '1.12.1.3', '1.13.0.1', '1.13.0.2', '1.13.0.3', '1.13.0.4', '1.13.0.5', '1.13.0.6', '1.13.0.7', '1.13.0.8',
-            '1.14.0.1', '1.14.0.2', '1.14.0.3', '1.14.0.4']
+            '1.14.0.1', '1.14.0.2', '1.14.0.3', '1.14.0.4', '1.14.0.5']
 ONLY_UPDATE_DB_MODELS = [
     '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.5', '0.9.2.6', '0.9.2.a8',
     '1.0.0.2', '1.3.0.1', '1.3.0.2', '1.3.0.3', '1.3.0.4', '1.3.1', '1.3.1.1', '1.3.1.2',
@@ -167,6 +167,19 @@ def upgrade(version):
         insert_execute_sync_templ_in_table_lock()
     elif version == '1.13.0.7':
         insert_sync_redmine_project_relation_in_system_parameter()
+    elif version == '1.14.0.5':
+        insert_notification_message_period_of_validity()
+
+
+def insert_notification_message_period_of_validity():
+    if SystemParameter.query.filter_by(name="notification_message_period_of_validity").first() is None:
+        row = SystemParameter(
+            name="notification_message_period_of_validity",
+            value={"months": 12},
+            active=True
+        )
+        db.session.add(row)
+        db.session.commit()
 
 
 def insert_sync_redmine_project_relation_in_system_parameter():
