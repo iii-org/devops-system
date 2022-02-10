@@ -27,7 +27,7 @@ from resources.apiError import DevOpsError
 from resources.gitlab import gitlab
 from resources.logger import logger
 from resources.redmine import redmine
-from resources.project import get_simple_project_list
+from resources.project import get_project_list
 from flasgger.utils import swag_from
 
 # Make a regular expression
@@ -376,7 +376,7 @@ def try_to_delete(delete_method, obj):
 def delete_user(user_id):
     if user_id == 1:
         raise apiError.NotAllowedError('You cannot delete the system admin.')
-    pj_list = get_simple_project_list(user_id)
+    pj_list = get_project_list(user_id, "simple")
     for pj in pj_list:
         if pj["owner_id"] == user_id:
             nexus.nx_update_project(pj["id"], {"owner_id": 1})

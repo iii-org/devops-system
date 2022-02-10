@@ -179,6 +179,7 @@ api.add_resource(project.GitRepoIdToCiPipeId,
 
 # Projects
 api.add_resource(project.ListMyProjects, '/project/list')
+# api.add_resource(project.CaculateProjectIssues, '/project/list/caculate')
 api.add_resource(project.ListProjectsByUser, '/projects_by_user/<int:user_id>')
 api.add_resource(project.SingleProject, '/project',
                  '/project/<sint:project_id>')

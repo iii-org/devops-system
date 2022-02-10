@@ -5,7 +5,7 @@ import config
 import model
 import util
 from resources import apiError, user
-from resources.project import get_pm_project_list
+from resources.project import get_project_list
 
 # Get admin account from environment
 admin_account = config.get('ADMIN_INIT_LOGIN')
@@ -33,7 +33,7 @@ def check_subadmin(user_id):
 
 
 def get_admin_projects():
-    data = get_pm_project_list(user_id=get_admin_user_id())
+    data = get_project_list(user_id=get_admin_user_id(), role="simple")
     all_projects = [
         {
             'id': context['id'],

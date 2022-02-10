@@ -117,36 +117,14 @@ class NexusProject:
             ret['members'] = self.__project_members_dict.get(ret['id'], None)
         return ret
 
-    def fill_pm_redmine_fields(self, rm_project, rm_project_issues):
-        updated_on = rm_project.updated_on
+    def fill_pm_extra_fields(self, rm_project, username):
+        project_issue_info = caculate_project_issues(rm_project, username)
 
-        closed_count = 0
-        overdue_count = 0
-        total_count = 0
-
-        for issue in rm_project_issues:
-            if issue.project.id != rm_project.id:
-                continue
-            if issue.status.id == redmine_lib.STATUS_ID_ISSUE_CLOSED:
-                closed_count += 1
-            if getattr(issue, 'due_date', None) is not None:
-                if date.today() > issue.due_date:
-                    overdue_count += 1
-            if issue.updated_on > updated_on:
-                updated_on = issue.updated_on
-            total_count += 1
-
-        project_status = NexusProject.STATUS_IN_PROGRESS
-        if total_count == 0:
-            project_status = NexusProject.STATUS_NOT_STARTED
-        elif closed_count == total_count:
-            project_status = NexusProject.STATUS_CLOSED
-
-        self.__extra_fields['closed_count'] = closed_count
-        self.__extra_fields['overdue_count'] = overdue_count
-        self.__extra_fields['total_count'] = total_count
-        self.__extra_fields['project_status'] = project_status
-        self.__extra_fields['updated_time'] = str(updated_on)
+        self.__extra_fields['closed_count'] = project_issue_info["closed_count"]
+        self.__extra_fields['overdue_count'] = project_issue_info["overdue_count"]
+        self.__extra_fields['total_count'] = project_issue_info["total_count"]
+        self.__extra_fields['project_status'] = project_issue_info["project_status"]
+        self.__extra_fields['updated_time'] = project_issue_info["updated_time"]
         return self
 
     def fill_rd_extra_fields(self, user_id):
@@ -182,3 +160,37 @@ class NexusProject:
         extras.update(get_ci_last_test_result(self.get_project_row().plugin_relation))
         self.__extra_fields.update(extras)
         return self
+
+def caculate_project_issues(rm_project, username):
+    ret = {}
+    updated_on, project_id = rm_project["updated_on"], rm_project["id"]
+
+    total_count = closed_count = overdue_count = 0
+
+    rm_issues = redmine_lib.rm_impersonate(username).issue.filter(
+        status_id='*', project_id=project_id, sort="updated_on:desc")
+    total_count = len(rm_issues)
+    if total_count == 0:
+        project_status = NexusProject.STATUS_NOT_STARTED
+    else:
+        updated_on = max(rm_issues[0].updated_on, updated_on)
+    
+        close_rm_issues = redmine_lib.rm_impersonate(username).issue.filter(
+            status_id=redmine_lib.STATUS_ID_ISSUE_CLOSED, project_id=project_id)
+        closed_count = len(close_rm_issues)
+
+        overdue_rm_issues = redmine_lib.rm_impersonate(username).issue.filter(
+            due_date=f"<={date.today()}", project_id=project_id)
+        overdue_count = len(overdue_rm_issues)
+        
+        if closed_count == total_count:
+            project_status = NexusProject.STATUS_CLOSED
+        else:
+            project_status = NexusProject.STATUS_IN_PROGRESS
+
+    ret['closed_count'] = closed_count
+    ret['overdue_count'] = overdue_count
+    ret['total_count'] = total_count
+    ret['project_status'] = project_status
+    ret['updated_time'] = str(updated_on)
+    return ret
