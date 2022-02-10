@@ -201,7 +201,7 @@ def harbor_nfs_storage_remain_limit():
         out_df = df[df.loc[:,"Mounted"] == "/"]
         ret = out_df.to_dict("records")[0]
         
-        status = int(ret["Use%"].replace("%", "")) < 80
+        status = int(ret["Use%"].replace("%", "")) < 75
         return {
             "name": "Harbor nfs folder storage remain.",
             "status": status,
