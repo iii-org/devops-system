@@ -89,8 +89,11 @@ class Monitoring:
         if not server_alive:
             return server_alive
         # Storage alive
-        storage_alive = harbor_nfs_storage_remain_limit()["status"]
-        self.__update_all_alive(storage_alive)    
+        harbour_storage = harbor_nfs_storage_remain_limit()
+        storage_alive = harbour_storage["status"]
+        if not storage_alive:
+            self.error_message = str(harbour_storage["message"])
+            self.__update_all_alive(storage_alive)    
         return storage_alive
 
     def k8s_alive(self):
