@@ -24,7 +24,7 @@ type_id=3(By user) {
 '''
 
 
-def parameter_check(args):
+def __parameter_check(args):
     if args.get("alert_level") not in (1, 2, 3, 4):
         raise DevOpsError(400, 'Argument alert_level not in (1, 2, 3, 4).',
                           error=argument_error('alert_level'))
@@ -39,27 +39,37 @@ def parameter_check(args):
                           error=argument_error('user_id'))
 
 
+def __check_read(row):
+    message_dict = json.loads(str(row[0]))
+    message_dict["read"] = False
+    if row[1] is not None:
+        message_dict["read"] = True
+    return message_dict
+
+
 def get_notification_message_list(args):
     out = []
     page_dict = None
-    base_query = NotificationMessage.query
+    base_query = db.session.query(NotificationMessage, NotificationMessageReply).outerjoin(
+        NotificationMessageReply, and_(NotificationMessageReply.user_id == get_jwt_identity()["user_id"],
+                                       NotificationMessage.id == NotificationMessageReply.message_id))
     if args['limit'] is not None or args['offset'] is not None:
         base_query, page_dict = util.orm_pagination(base_query, args['limit'], args['offset'])
     rows = base_query.all()
 
     if get_jwt_identity()["role_id"] == 5:
         for row in rows:
-            out.append(json.loads(str(row)))
+            out.append(__check_read(row))
     else:
         projects = db.session.query(ProjectUserRole.project_id).filter(and_(
             ProjectUserRole.user_id == get_jwt_identity()["user_id"], ProjectUserRole.project_id != -1)).all()
         for row in rows:
-            if row.type_id == 2 and (row.type_parameter['project_id'],) not in projects:
+            if row[0].type_id == 2 and (row[0].type_parameter['project_id'],) not in projects:
                 continue
-            elif row.type_id == 3 and row.type_parameter['user_id'] != get_jwt_identity()["user_id"]:
+            elif row[0].type_id == 3 and row[0].type_parameter['user_id'] != get_jwt_identity()["user_id"]:
                 continue
             else:
-                out.append(json.loads(str(row)))
+                out.append(__check_read(row))
     out_dict = {'notification_message_list': out}
     if page_dict:
         out_dict['page'] = page_dict
@@ -89,16 +99,18 @@ def update_notification_message(message_id, args):
 
 
 def get_notification_message(message_id):
-    row = NotificationMessage.query.filter_by(id=message_id).first()
-    if row:
-        if get_jwt_identity()['role_id'] == 5 or row.type_id == 1 or \
-                (row.type_id == 3 and row.type_parameter["user_id"] == get_jwt_identity()['user_id']):
-            return json.loads(str(row))
+    row = db.session.query(NotificationMessage, NotificationMessageReply).outerjoin(
+        NotificationMessageReply, and_(NotificationMessage.id == NotificationMessageReply.message_id,
+                                       NotificationMessageReply.user_id == get_jwt_identity()["user_id"])).filter(NotificationMessage.id == message_id).first()
+    if row[0]:
+        if get_jwt_identity()['role_id'] == 5 or row[0].type_id == 1 or \
+                (row[0].type_id == 3 and row[0].type_parameter["user_id"] == get_jwt_identity()['user_id']):
+            return __check_read(row)
         else:
             projects = db.session.query(ProjectUserRole.project_id).filter(and_(
                 ProjectUserRole.user_id == get_jwt_identity()["user_id"], ProjectUserRole.project_id != -1)).all()
-            if row.type_id == 2 and (row.type_parameter["project_id"],) in projects:
-                return json.loads(str(row))
+            if row[0].type_id == 2 and (row[0].type_parameter["project_id"],) in projects:
+                return __check_read(row)
             else:
                 return not_enough_authorization(message_id, get_jwt_identity()["user_id"])
     else:
@@ -199,7 +211,7 @@ class Message(Resource):
         parser.add_argument('type_id', type=int, required=True)
         parser.add_argument('type_parameter', type=str)
         args = parser.parse_args()
-        parameter_check(args)
+        __parameter_check(args)
         if args.get("type_parameter") is not None:
             args["type_parameter"] = json.loads(args["type_parameter"].replace("\'", "\""))
 
@@ -219,7 +231,7 @@ class Message(Resource):
         parser.add_argument('type_parameter', type=str)
         args = parser.parse_args()
         args = {k: v for k, v in args.items() if v is not None}
-        parameter_check(args)
+        __parameter_check(args)
         if args.get("type_parameter") is not None:
             args["type_parameter"] = json.loads(args["type_parameter"].replace("\'", "\""))
         update_notification_message(message_id, args)
