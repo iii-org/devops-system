@@ -238,13 +238,16 @@ api.add_resource(gitlab.SyncGitCommitIssueRelation,
                  '/project/<sint:project_id>/issues_commit/<issue_id>',
                  )
 api.add_resource(gitlab.GetCommitIssueHookByBranch, '/project/<sint:project_id>/issues_commit/by_branch')
-api.add_resource(project_relation.CheckhasSonProject, '/project/<sint:project_id>/has_son')
-api.add_resource(project_relation.GetProjectRootID, '/project/<sint:project_id>/root_project')
 api.add_resource(project.ProjectRelation, '/project/<sint:project_id>/relation')
 api.add_resource(issue.IssueCommitRelation, '/issue/relation')
+api.add_resource(project_relation.CheckhasSonProject, '/project/<sint:project_id>/has_son')
+docs.register(project_relation.CheckhasSonProject)
+api.add_resource(project_relation.GetProjectRootID, '/project/<sint:project_id>/root_project')
+docs.register(project_relation.GetProjectRootID)
 api.add_resource(project_relation.SyncProjectRelation, '/project/sync_project_relation')
+docs.register(project_relation.SyncProjectRelation)
 api.add_resource(project_relation.GetProjectFamilymembersByUser, '/project/<sint:project_id>/members')
-
+docs.register(project_relation.GetProjectFamilymembersByUser)
 
 # Tag
 api.add_resource(tag.Tags, '/tags')

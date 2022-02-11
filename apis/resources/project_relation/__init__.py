@@ -7,7 +7,9 @@ from accessories import redmine_lib
 from threading import Thread
 from sqlalchemy.orm import joinedload
 from resources import role
-# from resources.user import NexusUser
+from flask_apispec import marshal_with, doc, use_kwargs
+from flask_apispec.views import MethodResource
+from . import route_model
 
 
 def get_plan_id(project_id):
@@ -156,28 +158,35 @@ def get_project_family_members_by_user(project_id):
     } for relation_row in user_list]
 
 
-class CheckhasSonProject(Resource):
+@doc(tags=['Project Relation'],description="Check project has son project or not")
+@marshal_with(route_model.CheckhasSonProjectResponse)
+class CheckhasSonProject(MethodResource):
     @jwt_required
     def get(self, project_id):
         return {
             "has_child": project_has_child(project_id)
         }
     
-class GetProjectRootID(Resource):
+@doc(tags=['Project Relation'],description="Gey root project_id")
+@marshal_with(route_model.GetProjectRootIDResponse)
+class GetProjectRootID(MethodResource):
     @jwt_required
     def get(self, project_id):
         return {"root_project_id": get_root_project_id(project_id)}
 
 
-class SyncProjectRelation(Resource):
+@doc(tags=['Project Relation'],description="Sync IIIDevops project's relationship with Redmine")
+@marshal_with(util.CommonResponse)
+class SyncProjectRelation(MethodResource):
     @jwt_required
     def post(self):
-        sync_project_relation()
-        # Thread(target=sync_project_relation).start()
+        Thread(target=sync_project_relation).start()
         return util.success()
 
 
-class GetProjectFamilymembersByUser(Resource):
+@doc(tags=['Project Relation'],description="Get all sons' project members")
+@marshal_with(route_model.GetProjectFamilymembersByUserResponse)
+class GetProjectFamilymembersByUser(MethodResource):
     @jwt_required
     def get(self, project_id):
         return util.success(get_project_family_members_by_user(project_id))
