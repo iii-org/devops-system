@@ -3,7 +3,7 @@ kind: CronJob
 metadata:
   name: routing-job-by-month
 spec:
-  schedule: "* * * * *"
+  schedule: "30 4 1 * *"
   successfulJobsHistoryLimit: 0
   failedJobsHistoryLimit: 0
   jobTemplate:
@@ -21,9 +21,5 @@ spec:
                       name: cornjob-bot
                       key: cornjob-token
               command: ["/bin/sh"]
-              args:
-                [
-                  "-c",
-                  'curl -H "Authorization: Bearer $TOKEN" --location --request POST ''http://devopsapi-service:10009/project/sync_project_relation''',
-                ]
+              args: ["-c", "curl --location --request POST 'http://devopsapi-service:10009/routing_job/by_month' --header \"Authorization: Bearer $TOKEN\""]
           restartPolicy: OnFailure
