@@ -376,7 +376,7 @@ def try_to_delete(delete_method, obj):
 def delete_user(user_id):
     if user_id == 1:
         raise apiError.NotAllowedError('You cannot delete the system admin.')
-    pj_list = get_project_list(user_id, "simple")
+    pj_list = get_project_list(user_id)
     for pj in pj_list:
         if pj["owner_id"] == user_id:
             nexus.nx_update_project(pj["id"], {"owner_id": 1})
