@@ -18,6 +18,8 @@ import boto3
 from botocore.exceptions import ClientError
 import base64
 import pandas as pd
+from marshmallow import Schema, fields
+
 
 
 def base64decode(value):
@@ -398,3 +400,9 @@ def is_json(content):
         return content
     except TypeError:
         return None
+
+class CommonResponse(Schema):
+    message = fields.Str(required=True)
+
+class CommonBasicResponse(CommonResponse):
+    datetime = fields.Str(required=True)

@@ -199,6 +199,7 @@ class CheckMarx(object):
         scan_id = self.get_latest('scan_id', project_id)
         row = Model.query.filter_by(scan_id=scan_id).first()
         if scan_id < 0 or row is None:
+            ret["status"] = 0
             ret["message"] = 'This project does not have any scan.'
             return ret
         st_id, st_name = self.get_scan_status(scan_id)

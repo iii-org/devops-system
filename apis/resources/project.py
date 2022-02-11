@@ -74,7 +74,7 @@ from resources.project_relation import get_all_sons_project, get_relation_list
 #     return ret
 
 
-def get_project_list(user_id, role, args={}, disable=None):
+def get_project_list(user_id, role="simple", args={}, disable=None):
     pj_due_start = args.get("pj_due_start")
     pj_due_end = args.get("pj_due_end")
     pj_members_count = args.get("pj_members_count")

@@ -37,6 +37,9 @@ from resources import project, gitlab, issue, user, redmine, wiki, version, apiT
     template, release, sync_redmine, plugin, kubernetesClient, project_permission, quality, sync_project, \
     sync_user, router, deploy, alert, trace_order, tag, monitoring, lock, system_parameter, alert_message, \
     maintenance, issue_display_field, notification_message, project_relation
+from apispec import APISpec
+from flask_apispec.extension import FlaskApiSpec
+from apispec.ext.marshmallow import MarshmallowPlugin
 
 
 app = Flask(__name__)
@@ -47,6 +50,19 @@ for key in ['JWT_SECRET_KEY',
             'JSON_AS_ASCII'
             ]:
     app.config[key] = config.get(key)
+
+# setting swagger config
+app.config.update({
+    'APISPEC_SPEC': APISpec(
+        title='Devops API Project',
+        version='v1',
+        plugins=[MarshmallowPlugin()],
+        openapi_version='2.0.0'
+    ),
+    'APISPEC_SWAGGER_URL': '/swagger/',  # URI to access API Doc JSON
+    'APISPEC_SWAGGER_UI_URL': '/swagger-ui/'  # URI to access UI of API Doc
+})
+docs = FlaskApiSpec(app)
 
 app.config['PROPAGATE_EXCEPTIONS'] = True
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
@@ -224,13 +240,16 @@ api.add_resource(gitlab.SyncGitCommitIssueRelation,
                  '/project/<sint:project_id>/issues_commit/<issue_id>',
                  )
 api.add_resource(gitlab.GetCommitIssueHookByBranch, '/project/<sint:project_id>/issues_commit/by_branch')
-api.add_resource(project_relation.CheckhasSonProject, '/project/<sint:project_id>/has_son')
-api.add_resource(project_relation.GetProjectRootID, '/project/<sint:project_id>/root_project')
 api.add_resource(project.ProjectRelation, '/project/<sint:project_id>/relation')
 api.add_resource(issue.IssueCommitRelation, '/issue/relation')
+api.add_resource(project_relation.CheckhasSonProject, '/project/<sint:project_id>/has_son')
+docs.register(project_relation.CheckhasSonProject)
+api.add_resource(project_relation.GetProjectRootID, '/project/<sint:project_id>/root_project')
+docs.register(project_relation.GetProjectRootID)
 api.add_resource(project_relation.SyncProjectRelation, '/project/sync_project_relation')
+docs.register(project_relation.SyncProjectRelation)
 api.add_resource(project_relation.GetProjectFamilymembersByUser, '/project/<sint:project_id>/members')
-
+docs.register(project_relation.GetProjectFamilymembersByUser)
 
 # Tag
 api.add_resource(tag.Tags, '/tags')
@@ -315,6 +334,9 @@ api.add_resource(gitlab.GitlabDomainConnection, '/repositories/is_ip', '/reposit
 
 # User
 api.add_resource(user.Login, '/user/login')
+# input api in swagger (for swagger)
+docs.register(user.Login)
+
 # api.add_resource(user.UserForgetPassword, '/user/forgetPassword')
 api.add_resource(user.UserStatus, '/user/<int:user_id>/status')
 api.add_resource(user.SingleUser, '/user', '/user/<int:user_id>')
@@ -640,38 +662,8 @@ api.add_resource(notification_message.Message, '/notification_message', '/notifi
 api.add_resource(notification_message.MessageReply, '/notification_message_reply/<int:user_id>')
 socketio.on_namespace(notification_message.GetNotificationMessage('/get_notification_message'))
 
-
 # routing job
 api.add_resource(routing_job.DoJobByMonth, '/routing_job/by_month')
-
-swagger_config = {
-    "headers": [
-    ],
-    "specs": [
-        {
-            "endpoint": 'apispec_1',
-            "route": '/apispec_1.json',
-            "rule_filter": lambda rule: True,  # all in
-            "model_filter": lambda tag: True,  # all in
-        },
-        {
-            "title": "Api v2",
-            "description": 'This is the version 2 of our API',
-            "endpoint": 'v2_spec',
-            "route": '/v2/spec',
-            "rule_filter": lambda rule: rule.endpoint.startswith(
-                'v2'
-            )
-        }
-    ],
-    "static_url_path": "/flasgger_static",
-    # "static_folder": "static",  # must be set by user
-    "swagger_ui": True,
-    "specs_route": "/apidocs/"
-}
-swagger = Swagger(app, config=swagger_config)
-# test login api
-api.add_resource(user.v2_Login, '/v2/user/login')
 
 
 def start_prod():
