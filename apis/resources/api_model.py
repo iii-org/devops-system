@@ -23,6 +23,3 @@ class LoginSuccessResponse(Schema):
     # input class
     data = fields.Nested(LoginJsonSchema,required=True)
     datetime = fields.Str(required=True)
-
-    class Meta:
-        strict = True
