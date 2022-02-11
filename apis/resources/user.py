@@ -28,7 +28,9 @@ from resources.gitlab import gitlab
 from resources.logger import logger
 from resources.redmine import redmine
 from resources.project import get_project_list
-from flasgger.utils import swag_from
+import resources.api_model
+from flask_apispec import marshal_with, doc, use_kwargs
+from flask_apispec.views import MethodResource
 
 # Make a regular expression
 default_role_id = 3
@@ -775,23 +777,13 @@ def user_sa_config(user_id):
 
 
 # --------------------- Resources ---------------------
-class Login(Resource):
+@doc(tags=['Login'],description='Login API')
+@use_kwargs(resources.api_model.LoginSchema, location=('json'))
+@marshal_with(resources.api_model.LoginSuccessResponse)  # marshalling
+class Login(MethodResource):
     # noinspection PyMethodMayBeStatic
-    def post(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument('username', type=str, required=True)
-        parser.add_argument('password', type=str, required=True)
-        args = parser.parse_args()
-        return login(args)
-
-class v2_Login(Resource):
-    @swag_from('../../docs/swagger_document/username.yml')
-    def post(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument('username', type=str, required=True)
-        parser.add_argument('password', type=str, required=True)
-        args = parser.parse_args()
-        return login(args)
+    def post(self,**kwargs):
+        return login(kwargs)
 
 
 # class UserForgetPassword(Resource):``
