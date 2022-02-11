@@ -2,10 +2,10 @@ from flask_restful import Resource, reqparse
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_socketio import Namespace, emit, join_room, leave_room
 from sqlalchemy.sql import and_
+from datetime import datetime
 import json
 import util
-import datetime
-from model import db, NotificationMessage, NotificationMessageReply, ProjectUserRole, User
+from model import db, NotificationMessage, NotificationMessageReply, ProjectUserRole, User, SystemParameter
 from resources import role
 from resources.apiError import DevOpsError, resource_not_found, not_enough_authorization, argument_error
 
@@ -22,6 +22,14 @@ type_id=3(By user) {
     "user_id": 314
 }
 '''
+
+
+def clear_has_expired_notifications_message(name, value_key):
+    month_number = int(SystemParameter.query.filter_by(name=name).one().value[value_key])
+
+    NotificationMessage.query.filter(util.get_few_months_ago_utc_datetime(month_number)
+                                     > NotificationMessage.created_at).delete()
+    db.session.commit()
 
 
 def parameter_check(args):
@@ -83,8 +91,8 @@ def create_notification_message(args):
         type_id=args['type_id'],
         type_parameter=args['type_parameter'],
         creator_id=get_jwt_identity()['user_id'],
-        created_at=datetime.datetime.utcnow(),
-        updated_at=datetime.datetime.utcnow()
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow()
     )
     db.session.add(row)
     db.session.commit()
@@ -103,8 +111,9 @@ def get_notification_message(message_id):
         NotificationMessageReply, and_(NotificationMessage.id == NotificationMessageReply.message_id,
                                        NotificationMessageReply.user_id == get_jwt_identity()["user_id"])).filter(NotificationMessage.id == message_id).first()
     if row[0]:
-        if get_jwt_identity()['role_id'] == 5 or row[0].type_id == 1 or \
-                (row[0].type_id == 3 and row[0].type_parameter["user_id"] == get_jwt_identity()['user_id']):
+        if (get_jwt_identity()['role_id'] == 5 or
+            row[0].type_id == 1 or
+                (row[0].type_id == 3 and row[0].type_parameter["user_id"] == get_jwt_identity()['user_id'])):
             return __check_read(row)
         else:
             projects = db.session.query(ProjectUserRole.project_id).filter(and_(
@@ -129,7 +138,7 @@ def create_notification_message_reply_slip(user_id, args):
         row = NotificationMessageReply(
             message_id=message_id,
             user_id=user_id,
-            created_at=datetime.datetime.utcnow(),
+            created_at=datetime.utcnow(),
         )
         row_list.append(row)
     db.session.add_all(row_list)

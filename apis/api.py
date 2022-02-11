@@ -29,6 +29,7 @@ import resources.apiError as apiError
 import resources.pipeline as pipeline
 import resources.rancher as rancher
 import util
+import routing_job
 from jsonwebtoken import jsonwebtoken
 from model import db
 from resources import logger, role as role, activity, starred_project, devops_version, cicd
@@ -36,6 +37,7 @@ from resources import project, gitlab, issue, user, redmine, wiki, version, apiT
     template, release, sync_redmine, plugin, kubernetesClient, project_permission, quality, sync_project, \
     sync_user, router, deploy, alert, trace_order, tag, monitoring, lock, system_parameter, alert_message, \
     maintenance, issue_display_field, notification_message, project_relation
+
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -638,6 +640,10 @@ api.add_resource(notification_message.Message, '/notification_message', '/notifi
 api.add_resource(notification_message.MessageReply, '/notification_message_reply/<int:user_id>')
 socketio.on_namespace(notification_message.GetNotificationMessage('/get_notification_message'))
 
+
+# routing job
+api.add_resource(routing_job.DoJobByMonth, '/routing_job/by_month')
+
 swagger_config = {
     "headers": [
     ],
@@ -663,9 +669,10 @@ swagger_config = {
     "swagger_ui": True,
     "specs_route": "/apidocs/"
 }
-swagger = Swagger(app,config=swagger_config)
+swagger = Swagger(app, config=swagger_config)
 # test login api
 api.add_resource(user.v2_Login, '/v2/user/login')
+
 
 def start_prod():
     try:

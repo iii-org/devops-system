@@ -359,6 +359,15 @@ def get_certain_date_from_now(days):
         (datetime.now() - timedelta(days=days)), d_time(00, 00))
 
 
+def get_few_months_ago_utc_datetime(month_number):
+    x_months_ago_date_time = datetime.utcnow()
+    if month_number//12 >= 1:
+        x_months_ago_date_time = x_months_ago_date_time.replace(year=datetime.utcnow().date().year-month_number//12)
+    if month_number % 12 != 0:
+        x_months_ago_date_time = x_months_ago_date_time.replace(month=datetime.utcnow().date().month-month_number % 12)
+    return x_months_ago_date_time
+
+
 def read_json_file(path):
     with open(path, "r") as f:
         f_info = json.load(f)
