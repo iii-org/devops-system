@@ -17,7 +17,6 @@ from flask_socketio import SocketIO
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy_utils import database_exists, create_database
 from werkzeug.routing import IntegerConverter
-from flasgger import Swagger
 
 import plugins
 from plugins import sideex, postman
