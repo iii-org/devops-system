@@ -224,6 +224,7 @@ class TestItems(db.Model):
 class TestResults(db.Model):
     """Postman test result table"""
     id = Column(Integer, primary_key=True)
+    status = Column(String)
     project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
     branch = Column(String(50))
     commit_id = Column(String)
