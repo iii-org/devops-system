@@ -854,10 +854,7 @@ def get_test_summary(project_id):
                     "run_at": None,
                 }
             elif cmas_content["status"] == "SUCCESS":
-                cmas_content["result"] = {
-                "MOEA": cmas_content.pop("MOEA", ""),
-                "OWASP": cmas_content.pop("OWASP", ""),
-                }
+                cmas_content["result"] = cmas_content.pop("stats")
                 cmas_content.update({
                     "message": "success",
                     "status": 1,
