@@ -12,7 +12,8 @@ FIXED = {
         "Epic",
         "Feature",
         "Test Plan"
-    ]
+    ],
+    "DOCUMENT_LEVEL": "public"
 }
 
 in_file = {}
