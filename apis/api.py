@@ -653,7 +653,7 @@ docs.register(monitoring.K8sAlive)
 api.add_resource(monitoring.CollectPodRestartTime, '/monitoring/k8s/collect_pod_restart_times_by_hour')
 docs.register(monitoring.CollectPodRestartTime)
 api.add_resource(monitoring.PodAlert, '/monitoring/k8s/pod_alert')
-docs.register(monitoring.PodAlert)
+
 api.add_resource(monitoring.RemoveExtraExecutions, '/monitoring/k8s/remove_extra_executions')
 docs.register(monitoring.RemoveExtraExecutions)
 api.add_resource(monitoring.GithubTokenVerify, '/monitoring/github/validate_token')
@@ -678,6 +678,11 @@ socketio.on_namespace(notification_message.GetNotificationMessage('/get_notifica
 # routing job
 api.add_resource(routing_job.DoJobByMonth, '/routing_job/by_month')
 
+def addPrivateResource(docs):
+    docs.register(monitoring.PodAlert)
+
+if config.get("DOCUMENT_LEVEL") == "private":
+    addPrivateResource(docs)
 
 def start_prod():
     try:
