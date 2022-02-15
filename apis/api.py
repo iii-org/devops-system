@@ -63,6 +63,14 @@ app.config.update({
 })
 docs = FlaskApiSpec(app)
 
+def add_resource(classes,level):
+    if config.get("DOCUMENT_LEVEL") == "public":
+        if level in ['public']:
+            docs.register(classes)
+    elif config.get("DOCUMENT_LEVEL") == "private":
+        if level in ['public','private']:
+            docs.register(classes)
+
 app.config['PROPAGATE_EXCEPTIONS'] = True
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     "pool_pre_ping": True,
@@ -242,13 +250,13 @@ api.add_resource(gitlab.GetCommitIssueHookByBranch, '/project/<sint:project_id>/
 api.add_resource(project.ProjectRelation, '/project/<sint:project_id>/relation')
 api.add_resource(issue.IssueCommitRelation, '/issue/relation')
 api.add_resource(project_relation.CheckhasSonProject, '/project/<sint:project_id>/has_son')
-docs.register(project_relation.CheckhasSonProject)
+add_resource(project_relation.CheckhasSonProject,"public")
 api.add_resource(project_relation.GetProjectRootID, '/project/<sint:project_id>/root_project')
-docs.register(project_relation.GetProjectRootID)
+add_resource(project_relation.GetProjectRootID,"public")
 api.add_resource(project_relation.SyncProjectRelation, '/project/sync_project_relation')
-docs.register(project_relation.SyncProjectRelation)
+add_resource(project_relation.SyncProjectRelation,"public")
 api.add_resource(project_relation.GetProjectFamilymembersByUser, '/project/<sint:project_id>/members')
-docs.register(project_relation.GetProjectFamilymembersByUser)
+add_resource(project_relation.GetProjectFamilymembersByUser,"public")
 
 # Tag
 api.add_resource(tag.Tags, '/tags')
@@ -334,7 +342,7 @@ api.add_resource(gitlab.GitlabDomainConnection, '/repositories/is_ip', '/reposit
 # User
 api.add_resource(user.Login, '/user/login')
 # input api in swagger (for swagger)
-docs.register(user.Login)
+add_resource(user.Login,"public")
 
 # api.add_resource(user.UserForgetPassword, '/user/forgetPassword')
 api.add_resource(user.UserStatus, '/user/<int:user_id>/status')
@@ -631,33 +639,34 @@ api.add_resource(trace_order.GetTraceResult, '/trace_order/result')
 
 # Monitoring
 api.add_resource(monitoring.ServersAlive, '/monitoring/alive')
-docs.register(monitoring.ServersAlive)
+add_resource(monitoring.ServersAlive,"public")
 api.add_resource(monitoring.RedmineAlive, '/monitoring/redmine/alive')
-docs.register(monitoring.RedmineAlive)
+add_resource(monitoring.RedmineAlive,"public")
 api.add_resource(monitoring.GitlabAlive, '/monitoring/gitlab/alive')
-docs.register(monitoring.GitlabAlive)
+add_resource(monitoring.GitlabAlive,"public")
 api.add_resource(monitoring.HarborAlive, '/monitoring/harbor/alive')
-docs.register(monitoring.HarborAlive)
+add_resource(monitoring.HarborAlive,"public")
 api.add_resource(monitoring.HarborStorage, '/monitoring/harbor/usage')
-docs.register(monitoring.HarborStorage)
+add_resource(monitoring.HarborStorage,"public")
 api.add_resource(monitoring.HarborProxy, '/monitoring/harbor/pull_limit')
-docs.register(monitoring.HarborProxy)
+add_resource(monitoring.HarborProxy,"public")
 api.add_resource(monitoring.SonarQubeAlive, '/monitoring/sonarqube/alive')
-docs.register(monitoring.SonarQubeAlive)
+add_resource(monitoring.SonarQubeAlive,"public")
 api.add_resource(monitoring.RancherAlive, '/monitoring/rancher/alive')
-docs.register(monitoring.RancherAlive)
+add_resource(monitoring.RancherAlive,"public")
 api.add_resource(monitoring.RancherDefaultName, '/monitoring/rancher/default_name')
-docs.register(monitoring.RancherDefaultName)
+add_resource(monitoring.RancherDefaultName,"public")
 api.add_resource(monitoring.K8sAlive, '/monitoring/k8s/alive')
-docs.register(monitoring.K8sAlive)
+add_resource(monitoring.K8sAlive,"public")
 api.add_resource(monitoring.CollectPodRestartTime, '/monitoring/k8s/collect_pod_restart_times_by_hour')
-docs.register(monitoring.CollectPodRestartTime)
+add_resource(monitoring.CollectPodRestartTime,"public")
 api.add_resource(monitoring.PodAlert, '/monitoring/k8s/pod_alert')
-
+add_resource(monitoring.PodAlert,"private")
 api.add_resource(monitoring.RemoveExtraExecutions, '/monitoring/k8s/remove_extra_executions')
-docs.register(monitoring.RemoveExtraExecutions)
+add_resource(monitoring.RemoveExtraExecutions,"public")
 api.add_resource(monitoring.GithubTokenVerify, '/monitoring/github/validate_token')
-docs.register(monitoring.GithubTokenVerify)
+add_resource(monitoring.GithubTokenVerify,"public")
+
 
 # System parameter
 api.add_resource(system_parameter.SystemParameters, '/system_parameter', '/system_parameter/<int:param_id>')
@@ -677,12 +686,6 @@ socketio.on_namespace(notification_message.GetNotificationMessage('/get_notifica
 
 # routing job
 api.add_resource(routing_job.DoJobByMonth, '/routing_job/by_month')
-
-def addPrivateResource(docs):
-    docs.register(monitoring.PodAlert)
-
-if config.get("DOCUMENT_LEVEL") == "private":
-    addPrivateResource(docs)
 
 def start_prod():
     try:
