@@ -134,6 +134,8 @@ def pm_save_result(args):
     row.total = args['total']
     row.fail = args['fail']
     row.report = args['report']
+    if args.get("status") is not None:
+        row.status = args['status']
     db.session.commit()
     tgi_feed_postman(row)
 
