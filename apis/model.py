@@ -839,3 +839,16 @@ class ProjectParentSonRelation(db.Model):
     parent_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
     son_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
     created_at = Column(DateTime)
+
+
+class UIRoute(db.Model):
+    id = Column(Integer, primary_key=True)
+    route_name = Column(String, nullable=False, unique=True)
+    created_at = Column(DateTime)
+    updated_at = Column(DateTime)
+
+
+class UIRouteUserRoleRelation(db.Model):
+    ui_route_id = Column(Integer, ForeignKey(UIRoute.id, ondelete='CASCADE'), primary_key=True)
+    user_role = Column(Integer, primary_key=True)
+    created_at = Column(DateTime)
