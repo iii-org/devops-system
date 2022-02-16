@@ -780,10 +780,19 @@ def user_sa_config(user_id):
 @doc(tags=['Login'],description='Login API')
 @use_kwargs(resources.api_model.LoginSchema, location=('json'))
 @marshal_with(resources.api_model.LoginSuccessResponse)  # marshalling
-class Login(MethodResource):
+class Login_v2(MethodResource):
     # noinspection PyMethodMayBeStatic
     def post(self,**kwargs):
         return login(kwargs)
+
+class Login(Resource):
+    # noinspection PyMethodMayBeStatic
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('username', type=str, required=True)
+        parser.add_argument('password', type=str, required=True)
+        args = parser.parse_args()
+        return login(args)        
 
 
 # class UserForgetPassword(Resource):``
