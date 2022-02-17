@@ -1,5 +1,6 @@
 from . import zap_main
 
+ui_route = ["Zap"]
 # --------------------- API router ---------------------
 
 

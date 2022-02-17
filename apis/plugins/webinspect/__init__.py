@@ -1,5 +1,6 @@
 from . import webinspect_main
 
+ui_route = ["Webinspect", "WebInspectReport"]
 # --------------------- API router ---------------------
 
 

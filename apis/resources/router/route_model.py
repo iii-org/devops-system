@@ -9,5 +9,5 @@ class UIRouteResponse(Schema):
     updated_at = fields.Str(required=True)
 
 
-class UIRouteListResponse(Schema):
+class UIRouteListResponse(CommonBasicResponse):
     data = fields.List(fields.Nested(UIRouteResponse), required=True)

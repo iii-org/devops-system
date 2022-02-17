@@ -1,5 +1,6 @@
 from . import cmas_main
 
+ui_route = ["Cmas"]
 
 # --------------------- API router ---------------------
 
