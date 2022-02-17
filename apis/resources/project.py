@@ -11,7 +11,7 @@ from flask import send_file
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
 from kubernetes.client import ApiException
-from sqlalchemy import desc
+from sqlalchemy import desc, or_
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -41,37 +41,38 @@ from resources.monitoring import Monitoring
 from resources.project_relation import get_all_sons_project, get_relation_list
 
 # Do not delete it, it will be used in project_list optimization
-# def get_project_issue_caculation(user_id, args={}, disable=None):
-#     pj_due_start = args.get("pj_due_start")
-#     pj_due_end = args.get("pj_due_end")
-#     limit = args.get("limit")
-#     offset = args.get("offset")
-#     user_name = model.User.query.get(user_id).login
+def get_project_issue_caculation(user_id, args={}, disable=None):
+    pj_due_start = args.get("pj_due_start")
+    pj_due_end = args.get("pj_due_end")
+    limit = args.get("limit")
+    offset = args.get("offset")
+    search = args.get("search")
+    user_name = model.User.query.get(user_id).login
 
-#     rows, counts = get_project_rows_by_user(user_id, limit, offset)
-#     ret = []
-#     for row in rows:
-#         if row.id == -1:
-#             continue
-#         if disable is not None and row.disabled != disable:
-#             continue
-#         if pj_due_start is not None and pj_due_end is not None and row.due_date is not None:
-#             if row.due_date < datetime.strptime(pj_due_start,
-#                                                 "%Y-%m-%d").date() or \
-#                     row.due_date > datetime.strptime(pj_due_end, "%Y-%m-%d").date():
-#                 continue
+    rows, counts = get_project_rows_by_user(user_id, search, limit, offset)
+    ret = []
+    for row in rows:
+        if row.id == -1:
+            continue
+        if disable is not None and row.disabled != disable:
+            continue
+        if pj_due_start is not None and pj_due_end is not None and row.due_date is not None:
+            if row.due_date < datetime.strptime(pj_due_start,
+                                                "%Y-%m-%d").date() or \
+                    row.due_date > datetime.strptime(pj_due_end, "%Y-%m-%d").date():
+                continue
         
-#         redmine_project_id = row.plugin_relation.plan_project_id
-#         project_object = redmine_lib.rm_impersonate(user_name).project.get(redmine_project_id)
-#         rm_project = {"updated_on": project_object.updated_on, "id": project_object.id}
+        redmine_project_id = row.plugin_relation.plan_project_id
+        project_object = redmine_lib.rm_impersonate(user_name).project.get(redmine_project_id)
+        rm_project = {"updated_on": project_object.updated_on, "id": project_object.id}
         
-#         ret.append(caculate_project_issues(rm_project, user_name))
+        ret.append(caculate_project_issues(rm_project, user_name))
 
-#     if limit is not None and offset is not None:
-#         page_dict = util.get_pagination(counts,
-#                                         limit, offset)
-#         return {'project_list': ret, 'page': page_dict}
-#     return ret
+    if limit is not None and offset is not None:
+        page_dict = util.get_pagination(counts,
+                                        limit, offset)
+        return {'project_list': ret, 'page': page_dict}
+    return ret
 
 
 def get_project_list(user_id, role="simple", args={}, disable=None):
@@ -80,9 +81,10 @@ def get_project_list(user_id, role="simple", args={}, disable=None):
     pj_members_count = args.get("pj_members_count")
     limit = args.get("limit")
     offset = args.get("offset")
+    search = args.get("search")
     user_name = model.User.query.get(user_id).login
 
-    rows, counts = get_project_rows_by_user(user_id, limit, offset)
+    rows, counts = get_project_rows_by_user(user_id, search, limit, offset)
     ret = []
     for row in rows:
         if row.id == -1:
@@ -115,7 +117,7 @@ def get_project_list(user_id, role="simple", args={}, disable=None):
     
     return ret
 
-def get_project_rows_by_user(user_id, limit=None, offset=None):
+def get_project_rows_by_user(user_id, search=None, limit=None, offset=None):
     query = model.Project.query.options(
         joinedload(model.Project.plugin_relation, innerjoin=True)).options(
         joinedload(model.Project.user_role, innerjoin=True)
@@ -124,6 +126,16 @@ def get_project_rows_by_user(user_id, limit=None, offset=None):
     if user.get_role_id(user_id) != role.ADMIN.id:
         query = query.filter(model.Project.user_role.any(user_id=user_id))
     query = query.order_by(desc(model.Project.id))
+    
+    if search is not None:
+        users = model.User.query.filter(model.User.name.like(f'%{search}%')).all()
+        owner_ids = [user.id for user in users]
+        query = query.filter(or_(
+            model.Project.owner_id.in_(owner_ids),
+            model.Project.display.like(f'%{search}%'),
+            model.Project.name.like(f'%{search}%'),
+        ))
+    
     counts = query.count()
     if limit is not None:
         rows = query.limit(limit).offset(offset).all()
@@ -1239,6 +1251,7 @@ class ListMyProjects(Resource):
         parser.add_argument('simple', type=str)
         parser.add_argument('limit', type=int)
         parser.add_argument('offset', type=int)
+        parser.add_argument('search', type=str)
         parser.add_argument('pj_members_count', type=str)
         parser.add_argument('pj_due_date_start', type=str)
         parser.add_argument('pj_due_date_end', type=str)
@@ -1257,22 +1270,23 @@ class ListMyProjects(Resource):
             return util.success(
                 {'project_list': get_project_list(get_jwt_identity()['user_id'], "pm", args, disabled)})
 
-# Do not delete it, it will be used in project_list optimization
-# class CaculateProjectIssues(Resource):
-#     @jwt_required
-#     def get(self):
-#         parser = reqparse.RequestParser()
-#         parser.add_argument('limit', type=int)
-#         parser.add_argument('offset', type=int)
-#         parser.add_argument('pj_due_date_start', type=str)
-#         parser.add_argument('pj_due_date_end', type=str)
-#         parser.add_argument('disabled', type=int)
-#         args = parser.parse_args()
-#         disabled = None
-#         if args["disabled"] is not None:
-#             disabled = args["disabled"] == 1
-#         return util.success(
-#             {'project_list': get_project_issue_caculation(get_jwt_identity()['user_id'], args, disabled)})
+
+class CaculateProjectIssues(Resource):
+    @jwt_required
+    def get(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('limit', type=int)
+        parser.add_argument('offset', type=int)
+        parser.add_argument('search', type=str)
+        parser.add_argument('pj_due_date_start', type=str)
+        parser.add_argument('pj_due_date_end', type=str)
+        parser.add_argument('disabled', type=int)
+        args = parser.parse_args()
+        disabled = None
+        if args["disabled"] is not None:
+            disabled = args["disabled"] == 1
+        return util.success(
+            {'project_list': get_project_issue_caculation(get_jwt_identity()['user_id'], args, disabled)})
 
 
 
