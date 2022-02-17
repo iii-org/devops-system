@@ -198,6 +198,8 @@ def initialize(db_uri):
 
 
 api.add_resource(router.Router, '/router')
+api.add_resource(router.RouterNameV2, '/v2/router_name')
+add_resource(router.RouterNameV2, "public")
 
 api.add_resource(project.GitRepoIdToCiPipeId,
                  '/git_repo_id_to_ci_pipe_id/<repository_id>')
@@ -347,7 +349,7 @@ api.add_resource(gitlab.GitlabDomainConnection, '/repositories/is_ip', '/reposit
 api.add_resource(user.Login, '/user/login')
 # input api in swagger (for swagger)
 api.add_resource(user.Login_v2, '/v2/user/login')
-add_resource(user.Login_v2,"public")
+add_resource(user.Login_v2, "public")
 
 
 # api.add_resource(user.UserForgetPassword, '/user/forgetPassword')
@@ -646,46 +648,46 @@ api.add_resource(trace_order.GetTraceResult, '/trace_order/result')
 # Monitoring
 api.add_resource(monitoring.ServersAlive, '/monitoring/alive')
 api.add_resource(monitoring.ServersAlive_v2, '/v2/monitoring/alive')
-add_resource(monitoring.ServersAlive_v2,"public")
+add_resource(monitoring.ServersAlive_v2, "public")
 api.add_resource(monitoring.RedmineAlive, '/monitoring/redmine/alive')
 api.add_resource(monitoring.RedmineAlive_v2, '/v2/monitoring/redmine/alive')
-add_resource(monitoring.RedmineAlive_v2,"public")
+add_resource(monitoring.RedmineAlive_v2, "public")
 api.add_resource(monitoring.GitlabAlive, '/monitoring/gitlab/alive')
 api.add_resource(monitoring.GitlabAlive_v2, '/v2/monitoring/gitlab/alive')
-add_resource(monitoring.GitlabAlive_v2,"public")
+add_resource(monitoring.GitlabAlive_v2, "public")
 api.add_resource(monitoring.HarborAlive, '/monitoring/harbor/alive')
 api.add_resource(monitoring.HarborAlive_v2, '/v2/monitoring/harbor/alive')
-add_resource(monitoring.HarborAlive_v2,"public")
+add_resource(monitoring.HarborAlive_v2, "public")
 api.add_resource(monitoring.HarborStorage, '/monitoring/harbor/usage')
 api.add_resource(monitoring.HarborStorage_v2, '/v2/monitoring/harbor/usage')
-add_resource(monitoring.HarborStorage_v2,"public")
+add_resource(monitoring.HarborStorage_v2, "public")
 api.add_resource(monitoring.HarborProxy, '/monitoring/harbor/pull_limit')
 api.add_resource(monitoring.HarborProxy_v2, '/v2/monitoring/harbor/pull_limit')
-add_resource(monitoring.HarborProxy_v2,"public")
+add_resource(monitoring.HarborProxy_v2, "public")
 api.add_resource(monitoring.SonarQubeAlive, '/monitoring/sonarqube/alive')
 api.add_resource(monitoring.SonarQubeAlive_v2, '/v2/monitoring/sonarqube/alive')
-add_resource(monitoring.SonarQubeAlive_v2,"public")
+add_resource(monitoring.SonarQubeAlive_v2, "public")
 api.add_resource(monitoring.RancherAlive, '/monitoring/rancher/alive')
 api.add_resource(monitoring.RancherAlive_v2, '/v2/monitoring/rancher/alive')
-add_resource(monitoring.RancherAlive_v2,"public")
+add_resource(monitoring.RancherAlive_v2, "public")
 api.add_resource(monitoring.RancherDefaultName, '/monitoring/rancher/default_name')
 api.add_resource(monitoring.RancherDefaultName_v2, '/v2/monitoring/rancher/default_name')
-add_resource(monitoring.RancherDefaultName_v2,"public")
+add_resource(monitoring.RancherDefaultName_v2, "public")
 api.add_resource(monitoring.K8sAlive, '/monitoring/k8s/alive')
 api.add_resource(monitoring.K8sAlive_v2, '/v2/monitoring/k8s/alive')
-add_resource(monitoring.K8sAlive_v2,"public")
+add_resource(monitoring.K8sAlive_v2, "public")
 api.add_resource(monitoring.CollectPodRestartTime, '/monitoring/k8s/collect_pod_restart_times_by_hour')
 api.add_resource(monitoring.CollectPodRestartTime_v2, '/v2/monitoring/k8s/collect_pod_restart_times_by_hour')
-add_resource(monitoring.CollectPodRestartTime_v2,"public")
+add_resource(monitoring.CollectPodRestartTime_v2, "public")
 api.add_resource(monitoring.PodAlert, '/monitoring/k8s/pod_alert')
 api.add_resource(monitoring.PodAlert_v2, '/v2/monitoring/k8s/pod_alert')
-add_resource(monitoring.PodAlert_v2,"private")
+add_resource(monitoring.PodAlert_v2, "private")
 api.add_resource(monitoring.RemoveExtraExecutions, '/monitoring/k8s/remove_extra_executions')
 api.add_resource(monitoring.RemoveExtraExecutions_v2, '/v2/monitoring/k8s/remove_extra_executions')
-add_resource(monitoring.RemoveExtraExecutions_v2,"public")
+add_resource(monitoring.RemoveExtraExecutions_v2, "public")
 api.add_resource(monitoring.GithubTokenVerify, '/monitoring/github/validate_token')
 api.add_resource(monitoring.GithubTokenVerify_v2, '/v2/monitoring/github/validate_token')
-add_resource(monitoring.GithubTokenVerify_v2,"public")
+add_resource(monitoring.GithubTokenVerify_v2, "public")
 
 
 # System parameter
@@ -706,6 +708,7 @@ socketio.on_namespace(notification_message.GetNotificationMessage('/get_notifica
 
 # routing job
 api.add_resource(routing_job.DoJobByMonth, '/routing_job/by_month')
+
 
 def start_prod():
     try:
