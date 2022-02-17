@@ -160,7 +160,7 @@ def get_project_family_members_by_user(project_id):
 
 @doc(tags=['Project Relation'],description="Check project has son project or not")
 @marshal_with(route_model.CheckhasSonProjectResponse)
-class CheckhasSonProject_v2(MethodResource):
+class CheckhasSonProjectV2(MethodResource):
     @jwt_required
     def get(self, project_id):
         return {
@@ -176,7 +176,7 @@ class CheckhasSonProject(Resource):
 
 @doc(tags=['Project Relation'],description="Gey root project_id")
 @marshal_with(route_model.GetProjectRootIDResponse)
-class GetProjectRootID_v2(MethodResource):
+class GetProjectRootIDV2(MethodResource):
     @jwt_required
     def get(self, project_id):
         return {"root_project_id": get_root_project_id(project_id)}
@@ -188,7 +188,7 @@ class GetProjectRootID(Resource):
 
 @doc(tags=['Project Relation'],description="Sync IIIDevops project's relationship with Redmine")
 @marshal_with(util.CommonResponse)
-class SyncProjectRelation_v2(MethodResource):
+class SyncProjectRelationV2(MethodResource):
     @jwt_required
     def post(self):
         Thread(target=sync_project_relation).start()
@@ -202,7 +202,7 @@ class SyncProjectRelation(Resource):
 
 @doc(tags=['Project Relation'],description="Get all sons' project members")
 @marshal_with(route_model.GetProjectFamilymembersByUserResponse)
-class GetProjectFamilymembersByUser_v2(MethodResource):
+class GetProjectFamilymembersByUserV2(MethodResource):
     @jwt_required
     def get(self, project_id):
         return util.success(get_project_family_members_by_user(project_id))

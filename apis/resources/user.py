@@ -780,7 +780,7 @@ def user_sa_config(user_id):
 @doc(tags=['Login'],description='Login API')
 @use_kwargs(resources.api_model.LoginSchema, location=('json'))
 @marshal_with(resources.api_model.LoginSuccessResponse)  # marshalling
-class Login_v2(MethodResource):
+class LoginV2(MethodResource):
     # noinspection PyMethodMayBeStatic
     def post(self,**kwargs):
         return login(kwargs)
