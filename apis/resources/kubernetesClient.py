@@ -1646,7 +1646,7 @@ class K8sPodExec(object):
         self.namespace_name = data['project_name']
         self.pod_name = data['pod_name']
         self.container_name = data.get("container_name")
-        self.exec_command = ['/bin/bash']
+        self.exec_command = ['/bin/sh']
         if self.container_name is None:
             self.resp = k8s_stream(
                 ApiK8sClient().core_v1.connect_get_namespaced_pod_exec,
