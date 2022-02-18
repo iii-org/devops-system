@@ -32,14 +32,17 @@ from enums.action_type import ActionType
 from model import db, IssueExtensions, CustomIssueFilter
 from resources.apiError import DevOpsError
 from resources.redmine import redmine
-from . import project as project_module, project, role
-from .activity import record_activity
-from . import tag as tag_py
+from resources import project as project_module, project, role
+from resources.activity import record_activity
+from resources import tag as tag_py
 from resources.user import user_list_by_project
 from redminelib.exceptions import ResourceAttrError
 from resources import logger
 from resources.lock import get_lock_status
 from resources.project_relation import project_has_child, project_has_parent
+from flask_apispec import marshal_with, doc, use_kwargs
+from flask_apispec.views import MethodResource
+from . import route_model
 
 FLOW_TYPES = {"0": "Given", "1": "When", "2": "Then", "3": "But", "4": "And"}
 PARAMETER_TYPES = {'1': '文字', '2': '英數字', '3': '英文字', '4': '數字'}
@@ -2267,6 +2270,121 @@ def get_commit_hook_issues(commit_id):
 
 
 # --------------------- Resources ---------------------
+
+class SingleIssueV2(MethodResource):
+    @doc(tags=['Issue'], description="Get single issue")
+    @marshal_with(route_model.SingleIssueGetResponse)
+    @jwt_required
+    def get(self, issue_id):
+        issue_info = get_issue(issue_id)
+        require_issue_visible(issue_id, issue_info)
+        if 'parent_id' in issue_info:
+            parent_info = get_issue(issue_info['parent_id'], with_children=False)
+            parent_info['name'] = parent_info.pop('subject', None)
+            parent_info['tags'] = get_issue_tags(parent_info["id"])
+            issue_info.pop('parent_id', None)
+            issue_info['parent'] = parent_info
+
+        for items in ["children", "relations"]:
+            if issue_info.get(items) is not None:
+                for item in issue_info[items]:
+                    item["tags"] = get_issue_tags(item["id"])
+        issue_info["name"] = issue_info.pop('subject', None)
+        issue_info["point"] = get_issue_point(issue_id)
+        issue_info["tags"] = get_issue_tags(issue_id)
+
+        return util.success(issue_info)
+
+    @doc(tags=['Issue'], description="Update single issue")
+    @use_kwargs(route_model.SingleIssuePutSchema, location="json")
+    @marshal_with(route_model.SingleIssuePutResponse)
+    @jwt_required
+    def put(self, issue_id, **kwargs):
+        require_issue_visible(issue_id)
+
+        redmine_issue = redmine_lib.redmine.issue.get(issue_id, include=['children'])
+        has_children = redmine_issue.children.total_count > 0
+        if has_children:
+            validate_field_mapping = {
+                "priority_id": redmine_issue.priority.id if hasattr(redmine_issue, 'priority') else None,
+                "start_date": redmine_issue.start_date.isoformat() if hasattr(redmine_issue, 'start_date') else "",
+                "due_date": redmine_issue.due_date.isoformat() if hasattr(redmine_issue, 'due_date') else "",
+            }
+            for invalidate_field in ["priority_id", "start_date", "due_date"]:
+                if kwargs.get(invalidate_field) is not None and kwargs.get(invalidate_field) != validate_field_mapping[invalidate_field]:
+                    raise DevOpsError(400, f'Argument {invalidate_field} can not be alerted when children issue exist.',
+                                      error=apiError.redmine_argument_error(invalidate_field))
+
+        # Check due_date is greater than start_date
+        due_date = None
+        start_date = None
+
+        if kwargs.get("due_date") is not None and len(kwargs.get("due_date")) > 0:
+            due_date = kwargs.get("due_date")
+        else:
+            try:
+                due_date = str(redmine_lib.redmine.issue.get(issue_id).due_date)
+            except ResourceAttrError:
+                pass
+
+        if kwargs.get("start_date") is not None and len(kwargs.get("start_date")) > 0:
+            start_date = kwargs.get("start_date")
+        else:
+            try:
+                start_date = str(redmine_lib.redmine.issue.get(issue_id).start_date)
+            except ResourceAttrError:
+                pass
+
+        if start_date is not None and due_date is not None:
+            if due_date < start_date:
+                arg = "due_date" if kwargs.get("due_date") is not None and len(kwargs.get("due_date")) > 0 else "start_date"
+                raise DevOpsError(400, 'Due date must be greater than start date.',
+                                  error=apiError.argument_error(arg))
+
+        # Handle removable int parameters
+        keys_int_or_null = ['assigned_to_id', 'fixed_version_id', 'parent_id']
+        for k in keys_int_or_null:
+            if kwargs.get(k) == 'null':
+                kwargs[k] = ''
+
+        kwargs["subject"] = kwargs.pop("name", None)
+        output = update_issue(issue_id, kwargs, get_jwt_identity()['user_id'])
+        return util.success(output)
+
+    @doc(tags=['Issue'], description="Delete single issue")
+    @use_kwargs(route_model.SingleIssueDeleteSchema, location="json")
+    @marshal_with(route_model.SingleIssueDeleteResponse)
+    @ jwt_required
+    def delete(self, issue_id, **kwargs):
+        if kwargs.get("force") is None or not kwargs.get("force"):
+            redmine_issue = redmine_lib.redmine.issue.get(issue_id, include=['children'])
+            children = get_issue_family(redmine_issue, all=True).get("children")
+            if children is not None:
+                raise DevOpsError(400, 'Unable to delete issue with children issue, unless parameter "force" is True.',
+                                  error=apiError.unable_to_delete_issue_has_children(children))
+        return util.success(delete_issue(issue_id))
+
+@doc(tags=['Issue'], description="Create single issue")
+@use_kwargs(route_model.SingleIssuePostSchema, location="json")
+@marshal_with(route_model.SingleIssuePostResponse)
+class CreateSingleIssueV2(MethodResource):
+    @jwt_required
+    def post(self, **kwargs):
+        # Check due_date is greater than start_date
+        if kwargs.get("start_date") is not None and kwargs.get("due_date") is not None:
+            if kwargs["due_date"] < kwargs["start_date"]:
+                raise DevOpsError(400, 'Due date must be greater than start date.',
+                                  error=apiError.argument_error("due_date"))
+
+        # Handle removable int parameters
+        keys_int_or_null = ['assigned_to_id', 'fixed_version_id', 'parent_id']
+        for k in keys_int_or_null:
+            if kwargs.get(k) == 'null':
+                kwargs[k] = ''
+
+        kwargs["subject"] = kwargs.pop("name")
+        return util.success(create_issue(kwargs, get_jwt_identity()['user_id']))
+
 class SingleIssue(Resource):
     @ jwt_required
     def get(self, issue_id):

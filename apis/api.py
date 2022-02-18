@@ -406,7 +406,12 @@ api.add_resource(issue.IssueFilterByProject, '/project/<sint:project_id>/issue_f
 
 
 api.add_resource(issue.IssueByVersion, '/issues_by_versions')
+
 api.add_resource(issue.SingleIssue, '/issues', '/issues/<issue_id>')
+api.add_resource(issue.SingleIssueV2, '/v2/issues/<issue_id>')
+add_resource(issue.SingleIssueV2, "public")
+api.add_resource(issue.CreateSingleIssueV2, '/v2/issues')
+add_resource(issue.CreateSingleIssueV2, "public")
 api.add_resource(issue.IssueStatus, '/issues_status')
 api.add_resource(issue.IssuePriority, '/issues_priority')
 api.add_resource(issue.IssueTracker, '/issues_tracker')
