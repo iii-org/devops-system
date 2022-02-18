@@ -42,26 +42,13 @@ from resources.project_relation import get_all_sons_project, get_relation_list
 
 # Do not delete it, it will be used in project_list optimization
 def get_project_issue_caculation(user_id, args={}, disable=None):
-    pj_due_start = args.get("pj_due_start")
-    pj_due_end = args.get("pj_due_end")
     limit = args.get("limit")
     offset = args.get("offset")
-    search = args.get("search")
     user_name = model.User.query.get(user_id).login
 
-    rows, counts = get_project_rows_by_user(user_id, search, limit, offset)
+    rows, counts = get_project_rows_by_user(user_id, disable, args=args)
     ret = []
     for row in rows:
-        if row.id == -1:
-            continue
-        if disable is not None and row.disabled != disable:
-            continue
-        if pj_due_start is not None and pj_due_end is not None and row.due_date is not None:
-            if row.due_date < datetime.strptime(pj_due_start,
-                                                "%Y-%m-%d").date() or \
-                    row.due_date > datetime.strptime(pj_due_end, "%Y-%m-%d").date():
-                continue
-        
         redmine_project_id = row.plugin_relation.plan_project_id
         project_object = redmine_lib.rm_impersonate(user_name).project.get(redmine_project_id)
         rm_project = {"updated_on": project_object.updated_on, "id": project_object.id}
@@ -76,25 +63,13 @@ def get_project_issue_caculation(user_id, args={}, disable=None):
 
 
 def get_project_list(user_id, role="simple", args={}, disable=None):
-    pj_due_start = args.get("pj_due_start")
-    pj_due_end = args.get("pj_due_end")
-    pj_members_count = args.get("pj_members_count")
     limit = args.get("limit")
     offset = args.get("offset")
-    search = args.get("search")
     user_name = model.User.query.get(user_id).login
 
-    rows, counts = get_project_rows_by_user(user_id, search, limit, offset)
+    rows, counts = get_project_rows_by_user(user_id, disable, args=args)
     ret = []
     for row in rows:
-        if row.id == -1:
-            continue
-        if disable is not None and row.disabled != disable:
-            continue
-        if pj_due_start is not None and pj_due_end is not None and row.due_date is not None:
-            if row.due_date < datetime.strptime(pj_due_start, "%Y-%m-%d").date() or \
-                    row.due_date > datetime.strptime(pj_due_end, "%Y-%m-%d").date():
-                continue
         nexus_project = NexusProject().set_project_row(row) \
             .set_starred_info(user_id)
         if role == "pm":
@@ -106,8 +81,6 @@ def get_project_list(user_id, role="simple", args={}, disable=None):
         elif role == 'rd':
             nexus_project = nexus_project.fill_rd_extra_fields(user_id)
 
-        if pj_members_count:
-            nexus_project = nexus_project.set_project_members()
         ret.append(nexus_project.to_json())
 
     if limit is not None and offset is not None:
@@ -117,31 +90,49 @@ def get_project_list(user_id, role="simple", args={}, disable=None):
     
     return ret
 
-def get_project_rows_by_user(user_id, search=None, limit=None, offset=None):
+def get_project_rows_by_user(user_id, disable, args={}):
+    search = args.get("search")
+    limit = args.get("limit")
+    offset = args.get("offset")
+
     query = model.Project.query.options(
-        joinedload(model.Project.plugin_relation, innerjoin=True)).options(
         joinedload(model.Project.user_role, innerjoin=True)
     )
     # 如果不是admin（也就是一般RD/PM/QA），取得 user_id 有參加的 project 列表
     if user.get_role_id(user_id) != role.ADMIN.id:
-        query = query.filter(model.Project.user_role.any(user_id=user_id))
-    query = query.order_by(desc(model.Project.id))
-    
+        query = query.filter(model.Project.user_role.any(user_id=user_id)) 
+
+    stared_pjs = model.StarredProject.query.filter_by(user_id=user_id).all()
+    project_ids = [star_project.project_id for star_project in stared_pjs]
+    star_projects_obj = [model.Project.query.get(pj_id) for pj_id in project_ids]
+
+    if disable is not None:
+        query = query.filter_by(disabled=disable)
+        star_projects_obj = [star_project for star_project in star_projects_obj if star_project.disabled==disable]
+
     if search is not None:
-        users = model.User.query.filter(model.User.name.like(f'%{search}%')).all()
+        users = model.User.query.filter(model.User.name.ilike(f'%{search}%')).all()
         owner_ids = [user.id for user in users]
         query = query.filter(or_(
             model.Project.owner_id.in_(owner_ids),
             model.Project.display.like(f'%{search}%'),
             model.Project.name.like(f'%{search}%'),
         ))
-    
+        star_projects_obj = [
+            star_project for star_project in star_projects_obj \
+                if star_project.owner_id in owner_ids or \
+                   search.upper() in star_project.display.upper() or \
+                   search.upper() in star_project.name.upper()]
+
+    # Remove dump_project and stared_project
+    project_ids = [star_project.id for star_project in star_projects_obj]
+    query = query.filter(~model.Project.id.in_(project_ids + [-1])).order_by(desc(model.Project.id))
     counts = query.count()
     if limit is not None:
         rows = query.limit(limit).offset(offset).all()
     else:
         rows = query.all()
-    return rows, counts
+    return star_projects_obj + rows, counts + len(project_ids)
 
 
 # 新增redmine & gitlab的project並將db相關table新增資訊
@@ -1252,13 +1243,10 @@ class ListMyProjects(Resource):
         parser.add_argument('limit', type=int)
         parser.add_argument('offset', type=int)
         parser.add_argument('search', type=str)
-        parser.add_argument('pj_members_count', type=str)
-        parser.add_argument('pj_due_date_start', type=str)
-        parser.add_argument('pj_due_date_end', type=str)
         parser.add_argument('disabled', type=int)
         args = parser.parse_args()
         disabled = None
-        if args["disabled"] is not None:
+        if args.get("disabled") is not None:
             disabled = args["disabled"] == 1
         if args.get('simple', 'false') == 'true':
             return util.success(
@@ -1278,12 +1266,10 @@ class CaculateProjectIssues(Resource):
         parser.add_argument('limit', type=int)
         parser.add_argument('offset', type=int)
         parser.add_argument('search', type=str)
-        parser.add_argument('pj_due_date_start', type=str)
-        parser.add_argument('pj_due_date_end', type=str)
         parser.add_argument('disabled', type=int)
         args = parser.parse_args()
         disabled = None
-        if args["disabled"] is not None:
+        if args.get("disabled") is not None:
             disabled = args["disabled"] == 1
         return util.success(
             {'project_list': get_project_issue_caculation(get_jwt_identity()['user_id'], args, disabled)})
