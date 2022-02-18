@@ -203,6 +203,7 @@ api.add_resource(router.Router, '/router')
 api.add_resource(router.RouterNameV2, '/v2/router/name')
 add_resource(router.RouterNameV2, "public")
 api.add_resource(router.UserRouteV2, '/v2/router/user_route')
+add_resource(router.UserRouteV2, "public")
 
 api.add_resource(project.GitRepoIdToCiPipeId,
                  '/git_repo_id_to_ci_pipe_id/<repository_id>')
