@@ -1,6 +1,6 @@
 from . import checkmarx_main
 
-ui_route = ["CheckMarx"]
+ui_route = ["Checkmarx"]
 # --------------------- API router ---------------------
 
 
