@@ -47,7 +47,9 @@ def get_project_issue_caculation(user_name, project_ids=[]):
         redmine_project_id = model.ProjectPluginRelation.query.filter_by(project_id=project_id).one().plan_project_id
         project_object = redmine_lib.rm_impersonate(user_name).project.get(redmine_project_id)
         rm_project = {"updated_on": project_object.updated_on, "id": project_object.id}
-        ret.append(caculate_project_issues(rm_project, user_name))
+        caculate_project_issue = caculate_project_issues(rm_project, user_name)
+        caculate_project_issue["id"] = project_id
+        ret.append(caculate_project_issue)
 
     return ret
 
