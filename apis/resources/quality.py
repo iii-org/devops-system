@@ -49,7 +49,7 @@ paths = [{
 }, {
     "software_name": "SideeX",
     "path": "iiidevops/sideex",
-    "file_name_key": "sideex"
+    "file_name_key": ""
 }]
 
 filename_validate_mapping = {"Postman": ".postman_collection.json$", "SideeX": ".sideex.json$"}
@@ -192,7 +192,9 @@ def qu_get_testfile_list(project_id):
                         "test_plans": postmane_test_plans,
                         "the_last_test_result": the_last_result
                     })
-                elif path["file_name_key"] == "sideex":
+                # sideex 
+                # sideex's file name is not necessary to have 'sideex' in it.
+                elif path["file_name_key"] == "":
                     for test_plan in test_plans:
                         i = 0
                         while i < len(test_plan['test_files']):
@@ -202,12 +204,15 @@ def qu_get_testfile_list(project_id):
                             else:
                                 i += 1
                     sideex_obj = SideeXJSON(coll_json)
-                    suite_obj = SideeXJSONSuite(sideex_obj.suites[0])
+                    if sideex_obj.suites is None:
+                        name = None
+                    else:
+                        name = SideeXJSONSuite(sideex_obj.suites[0]).title
                     the_last_result = sideex.sd_get_latest_test(project_id)
                     out_list.append({
                         "software_name": path["software_name"],
                         "file_name": tree["name"],
-                        "name": suite_obj.title,
+                        "name": name,
                         "test_plans": test_plans,
                         "the_last_test_result": the_last_result
                     })
