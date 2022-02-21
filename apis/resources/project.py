@@ -41,24 +41,14 @@ from resources.monitoring import Monitoring
 from resources.project_relation import get_all_sons_project, get_relation_list
 
 # Do not delete it, it will be used in project_list optimization
-def get_project_issue_caculation(user_id, args={}, disable=None):
-    limit = args.get("limit")
-    offset = args.get("offset")
-    user_name = model.User.query.get(user_id).login
-
-    rows, counts = get_project_rows_by_user(user_id, disable, args=args)
+def get_project_issue_caculation(user_name, project_ids=[]):
     ret = []
-    for row in rows:
-        redmine_project_id = row.plugin_relation.plan_project_id
+    for project_id in project_ids:
+        redmine_project_id = model.ProjectPluginRelation.query.filter_by(project_id=project_id).one().plan_project_id
         project_object = redmine_lib.rm_impersonate(user_name).project.get(redmine_project_id)
         rm_project = {"updated_on": project_object.updated_on, "id": project_object.id}
-        
         ret.append(caculate_project_issues(rm_project, user_name))
 
-    if limit is not None and offset is not None:
-        page_dict = util.get_pagination(counts,
-                                        limit, offset)
-        return {'project_list': ret, 'page': page_dict}
     return ret
 
 
@@ -126,13 +116,19 @@ def get_project_rows_by_user(user_id, disable, args={}):
 
     # Remove dump_project and stared_project
     project_ids = [star_project.id for star_project in star_projects_obj]
+    stared_project_num = len(project_ids)
     query = query.filter(~model.Project.id.in_(project_ids + [-1])).order_by(desc(model.Project.id))
     counts = query.count()
     if limit is not None:
+        if offset == 0:
+            limit -= stared_project_num
+        else:
+            offset -= stared_project_num
         rows = query.limit(limit).offset(offset).all()
+        rows = rows + star_projects_obj if offset == 0 else rows
     else:
         rows = query.all()
-    return star_projects_obj + rows, counts + len(project_ids)
+    return rows, counts + stared_project_num
 
 
 # 新增redmine & gitlab的project並將db相關table新增資訊
@@ -1263,16 +1259,12 @@ class CaculateProjectIssues(Resource):
     @jwt_required
     def get(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('limit', type=int)
-        parser.add_argument('offset', type=int)
-        parser.add_argument('search', type=str)
-        parser.add_argument('disabled', type=int)
+        parser.add_argument('project_ids', type=str, required=True)
         args = parser.parse_args()
-        disabled = None
-        if args.get("disabled") is not None:
-            disabled = args["disabled"] == 1
+        project_ids = args.get("project_ids").split(",")
+
         return util.success(
-            {'project_list': get_project_issue_caculation(get_jwt_identity()['user_id'], args, disabled)})
+            {'project_list': get_project_issue_caculation(get_jwt_identity()['user_account'], project_ids)})
 
 
 

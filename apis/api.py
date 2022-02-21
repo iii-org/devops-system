@@ -210,7 +210,7 @@ api.add_resource(project.GitRepoIdToCiPipeId,
 
 # Projects
 api.add_resource(project.ListMyProjects, '/project/list')
-# api.add_resource(project.CaculateProjectIssues, '/project/list/caculate')
+api.add_resource(project.CaculateProjectIssues, '/project/list/caculate')
 api.add_resource(project.ListProjectsByUser, '/projects_by_user/<int:user_id>')
 api.add_resource(project.SingleProject, '/project',
                  '/project/<sint:project_id>')
@@ -390,6 +390,7 @@ socketio.on_namespace(issue.IssueSocket('/issues/websocket'))
 # issue
 api.add_resource(issue.IssueFamily, '/issue/<issue_id>/family')
 api.add_resource(issue.IssueByProject, '/project/<sint:project_id>/issues')
+# add_resource(issue.IssueByProjectV2, '/project/<sint:project_id>/issues')
 api.add_resource(issue.IssueByUser, '/user/<sint:user_id>/issues')
 api.add_resource(issue.IssueByTreeByProject,
                  '/project/<sint:project_id>/issues_by_tree')
