@@ -128,6 +128,7 @@ def get_project_rows_by_user(user_id, disable, args={}):
         rows = rows + star_projects_obj if offset == 0 else rows
     else:
         rows = query.all()
+        rows += star_projects_obj
     return rows, counts + stared_project_num
 
 
