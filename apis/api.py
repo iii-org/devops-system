@@ -389,19 +389,25 @@ socketio.on_namespace(issue.IssueSocket('/issues/websocket'))
 
 # issue
 api.add_resource(issue.IssueFamily, '/issue/<issue_id>/family')
+api.add_resource(issue.IssueFamilyV2, '/v2/issue/<issue_id>/family')
+add_resource(issue.IssueFamilyV2, 'public')
 api.add_resource(issue.IssueByProject, '/project/<sint:project_id>/issues')
-# add_resource(issue.IssueByProjectV2, '/project/<sint:project_id>/issues')
+api.add_resource(issue.IssueByProjectV2, '/v2/project/<sint:project_id>/issues')
+add_resource(issue.IssueByProjectV2, 'public')
 api.add_resource(issue.IssueByUser, '/user/<sint:user_id>/issues')
+api.add_resource(issue.IssueByUserV2, '/v2/user/<sint:user_id>/issues')
+add_resource(issue.IssueByUserV2, 'public')
+
 api.add_resource(issue.IssueByTreeByProject,
                  '/project/<sint:project_id>/issues_by_tree')
 api.add_resource(issue.IssueByStatusByProject,
                  '/project/<sint:project_id>/issues_by_status')
-api.add_resource(issue.IssueByDateByProject,
-                 '/project/<sint:project_id>/issues_by_date')
+# api.add_resource(issue.IssueByDateByProject,
+#                  '/project/<sint:project_id>/issues_by_date')
 api.add_resource(issue.IssuesProgressByProject,
                  '/project/<sint:project_id>/issues_progress')
-api.add_resource(issue.IssuesStatisticsByProject,
-                 '/project/<sint:project_id>/issues_statistics')
+# api.add_resource(issue.IssuesStatisticsByProject,
+#                  '/project/<sint:project_id>/issues_statistics')
 api.add_resource(issue.IssueFilterByProject, '/project/<sint:project_id>/issue_filter',
                  '/project/<sint:project_id>/issue_filter/<custom_filter_id>')
 
@@ -414,8 +420,14 @@ add_resource(issue.SingleIssueV2, "public")
 api.add_resource(issue.CreateSingleIssueV2, '/v2/issues')
 add_resource(issue.CreateSingleIssueV2, "public")
 api.add_resource(issue.IssueStatus, '/issues_status')
+api.add_resource(issue.IssueStatusV2, '/v2/issues_status')
+add_resource(issue.IssueStatusV2, "public")
 api.add_resource(issue.IssuePriority, '/issues_priority')
+api.add_resource(issue.IssuePriorityV2, '/v2/issues_priority')
+add_resource(issue.IssuePriorityV2, 'public')
 api.add_resource(issue.IssueTracker, '/issues_tracker')
+api.add_resource(issue.IssueTrackerV2, '/v2/issues_tracker')
+add_resource(issue.IssueTrackerV2, 'public')
 api.add_resource(issue.MyIssueStatistics, '/issues/statistics')
 api.add_resource(issue.MyOpenIssueStatistics, '/issues/open_statistics')
 api.add_resource(issue.MyIssueWeekStatistics, '/issues/week_statistics')

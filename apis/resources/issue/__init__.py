@@ -246,96 +246,6 @@ class NexusIssue:
             self.data["point"] = get_issue_point(self.data["id"])
         return self
 
-    def set_redmine_issue_v3(self, redmine_issue, with_relationship=False,
-                             relationship_bool=False, nx_project=None, users_info=None, with_point=False, relation_id=None):
-        self.data = {
-            'id': redmine_issue["id"],
-            'name': redmine_issue["subject"],
-            'project': {},
-            'description': redmine_issue.get("description"),
-            'updated_on': redmine_issue.get("updated_on")[:-1] if redmine_issue.get("updated_on") is not None else None,
-            'start_date': redmine_issue.get("start_date"),
-            'assigned_to': {},
-            'fixed_version': redmine_issue.get("fixed_version", {}),
-            'due_date': redmine_issue.get("due_date"),
-            'done_ratio': redmine_issue["done_ratio"],
-            'is_closed': redmine_issue['status']['id'] in NexusIssue.get_closed_statuses(),
-            'issue_link': redmine.rm_build_external_link(
-                f'/issues/{redmine_issue["id"]}'),
-            'tracker': redmine_issue["tracker"],
-            'priority': redmine_issue["priority"],
-            'status': redmine_issue["status"],
-            "tags": get_issue_tags(redmine_issue["id"]),
-        }
-
-        if self.data['project'] is not None:
-            project_id = nexus.nx_get_project_plugin_relation(
-                    rm_project_id=redmine_issue['project']['id']).project_id
-            if nx_project is None or project_has_child(project_id) or project_has_parent(project_id):
-                nx_project = model.Project.query.get(project_id)
-            self.data["project"] = {
-                'id': nx_project.id,
-                'name': nx_project.name,
-                'display': nx_project.display
-            }
-
-        if 'assigned_to' in redmine_issue:
-            self.data["assigned_to"] = redmine_issue["assigned_to"]
-            if users_info is not None:
-                for user_info in users_info:
-                    if user_info[3] == redmine_issue['assigned_to']['id']:
-                        self.data['assigned_to'] = {
-                            'id': user_info[0],
-                            'name': user_info[1],
-                            'login': user_info[2]
-                        }
-                        break
-            else:
-                user_info = user.get_user_id_name_by_plan_user_id(
-                    redmine_issue['assigned_to']['id'])
-                if user_info is not None:
-                    self.data['assigned_to'] = {
-                        'id': user_info.id,
-                        'name': user_info.name,
-                        'login': user_info.login
-                    }
-
-        if relationship_bool:
-            has_children = redmine_lib.redmine.issue.get(self.data["id"], include=['children']).children.total_count > 0
-            self.data['has_children'] = has_children
-            relations = redmine_issue.get("relations")
-            family_bool = self.data['has_children'] is True or (relations is not None and len(relations) > 0) \
-                or redmine_issue.get("parent") is not None
-            self.data["family"] = family_bool
-
-        if with_relationship:
-            self.data['children'] = []
-            self.data['parent'] = redmine_issue["parent"]["id"] if 'parent' in redmine_issue else None
-
-        if redmine_issue.get("author") is not None:
-            if users_info is not None:
-                for user_info in users_info:
-                    if user_info[3] == redmine_issue['author']['id']:
-                        self.data['author'] = {
-                            'id': user_info[0],
-                            'name': user_info[1]
-                        }
-                        break
-            else:
-                user_info = user.get_user_id_name_by_plan_user_id(
-                    redmine_issue['author']['id'])
-                if user_info is not None:
-                    self.data['author'] = {
-                        'id': user_info.id,
-                        'name': user_info.name
-                    }
-
-        if with_point:
-            self.data["point"] = get_issue_point(self.data["id"])
-
-        if relation_id is not None:
-            self.data["relation_id"] = relation_id
-        return self
 
     @staticmethod
     def get_closed_statuses():
@@ -1047,7 +957,7 @@ def get_issue_list_by_project_helper(project_id, args, download=False, operator_
                 all_issues, total_count = redmine.rm_list_issues(params=default_filters)
 
         # 透過 selection params 決定是否顯示 family bool 欄位
-        if not args['selection'] or not strtobool(args['selection']):
+        if not args.get('selection') or not strtobool(args.get('selection')):
             nx_issue_params['relationship_bool'] = True
 
         output += all_issues
@@ -1112,7 +1022,7 @@ def get_issue_list_by_project_helper(project_id, args, download=False, operator_
         issue["family"] = issue["id"] in has_family_issues
         issue["has_children"] = issue["id"] in has_children
         
-        if args["with_point"]:
+        if args.get("with_point", False):
             issue["point"] = get_issue_point(issue["id"])
         issue["tags"] = get_issue_tags(issue["id"])
         
@@ -1123,7 +1033,7 @@ def get_issue_list_by_project_helper(project_id, args, download=False, operator_
     if download:
         return output
 
-    if args['limit'] and args['offset'] is not None:
+    if args.get('limit') is not None and args.get('offset') is not None:
         page_dict = util.get_pagination(total_count,
                                         args['limit'], args['offset'])
         output = {'issue_list': output, 'page': page_dict}
@@ -1411,7 +1321,7 @@ def get_issue_family(redmine_issue, args={}, all=False, user_name=None):
             parent_issue = redmine_lib.redmine.issue.filter(
                 issue_id=redmine_issue.parent.id, status_id='*')
         try:
-            output['parent'] = NexusIssue().set_redmine_issue_v3(list(parent_issue.values())[0]).to_json()
+            output['parent'] = NexusIssue().set_redmine_issue_v2(parent_issue[0]).to_json()
         except IndexError:
             output["parent"] = []
     if len(redmine_issue.children):
@@ -1423,32 +1333,23 @@ def get_issue_family(redmine_issue, args={}, all=False, user_name=None):
         else:
             children_issues = redmine_lib.redmine.issue.filter(
                 issue_id=children_issue_ids_str, status_id='*', include=['children'])
-        output['children'] = [NexusIssue().set_redmine_issue_v3(issue, with_point=is_with_point, relationship_bool=True).to_json()
-                              for issue in children_issues.values()]
+        output['children'] = [NexusIssue().set_redmine_issue_v2(issue, with_point=is_with_point, relationship_bool=True).to_json()
+                              for issue in children_issues]
     if len(redmine_issue.relations) and not is_with_point:
-        rel_issue_ids = [check_relations_id(redmine_issue.id, relation) for relation in redmine_issue.relations]
-        rel_issue_ids_str = ','.join([str(issue["issue_id"]) for issue in rel_issue_ids])
-        if not all:
-            rel_issues = redmine_lib.rm_impersonate(user_name).issue.filter(
-                issue_id=rel_issue_ids_str, status_id='*', include=['relations'])
-        else:
-            rel_issues = redmine_lib.redmine.issue.filter(
-                issue_id=rel_issue_ids_str, status_id='*', include=['relations'])
-        output['relations'] = [NexusIssue().set_redmine_issue_v3(issue, relation_id=list(filter(lambda relation:relation['issue_id'] == issue["id"], rel_issue_ids))[0]['relation_id']).to_json()
-                               for issue in rel_issues.values()]
+        for relation in redmine_issue.relations:
+            rel_issue_id = 0
+            if relation.issue_id != int(redmine_issue.id):
+                rel_issue_id = relation.issue_id
+            else:
+                rel_issue_id = relation.issue_to_id
+            rel_issue = redmine_lib.redmine.issue.get(rel_issue_id)
+            relate_issue = NexusIssue().set_redmine_issue_v2(rel_issue).to_json()
+            relate_issue['relation_id'] = relation.id
+            output['relations'].append(relate_issue)
     for key in ["parent", "children", "relations"]:
         if output.get(key) == []:
             output.pop(key)
     return output
-
-
-def check_relations_id(issue_id, relation):
-    rel_issue_id = 0
-    if relation.issue_id != int(issue_id):
-        rel_issue_id = relation.issue_id
-    else:
-        rel_issue_id = relation.issue_to_id
-    return {"issue_id": rel_issue_id, "relation_id": relation.id}
 
 
 def get_issue_by_status_by_project(project_id):
@@ -1466,20 +1367,20 @@ def get_issue_by_status_by_project(project_id):
     return util.success(get_issue_by_status_output)
 
 
-def get_issue_by_date_by_project(project_id):
-    if util.is_dummy_project(project_id):
-        return util.success({})
-    args = {}
-    issue_list_output = get_issue_by_project(project_id, args)
-    get_issue_by_date_output = {}
-    for issue_list in issue_list_output:
-        issue_updated_date = datetime.strptime(
-            issue_list['updated_on'],
-            "%Y-%m-%dT%H:%M:%SZ").date().strftime("%Y/%m/%d")
-        if issue_updated_date not in get_issue_by_date_output:
-            get_issue_by_date_output[issue_updated_date] = []
-        get_issue_by_date_output[issue_updated_date].append(issue_list)
-    return util.success(get_issue_by_date_output)
+# def get_issue_by_date_by_project(project_id):
+#     if util.is_dummy_project(project_id):
+#         return util.success({})
+#     args = {}
+#     issue_list_output = get_issue_by_project(project_id, args)
+#     get_issue_by_date_output = {}
+#     for issue_list in issue_list_output:
+#         issue_updated_date = datetime.strptime(
+#             issue_list['updated_on'],
+#             "%Y-%m-%dT%H:%M:%SZ").date().strftime("%Y/%m/%d")
+#         if issue_updated_date not in get_issue_by_date_output:
+#             get_issue_by_date_output[issue_updated_date] = []
+#         get_issue_by_date_output[issue_updated_date].append(issue_list)
+#     return util.success(get_issue_by_date_output)
 
 
 def get_issue_progress_or_statistics_by_project(project_id, args, progress=False, statistics=False):
@@ -2549,6 +2450,23 @@ class DumpByIssue(Resource):
         return dump_by_issue(issue_id)
 
 
+@doc(tags=['Issue'], description="Get issue list by project")
+@use_kwargs(route_model.IssueByProjectSchema, location="query")
+# @marshal_with(route_model.IssueByProjectResponse)
+@marshal_with(route_model.IssueByProjectResponseWithPage, code="with limit and offset")
+class IssueByProjectV2(MethodResource):
+    @ jwt_required
+    def get(self, project_id, **kwargs):
+        role.require_in_project(project_id, 'Error to get issue.')
+        kwargs["project_id"] = project_id
+        if kwargs.get("search") is not None and len(kwargs["search"]) < 2:
+            output = []
+        else:
+            # output = get_issue_list_by_project(project_id, args)
+            output = get_issue_list_by_project_helper(project_id, kwargs)
+        return util.success(output)
+
+
 class IssueByProject(Resource):
     @ jwt_required
     def get(self, project_id):
@@ -2580,6 +2498,19 @@ class IssueByProject(Resource):
         return util.success(output)
 
 
+@doc(tags=['Issue'], description="Get issue list by user")
+@use_kwargs(route_model.IssueByUserSchema, location="query")
+@marshal_with(route_model.IssueByUserResponseWithPage, code="with limit and offset")
+class IssueByUserV2(MethodResource):
+    @ jwt_required
+    def get(self, user_id, **kwargs):
+        print(kwargs)
+        if kwargs.get("search") is not None and len(kwargs["search"]) < 2:
+            output = []
+        else:
+            output = get_issue_list_by_user(user_id, kwargs)
+        return util.success(output)
+
 
 class IssueByUser(Resource):
     @ jwt_required
@@ -2607,7 +2538,6 @@ class IssueByUser(Resource):
             output = get_issue_list_by_user(user_id, args)
         return util.success(output)
 
-
 class IssueByVersion(Resource):
     @ jwt_required
     def get(self, project_id):
@@ -2617,6 +2547,16 @@ class IssueByVersion(Resource):
         args = parser.parse_args()
 
         return util.success(get_issue_by_project(project_id, args))
+
+
+# @doc(tags=['Issue'], description="Get issue list by user")
+# @marshal_with(route_model.IssueByUserResponseWithPage, code="with limit and offset")
+# class IssueByTreeByProject(Resource):
+#     @ jwt_required
+#     def get(self, project_id):
+#         role.require_in_project(project_id, 'Error to get issue.')
+#         output = get_issue_by_tree_by_project(project_id)
+#         return util.success(output)
 
 
 class IssueByTreeByProject(Resource):
@@ -2634,11 +2574,11 @@ class IssueByStatusByProject(Resource):
         return get_issue_by_status_by_project(project_id)
 
 
-class IssueByDateByProject(Resource):
-    @ jwt_required
-    def get(self, project_id):
-        role.require_in_project(project_id)
-        return get_issue_by_date_by_project(project_id)
+# class IssueByDateByProject(Resource):
+#     @ jwt_required
+#     def get(self, project_id):
+#         role.require_in_project(project_id)
+#         return get_issue_by_date_by_project(project_id)
 
 
 class IssuesProgressByProject(Resource):
@@ -2653,22 +2593,38 @@ class IssuesProgressByProject(Resource):
         return util.success(output)
 
 
-class IssuesStatisticsByProject(Resource):
+# class IssuesStatisticsByProject(Resource):
+#     @ jwt_required
+#     def get(self, project_id):
+#         role.require_in_project(project_id)
+#         parser = reqparse.RequestParser()
+#         parser.add_argument('fixed_version_id', type=int)
+#         args = parser.parse_args()
+#         output = get_issue_progress_or_statistics_by_project(project_id,
+#                                                              args, statistics=True)
+#         return util.success(output)
+
+
+@doc(tags=['Issue'], description="Get issue available status")
+@marshal_with(route_model.IssueStatusResponse)
+class IssueStatusV2(MethodResource):
     @ jwt_required
-    def get(self, project_id):
-        role.require_in_project(project_id)
-        parser = reqparse.RequestParser()
-        parser.add_argument('fixed_version_id', type=int)
-        args = parser.parse_args()
-        output = get_issue_progress_or_statistics_by_project(project_id,
-                                                             args, statistics=True)
-        return util.success(output)
+    def get(self):
+        return list_issue_statuses('api')
 
 
 class IssueStatus(Resource):
     @ jwt_required
     def get(self):
         return list_issue_statuses('api')
+        
+
+@doc(tags=['Issue'], description="Get issue available priority")
+@marshal_with(route_model.IssuePriorityResponse)
+class IssuePriorityV2(MethodResource):
+    @ jwt_required
+    def get(self):
+        return get_issue_priority()
 
 
 class IssuePriority(Resource):
@@ -2677,10 +2633,30 @@ class IssuePriority(Resource):
         return get_issue_priority()
 
 
+@doc(tags=['Issue'], description="Get issue available tracker")
+@marshal_with(route_model.IssueTrackerResponse)
+class IssueTrackerV2(MethodResource):
+    @ jwt_required
+    def get(self):
+        return get_issue_trackers()
+
+
 class IssueTracker(Resource):
     @ jwt_required
     def get(self):
         return get_issue_trackers()
+
+
+@doc(tags=['Issue'], description="Get issue's family(relation, parent, children)")
+@use_kwargs(route_model.IssueIssueFamilySchema, location="query")
+@marshal_with(route_model.IssueFamilyResponse)
+class IssueFamilyV2(MethodResource):
+    @ jwt_required
+    def get(self, issue_id, **kwargs):
+        redmine_issue = redmine_lib.redmine.issue.get(issue_id, include=['children', 'relations'])
+        require_issue_visible(issue_id, issue_info=NexusIssue().set_redmine_issue_v2(redmine_issue).to_json())
+        family = get_issue_family(redmine_issue, kwargs)
+        return util.success(family)
 
 
 class IssueFamily(Resource):
