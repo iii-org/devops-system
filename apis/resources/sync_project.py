@@ -282,6 +282,16 @@ def check_sq_pj(projects_name):
     return nexus_pj
 
 
+def check_pipeline_hooks():
+    project_git_http_url = list(sum(model.Project.query.filter(
+        model.Project.id != -1).with_entities(
+        model.Project.http_url).all(), ()))
+    rancher.rancher.rc_get_project_id()
+    pipeline_list = [pipeline['repositoryUrl'] for pipeline in rancher.rancher.rc_get_project_pipeline()]
+    non_exist_pipeline = list(set(project_git_http_url)-set(pipeline_list))
+    return non_exist_pipeline
+
+
 def check_project_relation(project_id):
     pj_relation = model.ProjectPluginRelation.query.filter_by(project_id=project_id).all()
     if not pj_relation:
@@ -457,12 +467,7 @@ def harbor_process(projects_name, check_bot_list):
 
 
 def pipeline_process(check_bot_list):
-    project_git_http_url = list(sum(model.Project.query.filter(
-        model.Project.id != -1).with_entities(
-        model.Project.http_url).all(), ()))
-    rancher.rancher.rc_get_project_id()
-    pipeline_list = [pipeline['repositoryUrl'] for pipeline in rancher.rancher.rc_get_project_pipeline()]
-    non_exist_pipeline = list(set(project_git_http_url)-set(pipeline_list))
+    non_exist_pipeline = check_pipeline_hooks()
     if non_exist_pipeline:
         logger.logger.info(f'Non-exist pipelines found: {non_exist_pipeline}.')
         for gitlab_pj_http_url in non_exist_pipeline:
