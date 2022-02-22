@@ -96,6 +96,7 @@ class Project(db.Model):
     user_role = relationship('ProjectUserRole', back_populates='project')
     alert = Column(Boolean)
     trace_order = relationship('TraceOrder', backref='project')
+    is_lock = Column(Boolean, default=False)
 
     def __repr__(self):
         fields = {}
@@ -859,6 +860,7 @@ class UIRoute(db.Model):
             except TypeError:
                 fields[field] = str(data)
         return json.dumps(fields)
+
 
 class UIRouteUserRoleRelation(db.Model):
     ui_route_id = Column(Integer, ForeignKey(UIRoute.id, ondelete='CASCADE'), primary_key=True)
