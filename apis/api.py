@@ -391,9 +391,11 @@ socketio.on_namespace(issue.IssueSocket('/issues/websocket'))
 api.add_resource(issue.IssueFamily, '/issue/<issue_id>/family')
 api.add_resource(issue.IssueFamilyV2, '/v2/issue/<issue_id>/family')
 add_resource(issue.IssueFamilyV2, 'public')
+
 api.add_resource(issue.IssueByProject, '/project/<sint:project_id>/issues')
 api.add_resource(issue.IssueByProjectV2, '/v2/project/<sint:project_id>/issues')
 add_resource(issue.IssueByProjectV2, 'public')
+
 api.add_resource(issue.IssueByUser, '/user/<sint:user_id>/issues')
 api.add_resource(issue.IssueByUserV2, '/v2/user/<sint:user_id>/issues')
 add_resource(issue.IssueByUserV2, 'public')
@@ -403,43 +405,61 @@ api.add_resource(issue.IssueByTreeByProject,
 api.add_resource(issue.IssueByTreeByProjectV2,
                  '/v2/project/<sint:project_id>/issues_by_tree')
 add_resource(issue.IssueByTreeByProjectV2, "public")
+
 api.add_resource(issue.IssueByStatusByProject,
                  '/project/<sint:project_id>/issues_by_status')
 api.add_resource(issue.IssueByStatusByProjectV2,
                  '/v2/project/<sint:project_id>/issues_by_status')
 add_resource(issue.IssueByStatusByProjectV2, "public")                
-# api.add_resource(issue.IssueByDateByProject,
-#                  '/project/<sint:project_id>/issues_by_date')
+api.add_resource(issue.IssueByDateByProject,
+                 '/project/<sint:project_id>/issues_by_date')
 api.add_resource(issue.IssuesProgressByProject,
                  '/project/<sint:project_id>/issues_progress')
 api.add_resource(issue.IssuesProgressByProjectV2,
                  '/v2/project/<sint:project_id>/issues_progress')
 add_resource(issue.IssuesProgressByProjectV2, "public")
+
 api.add_resource(issue.IssuesStatisticsByProject,
                  '/project/<sint:project_id>/issues_statistics')
+api.add_resource(issue.IssuesStatisticsByProjectV2,
+                 '/v2/project/<sint:project_id>/issues_statistics')
+add_resource(issue.IssuesStatisticsByProjectV2, "public")
 api.add_resource(issue.IssueFilterByProject, '/project/<sint:project_id>/issue_filter',
                  '/project/<sint:project_id>/issue_filter/<custom_filter_id>')
 
 
-# api.add_resource(issue.IssueByVersion, '/issues_by_versions')
+api.add_resource(issue.IssueByVersion, '/issues_by_versions')
 api.add_resource(issue.SingleIssue, '/issues', '/issues/<issue_id>')
 api.add_resource(issue.SingleIssueV2, '/v2/issues/<issue_id>')
 add_resource(issue.SingleIssueV2, "public")
 api.add_resource(issue.CreateSingleIssueV2, '/v2/issues')
 add_resource(issue.CreateSingleIssueV2, "public")
+
 api.add_resource(issue.IssueStatus, '/issues_status')
 api.add_resource(issue.IssueStatusV2, '/v2/issues_status')
 add_resource(issue.IssueStatusV2, "public")
+
 api.add_resource(issue.IssuePriority, '/issues_priority')
 api.add_resource(issue.IssuePriorityV2, '/v2/issues_priority')
 add_resource(issue.IssuePriorityV2, 'public')
+
 api.add_resource(issue.IssueTracker, '/issues_tracker')
 api.add_resource(issue.IssueTrackerV2, '/v2/issues_tracker')
 add_resource(issue.IssueTrackerV2, 'public')
+
 api.add_resource(issue.MyIssueStatistics, '/issues/statistics')
 api.add_resource(issue.MyOpenIssueStatistics, '/issues/open_statistics')
+api.add_resource(issue.MyOpenIssueStatisticsV2, '/v2/issues/open_statistics')
+add_resource(issue.MyOpenIssueStatisticsV2, 'public')
+
 api.add_resource(issue.MyIssueWeekStatistics, '/issues/week_statistics')
+api.add_resource(issue.MyIssueWeekStatisticsV2, '/v2/issues/week_statistics')
+add_resource(issue.MyIssueWeekStatisticsV2, 'public')
+
 api.add_resource(issue.MyIssueMonthStatistics, '/issues/month_statistics')
+api.add_resource(issue.MyIssueMonthStatisticsV2, '/v2/issues/month_statistics')
+add_resource(issue.MyIssueMonthStatisticsV2, 'public')
+
 api.add_resource(issue.Relation, '/issues/relation',
                  '/issues/relation/<int:relation_id>')
 api.add_resource(issue.CheckIssueClosable, '/issues/<issue_id>/check_closable')
@@ -460,9 +480,20 @@ api.add_resource(plugin.Plugin, '/plugins/<plugin_name>')
 # dashboard
 api.add_resource(issue.DashboardIssuePriority,
                  '/dashboard_issues_priority/<user_id>')
+api.add_resource(issue.DashboardIssuePriorityV2,
+                 '/v2/dashboard_issues_priority/<user_id>')
+add_resource(issue.DashboardIssuePriorityV2, "public")
+
 api.add_resource(issue.DashboardIssueProject,
                  '/dashboard_issues_project/<user_id>')
+api.add_resource(issue.DashboardIssueProjectV2,
+                 '/v2/dashboard_issues_project/<user_id>')
+add_resource(issue.DashboardIssueProjectV2, "public")
+
 api.add_resource(issue.DashboardIssueType, '/dashboard_issues_type/<user_id>')
+api.add_resource(issue.DashboardIssueTypeV2, '/v2/dashboard_issues_type/<user_id>')
+add_resource(issue.DashboardIssueTypeV2, 'public')
+
 api.add_resource(gitlab.GitTheLastHoursCommits,
                  '/dashboard/the_last_hours_commits')
 api.add_resource(sync_redmine.ProjectMembersCount,
@@ -484,17 +515,38 @@ api.add_resource(sync_redmine.PassingRateDetail,
 
 # testPhase Requirement
 api.add_resource(issue.RequirementByIssue, '/requirements_by_issue/<issue_id>')
+api.add_resource(issue.RequirementByIssueV2, '/v2/requirements_by_issue/<issue_id>')
+add_resource(issue.RequirementByIssueV2, 'public')
+
 api.add_resource(issue.Requirement, '/requirements/<requirement_id>')
+api.add_resource(issue.RequirementV2, '/v2/requirements/<requirement_id>')
+add_resource(issue.RequirementV2, 'public')
 
 # testPhase Flow
 api.add_resource(issue.FlowByIssue, '/flows_by_issue/<issue_id>')
+api.add_resource(issue.FlowByIssueV2, '/v2/flows_by_issue/<issue_id>')
+add_resource(issue.FlowByIssueV2, 'public')
+
 api.add_resource(issue.GetFlowType, '/flows/support_type')
+api.add_resource(issue.GetFlowTypeV2, '/v2/flows/support_type')
+add_resource(issue.GetFlowTypeV2, 'public')
+
 api.add_resource(issue.Flow, '/flows/<flow_id>')
+api.add_resource(issue.FlowV2, '/v2/flows/<flow_id>')
+add_resource(issue.FlowV2, "public")
 
 # testPhase Parameters FLow
 api.add_resource(issue.ParameterByIssue, '/parameters_by_issue/<issue_id>')
+api.add_resource(issue.ParameterByIssueV2, '/v2/parameters_by_issue/<issue_id>')
+add_resource(issue.ParameterByIssueV2, 'public')
+
 api.add_resource(issue.Parameter, '/parameters/<parameter_id>')
+api.add_resource(issue.ParameterV2, '/v2/parameters/<parameter_id>')
+add_resource(issue.ParameterV2, 'public')
+
 api.add_resource(issue.ParameterType, '/parameter_types')
+api.add_resource(issue.ParameterTypeV2, '/v2/parameter_types')
+add_resource(issue.ParameterTypeV2, 'public')
 
 # testPhase TestCase Support Case Type
 api.add_resource(apiTest.TestCases, '/test_cases')

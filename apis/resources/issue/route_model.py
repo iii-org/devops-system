@@ -73,7 +73,7 @@ class IssueByProjectSchema(CommonIssueSchema):
     status_id = fields.Str(doc='tags', example="1,2,3")
 
     
-# !!
+# !!!
 class IssueByUserSchema(CommonIssueSchema):
     project_id = fields.Int(doc='project_id', example=1)
     # this one is reserved word!!!
@@ -398,6 +398,24 @@ class IssuesProgressByProjectDataResponse(Schema):
     Solved = fields.Int()
 
 
+class MyOpenIssueStatisticsDataResponse(Schema):
+    active_issue_number = fields.Int(required=True)
+
+class MyIssuePeirodStatisticsDataResponse(Schema):
+    open = fields.Int(required=True)
+    closed = fields.Int(required=True)
+
+
+class BasicDashboardIssueDataResponse(Schema):
+    name = fields.Str(required=True)
+    number = fields.Int(required=True)
+
+
+class GetFlowTypeDataResponse(Schema):
+    name = fields.Str(required=True)
+    flow_type_id = fields.Int(required=True)
+
+
 ########## API Action#############
 
 class SingleIssueGetResponse(CommonBasicResponse):
@@ -457,3 +475,55 @@ class IssueByStatusByProjectResponse(CommonBasicResponse):
 
 class IssuesProgressByProjectResponse(CommonBasicResponse):
     data = fields.Nested(IssuesProgressByProjectDataResponse, required=True)
+
+
+# ? It is hard to implement.
+class IssuesStatisticsByProjectResponse(CommonBasicResponse):
+    '''
+    "data": {
+        "assigned_to": {
+            "李毅山(John)": {
+                "Active": 0,
+                "Assigned": 1,
+                "InProgress": 1,
+                "Solved": 0,
+                "Verified": 1,
+                "Closed": 1
+            },
+        }
+    }
+    '''
+    data = fields.Dict()
+
+
+class MyOpenIssueStatisticsResponse(CommonBasicResponse):
+    data = fields.Nested(MyOpenIssueStatisticsDataResponse, required=True)
+
+
+class MyIssueWeekStatisticsResponse(CommonBasicResponse):
+    data = fields.Nested(MyIssuePeirodStatisticsDataResponse, required=True)
+
+
+class MyIssueMonthStatisticsResponse(CommonBasicResponse):
+    data = fields.Nested(MyIssuePeirodStatisticsDataResponse, required=True)
+
+
+class DashboardIssuePriorityResponse(CommonBasicResponse):
+    data = fields.List(fields.Nested(
+       BasicDashboardIssueDataResponse, required=True))
+
+
+class DashboardIssueProjectResponse(CommonBasicResponse):
+    data = fields.List(fields.Nested(
+       BasicDashboardIssueDataResponse, required=True))
+
+
+class DashboardIssueTypeResponse(CommonBasicResponse):
+    data = fields.List(fields.Nested(
+       BasicDashboardIssueDataResponse, required=True))
+
+
+class GetFlowTypeResponse(CommonBasicResponse):
+    data = fields.List(fields.Nested(
+       GetFlowTypeDataResponse, required=True))
+
