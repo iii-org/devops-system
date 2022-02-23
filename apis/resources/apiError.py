@@ -108,6 +108,10 @@ def project_issue_file_not_exits(project_id):
 def project_name_not_found(project_name=None):
     return build(1015, 'project_name not found.', {'project_name': project_name})
 
+
+def project_version_exist(version_name):
+    return build(1016, f'The project_version name {version_name} already exists, please try another one.', {'version_name': version_name})
+
 # User errors
 
 
