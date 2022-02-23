@@ -551,7 +551,15 @@ def main_process():
 
 
 def check_project_exist():
-    lost_project_names = []
+    lost_project_infos = {}
+
+    def record_miss_project(lost_project_names, pj_name, soft_name):
+        if pj_name in lost_project_names:
+            lost_project_names[pj_name].append(soft_name)
+        else:
+            lost_project_names[pj_name] = [soft_name]
+        return lost_project_names
+
     projects_name = list(sum(model.Project.query.filter(
         model.Project.id != -1).with_entities(model.Project.name).all(), ()))
     k8s_ns_list = check_k8s_ns(projects_name)
@@ -561,25 +569,25 @@ def check_project_exist():
     sq_pj_list = check_sq_pj(projects_name)
     if k8s_ns_list:
         for k8s_ns in k8s_ns_list:
-            lost_project_names.append(k8s_ns)
+            lost_project_infos = record_miss_project(lost_project_infos, k8s_ns, "Kubernetes")
     if rm_pj_list:
         for rm_pj in rm_pj_list:
-            lost_project_names.append(rm_pj.name)
+            lost_project_infos = record_miss_project(lost_project_infos, rm_pj.name, "Redmine")
     if gl_repo_list:
         for gl_repo in gl_repo_list:
-            lost_project_names.append(gl_repo.name)
+            lost_project_infos = record_miss_project(lost_project_infos, gl_repo.name, "GitLab")
     if hr_pj_list:
         for hr_pj in hr_pj_list:
-            lost_project_names.append(hr_pj.name)
+            lost_project_infos = record_miss_project(lost_project_infos, hr_pj.name, "Harbor")
     if sq_pj_list:
         for sq_pj in sq_pj_list:
-            lost_project_names.append(sq_pj.name)
-    for lost_project_name in lost_project_names:
-        pj_row = Project.query.filter_by(name=lost_project_name).first()
+            lost_project_infos = record_miss_project(lost_project_infos, sq_pj.name, "SonarQube")
+    for pj_name, info in lost_project_infos.items():
+        pj_row = Project.query.filter_by(name=pj_name).first()
         pj_row.is_lock = True
+        pj_row.lock_reason = f"The {info} softwares of the {pj_name} project has been deleted."
         db.session.commit()
-
-    return {"lost_third_part_project": lost_project_names}
+    return {"lost_third_part_project": lost_project_infos}
 
 
 class SyncProject(Resource):
