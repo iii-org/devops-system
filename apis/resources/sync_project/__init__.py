@@ -543,6 +543,11 @@ def main_process():
     pipeline_process(check_bot_list)
     logger.logger.info('Sonarqube projects start.')
     sonarqube_process(projects_name, check_bot_list)
+    for pj_id in check_bot_list:
+        pj_row = Project.query.filter_by(id=pj_id).first()
+        pj_row.is_lock = False
+        pj_row.lock_reason = ""
+        db.session.commit()
     logger.logger.info('Project BOT start.')
     bot_process(list(set(check_bot_list)))
     logger.logger.info('Project members start.')
