@@ -25,7 +25,7 @@ import pandas as pd
 import re
 from flask_apispec import marshal_with, doc, use_kwargs
 from flask_apispec.views import MethodResource
-from . import route_model
+from urls.monitoring import router_model
 
 class Monitoring:
     def __init__(self, project_id=None):
@@ -237,8 +237,8 @@ def harbor_nfs_storage_remain_limit():
 
 # --------------------- Resources ---------------------
 @doc(tags=['Monitoring'], description="Get All plugin servers' status")
-@use_kwargs(route_model.ServersAliveSchema, location="query")
-@marshal_with(route_model.ServersAliveResponse)
+@use_kwargs(router_model.ServersAliveSchema, location="query")
+@marshal_with(router_model.ServersAliveResponse)
 class ServersAliveV2(MethodResource):
     @jwt_required
     def get(self, **kwargs):
@@ -260,7 +260,7 @@ class ServersAlive(Resource):
 
 # redmine
 @doc(tags=['Monitoring'], description="Get Redmine server's status")
-@marshal_with(route_model.ServerAliveResponse)
+@marshal_with(router_model.ServerAliveResponse)
 class RedmineAliveV2(MethodResource):
     @jwt_required
     def get(self):
@@ -273,7 +273,7 @@ class RedmineAlive(Resource):
 
 # gitlab
 @doc(tags=['Monitoring'], description="Get Gitlab server's status")
-@marshal_with(route_model.ServerAliveResponse)
+@marshal_with(router_model.ServerAliveResponse)
 class GitlabAliveV2(MethodResource):
     @jwt_required
     def get(self):
@@ -286,7 +286,7 @@ class GitlabAlive(Resource):
 
 # harbor
 @doc(tags=['Monitoring'], description="Get Harbor server's status")
-@marshal_with(route_model.ServerAliveResponse)
+@marshal_with(router_model.ServerAliveResponse)
 class HarborAliveV2(MethodResource):
     @jwt_required
     def get(self):
@@ -298,7 +298,7 @@ class HarborAlive(Resource):
         return generate_alive_response("harbor")
 
 @doc(tags=['Monitoring'], description="Get Harbor remain time of pull image from docker hub")
-@marshal_with(route_model.HarborProxyResponse)
+@marshal_with(router_model.HarborProxyResponse)
 class HarborProxyV2(MethodResource):
     @jwt_required
     def get(self):
@@ -310,7 +310,7 @@ class HarborProxy(Resource):
         return docker_image_pull_limit_alert()
 
 @doc(tags=['Monitoring'], description="Get Harbor server's status")
-@marshal_with(route_model.HarborStorageResponse)
+@marshal_with(router_model.HarborStorageResponse)
 class HarborStorageV2(MethodResource):
     @jwt_required
     def get(self):
@@ -323,7 +323,7 @@ class HarborStorage(Resource):
 
 # sonarQube
 @doc(tags=['Monitoring'], description="Get SonarQube server's status")
-@marshal_with(route_model.ServerAliveResponse)
+@marshal_with(router_model.ServerAliveResponse)
 class SonarQubeAliveV2(MethodResource):
     @jwt_required
     def get(self):
@@ -337,7 +337,7 @@ class SonarQubeAlive(Resource):
 
 # rancher
 @doc(tags=['Monitoring'], description="Get Rancher server's status")
-@marshal_with(route_model.ServerAliveResponse)
+@marshal_with(router_model.ServerAliveResponse)
 class RancherAliveV2(MethodResource):
     @jwt_required
     def get(self):
@@ -350,7 +350,7 @@ class RancherAlive(Resource):
 
 
 @doc(tags=['Monitoring'], description="Check Rancher name is changed to default or not")
-@marshal_with(route_model.RancherDefaultNameResponse)
+@marshal_with(router_model.RancherDefaultNameResponse)
 class RancherDefaultNameV2(MethodResource):
     @jwt_required
     def get(self):
@@ -365,7 +365,7 @@ class RancherDefaultName(Resource):
 
 # k8s
 @doc(tags=['Monitoring'], description="Get Kubernetes server's status")
-@marshal_with(route_model.ServerAliveResponse)
+@marshal_with(router_model.ServerAliveResponse)
 class K8sAliveV2(MethodResource):
     @jwt_required
     def get(self):
@@ -529,7 +529,7 @@ class RemoveExtraExecutions(Resource):
 
 # GitHub
 @doc(tags=['Monitoring'], description="Validate Github token.")
-@marshal_with(route_model.GithubTokenVerifyResponse)
+@marshal_with(router_model.GithubTokenVerifyResponse)
 class GithubTokenVerifyV2(MethodResource):
     @jwt_required
     def post(self):
