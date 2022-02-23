@@ -2538,25 +2538,25 @@ class IssueByUser(Resource):
             output = get_issue_list_by_user(user_id, args)
         return util.success(output)
 
-class IssueByVersion(Resource):
-    @ jwt_required
-    def get(self, project_id):
-        role.require_in_project(project_id, 'Error to get issue.')
-        parser = reqparse.RequestParser()
-        parser.add_argument('fixed_version_id')
-        args = parser.parse_args()
-
-        return util.success(get_issue_by_project(project_id, args))
-
-
-# @doc(tags=['Issue'], description="Get issue list by user")
-# @marshal_with(route_model.IssueByUserResponseWithPage, code="with limit and offset")
-# class IssueByTreeByProject(Resource):
+# class IssueByVersion(Resource):
 #     @ jwt_required
 #     def get(self, project_id):
 #         role.require_in_project(project_id, 'Error to get issue.')
-#         output = get_issue_by_tree_by_project(project_id)
-#         return util.success(output)
+#         parser = reqparse.RequestParser()
+#         parser.add_argument('fixed_version_id')
+#         args = parser.parse_args()
+
+#         return util.success(get_issue_by_project(project_id, args))
+
+
+@doc(tags=['Issue'], description="Get issue list by tree by project")
+@marshal_with(route_model.IssueByTreeByProjectResponse)
+class IssueByTreeByProjectV2(MethodResource):
+    @ jwt_required
+    def get(self, project_id):
+        role.require_in_project(project_id, 'Error to get issue.')
+        output = get_issue_by_tree_by_project(project_id)
+        return util.success(output)
 
 
 class IssueByTreeByProject(Resource):
@@ -2565,6 +2565,15 @@ class IssueByTreeByProject(Resource):
         role.require_in_project(project_id, 'Error to get issue.')
         output = get_issue_by_tree_by_project(project_id)
         return util.success(output)
+
+
+@doc(tags=['Issue'], description="Get issue list by status by project")
+@marshal_with(route_model.IssueByStatusByProjectResponse)
+class IssueByStatusByProjectV2(MethodResource):
+    @ jwt_required
+    def get(self, project_id):
+        role.require_in_project(project_id)
+        return get_issue_by_status_by_project(project_id)
 
 
 class IssueByStatusByProject(Resource):
@@ -2581,6 +2590,18 @@ class IssueByStatusByProject(Resource):
 #         return get_issue_by_date_by_project(project_id)
 
 
+@doc(tags=['Issue'], description="Get issue Progress by tree by project")
+@use_kwargs(route_model.IssuesProgressByProjectSchema, location="query")
+@marshal_with(route_model.IssuesProgressByProjectResponse)
+class IssuesProgressByProjectV2(MethodResource):
+    @jwt_required
+    def get(self, project_id, **kwargs):
+        role.require_in_project(project_id)
+        output = get_issue_progress_or_statistics_by_project(project_id,
+                                                             kwargs, progress=True)
+        return util.success(output)
+
+
 class IssuesProgressByProject(Resource):
     @ jwt_required
     def get(self, project_id):
@@ -2591,18 +2612,17 @@ class IssuesProgressByProject(Resource):
         output = get_issue_progress_or_statistics_by_project(project_id,
                                                              args, progress=True)
         return util.success(output)
-
-
-# class IssuesStatisticsByProject(Resource):
-#     @ jwt_required
-#     def get(self, project_id):
-#         role.require_in_project(project_id)
-#         parser = reqparse.RequestParser()
-#         parser.add_argument('fixed_version_id', type=int)
-#         args = parser.parse_args()
-#         output = get_issue_progress_or_statistics_by_project(project_id,
-#                                                              args, statistics=True)
-#         return util.success(output)
+        
+class IssuesStatisticsByProject(Resource):
+    @ jwt_required
+    def get(self, project_id):
+        role.require_in_project(project_id)
+        parser = reqparse.RequestParser()
+        parser.add_argument('fixed_version_id', type=int)
+        args = parser.parse_args()
+        output = get_issue_progress_or_statistics_by_project(project_id,
+                                                             args, statistics=True)
+        return util.success(output)
 
 
 @doc(tags=['Issue'], description="Get issue available status")
