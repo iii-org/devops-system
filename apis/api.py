@@ -400,20 +400,28 @@ add_resource(issue.IssueByUserV2, 'public')
 
 api.add_resource(issue.IssueByTreeByProject,
                  '/project/<sint:project_id>/issues_by_tree')
+api.add_resource(issue.IssueByTreeByProjectV2,
+                 '/v2/project/<sint:project_id>/issues_by_tree')
+add_resource(issue.IssueByTreeByProjectV2, "public")
 api.add_resource(issue.IssueByStatusByProject,
                  '/project/<sint:project_id>/issues_by_status')
+api.add_resource(issue.IssueByStatusByProjectV2,
+                 '/v2/project/<sint:project_id>/issues_by_status')
+add_resource(issue.IssueByStatusByProjectV2, "public")                
 # api.add_resource(issue.IssueByDateByProject,
 #                  '/project/<sint:project_id>/issues_by_date')
 api.add_resource(issue.IssuesProgressByProject,
                  '/project/<sint:project_id>/issues_progress')
-# api.add_resource(issue.IssuesStatisticsByProject,
-#                  '/project/<sint:project_id>/issues_statistics')
+api.add_resource(issue.IssuesProgressByProjectV2,
+                 '/v2/project/<sint:project_id>/issues_progress')
+add_resource(issue.IssuesProgressByProjectV2, "public")
+api.add_resource(issue.IssuesStatisticsByProject,
+                 '/project/<sint:project_id>/issues_statistics')
 api.add_resource(issue.IssueFilterByProject, '/project/<sint:project_id>/issue_filter',
                  '/project/<sint:project_id>/issue_filter/<custom_filter_id>')
 
 
-api.add_resource(issue.IssueByVersion, '/issues_by_versions')
-
+# api.add_resource(issue.IssueByVersion, '/issues_by_versions')
 api.add_resource(issue.SingleIssue, '/issues', '/issues/<issue_id>')
 api.add_resource(issue.SingleIssueV2, '/v2/issues/<issue_id>')
 add_resource(issue.SingleIssueV2, "public")
