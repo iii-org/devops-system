@@ -587,6 +587,12 @@ def check_project_exist():
         pj_row.is_lock = True
         pj_row.lock_reason = f"The {info} softwares of the {pj_name} project has been deleted."
         db.session.commit()
+    for project_name in projects_name:
+        if project_name not in lost_project_infos:
+            pj_row = Project.query.filter_by(name=project_name).first()
+            pj_row.is_lock = False
+            pj_row.lock_reason = ""
+            db.session.commit()
     return {"lost_third_part_project": lost_project_infos}
 
 
