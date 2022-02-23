@@ -1,15 +1,20 @@
-import model
-import util
-import nexus
-
 from collections import defaultdict
-from flask_restful import Resource
 
-from plugins.sonarqube import sonarqube_main as sonarqube
+import model
+import nexus
+import util
 from accessories import redmine_lib
-from resources import harbor, redmine, gitlab, rancher, kubernetesClient, \
-    project, logger, user
+from flask_apispec import doc, marshal_with, use_kwargs
+from flask_apispec.views import MethodResource
+from flask_jwt_extended import get_jwt_identity, jwt_required
+from flask_restful import Resource
 from kubernetes.client import ApiException
+from plugins.sonarqube import sonarqube_main as sonarqube
+from resources import (gitlab, harbor, kubernetesClient, logger, project,
+                       rancher, redmine, user)
+from model import db, Project
+
+from . import route_model
 
 
 class ResourceMembers(object):
@@ -282,6 +287,12 @@ def check_sq_pj(projects_name):
     return nexus_pj
 
 
+def check_k8s_ns(projects_name):
+    rancher.rancher.rc_get_project_id()
+    k8s_ns_list = kubernetesClient.list_namespace()
+    return list(set(projects_name)-set(k8s_ns_list))
+
+
 def check_pipeline_hooks():
     project_git_http_url = list(sum(model.Project.query.filter(
         model.Project.id != -1).with_entities(
@@ -380,9 +391,7 @@ def k8s_namespace_waiter(project_name):
 
 
 def k8s_namespace_process(projects_name, check_bot_list):
-    rancher.rancher.rc_get_project_id()
-    k8s_ns_list = kubernetesClient.list_namespace()
-    non_exist_projects = list(set(projects_name)-set(k8s_ns_list))
+    non_exist_projects = check_k8s_ns(projects_name)
     if non_exist_projects:
         logger.logger.info(f'Non-exist k8s namespaces found: {non_exist_projects}.')
         for project_name in non_exist_projects:
@@ -541,7 +550,48 @@ def main_process():
     logger.logger.info('All done.')
 
 
+def check_project_exist():
+    lost_project_names = []
+    projects_name = list(sum(model.Project.query.filter(
+        model.Project.id != -1).with_entities(model.Project.name).all(), ()))
+    k8s_ns_list = check_k8s_ns(projects_name)
+    rm_pj_list = check_rm_pj(projects_name)
+    gl_repo_list = check_gl_repo(projects_name)
+    hr_pj_list = check_hb_pj(projects_name)
+    sq_pj_list = check_sq_pj(projects_name)
+    if k8s_ns_list:
+        for k8s_ns in k8s_ns_list:
+            lost_project_names.append(k8s_ns)
+    if rm_pj_list:
+        for rm_pj in rm_pj_list:
+            lost_project_names.append(rm_pj.name)
+    if gl_repo_list:
+        for gl_repo in gl_repo_list:
+            lost_project_names.append(gl_repo.name)
+    if hr_pj_list:
+        for hr_pj in hr_pj_list:
+            lost_project_names.append(hr_pj.name)
+    if sq_pj_list:
+        for sq_pj in sq_pj_list:
+            lost_project_names.append(sq_pj.name)
+    for lost_project_name in lost_project_names:
+        pj_row = Project.query.filter_by(name=lost_project_name).first()
+        pj_row.is_lock = True
+        db.session.commit()
+
+    return {"lost_third_part_project": lost_project_names}
+
+
 class SyncProject(Resource):
     def get(self):
         main_process()
         return util.success()
+
+
+@ doc(tags=['System Check'], description="Check third part project is exist")
+@ marshal_with(route_model.IsProjectExists)
+class CheckProjectExistV2(MethodResource):
+
+    @ jwt_required
+    def get(self):
+        return util.success(check_project_exist())

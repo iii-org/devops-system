@@ -628,6 +628,9 @@ api.add_resource(NexusVersion, '/system_versions')
 
 # Sync Projects
 api.add_resource(sync_project.SyncProject, '/sync_projects')
+api.add_resource(sync_project.CheckProjectExistV2, '/v2/sync_projects/check_project_exist')
+add_resource(sync_project.CheckProjectExistV2, "public")
+
 
 # Sync Users
 api.add_resource(sync_user.SyncUser, '/sync_users')
