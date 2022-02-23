@@ -97,6 +97,7 @@ class Project(db.Model):
     alert = Column(Boolean)
     trace_order = relationship('TraceOrder', backref='project')
     is_lock = Column(Boolean, default=False)
+    lock_reason = Column(String)
 
     def __repr__(self):
         fields = {}
