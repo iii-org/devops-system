@@ -39,6 +39,9 @@ from resources import project, gitlab, issue, user, redmine, wiki, version, apiT
 from apispec import APISpec
 from flask_apispec.extension import FlaskApiSpec
 from apispec.ext.marshmallow import MarshmallowPlugin
+
+# This import will merge to the above one after all API move to V2.
+from urls.project import project_url
 from urls import monitoring
 
 
@@ -256,18 +259,8 @@ api.add_resource(gitlab.SyncGitCommitIssueRelation,
 api.add_resource(gitlab.GetCommitIssueHookByBranch, '/project/<sint:project_id>/issues_commit/by_branch')
 api.add_resource(project.ProjectRelation, '/project/<sint:project_id>/relation')
 api.add_resource(issue.IssueCommitRelation, '/issue/relation')
-api.add_resource(project_relation.CheckhasSonProject, '/project/<sint:project_id>/has_son')
-api.add_resource(project_relation.CheckhasSonProjectV2, '/v2/project/<sint:project_id>/has_son')
-add_resource(project_relation.CheckhasSonProjectV2, "public")
-api.add_resource(project_relation.GetProjectRootID, '/project/<sint:project_id>/root_project')
-api.add_resource(project_relation.GetProjectRootIDV2, '/v2/project/<sint:project_id>/root_project')
-add_resource(project_relation.GetProjectRootIDV2, "public")
-api.add_resource(project_relation.SyncProjectRelation, '/project/sync_project_relation')
-api.add_resource(project_relation.SyncProjectRelationV2, '/v2/project/sync_project_relation')
-add_resource(project_relation.SyncProjectRelationV2, "public")
-api.add_resource(project_relation.GetProjectFamilymembersByUser, '/project/<sint:project_id>/members')
-api.add_resource(project_relation.GetProjectFamilymembersByUserV2, '/v2/project/<sint:project_id>/members')
-add_resource(project_relation.GetProjectFamilymembersByUserV2, "public")
+
+project_url(api, add_resource)
 
 # Tag
 api.add_resource(tag.Tags, '/tags')
