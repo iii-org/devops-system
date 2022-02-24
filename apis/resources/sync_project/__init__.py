@@ -527,6 +527,23 @@ def sonarqube_process(projects_name, check_bot_list):
             check_bot_list.append(pj.id)
 
 
+def lock_project(pj_name, info):
+    pj_row = Project.query.filter_by(name=pj_name).first()
+    pj_row.is_lock = True
+    pj_row.lock_reason = f"The {info} softwares of the {pj_name} project has been deleted."
+    db.session.commit()
+
+
+def unlock_project(pj_id=None, pj_name=None):
+    if pj_id:
+        pj_row = Project.query.filter_by(id=pj_id).first()
+    else:
+        pj_row = Project.query.filter_by(name=pj_name).first()
+    pj_row.is_lock = False
+    pj_row.lock_reason = ""
+    db.session.commit()
+
+
 def main_process():
     check_bot_list = []
     projects_name = list(sum(model.Project.query.filter(
@@ -544,10 +561,7 @@ def main_process():
     logger.logger.info('Sonarqube projects start.')
     sonarqube_process(projects_name, check_bot_list)
     for pj_id in check_bot_list:
-        pj_row = Project.query.filter_by(id=pj_id).first()
-        pj_row.is_lock = False
-        pj_row.lock_reason = ""
-        db.session.commit()
+        unlock_project(pj_id=pj_id)
     logger.logger.info('Project BOT start.')
     bot_process(list(set(check_bot_list)))
     logger.logger.info('Project members start.')
@@ -588,16 +602,10 @@ def check_project_exist():
         for sq_pj in sq_pj_list:
             lost_project_infos = record_miss_project(lost_project_infos, sq_pj.name, "SonarQube")
     for pj_name, info in lost_project_infos.items():
-        pj_row = Project.query.filter_by(name=pj_name).first()
-        pj_row.is_lock = True
-        pj_row.lock_reason = f"The {info} softwares of the {pj_name} project has been deleted."
-        db.session.commit()
+        lock_project(pj_name, info)
     for project_name in projects_name:
         if project_name not in lost_project_infos:
-            pj_row = Project.query.filter_by(name=project_name).first()
-            pj_row.is_lock = False
-            pj_row.lock_reason = ""
-            db.session.commit()
+            unlock_project(pj_name=project_name)
     return {"lost_third_part_project": lost_project_infos}
 
 
