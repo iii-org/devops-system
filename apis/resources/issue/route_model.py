@@ -1,4 +1,4 @@
-from marshmallow import Schema, fields
+from marshmallow import Schema, fields, missing
 from util import CommonBasicResponse
 
 
@@ -31,7 +31,7 @@ class CommonIssueSchema(Schema):
     tracker_id = fields.Str(doc='tracker_id', example="1")
     assigned_to_id = fields.Str(doc='assigned_to_id', example="1")
     priority_id = fields.Str(doc='priority_id', example="1")
-    only_subproject_issues = fields.Bool(doc='only_subproject_issues', example=True, default=False)
+    only_subproject_issues = fields.Bool(doc='only_subproject_issues', example=True, missing=False)
     limit = fields.Int(doc='limit', example=1)
     offset = fields.Int(doc='offset', example=1)
     search = fields.Str(doc='search', example="string")
@@ -71,8 +71,7 @@ class IssueByProjectSchema(CommonIssueSchema):
     due_date_end = fields.Str(doc='due_date_end', example="1970-01-01")
     with_point = fields.Str(doc='with_point', example=True)
     status_id = fields.Str(doc='tags', example="1,2,3")
-
-    
+ 
 # !!!
 class IssueByUserSchema(CommonIssueSchema):
     project_id = fields.Int(doc='project_id', example=1)
@@ -80,13 +79,63 @@ class IssueByUserSchema(CommonIssueSchema):
     # from = fields.Str(doc='from', example="string")
     tags = fields.Str(doc='tags', example="string")
 
-
 class IssueIssueFamilySchema(Schema):
     with_point = fields.Str(doc='with_point', example=True)
 
-
 class IssuesProgressByProjectSchema(Schema):
     fixed_version_id = fields.Int(doc='fixed_version_id', example=-1)
+
+
+class RelationSchema(Schema):
+    issue_id = fields.Int(doc='issue_id', example=1)
+    issue_to_ids = fields.List(fields.Int(), doc='issue_id', example=[1,2,3])
+
+
+class IssueFilterByProjectPostAndPutSchema(Schema):
+    name = fields.Str(doc='name', example='string', required=True)
+    type = fields.Str(doc='type', example='string', required=True)
+    assigned_to_id = fields.Str(doc='assigned_to_id', example='1', allow_none=True)
+    fixed_version_id = fields.Str(doc='fixed_version_id', example='1', allow_none=True)
+    focus_tab = fields.Str(doc='focus_tab', example='string', allow_none=True)
+    group_by = fields.Dict(
+        doc='group_by', 
+        example={"dimension": "status", "value": [{"id": 1, "name": "Active", "is_closed": False}]},
+        allow_none=True
+    )
+    priority_id = fields.Str(doc='priority_id', example='1', allow_none=True)
+    show_closed_issues = fields.Bool(doc='show_closed_issues', example=True, allow_none=True)
+    show_closed_versions = fields.Bool(doc='show_closed_versions', example=True, allow_none=True)
+    status_id = fields.Str(doc='status_id', example='1', allow_none=True)
+    tags = fields.Str(doc='tags', example='1,2,3', allow_none=True)
+    tracker_id = fields.Str(doc='tracker_id', example='1', allow_none=True)
+
+
+class DownloadProjectSchema(Schema):
+    fixed_version_id = fields.Str(doc='fixed_version_id',  example='1')
+    status_id = fields.Str(doc='status_id',  example='1')
+    tracker_id = fields.Str(doc='tracker_id',  example='1')
+    assigned_to_id = fields.Str(doc='assigned_to_id',  example='1')
+    priority_id = fields.Str(doc='fixed_version_id',  example='1')
+    search = fields.Str(doc='search', example='string')
+    selection = fields.Str(doc='selection',  example='1')
+    sort = fields.Str(doc='sort', example="string")
+    parent_id = fields.Str(doc='parent_id',  example='1')
+    due_date_start = fields.Str(doc='due_date_start', example="1970-01-01")
+    due_date_end = fields.Str(doc='due_date_end', example="1970-01-01")
+    with_point = fields.Str(doc='with_point', example=True, missing=True)
+    levels = fields.Int(doc='levels', example=1, missing=3)
+    deploy_column = fields.List(
+        fields.Dict(example={"field": "name", "display": "議題名稱"}),
+        doc='deploy_column', 
+        required=True
+    )
+
+class IssueCommitRelationGetSchema(Schema):
+    commit_id = fields.Str(doc='commit_id', example='abc123def456', required=True)
+
+
+class IssueCommitRelationPatchSchema(IssueCommitRelationGetSchema):
+    issue_ids = fields.List(fields.Int(), doc='issue_ids', required=True, example=[1,2,3])
 
 
 #################################### Response ####################################
@@ -416,6 +465,25 @@ class GetFlowTypeDataResponse(Schema):
     flow_type_id = fields.Int(required=True)
 
 
+class IssueFilterByProjectDataResponse(BasicIsssueResponse):
+    user_id = fields.Int(required=True)
+    project_id = fields.Int(required=True)
+    type = fields.Str(required=True)
+    custom_filter = fields.Dict(required=True)
+
+
+class IssueFilterByProjectPostDataResponse(Schema):
+    custom_filter_id = fields.Int(required=True)
+
+class DownloadProjectIsExistDataResponse(Schema):
+    file_exist = fields.Bool(required=True)
+    create_at = fields.Str(
+        required=True, example="1970-01-01T00:00:00")
+
+
+class IssueCommitRelationDataResponse(Schema):
+    issue_ids = fields.Dict(required=True, example={"1": True})
+
 ########## API Action#############
 
 class SingleIssueGetResponse(CommonBasicResponse):
@@ -527,3 +595,27 @@ class GetFlowTypeResponse(CommonBasicResponse):
     data = fields.List(fields.Nested(
        GetFlowTypeDataResponse, required=True))
 
+
+class CheckIssueClosableResponse(CommonBasicResponse):
+    data = fields.Bool(required=True)
+
+
+class IssueFilterByProjectGetResponse(CommonBasicResponse):
+    data = fields.List(fields.Nested(
+       IssueFilterByProjectDataResponse, required=True))
+
+
+class IssueFilterByProjectPostResponse(CommonBasicResponse):
+    data = fields.Nested(IssueFilterByProjectPostDataResponse, required=True)
+
+
+class IssueFilterByProjectPutResponse(CommonBasicResponse):
+    data = fields.Nested(IssueFilterByProjectDataResponse, required=True)
+
+
+class DownloadProjectIsExistResponse(CommonBasicResponse):
+    data = fields.Nested(DownloadProjectIsExistDataResponse, required=True)
+
+
+class IssueCommitRelationResponse(CommonBasicResponse):
+    data = fields.Nested(IssueCommitRelationDataResponse, required=True)

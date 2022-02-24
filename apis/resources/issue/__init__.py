@@ -1928,10 +1928,7 @@ def check_issue_closable(issue_id):
                 unfinished_issues.remove(id)
                 finished_issues.append(id)
     # 若未完成的 issues 存在，回傳布林值
-    if unfinished_issues:
-        return False
-    else:
-        return True
+    return not unfinished_issues
 
 
 def execute_issue_alert(alert_mapping):
@@ -3178,6 +3175,33 @@ class Parameter(Resource):
         return util.success(output)
 
 
+class RelationV2(MethodResource):
+    @doc(tags=['Unknown'], description="Create issue's relation.")
+    @ jwt_required
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('issue_id', type=int, required=True)
+        parser.add_argument('issue_to_id', type=int, required=True)
+        args = parser.parse_args()
+        output = post_issue_relation(args['issue_id'], args['issue_to_id'], get_jwt_identity()['user_account'])
+        return util.success(output)
+
+    @doc(tags=['Issue'], description="Update issue's relation.")
+    @use_kwargs(route_model.RelationSchema, location="json")
+    @marshal_with(util.CommonResponse)
+    @ jwt_required
+    def put(self, **kwargs):
+        put_issue_relation(kwargs['issue_id'], kwargs['issue_to_ids'], get_jwt_identity()['user_account'])
+        return util.success()
+
+@doc(tags=['Unknown'], description="Delete issue's relation.")
+class RelationDeleteV2(MethodResource):
+    @ jwt_required
+    def delete(self, relation_id):
+        output = delete_issue_relation(relation_id, get_jwt_identity()['user_account'])
+        return util.success(output)
+
+
 class Relation(Resource):
     @ jwt_required
     def post(self):
@@ -3202,6 +3226,14 @@ class Relation(Resource):
         output = delete_issue_relation(relation_id, get_jwt_identity()['user_account'])
         return util.success(output)
 
+@doc(tags=['Issue'], description="Check issue is closable or not.")    
+@marshal_with(route_model.CheckIssueClosableResponse)
+class CheckIssueClosableV2(MethodResource):
+    @ jwt_required
+    def get(self, issue_id):
+        output = check_issue_closable(issue_id)
+        return util.success(output)
+
 
 class CheckIssueClosable(Resource):
     @ jwt_required
@@ -3210,7 +3242,7 @@ class CheckIssueClosable(Resource):
         return util.success(output)
 
 
-class ExecutIssueAlert(Resource):
+class ExecuteIssueAlert(Resource):
     def post(self):
         alert_mapping = {}
         alerts = model.Alert.query.filter_by(disabled=False)
@@ -3237,6 +3269,52 @@ class IssueSocket(Namespace):
     def on_leave(self, data):
         leave_room(data['project_id'])
         print('leave', data['project_id'])
+
+
+class IssueFilterByProjectV2(MethodResource):
+    @doc(tags=['Project'], description="Get project's issues' filter.")
+    @marshal_with(route_model.IssueFilterByProjectGetResponse)
+    @jwt_required
+    def get(self, project_id):
+        return util.success(get_custom_issue_filter(get_jwt_identity()['user_id'], project_id))
+
+
+    @doc(tags=['Project'], description="Create project's issues' filter.")
+    @use_kwargs(route_model.IssueFilterByProjectPostAndPutSchema, location="json")
+    @marshal_with(route_model.IssueFilterByProjectPostResponse)
+    @jwt_required
+    def post(self, project_id, **kwargs):
+        user_id = get_jwt_identity()['user_id']
+
+        if kwargs["type"] != "issue_board" and kwargs.get("group_by") is not None:
+            raise DevOpsError(400, "Column group_by is only available when type is issue_board",
+                              error=apiError.argument_error("group_by"))
+        if kwargs["type"] != "my_work" and kwargs.get("focus_tab") is not None:
+            raise DevOpsError(400, "Column focus_tab is only available when type is my_work",
+                              error=apiError.argument_error("focus_tab"))
+
+        return util.success(create_custom_issue_filter(user_id, project_id, kwargs))
+
+class IssueFilterByProjectWithFilterIDV2(MethodResource):
+    @doc(tags=['Project'], description="Update project's issues' filter.")
+    @use_kwargs(route_model.IssueFilterByProjectPostAndPutSchema, location="json")
+    @marshal_with(route_model.IssueFilterByProjectPutResponse)
+    @jwt_required
+    def put(self, project_id, custom_filter_id, **kwargs):
+        if kwargs["type"] != "issue_board" and kwargs.get("group_by") is not None:
+            raise DevOpsError(400, "Column group_by is only available when type is issue_board",
+                              error=apiError.argument_error("group_by"))
+        if kwargs["type"] != "my_work" and kwargs.get("focus_tab") is not None:
+            raise DevOpsError(400, "Column focus_tab is only available when type is my_work",
+                              error=apiError.argument_error("focus_tab"))
+
+        return util.success(put_custom_issue_filter(custom_filter_id, project_id, kwargs))
+
+    @doc(tags=['Project'], description="Delete project's issues' filter.")
+    @jwt_required
+    def delete(self, project_id, custom_filter_id):
+        CustomIssueFilter.query.filter_by(id=custom_filter_id).delete()
+        db.session.commit()
 
 
 class IssueFilterByProject(Resource):
@@ -3303,6 +3381,42 @@ class IssueFilterByProject(Resource):
         db.session.commit()
 
 
+class DownloadProjectExecuteV2(MethodResource):
+    # download/execute
+    @doc(tags=['Project'], description="Execute download project's issues as excel.")
+    @use_kwargs(route_model.DownloadProjectSchema, location="json")
+    @marshal_with(util.CommonResponse)
+    @jwt_required
+    def post(self, project_id, **kwargs):
+        if get_lock_status("download_pj_issues")["is_lock"]:
+            return util.success("previous is still running")
+        download_issue_excel = DownloadIssueAsExcel(kwargs, project_id, get_jwt_identity()["user_id"])
+        threading.Thread(target=download_issue_excel.execute).start()
+        return util.success()
+
+
+class DownloadProjectIsExistV2(MethodResource):
+    # download/is_exist
+    @doc(tags=['Project'], description="Check excel file is exist.")
+    @marshal_with(route_model.DownloadProjectIsExistResponse)
+    @jwt_required 
+    def get(self, project_id):
+        return util.success(pj_download_file_is_exist(project_id))
+
+
+class DownloadProjectV2(MethodResource):
+    # download/execute
+    @doc(tags=['Project'], description="Download project's issues' excel.")
+    @jwt_required
+    def patch(self, project_id):
+        if not pj_download_file_is_exist(project_id)["file_exist"]:
+            raise apiError.DevOpsError(
+                404, 'This file can not be downloaded because it is not exist.',
+                apiError.project_issue_file_not_exits(project_id))
+
+        return send_file(f"../logs/project_excel_file/{project_id}.xlsx")
+
+
 class DownloadProject(Resource):
     # download/execute
     @jwt_required
@@ -3344,6 +3458,25 @@ class DownloadProject(Resource):
                 apiError.project_issue_file_not_exits(project_id))
 
         return send_file(f"../logs/project_excel_file/{project_id}.xlsx")
+
+
+
+class IssueCommitRelationV2(MethodResource):
+    @doc(tags=['Issue'], description="Get issue relation by commit_id.")
+    @use_kwargs(route_model.IssueCommitRelationGetSchema, location="query")
+    @marshal_with(route_model.IssueCommitRelationResponse)
+    @jwt_required
+    def get(self, **kwargs):
+        return util.success(get_commit_hook_issues(commit_id=kwargs["commit_id"]))
+
+    @doc(tags=['Issue'], description="Update issue relation by commit_id.")
+    @use_kwargs(route_model.IssueCommitRelationPatchSchema, location="json")
+    @marshal_with(util.CommonResponse)
+    @jwt_required
+    def patch(self, **kwargs):
+        print(kwargs)
+        return util.success(modify_hook(kwargs))
+
 
 class IssueCommitRelation(Resource):    
     @jwt_required
