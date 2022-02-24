@@ -58,14 +58,15 @@ class NexusProject:
 
     def set_project_members(self):
         pj_numbers_dict = {}
-        rows = ProjectUserRole.query.filter(and_(ProjectUserRole.project_id!=-1, ProjectUserRole.role_id.in_([1,3]))).all()
+        rows = ProjectUserRole.query.filter(and_(ProjectUserRole.project_id != -1,
+                                            ProjectUserRole.role_id.in_([1, 3]))).all()
         i = 0
         while i < len(rows):
             if rows[i].project_id not in pj_numbers_dict:
                 pj_numbers_dict[rows[i].project_id] = 1
             else:
                 pj_numbers_dict[rows[i].project_id] = pj_numbers_dict[rows[i].project_id]+1
-            i +=1
+            i += 1
         self.__project_members_dict = pj_numbers_dict
         return self
 
@@ -161,9 +162,17 @@ class NexusProject:
         self.__extra_fields.update(extras)
         return self
 
+
 def caculate_project_issues(rm_project, username):
     ret = {}
     updated_on, project_id = rm_project["updated_on"], rm_project["id"]
+    if project_id == -1:
+        ret['closed_count'] = 0
+        ret['overdue_count'] = 0
+        ret['total_count'] = 0
+        ret['project_status'] = NexusProject.STATUS_CLOSED
+        ret['updated_time'] = str(updated_on)
+        return ret
 
     total_count = closed_count = overdue_count = 0
 
@@ -174,7 +183,7 @@ def caculate_project_issues(rm_project, username):
         project_status = NexusProject.STATUS_NOT_STARTED
     else:
         updated_on = max(rm_issues[0].updated_on, updated_on)
-    
+
         close_rm_issues = redmine_lib.rm_impersonate(username).issue.filter(
             status_id=redmine_lib.STATUS_ID_ISSUE_CLOSED, project_id=project_id)
         closed_count = len(close_rm_issues)
@@ -182,7 +191,7 @@ def caculate_project_issues(rm_project, username):
         overdue_rm_issues = redmine_lib.rm_impersonate(username).issue.filter(
             due_date=f"<={date.today()}", project_id=project_id)
         overdue_count = len(overdue_rm_issues)
-        
+
         if closed_count == total_count:
             project_status = NexusProject.STATUS_CLOSED
         else:
