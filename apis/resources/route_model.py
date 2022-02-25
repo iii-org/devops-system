@@ -57,20 +57,11 @@ class SingleIssuePutSchema(CommonSingleIssueSchema):
     name = fields.Str(doc='name', example="string")
     note = fields.Str(doc='name', example="string")
 
-class SingleIssueDeleteSchema(Schema):
-    force = fields.Bool(doc='force', example="True")
 
 
 # class FileSchema(Schema):
 #     upload_file = fields.Raw(type='werkzeug.datastructures.FileStorage', doc='upload_file', example="")
 
-
-class IssueByProjectSchema(CommonIssueSchema):
-    parent_id = fields.Str(doc='parent_id', example="1")
-    due_date_start = fields.Str(doc='due_date_start', example="1970-01-01")
-    due_date_end = fields.Str(doc='due_date_end', example="1970-01-01")
-    with_point = fields.Str(doc='with_point', example=True)
-    status_id = fields.Str(doc='tags', example="1,2,3")
  
 # !!!
 class IssueByUserSchema(CommonIssueSchema):
@@ -79,16 +70,6 @@ class IssueByUserSchema(CommonIssueSchema):
     # from = fields.Str(doc='from', example="string")
     tags = fields.Str(doc='tags', example="string")
 
-class IssueIssueFamilySchema(Schema):
-    with_point = fields.Str(doc='with_point', example=True)
-
-class IssuesProgressByProjectSchema(Schema):
-    fixed_version_id = fields.Int(doc='fixed_version_id', example=-1)
-
-
-class RelationSchema(Schema):
-    issue_id = fields.Int(doc='issue_id', example=1)
-    issue_to_ids = fields.List(fields.Int(), doc='issue_id', example=[1,2,3])
 
 
 class IssueFilterByProjectPostAndPutSchema(Schema):
@@ -285,6 +266,7 @@ class SingleIssuePostDataResponse(CommonSingleIssueResponse):
         required=True, example="1970-01-01T00:00:00")
     has_children = fields.Bool(required=True)
 
+
 class SingleIssuePutDataResponse(CommonSingleIssueResponse):
     estimated_hours = fields.Float(required=True)
     created_date = fields.Str(required=True, example="1970-01-01T00:00:00")   
@@ -300,26 +282,6 @@ class SingleIssuePutDataResponse(CommonSingleIssueResponse):
     parent = fields.Nested(
         ParentResponse, required=True)
 
-
-class IssueByProjectDataResponse(CommonSingleIssueResponse, IssueTagResponse):
-    estimated_hours = fields.Float(required=True)
-    created_date = fields.Str(required=True, example="1970-01-01T00:00:00")   
-    point = fields.Int(required=True)
-    relations = fields.List(fields.Nested(
-        RelationsResponse, required=True))
-    project = fields.Nested(ProjectExtraResponse, required=True)
-    is_private = fields.Bool(required=True)
-    updated_on = fields.Str(
-        required=True, example="1970-01-01T00:00:00")
-    closed_on = fields.Str(
-        required=True, example="1970-01-01T00:00:00", default=None)
-    family = fields.Bool(required=True)
-    has_children = fields.Bool(required=True)
-    
-
-class IssueByProjectDataWithPageResponse(PaginationResponse):
-    issue_list = fields.Nested(
-        IssueByProjectDataResponse, required=True)
 
 class IssueByUserDataResponse(CommonSingleIssueResponse, IssueTagResponse):
     estimated_hours = fields.Float(required=True)
@@ -337,118 +299,21 @@ class IssueByUserDataWithPageResponse(PaginationResponse):
     issue_list = fields.List(fields.Nested(
        IssueByUserDataResponse, required=True))
 
-class IssueFamilyDataParentResponse(CommonSingleIssueResponse, IssueTagResponse):
-    project = fields.Nested(ProjectExtraResponse, required=True)
-
-class IssueFamilyDataChildrenResponse(CommonSingleIssueResponse, IssueTagResponse):
-    project = fields.Nested(ProjectExtraResponse, required=True)
-    updated_on = fields.Str(
-        required=True, example="1970-01-01T00:00:00")
-    family = fields.Bool(required=True)
-    has_children = fields.Bool(required=True)
-
-class IssueRelationDataChildrenResponse(CommonSingleIssueResponse, IssueTagResponse):
-    project = fields.Nested(ProjectExtraResponse, required=True)
-    updated_on = fields.Str(
-        required=True, example="1970-01-01T00:00:00")
-    has_children = fields.Bool(required=True)
-    relation_id = fields.Int(required=True)
-    
-
-class IssueFamilyDataResponse(Schema):
-    parent = fields.Nested(IssueFamilyDataParentResponse)
-    children = fields.List(
-        fields.Nested(IssueFamilyDataChildrenResponse))
-    relations = fields.List(
-        fields.Nested(IssueRelationDataChildrenResponse))
-
 
 class IssueStatusDataResponse(BasicIsssueResponse):
     is_closed = fields.Bool(required=True)
 
-
 class IssuePriorityDataResponse(BasicIsssueResponse):
     is_closed = fields.Bool(required=True)
 
-
 class IssueTrackerDataResponse(BasicIsssueResponse):
     pass
-
 
 class BasicParentResponse(BasicIsssueResponse):
     status = fields.Nested(BasicIsssueResponse, default={})
     tracker = fields.Nested(BasicIsssueResponse, default={})
     assigned_to = fields.Nested(SingleIssueGetDataAuthorResponse, default={})
 
-
-
-class IssueByTreeByProjectChildrenDataResponse(Schema):
-    pass
-
-
-class IssueByTreeByProjectChildrenCDataResponse(CommonSingleIssueResponse, IssueTagResponse):
-    project = fields.Nested(ProjectExtraResponse, required=True)
-    updated_on = fields.Str(
-        required=True, example="1970-01-01T00:00:00")
-    has_children = fields.Bool(required=True)
-    parent = fields.Nested(BasicParentResponse, default=None)
-    children = fields.List(
-        fields.Nested(IssueByTreeByProjectChildrenDataResponse))
-
-# ? nested children
-class IssueByTreeByProjectChildrenDataResponse(CommonSingleIssueResponse, IssueTagResponse):
-    project = fields.Nested(ProjectExtraResponse, required=True)
-    updated_on = fields.Str(
-        required=True, example="1970-01-01T00:00:00")
-    has_children = fields.Bool(required=True)
-    parent = fields.Nested(BasicParentResponse, default=None)
-    children = fields.List(
-        fields.Nested(IssueByTreeByProjectChildrenCDataResponse), default=[])
-
-
-class IssueByTreeByProjectDataResponse(CommonSingleIssueResponse, IssueTagResponse):
-    project = fields.Nested(ProjectExtraResponse, required=True)
-    updated_on = fields.Str(
-        required=True, example="1970-01-01T00:00:00")
-    has_children = fields.Bool(required=True)
-    parent = fields.Nested(BasicParentResponse, default=None)
-    children = fields.List(
-        fields.Nested(IssueByTreeByProjectChildrenDataResponse), default=[])
-
-
-class IssueByStatusByProjectDataContentResponse(CommonSingleIssueResponse):
-    updated_on = fields.Str(
-        required=True, example="1970-01-01T00:00:00")
-    parent = fields.Nested(BasicParentResponse, default=None)
-
-    
-
-class IssueByStatusByProjectDataResponse(Schema):
-    Assigned = fields.List(
-        fields.Nested(IssueByStatusByProjectDataContentResponse))
-    Active = fields.List(
-        fields.Nested(IssueByStatusByProjectDataContentResponse))
-    Verified = fields.List(
-        fields.Nested(IssueByStatusByProjectDataContentResponse))
-    InProgress = fields.List(
-        fields.Nested(IssueByStatusByProjectDataContentResponse))
-    Closed = fields.List(
-        fields.Nested(IssueByStatusByProjectDataContentResponse))
-    Solved = fields.List(
-        fields.Nested(IssueByStatusByProjectDataContentResponse))
-
-
-class IssuesProgressByProjectDataResponse(Schema):
-    Assigned = fields.Int()
-    Active = fields.Int()
-    Verified = fields.Int()
-    InProgress = fields.Int()
-    Closed = fields.Int()
-    Solved = fields.Int()
-
-
-class MyOpenIssueStatisticsDataResponse(Schema):
-    active_issue_number = fields.Int(required=True)
 
 class MyIssuePeirodStatisticsDataResponse(Schema):
     open = fields.Int(required=True)
@@ -500,21 +365,11 @@ class SingleIssuePutResponse(CommonBasicResponse):
     data = fields.Nested(
         SingleIssuePutDataResponse, required=True)
 
-class SingleIssueDeleteResponse(CommonBasicResponse):
-    data = fields.Str(default="success")
-
-
-class IssueByProjectResponseWithPage(CommonBasicResponse):
-    data = fields.List(fields.Nested(
-       IssueByProjectDataWithPageResponse, required=True))
 
 
 class IssueByUserResponseWithPage(CommonBasicResponse):
     data = fields.List(fields.Nested(
        IssueByUserDataWithPageResponse, required=True))
-
-class IssueFamilyResponse(CommonBasicResponse):
-    data = fields.Nested(IssueFamilyDataResponse, required=True)
 
 
 class IssueStatusResponse(CommonBasicResponse):
@@ -530,50 +385,6 @@ class IssuePriorityResponse(CommonBasicResponse):
 class IssueTrackerResponse(CommonBasicResponse):
     data = fields.List(fields.Nested(
         IssueTrackerDataResponse, required=True))
-
-
-class IssueByTreeByProjectResponse(CommonBasicResponse):
-    data = fields.List(fields.Nested(
-       IssueByTreeByProjectDataResponse, required=True))
-
-
-class IssueByStatusByProjectResponse(CommonBasicResponse):
-    data = fields.Nested(IssueByStatusByProjectDataResponse, required=True)
-
-
-class IssuesProgressByProjectResponse(CommonBasicResponse):
-    data = fields.Nested(IssuesProgressByProjectDataResponse, required=True)
-
-
-# ? It is hard to implement.
-class IssuesStatisticsByProjectResponse(CommonBasicResponse):
-    '''
-    "data": {
-        "assigned_to": {
-            "李毅山(John)": {
-                "Active": 0,
-                "Assigned": 1,
-                "InProgress": 1,
-                "Solved": 0,
-                "Verified": 1,
-                "Closed": 1
-            },
-        }
-    }
-    '''
-    data = fields.Dict()
-
-
-class MyOpenIssueStatisticsResponse(CommonBasicResponse):
-    data = fields.Nested(MyOpenIssueStatisticsDataResponse, required=True)
-
-
-class MyIssueWeekStatisticsResponse(CommonBasicResponse):
-    data = fields.Nested(MyIssuePeirodStatisticsDataResponse, required=True)
-
-
-class MyIssueMonthStatisticsResponse(CommonBasicResponse):
-    data = fields.Nested(MyIssuePeirodStatisticsDataResponse, required=True)
 
 
 class DashboardIssuePriorityResponse(CommonBasicResponse):
@@ -594,10 +405,6 @@ class DashboardIssueTypeResponse(CommonBasicResponse):
 class GetFlowTypeResponse(CommonBasicResponse):
     data = fields.List(fields.Nested(
        GetFlowTypeDataResponse, required=True))
-
-
-class CheckIssueClosableResponse(CommonBasicResponse):
-    data = fields.Bool(required=True)
 
 
 class IssueFilterByProjectGetResponse(CommonBasicResponse):

@@ -42,6 +42,7 @@ from apispec.ext.marshmallow import MarshmallowPlugin
 
 # This import will merge to the above one after all API move to V2.
 from urls.project import project_url
+from urls.issue import issue_url
 from urls import monitoring
 
 
@@ -392,42 +393,12 @@ socketio.on_namespace(
 socketio.on_namespace(issue.IssueSocket('/issues/websocket'))
 
 # issue
-api.add_resource(issue.IssueFamily, '/issue/<issue_id>/family')
-api.add_resource(issue.IssueFamilyV2, '/v2/issue/<issue_id>/family')
-add_resource(issue.IssueFamilyV2, 'public')
-
-api.add_resource(issue.IssueByProject, '/project/<sint:project_id>/issues')
-api.add_resource(issue.IssueByProjectV2, '/v2/project/<sint:project_id>/issues')
-add_resource(issue.IssueByProjectV2, 'public')
+issue_url(api, add_resource)
 
 api.add_resource(issue.IssueByUser, '/user/<sint:user_id>/issues')
 api.add_resource(issue.IssueByUserV2, '/v2/user/<sint:user_id>/issues')
 add_resource(issue.IssueByUserV2, 'public')
 
-api.add_resource(issue.IssueByTreeByProject,
-                 '/project/<sint:project_id>/issues_by_tree')
-api.add_resource(issue.IssueByTreeByProjectV2,
-                 '/v2/project/<sint:project_id>/issues_by_tree')
-add_resource(issue.IssueByTreeByProjectV2, "public")
-
-api.add_resource(issue.IssueByStatusByProject,
-                 '/project/<sint:project_id>/issues_by_status')
-api.add_resource(issue.IssueByStatusByProjectV2,
-                 '/v2/project/<sint:project_id>/issues_by_status')
-add_resource(issue.IssueByStatusByProjectV2, "public")                
-api.add_resource(issue.IssueByDateByProject,
-                 '/project/<sint:project_id>/issues_by_date')
-api.add_resource(issue.IssuesProgressByProject,
-                 '/project/<sint:project_id>/issues_progress')
-api.add_resource(issue.IssuesProgressByProjectV2,
-                 '/v2/project/<sint:project_id>/issues_progress')
-add_resource(issue.IssuesProgressByProjectV2, "public")
-
-api.add_resource(issue.IssuesStatisticsByProject,
-                 '/project/<sint:project_id>/issues_statistics')
-api.add_resource(issue.IssuesStatisticsByProjectV2,
-                 '/v2/project/<sint:project_id>/issues_statistics')
-add_resource(issue.IssuesStatisticsByProjectV2, "public")
 
 api.add_resource(issue.IssueFilterByProject, '/project/<sint:project_id>/issue_filter',
                  '/project/<sint:project_id>/issue_filter/<custom_filter_id>')
@@ -437,13 +408,9 @@ api.add_resource(
     issue.IssueFilterByProjectWithFilterIDV2, '/v2/project/<sint:project_id>/issue_filter/<custom_filter_id>')
 add_resource(issue.IssueFilterByProjectWithFilterIDV2, 'public')
 
-
 api.add_resource(issue.IssueByVersion, '/issues_by_versions')
-api.add_resource(issue.SingleIssue, '/issues', '/issues/<issue_id>')
-api.add_resource(issue.SingleIssueV2, '/v2/issues/<issue_id>')
-add_resource(issue.SingleIssueV2, "public")
-api.add_resource(issue.CreateSingleIssueV2, '/v2/issues')
-add_resource(issue.CreateSingleIssueV2, "public")
+api.add_resource(issue.IssueByVersionV2, '/v2/issues_by_versions')
+add_resource(issue.IssueByVersionV2, 'public')
 
 api.add_resource(issue.IssueStatus, '/issues_status')
 api.add_resource(issue.IssueStatusV2, '/v2/issues_status')
@@ -456,30 +423,6 @@ add_resource(issue.IssuePriorityV2, 'public')
 api.add_resource(issue.IssueTracker, '/issues_tracker')
 api.add_resource(issue.IssueTrackerV2, '/v2/issues_tracker')
 add_resource(issue.IssueTrackerV2, 'public')
-
-api.add_resource(issue.MyIssueStatistics, '/issues/statistics')
-api.add_resource(issue.MyOpenIssueStatistics, '/issues/open_statistics')
-api.add_resource(issue.MyOpenIssueStatisticsV2, '/v2/issues/open_statistics')
-add_resource(issue.MyOpenIssueStatisticsV2, 'public')
-
-api.add_resource(issue.MyIssueWeekStatistics, '/issues/week_statistics')
-api.add_resource(issue.MyIssueWeekStatisticsV2, '/v2/issues/week_statistics')
-add_resource(issue.MyIssueWeekStatisticsV2, 'public')
-
-api.add_resource(issue.MyIssueMonthStatistics, '/issues/month_statistics')
-api.add_resource(issue.MyIssueMonthStatisticsV2, '/v2/issues/month_statistics')
-add_resource(issue.MyIssueMonthStatisticsV2, 'public')
-
-api.add_resource(issue.Relation, '/issues/relation',
-                 '/issues/relation/<int:relation_id>')
-api.add_resource(issue.RelationV2, '/v2/issues/relation')
-add_resource(issue.RelationV2, 'public')
-api.add_resource(issue.RelationDeleteV2, '/v2/issues/relation/<int:relation_id>')
-add_resource(issue.RelationDeleteV2, 'public')
-
-api.add_resource(issue.CheckIssueClosable, '/issues/<issue_id>/check_closable')
-api.add_resource(issue.CheckIssueClosableV2, '/v2/issues/<issue_id>/check_closable')
-add_resource(issue.CheckIssueClosableV2, 'public')
 
 
 # Issue Field Display
