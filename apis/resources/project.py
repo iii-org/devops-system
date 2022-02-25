@@ -552,6 +552,9 @@ def delete_bot(project_id):
     if row is None:
         return
     user.delete_user(row.user_id)
+    delete_kubernetes_namespace_secret(project_id, 'gitlab-bot')
+    delete_kubernetes_namespace_secret(project_id, 'sonar-bot')
+    delete_kubernetes_namespace_secret(project_id, 'nexus-bot')
 
 
 def get_project_info(project_id):

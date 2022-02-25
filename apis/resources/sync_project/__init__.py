@@ -500,7 +500,7 @@ def bot_process(check_bot_list):
         for nx_project_id in check_bot_list:
             pj = model.Project.query.get(nx_project_id)
             bot = model.User.query.filter_by(login=f'project_bot_{pj.id}').all()
-            if bot:
+            if len(bot) > 0:
                 logger.logger.info(f'BOT already exist, need to delete it first: {bot[0].name}.')
                 project.delete_bot(pj.id)
             logger.logger.info(f'Create new BOT for project: {pj.name}.')
