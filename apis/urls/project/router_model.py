@@ -215,3 +215,90 @@ class IssuesStatisticsByProjectResponse(CommonBasicResponse):
     }
     '''
     data = fields.Dict()
+
+##### Filter issue by project ######
+
+#################################### Schema ####################################
+class IssueFilterByProjectPostAndPutSchema(Schema):
+    name = fields.Str(doc='name', example='string', required=True)
+    type = fields.Str(doc='type', example='string', required=True)
+    assigned_to_id = fields.Str(doc='assigned_to_id', example='1', allow_none=True)
+    fixed_version_id = fields.Str(doc='fixed_version_id', example='1', allow_none=True)
+    focus_tab = fields.Str(doc='focus_tab', example='string', allow_none=True)
+    group_by = fields.Dict(
+        doc='group_by', 
+        example={"dimension": "status", "value": [{"id": 1, "name": "Active", "is_closed": False}]},
+        allow_none=True
+    )
+    priority_id = fields.Str(doc='priority_id', example='1', allow_none=True)
+    show_closed_issues = fields.Bool(doc='show_closed_issues', example=True, allow_none=True)
+    show_closed_versions = fields.Bool(doc='show_closed_versions', example=True, allow_none=True)
+    status_id = fields.Str(doc='status_id', example='1', allow_none=True)
+    tags = fields.Str(doc='tags', example='1,2,3', allow_none=True)
+    tracker_id = fields.Str(doc='tracker_id', example='1', allow_none=True)
+
+
+#################################### Response ####################################
+
+########## Module ##########
+
+class IssueFilterByProjectDataResponse(BasicIsssueResponse):
+    user_id = fields.Int(required=True)
+    project_id = fields.Int(required=True)
+    type = fields.Str(required=True)
+    custom_filter = fields.Dict(required=True)
+
+class IssueFilterByProjectPostDataResponse(Schema):
+    custom_filter_id = fields.Int(required=True)
+
+########## API Action ##########
+
+class IssueFilterByProjectGetResponse(CommonBasicResponse):
+    data = fields.List(fields.Nested(
+       IssueFilterByProjectDataResponse, required=True))
+
+class IssueFilterByProjectPostResponse(CommonBasicResponse):
+    data = fields.Nested(IssueFilterByProjectPostDataResponse, required=True)
+
+class IssueFilterByProjectPutResponse(CommonBasicResponse):
+    data = fields.Nested(IssueFilterByProjectDataResponse, required=True)
+
+
+##### # Download project's issue as excel ######
+
+#################################### Schema ####################################
+
+class DownloadProjectSchema(Schema):
+    fixed_version_id = fields.Str(doc='fixed_version_id',  example='1')
+    status_id = fields.Str(doc='status_id',  example='1')
+    tracker_id = fields.Str(doc='tracker_id',  example='1')
+    assigned_to_id = fields.Str(doc='assigned_to_id',  example='1')
+    priority_id = fields.Str(doc='fixed_version_id',  example='1')
+    search = fields.Str(doc='search', example='string')
+    selection = fields.Str(doc='selection',  example='1')
+    sort = fields.Str(doc='sort', example="string")
+    parent_id = fields.Str(doc='parent_id',  example='1')
+    due_date_start = fields.Str(doc='due_date_start', example="1970-01-01")
+    due_date_end = fields.Str(doc='due_date_end', example="1970-01-01")
+    with_point = fields.Str(doc='with_point', example=True, missing=True)
+    levels = fields.Int(doc='levels', example=1, missing=3)
+    deploy_column = fields.List(
+        fields.Dict(example={"field": "name", "display": "議題名稱"}),
+        doc='deploy_column', 
+        required=True
+    )
+
+#################################### Response ####################################
+
+########## Module ##########
+
+class DownloadProjectIsExistDataResponse(Schema):
+    file_exist = fields.Bool(required=True)
+    create_at = fields.Str(
+        required=True, example="1970-01-01T00:00:00")
+
+########## API Action ##########
+
+class DownloadProjectIsExistResponse(CommonBasicResponse):
+    data = fields.Nested(DownloadProjectIsExistDataResponse, required=True)
+

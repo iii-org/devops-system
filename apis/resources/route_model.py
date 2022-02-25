@@ -90,35 +90,6 @@ class IssueFilterByProjectPostAndPutSchema(Schema):
     tags = fields.Str(doc='tags', example='1,2,3', allow_none=True)
     tracker_id = fields.Str(doc='tracker_id', example='1', allow_none=True)
 
-
-class DownloadProjectSchema(Schema):
-    fixed_version_id = fields.Str(doc='fixed_version_id',  example='1')
-    status_id = fields.Str(doc='status_id',  example='1')
-    tracker_id = fields.Str(doc='tracker_id',  example='1')
-    assigned_to_id = fields.Str(doc='assigned_to_id',  example='1')
-    priority_id = fields.Str(doc='fixed_version_id',  example='1')
-    search = fields.Str(doc='search', example='string')
-    selection = fields.Str(doc='selection',  example='1')
-    sort = fields.Str(doc='sort', example="string")
-    parent_id = fields.Str(doc='parent_id',  example='1')
-    due_date_start = fields.Str(doc='due_date_start', example="1970-01-01")
-    due_date_end = fields.Str(doc='due_date_end', example="1970-01-01")
-    with_point = fields.Str(doc='with_point', example=True, missing=True)
-    levels = fields.Int(doc='levels', example=1, missing=3)
-    deploy_column = fields.List(
-        fields.Dict(example={"field": "name", "display": "議題名稱"}),
-        doc='deploy_column', 
-        required=True
-    )
-
-class IssueCommitRelationGetSchema(Schema):
-    commit_id = fields.Str(doc='commit_id', example='abc123def456', required=True)
-
-
-class IssueCommitRelationPatchSchema(IssueCommitRelationGetSchema):
-    issue_ids = fields.List(fields.Int(), doc='issue_ids', required=True, example=[1,2,3])
-
-
 #################################### Response ####################################
 
 ########## Module ##########
@@ -337,18 +308,6 @@ class IssueFilterByProjectDataResponse(BasicIsssueResponse):
     custom_filter = fields.Dict(required=True)
 
 
-class IssueFilterByProjectPostDataResponse(Schema):
-    custom_filter_id = fields.Int(required=True)
-
-class DownloadProjectIsExistDataResponse(Schema):
-    file_exist = fields.Bool(required=True)
-    create_at = fields.Str(
-        required=True, example="1970-01-01T00:00:00")
-
-
-class IssueCommitRelationDataResponse(Schema):
-    issue_ids = fields.Dict(required=True, example={"1": True})
-
 ########## API Action#############
 
 class SingleIssueGetResponse(CommonBasicResponse):
@@ -401,28 +360,7 @@ class DashboardIssueTypeResponse(CommonBasicResponse):
     data = fields.List(fields.Nested(
        BasicDashboardIssueDataResponse, required=True))
 
-
 class GetFlowTypeResponse(CommonBasicResponse):
     data = fields.List(fields.Nested(
        GetFlowTypeDataResponse, required=True))
 
-
-class IssueFilterByProjectGetResponse(CommonBasicResponse):
-    data = fields.List(fields.Nested(
-       IssueFilterByProjectDataResponse, required=True))
-
-
-class IssueFilterByProjectPostResponse(CommonBasicResponse):
-    data = fields.Nested(IssueFilterByProjectPostDataResponse, required=True)
-
-
-class IssueFilterByProjectPutResponse(CommonBasicResponse):
-    data = fields.Nested(IssueFilterByProjectDataResponse, required=True)
-
-
-class DownloadProjectIsExistResponse(CommonBasicResponse):
-    data = fields.Nested(DownloadProjectIsExistDataResponse, required=True)
-
-
-class IssueCommitRelationResponse(CommonBasicResponse):
-    data = fields.Nested(IssueCommitRelationDataResponse, required=True)

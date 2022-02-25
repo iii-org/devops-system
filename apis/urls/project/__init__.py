@@ -43,3 +43,24 @@ def project_url(api, add_resource):
     api.add_resource(view.IssueByDateByProject, '/project/<sint:project_id>/issues_by_date')
     api.add_resource(view.IssueByDateByProjectV2, '/v2/project/<sint:project_id>/issues_by_date')
     add_resource(view.IssueByDateByProjectV2, 'public')
+
+    # Issue filter by project
+    api.add_resource(view.IssueFilterByProject, '/project/<sint:project_id>/issue_filter',
+                 '/project/<sint:project_id>/issue_filter/<custom_filter_id>')
+    api.add_resource(view.IssueFilterByProjectV2, '/v2/project/<sint:project_id>/issue_filter')
+    add_resource(view.IssueFilterByProjectV2, 'public')
+    api.add_resource(
+        view.IssueFilterByProjectWithFilterIDV2, '/v2/project/<sint:project_id>/issue_filter/<custom_filter_id>')
+    add_resource(view.IssueFilterByProjectWithFilterIDV2, 'public')
+
+    # Download project's issue as excel
+    api.add_resource(view.DownloadProject,
+                 '/project/<sint:project_id>/download/execute',
+                 '/project/<sint:project_id>/download/is_exist',
+                 '/project/<sint:project_id>/download')
+    api.add_resource(view.DownloadProjectExecuteV2, '/v2/project/<sint:project_id>/download/execute')
+    add_resource(view.DownloadProjectExecuteV2, "public")
+    api.add_resource(view.DownloadProjectIsExistV2, '/v2/project/<sint:project_id>/download/is_exist')
+    add_resource(view.DownloadProjectIsExistV2, "public")          
+    api.add_resource(view.DownloadProjectV2, '/v2/project/<sint:project_id>/download')
+    add_resource(view.DownloadProjectV2, "public")         

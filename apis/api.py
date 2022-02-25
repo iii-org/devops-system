@@ -240,20 +240,6 @@ api.add_resource(project.ProjectUserResourcePodLog,
 api.add_resource(starred_project.StarredProject,
                  '/project/<sint:project_id>/star')
 
-api.add_resource(issue.DownloadProject,
-                 '/project/<sint:project_id>/download/execute',
-                 '/project/<sint:project_id>/download/is_exist',
-                 '/project/<sint:project_id>/download')
-api.add_resource(issue.DownloadProjectExecuteV2,
-                 '/v2/project/<sint:project_id>/download/execute')
-add_resource(issue.DownloadProjectExecuteV2, "public")
-api.add_resource(issue.DownloadProjectIsExistV2,
-                 '/v2/project/<sint:project_id>/download/is_exist')
-add_resource(issue.DownloadProjectIsExistV2, "public")          
-api.add_resource(issue.DownloadProjectV2,
-                 '/v2/project/<sint:project_id>/download')
-add_resource(issue.DownloadProjectV2, "public")          
-
 api.add_resource(gitlab.SyncGitCommitIssueRelationByPjName,
                  '/project/issues_commit_by_name',
                  )
@@ -267,9 +253,6 @@ api.add_resource(gitlab.SyncGitCommitIssueRelation,
                  )
 api.add_resource(gitlab.GetCommitIssueHookByBranch, '/project/<sint:project_id>/issues_commit/by_branch')
 api.add_resource(project.ProjectRelation, '/project/<sint:project_id>/relation')
-api.add_resource(issue.IssueCommitRelation, '/issue/relation')
-api.add_resource(issue.IssueCommitRelationV2, '/v2/issue/relation')
-add_resource(issue.IssueCommitRelationV2, 'public')
 
 project_url(api, add_resource)
 
@@ -398,15 +381,6 @@ issue_url(api, add_resource)
 api.add_resource(issue.IssueByUser, '/user/<sint:user_id>/issues')
 api.add_resource(issue.IssueByUserV2, '/v2/user/<sint:user_id>/issues')
 add_resource(issue.IssueByUserV2, 'public')
-
-
-api.add_resource(issue.IssueFilterByProject, '/project/<sint:project_id>/issue_filter',
-                 '/project/<sint:project_id>/issue_filter/<custom_filter_id>')
-api.add_resource(issue.IssueFilterByProjectV2, '/v2/project/<sint:project_id>/issue_filter')
-add_resource(issue.IssueFilterByProjectV2, 'public')
-api.add_resource(
-    issue.IssueFilterByProjectWithFilterIDV2, '/v2/project/<sint:project_id>/issue_filter/<custom_filter_id>')
-add_resource(issue.IssueFilterByProjectWithFilterIDV2, 'public')
 
 api.add_resource(issue.IssueByVersion, '/issues_by_versions')
 api.add_resource(issue.IssueByVersionV2, '/v2/issues_by_versions')

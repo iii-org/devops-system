@@ -1,16 +1,22 @@
 from flask_apispec import marshal_with, doc, use_kwargs
 from flask_apispec.views import MethodResource
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
 import util
 from threading import Thread
 from resources.project_relation import project_has_child, get_root_project_id, sync_project_relation, \
     get_project_family_members_by_user
 from resources.issue import get_issue_list_by_project_helper, get_issue_by_tree_by_project, get_issue_by_status_by_project, \
-    get_issue_progress_or_statistics_by_project, get_issue_by_date_by_project
-
+    get_issue_progress_or_statistics_by_project, get_issue_by_date_by_project, get_custom_issue_filter, \
+    create_custom_issue_filter, put_custom_issue_filter, get_lock_status, DownloadIssueAsExcel, pj_download_file_is_exist
+from model import CustomIssueFilter
 from resources import role
 from . import router_model
+from model import db
+from resources.apiError import DevOpsError
+import resources.apiError as apiError
+import threading
+from flask import send_file
 
 
 ##### Project Relation ######
@@ -206,3 +212,192 @@ class IssueByDateByProject(Resource):
     def get(self, project_id):
         role.require_in_project(project_id)
         return get_issue_by_date_by_project(project_id)
+
+
+##### Filter issue by project ######
+
+class IssueFilterByProjectV2(MethodResource):
+    @doc(tags=['Project'], description="Get project's issues' filter.")
+    @marshal_with(router_model.IssueFilterByProjectGetResponse)
+    @jwt_required
+    def get(self, project_id):
+        return util.success(get_custom_issue_filter(get_jwt_identity()['user_id'], project_id))
+
+
+    @doc(tags=['Project'], description="Create project's issues' filter.")
+    @use_kwargs(router_model.IssueFilterByProjectPostAndPutSchema, location="json")
+    @marshal_with(router_model.IssueFilterByProjectPostResponse)
+    @jwt_required
+    def post(self, project_id, **kwargs):
+        user_id = get_jwt_identity()['user_id']
+
+        if kwargs["type"] != "issue_board" and kwargs.get("group_by") is not None:
+            raise DevOpsError(400, "Column group_by is only available when type is issue_board",
+                              error=apiError.argument_error("group_by"))
+        if kwargs["type"] != "my_work" and kwargs.get("focus_tab") is not None:
+            raise DevOpsError(400, "Column focus_tab is only available when type is my_work",
+                              error=apiError.argument_error("focus_tab"))
+
+        return util.success(create_custom_issue_filter(user_id, project_id, kwargs))
+
+class IssueFilterByProjectWithFilterIDV2(MethodResource):
+    @doc(tags=['Project'], description="Update project's issues' filter.")
+    @use_kwargs(router_model.IssueFilterByProjectPostAndPutSchema, location="json")
+    @marshal_with(router_model.IssueFilterByProjectPutResponse)
+    @jwt_required
+    def put(self, project_id, custom_filter_id, **kwargs):
+        if kwargs["type"] != "issue_board" and kwargs.get("group_by") is not None:
+            raise DevOpsError(400, "Column group_by is only available when type is issue_board",
+                              error=apiError.argument_error("group_by"))
+        if kwargs["type"] != "my_work" and kwargs.get("focus_tab") is not None:
+            raise DevOpsError(400, "Column focus_tab is only available when type is my_work",
+                              error=apiError.argument_error("focus_tab"))
+
+        return util.success(put_custom_issue_filter(custom_filter_id, project_id, kwargs))
+
+    @doc(tags=['Project'], description="Delete project's issues' filter.")
+    @jwt_required
+    def delete(self, project_id, custom_filter_id):
+        CustomIssueFilter.query.filter_by(id=custom_filter_id).delete()
+        db.session.commit()
+
+
+class IssueFilterByProject(Resource):
+    @jwt_required
+    def get(self, project_id):
+        return util.success(get_custom_issue_filter(get_jwt_identity()['user_id'], project_id))
+
+    @jwt_required
+    def post(self, project_id):
+        user_id = get_jwt_identity()['user_id']
+        parser = reqparse.RequestParser()
+        parser.add_argument('name', type=str, required=True)
+        parser.add_argument('type', type=str, required=True)
+        parser.add_argument('assigned_to_id', type=str)
+        parser.add_argument('fixed_version_id', type=str)
+        parser.add_argument('focus_tab', type=str)
+        parser.add_argument('group_by', type=dict)
+        parser.add_argument('priority_id', type=str)
+        parser.add_argument('show_closed_issues', type=bool)
+        parser.add_argument('show_closed_versions', type=bool)
+        parser.add_argument('status_id', type=str)
+        parser.add_argument('tags', type=str)
+        parser.add_argument('tracker_id', type=str)
+        args = parser.parse_args()
+
+        if args["type"] != "issue_board" and args.get("group_by") is not None:
+            raise DevOpsError(400, "Column group_by is only available when type is issue_board",
+                              error=apiError.argument_error("group_by"))
+        if args["type"] != "my_work" and args.get("focus_tab") is not None:
+            raise DevOpsError(400, "Column focus_tab is only available when type is my_work",
+                              error=apiError.argument_error("focus_tab"))
+
+        return util.success(create_custom_issue_filter(user_id, project_id, args))
+
+    @jwt_required
+    def put(self, project_id, custom_filter_id):
+        parser = reqparse.RequestParser()
+        parser.add_argument('name', type=str, required=True)
+        parser.add_argument('type', type=str, required=True)
+        parser.add_argument('assigned_to_id', type=str)
+        parser.add_argument('fixed_version_id', type=str)
+        parser.add_argument('focus_tab', type=str)
+        parser.add_argument('group_by', type=dict)
+        parser.add_argument('priority_id', type=str)
+        parser.add_argument('show_closed_issues', type=bool)
+        parser.add_argument('show_closed_versions', type=bool)
+        parser.add_argument('status_id', type=str)
+        parser.add_argument('tags', type=str)
+        parser.add_argument('tracker_id', type=str)
+        args = parser.parse_args()
+
+        if args["type"] != "issue_board" and args.get("group_by") is not None:
+            raise DevOpsError(400, "Column group_by is only available when type is issue_board",
+                              error=apiError.argument_error("group_by"))
+        if args["type"] != "my_work" and args.get("focus_tab") is not None:
+            raise DevOpsError(400, "Column focus_tab is only available when type is my_work",
+                              error=apiError.argument_error("focus_tab"))
+
+        return util.success(put_custom_issue_filter(custom_filter_id, project_id, args))
+
+    @jwt_required
+    def delete(self, project_id, custom_filter_id):
+        CustomIssueFilter.query.filter_by(id=custom_filter_id).delete()
+        db.session.commit()
+
+##### Download project issue as excel ######
+
+class DownloadProjectExecuteV2(MethodResource):
+    # download/execute
+    @doc(tags=['Project'], description="Execute download project's issues as excel.")
+    @use_kwargs(router_model.DownloadProjectSchema, location="json")
+    @marshal_with(util.CommonResponse)
+    @jwt_required
+    def post(self, project_id, **kwargs):
+        if get_lock_status("download_pj_issues")["is_lock"]:
+            return util.success("previous is still running")
+        download_issue_excel = DownloadIssueAsExcel(kwargs, project_id, get_jwt_identity()["user_id"])
+        threading.Thread(target=download_issue_excel.execute).start()
+        return util.success()
+
+class DownloadProjectIsExistV2(MethodResource):
+    # download/is_exist
+    @doc(tags=['Project'], description="Check excel file is exist.")
+    @marshal_with(router_model.DownloadProjectIsExistResponse)
+    @jwt_required 
+    def get(self, project_id):
+        return util.success(pj_download_file_is_exist(project_id))
+
+class DownloadProjectV2(MethodResource):
+    # download/execute
+    @doc(tags=['Project'], description="Download project's issues' excel.")
+    @jwt_required
+    def patch(self, project_id):
+        if not pj_download_file_is_exist(project_id)["file_exist"]:
+            raise apiError.DevOpsError(
+                404, 'This file can not be downloaded because it is not exist.',
+                apiError.project_issue_file_not_exits(project_id))
+
+        return send_file(f"../logs/project_excel_file/{project_id}.xlsx")
+
+class DownloadProject(Resource):
+    # download/execute
+    @jwt_required
+    def post(self, project_id):
+        parser = reqparse.RequestParser()
+        parser.add_argument('fixed_version_id', type=str)
+        parser.add_argument('status_id', type=str)
+        parser.add_argument('tracker_id', type=str)
+        parser.add_argument('assigned_to_id', type=str)
+        parser.add_argument('priority_id', type=str)
+        parser.add_argument('search', type=str)
+        parser.add_argument('selection', type=str)
+        parser.add_argument('sort', type=str)
+        parser.add_argument('parent_id', type=str)
+        parser.add_argument('due_date_start', type=str)
+        parser.add_argument('due_date_end', type=str)
+        parser.add_argument('with_point', type=bool, default=True)
+        parser.add_argument('levels', type=int, default=3)
+        parser.add_argument('deploy_column', type=dict, action='append', required=True)
+        args = parser.parse_args()
+
+        if get_lock_status("download_pj_issues")["is_lock"]:
+            return util.success("previous is still running")
+        download_issue_excel = DownloadIssueAsExcel(args, project_id, get_jwt_identity()["user_id"])
+        threading.Thread(target=download_issue_excel.execute).start()
+        return util.success()
+
+    # download/is_exist
+    @jwt_required 
+    def get(self, project_id):
+        return util.success(pj_download_file_is_exist(project_id))
+
+    # download/execute
+    @jwt_required    
+    def patch(self, project_id):
+        if not pj_download_file_is_exist(project_id)["file_exist"]:
+            raise apiError.DevOpsError(
+                404, 'This file can not be downloaded because it is not exist.',
+                apiError.project_issue_file_not_exits(project_id))
+
+        return send_file(f"../logs/project_excel_file/{project_id}.xlsx")
