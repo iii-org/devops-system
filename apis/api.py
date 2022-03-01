@@ -249,10 +249,10 @@ api.add_resource(issue.DownloadProjectExecuteV2,
 add_resource(issue.DownloadProjectExecuteV2, "public")
 api.add_resource(issue.DownloadProjectIsExistV2,
                  '/v2/project/<sint:project_id>/download/is_exist')
-add_resource(issue.DownloadProjectIsExistV2, "public")          
+add_resource(issue.DownloadProjectIsExistV2, "public")
 api.add_resource(issue.DownloadProjectV2,
                  '/v2/project/<sint:project_id>/download')
-add_resource(issue.DownloadProjectV2, "public")          
+add_resource(issue.DownloadProjectV2, "public")
 
 api.add_resource(gitlab.SyncGitCommitIssueRelationByPjName,
                  '/project/issues_commit_by_name',
@@ -648,6 +648,8 @@ api.add_resource(NexusVersion, '/system_versions')
 
 # Sync Projects
 api.add_resource(sync_project.SyncProject, '/sync_projects')
+api.add_resource(sync_project.RecreateProjectV2, '/v2/sync_projects/<int:project_id>')
+add_resource(sync_project.RecreateProjectV2, "public")
 api.add_resource(sync_project.CheckProjectExistV2, '/v2/sync_projects/check_project_exist')
 add_resource(sync_project.CheckProjectExistV2, "public")
 

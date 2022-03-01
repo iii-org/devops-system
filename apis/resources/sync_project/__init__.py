@@ -4,15 +4,15 @@ import model
 import nexus
 import util
 from accessories import redmine_lib
-from flask_apispec import doc, marshal_with, use_kwargs
+from flask_apispec import doc, marshal_with
 from flask_apispec.views import MethodResource
-from flask_jwt_extended import get_jwt_identity, jwt_required
+from flask_jwt_extended import jwt_required
 from flask_restful import Resource
 from kubernetes.client import ApiException
+from model import Project, db
 from plugins.sonarqube import sonarqube_main as sonarqube
 from resources import (gitlab, harbor, kubernetesClient, logger, project,
                        rancher, redmine, user)
-from model import db, Project
 
 from . import route_model
 
@@ -569,6 +569,31 @@ def main_process():
     logger.logger.info('All done.')
 
 
+def recreate_project(project_id):
+    check_bot_list = []
+    projects_name = list(model.Project.query.filter(
+        model.Project.id == project_id).with_entities(model.Project.name).first())
+    logger.logger.info('Kubernetes namespaces start.')
+    k8s_namespace_process(projects_name, check_bot_list)
+    logger.logger.info('Redmine projects start.')
+    redmine_process(projects_name, check_bot_list)
+    logger.logger.info('Gitlab repository start.')
+    gitlab_process(projects_name, check_bot_list)
+    logger.logger.info('Harbor projects start.')
+    harbor_process(projects_name, check_bot_list)
+    logger.logger.info('Rancher pipelines start.')
+    pipeline_process(check_bot_list)
+    logger.logger.info('Sonarqube projects start.')
+    sonarqube_process(projects_name, check_bot_list)
+    for pj_id in check_bot_list:
+        unlock_project(pj_id=pj_id)
+    logger.logger.info('Project BOT start.')
+    bot_process(list(set(check_bot_list)))
+    logger.logger.info('Project members start.')
+    members_process(projects_name)
+    logger.logger.info('All done.')
+
+
 def check_project_exist():
     lost_project_infos = {}
 
@@ -612,6 +637,13 @@ def check_project_exist():
 class SyncProject(Resource):
     def get(self):
         main_process()
+        return util.success()
+
+
+@ doc(tags=['System Check'], description="Recreate third part projects")
+class RecreateProjectV2(MethodResource):
+    def patch(self, project_id):
+        recreate_project(project_id)
         return util.success()
 
 
