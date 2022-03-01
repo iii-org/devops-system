@@ -42,7 +42,6 @@ from resources import sync_project
 from resources.project_relation import get_all_sons_project, get_relation_list
 
 
-
 def get_project_issue_calculation(user_name, project_ids=[]):
     ret = []
     for project_id in project_ids:
@@ -450,15 +449,23 @@ def try_to_delete(delete_method, argument):
             raise e
 
 
-def delete_project(project_id):
+def delete_project(project_id, force_delete_project=False):
     # Check project has son project and get all ids
     son_id_list = get_all_sons_project(project_id, [])
     delete_id_list = [project_id] + son_id_list
 
-    # Check all porjects' servers are alive frist,
-    # because redmine delete all sons projects at the same time.
-    for project_id in delete_id_list:
-        server_alive_output = Monitoring(project_id).check_project_alive()
+    if force_delete_project is False:
+        # Check all porjects' servers are alive frist,
+        # because redmine delete all sons projects at the same time.
+        for project_id in delete_id_list:
+            server_alive_output = Monitoring(project_id).check_project_alive()
+            if not server_alive_output["all_alive"]:
+                not_alive_server = [
+                    server.capitalize() for server, alive in server_alive_output["alive"].items() if not alive]
+                servers = ", ".join(not_alive_server)
+                raise apiError.DevOpsError(500, f"{servers} not alive")
+    else:
+        server_alive_output = Monitoring().check_project_alive()
         if not server_alive_output["all_alive"]:
             not_alive_server = [
                 server.capitalize() for server, alive in server_alive_output["alive"].items() if not alive]
