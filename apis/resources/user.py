@@ -188,6 +188,8 @@ def login(args):
     user = db.session.query(model.User).filter(
         model.User.login == login_account).first()
     try:
+        if user is not None and user.disabled:
+            return util.respond(401, "User is disabled, Please contact system administrator.")
         ad_info = {'is_pass': False,
                    'login': login_account, 'data': {}}
 
@@ -723,7 +725,7 @@ def user_list(filters):
 
 def user_list_by_project(project_id, args):
     excluded_roles = [role.BOT.id, role.ADMIN.id, role.QA.id]
-    if args["exclude"] is not None and args["exclude"] == 1:
+    if args.get("exclude") is not None and args["exclude"] == 1:
         # list users not in the project
         users = []
         rows = model.User.query.options(joinedload(model.User.project_role)).all()
