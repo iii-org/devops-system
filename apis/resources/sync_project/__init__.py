@@ -4,17 +4,11 @@ import model
 import nexus
 import util
 from accessories import redmine_lib
-from flask_apispec import doc, marshal_with
-from flask_apispec.views import MethodResource
-from flask_jwt_extended import jwt_required
-from flask_restful import Resource
 from kubernetes.client import ApiException
 from model import Project, db
 from plugins.sonarqube import sonarqube_main as sonarqube
 from resources import (gitlab, harbor, kubernetesClient, logger, project,
                        rancher, redmine, user)
-
-from . import route_model
 
 
 class ResourceMembers(object):
@@ -632,25 +626,3 @@ def check_project_exist():
         if project_name not in lost_project_infos:
             unlock_project(pj_name=project_name)
     return {"lost_third_part_project": lost_project_infos}
-
-
-class SyncProject(Resource):
-    def get(self):
-        main_process()
-        return util.success()
-
-
-@ doc(tags=['System Check'], description="Recreate third part projects")
-class RecreateProjectV2(MethodResource):
-    def patch(self, project_id):
-        recreate_project(project_id)
-        return util.success()
-
-
-@ doc(tags=['System Check'], description="Check third part project is exist")
-@ marshal_with(route_model.IsProjectExists)
-class CheckProjectExistV2(MethodResource):
-
-    @ jwt_required
-    def get(self):
-        return util.success(check_project_exist())

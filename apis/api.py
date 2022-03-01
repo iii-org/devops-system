@@ -43,6 +43,7 @@ from apispec.ext.marshmallow import MarshmallowPlugin
 # This import will merge to the above one after all API move to V2.
 from urls.project import project_url
 from urls.issue import issue_url
+from urls.sync_projects import sync_projects_url
 from urls import monitoring
 
 
@@ -616,13 +617,7 @@ api.add_resource(quality.Report, '/quality/<int:project_id>/report')
 # System versions
 api.add_resource(NexusVersion, '/system_versions')
 
-# Sync Projects
-api.add_resource(sync_project.SyncProject, '/sync_projects')
-api.add_resource(sync_project.RecreateProjectV2, '/v2/sync_projects/<int:project_id>')
-add_resource(sync_project.RecreateProjectV2, "public")
-api.add_resource(sync_project.CheckProjectExistV2, '/v2/sync_projects/check_project_exist')
-add_resource(sync_project.CheckProjectExistV2, "public")
-
+sync_projects_url(api, add_resource)
 
 # Sync Users
 api.add_resource(sync_user.SyncUser, '/sync_users')
