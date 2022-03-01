@@ -12,7 +12,7 @@ from . import router_model
 from resources.issue import get_issue, require_issue_visible, get_issue_tags, get_issue_point, \
     update_issue, get_issue_family, delete_issue, create_issue, NexusIssue, get_issue_statistics, \
     get_open_issue_statistics, get_issue_statistics_in_period, post_issue_relation, put_issue_relation, \
-    delete_issue_relation, check_issue_closable
+    delete_issue_relation, check_issue_closable, get_commit_hook_issues, modify_hook
 
 
 ##### Issue single #####
@@ -446,3 +446,38 @@ class CheckIssueClosable(Resource):
     def get(self, issue_id):
         output = check_issue_closable(issue_id)
         return util.success(output)
+
+##### Issue commit relationship ######
+
+class IssueCommitRelationV2(MethodResource):
+    @doc(tags=['Issue'], description="Get issue relation by commit_id.")
+    @use_kwargs(router_model.IssueCommitRelationGetSchema, location="query")
+    @marshal_with(router_model.IssueCommitRelationResponse)
+    @jwt_required
+    def get(self, **kwargs):
+        return util.success(get_commit_hook_issues(commit_id=kwargs["commit_id"]))
+
+    @doc(tags=['Issue'], description="Update issue relation by commit_id.")
+    @use_kwargs(router_model.IssueCommitRelationPatchSchema, location="json")
+    @marshal_with(util.CommonResponse)
+    @jwt_required
+    def patch(self, **kwargs):
+        print(kwargs)
+        return util.success(modify_hook(kwargs))
+
+
+class IssueCommitRelation(Resource):    
+    @jwt_required
+    def get(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('commit_id', type=str, required=True)
+        args = parser.parse_args()
+        return util.success(get_commit_hook_issues(commit_id=args["commit_id"]))
+
+    @jwt_required
+    def patch(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('commit_id', type=str, required=True)
+        parser.add_argument('issue_ids', type=int, action='append', required=True)
+        args = parser.parse_args()
+        return util.success(modify_hook(args))

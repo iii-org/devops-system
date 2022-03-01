@@ -119,8 +119,7 @@ class NexusProject:
         return ret
 
     def fill_pm_extra_fields(self, rm_project, username):
-        project_issue_info = caculate_project_issues(rm_project, username)
-
+        project_issue_info = calculate_project_issues(rm_project, username)
         self.__extra_fields['closed_count'] = project_issue_info["closed_count"]
         self.__extra_fields['overdue_count'] = project_issue_info["overdue_count"]
         self.__extra_fields['total_count'] = project_issue_info["total_count"]
@@ -163,7 +162,7 @@ class NexusProject:
         return self
 
 
-def caculate_project_issues(rm_project, username):
+def calculate_project_issues(rm_project, username):
     ret = {}
     updated_on, project_id = rm_project["updated_on"], rm_project["id"]
     if project_id == -1:

@@ -279,3 +279,27 @@ class RelationSchema(Schema):
 
 class CheckIssueClosableResponse(CommonBasicResponse):
     data = fields.Bool(required=True)
+
+
+##### Issue commit relationship 
+
+#################################### Schema ####################################
+
+class IssueCommitRelationGetSchema(Schema):
+    commit_id = fields.Str(doc='commit_id', example='abc123def456', required=True)
+
+class IssueCommitRelationPatchSchema(IssueCommitRelationGetSchema):
+    issue_ids = fields.List(fields.Int(), doc='issue_ids', required=True, example=[1,2,3])
+    
+
+#################################### Response ####################################
+
+########## Module ##########
+
+class IssueCommitRelationDataResponse(Schema):
+    issue_ids = fields.Dict(required=True, example={"1": True})
+
+########## API Action ##########
+
+class IssueCommitRelationResponse(CommonBasicResponse):
+    data = fields.Nested(IssueCommitRelationDataResponse, required=True)

@@ -6,24 +6,6 @@ from util import CommonBasicResponse
 
 ########## Module ##########
 # !!!
-class CommonSingleIssueSchema(Schema):
-    description = fields.Str(doc='description', example="string")
-    assigned_to_id = fields.Str(doc='assigned_to_id', example="-1")
-    estimated_hours = fields.Int(doc='estimated_hours', example=0)
-    parent_id = fields.Str(doc='parent_id', example="-1")
-    fixed_version_id = fields.Str(doc='fixed_version_id', example="-1")
-    start_date = fields.Str(doc='start_date', example="1970-01-01")
-    due_date = fields.Str(doc='due_date', example="1970-01-01")
-    done_ratio = fields.Int(doc='done_ratio', example=-1)
-    point = fields.Int(doc='point', example=0)
-    tags = fields.Str(doc='tags', example="1,2")
-    # Attachment upload
-    # still finding how to test file type.
-    upload_file = fields.Raw(type='werkzeug.datastructures.FileStorage', doc='upload_file', example="(binary)")
-    upload_filename = fields.Str(doc='upload_filename', example="string")
-    upload_description = fields.Str(doc='upload_description', example="string")
-    upload_content_type = fields.Str(doc='upload_content_type', example="string")
-
 
 class CommonIssueSchema(Schema):
     fixed_version_id = fields.Str(doc='fixed_version_id', example="1")
@@ -39,25 +21,7 @@ class CommonIssueSchema(Schema):
     sort = fields.Str(doc='sort', example="string")
     
 
-########## API Action ##########
-
-class SingleIssuePostSchema(CommonSingleIssueSchema):
-    project_id = fields.Int(doc='project_id', example=-1, required=True)
-    tracker_id = fields.Int(doc='tracker_id', example=-1, required=True)
-    status_id = fields.Int(doc='status_id', example=-1, required=True)
-    priority_id = fields.Int(doc='priority_id', example=-1, required=True)
-    name = fields.Str(doc='name', example="string", required=True)
-    
-    
-class SingleIssuePutSchema(CommonSingleIssueSchema):
-    project_id = fields.Int(doc='project_id', example=-1)
-    tracker_id = fields.Int(doc='tracker_id', example=-1)
-    status_id = fields.Int(doc='status_id', example=-1)
-    priority_id = fields.Int(doc='priority_id', example=-1)
-    name = fields.Str(doc='name', example="string")
-    note = fields.Str(doc='name', example="string")
-
-
+########## API Action ##########    
 
 # class FileSchema(Schema):
 #     upload_file = fields.Raw(type='werkzeug.datastructures.FileStorage', doc='upload_file', example="")
@@ -89,35 +53,6 @@ class IssueFilterByProjectPostAndPutSchema(Schema):
     status_id = fields.Str(doc='status_id', example='1', allow_none=True)
     tags = fields.Str(doc='tags', example='1,2,3', allow_none=True)
     tracker_id = fields.Str(doc='tracker_id', example='1', allow_none=True)
-
-
-class DownloadProjectSchema(Schema):
-    fixed_version_id = fields.Str(doc='fixed_version_id',  example='1')
-    status_id = fields.Str(doc='status_id',  example='1')
-    tracker_id = fields.Str(doc='tracker_id',  example='1')
-    assigned_to_id = fields.Str(doc='assigned_to_id',  example='1')
-    priority_id = fields.Str(doc='fixed_version_id',  example='1')
-    search = fields.Str(doc='search', example='string')
-    selection = fields.Str(doc='selection',  example='1')
-    sort = fields.Str(doc='sort', example="string")
-    parent_id = fields.Str(doc='parent_id',  example='1')
-    due_date_start = fields.Str(doc='due_date_start', example="1970-01-01")
-    due_date_end = fields.Str(doc='due_date_end', example="1970-01-01")
-    with_point = fields.Str(doc='with_point', example=True, missing=True)
-    levels = fields.Int(doc='levels', example=1, missing=3)
-    deploy_column = fields.List(
-        fields.Dict(example={"field": "name", "display": "議題名稱"}),
-        doc='deploy_column', 
-        required=True
-    )
-
-class IssueCommitRelationGetSchema(Schema):
-    commit_id = fields.Str(doc='commit_id', example='abc123def456', required=True)
-
-
-class IssueCommitRelationPatchSchema(IssueCommitRelationGetSchema):
-    issue_ids = fields.List(fields.Int(), doc='issue_ids', required=True, example=[1,2,3])
-
 
 #################################### Response ####################################
 
@@ -337,18 +272,6 @@ class IssueFilterByProjectDataResponse(BasicIsssueResponse):
     custom_filter = fields.Dict(required=True)
 
 
-class IssueFilterByProjectPostDataResponse(Schema):
-    custom_filter_id = fields.Int(required=True)
-
-class DownloadProjectIsExistDataResponse(Schema):
-    file_exist = fields.Bool(required=True)
-    create_at = fields.Str(
-        required=True, example="1970-01-01T00:00:00")
-
-
-class IssueCommitRelationDataResponse(Schema):
-    issue_ids = fields.Dict(required=True, example={"1": True})
-
 ########## API Action#############
 
 class SingleIssueGetResponse(CommonBasicResponse):
@@ -401,28 +324,7 @@ class DashboardIssueTypeResponse(CommonBasicResponse):
     data = fields.List(fields.Nested(
        BasicDashboardIssueDataResponse, required=True))
 
-
 class GetFlowTypeResponse(CommonBasicResponse):
     data = fields.List(fields.Nested(
        GetFlowTypeDataResponse, required=True))
 
-
-class IssueFilterByProjectGetResponse(CommonBasicResponse):
-    data = fields.List(fields.Nested(
-       IssueFilterByProjectDataResponse, required=True))
-
-
-class IssueFilterByProjectPostResponse(CommonBasicResponse):
-    data = fields.Nested(IssueFilterByProjectPostDataResponse, required=True)
-
-
-class IssueFilterByProjectPutResponse(CommonBasicResponse):
-    data = fields.Nested(IssueFilterByProjectDataResponse, required=True)
-
-
-class DownloadProjectIsExistResponse(CommonBasicResponse):
-    data = fields.Nested(DownloadProjectIsExistDataResponse, required=True)
-
-
-class IssueCommitRelationResponse(CommonBasicResponse):
-    data = fields.Nested(IssueCommitRelationDataResponse, required=True)
