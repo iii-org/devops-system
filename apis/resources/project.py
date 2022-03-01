@@ -1,4 +1,3 @@
-import ast
 import os
 import shutil
 import re
@@ -20,7 +19,7 @@ import nexus
 import plugins
 import resources.apiError as apiError
 import util as util
-from data.nexus_project import NexusProject, caculate_project_issues
+from data.nexus_project import NexusProject, calculate_project_issues
 from model import db
 from nexus import nx_get_project_plugin_relation
 from plugins.checkmarx.checkmarx_main import checkmarx
@@ -42,18 +41,17 @@ from resources.monitoring import Monitoring
 from resources import sync_project
 from resources.project_relation import get_all_sons_project, get_relation_list
 
-# Do not delete it, it will be used in project_list optimization
 
 
-def get_project_issue_caculation(user_name, project_ids=[]):
+def get_project_issue_calculation(user_name, project_ids=[]):
     ret = []
     for project_id in project_ids:
         redmine_project_id = model.ProjectPluginRelation.query.filter_by(project_id=project_id).one().plan_project_id
         project_object = redmine_lib.rm_impersonate(user_name).project.get(redmine_project_id)
         rm_project = {"updated_on": project_object.updated_on, "id": project_object.id}
-        caculate_project_issue = caculate_project_issues(rm_project, user_name)
-        caculate_project_issue["id"] = project_id
-        ret.append(caculate_project_issue)
+        calculate_project_issue = calculate_project_issues(rm_project, user_name)
+        calculate_project_issue["id"] = project_id
+        ret.append(calculate_project_issue)
 
     return ret
 
@@ -186,7 +184,7 @@ def create_project(user_id, args):
         'redmine': (args,),
         'gitlab': (args,),
         'harbor': (args['name'],),
-        'sonarqube': (args['name'], args['display'])
+        'sonarqube': (args['name'], args.get('display'))
     }
     helper = util.ServiceBatchOpHelper(services, targets, service_args)
     helper.run()
@@ -321,7 +319,7 @@ def create_project(user_id, args):
                     project_add_member(project_id, user.user_id)
 
         # Commit and push file by template , if template env is not None
-        if args["template_id"] is not None:
+        if args.get("template_id") is not None:
             template.tm_use_template_push_into_pj(args["template_id"], gitlab_pj_id,
                                                   args["tag_name"], args["arguments"])
 
@@ -1246,133 +1244,6 @@ def remove_relation(project_id, parent_id):
 
 
 # --------------------- Resources ---------------------
-
-
-class ListMyProjects(Resource):
-    @jwt_required
-    def get(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument('simple', type=str)
-        parser.add_argument('limit', type=int)
-        parser.add_argument('offset', type=int)
-        parser.add_argument('search', type=str)
-        parser.add_argument('disabled', type=int)
-        args = parser.parse_args()
-        disabled = None
-        if args.get("disabled") is not None:
-            disabled = args["disabled"] == 1
-        if args.get('simple', 'false') == 'true':
-            return util.success(
-                {'project_list': get_project_list(get_jwt_identity()['user_id'], "simple", args, disabled)})
-        if role.is_role(role.RD):
-            return util.success(
-                {'project_list': get_project_list(get_jwt_identity()['user_id'], "rd", args, disabled)})
-        else:
-            return util.success(
-                {'project_list': get_project_list(get_jwt_identity()['user_id'], "pm", args, disabled)})
-
-
-class CaculateProjectIssues(Resource):
-    @jwt_required
-    def get(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument('project_ids', type=str, required=True)
-        args = parser.parse_args()
-        project_ids = args.get("project_ids").split(",")
-
-        return util.success(
-            {'project_list': get_project_issue_caculation(get_jwt_identity()['user_account'], project_ids)})
-
-
-class ListProjectsByUser(Resource):
-    @jwt_required
-    def get(self, user_id):
-        role.require_pm("Error while get project by user.")
-        projects = get_projects_by_user(user_id)
-        return util.success(projects)
-
-
-class SingleProject(Resource):
-    @jwt_required
-    def get(self, project_id):
-        role.require_pm("Error while getting project info.")
-        role.require_in_project(
-            project_id, "Error while getting project info.")
-        return util.success(get_project_info(project_id))
-
-    @jwt_required
-    def put(self, project_id):
-        role.require_pm("Error while updating project info.", exclude_qa=True)
-        role.require_in_project(
-            project_id, "Error while updating project info.")
-        parser = reqparse.RequestParser()
-        parser.add_argument('display', type=str, required=True)
-        parser.add_argument('description', type=str)
-        parser.add_argument('disabled', type=bool, required=True)
-        parser.add_argument('start_date', type=str, required=True)
-        parser.add_argument('due_date', type=str, required=True)
-        parser.add_argument('owner_id', type=int, required=True)
-        parser.add_argument('parent_id', type=int)
-        parser.add_argument('is_inherit_members', type=bool)
-        args = parser.parse_args()
-        check_project_args_patterns(args)
-        check_project_owner_id(args['owner_id'], get_jwt_identity()[
-            'user_id'], project_id)
-        pm_update_project(project_id, args)
-        return util.success()
-
-    @jwt_required
-    def patch(self, project_id):
-        role.require_pm("Error while updating project info.", exclude_qa=True)
-        role.require_in_project(
-            project_id, "Error while updating project info.")
-        parser = reqparse.RequestParser()
-        parser.add_argument('owner_id', type=int, required=False)
-        args = parser.parse_args()
-        check_project_args_patterns(args)
-        if args.get('owner_id', None) is not None:
-            check_project_owner_id(args['owner_id'], get_jwt_identity()[
-                'user_id'], project_id)
-        nexus_update_project(project_id, args)
-        return util.success()
-
-    @jwt_required
-    def delete(self, project_id):
-        role.require_pm()
-        role.require_in_project(project_id)
-        role_id = get_jwt_identity()["role_id"]
-        user_id = get_jwt_identity()["user_id"]
-        if role_id == role.QA.id:
-            if not bool(
-                    model.Project.query.filter_by(
-                        id=project_id,
-                        creator_id=user_id
-                    ).count()):
-                raise apiError.NotAllowedError('Error while deleting project.')
-        return delete_project(project_id)
-
-    @jwt_required
-    def post(self):
-        role.require_pm()
-        user_id = get_jwt_identity()["user_id"]
-        parser = reqparse.RequestParser()
-        parser.add_argument('name', type=str, required=True)
-        parser.add_argument('display', type=str)
-        parser.add_argument('description', type=str)
-        parser.add_argument('disabled', type=bool, required=True)
-        parser.add_argument('template_id', type=int)
-        parser.add_argument('tag_name', type=str)
-        parser.add_argument('arguments', type=str)
-        parser.add_argument('start_date', type=str, required=True)
-        parser.add_argument('due_date', type=str, required=True)
-        parser.add_argument('owner_id', type=int)
-        parser.add_argument('parent_id', type=int)
-        parser.add_argument('is_inherit_members', type=bool)
-        args = parser.parse_args()
-        if args['arguments'] is not None:
-            args['arguments'] = ast.literal_eval(args['arguments'])
-        check_project_args_patterns(args)
-        return util.success(create_project(user_id, args))
 
 
 class SingleProjectByName(Resource):

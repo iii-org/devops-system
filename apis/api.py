@@ -214,11 +214,7 @@ api.add_resource(project.GitRepoIdToCiPipeId,
                  '/git_repo_id_to_ci_pipe_id/<repository_id>')
 
 # Projects
-api.add_resource(project.ListMyProjects, '/project/list')
-api.add_resource(project.CaculateProjectIssues, '/project/list/caculate')
-api.add_resource(project.ListProjectsByUser, '/projects_by_user/<int:user_id>')
-api.add_resource(project.SingleProject, '/project',
-                 '/project/<sint:project_id>')
+
 api.add_resource(project.SingleProjectByName,
                  '/project_by_name/<project_name>')
 api.add_resource(project.ProjectUserList,
