@@ -282,10 +282,7 @@ def tags_note_json(id, name, add=True):
                 {
                     'name': 'tag',
                     'property': 'attr',
-                    'old_value': {
-                        'id': None,
-                        'name': None,
-                    },
+                    'old_value': None, 
                     'new_value': {
                         'id': id,
                         'name': name,
@@ -303,15 +300,11 @@ def tags_note_json(id, name, add=True):
                         'id': id,
                         'name': name,
                     },
-                    'new_value': {
-                        'id': None,
-                        'name': None,
-                    }
+                    'new_value': None
                 }
             ]
         }
     return json.dumps(note, ensure_ascii=False)
-    # return note
 
 
 def create_issue_tags(issue_id, tags, plan_operator_id):
