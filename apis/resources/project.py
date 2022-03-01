@@ -474,8 +474,6 @@ def delete_project(project_id):
 
 @record_activity(ActionType.DELETE_PROJECT)
 def delete_project_helper(project_id):
-    # Get project name(for remove its NFS folder)
-    project_name = model.Project.query.get(project_id).name
 
     # 取得gitlab & redmine project_id
     relation = nx_get_project_plugin_relation(nexus_project_id=project_id)
