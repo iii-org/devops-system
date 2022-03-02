@@ -5,22 +5,23 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-import nexus
-from model import Project
 import config
 import dateutil.parser
+import nexus
 import resources.apiError as apiError
 import resources.pipeline as pipeline
 import resources.role as role
-from resources.gitlab import gitlab as rs_gitlab
 import resources.yaml_OO as pipeline_yaml_OO
-from resources import logger
 import util
 import yaml
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
 from gitlab import Gitlab
-from model import PluginSoftware, TemplateListCache, db
+from gitlab.exceptions import GitlabGetError
+from model import PluginSoftware, Project, TemplateListCache, db
+from resources import logger
+from resources.apiError import DevOpsError
+from resources.gitlab import gitlab as rs_gitlab
 
 template_replace_dict = {
     "registry": config.get("HARBOR_EXTERNAL_BASE_URL").replace("https://", ""),
@@ -283,6 +284,13 @@ def __update_stage_when_plugin_disable(stage):
                 stage_when.clear()
                 stage_when.append("skip")
     return stage
+
+
+def lock_project(pj_name, info):
+    pj_row = Project.query.filter_by(name=pj_name).first()
+    pj_row.is_lock = True
+    pj_row.lock_reason = f"The {info} softwares of the {pj_name} project has been deleted."
+    db.session.commit()
 
 
 def tm_get_template_list(force_update=0):
@@ -576,7 +584,16 @@ def tm_update_pipline_branches(repository_id, data, default=True, run=False):
 
 
 def initial_rancher_pipline_info(repository_id):
-    pj = gl.projects.get(repository_id)
+    try:
+        pj = gl.projects.get(repository_id)
+    except GitlabGetError as e:
+        if 'Project Not Found' in e.error_message:
+            lock_project(nexus.nx_get_project(
+                id=nexus.nx_get_project_plugin_relation(repo_id=repository_id).project_id).name, "Gitlab")
+        raise DevOpsError(
+            404,
+            "Gitlab project not found.",
+            error=apiError.repository_id_not_found(repository_id))
     if __check_git_project_is_empty(pj):
         return {}
     default_branch = pj.default_branch
