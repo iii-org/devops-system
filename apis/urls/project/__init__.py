@@ -84,3 +84,64 @@ def project_url(api, add_resource):
     add_resource(view.SingleProjectV2, 'public')
     api.add_resource(view.SingleProjectCreateV2, '/v2/project')
     add_resource(view.SingleProjectCreateV2, 'public')
+    
+    api.add_resource(view.SingleProjectByName, '/project_by_name/<project_name>')
+    api.add_resource(view.SingleProjectByNameV2, '/v2/project_by_name/<project_name>')
+    add_resource(view.SingleProjectByNameV2, 'public')
+
+    # Project member
+    api.add_resource(view.ProjectMember, '/project/<sint:project_id>/member',
+                 '/project/<sint:project_id>/member/<int:user_id>')
+    api.add_resource(view.ProjectMemberV2, '/v2/project/<sint:project_id>/member')
+    add_resource(view.ProjectMemberV2, 'public')
+    api.add_resource(view.ProjectMemberDeleteV2, '/v2/project/<sint:project_id>/member/<int:user_id>')
+    add_resource(view.ProjectMemberDeleteV2, 'public')
+
+    api.add_resource(view.ProjectUserList, '/project/<sint:project_id>/user/list')
+    api.add_resource(view.ProjectUserListV2, '/v2/project/<sint:project_id>/user/list')
+    add_resource(view.ProjectUserListV2, 'public')
+
+    # Project test results, reports, files
+    api.add_resource(view.TestSummary, '/project/<sint:project_id>/test_summary')
+    api.add_resource(view.TestSummaryV2, '/v2/project/<sint:project_id>/test_summary')
+    add_resource(view.TestSummaryV2, 'public')
+    
+    api.add_resource(view.AllReports, '/project/<sint:project_id>/test_reports')
+    api.add_resource(view.AllReportsV2, '/v2/project/<sint:project_id>/test_reports')
+    add_resource(view.AllReportsV2, 'public')
+
+    api.add_resource(view.ProjectFile, '/project/<sint:project_id>/file')
+    api.add_resource(view.ProjectFileV2, '/v2/project/<sint:project_id>/file')
+    add_resource(view.ProjectFileV2, 'public')
+
+    # Project pulgin(k8s)
+    api.add_resource(view.ProjectPluginUsage, '/project/<sint:project_id>/plugin/resource')
+    api.add_resource(view.ProjectPluginUsageV2, '/v2/project/<sint:project_id>/plugin/resource')
+    add_resource(view.ProjectPluginUsageV2, 'public')
+
+    api.add_resource(view.ProjectUserResource, '/project/<sint:project_id>/resource')
+    api.add_resource(view.ProjectUserResourceV2, '/v2/project/<sint:project_id>/resource')
+    add_resource(view.ProjectUserResourceV2, 'public')
+
+    api.add_resource(view.ProjectPluginPod, '/project/<sint:project_id>/plugin')
+    api.add_resource(view.ProjectPluginPodV2, '/v2/project/<sint:project_id>/plugin')
+    add_resource(view.ProjectPluginPodV2, 'public')
+
+    api.add_resource(view.ProjectUserResourcePods, '/project/<sint:project_id>/resource/pods')
+    api.add_resource(view.ProjectUserResourcePodsV2, '/v2/project/<sint:project_id>/resource/pods')
+    add_resource(view.ProjectUserResourcePodsV2, 'public')
+
+    api.add_resource(view.ProjectUserResourcePod, '/project/<sint:project_id>/resource/pods/<pod_name>')
+    api.add_resource(view.ProjectUserResourcePodV2, '/v2/project/<sint:project_id>/resource/pods/<pod_name>')
+    add_resource(view.ProjectUserResourcePodV2, 'public')
+
+    api.add_resource(view.ProjectUserResourcePodLog, '/project/<sint:project_id>/resource/pods/<pod_name>/log')
+    api.add_resource(view.ProjectUserResourcePodLogV2, '/v2/project/<sint:project_id>/resource/pods/<pod_name>/log')
+    add_resource(view.ProjectUserResourcePodLogV2, 'public')
+
+    api.add_resource(view.ProjectEnvironment, '/project/<sint:project_id>/environments',
+                 '/project/<sint:project_id>/environments/branch/<branch_name>')
+    api.add_resource(view.ProjectEnvironmentGetV2, '/v2/project/<sint:project_id>/environments')
+    add_resource(view.ProjectEnvironmentGetV2, 'public')
+    api.add_resource(view.ProjectEnvironmentV2,  '/v2/project/<sint:project_id>/environments/branch/<branch_name>')
+    add_resource(view.ProjectEnvironmentV2, 'public')

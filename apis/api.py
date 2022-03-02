@@ -216,23 +216,7 @@ api.add_resource(project.GitRepoIdToCiPipeId,
 
 # Projects
 
-api.add_resource(project.SingleProjectByName,
-                 '/project_by_name/<project_name>')
-api.add_resource(project.ProjectUserList,
-                 '/project/<sint:project_id>/user/list')
-api.add_resource(project.ProjectPluginPod,
-                 '/project/<sint:project_id>/plugin')
-api.add_resource(project.ProjectPluginUsage,
-                 '/project/<sint:project_id>/plugin/resource')
-api.add_resource(project.ProjectUserResource,
-                 '/project/<sint:project_id>/resource')
 
-api.add_resource(project.ProjectUserResourcePods,
-                 '/project/<sint:project_id>/resource/pods')
-api.add_resource(project.ProjectUserResourcePod,
-                 '/project/<sint:project_id>/resource/pods/<pod_name>')
-api.add_resource(project.ProjectUserResourcePodLog,
-                 '/project/<sint:project_id>/resource/pods/<pod_name>/log')
 
 api.add_resource(starred_project.StarredProject,
                  '/project/<sint:project_id>/star')
@@ -287,8 +271,6 @@ api.add_resource(project.ProjectUserResourceConfigMap,
 api.add_resource(project.ProjectUserResourceIngresses,
                  '/project/<sint:project_id>/resource/ingresses')
 
-api.add_resource(project.ProjectMember, '/project/<sint:project_id>/member',
-                 '/project/<sint:project_id>/member/<int:user_id>')
 api.add_resource(wiki.ProjectWikiList, '/project/<sint:project_id>/wiki')
 api.add_resource(wiki.ProjectWiki,
                  '/project/<sint:project_id>/wiki/<wiki_name>')
@@ -304,8 +286,6 @@ api.add_resource(template.ProjectPipelineBranches,
                  '/project/<repository_id>/pipeline/branches')
 api.add_resource(template.ProjectPipelineDefaultBranch,
                  '/project/<repository_id>/pipeline/default_branch')
-api.add_resource(project.ProjectEnvironment, '/project/<sint:project_id>/environments',
-                 '/project/<sint:project_id>/environments/branch/<branch_name>')
 api.add_resource(project.ProjectEnvironmentUrl,
                  '/project/<sint:project_id>/environments/branch/<branch_name>/urls')
 
@@ -508,10 +488,6 @@ api.add_resource(apiTest.TestValueByTestItem,
 api.add_resource(apiTest.TestValue, '/testValues/<value_id>')
 
 # Integrated test results
-api.add_resource(project.TestSummary,
-                 '/project/<sint:project_id>/test_summary')
-api.add_resource(project.AllReports,
-                 '/project/<sint:project_id>/test_reports')
 api.add_resource(cicd.CommitCicdSummary,
                  '/project/<sint:project_id>/test_summary/<commit_id>')
 
@@ -521,7 +497,6 @@ api.add_resource(issue.DumpByIssue, '/dump_by_issue/<issue_id>')
 
 
 # Files
-api.add_resource(project.ProjectFile, '/project/<sint:project_id>/file')
 api.add_resource(redmine.RedmineFile, '/download', '/file/<int:file_id>')
 
 api.add_resource(redmine.RedmineMail, '/mail')

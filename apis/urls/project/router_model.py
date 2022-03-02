@@ -378,7 +378,6 @@ class ListMyProjectsByUserResponse(CommonBasicResponse):
 
 ##### Single project ######
 
-
 #################################### Schema ####################################
 
 class SingleProjectPutSchema(Schema):
@@ -426,3 +425,218 @@ class SingleProjectGetResponse(CommonBasicResponse):
 class SingleProjectPostResponse(CommonBasicResponse):
     data = fields.Nested(SingleProjectDataPostResponse, required=True)
 
+class SingleProjectByNameResponse(CommonBasicResponse):
+    data = fields.Nested(ProjectsBasicResponse, required=True)
+
+
+##### Project member ######
+
+#################################### Schema ####################################
+
+class SingleProjectPutSchema(Schema):
+    user_id = fields.Int(doc='user_id',  example=1, required=True)
+
+class ProjectUserListSchema(Schema):
+    exclude = fields.Int(doc='exclude',  example=1)
+
+#################################### Response ####################################
+
+########## Module ##########
+
+class ProjectUserLists(BasicIsssueResponse):
+    create_at = fields.Str(example="1970-01-01 00:00:00.000000", default=None)
+    department = fields.Str(example="string")
+    status = fields.Str(example="string")
+    email = fields.Str(example="string")
+    from_ad = fields.Bool(example=True)
+    login = fields.Str(example="string")
+    phone = fields.Str()
+    title = fields.Str(example="string")
+    update_at = fields.Str(example="1970-01-01 00:00:00.000000", default=None)
+    default_role = fields.Dict()
+    role_id = fields.Int(example=1)
+    role_name = fields.Str(example="string")
+
+
+class ProjectUserListData(Schema):
+    user_list = fields.List(fields.Nested(ProjectUserLists), required=True)
+
+
+########## API Action ##########
+class ProjectUserListResponse(Schema):
+    data = fields.Nested(ProjectUserListData, required=True)
+
+
+##### Project report ######
+
+#################################### Response ####################################
+
+########## Module ##########
+
+class TestSummaryDataTestResult(Schema):
+    postman = fields.Dict()
+    checkmarx = fields.Dict()
+    webinspect = fields.Dict()
+    sonarqube = fields.Dict()
+    zap = fields.Dict()
+    sideex = fields.Dict()
+    cmas = fields.Dict()
+
+class TestSummaryData(Schema):
+    test_results = fields.Nested(TestSummaryDataTestResult, required=True)
+
+class ProjectFileGetDataFiles(Schema):
+    id = fields.Int(example=1)
+    filename = fields.Str(example="filename")
+    filesize = fields.Int(example=1)
+    content_type = fields.Str(example="string", default=None)
+    description = fields.Str(example="string")
+    content_url = fields.Str()
+    thumbnail_url = fields.Str()
+    author = fields.Dict()
+    version = fields.Dict()
+    created_on = fields.Str(example="1970-01-01 00:00:00.000000")
+    digest = fields.Str()
+    downloads = fields.Int(example=1)
+
+class ProjectFileGetData(Schema):
+    files = fields.List(fields.Nested(ProjectFileGetDataFiles, required=True) , required=True)
+
+########## API Action ##########
+class TestSummaryResponse(CommonBasicResponse):
+    data = fields.Nested(TestSummaryData, required=True)
+
+class ProjectFileGetResponse(CommonBasicResponse):
+    data = fields.Nested(ProjectFileGetData, required=True)
+
+##### Project plugin(k8s) ######
+
+#################################### Schema ####################################
+
+class ProjectUserResourceSchema(Schema):
+    this_one_has_issue = fields.Str(example="services.nodeports")
+    # memory 
+    # pods
+    # secrets
+    # configmaps
+    # services.nodeports
+    # persistentvolumeclaims
+
+class ProjectUserResourcePodLogSchema(Schema):
+    container_name = fields.Str(example="sonarqube-scan-00000-00", required=True)
+
+
+#################################### Response ####################################
+
+########## Module ##########
+
+class ProjectPluginUsageData(Schema):
+    title = fields.Str()
+    used = fields.Dict(example={"value": 0, "unit": ""})
+    quota = fields.Dict(example={"value": 0, "unit": ""})
+
+class ProjectUserResourceData(Schema):
+    quota = fields.Dict(example={
+        "configmaps": "60",
+        "cpu": "10",
+        "memory": "10G",
+        "persistentvolumeclaims": "0",
+        "pods": "20",
+        "services.nodeports": "10",
+        "deployments": "0",
+        "ingresses": "0",
+        "secrets": "15"
+    })
+    used = fields.Dict(example={
+        "configmaps": "60",
+        "cpu": "10",
+        "memory": "10G",
+        "persistentvolumeclaims": "0",
+        "pods": "20",
+        "services.nodeports": "10",
+        "deployments": "0",
+        "ingresses": "0",
+        "secrets": "15"
+    })
+
+class ProjectUserResourcePodsContainers(Schema):
+    name = fields.Str()
+    image = fields.Str()
+    restart = fields.Integer()
+    state = fields.Str()
+    time = fields.Str(example="1970-01-01 00:00:00+00:00")
+
+class ProjectUserResourcePodsData(Schema):
+    name = fields.Str()
+    created_time = fields.Str(example="1970-01-01 00:00:00+00:00")
+    containers = fields.List(fields.Nested(ProjectUserResourcePodsContainers))
+
+class ProjectEnvironmentGetData(Schema):
+    name = fields.Str()
+    branch = fields.Str()
+    commit_id = fields.Str()
+    commit_url = fields.Str()
+    pods = fields.List(fields.Dict(
+        example={
+            "app_name": "john-son1-master-db",
+            "pod_name": "john-son1-master-db-dpy-b76c7495-frqqc",
+            "type": "db-server",
+            "containers": [
+                {
+                    "name": "postgresql",
+                    "image": "bitnami/postgresql:11-debian-10",
+                    "status": {
+                        "state": "running",
+                        "time": "2022-03-02 04:17:01+00:00",
+                        "restart": 0,
+                        "image": "bitnami/postgresql:11-debian-10",
+                        "name": "postgresql",
+                        "ready": True
+                    },
+                    "service_port_mapping": [
+                        {
+                            "container_port": 5432,
+                            "name": "db",
+                            "protocol": "TCP",
+                            "services": [
+                                {
+                                    "port_name": "db",
+                                    "target_port": 5432,
+                                    "port": 5432,
+                                    "url": [
+                                        "10.20.0.93:30533"
+                                    ],
+                                    "name": "john-son1-master-db-svc",
+                                    "service_type": "db-server"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }    
+    ))
+
+
+########## API Action ##########
+
+class ProjectPluginUsageResponse(CommonBasicResponse):
+    data = fields.List(fields.Nested(ProjectPluginUsageData, required=True) , required=True)
+
+class ProjectUserResourceResponse(CommonBasicResponse):
+    data = fields.Nested(ProjectUserResourceData, required=True)
+
+class ProjectUserResourcePodsResponse(CommonBasicResponse):
+    data = fields.List(fields.Nested(ProjectUserResourcePodsData, required=True) , required=True)
+
+class ProjectUserResourcePodResponse(CommonBasicResponse):
+    data = fields.Str()
+
+class ProjectEnvironmentGetResponse(CommonBasicResponse):
+    data = fields.List(fields.Nested(ProjectEnvironmentGetData) , required=True)
+
+class ProjectEnvironmentPutResponse(CommonBasicResponse):
+    data = fields.List(fields.Dict())
+
+class ProjectEnvironmentDeleteResponse(CommonBasicResponse):
+    data = fields.List(fields.Str())
