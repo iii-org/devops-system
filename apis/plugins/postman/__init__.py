@@ -1,5 +1,8 @@
 from . import postman_main
 
+
+ui_route = ["Postman", "PostmanTestCase"]
+
 # --------------------- API router ---------------------
 
 

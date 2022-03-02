@@ -55,8 +55,12 @@ def __api_post(path, params=None, headers=None, data=None, ):
 
 # ------------- Regular methods -------------
 def sq_create_user(args):
-    return __api_post(f'/users/create?login={args["login"]}&name={args["name"]}'
-                      f'&password={args["password"]}')
+    params = {
+        'login': args.get('login'),
+        'password': args.get('password'),
+        'name': args.get('name')
+    }
+    return __api_post('/users/create', params=params)
 
 
 def sq_deactivate_user(user_login):

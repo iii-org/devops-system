@@ -28,13 +28,24 @@ import resources.apiError as apiError
 import resources.pipeline as pipeline
 import resources.rancher as rancher
 import util
+import routing_job
 from jsonwebtoken import jsonwebtoken
 from model import db
 from resources import logger, role as role, activity, starred_project, devops_version, cicd
 from resources import project, gitlab, issue, user, redmine, wiki, version, apiTest, mock, harbor, \
     template, release, sync_redmine, plugin, kubernetesClient, project_permission, quality, sync_project, \
-    sync_user, router, deploy, alert, trace_order, tag, monitoring, lock, system_parameter, alert_message, \
-    maintenance, issue_display_field, project_relation
+    sync_user, router, deploy, alert, trace_order, tag, lock, system_parameter, alert_message, \
+    maintenance, issue_display_field, notification_message, project_relation
+from apispec import APISpec
+from flask_apispec.extension import FlaskApiSpec
+from apispec.ext.marshmallow import MarshmallowPlugin
+
+# This import will merge to the above one after all API move to V2.
+from urls.project import project_url
+from urls.issue import issue_url
+from urls.sync_projects import sync_projects_url
+from urls import monitoring
+
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -45,6 +56,29 @@ for key in ['JWT_SECRET_KEY',
             ]:
     app.config[key] = config.get(key)
 
+# setting swagger config
+app.config.update({
+    'APISPEC_SPEC': APISpec(
+        title='Devops API Project',
+        version='v1',
+        plugins=[MarshmallowPlugin()],
+        openapi_version='2.0.0'
+    ),
+    'APISPEC_SWAGGER_URL': '/swagger/',  # URI to access API Doc JSON
+    'APISPEC_SWAGGER_UI_URL': '/swagger-ui/'  # URI to access UI of API Doc
+})
+docs = FlaskApiSpec(app)
+
+
+def add_resource(classes, level):
+    if config.get("DOCUMENT_LEVEL") == "public":
+        if level in ['public']:
+            docs.register(classes)
+    elif config.get("DOCUMENT_LEVEL") == "private":
+        if level in ['public', 'private']:
+            docs.register(classes)
+
+
 app.config['PROPAGATE_EXCEPTIONS'] = True
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     "pool_pre_ping": True,
@@ -54,7 +88,7 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
 
 api = Api(app, errors=apiError.custom_errors)
 CORS(app)
-socketio = SocketIO(app, cors_allowed_origins="*",
+socketio = SocketIO(app, message_queue='redis://devops-redis-service:6379', cors_allowed_origins="*",
                     logger=True, engineio_logger=True, timeout=60000)
 
 
@@ -172,19 +206,22 @@ def initialize(db_uri):
 
 
 api.add_resource(router.Router, '/router')
+api.add_resource(router.RouterNameV2, '/v2/router/name')
+add_resource(router.RouterNameV2, "public")
+api.add_resource(router.UserRouteV2, '/v2/router/user_route')
+add_resource(router.UserRouteV2, "public")
 
 api.add_resource(project.GitRepoIdToCiPipeId,
                  '/git_repo_id_to_ci_pipe_id/<repository_id>')
 
 # Projects
-api.add_resource(project.ListMyProjects, '/project/list')
-api.add_resource(project.ListProjectsByUser, '/projects_by_user/<int:user_id>')
-api.add_resource(project.SingleProject, '/project',
-                 '/project/<sint:project_id>')
+
 api.add_resource(project.SingleProjectByName,
                  '/project_by_name/<project_name>')
 api.add_resource(project.ProjectUserList,
                  '/project/<sint:project_id>/user/list')
+api.add_resource(project.ProjectPluginPod,
+                 '/project/<sint:project_id>/plugin')
 api.add_resource(project.ProjectPluginUsage,
                  '/project/<sint:project_id>/plugin/resource')
 api.add_resource(project.ProjectUserResource,
@@ -200,12 +237,6 @@ api.add_resource(project.ProjectUserResourcePodLog,
 api.add_resource(starred_project.StarredProject,
                  '/project/<sint:project_id>/star')
 
-api.add_resource(issue.DownloadProject,
-                 '/project/<sint:project_id>/download/execute',
-                 '/project/<sint:project_id>/download/is_exist',
-                 '/project/<sint:project_id>/download')
-
-
 api.add_resource(gitlab.SyncGitCommitIssueRelationByPjName,
                  '/project/issues_commit_by_name',
                  )
@@ -218,13 +249,9 @@ api.add_resource(gitlab.SyncGitCommitIssueRelation,
                  '/project/<sint:project_id>/issues_commit/<issue_id>',
                  )
 api.add_resource(gitlab.GetCommitIssueHookByBranch, '/project/<sint:project_id>/issues_commit/by_branch')
-api.add_resource(project_relation.CheckhasSonProject, '/project/<sint:project_id>/has_son')
-api.add_resource(project_relation.GetProjectRootID, '/project/<sint:project_id>/root_project')
 api.add_resource(project.ProjectRelation, '/project/<sint:project_id>/relation')
-api.add_resource(issue.IssueCommitRelation, '/issue/relation')
-api.add_resource(project_relation.SyncProjectRelation, '/project/sync_project_relation')
-api.add_resource(project_relation.GetProjectFamilymembersByUser, '/project/<sint:project_id>/members')
 
+project_url(api, add_resource)
 
 # Tag
 api.add_resource(tag.Tags, '/tags')
@@ -309,6 +336,11 @@ api.add_resource(gitlab.GitlabDomainConnection, '/repositories/is_ip', '/reposit
 
 # User
 api.add_resource(user.Login, '/user/login')
+# input api in swagger (for swagger)
+api.add_resource(user.LoginV2, '/v2/user/login')
+add_resource(user.LoginV2, "public")
+
+
 # api.add_resource(user.UserForgetPassword, '/user/forgetPassword')
 api.add_resource(user.UserStatus, '/user/<int:user_id>/status')
 api.add_resource(user.SingleUser, '/user', '/user/<int:user_id>')
@@ -338,37 +370,30 @@ socketio.on_namespace(rancher.RancherWebsocketLog('/rancher/websocket/logs'))
 socketio.on_namespace(system_parameter.SyncTemplateWebsocketLog('/sync_template/websocket/logs'))
 socketio.on_namespace(
     kubernetesClient.KubernetesPodExec('/k8s/websocket/pod_exec'))
+socketio.on_namespace(issue.IssueSocket('/issues/websocket'))
 
 # issue
-api.add_resource(issue.IssueFamily, '/issue/<issue_id>/family')
-api.add_resource(issue.IssueByProject, '/project/<sint:project_id>/issues')
-api.add_resource(issue.IssueByUser, '/user/<sint:user_id>/issues')
-api.add_resource(issue.IssueByTreeByProject,
-                 '/project/<sint:project_id>/issues_by_tree')
-api.add_resource(issue.IssueByStatusByProject,
-                 '/project/<sint:project_id>/issues_by_status')
-api.add_resource(issue.IssueByDateByProject,
-                 '/project/<sint:project_id>/issues_by_date')
-api.add_resource(issue.IssuesProgressByProject,
-                 '/project/<sint:project_id>/issues_progress')
-api.add_resource(issue.IssuesStatisticsByProject,
-                 '/project/<sint:project_id>/issues_statistics')
-api.add_resource(issue.IssueFilterByProject, '/project/<sint:project_id>/issue_filter',
-                 '/project/<sint:project_id>/issue_filter/<custom_filter_id>')
+issue_url(api, add_resource)
 
+api.add_resource(issue.IssueByUser, '/user/<sint:user_id>/issues')
+api.add_resource(issue.IssueByUserV2, '/v2/user/<sint:user_id>/issues')
+add_resource(issue.IssueByUserV2, 'public')
 
 api.add_resource(issue.IssueByVersion, '/issues_by_versions')
-api.add_resource(issue.SingleIssue, '/issues', '/issues/<issue_id>')
+api.add_resource(issue.IssueByVersionV2, '/v2/issues_by_versions')
+add_resource(issue.IssueByVersionV2, 'public')
+
 api.add_resource(issue.IssueStatus, '/issues_status')
+api.add_resource(issue.IssueStatusV2, '/v2/issues_status')
+add_resource(issue.IssueStatusV2, "public")
+
 api.add_resource(issue.IssuePriority, '/issues_priority')
+api.add_resource(issue.IssuePriorityV2, '/v2/issues_priority')
+add_resource(issue.IssuePriorityV2, 'public')
+
 api.add_resource(issue.IssueTracker, '/issues_tracker')
-api.add_resource(issue.MyIssueStatistics, '/issues/statistics')
-api.add_resource(issue.MyOpenIssueStatistics, '/issues/open_statistics')
-api.add_resource(issue.MyIssueWeekStatistics, '/issues/week_statistics')
-api.add_resource(issue.MyIssueMonthStatistics, '/issues/month_statistics')
-api.add_resource(issue.Relation, '/issues/relation',
-                 '/issues/relation/<int:relation_id>')
-api.add_resource(issue.CheckIssueClosable, '/issues/<issue_id>/check_closable')
+api.add_resource(issue.IssueTrackerV2, '/v2/issues_tracker')
+add_resource(issue.IssueTrackerV2, 'public')
 
 
 # Issue Field Display
@@ -386,9 +411,20 @@ api.add_resource(plugin.Plugin, '/plugins/<plugin_name>')
 # dashboard
 api.add_resource(issue.DashboardIssuePriority,
                  '/dashboard_issues_priority/<user_id>')
+api.add_resource(issue.DashboardIssuePriorityV2,
+                 '/v2/dashboard_issues_priority/<user_id>')
+add_resource(issue.DashboardIssuePriorityV2, "public")
+
 api.add_resource(issue.DashboardIssueProject,
                  '/dashboard_issues_project/<user_id>')
+api.add_resource(issue.DashboardIssueProjectV2,
+                 '/v2/dashboard_issues_project/<user_id>')
+add_resource(issue.DashboardIssueProjectV2, "public")
+
 api.add_resource(issue.DashboardIssueType, '/dashboard_issues_type/<user_id>')
+api.add_resource(issue.DashboardIssueTypeV2, '/v2/dashboard_issues_type/<user_id>')
+add_resource(issue.DashboardIssueTypeV2, 'public')
+
 api.add_resource(gitlab.GitTheLastHoursCommits,
                  '/dashboard/the_last_hours_commits')
 api.add_resource(sync_redmine.ProjectMembersCount,
@@ -410,17 +446,38 @@ api.add_resource(sync_redmine.PassingRateDetail,
 
 # testPhase Requirement
 api.add_resource(issue.RequirementByIssue, '/requirements_by_issue/<issue_id>')
+api.add_resource(issue.RequirementByIssueV2, '/v2/requirements_by_issue/<issue_id>')
+add_resource(issue.RequirementByIssueV2, 'public')
+
 api.add_resource(issue.Requirement, '/requirements/<requirement_id>')
+api.add_resource(issue.RequirementV2, '/v2/requirements/<requirement_id>')
+add_resource(issue.RequirementV2, 'public')
 
 # testPhase Flow
 api.add_resource(issue.FlowByIssue, '/flows_by_issue/<issue_id>')
+api.add_resource(issue.FlowByIssueV2, '/v2/flows_by_issue/<issue_id>')
+add_resource(issue.FlowByIssueV2, 'public')
+
 api.add_resource(issue.GetFlowType, '/flows/support_type')
+api.add_resource(issue.GetFlowTypeV2, '/v2/flows/support_type')
+add_resource(issue.GetFlowTypeV2, 'public')
+
 api.add_resource(issue.Flow, '/flows/<flow_id>')
+api.add_resource(issue.FlowV2, '/v2/flows/<flow_id>')
+add_resource(issue.FlowV2, "public")
 
 # testPhase Parameters FLow
 api.add_resource(issue.ParameterByIssue, '/parameters_by_issue/<issue_id>')
+api.add_resource(issue.ParameterByIssueV2, '/v2/parameters_by_issue/<issue_id>')
+add_resource(issue.ParameterByIssueV2, 'public')
+
 api.add_resource(issue.Parameter, '/parameters/<parameter_id>')
+api.add_resource(issue.ParameterV2, '/v2/parameters/<parameter_id>')
+add_resource(issue.ParameterV2, 'public')
+
 api.add_resource(issue.ParameterType, '/parameter_types')
+api.add_resource(issue.ParameterTypeV2, '/v2/parameter_types')
+add_resource(issue.ParameterTypeV2, 'public')
 
 # testPhase TestCase Support Case Type
 api.add_resource(apiTest.TestCases, '/test_cases')
@@ -531,7 +588,7 @@ api.add_resource(gitlab.GitCountEachPjCommitsByDays,
                  '/sync_gitlab/count_each_pj_commits_by_days')
 api.add_resource(rancher.RancherCountEachPjPiplinesByDays,
                  '/sync_rancher/count_each_pj_piplines_by_days')
-api.add_resource(issue.ExecutIssueAlert, '/sync_issue_alert')
+api.add_resource(issue.ExecuteIssueAlert, '/sync_issue_alert')
 
 # Subadmin Projects Permission
 api.add_resource(project_permission.AdminProjects,
@@ -560,8 +617,7 @@ api.add_resource(quality.Report, '/quality/<int:project_id>/report')
 # System versions
 api.add_resource(NexusVersion, '/system_versions')
 
-# Sync Projects
-api.add_resource(sync_project.SyncProject, '/sync_projects')
+sync_projects_url(api, add_resource)
 
 # Sync Users
 api.add_resource(sync_user.SyncUser, '/sync_users')
@@ -601,21 +657,8 @@ api.add_resource(trace_order.SingleTraceOrder, '/trace_order/<sint:trace_order_i
 api.add_resource(trace_order.ExecuteTraceOrder, '/trace_order/execute')
 api.add_resource(trace_order.GetTraceResult, '/trace_order/result')
 
-# Monitoring
-api.add_resource(monitoring.ServersAlive, '/monitoring/alive')
-api.add_resource(monitoring.RedmineAlive, '/monitoring/redmine/alive')
-api.add_resource(monitoring.GitlabAlive, '/monitoring/gitlab/alive')
-api.add_resource(monitoring.HarborAlive, '/monitoring/harbor/alive')
-api.add_resource(monitoring.HarborStorage, '/monitoring/harbor/usage')
-api.add_resource(monitoring.HarborProxy, '/monitoring/harbor/pull_limit')
-api.add_resource(monitoring.SonarQubeAlive, '/monitoring/sonarqube/alive')
-api.add_resource(monitoring.RancherAlive, '/monitoring/rancher/alive')
-api.add_resource(monitoring.RancherDefaultName, '/monitoring/rancher/default_name')
-api.add_resource(monitoring.K8sAlive, '/monitoring/k8s/alive')
-api.add_resource(monitoring.CollectPodRestartTime, '/monitoring/k8s/collect_pod_restart_times_by_hour')
-api.add_resource(monitoring.PodAlert, '/monitoring/k8s/pod_alert')
-api.add_resource(monitoring.RemoveExtraExecutions, '/monitoring/k8s/remove_extra_executions')
-api.add_resource(monitoring.GithubTokenVerify, '/monitoring/github/validate_token')
+# monitoring
+monitoring.monitoring_url(api, add_resource)
 
 # System parameter
 api.add_resource(system_parameter.SystemParameters, '/system_parameter', '/system_parameter/<int:param_id>')
@@ -626,6 +669,15 @@ api.add_resource(lock.LockStatus, '/lock')
 
 # Alert message
 api.add_resource(alert_message.AlertMessages, '/alert_message')
+
+# message
+api.add_resource(notification_message.MessageList, '/notification_message_list')
+api.add_resource(notification_message.Message, '/notification_message', '/notification_message/<int:message_id>')
+api.add_resource(notification_message.MessageReply, '/notification_message_reply/<int:user_id>')
+socketio.on_namespace(notification_message.GetNotificationMessage('/get_notification_message'))
+
+# routing job
+api.add_resource(routing_job.DoJobByMonth, '/routing_job/by_month')
 
 
 def start_prod():

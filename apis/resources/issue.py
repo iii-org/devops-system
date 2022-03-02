@@ -4,20 +4,16 @@ from collections import defaultdict
 from datetime import datetime, date, timedelta
 from distutils.util import strtobool
 
-import werkzeug
+from flask_socketio import Namespace, emit, join_room, leave_room
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
 from redminelib import exceptions as redminelibError
 from sqlalchemy import or_
 from sqlalchemy.dialects.postgresql import Any
 from sqlalchemy.orm.exc import NoResultFound
-from sqlalchemy.sql import operators
 
 import re
-import threading
 import os
-from flask import send_file
-from pathlib import Path
 import config
 import model
 import nexus
@@ -31,14 +27,16 @@ from enums.action_type import ActionType
 from model import db, IssueExtensions, CustomIssueFilter
 from resources.apiError import DevOpsError
 from resources.redmine import redmine
-from . import project as project_module, project, role
-from .activity import record_activity
-from . import tag as tag_py
+from resources import project as project_module, project, role
+from resources.activity import record_activity
+from resources import tag as tag_py
 from resources.user import user_list_by_project
-from redminelib.exceptions import ResourceAttrError
 from resources import logger
 from resources.lock import get_lock_status
 from resources.project_relation import project_has_child, project_has_parent
+from flask_apispec import marshal_with, doc, use_kwargs
+from flask_apispec.views import MethodResource
+from resources import route_model
 
 FLOW_TYPES = {"0": "Given", "1": "When", "2": "Then", "3": "But", "4": "And"}
 PARAMETER_TYPES = {'1': '文字', '2': '英數字', '3': '英文字', '4': '數字'}
@@ -167,7 +165,7 @@ class NexusIssue:
         }
         if hasattr(redmine_issue, 'project'):
             project_id = nexus.nx_get_project_plugin_relation(
-                    rm_project_id=redmine_issue['project']['id']).project_id
+                    rm_project_id=redmine_issue.project.id).project_id
             if nx_project is None or project_has_child(project_id) or project_has_parent(project_id):
                 nx_project = model.Project.query.get(project_id)
             self.data['project'] = {
@@ -242,96 +240,6 @@ class NexusIssue:
             self.data["point"] = get_issue_point(self.data["id"])
         return self
 
-    def set_redmine_issue_v3(self, redmine_issue, with_relationship=False,
-                             relationship_bool=False, nx_project=None, users_info=None, with_point=False, relation_id=None):
-        self.data = {
-            'id': redmine_issue["id"],
-            'name': redmine_issue["subject"],
-            'project': {},
-            'description': redmine_issue.get("description"),
-            'updated_on': redmine_issue.get("updated_on")[:-1] if redmine_issue.get("updated_on") is not None else None,
-            'start_date': redmine_issue.get("start_date"),
-            'assigned_to': {},
-            'fixed_version': redmine_issue.get("fixed_version", {}),
-            'due_date': redmine_issue.get("due_date"),
-            'done_ratio': redmine_issue["done_ratio"],
-            'is_closed': redmine_issue['status']['id'] in NexusIssue.get_closed_statuses(),
-            'issue_link': redmine.rm_build_external_link(
-                f'/issues/{redmine_issue["id"]}'),
-            'tracker': redmine_issue["tracker"],
-            'priority': redmine_issue["priority"],
-            'status': redmine_issue["status"],
-            "tags": get_issue_tags(redmine_issue["id"]),
-        }
-
-        if self.data['project'] is not None:
-            project_id = nexus.nx_get_project_plugin_relation(
-                    rm_project_id=redmine_issue['project']['id']).project_id
-            if nx_project is None or project_has_child(project_id) or project_has_parent(project_id):
-                nx_project = model.Project.query.get(project_id)
-            self.data["project"] = {
-                'id': nx_project.id,
-                'name': nx_project.name,
-                'display': nx_project.display
-            }
-
-        if 'assigned_to' in redmine_issue:
-            self.data["assigned_to"] = redmine_issue["assigned_to"]
-            if users_info is not None:
-                for user_info in users_info:
-                    if user_info[3] == redmine_issue['assigned_to']['id']:
-                        self.data['assigned_to'] = {
-                            'id': user_info[0],
-                            'name': user_info[1],
-                            'login': user_info[2]
-                        }
-                        break
-            else:
-                user_info = user.get_user_id_name_by_plan_user_id(
-                    redmine_issue['assigned_to']['id'])
-                if user_info is not None:
-                    self.data['assigned_to'] = {
-                        'id': user_info.id,
-                        'name': user_info.name,
-                        'login': user_info.login
-                    }
-
-        if relationship_bool:
-            has_children = redmine_lib.redmine.issue.get(self.data["id"], include=['children']).children.total_count > 0
-            self.data['has_children'] = has_children
-            relations = redmine_issue.get("relations")
-            family_bool = self.data['has_children'] is True or (relations is not None and len(relations) > 0) \
-                or redmine_issue.get("parent") is not None
-            self.data["family"] = family_bool
-
-        if with_relationship:
-            self.data['children'] = []
-            self.data['parent'] = redmine_issue["parent"]["id"] if 'parent' in redmine_issue else None
-
-        if redmine_issue.get("author") is not None:
-            if users_info is not None:
-                for user_info in users_info:
-                    if user_info[3] == redmine_issue['author']['id']:
-                        self.data['author'] = {
-                            'id': user_info[0],
-                            'name': user_info[1]
-                        }
-                        break
-            else:
-                user_info = user.get_user_id_name_by_plan_user_id(
-                    redmine_issue['author']['id'])
-                if user_info is not None:
-                    self.data['author'] = {
-                        'id': user_info.id,
-                        'name': user_info.name
-                    }
-
-        if with_point:
-            self.data["point"] = get_issue_point(self.data["id"])
-
-        if relation_id is not None:
-            self.data["relation_id"] = relation_id
-        return self
 
     @staticmethod
     def get_closed_statuses():
@@ -374,10 +282,7 @@ def tags_note_json(id, name, add=True):
                 {
                     'name': 'tag',
                     'property': 'attr',
-                    'old_value': {
-                        'id': None,
-                        'name': None,
-                    },
+                    'old_value': None, 
                     'new_value': {
                         'id': id,
                         'name': name,
@@ -395,15 +300,11 @@ def tags_note_json(id, name, add=True):
                         'id': id,
                         'name': name,
                     },
-                    'new_value': {
-                        'id': None,
-                        'name': None,
-                    }
+                    'new_value': None
                 }
             ]
         }
     return json.dumps(note, ensure_ascii=False)
-    # return note
 
 
 def create_issue_tags(issue_id, tags, plan_operator_id):
@@ -481,7 +382,7 @@ def search_issue_tags_by_tags(tags):
         or_(model.IssueTag.tag_id.any(v) for v in tags)
     ).all()
 
-    return [issue.issue_id for issue in issues] 
+    return [issue.issue_id for issue in issues]
 
 
 def get_issue_point(issue_id):
@@ -832,6 +733,7 @@ def create_issue(args, operator_id):
         output['children'] = family['children']
     elif family.get('relations') is not None:
         output['relations'] = family['relations']
+    emit("add_issue", output, namespace="/issues/websocket", to=output['project']['id'], broadcast=True)
     return output
 
 
@@ -891,6 +793,7 @@ def update_issue(issue_id, args, operator_id=None):
         output['children'] = family['children']
     elif family.get('relations', None):
         output['relations'] = family['relations']
+    emit("update_issue", output, namespace="/issues/websocket", to=output['project']['id'], broadcast=True)
     return output
 
 
@@ -898,9 +801,12 @@ def update_issue(issue_id, args, operator_id=None):
 def delete_issue(issue_id):
     try:
         require_issue_visible(issue_id)
+        project_id = nexus.nx_get_project_plugin_relation(
+                    rm_project_id=redmine_lib.redmine.issue.get(issue_id).project.id).project_id
         redmine.rm_delete_issue(issue_id)
         delete_issue_extensions(issue_id)
         delete_issue_tags(issue_id)
+        emit("delete_issue", {"id": issue_id}, namespace="/issues/websocket", to=project_id, broadcast=True)
     except DevOpsError as e:
         print(e.status_code)
         if e.status_code == 404:
@@ -967,15 +873,14 @@ def get_issue_list_by_project(project_id, args, download=False):
     total_count = 0
     for default_filters in default_filters_list:
         if download:
-            issue_filter = redmine_lib.redmine.issue.filter(**default_filters)
+            all_issues = redmine_lib.redmine.issue.filter(**default_filters)
         else:
             if get_jwt_identity()["role_id"] != 7:
                 user_name = get_jwt_identity()["user_account"]
-                issue_filter = redmine_lib.rm_impersonate(user_name).issue.filter(**default_filters)
+                all_issues = redmine_lib.rm_impersonate(user_name).issue.filter(**default_filters)
             else:
-                issue_filter = redmine_lib.redmine.issue.filter(**default_filters)
+                all_issues = redmine_lib.redmine.issue.filter(**default_filters)
 
-        all_issues = issue_filter.values()
         # 透過 selection params 決定是否顯示 family bool 欄位
         if not args['selection'] or not strtobool(args['selection']):
             nx_issue_params['relationship_bool'] = True
@@ -984,15 +889,138 @@ def get_issue_list_by_project(project_id, args, download=False):
         for redmine_issue in all_issues:
             nx_issue_params['redmine_issue'] = redmine_issue
             nx_issue_params['with_point'] = args["with_point"]
-            issue = NexusIssue().set_redmine_issue_v3(**nx_issue_params).to_json()
+            issue = NexusIssue().set_redmine_issue_v2(**nx_issue_params).to_json()
             output.append(issue)
         
-        total_count += issue_filter.total_count
+        total_count += all_issues.total_count
 
     if download:
         return output
 
     if args['limit'] and args['offset'] is not None:
+        page_dict = util.get_pagination(total_count,
+                                        args['limit'], args['offset'])
+        output = {'issue_list': output, 'page': page_dict}
+    return output
+
+def get_issue_list_by_project_helper(project_id, args, download=False, operator_id=None):
+    nx_issue_params = defaultdict()
+    output = []
+    if util.is_dummy_project(project_id):
+        return []
+    try:
+        nx_project = NexusProject().set_project_id(project_id)
+        nx_issue_params['nx_project'] = nx_project
+        plan_id = nx_project.get_project_row().plugin_relation.plan_project_id
+    except NoResultFound:
+        raise DevOpsError(404, "Error while getting issues",
+                          error=apiError.project_not_found(project_id))
+
+    default_filters = get_custom_filters_by_args(args, project_id=plan_id, children=True)
+    # default_filters 帶 search ，但沒有取得 issued_id，搜尋結果為空
+    if args.get('search') is not None and default_filters.get('issue_id') is None:
+        if args.get("assigned_to_id") is None:
+            return []
+    elif args.get("has_tag_issue", False):
+        return []
+    if len(default_filters.get('issue_id',"").split(",")) > 200:
+        issue_ids = default_filters.pop('issue_id').split(",")
+        default_filters_list = handle_exceed_limit_length_default_filter(default_filters, issue_ids, [])
+    else:
+        default_filters_list = [default_filters]
+
+    total_count = 0
+    users_info = user.get_all_user_info()
+    for default_filters in default_filters_list:
+        default_filters["include"] = "relations"
+        if download:
+            all_issues, _ = redmine.rm_list_issues(params=default_filters, operator_id=operator_id)
+        else:
+            if get_jwt_identity()["role_id"] != 7:
+                operator_id = model.UserPluginRelation.query. \
+                    filter_by(user_id=get_jwt_identity()["user_id"]).one().plan_user_id
+                all_issues, total_count = redmine.rm_list_issues(params=default_filters, operator_id=operator_id)
+            else:
+                all_issues, total_count = redmine.rm_list_issues(params=default_filters)
+
+        # 透過 selection params 決定是否顯示 family bool 欄位
+        if not args.get('selection') or not strtobool(args.get('selection')):
+            nx_issue_params['relationship_bool'] = True
+
+        output += all_issues
+
+    # Get all project issues to check each issue has relation or children issue
+    has_family_issues = []
+    has_children = []
+    all_issues, _ = redmine.rm_list_issues(params={"project_id": plan_id, "include": "relations"})
+    for issue in all_issues:
+        if issue.get("parent") is not None:
+            has_children.append(issue["parent"]["id"])
+            has_family_issues += [issue["parent"]["id"], issue["id"]]
+            continue
+        if issue["relations"] != []:
+            has_family_issues.append(issue["id"])
+    
+    # Parse filter_issues
+    for issue in output:
+        issue["name"] = issue.pop("subject")
+
+        if issue.get("fixed_version") is None:
+            issue["fixed_version"] = {}
+        
+        if issue.get("updated_on") is not None:
+            issue["updated_on"] = issue["updated_on"][:-1]
+
+        project_id = nexus.nx_get_project_plugin_relation(
+            rm_project_id=issue['project']['id']).project_id
+        if project_has_child(project_id) or project_has_parent(project_id):
+            nx_project = model.Project.query.get(project_id)
+        issue["project"]= {
+            'id': nx_project.id,
+            'name': nx_project.name,
+            'display': nx_project.display
+        }
+
+        if issue.get("assigned_to") is not None:
+            for user_info in users_info:
+                if user_info[3] == issue["assigned_to"]["id"]:
+                    issue["assigned_to"] = {
+                        'id': user_info[0],
+                        'name': user_info[1],
+                        'login': user_info[2]
+                    }
+                    break
+        else:
+            issue["assigned_to"] = {}
+
+        if issue.get("author") is not None:
+            for user_info in users_info:
+                if user_info[3] == issue["author"]["id"]:
+                    issue["author"] = {
+                        'id': user_info[0],
+                        'name': user_info[1]
+                    }
+                    break
+        else:
+            issue["author"] = {}
+
+        issue["is_closed"] = issue['status']['id'] in NexusIssue.get_closed_statuses()
+        issue['issue_link'] = f"{config.get('REDMINE_EXTERNAL_BASE_URL')}/issues/{issue['id']}"
+        issue["family"] = issue["id"] in has_family_issues
+        issue["has_children"] = issue["id"] in has_children
+        
+        if args.get("with_point", False):
+            issue["point"] = get_issue_point(issue["id"])
+        issue["tags"] = get_issue_tags(issue["id"])
+        
+        issue.pop("parent", "")
+        issue.pop("relations", "")
+        issue.pop("created_on", "")
+
+    if download:
+        return output
+
+    if args.get('limit') is not None and args.get('offset') is not None:
         page_dict = util.get_pagination(total_count,
                                         args['limit'], args['offset'])
         output = {'issue_list': output, 'page': page_dict}
@@ -1267,43 +1295,48 @@ def get_issue_assigned_to_search(default_filters, args):
 
 
 # 取得 issue 相關的 parent & children & relations 資訊
-def get_issue_family(redmine_issue, args={}):
+def get_issue_family(redmine_issue, args={}, all=False, user_name=None):
     output = defaultdict(list)
     is_with_point = args.get("with_point", False)
+    if user_name is None:
+        user_name = get_jwt_identity()["user_account"]
     if hasattr(redmine_issue, 'parent') and not is_with_point:
-        parent_issue = redmine_lib.redmine.issue.filter(
-            issue_id=redmine_issue.parent.id, status_id='*')
+        if not all:
+            parent_issue = redmine_lib.rm_impersonate(user_name).issue.filter(
+                issue_id=redmine_issue.parent.id, status_id='*')
+        else:
+            parent_issue = redmine_lib.redmine.issue.filter(
+                issue_id=redmine_issue.parent.id, status_id='*')
         try:
-            output['parent'] = NexusIssue().set_redmine_issue_v3(list(parent_issue.values())[0]).to_json()
+            output['parent'] = NexusIssue().set_redmine_issue_v2(parent_issue[0]).to_json()
         except IndexError:
             output["parent"] = []
     if len(redmine_issue.children):
         children_issue_ids = [str(child.id) for child in redmine_issue.children]
-        children_issue_ids_str = ','.join(children_issue_ids)
-        children_issues = redmine_lib.redmine.issue.filter(
-            issue_id=children_issue_ids_str, status_id='*', include=['children'])
-        output['children'] = [NexusIssue().set_redmine_issue_v3(issue, with_point=is_with_point, relationship_bool=True).to_json()
-                              for issue in children_issues.values()]
+        children_issue_ids_str = ','.join(children_issue_ids)   
+        if not all:
+            children_issues = redmine_lib.rm_impersonate(user_name).issue.filter(
+                issue_id=children_issue_ids_str, status_id='*', include=['children'])
+        else:
+            children_issues = redmine_lib.redmine.issue.filter(
+                issue_id=children_issue_ids_str, status_id='*', include=['children'])
+        output['children'] = [NexusIssue().set_redmine_issue_v2(issue, with_point=is_with_point, relationship_bool=True).to_json()
+                              for issue in children_issues]
     if len(redmine_issue.relations) and not is_with_point:
-        rel_issue_ids = [check_relations_id(redmine_issue.id, relation) for relation in redmine_issue.relations]
-        rel_issue_ids_str = ','.join([str(issue["issue_id"]) for issue in rel_issue_ids])
-        rel_issues = redmine_lib.redmine.issue.filter(
-            issue_id=rel_issue_ids_str, status_id='*', include=['relations'])
-        output['relations'] = [NexusIssue().set_redmine_issue_v3(issue, relation_id=list(filter(lambda relation:relation['issue_id'] == issue["id"], rel_issue_ids))[0]['relation_id']).to_json()
-                               for issue in rel_issues.values()]
+        for relation in redmine_issue.relations:
+            rel_issue_id = 0
+            if relation.issue_id != int(redmine_issue.id):
+                rel_issue_id = relation.issue_id
+            else:
+                rel_issue_id = relation.issue_to_id
+            rel_issue = redmine_lib.redmine.issue.get(rel_issue_id)
+            relate_issue = NexusIssue().set_redmine_issue_v2(rel_issue).to_json()
+            relate_issue['relation_id'] = relation.id
+            output['relations'].append(relate_issue)
     for key in ["parent", "children", "relations"]:
         if output.get(key) == []:
             output.pop(key)
     return output
-
-
-def check_relations_id(issue_id, relation):
-    rel_issue_id = 0
-    if relation.issue_id != int(issue_id):
-        rel_issue_id = relation.issue_id
-    else:
-        rel_issue_id = relation.issue_to_id
-    return {"issue_id": rel_issue_id, "relation_id": relation.id}
 
 
 def get_issue_by_status_by_project(project_id):
@@ -1882,10 +1915,7 @@ def check_issue_closable(issue_id):
                 unfinished_issues.remove(id)
                 finished_issues.append(id)
     # 若未完成的 issues 存在，回傳布林值
-    if unfinished_issues:
-        return False
-    else:
-        return True
+    return unfinished_issues != []
 
 
 def execute_issue_alert(alert_mapping):
@@ -2000,14 +2030,18 @@ def pj_download_file_is_exist(project_id):
 
 
 class DownloadIssueAsExcel():
-    def __init__(self, args, priority_id):
+    def __init__(self, args, priority_id, user_id):
         self.result = []
         self.levels = args.pop("levels")
         self.deploy_column = args.pop("deploy_column")
-        args["with_point"] = self.__check_with_point_bool()
         self.args = args
         self.project_id = priority_id
-
+        self.__get_operator_id(user_id)
+    
+    def __get_operator_id(self, user_id):
+        self.operator_id = model.UserPluginRelation.query. \
+                    filter_by(user_id=user_id).one().plan_user_id
+        self.user_name = model.User.query.get(int(user_id)).login
 
     def execute(self):
         try:
@@ -2021,23 +2055,13 @@ class DownloadIssueAsExcel():
             self.__update_lock_download_issues(is_lock=False, sync_date=None)
 
 
-    def __check_with_point_bool(self):
-        withpoint = False
-        for column in self.deploy_column:
-            if column['field'] == "point":
-                withpoint = True
-                break 
-        return withpoint
-
-
     def __now_time(self):
         return datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
 
 
     def __append_main_issue(self):
-        self.args["tracker_id"] = "1"
-
-        output = get_issue_list_by_project(self.project_id, self.args, download=True) 
+        print(self.args)
+        output = get_issue_list_by_project_helper(self.project_id, self.args, download=True, operator_id=self.operator_id)
         for index, value in enumerate(output):
             row = self.__generate_row_issue_for_excel(str(index + 1), value)
             self.result.append(row)
@@ -2049,8 +2073,8 @@ class DownloadIssueAsExcel():
     def __append_children(self, super_index, value, level):
         if not value["has_children"] or self.levels == level:
             return 
-        redmine_issue = redmine_lib.redmine.issue.get(value["id"], include=['children'])
-        children = get_issue_family(redmine_issue, {'with_point': True})["children"]
+        redmine_issue = redmine_lib.rm_impersonate(self.user_name).issue.get(value["id"], include=['children'])
+        children = get_issue_family(redmine_issue, args={'with_point': True}, user_name=self.user_name)["children"]
         for index, child in enumerate(children):
             row = self.__generate_row_issue_for_excel(f"{super_index}_{index + 1}", child)
             self.result.append(row)
@@ -2131,162 +2155,6 @@ def get_commit_hook_issues(commit_id):
 
 
 # --------------------- Resources ---------------------
-class SingleIssue(Resource):
-    @ jwt_required
-    def get(self, issue_id):
-        issue_info = get_issue(issue_id)
-        require_issue_visible(issue_id, issue_info)
-        if 'parent_id' in issue_info:
-            parent_info = get_issue(issue_info['parent_id'], with_children=False)
-            parent_info['name'] = parent_info.pop('subject', None)
-            parent_info['tags'] = get_issue_tags(parent_info["id"])
-            issue_info.pop('parent_id', None)
-            issue_info['parent'] = parent_info
-
-        for items in ["children", "relations"]:
-            if issue_info.get(items) is not None:
-                for item in issue_info[items]:
-                    item["tags"] = get_issue_tags(item["id"])
-        issue_info["name"] = issue_info.pop('subject', None)
-        issue_info["point"] = get_issue_point(issue_id)
-        issue_info["tags"] = get_issue_tags(issue_id)
-
-        return util.success(issue_info)
-
-    @ jwt_required
-    def post(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument('project_id', type=int, required=True)
-        parser.add_argument('tracker_id', type=int, required=True)
-        parser.add_argument('status_id', type=int, required=True)
-        parser.add_argument('priority_id', type=int, required=True)
-        parser.add_argument('name', type=str, required=True)
-        parser.add_argument('description', type=str)
-        parser.add_argument('assigned_to_id', type=str)
-        parser.add_argument('parent_id', type=str)
-        parser.add_argument('fixed_version_id', type=str)
-        parser.add_argument('start_date', type=str)
-        parser.add_argument('due_date', type=str)
-        parser.add_argument('done_ratio', type=int)
-        parser.add_argument('estimated_hours', type=int)
-        parser.add_argument('point', type=int)
-        parser.add_argument('tags', action=str)
-
-        # Attachment upload
-        parser.add_argument(
-            'upload_file', type=werkzeug.datastructures.FileStorage, location='files')
-        parser.add_argument('upload_filename', type=str)
-        parser.add_argument('upload_description', type=str)
-        parser.add_argument('upload_content_type', type=str)
-
-        args = parser.parse_args()
-
-        # Check due_date is greater than start_date
-        if args.get("start_date") is not None and args.get("due_date") is not None:
-            if args["due_date"] < args["start_date"]:
-                raise DevOpsError(400, 'Due date must be greater than start date.',
-                                  error=apiError.argument_error("due_date"))
-
-        # Handle removable int parameters
-        keys_int_or_null = ['assigned_to_id', 'fixed_version_id', 'parent_id']
-        for k in keys_int_or_null:
-            if args[k] == 'null':
-                args[k] = ''
-
-        args["subject"] = args.pop("name")
-        return util.success(create_issue(args, get_jwt_identity()['user_id']))
-
-    @ jwt_required
-    def put(self, issue_id):
-        require_issue_visible(issue_id)
-        parser = reqparse.RequestParser()
-        parser.add_argument('assigned_to_id', type=str)
-        parser.add_argument('tracker_id', type=int)
-        parser.add_argument('status_id', type=int)
-        parser.add_argument('priority_id', type=int)
-        parser.add_argument('estimated_hours', type=int)
-        parser.add_argument('description', type=str)
-        parser.add_argument('parent_id', type=str)
-        parser.add_argument('fixed_version_id', type=str)
-        parser.add_argument('name', type=str)
-        parser.add_argument('start_date', type=str)
-        parser.add_argument('due_date', type=str)
-        parser.add_argument('done_ratio', type=int)
-        parser.add_argument('notes', type=str)
-        parser.add_argument('point', type=int)
-        parser.add_argument('tags', type=str)
-
-        # Attachment upload
-        parser.add_argument(
-            'upload_file', type=werkzeug.datastructures.FileStorage, location='files')
-        parser.add_argument('upload_filename', type=str)
-        parser.add_argument('upload_description', type=str)
-        parser.add_argument('upload_content_type', type=str)
-
-        args = parser.parse_args()
-
-        redmine_issue = redmine_lib.redmine.issue.get(issue_id, include=['children'])
-        has_children = redmine_issue.children.total_count > 0
-        if has_children:
-            validate_field_mapping = {
-                "priority_id": redmine_issue.priority.id if hasattr(redmine_issue, 'priority') else None,
-                "start_date": redmine_issue.start_date.isoformat() if hasattr(redmine_issue, 'start_date') else "",
-                "due_date": redmine_issue.due_date.isoformat() if hasattr(redmine_issue, 'due_date') else "",
-            }
-            for invalidate_field in ["priority_id", "start_date", "due_date"]:
-                if args[invalidate_field] is not None and args[invalidate_field] != validate_field_mapping[invalidate_field]:
-                    raise DevOpsError(400, f'Argument {invalidate_field} can not be alerted when children issue exist.',
-                                      error=apiError.redmine_argument_error(invalidate_field))
-
-        # Check due_date is greater than start_date
-        due_date = None
-        start_date = None
-
-        if args.get("due_date") is not None and len(args.get("due_date")) > 0:
-            due_date = args.get("due_date")
-        else:
-            try:
-                due_date = str(redmine_lib.redmine.issue.get(issue_id).due_date) 
-            except ResourceAttrError: 
-                pass
-
-        if args.get("start_date") is not None and len(args.get("start_date")) > 0:
-            start_date = args.get("start_date")
-        else:
-            try:
-                start_date = str(redmine_lib.redmine.issue.get(issue_id).start_date)
-            except ResourceAttrError: 
-                pass   
-
-        if start_date is not None and due_date is not None:
-            if due_date < start_date:
-                arg = "due_date" if args.get("due_date") is not None and len(args.get("due_date")) > 0 else "start_date"
-                raise DevOpsError(400, 'Due date must be greater than start date.',
-                                  error=apiError.argument_error(arg))
-
-        # Handle removable int parameters
-        keys_int_or_null = ['assigned_to_id', 'fixed_version_id', 'parent_id']
-        for k in keys_int_or_null:
-            if args[k] == 'null':
-                args[k] = ''
-
-        args["subject"] = args.pop("name", None)
-        output = update_issue(issue_id, args, get_jwt_identity()['user_id'])
-        return util.success(output)
-
-    @ jwt_required
-    def delete(self, issue_id):
-        parser = reqparse.RequestParser()
-        parser.add_argument('force', type=bool)
-        args = parser.parse_args()
-        if args["force"] is None or not args["force"]:
-            redmine_issue = redmine_lib.redmine.issue.get(issue_id, include=['children'])
-            children = get_issue_family(redmine_issue).get("children")
-            if children is not None:
-                raise DevOpsError(400, 'Unable to delete issue with children issue, unless parameter "force" is True.',
-                                  error=apiError.unable_to_delete_issue_has_children(children))
-        return util.success(delete_issue(issue_id))
-
 
 class DumpByIssue(Resource):
     @ jwt_required
@@ -2295,35 +2163,18 @@ class DumpByIssue(Resource):
         return dump_by_issue(issue_id)
 
 
-class IssueByProject(Resource):
+@doc(tags=['Issue'], description="Get issue list by user")
+@use_kwargs(route_model.IssueByUserSchema, location="query")
+@marshal_with(route_model.IssueByUserResponseWithPage, code="with limit and offset")
+class IssueByUserV2(MethodResource):
     @ jwt_required
-    def get(self, project_id):
-        role.require_in_project(project_id, 'Error to get issue.')
-        parser = reqparse.RequestParser()
-        parser.add_argument('fixed_version_id', type=str)
-        parser.add_argument('status_id', type=str)
-        parser.add_argument('tracker_id', type=str)
-        parser.add_argument('assigned_to_id', type=str)
-        parser.add_argument('priority_id', type=str)
-        parser.add_argument('only_subproject_issues', type=bool, default=False)
-        parser.add_argument('limit', type=int)
-        parser.add_argument('offset', type=int)
-        parser.add_argument('search', type=str)
-        parser.add_argument('selection', type=str)
-        parser.add_argument('sort', type=str)
-        parser.add_argument('parent_id', type=str)
-        parser.add_argument('due_date_start', type=str)
-        parser.add_argument('due_date_end', type=str)
-        parser.add_argument('with_point', type=bool)
-        parser.add_argument('tags', type=str)
-        args = parser.parse_args()
-        args["project_id"] = project_id
-        if args.get("search") is not None and len(args["search"]) < 2:
+    def get(self, user_id, **kwargs):
+        print(kwargs)
+        if kwargs.get("search") is not None and len(kwargs["search"]) < 2:
             output = []
         else:
-            output = get_issue_list_by_project(project_id, args)
+            output = get_issue_list_by_user(user_id, kwargs)
         return util.success(output)
-
 
 
 class IssueByUser(Resource):
@@ -2353,6 +2204,18 @@ class IssueByUser(Resource):
         return util.success(output)
 
 
+@doc(tags=['Unknown'], description="Get issue list by version")
+class IssueByVersionV2(MethodResource):
+    @ jwt_required
+    def get(self, project_id):
+        role.require_in_project(project_id, 'Error to get issue.')
+        parser = reqparse.RequestParser()
+        parser.add_argument('fixed_version_id')
+        args = parser.parse_args()
+
+        return util.success(get_issue_by_project(project_id, args))
+
+
 class IssueByVersion(Resource):
     @ jwt_required
     def get(self, project_id):
@@ -2364,56 +2227,27 @@ class IssueByVersion(Resource):
         return util.success(get_issue_by_project(project_id, args))
 
 
-class IssueByTreeByProject(Resource):
+
+@doc(tags=['Issue'], description="Get issue available status")
+@marshal_with(route_model.IssueStatusResponse)
+class IssueStatusV2(MethodResource):
     @ jwt_required
-    def get(self, project_id):
-        role.require_in_project(project_id, 'Error to get issue.')
-        output = get_issue_by_tree_by_project(project_id)
-        return util.success(output)
-
-
-class IssueByStatusByProject(Resource):
-    @ jwt_required
-    def get(self, project_id):
-        role.require_in_project(project_id)
-        return get_issue_by_status_by_project(project_id)
-
-
-class IssueByDateByProject(Resource):
-    @ jwt_required
-    def get(self, project_id):
-        role.require_in_project(project_id)
-        return get_issue_by_date_by_project(project_id)
-
-
-class IssuesProgressByProject(Resource):
-    @ jwt_required
-    def get(self, project_id):
-        role.require_in_project(project_id)
-        parser = reqparse.RequestParser()
-        parser.add_argument('fixed_version_id', type=int)
-        args = parser.parse_args()
-        output = get_issue_progress_or_statistics_by_project(project_id,
-                                                             args, progress=True)
-        return util.success(output)
-
-
-class IssuesStatisticsByProject(Resource):
-    @ jwt_required
-    def get(self, project_id):
-        role.require_in_project(project_id)
-        parser = reqparse.RequestParser()
-        parser.add_argument('fixed_version_id', type=int)
-        args = parser.parse_args()
-        output = get_issue_progress_or_statistics_by_project(project_id,
-                                                             args, statistics=True)
-        return util.success(output)
+    def get(self):
+        return list_issue_statuses('api')
 
 
 class IssueStatus(Resource):
     @ jwt_required
     def get(self):
         return list_issue_statuses('api')
+        
+
+@doc(tags=['Issue'], description="Get issue available priority")
+@marshal_with(route_model.IssuePriorityResponse)
+class IssuePriorityV2(MethodResource):
+    @ jwt_required
+    def get(self):
+        return get_issue_priority()
 
 
 class IssuePriority(Resource):
@@ -2422,52 +2256,30 @@ class IssuePriority(Resource):
         return get_issue_priority()
 
 
+@doc(tags=['Issue'], description="Get issue available tracker")
+@marshal_with(route_model.IssueTrackerResponse)
+class IssueTrackerV2(MethodResource):
+    @ jwt_required
+    def get(self):
+        return get_issue_trackers()
+
+
 class IssueTracker(Resource):
     @ jwt_required
     def get(self):
         return get_issue_trackers()
 
 
-class IssueFamily(Resource):
+@doc(tags=['Issue'], description="Get user's issues' numbers of each priorities.")
+@marshal_with(route_model.DashboardIssuePriorityResponse)
+class DashboardIssuePriorityV2(MethodResource):
     @ jwt_required
-    def get(self, issue_id):
-        parser = reqparse.RequestParser()
-        parser.add_argument('with_point', type=bool)
-        args = parser.parse_args()
-        redmine_issue = redmine_lib.redmine.issue.get(issue_id, include=['children', 'relations'])
-        require_issue_visible(issue_id, issue_info=NexusIssue().set_redmine_issue_v2(redmine_issue).to_json())
-        family = get_issue_family(redmine_issue, args)
-        return util.success(family)
-
-
-class MyIssueStatistics(Resource):
-    @ jwt_required
-    def get(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument('from_time', type=str, required=True)
-        parser.add_argument('to_time', type=str)
-        parser.add_argument('status_id', type=int)
-        args = parser.parse_args()
-        output = get_issue_statistics(args, get_jwt_identity()['user_id'])
-        return output
-
-
-class MyOpenIssueStatistics(Resource):
-    @ jwt_required
-    def get(self):
-        return get_open_issue_statistics(get_jwt_identity()['user_id'])
-
-
-class MyIssueWeekStatistics(Resource):
-    @ jwt_required
-    def get(self):
-        return get_issue_statistics_in_period('week', get_jwt_identity()['user_id'])
-
-
-class MyIssueMonthStatistics(Resource):
-    @ jwt_required
-    def get(self):
-        return get_issue_statistics_in_period('month', get_jwt_identity()['user_id'])
+    def get(self, user_id):
+        if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity(
+        )['role_id'] in (3, 5):
+            return count_priority_number_by_issues(user_id)
+        else:
+            return {'message': 'Access token is missing or invalid'}, 401
 
 
 class DashboardIssuePriority(Resource):
@@ -2480,12 +2292,35 @@ class DashboardIssuePriority(Resource):
             return {'message': 'Access token is missing or invalid'}, 401
 
 
+@doc(tags=['Issue'], description="Get user's issues' numbers of each projects.")
+@marshal_with(route_model.DashboardIssueProjectResponse)
+class DashboardIssueProjectV2(MethodResource):
+    @ jwt_required
+    def get(self, user_id):
+        if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity(
+        )['role_id'] in (3, 5):
+            return count_project_number_by_issues(user_id)
+        else:
+            return {'message': 'Access token is missing or invalid'}, 401
+
+
 class DashboardIssueProject(Resource):
     @ jwt_required
     def get(self, user_id):
         if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity(
         )['role_id'] in (3, 5):
             return count_project_number_by_issues(user_id)
+        else:
+            return {'message': 'Access token is missing or invalid'}, 401
+
+@doc(tags=['Issue'], description="Get user's issues' numbers of each projects.")
+@marshal_with(route_model.DashboardIssueTypeResponse)
+class DashboardIssueTypeV2(MethodResource):
+    @ jwt_required
+    def get(self, user_id):
+        if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity(
+        )['role_id'] in (3, 5):
+            return count_type_number_by_issues(user_id)
         else:
             return {'message': 'Access token is missing or invalid'}, 401
 
@@ -2500,8 +2335,27 @@ class DashboardIssueType(Resource):
             return {'message': 'Access token is missing or invalid'}, 401
 
 
-class RequirementByIssue(Resource):
+class RequirementByIssueV2(MethodResource):
+    # 用issues ID 取得目前所有的需求清單
+    @doc(tags=['Unknown'], description="Get requirement by issue_id.")
+    @ jwt_required
+    def get(self, issue_id):
+        output = get_requirements_by_issue_id(issue_id)
+        return util.success(output)
 
+    # 用issues ID 新建立需求清單
+    @doc(tags=['Unknown'], description="Create requirement by issue_id.")
+    @ jwt_required
+    def post(self, issue_id):
+        parser = reqparse.RequestParser()
+        parser.add_argument('project_id', type=int)
+        # parser.add_argument('flow_info', type=str)
+        args = parser.parse_args()
+        output = post_requirement_by_issue_id(issue_id, args)
+        return util.success(output)
+
+
+class RequirementByIssue(Resource):
     # 用issues ID 取得目前所有的需求清單
     @ jwt_required
     def get(self, issue_id):
@@ -2519,8 +2373,33 @@ class RequirementByIssue(Resource):
         return util.success(output)
 
 
-class Requirement(Resource):
+class RequirementV2(MethodResource):
+    # 用requirement_id 取得目前需求流程
+    @doc(tags=['Unknown'], description="Get requirement by requirement_id.")
+    @ jwt_required
+    def get(self, requirement_id):
+        output = get_requirement_by_rqmt_id(requirement_id)
+        return util.success(output)
 
+    # 用requirement_id 刪除目前需求流程
+    @doc(tags=['Unknown'], description="Delete requirement by requirement_id.")
+    @ jwt_required
+    def delete(self, requirement_id):
+        del_requirement_by_rqmt_id(requirement_id)
+        return util.success()
+
+    # 用requirement_id 更新目前需求流程
+    @doc(tags=['Unknown'], description="Update requirement by requirement_id.")
+    @ jwt_required
+    def put(self, requirement_id):
+        parser = reqparse.RequestParser()
+        parser.add_argument('flow_info', type=str)
+        args = parser.parse_args()
+        modify_requirement_by_rqmt_id(requirement_id, args)
+        return util.success()
+
+
+class Requirement(Resource):
     # 用requirement_id 取得目前需求流程
     @ jwt_required
     def get(self, requirement_id):
@@ -2543,6 +2422,15 @@ class Requirement(Resource):
         return util.success()
 
 
+@doc(tags=['Unknown'], description="Get supported flow type.")
+@marshal_with(route_model.GetFlowTypeResponse)
+class GetFlowTypeV2(MethodResource):
+    @ jwt_required
+    def get(self):
+        output = get_flow_support_type()
+        return util.success(output)
+
+
 class GetFlowType(Resource):
     @ jwt_required
     def get(self):
@@ -2550,8 +2438,47 @@ class GetFlowType(Resource):
         return util.success(output)
 
 
-class FlowByIssue(Resource):
+class FlowByIssueV2(MethodResource):
+    @doc(tags=['Unknown'], description="Get flow by issue_id.")
+    # 用issues ID 取得目前所有的需求清單
+    @ jwt_required
+    def get(self, issue_id):
+        requirement_ids = check_requirement_by_issue_id(issue_id)
+        if not requirement_ids:
+            return util.success()
+        output = []
+        for requirement_id in requirement_ids:
+            result = get_flow_by_requirement_id(requirement_id)
+            if len(result) > 0:
+                output.append({
+                    'requirement_id': requirement_id,
+                    'flow_data': result
+                })
+        return util.success(output)
 
+    # 用issues ID 新建立需求清單
+    @doc(tags=['Unknown'], description="Create flow by issue_id.")
+    @ jwt_required
+    def post(self, issue_id):
+        parser = reqparse.RequestParser()
+        parser.add_argument('project_id', type=int)
+        parser.add_argument('type_id', type=int)
+        parser.add_argument('name', type=str)
+        parser.add_argument('description', type=str)
+        args = parser.parse_args()
+        requirements = check_requirement_by_issue_id(issue_id)
+        if len(requirements) == 0:
+            new = post_requirement_by_issue_id(issue_id, args)
+            requirement_id = new['requirement_id']
+        else:
+            requirement_id = requirements[0]
+
+        output = post_flow_by_requirement_id(
+            int(issue_id), requirement_id, args)
+        return util.success(output, has_date_etc=True)
+
+
+class FlowByIssue(Resource):
     # 用issues ID 取得目前所有的需求清單
     @ jwt_required
     def get(self, issue_id):
@@ -2589,8 +2516,36 @@ class FlowByIssue(Resource):
         return util.success(output, has_date_etc=True)
 
 
-class Flow(Resource):
+class FlowV2(MethodResource):
+    @doc(tags=['Unknown'], description="Get supported flow type.")
+    # 用requirement_id 取得目前需求流程
+    @ jwt_required
+    def get(self, flow_id):
+        output = get_flow_by_flow_id(flow_id)
+        return util.success(output)
 
+    @doc(tags=['Unknown'], description="Create supported flow type.")
+    # 用requirement_id 刪除目前需求流程
+    @ jwt_required
+    def delete(self, flow_id):
+        output = disabled_flow_by_flow_id(flow_id)
+        return util.success(output, has_date_etc=True)
+
+    @doc(tags=['Unknown'], description="Delete supported flow type.")
+    # 用requirement_id 更新目前需求流程
+    @ jwt_required
+    def put(self, flow_id):
+        parser = reqparse.RequestParser()
+        parser.add_argument('serial_id', type=int)
+        parser.add_argument('type_id', type=int)
+        parser.add_argument('name', type=str)
+        parser.add_argument('description', type=str)
+        args = parser.parse_args()
+        output = modify_flow_by_flow_id(flow_id, args)
+        return util.success(output, has_date_etc=True)
+
+
+class Flow(Resource):
     # 用requirement_id 取得目前需求流程
     @ jwt_required
     def get(self, flow_id):
@@ -2616,6 +2571,14 @@ class Flow(Resource):
         return util.success(output, has_date_etc=True)
 
 
+@doc(tags=['Unknown'], description="Get all paramenters' type.")
+class ParameterTypeV2(MethodResource):
+    @ jwt_required
+    def get(self):
+        output = get_parameter_types()
+        return util.success(output)
+
+
 class ParameterType(Resource):
     @ jwt_required
     def get(self):
@@ -2623,8 +2586,30 @@ class ParameterType(Resource):
         return util.success(output)
 
 
-class ParameterByIssue(Resource):
+class ParameterByIssueV2(MethodResource):
+    # 用issues ID 取得目前所有的需求清單
+    @doc(tags=['Unknown'], description="Get paramenter by issue_id.")
+    @ jwt_required
+    def get(self, issue_id):
+        output = get_parameters_by_issue_id(issue_id)
+        return util.success(output)
 
+    # 用issues ID 新建立需求清單
+    @doc(tags=['Unknown'], description="Create paramenter by issue_id.")
+    @ jwt_required
+    def post(self, issue_id):
+        parser = reqparse.RequestParser()
+        parser.add_argument('project_id', type=int)
+        parser.add_argument('parameter_type_id', type=int)
+        parser.add_argument('name', type=str)
+        parser.add_argument('description', type=str)
+        parser.add_argument('limitation', type=str)
+        parser.add_argument('length', type=int)
+        args = parser.parse_args()
+        output = post_parameters_by_issue_id(issue_id, args)
+        return util.success(output)
+
+class ParameterByIssue(Resource):
     # 用issues ID 取得目前所有的需求清單
     @ jwt_required
     def get(self, issue_id):
@@ -2646,8 +2631,37 @@ class ParameterByIssue(Resource):
         return util.success(output)
 
 
-class Parameter(Resource):
+class ParameterV2(MethodResource):
+    # 用requirement_id 取得目前需求流程
+    @doc(tags=['Unknown'], description="Get paramenter by parameter_id.")
+    @ jwt_required
+    def get(self, parameter_id):
+        output = get_parameters_by_param_id(parameter_id)
+        return util.success(output)
 
+    # 用requirement_id 刪除目前需求流程
+    @doc(tags=['Unknown'], description="Delete paramenter by parameter_id.")
+    @ jwt_required
+    def delete(self, parameter_id):
+        output = del_parameters_by_param_id(parameter_id)
+        return util.success(output)
+
+    # 用requirement_id 更新目前需求流程
+    @doc(tags=['Unknown'], description="Update paramenter by parameter_id.")
+    @ jwt_required
+    def put(self, parameter_id):
+        parser = reqparse.RequestParser()
+        parser.add_argument('parameter_type_id', type=int)
+        parser.add_argument('name', type=str)
+        parser.add_argument('description', type=str)
+        parser.add_argument('limitation', type=str)
+        parser.add_argument('length', type=int)
+        args = parser.parse_args()
+        output = modify_parameters_by_param_id(parameter_id, args)
+        return util.success(output)
+
+
+class Parameter(Resource):
     # 用requirement_id 取得目前需求流程
     @ jwt_required
     def get(self, parameter_id):
@@ -2674,39 +2688,7 @@ class Parameter(Resource):
         return util.success(output)
 
 
-class Relation(Resource):
-    @ jwt_required
-    def post(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument('issue_id', type=int, required=True)
-        parser.add_argument('issue_to_id', type=int, required=True)
-        args = parser.parse_args()
-        output = post_issue_relation(args['issue_id'], args['issue_to_id'], get_jwt_identity()['user_account'])
-        return util.success(output)
-
-    @ jwt_required
-    def put(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument('issue_id', type=int, required=True)
-        parser.add_argument('issue_to_ids', type=list, location='json', required=True)
-        args = parser.parse_args()
-        put_issue_relation(args['issue_id'], args['issue_to_ids'], get_jwt_identity()['user_account'])
-        return util.success()
-
-    @ jwt_required
-    def delete(self, relation_id):
-        output = delete_issue_relation(relation_id, get_jwt_identity()['user_account'])
-        return util.success(output)
-
-
-class CheckIssueClosable(Resource):
-    @ jwt_required
-    def get(self, issue_id):
-        output = check_issue_closable(issue_id)
-        return util.success(output)
-
-
-class ExecutIssueAlert(Resource):
+class ExecuteIssueAlert(Resource):
     def post(self):
         alert_mapping = {}
         alerts = model.Alert.query.filter_by(disabled=False)
@@ -2718,122 +2700,18 @@ class ExecutIssueAlert(Resource):
         return util.success(execute_issue_alert(alert_mapping))
 
 
-class IssueFilterByProject(Resource):
-    @jwt_required
-    def get(self, project_id):
-        return util.success(get_custom_issue_filter(get_jwt_identity()['user_id'], project_id))
-
-    @jwt_required
-    def post(self, project_id):
-        user_id = get_jwt_identity()['user_id']
-        parser = reqparse.RequestParser()
-        parser.add_argument('name', type=str, required=True)
-        parser.add_argument('type', type=str, required=True)
-        parser.add_argument('assigned_to_id', type=str)
-        parser.add_argument('fixed_version_id', type=str)
-        parser.add_argument('focus_tab', type=str)
-        parser.add_argument('group_by', type=dict)
-        parser.add_argument('priority_id', type=str)
-        parser.add_argument('show_closed_issues', type=bool)
-        parser.add_argument('show_closed_versions', type=bool)
-        parser.add_argument('status_id', type=str)
-        parser.add_argument('tags', type=str)
-        parser.add_argument('tracker_id', type=str)
-        args = parser.parse_args()
-
-        if args["type"] != "issue_board" and args.get("group_by") is not None:
-            raise DevOpsError(400, "Column group_by is only available when type is issue_board",
-                              error=apiError.argument_error("group_by"))
-        if args["type"] != "my_work" and args.get("focus_tab") is not None:
-            raise DevOpsError(400, "Column focus_tab is only available when type is my_work",
-                              error=apiError.argument_error("focus_tab"))
-
-        return util.success(create_custom_issue_filter(user_id, project_id, args))
-
-    @jwt_required
-    def put(self, project_id, custom_filter_id):
-        parser = reqparse.RequestParser()
-        parser.add_argument('name', type=str, required=True)
-        parser.add_argument('type', type=str, required=True)
-        parser.add_argument('assigned_to_id', type=str)
-        parser.add_argument('fixed_version_id', type=str)
-        parser.add_argument('focus_tab', type=str)
-        parser.add_argument('group_by', type=dict)
-        parser.add_argument('priority_id', type=str)
-        parser.add_argument('show_closed_issues', type=bool)
-        parser.add_argument('show_closed_versions', type=bool)
-        parser.add_argument('status_id', type=str)
-        parser.add_argument('tags', type=str)
-        parser.add_argument('tracker_id', type=str)
-        args = parser.parse_args()
-
-        if args["type"] != "issue_board" and args.get("group_by") is not None:
-            raise DevOpsError(400, "Column group_by is only available when type is issue_board",
-                              error=apiError.argument_error("group_by"))
-        if args["type"] != "my_work" and args.get("focus_tab") is not None:
-            raise DevOpsError(400, "Column focus_tab is only available when type is my_work",
-                              error=apiError.argument_error("focus_tab"))
-
-        return util.success(put_custom_issue_filter(custom_filter_id, project_id, args))
-
-    @jwt_required
-    def delete(self, project_id, custom_filter_id):
-        CustomIssueFilter.query.filter_by(id=custom_filter_id).delete()
-        db.session.commit()
+class IssueSocket(Namespace):
+    def on_connect(self):
+        print('connect')
 
 
-class DownloadProject(Resource):
-    # download/execute
-    @jwt_required
-    def post(self, project_id):
-        parser = reqparse.RequestParser()
-        parser.add_argument('fixed_version_id', type=str)
-        parser.add_argument('status_id', type=str)
-        parser.add_argument('assigned_to_id', type=str)
-        parser.add_argument('priority_id', type=str)
-        parser.add_argument('search', type=str)
-        parser.add_argument('selection', type=str)
-        parser.add_argument('sort', type=str)
-        parser.add_argument('parent_id', type=str)
-        parser.add_argument('due_date_start', type=str)
-        parser.add_argument('due_date_end', type=str)
-        parser.add_argument('levels', type=int, default=3)
-        parser.add_argument('deploy_column', type=dict, action='append', required=True)
-        args = parser.parse_args()
+    def on_disconnect(self):
+        print('Client disconnected')
 
-        if get_lock_status("download_pj_issues")["is_lock"]:
-            return util.success("previous is still running")
-        download_issue_excel = DownloadIssueAsExcel(args, project_id)
-        threading.Thread(target=download_issue_excel.execute).start()
-        return util.success()
+    def on_join(self, data):
+        join_room(data['project_id'])
+        print('join', data['project_id'])
 
-    # download/is_exist
-    @jwt_required 
-    def get(self, project_id):
-        return util.success(pj_download_file_is_exist(project_id))
-
-    # download/execute
-    @jwt_required    
-    def patch(self, project_id):
-        if not pj_download_file_is_exist(project_id)["file_exist"]:
-            raise apiError.DevOpsError(
-                404, 'This file can not be downloaded because it is not exist.',
-                apiError.project_issue_file_not_exits(project_id))
-
-        return send_file(f"../logs/project_excel_file/{project_id}.xlsx")
-
-class IssueCommitRelation(Resource):    
-    @jwt_required
-    def get(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument('commit_id', type=str, required=True)
-        args = parser.parse_args()
-        return util.success(get_commit_hook_issues(commit_id=args["commit_id"]))
-
-    @jwt_required
-    def patch(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument('commit_id', type=str, required=True)
-        parser.add_argument('issue_ids', type=int, action='append', required=True)
-        args = parser.parse_args()
-        return util.success(modify_hook(args))
+    def on_leave(self, data):
+        leave_room(data['project_id'])
+        print('leave', data['project_id'])

@@ -1,5 +1,7 @@
 from . import sonarqube_main
 
+ui_route = ["Sonarqube"]
+
 # --------------------- API router ---------------------
 
 

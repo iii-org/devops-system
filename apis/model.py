@@ -96,6 +96,8 @@ class Project(db.Model):
     user_role = relationship('ProjectUserRole', back_populates='project')
     alert = Column(Boolean)
     trace_order = relationship('TraceOrder', backref='project')
+    is_lock = Column(Boolean, default=False)
+    lock_reason = Column(String)
 
     def __repr__(self):
         fields = {}
@@ -224,6 +226,7 @@ class TestItems(db.Model):
 class TestResults(db.Model):
     """Postman test result table"""
     id = Column(Integer, primary_key=True)
+    status = Column(String)
     project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
     branch = Column(String(50))
     commit_id = Column(String)
@@ -570,7 +573,6 @@ class Cluster(db.Model):
         fields = {}
         for field in [x for x in dir(self) if
                       not x.startswith('query') and not x.startswith('_') and x != 'metadata']:
-            print(field)
             if field in ['application']:
                 continue
             data = self.__getattribute__(field)
@@ -666,6 +668,7 @@ class Lock(db.Model):
     is_lock = Column(Boolean)
     sync_date = Column(DateTime)
 
+
 class IssueDisplayField(db.Model):
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'), nullable=False)
@@ -679,7 +682,8 @@ class IssueDisplayField(db.Model):
             if type not in ["wbs_cache", "issue_list"]:
                 raise AssertionError(
                     "Type must in wbs_cache / issue_list.")
-        return type    
+        return type
+
 
 class ServerType(db.Model):
     id = Column(Integer, primary_key=True)
@@ -802,20 +806,20 @@ class ProjectCommitEndpoint(db.Model):
 
 class NotificationMessage(db.Model):
     id = Column(Integer, primary_key=True)
+    alert_level = Column(Integer, nullable=False)
     message = Column(String, nullable=False)
     type_id = Column(Integer, nullable=False)
     type_parameter = Column(JSON)
-    no_deadline = Column(Boolean, nullable=False)
-    due_datetime = Column(DateTime)
     creator_id = Column(Integer, ForeignKey(User.id, ondelete='SET NULL'), nullable=True)
     created_at = Column(DateTime)
     updated_at = Column(DateTime)
+
+    __mapper_args__ = {"order_by": id.desc()}
 
     def __repr__(self):
         fields = {}
         for field in [x for x in dir(self) if
                       not x.startswith('query') and not x.startswith('_') and x != 'metadata']:
-            print(field)
             data = self.__getattribute__(field)
             try:
                 # this will fail on unencodable values, like other classes
@@ -826,10 +830,9 @@ class NotificationMessage(db.Model):
         return json.dumps(fields)
 
 
-class NotificationMessageReplySlip(db.Model):
-    id = Column(Integer, primary_key=True)
-    message_id = Column(Integer, ForeignKey(NotificationMessage.id, ondelete='CASCADE'))
-    user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'))
+class NotificationMessageReply(db.Model):
+    message_id = Column(Integer, ForeignKey(NotificationMessage.id, ondelete='CASCADE'), primary_key=True)
+    user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'), primary_key=True)
     created_at = Column(DateTime)
 
 
@@ -837,4 +840,30 @@ class ProjectParentSonRelation(db.Model):
     id = Column(Integer, primary_key=True)
     parent_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
     son_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
+    created_at = Column(DateTime)
+
+
+class UIRoute(db.Model):
+    id = Column(Integer, primary_key=True)
+    route_name = Column(String, nullable=False, unique=True)
+    created_at = Column(DateTime)
+    updated_at = Column(DateTime)
+
+    def __repr__(self):
+        fields = {}
+        for field in [x for x in dir(self) if
+                      not x.startswith('query') and not x.startswith('_') and x != 'metadata']:
+            data = self.__getattribute__(field)
+            try:
+                # this will fail on unencodable values, like other classes
+                json.dumps(data)
+                fields[field] = data
+            except TypeError:
+                fields[field] = str(data)
+        return json.dumps(fields)
+
+
+class UIRouteUserRoleRelation(db.Model):
+    ui_route_id = Column(Integer, ForeignKey(UIRoute.id, ondelete='CASCADE'), primary_key=True)
+    user_role = Column(Integer, primary_key=True)
     created_at = Column(DateTime)

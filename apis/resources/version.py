@@ -52,6 +52,15 @@ def post_version_by_project(project_id, message_args):
     except NoResultFound:
         return util.respond(404, "Error while getting versions.",
                             error=apiError.project_not_found(project_id))
+    all_versions = get_version_list_by_project(project_id, None, None).get("versions")
+    if all_versions != []:
+        for version in all_versions:
+            if version["name"] == message_args["version"]["name"]:
+                return util.respond(404,
+                                'Project_version name is exist',
+                                error=apiError.project_version_exist(
+                                    message_args["version"]['name']))
+
     version = redmine.rm_post_version(plan_id, message_args)
     return util.success(version)
 
@@ -99,6 +108,7 @@ class ProjectVersion(Resource):
         role.require_in_project(project_id)
         root_parser = reqparse.RequestParser()
         root_parser.add_argument('version', type=dict, required=True)
+
         root_args = root_parser.parse_args()
         return post_version_by_project(project_id, root_args)
 

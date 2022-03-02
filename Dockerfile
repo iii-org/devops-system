@@ -6,7 +6,7 @@ COPY iiidevops/id_rsa iiidevops/id_rsa.pub ./
 WORKDIR /usr/src/app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt 
-RUN echo "1.13.0" > git_tag
+RUN echo "1.14.0-dev" > git_tag
 COPY . .
 #RUN LOCAL_BRANCH=`git rev-parse --abbrev-ref HEAD | grep master`
 #RUN if [ -z "$LOCAL_BRANCH" ] ; then git remote add origin https://github.com/iii-org/devops-system.git; fi

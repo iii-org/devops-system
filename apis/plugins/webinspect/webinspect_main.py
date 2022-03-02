@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from flask import make_response
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
+from sqlalchemy import desc
 
 import model
 import nexus
@@ -84,6 +85,12 @@ def wi_list_scans(project_name):
         d['issue_link'] = gitlab.commit_id_to_url(project_id, d['commit_id'])
         ret.append(d)
     return ret
+
+def get_latest_scans(project_name):
+    project_id = nexus.nx_get_project(name=project_name).id
+    row = model.WebInspect.query.filter_by(project_name=project_name). \
+        order_by(desc(model.WebInspect.run_at)).first()
+    return json.loads(str(row)) if row is not None else None  
 
 
 def wi_get_scan_by_commit(project_id, commit_id):

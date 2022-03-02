@@ -27,7 +27,10 @@ from resources.apiError import DevOpsError
 from resources.gitlab import gitlab
 from resources.logger import logger
 from resources.redmine import redmine
-from resources.project import get_simple_project_list
+from resources.project import get_project_list
+import resources.api_model
+from flask_apispec import marshal_with, doc, use_kwargs
+from flask_apispec.views import MethodResource
 
 # Make a regular expression
 default_role_id = 3
@@ -185,6 +188,8 @@ def login(args):
     user = db.session.query(model.User).filter(
         model.User.login == login_account).first()
     try:
+        if user is not None and user.disabled:
+            return util.respond(401, "User is disabled, Please contact system administrator.")
         ad_info = {'is_pass': False,
                    'login': login_account, 'data': {}}
 
@@ -375,7 +380,7 @@ def try_to_delete(delete_method, obj):
 def delete_user(user_id):
     if user_id == 1:
         raise apiError.NotAllowedError('You cannot delete the system admin.')
-    pj_list = get_simple_project_list(user_id)
+    pj_list = get_project_list(user_id)
     for pj in pj_list:
         if pj["owner_id"] == user_id:
             nexus.nx_update_project(pj["id"], {"owner_id": 1})
@@ -720,7 +725,7 @@ def user_list(filters):
 
 def user_list_by_project(project_id, args):
     excluded_roles = [role.BOT.id, role.ADMIN.id, role.QA.id]
-    if args["exclude"] is not None and args["exclude"] == 1:
+    if args.get("exclude") is not None and args["exclude"] == 1:
         # list users not in the project
         users = []
         rows = model.User.query.options(joinedload(model.User.project_role)).all()
@@ -774,6 +779,14 @@ def user_sa_config(user_id):
 
 
 # --------------------- Resources ---------------------
+@doc(tags=['Login'],description='Login API')
+@use_kwargs(resources.api_model.LoginSchema, location=('json'))
+@marshal_with(resources.api_model.LoginSuccessResponse)  # marshalling
+class LoginV2(MethodResource):
+    # noinspection PyMethodMayBeStatic
+    def post(self,**kwargs):
+        return login(kwargs)
+
 class Login(Resource):
     # noinspection PyMethodMayBeStatic
     def post(self):
@@ -781,10 +794,10 @@ class Login(Resource):
         parser.add_argument('username', type=str, required=True)
         parser.add_argument('password', type=str, required=True)
         args = parser.parse_args()
-        return login(args)
+        return login(args)        
 
 
-# class UserForgetPassword(Resource):
+# class UserForgetPassword(Resource):``
 #     # noinspection PyMethodMayBeStatic
 #     def post(self):
 #         parser = reqparse.RequestParser()

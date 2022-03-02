@@ -1,5 +1,7 @@
 from . import sideex_main
 
+ui_route = ["Sideex"]
+
 # --------------------- API router ---------------------
 
 

@@ -1,13 +1,9 @@
 import model
-from flask_jwt_extended import jwt_required, get_jwt_identity
-from flask_restful import Resource
-import util
+from flask_jwt_extended import get_jwt_identity
 from datetime import datetime
 from accessories import redmine_lib
-from threading import Thread
 from sqlalchemy.orm import joinedload
 from resources import role
-# from resources.user import NexusUser
 
 
 def get_plan_id(project_id):
@@ -95,8 +91,14 @@ def sync_project_relation():
         return
     default_sync_date = datetime.utcnow()
     current_hour = default_sync_date.hour
-    if current_hour % hours != 0:
+    project_relations = model.ProjectParentSonRelation.query.limit(1).all()
+    if len(project_relations) == 0 and current_hour % hours != 0:
         return 
+    
+    latest_created_at = project_relations[0].created_at.hour
+    current_hour = current_hour if current_hour > latest_created_at else current_hour + 24
+    if (current_hour - latest_created_at) % hours != 0:
+        return
 
     default_sync_date = default_sync_date.strftime("%Y-%m-%d %H:%M:%S")
     project_relations = []
@@ -129,6 +131,7 @@ def get_project_family_members_by_user_helper(project_id):
 def get_project_family_members_by_user(project_id):
     son_project_id_list = list(filter(get_project_family_members_by_user_helper, get_all_sons_project(project_id, [])))
     user_list = []
+    user_ids = []
     for project_id in son_project_id_list:
         project_row = model.Project.query.options(
             joinedload(model.Project.user_role).
@@ -137,8 +140,9 @@ def get_project_family_members_by_user(project_id):
         ).filter_by(id=project_id).one()
         for user in project_row.user_role:
             if user.role_id not in [role.BOT.id, role.ADMIN.id, role.QA.id] and not user.user.disabled \
-                and user.user not in user_list:
+                and user.user.id not in user_ids:
                 user_list.append(user)
+                user_ids.append(user.user.id)
         
     user_list.sort(key=lambda x: x.user_id, reverse=True)
 
@@ -148,29 +152,3 @@ def get_project_family_members_by_user(project_id):
         "role_id": relation_row.role_id,
         "role_name": role.get_role_name(relation_row.role_id)
     } for relation_row in user_list]
-
-
-class CheckhasSonProject(Resource):
-    @jwt_required
-    def get(self, project_id):
-        return {
-            "has_child": project_has_child(project_id)
-        }
-    
-class GetProjectRootID(Resource):
-    @jwt_required
-    def get(self, project_id):
-        return {"root_project_id": get_root_project_id(project_id)}
-
-
-class SyncProjectRelation(Resource):
-    @jwt_required
-    def post(self):
-        Thread(target=sync_project_relation).start()
-        return util.success()
-
-
-class GetProjectFamilymembersByUser(Resource):
-    @jwt_required
-    def get(self, project_id):
-        return util.success(get_project_family_members_by_user(project_id))

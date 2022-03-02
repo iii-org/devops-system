@@ -1,0 +1,28 @@
+使用者登入
+---
+tags:
+  -  login
+parameters:
+  - in: body
+    name: body_params
+    required: true
+    schema:
+      id: login
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          description: 使用者帳號
+          example: cori_eg
+        password:
+          type: string
+          description: 使用者密碼
+          example: Eg123456
+responses:
+  500:
+      description: The error on the server side
+
+  401:
+      description: Wrong password or username

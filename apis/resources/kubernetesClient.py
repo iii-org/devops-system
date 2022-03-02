@@ -1626,9 +1626,8 @@ def check_if_iii_template(metadata):
             iii_template['commit_id'] in metadata.annotations and \
             'app' in metadata.labels:
         is_iii = True
-    
-    return is_iii
 
+    return is_iii
 
 
 def get_iii_template_info(metadata):
@@ -1646,7 +1645,13 @@ class K8sPodExec(object):
         self.namespace_name = data['project_name']
         self.pod_name = data['pod_name']
         self.container_name = data.get("container_name")
-        self.exec_command = ['/bin/bash']
+        self.exec_command = [
+            "/bin/sh",
+            "-c",
+            'TERM=xterm-256color; export TERM; [ -x /bin/bash ] '
+            '&& ([ -x /usr/bin/script ] '
+            '&& /usr/bin/script -q -c "/bin/bash" /dev/null || exec /bin/bash) '
+            '|| exec /bin/sh']
         if self.container_name is None:
             self.resp = k8s_stream(
                 ApiK8sClient().core_v1.connect_get_namespaced_pod_exec,
@@ -1710,6 +1715,7 @@ class KubernetesPodExec(Namespace):
             self.k8s_pod_exec = K8sPodExec(data)
         self.k8s_pod_exec.exec_namespace_pod(data)
 
+
 def create_cron_secret():
     if read_namespace_secret("default", "cornjob-bot") is None:
         token = create_access_token(identity={"type": "cornjob_token"}, expires_delta=timedelta(days=36500))
@@ -1717,48 +1723,50 @@ def create_cron_secret():
             "default", "cornjob-bot", {'cornjob-token': token})
 
 # gitlab ingress body
+
+
 def gitlab_connection(action):
     if action == "open":
         paths = [
             k8s_client.NetworkingV1beta1HTTPIngressPath(
-            path="/",
-            backend=k8s_client.NetworkingV1beta1IngressBackend(
-                service_name="gitlab-service", service_port=80
+                path="/",
+                backend=k8s_client.NetworkingV1beta1IngressBackend(
+                    service_name="gitlab-service", service_port=80
                 )
-        )]
+            )]
     if action == "close":
         paths = [
             k8s_client.NetworkingV1beta1HTTPIngressPath(
-            path="/",
-            backend=k8s_client.NetworkingV1beta1IngressBackend(
-                service_name="gitlab-service", service_port=80
+                path="/",
+                backend=k8s_client.NetworkingV1beta1IngressBackend(
+                    service_name="gitlab-service", service_port=80
                 )
             ),
             k8s_client.NetworkingV1beta1HTTPIngressPath(
-            path="/api/v3",
-            backend=k8s_client.NetworkingV1beta1IngressBackend(
-                service_name="gitlab-service", service_port=30080
+                path="/api/v3",
+                backend=k8s_client.NetworkingV1beta1IngressBackend(
+                    service_name="gitlab-service", service_port=30080
                 )
             ),
             k8s_client.NetworkingV1beta1HTTPIngressPath(
-            path="/api/v4",
-            backend=k8s_client.NetworkingV1beta1IngressBackend(
-                service_name="gitlab-service", service_port=30080
+                path="/api/v4",
+                backend=k8s_client.NetworkingV1beta1IngressBackend(
+                    service_name="gitlab-service", service_port=30080
                 )
             ),
         ]
 
     return k8s_client.NetworkingV1beta1Ingress(
-        api_version = "networking.k8s.io/v1beta1",
-        kind = "Ingress",
-        metadata = k8s_client.V1ObjectMeta(
-            name="gitlab-ing", 
+        api_version="networking.k8s.io/v1beta1",
+        kind="Ingress",
+        metadata=k8s_client.V1ObjectMeta(
+            name="gitlab-ing",
             annotations={
                 "nginx.ingress.kubernetes.io/force-ssl-redirect": "false",
                 "nginx.ingress.kubernetes.io/proxy-body-size": "1g",
                 "nginx.ingress.kubernetes.io/proxy-read-timeout": "600",
                 "nginx.ingress.kubernetes.io/proxy-send-timeout": "600"
-            }   
+            }
         ),
         spec=k8s_client.NetworkingV1beta1IngressSpec(
             rules=[

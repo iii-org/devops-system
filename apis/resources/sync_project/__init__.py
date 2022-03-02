@@ -1,15 +1,14 @@
-import model
-import util
-import nexus
-
 from collections import defaultdict
-from flask_restful import Resource
 
-from plugins.sonarqube import sonarqube_main as sonarqube
+import model
+import nexus
+import util
 from accessories import redmine_lib
-from resources import harbor, redmine, gitlab, rancher, kubernetesClient, \
-    project, logger, user
 from kubernetes.client import ApiException
+from model import Project, db
+from plugins.sonarqube import sonarqube_main as sonarqube
+from resources import (gitlab, harbor, kubernetesClient, logger, project,
+                       rancher, redmine, user)
 
 
 class ResourceMembers(object):
@@ -282,6 +281,22 @@ def check_sq_pj(projects_name):
     return nexus_pj
 
 
+def check_k8s_ns(projects_name):
+    rancher.rancher.rc_get_project_id()
+    k8s_ns_list = kubernetesClient.list_namespace()
+    return list(set(projects_name)-set(k8s_ns_list))
+
+
+def check_pipeline_hooks():
+    project_git_http_url = list(sum(model.Project.query.filter(
+        model.Project.id != -1).with_entities(
+        model.Project.http_url).all(), ()))
+    rancher.rancher.rc_get_project_id()
+    pipeline_list = [pipeline['repositoryUrl'] for pipeline in rancher.rancher.rc_get_project_pipeline()]
+    non_exist_pipeline = list(set(project_git_http_url)-set(pipeline_list))
+    return non_exist_pipeline
+
+
 def check_project_relation(project_id):
     pj_relation = model.ProjectPluginRelation.query.filter_by(project_id=project_id).all()
     if not pj_relation:
@@ -370,9 +385,7 @@ def k8s_namespace_waiter(project_name):
 
 
 def k8s_namespace_process(projects_name, check_bot_list):
-    rancher.rancher.rc_get_project_id()
-    k8s_ns_list = kubernetesClient.list_namespace()
-    non_exist_projects = list(set(projects_name)-set(k8s_ns_list))
+    non_exist_projects = check_k8s_ns(projects_name)
     if non_exist_projects:
         logger.logger.info(f'Non-exist k8s namespaces found: {non_exist_projects}.')
         for project_name in non_exist_projects:
@@ -457,12 +470,7 @@ def harbor_process(projects_name, check_bot_list):
 
 
 def pipeline_process(check_bot_list):
-    project_git_http_url = list(sum(model.Project.query.filter(
-        model.Project.id != -1).with_entities(
-        model.Project.http_url).all(), ()))
-    rancher.rancher.rc_get_project_id()
-    pipeline_list = [pipeline['repositoryUrl'] for pipeline in rancher.rancher.rc_get_project_pipeline()]
-    non_exist_pipeline = list(set(project_git_http_url)-set(pipeline_list))
+    non_exist_pipeline = check_pipeline_hooks()
     if non_exist_pipeline:
         logger.logger.info(f'Non-exist pipelines found: {non_exist_pipeline}.')
         for gitlab_pj_http_url in non_exist_pipeline:
@@ -486,7 +494,7 @@ def bot_process(check_bot_list):
         for nx_project_id in check_bot_list:
             pj = model.Project.query.get(nx_project_id)
             bot = model.User.query.filter_by(login=f'project_bot_{pj.id}').all()
-            if bot:
+            if len(bot) > 0:
                 logger.logger.info(f'BOT already exist, need to delete it first: {bot[0].name}.')
                 project.delete_bot(pj.id)
             logger.logger.info(f'Create new BOT for project: {pj.name}.')
@@ -513,6 +521,23 @@ def sonarqube_process(projects_name, check_bot_list):
             check_bot_list.append(pj.id)
 
 
+def lock_project(pj_name, info):
+    pj_row = Project.query.filter_by(name=pj_name).first()
+    pj_row.is_lock = True
+    pj_row.lock_reason = f"The {info} softwares of the {pj_name} project has been deleted."
+    db.session.commit()
+
+
+def unlock_project(pj_id=None, pj_name=None):
+    if pj_id:
+        pj_row = Project.query.filter_by(id=pj_id).first()
+    else:
+        pj_row = Project.query.filter_by(name=pj_name).first()
+    pj_row.is_lock = False
+    pj_row.lock_reason = ""
+    db.session.commit()
+
+
 def main_process():
     check_bot_list = []
     projects_name = list(sum(model.Project.query.filter(
@@ -529,6 +554,8 @@ def main_process():
     pipeline_process(check_bot_list)
     logger.logger.info('Sonarqube projects start.')
     sonarqube_process(projects_name, check_bot_list)
+    for pj_id in check_bot_list:
+        unlock_project(pj_id=pj_id)
     logger.logger.info('Project BOT start.')
     bot_process(list(set(check_bot_list)))
     logger.logger.info('Project members start.')
@@ -536,7 +563,66 @@ def main_process():
     logger.logger.info('All done.')
 
 
-class SyncProject(Resource):
-    def get(self):
-        main_process()
-        return util.success()
+def recreate_project(project_id):
+    check_bot_list = []
+    projects_name = list(model.Project.query.filter(
+        model.Project.id == project_id).with_entities(model.Project.name).first())
+    logger.logger.info('Kubernetes namespaces start.')
+    k8s_namespace_process(projects_name, check_bot_list)
+    logger.logger.info('Redmine projects start.')
+    redmine_process(projects_name, check_bot_list)
+    logger.logger.info('Gitlab repository start.')
+    gitlab_process(projects_name, check_bot_list)
+    logger.logger.info('Harbor projects start.')
+    harbor_process(projects_name, check_bot_list)
+    logger.logger.info('Rancher pipelines start.')
+    pipeline_process(check_bot_list)
+    logger.logger.info('Sonarqube projects start.')
+    sonarqube_process(projects_name, check_bot_list)
+    for pj_id in check_bot_list:
+        unlock_project(pj_id=pj_id)
+    logger.logger.info('Project BOT start.')
+    bot_process(list(set(check_bot_list)))
+    logger.logger.info('Project members start.')
+    members_process(projects_name)
+    logger.logger.info('All done.')
+
+
+def check_project_exist():
+    lost_project_infos = {}
+
+    def record_miss_project(lost_project_names, pj_name, soft_name):
+        if pj_name in lost_project_names:
+            lost_project_names[pj_name].append(soft_name)
+        else:
+            lost_project_names[pj_name] = [soft_name]
+        return lost_project_names
+
+    projects_name = list(sum(model.Project.query.filter(
+        model.Project.id != -1).with_entities(model.Project.name).all(), ()))
+    k8s_ns_list = check_k8s_ns(projects_name)
+    rm_pj_list = check_rm_pj(projects_name)
+    gl_repo_list = check_gl_repo(projects_name)
+    hr_pj_list = check_hb_pj(projects_name)
+    sq_pj_list = check_sq_pj(projects_name)
+    if k8s_ns_list:
+        for k8s_ns in k8s_ns_list:
+            lost_project_infos = record_miss_project(lost_project_infos, k8s_ns, "Kubernetes")
+    if rm_pj_list:
+        for rm_pj in rm_pj_list:
+            lost_project_infos = record_miss_project(lost_project_infos, rm_pj.name, "Redmine")
+    if gl_repo_list:
+        for gl_repo in gl_repo_list:
+            lost_project_infos = record_miss_project(lost_project_infos, gl_repo.name, "GitLab")
+    if hr_pj_list:
+        for hr_pj in hr_pj_list:
+            lost_project_infos = record_miss_project(lost_project_infos, hr_pj.name, "Harbor")
+    if sq_pj_list:
+        for sq_pj in sq_pj_list:
+            lost_project_infos = record_miss_project(lost_project_infos, sq_pj.name, "SonarQube")
+    for pj_name, info in lost_project_infos.items():
+        lock_project(pj_name, info)
+    for project_name in projects_name:
+        if project_name not in lost_project_infos:
+            unlock_project(pj_name=project_name)
+    return {"lost_third_part_project": lost_project_infos}

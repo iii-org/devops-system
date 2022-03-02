@@ -18,6 +18,9 @@ import boto3
 from botocore.exceptions import ClientError
 import base64
 import pandas as pd
+from marshmallow import Schema, fields
+
+
 
 def base64decode(value):
     return str(base64.b64decode(str(value)).decode('utf-8'))
@@ -276,6 +279,16 @@ def get_pagination(total_count, limit, offset):
     return page_dict
 
 
+def orm_pagination(base_query, limit, offset):
+    total_count = base_query.count()
+    page_dict = get_pagination(total_count, limit, offset)
+    if limit:
+        base_query = base_query.limit(limit)
+    if offset:
+        base_query = base_query.offset(offset)
+    return base_query, page_dict
+
+
 class DevOpsThread(Thread):
     def __init__(self, group=None, target=None, name=None, args=(), kwargs=None):
         if kwargs is None:
@@ -342,9 +355,19 @@ class AWSEngine():
         response = self.ec2_client.describe_regions()
         return [context['RegionName'] for context in response['Regions']]
 
+
 def get_certain_date_from_now(days):
     return datetime.combine(
         (datetime.now() - timedelta(days=days)), d_time(00, 00))
+
+
+def get_few_months_ago_utc_datetime(month_number):
+    x_months_ago_date_time = datetime.utcnow()
+    if month_number//12 >= 1:
+        x_months_ago_date_time = x_months_ago_date_time.replace(year=datetime.utcnow().date().year-month_number//12)
+    if month_number % 12 != 0:
+        x_months_ago_date_time = x_months_ago_date_time.replace(month=datetime.utcnow().date().month-month_number % 12)
+    return x_months_ago_date_time
 
 
 def read_json_file(path):
@@ -364,14 +387,22 @@ def check_folder_exist(path, create=False):
         os.makedirs(path)
     return exist
 
+
 def write_in_excel(file_path, content):
     df = pd.DataFrame(content)
     df.to_excel(file_path, index=False)
 
-def is_json(content):  
+
+def is_json(content):
     try:
         return json.loads(content)
     except ValueError:
         return content
     except TypeError:
         return None
+
+class CommonResponse(Schema):
+    message = fields.Str(required=True)
+
+class CommonBasicResponse(CommonResponse):
+    datetime = fields.Str(required=True, example="1970-01-01T00:00:00.000000")

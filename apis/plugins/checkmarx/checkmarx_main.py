@@ -190,30 +190,49 @@ class CheckMarx(object):
         return getattr(row, column)
 
     def get_result(self, project_id):
+        ret = {
+            "message": "",
+            "status": -1,
+            "result": {},
+            "run_at": None,
+        }
         scan_id = self.get_latest('scan_id', project_id)
         row = Model.query.filter_by(scan_id=scan_id).first()
         if scan_id < 0 or row is None:
-            return {'message': 'This project does not have any scan.', 'status': -1}, 400
+            ret["status"] = 0
+            ret["message"] = 'This project does not have any scan.'
+            return ret
         st_id, st_name = self.get_scan_status(scan_id)
-        if st_id == 8:
-            return {'message': 'The scan is canceled.', 'status': 4}, 200
-        if st_id == 9:
-            return {'message': 'The scan failed.', 'status': 5}, 200
         if st_id != 7:
-            return {'message': 'The scan is not completed yet.', 'status': 1}, 200
+            st_mapping = {
+                "8": "The scan is canceled.",
+                "9": "The scan failed."
+            }
+            ret["status"] = -1
+            ret["message"] = st_mapping.get(st_id, "The scan is not completed yet.")
+            return ret 
+        
         report_id = row.report_id
         if report_id < 0:
             data_json, status_code = self.register_report(scan_id)
             report_id = data_json['data']['reportId']
         rst_id, rst_name = self.get_report_status(report_id)
+        
+        data = self.get_scan_statistics(scan_id)
+        data.pop("statisticsCalculationDate", "")
         if rst_id != 2:
-            return {'message': 'The report is not ready yet.', 'status': 2,
-                    'data': {'stats': self.get_scan_statistics(scan_id)}}, 200
-        return {'message': 'success', 'status': 3, 'data': {
-            'stats': self.get_scan_statistics(scan_id),
-            'run_at': str(row.run_at),
-            'report_id': report_id
-        }}, 200
+            ret["message"] = 'The report is not ready yet.'
+            ret["status"] = 2
+            ret["result"] = data
+            return ret
+        ret["message"] = 'success'
+        ret["status"] = 1
+        ret["result"] = data
+        ret["run_at"] = str(row.run_at)
+        ret["report_id"] = report_id
+        ret["message"] = 'success'
+        return ret
+
 
     @staticmethod
     def list_scans(project_id):
