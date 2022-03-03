@@ -39,7 +39,9 @@ from .rancher import rancher, remove_pj_executions
 from .redmine import redmine
 from resources.monitoring import Monitoring
 from resources import sync_project
-from resources.project_relation import get_all_sons_project, get_relation_list
+from resources.project_relation import get_all_sons_project
+from flask_apispec import doc
+from flask_apispec.views import MethodResource
 
 
 def get_project_issue_calculation(user_name, project_ids=[]):
@@ -1239,24 +1241,13 @@ def get_projects_by_user(user_id):
     return projects
 
 
-def remove_relation(project_id, parent_id):
-    plan_project_id = model.ProjectPluginRelation.query.filter_by(project_id=project_id).first().plan_project_id
-    project_relation = model.ProjectParentSonRelation.query.filter_by(parent_id=parent_id, son_id=project_id)
-    if project_relation.first() is not None:
-        redmine_lib.redmine.project.update(plan_project_id, parent_id="")
-        project_relation.delete()
-        db.session.commit()
-
-
 # --------------------- Resources ---------------------
 
-
-class ProjectUserResourceIngresses(Resource):
+@doc(tags=['Pending'], description="Get CI pipeline id by git repo id")
+class GitRepoIdToCiPipeIdV2(MethodResource):
     @jwt_required
-    def get(self, project_id):
-        role.require_in_project(
-            project_id, "Error while getting project info.")
-        return get_kubernetes_namespace_ingresses(project_id)
+    def get(self, repository_id):
+        return git_repo_id_to_ci_pipe_id(repository_id)
 
 
 class GitRepoIdToCiPipeId(Resource):
@@ -1265,14 +1256,3 @@ class GitRepoIdToCiPipeId(Resource):
         return git_repo_id_to_ci_pipe_id(repository_id)
 
 
-class ProjectRelation(Resource):
-    @jwt_required
-    def get(self, project_id):
-        return util.success(get_relation_list(project_id, []))
-
-    @jwt_required
-    def delete(self, project_id):
-        parser = reqparse.RequestParser()
-        parser.add_argument('parent_id', type=int, required=True)
-        args = parser.parse_args()
-        return remove_relation(project_id, args["parent_id"])

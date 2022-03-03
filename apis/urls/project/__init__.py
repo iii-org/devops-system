@@ -19,6 +19,10 @@ def project_url(api, add_resource):
     api.add_resource(view.GetProjectFamilymembersByUserV2, '/v2/project/<sint:project_id>/members')
     add_resource(view.GetProjectFamilymembersByUserV2, "public")
 
+    api.add_resource(view.ProjectRelation, '/project/<sint:project_id>/relation')
+    api.add_resource(view.ProjectRelationV2, '/v2/project/<sint:project_id>/relation')
+    add_resource(view.ProjectRelationV2, 'public')
+
     # Issues by Project
     api.add_resource(view.IssueByProject, '/project/<sint:project_id>/issues')
     api.add_resource(view.IssueByProjectV2, '/v2/project/<sint:project_id>/issues')
@@ -189,3 +193,9 @@ def project_url(api, add_resource):
     api.add_resource(view.ProjectUserResourceConfigMapV2,
                  '/v2/project/<sint:project_id>/resource/configmaps/<configmap_name>')
     add_resource(view.ProjectUserResourceConfigMapV2, 'public')
+
+    api.add_resource(view.ProjectUserResourceIngresses,
+                 '/project/<sint:project_id>/resource/ingresses')
+    api.add_resource(view.ProjectUserResourceIngressesV2,
+                 '/v2/project/<sint:project_id>/resource/ingresses')
+    add_resource(view.ProjectUserResourceIngressesV2, 'public')

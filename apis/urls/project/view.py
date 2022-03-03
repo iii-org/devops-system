@@ -7,7 +7,7 @@ import ast
 import model
 from threading import Thread
 from resources.project_relation import project_has_child, get_root_project_id, sync_project_relation, \
-    get_project_family_members_by_user
+    get_project_family_members_by_user, get_relation_list, remove_relation
 from resources.issue import get_issue_list_by_project_helper, get_issue_by_tree_by_project, get_issue_by_status_by_project, \
     get_issue_progress_or_statistics_by_project, get_issue_by_date_by_project, get_custom_issue_filter, \
     create_custom_issue_filter, put_custom_issue_filter, get_lock_status, DownloadIssueAsExcel, pj_download_file_is_exist
@@ -57,7 +57,7 @@ class GetProjectRootID(Resource):
     def get(self, project_id):
         return {"root_project_id": get_root_project_id(project_id)}
 
-@doc(tags=['Project'],description="Sync IIIDevops project's relationship with Redmine")
+@doc(tags=['Sync'],description="Sync IIIDevops project's relationship with Redmine")
 @marshal_with(util.CommonResponse)
 class SyncProjectRelationV2(MethodResource):
     @jwt_required
@@ -82,6 +82,33 @@ class GetProjectFamilymembersByUser(Resource):
     @jwt_required
     def get(self, project_id):
         return util.success(get_project_family_members_by_user(project_id))
+
+
+class ProjectRelationV2(MethodResource):
+    @doc(tags=['Project'], description="Get all sons' project id")
+    @marshal_with(router_model.ProjectRelationGetResponse)
+    @jwt_required
+    def get(self, project_id):
+        return util.success(get_relation_list(project_id, []))
+
+    @doc(tags=['Project'], description="Delete specific project and subproject relation")
+    @use_kwargs(router_model.ProjectRelationDeleteSchema, location="json")
+    @jwt_required
+    def delete(self, project_id, **kwargs):
+        return remove_relation(project_id, kwargs["parent_id"])
+
+class ProjectRelation(Resource):
+    @jwt_required
+    def get(self, project_id):
+        return util.success(get_relation_list(project_id, []))
+
+    @jwt_required
+    def delete(self, project_id):
+        parser = reqparse.RequestParser()
+        parser.add_argument('parent_id', type=int, required=True)
+        args = parser.parse_args()
+        return remove_relation(project_id, args["parent_id"])
+
 
 
 ##### Project issue_list ######
@@ -1283,3 +1310,21 @@ class ProjectUserResourceConfigMap(Resource):
         role.require_in_project(
             project_id, "Error while getting project info.")
         return project.create_kubernetes_namespace_configmap(project_id, configmap_name, args['configmaps'])
+
+
+class ProjectUserResourceIngressesV2(MethodResource):
+    @doc(tags=['K8s'], description="Get specific project k8s ingress list.")
+    @marshal_with(router_model.ProjectUserResourceIngressesResponse)
+    @jwt_required
+    def get(self, project_id):
+        role.require_in_project(
+            project_id, "Error while getting project info.")
+        return project.get_kubernetes_namespace_ingresses(project_id)
+
+
+class ProjectUserResourceIngresses(Resource):
+    @jwt_required
+    def get(self, project_id):
+        role.require_in_project(
+            project_id, "Error while getting project info.")
+        return project.get_kubernetes_namespace_ingresses(project_id)

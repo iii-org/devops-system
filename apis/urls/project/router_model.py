@@ -13,6 +13,9 @@ class GetProjectFamilymembersByUserDataSchema(Schema):
     role_id = fields.Int(required=True)
     role_name = fields.Str(required=True)
 
+class ProjectRelationDeleteSchema(Schema):
+    parent_id = fields.Int(required=True, example=1)
+
 #################################### Response ####################################
 
 ########## Module ##########
@@ -22,6 +25,10 @@ class GetProjectFamilymembersByUserDataSchema(Schema):
     name = fields.Str(required=True)
     role_id = fields.Int(required=True)
     role_name = fields.Str(required=True)
+
+class ProjectRelationGetData(Schema):
+    parent = fields.Int(required=True)
+    child = fields.List(fields.Int())
 
 ########## API Action ##########
 
@@ -35,6 +42,8 @@ class GetProjectFamilymembersByUserResponse(CommonBasicResponse):
     data = fields.List(fields.Nested(
         GetProjectFamilymembersByUserDataSchema, required=True))
 
+class ProjectRelationGetResponse(CommonBasicResponse):
+    data = fields.List(fields.Nested(ProjectRelationGetData, required=True))
 
 ### Project issue_list
 
@@ -681,6 +690,17 @@ class ProjectUserResourceSecretsData(ProjectUserResourceServicesData):
 class ProjectUserResourceConfigMapsData(ProjectUserResourceSecretsData):
     pass
 
+class ProjectUserResourceIngressesData(Schema):
+    name = fields.Str()
+    created_time = fields.Str(example="1970-01-01 00:00:00+00:00")
+    ingress_list = fields.List(fields.Dict(
+        example={
+            "hostname_path": "10.20.0.01.xip.io/service",
+            "service": "service-domain:5000"
+        }))
+    tls = fields.Str(default=None)
+
+
 ########## API Action ##########
 
 class ProjectUserResourceDeploymentsResponse(CommonBasicResponse):
@@ -712,3 +732,6 @@ class ProjectUserResourceConfigMapResponse(CommonBasicResponse):
 
 class ProjectUserResourceConfigMapsDeleteResponse(CommonBasicResponse):
     data = fields.Str()
+
+class ProjectUserResourceIngressesResponse(CommonBasicResponse):
+    data = fields.List(fields.Nested(ProjectUserResourceIngressesData))

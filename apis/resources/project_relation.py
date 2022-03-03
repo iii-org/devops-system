@@ -4,6 +4,7 @@ from datetime import datetime
 from accessories import redmine_lib
 from sqlalchemy.orm import joinedload
 from resources import role
+from model import db
 
 
 def get_plan_id(project_id):
@@ -152,3 +153,12 @@ def get_project_family_members_by_user(project_id):
         "role_id": relation_row.role_id,
         "role_name": role.get_role_name(relation_row.role_id)
     } for relation_row in user_list]
+
+
+def remove_relation(project_id, parent_id):
+    plan_project_id = model.ProjectPluginRelation.query.filter_by(project_id=project_id).first().plan_project_id
+    project_relation = model.ProjectParentSonRelation.query.filter_by(parent_id=parent_id, son_id=project_id)
+    if project_relation.first() is not None:
+        redmine_lib.redmine.project.update(plan_project_id, parent_id="")
+        project_relation.delete()
+        db.session.commit()

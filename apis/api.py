@@ -204,15 +204,20 @@ def initialize(db_uri):
     migrate.init()
     logger.logger.info('Server initialized.')
 
-
+# Router
 api.add_resource(router.Router, '/router')
 api.add_resource(router.RouterNameV2, '/v2/router/name')
 add_resource(router.RouterNameV2, "public")
 api.add_resource(router.UserRouteV2, '/v2/router/user_route')
 add_resource(router.UserRouteV2, "public")
 
+
+# Git
 api.add_resource(project.GitRepoIdToCiPipeId,
                  '/git_repo_id_to_ci_pipe_id/<repository_id>')
+api.add_resource(project.GitRepoIdToCiPipeIdV2,
+                 '/v2/git_repo_id_to_ci_pipe_id/<repository_id>')
+add_resource(project.GitRepoIdToCiPipeIdV2, 'public')
 
 # Projects
 api.add_resource(starred_project.StarredProject,
@@ -230,7 +235,6 @@ api.add_resource(gitlab.SyncGitCommitIssueRelation,
                  '/project/<sint:project_id>/issues_commit/<issue_id>',
                  )
 api.add_resource(gitlab.GetCommitIssueHookByBranch, '/project/<sint:project_id>/issues_commit/by_branch')
-api.add_resource(project.ProjectRelation, '/project/<sint:project_id>/relation')
 
 project_url(api, add_resource)
 
@@ -239,14 +243,6 @@ api.add_resource(tag.Tags, '/tags')
 api.add_resource(tag.Tag, '/tags/<int:tag_id>')
 api.add_resource(tag.UserTags, '/user/tags')
 
-
-# List k8s Services
-
-# k8s ConfigMaps
-
-# k8s Ingress
-api.add_resource(project.ProjectUserResourceIngresses,
-                 '/project/<sint:project_id>/resource/ingresses')
 
 api.add_resource(wiki.ProjectWikiList, '/project/<sint:project_id>/wiki')
 api.add_resource(wiki.ProjectWiki,
