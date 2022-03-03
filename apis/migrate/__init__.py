@@ -206,6 +206,10 @@ def insert_ui_router():
                 user_role = role.QA.id
             row = UIRoute.query.filter_by(route_name=route_name).first()
             if row:
+                role_relation_row = UIRouteUserRoleRelation.query.filter_by(
+                    ui_route_id=row.id, user_role=user_role).first()
+                if role_relation_row:
+                    continue
                 row_list.append(UIRouteUserRoleRelation(ui_route_id=row.id,
                                                         user_role=user_role,
                                                         created_at=datetime.utcnow()))
