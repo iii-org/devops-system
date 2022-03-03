@@ -2204,7 +2204,7 @@ class IssueByUser(Resource):
         return util.success(output)
 
 
-@doc(tags=['Unknown'], description="Get issue list by version")
+@doc(tags=['Pending'], description="Get issue list by version")
 class IssueByVersionV2(MethodResource):
     @ jwt_required
     def get(self, project_id):

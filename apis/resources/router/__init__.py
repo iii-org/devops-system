@@ -80,7 +80,7 @@ class Router(Resource):
                                 )
 
 
-@ doc(tags=['UI Route'], description="Get UI route name")
+@ doc(tags=['Router'], description="Get UI route name")
 @ marshal_with(route_model.UIRouteListResponse)
 class RouterNameV2(MethodResource):
 
@@ -90,7 +90,7 @@ class RouterNameV2(MethodResource):
         return util.success(get_ui_route_list())
 
 
-@ doc(tags=['UI Route'], description="Get the user route")
+@ doc(tags=['Router'], description="Get the user route")
 @ marshal_with(route_model.UIRouteListResponse)
 class UserRouteV2(MethodResource):
     @ jwt_required

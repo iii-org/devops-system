@@ -21,7 +21,7 @@ class CommonSingleIssueSchema(Schema):
     tags = fields.Str(doc='tags', example="1,2")
     # Attachment upload
     # still finding how to test file type.
-    upload_file = fields.Raw(type='werkzeug.datastructures.FileStorage', doc='upload_file', example="(binary)")
+    upload_file = fields.Raw(doc='upload_file', example="(binary)")
     upload_filename = fields.Str(doc='upload_filename', example="string")
     upload_description = fields.Str(doc='upload_description', example="string")
     upload_content_type = fields.Str(doc='upload_content_type', example="string")

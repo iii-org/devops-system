@@ -16,7 +16,8 @@ stages:
     when:
       branch:
         include:
-          - skip
+          - master
+          - develop
   - name: Test--SonarQube source code scan
     iiidevops: sonarqube
     steps:

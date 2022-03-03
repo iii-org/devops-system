@@ -779,7 +779,7 @@ def user_sa_config(user_id):
 
 
 # --------------------- Resources ---------------------
-@doc(tags=['Login'],description='Login API')
+@doc(tags=['User'],description='Login API')
 @use_kwargs(resources.api_model.LoginSchema, location=('json'))
 @marshal_with(resources.api_model.LoginSuccessResponse)  # marshalling
 class LoginV2(MethodResource):
