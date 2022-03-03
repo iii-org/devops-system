@@ -29,7 +29,7 @@ from resources.redmine import redmine
 
 ##### Project Relation ######
 
-@doc(tags=['Project Relation'],description="Check project has son project or not")
+@doc(tags=['Project'],description="Check project has son project or not")
 @marshal_with(router_model.CheckhasSonProjectResponse)
 class CheckhasSonProjectV2(MethodResource):
     @jwt_required
@@ -45,7 +45,7 @@ class CheckhasSonProject(Resource):
             "has_child": project_has_child(project_id)
         }
 
-@doc(tags=['Project Relation'],description="Gey root project_id")
+@doc(tags=['Project'],description="Gey root project_id")
 @marshal_with(router_model.GetProjectRootIDResponse)
 class GetProjectRootIDV2(MethodResource):
     @jwt_required
@@ -57,7 +57,7 @@ class GetProjectRootID(Resource):
     def get(self, project_id):
         return {"root_project_id": get_root_project_id(project_id)}
 
-@doc(tags=['Project Relation'],description="Sync IIIDevops project's relationship with Redmine")
+@doc(tags=['Project'],description="Sync IIIDevops project's relationship with Redmine")
 @marshal_with(util.CommonResponse)
 class SyncProjectRelationV2(MethodResource):
     @jwt_required
@@ -71,7 +71,7 @@ class SyncProjectRelation(Resource):
         Thread(target=sync_project_relation).start()
         return util.success()
 
-@doc(tags=['Project Relation'],description="Get all sons' project members")
+@doc(tags=['Project'],description="Get all sons' project members")
 @marshal_with(router_model.GetProjectFamilymembersByUserResponse)
 class GetProjectFamilymembersByUserV2(MethodResource):
     @jwt_required
@@ -207,7 +207,7 @@ class IssuesStatisticsByProject(Resource):
                                                              args, statistics=True)
         return util.success(output)
 
-@doc(tags=['Unknown'], description="Get issue list by date")
+@doc(tags=['Pending'], description="Get issue list by date")
 class IssueByDateByProjectV2(MethodResource):
     @ jwt_required
     def get(self, project_id):
@@ -337,7 +337,7 @@ class IssueFilterByProject(Resource):
 
 class DownloadProjectExecuteV2(MethodResource):
     # download/execute
-    @doc(tags=['Project'], description="Execute download project's issues as excel.")
+    @doc(tags=['Issue'], description="Execute download project's issues as excel.")
     @use_kwargs(router_model.DownloadProjectSchema, location="json")
     @marshal_with(util.CommonResponse)
     @jwt_required
@@ -350,7 +350,7 @@ class DownloadProjectExecuteV2(MethodResource):
 
 class DownloadProjectIsExistV2(MethodResource):
     # download/is_exist
-    @doc(tags=['Project'], description="Check excel file is exist.")
+    @doc(tags=['Issue'], description="Check excel file is exist.")
     @marshal_with(router_model.DownloadProjectIsExistResponse)
     @jwt_required 
     def get(self, project_id):
@@ -358,7 +358,7 @@ class DownloadProjectIsExistV2(MethodResource):
 
 class DownloadProjectV2(MethodResource):
     # download/execute
-    @doc(tags=['Project'], description="Download project's issues' excel.")
+    @doc(tags=['Issue'], description="Download project's issues' excel.")
     @jwt_required
     def patch(self, project_id):
         if not pj_download_file_is_exist(project_id)["file_exist"]:
@@ -683,7 +683,7 @@ class SingleProjectByName(Resource):
 ##### Project member ######
 
 class ProjectMemberV2(MethodResource):
-    @doc(tags=['Project'], description="Create project member.")
+    @doc(tags=['User'], description="Create project member.")
     @use_kwargs(router_model.SingleProjectPutSchema, location="json")
     @marshal_with(util.CommonResponse)
     @jwt_required
@@ -692,7 +692,7 @@ class ProjectMemberV2(MethodResource):
         role.require_in_project(project_id)
         return project.project_add_member(project_id, kwargs['user_id'])
 
-@doc(tags=['Project'], description="Create project member.")
+@doc(tags=['User'], description="Delete project member.")
 @marshal_with(util.CommonResponse)
 class ProjectMemberDeleteV2(MethodResource):
     @jwt_required
@@ -718,7 +718,7 @@ class ProjectMember(Resource):
         return project.project_remove_member(project_id, user_id)
 
 class ProjectUserListV2(MethodResource):
-    @doc(tags=['Project'], description="Get users which able to add in the project.")
+    @doc(tags=['User'], description="Get users which able to add in the project.")
     @use_kwargs(router_model.ProjectUserListSchema, location="query")
     @marshal_with(router_model.ProjectUserListResponse)
     @jwt_required
@@ -768,7 +768,7 @@ class AllReports(Resource):
                          attachment_filename='reports.zip', as_attachment=True)
 
 class ProjectFileV2(MethodResource):
-    @doc(tags=['Project'], description="Upload file to project.")
+    @doc(tags=['File'], description="Upload file to project.")
     @jwt_required
     def post(self, project_id):
         try:
@@ -789,7 +789,7 @@ class ProjectFileV2(MethodResource):
             plan_operator_id = operator_plugin_relation.plan_user_id
         return redmine.rm_upload_to_project(plan_project_id, args, plan_operator_id)
 
-    @doc(tags=['Project'], description="Get project file list.")
+    @doc(tags=['File'], description="Get project file list.")
     @marshal_with(router_model.ProjectFileGetResponse)
     @jwt_required
     def get(self, project_id):
@@ -832,7 +832,7 @@ class ProjectFile(Resource):
 
 ##### Project plugin(k8s) ######
 
-@doc(tags=['Project'], description="Get project plugin resource info.")
+@doc(tags=['Plugin'], description="Get project plugin resource info.")
 @marshal_with(router_model.ProjectPluginUsageResponse)
 class ProjectPluginUsageV2(MethodResource):
     @jwt_required
@@ -849,7 +849,7 @@ class ProjectPluginUsage(Resource):
         return project.get_plugin_usage(project_id)
 
 class ProjectUserResourceV2(MethodResource):
-    @doc(tags=['Project'], description="Get project k8s info.")
+    @doc(tags=['K8s'], description="Get project k8s info.")
     @marshal_with(router_model.ProjectUserResourceResponse)
     @jwt_required
     def get(self, project_id):
@@ -857,7 +857,7 @@ class ProjectUserResourceV2(MethodResource):
             project_id, "Error while getting project info.")
         return project.get_kubernetes_namespace_Quota(project_id)
 
-    @doc(tags=['Project'], description="Get project k8s info.")
+    @doc(tags=['K8s'], description="Update project k8s info.")
     @use_kwargs(router_model.ProjectUserResourceSchema, location="json")
     @marshal_with(util.CommonResponse)
     @jwt_required
@@ -894,7 +894,7 @@ class ProjectUserResource(Resource):
         return project.update_kubernetes_namespace_Quota(project_id, args)
 
 
-@doc(tags=['Unknown'], description="Get plugin name from project?")
+@doc(tags=['Pending'], description="Get plugin name from project?")
 class ProjectPluginPodV2(MethodResource):
     @jwt_required
     def get(self, project_id):
@@ -915,7 +915,7 @@ class ProjectPluginPod(Resource):
         args = parser.parse_args()
         return project.get_kubernetes_plugin_pods(project_id, args.get("plugin_name"))
 
-@doc(tags=['Project'], description="Get project pod list")
+@doc(tags=['K8s'], description="Get project pod list")
 @marshal_with(router_model.ProjectUserResourcePodsResponse)
 class ProjectUserResourcePodsV2(MethodResource):
     @jwt_required
@@ -931,7 +931,7 @@ class ProjectUserResourcePods(Resource):
             project_id, "Error while getting project info.")
         return project.get_kubernetes_namespace_pods(project_id)
 
-@doc(tags=['Project'], description="Delete specific project pod.")
+@doc(tags=['K8s'], description="Delete specific project pod.")
 @marshal_with(router_model.ProjectUserResourcePodResponse)
 class ProjectUserResourcePodV2(MethodResource):
     @jwt_required
@@ -947,7 +947,7 @@ class ProjectUserResourcePod(Resource):
             project_id, "Error while getting project info.")
         return project.delete_kubernetes_namespace_pod(project_id, pod_name)
 
-@doc(tags=['Project'], description="Get specific project pod.")
+@doc(tags=['K8s'], description="Get specific project pod.")
 @use_kwargs(router_model.ProjectUserResourcePodLogSchema, location="query")
 @marshal_with(router_model.ProjectUserResourcePodResponse)
 class ProjectUserResourcePodLogV2(MethodResource):
@@ -967,7 +967,7 @@ class ProjectUserResourcePodLog(Resource):
         args = parser.parse_args()
         return project.get_kubernetes_namespace_pod_log(project_id, pod_name, args['container_name'])
 
-@doc(tags=['Project'], description="Get specific project deployed environment.")
+@doc(tags=['System'], description="Get specific project deployed environment.")
 @marshal_with(router_model.ProjectEnvironmentGetResponse)
 class ProjectEnvironmentGetV2(MethodResource):
     @jwt_required
@@ -977,7 +977,7 @@ class ProjectEnvironmentGetV2(MethodResource):
         return util.success(project.get_kubernetes_namespace_dev_environment(project_id))
 
 class ProjectEnvironmentV2(MethodResource):
-    @doc(tags=['Project'], description="Redeploy specific project deployed environment.")
+    @doc(tags=['System'], description="Redeploy specific project deployed environment.")
     @marshal_with(router_model.ProjectEnvironmentPutResponse)
     @jwt_required
     def put(self, project_id, branch_name):
@@ -985,7 +985,7 @@ class ProjectEnvironmentV2(MethodResource):
             project_id, "Error while getting project info.")
         return project.put_kubernetes_namespace_dev_environment(project_id, branch_name)
 
-    @doc(tags=['Project'], description="Delete specific project deployed environment.")
+    @doc(tags=['System'], description="Delete specific project deployed environment.")
     @marshal_with(router_model.ProjectEnvironmentDeleteResponse)
     @jwt_required
     def delete(self, project_id, branch_name):
@@ -1013,7 +1013,7 @@ class ProjectEnvironment(Resource):
             project_id, "Error while getting project info.")
         return project.delete_kubernetes_namespace_dev_environment(project_id, branch_name)
 
-@doc(tags=['Unknown'], description="Get specific project deployed environment's URL?")
+@doc(tags=['Pending'], description="Get specific project deployed environment's URL?")
 # @marshal_with(router_model.ProjectEnvironmentUrlResponse)
 class ProjectEnvironmentUrlV2(MethodResource):
     @jwt_required
@@ -1033,7 +1033,7 @@ class ProjectEnvironmentUrl(Resource):
 
 
 ##### k8s info ######
-@doc(tags=['Project'], description="Get specific project deployment list.")
+@doc(tags=['System'], description="Get specific project deployment list.")
 @marshal_with(router_model.ProjectUserResourceDeploymentsResponse)
 class ProjectUserResourceDeploymentsV2(MethodResource):
     @jwt_required
@@ -1052,7 +1052,7 @@ class ProjectUserResourceDeployments(Resource):
 
 
 class ProjectUserResourceDeploymentV2(MethodResource):
-    @doc(tags=['Project'], description="Redeploy specific project deployment.")
+    @doc(tags=['System'], description="Redeploy specific project deployment.")
     @marshal_with(router_model.ProjectUserResourceDeploymentResponse)
     @jwt_required
     def put(self, project_id, deployment_name):
@@ -1060,7 +1060,7 @@ class ProjectUserResourceDeploymentV2(MethodResource):
             project_id, "Error while getting project info.")
         return project.put_kubernetes_namespace_deployment(project_id, deployment_name)
 
-    @doc(tags=['Project'], description="Delete specific project deployment.")
+    @doc(tags=['System'], description="Delete specific project deployment.")
     @marshal_with(router_model.ProjectUserResourceDeploymentResponse)
     @jwt_required
     def delete(self, project_id, deployment_name):
@@ -1081,7 +1081,7 @@ class ProjectUserResourceDeployment(Resource):
             project_id, "Error while getting project info.")
         return project.delete_kubernetes_namespace_deployment(project_id, deployment_name)
 
-@doc(tags=['Project'], description="Get specific project service list.")
+@doc(tags=['System'], description="Get specific project service list.")
 @marshal_with(router_model.ProjectUserResourceServicesResponse)
 class ProjectUserResourceServicesV2(MethodResource):
     @jwt_required
@@ -1099,7 +1099,7 @@ class ProjectUserResourceServices(Resource):
 
 
 class ProjectUserResourceServiceV2(MethodResource):
-    @doc(tags=['Project'], description="Delete specific project service.")
+    @doc(tags=['System'], description="Delete specific project service.")
     @marshal_with(router_model.ProjectUserResourceServiceDeleteResponse)
     @jwt_required
     def delete(self, project_id, service_name):
@@ -1116,7 +1116,7 @@ class ProjectUserResourceService(Resource):
 
 
 class ProjectUserResourceSecretsV2(MethodResource):
-    @doc(tags=['Project'], description="Get specific project k8s secret.")
+    @doc(tags=['K8s'], description="Get specific project k8s secret.")
     @marshal_with(router_model.ProjectUserResourceSecretsResponse)
     @jwt_required
     def get(self, project_id):
@@ -1133,7 +1133,7 @@ class ProjectUserResourceSecrets(Resource):
 
 
 class ProjectUserResourceSecretV2(MethodResource):
-    @doc(tags=['Project'], description="Get specific project k8s secret by secret name.")
+    @doc(tags=['K8s'], description="Get specific project k8s secret by secret name.")
     @marshal_with(router_model.ProjectUserResourceSecretGetResponse)
     @jwt_required
     def get(self, project_id, secret_name):
@@ -1141,7 +1141,7 @@ class ProjectUserResourceSecretV2(MethodResource):
             project_id, "Error while getting project info.")
         return project.read_kubernetes_namespace_secret(project_id, secret_name)
 
-    @doc(tags=['Unknown'], description="Might not be used in project.")
+    @doc(tags=['Pending'], description="Might not be used in project.")
     @use_kwargs(router_model.ProjectUserResourceSecretSchema, location="json")
     @marshal_with(util.CommonResponse)
     @jwt_required
@@ -1150,7 +1150,7 @@ class ProjectUserResourceSecretV2(MethodResource):
             project_id, "Error while getting project info.")
         return project.create_kubernetes_namespace_secret(project_id, secret_name, kwargs["secrets"])
 
-    @doc(tags=['Project'], description="Update specific project k8s secret by secret name.")
+    @doc(tags=['K8s'], description="Update specific project k8s secret by secret name.")
     @use_kwargs(router_model.ProjectUserResourceSecretSchema, location="json")
     @marshal_with(util.CommonResponse)
     @jwt_required
@@ -1159,7 +1159,7 @@ class ProjectUserResourceSecretV2(MethodResource):
             project_id, "Error while getting project info.")
         return project.put_kubernetes_namespace_secret(project_id, secret_name, kwargs["secrets"])
 
-    @doc(tags=['Project'], description="Delete specific project k8s secret by secret name.")
+    @doc(tags=['K8s'], description="Delete specific project k8s secret by secret name.")
     @marshal_with(router_model.ProjectUserResourceSecretDeleteResponse)
     @jwt_required
     def delete(self, project_id, secret_name):
@@ -1201,7 +1201,7 @@ class ProjectUserResourceSecret(Resource):
 
 
 class ProjectUserResourceConfigMapsV2(MethodResource):
-    @doc(tags=['Project'], description="Get specific project k8s configmap list.")
+    @doc(tags=['K8s'], description="Get specific project k8s configmap list.")
     @marshal_with(router_model.ProjectUserResourceConfigMapsResponse)
     @jwt_required
     def get(self, project_id):
@@ -1235,7 +1235,7 @@ class ProjectUserResourceConfigMapV2(MethodResource):
         return project.delete_kubernetes_namespace_configmap(project_id, configmap_name)
 
     @doc(tags=['K8s'], description="Update specific project k8s configmap by configmap_name.")
-    @use_kwargs(router_model.ProjectUserResourceConfigMapsPostPutSchema, location="json")
+    @use_kwargs(router_model.ProjectUserResourceConfigMapsSchema, location="json")
     @marshal_with(router_model.ProjectUserResourceConfigMapResponse)
     @jwt_required
     def put(self, project_id, configmap_name, **kwargs):
@@ -1244,7 +1244,7 @@ class ProjectUserResourceConfigMapV2(MethodResource):
         return project.put_kubernetes_namespace_configmap(project_id, configmap_name, kwargs['configmaps'])
 
     @doc(tags=['K8s'], description="Create specific project k8s configmap by configmap_name.")
-    @use_kwargs(router_model.ProjectUserResourceConfigMapsPostPutSchema, location="json")
+    @use_kwargs(router_model.ProjectUserResourceConfigMapsSchema, location="json")
     @marshal_with(router_model.ProjectUserResourceConfigMapResponse)
     @jwt_required
     def post(self, project_id, configmap_name, **kwargs):

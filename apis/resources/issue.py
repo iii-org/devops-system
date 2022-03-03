@@ -2270,7 +2270,7 @@ class IssueTracker(Resource):
         return get_issue_trackers()
 
 
-@doc(tags=['Issue'], description="Get user's issues' numbers of each priorities.")
+@doc(tags=['Dashboard'], description="Get user's issues' numbers of each priorities.")
 @marshal_with(route_model.DashboardIssuePriorityResponse)
 class DashboardIssuePriorityV2(MethodResource):
     @ jwt_required
@@ -2292,7 +2292,7 @@ class DashboardIssuePriority(Resource):
             return {'message': 'Access token is missing or invalid'}, 401
 
 
-@doc(tags=['Issue'], description="Get user's issues' numbers of each projects.")
+@doc(tags=['Dashboard'], description="Get user's issues' numbers of each projects.")
 @marshal_with(route_model.DashboardIssueProjectResponse)
 class DashboardIssueProjectV2(MethodResource):
     @ jwt_required
@@ -2313,7 +2313,7 @@ class DashboardIssueProject(Resource):
         else:
             return {'message': 'Access token is missing or invalid'}, 401
 
-@doc(tags=['Issue'], description="Get user's issues' numbers of each projects.")
+@doc(tags=['Dashboard'], description="Get user's issues' numbers of each projects.")
 @marshal_with(route_model.DashboardIssueTypeResponse)
 class DashboardIssueTypeV2(MethodResource):
     @ jwt_required
@@ -2337,14 +2337,14 @@ class DashboardIssueType(Resource):
 
 class RequirementByIssueV2(MethodResource):
     # 用issues ID 取得目前所有的需求清單
-    @doc(tags=['Unknown'], description="Get requirement by issue_id.")
+    @doc(tags=['Test'], description="Get requirement by issue_id.")
     @ jwt_required
     def get(self, issue_id):
         output = get_requirements_by_issue_id(issue_id)
         return util.success(output)
 
     # 用issues ID 新建立需求清單
-    @doc(tags=['Unknown'], description="Create requirement by issue_id.")
+    @doc(tags=['Test'], description="Create requirement by issue_id.")
     @ jwt_required
     def post(self, issue_id):
         parser = reqparse.RequestParser()
@@ -2375,21 +2375,21 @@ class RequirementByIssue(Resource):
 
 class RequirementV2(MethodResource):
     # 用requirement_id 取得目前需求流程
-    @doc(tags=['Unknown'], description="Get requirement by requirement_id.")
+    @doc(tags=['Test'], description="Get requirement by requirement_id.")
     @ jwt_required
     def get(self, requirement_id):
         output = get_requirement_by_rqmt_id(requirement_id)
         return util.success(output)
 
     # 用requirement_id 刪除目前需求流程
-    @doc(tags=['Unknown'], description="Delete requirement by requirement_id.")
+    @doc(tags=['Test'], description="Delete requirement by requirement_id.")
     @ jwt_required
     def delete(self, requirement_id):
         del_requirement_by_rqmt_id(requirement_id)
         return util.success()
 
     # 用requirement_id 更新目前需求流程
-    @doc(tags=['Unknown'], description="Update requirement by requirement_id.")
+    @doc(tags=['Test'], description="Update requirement by requirement_id.")
     @ jwt_required
     def put(self, requirement_id):
         parser = reqparse.RequestParser()
@@ -2422,7 +2422,7 @@ class Requirement(Resource):
         return util.success()
 
 
-@doc(tags=['Unknown'], description="Get supported flow type.")
+@doc(tags=['Test'], description="Get supported flow type.")
 @marshal_with(route_model.GetFlowTypeResponse)
 class GetFlowTypeV2(MethodResource):
     @ jwt_required
@@ -2439,7 +2439,7 @@ class GetFlowType(Resource):
 
 
 class FlowByIssueV2(MethodResource):
-    @doc(tags=['Unknown'], description="Get flow by issue_id.")
+    @doc(tags=['Test'], description="Get flow by issue_id.")
     # 用issues ID 取得目前所有的需求清單
     @ jwt_required
     def get(self, issue_id):
@@ -2457,7 +2457,7 @@ class FlowByIssueV2(MethodResource):
         return util.success(output)
 
     # 用issues ID 新建立需求清單
-    @doc(tags=['Unknown'], description="Create flow by issue_id.")
+    @doc(tags=['Test'], description="Create flow by issue_id.")
     @ jwt_required
     def post(self, issue_id):
         parser = reqparse.RequestParser()
@@ -2517,21 +2517,21 @@ class FlowByIssue(Resource):
 
 
 class FlowV2(MethodResource):
-    @doc(tags=['Unknown'], description="Get supported flow type.")
+    @doc(tags=['Test'], description="Get supported flow type.")
     # 用requirement_id 取得目前需求流程
     @ jwt_required
     def get(self, flow_id):
         output = get_flow_by_flow_id(flow_id)
         return util.success(output)
 
-    @doc(tags=['Unknown'], description="Create supported flow type.")
+    @doc(tags=['Test'], description="Create supported flow type.")
     # 用requirement_id 刪除目前需求流程
     @ jwt_required
     def delete(self, flow_id):
         output = disabled_flow_by_flow_id(flow_id)
         return util.success(output, has_date_etc=True)
 
-    @doc(tags=['Unknown'], description="Delete supported flow type.")
+    @doc(tags=['Test'], description="Delete supported flow type.")
     # 用requirement_id 更新目前需求流程
     @ jwt_required
     def put(self, flow_id):
@@ -2571,7 +2571,7 @@ class Flow(Resource):
         return util.success(output, has_date_etc=True)
 
 
-@doc(tags=['Unknown'], description="Get all paramenters' type.")
+@doc(tags=['Test'], description="Get all paramenters' type.")
 class ParameterTypeV2(MethodResource):
     @ jwt_required
     def get(self):
@@ -2588,14 +2588,14 @@ class ParameterType(Resource):
 
 class ParameterByIssueV2(MethodResource):
     # 用issues ID 取得目前所有的需求清單
-    @doc(tags=['Unknown'], description="Get paramenter by issue_id.")
+    @doc(tags=['Test'], description="Get paramenter by issue_id.")
     @ jwt_required
     def get(self, issue_id):
         output = get_parameters_by_issue_id(issue_id)
         return util.success(output)
 
     # 用issues ID 新建立需求清單
-    @doc(tags=['Unknown'], description="Create paramenter by issue_id.")
+    @doc(tags=['Test'], description="Create paramenter by issue_id.")
     @ jwt_required
     def post(self, issue_id):
         parser = reqparse.RequestParser()
@@ -2633,21 +2633,21 @@ class ParameterByIssue(Resource):
 
 class ParameterV2(MethodResource):
     # 用requirement_id 取得目前需求流程
-    @doc(tags=['Unknown'], description="Get paramenter by parameter_id.")
+    @doc(tags=['Test'], description="Get paramenter by parameter_id.")
     @ jwt_required
     def get(self, parameter_id):
         output = get_parameters_by_param_id(parameter_id)
         return util.success(output)
 
     # 用requirement_id 刪除目前需求流程
-    @doc(tags=['Unknown'], description="Delete paramenter by parameter_id.")
+    @doc(tags=['Test'], description="Delete paramenter by parameter_id.")
     @ jwt_required
     def delete(self, parameter_id):
         output = del_parameters_by_param_id(parameter_id)
         return util.success(output)
 
     # 用requirement_id 更新目前需求流程
-    @doc(tags=['Unknown'], description="Update paramenter by parameter_id.")
+    @doc(tags=['Test'], description="Update paramenter by parameter_id.")
     @ jwt_required
     def put(self, parameter_id):
         parser = reqparse.RequestParser()

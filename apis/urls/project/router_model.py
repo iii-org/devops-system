@@ -652,7 +652,7 @@ class ProjectEnvironmentUrlResponse(CommonBasicResponse):
 class ProjectUserResourceSecretSchema(Schema):
     secrets = fields.Dict(required=True)
 
-class ProjectUserResourceConfigMapsPutSchema(Schema):
+class ProjectUserResourceConfigMapsSchema(Schema):
     configmaps = fields.Dict(required=True)
 
 

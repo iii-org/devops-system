@@ -316,7 +316,7 @@ class IssueFamily(Resource):
 
 ##### Issue Statistics #####
 
-@doc(tags=['Unknown'], description="Get issue Statistics")
+@doc(tags=['Pending'], description="Get issue Statistics")
 class MyIssueStatisticsV2(MethodResource):
     @ jwt_required
     def get(self):
@@ -379,7 +379,7 @@ class MyIssueMonthStatistics(Resource):
 ##### Issue's Relation issue #####
 
 class RelationV2(MethodResource):
-    @doc(tags=['Unknown'], description="Create issue's relation.")
+    @doc(tags=['Pending'], description="Create issue's relation.")
     @ jwt_required
     def post(self):
         parser = reqparse.RequestParser()
@@ -397,7 +397,7 @@ class RelationV2(MethodResource):
         put_issue_relation(kwargs['issue_id'], kwargs['issue_to_ids'], get_jwt_identity()['user_account'])
         return util.success()
 
-@doc(tags=['Unknown'], description="Delete issue's relation.")
+@doc(tags=['Pending'], description="Delete issue's relation.")
 class RelationDeleteV2(MethodResource):
     @ jwt_required
     def delete(self, relation_id):
