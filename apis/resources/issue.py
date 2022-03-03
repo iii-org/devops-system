@@ -1915,7 +1915,7 @@ def check_issue_closable(issue_id):
                 unfinished_issues.remove(id)
                 finished_issues.append(id)
     # 若未完成的 issues 存在，回傳布林值
-    return unfinished_issues != []
+    return unfinished_issues == []
 
 
 def execute_issue_alert(alert_mapping):
