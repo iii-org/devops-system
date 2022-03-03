@@ -145,3 +145,47 @@ def project_url(api, add_resource):
     add_resource(view.ProjectEnvironmentGetV2, 'public')
     api.add_resource(view.ProjectEnvironmentV2,  '/v2/project/<sint:project_id>/environments/branch/<branch_name>')
     add_resource(view.ProjectEnvironmentV2, 'public')
+
+    #
+    api.add_resource(view.ProjectEnvironmentUrl, '/project/<sint:project_id>/environments/branch/<branch_name>/urls')
+    api.add_resource(view.ProjectEnvironmentUrlV2, '/v2/project/<sint:project_id>/environments/branch/<branch_name>/urls')
+    add_resource(view.ProjectEnvironmentUrlV2, 'public')
+
+    # k8s info
+    api.add_resource(view.ProjectUserResourceDeployments, '/project/<sint:project_id>/resource/deployments')
+    api.add_resource(view.ProjectUserResourceDeploymentsV2, '/v2/project/<sint:project_id>/resource/deployments')
+    add_resource(view.ProjectUserResourceDeploymentsV2, 'public')
+
+    api.add_resource(view.ProjectUserResourceDeployment, '/project/<sint:project_id>/resource/deployments/<deployment_name>')
+    api.add_resource(view.ProjectUserResourceDeploymentV2, '/v2/project/<sint:project_id>/resource/deployments/<deployment_name>')
+    add_resource(view.ProjectUserResourceDeploymentV2, 'public')
+
+    api.add_resource(view.ProjectUserResourceServices, '/project/<sint:project_id>/resource/services')
+    api.add_resource(view.ProjectUserResourceServicesV2, '/v2/project/<sint:project_id>/resource/services')
+    add_resource(view.ProjectUserResourceServicesV2, 'public')
+
+    api.add_resource(view.ProjectUserResourceService, '/project/<sint:project_id>/resource/services/<service_name>')
+    api.add_resource(view.ProjectUserResourceServiceV2, '/v2/project/<sint:project_id>/resource/services/<service_name>')
+    add_resource(view.ProjectUserResourceServiceV2, 'public')
+
+    api.add_resource(view.ProjectUserResourceSecrets, '/project/<sint:project_id>/resource/secrets')
+    api.add_resource(view.ProjectUserResourceSecretsV2, '/v2/project/<sint:project_id>/resource/secrets')
+    add_resource(view.ProjectUserResourceSecretsV2, 'public')
+
+    api.add_resource(view.ProjectUserResourceSecret,
+                 '/project/<sint:project_id>/resource/secrets/<secret_name>')
+    api.add_resource(view.ProjectUserResourceSecretV2,
+                 '/v2/project/<sint:project_id>/resource/secrets/<secret_name>')
+    add_resource(view.ProjectUserResourceSecretV2, 'public')
+
+    api.add_resource(view.ProjectUserResourceConfigMaps,
+                 '/project/<sint:project_id>/resource/configmaps')
+    api.add_resource(view.ProjectUserResourceConfigMapsV2,
+                 '/v2/project/<sint:project_id>/resource/configmaps')
+    add_resource(view.ProjectUserResourceConfigMapsV2, 'public')
+
+    api.add_resource(view.ProjectUserResourceConfigMap,
+                 '/project/<sint:project_id>/resource/configmaps/<configmap_name>')
+    api.add_resource(view.ProjectUserResourceConfigMapV2,
+                 '/v2/project/<sint:project_id>/resource/configmaps/<configmap_name>')
+    add_resource(view.ProjectUserResourceConfigMapV2, 'public')

@@ -215,9 +215,6 @@ api.add_resource(project.GitRepoIdToCiPipeId,
                  '/git_repo_id_to_ci_pipe_id/<repository_id>')
 
 # Projects
-
-
-
 api.add_resource(starred_project.StarredProject,
                  '/project/<sint:project_id>/star')
 
@@ -243,29 +240,9 @@ api.add_resource(tag.Tag, '/tags/<int:tag_id>')
 api.add_resource(tag.UserTags, '/user/tags')
 
 
-# k8s Deployment
-api.add_resource(project.ProjectUserResourceDeployments,
-                 '/project/<sint:project_id>/resource/deployments')
-api.add_resource(project.ProjectUserResourceDeployment,
-                 '/project/<sint:project_id>/resource/deployments/<deployment_name>')
-
 # List k8s Services
-api.add_resource(project.ProjectUserResourceServices,
-                 '/project/<sint:project_id>/resource/services')
-api.add_resource(project.ProjectUserResourceService,
-                 '/project/<sint:project_id>/resource/services/<service_name>')
-
-# k8s Secrets
-api.add_resource(project.ProjectUserResourceSecrets,
-                 '/project/<sint:project_id>/resource/secrets')
-api.add_resource(project.ProjectUserResourceSecret,
-                 '/project/<sint:project_id>/resource/secrets/<secret_name>')
 
 # k8s ConfigMaps
-api.add_resource(project.ProjectUserResourceConfigMaps,
-                 '/project/<sint:project_id>/resource/configmaps')
-api.add_resource(project.ProjectUserResourceConfigMap,
-                 '/project/<sint:project_id>/resource/configmaps/<configmap_name>')
 
 # k8s Ingress
 api.add_resource(project.ProjectUserResourceIngresses,
@@ -286,8 +263,6 @@ api.add_resource(template.ProjectPipelineBranches,
                  '/project/<repository_id>/pipeline/branches')
 api.add_resource(template.ProjectPipelineDefaultBranch,
                  '/project/<repository_id>/pipeline/default_branch')
-api.add_resource(project.ProjectEnvironmentUrl,
-                 '/project/<sint:project_id>/environments/branch/<branch_name>/urls')
 
 # Gitlab project
 api.add_resource(gitlab.GitProjectBranches,

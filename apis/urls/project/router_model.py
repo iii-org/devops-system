@@ -640,3 +640,75 @@ class ProjectEnvironmentPutResponse(CommonBasicResponse):
 
 class ProjectEnvironmentDeleteResponse(CommonBasicResponse):
     data = fields.List(fields.Str())
+
+class ProjectEnvironmentUrlResponse(CommonBasicResponse):
+    data = fields.List(fields.Str())
+
+
+##### k8s info ######
+
+#################################### Schema ####################################
+
+class ProjectUserResourceSecretSchema(Schema):
+    secrets = fields.Dict(required=True)
+
+class ProjectUserResourceConfigMapsPutSchema(Schema):
+    configmaps = fields.Dict(required=True)
+
+
+#################################### Response ####################################
+
+########## Module ##########
+
+class ProjectUserResourceDeploymentsContainer(Schema):
+    image = fields.Str()
+    name = fields.Str()
+
+class ProjectUserResourceDeploymentsData(Schema):
+    name = fields.Str()
+    available_pod_number = fields.Integer()
+    available_pod_number = fields.Integer()
+    created_time = fields.Str(example="1970-01-01 00:00:00+00:00")
+    containers = fields.List(fields.Nested(ProjectUserResourceDeploymentsContainer))
+
+class ProjectUserResourceServicesData(Schema):
+    name = fields.Str()
+    is_iii = fields.Bool()
+
+class ProjectUserResourceSecretsData(ProjectUserResourceServicesData):
+    data = fields.Dict()
+
+class ProjectUserResourceConfigMapsData(ProjectUserResourceSecretsData):
+    pass
+
+########## API Action ##########
+
+class ProjectUserResourceDeploymentsResponse(CommonBasicResponse):
+    data = fields.List(fields.Nested(ProjectUserResourceDeploymentsData), required=True)
+
+class ProjectUserResourceDeploymentResponse(CommonBasicResponse):
+    data = fields.Str()
+
+class ProjectUserResourceServicesResponse(CommonBasicResponse):
+    data = fields.List(fields.Nested(ProjectUserResourceServicesData))
+
+class ProjectUserResourceServiceDeleteResponse(CommonBasicResponse):
+    data = fields.Str()
+
+class ProjectUserResourceSecretsResponse(CommonBasicResponse):
+    data = fields.List(fields.Nested(ProjectUserResourceSecretsData))
+
+class ProjectUserResourceSecretGetResponse(CommonBasicResponse):
+    data = fields.Dict(example={"test": "test123456"})
+
+class ProjectUserResourceSecretDeleteResponse(CommonBasicResponse):
+    data = fields.Str()
+
+class ProjectUserResourceConfigMapsResponse(CommonBasicResponse):
+    data = fields.List(fields.Nested(ProjectUserResourceConfigMapsData))
+
+class ProjectUserResourceConfigMapResponse(CommonBasicResponse):
+    data = fields.Dict()
+
+class ProjectUserResourceConfigMapsDeleteResponse(CommonBasicResponse):
+    data = fields.Str()
