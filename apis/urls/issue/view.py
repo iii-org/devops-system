@@ -42,7 +42,8 @@ class SingleIssueV2(MethodResource):
         return util.success(issue_info)
 
     @doc(tags=['Issue'], description="Update single issue")
-    @use_kwargs(router_model.SingleIssuePutSchema, location="json")
+    @use_kwargs(router_model.SingleIssuePutSchema, location="form")
+    @use_kwargs(router_model.FileSchema, location="files")
     @marshal_with(router_model.SingleIssuePutResponse)
     @jwt_required
     def put(self, issue_id, **kwargs):
@@ -98,7 +99,7 @@ class SingleIssueV2(MethodResource):
         return util.success(output)
 
     @doc(tags=['Issue'], description="Delete single issue")
-    @use_kwargs(router_model.SingleIssueDeleteSchema, location="json")
+    @use_kwargs(router_model.SingleIssueDeleteSchema, location="form")
     @marshal_with(router_model.SingleIssueDeleteResponse)
     @ jwt_required
     def delete(self, issue_id, **kwargs):
@@ -111,7 +112,8 @@ class SingleIssueV2(MethodResource):
         return util.success(delete_issue(issue_id))
 
 @doc(tags=['Issue'], description="Create single issue")
-@use_kwargs(router_model.SingleIssuePostSchema, location="json")
+@use_kwargs(router_model.SingleIssuePostSchema, location="form")
+@use_kwargs(router_model.FileSchema, location="files")
 @marshal_with(router_model.SingleIssuePostResponse)
 class CreateSingleIssueV2(MethodResource):
     @jwt_required
@@ -390,7 +392,7 @@ class RelationV2(MethodResource):
         return util.success(output)
 
     @doc(tags=['Issue'], description="Update issue's relation.")
-    @use_kwargs(router_model.RelationSchema, location="json")
+    @use_kwargs(router_model.RelationSchema, location="form")
     @marshal_with(util.CommonResponse)
     @ jwt_required
     def put(self, **kwargs):
@@ -458,7 +460,7 @@ class IssueCommitRelationV2(MethodResource):
         return util.success(get_commit_hook_issues(commit_id=kwargs["commit_id"]))
 
     @doc(tags=['Issue'], description="Update issue relation by commit_id.")
-    @use_kwargs(router_model.IssueCommitRelationPatchSchema, location="json")
+    @use_kwargs(router_model.IssueCommitRelationPatchSchema, location="form")
     @marshal_with(util.CommonResponse)
     @jwt_required
     def patch(self, **kwargs):

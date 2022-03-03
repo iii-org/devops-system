@@ -326,8 +326,6 @@ class Redmine:
             raise DevOpsError(res.status_code, "Error while uploading to redmine",
                               error=apiError.redmine_error(res.text))
         token = res.json().get('upload').get('token')
-        print(file)
-        print(dir(file))
         filename = file.filename
         del args['upload_file']
         if 'upload_filename' in args:

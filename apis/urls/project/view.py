@@ -92,7 +92,7 @@ class ProjectRelationV2(MethodResource):
         return util.success(get_relation_list(project_id, []))
 
     @doc(tags=['Project'], description="Delete specific project and subproject relation")
-    @use_kwargs(router_model.ProjectRelationDeleteSchema, location="json")
+    @use_kwargs(router_model.ProjectRelationDeleteSchema, location="form")
     @jwt_required
     def delete(self, project_id, **kwargs):
         return remove_relation(project_id, kwargs["parent_id"])
@@ -260,7 +260,7 @@ class IssueFilterByProjectV2(MethodResource):
 
 
     @doc(tags=['Project'], description="Create project's issues' filter.")
-    @use_kwargs(router_model.IssueFilterByProjectPostAndPutSchema, location="json")
+    @use_kwargs(router_model.IssueFilterByProjectPostAndPutSchema, location="form")
     @marshal_with(router_model.IssueFilterByProjectPostResponse)
     @jwt_required
     def post(self, project_id, **kwargs):
@@ -277,7 +277,7 @@ class IssueFilterByProjectV2(MethodResource):
 
 class IssueFilterByProjectWithFilterIDV2(MethodResource):
     @doc(tags=['Project'], description="Update project's issues' filter.")
-    @use_kwargs(router_model.IssueFilterByProjectPostAndPutSchema, location="json")
+    @use_kwargs(router_model.IssueFilterByProjectPostAndPutSchema, location="form")
     @marshal_with(router_model.IssueFilterByProjectPutResponse)
     @jwt_required
     def put(self, project_id, custom_filter_id, **kwargs):
@@ -365,7 +365,7 @@ class IssueFilterByProject(Resource):
 class DownloadProjectExecuteV2(MethodResource):
     # download/execute
     @doc(tags=['Issue'], description="Execute download project's issues as excel.")
-    @use_kwargs(router_model.DownloadProjectSchema, location="json")
+    @use_kwargs(router_model.DownloadProjectSchema, location="form")
     @marshal_with(util.CommonResponse)
     @jwt_required
     def post(self, project_id, **kwargs):
@@ -538,7 +538,7 @@ class SingleProjectV2(MethodResource):
         return util.success(project.get_project_info(project_id))
 
     @doc(tags=['Project'], description="Update project info")
-    @use_kwargs(router_model.SingleProjectPutSchema, location="json")
+    @use_kwargs(router_model.SingleProjectPutSchema, location="form")
     @marshal_with(util.CommonResponse)
     @jwt_required
     def put(self, project_id, **kwargs):
@@ -552,7 +552,7 @@ class SingleProjectV2(MethodResource):
         return util.success()
 
     @doc(tags=['Project'], description="Update project owner")
-    @use_kwargs(router_model.SingleProjectPatchSchema, location="json")
+    @use_kwargs(router_model.SingleProjectPatchSchema, location="form")
     @marshal_with(util.CommonResponse)
     @jwt_required
     def patch(self, project_id, **kwargs):
@@ -592,7 +592,7 @@ class SingleProjectV2(MethodResource):
 
 class SingleProjectCreateV2(MethodResource):
     @doc(tags=['Project'], description="Create project")
-    @use_kwargs(router_model.SingleProjectPostSchema, location="json")
+    @use_kwargs(router_model.SingleProjectPostSchema, location="form")
     @marshal_with(router_model.SingleProjectPostResponse)
     @jwt_required
     def post(self, **kwargs):
@@ -711,7 +711,7 @@ class SingleProjectByName(Resource):
 
 class ProjectMemberV2(MethodResource):
     @doc(tags=['User'], description="Create project member.")
-    @use_kwargs(router_model.SingleProjectPutSchema, location="json")
+    @use_kwargs(router_model.SingleProjectPutSchema, location="form")
     @marshal_with(util.CommonResponse)
     @jwt_required
     def post(self, project_id, **kwargs):
@@ -885,7 +885,7 @@ class ProjectUserResourceV2(MethodResource):
         return project.get_kubernetes_namespace_Quota(project_id)
 
     @doc(tags=['K8s'], description="Update project k8s info.")
-    @use_kwargs(router_model.ProjectUserResourceSchema, location="json")
+    # @use_kwargs(router_model.ProjectUserResourceSchema, location="form")
     @marshal_with(util.CommonResponse)
     @jwt_required
     def put(self, project_id):
@@ -1169,7 +1169,7 @@ class ProjectUserResourceSecretV2(MethodResource):
         return project.read_kubernetes_namespace_secret(project_id, secret_name)
 
     @doc(tags=['Pending'], description="Might not be used in project.")
-    @use_kwargs(router_model.ProjectUserResourceSecretSchema, location="json")
+    @use_kwargs(router_model.ProjectUserResourceSecretSchema, location="form")
     @marshal_with(util.CommonResponse)
     @jwt_required
     def post(self, project_id, secret_name, **kwargs):
@@ -1178,7 +1178,7 @@ class ProjectUserResourceSecretV2(MethodResource):
         return project.create_kubernetes_namespace_secret(project_id, secret_name, kwargs["secrets"])
 
     @doc(tags=['K8s'], description="Update specific project k8s secret by secret name.")
-    @use_kwargs(router_model.ProjectUserResourceSecretSchema, location="json")
+    @use_kwargs(router_model.ProjectUserResourceSecretSchema, location="form")
     @marshal_with(util.CommonResponse)
     @jwt_required
     def put(self, project_id, secret_name, **kwargs):
@@ -1262,7 +1262,7 @@ class ProjectUserResourceConfigMapV2(MethodResource):
         return project.delete_kubernetes_namespace_configmap(project_id, configmap_name)
 
     @doc(tags=['K8s'], description="Update specific project k8s configmap by configmap_name.")
-    @use_kwargs(router_model.ProjectUserResourceConfigMapsSchema, location="json")
+    @use_kwargs(router_model.ProjectUserResourceConfigMapsSchema, location="form")
     @marshal_with(router_model.ProjectUserResourceConfigMapResponse)
     @jwt_required
     def put(self, project_id, configmap_name, **kwargs):
@@ -1271,7 +1271,7 @@ class ProjectUserResourceConfigMapV2(MethodResource):
         return project.put_kubernetes_namespace_configmap(project_id, configmap_name, kwargs['configmaps'])
 
     @doc(tags=['K8s'], description="Create specific project k8s configmap by configmap_name.")
-    @use_kwargs(router_model.ProjectUserResourceConfigMapsSchema, location="json")
+    @use_kwargs(router_model.ProjectUserResourceConfigMapsSchema, location="form")
     @marshal_with(router_model.ProjectUserResourceConfigMapResponse)
     @jwt_required
     def post(self, project_id, configmap_name, **kwargs):
