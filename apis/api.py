@@ -19,7 +19,7 @@ from sqlalchemy_utils import database_exists, create_database
 from werkzeug.routing import IntegerConverter
 
 import plugins
-from plugins import sideex, postman
+# from plugins import sideex, postman
 import config
 import migrate
 import model
@@ -203,6 +203,7 @@ def initialize(db_uri):
     logger.logger.info(f'Deployment UUID set as {my_uuid}.')
     migrate.init()
     logger.logger.info('Server initialized.')
+
 
 # Router
 api.add_resource(router.Router, '/router')

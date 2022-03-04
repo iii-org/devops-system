@@ -10,12 +10,11 @@ from model import db, ProjectPluginRelation, Project, UserPluginRelation, User, 
     DefaultAlertDays, TraceOrder, TraceResult, Application, IssueExtensions, Lock, RedmineProject, ServerType, SystemParameter, \
     UIRoute, UIRouteUserRoleRelation
 from plugins.sonarqube.sonarqube_main import sq_create_project, sq_create_user
-from resources import harbor, kubernetesClient, role, sync_redmine, devops_version
+from resources import harbor, kubernetesClient, role, devops_version
 from resources.apiError import DevOpsError
 from resources.logger import logger
 from resources.rancher import rancher, remove_executions, turn_tags_off
 from resources.redmine import redmine
-from resources import project
 from resources import template
 from resources import role
 
@@ -379,6 +378,7 @@ def insert_sync_redmine_info_in_table_lock():
 
 
 def create_issue_extension():
+    import project
     issue_id_list = []
     projects = Project.query.all()
     project_id_list = [pj.id for pj in projects]
@@ -692,6 +692,7 @@ def cleanup_change_to_orm():
 
 
 def init_sync_redmine():
+    from resources import sync_redmine
     sync_redmine.init_data_first_time()
 
 
