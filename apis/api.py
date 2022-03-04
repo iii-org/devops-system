@@ -19,7 +19,6 @@ from sqlalchemy_utils import database_exists, create_database
 from werkzeug.routing import IntegerConverter
 
 import plugins
-# from plugins import sideex, postman
 import config
 import migrate
 import model
@@ -33,9 +32,9 @@ from jsonwebtoken import jsonwebtoken
 from model import db
 from resources import logger, role as role, activity, starred_project, devops_version, cicd
 from resources import project, gitlab, issue, user, redmine, wiki, version, apiTest, mock, harbor, \
-    template, release, sync_redmine, plugin, kubernetesClient, project_permission, quality, sync_project, \
+    template, release, sync_redmine, plugin, kubernetesClient, project_permission, quality, \
     sync_user, router, deploy, alert, trace_order, tag, lock, system_parameter, alert_message, \
-    maintenance, issue_display_field, notification_message, project_relation
+    maintenance, issue_display_field, notification_message
 from apispec import APISpec
 from flask_apispec.extension import FlaskApiSpec
 from apispec.ext.marshmallow import MarshmallowPlugin
