@@ -42,6 +42,7 @@ from apispec.ext.marshmallow import MarshmallowPlugin
 # This import will merge to the above one after all API move to V2.
 from urls.project import project_url
 from urls.issue import issue_url
+from urls.user import user_url
 from urls.sync_projects import sync_projects_url
 from urls import monitoring
 
@@ -286,17 +287,7 @@ api.add_resource(gitlab.GitlabDomainConnection, '/repositories/is_ip', '/reposit
 
 
 # User
-api.add_resource(user.Login, '/user/login')
-# input api in swagger (for swagger)
-api.add_resource(user.LoginV2, '/v2/user/login')
-add_resource(user.LoginV2, "public")
-
-
-# api.add_resource(user.UserForgetPassword, '/user/forgetPassword')
-api.add_resource(user.UserStatus, '/user/<int:user_id>/status')
-api.add_resource(user.SingleUser, '/user', '/user/<int:user_id>')
-api.add_resource(user.UserList, '/user/list')
-api.add_resource(user.UserSaConfig, '/user/<int:user_id>/config')
+user_url(api, add_resource)
 
 # Role
 api.add_resource(role.RoleList, '/user/role/list')
