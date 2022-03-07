@@ -63,30 +63,3 @@ def delete_wiki_by_project(project_id, wiki_name):
     redmine.rm_delete_wiki(plan_id, wiki_name)
     return util.success()
 
-
-# --------------------- Resources ---------------------
-class ProjectWikiList(Resource):
-    @jwt_required
-    def get(self, project_id):
-        role.require_in_project(project_id)
-        return get_wiki_list_by_project(project_id)
-
-
-class ProjectWiki(Resource):
-    @jwt_required
-    def get(self, project_id, wiki_name):
-        role.require_in_project(project_id)
-        return get_wiki_by_project(project_id, wiki_name)
-
-    @jwt_required
-    def put(self, project_id, wiki_name):
-        role.require_in_project(project_id)
-        parser = reqparse.RequestParser()
-        parser.add_argument('wiki_text', type=str, required=True)
-        args = parser.parse_args()
-        return put_wiki_by_project(project_id, wiki_name, args, get_jwt_identity()['user_id'])
-
-    @jwt_required
-    def delete(self, project_id, wiki_name):
-        role.require_in_project(project_id)
-        return delete_wiki_by_project(project_id, wiki_name)

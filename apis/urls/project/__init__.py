@@ -211,3 +211,12 @@ def project_url(api, add_resource):
     add_resource(view.ProjectVersionV2, 'public')
     api.add_resource(view.ProjectVersionPostV2, '/v2/project/<sint:project_id>/version')
     add_resource(view.ProjectVersionPostV2, 'public')
+
+    # wiki
+    api.add_resource(view.ProjectWikiList, '/project/<sint:project_id>/wiki')
+    api.add_resource(view.ProjectWikiListV2, '/v2/project/<sint:project_id>/wiki')
+    add_resource(view.ProjectWikiListV2, 'public')
+
+    api.add_resource(view.ProjectWiki, '/project/<sint:project_id>/wiki/<wiki_name>')
+    api.add_resource(view.ProjectWikiV2, '/v2/project/<sint:project_id>/wiki/<wiki_name>')
+    add_resource(view.ProjectWikiV2, 'public')

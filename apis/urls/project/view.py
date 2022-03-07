@@ -11,9 +11,7 @@ from resources.project_relation import project_has_child, get_root_project_id, s
 from resources.issue import get_issue_list_by_project_helper, get_issue_by_tree_by_project, get_issue_by_status_by_project, \
     get_issue_progress_or_statistics_by_project, get_issue_by_date_by_project, get_custom_issue_filter, \
     create_custom_issue_filter, put_custom_issue_filter, get_lock_status, DownloadIssueAsExcel, pj_download_file_is_exist
-from resources import project 
-from resources import user
-from resources import version
+from resources import project, user, version, wiki 
 
 from sqlalchemy.orm.exc import NoResultFound
 from model import CustomIssueFilter
@@ -1414,3 +1412,63 @@ class ProjectVersion(Resource):
     def delete(self, project_id, version_id):
         role.require_in_project(project_id)
         return version.delete_version_by_version_id(version_id)
+
+
+##### Wiki ######
+class ProjectWikiListV2(MethodResource):
+    @doc(tags=['Project'], description="Get project wiki list")
+    @marshal_with(router_model.ProjectWikiListResponse)
+    @jwt_required
+    def get(self, project_id):
+        role.require_in_project(project_id)
+        return wiki.get_wiki_list_by_project(project_id)
+
+class ProjectWikiList(Resource):
+    @jwt_required
+    def get(self, project_id):
+        role.require_in_project(project_id)
+        return wiki.get_wiki_list_by_project(project_id)
+
+
+class ProjectWikiV2(MethodResource):
+    @doc(tags=['Project'], description="Get project wiki info by wiki name")
+    @marshal_with(router_model.ProjectWikiGetResponse)
+    @jwt_required
+    def get(self, project_id, wiki_name):
+        role.require_in_project(project_id)
+        return wiki.get_wiki_by_project(project_id, wiki_name)
+
+    @doc(tags=['Project'], description="Update project wiki info by wiki name")
+    @use_kwargs(router_model.ProjectWikiPut, location="json")
+    @marshal_with(util.CommonResponse)
+    @jwt_required
+    def put(self, project_id, wiki_name, **kwargs):
+        role.require_in_project(project_id)
+        return wiki.put_wiki_by_project(project_id, wiki_name, kwargs, get_jwt_identity()['user_id'])
+
+    @doc(tags=['Project'], description="Delete project wiki info by wiki name")
+    @marshal_with(util.CommonResponse)
+    @jwt_required
+    def delete(self, project_id, wiki_name):
+        role.require_in_project(project_id)
+        return wiki.delete_wiki_by_project(project_id, wiki_name)
+
+
+class ProjectWiki(Resource):
+    @jwt_required
+    def get(self, project_id, wiki_name):
+        role.require_in_project(project_id)
+        return wiki.get_wiki_by_project(project_id, wiki_name)
+
+    @jwt_required
+    def put(self, project_id, wiki_name):
+        role.require_in_project(project_id)
+        parser = reqparse.RequestParser()
+        parser.add_argument('wiki_text', type=str, required=True)
+        args = parser.parse_args()
+        return wiki.put_wiki_by_project(project_id, wiki_name, args, get_jwt_identity()['user_id'])
+
+    @jwt_required
+    def delete(self, project_id, wiki_name):
+        role.require_in_project(project_id)
+        return wiki.delete_wiki_by_project(project_id, wiki_name)

@@ -804,3 +804,42 @@ class ProjectVersionPostResponse(CommonBasicResponse):
 
 class ProjectVersionGetResponse(CommonBasicResponse):
     data = fields.Nested(ProjectVersionData, required=True)
+
+
+### Wiki
+
+#################################### Schema ####################################
+
+class ProjectWikiPut(Schema):
+    wiki_text = fields.Str()
+
+#################################### Response ####################################
+
+########## Module ##########
+
+class ProjectWikiPages(Schema):
+    title = fields.Str(example="title")
+    version = fields.Int(example=1)
+    created_on = fields.Str(example="1970-01-01T00:00:00Z")
+    updated_on = fields.Str(example="1970-01-01T00:00:00Z")
+
+class ProjectWikiCommon(ProjectWikiPages):
+    text = fields.Str(example="text")
+    author = fields.Dict()
+    comments = fields.Str(default=None)
+
+class ProjectWikiListData(Schema):
+    wiki_pages = fields.List(fields.Nested(ProjectWikiPages))
+
+class ProjectWikiGetData(Schema):
+    wiki_page = fields.Nested(ProjectWikiCommon)
+
+
+########## API Action ##########
+
+class ProjectWikiListResponse(CommonBasicResponse):
+    data = fields.Nested(ProjectWikiListData, required=True)
+
+
+class ProjectWikiGetResponse(CommonBasicResponse):
+    data = fields.Nested(ProjectWikiGetData, required=True)
