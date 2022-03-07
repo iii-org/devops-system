@@ -745,3 +745,62 @@ class ProjectUserResourceConfigMapsDeleteResponse(CommonBasicResponse):
 
 class ProjectUserResourceIngressesResponse(CommonBasicResponse):
     data = fields.List(fields.Nested(ProjectUserResourceIngressesData))
+
+### Project version
+
+#################################### Schema ####################################
+
+########## API Action ##########
+
+class ProjectVersionListSchema(Schema):
+    status = fields.Str()
+    force_id = fields.Str()
+
+class ProjectVersionPostPutSchema(Schema):
+    version = fields.Dict(
+        example={
+            "version":{
+                "name": "V1.0",
+                "description": "V1.0 version",
+                "due_date": "2022-03-10",
+                "status": "open"
+            }
+        },
+        required=True
+    )
+
+
+#################################### Response ####################################
+
+########## Module ##########
+
+class ProjectVersionListDataVersion(BasicIsssueResponse):
+    project = fields.Dict()
+    description = fields.Str(example="V1.0")
+    status = fields.Str(example="open")
+    due_date = fields.Str(example="1970-01-01")
+    sharing = fields.Str(example="none")
+    wiki_page_title = fields.Str(default=None)
+    created_on = fields.Str(example="1970-01-01T00:00:00Z")
+    updated_on = fields.Str(example="1970-01-01T00:00:00Z")
+
+class CommonVersion(ProjectVersionListDataVersion):
+    estimated_hours = fields.Int(example=0)
+    spent_hours = fields.Int(example=0)
+
+class ProjectVersionListData(Schema):
+    versions = fields.List(fields.Nested(ProjectVersionListDataVersion))
+    total_count = fields.Int(example=0)
+class ProjectVersionData(Schema):
+    version = fields.Nested(CommonVersion)
+
+########## API Action ##########
+
+class ProjectVersionListResponse(CommonBasicResponse):
+    data = fields.Nested(ProjectVersionListData, required=True)
+
+class ProjectVersionPostResponse(CommonBasicResponse):
+    data = fields.Nested(ProjectVersionData, required=True)
+
+class ProjectVersionGetResponse(CommonBasicResponse):
+    data = fields.Nested(ProjectVersionData, required=True)

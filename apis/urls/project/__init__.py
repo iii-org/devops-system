@@ -199,3 +199,15 @@ def project_url(api, add_resource):
     api.add_resource(view.ProjectUserResourceIngressesV2,
                  '/v2/project/<sint:project_id>/resource/ingresses')
     add_resource(view.ProjectUserResourceIngressesV2, 'public')
+
+    # version
+    api.add_resource(view.ProjectVersionList, '/project/<sint:project_id>/version/list')
+    api.add_resource(view.ProjectVersionListV2, '/v2/project/<sint:project_id>/version/list')
+    add_resource(view.ProjectVersionListV2, 'public')
+
+    api.add_resource(view.ProjectVersion, '/project/<sint:project_id>/version',
+                 '/project/<sint:project_id>/version/<int:version_id>')
+    api.add_resource(view.ProjectVersionV2, '/v2/project/<sint:project_id>/version/<int:version_id>')
+    add_resource(view.ProjectVersionV2, 'public')
+    api.add_resource(view.ProjectVersionPostV2, '/v2/project/<sint:project_id>/version')
+    add_resource(view.ProjectVersionPostV2, 'public')

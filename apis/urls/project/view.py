@@ -13,6 +13,7 @@ from resources.issue import get_issue_list_by_project_helper, get_issue_by_tree_
     create_custom_issue_filter, put_custom_issue_filter, get_lock_status, DownloadIssueAsExcel, pj_download_file_is_exist
 from resources import project 
 from resources import user
+from resources import version
 
 from sqlalchemy.orm.exc import NoResultFound
 from model import CustomIssueFilter
@@ -1326,4 +1327,90 @@ class ProjectUserResourceIngresses(Resource):
     def get(self, project_id):
         role.require_in_project(
             project_id, "Error while getting project info.")
-        return project.get_kubernetes_namespace_ingresses(project_id)
+        return version.get_kubernetes_namespace_ingresses(project_id)
+
+
+##### Version ######
+
+class ProjectVersionListV2(MethodResource):
+    @doc(tags=['Version'], description="Get project version list.")
+    @use_kwargs(router_model.ProjectVersionListSchema, location="query")
+    @marshal_with(router_model.ProjectVersionListResponse)
+    @jwt_required
+    def get(self, project_id, **kwargs):
+        role.require_in_project(project_id)
+        print(kwargs)
+        return util.success(version.get_version_list_by_project(
+            project_id, kwargs.get('status'), kwargs.get('force_id')))
+
+
+class ProjectVersionList(Resource):
+    @jwt_required
+    def get(self, project_id):
+        role.require_in_project(project_id)
+        root_parser = reqparse.RequestParser()
+        root_parser.add_argument('status', type=str)
+        root_parser.add_argument('force_id', type=str)
+        root_args = root_parser.parse_args()
+        return util.success(version.get_version_list_by_project(
+            project_id, root_args['status'], root_args['force_id']))
+
+class ProjectVersionPostV2(MethodResource):
+    @doc(tags=['Version'], description="Create project version.")
+    @use_kwargs(router_model.ProjectVersionPostPutSchema, location="json")
+    @marshal_with(router_model.ProjectVersionPostResponse)
+    @jwt_required
+    def post(self, project_id, **kwargs):
+        role.require_in_project(project_id)
+        return version.post_version_by_project(project_id, kwargs)
+
+class ProjectVersionV2(MethodResource):
+    @doc(tags=['Version'], description="Get project version by version_id.")
+    @marshal_with(router_model.ProjectVersionGetResponse)
+    @jwt_required
+    def get(self, project_id, version_id):
+        role.require_in_project(project_id)
+        return version.get_version_by_version_id(version_id)
+
+    @doc(tags=['Version'], description="Update project version by version_id.")
+    @use_kwargs(router_model.ProjectVersionPostPutSchema, location="json")
+    @marshal_with(util.CommonResponse)
+    @jwt_required
+    def put(self, project_id, version_id, **kwargs):
+        role.require_in_project(project_id)
+        return version.put_version_by_version_id(version_id, kwargs)
+
+    @doc(tags=['Version'], description="Delete project version by version_id.")
+    @marshal_with(util.CommonResponse)
+    @jwt_required
+    def delete(self, project_id, version_id):
+        role.require_in_project(project_id)
+        return version.delete_version_by_version_id(version_id)
+
+class ProjectVersion(Resource):
+    @jwt_required
+    def post(self, project_id):
+        role.require_in_project(project_id)
+        root_parser = reqparse.RequestParser()
+        root_parser.add_argument('version', type=dict, required=True)
+
+        root_args = root_parser.parse_args()
+        return version.post_version_by_project(project_id, root_args)
+
+    @jwt_required
+    def get(self, project_id, version_id):
+        role.require_in_project(project_id)
+        return version.get_version_by_version_id(version_id)
+
+    @jwt_required
+    def put(self, project_id, version_id):
+        role.require_in_project(project_id)
+        root_parser = reqparse.RequestParser()
+        root_parser.add_argument('version', type=dict, required=True)
+        root_args = root_parser.parse_args()
+        return version.put_version_by_version_id(version_id, root_args)
+
+    @jwt_required
+    def delete(self, project_id, version_id):
+        role.require_in_project(project_id)
+        return version.delete_version_by_version_id(version_id)

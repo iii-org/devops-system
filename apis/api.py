@@ -248,10 +248,6 @@ api.add_resource(tag.UserTags, '/user/tags')
 api.add_resource(wiki.ProjectWikiList, '/project/<sint:project_id>/wiki')
 api.add_resource(wiki.ProjectWiki,
                  '/project/<sint:project_id>/wiki/<wiki_name>')
-api.add_resource(version.ProjectVersionList,
-                 '/project/<sint:project_id>/version/list')
-api.add_resource(version.ProjectVersion, '/project/<sint:project_id>/version',
-                 '/project/<sint:project_id>/version/<int:version_id>')
 api.add_resource(template.TemplateList, '/template_list')
 api.add_resource(template.TemplateListForCronJob, '/template_list_for_cronjob')
 api.add_resource(template.SingleTemplate, '/template',
