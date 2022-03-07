@@ -11,7 +11,7 @@ from . import router_model
 import json
 
 # --------------------- Resources ---------------------
-@doc(tags=['Login'],description='Login API')
+@doc(tags=['User'],description='Login API')
 @use_kwargs(router_model.LoginSchema, location=('json'))
 @marshal_with(router_model.LoginResponse)  # marshalling
 class LoginV2(MethodResource):
@@ -39,9 +39,9 @@ class UserStatus(Resource):
 
 
 
-@doc(tags=['SingleUser'],description='SingleUser API')
+@doc(tags=['User'],description='SingleUser API')
 class PostSingleUserV2(MethodResource):
-    @use_kwargs(router_model.PostSingleUserSchema, location=('json'))
+    @use_kwargs(router_model.PostSingleUserSchema, location=('form'))
     @marshal_with(router_model.CreateSingleUserResponse)  # marshalling
     @jwt_required
     def post(self,**kwargs):
@@ -50,7 +50,7 @@ class PostSingleUserV2(MethodResource):
 
 
 
-@doc(tags=['SingleUser'],description='SingleUser API')   
+@doc(tags=['User'],description='SingleUser API')   
 class GetSingleUserV2(MethodResource):
     # @use_kwargs(router_model.PostSingleUserSchema, location="query")
     # @marshal_with(router_model.SingleUserResponse)  # marshalling
@@ -68,7 +68,7 @@ class GetSingleUserV2(MethodResource):
         role.require_admin("Only admin can delete user.")
         return util.success(delete_user(user_id))
 
-    @use_kwargs(router_model.PutSingleUserSchema, location="json")
+    @use_kwargs(router_model.PutSingleUserSchema, location="form")
     @marshal_with(router_model.SingleUserResponse)  # marshalling
     @jwt_required
     def put(self, user_id,**kwargs):
@@ -142,7 +142,7 @@ class UserList(Resource):
         return util.success(user_list(filters))
 
 
-@doc(tags=['UserList'],description='SingleUser API') 
+@doc(tags=['User'],description='SingleUser API') 
 class UserListV2(MethodResource):
     @use_kwargs(router_model.UserListSchema, location="query")
     @marshal_with(router_model.GetUserListResponse)  # marshalling   
