@@ -187,6 +187,8 @@ def login(args):
     user = db.session.query(model.User).filter(
         model.User.login == login_account).first()
     try:
+        if user is not None and user.disabled:
+            return util.respond(401, "Error when logging in.", error=apiError.wrong_password())
         ad_info = {'is_pass': False,
                    'login': login_account, 'data': {}}
 

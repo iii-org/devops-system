@@ -28,7 +28,7 @@ from resources.gitlab import gitlab
 from resources.logger import logger
 from resources.redmine import redmine
 from resources.project import get_project_list
-import resources.api_model
+import resources
 from flask_apispec import marshal_with, doc, use_kwargs
 from flask_apispec.views import MethodResource
 
@@ -189,7 +189,7 @@ def login(args):
         model.User.login == login_account).first()
     try:
         if user is not None and user.disabled:
-            return util.respond(401, "User is disabled, Please contact system administrator.")
+            return util.respond(401, "Error when logging in.", error=apiError.wrong_password())
         ad_info = {'is_pass': False,
                    'login': login_account, 'data': {}}
 
