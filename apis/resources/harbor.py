@@ -285,13 +285,12 @@ def hb_copy_artifact(project_name, repository_name, from_image):
     return __api_post(url)
 
 
-def hb_copy_artifact_and_retage(project_name, target_repository_name, form_repo_name, digest, tag_name):
+def hb_copy_artifact_and_retage(project_name, dest_repo_name, form_repo_name, from_tag, dest_tag):
+    digest = hb_get_artifact(project_name, form_repo_name, from_tag)[0]["digest"]
     from_image = f'{project_name}/{form_repo_name}@{digest}'
-    hb_copy_artifact(project_name, target_repository_name, from_image)
-    
-    for tag in hb_list_tags(project_name, target_repository_name, digest):
-        hb_delete_artifact_tag(project_name, target_repository_name, digest, tag["name"], keep=True)
-    hb_create_artifact_tag(project_name, target_repository_name, digest, tag_name)
+    hb_copy_artifact(project_name, dest_repo_name, from_image)
+    hb_delete_artifact_tag(project_name, dest_repo_name, digest, from_tag, keep=True)
+    hb_create_artifact_tag(project_name, dest_repo_name, digest, dest_tag)
 
 
 def hb_get_repository_info(project_name, repository_name):
@@ -836,12 +835,12 @@ class HarborCopyImageRetage(Resource):
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('project_name', type=str, required=True)
-        parser.add_argument('target_repo_name', type=str, required=True)
+        parser.add_argument('dest_repo_name', type=str, required=True)
         parser.add_argument('form_repo_name', type=str, required=True)
-        parser.add_argument('digest', type=str, required=True)
-        parser.add_argument('tag_name', type=str, required=True)
+        parser.add_argument('from_tag', type=str, required=True)
+        parser.add_argument('dest_tag', type=str, required=True)
         args = parser.parse_args()
 
         return util.success(
             hb_copy_artifact_and_retage(
-                args["project_name"], args["target_repo_name"], args["form_repo_name"], args["digest"], args["tag_name"]))
+                args["project_name"], args["dest_repo_name"], args["form_repo_name"], args["from_tag"], args["dest_tag"]))
