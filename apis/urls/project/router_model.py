@@ -534,6 +534,9 @@ class ProjectUserResourceSchema(Schema):
 class ProjectUserResourcePodLogSchema(Schema):
     container_name = fields.Str(example="sonarqube-scan-00000-00", required=True)
 
+class ProjectPluginPodSchema(Schema):
+    plugin_name = fields.Str(example="plugin_name", required=True)
+
 
 #################################### Response ####################################
 
@@ -626,6 +629,10 @@ class ProjectEnvironmentGetData(Schema):
         }    
     ))
 
+class ProjectPluginPodData(Schema):
+    has_pod = fields.Bool(example=True, required=True)
+    container_name = fields.Str()
+    pod_name = fields.Str()
 
 ########## API Action ##########
 
@@ -652,6 +659,9 @@ class ProjectEnvironmentDeleteResponse(CommonBasicResponse):
 
 class ProjectEnvironmentUrlResponse(CommonBasicResponse):
     data = fields.List(fields.Str())
+
+class ProjectPluginPodResponse(CommonBasicResponse):
+    data = fields.Nested(ProjectPluginPodData, required=True)
 
 
 ##### k8s info ######

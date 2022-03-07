@@ -921,16 +921,15 @@ class ProjectUserResource(Resource):
         return project.update_kubernetes_namespace_Quota(project_id, args)
 
 
-@doc(tags=['Pending'], description="Get plugin name from project?")
+@doc(tags=['System'], description="Check latest project has pod or not")
+@use_kwargs(router_model.ProjectPluginPodSchema, location="query")
+@marshal_with(router_model.ProjectPluginPodResponse)
 class ProjectPluginPodV2(MethodResource):
     @jwt_required
-    def get(self, project_id):
+    def get(self, project_id, **kwargs):
         role.require_in_project(
             project_id, "Error while getting project info.")
-        parser = reqparse.RequestParser()
-        parser.add_argument('plugin_name', type=str)
-        args = parser.parse_args()
-        return project.get_kubernetes_plugin_pods(project_id, args.get("plugin_name"))
+        return project.get_kubernetes_plugin_pods(project_id, kwargs.get("plugin_name"))
 
 class ProjectPluginPod(Resource):
     @jwt_required
