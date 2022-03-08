@@ -1715,12 +1715,17 @@ class KubernetesPodExec(Namespace):
             self.k8s_pod_exec = K8sPodExec(data)
         self.k8s_pod_exec.exec_namespace_pod(data)
 
-
+# Only run it when server is redeployed
 def create_cron_secret():
-    if read_namespace_secret("default", "cornjob-bot") is None:
-        token = create_access_token(identity={"type": "cornjob_token"}, expires_delta=timedelta(days=36500))
-        create_namespace_secret(
-            "default", "cornjob-bot", {'cornjob-token': token})
+    '''
+    If we not replace the old token when server is redeployed, 
+        token sometime can not be used.
+    '''
+    if read_namespace_secret("default", "cornjob-bot") is not None:
+        delete_namespace_secret("default", "cornjob-bot")
+    token = create_access_token(identity={"type": "cornjob_token"}, expires_delta=timedelta(days=36500))
+    create_namespace_secret(
+        "default", "cornjob-bot", {'cornjob-token': token})
 
 # gitlab ingress body
 
