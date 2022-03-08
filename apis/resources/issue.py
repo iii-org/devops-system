@@ -262,6 +262,14 @@ class NexusIssue:
         return self.data['tracker']['name']
 
 
+def check_issue_exist(issue_id):
+    try:
+        redmine.rm_get_issue(issue_id)
+        return True
+    except:
+        return False
+
+
 def convert_list_tag_id_to_name(tag_list):
     if tag_list == [""]:
         return []
@@ -494,6 +502,8 @@ def get_dict_userid():
 
 
 def dump_by_issue(issue_id):
+    if not check_issue_exist(issue_id):
+        return util.respond(401, "Issue Not found", error=apiError.issue_not_found(issue_id))
     output = {}
     tables = [
         'requirements', 'parameters', 'flows', 'test_cases', 'test_items',
