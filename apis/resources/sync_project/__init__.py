@@ -9,6 +9,7 @@ from model import Project, db
 from plugins.sonarqube import sonarqube_main as sonarqube
 from resources import (gitlab, harbor, kubernetesClient, logger, project,
                        rancher, redmine, user)
+from resources.activity import ActionType, record_activity
 
 
 class ResourceMembers(object):
@@ -563,6 +564,7 @@ def main_process():
     logger.logger.info('All done.')
 
 
+@record_activity(ActionType.RECREATE_PROJECT)
 def recreate_project(project_id):
     check_bot_list = []
     projects_name = list(model.Project.query.filter(

@@ -118,7 +118,7 @@ def limit_to_project(project_id):
 
 class Activity(model.Activity):
     def fill_by_arguments(self, args):
-        if self.action_type in [ActionType.UPDATE_PROJECT, ActionType.DELETE_PROJECT]:
+        if self.action_type in [ActionType.UPDATE_PROJECT, ActionType.DELETE_PROJECT, ActionType.RECREATE_PROJECT]:
             self.fill_project(args['project_id'])
         if self.action_type == ActionType.UPDATE_PROJECT:
             self.action_parts += f'@{str(args["args"])}'
