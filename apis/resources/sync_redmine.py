@@ -192,7 +192,8 @@ def insert_all_issues(project_id, sync_date):
             model.db.session.commit()
         except IntegrityError:
             model.db.session.rollback()
-            continue
+        finally:
+            model.db.session.close()
     # issues_list.append(new_issue)
     # model.db.session.add_all(issues_list)
     # model.db.session.commit()
@@ -305,6 +306,8 @@ def update_lock_redmine(is_lock=None, sync_date=None):
     db.session.commit()
 
 # --------------------- API Tasks ---------------------
+
+
 def init_data_first_time():
     '''
     Use for the first time to sync redmine(Alembic migratation)

@@ -362,6 +362,8 @@ def delete_table_redmine_project():
         db.session.commit()
     except:
         db.session.rollback()
+    finally:
+        db.session.close()
 
 
 def modify_sync_redmine_info():

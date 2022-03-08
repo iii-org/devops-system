@@ -822,7 +822,8 @@ def sync_commit_issues_relation(project_id):
                     model.db.session.commit()
                 except IntegrityError:
                     model.db.session.rollback()
-                    continue
+                finally:
+                    model.db.session.close()
 
         if end_point is None or br.commit["committed_date"] > "T".join(end_point.split(" ")):
             project_commit_endpoint.updated_at = br.commit["committed_date"]
