@@ -583,9 +583,20 @@ api.add_resource(alert.DefaultAlertDaysUpdate, '/alert/default_days')
 
 # Trace Order
 api.add_resource(trace_order.TraceOrders, '/trace_order')
+api.add_resource(trace_order.TraceOrdersV2, '/v2/trace_order')
+add_resource(trace_order.TraceOrdersV2, 'public')
+
 api.add_resource(trace_order.SingleTraceOrder, '/trace_order/<sint:trace_order_id>')
+api.add_resource(trace_order.SingleTraceOrderV2, '/v2/trace_order/<sint:trace_order_id>')
+add_resource(trace_order.SingleTraceOrderV2, 'public')
+
 api.add_resource(trace_order.ExecuteTraceOrder, '/trace_order/execute')
+api.add_resource(trace_order.ExecuteTraceOrderV2, '/v2/trace_order/execute')
+add_resource(trace_order.ExecuteTraceOrderV2, 'public')
+
 api.add_resource(trace_order.GetTraceResult, '/trace_order/result')
+api.add_resource(trace_order.GetTraceResultV2, '/v2/trace_order/result')
+add_resource(trace_order.GetTraceResultV2, 'public')
 
 # monitoring
 monitoring.monitoring_url(api, add_resource)

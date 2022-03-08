@@ -328,3 +328,61 @@ class GetFlowTypeResponse(CommonBasicResponse):
     data = fields.List(fields.Nested(
        GetFlowTypeDataResponse, required=True))
 
+
+###### TraceOrder ######
+
+#################################### Schema ####################################
+
+class TraceOrdersSchema(Schema):
+    project_id = fields.Int(example=1, required=True)
+
+class TraceOrdersPostSchema(Schema):
+    name = fields.Str(example="name", required=True)
+    project_id = fields.Int(example=1, required=True)
+    order = fields.List(fields.Str(), required=True)
+    default = fields.Bool(example=True, required=True)
+
+class TraceOrdersPutSchema(Schema):
+    name = fields.Str(example="name")
+    project_id = fields.Int(example=1)
+    order = fields.List(fields.Str())
+    default = fields.Bool(example=True)
+
+
+#################################### Response ####################################
+
+########## Module ##########
+
+class TraceOrdersGetData(BasicIsssueResponse):
+    order = fields.List(fields.Str(), example=["Epic", "Feature", "Test Plan"])
+    default = fields.Bool(example=True)
+
+class GetTraceResultData(Schema):
+    project_id = fields.Int()
+    total_num = fields.Int()
+    current_num = fields.Int()
+    result = fields.List(fields.Dict(example={
+        "Epic": {
+            "id": 1,
+            "name": "name",
+            "tracker": "Epic",
+            "status": {
+                "id": 1,
+                "name": "Active"
+            }
+        }
+    }))
+    start_time = fields.Str(example="1970-01-01 00:00:00.000000")
+    finish_time = fields.Str(example="1970-01-01 00:00:00.000000")
+    exception = fields.Str(default=None)
+
+########## API action ##########
+
+class TraceOrdersGetResponse(CommonBasicResponse):
+    data = fields.List(fields.Nested(TraceOrdersGetData))
+
+class TraceOrdersPostResponse(CommonBasicResponse):
+    data = fields.Dict(example={"trace_order": 1})
+
+class GetTraceResultResponse(CommonBasicResponse):
+    data = fields.Nested(GetTraceResultData)
