@@ -43,6 +43,7 @@ from apispec.ext.marshmallow import MarshmallowPlugin
 from urls.project import project_url
 from urls.issue import issue_url
 from urls.user import user_url
+from urls.tag import tag_url
 from urls.sync_projects import sync_projects_url
 from urls import monitoring
 
@@ -240,9 +241,7 @@ api.add_resource(gitlab.GetCommitIssueHookByBranch, '/project/<sint:project_id>/
 project_url(api, add_resource)
 
 # Tag
-api.add_resource(tag.Tags, '/tags')
-api.add_resource(tag.Tag, '/tags/<int:tag_id>')
-api.add_resource(tag.UserTags, '/user/tags')
+tag_url(api, add_resource)
 
 
 api.add_resource(template.TemplateList, '/template_list')
