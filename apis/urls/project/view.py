@@ -444,16 +444,12 @@ class DownloadProject(Resource):
 class ListMyProjectsV2(MethodResource):
     @jwt_required
     def get(self, **kwargs):
-        print(kwargs)
         disabled = None
         if kwargs.get("disabled") is not None:
             disabled = kwargs["disabled"] == 1
         if kwargs.get('simple', 'false') == 'true':
             return util.success(
                 {'project_list': project.get_project_list(get_jwt_identity()['user_id'], "simple", kwargs, disabled)})
-        if role.is_role(role.RD):
-            return util.success(
-                {'project_list': project.get_project_list(get_jwt_identity()['user_id'], "rd", kwargs, disabled)})
         else:
             return util.success(
                 {'project_list': project.get_project_list(get_jwt_identity()['user_id'], "pm", kwargs, disabled)})
@@ -467,6 +463,7 @@ class ListMyProjects(Resource):
         parser.add_argument('offset', type=int)
         parser.add_argument('search', type=str)
         parser.add_argument('disabled', type=int)
+        parser.add_argument('test_result', type=str)
         args = parser.parse_args()
         disabled = None
         if args.get("disabled") is not None:
@@ -474,9 +471,6 @@ class ListMyProjects(Resource):
         if args.get('simple', 'false') == 'true':
             return util.success(
                 {'project_list': project.get_project_list(get_jwt_identity()['user_id'], "simple", args, disabled)})
-        if role.is_role(role.RD):
-            return util.success(
-                {'project_list': project.get_project_list(get_jwt_identity()['user_id'], "rd", args, disabled)})
         else:
             return util.success(
                 {'project_list': project.get_project_list(get_jwt_identity()['user_id'], "pm", args, disabled)})
@@ -493,7 +487,7 @@ class CalculateProjectIssuesV2(MethodResource):
         project_ids = kwargs.get("project_ids").split(",")
 
         return util.success(
-            {'project_list': project.get_project_issue_calculation(get_jwt_identity()['user_account'], project_ids)})
+            {'project_list': project.get_project_issue_calculation(get_jwt_identity()['user_id'], project_ids)})
 
 
 class CalculateProjectIssues(Resource):
@@ -505,7 +499,7 @@ class CalculateProjectIssues(Resource):
         project_ids = args.get("project_ids").split(",")
 
         return util.success(
-            {'project_list': project.get_project_issue_calculation(get_jwt_identity()['user_account'], project_ids)})
+            {'project_list': project.get_project_issue_calculation(get_jwt_identity()['user_id'], project_ids)})
 
 @doc(tags=['Project'], description="List projects by user")
 @marshal_with(router_model.ListMyProjectsByUserResponse)

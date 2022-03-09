@@ -19,7 +19,7 @@ import nexus
 import plugins
 import resources.apiError as apiError
 import util as util
-from data.nexus_project import NexusProject, calculate_project_issues
+from data.nexus_project import NexusProject, calculate_project_issues, fill_rd_extra_fields
 from model import db
 from nexus import nx_get_project_plugin_relation
 from plugins.checkmarx.checkmarx_main import checkmarx
@@ -42,15 +42,19 @@ from resources import sync_project
 from resources.project_relation import get_all_sons_project
 from flask_apispec import doc
 from flask_apispec.views import MethodResource
+from resources import role
 
 
-def get_project_issue_calculation(user_name, project_ids=[]):
+def get_project_issue_calculation(user_id, project_ids=[]):
     ret = []
+    user_name = model.User.query.get(user_id).login
     for project_id in project_ids:
         redmine_project_id = model.ProjectPluginRelation.query.filter_by(project_id=project_id).one().plan_project_id
         project_object = redmine_lib.rm_impersonate(user_name).project.get(redmine_project_id)
         rm_project = {"updated_on": project_object.updated_on, "id": project_object.id}
         calculate_project_issue = calculate_project_issues(rm_project, user_name)
+        if role.is_role(role.RD):
+            calculate_project_issue.update(fill_rd_extra_fields(user_id, redmine_project_id))
         calculate_project_issue["id"] = project_id
         ret.append(calculate_project_issue)
 
@@ -60,6 +64,7 @@ def get_project_issue_calculation(user_name, project_ids=[]):
 def get_project_list(user_id, role="simple", args={}, disable=None):
     limit = args.get("limit")
     offset = args.get("offset")
+    extra_data = args.get("test_result", "false") == "true"
     user_name = model.User.query.get(user_id).login
 
     rows, counts = get_project_rows_by_user(user_id, disable, args=args)
@@ -77,8 +82,8 @@ def get_project_list(user_id, role="simple", args={}, disable=None):
                 sync_project.lock_project(nexus_project.name, "Redmine")
                 rm_project = {"updated_on": datetime.utcnow(), "id": -1}
             nexus_project = nexus_project.fill_pm_extra_fields(rm_project, user_name)
-        elif role == 'rd':
-            nexus_project = nexus_project.fill_rd_extra_fields(user_id)
+        if extra_data:
+            nexus_project = nexus_project.fill_extra_fields()
 
         ret.append(nexus_project.to_json())
 

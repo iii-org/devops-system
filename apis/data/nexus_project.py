@@ -127,39 +127,37 @@ class NexusProject:
         self.__extra_fields['updated_time'] = project_issue_info["updated_time"]
         return self
 
-    def fill_rd_extra_fields(self, user_id):
-        relation = nexus.nx_get_user_plugin_relation(user_id=user_id)
-        plan_user_id = relation.plan_user_id
+    def fill_extra_fields(self):
+        self.__extra_fields.update(
+            get_ci_last_test_result(self.get_project_row().plugin_relation))
+        return self
 
-        extras = {
-            'issues': None,
-            'next_d_time': None,
-            'last_test_time': "",
-            'last_test_result': {}
-        }
-        all_issues = redmine_lib.redmine.issue.filter(
-            project_id=self.get_project_row().plugin_relation.plan_project_id,
+def fill_rd_extra_fields(user_id, redmine_project_id):
+    plan_user_id = nexus.nx_get_user_plugin_relation(user_id=user_id).plan_user_id
+    user_name = model.User.query.get(user_id).login
+    extras = {
+        'issues': None,
+        'next_d_time': None
+    }
+    all_issues = redmine_lib.rm_impersonate(user_name).issue.filter(
+            project_id=redmine_project_id,
             assigned_to_id=plan_user_id,
             status_id='*'
-        )
-        extras['issues'] = len(all_issues)
-
-        # get next_d_time
-        issue_due_date_list = []
-        for issue in all_issues:
-            if getattr(issue, 'due_date', None) is not None:
-                issue_due_date_list.append(issue.due_date)
-        next_d_time = None
-        if len(issue_due_date_list) != 0:
-            next_d_time = min(
-                issue_due_date_list,
-                key=lambda d: abs(d - date.today()))
-        if next_d_time is not None:
-            extras['next_d_time'] = next_d_time.isoformat()
-
-        extras.update(get_ci_last_test_result(self.get_project_row().plugin_relation))
-        self.__extra_fields.update(extras)
-        return self
+    )
+    extras['issues'] = len(all_issues)
+    # get next_d_time
+    issue_due_date_list = []
+    for issue in all_issues:
+        if getattr(issue, 'due_date', None) is not None:
+            issue_due_date_list.append(issue.due_date)
+    next_d_time = None
+    if len(issue_due_date_list) != 0:
+        next_d_time = min(
+            issue_due_date_list,
+            key=lambda d: abs(d - date.today()))
+    if next_d_time is not None:
+        extras['next_d_time'] = next_d_time.isoformat()
+    return extras
 
 
 def calculate_project_issues(rm_project, username):

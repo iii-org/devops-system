@@ -323,6 +323,7 @@ class ListMyProjectsSchema(Schema):
     offset = fields.Int(doc='offset',  example=1)
     search = fields.Str(doc='search',  example='string')
     disabled = fields.Int(doc='disabled',  example='1')
+    test_result = fields.Str(doc='test_result',  example='true')
 
 class CalculateProjectIssuesSchema(Schema):
     project_ids = fields.Str(doc='project_ids', example="1,2,3,4", required=True)
@@ -356,20 +357,24 @@ class ProjectsBasicResponse(BasicIsssueResponse):
     
 class ListMyProjectsDataProjectListResponse(ProjectsBasicResponse):
     starred = fields.Bool()
+    last_test_time = fields.Str()
+    last_test_result = fields.Dict(example={"total": 12, "success": 12})
+    
 class CalculateProjectIssuesListResponse(Schema):
     id = fields.Str(required=True)
-    closed_count = fields.Int(required=True)
-    overdue_count = fields.Int(required=True)
-    total_count = fields.Int(required=True)
-    project_status = fields.Str(required=True)
-    updated_time = fields.Str(required=True, example="1970-01-01 00:00:00", default=None)
+    closed_count = fields.Int()
+    overdue_count = fields.Int()
+    total_count = fields.Int()
+    project_status = fields.Str()
+    updated_time = fields.Str(example="1970-01-01 00:00:00", default=None)
+    issues = fields.Int()
+    next_d_time = fields.Str(default=None)
 
 class ListMyProjectsProjectListResponse(PaginationResponse):
     project_list = fields.List(fields.Nested(ListMyProjectsDataProjectListResponse), required=True)
 
 class ListMyProjectsDataResponse(Schema):
     project_list = fields.Nested(ListMyProjectsProjectListResponse, required=True)
-
 
 class CalculateProjectIssuesDataResponse(Schema):
     project_list = fields.List(fields.Nested(CalculateProjectIssuesListResponse), required=True)
