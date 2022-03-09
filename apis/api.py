@@ -44,6 +44,7 @@ from urls.project import project_url
 from urls.issue import issue_url
 from urls.user import user_url
 from urls.tag import tag_url
+from urls.lock import lock_url
 from urls.sync_projects import sync_projects_url
 from urls import monitoring
 
@@ -605,7 +606,7 @@ api.add_resource(system_parameter.SystemParameters, '/system_parameter', '/syste
 api.add_resource(system_parameter.ParameterGithubVerifyExecuteStatus, '/system_parameter/github_verify/status')
 
 # Status of Sync
-api.add_resource(lock.LockStatus, '/lock')
+lock_url(api, add_resource)
 
 # Alert message
 api.add_resource(alert_message.AlertMessages, '/alert_message')
