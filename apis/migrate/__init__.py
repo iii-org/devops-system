@@ -6,6 +6,7 @@ import config
 import model
 import util
 from migrate.upgrade_function import ui_route_data
+from migrate.upgrade_function.upload_file_types import upload_file_types
 from model import db, ProjectPluginRelation, Project, UserPluginRelation, User, ProjectUserRole, PluginSoftware, \
     DefaultAlertDays, TraceOrder, TraceResult, Application, IssueExtensions, Lock, RedmineProject, ServerType, SystemParameter, \
     UIRoute, UIRouteUserRoleRelation
@@ -38,7 +39,7 @@ VERSIONS = ['0.9.2', '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.4', '0.9.2.5',
             '1.10.0.11', '1.10.0.12', '1.11.0.1', '1.11.0.2', '1.11.0.3', '1.11.0.4', '1.11.0.5', '1.11.0.6', '1.11.0.7', '1.11.0.8',
             '1.12.0.1', '1.12.0.2', '1.12.0.3', '1.12.0.4', '1.12.0.5', '1.12.0.6', '1.12.0.7', '1.12.0.8', '1.12.0.9', '1.12.1.0', '1.12.1.1',
             '1.12.1.2', '1.12.1.3', '1.13.0.1', '1.13.0.2', '1.13.0.3', '1.13.0.4', '1.13.0.5', '1.13.0.6', '1.13.0.7', '1.13.0.8',
-            '1.14.0.1', '1.14.0.2', '1.14.0.3', '1.14.0.4', '1.14.0.5', '1.14.0.6', '1.14.0.7', '1.14.0.8', '1.14.0.9', '1.14.0.10']
+            '1.14.0.1', '1.14.0.2', '1.14.0.3', '1.14.0.4', '1.14.0.5', '1.14.0.6', '1.14.0.7', '1.14.0.8', '1.14.0.9', '1.14.0.10', '1.15.0.1']
 ONLY_UPDATE_DB_MODELS = [
     '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.5', '0.9.2.6', '0.9.2.a8',
     '1.0.0.2', '1.3.0.1', '1.3.0.2', '1.3.0.3', '1.3.0.4', '1.3.1', '1.3.1.1', '1.3.1.2',
@@ -174,6 +175,20 @@ def upgrade(version):
         insert_notification_message_period_of_validity()
     elif version == '1.14.0.8':
         insert_ui_router()
+    elif version == '1.15.0.1':
+        insert_upload_file_type_in_system_parameter()
+
+
+
+def insert_upload_file_type_in_system_parameter():
+    if SystemParameter.query.filter_by(name="upload_file_types").first() is None:
+        row = SystemParameter(
+            name="upload_file_types",
+            value={"upload_file_types": upload_file_types},
+            active=True
+        )
+        db.session.add(row)
+        db.session.commit()
 
 
 def insert_ui_router():
