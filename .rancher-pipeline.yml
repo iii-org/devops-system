@@ -36,7 +36,7 @@ stages:
       branch:
         include:
           - master
-          - develop
+          - skip-develop
   - name: Test--Checkmarx source code scan
     iiidevops: checkmarx
     steps:
@@ -55,7 +55,7 @@ stages:
       branch:
         include:
           - master
-          - develop
+          - skip-develop
   - name: Deploy--Set Web environment variables
     iiidevops: deployed-environments
     steps:
@@ -123,8 +123,8 @@ stages:
           | base64 -d) && export UN=$(rancher kubectl get secret nexus-bot -n ${CICD_GIT_REPO_NAME}
           -o=go-template='{{index .data "username"}}' | base64 -d) && curl --location
           --request POST ${api_origin}/user/login --form username=$UN --form password=$PW
-          | jq -r '.data.token' > token.txt && export APITOKEN=$(cat token.txt) && pwd && ls
-          -lR ./app/build/outputs/apk/ && curl --location --request POST ${api_origin}/harbor/handle_image
+          | jq -r '.data.token' > token.txt && export APITOKEN=$(cat token.txt) && pwd &&
+           curl --location --request POST ${api_origin}/harbor/handle_image
           --header "Authorization:Bearer $APITOKEN" --form project_name=${CICD_GIT_REPO_NAME}
           --form form_repo_name=${CICD_GIT_BRANCH} --form from_tag=latest  
           --form dest_repo_name=${CICD_GIT_REPO_NAME} --form dest_tag=${CICD_GIT_BRANCH}
