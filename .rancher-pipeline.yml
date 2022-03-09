@@ -7,7 +7,7 @@ stages:
             sourceName: nexus
             targetKey: api_origin
         runScriptConfig:
-          image: iiiorg/rancher-cli:v2.4.6
+          image: harbor-dev3.iiidevops.org/dockerhub/iiiorg/rancher-cli:v2.4.6
           shellScript:
             curl --location -s --request POST ${api_origin}/rancher/delete_app
             --form project_name=${CICD_GIT_REPO_NAME} --form branch_name=${CICD_GIT_BRANCH}
