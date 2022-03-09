@@ -65,6 +65,7 @@ def get_project_list(user_id, role="simple", args={}, disable=None):
     limit = args.get("limit")
     offset = args.get("offset")
     extra_data = args.get("test_result", "false") == "true"
+    pj_members_count = args.get("pj_members_count", "false") == "true"
     user_name = model.User.query.get(user_id).login
 
     rows, counts = get_project_rows_by_user(user_id, disable, args=args)
@@ -85,6 +86,9 @@ def get_project_list(user_id, role="simple", args={}, disable=None):
         if extra_data:
             nexus_project = nexus_project.fill_extra_fields()
 
+        if pj_members_count:
+            nexus_project = nexus_project.set_project_members()
+
         ret.append(nexus_project.to_json())
 
     if limit is not None and offset is not None:
@@ -97,8 +101,9 @@ def get_project_list(user_id, role="simple", args={}, disable=None):
 
 def get_project_rows_by_user(user_id, disable, args={}):
     search = args.get("search")
-    limit = args.get("limit")
-    offset = args.get("offset")
+    limit, offset = args.get("limit"), args.get("offset")
+    pj_due_start = datetime.strptime(args.get("pj_due_date_start"), "%Y-%m-%d").date() if args.get("pj_due_date_start") is not None else None
+    pj_due_end = datetime.strptime(args.get("pj_due_date_end"), "%Y-%m-%d").date() if args.get("pj_due_date_end") is not None else None
 
     query = model.Project.query.options(
         joinedload(model.Project.user_role, innerjoin=True)
@@ -128,6 +133,14 @@ def get_project_rows_by_user(user_id, disable, args={}):
             if star_project.owner_id in owner_ids or
             search.upper() in star_project.display.upper() or
             search.upper() in star_project.name.upper()]
+
+    if pj_due_start is not None and pj_due_end is not None:
+        query = query.filter(
+            model.Project.due_date.between(pj_due_start, pj_due_end))
+        star_projects_obj = [
+            star_project for star_project in star_projects_obj
+            if pj_due_start <= star_project.due_date <= pj_due_end]
+    
 
     # Remove dump_project and stared_project
     project_ids = [star_project.id for star_project in star_projects_obj]

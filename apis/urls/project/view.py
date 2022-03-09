@@ -463,6 +463,9 @@ class ListMyProjects(Resource):
         parser.add_argument('offset', type=int)
         parser.add_argument('search', type=str)
         parser.add_argument('disabled', type=int)
+        parser.add_argument('pj_members_count', type=str)
+        parser.add_argument('pj_due_date_start', type=str)
+        parser.add_argument('pj_due_date_end', type=str)
         parser.add_argument('test_result', type=str)
         args = parser.parse_args()
         disabled = None

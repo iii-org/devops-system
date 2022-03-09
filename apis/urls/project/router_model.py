@@ -324,6 +324,9 @@ class ListMyProjectsSchema(Schema):
     search = fields.Str(doc='search',  example='string')
     disabled = fields.Int(doc='disabled',  example='1')
     test_result = fields.Str(doc='test_result',  example='true')
+    pj_members_count = fields.Str(doc='pj_members_count',  example='true')
+    pj_due_date_start = fields.Str(doc='pj_due_date_start',  example='1970-01-01')
+    pj_due_date_end = fields.Str(doc='pj_due_date_end',  example='1970-01-01')
 
 class CalculateProjectIssuesSchema(Schema):
     project_ids = fields.Str(doc='project_ids', example="1,2,3,4", required=True)
@@ -359,6 +362,7 @@ class ListMyProjectsDataProjectListResponse(ProjectsBasicResponse):
     starred = fields.Bool()
     last_test_time = fields.Str()
     last_test_result = fields.Dict(example={"total": 12, "success": 12})
+    members = fields.Int()
     
 class CalculateProjectIssuesListResponse(Schema):
     id = fields.Str(required=True)

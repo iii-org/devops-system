@@ -2,6 +2,7 @@ from redminelib import Redmine, exceptions as redminelibError
 import requests
 import config
 from resources import apiError
+from resources import role
 
 redmine = Redmine(config.get('REDMINE_INTERNAL_BASE_URL'),
                   key=config.get('REDMINE_API_KEY'), requests={'verify': False})
@@ -26,6 +27,8 @@ def __refresh_redmine_by_key(plan_operator_id=None):
 
 
 def rm_impersonate(user_name):
+    if role.is_role(role.ADMIN) or role.is_role(role.QA):
+        return redmine
     return Redmine(config.get('REDMINE_INTERNAL_BASE_URL'), key=config.get('REDMINE_API_KEY'),
                    impersonate=user_name)
 
