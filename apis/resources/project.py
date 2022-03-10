@@ -78,7 +78,7 @@ def get_project_issue_calculation(user_id, project_ids=[]):
     return ret
 
 
-def get_project_list(user_id, role="simple", args={}, disable=None):
+def get_project_list(user_id, role="simple", args={}, disable=None, sync=False):
     limit = args.get("limit")
     offset = args.get("offset")
     extra_data = args.get("test_result", "false") == "true"
@@ -93,7 +93,10 @@ def get_project_list(user_id, role="simple", args={}, disable=None):
         if role == "pm":
             redmine_project_id = row.plugin_relation.plan_project_id
             try:
-                project_object = redmine_lib.rm_impersonate(user_name).project.get(redmine_project_id)
+                if sync:
+                    project_object = redmine_lib.redmine.project.get(redmine_project_id)
+                else:
+                    project_object = redmine_lib.rm_impersonate(user_name).project.get(redmine_project_id)
                 rm_project = {"updated_on": project_object.updated_on, "id": project_object.id}
             except ResourceNotFoundError:
                 # When Redmin project was missing

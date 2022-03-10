@@ -95,7 +95,7 @@ def clear_all_tables():
 
 def sync_redmine(sync_date):
     need_to_track_issue = []
-    all_projects = get_project_list(user_id=get_admin_user_id(), role="pm")
+    all_projects = get_project_list(user_id=get_admin_user_id(), role="pm", sync=True)
     if all_projects:
         for project in all_projects:
             project_status = project['project_status']

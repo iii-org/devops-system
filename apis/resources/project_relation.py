@@ -93,13 +93,14 @@ def sync_project_relation():
     default_sync_date = datetime.utcnow()
     current_hour = default_sync_date.hour
     project_relations = model.ProjectParentSonRelation.query.limit(1).all()
-    if len(project_relations) == 0 and current_hour % hours != 0:
+    if current_hour % hours != 0:
         return 
     
-    latest_created_at = project_relations[0].created_at.hour
-    current_hour = current_hour if current_hour > latest_created_at else current_hour + 24
-    if (current_hour - latest_created_at) % hours != 0:
-        return
+    if len(project_relations) != 0:
+        latest_created_at = project_relations[0].created_at.hour
+        current_hour = current_hour if current_hour > latest_created_at else current_hour + 24
+        if (current_hour - latest_created_at) % hours != 0:
+            return
 
     default_sync_date = default_sync_date.strftime("%Y-%m-%d %H:%M:%S")
     project_relations = []
