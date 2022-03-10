@@ -190,7 +190,7 @@ stages:
     when:
       branch:
         include:
-          - skip-develop
+          - develop
   - name: Build--Push image branch:commit_id(develop)
     iiidevops: deployed-environments
     steps:
@@ -209,7 +209,7 @@ stages:
     when:
       branch:
         include:
-          - skip-develop
+          - develop
   - name: Deploy--Web
     iiidevops: deployed-environments
     steps:
