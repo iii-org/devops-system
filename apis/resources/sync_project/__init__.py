@@ -324,8 +324,9 @@ def create_redmine_project(args):
     new_rm_pj_id = response['project']['id']
     logger.logger.info('Create membership in redmine project')
     role_id = user.get_role_id(args['creator_id'])
+    redmine_role_id = user.to_redmine_role_id(role_id)
     plan_user_id = nexus.nx_get_user_plugin_relation(user_id=args['creator_id']).plan_user_id
-    redmine.redmine.rm_create_memberships(new_rm_pj_id, plan_user_id, role_id)
+    redmine.redmine.rm_create_memberships(new_rm_pj_id, plan_user_id, redmine_role_id)
     check_project_members(args['id'], args['creator_id'])
     if args['owner_id'] != args['creator_id']:
         try:
