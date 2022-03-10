@@ -9,10 +9,8 @@ stages:
         runScriptConfig:
           image: iiiorg/rancher-cli:v2.4.6
           shellScript:
-            curl --location -s --request POST ${api_origin}/rancher/delete_app
-            --form project_name=${CICD_GIT_REPO_NAME} --form branch_name=${CICD_GIT_BRANCH}
-            && curl --location -s --request POST ${api_origin}/project/issues_commit_by_name
-            --form project_name=${CICD_GIT_REPO_NAME}
+            curl --location -s --request POST ${api_origin}/rancher/delete_app --form project_name=${CICD_GIT_REPO_NAME} --form branch_name=${CICD_GIT_BRANCH}
+            && curl --location -s --request POST ${api_origin}/project/issues_commit_by_name --form project_name=${CICD_GIT_REPO_NAME}
     when:
       branch:
         include:
@@ -36,7 +34,7 @@ stages:
       branch:
         include:
           - master
-          - skip-develop
+          - develop
   - name: Test--Checkmarx source code scan
     iiidevops: checkmarx
     steps:
@@ -55,7 +53,7 @@ stages:
       branch:
         include:
           - master
-          - skip-develop
+          - develop
   - name: Deploy--Set Web environment variables
     iiidevops: deployed-environments
     steps:
@@ -70,11 +68,11 @@ stages:
           image: iiiorg/rancher-cli:v2.4.6
           shellScript:
             rancher login ${rancher_url} -t ${rancher_api_token} --skip-verify
-            && rancher kubectl delete configmap -n ${CICD_GIT_REPO_NAME} ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}-env
-            --ignore-not-found=true && perl iiidevops/bin/chk-app-env.pl && rancher kubectl
-            create configmap -n ${CICD_GIT_REPO_NAME} ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}-env
-            --from-env-file=iiidevops/app.env && rancher kubectl annotate configmap -n
-            ${CICD_GIT_REPO_NAME} ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}-env iiidevops.org/project_name=${CICD_GIT_REPO_NAME}
+            && rancher kubectl delete configmap -n ${CICD_GIT_REPO_NAME} ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}-env --ignore-not-found=true 
+            && perl iiidevops/bin/chk-app-env.pl 
+            && rancher kubectl create configmap -n ${CICD_GIT_REPO_NAME} ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}-env --from-env-file=iiidevops/app.env 
+            && rancher kubectl annotate configmap -n ${CICD_GIT_REPO_NAME} ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}-env 
+            iiidevops.org/project_name=${CICD_GIT_REPO_NAME}
             iiidevops.org/branch=${CICD_GIT_BRANCH} iiidevops.org/commit_id=${CICD_GIT_COMMIT}
             iiidevops.org/type=appenv
     when:
@@ -82,7 +80,6 @@ stages:
         include:
           - master
           - develop
-
   - name: Build--Build and push docker image
     iiidevops: deployed-environments
     steps:
@@ -118,7 +115,8 @@ stages:
         targetKey: api_origin
       runScriptConfig:
         image: harbor-dev3.iiidevops.org/dockerhub/iiiorg/rancher-cli:v2.4.6
-        shellScript: rancher login ${rancher_url} -t ${rancher_api_token} --skip-verify
+        shellScript: 
+          rancher login ${rancher_url} -t ${rancher_api_token} --skip-verify
           && apt-get install -y jq 
           && export PW=$(rancher kubectl get secret nexus-bot -n ${CICD_GIT_REPO_NAME} -o=go-template='{{index .data "password"}}' | base64 -d) 
           && export UN=$(rancher kubectl get secret nexus-bot -n ${CICD_GIT_REPO_NAME} -o=go-template='{{index .data "username"}}' | base64 -d) 
@@ -136,8 +134,7 @@ stages:
       branch:
         include:
           - master
-          - develop
-          
+          - develop          
   - name: Deploy--Web
     iiidevops: deployed-environments
     steps:
