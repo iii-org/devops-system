@@ -50,12 +50,27 @@ def get_project_issue_calculation(user_id, project_ids=[]):
     user_name = model.User.query.get(user_id).login
     for project_id in project_ids:
         redmine_project_id = model.ProjectPluginRelation.query.filter_by(project_id=project_id).one().plan_project_id
-        project_object = redmine_lib.rm_impersonate(user_name).project.get(redmine_project_id)
-        rm_project = {"updated_on": project_object.updated_on, "id": project_object.id}
-        calculate_project_issue = calculate_project_issues(rm_project, user_name)
-        if role.is_role(role.RD):
-            calculate_project_issue.update(fill_rd_extra_fields(user_id, redmine_project_id))
-        calculate_project_issue["id"] = project_id
+        try:
+            project_object = redmine_lib.rm_impersonate(user_name).project.get(redmine_project_id)
+        except:
+            project_object = None
+        
+        if project_object is None:
+            calculate_project_issue = {
+                "id": project_id,
+                'closed_count': None,
+                'overdue_count': None,
+                'total_count': None,
+                'project_status': None,
+                'updated_time': None,
+                'is_lock': True
+            } 
+        else:
+            rm_project = {"updated_on": project_object.updated_on, "id": project_object.id}
+            calculate_project_issue = calculate_project_issues(rm_project, user_name)
+            if role.is_role(role.RD):
+                calculate_project_issue.update(fill_rd_extra_fields(user_id, redmine_project_id))
+            calculate_project_issue["id"] = project_id
         ret.append(calculate_project_issue)
 
     return ret
