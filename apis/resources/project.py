@@ -102,7 +102,7 @@ def get_project_list(user_id, role="simple", args={}, disable=None, sync=False):
                 # When Redmin project was missing
                 sync_project.lock_project(nexus_project.name, "Redmine")
                 rm_project = {"updated_on": datetime.utcnow(), "id": -1}
-            nexus_project = nexus_project.fill_pm_extra_fields(rm_project, user_name)
+            nexus_project = nexus_project.fill_pm_extra_fields(rm_project, user_name, sync)
         if extra_data:
             nexus_project = nexus_project.fill_extra_fields()
 

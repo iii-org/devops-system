@@ -118,8 +118,8 @@ class NexusProject:
             ret['members'] = self.__project_members_dict.get(ret['id'], None)
         return ret
 
-    def fill_pm_extra_fields(self, rm_project, username):
-        project_issue_info = calculate_project_issues(rm_project, username)
+    def fill_pm_extra_fields(self, rm_project, username, sync=False):
+        project_issue_info = calculate_project_issues(rm_project, username, sync)
         self.__extra_fields['closed_count'] = project_issue_info["closed_count"]
         self.__extra_fields['overdue_count'] = project_issue_info["overdue_count"]
         self.__extra_fields['total_count'] = project_issue_info["total_count"]
@@ -160,7 +160,7 @@ def fill_rd_extra_fields(user_id, redmine_project_id):
     return extras
 
 
-def calculate_project_issues(rm_project, username):
+def calculate_project_issues(rm_project, username, sync=False):
     ret = {}
     updated_on, project_id = rm_project["updated_on"], rm_project["id"]
     if project_id == -1:
@@ -173,7 +173,12 @@ def calculate_project_issues(rm_project, username):
 
     total_count = closed_count = overdue_count = 0
 
-    rm_issues = redmine_lib.rm_impersonate(username).issue.filter(
+    if sync:
+        redmine_obj = redmine_lib.redmine
+    else:
+        redmine_obj = redmine_lib.rm_impersonate(username)
+    
+    rm_issues = redmine_obj.issue.filter(
         status_id='*', project_id=project_id, sort="updated_on:desc")
     total_count = len(rm_issues)
     if total_count == 0:
@@ -181,11 +186,11 @@ def calculate_project_issues(rm_project, username):
     else:
         updated_on = max(rm_issues[0].updated_on, updated_on)
 
-        close_rm_issues = redmine_lib.rm_impersonate(username).issue.filter(
+        close_rm_issues = redmine_obj.issue.filter(
             status_id=redmine_lib.STATUS_ID_ISSUE_CLOSED, project_id=project_id)
         closed_count = len(close_rm_issues)
 
-        overdue_rm_issues = redmine_lib.rm_impersonate(username).issue.filter(
+        overdue_rm_issues = redmine_obj.issue.filter(
             due_date=f"<={date.today()}", project_id=project_id)
         overdue_count = len(overdue_rm_issues)
 
