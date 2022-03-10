@@ -107,7 +107,7 @@ def limit_to_project(project_id):
     query = model.Activity.query.filter(model.Activity.action_type.in_([
         ActionType.CREATE_PROJECT, ActionType.UPDATE_PROJECT, ActionType.DELETE_PROJECT,
         ActionType.ADD_MEMBER, ActionType.REMOVE_MEMBER, ActionType.DELETE_ISSUE, ActionType.ADD_TAG,
-        ActionType.DELETE_TAG, ActionType.MODIFY_HOOK]
+        ActionType.DELETE_TAG, ActionType.MODIFY_HOOK, ActionType.RECREATE_PROJECT]
     ))
     query = query.filter(or_(
         model.Activity.object_id.like(f'%@{project_id}%'),
