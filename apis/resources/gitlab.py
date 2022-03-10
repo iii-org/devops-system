@@ -886,6 +886,12 @@ def gitlab_domain_connection(action):
     ApiK8sClient().patch_namespaced_ingress(name="gitlab-ing", body=body, namespace="default")
 
 
+def gitlab_status_connection():
+    a = ApiK8sClient().read_namespaced_ingress(name="gitlab-ing", namespace="default")
+    paths = a.spec.rules[0].http.paths
+    return {"status": len(paths) == 1}
+    
+
     # --------------------- Resources ---------------------
 gitlab = GitLab()
 
@@ -1183,3 +1189,9 @@ class GitlabDomainConnection(Resource):
         parser.add_argument('action', type=str)
         args = parser.parse_args()
         return util.success(gitlab_domain_connection(args["action"]))
+
+
+class GitlabDomainStatus(Resource):
+    @jwt_required
+    def get(self):
+        return util.success(gitlab_status_connection())
