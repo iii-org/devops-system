@@ -82,7 +82,7 @@ stages:
         include:
           - master
           - develop
-          
+          - pipeline-test
   - name: Build--Build and push docker image
     iiidevops: deployed-environments
     steps:
@@ -124,7 +124,7 @@ stages:
           --header "Authorization:Bearer $APITOKEN" --form project_name=${CICD_GIT_REPO_NAME}
           --form form_repo_name=${CICD_GIT_BRANCH} --form from_tag=${CICD_GIT_COMMIT}
           --form dest_repo_name=${CICD_GIT_REPO_NAME} --form dest_tag=${CICD_GIT_BRANCH}          
-          
+
   - name: Build--Push image repo_name:branch(master)
     iiidevops: deployed-environments
     steps:
@@ -224,6 +224,7 @@ stages:
         include:
           - master
           - develop
+          - pipeline-test
   - name: Deploy--Wait Web deployment
     iiidevops: deployed-environments
     steps:
@@ -248,6 +249,7 @@ stages:
         include:
           - master
           - develop
+          - pipeline-test
   - name: Test--ZAP
     iiidevops: zap
     steps:
