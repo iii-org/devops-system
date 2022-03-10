@@ -46,6 +46,7 @@ from resources import role
 
 
 def get_project_issue_calculation(user_id, project_ids=[]):
+    from resources.sync_project import check_project_exist
     ret = []
     user_name = model.User.query.get(user_id).login
     for project_id in project_ids:
@@ -64,7 +65,8 @@ def get_project_issue_calculation(user_id, project_ids=[]):
                 'project_status': None,
                 'updated_time': None,
                 'is_lock': True
-            } 
+            }
+            check_project_exist()
         else:
             rm_project = {"updated_on": project_object.updated_on, "id": project_object.id}
             calculate_project_issue = calculate_project_issues(rm_project, user_name)
