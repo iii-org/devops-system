@@ -103,7 +103,6 @@ stages:
         include:
           - master
           - develop
-
   - name: Build--Copy Image
     iiidevops: Copy Image
     steps:
@@ -162,7 +161,6 @@ stages:
         include:
           - master
           - develop
-          - pipeline-test
   - name: Deploy--Wait Web deployment
     iiidevops: deployed-environments
     steps:
@@ -187,7 +185,6 @@ stages:
         include:
           - master
           - develop
-          - pipeline-test
   - name: Test--ZAP
     iiidevops: zap
     steps:
