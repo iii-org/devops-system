@@ -535,9 +535,10 @@ def unlock_project(pj_id=None, pj_name=None):
         pj_row = Project.query.filter_by(id=pj_id).first()
     else:
         pj_row = Project.query.filter_by(name=pj_name).first()
-    pj_row.is_lock = False
-    pj_row.lock_reason = ""
-    db.session.commit()
+    if pj_row.is_lock is True:
+        pj_row.is_lock = False
+        pj_row.lock_reason = ""
+        db.session.commit()
 
 
 def main_process():
@@ -582,8 +583,7 @@ def recreate_project(project_id):
     pipeline_process(check_bot_list)
     logger.logger.info('Sonarqube projects start.')
     sonarqube_process(projects_name, check_bot_list)
-    for pj_id in check_bot_list:
-        unlock_project(pj_id=pj_id)
+    unlock_project(pj_id=project_id)
     logger.logger.info('Project BOT start.')
     bot_process(list(set(check_bot_list)))
     logger.logger.info('Project members start.')
