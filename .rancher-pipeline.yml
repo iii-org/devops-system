@@ -7,7 +7,7 @@ stages:
             sourceName: nexus
             targetKey: api_origin
         runScriptConfig:
-          image: harbor-dev3.iiidevops.org/dockerhub/iiiorg/rancher-cli:v2.4.6
+          image: iiiorg/rancher-cli:v2.4.6
           shellScript:
             curl --location -s --request POST ${api_origin}/rancher/delete_app
             --form project_name=${CICD_GIT_REPO_NAME} --form branch_name=${CICD_GIT_BRANCH}
@@ -36,7 +36,7 @@ stages:
       branch:
         include:
           - master
-          - skip-develop
+          - develop
   - name: Test--Checkmarx source code scan
     iiidevops: checkmarx
     steps:
@@ -55,7 +55,7 @@ stages:
       branch:
         include:
           - master
-          - skip-develop
+          - develop
   - name: Deploy--Set Web environment variables
     iiidevops: deployed-environments
     steps:
@@ -67,7 +67,7 @@ stages:
             sourceName: rancher
             targetKey: rancher_url
         runScriptConfig:
-          image: harbor-dev3.iiidevops.org/dockerhub/iiiorg/rancher-cli:v2.4.6
+          image: iiiorg/rancher-cli:v2.4.6
           shellScript:
             rancher login ${rancher_url} -t ${rancher_api_token} --skip-verify
             && rancher kubectl delete configmap -n ${CICD_GIT_REPO_NAME} ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}-env
@@ -102,36 +102,6 @@ stages:
         include:
           - master
           - develop
-  - name: Build--Copy Image
-    iiidevops: Copy Image
-    steps:
-    - envFrom:
-      - sourceKey: API_TOKEN
-        sourceName: pipeline-api-key
-        targetKey: rancher_api_token
-      - sourceKey: rancher-url
-        sourceName: rancher
-        targetKey: rancher_url
-      - sourceKey: api-origin
-        sourceName: nexus
-        targetKey: api_origin
-      runScriptConfig:
-        image: harbor-dev3.iiidevops.org/dockerhub/iiiorg/rancher-cli:v2.4.6
-        shellScript: rancher login ${rancher_url} -t ${rancher_api_token} --skip-verify
-          && apt-get install -y jq && export PW=$(rancher kubectl get
-          secret nexus-bot -n ${CICD_GIT_REPO_NAME} -o=go-template='{{index .data "password"}}'
-          | base64 -d) && export UN=$(rancher kubectl get secret nexus-bot -n ${CICD_GIT_REPO_NAME}
-          -o=go-template='{{index .data "username"}}' | base64 -d) && curl --location
-          --request POST ${api_origin}/user/login --form username=$UN --form password=$PW
-          | jq -r '.data.token' > token.txt && export APITOKEN=$(cat token.txt) && pwd &&
-           curl --location --request POST ${api_origin}/harbor/handle_image
-          --header "Authorization:Bearer $APITOKEN" --form project_name=${CICD_GIT_REPO_NAME}
-          --form form_repo_name=${CICD_GIT_BRANCH} --form from_tag=latest  
-          --form dest_repo_name=${CICD_GIT_REPO_NAME} --form dest_tag=${CICD_GIT_BRANCH}
-          && curl --location --request POST ${api_origin}/harbor/handle_image
-          --header "Authorization:Bearer $APITOKEN" --form project_name=${CICD_GIT_REPO_NAME}
-          --form form_repo_name=${CICD_GIT_BRANCH} --form from_tag=latest  
-          --form dest_repo_name=${CICD_GIT_BRANCH} --form dest_tag=${CICD_GIT_COMMIT}
   
   - name: Build--Push image repo_name:branch(master)
     iiidevops: deployed-environments
