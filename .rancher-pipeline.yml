@@ -98,11 +98,6 @@ stages:
           pushRemote: true
           registry: harbor-dev3.iiidevops.org
           tag: ${CICD_GIT_REPO_NAME}/${CICD_GIT_BRANCH}:${CICD_GIT_COMMIT}
-    when:
-      branch:
-        include:
-          - master
-          - develop
   - name: Build--Copy Image
     iiidevops: Copy Image
     steps:
@@ -129,6 +124,7 @@ stages:
           --header "Authorization:Bearer $APITOKEN" --form project_name=${CICD_GIT_REPO_NAME}
           --form form_repo_name=${CICD_GIT_BRANCH} --form from_tag=${CICD_GIT_COMMIT}
           --form dest_repo_name=${CICD_GIT_REPO_NAME} --form dest_tag=${CICD_GIT_BRANCH}          
+          
   - name: Build--Push image repo_name:branch(master)
     iiidevops: deployed-environments
     steps:
