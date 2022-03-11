@@ -24,6 +24,9 @@ def get_project_id(plan_id):
     else:
         return -1
 
+def get_project_name(project_id):
+    return model.Project.query.get(project_id).name
+
 
 def get_all_fathers_project(project_id, father_id_list):
     parent_son_relations_object = model.ProjectParentSonRelation.query.filter_by(son_id=project_id).first()
@@ -63,7 +66,7 @@ def project_has_parent(project_id):
     return model.ProjectParentSonRelation.query.filter_by(son_id=project_id).first() is not None
     
 def get_relation_list(project_id, ret):
-    son_project_ids = [relation.son_id for relation in model.ProjectParentSonRelation.query. \
+    son_project_ids = [{"id": relation.son_id, "name": get_project_name(relation.son_id)} for relation in model.ProjectParentSonRelation.query. \
         filter_by(parent_id=project_id).all()]
     son_pj_ids = []
     if son_project_ids != []:
@@ -74,14 +77,15 @@ def get_relation_list(project_id, ret):
             user_id = get_jwt_identity()["user_id"]
             son_pj_ids = [
                 son_pj_id for son_pj_id in son_project_ids if model.ProjectUserRole.query. \
-                    filter_by(user_id=user_id, project_id=son_pj_id).first() is not None]
+                    filter_by(user_id=user_id, project_id=son_pj_id["id"]).first() is not None]
+            
         
         ret.append({
-            "parent": project_id,
+            "parent": {"id": project_id, "name": get_project_name(project_id)},
             "child": son_pj_ids
         })
-    for pj_id in son_pj_ids:
-        get_relation_list(pj_id, ret)
+    for pj in son_pj_ids:
+        get_relation_list(pj["id"], ret)
     return ret
 
 
