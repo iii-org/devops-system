@@ -12,7 +12,7 @@ from resources.lock import get_lock_status, update_lock_status
 from datetime import datetime, timedelta
 from flask_socketio import Namespace, emit, disconnect
 import os
-from resources import logger
+from resources.apiError import DevOpsError
 
 def row_to_dict(row):
     if row is None:
@@ -234,6 +234,15 @@ def get_upload_file_distinct_name():
             ret.append(upload_file_type["name"])
 
     return util.success(ret)
+
+def get_all_upload_file_mimetype():
+    upload_file_types = get_upload_file_types_obj().value["upload_file_types"]
+    return [upload_file_type["MIME Type"] for upload_file_type in upload_file_types]
+
+def check_upload_type(file):
+    if file.mimetype not in get_all_upload_file_mimetype():
+        raise DevOpsError(400, 'Argument upload_file type is not supported.',
+                                error=apiError.argument_error("upload_file"))
 
 # --------------------- Resources ---------------------
 

@@ -13,6 +13,7 @@ from resources.issue import get_issue, require_issue_visible, get_issue_tags, ge
     update_issue, get_issue_family, delete_issue, create_issue, NexusIssue, get_issue_statistics, \
     get_open_issue_statistics, get_issue_statistics_in_period, post_issue_relation, put_issue_relation, \
     delete_issue_relation, check_issue_closable, get_commit_hook_issues, modify_hook
+from resources.system_parameter import check_upload_type
 
 
 ##### Issue single #####
@@ -183,6 +184,9 @@ class SingleIssue(Resource):
 
         args = parser.parse_args()
 
+        if args.get("upload_file") is not None:
+            check_upload_type(args["upload_file"])
+
         # Check due_date is greater than start_date
         if args.get("start_date") is not None and args.get("due_date") is not None:
             if args["due_date"] < args["start_date"]:
@@ -226,7 +230,10 @@ class SingleIssue(Resource):
         parser.add_argument('upload_content_type', type=str)
 
         args = parser.parse_args()
-
+        
+        if args.get("upload_file") is not None:
+            check_upload_type(args["upload_file"])
+        
         redmine_issue = redmine_lib.redmine.issue.get(issue_id, include=['children'])
         has_children = redmine_issue.children.total_count > 0
         if has_children:

@@ -620,6 +620,8 @@ class GitLab(object):
                         pass
                     total_commit_number = len(pj.commits.list(all=True))
                     commit_number = total_commit_number - the_last_time_total_commit_number
+                    if commit_number < 0:
+                        commit_number = 0
                 now_time = datetime.now() + timedelta(hours=timezone_hours_number)
                 one_row_data = GitCommitNumberEachDays(
                     repo_id=pj.id,
@@ -890,7 +892,6 @@ def gitlab_status_connection():
     a = ApiK8sClient().read_namespaced_ingress(name="gitlab-ing", namespace="default")
     paths = a.spec.rules[0].http.paths
     return {"status": len(paths) == 1}
-    
 
     # --------------------- Resources ---------------------
 gitlab = GitLab()
