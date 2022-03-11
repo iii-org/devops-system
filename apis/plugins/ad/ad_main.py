@@ -637,24 +637,14 @@ class LDAP(object):
             user_id = db_user.id
             user_login = db_user.login
             user_role_id = db_info.get('role_id')
-            # 'Direct login AD pass, DB change password'
-            if db_info['is_pass'] is not True:
+            # login Password not Change
+            if db_info.get('is_password_verify'):
+                login_password = None
+            is_update, update_data = check_update_info_by_ad(ad_info_data, db_info.get('User'), login_password)
+            # 'Direct login AD pass, DB Need Update Info'
+            if is_update:
                 status = 'Direct login AD pass, DB Need Update Info'
-                if db_info.get('is_password_verify') is False:
-                    is_update, update_data = check_update_info_by_ad(ad_info_data, db_info.get('User'), login_password)
-                else:
-                    is_update, update_data = check_update_info_by_ad(ad_info_data, db_info.get('User'))
-                if is_update:
-                    user_function.update_user(db_info.get('User').get('id'), update_data, True)
-                # db_user_dictionary = row_to_dictionary(db_user)
-                # print(db_user_dictionary)
-            #     err = user.update_external_passwords(
-            #         db_user.id, login_password, login_password)
-            #     if err is not None:
-            #         logger.exception(err)
-            #     db_user.password = db_info['hex_password']
-            # # Check Need Update User Info
-            # check_update_info(db_user, db_info, ad_info_data)
+                user_function.update_user(db_info.get('User').get('id'), update_data, True)
             token = user_function.get_access_token(
                 user_id, user_login, user_role_id, True)
         else:

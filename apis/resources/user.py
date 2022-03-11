@@ -331,7 +331,6 @@ def update_user_role(user_id, role_id):
 
 
 def update_external_passwords(user_id, new_pwd, old_pwd):
-    print("Start Update Password")
     user_login = nx_get_user(id=user_id).login
     user_relation = nx_get_user_plugin_relation(user_id=user_id)
     if user_relation is None:
