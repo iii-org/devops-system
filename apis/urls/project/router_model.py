@@ -487,6 +487,14 @@ class ProjectUserListResponse(Schema):
 
 ##### Project report ######
 
+#################################### Schema ####################################
+
+class ProjectFilePostSchema(Schema):
+    filename = fields.Str(example="filename")
+    version_id = fields.Str(example="v1.0")
+    description = fields.Str(example="description")
+
+
 #################################### Response ####################################
 
 ########## Module ##########

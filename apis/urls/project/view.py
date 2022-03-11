@@ -17,6 +17,7 @@ from sqlalchemy.orm.exc import NoResultFound
 from model import CustomIssueFilter
 from resources import role
 from . import router_model
+from urls.issue.router_model import FileSchema
 from model import db
 from resources.apiError import DevOpsError
 import resources.apiError as apiError
@@ -24,6 +25,7 @@ import threading
 from flask import send_file
 import nexus
 from resources.redmine import redmine
+import werkzeug
 
 
 ##### Project Relation ######
@@ -792,25 +794,22 @@ class AllReports(Resource):
 
 class ProjectFileV2(MethodResource):
     @doc(tags=['File'], description="Upload file to project.")
+    @use_kwargs(router_model.ProjectFilePostSchema, location="form")
+    @use_kwargs(FileSchema, location="files")
     @jwt_required
-    def post(self, project_id):
+    def post(self, project_id, **kwargs):
         try:
             plan_project_id = project.get_plan_project_id(project_id)
         except NoResultFound:
             raise apiError.DevOpsError(404, 'Error while uploading a file to a project.',
                                        error=apiError.project_not_found(project_id))
 
-        parser = reqparse.RequestParser()
-        parser.add_argument('filename', type=str)
-        parser.add_argument('version_id', type=str)
-        parser.add_argument('description', type=str)
-        args = parser.parse_args()
         plan_operator_id = None
         if get_jwt_identity()['user_id'] is not None:
             operator_plugin_relation = nexus.nx_get_user_plugin_relation(
                 user_id=get_jwt_identity()['user_id'])
             plan_operator_id = operator_plugin_relation.plan_user_id
-        return redmine.rm_upload_to_project(plan_project_id, args, plan_operator_id)
+        return redmine.rm_upload_to_project(plan_project_id, kwargs, plan_operator_id)
 
     @doc(tags=['File'], description="Get project file list.")
     @marshal_with(router_model.ProjectFileGetResponse)
@@ -831,8 +830,8 @@ class ProjectFile(Resource):
         except NoResultFound:
             raise apiError.DevOpsError(404, 'Error while uploading a file to a project.',
                                        error=apiError.project_not_found(project_id))
-
         parser = reqparse.RequestParser()
+        parser.add_argument('file', type=werkzeug.datastructures.FileStorage, location='files')
         parser.add_argument('filename', type=str)
         parser.add_argument('version_id', type=str)
         parser.add_argument('description', type=str)
@@ -842,6 +841,14 @@ class ProjectFile(Resource):
             operator_plugin_relation = nexus.nx_get_user_plugin_relation(
                 user_id=get_jwt_identity()['user_id'])
             plan_operator_id = operator_plugin_relation.plan_user_id
+
+        file = args['file']
+        if file is None:
+            raise DevOpsError(400, 'No file is sent.',
+                              error=apiError.argument_error('file'))
+        from resources.system_parameter import check_upload_type
+        check_upload_type(file)
+        
         return redmine.rm_upload_to_project(plan_project_id, args, plan_operator_id)
 
     @jwt_required

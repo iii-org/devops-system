@@ -1,6 +1,6 @@
 from marshmallow import Schema, fields, missing
 from util import CommonBasicResponse
-
+from resources.system_parameter import check_upload_type
 
 ### Issue single
 
@@ -8,7 +8,7 @@ from util import CommonBasicResponse
 
 ########## Module ##########
 class FileSchema(Schema):
-    upload_file = fields.Raw(doc='upload_file', example="(binary)")
+    upload_file = fields.Raw(doc='upload_file', example="(binary)", validate=check_upload_type)
 
 class CommonSingleIssueSchema(Schema):
     description = fields.Str(doc='description', example="string")
