@@ -47,6 +47,7 @@ from urls.tag import tag_url
 from urls.lock import lock_url
 from urls.sync_projects import sync_projects_url
 from urls import monitoring
+from urls.system_parameter import sync_system_parameter_url
 
 
 app = Flask(__name__)
@@ -603,6 +604,7 @@ add_resource(trace_order.GetTraceResultV2, 'public')
 monitoring.monitoring_url(api, add_resource)
 
 # System parameter
+sync_system_parameter_url(api, add_resource)
 api.add_resource(system_parameter.SystemParameters, '/system_parameter', '/system_parameter/<int:param_id>')
 api.add_resource(system_parameter.ParameterGithubVerifyExecuteStatus, '/system_parameter/github_verify/status')
 
