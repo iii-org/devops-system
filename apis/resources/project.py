@@ -49,6 +49,7 @@ def get_project_issue_calculation(user_id, project_ids=[]):
     from resources.sync_project import check_project_exist
     ret = []
     user_name = model.User.query.get(user_id).login
+    recheck_project = False
     for project_id in project_ids:
         redmine_project_id = model.ProjectPluginRelation.query.filter_by(project_id=project_id).one().plan_project_id
         try:
@@ -57,6 +58,7 @@ def get_project_issue_calculation(user_id, project_ids=[]):
             project_object = None
         
         if project_object is None:
+            recheck_project = True
             calculate_project_issue = {
                 "id": project_id,
                 'closed_count': None,
@@ -66,7 +68,6 @@ def get_project_issue_calculation(user_id, project_ids=[]):
                 'updated_time': None,
                 'is_lock': True
             }
-            check_project_exist()
         else:
             rm_project = {"updated_on": project_object.updated_on, "id": project_object.id}
             calculate_project_issue = calculate_project_issues(rm_project, user_name)
@@ -74,7 +75,8 @@ def get_project_issue_calculation(user_id, project_ids=[]):
                 calculate_project_issue.update(fill_rd_extra_fields(user_id, redmine_project_id))
             calculate_project_issue["id"] = project_id
         ret.append(calculate_project_issue)
-
+    if recheck_project:
+        check_project_exist()
     return ret
 
 
