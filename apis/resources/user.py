@@ -165,16 +165,25 @@ def get_access_token(id, login, role_id, from_ad=True):
     return token
 
 
+def verify_password(db_password, login_password):
+    is_verify = True
+    h = SHA256.new()
+    h.update(login_password.encode())
+    hex_login_password = h.hexdigest()
+    if db_password != hex_login_password:
+        is_verify = False
+    return is_verify, hex_login_password
+
+
 def check_db_login(user, password, output):
     project_user_role = db.session.query(model.ProjectUserRole).filter(
         model.ProjectUserRole.user_id == user.id).first()
-    h = SHA256.new()
-    h.update(password.encode())
-    login_password = h.hexdigest()
-    output['hex_password'] = login_password
+    is_password_verify, hex_login_password = verify_password(user.password, password)
+    output['hex_password'] = hex_login_password
     output['from_ad'] = user.from_ad
     output['role_id'] = project_user_role.role_id
-    if user.password == login_password:
+    output['is_password_verify'] = is_password_verify
+    if is_password_verify and user.disabled is False:
         output['is_pass'] = True
         logger.info("User Login success by DB user_id: {0}".format(user.id))
     else:
@@ -188,8 +197,7 @@ def login(args):
     user = db.session.query(model.User).filter(
         model.User.login == login_account).first()
     try:
-        if user is not None and user.disabled:
-            return util.respond(401, "Error when logging in.", error=apiError.wrong_password())
+
         ad_info = {'is_pass': False,
                    'login': login_account, 'data': {}}
 
@@ -202,12 +210,14 @@ def login(args):
         db_info = {'connect': False,
                    'login': login_account,
                    'is_pass': False,
+                   'is_password_verify': False,
                    'User': {}, 'ProjectUserRole': {}}
         # Check User in DB
         if user is not None:
             db_info['connect'] = True
             db_info, user, project_user_role = check_db_login(
                 user, login_password, db_info)
+
         # Login By AD
         if ad_info['is_pass'] is True:
             status, token = ldap_api.login_by_ad(
@@ -249,16 +259,25 @@ def update_user(user_id, args, from_ad=False):
                                 error=apiError.user_from_ad(user_id))
         else:
             return util.success()
+    user_role_id = 0
+    jwt_token = get_jwt_identity()
+    if jwt_token is not None:
+        user_role_id = jwt_token.get('role_id')
 
     if args['password'] is not None:
         if args["old_password"] == args["password"]:
             return util.respond(400, "Password is not changed.", error=apiError.wrong_password())
-        if role.ADMIN.id != get_jwt_identity()['role_id']:
+
+        if role.ADMIN.id != user_role_id and from_ad is False:
             if args["old_password"] is None:
                 return util.respond(400, "old_password is empty", error=apiError.wrong_password())
-            h_old_password = SHA256.new()
-            h_old_password.update(args["old_password"].encode())
-            if user.password != h_old_password.hexdigest():
+            # check password the same
+            # h_old_password = SHA256.new()
+            # h_old_password.update(args["old_password"].encode())
+            # if user.password != h_old_password.hexdigest():
+            #     return util.respond(400, "Password is incorrect", error=apiError.wrong_password())
+            is_password_verify, hex_login_password = verify_password(user.password, args['old_password'])
+            if is_password_verify is False:
                 return util.respond(400, "Password is incorrect", error=apiError.wrong_password())
         err = update_external_passwords(
             user_id, args["password"], args["old_password"])
@@ -267,6 +286,7 @@ def update_user(user_id, args, from_ad=False):
         h = SHA256.new()
         h.update(args["password"].encode())
         new_password = h.hexdigest()
+
     if args["email"] is not None:
         err = update_external_email(user_id, user.name, args['email'])
         if err is not None:
@@ -311,6 +331,7 @@ def update_user_role(user_id, role_id):
 
 
 def update_external_passwords(user_id, new_pwd, old_pwd):
+    print("Start Update Password")
     user_login = nx_get_user(id=user_id).login
     user_relation = nx_get_user_plugin_relation(user_id=user_id)
     if user_relation is None:

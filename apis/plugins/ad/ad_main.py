@@ -12,7 +12,7 @@ import model
 import plugins
 import util as util
 import resources.apiError as apiError
-import resources.user as user
+import resources.user as user_function
 
 from model import db
 from resources import role
@@ -59,6 +59,22 @@ def get_search_base_string(search_type, values):
     return output
 
 
+def row_to_dictionary(row):
+    return {
+        'id': row.id,
+        'login': row.login,
+        'name': row.name,
+        'phone': row.phone,
+        'email': row.email,
+        'department': row.department,
+        'title': row.title,
+        'password': row.password,
+        'update_at': row.update_at,
+        'disabled': row.disabled,
+        'from_ad': row.from_ad
+    }
+
+
 def get_db_user_by_login(login=None):
     output = {}
     if login:
@@ -66,23 +82,12 @@ def get_db_user_by_login(login=None):
     else:
         rows = db.session.query(model.User).all()
     for row in rows:
-        output[row.login] = {
-            'id': row.id,
-            'login': row.login,
-            'name': row.name,
-            'phone': row.phone,
-            'email': row.email,
-            'department': row.department,
-            'title': row.title,
-            'update_at': row.update_at,
-            'disabled': row.disabled,
-            "from_ad": row.from_ad
-        }
+        output[row.login] = row_to_dictionary(row)
     return output
 
 
 # Check is need update user from III ad user
-def check_update_info_by_ad(ad_user, db_user):
+def check_update_info_by_ad(ad_user, db_user, login_password=None):
     data = {
         "name": None,
         "phone": None,
@@ -116,7 +121,13 @@ def check_update_info_by_ad(ad_user, db_user):
         data['title'] = ad_user.get('title')
         need_change = True
 
-    # Modify Update Time by time ojbect
+    # Check Need Update Password
+    if login_password is not None:
+        data['old_password'] = 'FakePassword'
+        data['password'] = login_password
+        need_change = True
+
+    # Modify Update Time by time object
     db_update = {}
     if db_user.get('update_at') is not None:
         db_update = pytz.timezone('UTC').localize(dateutil.parser.parse(str(db_user.get('update_at'))))
@@ -135,7 +146,6 @@ def check_update_info_by_ad(ad_user, db_user):
             data['status'] = "disable"
         else:
             data['status'] = "enable"
-
     return need_change, data
 
 
@@ -187,7 +197,7 @@ def create_user(ad_user, login_password):
             'from_ad': True,
             'force': True
         }
-        res = user.create_user(args)
+        res = user_function.create_user(args)
     return res
 
 
@@ -201,7 +211,7 @@ def check_user_by_ad(ad_users, db_users,  create_by=None, ldap_parameter=None):
         elif login in db_users:
             is_update, update_data = check_update_info_by_ad(ad_user, db_users.get(login))
             if is_update:
-                user.update_user(db_users.get(login).get('id'), update_data, True)
+                user_function.update_user(db_users.get(login).get('id'), update_data, True)
                 res['update'].append(login)
             else:
                 res['nothing'].append(login)
@@ -233,7 +243,7 @@ def remove_user_in_db_not_in_ad(db_users):
             continue
         res_ad = ad.get_user(key)
         if len(res_ad) == 0:
-            user.delete_user(item.get('id'))
+            user_function.delete_user(item.get('id'))
             res.append(key)
     return res
 
@@ -606,10 +616,10 @@ class LDAP(object):
 
     def login_by_ad(self, db_user, db_info, ad_info, login_account, login_password):
         status = 'Direct login by AD pass, DB pass'
-        ad_info_data = ad_info['data']
+        ad_info_data = ad_info.get('data')
         token = None
         # 'Direct Login AD pass, DB create User'
-        if db_info['connect'] is False and ad_info_data['iii'] is True:
+        if db_info['connect'] is False and ad_info_data.get('iii') is True:
             status = 'Direct Login AD pass, DB create User'
             new_user = create_user(ad_info_data, login_password)
             if new_user is None:
@@ -618,25 +628,34 @@ class LDAP(object):
             user_id = new_user['user_id']
             user_login = login_account
             user_role_id = default_role_id
-            token = user.get_access_token(
+            token = user_function.get_access_token(
                 user_id, user_login, user_role_id, True)
         # 'Direct login AD pass,'
-        elif ad_info_data['iii'] is True and \
-                ad_info_data['userPrincipalName'] == db_user.email:
+        elif ad_info_data.get('iii') is True and \
+                ad_info_data.get('userPrincipalName') == db_user.email:
+            db_info['User'] = row_to_dictionary(db_user)
             user_id = db_user.id
             user_login = db_user.login
-            user_role_id = db_info['role_id']
+            user_role_id = db_info.get('role_id')
             # 'Direct login AD pass, DB change password'
             if db_info['is_pass'] is not True:
-                status = 'Direct login AD pass, DB change password'
-                err = user.update_external_passwords(
-                    db_user.id, login_password, login_password)
-                if err is not None:
-                    logger.exception(err)
-                db_user.password = db_info['hex_password']
-            # Check Need Update User Info
-            check_update_info(db_user, db_info, ad_info_data)
-            token = user.get_access_token(
+                status = 'Direct login AD pass, DB Need Update Info'
+                if db_info.get('is_password_verify') is False:
+                    is_update, update_data = check_update_info_by_ad(ad_info_data, db_info.get('User'), login_password)
+                else:
+                    is_update, update_data = check_update_info_by_ad(ad_info_data, db_info.get('User'))
+                if is_update:
+                    user_function.update_user(db_info.get('User').get('id'), update_data, True)
+                # db_user_dictionary = row_to_dictionary(db_user)
+                # print(db_user_dictionary)
+            #     err = user.update_external_passwords(
+            #         db_user.id, login_password, login_password)
+            #     if err is not None:
+            #         logger.exception(err)
+            #     db_user.password = db_info['hex_password']
+            # # Check Need Update User Info
+            # check_update_info(db_user, db_info, ad_info_data)
+            token = user_function.get_access_token(
                 user_id, user_login, user_role_id, True)
         else:
             status = 'Not allow ad Account'
