@@ -25,7 +25,7 @@ def get_project_id(plan_id):
         return -1
 
 def get_project_name(project_id):
-    return model.Project.query.get(project_id).name
+    return model.Project.query.get(project_id).display
 
 
 def get_all_fathers_project(project_id, father_id_list):

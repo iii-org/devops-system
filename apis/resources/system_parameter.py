@@ -1,10 +1,8 @@
 from flask_restful import Resource, reqparse
-from github import Github
 from flask_jwt_extended import jwt_required
 import config
 import json
 import time
-import model
 import threading
 import util as util
 from model import db, SystemParameter
@@ -14,6 +12,7 @@ from resources.lock import get_lock_status, update_lock_status
 from datetime import datetime, timedelta
 from flask_socketio import Namespace, emit, disconnect
 import os
+from resources.apiError import DevOpsError
 
 def row_to_dict(row):
     if row is None:
@@ -167,6 +166,83 @@ def get_github_verify_log_websocket(data):
             output = "\n".join(outputs[current_num:max_index])            
             emit("sync_templ_log", output)
             current_num = max_index
+
+
+def upload_file_types_handle(func):
+    def wrapper(*args, **kwargs):
+        upload_file_types_obj = get_upload_file_types_obj()
+        upload_file_types = upload_file_types_obj.value
+        new_value, ret = func(*args, upload_file_types=upload_file_types, **kwargs)
+        
+        upload_file_types_obj.value = new_value
+        from sqlalchemy.orm.attributes import flag_modified
+        flag_modified(upload_file_types_obj, "value")
+        db.session.commit()
+        return util.success(ret)
+    return wrapper
+    
+
+def get_upload_file_types_obj():
+    return SystemParameter.query.filter_by(name="upload_file_types").first()
+
+def get_upload_file_types():
+    value = get_upload_file_types_obj().value
+    return util.success(value)
+
+@upload_file_types_handle
+def create_upload_file_types(args, upload_file_types={}):
+    row = {
+        "id": upload_file_types["upload_file_types"][-1]["id"] + 1,
+        "MIME Type": args["mimetype"],
+        "file extension": args["file_extension"],
+        "name": args.get("name")
+    }
+
+    upload_file_types["upload_file_types"].append(row)
+    return upload_file_types, row
+    
+
+@upload_file_types_handle
+def delete_upload_file_types(update_file_type_id, upload_file_types={}):
+    delete_mapping = next(filter(lambda x: x['id'] == update_file_type_id, upload_file_types["upload_file_types"]), {})
+    if delete_mapping != {}:
+        upload_file_types["upload_file_types"].remove(delete_mapping)
+
+    return upload_file_types, delete_mapping
+
+@upload_file_types_handle
+def update_upload_file_types(update_file_type_id, args, upload_file_types={}):
+    if args.get("file_extension") is not None:
+        args["file extension"] = args.pop("file_extension")
+    if args.get("mimetype") is not None:
+        args["MIME Type"] = args.pop("mimetype")
+
+    found_mapping = next(filter(lambda x: x['id'] == update_file_type_id, upload_file_types["upload_file_types"]), {})
+    if found_mapping !={}:
+        index = upload_file_types["upload_file_types"].index(found_mapping)
+        upload_file_types["upload_file_types"].remove(found_mapping)
+        found_mapping.update(args)
+        upload_file_types["upload_file_types"].insert(index, found_mapping)
+
+    return upload_file_types, found_mapping
+
+def get_upload_file_distinct_name():
+    upload_file_types = get_upload_file_types_obj().value["upload_file_types"]
+    ret = []
+    for upload_file_type in upload_file_types:
+        if upload_file_type["name"] is not None and upload_file_type["name"] not in ret:
+            ret.append(upload_file_type["name"])
+
+    return util.success(ret)
+
+def get_all_upload_file_mimetype():
+    upload_file_types = get_upload_file_types_obj().value["upload_file_types"]
+    return [upload_file_type["MIME Type"] for upload_file_type in upload_file_types]
+
+def check_upload_type(file):
+    if file.mimetype not in get_all_upload_file_mimetype():
+        raise DevOpsError(400, 'Argument upload_file type is not supported.',
+                                error=apiError.argument_error("upload_file"))
 
 # --------------------- Resources ---------------------
 

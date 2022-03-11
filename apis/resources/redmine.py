@@ -2,7 +2,6 @@ import time
 from io import BytesIO
 
 import requests
-import werkzeug
 import yaml
 from flask import send_file
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -344,13 +343,8 @@ class Redmine:
         return ret
 
     def rm_upload_to_project(self, plan_project_id, args, plan_operator_id):
-        parse = reqparse.RequestParser()
-        parse.add_argument('file', type=werkzeug.datastructures.FileStorage, location='files')
-        f_args = parse.parse_args()
-        file = f_args['file']
-        if file is None:
-            raise DevOpsError(400, 'No file is sent.',
-                              error=apiError.argument_error('file'))
+        file = args["file"]
+
         headers = {'Content-Type': 'application/octet-stream'}
         res = self.__api_post('/uploads', data=file, headers=headers, operator_id=plan_operator_id)
         token = res.json().get('upload').get('token')
@@ -361,9 +355,9 @@ class Redmine:
             'token': token,
             'filename': filename
         }
-        if args['description'] is not None:
+        if args.get('description') is not None:
             params['description'] = args['description']
-        if args['version_id'] is not None:
+        if args.get('version_id') is not None:
             params['version_id'] = args['version_id']
         data = {'file': params}
         res = self.__api_post('/projects/%d/files' % plan_project_id, data=data, operator_id=plan_operator_id)
