@@ -27,8 +27,8 @@ class GetProjectFamilymembersByUserDataSchema(Schema):
     role_name = fields.Str(required=True)
 
 class ProjectRelationGetData(Schema):
-    parent = fields.Int(required=True)
-    child = fields.List(fields.Int())
+    parent = fields.Dict(example={"id": 1, "name": "name"})
+    child = fields.List(fields.Dict(example={"id": 1, "name": "name"}))
 
 ########## API Action ##########
 
