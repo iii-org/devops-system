@@ -1,20 +1,12 @@
 import json
 
 import model
-import util as util
-from flask_apispec import doc, marshal_with, use_kwargs
-from flask_apispec.views import MethodResource
-from flask_jwt_extended import get_jwt_identity, jwt_required
-from flask_restful import Resource
-from sqlalchemy.sql import and_
-from model import db, UIRoute, UIRouteUserRoleRelation
-from resources.apiError import DevOpsError
-from resources.role import require_admin
 import plugins
+from flask_jwt_extended import get_jwt_identity
+from model import UIRoute, UIRouteUserRoleRelation, db
+from sqlalchemy.sql import and_
 
-from . import route_model
 
-get_router_error = "Without Router Definition"
 key_return_json = ['parameter']
 
 
@@ -68,31 +60,3 @@ def get_user_route():
         else:
             j += 1
     return json.loads(str(rows))
-
-
-class Router(Resource):
-    @ jwt_required
-    def get(self):
-        try:
-            return util.success(get_plugin_software())
-        except DevOpsError:
-            return util.respond(404, get_router_error
-                                )
-
-
-@ doc(tags=['Router'], description="Get UI route name")
-@ marshal_with(route_model.UIRouteListResponse)
-class RouterNameV2(MethodResource):
-
-    @ jwt_required
-    def get(self):
-        require_admin()
-        return util.success(get_ui_route_list())
-
-
-@ doc(tags=['Router'], description="Get the user route")
-@ marshal_with(route_model.UIRouteListResponse)
-class UserRouteV2(MethodResource):
-    @ jwt_required
-    def get(self):
-        return util.success(get_user_route())
