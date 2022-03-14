@@ -1,11 +1,13 @@
 FROM dockerhub/library/python:3.8.12-slim
+RUN apt-get -y update
+RUN apt-get -y install git 
 WORKDIR /root/.kube
 COPY iiidevops/k8s_config ./config
 WORKDIR /usr/src/app/deploy-config
 COPY iiidevops/id_rsa iiidevops/id_rsa.pub ./
 WORKDIR /usr/src/app
 COPY requirements.txt .
-RUN apt install -y git 
+
 RUN pip install --no-cache-dir -r requirements.txt 
 RUN echo "1.15.0-dev" > git_tag
 COPY . .
