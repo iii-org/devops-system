@@ -1,4 +1,5 @@
-FROM dockerhub/library/python:3.8.12
+FROM dockerhub/library/python:3.8.12-slim
+RUN apt install -y git 
 WORKDIR /root/.kube
 COPY iiidevops/k8s_config ./config
 WORKDIR /usr/src/app/deploy-config
@@ -14,6 +15,6 @@ COPY . .
 #RUN git describe --tags `git rev-list --tags --max-count=1` > git_tag
 RUN git rev-parse HEAD > git_commit
 RUN git log -1 --date=iso8601 --format="%ad" > git_date
-RUN ls -la && ls -laR /root && cat /root/.kube/config
+# RUN ls -la && ls -laR /root && cat /root/.kube/config
 #CMD [ "python", "apis/api.py"]
 ENTRYPOINT ["apis/gunicorn.sh"]
