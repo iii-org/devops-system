@@ -5,6 +5,7 @@ WORKDIR /usr/src/app/deploy-config
 COPY iiidevops/id_rsa iiidevops/id_rsa.pub ./
 WORKDIR /usr/src/app
 COPY requirements.txt .
+RUN apt install -y git 
 RUN pip install --no-cache-dir -r requirements.txt 
 RUN echo "1.15.0-dev" > git_tag
 COPY . .
