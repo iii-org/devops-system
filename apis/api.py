@@ -46,6 +46,7 @@ from urls.user import user_url
 from urls.tag import tag_url
 from urls.lock import lock_url
 from urls.sync_projects import sync_projects_url
+from urls.router import router_url
 from urls import monitoring
 from urls.system_parameter import sync_system_parameter_url
 
@@ -207,6 +208,8 @@ def initialize(db_uri):
     migrate.init()
     logger.logger.info('Server initialized.')
 
+
+router_url(api, add_resource)
 
 # Git
 api.add_resource(project.GitRepoIdToCiPipeId,
