@@ -1,4 +1,4 @@
-FROM dockerhub/library/python:3.8.5
+FROM dockerhub/library/python:3.8.12-slim
 WORKDIR /root/.kube
 COPY iiidevops/k8s_config ./config
 WORKDIR /usr/src/app/deploy-config
