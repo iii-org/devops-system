@@ -883,7 +883,7 @@
                 "path": "pod-execute-shell",
                 "name": "Pod Execute Shell",
                 "hidden": true,
-                "component": "() =>\n                  import('@/views/Progress/KubernetesResources/components/PodsList/components/PodExecuteShell')",
+                "component": "views/Progress/KubernetesResources/components/PodsList/components/PodExecuteShell",
                 "meta": {
                   "title": "Pod Execute Shell",
                   "roles": [
