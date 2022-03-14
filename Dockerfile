@@ -1,5 +1,5 @@
 FROM dockerhub/library/python:3.8.12-slim
-RUN apt install -y git 
+RUN apt-get install -y git 
 WORKDIR /root/.kube
 COPY iiidevops/k8s_config ./config
 WORKDIR /usr/src/app/deploy-config
