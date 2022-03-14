@@ -1,22 +1,16 @@
 import os
-from datetime import datetime
-import shutil
-import threading
 import config
 import model
 import util
-from migrate.upgrade_function import ui_route_data
 from migrate.upgrade_function.upload_file_types import upload_file_types
 from model import db, ProjectPluginRelation, Project, UserPluginRelation, User, ProjectUserRole, PluginSoftware, \
-    DefaultAlertDays, TraceOrder, TraceResult, Application, IssueExtensions, Lock, RedmineProject, ServerType, SystemParameter, \
-    UIRoute, UIRouteUserRoleRelation
+    DefaultAlertDays, TraceOrder, TraceResult, Application, IssueExtensions, Lock, RedmineProject, ServerType, SystemParameter
 from plugins.sonarqube.sonarqube_main import sq_create_project, sq_create_user
 from resources import harbor, kubernetesClient, role, devops_version
 from resources.apiError import DevOpsError
 from resources.logger import logger
 from resources.rancher import rancher, remove_executions, turn_tags_off
 from resources.redmine import redmine
-from resources import template
 from resources import role
 
 # Each time you add a migration, add a version code here.
@@ -39,7 +33,7 @@ VERSIONS = ['0.9.2', '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.4', '0.9.2.5',
             '1.10.0.11', '1.10.0.12', '1.11.0.1', '1.11.0.2', '1.11.0.3', '1.11.0.4', '1.11.0.5', '1.11.0.6', '1.11.0.7', '1.11.0.8',
             '1.12.0.1', '1.12.0.2', '1.12.0.3', '1.12.0.4', '1.12.0.5', '1.12.0.6', '1.12.0.7', '1.12.0.8', '1.12.0.9', '1.12.1.0', '1.12.1.1',
             '1.12.1.2', '1.12.1.3', '1.13.0.1', '1.13.0.2', '1.13.0.3', '1.13.0.4', '1.13.0.5', '1.13.0.6', '1.13.0.7', '1.13.0.8',
-            '1.14.0.1', '1.14.0.2', '1.14.0.3', '1.14.0.4', '1.14.0.5', '1.14.0.6', '1.14.0.7', '1.14.0.8', '1.14.0.9', '1.14.0.10', '1.15.0.1', 
+            '1.14.0.1', '1.14.0.2', '1.14.0.3', '1.14.0.4', '1.14.0.5', '1.14.0.6', '1.14.0.7', '1.14.0.8', '1.14.0.9', '1.14.0.10', '1.15.0.1',
             '1.15.0.2', '1.15.0.3']
 ONLY_UPDATE_DB_MODELS = [
     '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.5', '0.9.2.6', '0.9.2.a8',
@@ -175,10 +169,9 @@ def upgrade(version):
     elif version == '1.14.0.5':
         insert_notification_message_period_of_validity()
     elif version == '1.14.0.8':
-        insert_ui_router()
+        pass
     elif version == '1.15.0.1':
         insert_upload_file_type_in_system_parameter()
-
 
 
 def insert_upload_file_type_in_system_parameter():
@@ -190,46 +183,6 @@ def insert_upload_file_type_in_system_parameter():
         )
         db.session.add(row)
         db.session.commit()
-
-
-def insert_ui_router():
-    # insert into UIRoute
-    for role_route_names in ui_route_data.route_names:
-        row_list = []
-        for route_name in role_route_names:
-            if UIRoute.query.filter_by(route_name=route_name).first():
-                continue
-            row_list.append(UIRoute(
-                route_name=route_name,
-                created_at=datetime.utcnow()
-            ))
-        db.session.add_all(row_list)
-        db.session.commit()
-
-    # insert into UIRouteUserRoleRelation
-    row_list = []
-    user_role = -1
-    for role_index, role_route_names in enumerate(ui_route_data.route_names):
-        for route_name in role_route_names:
-            if role_index == 0:
-                user_role = role.ADMIN.id
-            elif role_index == 1:
-                user_role = role.PM.id
-            elif role_index == 2:
-                user_role = role.RD.id
-            elif role_index == 3:
-                user_role = role.QA.id
-            row = UIRoute.query.filter_by(route_name=route_name).first()
-            if row:
-                role_relation_row = UIRouteUserRoleRelation.query.filter_by(
-                    ui_route_id=row.id, user_role=user_role).first()
-                if role_relation_row:
-                    continue
-                row_list.append(UIRouteUserRoleRelation(ui_route_id=row.id,
-                                                        user_role=user_role,
-                                                        created_at=datetime.utcnow()))
-    db.session.add_all(row_list)
-    db.session.commit()
 
 
 def insert_notification_message_period_of_validity():
