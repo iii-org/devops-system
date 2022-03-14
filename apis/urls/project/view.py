@@ -11,7 +11,7 @@ from resources.project_relation import project_has_child, get_root_project_id, s
 from resources.issue import get_issue_list_by_project_helper, get_issue_by_tree_by_project, get_issue_by_status_by_project, \
     get_issue_progress_or_statistics_by_project, get_issue_by_date_by_project, get_custom_issue_filter, \
     create_custom_issue_filter, put_custom_issue_filter, get_lock_status, DownloadIssueAsExcel, pj_download_file_is_exist
-from resources import project, user, version, wiki 
+from resources import project, user, version, wiki, release
 
 from sqlalchemy.orm.exc import NoResultFound
 from model import CustomIssueFilter
@@ -1476,3 +1476,13 @@ class ProjectWiki(Resource):
     def delete(self, project_id, wiki_name):
         role.require_in_project(project_id)
         return wiki.delete_wiki_by_project(project_id, wiki_name)
+
+
+##### Project Release ######
+class ReleaseExtraV2(MethodResource):
+    @doc(tags=['Release'], description="Get able to release's image list.")
+    @use_kwargs(router_model.ReleaseExtraGetSchema, location="query")
+    @marshal_with(router_model.ReleaseExtraGetResponse)
+    @jwt_required
+    def get(self, project_id, **kwargs):
+        return util.success(release.get_release_image_list(project_id, kwargs))

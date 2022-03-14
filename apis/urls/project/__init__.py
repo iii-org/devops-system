@@ -220,3 +220,7 @@ def project_url(api, add_resource):
     api.add_resource(view.ProjectWiki, '/project/<sint:project_id>/wiki/<wiki_name>')
     api.add_resource(view.ProjectWikiV2, '/v2/project/<sint:project_id>/wiki/<wiki_name>')
     add_resource(view.ProjectWikiV2, 'public')
+
+    # Release
+    api.add_resource(view.ReleaseExtraV2, '/v2/project/<project_id>/releases/image_list')
+    add_resource(view.ReleaseExtraV2, 'public')

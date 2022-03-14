@@ -1,10 +1,11 @@
 import json
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from urllib.parse import urlparse
 
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
 from sqlalchemy.orm.exc import NoResultFound
+from resources.harbor import hb_list_artifacts_with_params
 
 import config
 import model
@@ -148,6 +149,49 @@ def get_releases_by_project_id(project_id, args):
                 output.append(ret)
     return output
 
+
+def get_release_image_list(project_id, args):
+    project_name = model.Project.query.filter_by(id=project_id).first().name
+    branch_name = args["branch_name"]
+    not_all = args.get("not_all", "false") == "true" 
+    only_image = args.get("only_image", "false") == "true" 
+
+    last_push_time = None
+    if not_all:
+        last_release = model.Release.query.filter_by(project_id=project_id).all()
+    if last_release != []:
+            last_push_time = last_release[-1].create_at
+
+    if only_image:
+        image_list = hb_list_artifacts_with_params(project_name, branch_name, push_time=last_push_time)
+        total_count = len(image_list)
+        ret = [{"image": image["digest"][:15], "push_time": image["push_time"][:-5],
+            "commit_id": image["name"]} for image in image_list[args["offset"]: args["offset"]+ args["limit"]]]
+    else:
+        from resources.gitlab import get_project_plugin_object
+        image_list = hb_list_artifacts_with_params(project_name, branch_name, push_time=last_push_time)
+        image_mapping = {image["name"]: image for image in image_list}
+        commits = gitlab.gl_get_commits(get_project_plugin_object(project_id).git_repository_id,
+                                        branch_name, since=last_push_time)
+        total_count = len(commits)
+        ret = []
+        for commit in commits[args["offset"]: args["offset"]+ args["limit"]]:
+            image = image_mapping.get(commit["short_id"][:-1])
+            data = {
+                "image": image["digest"][:15] if image is not None else None,
+                "push_time": image["push_time"][:-5] if image is not None else handle_gitlab_datetime(commit["created_at"]),
+                "commit_id": commit["short_id"][:-1]
+            }
+            ret.append(data)
+
+
+    page_dict = util.get_pagination(total_count, args['limit'], args["offset"])
+    output = {"image_list": ret, "page": page_dict}
+    return output
+
+def handle_gitlab_datetime(create_time):
+    datetime_obj = datetime.strptime(create_time, "%Y-%m-%dT%H:%M:%S.%f%z") - timedelta(hours=8)
+    return datetime_obj.strftime("%Y-%m-%dT%H:%M:%S")
 
 class Releases(Resource):
     def __init__(self):
@@ -367,11 +411,7 @@ class Release(Resource):
             return util.respond(404, error_gitlab_not_found,
                                 error=apiError.repository_id_not_found(plugin_relation.git_repository_id))
 
-
-#
-#
 class ReleaseFile:
-
     def __init__(self, release_id):
         self.release = model.Release.query.filter_by(id=release_id).first()
         self.project_plugin_relation = model.ProjectPluginRelation.query.filter_by(

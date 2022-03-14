@@ -860,3 +860,32 @@ class ProjectWikiListResponse(CommonBasicResponse):
 
 class ProjectWikiGetResponse(CommonBasicResponse):
     data = fields.Nested(ProjectWikiGetData, required=True)
+
+
+##### Release ######
+
+#################################### Schema ####################################
+
+class ReleaseExtraGetSchema(Schema):
+    branch_name = fields.Str(example="master", required=True)
+    not_all = fields.Str(example='true')
+    only_image = fields.Str(example='true')
+    limit = fields.Int(example=10, missing=10)
+    offset = fields.Int(example=0, missing=0)
+
+
+#################################### Response ####################################
+
+########## Module ##########
+
+class ReleaseExtraGetData(PaginationResponse):
+    image_list = fields.List(fields.Dict(example={
+                "commit_id": "202959c",
+                "image": "sha256:6efc1e00",
+                "push_time": "1970-01-01T00:00:00"
+            }))
+
+########## API Action ##########
+
+class ReleaseExtraGetResponse(CommonBasicResponse):
+    data = fields.Nested(ReleaseExtraGetData, required=True)

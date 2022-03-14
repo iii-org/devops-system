@@ -12,6 +12,7 @@ import util
 from resources import apiError, role
 from resources.apiError import DevOpsError
 from resources.logger import logger
+from datetime import datetime
 
 HAR_PASS_REG = '((?=.*\d)(?=.*[a-z])(?=.*[A-Z])).{8,20}$'
 DEFAULT_PASSWORD = 'IIIdevops_12345'
@@ -260,6 +261,33 @@ def generate_artifacts_output(art):
             'push_time': art['push_time']
         })
     return output
+
+def hb_list_artifacts_with_params(project_name, repository_name, push_time=None):
+    ret = []
+    args = {"page": 1, "page_size": 15}
+    while True:
+        data = hb_list_artifacts_with_params_helper(project_name, repository_name, args, push_time)
+        if data == []:
+            break
+        ret += data
+        args["page"] +=1
+    return ret
+
+
+def hb_list_artifacts_with_params_helper(project_name, repository_name, args, push_time=None):
+    page_size = args.get('page_size', 10)
+    page = args.get("page", 1)
+    params = {'with_scan_overview': True, 'with_tag': True, "page": page, "page_size": page_size}
+    if push_time is not None:
+        now_time = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+        params["q"] = f'push_time=[{push_time}~{now_time}]'
+    artifacts = __api_get(f'/projects/{project_name}/repositories'
+                          f'/{__encode(repository_name)}/artifacts',
+                          params=params).json()
+    ret = []
+    for art in artifacts:
+        ret = ret + generate_artifacts_output(art)
+    return ret
 
 
 def hb_list_artifacts(project_name, repository_name):
