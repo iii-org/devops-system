@@ -18,7 +18,7 @@ depends_on = None
 
 def upgrade():
     # with op.get_context().autocommit_block():
-    op.execute("ALTER TYPE actiontype ADD VALUE 'RECREATE_PROJECT'")
+    op.execute("ALTER TYPE actiontype ADD VALUE IF NOT EXISTS 'RECREATE_PROJECT'")
 
 
 def downgrade():
