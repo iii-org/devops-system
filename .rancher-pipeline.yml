@@ -95,6 +95,11 @@ stages:
           pushRemote: true
           registry: harbor-dev3.iiidevops.org
           tag: ${CICD_GIT_REPO_NAME}/${CICD_GIT_BRANCH}:${CICD_GIT_COMMIT}
+    when:
+      branch:
+        include:
+          - master
+          - develop
   - name: Build--Copy Image
     iiidevops: deployed-environments
     steps:
@@ -148,6 +153,11 @@ stages:
           name: ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}-serv
           targetNamespace: ${CICD_GIT_REPO_NAME}
           version: 0.5.3
+    when:
+      branch:
+        include:
+          - master
+          - develop
   - name: Deploy--Wait Web deployment
     iiidevops: deployed-environments
     steps:
