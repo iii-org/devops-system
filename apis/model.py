@@ -132,6 +132,7 @@ class Release(db.Model):
         User.id, ondelete='SET NULL'), nullable=True)
     create_at = Column(DateTime)
     update_at = Column(DateTime)
+    image_path = Column(ARRAY(String))
 
 
 class PluginSoftware(db.Model):

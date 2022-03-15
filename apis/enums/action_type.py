@@ -1,7 +1,7 @@
 from enum import Enum
 
 '''
-加完action_type之後, 要在ablemic中migrate建立一個新的action_type出來, 
+加完action_type之後, 要在ablemic中migrate中手動建立一個新的action_type出來, 
 然後進行升版
 
  """add_activity_enum_modify_hook
@@ -24,7 +24,7 @@ depends_on = None
 
 def upgrade():
     with op.get_context().autocommit_block():
-        op.execute("ALTER TYPE actiontype ADD VALUE 'NEW_ACTION_TYPE_NAME'")
+        op.execute("ALTER TYPE actiontype ADD VALUE IF NOT EXISTS 'NEW_ACTION_TYPE_NAME'")
 
 
 def downgrade():
