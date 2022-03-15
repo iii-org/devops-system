@@ -1486,3 +1486,11 @@ class ReleaseExtraV2(MethodResource):
     @jwt_required
     def get(self, project_id, **kwargs):
         return util.success(release.get_release_image_list(project_id, kwargs))
+
+class ReleasePatchV2(MethodResource):
+    @doc(tags=['Release'], description="Add tag on release by release_id.")
+    @use_kwargs(router_model.ReleasePatchSchema, location="form")
+    @marshal_with(util.CommonResponse)
+    @jwt_required
+    def patch(self, project_id, release_id, **kwargs):
+        return util.success(release.patch_release_image(project_id, release_id, kwargs))

@@ -85,7 +85,7 @@ def create_release(project_id, args, versions, issues, branch_name, release_name
         note=args.get('note'),
         creator_id=user_id,
         create_at=str(datetime.now()),
-        image_path=image_path
+        image_paths=image_path
     )
     db.session.add(new)
     db.session.commit()
@@ -122,6 +122,11 @@ def analysis_release(release, info, hb_list_tags, image_need):
         if ret.get("branch") not in hb_list_tags:
             hb_list_tags[ret.get("branch")] = get_hb_branch_tags(
                 project_name, ret.get("branch"))
+        image_paths = ret.get("image_paths", [])
+        # for image_path in image_paths:
+        #     tag = image_path.split(":")[-1]
+        #     branch = 
+        #     if image_path.split(":")[-1] in 
         if ret.get("tag_name") in hb_list_tags[ret.get("branch")]:
             ret['docker'] = f'{harbor_base}/{project_name}/{ret.get("branch")}:{ret.get("tag_name")}'
 
@@ -193,6 +198,25 @@ def get_release_image_list(project_id, args):
 def handle_gitlab_datetime(create_time):
     datetime_obj = datetime.strptime(create_time, "%Y-%m-%dT%H:%M:%S.%f%z") - timedelta(hours=8)
     return datetime_obj.strftime("%Y-%m-%dT%H:%M:%S")
+
+def patch_release_image(project_id, release_id, args):
+    project_name = model.Project.query.filter_by(id=project_id).first().name
+    release = model.Release.query.filter_by(project_id=project_id).filter_by(id=release_id).first()
+    if release is not None:
+        tags = args["tags"]
+        image_path = args.get("image_path", f"{project_name}/{release.branch}")
+        dest_repo = image_path.split("/")[-1]
+        image_paths = list(map(lambda x: f"{image_path}:{x}", tags))
+        if release.image_paths is not None:
+            image_paths += release.image_paths
+        # Must to update DB first, otherwise the value won't change.
+        release.image_paths = image_paths
+        db.session.commit()
+
+        for tag in tags:
+            hb_copy_artifact_and_retage(
+                project_name, release.branch, dest_repo, release.tag_name, tag)
+
 
 class Releases(Resource):
     def __init__(self):

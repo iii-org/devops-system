@@ -1,5 +1,6 @@
 from marshmallow import Schema, fields
 from util import CommonBasicResponse
+import re
 
 ### Project Relation
 
@@ -872,6 +873,10 @@ class ReleaseExtraGetSchema(Schema):
     only_image = fields.Str(example='true')
     limit = fields.Int(example=10, missing=10)
     offset = fields.Int(example=0, missing=0)
+
+class ReleasePatchSchema(Schema):
+    image_path = fields.Str(validate=lambda x: re.search("\w/\w", x) is not None)
+    tags = fields.List(fields.Str, required=True)
 
 
 #################################### Response ####################################
