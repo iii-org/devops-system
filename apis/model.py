@@ -99,6 +99,7 @@ class Project(db.Model):
     is_lock = Column(Boolean, default=False)
     lock_reason = Column(String)
     base_example = Column(String)
+    example_tag = Column(String)
 
     def __repr__(self):
         fields = {}
