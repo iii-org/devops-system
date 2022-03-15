@@ -5,7 +5,7 @@ from urllib.parse import urlparse
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
 from sqlalchemy.orm.exc import NoResultFound
-from resources.harbor import hb_list_artifacts_with_params
+from resources.harbor import hb_list_artifacts_with_params, hb_copy_artifact_and_retage
 
 import config
 import model
@@ -73,7 +73,7 @@ def get_mapping_list_info(versions, releases):
     return list(output.values())
 
 
-def create_release(project_id, args, versions, issues, branch_name, release_name, user_id):
+def create_release(project_id, args, versions, issues, branch_name, release_name, user_id, image_path):
     new = model.Release(
         project_id=project_id,
         version_id=args.get('main'),
@@ -84,7 +84,8 @@ def create_release(project_id, args, versions, issues, branch_name, release_name
         tag_name=release_name,
         note=args.get('note'),
         creator_id=user_id,
-        create_at=str(datetime.now())
+        create_at=str(datetime.now()),
+        image_path=image_path
     )
     db.session.add(new)
     db.session.commit()
@@ -165,7 +166,7 @@ def get_release_image_list(project_id, args):
     if only_image:
         image_list = hb_list_artifacts_with_params(project_name, branch_name, push_time=last_push_time)
         total_count = len(image_list)
-        ret = [{"image": image["digest"][:15], "push_time": image["push_time"][:-5],
+        ret = [{"image": image["digest"], "push_time": image["push_time"][:-5],
             "commit_id": image["name"]} for image in image_list[args["offset"]: args["offset"]+ args["limit"]]]
     else:
         from resources.gitlab import get_project_plugin_object
@@ -178,7 +179,7 @@ def get_release_image_list(project_id, args):
         for commit in commits[args["offset"]: args["offset"]+ args["limit"]]:
             image = image_mapping.get(commit["short_id"][:-1])
             data = {
-                "image": image["digest"][:15] if image is not None else None,
+                "image": image["digest"] if image is not None else None,
                 "push_time": image["push_time"][:-5] if image is not None else handle_gitlab_datetime(commit["created_at"]),
                 "commit_id": commit["short_id"][:-1]
             }
@@ -317,6 +318,7 @@ class Releases(Resource):
         parser.add_argument('note', type=str)
         parser.add_argument('released_at', type=str)
         parser.add_argument('forced', action='store_true')
+        parser.add_argument('extra_image_path', type=str)
         args = parser.parse_args()
         gitlab_ref = branch_name = args.get('branch')
         if args.get('commit', None) is None and branch_name is not None:
@@ -359,9 +361,14 @@ class Releases(Resource):
                 gitlab.gl_create_release(
                     self.plugin_relation.git_repository_id, gitlab_data)
             #  Create Harbor Release
+            image_path = [f"{self.project.name}/{branch_name}:{args.get('commit')}"]
             if self.harbor_info['target'].get('release', None) is not None:
-                hb_release.create(self.project.name, branch_name,
-                                  str(self.harbor_info["target"]["release"]["digest"]), release_name)
+                if args.get("extra_image_path") is not None:
+                    image_path.append(f"{self.project.name}/{args.get('extra_image_path')}")
+                    extra_image_path = args.get("extra_image_path").split(":")
+                    extra_dest_repo, extra_dest_tag = extra_image_path[0], extra_image_path[1]
+                    hb_copy_artifact_and_retage(self.project.name, branch_name, extra_dest_repo, args.get("commit"), extra_dest_tag)
+                hb_copy_artifact_and_retage(self.project.name, branch_name, branch_name, args.get("commit"), release_name)
 
             create_release(
                 project_id,
@@ -370,7 +377,8 @@ class Releases(Resource):
                 self.get_redmine_issue(),
                 branch_name,
                 release_name,
-                user_id
+                user_id,
+                image_path
             )
 
             return util.success()
