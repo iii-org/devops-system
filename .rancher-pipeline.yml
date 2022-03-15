@@ -75,6 +75,11 @@ stages:
             iiidevops.org/project_name=${CICD_GIT_REPO_NAME}
             iiidevops.org/branch=${CICD_GIT_BRANCH} iiidevops.org/commit_id=${CICD_GIT_COMMIT}
             iiidevops.org/type=appenv
+    when:
+      branch:
+        include:
+          - master
+          - develop
   - name: Build--Build and push docker image
     iiidevops: deployed-environments
     steps:
@@ -91,7 +96,7 @@ stages:
           registry: harbor-dev3.iiidevops.org
           tag: ${CICD_GIT_REPO_NAME}/${CICD_GIT_BRANCH}:${CICD_GIT_COMMIT}
   - name: Build--Copy Image
-    iiidevops: Copy Image
+    iiidevops: deployed-environments
     steps:
     - envFrom:
       - sourceKey: API_TOKEN
@@ -120,6 +125,11 @@ stages:
           --form from_tag=${CICD_GIT_COMMIT}
           --form dest_repo_name=${CICD_GIT_REPO_NAME}
           --form dest_tag=${CICD_GIT_BRANCH}          
+    when:
+      branch:
+        include:
+          - master
+          - develop
   - name: Deploy--Web
     iiidevops: deployed-environments
     steps:
@@ -157,6 +167,11 @@ stages:
           shellScript:
             rancher login ${rancher_url} -t ${rancher_api_token} --skip-verify;
             bash /app/run.sh
+    when:
+      branch:
+        include:
+          - master
+          - develop
   - name: Test--ZAP
     iiidevops: zap
     steps:
