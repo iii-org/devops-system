@@ -308,6 +308,12 @@ def create_project(user_id, args):
         # add kubernetes namespace into rancher default project
         rancher.rc_add_namespace_into_rc_project(args['name'])
 
+        # get base_example
+        template_pj_path = None
+        if args.get("template_id") is not None:
+            template_pj = template.get_projects_detail(args["template_id"])
+            template_pj_path = template_pj.path
+
         # Insert into nexus database
         new_pjt = model.Project(
             name=gitlab_pj_name,
@@ -320,7 +326,9 @@ def create_project(user_id, args):
             due_date=args['due_date'],
             create_at=str(datetime.utcnow()),
             owner_id=owner_id,
-            creator_id=user_id
+            creator_id=user_id,
+            base_example=template_pj_path,
+            example_tag=args["tag_name"]
         )
         db.session.add(new_pjt)
         db.session.commit()

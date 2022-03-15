@@ -341,6 +341,8 @@ def tm_get_template(repository_id, tag_name):
         output["arguments"] = pip_set_json["arguments"]
     return output
 
+def get_projects_detail(template_repository_id):
+    return gl.projects.get(template_repository_id)
 
 def tm_use_template_push_into_pj(template_repository_id, user_repository_id,
                                  tag_name, arguments):
