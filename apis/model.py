@@ -237,6 +237,7 @@ class TestResults(db.Model):
     total = Column(Integer)
     fail = Column(Integer)
     run_at = Column(DateTime)
+    logs = Column(String)
 
 
 class TestValues(db.Model):

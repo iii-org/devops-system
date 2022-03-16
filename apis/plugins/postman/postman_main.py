@@ -118,6 +118,7 @@ def pm_create_scan(args):
         project_id=args['project_id'],
         branch=args['branch'],
         commit_id=args['commit_id'],
+        logs=args.get("logs", ""),
         run_at=datetime.now()
     )
     db.session.add(new)
@@ -136,6 +137,8 @@ def pm_save_result(args):
     row.report = args['report']
     if args.get("status") is not None:
         row.status = args['status']
+    if args.get("logs") is not None:
+        row.logs = args['logs']
     db.session.commit()
     tgi_feed_postman(row)
 
@@ -172,6 +175,7 @@ class PostmanReport(Resource):
         parser.add_argument('fail', type=int, required=True)
         parser.add_argument('report', type=str, required=True)
         parser.add_argument('status', type=str)
+        parser.add_argument('logs', type=str)
         args = parser.parse_args()
         role.require_in_project(project_id=args['project_id'])
         pm_save_result(args)
@@ -184,6 +188,7 @@ class PostmanReport(Resource):
         parser.add_argument('branch', type=str, required=True)
         parser.add_argument('commit_id', type=str, required=True)
         parser.add_argument('status', type=str)
+        parser.add_argument('logs', type=str)
         args = parser.parse_args()
         role.require_in_project(project_id=args['project_id'])
         return util.success({'scan_id': pm_create_scan(args)})
