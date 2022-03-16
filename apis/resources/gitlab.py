@@ -889,9 +889,12 @@ def gitlab_domain_connection(action):
 
 
 def gitlab_status_connection():
-    a = ApiK8sClient().read_namespaced_ingress(name="gitlab-ing", namespace="default")
-    paths = a.spec.rules[0].http.paths
-    return {"status": len(paths) == 1}
+    try:
+        a = ApiK8sClient().read_namespaced_ingress(name="gitlab-ing", namespace="default")
+        paths = a.spec.rules[0].http.paths
+        return {"status": len(paths) == 1}
+    except:
+        return {"status": False}
 
     # --------------------- Resources ---------------------
 gitlab = GitLab()
@@ -1177,6 +1180,8 @@ class GetCommitIssueHookByBranch(Resource):
 class GitlabDomainConnection(Resource):
     @jwt_required
     def get(self):
+        if config.get("GITLAB_DOMAIN_NAME") is None or config.get("GITLAB_DOMAIN_NAME") == "":
+            return {"is_ip": True}
         try:
             ipaddress.ip_address(config.get("GITLAB_DOMAIN_NAME"))
             is_ip = True
