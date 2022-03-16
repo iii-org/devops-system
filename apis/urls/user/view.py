@@ -56,7 +56,6 @@ class GetSingleUserV2(MethodResource):
     # @marshal_with(router_model.SingleUserResponse)  # marshalling
     @jwt_required
     def get(self, user_id):
-        print("---------------Get-------------")
         role.require_user_himself(user_id, even_pm=False,
                                   err_message="Only admin and PM can access another user's data.")
         return util.success(NexusUser().set_user_id(user_id).to_json())
@@ -64,7 +63,6 @@ class GetSingleUserV2(MethodResource):
     @marshal_with(router_model.SingleUserResponse)  # marshalling
     @jwt_required
     def delete(self, user_id):
-        print("---------------Delete-------------")
         role.require_admin("Only admin can delete user.")
         return util.success(delete_user(user_id))
 
@@ -72,7 +70,6 @@ class GetSingleUserV2(MethodResource):
     @marshal_with(router_model.SingleUserResponse)  # marshalling
     @jwt_required
     def put(self, user_id,**kwargs):
-        print("---------------PUT-------------")
         role.require_user_himself(user_id)
         return update_user(user_id, kwargs)
 
