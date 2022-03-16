@@ -109,7 +109,6 @@ def get_hb_branch_tags(project_name, branch_name):
 def get_gitlab_base(url):
     return url[:-4]
 
-
 def analysis_release(release, info, hb_list_tags, image_need):
     ret = row_to_dict(release)
     gitlab_project_url = info.get('gitlab_project_url')
@@ -122,11 +121,6 @@ def analysis_release(release, info, hb_list_tags, image_need):
         if ret.get("branch") not in hb_list_tags:
             hb_list_tags[ret.get("branch")] = get_hb_branch_tags(
                 project_name, ret.get("branch"))
-        image_paths = ret.get("image_paths", [])
-        # for image_path in image_paths:
-        #     tag = image_path.split(":")[-1]
-        #     branch = 
-        #     if image_path.split(":")[-1] in 
         if ret.get("tag_name") in hb_list_tags[ret.get("branch")]:
             ret['docker'] = f'{harbor_base}/{project_name}/{ret.get("branch")}:{ret.get("tag_name")}'
 
@@ -134,6 +128,29 @@ def analysis_release(release, info, hb_list_tags, image_need):
         ret = None
 
     return ret, hb_list_tags
+
+## This one will replace when frontend is done.
+# def analysis_release(release, info, hb_list_tags, image_need):
+#     ret = row_to_dict(release)
+#     ret['docker'] = []
+#     gitlab_project_url = info.get('gitlab_project_url')
+#     harbor_base = info.get('harbor_base')
+#     project_name = info.get('project_name')
+#     if ret.get('branch') is not None and ret.get('commit') is not None:
+#         ret['git_url'] = f'{gitlab_project_url}/-/releases/{ret.get("tag_name")}'
+#         # check harbor image exists
+#         image_paths = ret.get("image_paths") if ret.get("image_paths") is not None else []
+#         for image_path in image_paths:
+#             split_image_path = image_path.split(":")
+#             tag = split_image_path[-1]
+#             branch = split_image_path[0].split("/")[-1]
+#             if tag in get_hb_branch_tags(project_name, branch):
+#                 ret["docker"].append(f'{harbor_base}/{image_path}')
+
+#     if image_need and ret.get('docker') == []:
+#         ret = None
+
+#     return ret, hb_list_tags
 
 
 def get_releases_by_project_id(project_id, args):

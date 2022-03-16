@@ -12,7 +12,9 @@ from resources.issue import get_issue_list_by_project_helper, get_issue_by_tree_
     get_issue_progress_or_statistics_by_project, get_issue_by_date_by_project, get_custom_issue_filter, \
     create_custom_issue_filter, put_custom_issue_filter, get_lock_status, DownloadIssueAsExcel, pj_download_file_is_exist
 from resources import project, user, version, wiki, release
+from resources.gitlab import gitlab
 
+from resources.harbor import hb_copy_artifact_and_retage
 from sqlalchemy.orm.exc import NoResultFound
 from model import CustomIssueFilter
 from resources import role
@@ -1494,3 +1496,114 @@ class ReleasePatchV2(MethodResource):
     @jwt_required
     def patch(self, project_id, release_id, **kwargs):
         return util.success(release.patch_release_image(project_id, release_id, kwargs))
+
+class ReleasesV2(MethodResource):
+    @doc(tags=['Release'], description="Get release list.")
+    @use_kwargs(router_model.ReleasesGetSchema, location="query")
+    @marshal_with(router_model.ReleasesGetResponse)
+    @jwt_required
+    def get(self, project_id, **kwargs):
+        role.require_in_project(project_id, 'Error to get release')
+        try:
+            return util.success({'releases': release.get_releases_by_project_id(project_id, kwargs)})
+        except NoResultFound:
+            return util.respond(404, release.error_redmine_issues_closed)
+
+    @doc(tags=['Release'], description="Create a new release version.")
+    @use_kwargs(router_model.ReleasesPostSchema, location="json")
+    @marshal_with(util.CommonResponse)
+    @jwt_required
+    def post(self, project_id, **kwargs):
+        user_id = get_jwt_identity()["user_id"]
+        role.require_in_project(project_id, 'Error to create release')
+        release_obj = release.Releases()
+        release_obj.plugin_relation = model.ProjectPluginRelation.query.filter_by(
+            project_id=project_id).first()
+        release_obj.project = model.Project.query.filter_by(id=project_id).first()
+
+        gitlab_ref = branch_name = kwargs.get('branch')
+        if kwargs.get('commit', None) is None and branch_name is not None:
+            kwargs.update({'commit': 'latest'})
+        else:
+            gitlab_ref = kwargs.get('commit')
+        kwargs['main'] = str(kwargs.get('main'))
+        list_versions = redmine.rm_get_version_list(
+            release_obj.plugin_relation.plan_project_id)
+        release_obj.versions_by_key = release.transfer_array_to_object(
+            list_versions['versions'], 'id')
+
+        release_name = release_obj.versions_by_key[kwargs['main']]['name']
+        list_statuses = redmine.rm_get_issue_status()
+        release_obj.closed_statuses = redmine.get_closed_status(
+            list_statuses['issue_statuses'])
+        release_obj.check_release_status(
+            kwargs, release_name, branch_name, kwargs.get('commit'))
+        # Verify Issues is all closed in versions
+        release_obj.check_release_states()
+        try:
+            if kwargs['forced'] and release_obj.valid_info['check'] is False:
+                release_obj.forced_close(release_name, branch_name)
+            elif release_obj.valid_info['check'] is False:
+                return util.respond(404, release.error_release_build,
+                                    error=apiError.release_unable_to_build(release_obj.valid_info))
+            # Close Redmine Versions
+            for version in kwargs['versions']:
+                params = {"version": {"status": "closed"}}
+                redmine.rm_put_version(version, params)
+            # check  Gitalb Release
+            if release_obj.gitlab_info.get('check') == True:
+                gitlab_data = {
+                    'tag_name': release_name,
+                    'ref': gitlab_ref,
+                    'description': kwargs['note']
+                }
+                if kwargs.get('released_at') is not None:
+                    gitlab_data['release_at'] = kwargs['released_at']
+                gitlab.gl_create_release(
+                    release_obj.plugin_relation.git_repository_id, gitlab_data)
+            #  Create Harbor Release
+            image_path = [f"{release_obj.project.name}/{branch_name}:{kwargs.get('commit')}"]
+            if release_obj.harbor_info['target'].get('release', None) is not None:
+                if kwargs.get("extra_image_path") is not None:
+                    image_path.append(f"{release_obj.project.name}/{kwargs.get('extra_image_path')}")
+                    extra_image_path = kwargs.get("extra_image_path").split(":")
+                    extra_dest_repo, extra_dest_tag = extra_image_path[0], extra_image_path[1]
+                    hb_copy_artifact_and_retage(release_obj.project.name, branch_name, extra_dest_repo, kwargs.get("commit"), extra_dest_tag)
+                hb_copy_artifact_and_retage(release_obj.project.name, branch_name, branch_name, kwargs.get("commit"), release_name)
+
+            release.create_release(
+                project_id,
+                kwargs,
+                release_obj.get_redmine_versions(),
+                release_obj.get_redmine_issue(),
+                branch_name,
+                release_name,
+                user_id,
+                image_path
+            )
+
+            return util.success()
+        except NoResultFound:
+            return util.respond(404, release.error_redmine_issues_closed,
+                                error=apiError.redmine_unable_to_forced_closed_issues(kwargs['versions']))
+
+
+class ReleaseV2(MethodResource):
+    @doc(tags=['Release'], description="Get release info by release_name.")
+    @jwt_required
+    def get(self, project_id, release_name):
+        plugin_relation = model.ProjectPluginRelation.query.filter_by(
+            project_id=project_id).first()
+        try:
+            gl_release = gitlab.gl_get_release(
+                plugin_relation.git_repository_id, release_name)
+            rm_list_versions = redmine.rm_get_version_list(
+                plugin_relation.plan_project_id),
+            rm_key_versions = release.transfer_array_to_object(
+                rm_list_versions[0]['versions'], 'name')
+            if release_name not in rm_key_versions:
+                return util.success({})
+            return util.success({'gitlab': gl_release, 'redmine': rm_key_versions[release_name]})
+        except NoResultFound:
+            return util.respond(404, release.error_gitlab_not_found,
+                                error=apiError.repository_id_not_found(plugin_relation.git_repository_id))

@@ -878,6 +878,20 @@ class ReleasePatchSchema(Schema):
     image_path = fields.Str(validate=lambda x: re.search("\w/\w", x) is not None)
     tags = fields.List(fields.Str, required=True)
 
+class ReleasesGetSchema(Schema):
+    image = fields.Bool()
+
+class ReleasesPostSchema(Schema):
+    main = fields.Int()
+    versions = fields.List(fields.Int())
+    branch = fields.Str()
+    commit = fields.Str()
+    note = fields.Str()
+    released_at = fields.Str()
+    forced = fields.Bool()
+    extra_image_path = fields.Str()
+
+
 
 #################################### Response ####################################
 
@@ -890,7 +904,34 @@ class ReleaseExtraGetData(PaginationResponse):
                 "push_time": "1970-01-01T00:00:00"
             }))
 
+class ReleasesGetData(Schema):
+    releases = fields.List(fields.Dict(example={
+                "branch": "master",
+                "commit": "1ec85c4",
+                "create_at": "1970-01-01 00:00:00.00000",
+                "creator_id": 1,
+                "docker": [
+                    "docker pull docker-url/project_name/repo-name:tag",
+                ],
+                "git_url": "http://giturl/project_name",
+                "id": 1,
+                "image_paths": [
+                    "project_name/repo-name:tag",
+                ],
+                "issues": [],
+                "note": "",
+                "project_id": 1,
+                "tag_name": "name",
+                "update_at": None,
+                "version_id": 1,
+                "versions": [1]
+            }))
+
+
 ########## API Action ##########
 
 class ReleaseExtraGetResponse(CommonBasicResponse):
     data = fields.Nested(ReleaseExtraGetData, required=True)
+
+class ReleasesGetResponse(CommonBasicResponse):
+    data = fields.Nested(ReleasesGetData, required=True)
