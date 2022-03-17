@@ -33,10 +33,11 @@ from resources import tag as tag_py
 from resources.user import user_list_by_project
 from resources import logger
 from resources.lock import get_lock_status
-from resources.project_relation import project_has_child, project_has_parent
+from resources.project_relation import project_has_child, project_has_parent, get_plan_id
 from flask_apispec import marshal_with, doc, use_kwargs
 from flask_apispec.views import MethodResource
 from resources import route_model
+from resources.redis import redis_op
 
 FLOW_TYPES = {"0": "Given", "1": "When", "2": "Then", "3": "But", "4": "And"}
 PARAMETER_TYPES = {'1': '文字', '2': '英數字', '3': '英文字', '4': '數字'}
@@ -681,6 +682,8 @@ def get_issue_assign_to_detail(issue):
 
 
 def create_issue(args, operator_id):
+    update_cache_issue_family = False
+
     args = {k: v for k, v in args.items() if v is not None}
     if 'fixed_version_id' in args:
         if len(args['fixed_version_id']) > 0 and args['fixed_version_id'].isdigit():
@@ -693,6 +696,7 @@ def create_issue(args, operator_id):
             args['fixed_version_id'] = None
     if 'parent_id' in args:
         if len(args['parent_id']) > 0 and args['parent_id'].isdigit():
+            update_cache_issue_family = True
             args['parent_issue_id'] = int(args['parent_id'])
             args.pop('parent_id', None)
         else:
@@ -728,6 +732,10 @@ def create_issue(args, operator_id):
     issue = redmine_lib.redmine.issue.get(created_issue_id)
     output = NexusIssue().set_redmine_issue_v2(issue).to_json()
 
+    if update_cache_issue_family:
+        redis_op.add_issue_relation(
+            str(args['parent_issue_id']), str(created_issue_id))
+
     create_issue_extensions(output["id"], point=point)
     output["point"] = point
     if tags is not None:
@@ -748,11 +756,12 @@ def create_issue(args, operator_id):
 
 
 def update_issue(issue_id, args, operator_id=None):
+    update_cache_issue_family = False
+    issue = redmine_lib.redmine.issue.get(issue_id)
     args = args.copy()
     args = {k: v for k, v in args.items() if v is not None}
     if 'fixed_version_id' in args:
         if len(args['fixed_version_id']) > 0:
-            issue = redmine_lib.redmine.issue.get(issue_id)
             version = redmine_lib.redmine.version.get(args['fixed_version_id'])
             if hasattr(issue, 'fixed_version') and issue.fixed_version.id == version.id:
                 pass
@@ -762,9 +771,11 @@ def update_issue(issue_id, args, operator_id=None):
         else:
             args['fixed_version_id'] = None
     if 'parent_id' in args:
+        update_cache_issue_family = True
         if len(args['parent_id']) > 0:
-            args['parent_issue_id'] = int(args['parent_id'])
+            args['parent_issue_id'] = removed_project_id = int(args['parent_id'])
         else:
+            removed_project_id = None if not hasattr(issue, "parent") else issue.parent.id
             args['parent_issue_id'] = None
         args.pop('parent_id', None)
     if "assigned_to_id" in args and len(args['assigned_to_id']) > 0:
@@ -783,6 +794,15 @@ def update_issue(issue_id, args, operator_id=None):
             user_id=operator_id)
         plan_operator_id = operator_plugin_relation.plan_user_id
     redmine.rm_update_issue(issue_id, args, plan_operator_id)
+    if update_cache_issue_family:
+        if args['parent_issue_id'] is not None:
+            redis_op.add_issue_relation(
+                str(args['parent_issue_id']), str(issue_id))
+        else:
+            if removed_project_id is not None:
+                redis_op.remove_issue_relation(
+                    str(removed_project_id), str(issue_id))
+
     issue = redmine_lib.redmine.issue.get(issue_id)
     output = NexusIssue().set_redmine_issue_v2(issue).to_json()
     if point is not None:
@@ -811,9 +831,14 @@ def update_issue(issue_id, args, operator_id=None):
 def delete_issue(issue_id):
     try:
         require_issue_visible(issue_id)
+        redmine_issue = redmine_lib.redmine.issue.get(issue_id)
+        parent_id = None if not hasattr(redmine_issue, "parent") else redmine_issue.parent.id
         project_id = nexus.nx_get_project_plugin_relation(
-                    rm_project_id=redmine_lib.redmine.issue.get(issue_id).project.id).project_id
+                    rm_project_id=redmine_issue.project.id).project_id
         redmine.rm_delete_issue(issue_id)
+        redis_op.remove_issue_relations(issue_id)
+        if parent_id is not None:
+            redis_op.remove_issue_relation(parent_id, issue_id)  
         delete_issue_extensions(issue_id)
         delete_issue_tags(issue_id)
         emit("delete_issue", {"id": issue_id}, namespace="/issues/websocket", to=project_id, broadcast=True)
@@ -958,18 +983,6 @@ def get_issue_list_by_project_helper(project_id, args, download=False, operator_
             nx_issue_params['relationship_bool'] = True
 
         output += all_issues
-
-    # Get all project issues to check each issue has relation or children issue
-    has_family_issues = []
-    has_children = []
-    # all_issues, _ = redmine.rm_list_issues(params={"project_id": plan_id, "include": "relations"})
-    # for issue in all_issues:
-    #     if issue.get("parent") is not None:
-    #         has_children.append(issue["parent"]["id"])
-    #         has_family_issues += [issue["parent"]["id"], issue["id"]]
-    #         continue
-    #     if issue["relations"] != []:
-    #         has_family_issues.append(issue["id"])
     
     # Parse filter_issues
     for issue in output:
@@ -1014,10 +1027,11 @@ def get_issue_list_by_project_helper(project_id, args, download=False, operator_
         else:
             issue["author"] = {}
 
+        has_children = redis_op.check_issue_has_son(str(issue["id"]))
         issue["is_closed"] = issue['status']['id'] in NexusIssue.get_closed_statuses()
         issue['issue_link'] = f"{config.get('REDMINE_EXTERNAL_BASE_URL')}/issues/{issue['id']}"
-        issue["family"] = issue.get("parent") is not None or issue.get("relations") != []
-        issue["has_children"] = issue["id"] in has_children
+        issue["family"] = issue.get("parent") is not None or issue.get("relations") != [] or has_children
+        issue["has_children"] = has_children
         
         if args.get("with_point", False):
             issue["point"] = get_issue_point(issue["id"])
@@ -2163,6 +2177,34 @@ def get_commit_hook_issues(commit_id):
         issue_id:  get_commit_hook_issues_helper(issue_id) for issue_id in issue_commit_relation.issue_ids} if issue_commit_relation is not None else None
     return {"issue_ids": connect_issues}
 
+
+def sync_issue_relation():
+    issue_family = {}
+    for project in model.Project.query.all():  
+        plan_id = get_plan_id(project.id)
+        if plan_id != -1:
+            try: 
+                all_issues, _ = redmine.rm_list_issues(params={"project_id": plan_id})
+                for issue in all_issues:
+                    if issue.get("parent") is not None:
+                        parent_id = issue["parent"]["id"]
+                        issue_family[parent_id] = handle_sync_son_issue(issue_family.get(parent_id), str(issue["id"]))
+            except:
+                continue
+        
+    redis_op.update_issue_relations(issue_family)
+
+
+def handle_sync_son_issue(value, issue_id):
+    if value is not None:
+        if issue_id not in value.split(","):
+            value += f",{issue_id}"
+        else:
+            value
+    else:
+        value = str(issue_id)
+    return value
+             
 
 # --------------------- Resources ---------------------
 

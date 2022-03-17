@@ -12,7 +12,7 @@ from . import router_model
 from resources.issue import get_issue, require_issue_visible, get_issue_tags, get_issue_point, \
     update_issue, get_issue_family, delete_issue, create_issue, NexusIssue, get_issue_statistics, \
     get_open_issue_statistics, get_issue_statistics_in_period, post_issue_relation, put_issue_relation, \
-    delete_issue_relation, check_issue_closable, get_commit_hook_issues, modify_hook
+    delete_issue_relation, check_issue_closable, get_commit_hook_issues, modify_hook, sync_issue_relation 
 from resources.system_parameter import check_upload_type
 
 
@@ -490,3 +490,9 @@ class IssueCommitRelation(Resource):
         parser.add_argument('issue_ids', type=int, action='append', required=True)
         args = parser.parse_args()
         return util.success(modify_hook(args))
+
+class SyncIssueRelationV2(MethodResource):
+    @doc(tags=['System'], description="Sync issues' family.")
+    @jwt_required
+    def post(self):
+        return util.success(sync_issue_relation())
