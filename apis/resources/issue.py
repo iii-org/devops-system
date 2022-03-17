@@ -1016,7 +1016,7 @@ def get_issue_list_by_project_helper(project_id, args, download=False, operator_
 
         issue["is_closed"] = issue['status']['id'] in NexusIssue.get_closed_statuses()
         issue['issue_link'] = f"{config.get('REDMINE_EXTERNAL_BASE_URL')}/issues/{issue['id']}"
-        issue["family"] = issue["id"] in has_family_issues
+        issue["family"] = issue.get("parent") is not None or issue.get("relations") != []
         issue["has_children"] = issue["id"] in has_children
         
         if args.get("with_point", False):
