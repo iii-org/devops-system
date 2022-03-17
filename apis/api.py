@@ -93,7 +93,7 @@ app.config['MAX_CONTENT_LENGTH'] = 20 * 1000 * 1000
 
 api = Api(app, errors=apiError.custom_errors)
 CORS(app)
-socketio = SocketIO(app, message_queue='redis://devops-redis-service:6379', cors_allowed_origins="*",
+socketio = SocketIO(app, message_queue=f'redis://{config.get("REDIS_BASE_URL")}', cors_allowed_origins="*",
                     logger=True, engineio_logger=True, timeout=60000)
 
 

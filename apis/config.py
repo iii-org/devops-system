@@ -13,7 +13,8 @@ FIXED = {
         "Feature",
         "Test Plan"
     ],
-    "DOCUMENT_LEVEL": "public"
+    "DOCUMENT_LEVEL": "public",
+    "REDIS_BASE_URL": "devops-redis-service:6379"
 }
 
 in_file = {}

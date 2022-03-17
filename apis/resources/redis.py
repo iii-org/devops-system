@@ -6,17 +6,18 @@ ISSUS_FAMILIES_KEY = 'issue_families'
 
 class RedisOperator:
     def __init__(self):
+        self.redis_base_url = config.get("REDIS_BASE_URL")
         # prod
         self.pool = redis.ConnectionPool(
-            host="devops-redis-service", 
-            port=6379,
+            host=self.redis_base_url.split(":")[0], 
+            port=int(self.redis_base_url.split(":")[1]),
             decode_responses=True
         )
         '''
         # local
         self.pool = redis.ConnectionPool(
-            host=config.get('DEPLOYER_NODE_IP'), 
-            port=config.get('REDIS_PORT'),
+            host='10.20.0.93', 
+            port='31852',
             decode_responses=True
         )
         '''
