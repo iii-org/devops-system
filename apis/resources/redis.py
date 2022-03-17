@@ -6,11 +6,20 @@ ISSUS_FAMILIES_KEY = 'issue_families'
 
 class RedisOperator:
     def __init__(self):
+        # prod
+        self.pool = redis.ConnectionPool(
+            host="devops-redis-service", 
+            port=6379,
+            decode_responses=True
+        )
+        '''
+        # local
         self.pool = redis.ConnectionPool(
             host=config.get('DEPLOYER_NODE_IP'), 
             port=config.get('REDIS_PORT'),
             decode_responses=True
         )
+        '''
         self.r = redis.Redis(connection_pool=self.pool)
 
     def str_get(self, key):

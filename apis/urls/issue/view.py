@@ -491,7 +491,7 @@ class IssueCommitRelation(Resource):
         args = parser.parse_args()
         return util.success(modify_hook(args))
 
-class SyncIssueRelationV2(MethodResource):
+class SyncIssueFamiliesV2(MethodResource):
     @doc(tags=['System'], description="Sync issues' family.")
     @jwt_required
     def post(self):
