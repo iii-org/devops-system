@@ -236,7 +236,7 @@ stages:
           catalogTemplate: cattle-global-data:iii-dev-charts3-test-postman
           name: ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}-pm
           targetNamespace: ${CICD_GIT_REPO_NAME}
-          version: 0.3.0
+          version: 0.3.2
     when:
       branch:
         include:
