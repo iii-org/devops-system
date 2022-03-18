@@ -4,6 +4,7 @@ import re
 import zipfile
 from datetime import datetime
 from io import BytesIO
+import json
 
 from accessories import redmine_lib
 from flask import send_file
@@ -39,10 +40,11 @@ from .rancher import rancher, remove_pj_executions
 from .redmine import redmine
 from resources.monitoring import Monitoring
 from resources import sync_project
-from resources.project_relation import get_all_sons_project
+from resources.project_relation import get_all_sons_project, get_plan_id
 from flask_apispec import doc
 from flask_apispec.views import MethodResource
 from resources import role
+from resources.redis import update_pj_issue_calcs, get_certain_pj_issue_calc
 
 
 def get_project_issue_calculation(user_id, project_ids=[]):
@@ -69,10 +71,11 @@ def get_project_issue_calculation(user_id, project_ids=[]):
                 'is_lock': True
             }
         else:
-            rm_project = {"updated_on": project_object.updated_on, "id": project_object.id}
-            calculate_project_issue = calculate_project_issues(rm_project, user_name)
+            calculate_project_issue = get_certain_pj_issue_calc(project_id)
+            # rm_project = {"updated_on": project_object.updated_on, "id": project_object.id}
+            # calculate_project_issue = calculate_project_issues(rm_project, user_name)
             if role.is_role(role.RD):
-                calculate_project_issue.update(fill_rd_extra_fields(user_id, redmine_project_id))
+                calculate_project_issue.update(fill_rd_extra_fields(user_id, project_id))
             calculate_project_issue["id"] = project_id
         ret.append(calculate_project_issue)
     if recheck_project:
@@ -1289,6 +1292,23 @@ def get_projects_by_user(user_id):
                 for id in projects_id_list if id != -1]
     return projects
 
+
+def sync_project_issue_calculate():
+    project_issue_calculate = {}
+    for project in model.Project.query.all():
+        pj_id = project.id
+        plan_id = get_plan_id(project.id)
+        if plan_id != -1:
+            try: 
+                project_object = redmine_lib.redmine.project.get(plan_id)
+                rm_project = {"updated_on": project_object.updated_on, "id": project_object.id}
+                project_issue_calculate[pj_id] = json.dumps(
+                    calculate_project_issues(rm_project, username=None, sync=True))
+            except:
+                continue
+
+    update_pj_issue_calcs(project_issue_calculate)
+    
 
 # --------------------- Resources ---------------------
 

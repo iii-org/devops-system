@@ -484,7 +484,7 @@ class ListMyProjects(Resource):
 
 
 
-@doc(tags=['Project'], description="List projects")
+@doc(tags=['Project'], description="List projects calculated issues count")
 @use_kwargs(router_model.CalculateProjectIssuesSchema, location="query")
 @marshal_with(router_model.CalculateProjectIssuesResponse)
 class CalculateProjectIssuesV2(MethodResource):
@@ -524,6 +524,11 @@ class ListProjectsByUser(Resource):
         projects = project.get_projects_by_user(user_id)
         return util.success(projects)
 
+class SyncProjectIssueCalculateV2(MethodResource):
+    @doc(tags=['System'], description="Sync project's issue calculate.")
+    @jwt_required
+    def post(self):
+        return util.success(project.sync_project_issue_calculate())
 
 ##### Single project ######
 

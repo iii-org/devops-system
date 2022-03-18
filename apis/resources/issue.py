@@ -38,7 +38,7 @@ from flask_apispec import marshal_with, doc, use_kwargs
 from flask_apispec.views import MethodResource
 from resources import route_model
 from resources.redis import check_issue_has_son, update_issue_relations, remove_issue_relation, remove_issue_relations, \
-    add_issue_relation
+    add_issue_relation, update_pj_issue_calc
 
 FLOW_TYPES = {"0": "Given", "1": "When", "2": "Then", "3": "But", "4": "And"}
 PARAMETER_TYPES = {'1': '文字', '2': '英數字', '3': '英文字', '4': '數字'}
@@ -684,6 +684,7 @@ def get_issue_assign_to_detail(issue):
 
 def create_issue(args, operator_id):
     update_cache_issue_family = False
+    project_id = args['project_id']
 
     args = {k: v for k, v in args.items() if v is not None}
     if 'fixed_version_id' in args:
@@ -718,7 +719,6 @@ def create_issue(args, operator_id):
     point = args.pop("point", 0)
     # Get Tags ID
     tags = args.pop("tags", None)
-
     attachment = redmine.rm_upload(args)
     if attachment is not None:
         args['uploads'] = [attachment]
@@ -733,10 +733,13 @@ def create_issue(args, operator_id):
     issue = redmine_lib.redmine.issue.get(created_issue_id)
     output = NexusIssue().set_redmine_issue_v2(issue).to_json()
 
+    # Update cache
     if update_cache_issue_family:
         add_issue_relation(
             str(args['parent_issue_id']), str(created_issue_id))
-
+    closed_count = 1 if args["status_id"] == 6 else 0
+    update_pj_issue_calc(project_id, total_count=1, closed_count=closed_count)
+    
     create_issue_extensions(output["id"], point=point)
     output["point"] = point
     if tags is not None:
@@ -757,8 +760,12 @@ def create_issue(args, operator_id):
 
 
 def update_issue(issue_id, args, operator_id=None):
+    from resources.project_relation import get_project_id
+
     update_cache_issue_family = False
     issue = redmine_lib.redmine.issue.get(issue_id)
+    pj_id = get_project_id(issue.project.id)
+
     args = args.copy()
     args = {k: v for k, v in args.items() if v is not None}
     if 'fixed_version_id' in args:
@@ -795,6 +802,8 @@ def update_issue(issue_id, args, operator_id=None):
             user_id=operator_id)
         plan_operator_id = operator_plugin_relation.plan_user_id
     redmine.rm_update_issue(issue_id, args, plan_operator_id)
+    
+    # Update cache
     if update_cache_issue_family:
         if args['parent_issue_id'] is not None:
             add_issue_relation(
@@ -803,6 +812,8 @@ def update_issue(issue_id, args, operator_id=None):
             if removed_project_id is not None:
                 remove_issue_relation(
                     str(removed_project_id), str(issue_id))
+    if args.get("status_id", 1) == 6:
+        update_pj_issue_calc(pj_id, closed_count=1)
 
     issue = redmine_lib.redmine.issue.get(issue_id)
     output = NexusIssue().set_redmine_issue_v2(issue).to_json()
@@ -831,15 +842,22 @@ def update_issue(issue_id, args, operator_id=None):
 @record_activity(ActionType.DELETE_ISSUE)
 def delete_issue(issue_id):
     try:
+        from resources.project_relation import get_project_id
         require_issue_visible(issue_id)
         redmine_issue = redmine_lib.redmine.issue.get(issue_id)
         parent_id = None if not hasattr(redmine_issue, "parent") else redmine_issue.parent.id
+        pj_id = get_project_id(redmine_issue.project.id)
+        closed_count = -1 if redmine_issue.status.id == 6 else 0
+
         project_id = nexus.nx_get_project_plugin_relation(
                     rm_project_id=redmine_issue.project.id).project_id
         redmine.rm_delete_issue(issue_id)
         remove_issue_relations(issue_id)
+        
         if parent_id is not None:
-            remove_issue_relation(parent_id, issue_id)  
+            remove_issue_relation(parent_id, issue_id)
+        update_pj_issue_calc(str(pj_id), total_count=-1, closed_count=closed_count)
+        
         delete_issue_extensions(issue_id)
         delete_issue_tags(issue_id)
         emit("delete_issue", {"id": issue_id}, namespace="/issues/websocket", to=project_id, broadcast=True)

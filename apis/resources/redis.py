@@ -1,8 +1,10 @@
 import redis
 import config
+import json
+from datetime import datetime
 
 ISSUS_FAMILIES_KEY = 'issue_families'
-PROJECT_ISSUE_CALCULATE_KEY = 'project_issue_calculate'
+PROJECT_ISSUE_CALCULATE_KEY = 'project_issue_calculation'
 
 
 class RedisOperator:
@@ -40,6 +42,9 @@ class RedisOperator:
     
     def dict_set_certain(self, key, sub_key, value):
         return self.r.hset(key, sub_key, value)
+
+    def dict_calculate_certain(self, key, sub_key, num=1):
+        return self.r.hincrby(key, sub_key, amount=num)
 
     def dict_get_all(self, key):
         return self.r.hgetall(key)
@@ -93,3 +98,32 @@ def add_issue_relation(parent_issue_id, son_issue_id):
 
 # Project issue calculate Cache
 
+def get_certain_pj_issue_calc(pj_id):
+    cal_info = redis_op.dict_get_certain(PROJECT_ISSUE_CALCULATE_KEY, pj_id)
+    if cal_info is None:
+        return {
+            "closed_count": 0, 
+            "overdue_count": 0, 
+            "total_count": 0, 
+            "project_status": "not_started", 
+            "updated_time": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        }
+    return json.loads(cal_info)
+
+def update_pj_issue_calcs(project_issue_calculation):
+    return redis_op.dict_set_all(PROJECT_ISSUE_CALCULATE_KEY, project_issue_calculation)
+
+def update_pj_issue_calc(pj_id, total_count=0, closed_count=0):
+    pj_issue_calc = get_certain_pj_issue_calc(pj_id)
+    pj_issue_calc["total_count"] += int(total_count)
+    pj_issue_calc["closed_count"] += int(closed_count)
+
+    if pj_issue_calc["total_count"] == 0:
+        pj_issue_calc["project_status"] = "not_started"
+    elif pj_issue_calc["total_count"] == pj_issue_calc["closed_count"]:
+        pj_issue_calc["project_status"] = "closed"
+    else:
+        pj_issue_calc["project_status"] = "in_progress"
+
+    pj_issue_calc["updated_time"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    return redis_op.dict_set_certain(PROJECT_ISSUE_CALCULATE_KEY, pj_id, json.dumps(pj_issue_calc))

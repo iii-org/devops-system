@@ -81,6 +81,9 @@ def project_url(api, add_resource):
     api.add_resource(view.ListProjectsByUser, '/projects_by_user/<int:user_id>')
     api.add_resource(view.ListProjectsByUserV2, '/v2/projects_by_user/<int:user_id>')
     add_resource(view.ListProjectsByUserV2, 'public')
+    
+    api.add_resource(view.SyncProjectIssueCalculateV2, '/v2/project/sync_project_issue_calculate')
+    add_resource(view.SyncProjectIssueCalculateV2, 'public')
 
     # Single project
     api.add_resource(view.SingleProject, '/project', '/project/<sint:project_id>')
