@@ -118,14 +118,24 @@ def analysis_release(release, info, hb_list_tags, image_need):
     project_name = info.get('project_name')
     if ret.get('branch') is not None and ret.get('commit') is not None:
         ret['git_url'] = f'{gitlab_project_url}/-/releases/{ret.get("tag_name")}'
-        # check harbor image exists
-        image_paths = ret.get("image_paths") if ret.get("image_paths") is not None else []
+        image_paths = ret.pop("image_paths") if ret.get("image_paths") is not None else []
+        
+        temp_tag_mapping = {}
         for image_path in image_paths:
             split_image_path = image_path.split(":")
             tag = split_image_path[-1]
             branch = split_image_path[0].split("/")[-1]
+            # check harbor image exists
             if tag in get_hb_branch_tags(project_name, branch):
                 ret["docker"].append(f'{harbor_base}/{image_path}')
+            
+            # Filter out same brach:tag
+            if tag == ret["tag_name"] and branch == ret["branch"]:
+                continue
+            temp_tag_mapping.setdefault(tag, []).append(image_path)
+
+        # Generate field: "image_tags"]
+        ret["image_tags"] = [{tag: data} for tag, data in temp_tag_mapping.items()]
 
     if image_need and ret.get('docker') == []:
         ret = None
@@ -382,7 +392,7 @@ class Releases(Resource):
                 gitlab.gl_create_release(
                     self.plugin_relation.git_repository_id, gitlab_data)
             #  Create Harbor Release
-            image_path = [f"{self.project.name}/{branch_name}:{args.get('commit')}"]
+            image_path = [f"{self.project.name}/{branch_name}:{release_name}"]
             if self.harbor_info['target'].get('release', None) is not None:
                 if args.get("extra_image_path") is not None:
                     image_path.append(f"{self.project.name}/{args.get('extra_image_path')}")

@@ -915,8 +915,9 @@ class ReleasesGetData(Schema):
                 ],
                 "git_url": "http://giturl/project_name",
                 "id": 1,
-                "image_paths": [
-                    "project_name/repo-name:tag",
+                "image_tags": [
+                    {"1ec85c4" : ["project_name/repo-name:tag"]},
+                    {"name" : ["project_name/repo-name:name"]},
                 ],
                 "issues": [],
                 "note": "",
