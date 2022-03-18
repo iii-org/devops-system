@@ -1,7 +1,7 @@
 apiVersion: batch/v1beta1
 kind: CronJob
 metadata:
-  name: sync-project_issue_calculations
+  name: sync-project-issue-calculations
 spec:
   schedule: "0 * * * *"
   successfulJobsHistoryLimit: 0
