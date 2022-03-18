@@ -764,6 +764,7 @@ def update_issue(issue_id, args, operator_id=None):
 
     update_cache_issue_family = False
     issue = redmine_lib.redmine.issue.get(issue_id)
+    before_status_id = issue.status.id
     pj_id = get_project_id(issue.project.id)
 
     args = args.copy()
@@ -812,7 +813,9 @@ def update_issue(issue_id, args, operator_id=None):
             if removed_project_id is not None:
                 remove_issue_relation(
                     str(removed_project_id), str(issue_id))
-    if args.get("status_id", 1) == 6:
+    if before_status_id == 6 and args.get("status_id", 6) != 6:
+        update_pj_issue_calc(pj_id, closed_count=-1)
+    if args.get("status_id", 1) == 6 and before_status_id != 6:
         update_pj_issue_calc(pj_id, closed_count=1)
 
     issue = redmine_lib.redmine.issue.get(issue_id)
