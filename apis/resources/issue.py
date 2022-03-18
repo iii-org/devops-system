@@ -37,7 +37,8 @@ from resources.project_relation import project_has_child, project_has_parent, ge
 from flask_apispec import marshal_with, doc, use_kwargs
 from flask_apispec.views import MethodResource
 from resources import route_model
-from resources.redis import redis_op
+from resources.redis import check_issue_has_son, update_issue_relations, remove_issue_relation, remove_issue_relations, \
+    add_issue_relation
 
 FLOW_TYPES = {"0": "Given", "1": "When", "2": "Then", "3": "But", "4": "And"}
 PARAMETER_TYPES = {'1': '文字', '2': '英數字', '3': '英文字', '4': '數字'}
@@ -733,7 +734,7 @@ def create_issue(args, operator_id):
     output = NexusIssue().set_redmine_issue_v2(issue).to_json()
 
     if update_cache_issue_family:
-        redis_op.add_issue_relation(
+        add_issue_relation(
             str(args['parent_issue_id']), str(created_issue_id))
 
     create_issue_extensions(output["id"], point=point)
@@ -796,11 +797,11 @@ def update_issue(issue_id, args, operator_id=None):
     redmine.rm_update_issue(issue_id, args, plan_operator_id)
     if update_cache_issue_family:
         if args['parent_issue_id'] is not None:
-            redis_op.add_issue_relation(
+            add_issue_relation(
                 str(args['parent_issue_id']), str(issue_id))
         else:
             if removed_project_id is not None:
-                redis_op.remove_issue_relation(
+                remove_issue_relation(
                     str(removed_project_id), str(issue_id))
 
     issue = redmine_lib.redmine.issue.get(issue_id)
@@ -836,9 +837,9 @@ def delete_issue(issue_id):
         project_id = nexus.nx_get_project_plugin_relation(
                     rm_project_id=redmine_issue.project.id).project_id
         redmine.rm_delete_issue(issue_id)
-        redis_op.remove_issue_relations(issue_id)
+        remove_issue_relations(issue_id)
         if parent_id is not None:
-            redis_op.remove_issue_relation(parent_id, issue_id)  
+            remove_issue_relation(parent_id, issue_id)  
         delete_issue_extensions(issue_id)
         delete_issue_tags(issue_id)
         emit("delete_issue", {"id": issue_id}, namespace="/issues/websocket", to=project_id, broadcast=True)
@@ -1027,7 +1028,7 @@ def get_issue_list_by_project_helper(project_id, args, download=False, operator_
         else:
             issue["author"] = {}
 
-        has_children = redis_op.check_issue_has_son(str(issue["id"]))
+        has_children = check_issue_has_son(str(issue["id"]))
         issue["is_closed"] = issue['status']['id'] in NexusIssue.get_closed_statuses()
         issue['issue_link'] = f"{config.get('REDMINE_EXTERNAL_BASE_URL')}/issues/{issue['id']}"
         issue["family"] = issue.get("parent") is not None or issue.get("relations") != [] or has_children
@@ -2192,7 +2193,7 @@ def sync_issue_relation():
             except:
                 continue
         
-    redis_op.update_issue_relations(issue_family)
+    update_issue_relations(issue_family)
 
 
 def handle_sync_son_issue(value, issue_id):

@@ -2,6 +2,7 @@ import redis
 import config
 
 ISSUS_FAMILIES_KEY = 'issue_families'
+PROJECT_ISSUE_CALCULATE_KEY = 'project_issue_calculate'
 
 
 class RedisOperator:
@@ -52,37 +53,43 @@ class RedisOperator:
     def list_keys(self, pattern):
         return [key for key in self.r.scan_iter(pattern)]
 
-    def check_issue_has_son(self, issue_id):
-        return self.r.hexists(ISSUS_FAMILIES_KEY, issue_id)
-
-    def update_issue_relations(self, issue_families):
-        return self.dict_set_all(ISSUS_FAMILIES_KEY, issue_families)
-
-    def update_issue_relation(self, parent_issue_id, son_issue_ids):
-        return self.dict_set_certain(ISSUS_FAMILIES_KEY, parent_issue_id, son_issue_ids)
-
-    def remove_issue_relation(self, parent_issue_id, son_issue_id):
-        son_issue_ids = self.dict_get_certain(ISSUS_FAMILIES_KEY, parent_issue_id)
-        if son_issue_ids is None:
-            return 
-        son_issue_ids = son_issue_ids.split(",")
-        if son_issue_id in son_issue_ids:
-            if len(son_issue_ids) == 1:
-                self.dict_delete_certain(ISSUS_FAMILIES_KEY, parent_issue_id)
-            else:
-                son_issue_ids.remove(son_issue_id)
-                self.update_issue_relation(parent_issue_id, ",".join(son_issue_ids))
-
-    def remove_issue_relations(self, parent_issue_id):
-        self.dict_delete_certain(ISSUS_FAMILIES_KEY, parent_issue_id)
-
-    def add_issue_relation(self, parent_issue_id, son_issue_id):
-        if not self.check_issue_has_son(parent_issue_id):
-            self.dict_set_certain(ISSUS_FAMILIES_KEY, parent_issue_id, str(son_issue_id))
-        else:
-            son_issue_ids = self.dict_get_certain(ISSUS_FAMILIES_KEY, parent_issue_id)
-            son_issue_ids = son_issue_ids.split(",")
-            if son_issue_id not in son_issue_ids:
-                self.update_issue_relation(parent_issue_id, ",".join(son_issue_ids+[str(son_issue_id)]))
 
 redis_op = RedisOperator()
+
+# Issue Family Cache
+
+def check_issue_has_son(issue_id):
+    return redis_op.r.hexists(ISSUS_FAMILIES_KEY, issue_id)
+
+def update_issue_relations(issue_families):
+    return redis_op.dict_set_all(ISSUS_FAMILIES_KEY, issue_families)
+
+def update_issue_relation(parent_issue_id, son_issue_ids):
+    return redis_op.dict_set_certain(ISSUS_FAMILIES_KEY, parent_issue_id, son_issue_ids)
+
+def remove_issue_relation(parent_issue_id, son_issue_id):
+    son_issue_ids = redis_op.dict_get_certain(ISSUS_FAMILIES_KEY, parent_issue_id)
+    if son_issue_ids is None:
+        return 
+    son_issue_ids = son_issue_ids.split(",")
+    if son_issue_id in son_issue_ids:
+        if len(son_issue_ids) == 1:
+            redis_op.dict_delete_certain(ISSUS_FAMILIES_KEY, parent_issue_id)
+        else:
+            son_issue_ids.remove(son_issue_id)
+            update_issue_relation(parent_issue_id, ",".join(son_issue_ids))
+
+def remove_issue_relations(parent_issue_id):
+    redis_op.dict_delete_certain(ISSUS_FAMILIES_KEY, parent_issue_id)
+
+def add_issue_relation(parent_issue_id, son_issue_id):
+    if not check_issue_has_son(parent_issue_id):
+        redis_op.dict_set_certain(ISSUS_FAMILIES_KEY, parent_issue_id, str(son_issue_id))
+    else:
+        son_issue_ids = redis_op.dict_get_certain(ISSUS_FAMILIES_KEY, parent_issue_id)
+        son_issue_ids = son_issue_ids.split(",")
+        if son_issue_id not in son_issue_ids:
+            update_issue_relation(parent_issue_id, ",".join(son_issue_ids+[str(son_issue_id)]))
+
+# Project issue calculate Cache
+
