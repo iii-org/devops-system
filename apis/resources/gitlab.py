@@ -848,10 +848,14 @@ def get_project_members(project_id):
 
 def get_commit_issues_hook_by_branch(project_id, branch_name, limit):
     ret_list = []
+    role_id = get_jwt_identity()["role_id"]
     account = get_jwt_identity()["user_account"]
     repo_id = get_project_plugin_object(project_id).git_repository_id
-    show_url = account in [member["username"] for member in get_all_repo_members(
-        project_id) if not member["username"].startswith("project_bot")]
+    if role_id == 5:
+        show_url = True
+    else:
+        show_url = account in [member["username"] for member in get_all_repo_members(
+            project_id) if not member["username"].startswith("project_bot")]
     # Find root project to get all related issues
     root_project_id = get_root_project_id(project_id)
     root_plan_project_id = get_project_plugin_object(root_project_id).plan_project_id
