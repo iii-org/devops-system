@@ -530,6 +530,12 @@ class GitLab(object):
         path = f'/projects/{repo_id}/releases/{tag_name}'
         return self.__api_delete(path).json()
 
+    # Archive project
+    def gl_archive_project(self, repo_id, disabled):
+        status = "archive" if disabled else "unarchive"
+        path = f'/projects/{repo_id}/{status}'
+        return self.__api_post(path).json()
+
     def __get_projects_commit(self, pjs, out_list, branch_name, days_ago):
         for pj in pjs:
             if (pj.empty_repo is False) and pj.path_with_namespace.split('/')[0] not in iiidevops_system_group:

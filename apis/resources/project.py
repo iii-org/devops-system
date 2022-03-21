@@ -472,6 +472,12 @@ def pm_update_project(project_id, args):
     redmine.rm_update_project(plugin_relation.plan_project_id, args)
     nexus.nx_update_project(project_id, args)
 
+    # 如果有disable, 調整專案在gitlab archive狀態
+    disabled = args.get('disabled')
+    if disabled is not None:
+        gitlab.gl_archive_project(
+            plugin_relation.git_repository_id, disabled)
+
     # 若有父專案, 加關聯進ProjectParentSonRelation, 須等redmine更新完再寫入
     if args.get('parent_plan_project_id') is not None and model.ProjectParentSonRelation. \
             query.filter_by(parent_id=args.get('parent_id'), son_id=project_id).first() is None:
