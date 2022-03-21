@@ -233,3 +233,6 @@ def project_url(api, add_resource):
     add_resource(view.ReleasesV2, 'public')
     api.add_resource(view.ReleaseV2, '/v2/project/<project_id>/releases/<release_name>')
     add_resource(view.ReleaseV2, 'public')
+
+    api.add_resource(view.ProjectErrorMessageV2, '/v2/project/error_message/<project_name>')
+    add_resource(view.ProjectErrorMessageV2, 'public')

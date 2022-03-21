@@ -28,7 +28,7 @@ from flask import send_file
 import nexus
 from resources.redmine import redmine
 import werkzeug
-
+import resources.rancher as rancher
 
 ##### Project Relation ######
 
@@ -1612,3 +1612,16 @@ class ReleaseV2(MethodResource):
         except NoResultFound:
             return util.respond(404, release.error_gitlab_not_found,
                                 error=apiError.repository_id_not_found(plugin_relation.git_repository_id))
+
+
+class ProjectErrorMessageV2(MethodResource):
+    @doc(tags=['Release'], description="Get Helm error message.")
+    @jwt_required
+    def get(self,project_name):
+        js = rancher.rancher.rc_get_app_by_name(project_name)
+        if len(js) == 0:
+            return util.success("Can not find app")
+        for temp in js[0]["conditions"]:
+            if temp.get("reason") == "Error":
+                return util.success(temp.get("message"))
+        return util.success("No errors found")
