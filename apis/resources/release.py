@@ -164,6 +164,7 @@ def get_releases_by_project_id(project_id, args):
 
 
 def get_release_image_list(project_id, args):
+    from resources.gitlab import get_project_plugin_object
     project_name = model.Project.query.filter_by(id=project_id).first().name
     branch_name = args["branch_name"]
     not_all = args.get("not_all", "false") == "true" 
@@ -172,20 +173,19 @@ def get_release_image_list(project_id, args):
     last_push_time = None
     if not_all:
         last_release = model.Release.query.filter_by(project_id=project_id).all()
-    if last_release != []:
+        if last_release != []:
             last_push_time = last_release[-1].create_at
 
+    image_list = hb_list_artifacts_with_params(project_name, branch_name, push_time=last_push_time)
+    commits = gitlab.gl_get_commits(get_project_plugin_object(project_id).git_repository_id,
+                                        branch_name, since=last_push_time)
     if only_image:
-        image_list = hb_list_artifacts_with_params(project_name, branch_name, push_time=last_push_time)
+        commit_images = [commit["short_id"][:-1] for commit in commits]
         total_count = len(image_list)
         ret = [{"image": image["digest"], "push_time": image["push_time"][:-5],
-            "commit_id": image["name"]} for image in image_list[args["offset"]: args["offset"]+ args["limit"]]]
+            "commit_id": image["name"]} for image in image_list if image in commit_images][args["offset"]: args["offset"]+ args["limit"]]
     else:
-        from resources.gitlab import get_project_plugin_object
-        image_list = hb_list_artifacts_with_params(project_name, branch_name, push_time=last_push_time)
         image_mapping = {image["name"]: image for image in image_list}
-        commits = gitlab.gl_get_commits(get_project_plugin_object(project_id).git_repository_id,
-                                        branch_name, since=last_push_time)
         total_count = len(commits)
         ret = []
         for commit in commits[args["offset"]: args["offset"]+ args["limit"]]:
