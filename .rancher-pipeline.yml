@@ -152,7 +152,7 @@ stages:
           catalogTemplate: cattle-global-data:iii-dev-charts3-web
           name: ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}-serv
           targetNamespace: ${CICD_GIT_REPO_NAME}
-          version: 0.5.3
+          version: 0.5.10
     when:
       branch:
         include:
