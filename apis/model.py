@@ -47,6 +47,7 @@ class User(db.Model):
     department = Column(String(300))
     plugin_relation = relationship('UserPluginRelation', uselist=False)
     project_role = relationship('ProjectUserRole', back_populates='user')
+    last_login = Column(DateTime)
 
     def __repr__(self):
         fields = {}
