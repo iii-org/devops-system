@@ -785,19 +785,18 @@ def get_project_commit_endpoint_object(project_id):
 
 
 def sync_commit_issues_relation(project_id):
-    pulgin_project_object = get_project_plugin_object(project_id)
+    git_pj_id = get_project_plugin_object(project_id).git_repository_id
     # Find root project to get all related issues
     root_project_id = get_root_project_id(project_id, force=True)
     root_plan_project_id = get_project_plugin_object(root_project_id).plan_project_id
     issue_list = [str(issue.id) for issue in redmine.project.get(root_plan_project_id).issues]
 
-    pj = gitlab.gl.projects.get(pulgin_project_object.git_repository_id)
+    pj = gitlab.gl.projects.get(git_pj_id)
     for br in pj.branches.list(all=True):
         project_commit_endpoint = get_project_commit_endpoint_object(project_id)
         end_point = str(project_commit_endpoint.updated_at - timedelta(days=1)
                         ) if project_commit_endpoint.updated_at is not None else None
-        commits = gitlab.gl_get_commits(pulgin_project_object.git_repository_id,
-                                        br.name, per_page=5000, since=end_point)
+        commits = gitlab.gl_get_commits(git_pj_id, br.name, per_page=5000, since=end_point)
         for commit in commits:
             # Find all issue_id startswith '#'
             regex = re.compile(r'#(\d+)')
