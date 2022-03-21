@@ -146,6 +146,7 @@ stages:
             git.url: ${CICD_GIT_URL}
             harbor.host: harbor-dev3.iiidevops.org
             kube.ingress.base_domain: ingress-dev3.iiidevops.org
+            kube.ingress.proxy_body_size: 20m
             pipeline.sequence: ${CICD_EXECUTION_SEQUENCE}
             web.imageTag: ${CICD_GIT_REPO_NAME}/${CICD_GIT_BRANCH}:${CICD_GIT_COMMIT}
             web.port: 10009
