@@ -183,7 +183,7 @@ def get_release_image_list(project_id, args):
         commit_images = [commit["short_id"][:-1] for commit in commits]
         total_count = len(image_list)
         ret = [{"image": image["digest"], "push_time": image["push_time"][:-5],
-            "commit_id": image["name"]} for image in image_list if image in commit_images][args["offset"]: args["offset"]+ args["limit"]]
+            "commit_id": image["name"]} for image in image_list if image["name"] in commit_images][args["offset"]: args["offset"]+ args["limit"]]
     else:
         image_mapping = {image["name"]: image for image in image_list}
         total_count = len(commits)
