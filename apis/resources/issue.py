@@ -1341,14 +1341,14 @@ def get_issue_assigned_to_search(default_filters, args):
 
 
 # 取得 issue 相關的 parent & children & relations 資訊
-def get_issue_family(redmine_issue, args={}, all=False, user_name=None):
+def get_issue_family(redmine_issue, args={}, all=False, user_name=None, sync=False):
     output = defaultdict(list)
     is_with_point = args.get("with_point", False)
     if user_name is None:
         user_name = get_jwt_identity()["user_account"]
     if hasattr(redmine_issue, 'parent') and not is_with_point:
         if not all:
-            parent_issue = redmine_lib.rm_impersonate(user_name).issue.filter(
+            parent_issue = redmine_lib.rm_impersonate(user_name, sync=sync).issue.filter(
                 issue_id=redmine_issue.parent.id, status_id='*')
         else:
             parent_issue = redmine_lib.redmine.issue.filter(
@@ -1361,7 +1361,7 @@ def get_issue_family(redmine_issue, args={}, all=False, user_name=None):
         children_issue_ids = [str(child.id) for child in redmine_issue.children]
         children_issue_ids_str = ','.join(children_issue_ids)   
         if not all:
-            children_issues = redmine_lib.rm_impersonate(user_name).issue.filter(
+            children_issues = redmine_lib.rm_impersonate(user_name, sync=sync).issue.filter(
                 issue_id=children_issue_ids_str, status_id='*', include=['children'])
         else:
             children_issues = redmine_lib.redmine.issue.filter(
@@ -2119,8 +2119,8 @@ class DownloadIssueAsExcel():
     def __append_children(self, super_index, value, level):
         if not value["has_children"] or self.levels == level:
             return 
-        redmine_issue = redmine_lib.rm_impersonate(self.user_name).issue.get(value["id"], include=['children'])
-        children = get_issue_family(redmine_issue, args={'with_point': True}, user_name=self.user_name)["children"]
+        redmine_issue = redmine_lib.rm_impersonate(self.user_name, sync=True).issue.get(value["id"], include=['children'])
+        children = get_issue_family(redmine_issue, args={'with_point': True}, user_name=self.user_name, sync=True)["children"]
         for index, child in enumerate(children):
             row = self.__generate_row_issue_for_excel(f"{super_index}_{index + 1}", child)
             self.result.append(row)
