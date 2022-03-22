@@ -226,12 +226,14 @@ def login(args):
                 return util.respond(401, "Error when logging in. Please contact system administrator",
                                     error=apiError.ad_account_not_allow())
             else:
+                save_last_login(user)
                 return util.success({'status': status, 'token': token, 'ad_info': ad_info})
         # Login By Database
         elif db_info['is_pass'] is True and db_info['from_ad'] is False:
             status = "DB Login"
             token = get_access_token(
                 user.id, user.login, project_user_role.role_id, user.from_ad)
+            save_last_login(user)
             return util.success({'status': status, 'token': token, 'ad_info': ad_info})
         else:
             return util.respond(401, "Error when logging in.", error=apiError.wrong_password())
@@ -792,3 +794,7 @@ def user_sa_config(user_id):
     sa_name = str(ret_users.kubernetes_sa_name)
     sa_config = kubernetesClient.get_service_account_config(sa_name)
     return util.success(sa_config)
+
+def save_last_login(user):
+    user.last_login = datetime.datetime.utcnow()
+    db.session.commit()
