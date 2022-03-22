@@ -225,9 +225,13 @@ def login(args):
             if token is None:
                 return util.respond(401, "Error when logging in. Please contact system administrator",
                                     error=apiError.ad_account_not_allow())
+            # User First Login
+            elif user is None:
+                return util.success({'status': status, 'token': token, 'ad_info': ad_info})
             else:
                 save_last_login(user)
                 return util.success({'status': status, 'token': token, 'ad_info': ad_info})
+
         # Login By Database
         elif db_info['is_pass'] is True and db_info['from_ad'] is False:
             status = "DB Login"
@@ -641,7 +645,6 @@ def create_user(args):
             title = args['title']
         if 'department' in args:
             department = args['department']
-
         user = model.User(
             name=args['name'],
             email=args['email'],
@@ -657,7 +660,7 @@ def create_user(args):
         if 'update_at' in args:
             user.update_at = args['update_at']
         if 'last_login' in args:
-            user.last_login_time = args.get('last_login')
+            user.last_login = args.get('last_login')
         db.session.add(user)
         db.session.commit()
 
@@ -798,5 +801,7 @@ def user_sa_config(user_id):
 
 
 def save_last_login(user):
-    user.last_login = datetime.datetime.utcnow()
-    db.session.commit()
+
+    if user is not None:
+        user.last_login = datetime.datetime.utcnow()
+        db.session.commit()
