@@ -514,7 +514,7 @@ def delete_project(project_id, force_delete_project=False):
     delete_id_list = [project_id] + son_id_list
 
     if force_delete_project is False:
-        # Check all porjects' servers are alive frist,
+        # Check all projects' servers are alive first,
         # because redmine delete all sons projects at the same time.
         for project_id in delete_id_list:
             server_alive_output = Monitoring(project_id).check_project_alive()

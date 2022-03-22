@@ -895,6 +895,12 @@ def gitlab_domain_connection(action):
         return
     body = gitlab_connection(action)
     ApiK8sClient().patch_namespaced_ingress(name="gitlab-ing", body=body, namespace="default")
+    
+    gitlab_domain_connection = model.SystemParameter.query.filter_by(name="gitlab_domain_connection").first()
+    gitlab_domain_connection.value = {"gitlab_domain_connection": action == "open"}
+    from sqlalchemy.orm.attributes import flag_modified
+    flag_modified(gitlab_domain_connection, "value")
+    db.session.commit()
 
 
 def gitlab_status_connection():
