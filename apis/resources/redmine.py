@@ -173,6 +173,13 @@ class Redmine:
     def rm_delete_project(self, plan_project_id):
         return self.__api_delete('/projects/{0}'.format(plan_project_id))
 
+    # Can not use until redmine version to 5.0.0
+    def rm_archive_project(self, plan_project_id, disabled):
+        status = "archive" if disabled else "unarchive"
+        path = f'/projects/{plan_project_id}/{status}.xml'
+        headers = {'Content-Type': 'application/xml'}
+        return self.__api_put(path, headers=headers).json()
+
     def rm_list_issues(self, paging=100, params=None, operator_id=None):
         if params is None:
             params = {'status_id': '*'}
