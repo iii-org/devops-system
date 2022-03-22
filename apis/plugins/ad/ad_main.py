@@ -5,6 +5,7 @@ from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse, inputs
 from ldap3 import Server, ServerPool, Connection, ALL_ATTRIBUTES, FIRST, Tls
 from sqlalchemy.orm.exc import NoResultFound
+import datetime
 import dateutil
 import pytz
 
@@ -195,7 +196,8 @@ def create_user(ad_user, login_password):
             'department': ad_user.get('department'),
             'update_at': ad_user.get('whenChanged'),
             'from_ad': True,
-            'force': True
+            'force': True,
+            'last_login': datetime.datetime.utcnow()
         }
         res = user_function.create_user(args)
     return res

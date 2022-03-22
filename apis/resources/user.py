@@ -656,7 +656,8 @@ def create_user(args):
         )
         if 'update_at' in args:
             user.update_at = args['update_at']
-
+        if 'last_login' in args:
+            user.last_login_time = args.get('last_login')
         db.session.add(user)
         db.session.commit()
 
@@ -794,6 +795,7 @@ def user_sa_config(user_id):
     sa_name = str(ret_users.kubernetes_sa_name)
     sa_config = kubernetesClient.get_service_account_config(sa_name)
     return util.success(sa_config)
+
 
 def save_last_login(user):
     user.last_login = datetime.datetime.utcnow()
