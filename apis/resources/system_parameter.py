@@ -168,6 +168,11 @@ def get_github_verify_log_websocket(data):
             current_num = max_index
 
 
+def get_all_upload_file_mimetype():
+    upload_file_types = get_upload_file_types_obj().value["upload_file_types"]
+    return [upload_file_type["MIME Type"] for upload_file_type in upload_file_types]
+
+
 def upload_file_types_handle(func):
     def wrapper(*args, **kwargs):
         upload_file_types_obj = get_upload_file_types_obj()
@@ -191,6 +196,11 @@ def get_upload_file_types():
 
 @upload_file_types_handle
 def create_upload_file_types(args, upload_file_types={}):
+    for upload_file_type in upload_file_types["upload_file_types"]:
+        if upload_file_type["MIME Type"] == args["mimetype"] and upload_file_type["file extension"] == args["file_extension"]:
+            raise DevOpsError(400, f'Argument mimetype+file extension is duplicated.',
+                        error=apiError.argument_error("mimetype,file_extension"))
+
     row = {
         "id": upload_file_types["upload_file_types"][-1]["id"] + 1,
         "MIME Type": args["mimetype"],
@@ -218,10 +228,15 @@ def update_upload_file_types(update_file_type_id, args, upload_file_types={}):
         args["MIME Type"] = args.pop("mimetype")
 
     found_mapping = next(filter(lambda x: x['id'] == update_file_type_id, upload_file_types["upload_file_types"]), {})
-    if found_mapping !={}:
+    if found_mapping != {}:
         index = upload_file_types["upload_file_types"].index(found_mapping)
         upload_file_types["upload_file_types"].remove(found_mapping)
         found_mapping.update(args)
+        for upload_file_type in upload_file_types["upload_file_types"]:
+            if upload_file_type["MIME Type"] == found_mapping["MIME Type"] and upload_file_type["file extension"] == found_mapping["file extension"]:
+                raise DevOpsError(400, f'Argument mimetype+file extension is duplicated.',
+                            error=apiError.argument_error("mimetype,file_extension"))
+
         upload_file_types["upload_file_types"].insert(index, found_mapping)
 
     return upload_file_types, found_mapping
@@ -234,10 +249,6 @@ def get_upload_file_distinct_name():
             ret.append(upload_file_type["name"])
 
     return util.success(ret)
-
-def get_all_upload_file_mimetype():
-    upload_file_types = get_upload_file_types_obj().value["upload_file_types"]
-    return [upload_file_type["MIME Type"] for upload_file_type in upload_file_types]
 
 def check_upload_type(file):
     if file.mimetype not in get_all_upload_file_mimetype():
