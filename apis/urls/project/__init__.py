@@ -22,6 +22,9 @@ def project_url(api, add_resource):
     api.add_resource(view.ProjectRelation, '/project/<sint:project_id>/relation')
     api.add_resource(view.ProjectRelationV2, '/v2/project/<sint:project_id>/relation')
     add_resource(view.ProjectRelationV2, 'public')
+    
+    api.add_resource(view.ProjectRelationsV2, '/v2/project/<sint:project_id>/all_relation')
+    add_resource(view.ProjectRelationsV2, 'public')
 
     # Issues by Project
     api.add_resource(view.IssueByProject, '/project/<sint:project_id>/issues')

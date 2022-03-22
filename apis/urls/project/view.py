@@ -7,7 +7,7 @@ import ast
 import model
 from threading import Thread
 from resources.project_relation import project_has_child, get_root_project_id, sync_project_relation, \
-    get_project_family_members_by_user, get_relation_list, remove_relation
+    get_project_family_members_by_user, get_relation_list, remove_relation, get_all_relation_project
 from resources.issue import get_issue_list_by_project_helper, get_issue_by_tree_by_project, get_issue_by_status_by_project, \
     get_issue_progress_or_statistics_by_project, get_issue_by_date_by_project, get_custom_issue_filter, \
     create_custom_issue_filter, put_custom_issue_filter, get_lock_status, DownloadIssueAsExcel, pj_download_file_is_exist
@@ -112,6 +112,12 @@ class ProjectRelation(Resource):
         args = parser.parse_args()
         return remove_relation(project_id, args["parent_id"])
 
+class ProjectRelationsV2(MethodResource):
+    @doc(tags=['Project'], description="Get all parents' and sons' project id")
+    @marshal_with(router_model.ProjectRelationsGetResponse)
+    @jwt_required
+    def get(self, project_id):
+        return util.success(get_all_relation_project(project_id))
 
 
 ##### Project issue_list ######

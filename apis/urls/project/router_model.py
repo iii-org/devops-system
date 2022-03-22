@@ -31,6 +31,11 @@ class ProjectRelationGetData(Schema):
     parent = fields.Dict(example={"id": 1, "name": "name"})
     child = fields.List(fields.Dict(example={"id": 1, "name": "name"}))
 
+class ProjectRelationsGetData(Schema):
+    id = fields.Int(required=True)
+    name = fields.Str(required=True)
+    display = fields.Str(required=True)
+
 ########## API Action ##########
 
 class CheckhasSonProjectResponse(Schema):
@@ -45,6 +50,9 @@ class GetProjectFamilymembersByUserResponse(CommonBasicResponse):
 
 class ProjectRelationGetResponse(CommonBasicResponse):
     data = fields.List(fields.Nested(ProjectRelationGetData, required=True))
+
+class ProjectRelationsGetResponse(CommonBasicResponse):
+    data = fields.List(fields.Nested(ProjectRelationsGetData, required=True))
 
 ### Project issue_list
 

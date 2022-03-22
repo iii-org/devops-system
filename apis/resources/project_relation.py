@@ -45,6 +45,19 @@ def get_all_sons_project(project_id, son_id_list):
         get_all_sons_project(id, son_id_list)
     return son_id_list
 
+
+def get_all_relation_project(project_id):
+    all_relation_pj_ids = get_all_fathers_project(project_id, []) + get_all_sons_project(project_id, [])
+    ret = [
+        {
+            "id": int(pj_id), 
+            "name": model.Project.query.get(pj_id).name,
+            "display": model.Project.query.get(pj_id).display,
+        } for pj_id in all_relation_pj_ids]
+    ret.sort(key=lambda x: x["display"])
+    return ret
+
+
 def is_user_in_project(project_id, force):
     if force:
         return True
