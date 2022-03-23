@@ -686,6 +686,11 @@ def create_issue(args, operator_id):
     update_cache_issue_family = False
     project_id = args['project_id']
 
+    # Check project is disabled or not
+    if model.Project.query.get(project_id).disabled:
+        raise DevOpsError(400, 'Project is disabled', 
+                                error=apiError.project_is_disabled(project_id))
+
     args = {k: v for k, v in args.items() if v is not None}
     if 'fixed_version_id' in args:
         if len(args['fixed_version_id']) > 0 and args['fixed_version_id'].isdigit():
@@ -705,7 +710,7 @@ def create_issue(args, operator_id):
             args['parend_issue_id'] = None
 
     project_plugin_relation = nexus.nx_get_project_plugin_relation(
-        nexus_project_id=args['project_id'])
+        nexus_project_id=project_id)
     args['project_id'] = project_plugin_relation.plan_project_id
 
     if "assigned_to_id" in args:
@@ -766,6 +771,11 @@ def update_issue(issue_id, args, operator_id=None):
     issue = redmine_lib.redmine.issue.get(issue_id)
     before_status_id = issue.status.id
     pj_id = get_project_id(issue.project.id)
+
+    # Check project is disabled or not
+    if model.Project.query.get(pj_id).disabled:
+        raise DevOpsError(400, 'Project is disabled', 
+                                error=apiError.project_is_disabled(pj_id))
 
     args = args.copy()
     args = {k: v for k, v in args.items() if v is not None}
@@ -851,6 +861,11 @@ def delete_issue(issue_id):
         parent_id = None if not hasattr(redmine_issue, "parent") else redmine_issue.parent.id
         pj_id = get_project_id(redmine_issue.project.id)
         closed_count = -1 if redmine_issue.status.id == 6 else 0
+
+        # Check project is disabled or not
+        if model.Project.query.get(pj_id).disabled:
+            raise DevOpsError(400, 'Project is disabled', 
+                                    error=apiError.project_is_disabled(pj_id))
 
         project_id = nexus.nx_get_project_plugin_relation(
                     rm_project_id=redmine_issue.project.id).project_id
