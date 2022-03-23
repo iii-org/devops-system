@@ -754,12 +754,17 @@ def create_issue(args, operator_id):
     output['tags'] = get_issue_tags(output["id"])
 
     family = get_issue_family(issue)
+    has_family = False
     if family.get('parent') is not None:
         output['parent'] = family['parent']
+        has_family = True
     elif family.get('children') is not None:
         output['children'] = family['children']
+        has_family = True
     elif family.get('relations') is not None:
         output['relations'] = family['relations']
+        has_family = True
+    output["family"] = has_family
     emit("add_issue", output, namespace="/issues/websocket", to=output['project']['id'], broadcast=True)
     return output
 
@@ -842,12 +847,17 @@ def update_issue(issue_id, args, operator_id=None):
     output["tags"] = get_issue_tags(output["id"])
 
     family = get_issue_family(issue)
+    has_family = False
     if family.get('parent', None):
         output['parent'] = family['parent']
+        has_family = True
     elif family.get('children', None):
         output['children'] = family['children']
+        has_family = True
     elif family.get('relations', None):
         output['relations'] = family['relations']
+        has_family = True
+    output["family"] = has_family
     emit("update_issue", output, namespace="/issues/websocket", to=output['project']['id'], broadcast=True)
     return output
 

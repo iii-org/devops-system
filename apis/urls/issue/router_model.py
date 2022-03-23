@@ -145,10 +145,8 @@ class SingleIssueGetDataResponse(CommonSingleIssueResponse):
     estimated_hours = fields.Float(required=True)
     created_date = fields.Str(required=True, example="1970-01-01T00:00:00")   
     point = fields.Int(required=True)
-    relations = fields.List(fields.Nested(
-        RelationsResponse, required=True))
-    children = fields.List(fields.Nested(
-       SingleIssueGetDataChildrenResponse, required=True))
+    relations = fields.List(fields.Dict(), required=True)
+    children = fields.List(fields.Dict(), required=True)
     attachments = fields.List(fields.Nested(
        SingleIssueGetDataAttachResponse), default=[])
     parent = fields.Nested(
@@ -169,21 +167,24 @@ class SingleIssuePostDataResponse(CommonSingleIssueResponse):
     updated_on = fields.Str(
         required=True, example="1970-01-01T00:00:00")
     has_children = fields.Bool(required=True)
+    children = fields.List(fields.Dict(), required=True)
+    parent = fields.Nested(
+        ParentResponse, required=True)
+    family = fields.Bool(required=True)
 
 class SingleIssuePutDataResponse(CommonSingleIssueResponse):
     estimated_hours = fields.Float(required=True)
     created_date = fields.Str(required=True, example="1970-01-01T00:00:00")   
     point = fields.Int(required=True)
-    relations = fields.List(fields.Nested(
-        RelationsResponse, required=True))
+    relations = fields.List(fields.Dict(), required=True)
     project = fields.Nested(ProjectExtraResponse, required=True)
     updated_on = fields.Str(
         required=True, example="1970-01-01T00:00:00")
     has_children = fields.Bool(required=True)
-    children = fields.List(fields.Nested(
-       SingleIssueGetDataChildrenResponse, required=True))
+    children = fields.List(fields.Dict(), required=True)
     parent = fields.Nested(
         ParentResponse, required=True)
+    family = fields.Bool(required=True)
 
 class IssueFamilyDataParentResponse(CommonSingleIssueResponse, IssueTagResponse):
     project = fields.Nested(ProjectExtraResponse, required=True)
