@@ -94,7 +94,7 @@ app.config['MAX_CONTENT_LENGTH'] = 20 * 1000 * 1000
 api = Api(app, errors=apiError.custom_errors)
 CORS(app)
 socketio = SocketIO(app, message_queue=f'redis://{config.get("REDIS_BASE_URL")}', cors_allowed_origins="*",
-                    logger=False, engineio_logger=False, timeout=60000, async_mode="threading")
+                    logger=False, engineio_logger=False, timeout=60000)
 
 
 class SignedIntConverter(IntegerConverter):
