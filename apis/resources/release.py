@@ -395,7 +395,7 @@ class Releases(Resource):
             #  Create Harbor Release
             image_path = [f"{self.project.name}/{branch_name}:{release_name}"]
             if self.harbor_info['target'].get('release', None) is not None:
-                if args.get("extra_image_path") is not None:
+                if args.get("extra_image_path") is not None and f"{self.project.name}/{args.get('extra_image_path')}" not in image_path: 
                     image_path.append(f"{self.project.name}/{args.get('extra_image_path')}")
                     extra_image_path = args.get("extra_image_path").split(":")
                     extra_dest_repo, extra_dest_tag = extra_image_path[0], extra_image_path[1]

@@ -2170,9 +2170,9 @@ class DownloadIssueAsExcel():
 
             if column['field'] == 'fixed_version':
                 result.update({column['display']: value['fixed_version']["name"] if value['fixed_version'] != {} else ""})
-            if column['field'] == 'start_date':
+            if column['field'] == 'StartDate':
                 result.update({column['display']: value['start_date']})
-            if column['field'] == 'due_date':
+            if column['field'] == 'EndDate':
                 result.update({column['display']: value['due_date']})
             if column['field'] == 'priority' and not english:
                 result.update({column['display']: PRIORITY_TRANSLATE[value['priority']["name"]]})
@@ -2181,9 +2181,9 @@ class DownloadIssueAsExcel():
 
             if column['field'] == 'assigned_to':
                 result.update({column['display']: value['assigned_to']['name'] if value['assigned_to'] != {} else ""})
-            if column['field'] == 'done_ratio':
+            if column['field'] == 'DoneRatio':
                 result.update({column['display']: value['done_ratio']})
-            if column['field'] == 'point':
+            if column['field'] == 'points':
                 result.update({column['display']: value.get('point', 0)})
         return result
 
