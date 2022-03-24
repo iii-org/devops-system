@@ -813,8 +813,6 @@ class NotificationMessage(db.Model):
     id = Column(Integer, primary_key=True)
     alert_level = Column(Integer, nullable=False)
     message = Column(String, nullable=False)
-    type_id = Column(Integer, nullable=False)
-    type_parameter = Column(JSON)
     creator_id = Column(Integer, ForeignKey(User.id, ondelete='SET NULL'), nullable=True)
     created_at = Column(DateTime)
     updated_at = Column(DateTime)
@@ -839,6 +837,12 @@ class NotificationMessageReply(db.Model):
     message_id = Column(Integer, ForeignKey(NotificationMessage.id, ondelete='CASCADE'), primary_key=True)
     user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'), primary_key=True)
     created_at = Column(DateTime)
+
+
+class NotificationMessageRecipient(db.Model):
+    message_id = Column(Integer, ForeignKey(NotificationMessage.id, ondelete='CASCADE'), primary_key=True)
+    type_id = Column(Integer, nullable=False, primary_key=True)
+    type_parameter = Column(JSON)
 
 
 class ProjectParentSonRelation(db.Model):
