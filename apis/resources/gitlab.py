@@ -433,13 +433,14 @@ class GitLab(object):
         return self.__api_delete(
             f'/projects/{repo_id}/repository/tags/{tag_name}')
 
-    def gl_get_commits(self, project_id, branch, per_page=100, since=None):
+    def gl_get_commits(self, project_id, branch, per_page=100, page=1, since=None):
         return self.__api_get(
             f'/projects/{project_id}/repository/commits',
             params={
                 'ref_name': branch,
                 'per_page': per_page,
-                'since': since
+                'since': since,
+                'page': page
             }).json()
 
     def gl_get_commits_by_author(self, project_id, branch, filter=None):

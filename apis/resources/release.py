@@ -170,19 +170,26 @@ def get_release_image_list(project_id, args):
     not_all = args.get("not_all", "false") == "true" 
     only_image = args.get("only_image", "false") == "true" 
 
+    releases = model.Release.query.filter_by(project_id=project_id).all()
+    release_tag_mapping = {release.commit: release.tag_name for release in releases}
+
     last_push_time = None
     if not_all:
-        last_release = model.Release.query.filter_by(project_id=project_id).all()
-        if last_release != []:
-            last_push_time = last_release[-1].create_at
+        if releases != []:
+            last_push_time = releases[-1].create_at
 
     image_list = hb_list_artifacts_with_params(project_name, branch_name, push_time=last_push_time)
     commits = gitlab.gl_get_commits(get_project_plugin_object(project_id).git_repository_id,
-                                        branch_name, since=last_push_time)
+                                        branch_name, per_page=3000, since=last_push_time)
     if only_image:
-        commit_images = [commit["short_id"][:-1] for commit in commits]
-        ret = [{"image": image["digest"], "push_time": image["push_time"][:-5],
-            "commit_id": image["name"]} for image in image_list if image["name"] in commit_images]
+        commit_images = {commit["short_id"][:-1]: commit["title"] for commit in commits}
+        ret = [{
+            "image": image["digest"], 
+            "push_time": image["push_time"][:-5],
+            "commit_id": image["name"],
+            "commit_message": commit_images[image["name"]],
+            "tag": release_tag_mapping.get(image["name"])
+        } for image in image_list if image["name"] in commit_images]
         total_count = len(ret)
         ret = ret[args["offset"]: args["offset"]+ args["limit"]]
     else:
@@ -190,11 +197,14 @@ def get_release_image_list(project_id, args):
         total_count = len(commits)
         ret = []
         for commit in commits[args["offset"]: args["offset"]+ args["limit"]]:
-            image = image_mapping.get(commit["short_id"][:-1])
+            short_commit = commit["short_id"][:-1]
+            image = image_mapping.get(short_commit)
             data = {
                 "image": image["digest"] if image is not None else None,
                 "push_time": image["push_time"][:-5] if image is not None else handle_gitlab_datetime(commit["created_at"]),
-                "commit_id": commit["short_id"][:-1]
+                "commit_id": commit["short_id"][:-1],
+                "commit_message": commit["title"],
+                "tag": release_tag_mapping.get(short_commit)
             }
             ret.append(data)
 
