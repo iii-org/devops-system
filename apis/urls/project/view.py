@@ -1033,7 +1033,7 @@ class ProjectEnvironmentV2(MethodResource):
     def delete(self, project_id, branch_name):
         role.require_in_project(
             project_id, "Error while getting project info.")
-        return project.delete_kubernetes_namespace_dev_environment(project_id, branch_name)
+        return project.delete_rancher_app(project_id, branch_name)
 
 
 class ProjectEnvironment(Resource):
@@ -1053,7 +1053,7 @@ class ProjectEnvironment(Resource):
     def delete(self, project_id, branch_name):
         role.require_in_project(
             project_id, "Error while getting project info.")
-        return project.delete_kubernetes_namespace_dev_environment(project_id, branch_name)
+        return project.delete_rancher_app(project_id, branch_name)
 
 @doc(tags=['Pending'], description="Get specific project deployed environment's URL?")
 # @marshal_with(router_model.ProjectEnvironmentUrlResponse)

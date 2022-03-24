@@ -1316,6 +1316,16 @@ def sync_project_issue_calculate():
     update_pj_issue_calcs(project_issue_calculate)
     
 
+def delete_rancher_app(project_id, branch_name):
+    project_info = model.Project.query.filter_by(id=project_id).first()
+    project_deployment = kubernetesClient.list_dev_environment_by_branch(str(project_info.name),str(project_info.http_url))
+    for temp in project_deployment:
+        if temp.get("branch") == branch_name:
+            for pod in temp.get("pods"):
+                if pod.get("type") == "web-server" or pod.get("type") == "db-server":
+                    rancher.rc_del_app(pod.get("app_name"))
+    return util.success()
+
 # --------------------- Resources ---------------------
 
 @doc(tags=['Pending'], description="Get CI pipeline id by git repo id")
