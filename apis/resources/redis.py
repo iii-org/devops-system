@@ -5,6 +5,7 @@ from datetime import datetime
 
 ISSUS_FAMILIES_KEY = 'issue_families'
 PROJECT_ISSUE_CALCULATE_KEY = 'project_issue_calculation'
+SERVER_ALIVE_KEY = 'system_all_alive'
 
 
 class RedisOperator:
@@ -60,6 +61,18 @@ class RedisOperator:
 
 
 redis_op = RedisOperator()
+
+# Server Alive
+'''
+'True': Alive, 'False': Not alive
+'''
+def get_server_alive():
+    status = redis_op.str_get(SERVER_ALIVE_KEY) 
+    return status == "True" if status is not None else status
+    
+
+def update_server_alive(alive):
+    return redis_op.str_set(SERVER_ALIVE_KEY, alive)
 
 # Issue Family Cache
 

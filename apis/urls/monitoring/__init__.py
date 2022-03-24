@@ -2,6 +2,8 @@ from . import view
 
 
 def monitoring_url(api, add_resource):
+    api.add_resource(view.ServersAliveHelper, '/v2/monitoring/check_alive')
+    add_resource(view.ServersAliveHelper, "public")
     api.add_resource(view.ServersAlive, '/monitoring/alive')
     api.add_resource(view.ServersAliveV2, '/v2/monitoring/alive')
     add_resource(view.ServersAliveV2, "public")

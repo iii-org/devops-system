@@ -1,3 +1,4 @@
+from asyncio.log import logger
 from model import Project, db, ServerDataCollection, SystemParameter, AlertMessage
 from flask_jwt_extended import jwt_required
 from resources import role
@@ -10,10 +11,26 @@ from flask_apispec.views import MethodResource
 from urls.monitoring import router_model
 import util
 from resources.rancher import rancher
+from resources import logger
+from resources.redis import get_server_alive, update_server_alive
 
 from flask_restful import Resource, reqparse
 from resources.monitoring import Monitoring, generate_alive_response, row_to_dict, verify_github_info, \
-    docker_image_pull_limit_alert, harbor_nfs_storage_remain_limit
+    docker_image_pull_limit_alert, harbor_nfs_storage_remain_limit, server_alive
+
+
+@doc(tags=['Monitoring'], description="Check all server is alive and update cache.")
+@marshal_with(util.CommonResponse)
+class ServersAliveHelper(MethodResource):
+    @jwt_required
+    def post(self):
+        try:
+            all_alive = Monitoring().check_project_alive()["all_alive"]
+            update_server_alive(str(all_alive))
+        except Exception as e:
+            logger.logger.exception(str(e))
+            update_server_alive("False")
+        return util.success()
 
 
 @doc(tags=['Monitoring'], description="Get All plugin servers' status")
@@ -23,8 +40,12 @@ class ServersAliveV2(MethodResource):
     @jwt_required
     def get(self, **kwargs):
         pj_id = kwargs.get("project_id")
-        monitoring = Monitoring(pj_id) if pj_id is not None else Monitoring()
-        return util.success(monitoring.check_project_alive())
+        all_alive = get_server_alive()
+        if all_alive is None:
+            all_alive = Monitoring().check_project_alive()["all_alive"]
+            update_server_alive(str(all_alive))
+        return util.success({"all_alive": all_alive})
+
 
 class ServersAlive(Resource):
     @jwt_required
@@ -33,9 +54,11 @@ class ServersAlive(Resource):
         parser.add_argument('project_id', type=int)
         args = parser.parse_args()
         pj_id = args.get("project_id")
-
-        monitoring = Monitoring(pj_id) if pj_id is not None else Monitoring()
-        return util.success(monitoring.check_project_alive())
+        all_alive = get_server_alive()
+        if all_alive is None:
+            all_alive = Monitoring().check_project_alive()["all_alive"]
+            update_server_alive(str(all_alive))
+        return util.success({"all_alive": all_alive})
 
 
 # redmine
@@ -44,12 +67,12 @@ class ServersAlive(Resource):
 class RedmineAliveV2(MethodResource):
     @jwt_required
     def get(self):
-        return generate_alive_response("redmine")
+        return server_alive("redmine")
 
 class RedmineAlive(Resource):
     @jwt_required
     def get(self):
-        return generate_alive_response("redmine")
+        return server_alive("redmine")
 
 # gitlab
 @doc(tags=['Monitoring'], description="Get Gitlab server's status")
@@ -57,12 +80,13 @@ class RedmineAlive(Resource):
 class GitlabAliveV2(MethodResource):
     @jwt_required
     def get(self):
-        return generate_alive_response("gitlab")
+        return server_alive("gitlab")
 
 class GitlabAlive(Resource):
     @jwt_required
     def get(self):
-        return generate_alive_response("gitlab")
+        return server_alive("gitlab")
+
 
 # harbor
 @doc(tags=['Monitoring'], description="Get Harbor server's status")
@@ -70,12 +94,12 @@ class GitlabAlive(Resource):
 class HarborAliveV2(MethodResource):
     @jwt_required
     def get(self):
-        return generate_alive_response("harbor")
+        return server_alive("harbor")
 
 class HarborAlive(Resource):
     @jwt_required
     def get(self):
-        return generate_alive_response("harbor")
+        return server_alive("harbor")
 
 @doc(tags=['Monitoring'], description="Get Harbor remain time of pull image from docker hub")
 @marshal_with(router_model.HarborProxyResponse)
@@ -94,25 +118,31 @@ class HarborProxy(Resource):
 class HarborStorageV2(MethodResource):
     @jwt_required
     def get(self):
-        return harbor_nfs_storage_remain_limit()
+        alive = harbor_nfs_storage_remain_limit()
+        update_server_alive(str(alive["status"]))
+        return alive
+
 
 class HarborStorage(Resource):
     @jwt_required
     def get(self):
-        return harbor_nfs_storage_remain_limit()
+        alive = harbor_nfs_storage_remain_limit()
+        update_server_alive(str(alive["status"]))
+        return alive
 
-# sonarQube
+
+# sonarqube
 @doc(tags=['Monitoring'], description="Get SonarQube server's status")
 @marshal_with(router_model.ServerAliveResponse)
 class SonarQubeAliveV2(MethodResource):
     @jwt_required
     def get(self):
-        return generate_alive_response("sonarQube")
+        return server_alive("sonarqube")
 
 class SonarQubeAlive(Resource):
     @jwt_required
     def get(self):
-        return generate_alive_response("sonarQube")
+        return server_alive("sonarqube")
 
 
 # rancher
@@ -121,12 +151,12 @@ class SonarQubeAlive(Resource):
 class RancherAliveV2(MethodResource):
     @jwt_required
     def get(self):
-        return generate_alive_response("rancher")
+        return server_alive("rancher")
 
 class RancherAlive(Resource):
     @jwt_required
     def get(self):
-        return generate_alive_response("rancher")
+        return server_alive("rancher")
 
 
 @doc(tags=['Monitoring'], description="Check Rancher name is changed to default or not")
@@ -149,12 +179,12 @@ class RancherDefaultName(Resource):
 class K8sAliveV2(MethodResource):
     @jwt_required
     def get(self):
-        return generate_alive_response("kubernetes")
+        return server_alive("kubernetes")
 
 class K8sAlive(Resource):
     @jwt_required
     def get(self):
-        return generate_alive_response("kubernetes")
+        return server_alive("kubernetes")
 
 class CollectPodRestartTimeV2(MethodResource):
     @doc(tags=['Monitoring'], description="Collect K8s pods' restart time.")
