@@ -75,7 +75,7 @@ def get_project_issue_calculation(user_id, project_ids=[]):
             # rm_project = {"updated_on": project_object.updated_on, "id": project_object.id}
             # calculate_project_issue = calculate_project_issues(rm_project, user_name)
             if role.is_role(role.RD):
-                calculate_project_issue.update(fill_rd_extra_fields(user_id, project_id))
+                calculate_project_issue.update(fill_rd_extra_fields(user_id, redmine_project_id))
             calculate_project_issue["id"] = project_id
         ret.append(calculate_project_issue)
     if recheck_project:
