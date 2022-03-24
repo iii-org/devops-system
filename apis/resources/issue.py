@@ -263,6 +263,38 @@ class NexusIssue:
     def get_tracker_name(self):
         return self.data['tracker']['name']
 
+def ws_common_response(issue_id, point=None, tags=None, plan_operator_id=None, update=True):
+    issue = redmine_lib.redmine.issue.get(issue_id)
+    output = NexusIssue().set_redmine_issue_v2(issue).to_json()
+    if point is not None:
+        if update:
+            update_issue_point(output["id"], point)
+        output["point"] = point
+    else:
+        output["point"] = get_issue_point(output["id"])
+
+    if tags is not None:
+        tag_ids = tags.strip().split(',')
+        if update:
+            update_issue_tags(output["id"], tag_ids, plan_operator_id)
+        else:
+            create_issue_tags(output["id"], tag_ids, plan_operator_id)
+    output["tags"] = get_issue_tags(output["id"])
+
+    family = get_issue_family(issue)
+    has_family = False
+    if family.get('parent', None):
+        output['parent'] = family['parent']
+        has_family = True
+    elif family.get('children', None):
+        output['children'] = family['children']
+        has_family = True
+    elif family.get('relations', None):
+        output['relations'] = family['relations']
+        has_family = True
+    output["family"] = has_family
+    return output
+
 
 def check_issue_exist(issue_id):
     try:
@@ -735,8 +767,7 @@ def create_issue(args, operator_id):
         plan_operator_id = operator_plugin_relation.plan_user_id
     created_issue = redmine.rm_create_issue(args, plan_operator_id)
     created_issue_id = created_issue["issue"]["id"]
-    issue = redmine_lib.redmine.issue.get(created_issue_id)
-    output = NexusIssue().set_redmine_issue_v2(issue).to_json()
+    create_issue_extensions(created_issue_id, point=point)
 
     # Update cache
     if update_cache_issue_family:
@@ -745,28 +776,14 @@ def create_issue(args, operator_id):
     closed_count = 1 if args["status_id"] == 6 else 0
     update_pj_issue_calc(project_id, total_count=1, closed_count=closed_count)
     
-    create_issue_extensions(output["id"], point=point)
-    output["point"] = point
-    if tags is not None:
-        tag_ids = tags.strip().split(',')
-        if tags.strip() != "" and len(tag_ids) > 0:
-            issue_tags = create_issue_tags(output["id"], tag_ids, plan_operator_id)
-    output['tags'] = get_issue_tags(output["id"])
-
-    family = get_issue_family(issue)
-    has_family = False
-    if family.get('parent') is not None:
-        output['parent'] = family['parent']
-        has_family = True
-    elif family.get('children') is not None:
-        output['children'] = family['children']
-        has_family = True
-    elif family.get('relations') is not None:
-        output['relations'] = family['relations']
-        has_family = True
-    output["family"] = has_family
-    emit("add_issue", output, namespace="/issues/websocket", to=output['project']['id'], broadcast=True)
-    return output
+    main_output = ws_common_response(
+        created_issue_id, point=point, plan_operator_id=plan_operator_id, update=False)
+    ws_output_list = [main_output]
+    if args.get('parent_issue_id') is not None:
+        ws_output_list.append(ws_common_response(args['parent_issue_id']))
+    
+    emit("add_issue", ws_output_list, namespace="/issues/websocket", to=main_output['project']['id'], broadcast=True)
+    return main_output
 
 
 def update_issue(issue_id, args, operator_id=None):
@@ -833,33 +850,14 @@ def update_issue(issue_id, args, operator_id=None):
     if args.get("status_id", 1) == 6 and before_status_id != 6:
         update_pj_issue_calc(pj_id, closed_count=1)
 
-    issue = redmine_lib.redmine.issue.get(issue_id)
-    output = NexusIssue().set_redmine_issue_v2(issue).to_json()
-    if point is not None:
-        update_issue_point(output["id"], point)
-        output["point"] = point
-    else:
-        output["point"] = get_issue_point(output["id"])
+    main_output = ws_common_response(
+        issue_id, point=point, plan_operator_id=plan_operator_id)
+    ws_output_list = [main_output]
+    if update_cache_issue_family and removed_project_id is not None:
+        ws_output_list.append(ws_common_response(removed_project_id))
 
-    if tags is not None:
-        tag_ids = tags.strip().split(',')
-        update_issue_tags(output["id"], tag_ids, plan_operator_id)
-    output["tags"] = get_issue_tags(output["id"])
-
-    family = get_issue_family(issue)
-    has_family = False
-    if family.get('parent', None):
-        output['parent'] = family['parent']
-        has_family = True
-    elif family.get('children', None):
-        output['children'] = family['children']
-        has_family = True
-    elif family.get('relations', None):
-        output['relations'] = family['relations']
-        has_family = True
-    output["family"] = has_family
-    emit("update_issue", output, namespace="/issues/websocket", to=output['project']['id'], broadcast=True)
-    return output
+    emit("update_issue", ws_output_list, namespace="/issues/websocket", to=main_output['project']['id'], broadcast=True)
+    return main_output
 
 
 @record_activity(ActionType.DELETE_ISSUE)
@@ -1924,7 +1922,11 @@ def get_requirements_by_project_id(project_id):
 
 
 def post_issue_relation(issue_id, issue_to_id, user_account):
-    return redmine_lib.rm_post_relation(issue_id, issue_to_id, user_account)
+    ret = redmine_lib.rm_post_relation(issue_id, issue_to_id, user_account)
+    output_list = [ws_common_response(id) for id in [issue_id, issue_to_id]]
+    emit(
+        "update_issue", output_list, namespace="/issues/websocket", to=output_list[0]['project']['id'], broadcast=True)
+    return ret
 
 
 def put_issue_relation(issue_id, issue_to_ids, user_account):
@@ -1949,9 +1951,18 @@ def put_issue_relation(issue_id, issue_to_ids, user_account):
         need_add = list(need_add)
         redmine_lib.rm_post_relation(need_add[0], need_add[1], user_account)
 
+    output_list = [ws_common_response(id) for id in [issue_id]+issue_to_ids]
+    emit("update_issue", output_list, namespace="/issues/websocket", to=output_list[0]['project']['id'], broadcast=True)
+
 
 def delete_issue_relation(relation_id, user_account):
-    return redmine_lib.rm_delete_relation(relation_id, user_account)
+    issue_relation_obj = redmine_lib.redmine.issue_relation.get(relation_id)
+    issue_ids = [issue_relation_obj.issue_id, issue_relation_obj.issue_to_id] 
+    
+    redmine_lib.rm_delete_relation(relation_id, user_account)
+    output_list = [ws_common_response(id) for id in issue_ids]
+    emit("update_issue", output_list, namespace="/issues/websocket", to=output_list[0]['project']['id'], broadcast=True)
+
 
 
 def check_issue_closable(issue_id):
