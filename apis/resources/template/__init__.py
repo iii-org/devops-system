@@ -330,8 +330,8 @@ def tm_get_template_list(force_update=0):
                     "version": data.version
                 })
 
-        output[0]["options"].sort(key=lambda x: x["name"])
-        output[1]["options"].sort(key=lambda x: x["name"])
+        output[0]["options"].sort(key=lambda x: x["display"])
+        output[1]["options"].sort(key=lambda x: x["display"])
         
         return output
 
