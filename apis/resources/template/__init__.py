@@ -448,6 +448,7 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id,
 
 
 def tm_get_pipeline_branches(repository_id, all_data=False):
+
     out = {}
     duplicate_tools = {}
     all_branch = []
@@ -531,13 +532,31 @@ def get_tool_name(stage):
                 tool_name = "deployed-environments"
     return tool_name
 
+def handle_stage_format_helper(stage, column):
+    if isinstance(stage.get(column), dict):
+        return True
+    elif isinstance(stage.get(column), list):
+        return stage[column]
+    else:
+        return []
+
+def handle_stage_format(stage):
+    stage_copy = stage.copy()
+    for column in ["when", "branch", "include"]:
+        ret = handle_stage_format_helper(stage_copy, column)
+        if ret is True:
+            stage_copy = stage_copy.get(column)
+        else:
+            return ret
+    return []
+
 
 def update_branches(stage, pipline_soft, branch, enable_key_name):
     had_update_branche = False
     if get_tool_name(stage) is not None and pipline_soft["key"] == get_tool_name(stage):
         if "when" not in stage:
             stage["when"] = {"branch": {"include": []}}
-        stage_when = stage.get("when", {}).get("branch", {}).get("include", {})
+        stage_when = handle_stage_format(stage)
         if pipline_soft[enable_key_name] and branch not in stage_when:
             stage_when.append(branch)
             had_update_branche = True
@@ -550,6 +569,7 @@ def update_branches(stage, pipline_soft, branch, enable_key_name):
         elif len(stage_when) > 1 and "skip" in stage_when:
             stage_when.remove("skip")
             had_update_branche = True
+        stage["when"] = {"branch": {"include": stage_when}}
     return had_update_branche
 
 
@@ -806,7 +826,9 @@ class ProjectPipelineBranches(Resource):
         parser.add_argument('detail', type=dict)
         parser.add_argument('run', type=bool)
         args = parser.parse_args()
-
+        print("-------------------")
+        print(args)
+        print("-------------------")
         # Remove duplicate args
         for branch, pip_info in args["detail"].items():
             args["detail"][branch] = [dict(t) for t in {tuple(d.items()) for d in pip_info}]
