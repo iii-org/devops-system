@@ -817,8 +817,6 @@ class NotificationMessage(db.Model):
     created_at = Column(DateTime)
     updated_at = Column(DateTime)
 
-    __mapper_args__ = {"order_by": id.desc()}
-
     def __repr__(self):
         fields = {}
         for field in [x for x in dir(self) if
