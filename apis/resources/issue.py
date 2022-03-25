@@ -1939,7 +1939,7 @@ def put_issue_relation(issue_id, issue_to_ids, user_account):
     if "relations" in redmine_issue:
         relations = redmine_issue["relations"]
         for relation in relations:
-            origin_issue_to_ids += [relation['issue_to_id'], relation['issue_id']]
+            origin_issue_to_ids.append(relation['issue_to_id'])
             origin_set.add(frozenset({relation['issue_id'], relation['issue_to_id']}))
         need_del_set = origin_set - input_set
         for need_del in list(need_del_set):
@@ -1952,8 +1952,8 @@ def put_issue_relation(issue_id, issue_to_ids, user_account):
     for need_add in list(need_add_set):
         need_add = list(need_add)
         redmine_lib.rm_post_relation(need_add[0], need_add[1], user_account)
-    whole_issue_ids = list(set([issue_id]+issue_to_ids+origin_issue_to_ids))
-    output_list = [ws_common_response(id) for id in whole_issue_ids]
+    update_issue_ids = list(set(origin_issue_to_ids) - set(issue_to_ids)) + list(set(issue_to_ids) - set(origin_issue_to_ids))    
+    output_list = [ws_common_response(id) for id in update_issue_ids + [issue_id]]
     emit("update_issue", output_list, namespace="/issues/websocket", to=output_list[0]['project']['id'], broadcast=True)
 
 
