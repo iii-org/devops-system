@@ -93,8 +93,9 @@ app.config['MAX_CONTENT_LENGTH'] = 20 * 1000 * 1000
 
 api = Api(app, errors=apiError.custom_errors)
 CORS(app)
+print(f"DEBUG: {config.get('DEBUG')}")
 if config.get("DEBUG") is False:
-    socketio = SocketIO(app, message_queue=f'redis://{config.get("REDIS_BASE_URL")}', cors_allowed_origins="*",
+    socketio = SocketIO(app, message_queue='redis://10.20.0.97:31853', cors_allowed_origins="*",
                         logger=False, engineio_logger=False, timeout=60000)
 else:
     socketio = SocketIO(app, cors_allowed_origins="*",
