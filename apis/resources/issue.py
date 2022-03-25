@@ -812,11 +812,13 @@ def update_issue(issue_id, args, operator_id=None):
         else:
             args['fixed_version_id'] = None
     if 'parent_id' in args:
-        update_cache_issue_family = True
+        parent_id_is_changed = update_cache_issue_family = True
+        origin_parent_id = None if not hasattr(issue, "parent") else issue.parent.id
         if len(args['parent_id']) > 0:
+            parent_id_is_changed = int(origin_parent_id) != int(args['parent_id']) if origin_parent_id is not None else True
             args['parent_issue_id'] = removed_project_id = int(args['parent_id'])
         else:
-            removed_project_id = None if not hasattr(issue, "parent") else issue.parent.id
+            removed_project_id = origin_parent_id
             args['parent_issue_id'] = None
         args.pop('parent_id', None)
     if "assigned_to_id" in args and len(args['assigned_to_id']) > 0:
@@ -853,8 +855,10 @@ def update_issue(issue_id, args, operator_id=None):
     main_output = ws_common_response(
         issue_id, point=point, tags=tags, plan_operator_id=plan_operator_id)
     ws_output_list = [main_output]
-    if update_cache_issue_family and removed_project_id is not None:
+    if update_cache_issue_family and removed_project_id is not None and parent_id_is_changed:
         ws_output_list.append(ws_common_response(removed_project_id))
+        if origin_parent_id is not None:
+            ws_output_list.append(ws_common_response(origin_parent_id))
 
     emit("update_issue", ws_output_list, namespace="/issues/websocket", to=main_output['project']['id'], broadcast=True)
     return main_output
