@@ -777,7 +777,7 @@ def create_issue(args, operator_id):
     update_pj_issue_calc(project_id, total_count=1, closed_count=closed_count)
     
     main_output = ws_common_response(
-        created_issue_id, point=point, plan_operator_id=plan_operator_id, update=False)
+        created_issue_id, point=point, tags=tags, plan_operator_id=plan_operator_id, update=False)
     ws_output_list = [main_output]
     if args.get('parent_issue_id') is not None:
         ws_output_list.append(ws_common_response(args['parent_issue_id']))
@@ -851,7 +851,7 @@ def update_issue(issue_id, args, operator_id=None):
         update_pj_issue_calc(pj_id, closed_count=1)
 
     main_output = ws_common_response(
-        issue_id, point=point, plan_operator_id=plan_operator_id)
+        issue_id, point=point, tags=tags, plan_operator_id=plan_operator_id)
     ws_output_list = [main_output]
     if update_cache_issue_family and removed_project_id is not None:
         ws_output_list.append(ws_common_response(removed_project_id))
