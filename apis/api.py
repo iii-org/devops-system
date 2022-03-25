@@ -96,7 +96,7 @@ CORS(app)
 #print(f"DEBUG: {config.get('DEBUG')}")
 # if config.get("DEBUG") is False:
 socketio = SocketIO(app, message_queue='redis://10.20.0.97:31853', cors_allowed_origins="*",
-                    logger=False, engineio_logger=False, timeout=60000)
+                    logger=True, engineio_logger=True, timeout=60000)
 # else:
 #    socketio = SocketIO(app, cors_allowed_origins="*",
 #                        logger=False, engineio_logger=False, timeout=60000)
