@@ -14,7 +14,7 @@ from resources.issue import get_issue_list_by_project_helper, get_issue_by_tree_
 from resources import project, user, version, wiki, release
 from resources.gitlab import gitlab
 
-from resources.harbor import hb_copy_artifact_and_retage
+from resources.harbor import hb_copy_artifact_and_retage, hb_get_artifact, hb_delete_artifact_tag
 from sqlalchemy.orm.exc import NoResultFound
 from model import CustomIssueFilter
 from resources import role
@@ -1558,10 +1558,13 @@ class ReleasesV2(MethodResource):
                 return util.respond(404, release.error_release_build,
                                     error=apiError.release_unable_to_build(release_obj.valid_info))
             # Close Redmine Versions
+            closed_version = False
             for version in kwargs['versions']:
                 params = {"version": {"status": "closed"}}
                 redmine.rm_put_version(version, params)
+                closed_version = True
             # check  Gitalb Release
+            check_gitlab_release = False
             if release_obj.gitlab_info.get('check') == True:
                 gitlab_data = {
                     'tag_name': release_name,
@@ -1572,7 +1575,9 @@ class ReleasesV2(MethodResource):
                     gitlab_data['release_at'] = kwargs['released_at']
                 gitlab.gl_create_release(
                     release_obj.plugin_relation.git_repository_id, gitlab_data)
+                check_gitlab_release = True
             #  Create Harbor Release
+            create_harbor_release = False
             image_path = [f"{release_obj.project.name}/{branch_name}:{release_name}"]
             if release_obj.harbor_info['target'].get('release', None) is not None:
                 if kwargs.get("extra_image_path") is not None and f"{release_obj.project.name}/{kwargs.get('extra_image_path')}" not in image_path:
@@ -1581,6 +1586,7 @@ class ReleasesV2(MethodResource):
                     extra_dest_repo, extra_dest_tag = extra_image_path[0], extra_image_path[1]
                     hb_copy_artifact_and_retage(release_obj.project.name, branch_name, extra_dest_repo, kwargs.get("commit"), extra_dest_tag)
                 hb_copy_artifact_and_retage(release_obj.project.name, branch_name, branch_name, kwargs.get("commit"), release_name)
+                create_harbor_release = True
 
             release.create_release(
                 project_id,
@@ -1594,8 +1600,32 @@ class ReleasesV2(MethodResource):
             )
 
             return util.success()
-        except NoResultFound:
-            return util.respond(404, release.error_redmine_issues_closed,
+        except:
+            # Roll back
+            ## Open redmine version
+            if closed_version:
+                for version in kwargs['versions']:
+                    params = {"version": {"status": "open"}}
+                    redmine.rm_put_version(version, params)
+
+            ## check  Gitalb Release
+            if check_gitlab_release:
+                gitlab.gl_delete_release(
+                    release_obj.plugin_relation.git_repository_id, release_name)
+            
+            ## Create Harbor Release
+            if create_harbor_release:
+                for image in image_path:
+                    removed_image_path = image.split("/")[-1].split(":")
+                    removed_dest_repo, removed_dest_tag = removed_image_path[0], removed_image_path[1]
+                    if removed_dest_repo != branch_name:
+                        hb_copy_artifact_and_retage(release_obj.project.name, removed_dest_repo, branch_name, removed_dest_tag, kwargs.get("commit"))
+                    else:
+                        digest = hb_get_artifact(release_obj.project.name, branch_name, removed_dest_tag)[0]["digest"]
+                        hb_delete_artifact_tag(release_obj.project.name, branch_name, digest, removed_dest_tag, keep=True)
+
+            if NoResultFound:
+                return util.respond(404, release.error_redmine_issues_closed,
                                 error=apiError.redmine_unable_to_forced_closed_issues(kwargs['versions']))
 
 

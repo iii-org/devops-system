@@ -325,8 +325,8 @@ def hb_copy_artifact_and_retage(project_name, from_repo_name, dest_repo_name, fr
         digest = hb_get_artifact(project_name, from_repo_name, from_tag)[0]["digest"]
         print(digest)
     except:
-        logger.info("Can not find from_repo:from_tag")
-        print("Can not find from_repo:from_tag")
+        logger.info(f"Can not find {from_repo_name}:{from_tag}")
+        print(f"Can not find {from_repo_name}:{from_tag}")
         return
     
     # if dest_repo:dest_tag is exist, delete it.
@@ -334,8 +334,8 @@ def hb_copy_artifact_and_retage(project_name, from_repo_name, dest_repo_name, fr
         dest_digest = hb_get_artifact(project_name, dest_repo_name, dest_tag)[0]["digest"]
         print(dest_digest)
         a = hb_delete_artifact(project_name, dest_repo_name, dest_digest)
-        logger.info("Replace the old dest_repo:dest_tag")
-        print("Replace the old dest_repo:dest_tag")
+        logger.info(f"Replace the old {dest_repo_name}:{dest_digest}")
+        print(f"Replace the old {dest_repo_name}:{dest_digest}")
     except:
         pass
 
@@ -345,7 +345,7 @@ def hb_copy_artifact_and_retage(project_name, from_repo_name, dest_repo_name, fr
 
     # if from_repo != dest_repo, delete the dest_repo:from_tag's tag
     if from_repo_name != dest_repo_name:
-        hb_delete_artifact_tag(project_name, dest_repo_name, digest, from_tag, keep=True)
+        hb_delete_artifact_tag(project_name, dest_repo_name, digest, from_tag)
     
     logger.info(f"Copy from {from_repo_name}:{from_tag} to {dest_repo_name}:{dest_tag}")
     print(f"Copy from {from_repo_name}:{from_tag} to {dest_repo_name}:{dest_tag}")

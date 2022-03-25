@@ -5,7 +5,8 @@ from urllib.parse import urlparse
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
 from sqlalchemy.orm.exc import NoResultFound
-from resources.harbor import hb_list_artifacts_with_params, hb_copy_artifact_and_retage
+from resources.harbor import hb_list_artifacts_with_params, hb_copy_artifact_and_retage, hb_get_artifact, \
+    hb_delete_artifact_tag
 
 import config
 import model
@@ -388,10 +389,13 @@ class Releases(Resource):
                 return util.respond(404, error_release_build,
                                     error=apiError.release_unable_to_build(self.valid_info))
             # Close Redmine Versions
+            closed_version = False
             for version in args['versions']:
                 params = {"version": {"status": "closed"}}
                 redmine.rm_put_version(version, params)
+                closed_version = True
             # check  Gitalb Release
+            check_gitlab_release = False
             if self.gitlab_info.get('check') == True:
                 gitlab_data = {
                     'tag_name': release_name,
@@ -402,7 +406,9 @@ class Releases(Resource):
                     gitlab_data['release_at'] = args['released_at']
                 gitlab.gl_create_release(
                     self.plugin_relation.git_repository_id, gitlab_data)
+                check_gitlab_release = True
             #  Create Harbor Release
+            create_harbor_release = False
             image_path = [f"{self.project.name}/{branch_name}:{release_name}"]
             if self.harbor_info['target'].get('release', None) is not None:
                 if args.get("extra_image_path") is not None and f"{self.project.name}/{args.get('extra_image_path')}" not in image_path: 
@@ -411,6 +417,7 @@ class Releases(Resource):
                     extra_dest_repo, extra_dest_tag = extra_image_path[0], extra_image_path[1]
                     hb_copy_artifact_and_retage(self.project.name, branch_name, extra_dest_repo, args.get("commit"), extra_dest_tag)
                 hb_copy_artifact_and_retage(self.project.name, branch_name, branch_name, args.get("commit"), release_name)
+                create_harbor_release = True
 
             create_release(
                 project_id,
@@ -424,9 +431,33 @@ class Releases(Resource):
             )
 
             return util.success()
-        except NoResultFound:
-            return util.respond(404, error_redmine_issues_closed,
-                                error=apiError.redmine_unable_to_forced_closed_issues(args['versions']))
+        except:
+            # Roll back
+            ## Open redmine version
+            if closed_version:
+                for version in args['versions']:
+                    params = {"version": {"status": "open"}}
+                    redmine.rm_put_version(version, params)
+
+            ## check  Gitalb Release
+            if check_gitlab_release:
+                gitlab.gl_delete_release(
+                    self.plugin_relation.git_repository_id, release_name)
+            
+            ## Create Harbor Release
+            if create_harbor_release:
+                for image in image_path:
+                    removed_image_path = image.split("/")[-1].split(":")
+                    removed_dest_repo, removed_dest_tag = removed_image_path[0], removed_image_path[1]
+                    if removed_dest_repo != branch_name:
+                        hb_copy_artifact_and_retage(self.project.name, removed_dest_repo, branch_name, removed_dest_tag, args.get("commit"))
+                    else:
+                        digest = hb_get_artifact(self.project.name, branch_name, removed_dest_tag)[0]["digest"]
+                        hb_delete_artifact_tag(self.project.name, branch_name, digest, removed_dest_tag, keep=True)
+
+            if NoResultFound:
+                return util.respond(404, error_redmine_issues_closed,
+                                    error=apiError.redmine_unable_to_forced_closed_issues(args['versions']))
 
     @jwt_required
     def get(self, project_id):
