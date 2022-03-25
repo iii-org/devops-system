@@ -18,7 +18,7 @@ from accessories import redmine_lib
 from resources.redmine import redmine
 from resources.quality import qu_get_testfile_by_testplan
 from datetime import datetime
-from resources import route_model
+from urls import route_model
 
 from flask_apispec import marshal_with, doc, use_kwargs
 from flask_apispec.views import MethodResource

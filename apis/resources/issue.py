@@ -36,7 +36,7 @@ from resources.lock import get_lock_status
 from resources.project_relation import project_has_child, project_has_parent, get_plan_id
 from flask_apispec import marshal_with, doc, use_kwargs
 from flask_apispec.views import MethodResource
-from resources import route_model
+from urls import route_model
 from resources.redis import check_issue_has_son, update_issue_relations, remove_issue_relation, remove_issue_relations, \
     add_issue_relation, update_pj_issue_calc
 
@@ -2281,7 +2281,7 @@ class DumpByIssue(Resource):
 
 @doc(tags=['Issue'], description="Get issue list by user")
 @use_kwargs(route_model.IssueByUserSchema, location="query")
-@marshal_with(route_model.IssueByUserResponseWithPage, code="with limit and offset")
+@marshal_with(route_model.IssueByUserResponseWithPage)
 class IssueByUserV2(MethodResource):
     @ jwt_required
     def get(self, user_id, **kwargs):

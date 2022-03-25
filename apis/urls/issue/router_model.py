@@ -1,6 +1,7 @@
 from marshmallow import Schema, fields, missing
 from util import CommonBasicResponse
 from resources.system_parameter import check_upload_type
+from urls.route_model import BasicIsssueResponse, SingleIssueGetDataAuthorResponse, ProjectExtraResponse, RelationsResponse
 
 ### Issue single
 
@@ -51,17 +52,7 @@ class SingleIssueDeleteSchema(Schema):
 
 ########## Module ##########
 
-class BasicIsssueResponse(Schema):
-    id = fields.Int(required=True)
-    name = fields.Str(required=True)
 
-class ProjectExtraResponse(BasicIsssueResponse):
-    id = fields.Int(required=True)
-    name = fields.Str(required=True)
-    display = fields.Str(required=True)
-
-class SingleIssueGetDataAuthorResponse(BasicIsssueResponse):
-    login = fields.Str(required=True)
 
 class IssueTagResponse(Schema):
     tags = fields.List(fields.Nested(
@@ -83,12 +74,6 @@ class SingleIssueGetDataAttachResponse(Schema):
     author = fields.Nested(BasicIsssueResponse, required=True)
     created_on = fields.Str(required=True, example="1970-01-01T00:00:00")
 
-class RelationsResponse(IssueTagResponse):
-    id = fields.Int(required=True)
-    issue_id = fields.Int(required=True)
-    issue_to_id = fields.Int(required=True)
-    relation_type = fields.Str(required=True)
-    delay = fields.Str(required=True, allow_none=True)
 
 class JournalDetailsResponse(Schema):
     name = fields.Str()

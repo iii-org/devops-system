@@ -125,7 +125,7 @@ class ProjectRelationsV2(MethodResource):
 @doc(tags=['Issue'], description="Get issue list by project")
 @use_kwargs(router_model.IssueByProjectSchema, location="query")
 # @marshal_with(route_model.IssueByProjectResponse)
-@marshal_with(router_model.IssueByProjectResponseWithPage, code="with limit and offset")
+@marshal_with(router_model.IssueByProjectResponseWithPage)
 class IssueByProjectV2(MethodResource):
     @ jwt_required
     def get(self, project_id, **kwargs):

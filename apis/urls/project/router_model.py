@@ -1,6 +1,8 @@
 from marshmallow import Schema, fields
 from util import CommonBasicResponse
 import re
+from urls.route_model import BasicIsssueResponse, SingleIssueGetDataAuthorResponse, ProjectExtraResponse, RelationsResponse, \
+    PaginationPageResponse
 
 ### Project Relation
 
@@ -89,18 +91,6 @@ class IssuesProgressByProjectSchema(Schema):
 
 ########## Module ##########
 
-class BasicIsssueResponse(Schema):
-    id = fields.Int(required=True)
-    name = fields.Str(required=True)
-
-class PaginationPageResponse(Schema):
-    current = fields.Int(required=True)
-    prev = fields.Int(required=True, default=None)
-    next = fields.Int(required=True)
-    pages = fields.Int(required=True)
-    limit = fields.Int(required=True)
-    offset = fields.Int(required=True)
-    total = fields.Int(required=True)
 
 class PaginationResponse(Schema):
     page = fields.Nested(PaginationPageResponse, required=True)
@@ -109,20 +99,6 @@ class IssueTagResponse(Schema):
     tags = fields.List(fields.Nested(
        BasicIsssueResponse, required=True, default=[]))
 
-class ProjectExtraResponse(BasicIsssueResponse):
-    id = fields.Int(required=True)
-    name = fields.Str(required=True)
-    display = fields.Str(required=True)
-
-class SingleIssueGetDataAuthorResponse(BasicIsssueResponse):
-    login = fields.Str(required=True)
-
-class RelationsResponse(IssueTagResponse):
-    id = fields.Int(required=True)
-    issue_id = fields.Int(required=True)
-    issue_to_id = fields.Int(required=True)
-    relation_type = fields.Str(required=True)
-    delay = fields.Str(required=True, allow_none=True)
 
 class BasicParentResponse(BasicIsssueResponse):
     status = fields.Nested(BasicIsssueResponse, default={})
