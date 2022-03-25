@@ -50,8 +50,8 @@ stages:
   when:
     branch:
       include:
-        - master
-        - develop
+      - master
+      - develop
 - name: Deploy--Set Web environment variables
   iiidevops: deployed-environments
   steps:
@@ -75,8 +75,8 @@ stages:
   when:
     branch:
       include:
-        - master
-        - develop
+      - master
+      - develop
 - name: Build--Build and push docker image
   iiidevops: deployed-environments
   steps:
@@ -95,8 +95,8 @@ stages:
   when:
     branch:
       include:
-        - master
-        - develop
+      - master
+      - develop
 - name: Build--Copy Image
   iiidevops: deployed-environments
   steps:
@@ -112,26 +112,22 @@ stages:
       targetKey: api_origin
     runScriptConfig:
       image: harbor-dev3.iiidevops.org/dockerhub/iiiorg/rancher-cli:v2.4.6
-      shellScript: 
-        rancher login ${rancher_url} -t ${rancher_api_token} --skip-verify
-        && apt-get install -y jq 
-        && export PW=$(rancher kubectl get secret nexus-bot -n ${CICD_GIT_REPO_NAME} -o=go-template='{{index .data "password"}}' | base64 -d) 
-        && export UN=$(rancher kubectl get secret nexus-bot -n ${CICD_GIT_REPO_NAME} -o=go-template='{{index .data "username"}}' | base64 -d) 
-        && curl --location --request POST ${api_origin}/user/login --form username=$UN --form password=$PW | jq -r '.data.token' > token.txt 
-        && export APITOKEN=$(cat token.txt) 
-        && pwd 
-        && curl --location --request POST ${api_origin}/harbor/handle_image
-        --header "Authorization:Bearer $APITOKEN"
-        --form project_name=${CICD_GIT_REPO_NAME}
-        --form from_repo_name=${CICD_GIT_BRANCH}
-        --form from_tag=${CICD_GIT_COMMIT}
-        --form dest_repo_name=${CICD_GIT_REPO_NAME}
-        --form dest_tag=${CICD_GIT_BRANCH}          
+      shellScript: rancher login ${rancher_url} -t ${rancher_api_token} --skip-verify
+        && apt-get install -y jq && export PW=$(rancher kubectl get secret nexus-bot
+        -n ${CICD_GIT_REPO_NAME} -o=go-template='{{index .data "password"}}' | base64
+        -d) && export UN=$(rancher kubectl get secret nexus-bot -n ${CICD_GIT_REPO_NAME}
+        -o=go-template='{{index .data "username"}}' | base64 -d) && curl --location
+        --request POST ${api_origin}/user/login --form username=$UN --form password=$PW
+        | jq -r '.data.token' > token.txt && export APITOKEN=$(cat token.txt) && pwd
+        && curl --location --request POST ${api_origin}/harbor/handle_image --header
+        "Authorization:Bearer $APITOKEN" --form project_name=${CICD_GIT_REPO_NAME}
+        --form from_repo_name=${CICD_GIT_BRANCH} --form from_tag=${CICD_GIT_COMMIT}
+        --form dest_repo_name=${CICD_GIT_REPO_NAME} --form dest_tag=${CICD_GIT_BRANCH}
   when:
     branch:
       include:
-        - master
-        - develop
+      - master
+      - develop
 - name: Deploy--Web
   iiidevops: deployed-environments
   steps:
@@ -155,8 +151,8 @@ stages:
   when:
     branch:
       include:
-        - master
-        - develop
+      - master
+      - develop
 - name: Deploy--Wait Web deployment
   iiidevops: deployed-environments
   steps:
@@ -178,8 +174,8 @@ stages:
   when:
     branch:
       include:
-        - master
-        - develop
+      - master
+      - develop
 - name: Test--ZAP
   iiidevops: zap
   steps:
@@ -200,7 +196,7 @@ stages:
   when:
     branch:
       include:
-        - skip
+      - skip
 - name: Test--WebInspect
   iiidevops: webinspect
   steps:
@@ -220,7 +216,7 @@ stages:
   when:
     branch:
       include:
-        - skip
+      - skip
 - name: Test--Postman
   iiidevops: postman
   steps:
@@ -241,7 +237,8 @@ stages:
   when:
     branch:
       include:
-        - skip-develop
+      - skip-develop
+      - develop
 - name: Test--SideeX
   iiidevops: sideex
   steps:
@@ -262,4 +259,4 @@ stages:
   when:
     branch:
       include:
-        - skip
+      - skip
