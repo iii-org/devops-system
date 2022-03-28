@@ -180,8 +180,114 @@ class IssuesProgressByProjectDataResponse(Schema):
 ########## API Action ##########
 
 class IssueByProjectResponseWithPage(CommonBasicResponse):
-    data = fields.List(fields.Nested(
-       IssueByProjectDataWithPageResponse, required=True))
+    data = fields.Raw(example={
+        "issue_list": [{
+            "assigned_to": {
+                "id": 1,
+                "login": "login",
+                "name": "name"
+            },
+            "author": {
+                "id": 1,
+                "name": "author"
+            },
+            "closed_on": None,
+            "description": None,
+            "done_ratio": 0,
+            "due_date": None,
+            "estimated_hours": None,
+            "family": True,
+            "fixed_version": {
+                "id": 1,
+                "name": "name"
+            },
+            "has_children": True,
+            "id": 1,
+            "is_closed": False,
+            "is_private": False,
+            "issue_link": "http://",
+            "name": "name",
+            "priority": {
+                "id": 3,
+                "name": "Normal"
+            },
+            "project": {
+                "display": "display",
+                "id": 176,
+                "name": "name"
+            },
+            "start_date": "1970-01-01",
+            "status": {
+                "id": 4,
+                "name": "Solved"
+            },
+            "tags": [],
+            "tracker": {
+                "id": 6,
+                "name": "Change Request"
+            },
+            "updated_on": "2022-03-23T07:36:42"
+        }],
+        "page": {
+            "current": 1,
+            "limit": 5,
+            "next": 2,
+            "offset": 0,
+            "pages": 2,
+            "prev": None,
+            "total": 10
+        }}, required=True)
+
+class IssueByProjectResponse(CommonBasicResponse):
+    data = fields.Raw(example=[
+        {
+            "assigned_to": {
+                "id": 1,
+                "login": "login",
+                "name": "name"
+            },
+            "author": {
+                "id": 1,
+                "name": "author"
+            },
+            "closed_on": None,
+            "description": None,
+            "done_ratio": 0,
+            "due_date": None,
+            "estimated_hours": None,
+            "family": True,
+            "fixed_version": {
+                "id": 1,
+                "name": "name"
+            },
+            "has_children": True,
+            "id": 1,
+            "is_closed": False,
+            "is_private": False,
+            "issue_link": "http://",
+            "name": "name",
+            "priority": {
+                "id": 3,
+                "name": "Normal"
+            },
+            "project": {
+                "display": "display",
+                "id": 176,
+                "name": "name"
+            },
+            "start_date": "1970-01-01",
+            "status": {
+                "id": 4,
+                "name": "Solved"
+            },
+            "tags": [],
+            "tracker": {
+                "id": 6,
+                "name": "Change Request"
+            },
+            "updated_on": "2022-03-23T07:36:42"
+        }]
+        , required=True)
 
 class IssueByTreeByProjectResponse(CommonBasicResponse):
     data = fields.List(fields.Nested(
