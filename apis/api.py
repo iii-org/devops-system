@@ -3,13 +3,13 @@ import os
 import sys
 import threading
 
+if f"{os.getcwd()}/apis" not in sys.path:
+    sys.path.insert(1, f"{os.getcwd()}/apis")
+
 import config
 if config.get("DEBUG") is False:
     import eventlet
     eventlet.monkey_patch(socket=True, select=True, thread=True)
-
-if f"{os.getcwd()}/apis" not in sys.path:
-    sys.path.insert(1, f"{os.getcwd()}/apis")
 
 import traceback
 from os.path import isfile
