@@ -1029,7 +1029,7 @@ def get_kubernetes_plugin_pods(project_id, plugin_name):
         if pod["containers"][0]["name"].startswith(plugin_name):
             ret["container_name"] = pod["containers"][0]["name"]
             ret["pod_name"] = pod["name"]
-    ret["has_pod"] = ret.get("name") is not None
+    ret["has_pod"] = ret.get("pod_name") is not None
     return util.success(ret)
 
 
