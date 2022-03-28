@@ -1,9 +1,12 @@
-import eventlet
-eventlet.monkey_patch(socket=True, select=True, thread=True)
 
 import os
 import sys
 import threading
+
+import config
+if config.get("DEBUG") is False:
+    import eventlet
+    eventlet.monkey_patch(socket=True, select=True, thread=True)
 
 if f"{os.getcwd()}/apis" not in sys.path:
     sys.path.insert(1, f"{os.getcwd()}/apis")
@@ -22,7 +25,6 @@ from sqlalchemy_utils import database_exists, create_database
 from werkzeug.routing import IntegerConverter
 
 import plugins
-import config
 import migrate
 import model
 import system
