@@ -104,9 +104,9 @@ def hb_create_project(project_name):
 
 def hb_delete_project(harbor_param):
     try:
-        repositoriest = hb_list_repositories(harbor_param[1])
-        if len(repositoriest) != 0:
-            for repository in repositoriest:
+        repositories = hb_list_repositories(harbor_param[1])
+        if len(repositories) != 0:
+            for repository in repositories:
                 split_list = repository["name"].split("/")
                 project_name = split_list[0]
                 repository_name = '/'.join(split_list[1:])
@@ -262,6 +262,7 @@ def generate_artifacts_output(art):
         })
     return output
 
+
 def hb_list_artifacts_with_params(project_name, repository_name, push_time=None):
     ret = []
     args = {"page": 1, "page_size": 15}
@@ -270,7 +271,7 @@ def hb_list_artifacts_with_params(project_name, repository_name, push_time=None)
         if data == []:
             break
         ret += data
-        args["page"] +=1
+        args["page"] += 1
     return ret
 
 
@@ -319,8 +320,8 @@ def hb_copy_artifact_and_retage(project_name, from_repo_name, dest_repo_name, fr
         logger.info("from_repo:from_tag and dest_repo:dest_tag is same.")
         print("from_repo:from_tag and dest_repo:dest_tag is same.")
         return
-    
-    # if from_repo:from_tag not found, then do nothing as well.  
+
+    # if from_repo:from_tag not found, then do nothing as well.
     try:
         digest = hb_get_artifact(project_name, from_repo_name, from_tag)[0]["digest"]
         print(digest)
@@ -328,7 +329,7 @@ def hb_copy_artifact_and_retage(project_name, from_repo_name, dest_repo_name, fr
         logger.info(f"Can not find {from_repo_name}:{from_tag}")
         print(f"Can not find {from_repo_name}:{from_tag}")
         return
-    
+
     # if dest_repo:dest_tag is exist, delete it.
     try:
         dest_digest = hb_get_artifact(project_name, dest_repo_name, dest_tag)[0]["digest"]
@@ -346,7 +347,7 @@ def hb_copy_artifact_and_retage(project_name, from_repo_name, dest_repo_name, fr
     # if from_repo != dest_repo, delete the dest_repo:from_tag's tag
     if from_repo_name != dest_repo_name:
         hb_delete_artifact_tag(project_name, dest_repo_name, digest, from_tag)
-    
+
     logger.info(f"Copy from {from_repo_name}:{from_tag} to {dest_repo_name}:{dest_tag}")
     print(f"Copy from {from_repo_name}:{from_tag} to {dest_repo_name}:{dest_tag}")
 
@@ -395,14 +396,14 @@ def hb_build_external_link(path):
 
 
 def get_storage_usage(project_id):
-    habor_info = hb_get_project_summary(project_id)
+    harbor_info = hb_get_project_summary(project_id)
     usage_info = {}
     usage_info['title'] = 'Harbor'
     usage_info['used'] = {}
-    usage_info['used']['value'] = habor_info['quota']['used']['storage']
+    usage_info['used']['value'] = harbor_info['quota']['used']['storage']
     usage_info['used']['unit'] = ''
     usage_info['quota'] = {}
-    usage_info['quota']['value'] = habor_info['quota']['hard']['storage']
+    usage_info['quota']['value'] = harbor_info['quota']['hard']['storage']
     usage_info['quota']['unit'] = ''
     return usage_info
 
@@ -887,6 +888,7 @@ class HarborReplicationExecutionTaskLog(Resource):
     def get(self, execution_id, task_id):
         output = hb_get_replication_executions_tasks_log(execution_id, task_id)
         return util.success({'logs': output.text.splitlines()})
+
 
 class HarborCopyImageRetage(Resource):
     @jwt_required
