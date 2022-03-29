@@ -1,0 +1,25 @@
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: sync-issue-families
+spec:
+  schedule: "0 * * * *"
+  successfulJobsHistoryLimit: 0
+  failedJobsHistoryLimit: 0
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: curl
+            image: curlimages/curl:7.76.1
+            imagePullPolicy: IfNotPresent
+            env: 
+              - name: TOKEN
+                valueFrom:
+                  secretKeyRef:
+                    name: cornjob-bot
+                    key: cornjob-token
+            command: ["/bin/sh"]
+            args: ["-c", "curl -H \"Authorization: Bearer $TOKEN\" --location --request POST 'http://devopsapi-service:10009/v2/issue/sync_issue_families'"]
+          restartPolicy: OnFailure

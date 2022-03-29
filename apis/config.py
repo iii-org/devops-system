@@ -6,14 +6,15 @@ FIXED = {
     'GITLAB_API_VERSION': 'v4',
     'RANCHER_API_VERSION': 'v3',
     'LOGGER_NAME': 'devops.api',
-    'DEBUG': True,
+    'DEBUG': False,
     'USE_RELOADER': False,
     'DEFAULT_TRACE_ORDER': [
         "Epic",
         "Feature",
         "Test Plan"
     ],
-    "DOCUMENT_LEVEL": "public"
+    "DOCUMENT_LEVEL": "public",
+    "REDIS_BASE_URL": "devops-redis-service:6379"
 }
 
 in_file = {}

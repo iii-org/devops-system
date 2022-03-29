@@ -1,8 +1,8 @@
 from nexus import nx_get_project_plugin_relation
 import util
-from model import Project
+from model import Project, AlertMessage, db
 from github import Github
-
+from resources.redis import update_server_alive
 
 from plugins.sonarqube.sonarqube_main import sq_get_current_measures, sq_list_project
 from resources.harbor import hb_get_project_summary, hb_get_registries
@@ -125,7 +125,7 @@ def generate_alive_response(name):
         "gitlab": monitoring.gitlab_alive,
         "harbor": monitoring.harbor_alive,
         "kubernetes": monitoring.k8s_alive,
-        "sonarQube": monitoring.sonarqube_alive,
+        "sonarqube": monitoring.sonarqube_alive,
         "rancher": monitoring.rancher_alive,
     }
     return {
@@ -134,6 +134,21 @@ def generate_alive_response(name):
         "message": monitoring.error_message,
         "datetime": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
     }
+
+def server_alive(name):
+    alive = generate_alive_response(name)
+    status = alive["status"]
+    if not status:
+        row = AlertMessage(
+            resource_type=name,
+            code=90001,
+            message=alive["message"],
+            create_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        )
+        db.session.add(row)
+        db.session.commit()
+    update_server_alive(str(status))
+    return alive
 
 
 def row_to_dict(row):

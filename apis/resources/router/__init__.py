@@ -1,21 +1,34 @@
+import datetime
 import json
-
+from flask_jwt_extended import  get_jwt_identity
 import model
-import util as util
-from flask_apispec import doc, marshal_with, use_kwargs
-from flask_apispec.views import MethodResource
-from flask_jwt_extended import get_jwt_identity, jwt_required
-from flask_restful import Resource
-from sqlalchemy.sql import and_
-from model import db, UIRoute, UIRouteUserRoleRelation
-from resources.apiError import DevOpsError
-from resources.role import require_admin
 import plugins
+import util
+from flask_jwt_extended import get_jwt_identity
+from model import UIRouteJson, db
+from sqlalchemy.sql import and_
 
-from . import route_model
-
-get_router_error = "Without Router Definition"
 key_return_json = ['parameter']
+
+
+def load_ui_route():
+    ui_route_json = util.read_json_file("apis/ui_route.json")
+    row = UIRouteJson.query.filter_by(name='ui_route').first()
+    if row is None:
+        new_row = UIRouteJson(
+            name='ui_route',
+            ui_route=ui_route_json,
+            created_at=datetime.datetime.utcnow(),
+            updated_at=datetime.datetime.utcnow()
+        )
+        db.session.add(new_row)
+        db.session.commit()
+    elif str(ui_route_json) != str(row.ui_route):
+        row.ui_route = ui_route_json
+        row.updated_at = datetime.datetime.utcnow()
+        db.session.commit()
+    else:
+        print("Noting change")
 
 
 def row_to_dict(row):
@@ -37,62 +50,21 @@ def get_plugin_software():
             output.append(row_to_dict(plugin))
     return output
 
-
-def get_ui_route_list():
-    return json.loads(str(UIRoute.query.all()))
-
-
-def get_user_route():
-    # Get route_name and filter by user role
-    rows = db.session.query(UIRoute).join(UIRouteUserRoleRelation, and_(
-        UIRouteUserRoleRelation.user_role == get_jwt_identity()["role_id"],
-        UIRoute.id == UIRouteUserRoleRelation.ui_route_id)).all()
-
-    # filter if plugins is not enable
-    disable_plugin_list = []
-    db_pluging_list = get_plugin_software()
-    i = 0
-    while i < len(db_pluging_list):
-        if db_pluging_list[i]["disabled"] is False:
-            del db_pluging_list[i]
-        else:
-            i += 1
-    for db_pluging_dict in db_pluging_list:
-        if db_pluging_dict['name'] in plugins.list_plugin_modules() and \
-                hasattr(getattr(plugins, db_pluging_dict['name']), "ui_route") is True:
-            disable_plugin_list.extend(getattr(plugins, db_pluging_dict['name']).ui_route)
-    j = 0
-    while j < len(rows):
-        if rows[j].route_name in disable_plugin_list:
-            del rows[j]
-        else:
-            j += 1
-    return json.loads(str(rows))
-
-
-class Router(Resource):
-    @ jwt_required
-    def get(self):
-        try:
-            return util.success(get_plugin_software())
-        except DevOpsError:
-            return util.respond(404, get_router_error
-                                )
-
-
-@ doc(tags=['UI Route'], description="Get UI route name")
-@ marshal_with(route_model.UIRouteListResponse)
-class RouterNameV2(MethodResource):
-
-    @ jwt_required
-    def get(self):
-        require_admin()
-        return util.success(get_ui_route_list())
-
-
-@ doc(tags=['UI Route'], description="Get the user route")
-@ marshal_with(route_model.UIRouteListResponse)
-class UserRouteV2(MethodResource):
-    @ jwt_required
-    def get(self):
-        return util.success(get_user_route())
+def display_by_permission():
+    ui_route_list = []
+    user_doc = get_jwt_identity()
+    row = UIRouteJson.query.filter_by(name='ui_route').first()
+    for temp in row.ui_route:
+        if temp.get("redirect") == "/404":
+            ui_route_list.append(temp)
+            continue
+        if user_doc.get("role_name") not in temp.get("meta").get("roles"):
+                continue
+        if temp.get("children") is not None:
+            children_list = []
+            for children in temp.get("children"):
+                if user_doc.get("role_name") in temp.get("meta").get("roles"):
+                    children_list.append(children)
+            temp["children"] = children_list
+        ui_route_list.append(temp)
+    return ui_route_list

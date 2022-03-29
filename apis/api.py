@@ -1,9 +1,15 @@
+
 import os
 import sys
 import threading
 
 if f"{os.getcwd()}/apis" not in sys.path:
     sys.path.insert(1, f"{os.getcwd()}/apis")
+
+import config
+if config.get("DEBUG") is False:
+    import eventlet
+    eventlet.monkey_patch(socket=True, select=True, thread=True)
 
 import traceback
 from os.path import isfile
@@ -19,8 +25,6 @@ from sqlalchemy_utils import database_exists, create_database
 from werkzeug.routing import IntegerConverter
 
 import plugins
-from plugins import sideex, postman
-import config
 import migrate
 import model
 import system
@@ -33,9 +37,9 @@ from jsonwebtoken import jsonwebtoken
 from model import db
 from resources import logger, role as role, activity, starred_project, devops_version, cicd
 from resources import project, gitlab, issue, user, redmine, wiki, version, apiTest, mock, harbor, \
-    template, release, sync_redmine, plugin, kubernetesClient, project_permission, quality, sync_project, \
+    template, release, sync_redmine, plugin, kubernetesClient, project_permission, quality, \
     sync_user, router, deploy, alert, trace_order, tag, lock, system_parameter, alert_message, \
-    maintenance, issue_display_field, notification_message, project_relation
+    maintenance, issue_display_field, notification_message
 from apispec import APISpec
 from flask_apispec.extension import FlaskApiSpec
 from apispec.ext.marshmallow import MarshmallowPlugin
@@ -43,8 +47,13 @@ from apispec.ext.marshmallow import MarshmallowPlugin
 # This import will merge to the above one after all API move to V2.
 from urls.project import project_url
 from urls.issue import issue_url
+from urls.user import user_url
+from urls.tag import tag_url
+from urls.lock import lock_url
 from urls.sync_projects import sync_projects_url
+from urls.router import router_url
 from urls import monitoring
+from urls.system_parameter import sync_system_parameter_url
 
 
 app = Flask(__name__)
@@ -67,6 +76,7 @@ app.config.update({
     'APISPEC_SWAGGER_URL': '/swagger/',  # URI to access API Doc JSON
     'APISPEC_SWAGGER_UI_URL': '/swagger-ui/'  # URI to access UI of API Doc
 })
+
 docs = FlaskApiSpec(app)
 
 
@@ -85,11 +95,17 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     "pool_recycle": 60,
     'pool_timeout': 300
 }
+app.config['MAX_CONTENT_LENGTH'] = 20 * 1000 * 1000
 
 api = Api(app, errors=apiError.custom_errors)
 CORS(app)
-socketio = SocketIO(app, message_queue='redis://devops-redis-service:6379', cors_allowed_origins="*",
-                    logger=True, engineio_logger=True, timeout=60000)
+
+if config.get("DEBUG") is False:
+    socketio = SocketIO(app, message_queue=f'redis://{config.get("REDIS_BASE_URL")}', cors_allowed_origins="*",
+                        logger=False, engineio_logger=False, timeout=60000)
+else:
+    socketio = SocketIO(app, cors_allowed_origins="*",
+                        logger=True, engineio_logger=True, timeout=60000)
 
 
 class SignedIntConverter(IntegerConverter):
@@ -205,35 +221,16 @@ def initialize(db_uri):
     logger.logger.info('Server initialized.')
 
 
-api.add_resource(router.Router, '/router')
-api.add_resource(router.RouterNameV2, '/v2/router/name')
-add_resource(router.RouterNameV2, "public")
-api.add_resource(router.UserRouteV2, '/v2/router/user_route')
-add_resource(router.UserRouteV2, "public")
+router_url(api, add_resource)
 
+# Git
 api.add_resource(project.GitRepoIdToCiPipeId,
                  '/git_repo_id_to_ci_pipe_id/<repository_id>')
+api.add_resource(project.GitRepoIdToCiPipeIdV2,
+                 '/v2/git_repo_id_to_ci_pipe_id/<repository_id>')
+add_resource(project.GitRepoIdToCiPipeIdV2, 'public')
 
 # Projects
-
-api.add_resource(project.SingleProjectByName,
-                 '/project_by_name/<project_name>')
-api.add_resource(project.ProjectUserList,
-                 '/project/<sint:project_id>/user/list')
-api.add_resource(project.ProjectPluginPod,
-                 '/project/<sint:project_id>/plugin')
-api.add_resource(project.ProjectPluginUsage,
-                 '/project/<sint:project_id>/plugin/resource')
-api.add_resource(project.ProjectUserResource,
-                 '/project/<sint:project_id>/resource')
-
-api.add_resource(project.ProjectUserResourcePods,
-                 '/project/<sint:project_id>/resource/pods')
-api.add_resource(project.ProjectUserResourcePod,
-                 '/project/<sint:project_id>/resource/pods/<pod_name>')
-api.add_resource(project.ProjectUserResourcePodLog,
-                 '/project/<sint:project_id>/resource/pods/<pod_name>/log')
-
 api.add_resource(starred_project.StarredProject,
                  '/project/<sint:project_id>/star')
 
@@ -249,53 +246,13 @@ api.add_resource(gitlab.SyncGitCommitIssueRelation,
                  '/project/<sint:project_id>/issues_commit/<issue_id>',
                  )
 api.add_resource(gitlab.GetCommitIssueHookByBranch, '/project/<sint:project_id>/issues_commit/by_branch')
-api.add_resource(project.ProjectRelation, '/project/<sint:project_id>/relation')
 
 project_url(api, add_resource)
 
 # Tag
-api.add_resource(tag.Tags, '/tags')
-api.add_resource(tag.Tag, '/tags/<int:tag_id>')
-api.add_resource(tag.UserTags, '/user/tags')
+tag_url(api, add_resource)
 
 
-# k8s Deployment
-api.add_resource(project.ProjectUserResourceDeployments,
-                 '/project/<sint:project_id>/resource/deployments')
-api.add_resource(project.ProjectUserResourceDeployment,
-                 '/project/<sint:project_id>/resource/deployments/<deployment_name>')
-
-# List k8s Services
-api.add_resource(project.ProjectUserResourceServices,
-                 '/project/<sint:project_id>/resource/services')
-api.add_resource(project.ProjectUserResourceService,
-                 '/project/<sint:project_id>/resource/services/<service_name>')
-
-# k8s Secrets
-api.add_resource(project.ProjectUserResourceSecrets,
-                 '/project/<sint:project_id>/resource/secrets')
-api.add_resource(project.ProjectUserResourceSecret,
-                 '/project/<sint:project_id>/resource/secrets/<secret_name>')
-
-# k8s ConfigMaps
-api.add_resource(project.ProjectUserResourceConfigMaps,
-                 '/project/<sint:project_id>/resource/configmaps')
-api.add_resource(project.ProjectUserResourceConfigMap,
-                 '/project/<sint:project_id>/resource/configmaps/<configmap_name>')
-
-# k8s Ingress
-api.add_resource(project.ProjectUserResourceIngresses,
-                 '/project/<sint:project_id>/resource/ingresses')
-
-api.add_resource(project.ProjectMember, '/project/<sint:project_id>/member',
-                 '/project/<sint:project_id>/member/<int:user_id>')
-api.add_resource(wiki.ProjectWikiList, '/project/<sint:project_id>/wiki')
-api.add_resource(wiki.ProjectWiki,
-                 '/project/<sint:project_id>/wiki/<wiki_name>')
-api.add_resource(version.ProjectVersionList,
-                 '/project/<sint:project_id>/version/list')
-api.add_resource(version.ProjectVersion, '/project/<sint:project_id>/version',
-                 '/project/<sint:project_id>/version/<int:version_id>')
 api.add_resource(template.TemplateList, '/template_list')
 api.add_resource(template.TemplateListForCronJob, '/template_list_for_cronjob')
 api.add_resource(template.SingleTemplate, '/template',
@@ -304,10 +261,6 @@ api.add_resource(template.ProjectPipelineBranches,
                  '/project/<repository_id>/pipeline/branches')
 api.add_resource(template.ProjectPipelineDefaultBranch,
                  '/project/<repository_id>/pipeline/default_branch')
-api.add_resource(project.ProjectEnvironment, '/project/<sint:project_id>/environments',
-                 '/project/<sint:project_id>/environments/branch/<branch_name>')
-api.add_resource(project.ProjectEnvironmentUrl,
-                 '/project/<sint:project_id>/environments/branch/<branch_name>/urls')
 
 # Gitlab project
 api.add_resource(gitlab.GitProjectBranches,
@@ -332,20 +285,11 @@ api.add_resource(gitlab.GitProjectId, '/repositories/<repository_id>/id')
 api.add_resource(gitlab.GitProjectIdFromURL, '/repositories/id')
 api.add_resource(gitlab.GitProjectURLFromId, '/repositories/url')
 api.add_resource(gitlab.GitlabDomainConnection, '/repositories/is_ip', '/repositories/connection')
+api.add_resource(gitlab.GitlabDomainStatus, '/repositories/connection/status')
 
 
 # User
-api.add_resource(user.Login, '/user/login')
-# input api in swagger (for swagger)
-api.add_resource(user.LoginV2, '/v2/user/login')
-add_resource(user.LoginV2, "public")
-
-
-# api.add_resource(user.UserForgetPassword, '/user/forgetPassword')
-api.add_resource(user.UserStatus, '/user/<int:user_id>/status')
-api.add_resource(user.SingleUser, '/user', '/user/<int:user_id>')
-api.add_resource(user.UserList, '/user/list')
-api.add_resource(user.UserSaConfig, '/user/<int:user_id>/config')
+user_url(api, add_resource)
 
 # Role
 api.add_resource(role.RoleList, '/user/role/list')
@@ -508,10 +452,6 @@ api.add_resource(apiTest.TestValueByTestItem,
 api.add_resource(apiTest.TestValue, '/testValues/<value_id>')
 
 # Integrated test results
-api.add_resource(project.TestSummary,
-                 '/project/<sint:project_id>/test_summary')
-api.add_resource(project.AllReports,
-                 '/project/<sint:project_id>/test_reports')
 api.add_resource(cicd.CommitCicdSummary,
                  '/project/<sint:project_id>/test_summary/<commit_id>')
 
@@ -521,7 +461,6 @@ api.add_resource(issue.DumpByIssue, '/dump_by_issue/<issue_id>')
 
 
 # Files
-api.add_resource(project.ProjectFile, '/project/<sint:project_id>/file')
 api.add_resource(redmine.RedmineFile, '/download', '/file/<int:file_id>')
 
 api.add_resource(redmine.RedmineMail, '/mail')
@@ -653,19 +592,31 @@ api.add_resource(alert.DefaultAlertDaysUpdate, '/alert/default_days')
 
 # Trace Order
 api.add_resource(trace_order.TraceOrders, '/trace_order')
+api.add_resource(trace_order.TraceOrdersV2, '/v2/trace_order')
+add_resource(trace_order.TraceOrdersV2, 'public')
+
 api.add_resource(trace_order.SingleTraceOrder, '/trace_order/<sint:trace_order_id>')
+api.add_resource(trace_order.SingleTraceOrderV2, '/v2/trace_order/<sint:trace_order_id>')
+add_resource(trace_order.SingleTraceOrderV2, 'public')
+
 api.add_resource(trace_order.ExecuteTraceOrder, '/trace_order/execute')
+api.add_resource(trace_order.ExecuteTraceOrderV2, '/v2/trace_order/execute')
+add_resource(trace_order.ExecuteTraceOrderV2, 'public')
+
 api.add_resource(trace_order.GetTraceResult, '/trace_order/result')
+api.add_resource(trace_order.GetTraceResultV2, '/v2/trace_order/result')
+add_resource(trace_order.GetTraceResultV2, 'public')
 
 # monitoring
 monitoring.monitoring_url(api, add_resource)
 
 # System parameter
+sync_system_parameter_url(api, add_resource)
 api.add_resource(system_parameter.SystemParameters, '/system_parameter', '/system_parameter/<int:param_id>')
 api.add_resource(system_parameter.ParameterGithubVerifyExecuteStatus, '/system_parameter/github_verify/status')
 
 # Status of Sync
-api.add_resource(lock.LockStatus, '/lock')
+lock_url(api, add_resource)
 
 # Alert message
 api.add_resource(alert_message.AlertMessages, '/alert_message')
@@ -694,6 +645,7 @@ def start_prod():
         logger.logger.info('Get the public and local template list')
         plugins.create_plugins_api_router(api)
         plugins.sync_plugins_in_db_and_code()
+        router.load_ui_route()
         with app.app_context():  # Prevent error appear(Working outside of application context.)
             kubernetesClient.create_cron_secret()
         return app

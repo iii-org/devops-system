@@ -47,6 +47,7 @@ class User(db.Model):
     department = Column(String(300))
     plugin_relation = relationship('UserPluginRelation', uselist=False)
     project_role = relationship('ProjectUserRole', back_populates='user')
+    last_login = Column(DateTime)
 
     def __repr__(self):
         fields = {}
@@ -98,6 +99,8 @@ class Project(db.Model):
     trace_order = relationship('TraceOrder', backref='project')
     is_lock = Column(Boolean, default=False)
     lock_reason = Column(String)
+    base_example = Column(String)
+    example_tag = Column(String)
 
     def __repr__(self):
         fields = {}
@@ -130,6 +133,7 @@ class Release(db.Model):
         User.id, ondelete='SET NULL'), nullable=True)
     create_at = Column(DateTime)
     update_at = Column(DateTime)
+    image_paths = Column(postgresql.ARRAY(String))
 
 
 class PluginSoftware(db.Model):
@@ -234,6 +238,7 @@ class TestResults(db.Model):
     total = Column(Integer)
     fail = Column(Integer)
     run_at = Column(DateTime)
+    logs = Column(String)
 
 
 class TestValues(db.Model):
@@ -713,9 +718,9 @@ class AlertMessage(db.Model):
     @validates("resource_type")
     def validate_resource_type(self, key, resource_type):
         if resource_type is not None:
-            if resource_type not in ["system", "k8s", "redmine", "gitlab", "harbor", "sonarqube", "rancher", "github"]:
+            if resource_type not in ["system", "kubernetes", "redmine", "gitlab", "harbor", "sonarqube", "rancher", "github"]:
                 raise AssertionError(
-                    "Resource_type must in system / k8s / redmine / gitlab / harbor / sonarqube / rancher / github.")
+                    "Resource_type must in system / kubernetes / redmine / gitlab / harbor / sonarqube / rancher / github.")
         return resource_type
 
 
@@ -808,13 +813,9 @@ class NotificationMessage(db.Model):
     id = Column(Integer, primary_key=True)
     alert_level = Column(Integer, nullable=False)
     message = Column(String, nullable=False)
-    type_id = Column(Integer, nullable=False)
-    type_parameter = Column(JSON)
     creator_id = Column(Integer, ForeignKey(User.id, ondelete='SET NULL'), nullable=True)
     created_at = Column(DateTime)
     updated_at = Column(DateTime)
-
-    __mapper_args__ = {"order_by": id.desc()}
 
     def __repr__(self):
         fields = {}
@@ -836,6 +837,12 @@ class NotificationMessageReply(db.Model):
     created_at = Column(DateTime)
 
 
+class NotificationMessageRecipient(db.Model):
+    message_id = Column(Integer, ForeignKey(NotificationMessage.id, ondelete='CASCADE'), primary_key=True)
+    type_id = Column(Integer, nullable=False, primary_key=True)
+    type_parameter = Column(JSON)
+
+
 class ProjectParentSonRelation(db.Model):
     id = Column(Integer, primary_key=True)
     parent_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
@@ -843,27 +850,8 @@ class ProjectParentSonRelation(db.Model):
     created_at = Column(DateTime)
 
 
-class UIRoute(db.Model):
-    id = Column(Integer, primary_key=True)
-    route_name = Column(String, nullable=False, unique=True)
+class UIRouteJson(db.Model):
+    name = Column(String, primary_key=True)
+    ui_route = Column(JSON)
     created_at = Column(DateTime)
     updated_at = Column(DateTime)
-
-    def __repr__(self):
-        fields = {}
-        for field in [x for x in dir(self) if
-                      not x.startswith('query') and not x.startswith('_') and x != 'metadata']:
-            data = self.__getattribute__(field)
-            try:
-                # this will fail on unencodable values, like other classes
-                json.dumps(data)
-                fields[field] = data
-            except TypeError:
-                fields[field] = str(data)
-        return json.dumps(fields)
-
-
-class UIRouteUserRoleRelation(db.Model):
-    ui_route_id = Column(Integer, ForeignKey(UIRoute.id, ondelete='CASCADE'), primary_key=True)
-    user_role = Column(Integer, primary_key=True)
-    created_at = Column(DateTime)

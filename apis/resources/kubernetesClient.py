@@ -694,10 +694,10 @@ def get_service_account_config(sa_name):
         server_ip = str(list_nodes[0]['ip'])
     sa_secret = api_k8s_client.read_namespaced_secret(sa_secrets_name,
                                                       "account")
-    sa_ca = sa_secret.data['ca.crt']
+    # sa_ca = sa_secret.data['ca.crt']
     sa_token = str(
         base64.b64decode(str(sa_secret.data['token'])).decode('utf-8'))
-    sa_config = "apiVersion: v1\nclusters:\n- cluster:\n    certificate-authority-data: " + sa_ca + "\n    server: https://" + server_ip + ":6443" + \
+    sa_config = "apiVersion: v1\nclusters:\n- cluster:\n    insecure-skip-tls-verify: true\n    server: https://" + server_ip + ":6443" + \
                 "\n  name: cluster\ncontexts:\n- context:\n    cluster: cluster\n    user: " + sa_name + "\n  name: default\ncurrent-context: default\nkind: Config\npreferences: {}\nusers:\n- name: " + sa_name + \
                 "\n  user:\n    token: " + sa_token
     k8s_sa_config = {'name': sa_name, 'config': sa_config}
@@ -1715,12 +1715,17 @@ class KubernetesPodExec(Namespace):
             self.k8s_pod_exec = K8sPodExec(data)
         self.k8s_pod_exec.exec_namespace_pod(data)
 
-
+# Only run it when server is redeployed
 def create_cron_secret():
-    if read_namespace_secret("default", "cornjob-bot") is None:
-        token = create_access_token(identity={"type": "cornjob_token"}, expires_delta=timedelta(days=36500))
-        create_namespace_secret(
-            "default", "cornjob-bot", {'cornjob-token': token})
+    '''
+    If we not replace the old token when server is redeployed, 
+        token sometime can not be used.
+    '''
+    if read_namespace_secret("default", "cornjob-bot") is not None:
+        delete_namespace_secret("default", "cornjob-bot")
+    token = create_access_token(identity={"type": "cornjob_token"}, expires_delta=timedelta(days=36500))
+    create_namespace_secret(
+        "default", "cornjob-bot", {'cornjob-token': token})
 
 # gitlab ingress body
 

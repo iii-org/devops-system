@@ -5,22 +5,23 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-import nexus
-from model import Project
 import config
 import dateutil.parser
+import nexus
 import resources.apiError as apiError
 import resources.pipeline as pipeline
 import resources.role as role
-from resources.gitlab import gitlab as rs_gitlab
 import resources.yaml_OO as pipeline_yaml_OO
-from resources import logger
 import util
 import yaml
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
 from gitlab import Gitlab
-from model import PluginSoftware, TemplateListCache, db
+from gitlab.exceptions import GitlabGetError
+from model import PluginSoftware, Project, TemplateListCache, db
+from resources import logger
+from resources.apiError import DevOpsError
+from resources.gitlab import gitlab as rs_gitlab
 
 template_replace_dict = {
     "registry": config.get("HARBOR_EXTERNAL_BASE_URL").replace("https://", ""),
@@ -285,6 +286,13 @@ def __update_stage_when_plugin_disable(stage):
     return stage
 
 
+def lock_project(pj_name, info):
+    pj_row = Project.query.filter_by(name=pj_name).first()
+    pj_row.is_lock = True
+    pj_row.lock_reason = f"The {info} softwares of the {pj_name} project has been deleted."
+    db.session.commit()
+
+
 def tm_get_template_list(force_update=0):
     one_day_ago = datetime.fromtimestamp(datetime.utcnow().timestamp() - 86400)
     total_data = TemplateListCache.query.all()
@@ -321,6 +329,10 @@ def tm_get_template_list(force_update=0):
                     "description": data.description,
                     "version": data.version
                 })
+
+        output[0]["options"].sort(key=lambda x: x["display"])
+        output[1]["options"].sort(key=lambda x: x["display"])
+        
         return output
 
 
@@ -333,6 +345,8 @@ def tm_get_template(repository_id, tag_name):
         output["arguments"] = pip_set_json["arguments"]
     return output
 
+def get_projects_detail(template_repository_id):
+    return gl.projects.get(template_repository_id)
 
 def tm_use_template_push_into_pj(template_repository_id, user_repository_id,
                                  tag_name, arguments):
@@ -434,6 +448,7 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id,
 
 
 def tm_get_pipeline_branches(repository_id, all_data=False):
+
     out = {}
     duplicate_tools = {}
     all_branch = []
@@ -517,13 +532,31 @@ def get_tool_name(stage):
                 tool_name = "deployed-environments"
     return tool_name
 
+def handle_stage_format_helper(stage, column):
+    if isinstance(stage.get(column), dict):
+        return True
+    elif isinstance(stage.get(column), list):
+        return stage[column]
+    else:
+        return []
+
+def handle_stage_format(stage):
+    stage_copy = stage.copy()
+    for column in ["when", "branch", "include"]:
+        ret = handle_stage_format_helper(stage_copy, column)
+        if ret is True:
+            stage_copy = stage_copy.get(column)
+        else:
+            return ret
+    return []
+
 
 def update_branches(stage, pipline_soft, branch, enable_key_name):
     had_update_branche = False
     if get_tool_name(stage) is not None and pipline_soft["key"] == get_tool_name(stage):
         if "when" not in stage:
             stage["when"] = {"branch": {"include": []}}
-        stage_when = stage.get("when", {}).get("branch", {}).get("include", {})
+        stage_when = handle_stage_format(stage)
         if pipline_soft[enable_key_name] and branch not in stage_when:
             stage_when.append(branch)
             had_update_branche = True
@@ -536,6 +569,7 @@ def update_branches(stage, pipline_soft, branch, enable_key_name):
         elif len(stage_when) > 1 and "skip" in stage_when:
             stage_when.remove("skip")
             had_update_branche = True
+        stage["when"] = {"branch": {"include": stage_when}}
     return had_update_branche
 
 
@@ -576,7 +610,16 @@ def tm_update_pipline_branches(repository_id, data, default=True, run=False):
 
 
 def initial_rancher_pipline_info(repository_id):
-    pj = gl.projects.get(repository_id)
+    try:
+        pj = gl.projects.get(repository_id)
+    except GitlabGetError as e:
+        if 'Project Not Found' in e.error_message:
+            lock_project(nexus.nx_get_project(
+                id=nexus.nx_get_project_plugin_relation(repo_id=repository_id).project_id).name, "Gitlab")
+        raise DevOpsError(
+            404,
+            "Gitlab project not found.",
+            error=apiError.repository_id_not_found(repository_id))
     if __check_git_project_is_empty(pj):
         return {}
     default_branch = pj.default_branch
@@ -783,7 +826,9 @@ class ProjectPipelineBranches(Resource):
         parser.add_argument('detail', type=dict)
         parser.add_argument('run', type=bool)
         args = parser.parse_args()
-
+        print("-------------------")
+        print(args)
+        print("-------------------")
         # Remove duplicate args
         for branch, pip_info in args["detail"].items():
             args["detail"][branch] = [dict(t) for t in {tuple(d.items()) for d in pip_info}]

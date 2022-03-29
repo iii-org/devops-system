@@ -95,7 +95,7 @@ def clear_all_tables():
 
 def sync_redmine(sync_date):
     need_to_track_issue = []
-    all_projects = get_project_list(user_id=get_admin_user_id(), role="pm")
+    all_projects = get_project_list(user_id=get_admin_user_id(), role="pm", sync=True)
     if all_projects:
         for project in all_projects:
             project_status = project['project_status']
@@ -192,7 +192,8 @@ def insert_all_issues(project_id, sync_date):
             model.db.session.commit()
         except IntegrityError:
             model.db.session.rollback()
-            continue
+        finally:
+            model.db.session.close()
     # issues_list.append(new_issue)
     # model.db.session.add_all(issues_list)
     # model.db.session.commit()
@@ -305,6 +306,8 @@ def update_lock_redmine(is_lock=None, sync_date=None):
     db.session.commit()
 
 # --------------------- API Tasks ---------------------
+
+
 def init_data_first_time():
     '''
     Use for the first time to sync redmine(Alembic migratation)

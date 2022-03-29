@@ -4,6 +4,7 @@ from datetime import datetime
 from accessories import redmine_lib
 from sqlalchemy.orm import joinedload
 from resources import role
+from model import db
 
 
 def get_plan_id(project_id):
@@ -23,6 +24,9 @@ def get_project_id(plan_id):
     else:
         return -1
 
+def get_project_name(project_id):
+    return model.Project.query.get(project_id).display
+
 
 def get_all_fathers_project(project_id, father_id_list):
     parent_son_relations_object = model.ProjectParentSonRelation.query.filter_by(son_id=project_id).first()
@@ -40,6 +44,19 @@ def get_all_sons_project(project_id, son_id_list):
     for id in son_ids:
         get_all_sons_project(id, son_id_list)
     return son_id_list
+
+
+def get_all_relation_project(project_id):
+    all_relation_pj_ids = get_all_fathers_project(project_id, []) + get_all_sons_project(project_id, [])
+    ret = [
+        {
+            "id": int(pj_id), 
+            "name": model.Project.query.get(pj_id).name,
+            "display": model.Project.query.get(pj_id).display,
+        } for pj_id in all_relation_pj_ids]
+    ret.sort(key=lambda x: x["display"])
+    return ret
+
 
 def is_user_in_project(project_id, force):
     if force:
@@ -62,7 +79,7 @@ def project_has_parent(project_id):
     return model.ProjectParentSonRelation.query.filter_by(son_id=project_id).first() is not None
     
 def get_relation_list(project_id, ret):
-    son_project_ids = [relation.son_id for relation in model.ProjectParentSonRelation.query. \
+    son_project_ids = [{"id": relation.son_id, "name": get_project_name(relation.son_id)} for relation in model.ProjectParentSonRelation.query. \
         filter_by(parent_id=project_id).all()]
     son_pj_ids = []
     if son_project_ids != []:
@@ -73,14 +90,15 @@ def get_relation_list(project_id, ret):
             user_id = get_jwt_identity()["user_id"]
             son_pj_ids = [
                 son_pj_id for son_pj_id in son_project_ids if model.ProjectUserRole.query. \
-                    filter_by(user_id=user_id, project_id=son_pj_id).first() is not None]
+                    filter_by(user_id=user_id, project_id=son_pj_id["id"]).first() is not None]
+            
         
         ret.append({
-            "parent": project_id,
+            "parent": {"id": project_id, "name": get_project_name(project_id)},
             "child": son_pj_ids
         })
-    for pj_id in son_pj_ids:
-        get_relation_list(pj_id, ret)
+    for pj in son_pj_ids:
+        get_relation_list(pj["id"], ret)
     return ret
 
 
@@ -92,13 +110,14 @@ def sync_project_relation():
     default_sync_date = datetime.utcnow()
     current_hour = default_sync_date.hour
     project_relations = model.ProjectParentSonRelation.query.limit(1).all()
-    if len(project_relations) == 0 and current_hour % hours != 0:
+    if current_hour % hours != 0:
         return 
     
-    latest_created_at = project_relations[0].created_at.hour
-    current_hour = current_hour if current_hour > latest_created_at else current_hour + 24
-    if (current_hour - latest_created_at) % hours != 0:
-        return
+    if len(project_relations) != 0:
+        latest_created_at = project_relations[0].created_at.hour
+        current_hour = current_hour if current_hour > latest_created_at else current_hour + 24
+        if (current_hour - latest_created_at) % hours != 0:
+            return
 
     default_sync_date = default_sync_date.strftime("%Y-%m-%d %H:%M:%S")
     project_relations = []
@@ -152,3 +171,12 @@ def get_project_family_members_by_user(project_id):
         "role_id": relation_row.role_id,
         "role_name": role.get_role_name(relation_row.role_id)
     } for relation_row in user_list]
+
+
+def remove_relation(project_id, parent_id):
+    plan_project_id = model.ProjectPluginRelation.query.filter_by(project_id=project_id).first().plan_project_id
+    project_relation = model.ProjectParentSonRelation.query.filter_by(parent_id=parent_id, son_id=project_id)
+    if project_relation.first() is not None:
+        redmine_lib.redmine.project.update(plan_project_id, parent_id="")
+        project_relation.delete()
+        db.session.commit()

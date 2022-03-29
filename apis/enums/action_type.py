@@ -1,5 +1,37 @@
 from enum import Enum
 
+'''
+加完action_type之後, 要在ablemic中migrate中手動建立一個新的action_type出來, 
+然後進行升版
+
+ """add_activity_enum_modify_hook
+
+Revision ID: daaf84c340cd
+Revises: 1f0e2963b684
+Create Date: 2022-01-07 14:29:18.562814
+
+"""
+from alembic import op
+import sqlalchemy as sa
+
+
+# revision identifiers, used by Alembic.
+revision = 'daaf84c340cd'
+down_revision = '1f0e2963b684'
+branch_labels = None
+depends_on = None
+
+
+def upgrade():
+    with op.get_context().autocommit_block():
+        op.execute("ALTER TYPE actiontype ADD VALUE IF NOT EXISTS 'NEW_ACTION_TYPE_NAME'")
+
+
+def downgrade():
+    # We won't put things back
+    pass
+
+'''
 
 class ActionType(Enum):
     CREATE_PROJECT = 1  # Must return a dict with key "project_id"
@@ -14,3 +46,4 @@ class ActionType(Enum):
     ADD_TAG = 10  # Requires argument "project_id"
     DELETE_TAG = 11  # Requires argument "project_id"
     MODIFY_HOOK = 12 # Requires argument "issue_id"
+    RECREATE_PROJECT = 13  # Requires argument "project_id"

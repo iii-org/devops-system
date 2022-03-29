@@ -118,8 +118,8 @@ class NexusProject:
             ret['members'] = self.__project_members_dict.get(ret['id'], None)
         return ret
 
-    def fill_pm_extra_fields(self, rm_project, username):
-        project_issue_info = calculate_project_issues(rm_project, username)
+    def fill_pm_extra_fields(self, rm_project, username, sync=False):
+        project_issue_info = calculate_project_issues(rm_project, username, sync)
         self.__extra_fields['closed_count'] = project_issue_info["closed_count"]
         self.__extra_fields['overdue_count'] = project_issue_info["overdue_count"]
         self.__extra_fields['total_count'] = project_issue_info["total_count"]
@@ -127,42 +127,40 @@ class NexusProject:
         self.__extra_fields['updated_time'] = project_issue_info["updated_time"]
         return self
 
-    def fill_rd_extra_fields(self, user_id):
-        relation = nexus.nx_get_user_plugin_relation(user_id=user_id)
-        plan_user_id = relation.plan_user_id
-
-        extras = {
-            'issues': None,
-            'next_d_time': None,
-            'last_test_time': "",
-            'last_test_result': {}
-        }
-        all_issues = redmine_lib.redmine.issue.filter(
-            project_id=self.get_project_row().plugin_relation.plan_project_id,
-            assigned_to_id=plan_user_id,
-            status_id='*'
-        )
-        extras['issues'] = len(all_issues)
-
-        # get next_d_time
-        issue_due_date_list = []
-        for issue in all_issues:
-            if getattr(issue, 'due_date', None) is not None:
-                issue_due_date_list.append(issue.due_date)
-        next_d_time = None
-        if len(issue_due_date_list) != 0:
-            next_d_time = min(
-                issue_due_date_list,
-                key=lambda d: abs(d - date.today()))
-        if next_d_time is not None:
-            extras['next_d_time'] = next_d_time.isoformat()
-
-        extras.update(get_ci_last_test_result(self.get_project_row().plugin_relation))
-        self.__extra_fields.update(extras)
+    def fill_extra_fields(self):
+        self.__extra_fields.update(
+            get_ci_last_test_result(self.get_project_row().plugin_relation))
         return self
 
+def fill_rd_extra_fields(user_id, redmine_project_id):
+    plan_user_id = nexus.nx_get_user_plugin_relation(user_id=user_id).plan_user_id
+    user_name = model.User.query.get(user_id).login
+    extras = {
+        'issues': None,
+        'next_d_time': None
+    }
+    all_issues = redmine_lib.rm_impersonate(user_name).issue.filter(
+            project_id=redmine_project_id,
+            assigned_to_id=plan_user_id,
+            status_id='*'
+    )
+    extras['issues'] = len(all_issues)
+    # get next_d_time
+    issue_due_date_list = []
+    for issue in all_issues:
+        if getattr(issue, 'due_date', None) is not None:
+            issue_due_date_list.append(issue.due_date)
+    next_d_time = None
+    if len(issue_due_date_list) != 0:
+        next_d_time = min(
+            issue_due_date_list,
+            key=lambda d: abs(d - date.today()))
+    if next_d_time is not None:
+        extras['next_d_time'] = next_d_time.isoformat()
+    return extras
 
-def calculate_project_issues(rm_project, username):
+
+def calculate_project_issues(rm_project, username, sync=False):
     ret = {}
     updated_on, project_id = rm_project["updated_on"], rm_project["id"]
     if project_id == -1:
@@ -175,7 +173,12 @@ def calculate_project_issues(rm_project, username):
 
     total_count = closed_count = overdue_count = 0
 
-    rm_issues = redmine_lib.rm_impersonate(username).issue.filter(
+    if sync:
+        redmine_obj = redmine_lib.redmine
+    else:
+        redmine_obj = redmine_lib.rm_impersonate(username)
+    
+    rm_issues = redmine_obj.issue.filter(
         status_id='*', project_id=project_id, sort="updated_on:desc")
     total_count = len(rm_issues)
     if total_count == 0:
@@ -183,11 +186,11 @@ def calculate_project_issues(rm_project, username):
     else:
         updated_on = max(rm_issues[0].updated_on, updated_on)
 
-        close_rm_issues = redmine_lib.rm_impersonate(username).issue.filter(
+        close_rm_issues = redmine_obj.issue.filter(
             status_id=redmine_lib.STATUS_ID_ISSUE_CLOSED, project_id=project_id)
         closed_count = len(close_rm_issues)
 
-        overdue_rm_issues = redmine_lib.rm_impersonate(username).issue.filter(
+        overdue_rm_issues = redmine_obj.issue.filter(
             due_date=f"<={date.today()}", project_id=project_id)
         overdue_count = len(overdue_rm_issues)
 

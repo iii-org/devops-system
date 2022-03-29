@@ -6,8 +6,7 @@ import nexus
 import kubernetes
 from Cryptodome.Hash import SHA256
 from flask_jwt_extended import (
-    create_access_token, JWTManager, jwt_required, get_jwt_identity)
-from flask_restful import Resource, reqparse
+    create_access_token, JWTManager, get_jwt_identity)
 from sqlalchemy import inspect, or_
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.exc import NoResultFound
@@ -28,9 +27,8 @@ from resources.gitlab import gitlab
 from resources.logger import logger
 from resources.redmine import redmine
 from resources.project import get_project_list
-import resources.api_model
-from flask_apispec import marshal_with, doc, use_kwargs
-from flask_apispec.views import MethodResource
+import resources
+from sqlalchemy import desc
 
 # Make a regular expression
 default_role_id = 3
@@ -165,16 +163,25 @@ def get_access_token(id, login, role_id, from_ad=True):
     return token
 
 
+def verify_password(db_password, login_password):
+    is_verify = True
+    h = SHA256.new()
+    h.update(login_password.encode())
+    hex_login_password = h.hexdigest()
+    if db_password != hex_login_password:
+        is_verify = False
+    return is_verify, hex_login_password
+
+
 def check_db_login(user, password, output):
     project_user_role = db.session.query(model.ProjectUserRole).filter(
         model.ProjectUserRole.user_id == user.id).first()
-    h = SHA256.new()
-    h.update(password.encode())
-    login_password = h.hexdigest()
-    output['hex_password'] = login_password
+    is_password_verify, hex_login_password = verify_password(user.password, password)
+    output['hex_password'] = hex_login_password
     output['from_ad'] = user.from_ad
     output['role_id'] = project_user_role.role_id
-    if user.password == login_password:
+    output['is_password_verify'] = is_password_verify
+    if is_password_verify and user.disabled is False:
         output['is_pass'] = True
         logger.info("User Login success by DB user_id: {0}".format(user.id))
     else:
@@ -188,8 +195,7 @@ def login(args):
     user = db.session.query(model.User).filter(
         model.User.login == login_account).first()
     try:
-        if user is not None and user.disabled:
-            return util.respond(401, "User is disabled, Please contact system administrator.")
+
         ad_info = {'is_pass': False,
                    'login': login_account, 'data': {}}
 
@@ -202,12 +208,14 @@ def login(args):
         db_info = {'connect': False,
                    'login': login_account,
                    'is_pass': False,
+                   'is_password_verify': False,
                    'User': {}, 'ProjectUserRole': {}}
         # Check User in DB
         if user is not None:
             db_info['connect'] = True
             db_info, user, project_user_role = check_db_login(
                 user, login_password, db_info)
+
         # Login By AD
         if ad_info['is_pass'] is True:
             status, token = ldap_api.login_by_ad(
@@ -215,13 +223,19 @@ def login(args):
             if token is None:
                 return util.respond(401, "Error when logging in. Please contact system administrator",
                                     error=apiError.ad_account_not_allow())
-            else:
+            # User First Login
+            elif user is None:
                 return util.success({'status': status, 'token': token, 'ad_info': ad_info})
+            else:
+                save_last_login(user)
+                return util.success({'status': status, 'token': token, 'ad_info': ad_info})
+
         # Login By Database
         elif db_info['is_pass'] is True and db_info['from_ad'] is False:
             status = "DB Login"
             token = get_access_token(
                 user.id, user.login, project_user_role.role_id, user.from_ad)
+            save_last_login(user)
             return util.success({'status': status, 'token': token, 'ad_info': ad_info})
         else:
             return util.respond(401, "Error when logging in.", error=apiError.wrong_password())
@@ -237,28 +251,24 @@ def user_forgot_password(args):
 @record_activity(ActionType.UPDATE_USER)
 def update_user(user_id, args, from_ad=False):
     user = model.User.query.filter_by(id=user_id).first()
-
     if 'role_id' in args:
         update_user_role(user_id, args.get('role_id'))
-
+    user_role_id = -1
+    jwt_token = get_jwt_identity()
+    if jwt_token is not None:
+        user_role_id = jwt_token.get('role_id')
     new_email = None
     new_password = None
-    if user.from_ad and not from_ad:
-        if args.get('role_id', None) is None:
-            return util.respond(400, 'Error when updating Message',
-                                error=apiError.user_from_ad(user_id))
-        else:
-            return util.success()
-
-    if args['password'] is not None:
+    # Change Password
+    if args.get('password') is not None:
         if args["old_password"] == args["password"]:
             return util.respond(400, "Password is not changed.", error=apiError.wrong_password())
-        if role.ADMIN.id != get_jwt_identity()['role_id']:
+        # Only Update password from ad trigger or syadmin can skip verify password
+        if role.ADMIN.id != user_role_id and not from_ad:
+            is_password_verify, hex_login_password = verify_password(user.password, args['old_password'])
             if args["old_password"] is None:
                 return util.respond(400, "old_password is empty", error=apiError.wrong_password())
-            h_old_password = SHA256.new()
-            h_old_password.update(args["old_password"].encode())
-            if user.password != h_old_password.hexdigest():
+            if is_password_verify is False:
                 return util.respond(400, "Password is incorrect", error=apiError.wrong_password())
         err = update_external_passwords(
             user_id, args["password"], args["old_password"])
@@ -267,39 +277,49 @@ def update_user(user_id, args, from_ad=False):
         h = SHA256.new()
         h.update(args["password"].encode())
         new_password = h.hexdigest()
-    if args["email"] is not None:
-        err = update_external_email(user_id, user.name, args['email'])
-        if err is not None:
-            logger.exception(err)
-        new_email = args['email']
+
     user = model.User.query.filter_by(id=user_id).first()
-    if new_password is not None:
-        user.password = new_password
-    if new_email is not None:
-        user.email = new_email
-    if args["name"] is not None:
-        user.name = args['name']
-        update_external_name(user_id, args['name'], user.login, user.email)
-    if args["phone"] is not None:
-        user.phone = args['phone']
-    if args["title"] is not None:
-        user.title = args['title']
-    if args["department"] is not None:
-        user.department = args['department']
-    if args.get("status", None) is not None:
-        if args.get("status", None) == "disable":
-            user.disabled = True
-            block_external_user(user_id)
-        else:
-            user.disabled = False
-            unblock_external_user(user_id)
-
-    if 'from_ad' in args and args['from_ad'] is True:
-        user.update_at = args['update_at']
+    # API update AD User only can update password
+    if user_role_id == role.ADMIN.id and not from_ad and user.from_ad:
+        if new_password is not None:
+            user.password = new_password
+        db.session.commit()
     else:
-        user.update_at = util.date_to_str(datetime.datetime.utcnow())
-    db.session.commit()
-
+        if new_password is not None:
+            user.password = new_password
+        # Change Email
+        if args["email"] is not None:
+            err = update_external_email(user_id, user.name, args['email'])
+            if err is not None:
+                logger.exception(err)
+            new_email = args['email']
+        if new_email is not None:
+            user.email = new_email
+        if args["name"] is not None:
+            user.name = args['name']
+            update_external_name(user_id, args['name'], user.login, user.email)
+        if args["phone"] is not None:
+            user.phone = args['phone']
+        if args["title"] is not None:
+            user.title = args['title']
+        if args["department"] is not None:
+            user.department = args['department']
+        if args.get("status", None) is not None:
+            if args.get("status", None) == "disable":
+                user.disabled = True
+                block_external_user(user_id)
+            else:
+                user.disabled = False
+                unblock_external_user(user_id)
+        if from_ad:
+            user.update_at = args['update_at']
+        else:
+            user.update_at = util.date_to_str(datetime.datetime.utcnow())
+        if user.from_ad and not from_ad:
+            return util.respond(400, 'Error when updating Message',
+                                error=apiError.user_from_ad(user_id))
+        else:
+            db.session.commit()
     return util.success()
 
 
@@ -623,7 +643,6 @@ def create_user(args):
             title = args['title']
         if 'department' in args:
             department = args['department']
-
         user = model.User(
             name=args['name'],
             email=args['email'],
@@ -638,7 +657,8 @@ def create_user(args):
         )
         if 'update_at' in args:
             user.update_at = args['update_at']
-
+        if 'last_login' in args:
+            user.last_login = args.get('last_login')
         db.session.add(user)
         db.session.commit()
 
@@ -682,7 +702,7 @@ def create_user(args):
 def user_list(filters):
     per_page = 10
     page_dict = None
-    query = model.User.query.filter(model.User.id != 1).order_by(model.User.id)
+    query = model.User.query.filter(model.User.id != 1).order_by(desc(model.User.create_at))
     if 'role_ids' in filters:
         filtered_user_ids = model.ProjectUserRole.query.filter(
             model.ProjectUserRole.role_id.in_(filters['role_ids'])
@@ -778,115 +798,8 @@ def user_sa_config(user_id):
     return util.success(sa_config)
 
 
-# --------------------- Resources ---------------------
-@doc(tags=['Login'],description='Login API')
-@use_kwargs(resources.api_model.LoginSchema, location=('json'))
-@marshal_with(resources.api_model.LoginSuccessResponse)  # marshalling
-class LoginV2(MethodResource):
-    # noinspection PyMethodMayBeStatic
-    def post(self,**kwargs):
-        return login(kwargs)
+def save_last_login(user):
 
-class Login(Resource):
-    # noinspection PyMethodMayBeStatic
-    def post(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument('username', type=str, required=True)
-        parser.add_argument('password', type=str, required=True)
-        args = parser.parse_args()
-        return login(args)        
-
-
-# class UserForgetPassword(Resource):``
-#     # noinspection PyMethodMayBeStatic
-#     def post(self):
-#         parser = reqparse.RequestParser()
-#         parser.add_argument('mail', type=str, required=True)
-#         parser.add_argument('user_account', type=str, required=True)
-#         args = parser.parse_args()
-#         status = user_forgot_password(args)
-#         return util.success(status)
-
-
-class UserStatus(Resource):
-    @jwt_required
-    def put(self, user_id):
-        role.require_admin('Only admins can modify user.')
-        parser = reqparse.RequestParser()
-        parser.add_argument('status', type=str, required=True)
-        args = parser.parse_args()
-        return change_user_status(user_id, args)
-
-
-class SingleUser(Resource):
-    @jwt_required
-    def get(self, user_id):
-        role.require_user_himself(user_id, even_pm=False,
-                                  err_message="Only admin and PM can access another user's data.")
-        return util.success(NexusUser().set_user_id(user_id).to_json())
-
-    @jwt_required
-    def put(self, user_id):
-        role.require_user_himself(user_id)
-        parser = reqparse.RequestParser()
-        parser.add_argument('name', type=str)
-        parser.add_argument('password', type=str)
-        parser.add_argument('old_password', type=str)
-        parser.add_argument('phone', type=str)
-        parser.add_argument('email', type=str)
-        parser.add_argument('status', type=str)
-        parser.add_argument('department', type=str)
-        parser.add_argument('title', type=str)
-        parser.add_argument('role_id', type=int)
-        args = parser.parse_args()
-        return update_user(user_id, args)
-
-    @jwt_required
-    def delete(self, user_id):
-        role.require_admin("Only admin can delete user.")
-        return util.success(delete_user(user_id))
-
-    @jwt_required
-    def post(self):
-        role.require_admin('Only admins can create user.')
-        parser = reqparse.RequestParser()
-        parser.add_argument('name', type=str, required=True)
-        parser.add_argument('email', type=str, required=True)
-        parser.add_argument('phone', type=str)
-        parser.add_argument('login', type=str, required=True)
-        parser.add_argument('password', type=str, required=True)
-        parser.add_argument('role_id', type=int, required=True)
-        parser.add_argument('status', type=str)
-        parser.add_argument('force', type=bool)
-        args = parser.parse_args()
-        return util.success(create_user(args))
-
-
-class UserList(Resource):
-    @jwt_required
-    def get(self):
-        role.require_pm()
-        parser = reqparse.RequestParser()
-        parser.add_argument('role_ids', type=str)
-        parser.add_argument('page', type=int)
-        parser.add_argument('per_page', type=int)
-        parser.add_argument('search', type=str)
-        args = parser.parse_args()
-        filters = {}
-        if args['role_ids'] is not None:
-            filters['role_ids'] = json.loads(f'[{args["role_ids"]}]')
-        if args['page'] is not None:
-            filters['page'] = args['page']
-        if args['per_page'] is not None:
-            filters['per_page'] = args['per_page']
-        if args['search'] is not None:
-            filters['search'] = args['search']
-        return util.success(user_list(filters))
-
-
-class UserSaConfig(Resource):
-    @jwt_required
-    def get(self, user_id):
-        role.require_user_himself(user_id, even_pm=False,
-                                  err_message="Only admin and PM can access another user's data.")
-        return user_sa_config(user_id)
+    if user is not None:
+        user.last_login = datetime.datetime.utcnow()
+        db.session.commit()

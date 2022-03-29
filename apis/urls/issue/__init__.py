@@ -47,3 +47,5 @@ def issue_url(api, add_resource):
     api.add_resource(view.IssueCommitRelation, '/issue/relation')
     api.add_resource(view.IssueCommitRelationV2, '/v2/issue/relation')
     add_resource(view.IssueCommitRelationV2, 'public')
+    api.add_resource(view.SyncIssueFamiliesV2, '/v2/issue/sync_issue_families')
+    add_resource(view.SyncIssueFamiliesV2, 'public')

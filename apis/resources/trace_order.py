@@ -18,6 +18,12 @@ from accessories import redmine_lib
 from resources.redmine import redmine
 from resources.quality import qu_get_testfile_by_testplan
 from datetime import datetime
+from urls import route_model
+
+from flask_apispec import marshal_with, doc, use_kwargs
+from flask_apispec.views import MethodResource
+
+
 '''
 order_mapping
 "Epic": 需求規格
@@ -193,7 +199,7 @@ class TraceList:
 
     def __get_family(self, issue_id):
         redmine_issue = redmine_lib.redmine.issue.get(issue_id, include=['children', 'relations'])
-        return issue.get_issue_family(redmine_issue)
+        return issue.get_issue_family(redmine_issue, all=True, user_name='sysadmin')
 
     def __remove_id(self, id):
         if id in self.tracker_issue_list:
@@ -464,6 +470,21 @@ def initial_trace_result(project_id):
         db.session.commit()
 
 # --------------------- Resources ---------------------
+class TraceOrdersV2(MethodResource):
+    @doc(tags=['QA'], description="Get project's trace order list")
+    @use_kwargs(route_model.TraceOrdersSchema, location="query")
+    @marshal_with(route_model.TraceOrdersGetResponse)
+    def get(self, **kwargs):
+        return util.success(get_trace_order_by_project(kwargs["project_id"]))
+
+    @doc(tags=['QA'], description="Create project's trace order")
+    @use_kwargs(route_model.TraceOrdersPostSchema, location="json")
+    @marshal_with(route_model.TraceOrdersPostResponse)
+    @jwt_required
+    def post(self, **kwargs):
+        return util.success(create_trace_order_by_project(kwargs))
+
+
 class TraceOrders(Resource):
     def get(self):
         parser = reqparse.RequestParser()
@@ -481,6 +502,21 @@ class TraceOrders(Resource):
         args = parser.parse_args()
         return util.success(create_trace_order_by_project(args))
 
+class SingleTraceOrderV2(MethodResource):
+    @doc(tags=['QA'], description="Update project's trace order by trace_order_id")
+    @use_kwargs(route_model.TraceOrdersPutSchema, location="json")
+    @marshal_with(util.CommonResponse)
+    @jwt_required
+    def patch(self, trace_order_id, **kwargs):
+        args = {k: v for k, v in kwargs.items() if v is not None}
+        return util.success(update_trace_order(trace_order_id, args))
+
+    @doc(tags=['QA'], description="Delete project's trace order by trace_order_id")
+    @marshal_with(util.CommonResponse)
+    @jwt_required
+    def delete(self, trace_order_id):
+        return util.success(delete_trace_order(trace_order_id))
+
 class SingleTraceOrder(Resource):
     @jwt_required
     def patch(self, trace_order_id):
@@ -497,6 +533,37 @@ class SingleTraceOrder(Resource):
     def delete(self, trace_order_id):
         return util.success(delete_trace_order(trace_order_id))
 
+
+class ExecuteTraceOrderV2(MethodResource):
+    @doc(tags=['QA'], description="Update project's trace order by trace_order_id")
+    @use_kwargs(route_model.TraceOrdersSchema, location="json")
+    @marshal_with(util.CommonResponse)
+    @jwt_required
+    def patch(self, **kwargs): 
+        project_id = kwargs["project_id"]
+        order = get_order(project_id)
+        plan_project_id = project.get_plan_project_id(project_id)
+
+        trackers = redmine_lib.redmine.tracker.all()
+        issues = redmine_lib.redmine.issue.filter(
+            project_id=plan_project_id,
+            tracker_id="|".join([str(tracker.id) for tracker in trackers if tracker.name in order]),
+            status_id="*"
+        )
+        issues = {issue.id: {
+            "id": issue.id,
+            "name": issue.subject, 
+            "tracker": issue.tracker.name, 
+            "status": {"id": issue.status.id, "name": issue.status.name}, 
+        } for issue in issues}
+
+        initial_trace_result(project_id)
+
+        lock = threading.Lock()
+
+        thread = threading.Thread(target=TraceList(project_id, order, issues, lock).execute_trace_order, args=(len(order),))
+        thread.start()
+        return {"message": "success"}
 
 class ExecuteTraceOrder(Resource):
     @jwt_required
@@ -528,6 +595,16 @@ class ExecuteTraceOrder(Resource):
         thread = threading.Thread(target=TraceList(project_id, order, issues, lock).execute_trace_order, args=(len(order),))
         thread.start()
         return {"message": "success"}
+
+class GetTraceResultV2(MethodResource):
+    @doc(tags=['QA'], description="Get project's trace order result by trace_order_id")
+    @use_kwargs(route_model.TraceOrdersSchema, location="query")
+    @marshal_with(route_model.GetTraceResultResponse)
+    @jwt_required
+    def get(self, **kwargs):
+
+        project_id = kwargs["project_id"]
+        return util.success(get_trace_result(project_id))
 
 class GetTraceResult(Resource):
     @jwt_required

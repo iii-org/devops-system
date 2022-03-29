@@ -14,14 +14,14 @@ class SyncProject(Resource):
         return util.success()
 
 
-@ doc(tags=['System Check'], description="Recreate third part projects")
+@ doc(tags=['System'], description="Recreate third part projects")
 class RecreateProjectV2(MethodResource):
     def patch(self, project_id):
         sync_project.recreate_project(project_id)
         return util.success()
 
 
-@ doc(tags=['System Check'], description="Check third part project is exist")
+@ doc(tags=['System'], description="Check third part project is exist")
 @ marshal_with(route_model.IsProjectExists)
 class CheckProjectExistV2(MethodResource):
 

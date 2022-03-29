@@ -371,7 +371,9 @@ def get_test_result(id):
         "branch": row.branch,
         "commit_id": row.commit_id,
         'commit_url': gitlab.commit_id_to_url(row.project_id, row.commit_id),
-        "start_time": str(row.run_at)
+        "start_time": str(row.run_at),
+        "logs": row.logs,
+        "status": row.status
     }
     return util.success(result)
 
@@ -447,7 +449,9 @@ def __to_json(row, project_id):
         'branch': row.branch,
         'commit_id': row.commit_id[0:7],
         'commit_url': gitlab.commit_id_to_url(project_id, row.commit_id),
-        'run_at': str(row.run_at)
+        'run_at': str(row.run_at),
+        "logs": row.logs,
+        "status": row.status
     }
     if row.total is None:
         scan['success'] = None

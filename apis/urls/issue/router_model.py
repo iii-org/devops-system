@@ -1,12 +1,15 @@
 from marshmallow import Schema, fields, missing
 from util import CommonBasicResponse
-
+from resources.system_parameter import check_upload_type
+from urls.route_model import BasicIsssueResponse, SingleIssueGetDataAuthorResponse, ProjectExtraResponse, RelationsResponse
 
 ### Issue single
 
 #################################### Schema ####################################
 
 ########## Module ##########
+class FileSchema(Schema):
+    upload_file = fields.Raw(doc='upload_file', example="(binary)", validate=check_upload_type)
 
 class CommonSingleIssueSchema(Schema):
     description = fields.Str(doc='description', example="string")
@@ -21,7 +24,6 @@ class CommonSingleIssueSchema(Schema):
     tags = fields.Str(doc='tags', example="1,2")
     # Attachment upload
     # still finding how to test file type.
-    upload_file = fields.Raw(type='werkzeug.datastructures.FileStorage', doc='upload_file', example="(binary)")
     upload_filename = fields.Str(doc='upload_filename', example="string")
     upload_description = fields.Str(doc='upload_description', example="string")
     upload_content_type = fields.Str(doc='upload_content_type', example="string")
@@ -50,17 +52,7 @@ class SingleIssueDeleteSchema(Schema):
 
 ########## Module ##########
 
-class BasicIsssueResponse(Schema):
-    id = fields.Int(required=True)
-    name = fields.Str(required=True)
 
-class ProjectExtraResponse(BasicIsssueResponse):
-    id = fields.Int(required=True)
-    name = fields.Str(required=True)
-    display = fields.Str(required=True)
-
-class SingleIssueGetDataAuthorResponse(BasicIsssueResponse):
-    login = fields.Str(required=True)
 
 class IssueTagResponse(Schema):
     tags = fields.List(fields.Nested(
@@ -82,12 +74,6 @@ class SingleIssueGetDataAttachResponse(Schema):
     author = fields.Nested(BasicIsssueResponse, required=True)
     created_on = fields.Str(required=True, example="1970-01-01T00:00:00")
 
-class RelationsResponse(IssueTagResponse):
-    id = fields.Int(required=True)
-    issue_id = fields.Int(required=True)
-    issue_to_id = fields.Int(required=True)
-    relation_type = fields.Str(required=True)
-    delay = fields.Str(required=True, allow_none=True)
 
 class JournalDetailsResponse(Schema):
     name = fields.Str()
@@ -144,10 +130,8 @@ class SingleIssueGetDataResponse(CommonSingleIssueResponse):
     estimated_hours = fields.Float(required=True)
     created_date = fields.Str(required=True, example="1970-01-01T00:00:00")   
     point = fields.Int(required=True)
-    relations = fields.List(fields.Nested(
-        RelationsResponse, required=True))
-    children = fields.List(fields.Nested(
-       SingleIssueGetDataChildrenResponse, required=True))
+    relations = fields.List(fields.Dict(), required=True)
+    children = fields.List(fields.Dict(), required=True)
     attachments = fields.List(fields.Nested(
        SingleIssueGetDataAttachResponse), default=[])
     parent = fields.Nested(
@@ -168,21 +152,24 @@ class SingleIssuePostDataResponse(CommonSingleIssueResponse):
     updated_on = fields.Str(
         required=True, example="1970-01-01T00:00:00")
     has_children = fields.Bool(required=True)
+    children = fields.List(fields.Dict(), required=True)
+    parent = fields.Nested(
+        ParentResponse, required=True)
+    family = fields.Bool(required=True)
 
 class SingleIssuePutDataResponse(CommonSingleIssueResponse):
     estimated_hours = fields.Float(required=True)
     created_date = fields.Str(required=True, example="1970-01-01T00:00:00")   
     point = fields.Int(required=True)
-    relations = fields.List(fields.Nested(
-        RelationsResponse, required=True))
+    relations = fields.List(fields.Dict(), required=True)
     project = fields.Nested(ProjectExtraResponse, required=True)
     updated_on = fields.Str(
         required=True, example="1970-01-01T00:00:00")
     has_children = fields.Bool(required=True)
-    children = fields.List(fields.Nested(
-       SingleIssueGetDataChildrenResponse, required=True))
+    children = fields.List(fields.Dict(), required=True)
     parent = fields.Nested(
         ParentResponse, required=True)
+    family = fields.Bool(required=True)
 
 class IssueFamilyDataParentResponse(CommonSingleIssueResponse, IssueTagResponse):
     project = fields.Nested(ProjectExtraResponse, required=True)

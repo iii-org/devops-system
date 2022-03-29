@@ -433,13 +433,14 @@ class GitLab(object):
         return self.__api_delete(
             f'/projects/{repo_id}/repository/tags/{tag_name}')
 
-    def gl_get_commits(self, project_id, branch, per_page=100, since=None):
+    def gl_get_commits(self, project_id, branch, per_page=100, page=1, since=None):
         return self.__api_get(
             f'/projects/{project_id}/repository/commits',
             params={
                 'ref_name': branch,
                 'per_page': per_page,
-                'since': since
+                'since': since,
+                'page': page
             }).json()
 
     def gl_get_commits_by_author(self, project_id, branch, filter=None):
@@ -529,6 +530,12 @@ class GitLab(object):
     def gl_delete_release(self, repo_id, tag_name):
         path = f'/projects/{repo_id}/releases/{tag_name}'
         return self.__api_delete(path).json()
+
+    # Archive project
+    def gl_archive_project(self, repo_id, disabled):
+        status = "archive" if disabled else "unarchive"
+        path = f'/projects/{repo_id}/{status}'
+        return self.__api_post(path).json()
 
     def __get_projects_commit(self, pjs, out_list, branch_name, days_ago):
         for pj in pjs:
@@ -620,6 +627,8 @@ class GitLab(object):
                         pass
                     total_commit_number = len(pj.commits.list(all=True))
                     commit_number = total_commit_number - the_last_time_total_commit_number
+                    if commit_number < 0:
+                        commit_number = 0
                 now_time = datetime.now() + timedelta(hours=timezone_hours_number)
                 one_row_data = GitCommitNumberEachDays(
                     repo_id=pj.id,
@@ -783,19 +792,18 @@ def get_project_commit_endpoint_object(project_id):
 
 
 def sync_commit_issues_relation(project_id):
-    pulgin_project_object = get_project_plugin_object(project_id)
+    git_pj_id = get_project_plugin_object(project_id).git_repository_id
     # Find root project to get all related issues
     root_project_id = get_root_project_id(project_id, force=True)
     root_plan_project_id = get_project_plugin_object(root_project_id).plan_project_id
     issue_list = [str(issue.id) for issue in redmine.project.get(root_plan_project_id).issues]
 
-    pj = gitlab.gl.projects.get(pulgin_project_object.git_repository_id)
+    pj = gitlab.gl.projects.get(git_pj_id)
     for br in pj.branches.list(all=True):
         project_commit_endpoint = get_project_commit_endpoint_object(project_id)
         end_point = str(project_commit_endpoint.updated_at - timedelta(days=1)
                         ) if project_commit_endpoint.updated_at is not None else None
-        commits = gitlab.gl_get_commits(pulgin_project_object.git_repository_id,
-                                        br.name, per_page=5000, since=end_point)
+        commits = gitlab.gl_get_commits(git_pj_id, br.name, per_page=5000, since=end_point)
         for commit in commits:
             # Find all issue_id startswith '#'
             regex = re.compile(r'#(\d+)')
@@ -822,7 +830,8 @@ def sync_commit_issues_relation(project_id):
                     model.db.session.commit()
                 except IntegrityError:
                     model.db.session.rollback()
-                    continue
+                finally:
+                    model.db.session.close()
 
         if end_point is None or br.commit["committed_date"] > "T".join(end_point.split(" ")):
             project_commit_endpoint.updated_at = br.commit["committed_date"]
@@ -845,10 +854,14 @@ def get_project_members(project_id):
 
 def get_commit_issues_hook_by_branch(project_id, branch_name, limit):
     ret_list = []
+    role_id = get_jwt_identity()["role_id"]
     account = get_jwt_identity()["user_account"]
     repo_id = get_project_plugin_object(project_id).git_repository_id
-    show_url = account in [member["username"] for member in get_all_repo_members(
-        project_id) if not member["username"].startswith("project_bot")]
+    if role_id == 5:
+        show_url = True
+    else:
+        show_url = account in [member["username"] for member in get_all_repo_members(
+            project_id) if not member["username"].startswith("project_bot")]
     # Find root project to get all related issues
     root_project_id = get_root_project_id(project_id)
     root_plan_project_id = get_project_plugin_object(root_project_id).plan_project_id
@@ -883,7 +896,21 @@ def gitlab_domain_connection(action):
         return
     body = gitlab_connection(action)
     ApiK8sClient().patch_namespaced_ingress(name="gitlab-ing", body=body, namespace="default")
+    
+    gitlab_domain_connection = model.SystemParameter.query.filter_by(name="gitlab_domain_connection").first()
+    gitlab_domain_connection.value = {"gitlab_domain_connection": action == "open"}
+    from sqlalchemy.orm.attributes import flag_modified
+    flag_modified(gitlab_domain_connection, "value")
+    db.session.commit()
 
+
+def gitlab_status_connection():
+    try:
+        a = ApiK8sClient().read_namespaced_ingress(name="gitlab-ing", namespace="default")
+        paths = a.spec.rules[0].http.paths
+        return {"status": len(paths) == 1}
+    except:
+        return {"status": False}
 
     # --------------------- Resources ---------------------
 gitlab = GitLab()
@@ -1169,6 +1196,8 @@ class GetCommitIssueHookByBranch(Resource):
 class GitlabDomainConnection(Resource):
     @jwt_required
     def get(self):
+        if config.get("GITLAB_DOMAIN_NAME") is None or config.get("GITLAB_DOMAIN_NAME") == "":
+            return {"is_ip": True}
         try:
             ipaddress.ip_address(config.get("GITLAB_DOMAIN_NAME"))
             is_ip = True
@@ -1182,3 +1211,9 @@ class GitlabDomainConnection(Resource):
         parser.add_argument('action', type=str)
         args = parser.parse_args()
         return util.success(gitlab_domain_connection(args["action"]))
+
+
+class GitlabDomainStatus(Resource):
+    @jwt_required
+    def get(self):
+        return util.success(gitlab_status_connection())

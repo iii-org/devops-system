@@ -4,6 +4,7 @@ import re
 import zipfile
 from datetime import datetime
 from io import BytesIO
+import json
 
 from accessories import redmine_lib
 from flask import send_file
@@ -19,7 +20,7 @@ import nexus
 import plugins
 import resources.apiError as apiError
 import util as util
-from data.nexus_project import NexusProject, calculate_project_issues
+from data.nexus_project import NexusProject, calculate_project_issues, fill_rd_extra_fields
 from model import db
 from nexus import nx_get_project_plugin_relation
 from plugins.checkmarx.checkmarx_main import checkmarx
@@ -39,25 +40,54 @@ from .rancher import rancher, remove_pj_executions
 from .redmine import redmine
 from resources.monitoring import Monitoring
 from resources import sync_project
-from resources.project_relation import get_all_sons_project, get_relation_list
+from resources.project_relation import get_all_sons_project, get_plan_id
+from flask_apispec import doc
+from flask_apispec.views import MethodResource
+from resources import role
+from resources.redis import update_pj_issue_calcs, get_certain_pj_issue_calc
 
 
-def get_project_issue_calculation(user_name, project_ids=[]):
+def get_project_issue_calculation(user_id, project_ids=[]):
+    from resources.sync_project import check_project_exist
     ret = []
+    user_name = model.User.query.get(user_id).login
+    recheck_project = False
     for project_id in project_ids:
         redmine_project_id = model.ProjectPluginRelation.query.filter_by(project_id=project_id).one().plan_project_id
-        project_object = redmine_lib.rm_impersonate(user_name).project.get(redmine_project_id)
-        rm_project = {"updated_on": project_object.updated_on, "id": project_object.id}
-        calculate_project_issue = calculate_project_issues(rm_project, user_name)
-        calculate_project_issue["id"] = project_id
+        try:
+            project_object = redmine_lib.rm_impersonate(user_name).project.get(redmine_project_id)
+        except:
+            project_object = None
+        
+        if project_object is None:
+            recheck_project = True
+            calculate_project_issue = {
+                "id": project_id,
+                'closed_count': None,
+                'overdue_count': None,
+                'total_count': None,
+                'project_status': None,
+                'updated_time': None,
+                'is_lock': True
+            }
+        else:
+            calculate_project_issue = get_certain_pj_issue_calc(project_id)
+            # rm_project = {"updated_on": project_object.updated_on, "id": project_object.id}
+            # calculate_project_issue = calculate_project_issues(rm_project, user_name)
+            if role.is_role(role.RD):
+                calculate_project_issue.update(fill_rd_extra_fields(user_id, redmine_project_id))
+            calculate_project_issue["id"] = project_id
         ret.append(calculate_project_issue)
-
+    if recheck_project:
+        check_project_exist()
     return ret
 
 
-def get_project_list(user_id, role="simple", args={}, disable=None):
+def get_project_list(user_id, role="simple", args={}, disable=None, sync=False):
     limit = args.get("limit")
     offset = args.get("offset")
+    extra_data = args.get("test_result", "false") == "true"
+    pj_members_count = args.get("pj_members_count", "false") == "true"
     user_name = model.User.query.get(user_id).login
 
     rows, counts = get_project_rows_by_user(user_id, disable, args=args)
@@ -68,15 +98,21 @@ def get_project_list(user_id, role="simple", args={}, disable=None):
         if role == "pm":
             redmine_project_id = row.plugin_relation.plan_project_id
             try:
-                project_object = redmine_lib.rm_impersonate(user_name).project.get(redmine_project_id)
+                if sync:
+                    project_object = redmine_lib.redmine.project.get(redmine_project_id)
+                else:
+                    project_object = redmine_lib.rm_impersonate(user_name).project.get(redmine_project_id)
                 rm_project = {"updated_on": project_object.updated_on, "id": project_object.id}
             except ResourceNotFoundError:
                 # When Redmin project was missing
                 sync_project.lock_project(nexus_project.name, "Redmine")
                 rm_project = {"updated_on": datetime.utcnow(), "id": -1}
-            nexus_project = nexus_project.fill_pm_extra_fields(rm_project, user_name)
-        elif role == 'rd':
-            nexus_project = nexus_project.fill_rd_extra_fields(user_id)
+            nexus_project = nexus_project.fill_pm_extra_fields(rm_project, user_name, sync)
+        if extra_data:
+            nexus_project = nexus_project.fill_extra_fields()
+
+        if pj_members_count:
+            nexus_project = nexus_project.set_project_members()
 
         ret.append(nexus_project.to_json())
 
@@ -90,8 +126,9 @@ def get_project_list(user_id, role="simple", args={}, disable=None):
 
 def get_project_rows_by_user(user_id, disable, args={}):
     search = args.get("search")
-    limit = args.get("limit")
-    offset = args.get("offset")
+    limit, offset = args.get("limit"), args.get("offset")
+    pj_due_start = datetime.strptime(args.get("pj_due_date_start"), "%Y-%m-%d").date() if args.get("pj_due_date_start") is not None else None
+    pj_due_end = datetime.strptime(args.get("pj_due_date_end"), "%Y-%m-%d").date() if args.get("pj_due_date_end") is not None else None
 
     query = model.Project.query.options(
         joinedload(model.Project.user_role, innerjoin=True)
@@ -121,6 +158,14 @@ def get_project_rows_by_user(user_id, disable, args={}):
             if star_project.owner_id in owner_ids or
             search.upper() in star_project.display.upper() or
             search.upper() in star_project.name.upper()]
+
+    if pj_due_start is not None and pj_due_end is not None:
+        query = query.filter(
+            model.Project.due_date.between(pj_due_start, pj_due_end))
+        star_projects_obj = [
+            star_project for star_project in star_projects_obj
+            if pj_due_start <= star_project.due_date <= pj_due_end]
+    
 
     # Remove dump_project and stared_project
     project_ids = [star_project.id for star_project in star_projects_obj]
@@ -266,6 +311,12 @@ def create_project(user_id, args):
         # add kubernetes namespace into rancher default project
         rancher.rc_add_namespace_into_rc_project(args['name'])
 
+        # get base_example
+        template_pj_path = None
+        if args.get("template_id") is not None:
+            template_pj = template.get_projects_detail(args["template_id"])
+            template_pj_path = template_pj.path
+
         # Insert into nexus database
         new_pjt = model.Project(
             name=gitlab_pj_name,
@@ -278,7 +329,9 @@ def create_project(user_id, args):
             due_date=args['due_date'],
             create_at=str(datetime.utcnow()),
             owner_id=owner_id,
-            creator_id=user_id
+            creator_id=user_id,
+            base_example=template_pj_path,
+            example_tag=args["tag_name"]
         )
         db.session.add(new_pjt)
         db.session.commit()
@@ -419,6 +472,12 @@ def pm_update_project(project_id, args):
     redmine.rm_update_project(plugin_relation.plan_project_id, args)
     nexus.nx_update_project(project_id, args)
 
+    # 如果有disable, 調整專案在gitlab archive狀態
+    disabled = args.get('disabled')
+    if disabled is not None:
+        gitlab.gl_archive_project(
+            plugin_relation.git_repository_id, disabled)
+
     # 若有父專案, 加關聯進ProjectParentSonRelation, 須等redmine更新完再寫入
     if args.get('parent_plan_project_id') is not None and model.ProjectParentSonRelation. \
             query.filter_by(parent_id=args.get('parent_id'), son_id=project_id).first() is None:
@@ -455,7 +514,7 @@ def delete_project(project_id, force_delete_project=False):
     delete_id_list = [project_id] + son_id_list
 
     if force_delete_project is False:
-        # Check all porjects' servers are alive frist,
+        # Check all projects' servers are alive first,
         # because redmine delete all sons projects at the same time.
         for project_id in delete_id_list:
             server_alive_output = Monitoring(project_id).check_project_alive()
@@ -968,8 +1027,9 @@ def get_kubernetes_plugin_pods(project_id, plugin_name):
     ret = {}
     for pod in pods["data"]:
         if pod["containers"][0]["name"].startswith(plugin_name):
-            ret["name"] = pod["containers"][0]["name"]
-    ret["has_pod"] = ret.get("name") is not None
+            ret["container_name"] = pod["containers"][0]["name"]
+            ret["pod_name"] = pod["name"]
+    ret["has_pod"] = ret.get("pod_name") is not None
     return util.success(ret)
 
 
@@ -1239,321 +1299,40 @@ def get_projects_by_user(user_id):
     return projects
 
 
-def remove_relation(project_id, parent_id):
-    plan_project_id = model.ProjectPluginRelation.query.filter_by(project_id=project_id).first().plan_project_id
-    project_relation = model.ProjectParentSonRelation.query.filter_by(parent_id=parent_id, son_id=project_id)
-    if project_relation.first() is not None:
-        redmine_lib.redmine.project.update(plan_project_id, parent_id="")
-        project_relation.delete()
-        db.session.commit()
+def sync_project_issue_calculate():
+    project_issue_calculate = {}
+    for project in model.Project.query.all():
+        pj_id = project.id
+        plan_id = get_plan_id(project.id)
+        if plan_id != -1:
+            try: 
+                project_object = redmine_lib.redmine.project.get(plan_id)
+                rm_project = {"updated_on": project_object.updated_on, "id": project_object.id}
+                project_issue_calculate[pj_id] = json.dumps(
+                    calculate_project_issues(rm_project, username=None, sync=True))
+            except:
+                continue
 
+    update_pj_issue_calcs(project_issue_calculate)
+    
+
+def delete_rancher_app(project_id, branch_name):
+    project_info = model.Project.query.filter_by(id=project_id).first()
+    project_deployment = kubernetesClient.list_dev_environment_by_branch(str(project_info.name),str(project_info.http_url))
+    for temp in project_deployment:
+        if temp.get("branch") == branch_name:
+            for pod in temp.get("pods"):
+                if pod.get("type") == "web-server" or pod.get("type") == "db-server":
+                    rancher.rc_del_app(pod.get("app_name"))
+    return util.success()
 
 # --------------------- Resources ---------------------
 
-
-class SingleProjectByName(Resource):
+@doc(tags=['Pending'], description="Get CI pipeline id by git repo id")
+class GitRepoIdToCiPipeIdV2(MethodResource):
     @jwt_required
-    def get(self, project_name):
-        project_id = nexus.nx_get_project(name=project_name).id
-        role.require_pm("Error while getting project info.")
-        role.require_in_project(
-            project_id, "Error while getting project info.")
-        return util.success(get_project_info(project_id))
-
-
-class ProjectMember(Resource):
-    @jwt_required
-    def post(self, project_id):
-        role.require_pm()
-        role.require_in_project(project_id)
-        parser = reqparse.RequestParser()
-        parser.add_argument('user_id', type=int, required=True)
-        args = parser.parse_args()
-        return project_add_member(project_id, args['user_id'])
-
-    @jwt_required
-    def delete(self, project_id, user_id):
-        role.require_pm()
-        role.require_in_project(project_id)
-        return project_remove_member(project_id, user_id)
-
-
-class TestSummary(Resource):
-    @jwt_required
-    def get(self, project_id):
-        role.require_in_project(project_id)
-        return get_test_summary(project_id)
-
-
-class AllReports(Resource):
-    @jwt_required
-    def get(self, project_id):
-        role.require_pm()
-        role.require_in_project(project_id)
-        return send_file(get_all_reports(project_id),
-                         attachment_filename='reports.zip', as_attachment=True)
-
-
-class ProjectFile(Resource):
-    @jwt_required
-    def post(self, project_id):
-        try:
-            plan_project_id = get_plan_project_id(project_id)
-        except NoResultFound:
-            raise apiError.DevOpsError(404, 'Error while uploading a file to a project.',
-                                       error=apiError.project_not_found(project_id))
-
-        parser = reqparse.RequestParser()
-        parser.add_argument('filename', type=str)
-        parser.add_argument('version_id', type=str)
-        parser.add_argument('description', type=str)
-        args = parser.parse_args()
-        plan_operator_id = None
-        if get_jwt_identity()['user_id'] is not None:
-            operator_plugin_relation = nexus.nx_get_user_plugin_relation(
-                user_id=get_jwt_identity()['user_id'])
-            plan_operator_id = operator_plugin_relation.plan_user_id
-        return redmine.rm_upload_to_project(plan_project_id, args, plan_operator_id)
-
-    @jwt_required
-    def get(self, project_id):
-        try:
-            plan_project_id = get_plan_project_id(project_id)
-        except NoResultFound:
-            raise apiError.DevOpsError(404, 'Error while getting project files.',
-                                       error=apiError.project_not_found(project_id))
-        return util.success(redmine.rm_list_file(plan_project_id))
-
-
-class ProjectUserList(Resource):
-    @jwt_required
-    def get(self, project_id):
-        parser = reqparse.RequestParser()
-        parser.add_argument('exclude', type=int)
-        args = parser.parse_args()
-        return util.success({'user_list': user.user_list_by_project(project_id, args)})
-
-
-class ProjectPluginUsage(Resource):
-    @jwt_required
-    def get(self, project_id):
-        role.require_in_project(
-            project_id, "Error while getting project info.")
-        return get_plugin_usage(project_id)
-
-
-class ProjectUserResource(Resource):
-    @jwt_required
-    def get(self, project_id):
-        role.require_in_project(
-            project_id, "Error while getting project info.")
-        return get_kubernetes_namespace_Quota(project_id)
-
-    @jwt_required
-    def put(self, project_id):
-        role.require_admin("Error while updating project resource.")
-        parser = reqparse.RequestParser()
-        parser.add_argument('memory', type=str, required=True)
-        parser.add_argument('pods', type=int, required=True)
-        parser.add_argument('secrets', type=int, required=True)
-        parser.add_argument('configmaps', type=int, required=True)
-        parser.add_argument('services.nodeports', type=int, required=True)
-        parser.add_argument('persistentvolumeclaims', type=int, required=True)
-        args = parser.parse_args()
-        return update_kubernetes_namespace_Quota(project_id, args)
-
-
-class ProjectPluginPod(Resource):
-    @jwt_required
-    def get(self, project_id):
-        role.require_in_project(
-            project_id, "Error while getting project info.")
-        parser = reqparse.RequestParser()
-        parser.add_argument('plugin_name', type=str)
-        args = parser.parse_args()
-        return get_kubernetes_plugin_pods(project_id, args.get("plugin_name"))
-
-
-class ProjectUserResourcePods(Resource):
-    @jwt_required
-    def get(self, project_id):
-        role.require_in_project(
-            project_id, "Error while getting project info.")
-        return get_kubernetes_namespace_pods(project_id)
-
-
-class ProjectUserResourcePod(Resource):
-    @jwt_required
-    def delete(self, project_id, pod_name):
-        role.require_in_project(
-            project_id, "Error while getting project info.")
-        return delete_kubernetes_namespace_pod(project_id, pod_name)
-
-
-class ProjectUserResourcePodLog(Resource):
-    @jwt_required
-    def get(self, project_id, pod_name):
-        role.require_in_project(
-            project_id, "Error while getting project info.")
-        parser = reqparse.RequestParser()
-        parser.add_argument('container_name', type=str)
-        args = parser.parse_args()
-        return get_kubernetes_namespace_pod_log(project_id, pod_name, args['container_name'])
-
-
-class ProjectEnvironment(Resource):
-    @jwt_required
-    def get(self, project_id):
-        role.require_in_project(
-            project_id, "Error while getting project info.")
-        return util.success(get_kubernetes_namespace_dev_environment(project_id))
-
-    @jwt_required
-    def put(self, project_id, branch_name):
-        role.require_in_project(
-            project_id, "Error while getting project info.")
-        return put_kubernetes_namespace_dev_environment(project_id, branch_name)
-
-    @jwt_required
-    def delete(self, project_id, branch_name):
-        role.require_in_project(
-            project_id, "Error while getting project info.")
-        return delete_kubernetes_namespace_dev_environment(project_id, branch_name)
-
-
-class ProjectEnvironmentUrl(Resource):
-    @jwt_required
-    def get(self, project_id, branch_name):
-        role.require_in_project(
-            project_id, "Error while getting project info.")
-        return util.success(get_kubernetes_namespace_dev_environment_urls(
-            project_id, branch_name))
-
-
-class ProjectUserResourceDeployments(Resource):
-    @jwt_required
-    def get(self, project_id):
-        role.require_in_project(
-            project_id, "Error while getting project info.")
-        return get_kubernetes_namespace_deployment(project_id)
-
-
-class ProjectUserResourceDeployment(Resource):
-    @jwt_required
-    def put(self, project_id, deployment_name):
-        role.require_in_project(
-            project_id, "Error while getting project info.")
-        return put_kubernetes_namespace_deployment(project_id, deployment_name)
-
-    @jwt_required
-    def delete(self, project_id, deployment_name):
-        role.require_in_project(
-            project_id, "Error while getting project info.")
-        return delete_kubernetes_namespace_deployment(project_id, deployment_name)
-
-
-class ProjectUserResourceServices(Resource):
-    @jwt_required
-    def get(self, project_id):
-        role.require_in_project(
-            project_id, "Error while getting project info.")
-        return get_kubernetes_namespace_services(project_id)
-
-
-class ProjectUserResourceService(Resource):
-    @jwt_required
-    def delete(self, project_id, service_name):
-        role.require_in_project(
-            project_id, "Error while getting project info.")
-        return delete_kubernetes_namespace_service(project_id, service_name)
-
-
-class ProjectUserResourceSecrets(Resource):
-    @jwt_required
-    def get(self, project_id):
-        role.require_in_project(
-            project_id, "Error while getting project info.")
-        return get_kubernetes_namespace_secrets(project_id)
-
-
-class ProjectUserResourceSecret(Resource):
-    @jwt_required
-    def get(self, project_id, secret_name):
-        role.require_in_project(
-            project_id, "Error while getting project info.")
-        return read_kubernetes_namespace_secret(project_id, secret_name)
-
-    @jwt_required
-    def post(self, project_id, secret_name):
-        role.require_in_project(
-            project_id, "Error while getting project info.")
-        parser = reqparse.RequestParser()
-        parser.add_argument('secrets', type=dict, required=True)
-        args = parser.parse_args()
-        return create_kubernetes_namespace_secret(project_id, secret_name, args["secrets"])
-
-    @jwt_required
-    def put(self, project_id, secret_name):
-        role.require_in_project(
-            project_id, "Error while getting project info.")
-        parser = reqparse.RequestParser()
-        parser.add_argument('secrets', type=dict, required=True)
-        args = parser.parse_args()
-        return put_kubernetes_namespace_secret(project_id, secret_name, args["secrets"])
-
-    @jwt_required
-    def delete(self, project_id, secret_name):
-        role.require_in_project(
-            project_id, "Error while getting project info.")
-        return delete_kubernetes_namespace_secret(project_id, secret_name)
-
-
-class ProjectUserResourceConfigMaps(Resource):
-    @jwt_required
-    def get(self, project_id):
-        role.require_in_project(
-            project_id, "Error while getting project info.")
-        return get_kubernetes_namespace_configmaps(project_id)
-
-
-class ProjectUserResourceConfigMap(Resource):
-    @jwt_required
-    def get(self, project_id, configmap_name):
-        role.require_in_project(
-            project_id, "Error while getting project info.")
-        return read_kubernetes_namespace_configmap(project_id, configmap_name)
-
-    @jwt_required
-    def delete(self, project_id, configmap_name):
-        role.require_in_project(
-            project_id, "Error while getting project info.")
-        return delete_kubernetes_namespace_configmap(project_id, configmap_name)
-
-    @jwt_required
-    def put(self, project_id, configmap_name):
-        parser = reqparse.RequestParser()
-        parser.add_argument('configmaps', type=dict, required=True)
-        args = parser.parse_args()
-        role.require_in_project(
-            project_id, "Error while getting project info.")
-        return put_kubernetes_namespace_configmap(project_id, configmap_name, args['configmaps'])
-
-    @jwt_required
-    def post(self, project_id, configmap_name):
-        parser = reqparse.RequestParser()
-        parser.add_argument('configmaps', type=dict, required=True)
-        args = parser.parse_args()
-        role.require_in_project(
-            project_id, "Error while getting project info.")
-        return create_kubernetes_namespace_configmap(project_id, configmap_name, args['configmaps'])
-
-
-class ProjectUserResourceIngresses(Resource):
-    @jwt_required
-    def get(self, project_id):
-        role.require_in_project(
-            project_id, "Error while getting project info.")
-        return get_kubernetes_namespace_ingresses(project_id)
+    def get(self, repository_id):
+        return git_repo_id_to_ci_pipe_id(repository_id)
 
 
 class GitRepoIdToCiPipeId(Resource):
@@ -1562,14 +1341,3 @@ class GitRepoIdToCiPipeId(Resource):
         return git_repo_id_to_ci_pipe_id(repository_id)
 
 
-class ProjectRelation(Resource):
-    @jwt_required
-    def get(self, project_id):
-        return util.success(get_relation_list(project_id, []))
-
-    @jwt_required
-    def delete(self, project_id):
-        parser = reqparse.RequestParser()
-        parser.add_argument('parent_id', type=int, required=True)
-        args = parser.parse_args()
-        return remove_relation(project_id, args["parent_id"])

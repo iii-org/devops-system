@@ -1,8 +1,5 @@
-from flask_restful import Resource, reqparse
 from model import Lock, db
 import util
-from flask_jwt_extended import jwt_required
-
 
 def get_lock_status(name):
     lock_info = Lock.query.filter_by(name=name).first()
@@ -23,14 +20,3 @@ def update_lock_status(name, is_lock=False, sync_date=None):
     db.session.commit()
 
 
-# --------------------- Resources ---------------------
-class LockStatus(Resource):
-    @jwt_required
-    def get(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument('name', type=str, required=True)
-        args = parser.parse_args()
-
-        ret = get_lock_status(args["name"])
-        ret["sync_date"] = str(ret["sync_date"])
-        return util.success(ret)

@@ -21,8 +21,6 @@ from resources.kubernetesClient import read_namespace_secret, SYSTEM_SECRET_NAME
     create_namespace_secret, patch_namespace_secret, delete_namespace_secret
 from resources.rancher import rancher
 
-import plugins
-
 SYSTEM_SECRET_PREFIX = 'system-secret-'
 
 
@@ -230,6 +228,7 @@ def sync_plugins_in_db_and_code():
 
 def create_plugins_api_router(api):
     plugin_names = list_plugin_modules()
+    plugins = __import__('plugins', fromlist=plugin_names)
     for plugin_name in plugin_names:
         third_part_plugin = getattr(plugins, plugin_name)
         if hasattr(third_part_plugin, "router"):

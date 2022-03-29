@@ -9,6 +9,7 @@ from model import Project, db
 from plugins.sonarqube import sonarqube_main as sonarqube
 from resources import (gitlab, harbor, kubernetesClient, logger, project,
                        rancher, redmine, user)
+from resources.activity import ActionType, record_activity
 
 
 class ResourceMembers(object):
@@ -323,8 +324,9 @@ def create_redmine_project(args):
     new_rm_pj_id = response['project']['id']
     logger.logger.info('Create membership in redmine project')
     role_id = user.get_role_id(args['creator_id'])
+    redmine_role_id = user.to_redmine_role_id(role_id)
     plan_user_id = nexus.nx_get_user_plugin_relation(user_id=args['creator_id']).plan_user_id
-    redmine.redmine.rm_create_memberships(new_rm_pj_id, plan_user_id, role_id)
+    redmine.redmine.rm_create_memberships(new_rm_pj_id, plan_user_id, redmine_role_id)
     check_project_members(args['id'], args['creator_id'])
     if args['owner_id'] != args['creator_id']:
         try:
@@ -533,9 +535,10 @@ def unlock_project(pj_id=None, pj_name=None):
         pj_row = Project.query.filter_by(id=pj_id).first()
     else:
         pj_row = Project.query.filter_by(name=pj_name).first()
-    pj_row.is_lock = False
-    pj_row.lock_reason = ""
-    db.session.commit()
+    if pj_row.is_lock is True:
+        pj_row.is_lock = False
+        pj_row.lock_reason = ""
+        db.session.commit()
 
 
 def main_process():
@@ -563,6 +566,7 @@ def main_process():
     logger.logger.info('All done.')
 
 
+@record_activity(ActionType.RECREATE_PROJECT)
 def recreate_project(project_id):
     check_bot_list = []
     projects_name = list(model.Project.query.filter(
@@ -579,8 +583,7 @@ def recreate_project(project_id):
     pipeline_process(check_bot_list)
     logger.logger.info('Sonarqube projects start.')
     sonarqube_process(projects_name, check_bot_list)
-    for pj_id in check_bot_list:
-        unlock_project(pj_id=pj_id)
+    unlock_project(pj_id=project_id)
     logger.logger.info('Project BOT start.')
     bot_process(list(set(check_bot_list)))
     logger.logger.info('Project members start.')

@@ -14,7 +14,7 @@ import nexus
 import util
 from enums.action_type import ActionType
 from model import db
-from resources import role, issue
+from resources import role
 
 
 def record_activity(action_type):
@@ -33,7 +33,7 @@ def record_activity(action_type):
                 operator_id=identity['user_id'],
                 action_type=action_type,
                 operator_name=identity['user_account'],
-                act_at=datetime.now()
+                act_at=datetime.utcnow()
             )
             itargs = kwargs.copy()
             for i, key in enumerate(inspect.getfullargspec(fn).args):
@@ -82,7 +82,8 @@ def build_query(args, base_query=None):
     query = query.order_by(desc(model.Activity.act_at))
     search = args['search']
     if search is not None:
-        action_types = [ActionType[action_type] for action_type in dir(ActionType)[:-4] if search.upper() in action_type]
+        action_types = [ActionType[action_type]
+                        for action_type in dir(ActionType)[:-4] if search.upper() in action_type]
         query = query.filter(or_(
             model.Activity.action_type.in_(action_types),
             model.Activity.action_parts.like(f'%{search}%'),
@@ -106,7 +107,7 @@ def limit_to_project(project_id):
     query = model.Activity.query.filter(model.Activity.action_type.in_([
         ActionType.CREATE_PROJECT, ActionType.UPDATE_PROJECT, ActionType.DELETE_PROJECT,
         ActionType.ADD_MEMBER, ActionType.REMOVE_MEMBER, ActionType.DELETE_ISSUE, ActionType.ADD_TAG,
-        ActionType.DELETE_TAG, ActionType.MODIFY_HOOK]
+        ActionType.DELETE_TAG, ActionType.MODIFY_HOOK, ActionType.RECREATE_PROJECT]
     ))
     query = query.filter(or_(
         model.Activity.object_id.like(f'%@{project_id}%'),
@@ -117,7 +118,7 @@ def limit_to_project(project_id):
 
 class Activity(model.Activity):
     def fill_by_arguments(self, args):
-        if self.action_type in [ActionType.UPDATE_PROJECT, ActionType.DELETE_PROJECT]:
+        if self.action_type in [ActionType.UPDATE_PROJECT, ActionType.DELETE_PROJECT, ActionType.RECREATE_PROJECT]:
             self.fill_project(args['project_id'])
         if self.action_type == ActionType.UPDATE_PROJECT:
             self.action_parts += f'@{str(args["args"])}'
@@ -157,9 +158,9 @@ class Activity(model.Activity):
 
     def __get_issue_project_id(self, issue_id):
         row = model.ProjectPluginRelation.query.filter_by(
-        plan_project_id=redmine.issue.get(issue_id).project.id).first()
+            plan_project_id=redmine.issue.get(issue_id).project.id).first()
         return str(row.project_id) if row is not None else "-1"
-        
+
     def fill_modify_hook(self, short_issue_ids, long_issue_ids):
         copy_short_issue_ids = short_issue_ids.copy()
         copy_long_issue_ids = long_issue_ids.copy()
@@ -167,9 +168,9 @@ class Activity(model.Activity):
             if issue_id in long_issue_ids:
                 copy_short_issue_ids.remove(issue_id)
                 copy_long_issue_ids.remove(issue_id)
-    
-        self.object_id = "@" +  "@".join(list(map(self.__get_issue_project_id, copy_short_issue_ids+copy_long_issue_ids)))
-    
+
+        self.object_id = "@" + "@".join(list(map(self.__get_issue_project_id,
+                                        copy_short_issue_ids+copy_long_issue_ids)))
 
     def fill_by_return_value(self, ret):
         if self.action_type == ActionType.CREATE_PROJECT:
@@ -188,6 +189,7 @@ class Activity(model.Activity):
         self.action_parts = f'{user.name}({user.login}/{user.id})'
 
     def fill_issue(self, issue_id):
+        from resources import issue
         iss = issue.get_issue(issue_id, False, False)
         self.object_id = iss['project']['id']
         self.action_parts = f'{issue_id}/{iss["subject"]}({iss["project"]["name"]})'

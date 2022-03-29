@@ -112,6 +112,11 @@ def project_name_not_found(project_name=None):
 def project_version_exist(version_name):
     return build(1016, f'The project_version name {version_name} already exists, please try another one.', {'version_name': version_name})
 
+
+def project_is_disabled(project_id):
+    return build(
+        1017, 'Project is disabled.', {"project_id": project_id})
+
 # User errors
 
 
@@ -257,9 +262,8 @@ def re_deploy_application_failed(application_name):
 def delete_deploy_application_failed(application_id):
     return build(2023, 'Delete deploy application failed', {'application_id', application_id})
 
+
 # Permission errors
-
-
 class NotAllowedError(HTTPException):
     pass
 

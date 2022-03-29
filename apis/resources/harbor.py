@@ -12,6 +12,7 @@ import util
 from resources import apiError, role
 from resources.apiError import DevOpsError
 from resources.logger import logger
+from datetime import datetime
 
 HAR_PASS_REG = '((?=.*\d)(?=.*[a-z])(?=.*[A-Z])).{8,20}$'
 DEFAULT_PASSWORD = 'IIIdevops_12345'
@@ -103,9 +104,9 @@ def hb_create_project(project_name):
 
 def hb_delete_project(harbor_param):
     try:
-        repositoriest = hb_list_repositories(harbor_param[1])
-        if len(repositoriest) != 0:
-            for repository in repositoriest:
+        repositories = hb_list_repositories(harbor_param[1])
+        if len(repositories) != 0:
+            for repository in repositories:
                 split_list = repository["name"].split("/")
                 project_name = split_list[0]
                 repository_name = '/'.join(split_list[1:])
@@ -262,6 +263,34 @@ def generate_artifacts_output(art):
     return output
 
 
+def hb_list_artifacts_with_params(project_name, repository_name, push_time=None):
+    ret = []
+    args = {"page": 1, "page_size": 15}
+    while True:
+        data = hb_list_artifacts_with_params_helper(project_name, repository_name, args, push_time)
+        if data == []:
+            break
+        ret += data
+        args["page"] += 1
+    return ret
+
+
+def hb_list_artifacts_with_params_helper(project_name, repository_name, args, push_time=None):
+    page_size = args.get('page_size', 10)
+    page = args.get("page", 1)
+    params = {'with_scan_overview': True, 'with_tag': True, "page": page, "page_size": page_size}
+    if push_time is not None:
+        now_time = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+        params["q"] = f'push_time=[{push_time}~{now_time}]'
+    artifacts = __api_get(f'/projects/{project_name}/repositories'
+                          f'/{__encode(repository_name)}/artifacts',
+                          params=params).json()
+    ret = []
+    for art in artifacts:
+        ret = ret + generate_artifacts_output(art)
+    return ret
+
+
 def hb_list_artifacts(project_name, repository_name):
     artifacts = __api_get(f'/projects/{project_name}/repositories'
                           f'/{__encode(repository_name)}/artifacts',
@@ -285,13 +314,42 @@ def hb_copy_artifact(project_name, repository_name, from_image):
     return __api_post(url)
 
 
-def hb_copy_artifact_and_retage(project_name, target_repository_name, form_repo_name, digest, tag_name):
-    from_image = f'{project_name}/{form_repo_name}@{digest}'
-    hb_copy_artifact(project_name, target_repository_name, from_image)
-    
-    for tag in hb_list_tags(project_name, target_repository_name, digest):
-        hb_delete_artifact_tag(project_name, target_repository_name, digest, tag["name"], keep=True)
-    hb_create_artifact_tag(project_name, target_repository_name, digest, tag_name)
+def hb_copy_artifact_and_retage(project_name, from_repo_name, dest_repo_name, from_tag, dest_tag):
+    # if from_repo:from_tag == dest_repo:dest_tag, then do nothing.
+    if from_repo_name == dest_repo_name and from_tag == dest_tag:
+        logger.info("from_repo:from_tag and dest_repo:dest_tag is same.")
+        print("from_repo:from_tag and dest_repo:dest_tag is same.")
+        return
+
+    # if from_repo:from_tag not found, then do nothing as well.
+    try:
+        digest = hb_get_artifact(project_name, from_repo_name, from_tag)[0]["digest"]
+        print(digest)
+    except:
+        logger.info(f"Can not find {from_repo_name}:{from_tag}")
+        print(f"Can not find {from_repo_name}:{from_tag}")
+        return
+
+    # if dest_repo:dest_tag is exist, delete it.
+    try:
+        dest_digest = hb_get_artifact(project_name, dest_repo_name, dest_tag)[0]["digest"]
+        print(dest_digest)
+        a = hb_delete_artifact(project_name, dest_repo_name, dest_digest)
+        logger.info(f"Replace the old {dest_repo_name}:{dest_digest}")
+        print(f"Replace the old {dest_repo_name}:{dest_digest}")
+    except:
+        pass
+
+    from_image = f'{project_name}/{from_repo_name}@{digest}'
+    hb_copy_artifact(project_name, dest_repo_name, from_image)
+    hb_create_artifact_tag(project_name, dest_repo_name, digest, dest_tag)
+
+    # if from_repo != dest_repo, delete the dest_repo:from_tag's tag
+    if from_repo_name != dest_repo_name:
+        hb_delete_artifact_tag(project_name, dest_repo_name, digest, from_tag)
+
+    logger.info(f"Copy from {from_repo_name}:{from_tag} to {dest_repo_name}:{dest_tag}")
+    print(f"Copy from {from_repo_name}:{from_tag} to {dest_repo_name}:{dest_tag}")
 
 
 def hb_get_repository_info(project_name, repository_name):
@@ -338,14 +396,14 @@ def hb_build_external_link(path):
 
 
 def get_storage_usage(project_id):
-    habor_info = hb_get_project_summary(project_id)
+    harbor_info = hb_get_project_summary(project_id)
     usage_info = {}
     usage_info['title'] = 'Harbor'
     usage_info['used'] = {}
-    usage_info['used']['value'] = habor_info['quota']['used']['storage']
+    usage_info['used']['value'] = harbor_info['quota']['used']['storage']
     usage_info['used']['unit'] = ''
     usage_info['quota'] = {}
-    usage_info['quota']['value'] = habor_info['quota']['hard']['storage']
+    usage_info['quota']['value'] = harbor_info['quota']['hard']['storage']
     usage_info['quota']['unit'] = ''
     return usage_info
 
@@ -831,17 +889,18 @@ class HarborReplicationExecutionTaskLog(Resource):
         output = hb_get_replication_executions_tasks_log(execution_id, task_id)
         return util.success({'logs': output.text.splitlines()})
 
+
 class HarborCopyImageRetage(Resource):
     @jwt_required
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('project_name', type=str, required=True)
-        parser.add_argument('target_repo_name', type=str, required=True)
-        parser.add_argument('form_repo_name', type=str, required=True)
-        parser.add_argument('digest', type=str, required=True)
-        parser.add_argument('tag_name', type=str, required=True)
+        parser.add_argument('from_repo_name', type=str, required=True)
+        parser.add_argument('dest_repo_name', type=str, required=True)
+        parser.add_argument('from_tag', type=str, required=True)
+        parser.add_argument('dest_tag', type=str, required=True)
         args = parser.parse_args()
 
         return util.success(
             hb_copy_artifact_and_retage(
-                args["project_name"], args["target_repo_name"], args["form_repo_name"], args["digest"], args["tag_name"]))
+                args["project_name"], args["from_repo_name"], args["dest_repo_name"], args["from_tag"], args["dest_tag"]))
