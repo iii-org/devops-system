@@ -195,16 +195,18 @@ class NotificationRoom(object):
 
         projects = db.session.query(ProjectUserRole.project_id).filter(and_(
             ProjectUserRole.user_id == data['user_id'], ProjectUserRole.project_id != -1)).all()
-        cache_set = set()
+        out_dict = {}
         for row in rows:
             if row[1].type_id == 2 and (row[1].type_parameter['project_id'],) not in projects:
                 continue
             if row[1].type_id == 3 and row[1].type_parameter['user_id'] != data['user_id']:
                 continue
-            if str(row[0]) in cache_set:
-                continue
-            emit("system_message", str(row[0]), namespace="/get_notification_message", to=f"user/{data['user_id']}")
-            cache_set.add(str(row[0]))
+            if row[0].id not in out_dict:
+                out_dict[row[0].id] = {**json.loads(str(row[0])), **{"types": [json.loads(str(row[1]))]}}
+            else:
+                out_dict[row[0].id]["types"].append(json.loads(str(row[1])))
+        for message in list(out_dict.values()):
+            emit("system_message", message, namespace="/get_notification_message", to=f"user/{data['user_id']}")
 
 
 class GetNotificationMessage(Namespace):

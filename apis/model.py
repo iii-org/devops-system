@@ -842,6 +842,19 @@ class NotificationMessageRecipient(db.Model):
     type_id = Column(Integer, nullable=False, primary_key=True)
     type_parameter = Column(JSON)
 
+    def __repr__(self):
+        fields = {}
+        for field in [x for x in dir(self) if
+                      not x.startswith('query') and not x.startswith('_') and x != 'metadata']:
+            data = self.__getattribute__(field)
+            try:
+                # this will fail on unencodable values, like other classes
+                json.dumps(data)
+                fields[field] = data
+            except TypeError:
+                fields[field] = str(data)
+        return json.dumps(fields)
+
 
 class ProjectParentSonRelation(db.Model):
     id = Column(Integer, primary_key=True)
