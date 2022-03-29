@@ -6,8 +6,7 @@ import nexus
 import kubernetes
 from Cryptodome.Hash import SHA256
 from flask_jwt_extended import (
-    create_access_token, JWTManager, jwt_required, get_jwt_identity)
-from flask_restful import Resource, reqparse
+    create_access_token, JWTManager, get_jwt_identity)
 from sqlalchemy import inspect, or_
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.exc import NoResultFound
@@ -29,8 +28,7 @@ from resources.logger import logger
 from resources.redmine import redmine
 from resources.project import get_project_list
 import resources
-from flask_apispec import marshal_with, doc, use_kwargs
-from flask_apispec.views import MethodResource
+from sqlalchemy import desc
 
 # Make a regular expression
 default_role_id = 3
@@ -704,7 +702,7 @@ def create_user(args):
 def user_list(filters):
     per_page = 10
     page_dict = None
-    query = model.User.query.filter(model.User.id != 1).order_by(model.User.id)
+    query = model.User.query.filter(model.User.id != 1).order_by(desc(model.User.create_at))
     if 'role_ids' in filters:
         filtered_user_ids = model.ProjectUserRole.query.filter(
             model.ProjectUserRole.role_id.in_(filters['role_ids'])
