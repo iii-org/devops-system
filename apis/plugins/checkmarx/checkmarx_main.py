@@ -204,12 +204,16 @@ class CheckMarx(object):
             return ret
         st_id, st_name = self.get_scan_status(scan_id)
         if st_id != 7:
-            st_mapping = {
-                "8": "The scan is canceled.",
-                "9": "The scan failed."
-            }
-            ret["status"] = -1
-            ret["message"] = st_mapping.get(st_id, "The scan is not completed yet.")
+            if st_id in [8, 9]:
+                st_mapping = {
+                    "8": "The scan is canceled.",
+                    "9": "The scan failed."
+                }
+                ret["status"] = -1
+                ret["message"] = st_mapping[st_id]
+            else:
+                ret["status"] = 2
+                ret["message"] = "The scan is not completed yet."
             return ret 
         
         report_id = row.report_id
@@ -224,6 +228,7 @@ class CheckMarx(object):
             ret["message"] = 'The report is not ready yet.'
             ret["status"] = 2
             ret["result"] = data
+            ret["run_at"] = str(row.run_at) if row.run_at is not None else None
             return ret
         ret["message"] = 'success'
         ret["status"] = 1
@@ -252,7 +257,14 @@ class CheckMarx(object):
         ).order_by(
             desc(Model.scan_id)).first()
         if row is not None:
-            return CheckMarx.to_json(row, project_id)
+            scan_id = row.scan_id
+            ret = CheckMarx.to_json(row, project_id)
+            if not row.finished:
+                status_id, status_name = checkmarx.get_scan_status(scan_id)
+                if status_id == 7:
+                    ret["stats"] = checkmarx.get_scan_statistics(scan_id)
+                ret["scan_final_status"] = status_name
+            return ret
         else:
             return {}
 

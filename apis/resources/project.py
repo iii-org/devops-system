@@ -810,7 +810,7 @@ def get_test_summary(project_id):
                     'failed': fail,
                     'total': total,
                 },
-                'run_at': str(row.run_at)
+                'run_at': str(row.run_at) if row.run_at is not None else None
             }
         else:
             not_found_ret['message'] = not_found_ret_message("postman")
@@ -838,12 +838,19 @@ def get_test_summary(project_id):
                     'result': scan['stats'],
                     "run_at": scan['run_at'],
                 }
-            else:
+            elif scan['stats']['status'] in ['NotRunning', 'Interrupted', 'Failed']:
+                ret['webinspect'] = {
+                    'message': f"Status is {scan['stats']['status'].lower()}.",
+                    'status': -1,
+                    'result': {},
+                    "run_at": str(scan['run_at']) if scan['run_at'] is not None else None,
+                }
+            else:    
                 ret['webinspect'] = {
                     'message': 'It is not finished yet.',
                     'status': 2,
                     'result': {},
-                    "run_at": None,
+                    "run_at": str(scan['run_at']) if scan.get('run_at') is not None else None,
                 }
         else:
             not_found_ret['message'] = not_found_ret_message("webinspect")

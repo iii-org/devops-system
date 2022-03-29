@@ -10,6 +10,7 @@ from flask_restful import Resource, reqparse
 from sqlalchemy import desc
 from sqlalchemy.orm.exc import NoResultFound
 
+import model
 import util
 from model import CMAS as Model
 from model import db, ProjectPluginRelation
@@ -92,6 +93,7 @@ class CMAS(object):
             self.task.scan_final_status = "FAIL"
             self.task.logs = str(e)
             db.session.commit()
+            return {}
 
     def download_report(self):
         ret = self.__api_get(
@@ -195,12 +197,26 @@ def get_tasks(repository_id):
     } for task in Model.query.filter_by(repo_id=repository_id).order_by(desc(Model.run_at)).all()]
 
 
-def get_task_state(project_id, commit_id):
-    repo_id = ProjectPluginRelation.query.filter_by(project_id=project_id).first().git_repository_id
-    cmas_test = Model.query.filter_by(repo_id=repo_id).filter_by(commit_id=commit_id).first()
+def get_cmas_object(project_id, commit_id=None):
+    if commit_id is None:
+        cmas_test = db.session.query(Model).join(ProjectPluginRelation).filter(
+        model.ProjectPluginRelation.project_id == project_id).order_by(desc(Model.run_at)).first()
+    else:
+        cmas_test = db.session.query(Model).join(ProjectPluginRelation).filter(
+        model.ProjectPluginRelation.project_id == project_id).filter(
+            Model.commit_id == commit_id).order_by(desc(Model.run_at)).first()
+    return cmas_test
 
+
+def get_task_state(project_id, commit_id):
+    cmas_test = get_cmas_object(project_id, commit_id=commit_id)
     if cmas_test is not None:
-        stats = util.is_json(cmas_test.stats)
+        if not cmas_test.finished:
+            status = CMAS(cmas_test.task_id).query_report_task().get("status")
+            if status == "SUCCESS":
+                cmas_test = get_cmas_object(project_id, commit_id=commit_id)
+       
+        stats = util.is_json(cmas_test.stats) 
         if isinstance(stats, dict):
             stats["run_at"] = str(cmas_test.run_at)
         return stats
@@ -208,13 +224,18 @@ def get_task_state(project_id, commit_id):
 
 
 def get_latest_state(project_id):
-    repo_id = ProjectPluginRelation.query.filter_by(project_id=project_id).first().git_repository_id
-    cmas_test = Model.query.filter_by(repo_id=repo_id).order_by(desc(Model.run_at)).first()
+    cmas_test = get_cmas_object(project_id)
     if cmas_test is not None:
+        if not cmas_test.finished:
+            status = CMAS(cmas_test.task_id).query_report_task().get("status")
+            if status == "SUCCESS":
+                cmas_test = db.session.query(Model).join(ProjectPluginRelation).filter(
+                model.ProjectPluginRelation.project_id == project_id).order_by(desc(Model.run_at)).first()
+                status = cmas_test.scan_final_status
         return {
             "logs": cmas_test.logs,
             "stats": util.is_json(cmas_test.stats),
-            "status": cmas_test.scan_final_status,
+            "status": status,
             "run_at": str(cmas_test.run_at),
             "finished_at": str(cmas_test.finished_at),
         }
@@ -260,7 +281,7 @@ def update_task(args, task_id):
 
     db.session.commit()
 
-    # --------------------- Resources ---------------------
+# --------------------- Resources ---------------------
 
 
 class CMASTask(Resource):
