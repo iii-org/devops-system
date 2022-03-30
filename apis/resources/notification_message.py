@@ -14,14 +14,7 @@ from resources.apiError import DevOpsError, resource_not_found, not_enough_autho
 websocket parameters:
 {"user_id"=234}
 
-Notification type:
-type_id=1(All):  {}
-type_id=2(By project) {
-    "project_id": 3
-}
-type_id=3(By user) {
-    "user_id": 314
-}
+https://github.com/iii-org/devops-system/wiki/Notification-Message
 '''
 
 
@@ -58,7 +51,7 @@ def __check_read(row):
     return message_dict
 
 
-def __combine_message_and_recipient(rows):
+def combine_message_and_recipient(rows):
     out_dict = {}
     for row in rows:
         if row[0].id not in out_dict:
@@ -73,7 +66,7 @@ def __combine_message_and_recipient(rows):
     return list(out_dict.values())
 
 
-def __filter_by_user(rows, user_id):
+def filter_by_user(rows, user_id):
     projects = db.session.query(ProjectUserRole.project_id).filter(and_(
         ProjectUserRole.user_id == user_id, ProjectUserRole.project_id != -1)).all()
     i = 0
@@ -100,8 +93,8 @@ def get_notification_message_list(args):
     rows = base_query.all()
 
     if get_jwt_identity()["role_id"] != role.ADMIN.id:
-        rows = __filter_by_user(rows, get_jwt_identity()["user_id"])
-    out = __combine_message_and_recipient(rows)
+        rows = filter_by_user(rows, get_jwt_identity()["user_id"])
+    out = combine_message_and_recipient(rows)
     out_dict = {'notification_message_list': out}
     if page_dict:
         out_dict['page'] = page_dict
@@ -213,19 +206,9 @@ class NotificationRoom(object):
 
         rows = rows.outerjoin(NotificationMessageRecipient,
                               NotificationMessageRecipient.message_id == NotificationMessage.id).all()
-        projects = db.session.query(ProjectUserRole.project_id).filter(and_(
-            ProjectUserRole.user_id == data['user_id'], ProjectUserRole.project_id != -1)).all()
-        out_dict = {}
-        for row in rows:
-            if row[1].type_id == 2 and (row[1].type_parameter['project_id'],) not in projects:
-                continue
-            if row[1].type_id == 3 and row[1].type_parameter['user_id'] != data['user_id']:
-                continue
-            if row[0].id not in out_dict:
-                out_dict[row[0].id] = {**json.loads(str(row[0])), **{"types": [json.loads(str(row[1]))]}}
-            else:
-                out_dict[row[0].id]["types"].append(json.loads(str(row[1])))
-        for message in list(out_dict.values()):
+        rows = filter_by_user(rows, data['user_id'])
+        message_list = combine_message_and_recipient(rows)
+        for message in message_list:
             emit("system_message", message, namespace="/get_notification_message", to=f"user/{data['user_id']}")
 
 
