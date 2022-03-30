@@ -237,7 +237,7 @@ class GetNotificationMessage(Namespace):
     def on_disconnect(self):
         print('Client disconnected')
 
-    def on_join_room(self, data):
+    def on_join(self, data):
         # verify jwt token
         # verify user_id
         if "user_id" not in data:
@@ -245,7 +245,7 @@ class GetNotificationMessage(Namespace):
         print('Join room')
         join_room(f"user/{data['user_id']}")
 
-    def on_leave_room(self, data):
+    def on_leave(self, data):
         print('Leave room')
         leave_room(f"user/{data['user_id']}")
 
