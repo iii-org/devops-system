@@ -58,29 +58,50 @@ def __check_read(row):
     return message_dict
 
 
+def __combine_message_and_recipient(rows):
+    out_dict = {}
+    for row in rows:
+        if row[0].id not in out_dict:
+            out_dict[row[0].id] = {**json.loads(str(row[0])), **{"types": [json.loads(str(row[1]))]}}
+        else:
+            out_dict[row[0].id]["types"].append(json.loads(str(row[1])))
+        if len(row) > 2:
+            if row[2] is not None:
+                out_dict[row[0].id]["read"] = True
+            else:
+                out_dict[row[0].id]["read"] = False
+    return list(out_dict.values())
+
+
+def __filter_by_user(rows, user_id):
+    projects = db.session.query(ProjectUserRole.project_id).filter(and_(
+        ProjectUserRole.user_id == user_id, ProjectUserRole.project_id != -1)).all()
+    i = 0
+    while i < len(rows):
+        if rows[i][1].type_id == 2 and (rows[i][1].type_parameter['project_id'],) not in projects:
+            del (rows[i])
+        elif rows[i][1].type_id == 3 and rows[i][1].type_parameter['user_id'] != user_id:
+            del (rows[i])
+        else:
+            i += 1
+    return rows
+
+
 def get_notification_message_list(args):
     out = []
     page_dict = None
-    base_query = db.session.query(NotificationMessage, NotificationMessageReply).outerjoin(
+    base_query = db.session.query(NotificationMessage, NotificationMessageRecipient, NotificationMessageReply).outerjoin(
         NotificationMessageReply, and_(NotificationMessageReply.user_id == get_jwt_identity()["user_id"],
                                        NotificationMessage.id == NotificationMessageReply.message_id))
+    base_query = base_query.outerjoin(NotificationMessageRecipient,
+                                      NotificationMessageRecipient.message_id == NotificationMessage.id)
     if args['limit'] is not None or args['offset'] is not None:
         base_query, page_dict = util.orm_pagination(base_query, args['limit'], args['offset'])
     rows = base_query.all()
 
-    if get_jwt_identity()["role_id"] == 5:
-        for row in rows:
-            out.append(__check_read(row))
-    else:
-        projects = db.session.query(ProjectUserRole.project_id).filter(and_(
-            ProjectUserRole.user_id == get_jwt_identity()["user_id"], ProjectUserRole.project_id != -1)).all()
-        for row in rows:
-            if row[0].type_id == 2 and (row[0].type_parameter['project_id'],) not in projects:
-                continue
-            elif row[0].type_id == 3 and row[0].type_parameter['user_id'] != get_jwt_identity()["user_id"]:
-                continue
-            else:
-                out.append(__check_read(row))
+    if get_jwt_identity()["role_id"] != role.ADMIN.id:
+        rows = __filter_by_user(rows, get_jwt_identity()["user_id"])
+    out = __combine_message_and_recipient(rows)
     out_dict = {'notification_message_list': out}
     if page_dict:
         out_dict['page'] = page_dict
@@ -192,7 +213,6 @@ class NotificationRoom(object):
 
         rows = rows.outerjoin(NotificationMessageRecipient,
                               NotificationMessageRecipient.message_id == NotificationMessage.id).all()
-
         projects = db.session.query(ProjectUserRole.project_id).filter(and_(
             ProjectUserRole.user_id == data['user_id'], ProjectUserRole.project_id != -1)).all()
         out_dict = {}
