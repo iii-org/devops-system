@@ -182,7 +182,7 @@ class NotificationRoom(object):
                 user_rows = User.query.all()
                 # Send message
                 for user_row in user_rows:
-                    emit("system_message", str(message_row[0]), namespace="/get_notification_message",
+                    emit("system_message", message_row[0], namespace="/get_notification_message",
                          to=f"user/{user_row.id}")
             elif message_row[1].type_id == 2:
                 # Send message to user in project
@@ -191,7 +191,7 @@ class NotificationRoom(object):
                     project_id=message_row[1].type_parameter['project_id']).all()
                 # Send message
                 for user_row in user_rows:
-                    emit("system_message", str(message_row[0]), namespace="/get_notification_message",
+                    emit("system_message", message_row[0], namespace="/get_notification_message",
                          to=f"user/{user_row.user_id}")
             elif message_row[1].type_id == 3:
                 # Send message to the user
