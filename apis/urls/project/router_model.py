@@ -964,9 +964,9 @@ class ReleaseExtraGetSchema(Schema):
     limit = fields.Int(example=10, missing=10)
     offset = fields.Int(example=0, missing=0)
 
-class ReleasePatchSchema(Schema):
-    image_path = fields.Str(validate=lambda x: re.search("\w/\w", x) is not None)
-    tags = fields.List(fields.Str, required=True)
+class ReleaseTagSchema(Schema):
+    # image_path = fields.Str(validate=lambda x: re.search("\w/\w", x) is not None)
+    tags = fields.Str(required=True)
 
 class ReleasesGetSchema(Schema):
     image = fields.Bool()
@@ -980,7 +980,6 @@ class ReleasesPostSchema(Schema):
     released_at = fields.Str()
     forced = fields.Bool()
     extra_image_path = fields.Str()
-
 
 
 #################################### Response ####################################
@@ -1001,7 +1000,14 @@ class ReleasesGetData(Schema):
                 "create_at": "1970-01-01 00:00:00.00000",
                 "creator_id": 1,
                 "docker": [
-                    "docker pull docker-url/project_name/repo-name:tag",
+                    {
+                        "default": True,
+                        "repo": "repo",
+                        "tags": [
+                            "tag1",
+                            "tag2"
+                        ]
+                    }
                 ],
                 "git_url": "http://giturl/project_name",
                 "id": 1,

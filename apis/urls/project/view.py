@@ -1500,13 +1500,20 @@ class ReleaseExtraV2(MethodResource):
     def get(self, project_id, **kwargs):
         return util.success(release.get_release_image_list(project_id, kwargs))
 
-class ReleasePatchV2(MethodResource):
+class ReleaseTagV2(MethodResource):
     @doc(tags=['Release'], description="Add tag on release by release_id.")
-    @use_kwargs(router_model.ReleasePatchSchema, location="form")
+    @use_kwargs(router_model.ReleaseTagSchema, location="form")
     @marshal_with(util.CommonResponse)
     @jwt_required
-    def patch(self, project_id, release_id, **kwargs):
-        return util.success(release.patch_release_image(project_id, release_id, kwargs))
+    def post(self, project_id, release_id, **kwargs):
+        return util.success(release.create_release_image(project_id, release_id, kwargs))
+    
+    @doc(tags=['Release'], description="Delete tag on release by release_id.")
+    @use_kwargs(router_model.ReleaseTagSchema, location="form")
+    @marshal_with(util.CommonResponse)
+    @jwt_required
+    def delete(self, project_id, release_id, **kwargs):
+        return util.success(release.delete_release_image(project_id, release_id, kwargs))
 
 class ReleasesV2(MethodResource):
     @doc(tags=['Release'], description="Get release list.")
@@ -1650,6 +1657,7 @@ class ReleaseV2(MethodResource):
                                 error=apiError.repository_id_not_found(plugin_relation.git_repository_id))
 
 
+##### Project Error Message ######
 class ProjectErrorMessageV2(MethodResource):
     @doc(tags=['Release'], description="Get Helm error message.")
     @jwt_required
