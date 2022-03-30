@@ -332,17 +332,6 @@ def get_ad_servers(input_str):
     return output
 
 
-PROTOCOL_SSLv2
-PROTOCOL_SSLv3
-PROTOCOL_SSLv23
-PROTOCOL_TLS
-PROTOCOL_TLS_CLIENT
-PROTOCOL_TLS_SERVER
-PROTOCOL_TLSv1
-PROTOCOL_TLSv1_1
-PROTOCOL_TLSv1_2
-
-
 def get_ssl_validate_method(validate_method):
     if validate_method == 'REQUIRED':
         ssl_validate = ssl.CERT_REQUIRED
