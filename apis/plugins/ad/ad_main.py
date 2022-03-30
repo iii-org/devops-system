@@ -341,13 +341,12 @@ def get_ssl_validate_method(validate_method):
         ssl_validate = ssl.CERT_NONE
     return ssl_validate
 
+# SSL protocol Method [ssl.CERT_NONE, ssl.CERT_OPTIONAL, ssl.CERT_REQUIRED]:
+
 
 def get_ssl_protocol(protocol_str):
-    # SSL protocol Method [ssl.CERT_NONE, ssl.CERT_OPTIONAL, ssl.CERT_REQUIRED]:
-    if protocol_str == 'PROTOCOL_SSLv2':
-        ssl_protocol = ssl.PROTOCOL_SSLv2
-    elif protocol_str == 'PROTOCOL_SSLv3':
-        ssl_protocol = ssl.PROTOCOL_SSLv3
+    if protocol_str == 'PROTOCOL_SSLv23':
+        ssl_protocol = ssl.PROTOCOL_SSLv23
     elif protocol_str == 'PROTOCOL_TLS':
         ssl_protocol = ssl.PROTOCOL_TLS
     elif protocol_str == 'PROTOCOL_TLSv1':
@@ -381,7 +380,7 @@ class AD(object):
         #     ssl_validate = ssl.CERT_OPTIONAL
         # else:
         #     ssl_validate = ssl.CERT_NONE
-
+        print(is_ssl)
         ssl_validate = get_ssl_validate_method(ldap_parameter.get('ssl_validate', 'REQUIRED'))
         # SSL Validate Method [ssl.CERT_NONE, ssl.CERT_OPTIONAL, ssl.CERT_REQUIRED]:
         ssl_protocol = get_ssl_protocol(ldap_parameter.get('ssl_protocol', 'PROTOCOL_TLSv1_2'))
@@ -456,6 +455,8 @@ class AD(object):
         target_status_filter = '(!(isCriticalSystemObject=True))'
         search_target = '(sAMAccountName=' + account + ')'
         user_search_filter = '(&' + target_objectclass + target_status_filter + search_target + ')'
+        print(user_search_filter)
+        print(self.ad_info)
         if self.ad_info['is_pass'] is True:
             self.conn.search(
                 search_base=self.active_base_dn,

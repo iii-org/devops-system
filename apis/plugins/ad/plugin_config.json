@@ -103,10 +103,6 @@
       "type": "select",
       "options": [
         {
-          "value": "PROTOCOL_SSLv2",
-          "name": "SSLv2"
-        },
-        {
           "value": "PROTOCOL_SSLv23",
           "name": "SSLv23"
         },
