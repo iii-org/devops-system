@@ -232,6 +232,8 @@ def project_url(api, add_resource):
     add_resource(view.ReleaseExtraV2, 'public')
     api.add_resource(view.ReleaseTagV2, '/v2/project/<int:project_id>/releases/<int:release_id>/tag')
     add_resource(view.ReleaseTagV2, 'public')
+    api.add_resource(view.ReleaseRepoV2, '/v2/project/<int:project_id>/releases/<int:release_id>/repository')
+    add_resource(view.ReleaseRepoV2, 'public')
     api.add_resource(view.ReleasesV2, '/v2/project/<int:project_id>/releases')
     add_resource(view.ReleasesV2, 'public')
     api.add_resource(view.ReleaseV2, '/v2/project/<project_id>/releases/<release_name>')

@@ -965,8 +965,11 @@ class ReleaseExtraGetSchema(Schema):
     offset = fields.Int(example=0, missing=0)
 
 class ReleaseTagSchema(Schema):
-    # image_path = fields.Str(validate=lambda x: re.search("\w/\w", x) is not None)
     tags = fields.Str(required=True)
+
+class ReleaseRepoSchema(Schema):
+    image_path = fields.Str(
+        validate=lambda x: re.search("\w:\w", x) is not None, required=True)
 
 class ReleasesGetSchema(Schema):
     image = fields.Bool()
@@ -1010,6 +1013,7 @@ class ReleasesGetData(Schema):
                     }
                 ],
                 "git_url": "http://giturl/project_name",
+                "harbor_external_base_url": "http://harbor_external_base_url/project_name",
                 "id": 1,
                 "image_tags": [
                     {"1ec85c4" : ["project_name/repo-name:tag"]},

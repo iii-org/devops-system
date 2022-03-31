@@ -1506,14 +1506,29 @@ class ReleaseTagV2(MethodResource):
     @marshal_with(util.CommonResponse)
     @jwt_required
     def post(self, project_id, release_id, **kwargs):
-        return util.success(release.create_release_image(project_id, release_id, kwargs))
+        return release.create_release_image_tag(project_id, release_id, kwargs)
     
     @doc(tags=['Release'], description="Delete tag on release by release_id.")
     @use_kwargs(router_model.ReleaseTagSchema, location="form")
     @marshal_with(util.CommonResponse)
     @jwt_required
     def delete(self, project_id, release_id, **kwargs):
-        return util.success(release.delete_release_image(project_id, release_id, kwargs))
+        return release.delete_release_image_tag(project_id, release_id, kwargs)
+
+class ReleaseRepoV2(MethodResource):
+    @doc(tags=['Release'], description="Add repository on release by release_id.")
+    @use_kwargs(router_model.ReleaseRepoSchema, location="form")
+    @marshal_with(util.CommonResponse)
+    @jwt_required
+    def post(self, project_id, release_id, **kwargs):
+        return release.create_release_image_repo(project_id, release_id, kwargs)
+    
+    # @doc(tags=['Release'], description="Delete repository on release by release_id.")
+    # @use_kwargs(router_model.ReleaseRepoSchema, location="form")
+    # @marshal_with(util.CommonResponse)
+    # @jwt_required
+    # def delete(self, project_id, release_id, **kwargs):
+    #     return util.success(release.delete_release_image_repo(project_id, release_id, kwargs))
 
 class ReleasesV2(MethodResource):
     @doc(tags=['Release'], description="Get release list.")
