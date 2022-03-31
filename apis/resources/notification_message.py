@@ -42,13 +42,14 @@ def parameter_check(args):
             raise DevOpsError(400, 'Argument user_id not exist in type_parameter.',
                               error=argument_error('user_id'))
 
-
+'''
 def __check_read(row):
     message_dict = json.loads(str(row[0]))
     message_dict["read"] = False
     if row[1] is not None:
         message_dict["read"] = True
     return message_dict
+'''
 
 
 def combine_message_and_recipient(rows):
@@ -121,12 +122,13 @@ def create_notification_message(args):
         db.session.commit()
     notification_room.send_message_to_all(row.id)
 
-
+'''
 def update_notification_message(message_id, args):
     message = NotificationMessage.query.filter_by(id=message_id).first()
     for k, v in args.items():
         setattr(message, k, v)
     db.session.commit()
+
 
 
 def get_notification_message(message_id):
@@ -147,6 +149,7 @@ def get_notification_message(message_id):
                 return not_enough_authorization(message_id, get_jwt_identity()["user_id"])
     else:
         return resource_not_found()
+'''
 
 
 def delete_notification_message(message_id):
@@ -252,7 +255,7 @@ class Message(Resource):
             args["type_parameter"] = json.loads(args["type_parameter"].replace("\'", "\""))
 
         return util.success(create_notification_message(args))
-
+    '''
     @ jwt_required
     def get(self, message_id):
         return util.success(get_notification_message(message_id))
@@ -272,6 +275,7 @@ class Message(Resource):
             args["type_parameter"] = json.loads(args["type_parameter"].replace("\'", "\""))
         update_notification_message(message_id, args)
         return util.success()
+    '''
 
     @ jwt_required
     def delete(self, message_id):
