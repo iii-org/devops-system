@@ -1509,7 +1509,7 @@ class ReleaseTagV2(MethodResource):
         return release.create_release_image_tag(project_id, release_id, kwargs)
     
     @doc(tags=['Release'], description="Delete tag on release by release_id.")
-    @use_kwargs(router_model.ReleaseTagSchema, location="form")
+    @use_kwargs(router_model.ReleaseTagSchema, location="query")
     @marshal_with(util.CommonResponse)
     @jwt_required
     def delete(self, project_id, release_id, **kwargs):
@@ -1524,7 +1524,7 @@ class ReleaseRepoV2(MethodResource):
         return release.create_release_image_repo(project_id, release_id, kwargs)
     
     @doc(tags=['Release'], description="Delete repository on release by release_id.")
-    @use_kwargs(router_model.ReleaseRepoDeleteSchema, location="form")
+    @use_kwargs(router_model.ReleaseRepoDeleteSchema, location="query")
     @marshal_with(util.CommonResponse)
     @jwt_required
     def delete(self, project_id, release_id, **kwargs):
