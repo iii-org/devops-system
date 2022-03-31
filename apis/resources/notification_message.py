@@ -28,12 +28,12 @@ def clear_has_expired_notifications_message(name, value_key):
 
 def parameter_check(args):
     if args.get("alert_level") not in (1, 2, 3, 4):
-        raise DevOpsError(400, 'Argument alert_level not in (1, 2, 3, 4).',
+        raise DevOpsError(400, 'Argument alert_level not in range.',
                           error=argument_error('alert_level'))
     for type_id in args.get("type_ids"):
-        if type_id not in (1, 2, 3):
-            raise DevOpsError(400, 'Argument type_id not in (1,2,3).', error=argument_error('type_id'))
-        if type_id in range(2, 4) and args["type_parameter"] is None:
+        if type_id not in range(1, 5):
+            raise DevOpsError(400, 'Argument type_id not in range.', error=argument_error('type_id'))
+        if type_id in range(2, 5) and args["type_parameter"] is None:
             raise DevOpsError(400, 'Missing type_parameter', error=argument_error('type_parameter'))
         elif type_id == 2 and 'project_id' not in json.loads(args["type_parameter"]):
             raise DevOpsError(400, 'Argument project_id not exist in type_parameter.',
@@ -41,6 +41,10 @@ def parameter_check(args):
         elif type_id == 3 and 'user_id' not in json.loads(args["type_parameter"]):
             raise DevOpsError(400, 'Argument user_id not exist in type_parameter.',
                               error=argument_error('user_id'))
+        elif type_id == 4 and 'role_id' not in json.loads(args["type_parameter"]):
+            raise DevOpsError(400, 'Argument role_id not exist in type_parameter.',
+                              error=argument_error('role_id'))
+
 
 '''
 def __check_read(row):
@@ -67,7 +71,7 @@ def combine_message_and_recipient(rows):
     return list(out_dict.values())
 
 
-def filter_by_user(rows, user_id):
+def filter_by_user(rows, user_id, role_id=None):
     projects = db.session.query(ProjectUserRole.project_id).filter(and_(
         ProjectUserRole.user_id == user_id, ProjectUserRole.project_id != -1)).all()
     i = 0
@@ -75,6 +79,8 @@ def filter_by_user(rows, user_id):
         if rows[i][1].type_id == 2 and (rows[i][1].type_parameter['project_id'],) not in projects:
             del (rows[i])
         elif rows[i][1].type_id == 3 and rows[i][1].type_parameter['user_id'] != user_id:
+            del (rows[i])
+        elif role_id and rows[i][1].type_id == 4 and rows[i][1].type_parameter['role_id'] != role_id:
             del (rows[i])
         else:
             i += 1
@@ -94,7 +100,7 @@ def get_notification_message_list(args):
     rows = base_query.all()
 
     if get_jwt_identity()["role_id"] != role.ADMIN.id:
-        rows = filter_by_user(rows, get_jwt_identity()["user_id"])
+        rows = filter_by_user(rows, get_jwt_identity()["user_id"], get_jwt_identity()["_id"])
     out = combine_message_and_recipient(rows)
     out_dict = {'notification_message_list': out}
     if page_dict:
@@ -121,6 +127,7 @@ def create_notification_message(args):
         db.session.add(row_recipient)
         db.session.commit()
     notification_room.send_message_to_all(row.id)
+
 
 '''
 def update_notification_message(message_id, args):
@@ -200,6 +207,13 @@ class NotificationRoom(object):
                 # Send message to the user
                 emit("system_message", str(message_row[0]), namespace="/get_notification_message",
                      to=f"user/{message_row[1].type_parameter['user_id']}")
+            elif message_row[1].type_id == 4:
+                user_rows = ProjectUserRole.query.filter_by(
+                    role_id=message_row[1].type_parameter['role_id'], project_id=-1).all()
+                # Send message
+                for user_row in user_rows:
+                    emit("system_message", json.loads(str(message_row[0])), namespace="/get_notification_message",
+                         to=f"user/{user_row.user_id}")
 
     def get_message(self, data):
         rows = db.session.query(NotificationMessage, NotificationMessageRecipient).outerjoin(
@@ -209,7 +223,8 @@ class NotificationRoom(object):
 
         rows = rows.outerjoin(NotificationMessageRecipient,
                               NotificationMessageRecipient.message_id == NotificationMessage.id).all()
-        rows = filter_by_user(rows, data['user_id'])
+        pur_row = ProjectUserRole.query.filter_by(user_id=data['user_id']).first()
+        rows = filter_by_user(rows, data['user_id'], pur_row.role_id)
         message_list = combine_message_and_recipient(rows)
         for message in message_list:
             emit("system_message", message, namespace="/get_notification_message", to=f"user/{data['user_id']}")
