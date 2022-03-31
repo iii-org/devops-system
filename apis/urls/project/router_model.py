@@ -967,9 +967,12 @@ class ReleaseExtraGetSchema(Schema):
 class ReleaseTagSchema(Schema):
     tags = fields.Str(required=True)
 
-class ReleaseRepoSchema(Schema):
+class ReleaseRepoPostSchema(Schema):
     image_path = fields.Str(
         validate=lambda x: re.search("\w:\w", x) is not None, required=True)
+
+class ReleaseRepoDeleteSchema(Schema):
+    repo_name = fields.Str(required=True)
 
 class ReleasesGetSchema(Schema):
     image = fields.Bool()

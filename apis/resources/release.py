@@ -272,28 +272,31 @@ def create_release_image_repo(project_id, release_id, args):
                 return util.respond(500, str(e))
 
                 
-# def delete_release_image_repo(project_id, release_id, args):
-#     project_name = model.Project.query.filter_by(id=project_id).first().name
-#     release = model.Release.query.filter_by(id=release_id).first()
-#     if release is not None:
-#         dest_image_path = args["image_path"]
-#         temp = dest_image_path.split(":")
-#         dest_repo = temp[0]
-#         full_image_path = f"{project_name}/{dest_image_path}"
-#         before_image_path = release.image_paths
-
-#         [image_path for image_path in before_image_path if ]
-            
-#             release.image_paths = [full_image_path] + before_image_path
-#             db.session.commit()
-#             digest = hb_get_artifact(project_name, release.branch, release.tag_name)[0]["digest"]
-#             try:
-#                 hb_create_artifact_tag(project_name, dest_repo, digest, dest_tag)
-#             except:
-#                 release.image_paths = before_image_path
-#                 db.session.commit()
-#                 pass
-
+def delete_release_image_repo(project_id, release_id, args):
+    project_name = model.Project.query.filter_by(id=project_id).first().name
+    release = model.Release.query.filter_by(id=release_id).first()
+    removed_repo_name = args["repo_name"]
+    if release is not None and removed_repo_name != release.branch: 
+        before_image_paths = release.image_paths
+        after_image_paths = []
+        delete_tags = []
+        for image_path in before_image_paths:
+            temp = image_path.split("/")[-1].split(":")
+            repo_name, tag = temp[0], temp[1]
+            if repo_name == removed_repo_name:
+                delete_tags.append(tag)
+            else:
+                after_image_paths.append(image_path)
+        digest = hb_get_artifact(project_name, release.branch, release.tag_name)[0]["digest"]
+        release.image_paths = after_image_paths
+        db.session.commit()
+        try:
+            hb_delete_artifact(project_name, removed_repo_name, digest)
+            return util.success()
+        except Exception as e:
+            release.image_paths = before_image_paths
+            db.session.commit()
+            return util.respond(500, str(e))
 
 
 def create_release_image_tag(project_id, release_id, args):
@@ -328,6 +331,7 @@ def create_release_image_tag(project_id, release_id, args):
             release_image_tag_helper(
                 project_name, distinct_image_paths, dest_tags, digest, delete=True)
             return util.respond(500, str(e))
+
 
 def delete_release_image_tag(project_id, release_id, args):
     project_name = model.Project.query.filter_by(id=project_id).first().name
