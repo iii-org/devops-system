@@ -5,6 +5,7 @@ import zipfile
 from datetime import datetime
 from io import BytesIO
 import json
+import uuid
 
 from accessories import redmine_lib
 from flask import send_file
@@ -331,7 +332,8 @@ def create_project(user_id, args):
             owner_id=owner_id,
             creator_id=user_id,
             base_example=template_pj_path,
-            example_tag=args["tag_name"]
+            example_tag=args["tag_name"],
+            uuid=str(uuid.uuid1())
         )
         db.session.add(new_pjt)
         db.session.commit()

@@ -242,7 +242,7 @@ def generate_artifacts_output(art):
             output.append({
                 'artifact_id': art['id'],
                 'tag_id': tag['id'],
-                'name': tag['name'],
+                'name': tag.get('name', ""),
                 'size': art['size'],
                 'vulnerabilities': vul,
                 'digest': art['digest'],
