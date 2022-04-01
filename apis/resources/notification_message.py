@@ -33,17 +33,17 @@ def parameter_check(args):
     for type_id in args.get("type_ids"):
         if type_id not in range(1, 5):
             raise DevOpsError(400, 'Argument type_id not in range.', error=argument_error('type_id'))
-        if type_id in range(2, 5) and args["type_parameter"] is None:
-            raise DevOpsError(400, 'Missing type_parameter', error=argument_error('type_parameter'))
-        elif type_id == 2 and 'project_id' not in json.loads(args["type_parameter"]):
-            raise DevOpsError(400, 'Argument project_id not exist in type_parameter.',
-                              error=argument_error('project_id'))
-        elif type_id == 3 and 'user_id' not in json.loads(args["type_parameter"]):
-            raise DevOpsError(400, 'Argument user_id not exist in type_parameter.',
-                              error=argument_error('user_id'))
-        elif type_id == 4 and 'role_id' not in json.loads(args["type_parameter"]):
-            raise DevOpsError(400, 'Argument role_id not exist in type_parameter.',
-                              error=argument_error('role_id'))
+        if type_id in range(2, 5) and args.get("type_parameters") is None:
+            raise DevOpsError(400, 'Missing type_parameters', error=argument_error('type_parameters'))
+        elif type_id == 2 and 'project_ids' not in json.loads(args["type_parameters"]):
+            raise DevOpsError(400, 'Argument project_ids not exist in type_parameters.',
+                              error=argument_error('project_ids'))
+        elif type_id == 3 and 'user_ids' not in json.loads(args["type_parameters"]):
+            raise DevOpsError(400, 'Argument user_id not exist in type_parameters.',
+                              error=argument_error('user_ids'))
+        elif type_id == 4 and 'role_ids' not in json.loads(args["type_parameters"]):
+            raise DevOpsError(400, 'Argument role_ids not exist in type_parameters.',
+                              error=argument_error('role_ids'))
 
 
 '''
@@ -72,19 +72,23 @@ def combine_message_and_recipient(rows):
 
 
 def filter_by_user(rows, user_id, role_id=None):
-    projects = db.session.query(ProjectUserRole.project_id).filter(and_(
+    project_ids = db.session.query(ProjectUserRole.project_id).filter(and_(
         ProjectUserRole.user_id == user_id, ProjectUserRole.project_id != -1)).all()
-    i = 0
-    while i < len(rows):
-        if rows[i][1].type_id == 2 and (rows[i][1].type_parameter['project_id'],) not in projects:
-            del (rows[i])
-        elif rows[i][1].type_id == 3 and rows[i][1].type_parameter['user_id'] != user_id:
-            del (rows[i])
-        elif role_id and rows[i][1].type_id == 4 and rows[i][1].type_parameter['role_id'] != role_id:
-            del (rows[i])
-        else:
-            i += 1
-    return rows
+    out_list = []
+    for row in rows:
+        if row[1].type_id == 2:
+            for type_project_id in row[1].type_parameter['project_ids']:
+                if (type_project_id,) in project_ids and row not in out_list:
+                    out_list.append(row)
+        if row[1].type_id == 3:
+            for type_user_id in row[1].type_parameter['user_ids']:
+                if type_user_id == user_id and row not in out_list:
+                    out_list.append(row)
+        if role_id and row[1].type_id == 4:
+            for type_role_id in row[1].type_parameter['role_ids']:
+                if type_role_id == role_id and row not in out_list:
+                    out_list.append(row)
+    return out_list
 
 
 def get_notification_message_list(args):
@@ -100,7 +104,7 @@ def get_notification_message_list(args):
     rows = base_query.all()
 
     if get_jwt_identity()["role_id"] != role.ADMIN.id:
-        rows = filter_by_user(rows, get_jwt_identity()["user_id"], get_jwt_identity()["_id"])
+        rows = filter_by_user(rows, get_jwt_identity()["user_id"], get_jwt_identity()["role_id"])
     out = combine_message_and_recipient(rows)
     out_dict = {'notification_message_list': out}
     if page_dict:
@@ -122,7 +126,7 @@ def create_notification_message(args):
         row_recipient = NotificationMessageRecipient(
             message_id=row.id,
             type_id=type_id,
-            type_parameter=args['type_parameter'],
+            type_parameter=args['type_parameters'],
         )
         db.session.add(row_recipient)
         db.session.commit()
@@ -185,35 +189,33 @@ class NotificationRoom(object):
             NotificationMessageRecipient, and_(NotificationMessage.id == message_id,
                                                NotificationMessage.id == NotificationMessageRecipient.message_id
                                                )).all()
+        out_dict = {}
         for message_row in message_rows:
             if message_row[1].type_id == 1:
                 # Send message to all
-                # Get all user list
-                user_rows = User.query.all()
-                # Send message
-                for user_row in user_rows:
-                    emit("system_message", json.loads(str(message_row[0])), namespace="/get_notification_message",
-                         to=f"user/{user_row.id}")
+                for user_row in User.query.all():
+                    if user_row not in out_dict:
+                        out_dict[user_row.id] = json.loads(str(message_row[0]))
             elif message_row[1].type_id == 2:
-                # Send message to user in project
-                # Get all user list in projects
-                user_rows = ProjectUserRole.query.filter_by(
-                    project_id=message_row[1].type_parameter['project_id']).all()
-                # Send message
-                for user_row in user_rows:
-                    emit("system_message", json.loads(str(message_row[0])), namespace="/get_notification_message",
-                         to=f"user/{user_row.user_id}")
+                for project_id in message_row[1].type_parameter['project_ids']:
+                    # Send message to user in project
+                    for user_row in ProjectUserRole.query.filter_by(project_id=project_id).all():
+                        if user_row.user_id not in out_dict:
+                            out_dict[user_row.user_id] = json.loads(str(message_row[0]))
             elif message_row[1].type_id == 3:
                 # Send message to the user
-                emit("system_message", str(message_row[0]), namespace="/get_notification_message",
-                     to=f"user/{message_row[1].type_parameter['user_id']}")
+                for user_id in message_row[1].type_parameter['user_ids']:
+                    if user_id not in out_dict:
+                        out_dict[user_id] = json.loads(str(message_row[0]))
             elif message_row[1].type_id == 4:
-                user_rows = ProjectUserRole.query.filter_by(
-                    role_id=message_row[1].type_parameter['role_id'], project_id=-1).all()
-                # Send message
-                for user_row in user_rows:
-                    emit("system_message", json.loads(str(message_row[0])), namespace="/get_notification_message",
-                         to=f"user/{user_row.user_id}")
+                # Send message to same role account
+                for role_id in message_row[1].type_parameter['role_ids']:
+                    for user_row in ProjectUserRole.query.filter_by(role_id=role_id, project_id=-1).all():
+                        if user_row.user_id not in out_dict:
+                            out_dict[user_row.user_id] = json.loads(str(message_row[0]))
+        for k, v in out_dict.items():
+            emit("system_message", v, namespace="/get_notification_message",
+                 to=f"user/{k}")
 
     def get_message(self, data):
         rows = db.session.query(NotificationMessage, NotificationMessageRecipient).outerjoin(
@@ -262,12 +264,12 @@ class Message(Resource):
         parser.add_argument('alert_level', type=int, required=True)
         parser.add_argument('message', type=str, required=True)
         parser.add_argument('type_ids', type=str, required=True)
-        parser.add_argument('type_parameter', type=str)
+        parser.add_argument('type_parameters', type=str)
         args = parser.parse_args()
         args["type_ids"] = json.loads(args["type_ids"].replace("\'", "\""))
         parameter_check(args)
-        if args.get("type_parameter") is not None:
-            args["type_parameter"] = json.loads(args["type_parameter"].replace("\'", "\""))
+        if args.get("type_parameters") is not None:
+            args["type_parameters"] = json.loads(args["type_parameters"].replace("\'", "\""))
 
         return util.success(create_notification_message(args))
     '''
@@ -282,12 +284,12 @@ class Message(Resource):
         parser.add_argument('alert_level', type=int, required=True)
         parser.add_argument('message', type=str)
         parser.add_argument('type_ids', type=int, action='append', required=True)
-        parser.add_argument('type_parameter', type=str)
+        parser.add_argument('type_parameters', type=str)
         args = parser.parse_args()
         args = {k: v for k, v in args.items() if v is not None}
         parameter_check(args)
-        if args.get("type_parameter") is not None:
-            args["type_parameter"] = json.loads(args["type_parameter"].replace("\'", "\""))
+        if args.get("type_parameters") is not None:
+            args["type_parameters"] = json.loads(args["type_parameters"].replace("\'", "\""))
         update_notification_message(message_id, args)
         return util.success()
     '''
