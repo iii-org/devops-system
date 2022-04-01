@@ -101,6 +101,7 @@ class Project(db.Model):
     lock_reason = Column(String)
     base_example = Column(String)
     example_tag = Column(String)
+    uuid = Column(String)
 
     def __repr__(self):
         fields = {}
