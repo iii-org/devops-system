@@ -257,7 +257,7 @@ def create_release_image_repo(project_id, release_id, args):
                 if dest_repo not in repo_list or hb_list_artifacts(project_name, dest_repo) == []:
                     hb_copy_artifact(project_name, dest_repo, f"{project_name}/{release.branch}@{digest}")
                     copy_image = True
-                    for removed_tag in [hb_tag["name"] for hb_tag in hb_list_tags(project_name, release.branch, digest)]:
+                    for removed_tag in [hb_tag.get("name") for hb_tag in hb_list_tags(project_name, release.branch, digest) if hb_tag.get("name") is not None]:
                         hb_delete_artifact_tag(project_name, dest_repo, digest, removed_tag, keep=True)
                 hb_create_artifact_tag(project_name, dest_repo, digest, dest_tag)
                 add_tag = True
@@ -367,10 +367,10 @@ def release_image_tag_helper(project_name, distinct_image_paths, dest_tags, dige
     for distinct_image_path in distinct_image_paths:
         repo_name = distinct_image_path.split("/")[1]
         if not delete:
-            if dest_tags not in [tag["name"] for tag in hb_list_tags(project_name, repo_name, digest)]:  
+            if dest_tags not in [tag.get("name", "") for tag in hb_list_tags(project_name, repo_name, digest)]:  
                 hb_create_artifact_tag(project_name, repo_name, digest, dest_tags)
         else:
-            if dest_tags in [tag["name"] for tag in hb_list_tags(project_name, repo_name, digest)]:  
+            if dest_tags in [tag.get("name", "") for tag in hb_list_tags(project_name, repo_name, digest)]:  
                 hb_delete_artifact_tag(project_name, repo_name, digest, dest_tags)
 
 

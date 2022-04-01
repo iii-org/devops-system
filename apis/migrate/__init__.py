@@ -2,6 +2,7 @@ import os
 import config
 import model
 import util
+import uuid
 from migrate.upgrade_function.upload_file_types import upload_file_types
 from model import db, ProjectPluginRelation, Project, UserPluginRelation, User, ProjectUserRole, PluginSoftware, \
     DefaultAlertDays, TraceOrder, TraceResult, Application, IssueExtensions, Lock, RedmineProject, ServerType, SystemParameter
@@ -35,7 +36,7 @@ VERSIONS = ['0.9.2', '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.4', '0.9.2.5',
             '1.12.1.2', '1.12.1.3', '1.13.0.1', '1.13.0.2', '1.13.0.3', '1.13.0.4', '1.13.0.5', '1.13.0.6', '1.13.0.7', '1.13.0.8',
             '1.14.0.1', '1.14.0.2', '1.14.0.3', '1.14.0.4', '1.14.0.5', '1.14.0.6', '1.14.0.7', '1.14.0.8', '1.14.0.9', '1.14.0.10', '1.15.0.1',
             '1.15.0.2', '1.15.0.3', '1.15.0.4', '1.15.0.5', '1.15.0.6', '1.15.0.7', '1.15.0.8', '1.15.0.9', '1.15.0.10', '1.15.0.11', '1.15.0.12',
-            '1.15.0.13']
+            '1.15.0.13', '1.15.0.14', '1.15.0.15']
 ONLY_UPDATE_DB_MODELS = [
     '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.5', '0.9.2.6', '0.9.2.a8',
     '1.0.0.2', '1.3.0.1', '1.3.0.2', '1.3.0.3', '1.3.0.4', '1.3.1', '1.3.1.1', '1.3.1.2',
@@ -50,7 +51,7 @@ ONLY_UPDATE_DB_MODELS = [
     '1.12.0.3', '1.12.0.4', '1.12.0.5', '1.12.0.6', '1.12.0.7', '1.12.0.8', '1.12.0.9', '1.12.1.0', '1.12.1.1', '1.12.1.2', '1.12.1.3',
     '1.13.0.3', '1.13.0.4', '1.13.0.5', '1.13.0.6', '1.13.0.8', '1.14.0.1', '1.14.0.2', '1.14.0.3', '1.14.0.4', '1.14.0.6', '1.14.0.7',
     '1.14.0.9', '1.14.0.10', '1.15.0.2', '1.15.0.3', '1.15.0.4', '1.15.0.5', '1.15.0.6', '1.15.0.7', '1.15.0.8', '1.15.0.9', '1.15.0.10',
-    '1.15.0.11', '1.15.0.13']
+    '1.15.0.11', '1.15.0.13', '1.15.0.14']
 
 
 def upgrade(version):
@@ -176,6 +177,16 @@ def upgrade(version):
         insert_upload_file_type_in_system_parameter()
     elif version == '1.15.0.12':
         insert_upload_gitlab_connection_in_system_parameter()
+    elif version == '1.15.0.15':
+        add_uuid_in_all_projects()
+
+
+
+def add_uuid_in_all_projects():
+    for pj in Project.query.all():
+        if pj.uuid is None:
+            pj.uuid = str(uuid.uuid1())
+            db.session.commit()
 
 
 def insert_upload_gitlab_connection_in_system_parameter():
