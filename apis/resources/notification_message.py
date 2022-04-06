@@ -76,6 +76,8 @@ def filter_by_user(rows, user_id, role_id=None):
         ProjectUserRole.user_id == user_id, ProjectUserRole.project_id != -1)).all()
     out_list = []
     for row in rows:
+        if row[1].type_id == 1 and row not in out_list:
+            out_list.append(row)
         if row[1].type_id == 2:
             for type_project_id in row[1].type_parameter['project_ids']:
                 if (type_project_id,) in project_ids and row not in out_list:
