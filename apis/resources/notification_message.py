@@ -63,6 +63,10 @@ def combine_message_and_recipient(rows):
             out_dict[row[0].id] = {**json.loads(str(row[0])), **{"types": [json.loads(str(row[1]))]}}
         else:
             out_dict[row[0].id]["types"].append(json.loads(str(row[1])))
+        if row[0].creator_id:
+            from resources.user import NexusUser
+            out_dict[row[0].id]["creator"] = NexusUser().set_user_id(row[0].creator_id).to_json()
+        out_dict[row[0].id].pop("creator_id", None)
         if len(row) > 2:
             if row[2] is not None:
                 out_dict[row[0].id]["read"] = True
@@ -216,6 +220,10 @@ class NotificationRoom(object):
                         if user_row.user_id not in out_dict:
                             out_dict[user_row.user_id] = json.loads(str(message_row[0]))
         for k, v in out_dict.items():
+            if "creator_id" in v:
+                from resources.user import NexusUser
+                v["creator"] = NexusUser().set_user_id(v["creator_id"]).to_json()
+            v.pop("creator_id", None)
             emit("system_message", v, namespace="/get_notification_message",
                  to=f"user/{k}")
 
