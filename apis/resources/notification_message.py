@@ -18,6 +18,29 @@ https://github.com/iii-org/devops-system/wiki/Notification-Message
 '''
 
 
+class Alert_Level:
+    def __init__(self, id_, name):
+        self.id = id_
+        self.name = name
+
+
+INF = Alert_Level(1, 'INFO')
+WAR = Alert_Level(2, 'WARNING')
+ERR = Alert_Level(3, 'ERROR')
+CRI = Alert_Level(4, 'CRITICAL')
+
+NEW = Alert_Level(101, 'New Version')
+
+ALL_ALERTS = [INF, WAR, ERR, CRI, NEW]
+
+
+def get_alert_level(alert_id):
+    for alert in ALL_ALERTS:
+        if alert.id == alert_id:
+            return alert
+    return 'Unknown Role'
+
+
 def clear_has_expired_notifications_message(name, value_key):
     month_number = int(SystemParameter.query.filter_by(name=name).one().value[value_key])
 
