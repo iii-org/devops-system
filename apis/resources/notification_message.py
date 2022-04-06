@@ -37,8 +37,8 @@ ALL_ALERTS = [INF, WAR, ERR, CRI, NEW]
 def get_alert_level(alert_id):
     for alert in ALL_ALERTS:
         if alert.id == alert_id:
-            return alert
-    return 'Unknown Role'
+            return {'id': alert.id, 'name': alert.name}
+    return 'Unknown Alert'
 
 
 def clear_has_expired_notifications_message(name, value_key):
@@ -86,6 +86,8 @@ def combine_message_and_recipient(rows):
             out_dict[row[0].id] = {**json.loads(str(row[0])), **{"types": [json.loads(str(row[1]))]}}
         else:
             out_dict[row[0].id]["types"].append(json.loads(str(row[1])))
+        if row[0].alert_level:
+            out_dict[row[0].id]["alert_level"] = get_alert_level(row[0].alert_level)
         if row[0].creator_id:
             from resources.user import NexusUser
             out_dict[row[0].id]["creator"] = NexusUser().set_user_id(row[0].creator_id).to_json()
@@ -243,6 +245,7 @@ class NotificationRoom(object):
                         if user_row.user_id not in out_dict:
                             out_dict[user_row.user_id] = json.loads(str(message_row[0]))
         for k, v in out_dict.items():
+            v["alert_level"] = get_alert_level(v["alert_level"])
             if "creator_id" in v:
                 from resources.user import NexusUser
                 v["creator"] = NexusUser().set_user_id(v["creator_id"]).to_json()
