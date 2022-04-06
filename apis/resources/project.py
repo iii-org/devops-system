@@ -302,6 +302,7 @@ def create_project(user_id, args):
                     raise e
     try:
         project_id = None
+        uuid = uuid.uuid1().hex
         # enable rancher pipeline
         rancher.rc_get_project_id()
         t_rancher = DevOpsThread(target=rancher.rc_enable_project_pipeline,
@@ -333,7 +334,7 @@ def create_project(user_id, args):
             creator_id=user_id,
             base_example=template_pj_path,
             example_tag=args["tag_name"],
-            uuid=str(uuid.uuid1())
+            uuid=uuid
         )
         db.session.add(new_pjt)
         db.session.commit()
@@ -377,10 +378,11 @@ def create_project(user_id, args):
             template.tm_use_template_push_into_pj(args["template_id"], gitlab_pj_id,
                                                   args["tag_name"], args["arguments"])
 
-        # Create project NFS folder
-        project_nfs_file_path = f"./devops-data/project-data/{gitlab_pj_name}/pipeline"
-        os.makedirs(project_nfs_file_path, exist_ok=True)
-        os.chmod(project_nfs_file_path, 0o777)
+        # Create project NFS folder /(uuid)
+        for folder in ["pipeline", uuid]:
+            project_nfs_file_path = f"./devops-data/project-data/{gitlab_pj_name}/{folder}"
+            os.makedirs(project_nfs_file_path, exist_ok=True)
+            os.chmod(project_nfs_file_path, 0o777)
 
         return {
             "project_id": project_id,
