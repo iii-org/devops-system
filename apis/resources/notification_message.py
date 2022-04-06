@@ -142,6 +142,8 @@ def get_notification_message_list(args):
         to_date = datetime.fromtimestamp(mktime(strptime(a_to_date, '%Y-%m-%d')))
         to_date += timedelta(days=1)
         base_query = base_query.filter(NotificationMessage.created_at < to_date)
+    if args.get("alert_id") is not None:
+        base_query = base_query.filter(NotificationMessage.alert_level == args.get("alert_id"))
     rows = base_query.all()
 
     if get_jwt_identity()["role_id"] != role.ADMIN.id:
@@ -361,6 +363,7 @@ class MessageList(Resource):
         parser.add_argument('from_date', type=str)
         parser.add_argument('to_date', type=str)
         parser.add_argument('search', type=str)
+        parser.add_argument('alert_id', type=int)
         args = parser.parse_args()
         return util.success(get_notification_message_list(args))
 
