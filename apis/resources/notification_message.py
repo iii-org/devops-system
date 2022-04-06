@@ -130,14 +130,15 @@ def get_notification_message_list(args):
                                        NotificationMessage.id == NotificationMessageReply.message_id))
     base_query = base_query.outerjoin(NotificationMessageRecipient,
                                       NotificationMessageRecipient.message_id == NotificationMessage.id)
-    if args['limit'] is not None or args['offset'] is not None:
-        base_query, page_dict = util.orm_pagination(base_query, args['limit'], args['offset'])
+
     rows = base_query.all()
 
     if get_jwt_identity()["role_id"] != role.ADMIN.id:
         rows = filter_by_user(rows, get_jwt_identity()["user_id"], get_jwt_identity()["role_id"])
     out = combine_message_and_recipient(rows)
+    out, page_dict = util.list_pagination(out, args['limit'], args['offset'])
     out_dict = {'notification_message_list': out}
+
     if page_dict:
         out_dict['page'] = page_dict
     return out_dict
@@ -165,12 +166,13 @@ def create_notification_message(args):
 
 
 '''
+
+
 def update_notification_message(message_id, args):
     message = NotificationMessage.query.filter_by(id=message_id).first()
     for k, v in args.items():
         setattr(message, k, v)
     db.session.commit()
-
 
 
 def get_notification_message(message_id):
@@ -191,6 +193,8 @@ def get_notification_message(message_id):
                 return not_enough_authorization(message_id, get_jwt_identity()["user_id"])
     else:
         return resource_not_found()
+
+
 '''
 
 

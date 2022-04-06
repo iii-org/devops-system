@@ -21,7 +21,6 @@ import pandas as pd
 from marshmallow import Schema, fields
 
 
-
 def base64decode(value):
     return str(base64.b64decode(str(value)).decode('utf-8'))
 
@@ -289,6 +288,17 @@ def orm_pagination(base_query, limit, offset):
     return base_query, page_dict
 
 
+def list_pagination(out_list, limit, offset):
+    if limit is None:
+        limit = 10
+    if offset is None:
+        offset = 0
+    page_dict = get_pagination(len(out_list), limit, offset)
+    if (limit-offset) <= len(out_list):
+        out_list = out_list[offset: offset+limit]
+    return out_list, page_dict
+
+
 class DevOpsThread(Thread):
     def __init__(self, group=None, target=None, name=None, args=(), kwargs=None):
         if kwargs is None:
@@ -401,8 +411,10 @@ def is_json(content):
     except TypeError:
         return None
 
+
 class CommonResponse(Schema):
     message = fields.Str(required=True)
+
 
 class CommonBasicResponse(CommonResponse):
     datetime = fields.Str(required=True, example="1970-01-01T00:00:00.000000")
