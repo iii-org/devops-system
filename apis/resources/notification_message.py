@@ -124,7 +124,7 @@ def filter_by_user(rows, user_id, role_id=None):
     return out_list
 
 
-def get_notification_message_list(args):
+def get_notification_message_list(args, admin=False):
     out = []
     page_dict = None
     base_query = db.session.query(NotificationMessage, NotificationMessageRecipient, NotificationMessageReply).outerjoin(
@@ -147,7 +147,7 @@ def get_notification_message_list(args):
         base_query = base_query.filter(NotificationMessage.alert_level == args.get("alert_id"))
     rows = base_query.order_by(desc(NotificationMessage.id)).all()
 
-    if get_jwt_identity()["role_id"] != role.ADMIN.id:
+    if admin is False:
         rows = filter_by_user(rows, get_jwt_identity()["user_id"], get_jwt_identity()["role_id"])
     out = combine_message_and_recipient(rows)
     out, page_dict = util.list_pagination(out, args['limit'], args['offset'])
@@ -367,6 +367,21 @@ class MessageList(Resource):
         parser.add_argument('alert_id', type=int)
         args = parser.parse_args()
         return util.success(get_notification_message_list(args))
+
+
+class MessageListForAdmin(Resource):
+    @ jwt_required
+    def get(self):
+        role.require_admin()
+        parser = reqparse.RequestParser()
+        parser.add_argument('limit', type=int, default=10)
+        parser.add_argument('offset', type=int, default=0)
+        parser.add_argument('from_date', type=str)
+        parser.add_argument('to_date', type=str)
+        parser.add_argument('search', type=str)
+        parser.add_argument('alert_id', type=int)
+        args = parser.parse_args()
+        return util.success(get_notification_message_list(args, admin=True))
 
 
 class MessageReply(Resource):
