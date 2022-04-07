@@ -46,8 +46,14 @@ def get_all_sons_project(project_id, son_id_list):
     return son_id_list
 
 
+def user_in_project(project_id):
+    return model.ProjectUserRole.query.filter_by(project_id=project_id, user_id=get_jwt_identity()["user_id"]).first() is not None
+    
+
 def get_all_relation_project(project_id):
     all_relation_pj_ids = get_all_fathers_project(project_id, []) + get_all_sons_project(project_id, [])
+    if get_jwt_identity()["role_id"] != 5:
+        all_relation_pj_ids = list(filter(user_in_project, all_relation_pj_ids))
     ret = [
         {
             "id": int(pj_id), 
