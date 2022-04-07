@@ -145,6 +145,8 @@ def get_notification_message_list(args, admin=False):
         base_query = base_query.filter(NotificationMessage.created_at < to_date)
     if args.get("alert_id") is not None:
         base_query = base_query.filter(NotificationMessage.alert_level == args.get("alert_id"))
+    if args.get("unread"):
+        base_query = base_query.filter(NotificationMessageReply.user_id == None)
     rows = base_query.order_by(desc(NotificationMessage.id)).all()
 
     if admin is False:
@@ -391,6 +393,7 @@ class MessageList(Resource):
         parser.add_argument('to_date', type=str)
         parser.add_argument('search', type=str)
         parser.add_argument('alert_id', type=int)
+        parser.add_argument('unread', type=bool)
         args = parser.parse_args()
         return util.success(get_notification_message_list(args))
 
