@@ -2,6 +2,7 @@ from flask_restful import Resource, reqparse
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_socketio import Namespace, emit, join_room, leave_room
 from sqlalchemy.sql import and_
+from sqlalchemy import desc
 from datetime import datetime, timedelta
 from time import strptime, mktime
 import json
@@ -144,7 +145,7 @@ def get_notification_message_list(args):
         base_query = base_query.filter(NotificationMessage.created_at < to_date)
     if args.get("alert_id") is not None:
         base_query = base_query.filter(NotificationMessage.alert_level == args.get("alert_id"))
-    rows = base_query.all()
+    rows = base_query.order_by(desc(NotificationMessage.id)).all()
 
     if get_jwt_identity()["role_id"] != role.ADMIN.id:
         rows = filter_by_user(rows, get_jwt_identity()["user_id"], get_jwt_identity()["role_id"])
