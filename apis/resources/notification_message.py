@@ -161,6 +161,7 @@ def get_notification_message_list(args, admin=False):
 def create_notification_message(args):
     row = NotificationMessage(
         alert_level=args['alert_level'],
+        title=args['title'],
         message=args['message'],
         creator_id=get_jwt_identity()['user_id'],
         created_at=datetime.utcnow(),
@@ -316,6 +317,7 @@ class Message(Resource):
         role.require_admin()
         parser = reqparse.RequestParser()
         parser.add_argument('alert_level', type=int, required=True)
+        parser.add_argument('title', type=str)
         parser.add_argument('message', type=str, required=True)
         parser.add_argument('type_ids', type=str, required=True)
         parser.add_argument('type_parameters', type=str)
