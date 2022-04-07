@@ -143,8 +143,8 @@ def get_notification_message_list(args, admin=False):
         to_date = datetime.fromtimestamp(mktime(strptime(a_to_date, '%Y-%m-%d')))
         to_date += timedelta(days=1)
         base_query = base_query.filter(NotificationMessage.created_at < to_date)
-    if args.get("alert_id") is not None:
-        base_query = base_query.filter(NotificationMessage.alert_level == args.get("alert_id"))
+    if args.get("alert_ids") is not None:
+        base_query = base_query.filter(NotificationMessage.alert_level.in_(args.get("alert_ids")))
     if args.get("unread"):
         base_query = base_query.filter(NotificationMessageReply.user_id == None)
     rows = base_query.order_by(desc(NotificationMessage.id)).all()
@@ -392,9 +392,11 @@ class MessageList(Resource):
         parser.add_argument('from_date', type=str)
         parser.add_argument('to_date', type=str)
         parser.add_argument('search', type=str)
-        parser.add_argument('alert_id', type=int)
+        parser.add_argument('alert_ids', type=str)
         parser.add_argument('unread', type=bool)
         args = parser.parse_args()
+        if args["alert_ids"]:
+            args["alert_ids"] = json.loads(args["alert_ids"].replace("\'", "\""))
         return util.success(get_notification_message_list(args))
 
 
@@ -408,8 +410,10 @@ class MessageListForAdmin(Resource):
         parser.add_argument('from_date', type=str)
         parser.add_argument('to_date', type=str)
         parser.add_argument('search', type=str)
-        parser.add_argument('alert_id', type=int)
+        parser.add_argument('alert_ids', type=str)
         args = parser.parse_args()
+        if args["alert_ids"]:
+            args["alert_ids"] = json.loads(args["alert_ids"].replace("\'", "\""))
         return util.success(get_notification_message_list(args, admin=True))
 
 
