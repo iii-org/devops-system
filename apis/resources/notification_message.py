@@ -71,16 +71,6 @@ def parameter_check(args):
                               error=argument_error('role_ids'))
 
 
-'''
-def __check_read(row):
-    message_dict = json.loads(str(row[0]))
-    message_dict["read"] = False
-    if row[1] is not None:
-        message_dict["read"] = True
-    return message_dict
-'''
-
-
 def combine_message_and_recipient(rows):
     out_dict = {}
     for row in rows:
@@ -180,39 +170,6 @@ def create_notification_message(args):
         db.session.add(row_recipient)
         db.session.commit()
     notification_room.send_message_to_all(row.id)
-
-
-'''
-
-
-def update_notification_message(message_id, args):
-    message = NotificationMessage.query.filter_by(id=message_id).first()
-    for k, v in args.items():
-        setattr(message, k, v)
-    db.session.commit()
-
-
-def get_notification_message(message_id):
-    row = db.session.query(NotificationMessage, NotificationMessageReply).outerjoin(
-        NotificationMessageReply, and_(NotificationMessage.id == NotificationMessageReply.message_id,
-                                       NotificationMessageReply.user_id == get_jwt_identity()["user_id"])).filter(NotificationMessage.id == message_id).first()
-    if row[0]:
-        if (get_jwt_identity()['role_id'] == 5 or
-            row[0].type_id == 1 or
-                (row[0].type_id == 3 and row[0].type_parameter["user_id"] == get_jwt_identity()['user_id'])):
-            return __check_read(row)
-        else:
-            projects = db.session.query(ProjectUserRole.project_id).filter(and_(
-                ProjectUserRole.user_id == get_jwt_identity()["user_id"], ProjectUserRole.project_id != -1)).all()
-            if row[0].type_id == 2 and (row[0].type_parameter["project_id"],) in projects:
-                return __check_read(row)
-            else:
-                return not_enough_authorization(message_id, get_jwt_identity()["user_id"])
-    else:
-        return resource_not_found()
-
-
-'''
 
 
 def delete_notification_message(message_id):
@@ -354,27 +311,6 @@ class Message(Resource):
             args["type_parameters"] = json.loads(args["type_parameters"].replace("\'", "\""))
 
         return util.success(create_notification_message(args))
-    '''
-    @ jwt_required
-    def get(self, message_id):
-        return util.success(get_notification_message(message_id))
-
-    @ jwt_required
-    def patch(self, message_id):
-        role.require_admin()
-        parser = reqparse.RequestParser()
-        parser.add_argument('alert_level', type=int, required=True)
-        parser.add_argument('message', type=str)
-        parser.add_argument('type_ids', type=int, action='append', required=True)
-        parser.add_argument('type_parameters', type=str)
-        args = parser.parse_args()
-        args = {k: v for k, v in args.items() if v is not None}
-        parameter_check(args)
-        if args.get("type_parameters") is not None:
-            args["type_parameters"] = json.loads(args["type_parameters"].replace("\'", "\""))
-        update_notification_message(message_id, args)
-        return util.success()
-    '''
 
     @ jwt_required
     def delete(self, message_id):
