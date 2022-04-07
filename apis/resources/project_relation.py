@@ -131,7 +131,10 @@ def sync_project_relation():
     project_relations = []
     for project in model.Project.query.all():
         if project.id != -1:
-            plan_object = redmine_lib.redmine.project.get(get_plan_id(project.id))
+            try:
+                plan_object = redmine_lib.redmine.project.get(get_plan_id(project.id))
+            except:
+                continue
             if "parent" in dir(plan_object):
                 project_relation = model.ProjectParentSonRelation(
                     parent_id=get_project_id(plan_object.parent.id), 
