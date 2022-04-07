@@ -37,6 +37,7 @@ class ProjectRelationsGetData(Schema):
     id = fields.Int(required=True)
     name = fields.Str(required=True)
     display = fields.Str(required=True)
+    type = fields.Str(required=True)
 
 ########## API Action ##########
 
