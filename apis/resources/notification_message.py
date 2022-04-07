@@ -214,6 +214,10 @@ def get_notification_message(message_id):
 
 
 def delete_notification_message(message_id):
+    out_dict = choose_send_to_who(message_id, send_message_id=True)
+    for k, v in out_dict.items():
+        emit("delete_message", v, namespace="/get_notification_message", to=f"user/{k}")
+
     row = NotificationMessage.query.filter_by(id=message_id).first()
     db.session.delete(row)
     db.session.commit()
@@ -230,47 +234,67 @@ def create_notification_message_reply_slip(user_id, args):
         row_list.append(row)
     db.session.add_all(row_list)
     db.session.commit()
+    for message_id in args["message_ids"]:
+        emit("read_message", message_id, namespace="/get_notification_message", to=f"user/{user_id}")
+
+
+def choose_send_to_who(message_id, send_message_id=None):
+    # out_dict: {user_id: message}
+    out_dict = {}
+    message_rows = db.session.query(NotificationMessage, NotificationMessageRecipient).join(
+        NotificationMessageRecipient, and_(NotificationMessage.id == message_id,
+                                           NotificationMessage.id == NotificationMessageRecipient.message_id
+                                           )).all()
+
+    for message_row in message_rows:
+        if message_row[1].type_id == 1:
+            # Send message to all
+            for user_row in User.query.all():
+                if user_row not in out_dict:
+                    if send_message_id:
+                        out_dict[user_row.id] = message_id
+                    else:
+                        out_dict[user_row.id] = json.loads(str(message_row[0]))
+        elif message_row[1].type_id == 2:
+            for project_id in message_row[1].type_parameter['project_ids']:
+                # Send message to user in project
+                for user_row in ProjectUserRole.query.filter_by(project_id=project_id).all():
+                    if user_row.user_id not in out_dict:
+                        if send_message_id:
+                            out_dict[user_row.user_id] = message_id
+                        else:
+                            out_dict[user_row.user_id] = json.loads(str(message_row[0]))
+        elif message_row[1].type_id == 3:
+            # Send message to the user
+            for user_id in message_row[1].type_parameter['user_ids']:
+                if user_id not in out_dict:
+                    if send_message_id:
+                        out_dict[user_id] = message_id
+                    else:
+                        out_dict[user_id] = json.loads(str(message_row[0]))
+        elif message_row[1].type_id == 4:
+            # Send message to same role account
+            for role_id in message_row[1].type_parameter['role_ids']:
+                for user_row in ProjectUserRole.query.filter_by(role_id=role_id, project_id=-1).all():
+                    if user_row.user_id not in out_dict:
+                        if send_message_id:
+                            out_dict[user_row.user_id] = message_id
+                        else:
+                            out_dict[user_row.user_id] = json.loads(str(message_row[0]))
+    return out_dict
 
 
 class NotificationRoom(object):
 
     def send_message_to_all(self, message_id):
-        message_rows = db.session.query(NotificationMessage, NotificationMessageRecipient).join(
-            NotificationMessageRecipient, and_(NotificationMessage.id == message_id,
-                                               NotificationMessage.id == NotificationMessageRecipient.message_id
-                                               )).all()
-        out_dict = {}
-        for message_row in message_rows:
-            if message_row[1].type_id == 1:
-                # Send message to all
-                for user_row in User.query.all():
-                    if user_row not in out_dict:
-                        out_dict[user_row.id] = json.loads(str(message_row[0]))
-            elif message_row[1].type_id == 2:
-                for project_id in message_row[1].type_parameter['project_ids']:
-                    # Send message to user in project
-                    for user_row in ProjectUserRole.query.filter_by(project_id=project_id).all():
-                        if user_row.user_id not in out_dict:
-                            out_dict[user_row.user_id] = json.loads(str(message_row[0]))
-            elif message_row[1].type_id == 3:
-                # Send message to the user
-                for user_id in message_row[1].type_parameter['user_ids']:
-                    if user_id not in out_dict:
-                        out_dict[user_id] = json.loads(str(message_row[0]))
-            elif message_row[1].type_id == 4:
-                # Send message to same role account
-                for role_id in message_row[1].type_parameter['role_ids']:
-                    for user_row in ProjectUserRole.query.filter_by(role_id=role_id, project_id=-1).all():
-                        if user_row.user_id not in out_dict:
-                            out_dict[user_row.user_id] = json.loads(str(message_row[0]))
+        out_dict = choose_send_to_who(message_id)
         for k, v in out_dict.items():
             v["alert_level"] = get_alert_level(v["alert_level"])
             if "creator_id" in v:
                 from resources.user import NexusUser
                 v["creator"] = NexusUser().set_user_id(v["creator_id"]).to_json()
             v.pop("creator_id", None)
-            emit("system_message", v, namespace="/get_notification_message",
-                 to=f"user/{k}")
+            emit("create_message", v, namespace="/get_notification_message", to=f"user/{k}")
 
     def get_message(self, data):
         rows = db.session.query(NotificationMessage, NotificationMessageRecipient).outerjoin(
@@ -284,7 +308,7 @@ class NotificationRoom(object):
         rows = filter_by_user(rows, data['user_id'], pur_row.role_id)
         message_list = combine_message_and_recipient(rows)
         for message in message_list:
-            emit("system_message", message, namespace="/get_notification_message", to=f"user/{data['user_id']}")
+            emit("create_message", message, namespace="/get_notification_message", to=f"user/{data['user_id']}")
 
 
 class GetNotificationMessage(Namespace):
