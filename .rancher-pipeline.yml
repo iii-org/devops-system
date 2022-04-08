@@ -32,6 +32,7 @@ stages:
       include:
       - master
       - develop
+      - test-sonarqube-report
 - name: Test--Checkmarx source code scan
   iiidevops: checkmarx
   steps:
