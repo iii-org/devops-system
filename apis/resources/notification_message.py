@@ -43,6 +43,17 @@ def get_alert_level(alert_id):
     return 'Unknown Alert'
 
 
+def check_message_exist(message_key, alert_level):
+    count = NotificationMessage.query.filter(
+        NotificationMessage.alert_level == alert_level).filter(
+        NotificationMessage.message.like(f'%{message_key}%')).filter(
+        NotificationMessage.title.like(f'%{message_key}%')).count()
+    if count > 0:
+        return True
+    else:
+        return False
+
+
 def clear_has_expired_notifications_message(name, value_key):
     month_number = int(SystemParameter.query.filter_by(name=name).one().value[value_key])
 
@@ -156,12 +167,14 @@ def get_notification_message_list(args, admin=False):
     return out_dict
 
 
-def create_notification_message(args):
+def create_notification_message(args, user_id=None):
+    if user_id is None:
+        user_id = get_jwt_identity()['user_id']
     row = NotificationMessage(
         alert_level=args['alert_level'],
         title=args['title'],
         message=args['message'],
-        creator_id=get_jwt_identity()['user_id'],
+        creator_id=user_id,
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
     )

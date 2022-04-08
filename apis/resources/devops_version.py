@@ -9,6 +9,7 @@ import util
 from resources import kubernetesClient, role, apiError
 from resources.apiError import DevOpsError
 from resources.logger import logger
+from resources.notification_message import check_message_exist, create_notification_message
 import resources.kubernetesClient as kubernetesClient
 
 version_center_token = None
@@ -92,7 +93,12 @@ def has_devops_update():
         }
     if versions is None:
         raise DevOpsError(500, '/current_version returns no data.')
-
+    if current_version != versions['version_name']:
+        # Has new version, send notificaation message to administrators
+        if check_message_exist(versions['version_name'], 101) is False:
+            args = {"alert_level": 101, "title": f"New version: {versions['version_name']}", "type_ids": [4],
+                    "type_parameters": {'role_ids': [5]}, "message": f"New version: {versions['version_name']}"}
+            create_notification_message(args, user_id=1)
     return {
         'has_update': current_version != versions['version_name'],
         'latest_version': versions
@@ -106,13 +112,13 @@ def update_deployment(versions):
     if deployer_node_ip is None:
         # get the k8s cluster the oldest node ip
         deployer_node_ip = kubernetesClient.get_the_oldest_node()[0]
-    output_str, error_str = util.ssh_to_node_by_key("/home/rkeuser/deploy-devops/bin/update-perl.pl", deployer_node_ip) 
+    output_str, error_str = util.ssh_to_node_by_key("/home/rkeuser/deploy-devops/bin/update-perl.pl", deployer_node_ip)
     if error_str != "":
         not_found_message = error_str.split(":")[-1].replace("\n", "")
         if not_found_message != " No such file or directory":
             if output_str != "":
                 complete_message = output_str.split("==")[-2]
-                if complete_message != "process complete": 
+                if complete_message != "process complete":
                     logger.exception(f"Can not update perl on {version_name}")
             else:
                 logger.exception(str(error_str))
