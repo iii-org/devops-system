@@ -46,13 +46,21 @@ def get_all_sons_project(project_id, son_id_list):
     return son_id_list
 
 
+def user_in_project(project_id):
+    return model.ProjectUserRole.query.filter_by(project_id=project_id, user_id=get_jwt_identity()["user_id"]).first() is not None
+    
+
 def get_all_relation_project(project_id):
-    all_relation_pj_ids = get_all_fathers_project(project_id, []) + get_all_sons_project(project_id, [])
+    father_projects, son_projects = get_all_fathers_project(project_id, []), get_all_sons_project(project_id, [])
+    all_relation_pj_ids = father_projects + son_projects
+    if get_jwt_identity()["role_id"] != 5:
+        all_relation_pj_ids = list(filter(user_in_project, all_relation_pj_ids))
     ret = [
         {
             "id": int(pj_id), 
             "name": model.Project.query.get(pj_id).name,
             "display": model.Project.query.get(pj_id).display,
+            "type": "father" if pj_id in father_projects else "son"
         } for pj_id in all_relation_pj_ids]
     ret.sort(key=lambda x: x["display"])
     return ret
@@ -123,7 +131,10 @@ def sync_project_relation():
     project_relations = []
     for project in model.Project.query.all():
         if project.id != -1:
-            plan_object = redmine_lib.redmine.project.get(get_plan_id(project.id))
+            try:
+                plan_object = redmine_lib.redmine.project.get(get_plan_id(project.id))
+            except:
+                continue
             if "parent" in dir(plan_object):
                 project_relation = model.ProjectParentSonRelation(
                     parent_id=get_project_id(plan_object.parent.id), 

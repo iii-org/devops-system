@@ -5,6 +5,7 @@ import zipfile
 from datetime import datetime
 from io import BytesIO
 import json
+import uuid
 
 from accessories import redmine_lib
 from flask import send_file
@@ -301,6 +302,7 @@ def create_project(user_id, args):
                     raise e
     try:
         project_id = None
+        uuids = uuid.uuid1().hex
         # enable rancher pipeline
         rancher.rc_get_project_id()
         t_rancher = DevOpsThread(target=rancher.rc_enable_project_pipeline,
@@ -331,7 +333,8 @@ def create_project(user_id, args):
             owner_id=owner_id,
             creator_id=user_id,
             base_example=template_pj_path,
-            example_tag=args["tag_name"]
+            example_tag=args["tag_name"],
+            uuid=uuids
         )
         db.session.add(new_pjt)
         db.session.commit()
@@ -375,10 +378,11 @@ def create_project(user_id, args):
             template.tm_use_template_push_into_pj(args["template_id"], gitlab_pj_id,
                                                   args["tag_name"], args["arguments"])
 
-        # Create project NFS folder
-        project_nfs_file_path = f"./devops-data/project-data/{gitlab_pj_name}/pipeline"
-        os.makedirs(project_nfs_file_path, exist_ok=True)
-        os.chmod(project_nfs_file_path, 0o777)
+        # Create project NFS folder /(uuid)
+        for folder in ["pipeline", uuids]:
+            project_nfs_file_path = f"./devops-data/project-data/{gitlab_pj_name}/{folder}"
+            os.makedirs(project_nfs_file_path, exist_ok=True)
+            os.chmod(project_nfs_file_path, 0o777)
 
         return {
             "project_id": project_id,
@@ -810,7 +814,7 @@ def get_test_summary(project_id):
                     'failed': fail,
                     'total': total,
                 },
-                'run_at': str(row.run_at)
+                'run_at': str(row.run_at) if row.run_at is not None else None
             }
         else:
             not_found_ret['message'] = not_found_ret_message("postman")
@@ -838,12 +842,19 @@ def get_test_summary(project_id):
                     'result': scan['stats'],
                     "run_at": scan['run_at'],
                 }
-            else:
+            elif scan['stats']['status'] in ['NotRunning', 'Interrupted', 'Failed']:
+                ret['webinspect'] = {
+                    'message': f"Status is {scan['stats']['status'].lower()}.",
+                    'status': -1,
+                    'result': {},
+                    "run_at": str(scan['run_at']) if scan['run_at'] is not None else None,
+                }
+            else:    
                 ret['webinspect'] = {
                     'message': 'It is not finished yet.',
                     'status': 2,
                     'result': {},
-                    "run_at": None,
+                    "run_at": str(scan['run_at']) if scan.get('run_at') is not None else None,
                 }
         else:
             not_found_ret['message'] = not_found_ret_message("webinspect")

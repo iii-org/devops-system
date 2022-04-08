@@ -332,6 +332,32 @@ def get_ad_servers(input_str):
     return output
 
 
+def get_ssl_validate_method(validate_method):
+    # SSL validate Method [default: None, options: REQUIRED, OPTIONAL]
+    if validate_method == 'REQUIRED':
+        ssl_validate = ssl.CERT_REQUIRED
+    elif validate_method == 'OPTIONAL':
+        ssl_validate = ssl.CERT_OPTIONAL
+    else:
+        ssl_validate = ssl.CERT_NONE
+    return ssl_validate
+
+
+def get_ssl_protocol(protocol_str):
+    # SSL protocol Method [default: tls1.2, options: ssl23, tls, tls1, tls1.1]
+    if protocol_str == 'PROTOCOL_SSLv23':
+        ssl_protocol = ssl.PROTOCOL_SSLv23
+    elif protocol_str == 'PROTOCOL_TLS':
+        ssl_protocol = ssl.PROTOCOL_TLS
+    elif protocol_str == 'PROTOCOL_TLSv1':
+        ssl_protocol = ssl.PROTOCOL_TLSv1
+    elif protocol_str == 'PROTOCOL_TLSv1_1':
+        ssl_protocol = ssl.PROTOCOL_TLSv1_1
+    else:
+        ssl_protocol = ssl.PROTOCOL_TLSv1_2
+    return ssl_protocol
+
+
 class AD(object):
     def __init__(self, ldap_parameter, filter_by_ou=False, account=None, password=None):
         self.ad_info = {
@@ -343,21 +369,15 @@ class AD(object):
         self.password = None
         self.server = None
         self.server = ServerPool(None, pool_strategy=FIRST, active=True)
-
         hosts = get_ad_servers(ldap_parameter.get('host'))
         is_ssl = bool(ldap_parameter.get('ssl', False))
+        ssl_validate = get_ssl_validate_method(ldap_parameter.get('ssl_validate', 'REQUIRED'))
         # SSL Validate Method [ssl.CERT_NONE, ssl.CERT_OPTIONAL, ssl.CERT_REQUIRED]:
-        ssl_validate_str = ldap_parameter.get('ssl_validate', 'REQUIRED')
-        if ssl_validate_str == 'REQUIRED':
-            ssl_validate = ssl.CERT_REQUIRED
-        elif ssl_validate_str == 'OPTIONAL':
-            ssl_validate = ssl.CERT_OPTIONAL
-        else:
-            ssl_validate = ssl.CERT_NONE
+        ssl_protocol = get_ssl_protocol(ldap_parameter.get('ssl_protocol', 'PROTOCOL_TLSv1_2'))
 
         # Add TLS Object
         if is_ssl:
-            tls = Tls(validate=ssl_validate, version=ssl.PROTOCOL_TLSv1_2,
+            tls = Tls(validate=ssl_validate, version=ssl_protocol,
                       ca_certs_data=util.base64decode(ldap_parameter.get('ca_certs_data')))
         for host in hosts:
             if is_ssl:

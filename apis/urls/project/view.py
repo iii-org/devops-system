@@ -1500,13 +1500,35 @@ class ReleaseExtraV2(MethodResource):
     def get(self, project_id, **kwargs):
         return util.success(release.get_release_image_list(project_id, kwargs))
 
-class ReleasePatchV2(MethodResource):
+class ReleaseTagV2(MethodResource):
     @doc(tags=['Release'], description="Add tag on release by release_id.")
-    @use_kwargs(router_model.ReleasePatchSchema, location="form")
+    @use_kwargs(router_model.ReleaseTagSchema, location="form")
     @marshal_with(util.CommonResponse)
     @jwt_required
-    def patch(self, project_id, release_id, **kwargs):
-        return util.success(release.patch_release_image(project_id, release_id, kwargs))
+    def post(self, project_id, release_id, **kwargs):
+        return release.create_release_image_tag(project_id, release_id, kwargs)
+    
+    @doc(tags=['Release'], description="Delete tag on release by release_id.")
+    @use_kwargs(router_model.ReleaseTagSchema, location="query")
+    @marshal_with(util.CommonResponse)
+    @jwt_required
+    def delete(self, project_id, release_id, **kwargs):
+        return release.delete_release_image_tag(project_id, release_id, kwargs)
+
+class ReleaseRepoV2(MethodResource):
+    @doc(tags=['Release'], description="Add repository on release by release_id.")
+    @use_kwargs(router_model.ReleaseRepoPostSchema, location="form")
+    @marshal_with(util.CommonResponse)
+    @jwt_required
+    def post(self, project_id, release_id, **kwargs):
+        return release.create_release_image_repo(project_id, release_id, kwargs)
+    
+    @doc(tags=['Release'], description="Delete repository on release by release_id.")
+    @use_kwargs(router_model.ReleaseRepoDeleteSchema, location="query")
+    @marshal_with(util.CommonResponse)
+    @jwt_required
+    def delete(self, project_id, release_id, **kwargs):
+        return release.delete_release_image_repo(project_id, release_id, kwargs)
 
 class ReleasesV2(MethodResource):
     @doc(tags=['Release'], description="Get release list.")
@@ -1581,7 +1603,7 @@ class ReleasesV2(MethodResource):
             image_path = [f"{release_obj.project.name}/{branch_name}:{release_name}"]
             if release_obj.harbor_info['target'].get('release', None) is not None:
                 if kwargs.get("extra_image_path") is not None and f"{release_obj.project.name}/{kwargs.get('extra_image_path')}" not in image_path:
-                    image_path.append(f"{release_obj.project.name}/{kwargs.get('extra_image_path')}")
+                    image_path = [f"{self.project.name}/{kwargs.get('extra_image_path')}"] + image_path
                     extra_image_path = kwargs.get("extra_image_path").split(":")
                     extra_dest_repo, extra_dest_tag = extra_image_path[0], extra_image_path[1]
                     hb_copy_artifact_and_retage(release_obj.project.name, branch_name, extra_dest_repo, kwargs.get("commit"), extra_dest_tag)
@@ -1650,6 +1672,7 @@ class ReleaseV2(MethodResource):
                                 error=apiError.repository_id_not_found(plugin_relation.git_repository_id))
 
 
+##### Project Error Message ######
 class ProjectErrorMessageV2(MethodResource):
     @doc(tags=['Release'], description="Get Helm error message.")
     @jwt_required

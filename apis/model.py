@@ -101,6 +101,7 @@ class Project(db.Model):
     lock_reason = Column(String)
     base_example = Column(String)
     example_tag = Column(String)
+    uuid = Column(String)
 
     def __repr__(self):
         fields = {}
@@ -812,6 +813,7 @@ class ProjectCommitEndpoint(db.Model):
 class NotificationMessage(db.Model):
     id = Column(Integer, primary_key=True)
     alert_level = Column(Integer, nullable=False)
+    title = Column(String)
     message = Column(String, nullable=False)
     creator_id = Column(Integer, ForeignKey(User.id, ondelete='SET NULL'), nullable=True)
     created_at = Column(DateTime)
@@ -841,6 +843,19 @@ class NotificationMessageRecipient(db.Model):
     message_id = Column(Integer, ForeignKey(NotificationMessage.id, ondelete='CASCADE'), primary_key=True)
     type_id = Column(Integer, nullable=False, primary_key=True)
     type_parameter = Column(JSON)
+
+    def __repr__(self):
+        fields = {}
+        for field in [x for x in dir(self) if
+                      not x.startswith('query') and not x.startswith('_') and x != 'metadata']:
+            data = self.__getattribute__(field)
+            try:
+                # this will fail on unencodable values, like other classes
+                json.dumps(data)
+                fields[field] = data
+            except TypeError:
+                fields[field] = str(data)
+        return json.dumps(fields)
 
 
 class ProjectParentSonRelation(db.Model):

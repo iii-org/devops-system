@@ -87,10 +87,15 @@ def wi_list_scans(project_name):
     return ret
 
 def get_latest_scans(project_name):
-    project_id = nexus.nx_get_project(name=project_name).id
     row = model.WebInspect.query.filter_by(project_name=project_name). \
         order_by(desc(model.WebInspect.run_at)).first()
-    return json.loads(str(row)) if row is not None else None  
+    if row is not None:
+        if not row.finished:
+            status = wix_get_scan_status(row.scan_id)
+            row = model.WebInspect.query.filter_by(project_name=project_name). \
+                order_by(desc(model.WebInspect.run_at)).first()
+        return json.loads(str(row))
+    return None
 
 
 def wi_get_scan_by_commit(project_id, commit_id):
@@ -99,11 +104,16 @@ def wi_get_scan_by_commit(project_id, commit_id):
         model.WebInspect.project_name == project_name,
         model.WebInspect.commit_id.like(f'{commit_id}%')
     ).first()
-    if row is None:
-        return {}
-    d = json.loads(str(row))
-    d['issue_link'] = gitlab.commit_id_to_url(project_id, d['commit_id'])
-    return d
+    if row is not None:
+        if not row.finished:
+            wix_get_scan_status(row.scan_id)
+            row = model.WebInspect.query.filter_by(project_name=project_name). \
+                order_by(desc(model.WebInspect.run_at)).first()
+        
+        d = json.loads(str(row))
+        d['issue_link'] = gitlab.commit_id_to_url(project_id, d['commit_id'])
+        return d
+    return {}
 
 
 def is_wie():
