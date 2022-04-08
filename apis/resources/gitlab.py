@@ -927,11 +927,12 @@ class GitRelease:
             output = {'check': False,
                       "info": "Gitlab no exists commit", "errors": ""}
             return output
-        tag = gitlab.gl_get_tags(str(repository_id), {'search': tag_name})
-        if len(tag) > 0:
-            output['check'] = False
-            output['info'] = '{0} is exists in gitlab'.format(tag_name)
-            output['errors'] = tag[0]
+        tags = gitlab.gl_get_tags(str(repository_id), {'search': tag_name})
+        for tag in tags:
+            if tag["name"] == tag_name:
+                output['check'] = False
+                output['info'] = f'{tag_name} is exists in gitlab'
+                output['errors'] = tag
         return output
 
 
