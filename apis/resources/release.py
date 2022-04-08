@@ -121,6 +121,8 @@ def analysis_release(release, info, hb_list_tags, image_need):
     if ret.get('branch') is not None and ret.get('commit') is not None:
         ret['git_url'] = f'{gitlab_project_url}/-/releases/{ret.get("tag_name")}'
         image_paths = ret.pop("image_paths") if ret.get("image_paths") is not None else []
+        main_release_path = f'{project_name}/{ret["branch"]}:{ret["tag_name"]}'
+        main_path_index = image_paths.index(main_release_path) if main_release_path in image_paths else len(image_paths)
         
         temp_repo_mapping = {}
         temp_tag_mapping = {}
@@ -136,10 +138,9 @@ def analysis_release(release, info, hb_list_tags, image_need):
                 else:
                     temp_repo_mapping.setdefault(branch, []).append(tag)
             
-            # Filter out same brach:tag
-            if tag == ret["tag_name"] and branch == ret["branch"]:
-                continue
-            temp_tag_mapping.setdefault(tag, []).append(image_path)
+            # Filter out same brach:tag and add by create_repo
+            if image_paths.index(image_path) < main_path_index:
+                temp_tag_mapping.setdefault(tag, []).append(image_path)
 
         # Generate field: "image_tags"
         ret["image_tags"] = [{tag: data} for tag, data in temp_tag_mapping.items()]
@@ -248,7 +249,8 @@ def create_release_image_repo(project_id, release_id, args):
         before_image_path = release.image_paths
         repo_list = [hb_repo["name"].split("/")[-1] for hb_repo in hb_list_repositories(project_name)]
         if f"{project_name}/{dest_image_path}" not in before_image_path:
-            release.image_paths = [f"{project_name}/{dest_image_path}"] + before_image_path
+            # Put it in the end of list in order to easily filter it out in get releases API.
+            release.image_paths = before_image_path + [f"{project_name}/{dest_image_path}"]
             db.session.commit()
             digest = hb_get_artifact(project_name, release.branch, release.tag_name)[0]["digest"]
             
@@ -549,7 +551,7 @@ class Releases(Resource):
             image_path = [f"{self.project.name}/{branch_name}:{release_name}"]
             if self.harbor_info['target'].get('release', None) is not None:
                 if args.get("extra_image_path") is not None and f"{self.project.name}/{args.get('extra_image_path')}" not in image_path: 
-                    image_path.append(f"{self.project.name}/{args.get('extra_image_path')}")
+                    image_path = [f"{self.project.name}/{args.get('extra_image_path')}"] + image_path
                     extra_image_path = args.get("extra_image_path").split(":")
                     extra_dest_repo, extra_dest_tag = extra_image_path[0], extra_image_path[1]
                     hb_copy_artifact_and_retage(self.project.name, branch_name, extra_dest_repo, args.get("commit"), extra_dest_tag)

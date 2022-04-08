@@ -1603,7 +1603,7 @@ class ReleasesV2(MethodResource):
             image_path = [f"{release_obj.project.name}/{branch_name}:{release_name}"]
             if release_obj.harbor_info['target'].get('release', None) is not None:
                 if kwargs.get("extra_image_path") is not None and f"{release_obj.project.name}/{kwargs.get('extra_image_path')}" not in image_path:
-                    image_path.append(f"{release_obj.project.name}/{kwargs.get('extra_image_path')}")
+                    image_path = [f"{self.project.name}/{kwargs.get('extra_image_path')}"] + image_path
                     extra_image_path = kwargs.get("extra_image_path").split(":")
                     extra_dest_repo, extra_dest_tag = extra_image_path[0], extra_image_path[1]
                     hb_copy_artifact_and_retage(release_obj.project.name, branch_name, extra_dest_repo, kwargs.get("commit"), extra_dest_tag)
