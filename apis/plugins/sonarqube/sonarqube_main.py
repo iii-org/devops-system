@@ -212,6 +212,7 @@ def sq_get_history_measures(project_name):
 
 def sq_get_history_by_commit(project_id, commit_id):
     project_name = nexus.nx_get_project(id=project_id).name
+    sq_get_history_measures(project_name)
     rows = model.Sonarqube.query.filter_by(project_name=project_name). \
         order_by(desc(model.Sonarqube.date)).all()
     if len(rows) == 0:
