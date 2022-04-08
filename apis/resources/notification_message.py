@@ -8,7 +8,7 @@ from time import strptime, mktime
 import json
 import util
 from model import db, NotificationMessage, NotificationMessageReply, NotificationMessageRecipient, \
-    ProjectUserRole, User, SystemParameter
+    ProjectUserRole, User, SystemParameter, Project
 from resources import role
 from resources.apiError import DevOpsError, resource_not_found, not_enough_authorization, argument_error
 
@@ -52,15 +52,15 @@ def clear_has_expired_notifications_message(name, value_key):
 
 
 def parameter_check(args):
-    if args.get("alert_level") not in (1, 2, 3, 4):
+    if args.get("alert_level") not in (1, 2, 3, 4, 101):
         raise DevOpsError(400, 'Argument alert_level not in range.',
                           error=argument_error('alert_level'))
     for type_id in args.get("type_ids"):
-        if type_id not in range(1, 5):
+        if type_id not in range(1, 6):
             raise DevOpsError(400, 'Argument type_id not in range.', error=argument_error('type_id'))
-        if type_id in range(2, 5) and args.get("type_parameters") is None:
+        if type_id in range(2, 6) and args.get("type_parameters") is None:
             raise DevOpsError(400, 'Missing type_parameters', error=argument_error('type_parameters'))
-        elif type_id == 2 and 'project_ids' not in json.loads(args["type_parameters"]):
+        elif type_id in [2, 5] and 'project_ids' not in json.loads(args["type_parameters"]):
             raise DevOpsError(400, 'Argument project_ids not exist in type_parameters.',
                               error=argument_error('project_ids'))
         elif type_id == 3 and 'user_ids' not in json.loads(args["type_parameters"]):
@@ -95,6 +95,7 @@ def combine_message_and_recipient(rows):
 def filter_by_user(rows, user_id, role_id=None):
     project_ids = db.session.query(ProjectUserRole.project_id).filter(and_(
         ProjectUserRole.user_id == user_id, ProjectUserRole.project_id != -1)).all()
+
     out_list = []
     for row in rows:
         if row[1].type_id == 1 and row not in out_list:
@@ -110,6 +111,11 @@ def filter_by_user(rows, user_id, role_id=None):
         if role_id and row[1].type_id == 4:
             for type_role_id in row[1].type_parameter['role_ids']:
                 if type_role_id == role_id and row not in out_list:
+                    out_list.append(row)
+        if row[1].type_id == 5:
+            for type_project_id in row[1].type_parameter['project_ids']:
+                pj_row = Project.query.filter_by(id=type_project_id).first()
+                if pj_row.owner_id == user_id:
                     out_list.append(row)
     return out_list
 
@@ -240,6 +246,14 @@ def choose_send_to_who(message_id, send_message_id=None):
                             out_dict[user_row.user_id] = message_id
                         else:
                             out_dict[user_row.user_id] = json.loads(str(message_row[0]))
+        elif message_row[1].type_id == 5:
+            for project_id in message_row[1].type_parameter['project_ids']:
+                # Send message to project onwer
+                pj_row = Project.query.filter_by(id=project_id).first()
+                if send_message_id:
+                    out_dict[pj_row.owner_id] = message_id
+                else:
+                    out_dict[pj_row.owner_id] = json.loads(str(message_row[0]))
     return out_dict
 
 
