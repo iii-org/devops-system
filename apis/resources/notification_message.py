@@ -21,19 +21,21 @@ https://github.com/iii-org/devops-system/wiki/Notification-Message
 
 
 class Alert_Level:
-    def __init__(self, id_, name):
+    def __init__(self, id_, name, users_can_read):
         self.id = id_
         self.name = name
+        self.users_can_read = users_can_read
 
 
-INF = Alert_Level(1, 'INFO')
-WAR = Alert_Level(2, 'WARNING')
-ERR = Alert_Level(3, 'ERROR')
-CRI = Alert_Level(4, 'CRITICAL')
+INF = Alert_Level(1, 'INFO', True)
+WAR = Alert_Level(2, 'WARNING', True)
+URG = Alert_Level(3, 'Urgent', True)
 
-NEW = Alert_Level(101, 'New Version')
+NEW = Alert_Level(101, 'New Version', False)
+SAL = Alert_Level(102, 'System Alert', False)
+SWA = Alert_Level(103, 'System Warming', True)
 
-ALL_ALERTS = [INF, WAR, ERR, CRI, NEW]
+ALL_ALERTS = [INF, WAR, URG, NEW, SAL, SWA]
 
 
 def get_alert_level(alert_id):
@@ -41,6 +43,12 @@ def get_alert_level(alert_id):
         if alert.id == alert_id:
             return {'id': alert.id, 'name': alert.name}
     return 'Unknown Alert'
+
+
+def get_users_can_read(alert_id):
+    for alert in ALL_ALERTS:
+        if alert.id == alert_id:
+            return alert.users_can_read
 
 
 def check_message_exist(message_key, alert_level):
@@ -63,7 +71,7 @@ def clear_has_expired_notifications_message(name, value_key):
 
 
 def parameter_check(args):
-    if args.get("alert_level") not in (1, 2, 3, 4, 101):
+    if args.get("alert_level") not in (1, 2, 3, 101, 102, 103):
         raise DevOpsError(400, 'Argument alert_level not in range.',
                           error=argument_error('alert_level'))
     for type_id in args.get("type_ids"):
@@ -91,6 +99,7 @@ def combine_message_and_recipient(rows):
             out_dict[row[0].id]["types"].append(json.loads(str(row[1])))
         if row[0].alert_level:
             out_dict[row[0].id]["alert_level"] = get_alert_level(row[0].alert_level)
+            out_dict[row[0].id]["users_can_read"] = get_users_can_read(row[0].alert_level)
         if row[0].creator_id:
             from resources.user import NexusUser
             out_dict[row[0].id]["creator"] = NexusUser().set_user_id(row[0].creator_id).to_json()
