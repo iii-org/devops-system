@@ -2,6 +2,7 @@ import uuid
 
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource
+from flask_socketio import emit
 
 import config
 import model
@@ -122,6 +123,11 @@ def update_deployment(versions):
                     logger.exception(f"Can not update perl on {version_name}")
             else:
                 logger.exception(str(error_str))
+
+    # Send system upgrade to all administrators
+    for user_id in model.db.session.query(model.ProjectUserRole.user_id).filter_by(role_id=role.ADMIN.id, project_id=-1).group_by(
+            model.ProjectUserRole.user_id).all():
+        emit("system_upgrade", version_name, namespace="/get_notification_message", to=f"user/{user_id[0]}")
 
     logger.info(f'Updating deployment to {version_name}...')
     api_image_tag = versions['api_image_tag']
