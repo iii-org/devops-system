@@ -247,7 +247,7 @@ class CollectPodRestartTime(Resource):
 
 
 class PodAlertV2(MethodResource):
-    @doc(tags=['Monitoring'], description="Send alrt message to pod which out of restart times limit.")
+    @doc(tags=['Monitoring'], description="Send alert message to pod which out of restart times limit.")
     def post(self):
         condition = SystemParameter.query.filter_by(name="k8s_pod_restart_times_limit").one()
         if not condition.active or condition.active is None:

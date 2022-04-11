@@ -870,3 +870,11 @@ class UIRouteJson(db.Model):
     ui_route = Column(JSON)
     created_at = Column(DateTime)
     updated_at = Column(DateTime)
+
+
+class MonitoringRecord(db.Model):
+    id = Column(Integer, primary_key=True)
+    server = Column(String)
+    message = Column(String)
+    detail = Column(JSON)
+    created_at = Column(DateTime)
