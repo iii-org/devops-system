@@ -42,6 +42,8 @@ class ProjectRelationsGetData(Schema):
 ########## API Action ##########
 
 class CheckhasSonProjectResponse(Schema):
+    has_relations = fields.Bool(required=True)
+    has_father = fields.Bool(required=True)
     has_child = fields.Bool(required=True)
 
 class GetProjectRootIDResponse(Schema):

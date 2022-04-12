@@ -7,7 +7,8 @@ import ast
 import model
 from threading import Thread
 from resources.project_relation import project_has_child, get_root_project_id, sync_project_relation, \
-    get_project_family_members_by_user, get_relation_list, remove_relation, get_all_relation_project
+    get_project_family_members_by_user, get_relation_list, remove_relation, get_all_relation_project, \
+    project_has_parent
 from resources.issue import get_issue_list_by_project_helper, get_issue_by_tree_by_project, get_issue_by_status_by_project, \
     get_issue_progress_or_statistics_by_project, get_issue_by_date_by_project, get_custom_issue_filter, \
     create_custom_issue_filter, put_custom_issue_filter, get_lock_status, DownloadIssueAsExcel, pj_download_file_is_exist
@@ -32,20 +33,26 @@ import resources.rancher as rancher
 
 ##### Project Relation ######
 
-@doc(tags=['Project'],description="Check project has son project or not")
+@doc(tags=['Project'],description="Check project has father, son project or not")
 @marshal_with(router_model.CheckhasSonProjectResponse)
-class CheckhasSonProjectV2(MethodResource):
+class CheckhasRelationProjectV2(MethodResource):
     @jwt_required
     def get(self, project_id):
+        has_father, has_child  = project_has_parent(project_id), project_has_child(project_id)
         return {
-            "has_child": project_has_child(project_id)
+            "has_relations": has_father or has_child,
+            "has_father": has_father,
+            "has_child": has_child
         }
     
-class CheckhasSonProject(Resource):
+class CheckhasRelationProject(Resource):
     @jwt_required
     def get(self, project_id):
+        has_father, has_child  = project_has_parent(project_id), project_has_child(project_id)
         return {
-            "has_child": project_has_child(project_id)
+            "has_relations": has_father or has_child,
+            "has_father": has_father,
+            "has_child": has_child
         }
 
 @doc(tags=['Project'],description="Gey root project_id")
