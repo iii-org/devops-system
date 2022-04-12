@@ -645,7 +645,7 @@ def start_prod():
         logger.logger.info('Apply k8s-yaml cronjob.')
         template.tm_get_template_list()
         logger.logger.info('Get the public and local template list')
-        plugins.create_plugins_api_router(api)
+        plugins.create_plugins_api_router(api, add_resource)
         plugins.sync_plugins_in_db_and_code()
         router.load_ui_route()
         with app.app_context():  # Prevent error appear(Working outside of application context.)

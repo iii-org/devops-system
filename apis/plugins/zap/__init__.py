@@ -4,5 +4,5 @@ ui_route = ["Zap"]
 # --------------------- API router ---------------------
 
 
-def router(api):
+def router(api, add_resource):
     api.add_resource(zap_main.Zap, '/zap', '/project/<sint:project_id>/zap')
