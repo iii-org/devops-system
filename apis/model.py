@@ -818,6 +818,7 @@ class NotificationMessage(db.Model):
     creator_id = Column(Integer, ForeignKey(User.id, ondelete='SET NULL'), nullable=True)
     created_at = Column(DateTime)
     updated_at = Column(DateTime)
+    close = Column(Boolean, default=False)
 
     def __repr__(self):
         fields = {}
