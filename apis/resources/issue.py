@@ -788,7 +788,8 @@ def create_issue(args, operator_id):
 
 def update_issue(issue_id, args, operator_id=None):
     from resources.project_relation import get_project_id
-
+    
+    project_id = args['project_id']
     update_cache_issue_family = False
     issue = redmine_lib.redmine.issue.get(issue_id)
     before_status_id = issue.status.id
@@ -821,6 +822,11 @@ def update_issue(issue_id, args, operator_id=None):
             removed_project_id = origin_parent_id
             args['parent_issue_id'] = None
         args.pop('parent_id', None)
+
+    project_plugin_relation = nexus.nx_get_project_plugin_relation(
+        nexus_project_id=project_id)
+    args['project_id'] = project_plugin_relation.plan_project_id
+    
     if "assigned_to_id" in args and len(args['assigned_to_id']) > 0:
         user_plugin_relation = nexus.nx_get_user_plugin_relation(
             user_id=int(args['assigned_to_id']))

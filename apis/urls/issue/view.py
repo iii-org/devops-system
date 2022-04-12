@@ -210,6 +210,7 @@ class SingleIssue(Resource):
         parser.add_argument('tracker_id', type=int)
         parser.add_argument('status_id', type=int)
         parser.add_argument('priority_id', type=int)
+        parser.add_argument('project_id', type=int)
         parser.add_argument('estimated_hours', type=int)
         parser.add_argument('description', type=str)
         parser.add_argument('parent_id', type=str)
