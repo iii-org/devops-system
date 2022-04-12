@@ -82,7 +82,9 @@ class Monitoring:
     def send_notification(self):
         title = f"{self.server} not alive"
         previous_server_notification = NotificationMessage.query.filter_by(title=title).first()
-        if previous_server_notification is None or not self.__check_is_continuity(previous_server_notification.created_at):
+        if previous_server_notification is None or \
+            (not self.__check_is_continuity(previous_server_notification.created_at) or 
+            self.error_message != previous_server_notification.message):
             args = {
                 "alert_level": 102,
                 "title": title,
@@ -117,15 +119,19 @@ class Monitoring:
             hb_get_project_summary, hb_get_registries, self.hr_pj_id)
         if not server_alive:
             return server_alive
-        # Storage alive
-        harbour_storage = harbor_nfs_storage_remain_limit()
-        storage_alive = harbour_storage["status"]
-        if not storage_alive:
-            self.error_message = str(harbour_storage["message"])
-            self.detail = harbour_storage
-            self.__update_all_alive(storage_alive)  
-            self.detail = {}  
-        return storage_alive
+
+        harbor_alive = True
+        for check_element in [harbor_nfs_storage_remain_limit, docker_image_pull_limit_alert]:
+            check_element = check_element()
+            element_alive = check_element["status"]
+            if not element_alive:
+                harbor_alive = element_alive
+                self.error_message = str(check_element["message"])
+                self.detail = check_element
+                self.__update_all_alive(element_alive)  
+                self.detail = {}
+        return harbor_alive
+       
 
     def k8s_alive(self):
         self.server = "K8s"
