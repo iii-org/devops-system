@@ -163,6 +163,8 @@ def get_notification_message_list(args, admin=False):
         base_query = base_query.filter(NotificationMessage.alert_level.in_(args.get("alert_ids")))
     if args.get("unread"):
         base_query = base_query.filter(NotificationMessageReply.user_id == None)
+    if admin and args.get("include_system_message") is not True:
+        base_query = base_query.filter(NotificationMessage.alert_level <= 100)
     rows = base_query.order_by(desc(NotificationMessage.id)).all()
 
     if admin is False:
@@ -383,6 +385,7 @@ class MessageListForAdmin(Resource):
         parser.add_argument('to_date', type=str)
         parser.add_argument('search', type=str)
         parser.add_argument('alert_ids', type=str)
+        parser.add_argument('include_system_message', type=bool)
         args = parser.parse_args()
         if args["alert_ids"]:
             args["alert_ids"] = json.loads(args["alert_ids"].replace("\'", "\""))
