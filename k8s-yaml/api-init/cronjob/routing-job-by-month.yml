@@ -3,6 +3,7 @@ kind: CronJob
 metadata:
   name: routing-job-by-month
 spec:
+  concurrencyPolicy: Forbid
   schedule: "30 4 1 * *"
   successfulJobsHistoryLimit: 0
   failedJobsHistoryLimit: 0

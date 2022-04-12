@@ -3,6 +3,7 @@ kind: CronJob
 metadata:
   name: sync-redmine-pj-relation
 spec:
+  concurrencyPolicy: Forbid
   schedule: "0 * * * *"
   successfulJobsHistoryLimit: 0
   failedJobsHistoryLimit: 0
