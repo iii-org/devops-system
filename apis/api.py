@@ -625,6 +625,7 @@ api.add_resource(alert_message.AlertMessages, '/alert_message')
 api.add_resource(notification_message.MessageListForAdmin, '/notification_message_list/admin')
 api.add_resource(notification_message.MessageList, '/notification_message_list')
 api.add_resource(notification_message.Message, '/notification_message', '/notification_message/<int:message_id>')
+api.add_resource(notification_message.MessageClose, '/notification_message/<int:message_id>/close')
 api.add_resource(notification_message.MessageReply, '/notification_message_reply/<int:user_id>')
 socketio.on_namespace(notification_message.GetNotificationMessage('/get_notification_message'))
 

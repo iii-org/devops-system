@@ -202,6 +202,13 @@ def create_notification_message(args, user_id=None):
     notification_room.send_message_to_all(row.id)
 
 
+def close_notification_message(message_id):
+    for user_id, v in choose_send_to_who(message_id, send_message_id=True).items():
+        if NotificationMessageReply.query.filter_by(message_id=message_id, user_id=user_id).first() is None:
+            args = {"message_ids": [message_id]}
+            create_notification_message_reply_slip(user_id, args)
+
+
 def delete_notification_message(message_id):
     out_dict = choose_send_to_who(message_id, send_message_id=True)
     for k, v in out_dict.items():
@@ -400,6 +407,13 @@ class MessageReply(Resource):
         parser.add_argument('message_ids', type=list, location='json', required=True)
         args = parser.parse_args()
         return util.success(create_notification_message_reply_slip(user_id, args))
+
+
+class MessageClose(Resource):
+    @ jwt_required
+    def post(self, message_id):
+        role.require_admin()
+        return util.success(close_notification_message(message_id))
 
 
 notification_room = NotificationRoom()
