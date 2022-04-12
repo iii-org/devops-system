@@ -7,6 +7,10 @@ def project_url(api, add_resource):
     api.add_resource(view.CheckhasRelationProjectV2, '/v2/project/<sint:project_id>/has_relation')
     add_resource(view.CheckhasRelationProjectV2, "public")
 
+    api.add_resource(view.CheckhasSonProject, '/project/<sint:project_id>/has_son')
+    api.add_resource(view.CheckhasSonProjectV2, '/v2/project/<sint:project_id>/has_son')
+    add_resource(view.CheckhasSonProjectV2, "public")
+
     api.add_resource(view.GetProjectRootID, '/project/<sint:project_id>/root_project')
     api.add_resource(view.GetProjectRootIDV2, '/v2/project/<sint:project_id>/root_project')
     add_resource(view.GetProjectRootIDV2, "public")

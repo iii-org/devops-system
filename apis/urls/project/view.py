@@ -32,10 +32,27 @@ from resources.redmine import redmine
 import werkzeug
 import resources.rancher as rancher
 
+
 ##### Project Relation ######
 
-@doc(tags=['Project'],description="Check project has father, son project or not")
+@doc(tags=['Project'],description="Check project has son project or not")
 @marshal_with(router_model.CheckhasSonProjectResponse)
+class CheckhasSonProjectV2(MethodResource):
+    @jwt_required
+    def get(self, project_id):
+        return {
+            "has_child": project_has_child(project_id)
+        }
+    
+class CheckhasSonProject(Resource):
+    @jwt_required
+    def get(self, project_id):
+        return {
+            "has_child": project_has_child(project_id)
+        }
+
+@doc(tags=['Project'],description="Check project has father, son project or not")
+@marshal_with(router_model.CheckRelationProjectResponse)
 class CheckhasRelationProjectV2(MethodResource):
     @jwt_required
     def get(self, project_id):
