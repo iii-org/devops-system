@@ -187,7 +187,8 @@ def create_notification_message(args, user_id=None):
         message=args['message'],
         creator_id=user_id,
         created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow()
+        updated_at=datetime.utcnow(),
+        close=False
     )
     db.session.add(row)
     db.session.commit()
@@ -207,6 +208,9 @@ def close_notification_message(message_id):
         if NotificationMessageReply.query.filter_by(message_id=message_id, user_id=user_id).first() is None:
             args = {"message_ids": [message_id]}
             create_notification_message_reply_slip(user_id, args)
+    row = NotificationMessage.query.filter_by(id=message_id).first()
+    row.close = True
+    db.session.commit()
 
 
 def delete_notification_message(message_id):
