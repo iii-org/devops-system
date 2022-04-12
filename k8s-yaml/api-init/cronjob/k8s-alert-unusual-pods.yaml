@@ -3,6 +3,7 @@ kind: CronJob
 metadata:
   name: k8s-alert-unusual-pods
 spec:
+  concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 1
   failedJobsHistoryLimit: 1
   schedule: "15 * * * *"

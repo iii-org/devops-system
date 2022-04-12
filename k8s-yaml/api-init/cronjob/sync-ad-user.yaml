@@ -3,6 +3,7 @@ kind: CronJob
 metadata:
   name: sync-ad
 spec:
+  concurrencyPolicy: Forbid
   schedule: "0 15 * * 0"
   successfulJobsHistoryLimit: 2
   failedJobsHistoryLimit: 1

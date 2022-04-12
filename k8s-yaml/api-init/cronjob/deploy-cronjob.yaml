@@ -3,6 +3,7 @@ kind: CronJob
 metadata:
   name: deploy-cronjob
 spec:
+  concurrencyPolicy: Forbid
   schedule: "30 * * * *"
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 1

@@ -4,7 +4,7 @@ ui_route = ["Checkmarx"]
 # --------------------- API router ---------------------
 
 
-def router(api):
+def router(api, add_resource):
     api.add_resource(checkmarx_main.CreateCheckmarxScan, '/checkmarx/create_scan')
     api.add_resource(checkmarx_main.GetCheckmarxScans,
                      '/checkmarx/scans/<sint:project_id>')

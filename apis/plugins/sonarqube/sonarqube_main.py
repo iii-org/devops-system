@@ -1,11 +1,14 @@
 import json
 import urllib
 from datetime import timedelta
+from flask_apispec import MethodResource
+from flask_apispec import marshal_with, doc, use_kwargs
 
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource
 from requests.auth import HTTPBasicAuth
 from sqlalchemy import desc
+from . import router_model
 
 import config
 import model
@@ -234,6 +237,16 @@ def sq_get_history_by_commit(project_id, commit_id):
 
 # --------------------- Resources ---------------------
 class SonarqubeHistory(Resource):
+    @jwt_required
+    def get(self, project_name):
+        return util.success({
+            'link': f'{config.get("SONARQUBE_EXTERNAL_BASE_URL")}/dashboard?id={project_name}',
+            'history': sq_get_history_measures(project_name)
+        })
+
+class SonarqubeHistoryV2(MethodResource):
+    @doc(tags=['Plugin'],description="Get Sonarqube testing history.")
+    @marshal_with(router_model.SonarqubeHistoryResponse)
     @jwt_required
     def get(self, project_name):
         return util.success({
