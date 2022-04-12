@@ -878,3 +878,11 @@ class MonitoringRecord(db.Model):
     message = Column(String)
     detail = Column(JSON)
     created_at = Column(DateTime)
+
+
+class ProjectIssueCheck(db.Model):
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), primary_key=True)
+    enable = Column(Boolean, default=False)
+    need_fatherissue_trackers = Column(postgresql.ARRAY(Integer))
+    created_at = Column(DateTime)
+    updated_at = Column(DateTime)
