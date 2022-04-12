@@ -1042,3 +1042,12 @@ class ReleaseExtraGetResponse(CommonBasicResponse):
 
 class ReleasesGetResponse(CommonBasicResponse):
     data = fields.Nested(ReleasesGetData, required=True)
+
+
+##### Issue's Force Trackers  ######
+
+#################################### Schema ####################################
+
+class IssueForceTrackerPostSchema(Schema):
+    need_fatherissue_trackers = fields.List(fields.Int(), required=True)
+    

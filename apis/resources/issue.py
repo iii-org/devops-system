@@ -1574,14 +1574,14 @@ def get_issue_priority():
     return util.success(output)
 
 
-def get_issue_trackers():
+def get_issue_trackers(new=False):
     output = []
     redmine_trackers_output = redmine.rm_get_trackers()
     for redmine_tracker in redmine_trackers_output['trackers']:
         redmine_tracker.pop('default_status', None)
         redmine_tracker.pop('description', None)
         output.append(redmine_tracker)
-    return util.success(output)
+    return output
 
 
 def get_issue_statistics(args, user_id):
@@ -2379,17 +2379,21 @@ class IssuePriority(Resource):
 
 
 @doc(tags=['Issue'], description="Get issue available tracker")
+@use_kwargs(route_model.IssueTrackerSchema, location="query")
 @marshal_with(route_model.IssueTrackerResponse)
 class IssueTrackerV2(MethodResource):
     @ jwt_required
-    def get(self):
-        return get_issue_trackers()
+    def get(self, **kwargs):
+        return util.success(get_issue_trackers(kwargs.get("new")))
 
 
 class IssueTracker(Resource):
     @ jwt_required
     def get(self):
-        return get_issue_trackers()
+        parser = reqparse.RequestParser()
+        parser.add_argument('new', type=bool, default=False)
+        args = parser.parse_args()
+        return util.success(get_issue_trackers(args.get("new")))
 
 
 @doc(tags=['Dashboard'], description="Get user's issues' numbers of each priorities.")

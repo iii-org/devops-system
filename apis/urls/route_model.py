@@ -54,6 +54,9 @@ class IssueFilterByProjectPostAndPutSchema(Schema):
     tags = fields.Str(doc='tags', example='1,2,3', allow_none=True)
     tracker_id = fields.Str(doc='tracker_id', example='1', allow_none=True)
 
+class IssueTrackerSchema(Schema):
+    new = fields.Bool()
+
 #################################### Response ####################################
 
 ########## Module ##########

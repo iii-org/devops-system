@@ -6,6 +6,8 @@ import model
 import util
 from resources import apiError, user
 from resources.project import get_project_list
+from datetime import datetime
+from model import db
 
 # Get admin account from environment
 admin_account = config.get('ADMIN_INIT_LOGIN')
@@ -118,6 +120,37 @@ def unset_permission(args):
             model.db.session.commit()
         else:
             raise apiError.project_not_found(project_id=project_id)
+
+def get_certain_issue_tracker():
+    from resources.issue import get_issue_trackers
+    trackers = get_issue_trackers()
+    return {tracker['id']: tracker['name'] for tracker in trackers}
+
+
+def get_project_issue_check(project_id):
+    
+    ret = {
+        "enable": False,
+        "need_fatherissue_trackers": []
+    }
+    project_issue_check = model.ProjectIssueCheck.query.filter_by(project_id=project_id).first()
+    trackers = get_certain_issue_tracker()
+    if project_issue_check is not None:
+        ret["enable"] = True 
+        ret["need_fatherissue_trackers"] = list(map(lambda x: {x: trackers[x]}, project_issue_check.need_fatherissue_trackers))
+    return ret
+    
+
+def create_project_issue_check(project_id, args):
+    row = model.ProjectIssueCheck(
+        project_id=project_id,
+        enable=True,
+        need_fatherissue_trackers=args["need_fatherissue_trackers"],
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow(),
+    )
+    db.session.add(row)
+    db.session.commit()
 
 
 class AdminProjects(Resource):

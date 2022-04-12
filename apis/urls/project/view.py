@@ -14,6 +14,7 @@ from resources.issue import get_issue_list_by_project_helper, get_issue_by_tree_
     create_custom_issue_filter, put_custom_issue_filter, get_lock_status, DownloadIssueAsExcel, pj_download_file_is_exist
 from resources import project, user, version, wiki, release
 from resources.gitlab import gitlab
+from resources.project_permission import get_project_issue_check, create_project_issue_check
 
 from resources.harbor import hb_copy_artifact_and_retage, hb_get_artifact, hb_delete_artifact_tag
 from sqlalchemy.orm.exc import NoResultFound
@@ -1691,3 +1692,18 @@ class ProjectErrorMessageV2(MethodResource):
             if temp.get("reason") == "Error":
                 return util.success(temp.get("message"))
         return util.success("No errors found")
+
+
+##### Issue's force tracker ######
+class IssueForceTrackerV2(MethodResource):
+    @doc(tags=['Issue'], description="Get issue's force trackers.")
+    @jwt_required
+    def get(self, project_id):
+        return util.success(get_project_issue_check(project_id))
+    
+    
+    @doc(tags=['Issue'], description="Create issue's force trackers.")
+    @use_kwargs(router_model.IssueForceTrackerPostSchema, location="json")
+    @jwt_required
+    def post(self, project_id, **kwargs):
+        return util.success(create_project_issue_check(project_id, kwargs))
