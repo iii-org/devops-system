@@ -121,23 +121,18 @@ def unset_permission(args):
         else:
             raise apiError.project_not_found(project_id=project_id)
 
-def get_certain_issue_tracker():
-    from resources.issue import get_issue_trackers
-    trackers = get_issue_trackers()
-    return {tracker['id']: tracker['name'] for tracker in trackers}
-
 
 def get_project_issue_check(project_id):
-    
+    from resources.issue import get_issue_trackers
     ret = {
         "enable": False,
         "need_fatherissue_trackers": []
     }
     project_issue_check = model.ProjectIssueCheck.query.filter_by(project_id=project_id).first()
-    trackers = get_certain_issue_tracker()
+    trackers = {tracker['id']: tracker['name'] for tracker in get_issue_trackers()}
     if project_issue_check is not None:
         ret["enable"] = True 
-        ret["need_fatherissue_trackers"] = list(map(lambda x: {x: trackers[x]}, project_issue_check.need_fatherissue_trackers))
+        ret["need_fatherissue_trackers"] = list(map(lambda x: {"id": x, "name": trackers[x]}, project_issue_check.need_fatherissue_trackers))
     return ret
     
 

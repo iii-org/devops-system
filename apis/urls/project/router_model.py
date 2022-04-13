@@ -1054,3 +1054,20 @@ class ReleasesGetResponse(CommonBasicResponse):
 class IssueForceTrackerPostSchema(Schema):
     need_fatherissue_trackers = fields.List(fields.Int(), required=True)
     
+
+#################################### Response ####################################
+
+########## Module ##########
+
+class IssueForceTrackerPostData(Schema):
+    enable = fields.Bool(required=True)
+    need_fatherissue_trackers = fields.List(fields.Dict(example={
+                "id": 1,
+                "name": "Epic"
+            }))
+
+
+########## API Action ##########
+
+class IssueForceTrackerPostResponse(CommonBasicResponse):
+    data = fields.Nested(IssueForceTrackerPostData, required=True)

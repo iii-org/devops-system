@@ -1714,6 +1714,7 @@ class ProjectErrorMessageV2(MethodResource):
 ##### Issue's force tracker ######
 class IssueForceTrackerV2(MethodResource):
     @doc(tags=['Issue'], description="Get issue's force trackers.")
+    @marshal_with(router_model.IssueForceTrackerPostResponse)
     @jwt_required
     def get(self, project_id):
         return util.success(get_project_issue_check(project_id))
@@ -1721,6 +1722,7 @@ class IssueForceTrackerV2(MethodResource):
     
     @doc(tags=['Issue'], description="Create issue's force trackers.")
     @use_kwargs(router_model.IssueForceTrackerPostSchema, location="json")
+    @marshal_with(util.CommonResponse)
     @jwt_required
     def post(self, project_id, **kwargs):
         return util.success(create_project_issue_check(project_id, kwargs))

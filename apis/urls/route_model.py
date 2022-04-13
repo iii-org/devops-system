@@ -56,6 +56,7 @@ class IssueFilterByProjectPostAndPutSchema(Schema):
 
 class IssueTrackerSchema(Schema):
     new = fields.Bool()
+    project_id = fields.Int()
 
 #################################### Response ####################################
 

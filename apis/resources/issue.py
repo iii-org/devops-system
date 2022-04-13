@@ -1574,7 +1574,20 @@ def get_issue_priority():
     return util.success(output)
 
 
-def get_issue_trackers(new=False):
+def handle_issue_trackers(func):
+    def wrapper(*args, **kwargs):
+        ret = func(*args, **kwargs)
+        new, project_id = kwargs.get("new", False), kwargs.get("project_id", "-1")
+        if new:
+            project_issue_check= model.ProjectIssueCheck.query.filter_by(project_id=project_id).first()
+            if project_issue_check is not None:
+                ret = list(filter(lambda x: int(x["id"]) not in project_issue_check.need_fatherissue_trackers, ret))
+        return ret
+    return wrapper
+
+
+@handle_issue_trackers
+def get_issue_trackers(new=False, project_id=False):
     output = []
     redmine_trackers_output = redmine.rm_get_trackers()
     for redmine_tracker in redmine_trackers_output['trackers']:
@@ -2384,7 +2397,7 @@ class IssuePriority(Resource):
 class IssueTrackerV2(MethodResource):
     @ jwt_required
     def get(self, **kwargs):
-        return util.success(get_issue_trackers(kwargs.get("new")))
+        return util.success(get_issue_trackers(new=kwargs.get("new"), project_id=kwargs.get("project_id")))
 
 
 class IssueTracker(Resource):
@@ -2392,8 +2405,9 @@ class IssueTracker(Resource):
     def get(self):
         parser = reqparse.RequestParser()
         parser.add_argument('new', type=bool, default=False)
+        parser.add_argument('project_id', type=int)
         args = parser.parse_args()
-        return util.success(get_issue_trackers(args.get("new")))
+        return util.success(get_issue_trackers(new=args.get("new"), project_id=args.get("project_id")))
 
 
 @doc(tags=['Dashboard'], description="Get user's issues' numbers of each priorities.")
