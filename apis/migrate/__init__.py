@@ -185,11 +185,12 @@ def upgrade(version):
 
 def update_k8s_pvc_quota():
     for pj in Project.query.all():
-        resource = kubernetesClient.get_namespace_quota(pj.name)
-        if "persistentvolumeclaims" in resource.get("quota") and \
-                int(resource.get("quota").get("persistentvolumeclaims")) < 10:
-            resource['quota']['persistentvolumeclaims'] = str(10)
-            kubernetesClient.update_namespace_quota(pj.name, resource['quota'])
+        if "project-quota" in kubernetesClient.list_namespace_resource_quota(pj.name):
+            resource = kubernetesClient.get_namespace_quota(pj.name)
+            if "persistentvolumeclaims" in resource.get("quota") and \
+                    int(resource.get("quota").get("persistentvolumeclaims")) < 10:
+                resource['quota']['persistentvolumeclaims'] = str(10)
+                kubernetesClient.update_namespace_quota(pj.name, resource['quota'])
 
 
 def add_project_nfs_path_uuid():

@@ -363,6 +363,13 @@ class ApiK8sClient:
             if e.status_code != 404:
                 raise e
 
+    def list_namespaced_resource_quota(self, namespace):
+        try:
+            return self.core_v1.list_namespaced_resource_quota(namespace)
+        except apiError.DevOpsError as e:
+            if e.status_code != 404:
+                raise e
+
     def create_namespaced_resource_quota(self, namespace, resource_quota):
         try:
             return self.core_v1.create_namespaced_resource_quota(
@@ -712,6 +719,18 @@ def get_namespace_quota(namespace):
         'used': namespace_quota.status.used
     }
     return resource
+
+
+def list_namespace_resource_quota(namespace):
+    try:
+        list_resource_quota = []
+        for limitrange in ApiK8sClient().list_namespaced_resource_quota(
+                namespace).items:
+            list_resource_quota.append(limitrange.metadata.name)
+        return list_resource_quota
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
 
 
 def create_namespace_quota(namespace):
