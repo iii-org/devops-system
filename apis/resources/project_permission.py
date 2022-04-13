@@ -148,6 +148,17 @@ def create_project_issue_check(project_id, args):
     db.session.commit()
 
 
+def update_project_issue_check(project_id, args):
+    project_issue_check = model.ProjectIssueCheck.query.filter_by(project_id=project_id).first()
+    if project_issue_check is not None:
+        enable, need_fatherissue_trackers = args.get("enable"), args.get("need_fatherissue_trackers")
+        if enable is not None:
+            project_issue_check.enable = enable
+        if need_fatherissue_trackers is not None:
+            project_issue_check.need_fatherissue_trackers = sorted(need_fatherissue_trackers)
+        db.session.commit()
+
+
 class AdminProjects(Resource):
     @jwt_required
     def get(self):

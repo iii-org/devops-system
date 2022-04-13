@@ -723,6 +723,13 @@ def create_issue(args, operator_id):
         raise DevOpsError(400, 'Project is disabled', 
                                 error=apiError.project_is_disabled(project_id))
 
+    # Check tracker_id is not force to has father issue's tracker
+    project_issue_check = model.ProjectIssueCheck.query.filter_by(project_id=project_id).first()
+    if project_issue_check is not None and project_issue_check.enable:
+        if args["tracker_id"] in project_issue_check.need_fatherissue_trackers:
+            raise DevOpsError(400, f'Create issue with tacker_id:{args["tracker_id"]} must has father issue.',
+                                    error=apiError.project_tracker_must_has_father_issue(project_id, args["tracker_id"]))
+
     args = {k: v for k, v in args.items() if v is not None}
     if 'fixed_version_id' in args:
         if len(args['fixed_version_id']) > 0 and args['fixed_version_id'].isdigit():
@@ -1579,8 +1586,8 @@ def handle_issue_trackers(func):
         ret = func(*args, **kwargs)
         new, project_id = kwargs.get("new", False), kwargs.get("project_id", "-1")
         if new:
-            project_issue_check= model.ProjectIssueCheck.query.filter_by(project_id=project_id).first()
-            if project_issue_check is not None:
+            project_issue_check = model.ProjectIssueCheck.query.filter_by(project_id=project_id).first()
+            if project_issue_check is not None and project_issue_check.enable:
                 ret = list(filter(lambda x: int(x["id"]) not in project_issue_check.need_fatherissue_trackers, ret))
         return ret
     return wrapper
