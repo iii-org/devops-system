@@ -110,7 +110,8 @@ def limit_to_project(project_id):
         ActionType.DELETE_TAG, ActionType.MODIFY_HOOK, ActionType.RECREATE_PROJECT]
     ))
     query = query.filter(or_(
-        model.Activity.object_id.like(f'%@{project_id}%'),
+        model.Activity.object_id.like(f'%@{project_id}'),
+        model.Activity.object_id.like(f'%@{project_id}@%'),
         model.Activity.object_id == str(project_id)
     ))
     return query
