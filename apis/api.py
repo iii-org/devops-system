@@ -32,7 +32,7 @@ import resources.apiError as apiError
 import resources.pipeline as pipeline
 import resources.rancher as rancher
 import util
-import routing_job
+import routine_job
 from jsonwebtoken import jsonwebtoken
 from model import db
 from resources import logger, role as role, activity, starred_project, devops_version, cicd
@@ -629,8 +629,9 @@ api.add_resource(notification_message.MessageClose, '/notification_message/<int:
 api.add_resource(notification_message.MessageReply, '/notification_message_reply/<int:user_id>')
 socketio.on_namespace(notification_message.GetNotificationMessage('/get_notification_message'))
 
-# routing job
-api.add_resource(routing_job.DoJobByMonth, '/routing_job/by_month')
+# routine job
+api.add_resource(routine_job.DoJobByMonth, '/routine_job/by_month')
+api.add_resource(routine_job.DoJobByDay, '/routine_job/by_day')
 
 
 def start_prod():
