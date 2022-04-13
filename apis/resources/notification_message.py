@@ -302,8 +302,7 @@ class NotificationRoom(object):
                 from resources.user import NexusUser
                 v["creator"] = NexusUser().set_user_id(v["creator_id"]).to_json()
             v.pop("creator_id", None)
-            if k != get_jwt_identity()["user_id"]:
-                emit("create_message", v, namespace="/get_notification_message", to=f"user/{k}")
+            emit("create_message", v, namespace="/get_notification_message", to=f"user/{k}")
 
     def get_message(self, data):
         rows = db.session.query(NotificationMessage, NotificationMessageRecipient).outerjoin(
