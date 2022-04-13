@@ -131,7 +131,7 @@ def get_project_issue_check(project_id):
     project_issue_check = model.ProjectIssueCheck.query.filter_by(project_id=project_id).first()
     trackers = {tracker['id']: tracker['name'] for tracker in get_issue_trackers()}
     if project_issue_check is not None:
-        ret["enable"] = True 
+        ret["enable"] = project_issue_check.enable 
         ret["need_fatherissue_trackers"] = list(map(lambda x: {"id": x, "name": trackers[x]}, project_issue_check.need_fatherissue_trackers))
     return ret
     
