@@ -3,6 +3,7 @@ import uuid
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource
 from flask_socketio import emit
+from sqlalchemy.sql import and_
 
 import config
 import model
@@ -10,8 +11,9 @@ import util
 from resources import kubernetesClient, role, apiError
 from resources.apiError import DevOpsError
 from resources.logger import logger
-from resources.notification_message import check_message_exist, create_notification_message
+from resources.notification_message import check_message_exist, create_notification_message, close_notification_message
 import resources.kubernetesClient as kubernetesClient
+
 
 version_center_token = None
 
@@ -125,9 +127,11 @@ def update_deployment(versions):
                 logger.exception(str(error_str))
 
     # Send system upgrade to all administrators
-    for user_id in model.db.session.query(model.ProjectUserRole.user_id).filter_by(role_id=role.ADMIN.id, project_id=-1).group_by(
-            model.ProjectUserRole.user_id).all():
-        emit("system_upgrade", version_name, namespace="/get_notification_message", to=f"user/{user_id[0]}")
+    row = model.NotificationMessage.query.filter(
+        and_(model.NotificationMessage.alert_level == 101,
+             model.NotificationMessage.title.ilike(f'%{version_name}%'))).first()
+    if row:
+        close_notification_message(row.id)
 
     logger.info(f'Updating deployment to {version_name}...')
     api_image_tag = versions['api_image_tag']
@@ -155,20 +159,20 @@ def get_deployment_info():
 
 # ------------------ Resources ------------------
 class DevOpsVersion(Resource):
-    @jwt_required
+    @ jwt_required
     def get(self):
         return util.success(get_deployment_info())
 
 
 class DevOpsVersionCheck(Resource):
-    @jwt_required
+    @ jwt_required
     def get(self):
         role.require_admin()
         return util.success(has_devops_update())
 
 
 class DevOpsVersionUpdate(Resource):
-    @jwt_required
+    @ jwt_required
     def patch(self):
         role.require_admin()
         versions = has_devops_update()['latest_version']
