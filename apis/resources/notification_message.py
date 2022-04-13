@@ -1,7 +1,7 @@
 from flask_restful import Resource, reqparse
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_socketio import Namespace, emit, join_room, leave_room
-from sqlalchemy.sql import and_
+from sqlalchemy.sql import and_, or_
 from sqlalchemy import desc
 from datetime import datetime, timedelta
 from time import strptime, mktime
@@ -143,13 +143,15 @@ def filter_by_user(rows, user_id, role_id=None):
 def get_notification_message_list(args, admin=False):
     out = []
     page_dict = None
-    base_query = db.session.query(NotificationMessage, NotificationMessageRecipient, NotificationMessageReply).outerjoin(
+    base_query = db.session.query(NotificationMessage, NotificationMessageRecipient, NotificationMessageReply, User).outerjoin(
         NotificationMessageReply, and_(NotificationMessageReply.user_id == get_jwt_identity()["user_id"],
                                        NotificationMessage.id == NotificationMessageReply.message_id))
     base_query = base_query.outerjoin(NotificationMessageRecipient,
                                       NotificationMessageRecipient.message_id == NotificationMessage.id)
+    base_query = base_query.join(User, NotificationMessage.creator_id == User.id)
     if args.get("search") is not None:
-        base_query = base_query.filter(NotificationMessage.message.like(f'%{args.get("search")}%'))
+        base_query = base_query.filter(or_(NotificationMessage.title.ilike(f'%{args.get("search")}%'),
+                                           User.name.ilike(f'%{args.get("search")}%')))
     a_from_date = args['from_date']
     a_to_date = args['to_date']
     if a_from_date is not None:
@@ -283,7 +285,7 @@ def choose_send_to_who(message_id, send_message_id=None):
                             out_dict[user_row.user_id] = json.loads(str(message_row[0]))
         elif message_row[1].type_id == 5:
             for project_id in message_row[1].type_parameter['project_ids']:
-                # Send message to project onwer
+                # Send message to project owner
                 pj_row = Project.query.filter_by(id=project_id).first()
                 if send_message_id:
                     out_dict[pj_row.owner_id] = message_id
