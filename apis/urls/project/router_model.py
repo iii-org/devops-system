@@ -661,12 +661,13 @@ class ProjectPluginUsageData(Schema):
     used = fields.Dict(example={"value": 0, "unit": ""})
     quota = fields.Dict(example={"value": 0, "unit": ""})
 
+
 class ProjectUserResourceData(Schema):
     quota = fields.Dict(example={
         "configmaps": "60",
         "cpu": "10",
         "memory": "10G",
-        "persistentvolumeclaims": "0",
+        "persistentvolumeclaims": "10",
         "pods": "20",
         "services.nodeports": "10",
         "deployments": "0",
@@ -677,7 +678,7 @@ class ProjectUserResourceData(Schema):
         "configmaps": "60",
         "cpu": "10",
         "memory": "10G",
-        "persistentvolumeclaims": "0",
+        "persistentvolumeclaims": "10",
         "pods": "20",
         "services.nodeports": "10",
         "deployments": "0",

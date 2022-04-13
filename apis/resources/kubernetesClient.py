@@ -722,7 +722,7 @@ def create_namespace_quota(namespace):
                     "cpu": "10",
                     "memory": "10G",
                     "pods": "20",
-                    "persistentvolumeclaims": "0",
+                    "persistentvolumeclaims": "10",
                     "configmaps": "60",
                     "services.nodeports": "10"
                 }))
@@ -1716,6 +1716,8 @@ class KubernetesPodExec(Namespace):
         self.k8s_pod_exec.exec_namespace_pod(data)
 
 # Only run it when server is redeployed
+
+
 def create_cron_secret():
     '''
     If we not replace the old token when server is redeployed, 
