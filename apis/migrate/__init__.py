@@ -36,7 +36,7 @@ VERSIONS = ['0.9.2', '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.4', '0.9.2.5',
             '1.12.1.2', '1.12.1.3', '1.13.0.1', '1.13.0.2', '1.13.0.3', '1.13.0.4', '1.13.0.5', '1.13.0.6', '1.13.0.7', '1.13.0.8',
             '1.14.0.1', '1.14.0.2', '1.14.0.3', '1.14.0.4', '1.14.0.5', '1.14.0.6', '1.14.0.7', '1.14.0.8', '1.14.0.9', '1.14.0.10', '1.15.0.1',
             '1.15.0.2', '1.15.0.3', '1.15.0.4', '1.15.0.5', '1.15.0.6', '1.15.0.7', '1.15.0.8', '1.15.0.9', '1.15.0.10', '1.15.0.11', '1.15.0.12',
-            '1.15.0.13', '1.15.0.14', '1.15.0.15', '1.15.0.16', '1.15.1.0', '1.15.1.1', '1.15.2.0', '1.15.2.1']
+            '1.15.0.13', '1.15.0.14', '1.15.0.15', '1.15.0.16', '1.15.1.0', '1.15.1.1', '1.15.2.0', '1.15.2.1', '1.15.2.2']
 ONLY_UPDATE_DB_MODELS = [
     '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.5', '0.9.2.6', '0.9.2.a8',
     '1.0.0.2', '1.3.0.1', '1.3.0.2', '1.3.0.3', '1.3.0.4', '1.3.1', '1.3.1.1', '1.3.1.2',
@@ -179,6 +179,17 @@ def upgrade(version):
         insert_upload_gitlab_connection_in_system_parameter()
     elif version == '1.15.0.16':
         add_project_nfs_path_uuid()
+    elif version == '1.15.2.2':
+        update_k8s_pvc_quota()
+
+
+def update_k8s_pvc_quota():
+    for pj in Project.query.all():
+        resource = kubernetesClient.get_namespace_quota(pj.name)
+        if "persistentvolumeclaims" in resource.get("quota") and \
+                int(resource.get("quota").get("persistentvolumeclaims")) < 10:
+            resource['quota']['persistentvolumeclaims'] = str(10)
+            kubernetesClient.update_namespace_quota(pj.name, resource['quota'])
 
 
 def add_project_nfs_path_uuid():
