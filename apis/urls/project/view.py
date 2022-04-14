@@ -1726,13 +1726,16 @@ class IssueForceTrackerV2(MethodResource):
     @marshal_with(util.CommonResponse)
     @jwt_required
     def post(self, project_id):
+        role.require_project_owner(get_jwt_identity()['user_id'], project_id)
         return util.success(create_project_issue_check(project_id))
     
     
     @doc(tags=['Issue'], description="Update issue's force trackers.")
+    @use_kwargs(router_model.IssueForceTrackerPatchSchema, location="json")
     @marshal_with(util.CommonResponse)
     @jwt_required
     def patch(self, project_id, **kwargs):
+        role.require_project_owner(get_jwt_identity()['user_id'], project_id)
         return util.success(update_project_issue_check(project_id, kwargs))
 
     
@@ -1740,4 +1743,5 @@ class IssueForceTrackerV2(MethodResource):
     @marshal_with(util.CommonResponse)
     @jwt_required
     def delete(self, project_id):
+        role.require_project_owner(get_jwt_identity()['user_id'], project_id)
         return util.success(delete_project_issue_check(project_id))
