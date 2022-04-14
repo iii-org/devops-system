@@ -54,6 +54,7 @@ from urls.sync_projects import sync_projects_url
 from urls.router import router_url
 from urls import monitoring
 from urls.system_parameter import sync_system_parameter_url
+from urls.notification_message import notification_message_url
 
 
 app = Flask(__name__)
@@ -622,12 +623,7 @@ lock_url(api, add_resource)
 api.add_resource(alert_message.AlertMessages, '/alert_message')
 
 # message
-api.add_resource(notification_message.MessageListForAdmin, '/notification_message_list/admin')
-api.add_resource(notification_message.MessageList, '/notification_message_list')
-api.add_resource(notification_message.Message, '/notification_message', '/notification_message/<int:message_id>')
-api.add_resource(notification_message.MessageClose, '/notification_message/<int:message_id>/close')
-api.add_resource(notification_message.MessageReply, '/notification_message_reply/<int:user_id>')
-socketio.on_namespace(notification_message.GetNotificationMessage('/get_notification_message'))
+notification_message_url(api, add_resource, socketio)
 
 # routine job
 api.add_resource(routine_job.DoJobByMonth, '/routine_job/by_month')

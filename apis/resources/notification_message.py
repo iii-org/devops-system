@@ -1,6 +1,6 @@
-from flask_restful import Resource, reqparse
-from flask_jwt_extended import jwt_required, get_jwt_identity
-from flask_socketio import Namespace, emit, join_room, leave_room
+
+from flask_jwt_extended import get_jwt_identity
+from flask_socketio import emit
 from sqlalchemy.sql import and_, or_
 from sqlalchemy import desc
 from datetime import datetime, timedelta
@@ -9,8 +9,7 @@ import json
 import util
 from model import db, NotificationMessage, NotificationMessageReply, NotificationMessageRecipient, \
     ProjectUserRole, User, SystemParameter, Project
-from resources import role
-from resources.apiError import DevOpsError, resource_not_found, not_enough_authorization, argument_error
+
 
 '''
 websocket parameters:
@@ -68,26 +67,6 @@ def clear_has_expired_notifications_message(name, value_key):
     NotificationMessage.query.filter(util.get_few_months_ago_utc_datetime(month_number)
                                      > NotificationMessage.created_at).delete()
     db.session.commit()
-
-
-def parameter_check(args):
-    if args.get("alert_level") not in (1, 2, 3, 101, 102, 103):
-        raise DevOpsError(400, 'Argument alert_level not in range.',
-                          error=argument_error('alert_level'))
-    for type_id in args.get("type_ids"):
-        if type_id not in range(1, 6):
-            raise DevOpsError(400, 'Argument type_id not in range.', error=argument_error('type_id'))
-        if type_id in range(2, 6) and args.get("type_parameters") is None:
-            raise DevOpsError(400, 'Missing type_parameters', error=argument_error('type_parameters'))
-        elif type_id in [2, 5] and 'project_ids' not in json.loads(args["type_parameters"]):
-            raise DevOpsError(400, 'Argument project_ids not exist in type_parameters.',
-                              error=argument_error('project_ids'))
-        elif type_id == 3 and 'user_ids' not in json.loads(args["type_parameters"]):
-            raise DevOpsError(400, 'Argument user_id not exist in type_parameters.',
-                              error=argument_error('user_ids'))
-        elif type_id == 4 and 'role_ids' not in json.loads(args["type_parameters"]):
-            raise DevOpsError(400, 'Argument role_ids not exist in type_parameters.',
-                              error=argument_error('role_ids'))
 
 
 def combine_message_and_recipient(rows):
@@ -218,7 +197,7 @@ def close_notification_message(message_id):
 def delete_notification_message(message_id):
     out_dict = choose_send_to_who(message_id, send_message_id=True)
     for k, v in out_dict.items():
-        emit("delete_message", v, namespace="/get_notification_message", to=f"user/{k}")
+        emit("delete_message", v, namespace="/v2/get_notification_message", to=f"user/{k}")
 
     row = NotificationMessage.query.filter_by(id=message_id).first()
     db.session.delete(row)
@@ -237,7 +216,7 @@ def create_notification_message_reply_slip(user_id, args):
     db.session.add_all(row_list)
     db.session.commit()
     for message_id in args["message_ids"]:
-        emit("read_message", message_id, namespace="/get_notification_message", to=f"user/{user_id}")
+        emit("read_message", message_id, namespace="/v2/get_notification_message", to=f"user/{user_id}")
 
 
 def choose_send_to_who(message_id, send_message_id=None):
@@ -304,7 +283,7 @@ class NotificationRoom(object):
                 from resources.user import NexusUser
                 v["creator"] = NexusUser().set_user_id(v["creator_id"]).to_json()
             v.pop("creator_id", None)
-            emit("create_message", v, namespace="/get_notification_message", to=f"user/{k}")
+            emit("create_message", v, namespace="/v2/get_notification_message", to=f"user/{k}")
 
     def get_message(self, data):
         rows = db.session.query(NotificationMessage, NotificationMessageRecipient).outerjoin(
@@ -318,108 +297,7 @@ class NotificationRoom(object):
         rows = filter_by_user(rows, data['user_id'], pur_row.role_id)
         message_list = combine_message_and_recipient(rows)
         for message in message_list:
-            emit("create_message", message, namespace="/get_notification_message", to=f"user/{data['user_id']}")
-
-
-class GetNotificationMessage(Namespace):
-
-    def on_connect(self):
-        print('Connect')
-
-    def on_disconnect(self):
-        print('Client disconnected')
-
-    def on_join(self, data):
-        # verify jwt token
-        # verify user_id
-        if "user_id" not in data:
-            return
-        print('Join room')
-        join_room(f"user/{data['user_id']}")
-
-    def on_leave(self, data):
-        print('Leave room')
-        leave_room(f"user/{data['user_id']}")
-
-    def on_get_message(self, data):
-        notification_room.get_message(data)
-
-
-class Message(Resource):
-    @ jwt_required
-    def post(self):
-        role.require_admin()
-        parser = reqparse.RequestParser()
-        parser.add_argument('alert_level', type=int, required=True)
-        parser.add_argument('title', type=str)
-        parser.add_argument('message', type=str, required=True)
-        parser.add_argument('type_ids', type=str, required=True)
-        parser.add_argument('type_parameters', type=str)
-        args = parser.parse_args()
-        args["type_ids"] = json.loads(args["type_ids"].replace("\'", "\""))
-        parameter_check(args)
-        if args.get("type_parameters") is not None:
-            args["type_parameters"] = json.loads(args["type_parameters"].replace("\'", "\""))
-
-        return util.success(create_notification_message(args))
-
-    @ jwt_required
-    def delete(self, message_id):
-        role.require_admin()
-        return util.success(delete_notification_message(message_id))
-
-
-class MessageList(Resource):
-
-    @ jwt_required
-    def get(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument('limit', type=int, default=10)
-        parser.add_argument('offset', type=int, default=0)
-        parser.add_argument('from_date', type=str)
-        parser.add_argument('to_date', type=str)
-        parser.add_argument('search', type=str)
-        parser.add_argument('alert_ids', type=str)
-        parser.add_argument('unread', type=bool)
-        args = parser.parse_args()
-        if args["alert_ids"]:
-            args["alert_ids"] = json.loads(args["alert_ids"].replace("\'", "\""))
-        return util.success(get_notification_message_list(args))
-
-
-class MessageListForAdmin(Resource):
-    @ jwt_required
-    def get(self):
-        role.require_admin()
-        parser = reqparse.RequestParser()
-        parser.add_argument('limit', type=int, default=10)
-        parser.add_argument('offset', type=int, default=0)
-        parser.add_argument('from_date', type=str)
-        parser.add_argument('to_date', type=str)
-        parser.add_argument('search', type=str)
-        parser.add_argument('alert_ids', type=str)
-        parser.add_argument('include_system_message', type=bool)
-        args = parser.parse_args()
-        if args["alert_ids"]:
-            args["alert_ids"] = json.loads(args["alert_ids"].replace("\'", "\""))
-        return util.success(get_notification_message_list(args, admin=True))
-
-
-class MessageReply(Resource):
-    @ jwt_required
-    def post(self, user_id):
-        role.require_user_himself(user_id, even_admin=True)
-        parser = reqparse.RequestParser()
-        parser.add_argument('message_ids', type=list, location='json', required=True)
-        args = parser.parse_args()
-        return util.success(create_notification_message_reply_slip(user_id, args))
-
-
-class MessageClose(Resource):
-    @ jwt_required
-    def post(self, message_id):
-        role.require_admin()
-        return util.success(close_notification_message(message_id))
+            emit("create_message", message, namespace="/v2/get_notification_message", to=f"user/{data['user_id']}")
 
 
 notification_room = NotificationRoom()
