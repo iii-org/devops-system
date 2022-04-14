@@ -12,7 +12,8 @@ from . import router_model
 from resources.issue import get_issue, require_issue_visible, get_issue_tags, get_issue_point, \
     update_issue, get_issue_family, delete_issue, create_issue, NexusIssue, get_issue_statistics, \
     get_open_issue_statistics, get_issue_statistics_in_period, post_issue_relation, put_issue_relation, \
-    delete_issue_relation, check_issue_closable, get_commit_hook_issues, modify_hook, sync_issue_relation 
+    delete_issue_relation, check_issue_closable, get_commit_hook_issues, modify_hook, sync_issue_relation, \
+    check_issue_has_father
 from resources.system_parameter import check_upload_type
 
 
@@ -440,7 +441,7 @@ class Relation(Resource):
         return util.success(output)
 
 
-##### Issue closable #####
+##### Issue checking #####
 
 @doc(tags=['Issue'], description="Check issue is closable or not.")    
 @marshal_with(router_model.CheckIssueClosableResponse)
@@ -456,6 +457,15 @@ class CheckIssueClosable(Resource):
     def get(self, issue_id):
         output = check_issue_closable(issue_id)
         return util.success(output)
+
+@doc(tags=['Issue'], description="Check issue is closable or not.")    
+@marshal_with(router_model.CheckIssueClosableResponse)
+class CheckIssueHasFatherV2(MethodResource):
+    @ jwt_required
+    def get(self, issue_id):
+        output = check_issue_has_father(issue_id)
+        return util.success(output)
+
 
 ##### Issue commit relationship ######
 

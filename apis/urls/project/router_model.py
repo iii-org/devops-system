@@ -1052,12 +1052,8 @@ class ReleasesGetResponse(CommonBasicResponse):
 
 #################################### Schema ####################################
 
-class IssueForceTrackerPostSchema(Schema):
-    need_fatherissue_trackers = fields.List(fields.Int(), required=True)
-
 class IssueForceTrackerPatchSchema(Schema):
-    enable = fields.Bool()
-    need_fatherissue_trackers = fields.List(fields.Int())
+    need_fatherissue_trackers = fields.List(fields.Int(), required=True)
     
 
 #################################### Response ####################################

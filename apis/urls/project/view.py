@@ -14,7 +14,9 @@ from resources.issue import get_issue_list_by_project_helper, get_issue_by_tree_
     create_custom_issue_filter, put_custom_issue_filter, get_lock_status, DownloadIssueAsExcel, pj_download_file_is_exist
 from resources import project, user, version, wiki, release
 from resources.gitlab import gitlab
-from resources.project_permission import get_project_issue_check, create_project_issue_check, update_project_issue_check
+from resources.project_permission import get_project_issue_check, create_project_issue_check, update_project_issue_check, \
+    delete_project_issue_check
+
 
 from resources.harbor import hb_copy_artifact_and_retage, hb_get_artifact, hb_delete_artifact_tag
 from sqlalchemy.orm.exc import NoResultFound
@@ -1721,16 +1723,21 @@ class IssueForceTrackerV2(MethodResource):
     
     
     @doc(tags=['Issue'], description="Create issue's force trackers.")
-    @use_kwargs(router_model.IssueForceTrackerPostSchema, location="json")
     @marshal_with(util.CommonResponse)
     @jwt_required
-    def post(self, project_id, **kwargs):
-        return util.success(create_project_issue_check(project_id, kwargs))
+    def post(self, project_id):
+        return util.success(create_project_issue_check(project_id))
     
     
     @doc(tags=['Issue'], description="Update issue's force trackers.")
-    @use_kwargs(router_model.IssueForceTrackerPatchSchema, location="json")
     @marshal_with(util.CommonResponse)
     @jwt_required
     def patch(self, project_id, **kwargs):
         return util.success(update_project_issue_check(project_id, kwargs))
+
+    
+    @doc(tags=['Issue'], description="Delete issue's force trackers.")
+    @marshal_with(util.CommonResponse)
+    @jwt_required
+    def delete(self, project_id):
+        return util.success(delete_project_issue_check(project_id))

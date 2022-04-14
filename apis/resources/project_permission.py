@@ -11,6 +11,7 @@ from model import db
 
 # Get admin account from environment
 admin_account = config.get('ADMIN_INIT_LOGIN')
+NeedFatherissueTrackers = [2,3,4,5,6,7,8,9]
 
 
 def get_admin_user_id():
@@ -136,26 +137,34 @@ def get_project_issue_check(project_id):
     return ret
     
 
-def create_project_issue_check(project_id, args):
-    row = model.ProjectIssueCheck(
-        project_id=project_id,
-        enable=True,
-        need_fatherissue_trackers=args["need_fatherissue_trackers"],
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow(),
-    )
-    db.session.add(row)
+def create_project_issue_check(project_id):
+    project_issue_check = model.ProjectIssueCheck.query.filter_by(project_id=project_id).first()
+    if project_issue_check is None:
+        row = model.ProjectIssueCheck(
+            project_id=project_id,
+            enable=True,
+            need_fatherissue_trackers=NeedFatherissueTrackers,
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow(),
+        )
+        db.session.add(row)
+    else:
+        project_issue_check.enable = True
     db.session.commit()
 
 
 def update_project_issue_check(project_id, args):
     project_issue_check = model.ProjectIssueCheck.query.filter_by(project_id=project_id).first()
     if project_issue_check is not None:
-        enable, need_fatherissue_trackers = args.get("enable"), args.get("need_fatherissue_trackers")
-        if enable is not None:
-            project_issue_check.enable = enable
-        if need_fatherissue_trackers is not None:
-            project_issue_check.need_fatherissue_trackers = sorted(need_fatherissue_trackers)
+        need_fatherissue_trackers = args.get("need_fatherissue_trackers")
+        project_issue_check.need_fatherissue_trackers = sorted(need_fatherissue_trackers)
+        db.session.commit()
+
+
+def delete_project_issue_check(project_id):
+    project_issue_check = model.ProjectIssueCheck.query.filter_by(project_id=project_id).first()
+    if project_issue_check is not None:
+        project_issue_check.enable = False
         db.session.commit()
 
 

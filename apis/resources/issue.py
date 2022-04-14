@@ -726,7 +726,7 @@ def create_issue(args, operator_id):
     # Check tracker_id is not force to has father issue's tracker
     project_issue_check = model.ProjectIssueCheck.query.filter_by(project_id=project_id).first()
     if project_issue_check is not None and project_issue_check.enable:
-        if args["tracker_id"] in project_issue_check.need_fatherissue_trackers:
+        if args.get("parent_id") is None and args["tracker_id"] in project_issue_check.need_fatherissue_trackers:
             raise DevOpsError(400, f'Create issue with tacker_id:{args["tracker_id"]} must has father issue.',
                                     error=apiError.project_tracker_must_has_father_issue(project_id, args["tracker_id"]))
 
@@ -798,9 +798,17 @@ def update_issue(issue_id, args, operator_id=None):
     
     project_id = args.get('project_id')
     update_cache_issue_family = False
-    issue = redmine_lib.redmine.issue.get(issue_id)
+    issue = redmine_lib.redmine.issue.get(issue_id, include=['children'])
     before_status_id = issue.status.id
     pj_id = get_project_id(issue.project.id)
+
+    if args.get("tracker_id") is not None:
+        if not hasattr(issue, 'parent') and args.get('parent_id') in [None, ""]:
+            project_issue_check = model.ProjectIssueCheck.query.filter_by(project_id=pj_id).first()
+            if project_issue_check is not None and project_issue_check.enable:
+                if args["tracker_id"] in project_issue_check.need_fatherissue_trackers:
+                    raise DevOpsError(400, f'Create issue with tacker_id:{args["tracker_id"]} must has father issue.',
+                                    error=apiError.project_tracker_must_has_father_issue(pj_id, args["tracker_id"]))
 
     # Check project is disabled or not
     if model.Project.query.get(pj_id).disabled:
@@ -2296,6 +2304,11 @@ def handle_sync_son_issue(value, issue_id):
         value = str(issue_id)
     return value
              
+
+def check_issue_has_father(issue_id):
+    redmine_issue = redmine_lib.redmine.issue.get(issue_id, include=['children'])
+    return {"has_father": hasattr(redmine_issue, 'parent')}
+
 
 # --------------------- Resources ---------------------
 
