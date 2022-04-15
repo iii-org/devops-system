@@ -5,6 +5,8 @@ import config
 import model
 import util
 from resources import apiError, user
+from resources.activity import record_activity
+from enums.action_type import ActionType
 from resources.project import get_project_list
 from datetime import datetime
 from model import db
@@ -136,7 +138,7 @@ def get_project_issue_check(project_id):
         ret["need_fatherissue_trackers"] = list(map(lambda x: {"id": x, "name": trackers[x]}, project_issue_check.need_fatherissue_trackers))
     return ret
     
-
+@record_activity(ActionType.ENABLE_ISSUE_CHECK)
 def create_project_issue_check(project_id):
     project_issue_check = model.ProjectIssueCheck.query.filter_by(project_id=project_id).first()
     if project_issue_check is None:
@@ -161,6 +163,7 @@ def update_project_issue_check(project_id, args):
         db.session.commit()
 
 
+@record_activity(ActionType.DISABLE_ISSUE_CHECK)
 def delete_project_issue_check(project_id):
     project_issue_check = model.ProjectIssueCheck.query.filter_by(project_id=project_id).first()
     if project_issue_check is not None:
