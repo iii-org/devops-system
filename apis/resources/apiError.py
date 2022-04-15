@@ -120,7 +120,7 @@ def project_is_disabled(project_id):
 
 def project_tracker_must_has_father_issue(project_id, tracker_id):
     return build(
-        1018, f'Create issue with tacker_id:{tracker_id} must has father issue.', {"project_id": project_id, "tracker_id": tracker_id})
+        1018, f'Modify or Create issue with tacker_id:{tracker_id} must has father issue.', {"project_id": project_id, "tracker_id": tracker_id})
 
 # User errors
 

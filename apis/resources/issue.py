@@ -799,15 +799,17 @@ def update_issue(issue_id, args, operator_id=None):
     project_id = args.get('project_id')
     update_cache_issue_family = False
     issue = redmine_lib.redmine.issue.get(issue_id, include=['children'])
-    before_status_id = issue.status.id
     pj_id = get_project_id(issue.project.id)
-
-    if args.get("tracker_id") is not None:
-        if not hasattr(issue, 'parent') and args.get('parent_id') in [None, ""]:
-            project_issue_check = model.ProjectIssueCheck.query.filter_by(project_id=pj_id).first()
-            if project_issue_check is not None and project_issue_check.enable:
-                if args["tracker_id"] in project_issue_check.need_fatherissue_trackers:
-                    raise DevOpsError(400, f'Create issue with tacker_id:{args["tracker_id"]} must has father issue.',
+    before_status_id = issue.status.id
+    
+    project_issue_check = model.ProjectIssueCheck.query.filter_by(project_id=pj_id).first()
+    if project_issue_check is not None and project_issue_check.enable:
+        if args.get("tracker_id") is not None and args.get("tracker_id") in project_issue_check.need_fatherissue_trackers:
+            raise DevOpsError(400, f'Modify of create issue with tacker_id:{args["tracker_id"]} must has father issue.',
+                                    error=apiError.project_tracker_must_has_father_issue(pj_id, args["tracker_id"]))
+        if issue.tracker.id in project_issue_check.need_fatherissue_trackers:
+            if args.get("tracker_id") is None or args.get("tracker_id") in project_issue_check.need_fatherissue_trackers:
+                raise DevOpsError(400, f'Modify of create issue with tacker_id:{args["tracker_id"]} must has father issue.',
                                     error=apiError.project_tracker_must_has_father_issue(pj_id, args["tracker_id"]))
 
     # Check project is disabled or not
