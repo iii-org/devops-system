@@ -20,7 +20,7 @@ class RedisOperator:
         '''
         # local
         self.pool = redis.ConnectionPool(
-            host='10.20.0.93', 
+            host='10.20.0.96', 
             port='31852',
             decode_responses=True
         )
@@ -80,6 +80,7 @@ def check_issue_has_son(issue_id):
     return redis_op.r.hexists(ISSUS_FAMILIES_KEY, issue_id)
 
 def update_issue_relations(issue_families):
+    redis_op.str_delete(ISSUS_FAMILIES_KEY)
     return redis_op.dict_set_all(ISSUS_FAMILIES_KEY, issue_families)
 
 def update_issue_relation(parent_issue_id, son_issue_ids):
