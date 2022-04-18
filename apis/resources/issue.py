@@ -1294,7 +1294,7 @@ def get_custom_filters_by_args(args=None, project_id=None, user_id=None, childre
             else:
                 args["has_tag_issue"] = True   
 
-        if args.get("only_subproject_issues", False):
+        if args.get("only_superproject_issues", False):
             default_filters["subproject_id"] = "!*"
          
     return default_filters
@@ -2367,7 +2367,7 @@ class IssueByUser(Resource):
         parser.add_argument('tracker_id', type=str)
         parser.add_argument('assigned_to_id', type=str)
         parser.add_argument('priority_id', type=str)
-        parser.add_argument('only_subproject_issues', type=bool, default=False)
+        parser.add_argument('only_superproject_issues', type=bool, default=False)
         parser.add_argument('limit', type=int)
         parser.add_argument('offset', type=int)
         parser.add_argument('search', type=str)

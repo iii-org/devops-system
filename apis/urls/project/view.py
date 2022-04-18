@@ -175,7 +175,7 @@ class IssueByProject(Resource):
         parser.add_argument('tracker_id', type=str)
         parser.add_argument('assigned_to_id', type=str)
         parser.add_argument('priority_id', type=str)
-        parser.add_argument('only_subproject_issues', type=bool, default=False)
+        parser.add_argument('only_superproject_issues', type=bool, default=False)
         parser.add_argument('limit', type=int)
         parser.add_argument('offset', type=int)
         parser.add_argument('search', type=str)
