@@ -293,14 +293,25 @@ class GitLab(object):
             params={'ref': args["branch"]})
 
     def gl_get_branches(self, repo_id):
-        output = self.__api_get(f'/projects/{repo_id}/repository/branches')
-        if output.status_code != 200:
-            raise DevOpsError(output.status_code,
-                              "Error while getting git branches",
-                              error=apiError.gitlab_error(output))
+        gl_total_branch_list = []
+        total_pages = 1
+        i = 1
+        while i <= total_pages:
+            params = {
+                'per_page': 25,
+                'page': i
+            }
+            output = self.__api_get(f'/projects/{repo_id}/repository/branches', params=params)
+            if output.status_code != 200:
+                raise DevOpsError(output.status_code,
+                                  "Error while getting git branches",
+                                  error=apiError.gitlab_error(output))
+            gl_total_branch_list.extend(output.json())
+            total_pages = int(output.headers['x-total-pages'])
+            i += 1
 
         branch_list = []
-        for branch_info in output.json():
+        for branch_info in gl_total_branch_list:
             branch = {
                 "name":
                     branch_info["name"],
@@ -896,7 +907,7 @@ def gitlab_domain_connection(action):
         return
     body = gitlab_connection(action)
     ApiK8sClient().patch_namespaced_ingress(name="gitlab-ing", body=body, namespace="default")
-    
+
     gitlab_domain_connection = model.SystemParameter.query.filter_by(name="gitlab_domain_connection").first()
     gitlab_domain_connection.value = {"gitlab_domain_connection": action == "open"}
     from sqlalchemy.orm.attributes import flag_modified
@@ -911,6 +922,7 @@ def gitlab_status_connection():
         return {"status": len(paths) == 1}
     except:
         return {"status": False}
+
 
     # --------------------- Resources ---------------------
 gitlab = GitLab()
