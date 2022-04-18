@@ -42,8 +42,6 @@ def issue_url(api, add_resource):
     api.add_resource(view.CheckIssueClosable, '/issues/<issue_id>/check_closable')
     api.add_resource(view.CheckIssueClosableV2, '/v2/issues/<issue_id>/check_closable')
     add_resource(view.CheckIssueClosableV2, 'public')
-    api.add_resource(view.CheckIssueHasFatherV2, '/v2/issues/<issue_id>/has_father')
-    add_resource(view.CheckIssueHasFatherV2, 'public')
 
 
     # Issue commit relation
