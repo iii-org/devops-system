@@ -208,6 +208,7 @@ class IssueByProjectResponseWithPage(CommonBasicResponse):
                 "name": "name"
             },
             "has_children": True,
+            "has_father": True,
             "id": 1,
             "is_closed": False,
             "is_private": False,
@@ -267,6 +268,7 @@ class IssueByProjectResponse(CommonBasicResponse):
                 "name": "name"
             },
             "has_children": True,
+            "has_father": True,
             "id": 1,
             "is_closed": False,
             "is_private": False,

@@ -118,9 +118,9 @@ def project_is_disabled(project_id):
         1017, 'Project is disabled.', {"project_id": project_id})
 
 
-def project_tracker_must_has_father_issue(project_id, tracker_id):
+def project_tracker_must_has_father_issue(project_id, tracker_name):
     return build(
-        1018, f'Modify or Create issue with tacker_id:{tracker_id} must has father issue.', {"project_id": project_id, "tracker_id": tracker_id})
+        1018, f'Modify or Create issue with tacker_id:{tracker_name} must has father issue.', {"project_id": project_id, "tracker_name": tracker_name})
 
 # User errors
 

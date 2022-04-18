@@ -176,6 +176,7 @@ class NexusIssue:
                 'display': nx_project.display
             }
         self.data['has_children'] = False
+        self.data['has_father'] = hasattr(redmine_issue, 'parent')
         if redmine_issue.children.total_count > 0:
             self.data['has_children'] = True
         if relationship_bool:
@@ -793,6 +794,19 @@ def create_issue(args, operator_id):
     return main_output
 
 
+def check_trackers_in_update_issue(tracker_id, need_fatherissue_trackers, updated_tracker_id, pj_id):    
+    if tracker_id not in need_fatherissue_trackers:
+        if updated_tracker_id is not None and updated_tracker_id in need_fatherissue_trackers:
+            for tracker in get_issue_trackers():
+                if tracker['id'] == updated_tracker_id:
+                    raise DevOpsError(400, f'Modify of create issue with tacker_id:{tracker["name"]} must has father issue.',
+                                        error=apiError.project_tracker_must_has_father_issue(pj_id, tracker['name']))
+    elif updated_tracker_id is None or updated_tracker_id in need_fatherissue_trackers:
+        for tracker in get_issue_trackers():
+            if tracker['id'] == updated_tracker_id:
+                raise DevOpsError(400, f'Modify of create issue with tacker_id:{tracker["name"]} must has father issue.',
+                                    error=apiError.project_tracker_must_has_father_issue(pj_id, tracker['name']))
+
 def update_issue(issue_id, args, operator_id=None):
     from resources.project_relation import get_project_id
     
@@ -802,15 +816,25 @@ def update_issue(issue_id, args, operator_id=None):
     pj_id = get_project_id(issue.project.id)
     before_status_id = issue.status.id
     
+    # Issue can not be updated when its tracker is in its force tracker checking setting' tracker.
     project_issue_check = model.ProjectIssueCheck.query.filter_by(project_id=pj_id).first()
     if project_issue_check is not None and project_issue_check.enable:
-        if args.get("tracker_id") is not None and args.get("tracker_id") in project_issue_check.need_fatherissue_trackers:
-            raise DevOpsError(400, f'Modify of create issue with tacker_id:{args["tracker_id"]} must has father issue.',
-                                    error=apiError.project_tracker_must_has_father_issue(pj_id, args["tracker_id"]))
-        if issue.tracker.id in project_issue_check.need_fatherissue_trackers:
-            if args.get("tracker_id") is None or args.get("tracker_id") in project_issue_check.need_fatherissue_trackers:
-                raise DevOpsError(400, f'Modify of create issue with tacker_id:{args["tracker_id"]} must has father issue.',
-                                    error=apiError.project_tracker_must_has_father_issue(pj_id, args["tracker_id"]))
+        if hasattr(issue, 'parent'):
+            if args.get("parent_id") is not None and args["parent_id"] == "":
+                check_trackers_in_update_issue(
+                    issue.tracker.id, 
+                    project_issue_check.need_fatherissue_trackers, 
+                    args.get("tracker_id"),
+                    pj_id
+                )
+        else:
+            if args.get("parent_id") is None or args.get("parent_id") == "":
+                check_trackers_in_update_issue(
+                    issue.tracker.id, 
+                    project_issue_check.need_fatherissue_trackers, 
+                    args.get("tracker_id"),
+                    pj_id
+                )
 
     # Check project is disabled or not
     if model.Project.query.get(pj_id).disabled:
@@ -1104,6 +1128,7 @@ def get_issue_list_by_project_helper(project_id, args, download=False, operator_
         issue["is_closed"] = issue['status']['id'] in NexusIssue.get_closed_statuses()
         issue['issue_link'] = f"{config.get('REDMINE_EXTERNAL_BASE_URL')}/issues/{issue['id']}"
         issue["family"] = issue.get("parent") is not None or issue.get("relations") != [] or has_children
+        issue["has_father"] = issue.get("parent") is not None
         issue["has_children"] = has_children
         
         if args.get("with_point", False):
