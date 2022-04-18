@@ -2330,12 +2330,6 @@ def handle_sync_son_issue(value, issue_id):
     else:
         value = str(issue_id)
     return value
-             
-
-def check_issue_has_father(issue_id):
-    redmine_issue = redmine_lib.redmine.issue.get(issue_id, include=['children'])
-    return {"has_father": hasattr(redmine_issue, 'parent')}
-
 
 # --------------------- Resources ---------------------
 
