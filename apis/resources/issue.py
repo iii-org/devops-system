@@ -797,13 +797,15 @@ def create_issue(args, operator_id):
 def check_trackers_in_update_issue(tracker_id, need_fatherissue_trackers, updated_tracker_id, pj_id):    
     if tracker_id not in need_fatherissue_trackers:
         if updated_tracker_id is not None and updated_tracker_id in need_fatherissue_trackers:
+            tracker_id = updated_tracker_id if updated_tracker_id is not None else tracker_id
             for tracker in get_issue_trackers():
                 if tracker['id'] == updated_tracker_id:
                     raise DevOpsError(400, f'Modify of create issue with tacker_id:{tracker["name"]} must has father issue.',
                                         error=apiError.project_tracker_must_has_father_issue(pj_id, tracker['name']))
     elif updated_tracker_id is None or updated_tracker_id in need_fatherissue_trackers:
+        tracker_id = updated_tracker_id if updated_tracker_id is not None else tracker_id
         for tracker in get_issue_trackers():
-            if tracker['id'] == updated_tracker_id:
+            if tracker['id'] == tracker_id:
                 raise DevOpsError(400, f'Modify of create issue with tacker_id:{tracker["name"]} must has father issue.',
                                     error=apiError.project_tracker_must_has_father_issue(pj_id, tracker['name']))
 
@@ -829,6 +831,7 @@ def update_issue(issue_id, args, operator_id=None):
                 )
         else:
             if args.get("parent_id") is None or args.get("parent_id") == "":
+                print("jere")
                 check_trackers_in_update_issue(
                     issue.tracker.id, 
                     project_issue_check.need_fatherissue_trackers, 
@@ -1431,7 +1434,7 @@ def get_issue_family(redmine_issue, args={}, all=False, user_name=None, sync=Fal
                 issue_id=redmine_issue.parent.id, status_id='*')
         try:
             output['parent'] = NexusIssue().set_redmine_issue_v2(parent_issue[0]).to_json()
-        except IndexError:
+        except:
             output["parent"] = []
     if len(redmine_issue.children):
         children_issue_ids = [str(child.id) for child in redmine_issue.children]
