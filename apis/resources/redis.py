@@ -20,7 +20,7 @@ class RedisOperator:
         '''
         # local
         self.pool = redis.ConnectionPool(
-            host='10.20.0.96', 
+            host='10.20.0.88', 
             port='31852',
             decode_responses=True
         )
@@ -55,6 +55,11 @@ class RedisOperator:
 
     def dict_delete_certain(self, key, sub_key):
         return self.r.hdel(key, sub_key)
+    
+    def dict_delete_all(self, key):
+        value = self.r.hgetall(key)
+        self.r.delete(key)
+        return value
 
     def list_keys(self, pattern):
         return [key for key in self.r.scan_iter(pattern)]
@@ -80,7 +85,7 @@ def check_issue_has_son(issue_id):
     return redis_op.r.hexists(ISSUS_FAMILIES_KEY, issue_id)
 
 def update_issue_relations(issue_families):
-    redis_op.str_delete(ISSUS_FAMILIES_KEY)
+    redis_op.dict_delete_all(ISSUS_FAMILIES_KEY)
     return redis_op.dict_set_all(ISSUS_FAMILIES_KEY, issue_families)
 
 def update_issue_relation(parent_issue_id, son_issue_ids):
