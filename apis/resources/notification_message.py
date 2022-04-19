@@ -278,6 +278,7 @@ class NotificationRoom(object):
     def send_message_to_all(self, message_id):
         out_dict = choose_send_to_who(message_id)
         for k, v in out_dict.items():
+            v["users_can_read"] = get_users_can_read(v["alert_level"])
             v["alert_level"] = get_alert_level(v["alert_level"])
             if "creator_id" in v:
                 from resources.user import NexusUser
