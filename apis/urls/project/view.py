@@ -454,7 +454,11 @@ class DownloadProject(Resource):
 
         if get_lock_status("download_pj_issues")["is_lock"]:
             return util.success("previous is still running")
-        download_issue_excel = DownloadIssueAsExcel(args, project_id, get_jwt_identity()["user_id"])
+        
+        # Because QA not the member of any project, so it will get error when it get issue by user_id.
+        user_id = get_jwt_identity()["user_id"] if get_jwt_identity()["role_id"] != 7 else 1
+    
+        download_issue_excel = DownloadIssueAsExcel(args, project_id, user_id)
         threading.Thread(target=download_issue_excel.execute).start()
         return util.success()
 
