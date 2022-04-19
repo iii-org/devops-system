@@ -750,6 +750,7 @@ class ProjectPluginPodData(Schema):
     has_pod = fields.Bool(example=True, required=True)
     container_name = fields.Str()
     pod_name = fields.Str()
+    time = fields.Str(example="1970-01-01 00:00:00+00:00")
 
 ########## API Action ##########
 

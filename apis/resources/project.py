@@ -1038,11 +1038,21 @@ def update_kubernetes_namespace_Quota(project_id, resource):
 def get_kubernetes_plugin_pods(project_id, plugin_name):
     pods, _ = get_kubernetes_namespace_pods(project_id)
     ret = {}
-    for pod in pods["data"]:
-        if pod["containers"][0]["name"].startswith(plugin_name):
-            ret["container_name"] = pod["containers"][0]["name"]
-            ret["pod_name"] = pod["name"]
-    ret["has_pod"] = ret.get("pod_name") is not None
+
+    pods_data = [{
+        "container_name": pod["containers"][0]["name"],
+        "pod_name": pod["name"],
+        "time": pod["containers"][0]["time"]
+    } for pod in pods["data"] \
+        if pod["containers"][0]["name"].startswith(plugin_name)
+    ]
+
+    ret["has_pod"] = len(pods_data) > 0
+    if not ret["has_pod"]:
+        return ret
+
+    pods_data = sorted(pods_data, key=lambda x: x["time"], reverse=True)
+    ret.update(pods_data[0])
     return util.success(ret)
 
 
