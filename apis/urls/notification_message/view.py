@@ -1,7 +1,7 @@
 import json
 
 import util
-from flask_apispec import doc, marshal_with, use_kwargs
+from flask_apispec import doc, marshal_with
 from flask_apispec.views import MethodResource
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
@@ -66,15 +66,22 @@ class MessageV2(MethodResource):
     # @use_kwargs(router_model.CreateNotificationMessageSchema, location="form")
     @marshal_with(util.CommonResponse)
     @jwt_required
-    def post(self, **kwargs):
+    def post(self):
         role.require_admin()
-        kwargs["type_ids"] = json.loads(kwargs["type_ids"].replace("\'", "\""))
-        parameter_check(kwargs)
-        if kwargs.get("type_parameters") is not None:
-            kwargs["type_parameters"] = json.loads(kwargs["type_parameters"].replace("\'", "\""))
+        parser = reqparse.RequestParser()
+        parser.add_argument('alert_level', type=int, required=True)
+        parser.add_argument('title', type=str)
+        parser.add_argument('message', type=str, required=True)
+        parser.add_argument('type_ids', type=str, required=True)
+        parser.add_argument('type_parameters', type=str)
+        args = parser.parse_args()
+        args["type_ids"] = json.loads(args["type_ids"].replace("\'", "\""))
+        parameter_check(args)
+        if args.get("type_parameters") is not None:
+            args["type_parameters"] = json.loads(args["type_parameters"].replace("\'", "\""))
         else:
-            kwargs["type_parameters"] = ""
-        return util.success(create_notification_message(kwargs))
+            args["type_parameters"] = ""
+        return util.success(create_notification_message(args))
 
 
 class MessageIdV2(MethodResource):
