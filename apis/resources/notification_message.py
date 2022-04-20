@@ -175,14 +175,15 @@ def create_notification_message(args, user_id=None):
     )
     db.session.add(row)
     db.session.commit()
+    message_id = row.id
     for type_id in args['type_ids']:
         row_recipient = NotificationMessageRecipient(
-            message_id=row.id,
+            message_id=message_id,
             type_id=type_id,
             type_parameter=args['type_parameters'],
         )
         db.session.add(row_recipient)
-        db.session.commit()
+    db.session.commit()
     notification_room.send_message_to_all(row.id)
 
 
