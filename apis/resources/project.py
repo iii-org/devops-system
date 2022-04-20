@@ -1049,7 +1049,7 @@ def get_kubernetes_plugin_pods(project_id, plugin_name):
 
     ret["has_pod"] = len(pods_data) > 0
     if not ret["has_pod"]:
-        return ret
+        return util.success(ret)
 
     pods_data = sorted(pods_data, key=lambda x: x["time"], reverse=True)
     ret.update(pods_data[0])
