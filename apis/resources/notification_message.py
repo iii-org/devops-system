@@ -72,22 +72,23 @@ def clear_has_expired_notifications_message(name, value_key):
 def combine_message_and_recipient(rows):
     out_dict = {}
     for row in rows:
-        if row[0].id not in out_dict:
-            out_dict[row[0].id] = {**json.loads(str(row[0])), **{"types": [json.loads(str(row[1]))]}}
-        else:
-            out_dict[row[0].id]["types"].append(json.loads(str(row[1])))
-        if row[0].alert_level:
-            out_dict[row[0].id]["alert_level"] = get_alert_level(row[0].alert_level)
-            out_dict[row[0].id]["users_can_read"] = get_users_can_read(row[0].alert_level)
-        if row[0].creator_id:
-            from resources.user import NexusUser
-            out_dict[row[0].id]["creator"] = NexusUser().set_user_id(row[0].creator_id).to_json()
-        out_dict[row[0].id].pop("creator_id", None)
-        if len(row) > 2:
-            if row[2] is not None:
-                out_dict[row[0].id]["read"] = True
+        if row[1] is not None:
+            if row[0].id not in out_dict:
+                out_dict[row[0].id] = {**json.loads(str(row[0])), **{"types": [json.loads(str(row[1]))]}}
             else:
-                out_dict[row[0].id]["read"] = False
+                out_dict[row[0].id]["types"].append(json.loads(str(row[1])))
+            if row[0].alert_level:
+                out_dict[row[0].id]["alert_level"] = get_alert_level(row[0].alert_level)
+                out_dict[row[0].id]["users_can_read"] = get_users_can_read(row[0].alert_level)
+            if row[0].creator_id:
+                from resources.user import NexusUser
+                out_dict[row[0].id]["creator"] = NexusUser().set_user_id(row[0].creator_id).to_json()
+            out_dict[row[0].id].pop("creator_id", None)
+            if len(row) > 2:
+                if row[2] is not None:
+                    out_dict[row[0].id]["read"] = True
+                else:
+                    out_dict[row[0].id]["read"] = False
     return list(out_dict.values())
 
 
@@ -97,25 +98,26 @@ def filter_by_user(rows, user_id, role_id=None):
 
     out_list = []
     for row in rows:
-        if row[1].type_id == 1 and row not in out_list:
-            out_list.append(row)
-        if row[1].type_id == 2:
-            for type_project_id in row[1].type_parameter['project_ids']:
-                if (type_project_id,) in project_ids and row not in out_list:
-                    out_list.append(row)
-        if row[1].type_id == 3:
-            for type_user_id in row[1].type_parameter['user_ids']:
-                if type_user_id == user_id and row not in out_list:
-                    out_list.append(row)
-        if role_id and row[1].type_id == 4:
-            for type_role_id in row[1].type_parameter['role_ids']:
-                if type_role_id == role_id and row not in out_list:
-                    out_list.append(row)
-        if row[1].type_id == 5:
-            for type_project_id in row[1].type_parameter['project_ids']:
-                pj_row = Project.query.filter_by(id=type_project_id).first()
-                if pj_row.owner_id == user_id:
-                    out_list.append(row)
+        if row[1] is not None:
+            if row[1].type_id == 1 and row not in out_list:
+                out_list.append(row)
+            if row[1].type_id == 2:
+                for type_project_id in row[1].type_parameter['project_ids']:
+                    if (type_project_id,) in project_ids and row not in out_list:
+                        out_list.append(row)
+            if row[1].type_id == 3:
+                for type_user_id in row[1].type_parameter['user_ids']:
+                    if type_user_id == user_id and row not in out_list:
+                        out_list.append(row)
+            if role_id and row[1].type_id == 4:
+                for type_role_id in row[1].type_parameter['role_ids']:
+                    if type_role_id == role_id and row not in out_list:
+                        out_list.append(row)
+            if row[1].type_id == 5:
+                for type_project_id in row[1].type_parameter['project_ids']:
+                    pj_row = Project.query.filter_by(id=type_project_id).first()
+                    if pj_row.owner_id == user_id:
+                        out_list.append(row)
     return out_list
 
 
