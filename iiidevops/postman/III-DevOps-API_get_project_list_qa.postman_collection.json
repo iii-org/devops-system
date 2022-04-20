@@ -38,12 +38,12 @@
                             "formdata": [
                                 {
                                     "key": "username",
-                                    "value": "{{username}}",
+                                    "value": "{{username_am}}",
                                     "type": "text"
                                 },
                                 {
                                     "key": "password",
-                                    "value": "{{password}}",
+                                    "value": "{{password_am}}",
                                     "type": "text"
                                 }
                             ]
