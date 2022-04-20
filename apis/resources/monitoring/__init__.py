@@ -3,6 +3,7 @@ import util
 from model import MonitoringRecord, Project, db, NotificationMessage
 from github import Github
 from resources.redis import update_server_alive
+from sqlalchemy import desc
 
 from plugins.sonarqube.sonarqube_main import sq_get_current_measures, sq_list_project
 from resources.harbor import hb_get_project_summary, hb_get_registries
@@ -81,10 +82,11 @@ class Monitoring:
 
     def send_notification(self):
         title = f"{self.server} not alive"
-        previous_server_notification = NotificationMessage.query.filter_by(title=title).first()
-        if previous_server_notification is None or \
-            (not self.__check_is_continuity(previous_server_notification.created_at) or 
-            self.error_message != previous_server_notification.message):
+        previous_server_notification = NotificationMessage.query.filter_by(title=title) \
+            .order_by(desc(NotificationMessage.created_at)).all()
+        if previous_server_notification == [] or \
+            (not self.__check_is_continuity(previous_server_notification[0].created_at) or 
+            self.error_message != previous_server_notification[0].message):
             args = {
                 "alert_level": 102,
                 "title": title,
