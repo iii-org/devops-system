@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from time import strptime, mktime
 import json
 import util
+from resources import role
 from model import db, NotificationMessage, NotificationMessageReply, NotificationMessageRecipient, \
     ProjectUserRole, User, SystemParameter, Project
 
@@ -92,6 +93,34 @@ def combine_message_and_recipient(rows):
     return list(out_dict.values())
 
 
+def count_must_receiver_number(out):
+    for item in out:
+        user_ids = set()
+        for type in item.get("types"):
+            if type['type_id'] == 1:
+                user_ids = user_ids | set(db.session.query(ProjectUserRole.user_id).filter(
+                    ProjectUserRole.project_id == -1, ProjectUserRole.role_id != role.BOT.id).all())
+            if type['type_id'] == 2:
+                for type_project_id in type.get("type_parameter").get('project_ids'):
+                    user_ids = user_ids | set(db.session.query(ProjectUserRole.user_id).filter(
+                        ProjectUserRole.project_id == type_project_id,
+                        ProjectUserRole.role_id != role.BOT.id).all())
+            if type['type_id'] == 3:
+                user_ids = user_ids | set(type.get('type_parameter').get("user_ids"))
+            if type['type_id'] == 4:
+                for type_role_id in type.get("type_parameter").get('role_ids'):
+                    user_ids = user_ids | set(db.session.query(ProjectUserRole.user_id).filter(
+                        ProjectUserRole.project_id == -1, ProjectUserRole.role_id == type_role_id).group_by(
+                            ProjectUserRole.user_id).all())
+            if type['type_id'] == 5:
+                for type_project_id in type.get("type_parameter").get('project_ids'):
+                    user_ids = user_ids | set(db.session.query(
+                        Project.owner_id).filter_by(id=type_project_id).first())
+        item["total_receive_number"] = len(user_ids)
+        item["already_receive_number"] = NotificationMessageReply.query.filter_by(message_id=item['id']).count()
+    return out
+
+
 def filter_by_user(rows, user_id, role_id=None):
     project_ids = db.session.query(ProjectUserRole.project_id).filter(and_(
         ProjectUserRole.user_id == user_id, ProjectUserRole.project_id != -1)).all()
@@ -153,6 +182,8 @@ def get_notification_message_list(args, admin=False):
     if admin is False:
         rows = filter_by_user(rows, get_jwt_identity()["user_id"], get_jwt_identity()["role_id"])
     out = combine_message_and_recipient(rows)
+    if admin:
+        out = count_must_receiver_number(out)
     out, page_dict = util.list_pagination(out, args['limit'], args['offset'])
     out_dict = {'notification_message_list': out}
 
