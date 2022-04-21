@@ -1423,45 +1423,69 @@ def get_issue_assigned_to_search(default_filters, args):
 def get_issue_family(redmine_issue, args={}, all=False, user_name=None, sync=False):
     output = defaultdict(list)
     is_with_point = args.get("with_point", False)
+
     if user_name is None:
         user_name = get_jwt_identity()["user_account"]
-    if hasattr(redmine_issue, 'parent') and not is_with_point:
-        if not all:
-            parent_issue = redmine_lib.rm_impersonate(user_name, sync=sync).issue.filter(
-                issue_id=redmine_issue.parent.id, status_id='*')
-        else:
-            parent_issue = redmine_lib.redmine.issue.filter(
-                issue_id=redmine_issue.parent.id, status_id='*')
+
+    if not all:
+        redmine_obj = redmine_lib.rm_impersonate(user_name, sync=sync)
+    else:
+        redmine_obj = redmine.redmine
+
+    if not is_with_point:
+        output["parent"] = get_issue_parent(redmine_issue, redmine_obj)
+        output["relations"] = get_issue_relations(redmine_issue, redmine_obj)
+
+    output["children"] = get_issue_children(redmine_issue, redmine_obj)
+        
+    for key in ["parent", "children", "relations"]:
+        if output.get(key) == []:
+            output.pop(key)
+    return output
+
+def get_issue_parent(redmine_issue, redmine_obj):
+    ret = []
+    if hasattr(redmine_issue, 'parent'):
+        filter_kwargs = {"status_id": "*", "issue_id": redmine_issue.parent.id}
+        parent_issue = redmine_obj.issue.filter(**filter_kwargs)
         try:
-            output['parent'] = NexusIssue().set_redmine_issue_v2(parent_issue[0]).to_json()
+            ret = NexusIssue().set_redmine_issue_v2(parent_issue[0]).to_json()
         except:
-            output["parent"] = []
+            pass
+        
+    return ret
+
+def get_issue_children(redmine_issue, redmine_obj):
+    ret = []
     if len(redmine_issue.children):
         children_issue_ids = [str(child.id) for child in redmine_issue.children]
-        children_issue_ids_str = ','.join(children_issue_ids)   
-        if not all:
-            children_issues = redmine_lib.rm_impersonate(user_name, sync=sync).issue.filter(
-                issue_id=children_issue_ids_str, status_id='*', include=['children'])
-        else:
-            children_issues = redmine_lib.redmine.issue.filter(
-                issue_id=children_issue_ids_str, status_id='*', include=['children'])
-        output['children'] = [NexusIssue().set_redmine_issue_v2(issue, with_point=is_with_point, relationship_bool=True).to_json()
-                              for issue in children_issues]
-    if len(redmine_issue.relations) and not is_with_point:
+        children_issue_ids_str = ','.join(children_issue_ids)
+        filter_kwargs = {
+            "status_id": "*",
+            "issue_id": children_issue_ids_str,
+            "include": ['children'],
+            "sort": "subject:dec"
+        }
+        children_issues = redmine_obj.issue.filter(**filter_kwargs)
+        ret = [NexusIssue().set_redmine_issue_v2(issue).to_json()
+                    for issue in children_issues]
+    return ret
+
+def get_issue_relations(redmine_issue, redmine_obj):
+    ret= []
+    if len(redmine_issue.relations):
         for relation in redmine_issue.relations:
             rel_issue_id = 0
             if relation.issue_id != int(redmine_issue.id):
                 rel_issue_id = relation.issue_id
             else:
                 rel_issue_id = relation.issue_to_id
-            rel_issue = redmine_lib.redmine.issue.get(rel_issue_id)
+            rel_issue = redmine_obj.issue.get(rel_issue_id)
             relate_issue = NexusIssue().set_redmine_issue_v2(rel_issue).to_json()
             relate_issue['relation_id'] = relation.id
-            output['relations'].append(relate_issue)
-    for key in ["parent", "children", "relations"]:
-        if output.get(key) == []:
-            output.pop(key)
-    return output
+            ret.append(relate_issue)
+   
+    return ret    
 
 
 def get_issue_by_status_by_project(project_id):
@@ -2227,7 +2251,7 @@ class DownloadIssueAsExcel():
         if not value["has_children"] or self.levels == level:
             return 
         redmine_issue = redmine_lib.rm_impersonate(self.user_name, sync=True).issue.get(value["id"], include=['children'])
-        children = get_issue_family(redmine_issue, args={'with_point': True}, user_name=self.user_name, sync=True)["children"]
+        children = get_issue_children(redmine_issue, redmine_lib.rm_impersonate(self.user_name, sync=True))
         for index, child in enumerate(children):
             row = self.__generate_row_issue_for_excel(f"{super_index}_{index + 1}", child)
             self.result.append(row)
