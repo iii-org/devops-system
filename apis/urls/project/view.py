@@ -1588,6 +1588,7 @@ class ReleasesV2(MethodResource):
         release_obj.project = model.Project.query.filter_by(id=project_id).first()
 
         gitlab_ref = branch_name = kwargs.get('branch')
+        branch_name = None if branch_name == "" else branch_name
         if kwargs.get('commit', None) is None and branch_name is not None:
             kwargs.update({'commit': 'latest'})
         else:
