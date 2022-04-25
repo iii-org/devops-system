@@ -307,7 +307,7 @@ class GitLab(object):
                                   "Error while getting git branches",
                                   error=apiError.gitlab_error(output))
             gl_total_branch_list.extend(output.json())
-            total_pages = int(output.headers['x-total-pages'])
+            total_pages = int(output.headers.get('x-total-pages', total_pages))
             i += 1
 
         branch_list = []
