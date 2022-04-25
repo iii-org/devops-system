@@ -382,6 +382,7 @@ class DownloadProjectSchema(Schema):
     tracker_id = fields.Str(doc='tracker_id',  example='1')
     assigned_to_id = fields.Str(doc='assigned_to_id',  example='1')
     priority_id = fields.Str(doc='fixed_version_id',  example='1')
+    only_superproject_issues = fields.Bool(doc='only_superproject_issues', example=True, missing=False)
     search = fields.Str(doc='search', example='string')
     selection = fields.Str(doc='selection',  example='1')
     sort = fields.Str(doc='sort', example="string")
@@ -389,6 +390,7 @@ class DownloadProjectSchema(Schema):
     due_date_start = fields.Str(doc='due_date_start', example="1970-01-01")
     due_date_end = fields.Str(doc='due_date_end', example="1970-01-01")
     with_point = fields.Str(doc='with_point', example=True, missing=True)
+    tags = fields.Str(doc='tags', example="1,2,3")
     levels = fields.Int(doc='levels', example=1, missing=3)
     deploy_column = fields.List(
         fields.Dict(example={"field": "name", "display": "議題名稱"}),
