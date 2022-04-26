@@ -15,7 +15,7 @@ import model
 import resources.apiError as apiError
 import util as util
 from enums.action_type import ActionType
-from model import db
+from model import ProjectUserRole, db
 from nexus import nx_get_user_plugin_relation, nx_get_user
 from plugins.sonarqube import sonarqube_main as sonarqube
 from plugins.ad.ad_main import ldap_api
@@ -803,3 +803,9 @@ def save_last_login(user):
     if user is not None:
         user.last_login = datetime.datetime.utcnow()
         db.session.commit()
+
+
+def get_am_role_user():
+    rows = ProjectUserRole.query.filter_by(role_id=5).with_entities(ProjectUserRole.user_id). \
+        distinct()
+    return [row.user_id for row in rows]

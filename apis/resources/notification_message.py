@@ -307,6 +307,20 @@ def choose_send_to_who(message_id, send_message_id=None):
     return out_dict
 
 
+def get_not_alive_notification_message_list(server=None):
+    from resources.user import get_am_role_user
+    base_query = db.session.query(NotificationMessage, NotificationMessageReply).outerjoin(
+        NotificationMessageReply, and_(NotificationMessageReply.user_id.in_(get_am_role_user()),
+                                       NotificationMessage.id == NotificationMessageReply.message_id))
+    if server is not None:
+        base_query = base_query.filter(NotificationMessage.title == f'{server} not alive')
+    else:
+        base_query = base_query.filter(NotificationMessage.title.ilike('%not alive'))
+    rows = base_query.order_by(desc(NotificationMessage.id)).all()
+    return [{**json.loads(str(row[0]))} for row in rows if len(row) > 1 and row[1] is None]
+    
+
+
 class NotificationRoom(object):
 
     def send_message_to_all(self, message_id):

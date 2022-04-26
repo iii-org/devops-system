@@ -11,7 +11,7 @@ from resources.redmine import redmine
 from resources.gitlab import gitlab
 from resources.rancher import rancher
 from resources import logger
-from resources.notification_message import create_notification_message
+from resources.notification_message import create_notification_message, get_not_alive_notification_message_list, close_notification_message
 from resources.kubernetesClient import ApiK8sClient as k8s_client
 from resources.kubernetesClient import list_namespace_services, list_namespace_pods_info
 from datetime import datetime
@@ -151,28 +151,34 @@ class Monitoring:
             rancher.rc_get_pipeline_info, rancher.rc_get_project_pipeline, self.ci_pj_id, self.ci_pipeline_id)
 
     def check_project_alive(self):
-        return {
+        all_alive = {
             "alive": {
-                "redmine": self.redmine_alive(),
-                "gitlab": self.gitlab_alive(),
-                "harbor": self.harbor_alive(),
-                "k8s": self.k8s_alive(),
-                "sonarqube": self.sonarqube_alive(),
-                "rancher": self.rancher_alive(),
+                "Redmine": self.redmine_alive(),
+                "GitLab": self.gitlab_alive(),
+                "Harbor": self.harbor_alive(),
+                "K8s": self.k8s_alive(),
+                "Sonarqube": self.sonarqube_alive(),
+                "Rancher": self.rancher_alive(),
             },
             "all_alive": self.all_alive
         }
+        if all_alive["all_alive"]:
+            not_alive_messages = get_not_alive_notification_message_list()
+            if not_alive_messages != []:
+                for not_alive_message in not_alive_messages:
+                    close_notification_message(not_alive_message["id"])
+        return all_alive
 
 
 def generate_alive_response(name):
     monitoring = Monitoring()
     alive_mapping = {
-        "redmine": monitoring.redmine_alive,
-        "gitlab": monitoring.gitlab_alive,
-        "harbor": monitoring.harbor_alive,
-        "kubernetes": monitoring.k8s_alive,
-        "sonarqube": monitoring.sonarqube_alive,
-        "rancher": monitoring.rancher_alive,
+        "Redmine": monitoring.redmine_alive,
+        "GitLab": monitoring.gitlab_alive,
+        "Harbor": monitoring.harbor_alive,
+        "K8s": monitoring.k8s_alive,
+        "Sonarqube": monitoring.sonarqube_alive,
+        "Rancher": monitoring.rancher_alive,
     }
     return {
         "name": name.capitalize(),
@@ -184,6 +190,12 @@ def generate_alive_response(name):
 def server_alive(name):
     alive = generate_alive_response(name)
     status = alive["status"]
+    if status:
+        not_alive_messages = get_not_alive_notification_message_list(name)
+        if not_alive_messages != []:
+            for not_alive_message in not_alive_messages:
+                close_notification_message(not_alive_message["id"])
+
     update_server_alive(str(status))
     return alive
 
