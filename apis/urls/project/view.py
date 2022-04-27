@@ -628,10 +628,7 @@ class SingleProjectV2(MethodResource):
         parser = reqparse.RequestParser()
         parser.add_argument('force_delete_project', type=bool)
         args = parser.parse_args()
-        if args['force_delete_project'] is True:
-            return project.delete_project(project_id, force_delete_project=True)
-        else:
-            return project.delete_project(project_id)
+        return project.delete_project(project_id)
 
 
 class SingleProjectCreateV2(MethodResource):
