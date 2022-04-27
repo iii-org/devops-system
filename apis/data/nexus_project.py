@@ -99,6 +99,7 @@ class NexusProject:
         return self.__extra_fields
 
     def to_json(self):
+        from resources.project_relation import project_has_child
         ret = json.loads(str(self.get_project_row()))
         ret['git_url'] = ret['http_url']
         del ret['http_url']
@@ -112,6 +113,7 @@ class NexusProject:
         ret['owner_id'] = self.get_owner().id
         ret['owner_name'] = self.get_owner().name
         ret['department'] = self.get_owner().department
+        ret['has_son'] = project_has_child(self.__project_id)
         for key, value in self.get_extra_fields().items():
             ret[key] = value
         if self.__project_members_dict is not None:
