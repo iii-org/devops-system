@@ -14,6 +14,7 @@ from flask_socketio import Namespace, emit, disconnect
 import os
 from resources.apiError import DevOpsError
 
+
 def row_to_dict(row):
     if row is None:
         return row
@@ -27,7 +28,7 @@ def execute_modify_cron(args):
         deployer_node_ip = kubernetesClient.get_the_oldest_node()[0]
 
     cmd = f"perl /home/rkeuser/deploy-devops/bin/modify-cron.pl {args}"
-    output_str, error_str = util.ssh_to_node_by_key(cmd, deployer_node_ip) 
+    output_str, error_str = util.ssh_to_node_by_key(cmd, deployer_node_ip)
     output_str = output_str.replace("\n", "")
     if output_str.startswith("Error:"):
         raise Exception(output_str)
@@ -51,14 +52,14 @@ def get_system_parameter():
 def update_system_parameter(id, args):
     system_parameter = SystemParameter.query.get(id)
     system_param_name = system_parameter.name
-    value, active = args.get("value"), args.get("active") 
+    value, active = args.get("value"), args.get("active")
     id_mapping = {
         "github_verify_info": {
             "execute_func": verify_github_info,
             "func_args": value,
             "cron_name": "sync_tmpl",
             "time": '"15 0 * * *"',
-            "cron_args": 
+            "cron_args":
                 f'{value.get("account")}:{value.get("token")}' if value is not None else f'{system_parameter.value["account"]}:{system_parameter.value["token"]}'
         },
     }
@@ -68,7 +69,7 @@ def update_system_parameter(id, args):
             execute_pre_func(id_info.get("execute_func"), id_info.get("func_args"))
 
         if active is not None and not active:
-            args = f'{id_info["cron_name"]} off' 
+            args = f'{id_info["cron_name"]} off'
         else:
             args = f'{id_info["cron_name"]} on {id_info["time"]} {id_info.get("cron_args", "")}'
         execute_modify_cron(args)
@@ -100,7 +101,7 @@ def get_github_verify_execute_status():
         # Check the log is previous run
         if delta.total_seconds() < 90:
             ret["status"] = {"first_stage": False, "second_stage": False}
-        
+
             # Check the first stage is done
             ret["status"]["first_stage"] = output_list[-2].replace("\n", "").endswith("SUCCESS")
 
@@ -126,12 +127,9 @@ def execute_sync_template_by_perl(cmd, name):
 
 
 def execute_system_parameter_by_perl(name):
-    name_perl_mapping = {"github_verify_info": "/home/rkeuser/deploy-devops/bin/sync-github-templ.pl"}
-    if name not in name_perl_mapping:
-        return
     if name == "github_verify_info":
-        cmd = name_perl_mapping[name]
-        thread = threading.Thread(target=execute_sync_template_by_perl, args=(cmd, name, ))
+        thread = threading.Thread(target=execute_sync_template_by_perl, args=(
+            "/home/rkeuser/deploy-devops/bin/sync-github-templ.pl", "github_verify_info", ))
         thread.start()
 
 
@@ -143,6 +141,7 @@ def get_github_verify_log():
         output = f.read()
     return output
 
+
 def get_github_verify_log_websocket(data):
     if data == "get":
         ws_start_time = time.time()
@@ -152,18 +151,18 @@ def get_github_verify_log_websocket(data):
                 output = "Log is unavailable."
                 emit("sync_templ_log", output)
                 break
-            
+
             # Call twice to prevent time lag.
             status = get_github_verify_execute_status()
-            if status.get("status", {}).get("second_stage", False):    
-                outputs = get_github_verify_log().split("\n") 
+            if status.get("status", {}).get("second_stage", False):
+                outputs = get_github_verify_log().split("\n")
                 output = "\n".join(outputs[current_num:])
                 emit("sync_templ_log", output)
                 break
 
             outputs = get_github_verify_log().split("\n")
             max_index = len(outputs)
-            output = "\n".join(outputs[current_num:max_index])            
+            output = "\n".join(outputs[current_num:max_index])
             emit("sync_templ_log", output)
             current_num = max_index
 
@@ -178,28 +177,30 @@ def upload_file_types_handle(func):
         upload_file_types_obj = get_upload_file_types_obj()
         upload_file_types = upload_file_types_obj.value
         new_value, ret = func(*args, upload_file_types=upload_file_types, **kwargs)
-        
+
         upload_file_types_obj.value = new_value
         from sqlalchemy.orm.attributes import flag_modified
         flag_modified(upload_file_types_obj, "value")
         db.session.commit()
         return util.success(ret)
     return wrapper
-    
+
 
 def get_upload_file_types_obj():
     return SystemParameter.query.filter_by(name="upload_file_types").first()
 
+
 def get_upload_file_types():
     value = get_upload_file_types_obj().value
     return util.success(value)
+
 
 @upload_file_types_handle
 def create_upload_file_types(args, upload_file_types={}):
     for upload_file_type in upload_file_types["upload_file_types"]:
         if upload_file_type["MIME Type"] == args["mimetype"] and upload_file_type["file extension"] == args["file_extension"]:
             raise DevOpsError(400, f'Argument mimetype+file extension is duplicated.',
-                        error=apiError.argument_error("mimetype,file_extension"))
+                              error=apiError.argument_error("mimetype,file_extension"))
 
     row = {
         "id": upload_file_types["upload_file_types"][-1]["id"] + 1,
@@ -210,7 +211,7 @@ def create_upload_file_types(args, upload_file_types={}):
 
     upload_file_types["upload_file_types"].append(row)
     return upload_file_types, row
-    
+
 
 @upload_file_types_handle
 def delete_upload_file_types(update_file_type_id, upload_file_types={}):
@@ -219,6 +220,7 @@ def delete_upload_file_types(update_file_type_id, upload_file_types={}):
         upload_file_types["upload_file_types"].remove(delete_mapping)
 
     return upload_file_types, delete_mapping
+
 
 @upload_file_types_handle
 def update_upload_file_types(update_file_type_id, args, upload_file_types={}):
@@ -235,11 +237,12 @@ def update_upload_file_types(update_file_type_id, args, upload_file_types={}):
         for upload_file_type in upload_file_types["upload_file_types"]:
             if upload_file_type["MIME Type"] == found_mapping["MIME Type"] and upload_file_type["file extension"] == found_mapping["file extension"]:
                 raise DevOpsError(400, f'Argument mimetype+file extension is duplicated.',
-                            error=apiError.argument_error("mimetype,file_extension"))
+                                  error=apiError.argument_error("mimetype,file_extension"))
 
         upload_file_types["upload_file_types"].insert(index, found_mapping)
 
     return upload_file_types, found_mapping
+
 
 def get_upload_file_distinct_name():
     upload_file_types = get_upload_file_types_obj().value["upload_file_types"]
@@ -250,10 +253,11 @@ def get_upload_file_distinct_name():
 
     return util.success(ret)
 
+
 def check_upload_type(file):
     if file.mimetype not in get_all_upload_file_mimetype():
         raise DevOpsError(400, 'Argument upload_file type is not supported.',
-                                error=apiError.argument_error("upload_file"))
+                          error=apiError.argument_error("upload_file"))
 
 # --------------------- Resources ---------------------
 
@@ -283,10 +287,12 @@ class SystemParameters(Resource):
                                            error=apiError.github_token_error("Token"))
         return util.success(update_system_parameter(param_id, args))
 
+
 class ParameterGithubVerifyExecuteStatus(Resource):
     @jwt_required
     def get(self):
         return util.success(get_github_verify_execute_status())
+
 
 class SyncTemplateWebsocketLog(Namespace):
     def on_connect(self):
@@ -298,4 +304,3 @@ class SyncTemplateWebsocketLog(Namespace):
     def on_get_perl_log(self, data):
         print('get_perl_log')
         get_github_verify_log_websocket(data)
-        
