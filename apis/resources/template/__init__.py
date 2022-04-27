@@ -332,7 +332,7 @@ def tm_get_template_list(force_update=0):
 
         output[0]["options"].sort(key=lambda x: x["display"])
         output[1]["options"].sort(key=lambda x: x["display"])
-        
+
         return output
 
 
@@ -345,8 +345,10 @@ def tm_get_template(repository_id, tag_name):
         output["arguments"] = pip_set_json["arguments"]
     return output
 
+
 def get_projects_detail(template_repository_id):
     return gl.projects.get(template_repository_id)
+
 
 def tm_use_template_push_into_pj(template_repository_id, user_repository_id,
                                  tag_name, arguments, uuids):
@@ -540,6 +542,7 @@ def get_tool_name(stage):
                 tool_name = "deployed-environments"
     return tool_name
 
+
 def handle_stage_format_helper(stage, column):
     if isinstance(stage.get(column), dict):
         return True
@@ -547,6 +550,7 @@ def handle_stage_format_helper(stage, column):
         return stage[column]
     else:
         return []
+
 
 def handle_stage_format(stage):
     stage_copy = stage.copy()
@@ -834,9 +838,6 @@ class ProjectPipelineBranches(Resource):
         parser.add_argument('detail', type=dict)
         parser.add_argument('run', type=bool)
         args = parser.parse_args()
-        print("-------------------")
-        print(args)
-        print("-------------------")
         # Remove duplicate args
         for branch, pip_info in args["detail"].items():
             args["detail"][branch] = [dict(t) for t in {tuple(d.items()) for d in pip_info}]
