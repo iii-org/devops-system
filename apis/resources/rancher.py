@@ -3,6 +3,7 @@ import ssl
 import time
 from datetime import datetime, timedelta
 from datetime import time as d_time
+import os
 
 import websocket
 from flask_jwt_extended import jwt_required
@@ -107,8 +108,8 @@ class Rancher(object):
 
     def __generate_token(self):
         body = {
-            "username": config.get('RANCHER_ADMIN_ACCOUNT'),
-            "password": config.get('RANCHER_ADMIN_PASSWORD')
+            "username": os.getenv('RANCHER_ADMIN_ACCOUNT'),
+            "password": os.getenv('RANCHER_ADMIN_PASSWORD')
         }
         params = {'action': 'login'}
         output = self.__api_post('-public/localProviders/local', params=params,
@@ -516,7 +517,7 @@ class Rancher(object):
         for name in delete_app_list:
             self.rc_del_app(name)
         self.__check_app_deleted(delete_app_list)
-    
+
     def __check_app_deleted(self, delete_app_list):
         now_time = datetime.utcnow() + timedelta(minutes=1)
         for name in delete_app_list:
@@ -525,7 +526,7 @@ class Rancher(object):
                 if now_time <= datetime.utcnow():
                     raise TimeoutError("end in time.")
                 data = self.rc_get_app_by_name(name)
-    
+
     def rc_count_each_pj_piplines_by_days(self):
         day_start = datetime.combine((datetime.now() - timedelta(days=1)), d_time(00, 00))
         project_plugin_relations = ProjectPluginRelation.query.with_entities(
@@ -685,6 +686,7 @@ class RancherWebsocketLog(Namespace):
 class RancherCountEachPjPiplinesByDays(Resource):
     def get(self):
         return util.success(rancher.rc_count_each_pj_piplines_by_days())
+
 
 class RancherDeleteAPP(Resource):
     def post(self):
