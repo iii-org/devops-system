@@ -126,8 +126,9 @@ def execute_sync_template_by_perl(cmd, name):
     update_lock_status("execute_sync_templ", is_lock=False, sync_date=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"))
 
 
-def execute_system_parameter_by_perl(name):
+def ex_system_parameter(name):
     if name == "github_verify_info":
+
         thread = threading.Thread(target=execute_sync_template_by_perl, args=(
             "/home/rkeuser/deploy-devops/bin/sync-github-templ.pl", "github_verify_info", ))
         thread.start()
@@ -272,7 +273,7 @@ class SystemParameters(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('name', type=str)
         args = parser.parse_args()
-        return util.success(execute_system_parameter_by_perl(args["name"]))
+        return util.success(ex_system_parameter(args["name"]))
 
     @jwt_required
     def put(self, param_id):
