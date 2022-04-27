@@ -377,7 +377,7 @@ def create_project(user_id, args):
         # Commit and push file by template , if template env is not None
         if args.get("template_id") is not None:
             template.tm_use_template_push_into_pj(args["template_id"], gitlab_pj_id,
-                                                  args["tag_name"], args["arguments"])
+                                                  args["tag_name"], args["arguments"], uuids)
 
         # Create project NFS folder /(uuid)
         for folder in ["pipeline", uuids]:

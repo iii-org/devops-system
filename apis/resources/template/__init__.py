@@ -349,7 +349,7 @@ def get_projects_detail(template_repository_id):
     return gl.projects.get(template_repository_id)
 
 def tm_use_template_push_into_pj(template_repository_id, user_repository_id,
-                                 tag_name, arguments):
+                                 tag_name, arguments, uuids):
     __add_plugin_soft_status_json()
     template_pj = gl.projects.get(template_repository_id)
     temp_http_url = template_pj.http_url_to_repo
@@ -413,6 +413,14 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id,
                                         if arg_key is not None and ans_key == arg_key:
                                             fun_value["answers"][
                                                 ans_key] = arg_value
+
+                            # Add volume uuid in DB and Web answer.
+                            if stage["iiidevops"] == "deployed-environments":
+                                fun_value["answers"]["volumeMounts.enabled"] = True
+                                fun_value["answers"]["volumeMounts.project"] = "${CICD_GIT_REPO_NAME}"
+                                fun_value["answers"]["volumeMounts.uuid"] = uuids
+                                fun_value["answers"]["volumeMounts.mountPath"] = "/project-data"
+
                         elif fun_key == "envFrom":
                             pass
                         else:
