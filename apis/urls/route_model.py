@@ -13,7 +13,7 @@ class CommonIssueSchema(Schema):
     tracker_id = fields.Str(doc='tracker_id', example="1")
     assigned_to_id = fields.Str(doc='assigned_to_id', example="1")
     priority_id = fields.Str(doc='priority_id', example="1")
-    only_subproject_issues = fields.Bool(doc='only_subproject_issues', example=True, missing=False)
+    only_superproject_issues = fields.Bool(doc='only_superproject_issues', example=True, missing=False)
     limit = fields.Int(doc='limit', example=1)
     offset = fields.Int(doc='offset', example=1)
     search = fields.Str(doc='search', example="string")
@@ -53,6 +53,10 @@ class IssueFilterByProjectPostAndPutSchema(Schema):
     status_id = fields.Str(doc='status_id', example='1', allow_none=True)
     tags = fields.Str(doc='tags', example='1,2,3', allow_none=True)
     tracker_id = fields.Str(doc='tracker_id', example='1', allow_none=True)
+
+class IssueTrackerSchema(Schema):
+    new = fields.Bool()
+    project_id = fields.Int()
 
 #################################### Response ####################################
 

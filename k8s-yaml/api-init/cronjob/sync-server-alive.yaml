@@ -3,11 +3,13 @@ kind: CronJob
 metadata:
   name: sync-server-alive
 spec:
+  concurrencyPolicy: Forbid
   schedule: "5 * * * *"
   successfulJobsHistoryLimit: 0
   failedJobsHistoryLimit: 0
   jobTemplate:
     spec:
+      backoffLimit: 0
       template:
         spec:
           containers:

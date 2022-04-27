@@ -2,6 +2,8 @@ import uuid
 
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource
+from flask_socketio import emit
+from sqlalchemy.sql import and_
 
 import config
 import model
@@ -9,7 +11,9 @@ import util
 from resources import kubernetesClient, role, apiError
 from resources.apiError import DevOpsError
 from resources.logger import logger
+from resources.notification_message import check_message_exist, create_notification_message, close_notification_message
 import resources.kubernetesClient as kubernetesClient
+
 
 version_center_token = None
 
@@ -92,7 +96,12 @@ def has_devops_update():
         }
     if versions is None:
         raise DevOpsError(500, '/current_version returns no data.')
-
+    if current_version != versions['version_name']:
+        # Has new version, send notificaation message to administrators
+        if check_message_exist(versions['version_name'], 101) is False:
+            args = {"alert_level": 101, "title": f"New version: {versions['version_name']}", "type_ids": [4],
+                    "type_parameters": {'role_ids': [5]}, "message": f"New version: {versions['version_name']}"}
+            create_notification_message(args, user_id=1)
     return {
         'has_update': current_version != versions['version_name'],
         'latest_version': versions
@@ -106,16 +115,23 @@ def update_deployment(versions):
     if deployer_node_ip is None:
         # get the k8s cluster the oldest node ip
         deployer_node_ip = kubernetesClient.get_the_oldest_node()[0]
-    output_str, error_str = util.ssh_to_node_by_key("/home/rkeuser/deploy-devops/bin/update-perl.pl", deployer_node_ip) 
+    output_str, error_str = util.ssh_to_node_by_key("/home/rkeuser/deploy-devops/bin/update-perl.pl", deployer_node_ip)
     if error_str != "":
         not_found_message = error_str.split(":")[-1].replace("\n", "")
         if not_found_message != " No such file or directory":
             if output_str != "":
                 complete_message = output_str.split("==")[-2]
-                if complete_message != "process complete": 
+                if complete_message != "process complete":
                     logger.exception(f"Can not update perl on {version_name}")
             else:
                 logger.exception(str(error_str))
+
+    # Send system upgrade to all administrators
+    row = model.NotificationMessage.query.filter(
+        and_(model.NotificationMessage.alert_level == 101,
+             model.NotificationMessage.title.ilike(f'%{version_name}%'))).first()
+    if row:
+        close_notification_message(row.id)
 
     logger.info(f'Updating deployment to {version_name}...')
     api_image_tag = versions['api_image_tag']
@@ -143,20 +159,20 @@ def get_deployment_info():
 
 # ------------------ Resources ------------------
 class DevOpsVersion(Resource):
-    @jwt_required
+    @ jwt_required
     def get(self):
         return util.success(get_deployment_info())
 
 
 class DevOpsVersionCheck(Resource):
-    @jwt_required
+    @ jwt_required
     def get(self):
         role.require_admin()
         return util.success(has_devops_update())
 
 
 class DevOpsVersionUpdate(Resource):
-    @jwt_required
+    @ jwt_required
     def patch(self):
         role.require_admin()
         versions = has_devops_update()['latest_version']

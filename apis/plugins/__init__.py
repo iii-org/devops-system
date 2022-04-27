@@ -226,10 +226,10 @@ def sync_plugins_in_db_and_code():
             delete_plugin_row(plugin['name'])
 
 
-def create_plugins_api_router(api):
+def create_plugins_api_router(api, add_resource):
     plugin_names = list_plugin_modules()
     plugins = __import__('plugins', fromlist=plugin_names)
     for plugin_name in plugin_names:
         third_part_plugin = getattr(plugins, plugin_name)
         if hasattr(third_part_plugin, "router"):
-            third_part_plugin.router(api)
+            third_part_plugin.router(api, add_resource)

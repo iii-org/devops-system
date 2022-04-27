@@ -176,6 +176,7 @@ class NexusIssue:
                 'display': nx_project.display
             }
         self.data['has_children'] = False
+        self.data['has_father'] = hasattr(redmine_issue, 'parent')
         if redmine_issue.children.total_count > 0:
             self.data['has_children'] = True
         if relationship_bool:
@@ -723,6 +724,13 @@ def create_issue(args, operator_id):
         raise DevOpsError(400, 'Project is disabled', 
                                 error=apiError.project_is_disabled(project_id))
 
+    # Check tracker_id is not force to has father issue's tracker
+    project_issue_check = model.ProjectIssueCheck.query.filter_by(project_id=project_id).first()
+    if project_issue_check is not None and project_issue_check.enable:
+        if args.get("parent_id") is None and args["tracker_id"] in project_issue_check.need_fatherissue_trackers:
+            raise DevOpsError(400, f'Create issue with tacker_id:{args["tracker_id"]} must has father issue.',
+                                    error=apiError.project_tracker_must_has_father_issue(project_id, args["tracker_id"]))
+
     args = {k: v for k, v in args.items() if v is not None}
     if 'fixed_version_id' in args:
         if len(args['fixed_version_id']) > 0 and args['fixed_version_id'].isdigit():
@@ -786,13 +794,50 @@ def create_issue(args, operator_id):
     return main_output
 
 
+def check_trackers_in_update_issue(tracker_id, need_fatherissue_trackers, updated_tracker_id, pj_id):    
+    if tracker_id not in need_fatherissue_trackers:
+        if updated_tracker_id is not None and updated_tracker_id in need_fatherissue_trackers:
+            tracker_id = updated_tracker_id if updated_tracker_id is not None else tracker_id
+            for tracker in get_issue_trackers():
+                if tracker['id'] == updated_tracker_id:
+                    raise DevOpsError(400, f'Modify of create issue with tacker_id:{tracker["name"]} must has father issue.',
+                                        error=apiError.project_tracker_must_has_father_issue(pj_id, tracker['name']))
+    elif updated_tracker_id is None or updated_tracker_id in need_fatherissue_trackers:
+        tracker_id = updated_tracker_id if updated_tracker_id is not None else tracker_id
+        for tracker in get_issue_trackers():
+            if tracker['id'] == tracker_id:
+                raise DevOpsError(400, f'Modify of create issue with tacker_id:{tracker["name"]} must has father issue.',
+                                    error=apiError.project_tracker_must_has_father_issue(pj_id, tracker['name']))
+
 def update_issue(issue_id, args, operator_id=None):
     from resources.project_relation import get_project_id
-
+    
+    project_id = args.get('project_id')
     update_cache_issue_family = False
-    issue = redmine_lib.redmine.issue.get(issue_id)
-    before_status_id = issue.status.id
+    issue = redmine_lib.redmine.issue.get(issue_id, include=['children'])
     pj_id = get_project_id(issue.project.id)
+    before_status_id = issue.status.id
+    
+    # Issue can not be updated when its tracker is in its force tracker checking setting' tracker.
+    check_issue_project_id = args.get("project_id", pj_id)
+    project_issue_check = model.ProjectIssueCheck.query.filter_by(project_id=check_issue_project_id).first()
+    if project_issue_check is not None and project_issue_check.enable:
+        if hasattr(issue, 'parent'):
+            if args.get("parent_id") is not None and args["parent_id"] == "":
+                check_trackers_in_update_issue(
+                    issue.tracker.id, 
+                    project_issue_check.need_fatherissue_trackers, 
+                    args.get("tracker_id"),
+                    pj_id
+                )
+        else:
+            if args.get("parent_id") is None or args.get("parent_id") == "":
+                check_trackers_in_update_issue(
+                    issue.tracker.id, 
+                    project_issue_check.need_fatherissue_trackers, 
+                    args.get("tracker_id"),
+                    pj_id
+                )
 
     # Check project is disabled or not
     if model.Project.query.get(pj_id).disabled:
@@ -821,6 +866,12 @@ def update_issue(issue_id, args, operator_id=None):
             removed_project_id = origin_parent_id
             args['parent_issue_id'] = None
         args.pop('parent_id', None)
+
+    if project_id is not None:
+        project_plugin_relation = nexus.nx_get_project_plugin_relation(
+            nexus_project_id=project_id)
+        args['project_id'] = project_plugin_relation.plan_project_id
+    
     if "assigned_to_id" in args and len(args['assigned_to_id']) > 0:
         user_plugin_relation = nexus.nx_get_user_plugin_relation(
             user_id=int(args['assigned_to_id']))
@@ -1080,6 +1131,7 @@ def get_issue_list_by_project_helper(project_id, args, download=False, operator_
         issue["is_closed"] = issue['status']['id'] in NexusIssue.get_closed_statuses()
         issue['issue_link'] = f"{config.get('REDMINE_EXTERNAL_BASE_URL')}/issues/{issue['id']}"
         issue["family"] = issue.get("parent") is not None or issue.get("relations") != [] or has_children
+        issue["has_father"] = issue.get("parent") is not None
         issue["has_children"] = has_children
         
         if args.get("with_point", False):
@@ -1242,7 +1294,7 @@ def get_custom_filters_by_args(args=None, project_id=None, user_id=None, childre
             else:
                 args["has_tag_issue"] = True   
 
-        if args.get("only_subproject_issues", False):
+        if args.get("only_superproject_issues", False):
             default_filters["subproject_id"] = "!*"
          
     return default_filters
@@ -1371,45 +1423,69 @@ def get_issue_assigned_to_search(default_filters, args):
 def get_issue_family(redmine_issue, args={}, all=False, user_name=None, sync=False):
     output = defaultdict(list)
     is_with_point = args.get("with_point", False)
+
     if user_name is None:
         user_name = get_jwt_identity()["user_account"]
-    if hasattr(redmine_issue, 'parent') and not is_with_point:
-        if not all:
-            parent_issue = redmine_lib.rm_impersonate(user_name, sync=sync).issue.filter(
-                issue_id=redmine_issue.parent.id, status_id='*')
-        else:
-            parent_issue = redmine_lib.redmine.issue.filter(
-                issue_id=redmine_issue.parent.id, status_id='*')
+
+    if not all:
+        redmine_obj = redmine_lib.rm_impersonate(user_name, sync=sync)
+    else:
+        redmine_obj = redmine.redmine
+
+    if not is_with_point:
+        output["parent"] = get_issue_parent(redmine_issue, redmine_obj)
+        output["relations"] = get_issue_relations(redmine_issue, redmine_obj)
+
+    output["children"] = get_issue_children(redmine_issue, redmine_obj)
+        
+    for key in ["parent", "children", "relations"]:
+        if output.get(key) == []:
+            output.pop(key)
+    return output
+
+def get_issue_parent(redmine_issue, redmine_obj):
+    ret = []
+    if hasattr(redmine_issue, 'parent'):
+        filter_kwargs = {"status_id": "*", "issue_id": redmine_issue.parent.id}
+        parent_issue = redmine_obj.issue.filter(**filter_kwargs)
         try:
-            output['parent'] = NexusIssue().set_redmine_issue_v2(parent_issue[0]).to_json()
-        except IndexError:
-            output["parent"] = []
+            ret = NexusIssue().set_redmine_issue_v2(parent_issue[0]).to_json()
+        except:
+            pass
+        
+    return ret
+
+def get_issue_children(redmine_issue, redmine_obj):
+    ret = []
     if len(redmine_issue.children):
         children_issue_ids = [str(child.id) for child in redmine_issue.children]
-        children_issue_ids_str = ','.join(children_issue_ids)   
-        if not all:
-            children_issues = redmine_lib.rm_impersonate(user_name, sync=sync).issue.filter(
-                issue_id=children_issue_ids_str, status_id='*', include=['children'])
-        else:
-            children_issues = redmine_lib.redmine.issue.filter(
-                issue_id=children_issue_ids_str, status_id='*', include=['children'])
-        output['children'] = [NexusIssue().set_redmine_issue_v2(issue, with_point=is_with_point, relationship_bool=True).to_json()
-                              for issue in children_issues]
-    if len(redmine_issue.relations) and not is_with_point:
+        children_issue_ids_str = ','.join(children_issue_ids)
+        filter_kwargs = {
+            "status_id": "*",
+            "issue_id": children_issue_ids_str,
+            "include": ['children'],
+            "sort": "subject:dec"
+        }
+        children_issues = redmine_obj.issue.filter(**filter_kwargs)
+        ret = [NexusIssue().set_redmine_issue_v2(issue).to_json()
+                    for issue in children_issues]
+    return ret
+
+def get_issue_relations(redmine_issue, redmine_obj):
+    ret= []
+    if len(redmine_issue.relations):
         for relation in redmine_issue.relations:
             rel_issue_id = 0
             if relation.issue_id != int(redmine_issue.id):
                 rel_issue_id = relation.issue_id
             else:
                 rel_issue_id = relation.issue_to_id
-            rel_issue = redmine_lib.redmine.issue.get(rel_issue_id)
+            rel_issue = redmine_obj.issue.get(rel_issue_id)
             relate_issue = NexusIssue().set_redmine_issue_v2(rel_issue).to_json()
             relate_issue['relation_id'] = relation.id
-            output['relations'].append(relate_issue)
-    for key in ["parent", "children", "relations"]:
-        if output.get(key) == []:
-            output.pop(key)
-    return output
+            ret.append(relate_issue)
+   
+    return ret    
 
 
 def get_issue_by_status_by_project(project_id):
@@ -1568,14 +1644,27 @@ def get_issue_priority():
     return util.success(output)
 
 
-def get_issue_trackers():
+def handle_issue_trackers(func):
+    def wrapper(*args, **kwargs):
+        ret = func(*args, **kwargs)
+        new, project_id = kwargs.get("new", False), kwargs.get("project_id", "-1")
+        if new:
+            project_issue_check = model.ProjectIssueCheck.query.filter_by(project_id=project_id).first()
+            if project_issue_check is not None and project_issue_check.enable:
+                ret = list(filter(lambda x: int(x["id"]) not in project_issue_check.need_fatherissue_trackers, ret))
+        return ret
+    return wrapper
+
+
+@handle_issue_trackers
+def get_issue_trackers(new=False, project_id=False):
     output = []
     redmine_trackers_output = redmine.rm_get_trackers()
     for redmine_tracker in redmine_trackers_output['trackers']:
         redmine_tracker.pop('default_status', None)
         redmine_tracker.pop('description', None)
         output.append(redmine_tracker)
-    return util.success(output)
+    return output
 
 
 def get_issue_statistics(args, user_id):
@@ -2162,7 +2251,7 @@ class DownloadIssueAsExcel():
         if not value["has_children"] or self.levels == level:
             return 
         redmine_issue = redmine_lib.rm_impersonate(self.user_name, sync=True).issue.get(value["id"], include=['children'])
-        children = get_issue_family(redmine_issue, args={'with_point': True}, user_name=self.user_name, sync=True)["children"]
+        children = get_issue_children(redmine_issue, redmine_lib.rm_impersonate(self.user_name, sync=True))
         for index, child in enumerate(children):
             row = self.__generate_row_issue_for_excel(f"{super_index}_{index + 1}", child)
             self.result.append(row)
@@ -2268,7 +2357,6 @@ def handle_sync_son_issue(value, issue_id):
     else:
         value = str(issue_id)
     return value
-             
 
 # --------------------- Resources ---------------------
 
@@ -2303,7 +2391,7 @@ class IssueByUser(Resource):
         parser.add_argument('tracker_id', type=str)
         parser.add_argument('assigned_to_id', type=str)
         parser.add_argument('priority_id', type=str)
-        parser.add_argument('only_subproject_issues', type=bool, default=False)
+        parser.add_argument('only_superproject_issues', type=bool, default=False)
         parser.add_argument('limit', type=int)
         parser.add_argument('offset', type=int)
         parser.add_argument('search', type=str)
@@ -2373,17 +2461,22 @@ class IssuePriority(Resource):
 
 
 @doc(tags=['Issue'], description="Get issue available tracker")
+@use_kwargs(route_model.IssueTrackerSchema, location="query")
 @marshal_with(route_model.IssueTrackerResponse)
 class IssueTrackerV2(MethodResource):
     @ jwt_required
-    def get(self):
-        return get_issue_trackers()
+    def get(self, **kwargs):
+        return util.success(get_issue_trackers(new=kwargs.get("new"), project_id=kwargs.get("project_id")))
 
 
 class IssueTracker(Resource):
     @ jwt_required
     def get(self):
-        return get_issue_trackers()
+        parser = reqparse.RequestParser()
+        parser.add_argument('new', type=bool, default=False)
+        parser.add_argument('project_id', type=int)
+        args = parser.parse_args()
+        return util.success(get_issue_trackers(new=args.get("new"), project_id=args.get("project_id")))
 
 
 @doc(tags=['Dashboard'], description="Get user's issues' numbers of each priorities.")

@@ -3,11 +3,13 @@ kind: CronJob
 metadata:
   name: git-count-commits
 spec:
+  concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 0
   failedJobsHistoryLimit: 0
   schedule: "0 18 * * *"
   jobTemplate:
     spec:
+      backoffLimit: 0
       template:
         spec:
           containers:

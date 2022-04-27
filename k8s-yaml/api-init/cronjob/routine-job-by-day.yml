@@ -1,13 +1,15 @@
 apiVersion: batch/v1beta1
 kind: CronJob
 metadata:
-  name: routing-job-by-month
+  name: routine-job-by-day
 spec:
-  schedule: "30 4 1 * *"
-  successfulJobsHistoryLimit: 0
-  failedJobsHistoryLimit: 0
+  concurrencyPolicy: Forbid
+  schedule: "0 21 * * *"
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
   jobTemplate:
     spec:
+      backoffLimit: 0
       template:
         spec:
           containers:
@@ -21,5 +23,5 @@ spec:
                       name: cornjob-bot
                       key: cornjob-token
               command: ["/bin/sh"]
-              args: ["-c", "curl --location --request POST 'http://devopsapi-service:10009/routing_job/by_month' --header \"Authorization: Bearer $TOKEN\""]
+              args: ["-c", "curl --location --request POST 'http://devopsapi-service:10009/routine_job/by_day' --header \"Authorization: Bearer $TOKEN\""]
           restartPolicy: OnFailure

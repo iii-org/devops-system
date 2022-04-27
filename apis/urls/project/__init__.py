@@ -3,6 +3,10 @@ from . import view
 
 def project_url(api, add_resource):
     # Project son relation
+    api.add_resource(view.CheckhasRelationProject, '/project/<sint:project_id>/has_relation')
+    api.add_resource(view.CheckhasRelationProjectV2, '/v2/project/<sint:project_id>/has_relation')
+    add_resource(view.CheckhasRelationProjectV2, "public")
+
     api.add_resource(view.CheckhasSonProject, '/project/<sint:project_id>/has_son')
     api.add_resource(view.CheckhasSonProjectV2, '/v2/project/<sint:project_id>/has_son')
     add_resource(view.CheckhasSonProjectV2, "public")
@@ -241,3 +245,7 @@ def project_url(api, add_resource):
 
     api.add_resource(view.ProjectErrorMessageV2, '/v2/project/error_message/<project_name>')
     add_resource(view.ProjectErrorMessageV2, 'public')
+
+    # Issue's force tracker
+    api.add_resource(view.IssueForceTrackerV2, '/v2/project/<int:project_id>/force_trackers')
+    add_resource(view.IssueForceTrackerV2, 'public')

@@ -3,11 +3,13 @@ kind: CronJob
 metadata:
   name: k8s-remove-extra-executions
 spec:
+  concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 1
   failedJobsHistoryLimit: 1
   schedule: "* 16 * * *"
   jobTemplate:
     spec:
+      backoffLimit: 0
       template:
         spec:
           containers:

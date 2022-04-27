@@ -145,6 +145,10 @@ def is_admin():
     else:
         return False
 
+def require_project_owner(user_id, project_id):
+    if not is_admin() and model.Project.query.get(project_id).owner_id != user_id:
+        raise apiError.NotAllowedError("Only admin and Project owner can operate.")
+
 
 # --------------------- Resources ---------------------
 class RoleList(Resource):

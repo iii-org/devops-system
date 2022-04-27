@@ -7,12 +7,16 @@ import ast
 import model
 from threading import Thread
 from resources.project_relation import project_has_child, get_root_project_id, sync_project_relation, \
-    get_project_family_members_by_user, get_relation_list, remove_relation, get_all_relation_project
+    get_project_family_members_by_user, get_relation_list, remove_relation, get_all_relation_project, \
+    project_has_parent
 from resources.issue import get_issue_list_by_project_helper, get_issue_by_tree_by_project, get_issue_by_status_by_project, \
     get_issue_progress_or_statistics_by_project, get_issue_by_date_by_project, get_custom_issue_filter, \
     create_custom_issue_filter, put_custom_issue_filter, get_lock_status, DownloadIssueAsExcel, pj_download_file_is_exist
 from resources import project, user, version, wiki, release
 from resources.gitlab import gitlab
+from resources.project_permission import get_project_issue_check, create_project_issue_check, update_project_issue_check, \
+    delete_project_issue_check
+
 
 from resources.harbor import hb_copy_artifact_and_retage, hb_get_artifact, hb_delete_artifact_tag
 from sqlalchemy.orm.exc import NoResultFound
@@ -30,6 +34,7 @@ from resources.redmine import redmine
 import werkzeug
 import resources.rancher as rancher
 
+
 ##### Project Relation ######
 
 @doc(tags=['Project'],description="Check project has son project or not")
@@ -46,6 +51,28 @@ class CheckhasSonProject(Resource):
     def get(self, project_id):
         return {
             "has_child": project_has_child(project_id)
+        }
+
+@doc(tags=['Project'],description="Check project has father, son project or not")
+@marshal_with(router_model.CheckRelationProjectResponse)
+class CheckhasRelationProjectV2(MethodResource):
+    @jwt_required
+    def get(self, project_id):
+        has_father, has_child  = project_has_parent(project_id), project_has_child(project_id)
+        return {
+            "has_relations": has_father or has_child,
+            "has_father": has_father,
+            "has_child": has_child
+        }
+    
+class CheckhasRelationProject(Resource):
+    @jwt_required
+    def get(self, project_id):
+        has_father, has_child  = project_has_parent(project_id), project_has_child(project_id)
+        return {
+            "has_relations": has_father or has_child,
+            "has_father": has_father,
+            "has_child": has_child
         }
 
 @doc(tags=['Project'],description="Gey root project_id")
@@ -148,7 +175,7 @@ class IssueByProject(Resource):
         parser.add_argument('tracker_id', type=str)
         parser.add_argument('assigned_to_id', type=str)
         parser.add_argument('priority_id', type=str)
-        parser.add_argument('only_subproject_issues', type=bool, default=False)
+        parser.add_argument('only_superproject_issues', type=bool, default=False)
         parser.add_argument('limit', type=int)
         parser.add_argument('offset', type=int)
         parser.add_argument('search', type=str)
@@ -414,6 +441,7 @@ class DownloadProject(Resource):
         parser.add_argument('tracker_id', type=str)
         parser.add_argument('assigned_to_id', type=str)
         parser.add_argument('priority_id', type=str)
+        parser.add_argument('only_superproject_issues', type=bool, default=False)
         parser.add_argument('search', type=str)
         parser.add_argument('selection', type=str)
         parser.add_argument('sort', type=str)
@@ -421,13 +449,18 @@ class DownloadProject(Resource):
         parser.add_argument('due_date_start', type=str)
         parser.add_argument('due_date_end', type=str)
         parser.add_argument('with_point', type=bool, default=True)
+        parser.add_argument('tags', type=str)
         parser.add_argument('levels', type=int, default=3)
         parser.add_argument('deploy_column', type=dict, action='append', required=True)
         args = parser.parse_args()
 
         if get_lock_status("download_pj_issues")["is_lock"]:
             return util.success("previous is still running")
-        download_issue_excel = DownloadIssueAsExcel(args, project_id, get_jwt_identity()["user_id"])
+        
+        # Because QA not the member of any project, so it will get error when it get issue by user_id.
+        user_id = get_jwt_identity()["user_id"] if get_jwt_identity()["role_id"] != 7 else 1
+    
+        download_issue_excel = DownloadIssueAsExcel(args, project_id, user_id)
         threading.Thread(target=download_issue_excel.execute).start()
         return util.success()
 
@@ -1555,6 +1588,7 @@ class ReleasesV2(MethodResource):
         release_obj.project = model.Project.query.filter_by(id=project_id).first()
 
         gitlab_ref = branch_name = kwargs.get('branch')
+        branch_name = None if branch_name == "" else branch_name
         if kwargs.get('commit', None) is None and branch_name is not None:
             kwargs.update({'commit': 'latest'})
         else:
@@ -1684,3 +1718,37 @@ class ProjectErrorMessageV2(MethodResource):
             if temp.get("reason") == "Error":
                 return util.success(temp.get("message"))
         return util.success("No errors found")
+
+
+##### Issue's force tracker ######
+class IssueForceTrackerV2(MethodResource):
+    @doc(tags=['Issue'], description="Get issue's force trackers.")
+    @marshal_with(router_model.IssueForceTrackerPostResponse)
+    @jwt_required
+    def get(self, project_id):
+        return util.success(get_project_issue_check(project_id))
+    
+    
+    @doc(tags=['Issue'], description="Create issue's force trackers.")
+    @marshal_with(util.CommonResponse)
+    @jwt_required
+    def post(self, project_id):
+        role.require_project_owner(get_jwt_identity()['user_id'], project_id)
+        return util.success(create_project_issue_check(project_id))
+    
+    
+    @doc(tags=['Issue'], description="Update issue's force trackers.")
+    @use_kwargs(router_model.IssueForceTrackerPatchSchema, location="json")
+    @marshal_with(util.CommonResponse)
+    @jwt_required
+    def patch(self, project_id, **kwargs):
+        role.require_project_owner(get_jwt_identity()['user_id'], project_id)
+        return util.success(update_project_issue_check(project_id, kwargs))
+
+    
+    @doc(tags=['Issue'], description="Delete issue's force trackers.")
+    @marshal_with(util.CommonResponse)
+    @jwt_required
+    def delete(self, project_id):
+        role.require_project_owner(get_jwt_identity()['user_id'], project_id)
+        return util.success(delete_project_issue_check(project_id))

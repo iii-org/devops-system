@@ -41,6 +41,11 @@ class ProjectRelationsGetData(Schema):
 
 ########## API Action ##########
 
+class CheckRelationProjectResponse(Schema):
+    has_relations = fields.Bool(required=True)
+    has_father = fields.Bool(required=True)
+    has_child = fields.Bool(required=True)
+
 class CheckhasSonProjectResponse(Schema):
     has_child = fields.Bool(required=True)
 
@@ -69,7 +74,7 @@ class CommonIssueSchema(Schema):
     tracker_id = fields.Str(doc='tracker_id', example="1")
     assigned_to_id = fields.Str(doc='assigned_to_id', example="1")
     priority_id = fields.Str(doc='priority_id', example="1")
-    only_subproject_issues = fields.Bool(doc='only_subproject_issues', example=True, missing=False)
+    only_superproject_issues = fields.Bool(doc='only_superproject_issues', example=True, missing=False)
     limit = fields.Int(doc='limit', example=1)
     offset = fields.Int(doc='offset', example=1)
     search = fields.Str(doc='search', example="string")
@@ -203,6 +208,7 @@ class IssueByProjectResponseWithPage(CommonBasicResponse):
                 "name": "name"
             },
             "has_children": True,
+            "has_father": True,
             "id": 1,
             "is_closed": False,
             "is_private": False,
@@ -262,6 +268,7 @@ class IssueByProjectResponse(CommonBasicResponse):
                 "name": "name"
             },
             "has_children": True,
+            "has_father": True,
             "id": 1,
             "is_closed": False,
             "is_private": False,
@@ -375,6 +382,7 @@ class DownloadProjectSchema(Schema):
     tracker_id = fields.Str(doc='tracker_id',  example='1')
     assigned_to_id = fields.Str(doc='assigned_to_id',  example='1')
     priority_id = fields.Str(doc='fixed_version_id',  example='1')
+    only_superproject_issues = fields.Bool(doc='only_superproject_issues', example=True, missing=False)
     search = fields.Str(doc='search', example='string')
     selection = fields.Str(doc='selection',  example='1')
     sort = fields.Str(doc='sort', example="string")
@@ -382,6 +390,7 @@ class DownloadProjectSchema(Schema):
     due_date_start = fields.Str(doc='due_date_start', example="1970-01-01")
     due_date_end = fields.Str(doc='due_date_end', example="1970-01-01")
     with_point = fields.Str(doc='with_point', example=True, missing=True)
+    tags = fields.Str(doc='tags', example="1,2,3")
     levels = fields.Int(doc='levels', example=1, missing=3)
     deploy_column = fields.List(
         fields.Dict(example={"field": "name", "display": "議題名稱"}),
@@ -656,12 +665,13 @@ class ProjectPluginUsageData(Schema):
     used = fields.Dict(example={"value": 0, "unit": ""})
     quota = fields.Dict(example={"value": 0, "unit": ""})
 
+
 class ProjectUserResourceData(Schema):
     quota = fields.Dict(example={
         "configmaps": "60",
         "cpu": "10",
         "memory": "10G",
-        "persistentvolumeclaims": "0",
+        "persistentvolumeclaims": "10",
         "pods": "20",
         "services.nodeports": "10",
         "deployments": "0",
@@ -672,7 +682,7 @@ class ProjectUserResourceData(Schema):
         "configmaps": "60",
         "cpu": "10",
         "memory": "10G",
-        "persistentvolumeclaims": "0",
+        "persistentvolumeclaims": "10",
         "pods": "20",
         "services.nodeports": "10",
         "deployments": "0",
@@ -742,6 +752,7 @@ class ProjectPluginPodData(Schema):
     has_pod = fields.Bool(example=True, required=True)
     container_name = fields.Str()
     pod_name = fields.Str()
+    time = fields.Str(example="1970-01-01 00:00:00+00:00")
 
 ########## API Action ##########
 
@@ -1040,3 +1051,29 @@ class ReleaseExtraGetResponse(CommonBasicResponse):
 
 class ReleasesGetResponse(CommonBasicResponse):
     data = fields.Nested(ReleasesGetData, required=True)
+
+
+##### Issue's Force Trackers  ######
+
+#################################### Schema ####################################
+
+class IssueForceTrackerPatchSchema(Schema):
+    need_fatherissue_trackers = fields.List(fields.Int(), required=True)
+    
+
+#################################### Response ####################################
+
+########## Module ##########
+
+class IssueForceTrackerPostData(Schema):
+    enable = fields.Bool(required=True)
+    need_fatherissue_trackers = fields.List(fields.Dict(example={
+                "id": 1,
+                "name": "Epic"
+            }))
+
+
+########## API Action ##########
+
+class IssueForceTrackerPostResponse(CommonBasicResponse):
+    data = fields.Nested(IssueForceTrackerPostData, required=True)

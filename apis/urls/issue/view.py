@@ -12,7 +12,8 @@ from . import router_model
 from resources.issue import get_issue, require_issue_visible, get_issue_tags, get_issue_point, \
     update_issue, get_issue_family, delete_issue, create_issue, NexusIssue, get_issue_statistics, \
     get_open_issue_statistics, get_issue_statistics_in_period, post_issue_relation, put_issue_relation, \
-    delete_issue_relation, check_issue_closable, get_commit_hook_issues, modify_hook, sync_issue_relation 
+    delete_issue_relation, check_issue_closable, get_commit_hook_issues, modify_hook, sync_issue_relation, \
+    get_issue_children
 from resources.system_parameter import check_upload_type
 
 
@@ -106,8 +107,8 @@ class SingleIssueV2(MethodResource):
     def delete(self, issue_id, **kwargs):
         if kwargs.get("force") is None or not kwargs.get("force"):
             redmine_issue = redmine_lib.redmine.issue.get(issue_id, include=['children'])
-            children = get_issue_family(redmine_issue, all=True).get("children")
-            if children is not None:
+            children = get_issue_children(redmine_issue, redmine_lib.redmine)
+            if children != []:
                 raise DevOpsError(400, 'Unable to delete issue with children issue, unless parameter "force" is True.',
                                   error=apiError.unable_to_delete_issue_has_children(children))
         return util.success(delete_issue(issue_id))
@@ -210,6 +211,7 @@ class SingleIssue(Resource):
         parser.add_argument('tracker_id', type=int)
         parser.add_argument('status_id', type=int)
         parser.add_argument('priority_id', type=int)
+        parser.add_argument('project_id', type=int)
         parser.add_argument('estimated_hours', type=int)
         parser.add_argument('description', type=str)
         parser.add_argument('parent_id', type=str)
@@ -290,8 +292,8 @@ class SingleIssue(Resource):
         args = parser.parse_args()
         if args["force"] is None or not args["force"]:
             redmine_issue = redmine_lib.redmine.issue.get(issue_id, include=['children'])
-            children = get_issue_family(redmine_issue, all=True).get("children")
-            if children is not None:
+            children = get_issue_children(redmine_issue, redmine_lib.redmine)
+            if children != []:
                 raise DevOpsError(400, 'Unable to delete issue with children issue, unless parameter "force" is True.',
                                   error=apiError.unable_to_delete_issue_has_children(children))
         return util.success(delete_issue(issue_id))
@@ -439,7 +441,7 @@ class Relation(Resource):
         return util.success(output)
 
 
-##### Issue closable #####
+##### Issue checking #####
 
 @doc(tags=['Issue'], description="Check issue is closable or not.")    
 @marshal_with(router_model.CheckIssueClosableResponse)
@@ -455,6 +457,7 @@ class CheckIssueClosable(Resource):
     def get(self, issue_id):
         output = check_issue_closable(issue_id)
         return util.success(output)
+
 
 ##### Issue commit relationship ######
 

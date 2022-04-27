@@ -818,6 +818,7 @@ class NotificationMessage(db.Model):
     creator_id = Column(Integer, ForeignKey(User.id, ondelete='SET NULL'), nullable=True)
     created_at = Column(DateTime)
     updated_at = Column(DateTime)
+    close = Column(Boolean, default=False)
 
     def __repr__(self):
         fields = {}
@@ -868,5 +869,21 @@ class ProjectParentSonRelation(db.Model):
 class UIRouteJson(db.Model):
     name = Column(String, primary_key=True)
     ui_route = Column(JSON)
+    created_at = Column(DateTime)
+    updated_at = Column(DateTime)
+
+
+class MonitoringRecord(db.Model):
+    id = Column(Integer, primary_key=True)
+    server = Column(String)
+    message = Column(String)
+    detail = Column(JSON)
+    created_at = Column(DateTime)
+
+
+class ProjectIssueCheck(db.Model):
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), primary_key=True)
+    enable = Column(Boolean, default=False)
+    need_fatherissue_trackers = Column(postgresql.ARRAY(Integer))
     created_at = Column(DateTime)
     updated_at = Column(DateTime)

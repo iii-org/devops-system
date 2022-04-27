@@ -107,10 +107,12 @@ def limit_to_project(project_id):
     query = model.Activity.query.filter(model.Activity.action_type.in_([
         ActionType.CREATE_PROJECT, ActionType.UPDATE_PROJECT, ActionType.DELETE_PROJECT,
         ActionType.ADD_MEMBER, ActionType.REMOVE_MEMBER, ActionType.DELETE_ISSUE, ActionType.ADD_TAG,
-        ActionType.DELETE_TAG, ActionType.MODIFY_HOOK, ActionType.RECREATE_PROJECT]
+        ActionType.DELETE_TAG, ActionType.MODIFY_HOOK, ActionType.RECREATE_PROJECT, ActionType.ENABLE_ISSUE_CHECK,
+        ActionType.DISABLE_ISSUE_CHECK]
     ))
     query = query.filter(or_(
-        model.Activity.object_id.like(f'%@{project_id}%'),
+        model.Activity.object_id.like(f'%@{project_id}'),
+        model.Activity.object_id.like(f'%@{project_id}@%'),
         model.Activity.object_id == str(project_id)
     ))
     return query
@@ -155,6 +157,12 @@ class Activity(model.Activity):
                 self.fill_modify_hook(issue_commit_relation.issue_ids, args['args']['issue_ids'])
             else:
                 self.fill_modify_hook(args['args']['issue_ids'], issue_commit_relation.issue_ids)
+        if self.action_type == ActionType.ENABLE_ISSUE_CHECK:
+            self.object_id = str(args["project_id"])
+            self.action_parts = "開啟檢查創建議題之狀態"
+        if self.action_type == ActionType.DISABLE_ISSUE_CHECK:
+            self.object_id = str(args["project_id"])
+            self.action_parts = "關閉檢查創建議題之狀態"
 
     def __get_issue_project_id(self, issue_id):
         row = model.ProjectPluginRelation.query.filter_by(

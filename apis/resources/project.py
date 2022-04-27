@@ -22,10 +22,11 @@ import plugins
 import resources.apiError as apiError
 import util as util
 from data.nexus_project import NexusProject, calculate_project_issues, fill_rd_extra_fields
-from model import db
+from model import ProjectPluginRelation, ProjectUserRole, StarredProject, db
 from nexus import nx_get_project_plugin_relation
 from plugins.checkmarx.checkmarx_main import checkmarx
 from resources.apiError import DevOpsError
+from resources.starred_project import spj_unset
 from accessories import redmine_lib
 from util import DevOpsThread
 from redminelib.exceptions import ResourceNotFoundError
@@ -137,11 +138,11 @@ def get_project_rows_by_user(user_id, disable, args={}):
     # 如果不是admin（也就是一般RD/PM/QA），取得 user_id 有參加的 project 列表
     if user.get_role_id(user_id) != role.ADMIN.id:
         query = query.filter(model.Project.user_role.any(user_id=user_id))
-
-    stared_pjs = model.StarredProject.query.filter_by(user_id=user_id).all()
-    project_ids = [star_project.project_id for star_project in stared_pjs]
-    star_projects_obj = [model.Project.query.get(pj_id) for pj_id in project_ids]
-
+    
+    stared_pjs = db.session.query(StarredProject).join(ProjectUserRole, StarredProject.project_id == ProjectUserRole.project_id). \
+    filter(ProjectUserRole.user_id == user_id).filter(StarredProject.user_id == user_id).all()
+    star_projects_obj = [model.Project.query.get(stared_pj.project_id) for stared_pj in stared_pjs]
+   
     if disable is not None:
         query = query.filter_by(disabled=disable)
         star_projects_obj = [star_project for star_project in star_projects_obj if star_project.disabled == disable]
@@ -759,6 +760,7 @@ def project_remove_member(project_id, user_id):
         ), error=apiError.user_not_found(user_id))
     db.session.delete(row)
     db.session.commit()
+    spj_unset(user_id, project_id)
     return util.success()
 
 
@@ -1036,11 +1038,21 @@ def update_kubernetes_namespace_Quota(project_id, resource):
 def get_kubernetes_plugin_pods(project_id, plugin_name):
     pods, _ = get_kubernetes_namespace_pods(project_id)
     ret = {}
-    for pod in pods["data"]:
-        if pod["containers"][0]["name"].startswith(plugin_name):
-            ret["container_name"] = pod["containers"][0]["name"]
-            ret["pod_name"] = pod["name"]
-    ret["has_pod"] = ret.get("pod_name") is not None
+
+    pods_data = [{
+        "container_name": pod["containers"][0]["name"],
+        "pod_name": pod["name"],
+        "time": pod["containers"][0]["time"]
+    } for pod in pods["data"] \
+        if len(pod["containers"]) > 0 and pod["containers"][0]["name"].startswith(plugin_name)
+    ]
+
+    ret["has_pod"] = len(pods_data) > 0
+    if not ret["has_pod"]:
+        return util.success(ret)
+
+    pods_data = sorted(pods_data, key=lambda x: x["time"], reverse=True)
+    ret.update(pods_data[0])
     return util.success(ret)
 
 

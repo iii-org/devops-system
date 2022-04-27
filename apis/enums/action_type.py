@@ -47,3 +47,5 @@ class ActionType(Enum):
     DELETE_TAG = 11  # Requires argument "project_id"
     MODIFY_HOOK = 12 # Requires argument "issue_id"
     RECREATE_PROJECT = 13  # Requires argument "project_id"
+    ENABLE_ISSUE_CHECK = 14 # Requires argument "project_id"
+    DISABLE_ISSUE_CHECK = 15 # Requires argument "project_id"

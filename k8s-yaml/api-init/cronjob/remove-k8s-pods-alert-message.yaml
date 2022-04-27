@@ -3,11 +3,13 @@ kind: CronJob
 metadata:
   name: remove-k8s-pods-data
 spec:
+  concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 0
   failedJobsHistoryLimit: 1
   schedule: "0 0 1 * *"
   jobTemplate:
     spec:
+      backoffLimit: 0
       template:
         spec:
           containers:

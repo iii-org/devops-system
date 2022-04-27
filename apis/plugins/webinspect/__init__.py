@@ -4,7 +4,7 @@ ui_route = ["Webinspect", "WebInspectReport"]
 # --------------------- API router ---------------------
 
 
-def router(api):
+def router(api, add_resource):
     # WebInspect
     api.add_resource(webinspect_main.WebInspectScan, '/webinspect/create_scan',
                      '/webinspect/list_scan/<project_name>')

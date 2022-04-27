@@ -5,10 +5,15 @@ import config
 import model
 import util
 from resources import apiError, user
+from resources.activity import record_activity
+from enums.action_type import ActionType
 from resources.project import get_project_list
+from datetime import datetime
+from model import db
 
 # Get admin account from environment
 admin_account = config.get('ADMIN_INIT_LOGIN')
+NeedFatherissueTrackers = [2,3,4,5,6,7,8,9]
 
 
 def get_admin_user_id():
@@ -118,6 +123,52 @@ def unset_permission(args):
             model.db.session.commit()
         else:
             raise apiError.project_not_found(project_id=project_id)
+
+
+def get_project_issue_check(project_id):
+    from resources.issue import get_issue_trackers
+    ret = {
+        "enable": False,
+        "need_fatherissue_trackers": []
+    }
+    project_issue_check = model.ProjectIssueCheck.query.filter_by(project_id=project_id).first()
+    trackers = {tracker['id']: tracker['name'] for tracker in get_issue_trackers()}
+    if project_issue_check is not None:
+        ret["enable"] = project_issue_check.enable 
+        ret["need_fatherissue_trackers"] = list(map(lambda x: {"id": x, "name": trackers[x]}, project_issue_check.need_fatherissue_trackers))
+    return ret
+    
+@record_activity(ActionType.ENABLE_ISSUE_CHECK)
+def create_project_issue_check(project_id):
+    project_issue_check = model.ProjectIssueCheck.query.filter_by(project_id=project_id).first()
+    if project_issue_check is None:
+        row = model.ProjectIssueCheck(
+            project_id=project_id,
+            enable=True,
+            need_fatherissue_trackers=NeedFatherissueTrackers,
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow(),
+        )
+        db.session.add(row)
+    else:
+        project_issue_check.enable = True
+    db.session.commit()
+
+
+def update_project_issue_check(project_id, args):
+    project_issue_check = model.ProjectIssueCheck.query.filter_by(project_id=project_id).first()
+    if project_issue_check is not None:
+        need_fatherissue_trackers = args.get("need_fatherissue_trackers")
+        project_issue_check.need_fatherissue_trackers = sorted(need_fatherissue_trackers)
+        db.session.commit()
+
+
+@record_activity(ActionType.DISABLE_ISSUE_CHECK)
+def delete_project_issue_check(project_id):
+    project_issue_check = model.ProjectIssueCheck.query.filter_by(project_id=project_id).first()
+    if project_issue_check is not None:
+        project_issue_check.enable = False
+        db.session.commit()
 
 
 class AdminProjects(Resource):

@@ -363,6 +363,13 @@ class ApiK8sClient:
             if e.status_code != 404:
                 raise e
 
+    def list_namespaced_resource_quota(self, namespace):
+        try:
+            return self.core_v1.list_namespaced_resource_quota(namespace)
+        except apiError.DevOpsError as e:
+            if e.status_code != 404:
+                raise e
+
     def create_namespaced_resource_quota(self, namespace, resource_quota):
         try:
             return self.core_v1.create_namespaced_resource_quota(
@@ -714,6 +721,18 @@ def get_namespace_quota(namespace):
     return resource
 
 
+def list_namespace_resource_quota(namespace):
+    try:
+        list_resource_quota = []
+        for limitrange in ApiK8sClient().list_namespaced_resource_quota(
+                namespace).items:
+            list_resource_quota.append(limitrange.metadata.name)
+        return list_resource_quota
+    except apiError.DevOpsError as e:
+        if e.status_code != 404:
+            raise e
+
+
 def create_namespace_quota(namespace):
     try:
         resource_quota = k8s_client.V1ResourceQuota(
@@ -722,7 +741,7 @@ def create_namespace_quota(namespace):
                     "cpu": "10",
                     "memory": "10G",
                     "pods": "20",
-                    "persistentvolumeclaims": "0",
+                    "persistentvolumeclaims": "10",
                     "configmaps": "60",
                     "services.nodeports": "10"
                 }))
@@ -1716,6 +1735,8 @@ class KubernetesPodExec(Namespace):
         self.k8s_pod_exec.exec_namespace_pod(data)
 
 # Only run it when server is redeployed
+
+
 def create_cron_secret():
     '''
     If we not replace the old token when server is redeployed, 

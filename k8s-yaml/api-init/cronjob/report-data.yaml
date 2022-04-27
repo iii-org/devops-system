@@ -3,11 +3,13 @@ kind: CronJob
 metadata:
   name: report-data
 spec:
+  concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 1
   failedJobsHistoryLimit: 1
   schedule: "30 17 * * *"
   jobTemplate:
     spec:
+      backoffLimit: 0
       template:
         spec:
           containers:

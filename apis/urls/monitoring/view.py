@@ -67,12 +67,12 @@ class ServersAlive(Resource):
 class RedmineAliveV2(MethodResource):
     @jwt_required
     def get(self):
-        return server_alive("redmine")
+        return server_alive("Redmine")
 
 class RedmineAlive(Resource):
     @jwt_required
     def get(self):
-        return server_alive("redmine")
+        return server_alive("Redmine")
 
 # gitlab
 @doc(tags=['Monitoring'], description="Get Gitlab server's status")
@@ -80,12 +80,12 @@ class RedmineAlive(Resource):
 class GitlabAliveV2(MethodResource):
     @jwt_required
     def get(self):
-        return server_alive("gitlab")
+        return server_alive("GitLab")
 
 class GitlabAlive(Resource):
     @jwt_required
     def get(self):
-        return server_alive("gitlab")
+        return server_alive("GitLab")
 
 
 # harbor
@@ -94,12 +94,12 @@ class GitlabAlive(Resource):
 class HarborAliveV2(MethodResource):
     @jwt_required
     def get(self):
-        return server_alive("harbor")
+        return server_alive("Harbor")
 
 class HarborAlive(Resource):
     @jwt_required
     def get(self):
-        return server_alive("harbor")
+        return server_alive("Harbor")
 
 @doc(tags=['Monitoring'], description="Get Harbor remain time of pull image from docker hub")
 @marshal_with(router_model.HarborProxyResponse)
@@ -137,12 +137,12 @@ class HarborStorage(Resource):
 class SonarQubeAliveV2(MethodResource):
     @jwt_required
     def get(self):
-        return server_alive("sonarqube")
+        return server_alive("Sonarqube")
 
 class SonarQubeAlive(Resource):
     @jwt_required
     def get(self):
-        return server_alive("sonarqube")
+        return server_alive("Sonarqube")
 
 
 # rancher
@@ -151,12 +151,12 @@ class SonarQubeAlive(Resource):
 class RancherAliveV2(MethodResource):
     @jwt_required
     def get(self):
-        return server_alive("rancher")
+        return server_alive("Rancher")
 
 class RancherAlive(Resource):
     @jwt_required
     def get(self):
-        return server_alive("rancher")
+        return server_alive("Rancher")
 
 
 @doc(tags=['Monitoring'], description="Check Rancher name is changed to default or not")
@@ -179,12 +179,12 @@ class RancherDefaultName(Resource):
 class K8sAliveV2(MethodResource):
     @jwt_required
     def get(self):
-        return server_alive("kubernetes")
+        return server_alive("K8s")
 
 class K8sAlive(Resource):
     @jwt_required
     def get(self):
-        return server_alive("kubernetes")
+        return server_alive("K8s")
 
 class CollectPodRestartTimeV2(MethodResource):
     @doc(tags=['Monitoring'], description="Collect K8s pods' restart time.")
@@ -247,7 +247,7 @@ class CollectPodRestartTime(Resource):
 
 
 class PodAlertV2(MethodResource):
-    @doc(tags=['Monitoring'], description="Send alrt message to pod which out of restart times limit.")
+    @doc(tags=['Monitoring'], description="Send alert message to pod which out of restart times limit.")
     def post(self):
         condition = SystemParameter.query.filter_by(name="k8s_pod_restart_times_limit").one()
         if not condition.active or condition.active is None:

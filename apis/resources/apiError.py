@@ -117,6 +117,11 @@ def project_is_disabled(project_id):
     return build(
         1017, 'Project is disabled.', {"project_id": project_id})
 
+
+def project_tracker_must_has_father_issue(project_id, tracker_name):
+    return build(
+        1018, f'Modify or Create issue with tacker_id:{tracker_name} must has father issue.', {"project_id": project_id, "tracker_name": tracker_name})
+
 # User errors
 
 
@@ -334,10 +339,24 @@ def file_not_found(file_name, path):
 
 
 # Third party service errors
+
+# Redmine
 def redmine_error(response):
+    try:
+        error_message_list = response.json().get("errors")
+        if isinstance(error_message_list, list):
+        # Parent id error
+            if error_message_list[0] == "Parent task is invalid":
+                return parent_issue_error()
+    except:
+        pass
     return error_3rd_party_api('Redmine', response)
 
 
+def parent_issue_error():
+    return build(8101, f"Parent issue setting error! Please confirm that the setting issue is not a sub-issue or related issue of this issue.")
+
+# GitLab
 def gitlab_error(response):
     return error_3rd_party_api('Gitlab', response)
 

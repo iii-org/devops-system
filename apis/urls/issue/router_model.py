@@ -267,7 +267,6 @@ class RelationSchema(Schema):
 class CheckIssueClosableResponse(CommonBasicResponse):
     data = fields.Bool(required=True)
 
-
 ##### Issue commit relationship 
 
 #################################### Schema ####################################

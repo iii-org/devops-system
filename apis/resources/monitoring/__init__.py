@@ -1,8 +1,9 @@
 from nexus import nx_get_project_plugin_relation
 import util
-from model import Project, AlertMessage, db
+from model import MonitoringRecord, Project, db, NotificationMessage
 from github import Github
 from resources.redis import update_server_alive
+from sqlalchemy import desc
 
 from plugins.sonarqube.sonarqube_main import sq_get_current_measures, sq_list_project
 from resources.harbor import hb_get_project_summary, hb_get_registries
@@ -10,6 +11,7 @@ from resources.redmine import redmine
 from resources.gitlab import gitlab
 from resources.rancher import rancher
 from resources import logger
+from resources.notification_message import create_notification_message, get_not_alive_notification_message_list, close_notification_message
 from resources.kubernetesClient import ApiK8sClient as k8s_client
 from resources.kubernetesClient import list_namespace_services, list_namespace_pods_info
 from datetime import datetime
@@ -22,10 +24,12 @@ import re
 
 class Monitoring:
     def __init__(self, project_id=None):
+        self.server = None
         self.pj_id = project_id
         self.all_alive = True
         self.__init_ids()
         self.error_message = None
+        self.detail = {}
 
     def __init_ids(self):
         self.plan_pj_id = None
@@ -61,6 +65,8 @@ class Monitoring:
     def __update_all_alive(self, alive):
         if not alive:
             self.all_alive = alive
+            self.send_notification()
+            self.store_in_monitoring_record()
 
     def __check_server_alive(self, func_with_pj, func, *args, **kwargs):
         if self.__has_pj_id():
@@ -70,63 +76,109 @@ class Monitoring:
         self.__update_all_alive(alive)
         return alive
 
+    def __check_is_continuity(self, pre_datetime):
+        time_lag = datetime.utcnow() - pre_datetime
+        return (time_lag.total_seconds() / 60) < 10
+
+    def send_notification(self):
+        title = f"{self.server} not alive"
+        previous_server_notification = NotificationMessage.query.filter_by(title=title) \
+            .order_by(desc(NotificationMessage.created_at)).all()
+        if previous_server_notification == [] or \
+            (not self.__check_is_continuity(previous_server_notification[0].created_at) or 
+            self.error_message != previous_server_notification[0].message):
+            args = {
+                "alert_level": 102,
+                "title": title,
+                "message": str(self.error_message),
+                "type_ids": [4],
+                "type_parameters": {"role_ids": [5]}
+            }
+            create_notification_message(args, user_id=1)
+
+    def store_in_monitoring_record(self):
+        args = {
+            "server": self.server,
+            "message": self.error_message,
+            "detail": self.detail
+        }
+        create_monitoring_record(args)
+
     def redmine_alive(self):
+        self.server = "Redmine"
         return self.__check_server_alive(
             redmine.rm_get_project, redmine.rm_list_projects, self.plan_pj_id)
 
     def gitlab_alive(self):
+        self.server = "GitLab"
         return self.__check_server_alive(
             gitlab.gl_get_project, gitlab.gl_get_user_list, self.gl_pj_id, args={})
 
     # Harbor
     def harbor_alive(self):
+        self.server = "Harbor"
         server_alive = self.__check_server_alive(
             hb_get_project_summary, hb_get_registries, self.hr_pj_id)
         if not server_alive:
             return server_alive
-        # Storage alive
-        harbour_storage = harbor_nfs_storage_remain_limit()
-        storage_alive = harbour_storage["status"]
-        if not storage_alive:
-            self.error_message = str(harbour_storage["message"])
-            self.__update_all_alive(storage_alive)    
-        return storage_alive
+
+        harbor_alive = True
+        for check_element in [harbor_nfs_storage_remain_limit, docker_image_pull_limit_alert]:
+            check_element = check_element()
+            element_alive = check_element["status"]
+            if not element_alive:
+                harbor_alive = element_alive
+                self.error_message = str(check_element["message"])
+                self.detail = check_element
+                self.__update_all_alive(element_alive)  
+                self.detail = {}
+        return harbor_alive
+       
 
     def k8s_alive(self):
+        self.server = "K8s"
         return self.__check_server_alive(
             list_namespace_services, k8s_client().get_api_resources, self.__get_project_name())
 
     def sonarqube_alive(self):
+        self.server = "Sonarqube"
         return self.__check_server_alive(
             sq_get_current_measures, sq_list_project, self.__get_project_name(), params={'p': 1, 'ps': 1})
 
     def rancher_alive(self):
+        self.server = "Rancher"
         return self.__check_server_alive(
             rancher.rc_get_pipeline_info, rancher.rc_get_project_pipeline, self.ci_pj_id, self.ci_pipeline_id)
 
     def check_project_alive(self):
-        return {
+        all_alive = {
             "alive": {
-                "redmine": self.redmine_alive(),
-                "gitlab": self.gitlab_alive(),
-                "harbor": self.harbor_alive(),
-                "k8s": self.k8s_alive(),
-                "sonarqube": self.sonarqube_alive(),
-                "rancher": self.rancher_alive(),
+                "Redmine": self.redmine_alive(),
+                "GitLab": self.gitlab_alive(),
+                "Harbor": self.harbor_alive(),
+                "K8s": self.k8s_alive(),
+                "Sonarqube": self.sonarqube_alive(),
+                "Rancher": self.rancher_alive(),
             },
             "all_alive": self.all_alive
         }
+        if all_alive["all_alive"]:
+            not_alive_messages = get_not_alive_notification_message_list()
+            if not_alive_messages != []:
+                for not_alive_message in not_alive_messages:
+                    close_notification_message(not_alive_message["id"])
+        return all_alive
 
 
 def generate_alive_response(name):
     monitoring = Monitoring()
     alive_mapping = {
-        "redmine": monitoring.redmine_alive,
-        "gitlab": monitoring.gitlab_alive,
-        "harbor": monitoring.harbor_alive,
-        "kubernetes": monitoring.k8s_alive,
-        "sonarqube": monitoring.sonarqube_alive,
-        "rancher": monitoring.rancher_alive,
+        "Redmine": monitoring.redmine_alive,
+        "GitLab": monitoring.gitlab_alive,
+        "Harbor": monitoring.harbor_alive,
+        "K8s": monitoring.k8s_alive,
+        "Sonarqube": monitoring.sonarqube_alive,
+        "Rancher": monitoring.rancher_alive,
     }
     return {
         "name": name.capitalize(),
@@ -138,15 +190,12 @@ def generate_alive_response(name):
 def server_alive(name):
     alive = generate_alive_response(name)
     status = alive["status"]
-    if not status:
-        row = AlertMessage(
-            resource_type=name,
-            code=90001,
-            message=alive["message"],
-            create_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-        )
-        db.session.add(row)
-        db.session.commit()
+    if status:
+        not_alive_messages = get_not_alive_notification_message_list(name)
+        if not_alive_messages != []:
+            for not_alive_message in not_alive_messages:
+                close_notification_message(not_alive_message["id"])
+
     update_server_alive(str(status))
     return alive
 
@@ -155,6 +204,17 @@ def row_to_dict(row):
     if row is None:
         return row
     return {key: getattr(row, key) for key in type(row).__table__.columns.keys()}
+
+
+def create_monitoring_record(args):
+    row = MonitoringRecord(
+        server = args["server"],
+        message = args["message"],
+        detail = args.get("detail", {}),
+        created_at = datetime.utcnow()
+    )
+    db.session.add(row)
+    db.session.commit()
 
 
 def verify_github_info(value):

@@ -3,11 +3,13 @@ kind: CronJob
 metadata:
   name: sync-template
 spec:
+  concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 1
   failedJobsHistoryLimit: 1
   schedule: "0 0 * * *"
   jobTemplate:
     spec:
+      backoffLimit: 0
       template:
         spec:
           containers:

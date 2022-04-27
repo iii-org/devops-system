@@ -503,6 +503,7 @@ class Releases(Resource):
         parser.add_argument('extra_image_path', type=str)
         args = parser.parse_args()
         gitlab_ref = branch_name = args.get('branch')
+        branch_name = None if branch_name == "" else branch_name
         if args.get('commit', None) is None and branch_name is not None:
             args.update({'commit': 'latest'})
         else:
