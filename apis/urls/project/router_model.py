@@ -88,7 +88,7 @@ class IssueByProjectSchema(CommonIssueSchema):
     due_date_start = fields.Str(doc='due_date_start', example="1970-01-01")
     due_date_end = fields.Str(doc='due_date_end', example="1970-01-01")
     with_point = fields.Str(doc='with_point', example=True)
-    status_id = fields.Str(doc='tags', example="1,2,3")
+    tags = fields.Str(doc='tags', example="1,2,3")
 
 class IssuesProgressByProjectSchema(Schema):
     fixed_version_id = fields.Int(doc='fixed_version_id', example=-1)
