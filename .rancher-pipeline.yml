@@ -240,6 +240,7 @@ stages:
       include:
       - skip-develop
       - develop
+      - master
 - name: Test--SideeX
   iiidevops: sideex
   steps:
