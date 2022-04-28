@@ -3,7 +3,6 @@ import ssl
 import time
 from datetime import datetime, timedelta
 from datetime import time as d_time
-import os
 
 import websocket
 from flask_jwt_extended import jwt_required
@@ -107,11 +106,10 @@ class Rancher(object):
                                   headers=headers, with_token=with_token)
 
     def __generate_token(self):
-        key1 = f'{"user"}{"name"}'
-        key2 = f'{"pa"}{"ssword"}'
-        acc = config.get('RANCHER_ADMIN_ACCOUNT')
-        pas = config.get('RANCHER_ADMIN_PASSWORD')
-        body = {key1: acc, key2: pas}
+        body = {
+            "username": config.get('RANCHER_ADMIN_ACCOUNT'),
+            "password": config.get('RANCHER_ADMIN_PASSWORD')
+        }
         params = {'action': 'login'}
         output = self.__api_post('-public/localProviders/local', params=params,
                                  data=body, with_token=False, retried=True)
