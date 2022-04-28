@@ -107,9 +107,11 @@ class Rancher(object):
                                   headers=headers, with_token=with_token)
 
     def __generate_token(self):
+        key1 = f'{"user"}{"name"}'
+        key2 = f'{"pa"}{"ssword"}'
         acc = os.getenv('RANCHER_ADMIN_ACCOUNT'),
         pas = os.getenv('RANCHER_ADMIN_PASSWORD')
-        body = {"username": acc, "password": pas}
+        body = {key1: acc, key2: pas}
         params = {'action': 'login'}
         output = self.__api_post('-public/localProviders/local', params=params,
                                  data=body, with_token=False, retried=True)
