@@ -1,4 +1,4 @@
-FROM dockerhub/library/python:3.9.12
+FROM dockerhub/library/python:3.9.12-slim
 # RUN apt-get install -y git 
 WORKDIR /root/.kube
 COPY iiidevops/k8s_config ./config
