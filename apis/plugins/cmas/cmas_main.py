@@ -286,10 +286,12 @@ def remove_apk():
     from datetime import datetime
     for path in [pj[0] for pj in os.walk("./devops-data/project-data") if pj[0].endswith("pipeline")]:
         apk_path = f"{path}/app-debug.apk"
-        current_time = datetime.now()
-        apk_datetime = datetime.fromtimestamp(os.path.getctime(apk_path))
-        if (current_time - apk_datetime).total_seconds() > 60 * 60 * 24:
-            os.remove(apk_path)
+        if os.path.isfile(apk_path):
+            current_time = datetime.now()
+            apk_datetime = datetime.fromtimestamp(os.path.getctime(apk_path))
+            if (current_time - apk_datetime).total_seconds() > 60 * 60 * 24:
+                print(apk_path)
+                os.remove(apk_path)
 
 # --------------------- Resources ---------------------
 
@@ -350,5 +352,6 @@ class CMASSecret(Resource):
 
 
 class CMASAPKREmove(Resource):
+    @jwt_required
     def post(self):
         return remove_apk()
