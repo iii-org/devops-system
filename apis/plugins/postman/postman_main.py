@@ -29,7 +29,7 @@ def export_to_postman(project_id, target):
         case_id = case['id']
         method = case['data']['method']
         path = case['data']['url']
-        url = urlparse(target + path)
+        ur_pah = urlparse(target + path)
         items = apiTest.get_test_item_by_tc_id(case_id)
         for item in items:
             item_id = item['id']
@@ -40,14 +40,14 @@ def export_to_postman(project_id, target):
                 values.append(value)
 
             try:
-                scheme = url.scheme
+                scheme = ur_pah.scheme
                 if scheme == b'':
                     scheme = ''
                 o_request = {
                     'method': method,
                     'url': {
                         'protocol': scheme,
-                        'port': url.port
+                        'port': ur_pah.port
                     },
                     'header': []
                 }
@@ -55,13 +55,13 @@ def export_to_postman(project_id, target):
                 return util.respond(400, 'url is malformed', {
                     'case_id': case_id,
                     'item_id': item_id,
-                    'url': url
+                    'url': ur_pah
                 })
 
-            if bool(url.hostname):
-                o_request['url']['host'] = url.hostname.split('.')
-            if len(url.path) > 0:
-                o_request['url']['path'] = url.path[1:].split('/')
+            if bool(ur_pah.hostname):
+                o_request['url']['host'] = ur_pah.hostname.split('.')
+            if len(ur_pah.path) > 0:
+                o_request['url']['path'] = ur_pah.path[1:].split('/')
             o_request_body = []
             o_execs = []
 
