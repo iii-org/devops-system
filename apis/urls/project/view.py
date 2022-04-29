@@ -1618,17 +1618,17 @@ class ReleasesV2(MethodResource):
                 closed_version = True
             # check  Gitalb Release
             check_gitlab_release = False
-            if release_obj.gitlab_info.get('check') == True:
-                gitlab_data = {
-                    'tag_name': release_name,
-                    'ref': gitlab_ref,
-                    'description': kwargs['note']
-                }
-                if kwargs.get('released_at') is not None:
-                    gitlab_data['release_at'] = kwargs['released_at']
-                gitlab.gl_create_release(
-                    release_obj.plugin_relation.git_repository_id, gitlab_data)
-                check_gitlab_release = True
+            # if release_obj.gitlab_info.get('check') == True:
+            gitlab_data = {
+                'tag_name': release_name,
+                'ref': gitlab_ref,
+                'description': kwargs['note']
+            }
+            if kwargs.get('released_at') is not None:
+                gitlab_data['release_at'] = kwargs['released_at']
+            gitlab.gl_create_release(
+                release_obj.plugin_relation.git_repository_id, gitlab_data)
+            check_gitlab_release = True
             #  Create Harbor Release
             create_harbor_release = False
             image_path = [f"{release_obj.project.name}/{branch_name}:{release_name}"]

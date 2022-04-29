@@ -536,17 +536,17 @@ class Releases(Resource):
                 closed_version = True
             # check  Gitalb Release
             check_gitlab_release = False
-            if self.gitlab_info.get('check') == True:
-                gitlab_data = {
-                    'tag_name': release_name,
-                    'ref': gitlab_ref,
-                    'description': args['note']
-                }
-                if args['released_at'] != "":
-                    gitlab_data['release_at'] = args['released_at']
-                gitlab.gl_create_release(
-                    self.plugin_relation.git_repository_id, gitlab_data)
-                check_gitlab_release = True
+            # if self.gitlab_info.get('check') == True:
+            gitlab_data = {
+                'tag_name': release_name,
+                'ref': gitlab_ref,
+                'description': args['note']
+            }
+            if args['released_at'] != "":
+                gitlab_data['release_at'] = args['released_at']
+            gitlab.gl_create_release(
+                self.plugin_relation.git_repository_id, gitlab_data)
+            check_gitlab_release = True
             #  Create Harbor Release
             create_harbor_release = False
             image_path = [f"{self.project.name}/{branch_name}:{release_name}"]
