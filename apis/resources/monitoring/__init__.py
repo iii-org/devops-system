@@ -29,6 +29,7 @@ class Monitoring:
         self.all_alive = True
         self.__init_ids()
         self.error_message = None
+        self.error_title = None
         self.detail = {}
 
     def __init_ids(self):
@@ -67,6 +68,15 @@ class Monitoring:
             self.all_alive = alive
             self.send_notification()
             self.store_in_monitoring_record()
+        else:
+            title = f"{self.server} not alive" if self.error_title is None else self.error_title
+            not_alive_messages = get_not_alive_notification_message_list(title)
+            if not_alive_messages != []:
+                for not_alive_message in not_alive_messages:
+                    close_notification_message(not_alive_message["id"])
+                    self.send_server_back_notification(not_alive_message["title"])
+        
+        self.error_title = None
 
     def __check_server_alive(self, func_with_pj, func, *args, **kwargs):
         if self.__has_pj_id():
@@ -76,17 +86,12 @@ class Monitoring:
         self.__update_all_alive(alive)
         return alive
 
-    def __check_is_continuity(self, pre_datetime):
-        time_lag = datetime.utcnow() - pre_datetime
-        return (time_lag.total_seconds() / 60) < 10
-
     def send_notification(self):
-        title = f"{self.server} not alive"
+        title = f"{self.server} not alive" if self.error_title is None else self.error_title
         previous_server_notification = NotificationMessage.query.filter_by(title=title) \
             .order_by(desc(NotificationMessage.created_at)).all()
         if previous_server_notification == [] or \
-            (not self.__check_is_continuity(previous_server_notification[0].created_at) or 
-            self.error_message != previous_server_notification[0].message):
+            get_not_alive_notification_message_list(title) == []:
             args = {
                 "alert_level": 102,
                 "title": title,
@@ -103,6 +108,20 @@ class Monitoring:
             "detail": self.detail
         }
         create_monitoring_record(args)
+
+    def send_server_back_notification(self, title):
+        if title.endswith("not alive"):
+            title = f"{self.server} is back"
+        else:
+            title = f"{title} is solved"
+        args = {
+            "alert_level": 1,
+            "title": title,
+            "message": title,
+            "type_ids": [4],
+            "type_parameters": {"role_ids": [5]}
+        }
+        create_notification_message(args, user_id=1)
 
     def redmine_alive(self):
         self.server = "Redmine"
@@ -129,6 +148,7 @@ class Monitoring:
             if not element_alive:
                 harbor_alive = element_alive
                 self.error_message = str(check_element["message"])
+                self.error_title = str(check_element["error_title"])
                 self.detail = check_element
                 self.__update_all_alive(element_alive)  
                 self.detail = {}
@@ -150,6 +170,7 @@ class Monitoring:
         return self.__check_server_alive(
             rancher.rc_get_pipeline_info, rancher.rc_get_project_pipeline, self.ci_pj_id, self.ci_pipeline_id)
 
+    # all alive
     def check_project_alive(self):
         all_alive = {
             "alive": {
@@ -162,11 +183,6 @@ class Monitoring:
             },
             "all_alive": self.all_alive
         }
-        if all_alive["all_alive"]:
-            not_alive_messages = get_not_alive_notification_message_list()
-            if not_alive_messages != []:
-                for not_alive_message in not_alive_messages:
-                    close_notification_message(not_alive_message["id"])
         return all_alive
 
 
@@ -190,12 +206,6 @@ def generate_alive_response(name):
 def server_alive(name):
     alive = generate_alive_response(name)
     status = alive["status"]
-    if status:
-        not_alive_messages = get_not_alive_notification_message_list(name)
-        if not_alive_messages != []:
-            for not_alive_message in not_alive_messages:
-                close_notification_message(not_alive_message["id"])
-
     update_server_alive(str(status))
     return alive
 
@@ -262,6 +272,7 @@ def docker_image_pull_limit_alert():
 
     return {
         "name": "Harbor proxy remain limit",
+        "error_title": "Harbor pull limit exceed.",
         "status": status,
         "remain_limit": limit,
         "message": message,
@@ -284,6 +295,7 @@ def harbor_nfs_storage_remain_limit():
         status = int(ret["Use%"].replace("%", "")) < 75
         return {
             "name": "Harbor nfs folder storage remain.",
+            "error_title": "Harbor NFS out of storage",
             "status": status,
             "total_size": ret["Size"],
             "used": ret["Used"],
@@ -294,6 +306,7 @@ def harbor_nfs_storage_remain_limit():
     except Exception as e:
         return {
             "name": "Harbor nfs folder storage remain.",
+            "error_title": "Harbor NFS out of storage",
             "status": False,
             "total_size": None,
             "used": None,

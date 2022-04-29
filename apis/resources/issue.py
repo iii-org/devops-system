@@ -1430,7 +1430,7 @@ def get_issue_family(redmine_issue, args={}, all=False, user_name=None, sync=Fal
     if not all:
         redmine_obj = redmine_lib.rm_impersonate(user_name, sync=sync)
     else:
-        redmine_obj = redmine.redmine
+        redmine_obj = redmine_lib.redmine
 
     if not is_with_point:
         output["parent"] = get_issue_parent(redmine_issue, redmine_obj)

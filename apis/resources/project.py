@@ -377,7 +377,7 @@ def create_project(user_id, args):
         # Commit and push file by template , if template env is not None
         if args.get("template_id") is not None:
             template.tm_use_template_push_into_pj(args["template_id"], gitlab_pj_id,
-                                                  args["tag_name"], args["arguments"])
+                                                  args["tag_name"], args["arguments"], uuids)
 
         # Create project NFS folder /(uuid)
         for folder in ["pipeline", uuids]:
@@ -513,28 +513,17 @@ def try_to_delete(delete_method, argument):
             raise e
 
 
-def delete_project(project_id, force_delete_project=False):
+def delete_project(project_id):
     # Check project has son project and get all ids
     son_id_list = get_all_sons_project(project_id, [])
     delete_id_list = [project_id] + son_id_list
 
-    if force_delete_project is False:
-        # Check all projects' servers are alive first,
-        # because redmine delete all sons projects at the same time.
-        for project_id in delete_id_list:
-            server_alive_output = Monitoring(project_id).check_project_alive()
-            if not server_alive_output["all_alive"]:
-                not_alive_server = [
-                    server.capitalize() for server, alive in server_alive_output["alive"].items() if not alive]
-                servers = ", ".join(not_alive_server)
-                raise apiError.DevOpsError(500, f"{servers} not alive")
-    else:
-        server_alive_output = Monitoring().check_project_alive()
-        if not server_alive_output["all_alive"]:
-            not_alive_server = [
-                server.capitalize() for server, alive in server_alive_output["alive"].items() if not alive]
-            servers = ", ".join(not_alive_server)
-            raise apiError.DevOpsError(500, f"{servers} not alive")
+    server_alive_output = Monitoring().check_project_alive()
+    if not server_alive_output["all_alive"]:
+        not_alive_server = [
+            server.capitalize() for server, alive in server_alive_output["alive"].items() if not alive]
+        servers = ", ".join(not_alive_server)
+        raise apiError.DevOpsError(500, f"{servers} not alive")
 
     for project_id in delete_id_list:
         delete_project_helper(project_id)

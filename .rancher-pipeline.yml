@@ -26,7 +26,7 @@ stages:
       catalogTemplate: cattle-global-data:iii-dev-charts3-scan-sonarqube
       name: ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}-sq
       targetNamespace: ${CICD_GIT_REPO_NAME}
-      version: 0.2.3
+      version: 0.2.4
   when:
     branch:
       include:
@@ -234,7 +234,7 @@ stages:
       catalogTemplate: cattle-global-data:iii-dev-charts3-test-postman
       name: ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}-pm
       targetNamespace: ${CICD_GIT_REPO_NAME}
-      version: 0.3.2
+      version: 0.3.3
   when:
     branch:
       include:
