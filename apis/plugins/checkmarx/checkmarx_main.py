@@ -175,7 +175,7 @@ class CheckMarx(object):
     def cancel_scan(self, scan_id):
         data = {"status": "Canceled"}
         res = self.__api_patch(f'/sast/scansQueue/{scan_id}', data=data)
-        return res.status_code 
+        return res.status_code
 
     @staticmethod
     def get_latest(column, project_id):
@@ -214,14 +214,14 @@ class CheckMarx(object):
             else:
                 ret["status"] = 2
                 ret["message"] = "The scan is not completed yet."
-            return ret 
-        
+            return ret
+
         report_id = row.report_id
         if report_id < 0:
             data_json, status_code = self.register_report(scan_id)
             report_id = data_json['data']['reportId']
         rst_id, rst_name = self.get_report_status(report_id)
-        
+
         data = self.get_scan_statistics(scan_id)
         data.pop("statisticsCalculationDate", "")
         if rst_id != 2:
@@ -235,9 +235,7 @@ class CheckMarx(object):
         ret["result"] = data
         ret["run_at"] = str(row.run_at)
         ret["report_id"] = report_id
-        ret["message"] = 'success'
         return ret
-
 
     @staticmethod
     def list_scans(project_id):
@@ -391,6 +389,7 @@ class GetCheckmarxScanStatistics(Resource):
             return util.success(stats)
         else:
             raise DevOpsError(400, stats)
+
 
 class CancelCheckmarxScan(Resource):
     @jwt_required
