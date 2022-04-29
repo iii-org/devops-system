@@ -167,7 +167,7 @@ class NexusIssue:
         }
         if hasattr(redmine_issue, 'project'):
             project_id = nexus.nx_get_project_plugin_relation(
-                    rm_project_id=redmine_issue.project.id).project_id
+                rm_project_id=redmine_issue.project.id).project_id
             if nx_project is None or project_has_child(project_id) or project_has_parent(project_id):
                 nx_project = model.Project.query.get(project_id)
             self.data['project'] = {
@@ -243,7 +243,6 @@ class NexusIssue:
             self.data["point"] = get_issue_point(self.data["id"])
         return self
 
-
     @staticmethod
     def get_closed_statuses():
         if NexusIssue.closed_statuses is None:
@@ -263,6 +262,7 @@ class NexusIssue:
 
     def get_tracker_name(self):
         return self.data['tracker']['name']
+
 
 def ws_common_response(issue_id, point=None, tags=None, plan_operator_id=None, update=True):
     issue = redmine_lib.redmine.issue.get(issue_id)
@@ -318,6 +318,7 @@ def check_tags_id_is_int(tags):
     tag_ids.sort()
     return tag_ids
 
+
 def tags_note_json(id, name, add=True):
     if add:
         note = {
@@ -325,7 +326,7 @@ def tags_note_json(id, name, add=True):
                 {
                     'name': 'tag',
                     'property': 'attr',
-                    'old_value': None, 
+                    'old_value': None,
                     'new_value': {
                         'id': id,
                         'name': name,
@@ -394,8 +395,9 @@ def update_issue_tags(issue_id, tags, plan_operator_id):
                     issue_id, {"notes": tags_note_json(tag_id, tag_name, add=False)}, plan_operator_id)
     return issue_tags.issue_id
 
+
 def check_tags_diff(fir_tags, sec_tags):
-    return {int(item): model.Tag.query.get(int(item)).name for item in fir_tags if item not in sec_tags} 
+    return {int(item): model.Tag.query.get(int(item)).name for item in fir_tags if item not in sec_tags}
 
 
 def delete_issue_tags(issue_id):
@@ -721,15 +723,15 @@ def create_issue(args, operator_id):
 
     # Check project is disabled or not
     if model.Project.query.get(project_id).disabled:
-        raise DevOpsError(400, 'Project is disabled', 
-                                error=apiError.project_is_disabled(project_id))
+        raise DevOpsError(400, 'Project is disabled',
+                          error=apiError.project_is_disabled(project_id))
 
     # Check tracker_id is not force to has father issue's tracker
     project_issue_check = model.ProjectIssueCheck.query.filter_by(project_id=project_id).first()
     if project_issue_check is not None and project_issue_check.enable:
         if args.get("parent_id") is None and args["tracker_id"] in project_issue_check.need_fatherissue_trackers:
             raise DevOpsError(400, f'Create issue with tacker_id:{args["tracker_id"]} must has father issue.',
-                                    error=apiError.project_tracker_must_has_father_issue(project_id, args["tracker_id"]))
+                              error=apiError.project_tracker_must_has_father_issue(project_id, args["tracker_id"]))
 
     args = {k: v for k, v in args.items() if v is not None}
     if 'fixed_version_id' in args:
@@ -783,41 +785,42 @@ def create_issue(args, operator_id):
             str(args['parent_issue_id']), str(created_issue_id))
     closed_count = 1 if args["status_id"] == 6 else 0
     update_pj_issue_calc(project_id, total_count=1, closed_count=closed_count)
-    
+
     main_output = ws_common_response(
         created_issue_id, point=point, tags=tags, plan_operator_id=plan_operator_id, update=False)
     ws_output_list = [main_output]
     if args.get('parent_issue_id') is not None:
         ws_output_list.append(ws_common_response(args['parent_issue_id']))
-    
+
     emit("add_issue", ws_output_list, namespace="/issues/websocket", to=main_output['project']['id'], broadcast=True)
     return main_output
 
 
-def check_trackers_in_update_issue(tracker_id, need_fatherissue_trackers, updated_tracker_id, pj_id):    
+def check_trackers_in_update_issue(tracker_id, need_fatherissue_trackers, updated_tracker_id, pj_id):
     if tracker_id not in need_fatherissue_trackers:
         if updated_tracker_id is not None and updated_tracker_id in need_fatherissue_trackers:
             tracker_id = updated_tracker_id if updated_tracker_id is not None else tracker_id
             for tracker in get_issue_trackers():
                 if tracker['id'] == updated_tracker_id:
                     raise DevOpsError(400, f'Modify of create issue with tacker_id:{tracker["name"]} must has father issue.',
-                                        error=apiError.project_tracker_must_has_father_issue(pj_id, tracker['name']))
+                                      error=apiError.project_tracker_must_has_father_issue(pj_id, tracker['name']))
     elif updated_tracker_id is None or updated_tracker_id in need_fatherissue_trackers:
         tracker_id = updated_tracker_id if updated_tracker_id is not None else tracker_id
         for tracker in get_issue_trackers():
             if tracker['id'] == tracker_id:
                 raise DevOpsError(400, f'Modify of create issue with tacker_id:{tracker["name"]} must has father issue.',
-                                    error=apiError.project_tracker_must_has_father_issue(pj_id, tracker['name']))
+                                  error=apiError.project_tracker_must_has_father_issue(pj_id, tracker['name']))
+
 
 def update_issue(issue_id, args, operator_id=None):
     from resources.project_relation import get_project_id
-    
+
     project_id = args.get('project_id')
     update_cache_issue_family = False
     issue = redmine_lib.redmine.issue.get(issue_id, include=['children'])
     pj_id = get_project_id(issue.project.id)
     before_status_id = issue.status.id
-    
+
     # Issue can not be updated when its tracker is in its force tracker checking setting' tracker.
     check_issue_project_id = args.get("project_id", pj_id)
     project_issue_check = model.ProjectIssueCheck.query.filter_by(project_id=check_issue_project_id).first()
@@ -825,24 +828,24 @@ def update_issue(issue_id, args, operator_id=None):
         if hasattr(issue, 'parent'):
             if args.get("parent_id") is not None and args["parent_id"] == "":
                 check_trackers_in_update_issue(
-                    issue.tracker.id, 
-                    project_issue_check.need_fatherissue_trackers, 
+                    issue.tracker.id,
+                    project_issue_check.need_fatherissue_trackers,
                     args.get("tracker_id"),
                     pj_id
                 )
         else:
             if args.get("parent_id") is None or args.get("parent_id") == "":
                 check_trackers_in_update_issue(
-                    issue.tracker.id, 
-                    project_issue_check.need_fatherissue_trackers, 
+                    issue.tracker.id,
+                    project_issue_check.need_fatherissue_trackers,
                     args.get("tracker_id"),
                     pj_id
                 )
 
     # Check project is disabled or not
     if model.Project.query.get(pj_id).disabled:
-        raise DevOpsError(400, 'Project is disabled', 
-                                error=apiError.project_is_disabled(pj_id))
+        raise DevOpsError(400, 'Project is disabled',
+                          error=apiError.project_is_disabled(pj_id))
 
     args = args.copy()
     args = {k: v for k, v in args.items() if v is not None}
@@ -860,7 +863,8 @@ def update_issue(issue_id, args, operator_id=None):
         parent_id_is_changed = update_cache_issue_family = True
         origin_parent_id = None if not hasattr(issue, "parent") else issue.parent.id
         if len(args['parent_id']) > 0:
-            parent_id_is_changed = int(origin_parent_id) != int(args['parent_id']) if origin_parent_id is not None else True
+            parent_id_is_changed = int(origin_parent_id) != int(
+                args['parent_id']) if origin_parent_id is not None else True
             args['parent_issue_id'] = removed_project_id = int(args['parent_id'])
         else:
             removed_project_id = origin_parent_id
@@ -871,7 +875,7 @@ def update_issue(issue_id, args, operator_id=None):
         project_plugin_relation = nexus.nx_get_project_plugin_relation(
             nexus_project_id=project_id)
         args['project_id'] = project_plugin_relation.plan_project_id
-    
+
     if "assigned_to_id" in args and len(args['assigned_to_id']) > 0:
         user_plugin_relation = nexus.nx_get_user_plugin_relation(
             user_id=int(args['assigned_to_id']))
@@ -888,7 +892,7 @@ def update_issue(issue_id, args, operator_id=None):
             user_id=operator_id)
         plan_operator_id = operator_plugin_relation.plan_user_id
     redmine.rm_update_issue(issue_id, args, plan_operator_id)
-    
+
     # Update cache
     if update_cache_issue_family:
         if args['parent_issue_id'] is not None:
@@ -927,18 +931,18 @@ def delete_issue(issue_id):
 
         # Check project is disabled or not
         if model.Project.query.get(pj_id).disabled:
-            raise DevOpsError(400, 'Project is disabled', 
-                                    error=apiError.project_is_disabled(pj_id))
+            raise DevOpsError(400, 'Project is disabled',
+                              error=apiError.project_is_disabled(pj_id))
 
         project_id = nexus.nx_get_project_plugin_relation(
-                    rm_project_id=redmine_issue.project.id).project_id
+            rm_project_id=redmine_issue.project.id).project_id
         redmine.rm_delete_issue(issue_id)
         remove_issue_relations(issue_id)
-        
+
         if parent_id is not None:
             remove_issue_relation(parent_id, issue_id)
         update_pj_issue_calc(str(pj_id), total_count=-1, closed_count=closed_count)
-        
+
         delete_issue_extensions(issue_id)
         delete_issue_tags(issue_id)
         emit("delete_issue", {"id": issue_id}, namespace="/issues/websocket", to=project_id, broadcast=True)
@@ -969,11 +973,12 @@ def get_issue_by_project(project_id, args):
             NexusIssue().set_redmine_issue(redmine_issue, nx_project=nx_project).to_json())
     return output_array
 
+
 def handle_exceed_limit_length_default_filter(default_filters, issue_ids, default_filters_list):
     if issue_ids == []:
         return default_filters_list
     default_filters_copy = default_filters.copy()
-    default_filters_copy["issue_id"] = ",".join(issue_ids[:200])   
+    default_filters_copy["issue_id"] = ",".join(issue_ids[:200])
     default_filters_list.append(default_filters_copy)
     return handle_exceed_limit_length_default_filter(default_filters, issue_ids[200:], default_filters_list)
 
@@ -998,8 +1003,8 @@ def get_issue_list_by_project(project_id, args, download=False):
             return []
     elif args.get("has_tag_issue", False):
         return []
-    
-    if len(default_filters.get('issue_id',"").split(",")) > 200:
+
+    if len(default_filters.get('issue_id', "").split(",")) > 200:
         issue_ids = default_filters.pop('issue_id').split(",")
         default_filters_list = handle_exceed_limit_length_default_filter(default_filters, issue_ids, [])
     else:
@@ -1026,7 +1031,7 @@ def get_issue_list_by_project(project_id, args, download=False):
             nx_issue_params['with_point'] = args["with_point"]
             issue = NexusIssue().set_redmine_issue_v2(**nx_issue_params).to_json()
             output.append(issue)
-        
+
         total_count += all_issues.total_count
 
     if download:
@@ -1037,6 +1042,7 @@ def get_issue_list_by_project(project_id, args, download=False):
                                         args['limit'], args['offset'])
         output = {'issue_list': output, 'page': page_dict}
     return output
+
 
 def get_issue_list_by_project_helper(project_id, args, download=False, operator_id=None):
     nx_issue_params = defaultdict()
@@ -1058,7 +1064,7 @@ def get_issue_list_by_project_helper(project_id, args, download=False, operator_
             return []
     elif args.get("has_tag_issue", False):
         return []
-    if len(default_filters.get('issue_id',"").split(",")) > 200:
+    if len(default_filters.get('issue_id', "").split(",")) > 200:
         issue_ids = default_filters.pop('issue_id').split(",")
         default_filters_list = handle_exceed_limit_length_default_filter(default_filters, issue_ids, [])
     else:
@@ -1083,14 +1089,14 @@ def get_issue_list_by_project_helper(project_id, args, download=False, operator_
             nx_issue_params['relationship_bool'] = True
 
         output += all_issues
-    
+
     # Parse filter_issues
     for issue in output:
         issue["name"] = issue.pop("subject")
 
         if issue.get("fixed_version") is None:
             issue["fixed_version"] = {}
-        
+
         if issue.get("updated_on") is not None:
             issue["updated_on"] = issue["updated_on"][:-1]
 
@@ -1098,7 +1104,7 @@ def get_issue_list_by_project_helper(project_id, args, download=False, operator_
             rm_project_id=issue['project']['id']).project_id
         if project_has_child(project_id) or project_has_parent(project_id):
             nx_project = model.Project.query.get(project_id)
-        issue["project"]= {
+        issue["project"] = {
             'id': nx_project.id,
             'name': nx_project.name,
             'display': nx_project.display
@@ -1133,11 +1139,11 @@ def get_issue_list_by_project_helper(project_id, args, download=False, operator_
         issue["family"] = issue.get("parent") is not None or issue.get("relations") != [] or has_children
         issue["has_father"] = issue.get("parent") is not None
         issue["has_children"] = has_children
-        
+
         if args.get("with_point", False):
             issue["point"] = get_issue_point(issue["id"])
         issue["tags"] = get_issue_tags(issue["id"])
-        
+
         issue.pop("parent", "")
         issue.pop("relations", "")
         issue.pop("created_on", "")
@@ -1190,7 +1196,7 @@ def get_issue_list_by_user(user_id, args):
             all_issues = redmine_lib.rm_impersonate(user_name).issue.filter(**default_filters)
         else:
             all_issues = redmine_lib.redmine.issue.filter(**default_filters)
-        
+
         # 透過 selection params 決定是否顯示 family bool 欄位
         if not args['selection'] or not strtobool(args['selection']):
             nx_issue_params['relationship_bool'] = True
@@ -1200,7 +1206,7 @@ def get_issue_list_by_user(user_id, args):
             nx_issue_params['redmine_issue'] = redmine_issue
             issue = NexusIssue().set_redmine_issue_v2(**nx_issue_params).to_json()
             output.append(issue)
-        
+
         total_count += all_issues.total_count
 
     if args['limit'] and args['offset'] is not None:
@@ -1292,11 +1298,11 @@ def get_custom_filters_by_args(args=None, project_id=None, user_id=None, childre
             if issue_list != []:
                 default_filters["issue_id"] = ','.join(str(id) for id in issue_list)
             else:
-                args["has_tag_issue"] = True   
+                args["has_tag_issue"] = True
 
         if args.get("only_superproject_issues", False):
             default_filters["subproject_id"] = "!*"
-         
+
     return default_filters
 
 
@@ -1315,7 +1321,8 @@ def handle_allowed_keywords(default_filters, args):
                     filter_users.remove("null")
                     filter_users = [int(filter_user) for filter_user in filter_users]
                     all_users = [user["id"] for user in user_list_by_project(args["project_id"], {'exclude': None})]
-                    except_users = [str(validate_plan_user_id(int(all_user))) for all_user in all_users if all_user not in filter_users]
+                    except_users = [str(validate_plan_user_id(int(all_user)))
+                                    for all_user in all_users if all_user not in filter_users]
                     if generate_default_filter_value(except_users) is not None:
                         default_filters[key] = generate_default_filter_value(except_users)
                 else:
@@ -1328,7 +1335,8 @@ def handle_allowed_keywords(default_filters, args):
                     filter_versions = args[key].split("|")
                     filter_versions.remove("null")
                     all_versions = get_all_id(redmine_lib.redmine.project.get(default_filters["project_id"]).versions)
-                    except_versions = [all_version for all_version in all_versions if all_version not in filter_versions]
+                    except_versions = [
+                        all_version for all_version in all_versions if all_version not in filter_versions]
                     if generate_default_filter_value(except_versions) is not None:
                         default_filters[key] = generate_default_filter_value(except_versions)
                 else:
@@ -1437,11 +1445,12 @@ def get_issue_family(redmine_issue, args={}, all=False, user_name=None, sync=Fal
         output["relations"] = get_issue_relations(redmine_issue, redmine_obj)
 
     output["children"] = get_issue_children(redmine_issue, redmine_obj)
-        
+
     for key in ["parent", "children", "relations"]:
         if output.get(key) == []:
             output.pop(key)
     return output
+
 
 def get_issue_parent(redmine_issue, redmine_obj):
     ret = []
@@ -1452,8 +1461,9 @@ def get_issue_parent(redmine_issue, redmine_obj):
             ret = NexusIssue().set_redmine_issue_v2(parent_issue[0]).to_json()
         except:
             pass
-        
+
     return ret
+
 
 def get_issue_children(redmine_issue, redmine_obj):
     ret = []
@@ -1468,11 +1478,12 @@ def get_issue_children(redmine_issue, redmine_obj):
         }
         children_issues = redmine_obj.issue.filter(**filter_kwargs)
         ret = [NexusIssue().set_redmine_issue_v2(issue).to_json()
-                    for issue in children_issues]
+               for issue in children_issues]
     return ret
 
+
 def get_issue_relations(redmine_issue, redmine_obj):
-    ret= []
+    ret = []
     if len(redmine_issue.relations):
         for relation in redmine_issue.relations:
             rel_issue_id = 0
@@ -1484,8 +1495,8 @@ def get_issue_relations(redmine_issue, redmine_obj):
             relate_issue = NexusIssue().set_redmine_issue_v2(rel_issue).to_json()
             relate_issue['relation_id'] = relation.id
             ret.append(relate_issue)
-   
-    return ret    
+
+    return ret
 
 
 def get_issue_by_status_by_project(project_id):
@@ -2045,19 +2056,19 @@ def put_issue_relation(issue_id, issue_to_ids, user_account):
     for need_add in list(need_add_set):
         need_add = list(need_add)
         redmine_lib.rm_post_relation(need_add[0], need_add[1], user_account)
-    update_issue_ids = list(set(origin_issue_to_ids) - set(issue_to_ids)) + list(set(issue_to_ids) - set(origin_issue_to_ids))    
+    update_issue_ids = list(set(origin_issue_to_ids) - set(issue_to_ids)) + \
+        list(set(issue_to_ids) - set(origin_issue_to_ids))
     output_list = [ws_common_response(id) for id in update_issue_ids + [issue_id]]
     emit("update_issue", output_list, namespace="/issues/websocket", to=output_list[0]['project']['id'], broadcast=True)
 
 
 def delete_issue_relation(relation_id, user_account):
     issue_relation_obj = redmine_lib.redmine.issue_relation.get(relation_id)
-    issue_ids = [issue_relation_obj.issue_id, issue_relation_obj.issue_to_id] 
-    
+    issue_ids = [issue_relation_obj.issue_id, issue_relation_obj.issue_to_id]
+
     redmine_lib.rm_delete_relation(relation_id, user_account)
     output_list = [ws_common_response(id) for id in issue_ids]
     emit("update_issue", output_list, namespace="/issues/websocket", to=output_list[0]['project']['id'], broadcast=True)
-
 
 
 def check_issue_closable(issue_id):
@@ -2087,7 +2098,7 @@ def check_issue_closable(issue_id):
                 elif issue.children.total_count != 0:
                     unfinished_issues.extend([children_issue.id for children_issue in issue.children])
                     # 消除重複的 issue_id
-                    set(unfinished_issues)
+                    unfinished_issues = set(unfinished_issues)
                 # 將上述動作完成的 issue 從未完成-->已完成
                 unfinished_issues.remove(id)
                 finished_issues.append(id)
@@ -2172,6 +2183,7 @@ def execute_issue_alert(alert_mapping):
                             {"notes": f'本議題 #{issue_id} {issue["subject"]} {note} ，請確認該議題是否繼續執行？或更新狀態？'},
                         )
 
+
 def get_custom_issue_filter(user_id, project_id):
     custom_issue_filters = CustomIssueFilter.query.filter_by(user_id=user_id, project_id=project_id).all()
     return [row_to_dict(custom_issue_filter) for custom_issue_filter in custom_issue_filters]
@@ -2214,31 +2226,30 @@ class DownloadIssueAsExcel():
         self.args = args
         self.project_id = priority_id
         self.__get_operator_id(user_id)
-    
+
     def __get_operator_id(self, user_id):
         self.operator_id = model.UserPluginRelation.query. \
-                    filter_by(user_id=user_id).one().plan_user_id
+            filter_by(user_id=user_id).one().plan_user_id
         self.user_name = model.User.query.get(int(user_id)).login
 
     def execute(self):
         try:
             logger.logger.info("Start writing issues into excel.")
-            self.__update_lock_download_issues(is_lock=True, sync_date=self.__now_time()) 
+            self.__update_lock_download_issues(is_lock=True, sync_date=self.__now_time())
             self.__append_main_issue()
-            self.__update_lock_download_issues(is_lock=False, sync_date=self.__now_time()) 
+            self.__update_lock_download_issues(is_lock=False, sync_date=self.__now_time())
             logger.logger.info("Writing complete")
         except Exception as e:
             logger.logger.exception(str(e))
             self.__update_lock_download_issues(is_lock=False, sync_date=None)
 
-
     def __now_time(self):
         return datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
 
-
     def __append_main_issue(self):
         print(self.args)
-        output = get_issue_list_by_project_helper(self.project_id, self.args, download=True, operator_id=self.operator_id)
+        output = get_issue_list_by_project_helper(
+            self.project_id, self.args, download=True, operator_id=self.operator_id)
         for index, value in enumerate(output):
             row = self.__generate_row_issue_for_excel(str(index + 1), value)
             self.result.append(row)
@@ -2246,17 +2257,16 @@ class DownloadIssueAsExcel():
 
         self.__download_as_excel()
 
-
     def __append_children(self, super_index, value, level):
         if not value["has_children"] or self.levels == level:
-            return 
-        redmine_issue = redmine_lib.rm_impersonate(self.user_name, sync=True).issue.get(value["id"], include=['children'])
+            return
+        redmine_issue = redmine_lib.rm_impersonate(
+            self.user_name, sync=True).issue.get(value["id"], include=['children'])
         children = get_issue_children(redmine_issue, redmine_lib.rm_impersonate(self.user_name, sync=True))
         for index, child in enumerate(children):
             row = self.__generate_row_issue_for_excel(f"{super_index}_{index + 1}", child)
             self.result.append(row)
             self.__append_children(f"{super_index}_{index+1}", child, level + 1)
-
 
     def __generate_row_issue_for_excel(self, index, value):
         english = len(re.findall(r'[\u4e00-\u9fff]+', self.deploy_column[0]["display"])) == 0
@@ -2275,7 +2285,8 @@ class DownloadIssueAsExcel():
                 result.update({column['display']: value['status']['name']})
 
             if column['field'] == 'fixed_version':
-                result.update({column['display']: value['fixed_version']["name"] if value['fixed_version'] != {} else ""})
+                result.update({column['display']: value['fixed_version']
+                              ["name"] if value['fixed_version'] != {} else ""})
             if column['field'] == 'StartDate':
                 result.update({column['display']: value['start_date']})
             if column['field'] == 'EndDate':
@@ -2293,12 +2304,10 @@ class DownloadIssueAsExcel():
                 result.update({column['display']: value.get('point', 0)})
         return result
 
-
     def __download_as_excel(self):
         if not os.path.isdir("./logs/project_excel_file"):
             os.makedirs("./logs/project_excel_file", exist_ok=True)
         util.write_in_excel(f"logs/project_excel_file/{self.project_id}.xlsx", self.result)
-
 
     def __update_lock_download_issues(self, is_lock=None, sync_date=None):
         lock_redmine = model.Lock.query.filter_by(name="download_pj_issues").first()
@@ -2307,6 +2316,7 @@ class DownloadIssueAsExcel():
         if sync_date is not None:
             lock_redmine.sync_date = sync_date
         db.session.commit()
+
 
 @record_activity(ActionType.MODIFY_HOOK)
 def modify_hook(args):
@@ -2323,7 +2333,7 @@ def get_commit_hook_issues_helper(issue_id):
     return model.ProjectUserRole.query.filter_by(project_id=pj_id, user_id=user_id).first() is not None
 
 
-def get_commit_hook_issues(commit_id):   
+def get_commit_hook_issues(commit_id):
     issue_commit_relation = model.IssueCommitRelation.query.filter_by(commit_id=commit_id).first()
     # connect_issues = list(filter(get_commit_hook_issues_helper, issue_commit_relation.issue_ids)) if issue_commit_relation is not None else None
     connect_issues = {
@@ -2333,10 +2343,10 @@ def get_commit_hook_issues(commit_id):
 
 def sync_issue_relation():
     issue_family = {}
-    for project in model.Project.query.all():  
+    for project in model.Project.query.all():
         plan_id = get_plan_id(project.id)
         if plan_id != -1:
-            try: 
+            try:
                 all_issues, _ = redmine.rm_list_issues(params={"project_id": plan_id})
                 for issue in all_issues:
                     if issue.get("parent") is not None:
@@ -2344,7 +2354,7 @@ def sync_issue_relation():
                         issue_family[parent_id] = handle_sync_son_issue(issue_family.get(parent_id), str(issue["id"]))
             except:
                 continue
-        
+
     update_issue_relations(issue_family)
 
 
@@ -2352,13 +2362,12 @@ def handle_sync_son_issue(value, issue_id):
     if value is not None:
         if issue_id not in value.split(","):
             value += f",{issue_id}"
-        else:
-            value
     else:
         value = str(issue_id)
     return value
 
 # --------------------- Resources ---------------------
+
 
 class DumpByIssue(Resource):
     @ jwt_required
@@ -2431,7 +2440,6 @@ class IssueByVersion(Resource):
         return util.success(get_issue_by_project(project_id, args))
 
 
-
 @doc(tags=['Issue'], description="Get issue available status")
 @marshal_with(route_model.IssueStatusResponse)
 class IssueStatusV2(MethodResource):
@@ -2444,7 +2452,7 @@ class IssueStatus(Resource):
     @ jwt_required
     def get(self):
         return list_issue_statuses('api')
-        
+
 
 @doc(tags=['Issue'], description="Get issue available priority")
 @marshal_with(route_model.IssuePriorityResponse)
@@ -2521,6 +2529,7 @@ class DashboardIssueProject(Resource):
             return count_project_number_by_issues(user_id)
         else:
             return {'message': 'Access token is missing or invalid'}, 401
+
 
 @doc(tags=['Dashboard'], description="Get user's issues' numbers of each projects.")
 @marshal_with(route_model.DashboardIssueTypeResponse)
@@ -2818,6 +2827,7 @@ class ParameterByIssueV2(MethodResource):
         output = post_parameters_by_issue_id(issue_id, args)
         return util.success(output)
 
+
 class ParameterByIssue(Resource):
     # 用issues ID 取得目前所有的需求清單
     @ jwt_required
@@ -2912,7 +2922,6 @@ class ExecuteIssueAlert(Resource):
 class IssueSocket(Namespace):
     def on_connect(self):
         print('connect')
-
 
     def on_disconnect(self):
         print('Client disconnected')
