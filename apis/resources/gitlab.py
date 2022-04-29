@@ -608,9 +608,7 @@ class GitLab(object):
                 pjs = self.__get_projects_by_repo_or_by_user(git_repository_id, user_id)
                 out_list = self.__get_projects_commit(pjs, out_list, branch_name, days_ago)
                 if len(out_list) > show_commit_rows - 1:
-                    sorted((out["commit_time"] for out in out_list), reverse=True)
                     return out_list[:show_commit_rows]
-            sorted((out["commit_time"] for out in out_list), reverse=True)
             return out_list[:show_commit_rows]
         else:
             if the_last_hours is None:
@@ -619,7 +617,6 @@ class GitLab(object):
                         timedelta(hours=the_last_hours)).isoformat()
             pjs = self.__get_projects_by_repo_or_by_user(git_repository_id, user_id)
             out_list = self.__get_projects_commit(pjs, out_list, branch_name, days_ago)
-        sorted((out["commit_time"] for out in out_list), reverse=True)
         return out_list
 
     def gl_count_each_pj_commits_by_days(self, days=30, timezone_hours_number=8):
