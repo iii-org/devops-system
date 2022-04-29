@@ -55,6 +55,8 @@ class Redmine:
             logger.debug('redmine api {0} {1}, params={2}, body={5}, response={3} {4}'.format(
                 method, url, params.__str__(), output.status_code, output.text, data))
         if int(output.status_code / 100) != 2:
+            logger.debug('redmine api {0} {1}, params={2}, body={5}, response={3} {4}'.format(
+                method, url, params.__str__(), output.status_code, output.text, data))
             raise apiError.DevOpsError(
                 output.status_code,
                 'Got non-2xx response from Redmine.',
@@ -63,7 +65,7 @@ class Redmine:
 
     def __api_get(self, path, params=None, headers=None, operator_id=None,
                   resp_format='.json'):
-        return self.__api_request('GET', path, params=params, headers=headers, 
+        return self.__api_request('GET', path, params=params, headers=headers,
                                   operator_id=operator_id, resp_format=resp_format)
 
     def __api_post(self, path, params=None, headers=None, data=None,
