@@ -33,7 +33,7 @@ from resources import tag as tag_py
 from resources.user import user_list_by_project
 from resources import logger
 from resources.lock import get_lock_status
-from resources.project_relation import project_has_child, project_has_parent, get_plan_id
+from resources.project_relation import project_has_child, project_has_parent, get_plan_id, get_all_fathers_project
 from flask_apispec import marshal_with, doc, use_kwargs
 from flask_apispec.views import MethodResource
 from urls import route_model
@@ -915,7 +915,8 @@ def update_issue(issue_id, args, operator_id=None):
         if origin_parent_id is not None:
             ws_output_list.append(ws_common_response(origin_parent_id))
 
-    emit("update_issue", ws_output_list, namespace="/issues/websocket", to=main_output['project']['id'], broadcast=True)
+    for pj_id in get_all_fathers_project(main_output['project']['id'], []) + [main_output['project']['id']]:
+        emit("update_issue", ws_output_list, namespace="/issues/websocket", to=pj_id, broadcast=True)
     return main_output
 
 
