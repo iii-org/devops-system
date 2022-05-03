@@ -33,7 +33,7 @@ from resources import tag as tag_py
 from resources.user import user_list_by_project
 from resources import logger
 from resources.lock import get_lock_status
-from resources.project_relation import project_has_child, project_has_parent, get_plan_id, get_all_fathers_project
+from resources.project_relation import project_has_child, project_has_parent, get_plan_id, get_all_fathers_project, get_all_sons_project
 from flask_apispec import marshal_with, doc, use_kwargs
 from flask_apispec.views import MethodResource
 from urls import route_model
@@ -792,7 +792,9 @@ def create_issue(args, operator_id):
     if args.get('parent_issue_id') is not None:
         ws_output_list.append(ws_common_response(args['parent_issue_id']))
 
-    emit("add_issue", ws_output_list, namespace="/issues/websocket", to=main_output['project']['id'], broadcast=True)
+    main_pj_id = main_output['project']['id']
+    for pj_id in get_all_fathers_project(main_pj_id, []) + [main_pj_id] + get_all_sons_project(main_pj_id, []):
+        emit("add_issue", ws_output_list, namespace="/issues/websocket", to=pj_id, broadcast=True)
     return main_output
 
 
@@ -915,7 +917,8 @@ def update_issue(issue_id, args, operator_id=None):
         if origin_parent_id is not None:
             ws_output_list.append(ws_common_response(origin_parent_id))
 
-    for pj_id in get_all_fathers_project(main_output['project']['id'], []) + [main_output['project']['id']]:
+    main_pj_id = main_output['project']['id']
+    for pj_id in get_all_fathers_project(main_pj_id, []) + [main_pj_id] + get_all_sons_project(main_pj_id, []):
         emit("update_issue", ws_output_list, namespace="/issues/websocket", to=pj_id, broadcast=True)
     return main_output
 
@@ -946,7 +949,9 @@ def delete_issue(issue_id):
 
         delete_issue_extensions(issue_id)
         delete_issue_tags(issue_id)
-        emit("delete_issue", {"id": issue_id}, namespace="/issues/websocket", to=project_id, broadcast=True)
+
+        for pj_id in get_all_fathers_project(project_id, []) + [project_id] + get_all_sons_project(project_id, []):
+            emit("delete_issue", {"id": issue_id}, namespace="/issues/websocket", to=pj_id, broadcast=True)
     except DevOpsError as e:
         print(e.status_code)
         if e.status_code == 404:
