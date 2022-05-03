@@ -33,6 +33,7 @@ stages:
       - master
       - develop
       - test-sonarqube-report
+      - 1.17.0-yuwei
 - name: Test--Checkmarx source code scan
   iiidevops: checkmarx
   steps:
