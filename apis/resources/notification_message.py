@@ -20,20 +20,20 @@ https://github.com/iii-org/devops-system/wiki/Notification-Message
 '''
 
 
-class Alert_Level:
+class AlertLevel:
     def __init__(self, id_, name, users_can_read):
         self.id = id_
         self.name = name
         self.users_can_read = users_can_read
 
 
-INF = Alert_Level(1, 'INFO', True)
-WAR = Alert_Level(2, 'WARNING', True)
-URG = Alert_Level(3, 'Urgent', True)
+INF = AlertLevel(1, 'INFO', True)
+WAR = AlertLevel(2, 'WARNING', True)
+URG = AlertLevel(3, 'Urgent', True)
 
-NEW = Alert_Level(101, 'New Version', False)
-SAL = Alert_Level(102, 'System Alert', False)
-SWA = Alert_Level(103, 'System Warming', True)
+NEW = AlertLevel(101, 'New Version', False)
+SAL = AlertLevel(102, 'System Alert', False)
+SWA = AlertLevel(103, 'System Warming', True)
 
 ALL_ALERTS = [INF, WAR, URG, NEW, SAL, SWA]
 
@@ -315,7 +315,6 @@ def get_not_alive_notification_message_list(title):
     base_query = base_query.filter(NotificationMessage.title == title)
     rows = base_query.order_by(desc(NotificationMessage.id)).all()
     return [{**json.loads(str(row[0]))} for row in rows if len(row) > 1 and row[1] is None]
-    
 
 
 class NotificationRoom(object):
