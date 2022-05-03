@@ -128,6 +128,10 @@ def update_plugin_config(plugin_name, args):
         db_arguments = {}
     system_secrets = read_namespace_secret(SYSTEM_SECRET_NAMESPACE, system_secret_name(plugin_name))
     global_secrets = read_namespace_secret(DEFAULT_NAMESPACE, plugin_name)
+    if system_secrets is None:
+        system_secrets = {}
+    if global_secrets is None:
+        global_secrets = {}
     key_map = {}
     for item in config['keys']:
         key_map[item['key']] = {
@@ -149,18 +153,12 @@ def update_plugin_config(plugin_name, args):
             if store == PluginKeyStore.DB:
                 db_arguments[argument] = str(args['arguments'][argument])
             elif store == PluginKeyStore.SECRET_SYSTEM:
-                if system_secrets is None:
-                    create_namespace_secret(SYSTEM_SECRET_NAMESPACE, system_secret_name(plugin_name), {})
-                    system_secrets = {}
+                create_namespace_secret(SYSTEM_SECRET_NAMESPACE, system_secret_name(plugin_name), {})
                 system_secrets[argument] = str(args['arguments'][argument])
             elif store == PluginKeyStore.SECRET_ALL:
-                if global_secrets is None:
-                    global_secrets = {}
                 global_secrets[argument] = str(args['arguments'][argument])
-    if system_secrets is not None:
-        patch_namespace_secret(SYSTEM_SECRET_NAMESPACE, system_secret_name(plugin_name), system_secrets)
-    if global_secrets is not None:
-        rancher.rc_add_secrets_to_all_namespaces(plugin_name, global_secrets)
+    patch_namespace_secret(SYSTEM_SECRET_NAMESPACE, system_secret_name(plugin_name), system_secrets)
+    rancher.rc_add_secrets_to_all_namespaces(plugin_name, global_secrets)
     db_row.parameter = json.dumps(db_arguments)
     db_row.update_at = datetime.now()
     model.db.session.commit()
