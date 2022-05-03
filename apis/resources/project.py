@@ -999,7 +999,7 @@ def get_all_reports(project_id):
     return memory_file
 
 
-def get_kubernetes_namespace_Quota(project_id):
+def get_kubernetes_namespace_quota(project_id):
     project_name = str(model.Project.query.filter_by(
         id=project_id).first().name)
     project_quota = kubernetesClient.get_namespace_quota(project_name)
@@ -1016,7 +1016,7 @@ def get_kubernetes_namespace_Quota(project_id):
     return util.success(project_quota)
 
 
-def update_kubernetes_namespace_Quota(project_id, resource):
+def update_kubernetes_namespace_quota(project_id, resource):
     project_name = str(model.Project.query.filter_by(
         id=project_id).first().name)
     project_quota = kubernetesClient.update_namespace_quota(
