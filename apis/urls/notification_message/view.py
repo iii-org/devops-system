@@ -71,6 +71,7 @@ class MessageV2(MethodResource):
         parser = reqparse.RequestParser()
         parser.add_argument('alert_level', type=int, required=True)
         parser.add_argument('title', type=str)
+        parser.add_argument('alert_service_id', type=int, default=0)
         parser.add_argument('message', type=str, required=True)
         parser.add_argument('type_ids', type=str, required=True)
         parser.add_argument('type_parameters', type=str)

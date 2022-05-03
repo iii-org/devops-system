@@ -24,6 +24,16 @@ import re
 
 
 DATETIMEFORMAT = "%Y-%m-%d %H:%M:%S"
+AlertServiceIDMapping = {
+    "Redmine not alive": 101,
+    "GitLab not alive": 201,
+    "Harbor not alive": 301,
+    "Harbor pull limit exceed": 302,
+    "Harbor NFS out of storage": 303,
+    "K8s not alive": 401,
+    "Sonarqube not alive": 501,
+    "Rancher not alive": 601,
+}
 
 
 class Monitoring:
@@ -35,6 +45,7 @@ class Monitoring:
         self.__init_ids()
         self.error_message = None
         self.error_title = None
+        self.alert_service_id = None
         self.detail = {}
 
     def __init_ids(self):
@@ -74,8 +85,7 @@ class Monitoring:
             self.send_notification()
             self.store_in_monitoring_record()
         else:
-            title = f"{self.server} not alive" if self.error_title is None else self.error_title
-            not_alive_messages = get_not_alive_notification_message_list(title)
+            not_alive_messages = get_not_alive_notification_message_list(self.alert_service_id)
             if not_alive_messages != []:
                 for not_alive_message in not_alive_messages:
                     close_notification_message(not_alive_message["id"])
@@ -96,10 +106,11 @@ class Monitoring:
         previous_server_notification = NotificationMessage.query.filter_by(title=title) \
             .order_by(desc(NotificationMessage.created_at)).all()
         if previous_server_notification == [] or \
-                get_not_alive_notification_message_list(title) == []:
+                get_not_alive_notification_message_list(self.alert_service_id) == []:
             args = {
                 "alert_level": 102,
                 "title": title,
+                "alert_service_id": self.alert_service_id,
                 "message": str(self.error_message),
                 "type_ids": [4],
                 "type_parameters": {"role_ids": [5]}
@@ -130,17 +141,20 @@ class Monitoring:
 
     def redmine_alive(self):
         self.server = "Redmine"
+        self.alert_service_id = 101
         return self.__check_server_alive(
             redmine.rm_get_project, redmine.rm_list_projects, self.plan_pj_id)
 
     def gitlab_alive(self):
         self.server = "GitLab"
+        self.alert_service_id = 201
         return self.__check_server_alive(
             gitlab.gl_get_project, gitlab.gl_get_user_list, self.gl_pj_id, args={})
 
     # Harbor
     def harbor_alive(self):
         self.server = "Harbor"
+        self.alert_service_id = 301
         server_alive = self.__check_server_alive(
             hb_get_project_summary, hb_get_registries, self.hr_pj_id)
         if not server_alive:
@@ -151,6 +165,7 @@ class Monitoring:
             check_element = check_element()
             element_alive = check_element["status"]
             self.error_title = str(check_element["error_title"])
+            self.alert_service_id = AlertServiceIDMapping[self.error_title]
             if not element_alive:
                 harbor_alive = element_alive
                 self.error_message = str(check_element["message"])
@@ -162,16 +177,19 @@ class Monitoring:
 
     def k8s_alive(self):
         self.server = "K8s"
+        self.alert_service_id = 401
         return self.__check_server_alive(
             list_namespace_services, k8s_client().get_api_resources, self.__get_project_name())
 
     def sonarqube_alive(self):
         self.server = "Sonarqube"
+        self.alert_service_id = 501
         return self.__check_server_alive(
             sq_get_current_measures, sq_list_project, self.__get_project_name(), params={'p': 1, 'ps': 1})
 
     def rancher_alive(self):
         self.server = "Rancher"
+        self.alert_service_id = 601
         return self.__check_server_alive(
             rancher.rc_get_pipeline_info, rancher.rc_get_project_pipeline, self.ci_pj_id, self.ci_pipeline_id)
 
@@ -278,7 +296,7 @@ def docker_image_pull_limit_alert():
 
     return {
         "name": "Harbor proxy remain limit",
-        "error_title": "Harbor pull limit exceed.",
+        "error_title": "Harbor pull limit exceed",
         "status": status,
         "remain_limit": limit,
         "message": message,

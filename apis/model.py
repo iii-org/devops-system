@@ -809,7 +809,7 @@ class ProjectCommitEndpoint(db.Model):
 class NotificationMessage(db.Model):
     id = Column(Integer, primary_key=True)
     alert_level = Column(Integer, nullable=False)
-    alert_service_id = Column(Integer)
+    alert_service_id = Column(Integer, default=0)
     title = Column(String)
     message = Column(String, nullable=False)
     creator_id = Column(Integer, ForeignKey(User.id, ondelete='SET NULL'), nullable=True)
