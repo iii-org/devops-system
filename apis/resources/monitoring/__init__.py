@@ -23,7 +23,11 @@ import pandas as pd
 import re
 
 
+DATETIMEFORMAT = "%Y-%m-%d %H:%M:%S"
+
+
 class Monitoring:
+
     def __init__(self, project_id=None):
         self.server = None
         self.pj_id = project_id
@@ -201,7 +205,7 @@ def generate_alive_response(name):
         "name": name.capitalize(),
         "status": alive_mapping[name](),
         "message": monitoring.error_message,
-        "datetime": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+        "datetime": datetime.utcnow().strftime(DATETIMEFORMAT),
     }
 
 
@@ -278,7 +282,7 @@ def docker_image_pull_limit_alert():
         "status": status,
         "remain_limit": limit,
         "message": message,
-        "datetime": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+        "datetime": datetime.utcnow().strftime(DATETIMEFORMAT),
     }
 
 
@@ -303,7 +307,7 @@ def harbor_nfs_storage_remain_limit():
             "used": ret["Used"],
             "avail": ret["Avail"],
             "message": "Nfs Folder Used percentage exceeded 75%!" if not status else None,
-            "datetime": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+            "datetime": datetime.utcnow().strftime(DATETIMEFORMAT),
         }
     except Exception as e:
         return {
@@ -314,5 +318,5 @@ def harbor_nfs_storage_remain_limit():
             "used": None,
             "avail": None,
             "message": str(e),
-            "datetime": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+            "datetime": datetime.utcnow().strftime(DATETIMEFORMAT),
         }
