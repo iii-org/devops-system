@@ -2102,9 +2102,8 @@ def check_issue_closable(issue_id):
                     break
                 # 若 issue 的 children 存在，將 children issue id 放入未完成 issues 中
                 elif issue.children.total_count != 0:
-                    unfinished_issues.extend([children_issue.id for children_issue in issue.children])
                     # 消除重複的 issue_id
-                    unfinished_issues = set(unfinished_issues)
+                    unfinished_issues += [str(children_issue.id) for children_issue in issue.children if children_issue.id not in unfinished_issues]
                 # 將上述動作完成的 issue 從未完成-->已完成
                 unfinished_issues.remove(id)
                 finished_issues.append(id)
