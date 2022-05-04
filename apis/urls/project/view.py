@@ -928,7 +928,7 @@ class ProjectUserResourceV2(MethodResource):
     def get(self, project_id):
         role.require_in_project(
             project_id, "Error while getting project info.")
-        return project.get_kubernetes_namespace_Quota(project_id)
+        return project.get_kubernetes_namespace_quota(project_id)
 
     @doc(tags=['K8s'], description="Update project k8s info.")
     # @use_kwargs(router_model.ProjectUserResourceSchema, location="form")
@@ -944,14 +944,15 @@ class ProjectUserResourceV2(MethodResource):
         parser.add_argument('services.nodeports', type=int, required=True)
         parser.add_argument('persistentvolumeclaims', type=int, required=True)
         args = parser.parse_args()
-        return project.update_kubernetes_namespace_Quota(project_id, args)
+        return project.update_kubernetes_namespace_quota(project_id, args)
+
 
 class ProjectUserResource(Resource):
     @jwt_required
     def get(self, project_id):
         role.require_in_project(
             project_id, "Error while getting project info.")
-        return project.get_kubernetes_namespace_Quota(project_id)
+        return project.get_kubernetes_namespace_quota(project_id)
 
     @jwt_required
     def put(self, project_id):
@@ -964,7 +965,7 @@ class ProjectUserResource(Resource):
         parser.add_argument('services.nodeports', type=int, required=True)
         parser.add_argument('persistentvolumeclaims', type=int, required=True)
         args = parser.parse_args()
-        return project.update_kubernetes_namespace_Quota(project_id, args)
+        return project.update_kubernetes_namespace_quota(project_id, args)
 
 
 @doc(tags=['System'], description="Check latest project has pod or not")

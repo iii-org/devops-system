@@ -549,9 +549,7 @@ def apply_cronjob_yamls():
                     print('e1')
                     info = json.loads(e.api_exceptions[0].body)
                     print(f'e2 {info}')
-                    if info.get('reason').lower() == 'alreadyexists':
-                        pass
-                    else:
+                    if info.get('reason').lower() != 'alreadyexists':
                         raise e
 
 
@@ -1189,9 +1187,6 @@ def list_namespace_ingresses(namespace):
                 "name": ingress.metadata.name,
                 "created_time": str(ingress.metadata.creation_timestamp)
             }
-            ip = None
-            if ingress.status.load_balancer.ingress is not None:
-                ip = ingress.status.load_balancer.ingress[0].ip
             ingress_info["ingress_list"] = map_ingress_with_host(
                 ingress.spec.rules)
             ingress_info["tls"] = ingress.spec.tls

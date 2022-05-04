@@ -684,10 +684,8 @@ class IssueDisplayField(db.Model):
 
     @validates("type")
     def validate_type(self, key, type):
-        if type is not None:
-            if type not in ["wbs_cache", "issue_list"]:
-                raise AssertionError(
-                    "Type must in wbs_cache / issue_list.")
+        if type is not None and type not in ["wbs_cache", "issue_list"]:
+            raise AssertionError("Type must in wbs_cache / issue_list.")
         return type
 
 
@@ -718,10 +716,10 @@ class AlertMessage(db.Model):
 
     @validates("resource_type")
     def validate_resource_type(self, key, resource_type):
-        if resource_type is not None:
-            if resource_type not in ["system", "kubernetes", "redmine", "gitlab", "harbor", "sonarqube", "rancher", "github"]:
-                raise AssertionError(
-                    "Resource_type must in system / kubernetes / redmine / gitlab / harbor / sonarqube / rancher / github.")
+        if resource_type is not None and resource_type not in ["system", "kubernetes", "redmine", "gitlab",
+                                                               "harbor", "sonarqube", "rancher", "github"]:
+            raise AssertionError(
+                "Resource_type must in system / kubernetes / redmine / gitlab / harbor / sonarqube / rancher / github.")
         return resource_type
 
 
@@ -744,10 +742,8 @@ class CustomIssueFilter(db.Model):
 
     @validates("type")
     def validate_type(self, key, type):
-        if type is not None:
-            if type not in ["issue_list", "issue_board", "my_work"]:
-                raise AssertionError(
-                    "Type must in issue_list / issue_board / my_work.")
+        if type is not None and type not in ["issue_list", "issue_board", "my_work"]:
+            raise AssertionError("Type must in issue_list / issue_board / my_work.")
         return type
 
 

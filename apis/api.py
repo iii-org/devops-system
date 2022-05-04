@@ -82,12 +82,10 @@ docs = FlaskApiSpec(app)
 
 
 def add_resource(classes, level):
-    if config.get("DOCUMENT_LEVEL") == "public":
-        if level in ['public']:
-            docs.register(classes)
-    elif config.get("DOCUMENT_LEVEL") == "private":
-        if level in ['public', 'private']:
-            docs.register(classes)
+    if config.get("DOCUMENT_LEVEL") == "public" and level in ['public']:
+        docs.register(classes)
+    elif config.get("DOCUMENT_LEVEL") == "private" and level in ['public', 'private']:
+        docs.register(classes)
 
 
 app.config['PROPAGATE_EXCEPTIONS'] = True
