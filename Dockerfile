@@ -1,6 +1,6 @@
 FROM dockerhub/library/python:3.9.12-slim
 RUN apt-get update
-RUN apt-get install -y --no-install-recommends git 
+RUN apt-get install -y --no-install-recommends git curl 
 WORKDIR /root/.kube
 COPY iiidevops/k8s_config ./config
 WORKDIR /usr/src/app/deploy-config

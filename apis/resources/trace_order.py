@@ -11,7 +11,7 @@ import resources.issue as issue
 from copy import deepcopy
 import util as util
 from model import db, TraceOrder, TraceResult
-import resources.apiError as apiError 
+import resources.apiError as apiError
 from resources.apiError import DevOpsError
 from sqlalchemy.orm.exc import NoResultFound
 from accessories import redmine_lib
@@ -37,10 +37,11 @@ order_mapping
 "Fail Management": 異常管理
 '''
 
+
 def validate_order_value(order):
     validate_order_list = [
         {
-            "condition": not all(x in ['Epic', 'Audit', 'Feature', 'Bug', 'Issue', 'Change Request', 'Risk', 'Test Plan', 'Fail Management'] for x in order), 
+            "condition": not all(x in ['Epic', 'Audit', 'Feature', 'Bug', 'Issue', 'Change Request', 'Risk', 'Test Plan', 'Fail Management'] for x in order),
             "log": "Order's elements must be in ['Epic', 'Audit', 'Feature', 'Bug', 'Issue', 'Change Request', 'Risk', 'Test Plan', 'Fail Management']",
         },
         {"condition": len(order) != len(set(order)), "log": "Elements must not be duplicated"},
@@ -50,6 +51,7 @@ def validate_order_value(order):
         if validate_order["condition"]:
             raise DevOpsError(400, validate_order["log"],
                               error=apiError.argument_error('order'))
+
 
 def handle_default_value(project_id):
     for trace_order in TraceOrder.query.filter_by(project_id=project_id).all():
@@ -70,7 +72,8 @@ def trace_order_is_allow_to_change(project_id):
     for trace_order in TraceOrder.query.filter_by(project_id=project_id).all():
         if trace_order.default:
             allow = True
-    return allow            
+    return allow
+
 
 def get_trace_order_by_project(project_id):
     if util.is_dummy_project(project_id):
@@ -101,6 +104,7 @@ def get_trace_order_by_project(project_id):
         "default": has_default is False
     }] + results
 
+
 def create_trace_order_by_project(args):
     project_id = args["project_id"]
     num = TraceOrder.query.filter_by(project_id=project_id).count()
@@ -125,6 +129,7 @@ def create_trace_order_by_project(args):
     db.session.commit()
     return {"trace_order_id": new.id}
 
+
 def update_trace_order(trace_order_id, args):
     default = args.get("default")
 
@@ -132,14 +137,14 @@ def update_trace_order(trace_order_id, args):
         project = args.get("project_id")
         if project is None:
             raise DevOpsError(400, "Must provide project_id when trace_order_id is -1",
-                              error=apiError.argument_error('project_id')) 
+                              error=apiError.argument_error('project_id'))
         if default:
             handle_default_value(project)
         else:
             if not trace_order_is_allow_to_change(project):
                 raise DevOpsError(400, "Not allow to change default value because the trace_order default is the only True",
-                                  error=apiError.argument_error('default')) 
-        return 
+                                  error=apiError.argument_error('default'))
+        return
 
     trace_order = model.TraceOrder.query.get(trace_order_id)
     if trace_order is None:
@@ -160,24 +165,27 @@ def update_trace_order(trace_order_id, args):
     trace_order.name = args.get("name", trace_order.name)
     db.session.commit()
 
+
 def delete_trace_order(trace_order_id):
     trace_order = TraceOrder.query.filter_by(id=trace_order_id).one()
     if trace_order.default:
         raise DevOpsError(400, "Not allow to delete the trace_order because this is default",
-                          error=apiError.argument_error('default')) 
+                          error=apiError.argument_error('default'))
     db.session.delete(trace_order)
     db.session.commit()
 
+
 def get_order(project_id):
     trace_order = TraceOrder.query.filter_by(
-        project_id=project_id, 
-        default=True, 
+        project_id=project_id,
+        default=True,
     ).first()
     if trace_order is not None:
         order = trace_order.order
     else:
         order = config.get("DEFAULT_TRACE_ORDER")
     return order
+
 
 class TraceList:
     def __init__(self, project_id, trace_order, issues, lock):
@@ -209,7 +217,7 @@ class TraceList:
         if family.get("parent") is not None:
             parent = [family["parent"]]
         else:
-            parent = []       
+            parent = []
         familys = parent + family.get("children", []) + family.get("relations", [])
         trace_order = self.trace_order.copy()
         trace_order.pop(index)
@@ -219,20 +227,20 @@ class TraceList:
         if self.result == []:
             self.result.append(alone_issue_mapping)
         else:
-            if alone_issue_mapping not in self.result:  
-                can_append = True       
+            if alone_issue_mapping not in self.result:
+                can_append = True
                 for result in deepcopy(self.result):
                     same = True
                     if len(alone_issue_mapping) >= len(result):
                         for k, v in result.items():
                             if k not in alone_issue_mapping or v != alone_issue_mapping[k]:
-                                same = False    
+                                same = False
                         if same:
-                            self.result.remove(result)                                       
+                            self.result.remove(result)
                     else:
                         for k, v in alone_issue_mapping.items():
                             if k not in result or v != result[k]:
-                                same = False    
+                                same = False
                         if same:
                             can_append = False
                 if can_append:
@@ -280,13 +288,13 @@ class TraceList:
                     if family["tracker"]["name"] == self.trace_order[index]:
                         if index == self.test_plan_index:
                             alone_issue_mapping.update(self.__get_test_plan_content(family["id"]))
-                        alone_issue_mapping.update({self.trace_order[index]: self.issues[family["id"]]})     
+                        alone_issue_mapping.update({self.trace_order[index]: self.issues[family["id"]]})
         self.__append_result(alone_issue_mapping)
 
     def generate_head_mapping(self):
         mapping = {}
-        self.same_track = self.trace_order[0]  
-        self.next_track = self.trace_order[1] 
+        self.same_track = self.trace_order[0]
+        self.next_track = self.trace_order[1]
         first_tracker_issue_list = [id for id, issue in self.issues.items() if issue["tracker"] == self.same_track]
 
         for id in first_tracker_issue_list:
@@ -298,7 +306,7 @@ class TraceList:
                         if item["tracker"]["name"] == self.same_track:
                             value["same_level"].append(item["id"])
                         if item["tracker"]["name"] == self.next_track:
-                            value["next_level"].append(item["id"])              
+                            value["next_level"].append(item["id"])
             if value["next_level"] == []:
                 if value["same_level"] == []:
                     self.generate_output(id, family, 0)
@@ -310,10 +318,11 @@ class TraceList:
             not_alone_next_id_list += value.get("next_level")
         self.not_alone_id_mapping[self.next_track] = not_alone_next_id_list
 
-    def generate_middle_mapping(self, index):          
+    def generate_middle_mapping(self, index):
         self.same_track = self.trace_order[index]
         self.next_track = self.trace_order[index + 1]
-        self.tracker_issue_list = [id for id, issue in self.issues.items() if issue["tracker"] == self.same_track and id not in self.not_alone_id_mapping[self.same_track]]
+        self.tracker_issue_list = [id for id, issue in self.issues.items(
+        ) if issue["tracker"] == self.same_track and id not in self.not_alone_id_mapping[self.same_track]]
         for id in self.not_alone_id_mapping[self.same_track]:
             self.__check_middle_id(id, index)
         for id in self.tracker_issue_list:
@@ -351,7 +360,7 @@ class TraceList:
                         continue
                     if same_id in self.tracker_issue_list:
                         self.__remove_id(same_id)
-                        self.__check_middle_id(same_id, index)  
+                        self.__check_middle_id(same_id, index)
         if check_complete:
             if value["next_level"] == []:
                 self.generate_output(id, family, index)
@@ -361,7 +370,8 @@ class TraceList:
 
     def generate_final_mapping(self):
         self.same_track = self.trace_order[-1]
-        self.tracker_issue_list = [id for id, issue in self.issues.items() if issue["tracker"] == self.same_track and id not in self.not_alone_id_mapping[self.same_track]]
+        self.tracker_issue_list = [id for id, issue in self.issues.items(
+        ) if issue["tracker"] == self.same_track and id not in self.not_alone_id_mapping[self.same_track]]
         for id in self.not_alone_id_mapping[self.same_track]:
             self.__check_final_id(id)
         for id in self.tracker_issue_list:
@@ -383,7 +393,7 @@ class TraceList:
                         self.mention_id.append(id)
                         self.__check_final_id(same_id)
 
-    def update_trace_result(self, 
+    def update_trace_result(self,
                             current_num=None, current_job=None, results=None, execute_time=None, finish_time=None, exception=False):
         query = TraceResult.query.filter_by(
             project_id=self.project_id,
@@ -421,11 +431,13 @@ class TraceList:
 
             self.generate_final_mapping()
             current_num += 1
-            self.update_trace_result(current_num=current_num, results=self.result, finish_time=datetime.utcnow().isoformat())
+            self.update_trace_result(current_num=current_num, results=self.result,
+                                     finish_time=datetime.utcnow().isoformat())
         except Exception as e:
             self.update_trace_result(exception=str(e))
         finally:
             self.lock.release()
+
 
 def get_trace_result(project_id):
     ret = {
@@ -455,8 +467,8 @@ def get_trace_result(project_id):
     ret["start_time"] = str(trace_result.execute_time)
     ret["finish_time"] = str(trace_result.finish_time)
     ret["exception"] = trace_result.exception
-    ret["total_num"] = len(order)
     return ret
+
 
 def initial_trace_result(project_id):
     trace_result = TraceResult.query.filter_by(
@@ -470,6 +482,8 @@ def initial_trace_result(project_id):
         db.session.commit()
 
 # --------------------- Resources ---------------------
+
+
 class TraceOrdersV2(MethodResource):
     @doc(tags=['QA'], description="Get project's trace order list")
     @use_kwargs(route_model.TraceOrdersSchema, location="query")
@@ -502,6 +516,7 @@ class TraceOrders(Resource):
         args = parser.parse_args()
         return util.success(create_trace_order_by_project(args))
 
+
 class SingleTraceOrderV2(MethodResource):
     @doc(tags=['QA'], description="Update project's trace order by trace_order_id")
     @use_kwargs(route_model.TraceOrdersPutSchema, location="json")
@@ -516,6 +531,7 @@ class SingleTraceOrderV2(MethodResource):
     @jwt_required
     def delete(self, trace_order_id):
         return util.success(delete_trace_order(trace_order_id))
+
 
 class SingleTraceOrder(Resource):
     @jwt_required
@@ -539,7 +555,7 @@ class ExecuteTraceOrderV2(MethodResource):
     @use_kwargs(route_model.TraceOrdersSchema, location="json")
     @marshal_with(util.CommonResponse)
     @jwt_required
-    def patch(self, **kwargs): 
+    def patch(self, **kwargs):
         project_id = kwargs["project_id"]
         order = get_order(project_id)
         plan_project_id = project.get_plan_project_id(project_id)
@@ -552,22 +568,24 @@ class ExecuteTraceOrderV2(MethodResource):
         )
         issues = {issue.id: {
             "id": issue.id,
-            "name": issue.subject, 
-            "tracker": issue.tracker.name, 
-            "status": {"id": issue.status.id, "name": issue.status.name}, 
+            "name": issue.subject,
+            "tracker": issue.tracker.name,
+            "status": {"id": issue.status.id, "name": issue.status.name},
         } for issue in issues}
 
         initial_trace_result(project_id)
 
         lock = threading.Lock()
 
-        thread = threading.Thread(target=TraceList(project_id, order, issues, lock).execute_trace_order, args=(len(order),))
+        thread = threading.Thread(target=TraceList(project_id, order, issues,
+                                  lock).execute_trace_order, args=(len(order),))
         thread.start()
         return {"message": "success"}
 
+
 class ExecuteTraceOrder(Resource):
     @jwt_required
-    def patch(self): 
+    def patch(self):
         parser = reqparse.RequestParser()
         parser.add_argument('project_id', type=int, required=True)
         args = parser.parse_args()
@@ -583,18 +601,20 @@ class ExecuteTraceOrder(Resource):
         )
         issues = {issue.id: {
             "id": issue.id,
-            "name": issue.subject, 
-            "tracker": issue.tracker.name, 
-            "status": {"id": issue.status.id, "name": issue.status.name}, 
+            "name": issue.subject,
+            "tracker": issue.tracker.name,
+            "status": {"id": issue.status.id, "name": issue.status.name},
         } for issue in issues}
 
         initial_trace_result(project_id)
 
         lock = threading.Lock()
 
-        thread = threading.Thread(target=TraceList(project_id, order, issues, lock).execute_trace_order, args=(len(order),))
+        thread = threading.Thread(target=TraceList(project_id, order, issues,
+                                  lock).execute_trace_order, args=(len(order),))
         thread.start()
         return {"message": "success"}
+
 
 class GetTraceResultV2(MethodResource):
     @doc(tags=['QA'], description="Get project's trace order result by trace_order_id")
@@ -605,6 +625,7 @@ class GetTraceResultV2(MethodResource):
 
         project_id = kwargs["project_id"]
         return util.success(get_trace_result(project_id))
+
 
 class GetTraceResult(Resource):
     @jwt_required

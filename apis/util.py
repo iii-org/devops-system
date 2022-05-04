@@ -86,7 +86,7 @@ def respond(status_code, message=None, data=None, error=None):
         else:
             try:
                 message_obj['data'] = json.loads(data)
-            except ValueError or TypeError:
+            except (ValueError, TypeError):
                 message_obj['data'] = data
     if error is not None:
         message_obj['error'] = error

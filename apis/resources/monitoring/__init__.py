@@ -22,7 +22,12 @@ import config
 import pandas as pd
 import re
 
+
+DATETIMEFORMAT = "%Y-%m-%d %H:%M:%S"
+
+
 class Monitoring:
+
     def __init__(self, project_id=None):
         self.server = None
         self.pj_id = project_id
@@ -75,7 +80,7 @@ class Monitoring:
                 for not_alive_message in not_alive_messages:
                     close_notification_message(not_alive_message["id"])
                     self.send_server_back_notification(not_alive_message["title"])
-        
+
         self.error_title = None
 
     def __check_server_alive(self, func_with_pj, func, *args, **kwargs):
@@ -91,7 +96,7 @@ class Monitoring:
         previous_server_notification = NotificationMessage.query.filter_by(title=title) \
             .order_by(desc(NotificationMessage.created_at)).all()
         if previous_server_notification == [] or \
-            get_not_alive_notification_message_list(title) == []:
+                get_not_alive_notification_message_list(title) == []:
             args = {
                 "alert_level": 102,
                 "title": title,
@@ -145,15 +150,15 @@ class Monitoring:
         for check_element in [harbor_nfs_storage_remain_limit, docker_image_pull_limit_alert]:
             check_element = check_element()
             element_alive = check_element["status"]
+            self.error_title = str(check_element["error_title"])
             if not element_alive:
                 harbor_alive = element_alive
                 self.error_message = str(check_element["message"])
-                self.error_title = str(check_element["error_title"])
                 self.detail = check_element
-                self.__update_all_alive(element_alive)  
+            self.__update_all_alive(element_alive)
+            if not element_alive:
                 self.detail = {}
         return harbor_alive
-       
 
     def k8s_alive(self):
         self.server = "K8s"
@@ -200,8 +205,9 @@ def generate_alive_response(name):
         "name": name.capitalize(),
         "status": alive_mapping[name](),
         "message": monitoring.error_message,
-        "datetime": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+        "datetime": datetime.utcnow().strftime(DATETIMEFORMAT),
     }
+
 
 def server_alive(name):
     alive = generate_alive_response(name)
@@ -218,10 +224,10 @@ def row_to_dict(row):
 
 def create_monitoring_record(args):
     row = MonitoringRecord(
-        server = args["server"],
-        message = args["message"],
-        detail = args.get("detail", {}),
-        created_at = datetime.utcnow()
+        server=args["server"],
+        message=args["message"],
+        detail=args.get("detail", {}),
+        created_at=datetime.utcnow()
     )
     db.session.add(row)
     db.session.commit()
@@ -276,7 +282,7 @@ def docker_image_pull_limit_alert():
         "status": status,
         "remain_limit": limit,
         "message": message,
-        "datetime": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+        "datetime": datetime.utcnow().strftime(DATETIMEFORMAT),
     }
 
 
@@ -301,7 +307,7 @@ def harbor_nfs_storage_remain_limit():
             "used": ret["Used"],
             "avail": ret["Avail"],
             "message": "Nfs Folder Used percentage exceeded 75%!" if not status else None,
-            "datetime": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+            "datetime": datetime.utcnow().strftime(DATETIMEFORMAT),
         }
     except Exception as e:
         return {
@@ -312,6 +318,5 @@ def harbor_nfs_storage_remain_limit():
             "used": None,
             "avail": None,
             "message": str(e),
-            "datetime": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+            "datetime": datetime.utcnow().strftime(DATETIMEFORMAT),
         }
-    
