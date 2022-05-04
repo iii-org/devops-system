@@ -824,7 +824,7 @@ def update_issue(issue_id, args, operator_id=None):
     before_status_id = issue.status.id
 
     # Issue can not be updated when its tracker is in its force tracker checking setting' tracker.
-    check_issue_project_id = args.get("project_id", pj_id)
+    check_issue_project_id = args.get("project_id") or pj_id
     project_issue_check = model.ProjectIssueCheck.query.filter_by(project_id=check_issue_project_id).first()
     if project_issue_check is not None and project_issue_check.enable:
         if hasattr(issue, 'parent'):
