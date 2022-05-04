@@ -1613,12 +1613,15 @@ class ReleasesV2(MethodResource):
                                     error=apiError.release_unable_to_build(release_obj.valid_info))
             # Close Redmine Versions
             closed_version = False
+            check_gitlab_release = False
+            create_harbor_release = False
+            
             for version in kwargs['versions']:
                 params = {"version": {"status": "closed"}}
                 redmine.rm_put_version(version, params)
                 closed_version = True
+            
             # check  Gitalb Release
-            check_gitlab_release = False
             # if release_obj.gitlab_info.get('check') == True:
             gitlab_data = {
                 'tag_name': release_name,
@@ -1631,11 +1634,10 @@ class ReleasesV2(MethodResource):
                 release_obj.plugin_relation.git_repository_id, gitlab_data)
             check_gitlab_release = True
             #  Create Harbor Release
-            create_harbor_release = False
             image_path = [f"{release_obj.project.name}/{branch_name}:{release_name}"]
             if release_obj.harbor_info['target'].get('release', None) is not None:
                 if kwargs.get("extra_image_path") is not None and f"{release_obj.project.name}/{kwargs.get('extra_image_path')}" not in image_path:
-                    image_path = [f"{self.project.name}/{kwargs.get('extra_image_path')}"] + image_path
+                    image_path = [f"{release_obj.project.name}/{kwargs.get('extra_image_path')}"] + image_path
                     extra_image_path = kwargs.get("extra_image_path").split(":")
                     extra_dest_repo, extra_dest_tag = extra_image_path[0], extra_image_path[1]
                     hb_copy_artifact_and_retage(release_obj.project.name, branch_name, extra_dest_repo, kwargs.get("commit"), extra_dest_tag)

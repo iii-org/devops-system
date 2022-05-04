@@ -530,12 +530,15 @@ class Releases(Resource):
                                     error=apiError.release_unable_to_build(self.valid_info))
             # Close Redmine Versions
             closed_version = False
+            check_gitlab_release = False
+            create_harbor_release = False
+
             for version in args['versions']:
                 params = {"version": {"status": "closed"}}
                 redmine.rm_put_version(version, params)
                 closed_version = True
+
             # check  Gitalb Release
-            check_gitlab_release = False
             # if self.gitlab_info.get('check') == True:
             gitlab_data = {
                 'tag_name': release_name,
@@ -548,7 +551,6 @@ class Releases(Resource):
                 self.plugin_relation.git_repository_id, gitlab_data)
             check_gitlab_release = True
             #  Create Harbor Release
-            create_harbor_release = False
             image_path = [f"{self.project.name}/{branch_name}:{release_name}"]
             if self.harbor_info['target'].get('release', None) is not None:
                 if args.get("extra_image_path") is not None and f"{self.project.name}/{args.get('extra_image_path')}" not in image_path: 
