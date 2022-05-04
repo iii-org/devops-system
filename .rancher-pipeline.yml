@@ -34,6 +34,7 @@ stages:
       - develop
       - test-sonarqube-report
       - 1.17.0-yuwei
+      - yuwei-1-17
 - name: Test--Checkmarx source code scan
   iiidevops: checkmarx
   steps:
@@ -54,6 +55,7 @@ stages:
       include:
       - master
       - develop
+      - yuwei-1-17
 - name: Deploy--Set Web environment variables
   iiidevops: deployed-environments
   steps:
