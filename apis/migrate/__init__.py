@@ -37,7 +37,7 @@ VERSIONS = ['0.9.2', '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.4', '0.9.2.5',
             '1.14.0.1', '1.14.0.2', '1.14.0.3', '1.14.0.4', '1.14.0.5', '1.14.0.6', '1.14.0.7', '1.14.0.8', '1.14.0.9', '1.14.0.10', '1.15.0.1',
             '1.15.0.2', '1.15.0.3', '1.15.0.4', '1.15.0.5', '1.15.0.6', '1.15.0.7', '1.15.0.8', '1.15.0.9', '1.15.0.10', '1.15.0.11', '1.15.0.12',
             '1.15.0.13', '1.15.0.14', '1.15.0.15', '1.15.0.16', '1.15.1.0', '1.15.1.1', '1.15.2.0', '1.15.2.1', '1.15.2.2', '1.15.2.3', '1.15.2.4',
-            '1.16.0.1', '1.16.1.0']
+            '1.16.0.1', '1.16.1.0', '1.16.1.1']
 ONLY_UPDATE_DB_MODELS = [
     '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.5', '0.9.2.6', '0.9.2.a8',
     '1.0.0.2', '1.3.0.1', '1.3.0.2', '1.3.0.3', '1.3.0.4', '1.3.1', '1.3.1.1', '1.3.1.2',
@@ -186,7 +186,15 @@ def upgrade(version):
     elif version == '1.15.2.3':
         wrong_name_cronjob_list = ["routing-job-by-day", "routing-job-by-month"]
         del_k8s_cronjob(wrong_name_cronjob_list)
+    elif version == '1.16.1.1':
+        add_update_at_in_release()
 
+
+def add_update_at_in_release():
+    for rel in model.Release.query.all():
+        if rel.update_at is None:
+            rel.update_at = rel.create_at
+            db.session.commit()
 
 def del_k8s_cronjob(wrong_name_cronjob_list):
     # wrong_name_cronjob_list = ["routing-job-by-day", "routing-job-by-month"]
