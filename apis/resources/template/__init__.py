@@ -14,7 +14,7 @@ import resources.role as role
 import resources.yaml_OO as pipeline_yaml_OO
 import util
 import yaml
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import get_jwt_identity,jwt_required
 from flask_restful import Resource, reqparse
 from gitlab import Gitlab
 from gitlab.exceptions import GitlabGetError
@@ -586,6 +586,7 @@ def update_branches(stage, pipline_soft, branch, enable_key_name):
 
 
 def tm_update_pipline_branches(repository_id, data, default=True, run=False):
+    user_account = get_jwt_identity()["user_account"]
     if run is None:
         run = False
     pj = gl.projects.get(repository_id)
@@ -616,7 +617,7 @@ def tm_update_pipline_branches(repository_id, data, default=True, run=False):
                 branch=br.name,
                 author_email='system@iiidevops.org.tw',
                 author_name='iiidevops',
-                commit_message='UI 編輯 .rancher-pipeline.yaml 啟用停用分支')
+                commit_message=f"{user_account} 編輯 {br.name} 分支 .rancher-pipeline.yaml")
             if run is False or (run is True and br.name != branch_name_in_data):
                 pipeline.stop_and_delete_pipeline(repository_id, next_run, branch=br.name)
 
