@@ -352,6 +352,14 @@ def redmine_error(response):
         pass
     return error_3rd_party_api('Redmine', response)
 
+# Harbor
+def harbor_tag_already_exist(tag, repo_name):
+    return build(
+        9001, 
+        f'Harbor repository: {repo_name} already have tag: {tag}.', 
+        {'tag': tag, 'repo_name': repo_name}
+    )
+
 
 def parent_issue_error():
     return build(8101, f"Parent issue setting error! Please confirm that the setting issue is not a sub-issue or related issue of this issue.")

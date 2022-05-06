@@ -979,6 +979,7 @@ class ReleaseExtraGetSchema(Schema):
 
 class ReleaseTagSchema(Schema):
     tags = fields.Str(required=True)
+    forced = fields.Bool()
 
 class ReleaseRepoPostSchema(Schema):
     image_path = fields.Str(

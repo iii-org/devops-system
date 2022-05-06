@@ -18,7 +18,8 @@ from resources.project_permission import get_project_issue_check, create_project
     delete_project_issue_check
 
 
-from resources.harbor import hb_copy_artifact_and_retage, hb_get_artifact, hb_delete_artifact_tag
+from resources.harbor import hb_copy_artifact_and_retage, hb_get_artifact, hb_delete_artifact_tag, hb_list_repositories, \
+    hb_get_artifacts_with_tag
 from sqlalchemy.orm.exc import NoResultFound
 from model import CustomIssueFilter
 from resources import role
@@ -1587,6 +1588,8 @@ class ReleasesV2(MethodResource):
 
         gitlab_ref = branch_name = kwargs.get('branch')
         branch_name = None if branch_name == "" else branch_name
+        forced = kwargs.get('forced') or False
+
         if kwargs.get('commit', None) is None and branch_name is not None:
             kwargs.update({'commit': 'latest'})
         else:
@@ -1596,8 +1599,21 @@ class ReleasesV2(MethodResource):
             release_obj.plugin_relation.plan_project_id)
         release_obj.versions_by_key = release.transfer_array_to_object(
             list_versions['versions'], 'id')
-
         release_name = release_obj.versions_by_key[kwargs['main']]['name']
+
+        # Check tag is exist in repos or not 
+        repo_list = [repo["name"].split("/")[-1] for repo in hb_list_repositories(release_obj.project.name)]
+        extra_image_path_split = kwargs.get("extra_image_path", ":").split(":")
+        extra_image_repo, extra_image_tag = extra_image_path_split[0], extra_image_path_split[1]
+        for repo_name, tag in {
+            branch_name: release_name,
+            extra_image_repo: extra_image_tag}.items():
+            if hb_get_artifacts_with_tag(release_obj.project.name, repo_name, tag) != []:
+                if not forced:
+                    raise apiError.DevOpsError(
+                        500, f'{tag.capitalize()} already exist in this Harbor repository.',
+                        error=apiError.harbor_tag_already_exist(tag, repo_name))
+
         list_statuses = redmine.rm_get_issue_status()
         release_obj.closed_statuses = redmine.get_closed_status(
             list_statuses['issue_statuses'])
@@ -1606,7 +1622,7 @@ class ReleasesV2(MethodResource):
         # Verify Issues is all closed in versions
         release_obj.check_release_states()
         try:
-            if kwargs['forced'] and release_obj.valid_info['check'] is False:
+            if forced and release_obj.valid_info['check'] is False:
                 release_obj.forced_close(release_name, branch_name)
             elif release_obj.valid_info['check'] is False:
                 return util.respond(404, release.error_release_build,
@@ -1640,8 +1656,8 @@ class ReleasesV2(MethodResource):
                     image_path = [f"{release_obj.project.name}/{kwargs.get('extra_image_path')}"] + image_path
                     extra_image_path = kwargs.get("extra_image_path").split(":")
                     extra_dest_repo, extra_dest_tag = extra_image_path[0], extra_image_path[1]
-                    hb_copy_artifact_and_retage(release_obj.project.name, branch_name, extra_dest_repo, kwargs.get("commit"), extra_dest_tag)
-                hb_copy_artifact_and_retage(release_obj.project.name, branch_name, branch_name, kwargs.get("commit"), release_name)
+                    hb_copy_artifact_and_retage(release_obj.project.name, branch_name, extra_dest_repo, kwargs.get("commit"), extra_dest_tag, forced=forced)
+                hb_copy_artifact_and_retage(release_obj.project.name, branch_name, branch_name, kwargs.get("commit"), release_name, forced=forced)
                 create_harbor_release = True
 
             release.create_release(
