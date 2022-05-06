@@ -127,11 +127,11 @@ def update_deployment(versions):
                 logger.exception(str(error_str))
 
     # Send system upgrade to all administrators
-    row = model.NotificationMessage.query.filter(
-        and_(model.NotificationMessage.alert_level == 101,
-             model.NotificationMessage.title.ilike(f'%{version_name}%'))).first()
-    if row:
-        close_notification_message(row.id)
+    rows = model.NotificationMessage.query.filter(and_(
+        model.NotificationMessage.alert_level == 101, model.NotificationMessage.close == False)).all()
+    if len(rows) > 0:
+        for row in rows:
+            close_notification_message(row.id)
 
     logger.info(f'Updating deployment to {version_name}...')
     api_image_tag = versions['api_image_tag']
