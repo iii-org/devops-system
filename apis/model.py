@@ -135,6 +135,7 @@ class Release(db.Model):
     create_at = Column(DateTime)
     update_at = Column(DateTime)
     image_paths = Column(postgresql.ARRAY(String))
+    extra_image_path = Column(String)
     tags = Column(postgresql.ARRAY(String))
     custom_paths = Column(postgresql.ARRAY(String))
 
