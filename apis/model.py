@@ -135,6 +135,8 @@ class Release(db.Model):
     create_at = Column(DateTime)
     update_at = Column(DateTime)
     image_paths = Column(postgresql.ARRAY(String))
+    tags = Column(postgresql.ARRAY(String))
+    custom_paths = Column(postgresql.ARRAY(String))
 
 
 class PluginSoftware(db.Model):
