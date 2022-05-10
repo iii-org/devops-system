@@ -1602,17 +1602,18 @@ class ReleasesV2(MethodResource):
         release_name = release_obj.versions_by_key[kwargs['main']]['name']
 
         # Check tag is exist in repos or not 
-        repo_list = [repo["name"].split("/")[-1] for repo in hb_list_repositories(release_obj.project.name)]
+        # repo_list = [repo["name"].split("/")[-1] for repo in hb_list_repositories(release_obj.project.name)]
         extra_image_path_split = kwargs.get("extra_image_path", ":").split(":")
-        extra_image_repo, extra_image_tag = extra_image_path_split[0], extra_image_path_split[1]
-        for repo_name, tag in {
-            branch_name: release_name,
-            extra_image_repo: extra_image_tag}.items():
-            if hb_get_artifacts_with_tag(release_obj.project.name, repo_name, tag) != []:
-                if not forced:
-                    raise apiError.DevOpsError(
-                        500, f'{tag.capitalize()} already exist in this Harbor repository.',
-                        error=apiError.harbor_tag_already_exist(tag, repo_name))
+        if len(extra_image_path_split) > 1:
+            extra_image_repo, extra_image_tag = extra_image_path_split[0], extra_image_path_split[1]
+            for repo_name, tag in {
+                branch_name: release_name,
+                extra_image_repo: extra_image_tag}.items():
+                if hb_get_artifacts_with_tag(release_obj.project.name, repo_name, tag) != []:
+                    if not forced:
+                        raise apiError.DevOpsError(
+                            500, f'{tag.capitalize()} already exist in this Harbor repository.',
+                            error=apiError.harbor_tag_already_exist(tag, repo_name))
 
         list_statuses = redmine.rm_get_issue_status()
         release_obj.closed_statuses = redmine.get_closed_status(
